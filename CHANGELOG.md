@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Added image pasting functionality similar to Obsidian's.
+
 ### Added
 
 - Added `opts.follow_img_func` option for customizing how to handle image paths.

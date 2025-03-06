@@ -120,6 +120,11 @@ M.paste_img = function(opts)
   fname = util.strip_whitespace(fname)
 
   if fname == "" then
+    fname = string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
+    if util.contains_invalid_characters(fname) then
+      log.warn "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |"
+    end
+  else
     log.err "Invalid file name"
     return
   end
