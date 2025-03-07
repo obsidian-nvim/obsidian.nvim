@@ -296,8 +296,15 @@ This is a complete list of all of the options that can be passed to `require("ob
   completion = {
     -- Enables completion using nvim_cmp
     nvim_cmp = true,
-    -- Enables completion using blink.cmp
-    blink = false,
+      -- Enables completion using blink.cmp
+    blink = {
+      -- Enables completion using blink.cmp
+      enabled = true,
+      -- Blink.cmp sources configuration (Optional)
+      obsidian = {...},
+      obsidian_tags = {...},
+      obsidian_new = {...},
+    },
     -- Trigger completion at 2 chars.
     min_chars = 2,
   },
