@@ -102,8 +102,8 @@ obsidian.setup = function(opts)
   -- Register completion sources, providers
   if opts.completion.nvim_cmp then
     require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()
-  elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").register_providers()
+  elseif opts.completion.blink and opts.completion.blink.enabled then
+    require("obsidian.completion.plugin_initializers.blink").register_providers(opts.completion.blink)
   end
 
   local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })

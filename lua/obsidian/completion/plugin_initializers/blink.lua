@@ -11,10 +11,10 @@ M.providers = {
   { name = "obsidian_new", module = "obsidian.completion.sources.blink.new" },
 }
 
-local function add_provider(blink, provider_name, proivder_module)
-  blink.add_provider(provider_name, {
+local function add_provider(blink, provider_name, provider_module, provider_opts)
+  local opts = {
     name = provider_name,
-    module = proivder_module,
+    module = provider_module,
     async = true,
     opts = {},
     enabled = function()
@@ -23,15 +23,18 @@ local function add_provider(blink, provider_name, proivder_module)
         and vim.bo.buftype ~= "prompt"
         and vim.b.completion ~= false
     end,
-  })
+  }
+  opts = vim.tbl_deep_extend("force", opts, provider_opts)
+  blink.add_provider(provider_name, opts)
 end
 
 -- Ran once on the plugin startup
-function M.register_providers()
+--- @param provider_opts obsidian.config.BlinkOpts
+function M.register_providers(provider_opts)
   local blink = require "blink.cmp"
 
   for _, provider in pairs(M.providers) do
-    add_provider(blink, provider.name, provider.module)
+    add_provider(blink, provider.name, provider.module, provider_opts[provider.name] or {})
   end
 end
 

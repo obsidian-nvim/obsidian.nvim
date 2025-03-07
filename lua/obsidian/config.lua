@@ -280,9 +280,17 @@ config.LinkStyle = {
 ---@class obsidian.config.CompletionOpts
 ---
 ---@field nvim_cmp boolean
----@field blink boolean
+---@field blink obsidian.config.BlinkOpts
 ---@field min_chars integer
 config.CompletionOpts = {}
+
+---@class obsidian.config.BlinkOpts
+---
+---@field enabled boolean
+---@field obsidian table<string, any>
+---@field obsidian_tags table<string, any>
+---@field obsidian_new table<string, any>
+config.BlinkOpts = {}
 
 --- Get defaults.
 ---
