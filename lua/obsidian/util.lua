@@ -1341,4 +1341,14 @@ util.buffer_is_empty = function(bufnr)
   end
 end
 
+--- Check if a string contains invalid characters.
+---
+--- @param fname string
+---
+--- @return boolean
+util.contains_invalid_characters = function(fname)
+  local invalid_chars = "#^%[%]|"
+  return string.find(fname, "[" .. invalid_chars .. "]") ~= nil
+end
+
 return util
