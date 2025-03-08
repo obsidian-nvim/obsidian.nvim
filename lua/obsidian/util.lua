@@ -1341,4 +1341,12 @@ util.buffer_is_empty = function(bufnr)
   end
 end
 
+---Check if a string is not converted to Nan
+---
+---@param v any
+---@return boolean
+util.isNan = function (v)
+   return tostring(v) == tostring(0 / 0)
+end
+
 return util

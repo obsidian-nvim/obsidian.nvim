@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed typo in `ObsidianPasteImg`'s command description
 - Fixed the case when `opts.attachments` is `nil`.
 - Fixed bug where `ObsidianNewFromTemplate` did not respect `note_id_func`
+- Fixed bug where parser treats "Nan" as a number instead of a string
 
 ## [v3.9.0](https://github.com/epwalsh/obsidian.nvim/releases/tag/v3.9.0) - 2024-07-11
 
