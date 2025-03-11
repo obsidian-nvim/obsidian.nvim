@@ -2076,4 +2076,36 @@ Client.picker = function(self, picker_name)
   return require("obsidian.pickers").get(self, picker_name)
 end
 
+---@class obsidian.Task
+---
+---@field path string The path to the note.
+---@field line integer The line number (1-indexed) where the task was found.
+---@field description string The text of the line where the task was found.
+---@field status string The status of the task.
+
+--todo: support for task status
+--todo: make it async
+--todo: can we reuse the search function? move the result parsing to the command
+---@return obsidian.Task[]
+Client.find_tasks = function(self)
+  local openTasks = search.search(self.dir, "- \\[(.)\\]", search.SearchOpts.default())
+  --- @type obsidian.Task[]
+  local result = {}
+
+  --- @type MatchData|?
+  local taskMatch = openTasks()
+  while taskMatch do
+    -- matching in lua since ripgrep doesn't support capturing groups in the --json output
+    local status, description = string.match(taskMatch.lines.text, "- %[(.)%] (.*)")
+    result[#result + 1] = {
+      status = status,
+      description = description,
+      line = taskMatch.line_number,
+      path = taskMatch.path.text,
+    }
+    taskMatch = openTasks()
+  end
+  return result
+end
+
 return Client
