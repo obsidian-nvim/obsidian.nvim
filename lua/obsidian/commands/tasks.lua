@@ -1,4 +1,3 @@
-
 -- TODO: Use config settings for icons
 local task_configs = {
   ["x"] = { name = "done", char = "" },
