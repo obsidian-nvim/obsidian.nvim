@@ -11,13 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `opts.follow_img_func` option for customizing how to handle image paths.
 - Added better handling for undefined template fields, which will now be prompted for.
-- Added support for the [`snacks.picker`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) picker
+- Added support for the [`snacks.picker`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) picker.
 - Added support for the [`blink.cmp`](https://github.com/Saghen/blink.cmp) completion plugin.
+- Added `opts.legacy_commands` option which enables the old commands.
 
 ### Changed
 
 - Renamed `opts.image_name_func` to `opts.attachments.img_name_func`.
-- Default to not activate ui render when `render-markdown.nvim` or `markview.nvim` is present
+- Default to not activate ui render when `render-markdown.nvim` or `markview.nvim` is present.
+- Moved all commands into one `:Obsidian` command.
 
 ### Fixed
 
