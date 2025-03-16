@@ -99,6 +99,10 @@ obsidian.setup = function(opts)
   -- These will be available across all buffers, not just note buffers in the vault.
   obsidian.commands.install(client)
 
+  if opts.legacy_commands then
+    obsidian.commands.install_legacy(client)
+  end
+
   -- Register completion sources, providers
   if opts.completion.nvim_cmp then
     require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()
