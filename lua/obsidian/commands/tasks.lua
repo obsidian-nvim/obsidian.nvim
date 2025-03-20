@@ -1,17 +1,18 @@
 -- TODO: Use config settings for icons
 local task_configs = {
-  ["x"] = { name = "done", char = "" },
-  [" "] = { name = "todo", char = "󰄱" },
-  ["~"] = { name = "cancelled", char = "󰰱" },
-  ["-"] = { name = "cancelled", char = "󰰱" },
-  ["!"] = { name = "urgent", char = "" },
-  [">"] = { name = "in progress", char = "" },
-  ["/"] = { name = "in progress", char = "" },
+  -- in progress
+  ["/"] = { char = " ", order = 0, name = "in progress", hl_group = "ObsidianRightArrow" },
+  -- todo
+  [" "] = { char = "󰄱 ", order = 1, name = "todo", hl_group = "ObsidianTodo" },
+  -- done
+  ["x"] = { char = " ", order = 2, name = "done", hl_group = "ObsidianDone" },
+  -- cancelled
+  ["-"] = { char = " ", order = 3, name = "cancelled", hl_group = "ObsidianTilde" },
 }
 
 -- Map states by name for quick lookup
 local states = {}
-for _, config in pairs(task_configs) do
+for _, config in pairs(task_configs or {}) do
   states[config.name] = config
 end
 
@@ -20,7 +21,10 @@ end
 ---@return string? next_state
 local function get_next_state(current_state)
   local state_names = vim.tbl_keys(states)
-  table.sort(state_names) -- Ensures predictable order
+  -- sort state names by order
+  table.sort(state_names, function(a, b)
+    return (states[a].order or 0) < (states[b].order or 0)
+  end)
   for i, name in ipairs(state_names) do
     if name == current_state then
       return state_names[i % #state_names + 1]
