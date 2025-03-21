@@ -431,6 +431,7 @@ config.UIOpts = {}
 ---@field char string
 ---@field hl_group string
 ---@field order integer
+---@field name string
 
 ---@class obsidian.config.UIStyleSpec
 ---
