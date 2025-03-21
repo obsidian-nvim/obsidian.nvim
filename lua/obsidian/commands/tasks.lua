@@ -48,7 +48,6 @@ local function showTasks(client, data)
   local tasks = client:find_tasks()
   local toShow = {}
 
-  -- TODO: Hide filename, show only the task
   for _, task in ipairs(tasks) do
     local tStatus = checkboxes[task.status]
     if tStatus and (not filter or tStatus.name == filter) then

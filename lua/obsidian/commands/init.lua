@@ -191,7 +191,7 @@ M.register(
 M.register("ObsidianDebug", { opts = { nargs = 0, desc = "Log some information for debugging" } })
 
 M.register("ObsidianTOC", { opts = { nargs = 0, desc = "Load the table of contents into a picker" } })
--- register the tasks command, the task should accept one argument that can be done or todo
+
 M.register("ObsidianTasks", { opts = { nargs = "?", desc = "List all tasks" } })
 
 return M

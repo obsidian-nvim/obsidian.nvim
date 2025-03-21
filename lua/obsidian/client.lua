@@ -2083,9 +2083,6 @@ end
 ---@field description string The text of the line where the task was found.
 ---@field status string The status of the task.
 
---todo: support for task status
---todo: make it async
---todo: can we reuse the search function? move the result parsing to the command
 ---@return obsidian.Task[]
 Client.find_tasks = function(self)
   local openTasks = search.search(self.dir, "- \\[(.)\\]", search.SearchOpts.default())
