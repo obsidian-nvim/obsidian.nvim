@@ -16,8 +16,13 @@ return function(client, data)
 
   ---@type obsidian.Note
   local note
-  if data.args and data.args:len() > 0 then
-    note = client:create_note { title = data.args, no_write = true }
+  if data.args and data.args ~= "" then
+    local args = vim.split(data.args, " ", { trimempty = true })
+    if #args == 1 then
+      note = client:create_note { title = args[1], no_write = true }
+    elseif #args >= 2 then
+      note = client:create_note { title = args[1], template = args[2], no_write = true }
+    end
   else
     local title = util.input("Enter title or path (optional): ", { completion = "file" })
     if not title then
