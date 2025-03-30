@@ -147,9 +147,11 @@ return function(client, data)
     if is_current_buf then
       -- If we're renaming the note of a current buffer, save as the new path.
       if not dry_run then
-        quietly(vim.cmd.saveas, tostring(new_note_path))
-        for bufnr, bufname in util.get_named_buffers() do
-          if bufname == cur_note_path then
+        quietly(function()
+          vim.cmd("keepalt saveas " .. tostring(new_note_path))
+        end)
+        for bufnr, bufname in util.get_named_buffers(true) do
+          if bufname == cur_note_path.filename then
             quietly(vim.cmd.bdelete, bufnr)
           end
         end
