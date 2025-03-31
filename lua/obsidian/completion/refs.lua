@@ -43,12 +43,12 @@ M.can_complete = function(request)
     local suffix = string.sub(request.context.cursor_after_line, 1, 2)
     local cursor_col = request.context.cursor.col
     local insert_end_offset = suffix == "]]" and 1 or -1
-    return true, search, cursor_col - 1 - #input, cursor_col + insert_end_offset, M.RefType.Wiki
+    return true, search, cursor_col - #input, cursor_col + insert_end_offset, M.RefType.Wiki
   elseif vim.startswith(input, "[") then
     local suffix = string.sub(request.context.cursor_after_line, 1, 1)
     local cursor_col = request.context.cursor.col
     local insert_end_offset = suffix == "]" and 0 or -1
-    return true, search, cursor_col - 1 - #input, cursor_col + insert_end_offset, M.RefType.Markdown
+    return true, search, cursor_col - #input, cursor_col + insert_end_offset, M.RefType.Markdown
   else
     return false
   end
