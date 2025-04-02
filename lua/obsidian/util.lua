@@ -757,6 +757,11 @@ util.smart_action = function()
     return "<cmd>ObsidianFollowLink<CR>"
   end
 
+  -- show notes with tag if possible
+  if util.cursor_tag(nil, nil) then
+    return "<cmd>ObsidianTag<CR>"
+  end
+
   -- toggle task if possible
   -- cycles through your custom UI checkboxes, default: [ ] [~] [>] [x]
   return "<cmd>ObsidianToggleCheckbox<CR>"
