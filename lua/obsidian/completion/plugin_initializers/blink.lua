@@ -26,7 +26,7 @@ local function add_provider(blink, provider_name, provider_module, provider_opts
     end,
   }
   opts = vim.tbl_deep_extend("force", opts, provider_opts)
-  blink.add_source_provider(provider_name, opts)
+  add_source_provider(provider_name, opts)
 end
 
 -- Ran once on the plugin startup
