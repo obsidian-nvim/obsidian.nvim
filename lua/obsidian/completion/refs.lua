@@ -1,4 +1,5 @@
 local util = require "obsidian.util"
+local ts_util = require "obsidian.treesitter"
 
 local M = {}
 
@@ -13,6 +14,10 @@ M.RefType = {
 ---@param input string
 ---@return string|?, string|?, obsidian.completion.RefType|?
 local find_search_start = function(input)
+  if ts_util.in_mathzone() then
+    return nil
+  end
+
   for i = string.len(input), 1, -1 do
     local substr = string.sub(input, i)
     if vim.startswith(substr, "]") or vim.endswith(substr, "]") then
