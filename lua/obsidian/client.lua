@@ -266,7 +266,7 @@ Client.templates_dir = function(self, workspace)
     return nil
   end
 
-  local paths_to_check = { Path.new(opts.templates.folder), self:vault_root(workspace) / opts.templates.folder }
+  local paths_to_check = { self:vault_root(workspace) / opts.templates.folder, Path.new(opts.templates.folder) }
   for _, path in ipairs(paths_to_check) do
     if path:is_dir() then
       return path
