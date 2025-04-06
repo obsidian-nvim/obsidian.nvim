@@ -399,40 +399,33 @@ describe("util.toggle_checkbox", function()
 
   it("should toggle between default states", function()
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] dummy" })
+    local expected_cases = {
+      "- [x] dummy",
+      "- [ ] dummy",
+    }
+    local custom_states = nil
 
-    -- [ ] --> [x]
-    util.toggle_checkbox()
+    for _, expected in ipairs(expected_cases) do
+      util.toggle_checkbox(custom_states)
 
-    local line
-    line = vim.api.nvim_buf_get_lines(0, 0, -1, false)[1]
-    assert.equals("- [x] dummy", line, line)
-
-    -- [x] --> [ ]
-    util.toggle_checkbox()
-
-    line = vim.api.nvim_buf_get_lines(0, 0, -1, false)[1]
-    assert.equals("- [ ] dummy", line, line)
-
-    -- [ ] --> [x]
-    util.toggle_checkbox()
-
-    line = vim.api.nvim_buf_get_lines(0, 0, -1, false)[1]
-    assert.equals("- [x] dummy", line, line)
+      local line = vim.api.nvim_buf_get_lines(0, 0, -1, false)[1]
+      assert.equals(expected, line, line)
+    end
   end)
 
   it("should use custom states if provided", function()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] dummy" })
     local expected_cases = {
       "- [!] dummy",
       "- [x] dummy",
       "- [ ] dummy",
       "- [!] dummy",
     }
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] dummy" })
-
     local custom_states = { " ", "!", "x" }
 
     for _, expected in ipairs(expected_cases) do
       util.toggle_checkbox(custom_states)
+
       local line = vim.api.nvim_buf_get_lines(0, 0, -1, false)[1]
       assert.equals(expected, line, line)
     end
