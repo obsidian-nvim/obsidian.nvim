@@ -503,7 +503,10 @@ util.zettel_id = function()
   return tostring(os.time()) .. "-" .. suffix
 end
 
----Toggle the checkbox on the line that the cursor is on.
+---Toggle the checkbox on the current line.
+---
+---@param opts table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
+---@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
 util.toggle_checkbox = function(opts, line_num)
   -- Allow line_num to be optional, defaulting to the current line if not provided
   line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
