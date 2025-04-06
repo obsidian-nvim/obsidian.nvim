@@ -531,25 +531,22 @@ util.toggle_checkbox = function(opts, line_num)
   line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
 
-  local checkbox_pattern = "^%s*- %[.] "
   local checkboxes = opts or { " ", "x" }
 
-  if not string.match(line, checkbox_pattern) then
+  if util.is_checkbox(line) then
+    for i, check_char in enumerate(checkboxes) do
+      if string.match(line, "^.* %[" .. util.escape_magic_characters(check_char) .. "%].*") then
+        i = i % #checkboxes
+        line = util.string_replace(line, "[" .. check_char .. "]", "[" .. checkboxes[i + 1] .. "]", 1)
+        break
+      end
+    end
+  else
     local unordered_list_pattern = "^(%s*)[-*+] (.*)"
     if string.match(line, unordered_list_pattern) then
       line = string.gsub(line, unordered_list_pattern, "%1- [ ] %2")
     else
       line = string.gsub(line, "^(%s*)", "%1- [ ] ")
-    end
-  else
-    for i, check_char in enumerate(checkboxes) do
-      if string.match(line, "^%s*- %[" .. util.escape_magic_characters(check_char) .. "%].*") then
-        if i == #checkboxes then
-          i = 0
-        end
-        line = util.string_replace(line, "- [" .. check_char .. "]", "- [" .. checkboxes[i + 1] .. "]", 1)
-        break
-      end
     end
   end
   -- 0-indexed
