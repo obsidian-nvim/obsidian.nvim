@@ -419,7 +419,7 @@ describe("util.toggle_checkbox", function()
     assert.equals("* [ ] dummy", vim.api.nvim_get_current_line())
   end)
 
-  it("should toggle between default states with numbered lists", function()
+  it("should toggle between default states with numbered lists with .", function()
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { "1. [ ] dummy" })
     local custom_states = nil
 
@@ -428,6 +428,17 @@ describe("util.toggle_checkbox", function()
 
     util.toggle_checkbox(custom_states)
     assert.equals("1. [ ] dummy", vim.api.nvim_get_current_line())
+  end)
+
+  it("should toggle between default states with numbered lists with )", function()
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "1) [ ] dummy" })
+    local custom_states = nil
+
+    util.toggle_checkbox(custom_states)
+    assert.equals("1) [x] dummy", vim.api.nvim_get_current_line())
+
+    util.toggle_checkbox(custom_states)
+    assert.equals("1) [ ] dummy", vim.api.nvim_get_current_line())
   end)
 
   it("should use custom states if provided", function()
