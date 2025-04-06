@@ -181,14 +181,23 @@ end
 ---Supported checboox lists:
 --- - [ ] foo
 --- - [x] foo
+--- + [x] foo
 --- * [ ] foo
 --- 1. [ ] foo
+--- 1) [ ] foo
 ---
 ---@param s string
 ---@return boolean
 util.is_checkbox = function(s)
-  local list_item_pattern = "^%s*[-+*%d%.]+%s*%[.%]"
-  return string.match(s, list_item_pattern) ~= nil
+  -- - [ ] and * [ ] and + [ ]
+  if string.match(s, "^%s*[-+*]%s+%[.%]") ~= nil then
+    return true
+  end
+  -- 1. [ ] and 1) [ ]
+  if string.match(s, "^%s*%d+[%.%)]%s+%[.%]") ~= nil then
+    return true
+  end
+  return false
 end
 
 ---Check if a string is a valid URL.
