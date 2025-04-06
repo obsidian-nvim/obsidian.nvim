@@ -176,6 +176,21 @@ util.escape_magic_characters = function(text)
   return text:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
 end
 
+---Check if a string is a checkbox list item
+---
+---Supported checboox lists:
+--- - [ ] foo
+--- - [x] foo
+--- * [ ] foo
+--- 1. [ ] foo
+---
+---@param s string
+---@return boolean
+util.is_checkbox = function(s)
+  local list_item_pattern = "^%s*[-+*%d%.]+%s*%[.%]"
+  return string.match(s, list_item_pattern) ~= nil
+end
+
 ---Check if a string is a valid URL.
 ---@param s string
 ---@return boolean
@@ -193,6 +208,10 @@ util.is_url = function(s)
   end
 end
 
+---Checks if a given string represents an image file based on its suffix.
+---
+---@param s string: The input string to check.
+---@return boolean: Returns true if the string ends with a supported image suffix, false otherwise.
 util.is_img = function(s)
   for _, suffix in ipairs { ".png", ".jpg", ".jpeg", ".heic", ".gif", ".svg", ".ico" } do
     if vim.endswith(s, suffix) then
