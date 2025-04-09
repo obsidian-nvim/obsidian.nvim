@@ -109,7 +109,9 @@ M.paste_img = function(opts)
       fname = opts.default_name
     else
       fname = util.input("Enter file name: ", { default = opts.default_name, completion = "file" })
-      if not fname then
+      if fname == "" then
+        fname = opts.default_name
+      elseif not fname then
         log.warn "Paste aborted"
         return
       end
@@ -119,12 +121,10 @@ M.paste_img = function(opts)
   assert(fname)
   fname = util.strip_whitespace(fname)
 
-  if fname == "" then
-    fname = string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
-    if util.contains_invalid_characters(fname) then
-      log.warn "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |"
-    end
-  else
+  -- Verify filename
+  if util.contains_invalid_characters(fname) then
+    log.warn "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |"
+  elseif fname == "" then
     log.err "Invalid file name"
     return
   end

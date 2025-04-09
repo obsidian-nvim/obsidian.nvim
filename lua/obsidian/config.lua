@@ -490,6 +490,9 @@ config.AttachmentsOpts.default = function()
       path = client:vault_relative_path(path) or path
       return string.format("![%s](%s)", path.name, path)
     end,
+    img_name_func = function()
+      return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
+    end,
     confirm_img_paste = true,
   }
 end

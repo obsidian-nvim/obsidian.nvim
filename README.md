@@ -123,7 +123,7 @@ Here are some examples using different plugin managers. The full set of [plugin 
 ```lua
 return {
   "obsidian-nvim/obsidian.nvim",
-  version = "*",  -- recommended, use latest release instead of latest commit
+  version = "*", -- recommended, use latest release instead of latest commit
   lazy = true,
   ft = "markdown",
   -- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
@@ -160,9 +160,9 @@ return {
 #### Using [`packer.nvim`](https://github.com/wbthomason/packer.nvim)
 
 ```lua
-use({
+use {
   "obsidian-nvim/obsidian.nvim",
-  tag = "*",  -- recommended, use latest release instead of latest commit
+  tag = "*", -- recommended, use latest release instead of latest commit
   requires = {
     -- Required.
     "nvim-lua/plenary.nvim",
@@ -170,7 +170,7 @@ use({
     -- see below for full list of optional dependencies 👇
   },
   config = function()
-    require("obsidian").setup({
+    require("obsidian").setup {
       workspaces = {
         {
           name = "personal",
@@ -183,9 +183,9 @@ use({
       },
 
       -- see below for full list of options 👇
-    })
+    }
   end,
-})
+}
 ```
 
 ### Plugin dependencies
@@ -528,11 +528,11 @@ This is a complete list of all of the options that can be passed to `require("ob
     -- You can always override this per image by passing a full path to the command instead of just a filename.
     img_folder = "assets/imgs",  -- This is the default
 
-    -- Optional, customize the default name or prefix when pasting images via `:ObsidianPasteImg`.
+    -- A function that determines default name or prefix when pasting images via `:ObsidianPasteImg`.
     ---@return string
     img_name_func = function()
       -- Prefix image names with timestamp.
-      return string.format("%s-", os.time())
+      return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
 
     -- A function that determines the text to insert in the note when pasting an image.
@@ -564,7 +564,7 @@ config = {
       name = "personal",
       path = "~/vaults/personal",
     },
-  }
+  },
 }
 ```
 
@@ -591,7 +591,7 @@ config = {
         -- ...
       },
     },
-  }
+  },
 }
 ```
 
@@ -607,7 +607,7 @@ config = {
         return assert(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
       end,
     },
-  }
+  },
 }
 ```
 
@@ -627,12 +627,12 @@ Note that in order to trigger completion for tags _within YAML frontmatter_ you 
 If you're using [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter/blob/master/README.md) you're configuration should include both "markdown" and "markdown_inline" sources:
 
 ```lua
-require("nvim-treesitter.configs").setup({
+require("nvim-treesitter.configs").setup {
   ensure_installed = { "markdown", "markdown_inline", ... },
   highlight = {
     enable = true,
   },
-})
+}
 ```
 
 If you use `vim-markdown` you'll probably want to disable its frontmatter syntax highlighting (`vim.g.vim_markdown_frontmatter = 1`) which I've found doesn't work very well.
