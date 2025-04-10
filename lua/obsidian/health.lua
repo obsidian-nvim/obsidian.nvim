@@ -1,13 +1,16 @@
----@class render.md.Health
 local M = {}
-local util = require "obsidian.util"
 local VERSION = require "obsidian.version"
+local util = require "obsidian.util"
 
-local info = function(...)
+local error = vim.health.error
+local warn = vim.health.warn
+local ok = vim.health.ok
+
+local function info(...)
   local t = { ... }
   local format = table.remove(t, 1)
   local str = #t == 0 and format or string.format(format, unpack(t))
-  return vim.health.ok(str)
+  return ok(str)
 end
 
 ---@private
@@ -17,52 +20,50 @@ local function start(name)
 end
 
 ---@param plugin string
+---@param optional boolean
 ---@return boolean
-local function check_plugin(plugin)
+local function has_plugin(plugin, optional)
   local plugin_info = util.get_plugin_info(plugin)
   if plugin_info then
     info("  ✓ %s: %s", plugin, plugin_info.commit or "unknown")
     return true
+  else
+    if not optional then
+      vim.health.error(" " .. plugin .. " not installed")
+    end
+    return false
   end
-  return false
 end
 
 ---@param plugins string[]
 local function has_one_of(plugins)
   local found
   for _, plugin in ipairs(plugins) do
-    if check_plugin(plugin) then
+    if has_plugin(plugin, true) then
       found = true
     end
   end
   if not found then
-    vim.health.warning("Need at least one of " .. vim.inspect(plugins))
+    vim.health.warn("It is recommended to install at least one of " .. vim.inspect(plugins))
   end
 end
-
-local Path = require "obsidian.path"
 
 ---@param minimum string
 ---@param recommended string
 local function neovim(minimum, recommended)
   if vim.fn.has("nvim-" .. minimum) == 0 then
-    vim.health.error("neovim < " .. minimum)
+    error("neovim < " .. minimum)
   elseif vim.fn.has("nvim-" .. recommended) == 0 then
-    vim.health.warn("neovim < " .. recommended .. " some features will not work")
+    warn("neovim < " .. recommended .. " some features will not work")
   else
-    vim.health.ok("neovim >= " .. recommended)
+    ok("neovim >= " .. recommended)
   end
 end
 
 function M.check()
   neovim("0.8", "0.11")
   start "Version"
-  local ob_info = util.get_plugin_info() or {}
-  info("Obsidian.nvim v%s (%s)", VERSION, ob_info.commit or "unknown commit")
-
-  start "Status"
-  -- ok("  • buffer directory: %s", client.buf_dir)
-  info("  • working directory: %s", Path.cwd())
+  info("Obsidian.nvim v%s (%s)", VERSION, util.get_plugin_info("obsidian.nvim").commit)
 
   start "Pickers"
 
@@ -83,13 +84,7 @@ function M.check()
 
   start "Dependencies"
   info("  ✓ rg: %s", util.get_external_dependency_info "rg" or "not found")
-  info("  ✓ %s: %s", "plenary.nvim", util.get_plugin_info("plenary.nvim").commit or "unknown")
-
-  start "Environment"
-  info("  • operating system: %s", util.get_os())
-
-  -- start "Config:"
-  -- ok("  • notes_subdir: %s", client.opts.notes_subdir)
+  has_plugin("plenary.nvim", false)
 end
 
 return M
