@@ -11,6 +11,10 @@ local plugins = {
     dependencies = { "nvim-lua/plenary.nvim" },
     dir = "~/Plugins/obsidian.nvim/",
     opts = {
+      completion = {
+        blink = true,
+        nvim_cmp = false,
+      },
       workspaces = {
         {
           name = "test",
@@ -29,6 +33,28 @@ local plugins = {
   -- "folke/snacks.nvim",
   -- "ibhagwan/fzf-lua",
   -- "echasnovski/mini.pick",
+
+  {
+    "hrsh7th/nvim-cmp",
+    config = function()
+      local cmp = require "cmp"
+      cmp.setup {
+        mapping = cmp.mapping.preset.insert {
+          ["<C-e>"] = cmp.mapping.abort(),
+          ["<C-y>"] = cmp.mapping.confirm { select = true },
+        },
+      }
+    end,
+  },
+  {
+    "saghen/blink.cmp",
+    opts = {
+      fuzzy = { implementation = "lua" }, -- no need to build binary
+      keymap = {
+        preset = "default",
+      },
+    },
+  },
 }
 
 require("lazy.minit").repro { spec = plugins }
