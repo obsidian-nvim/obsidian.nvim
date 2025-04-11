@@ -9,7 +9,6 @@ local plugins = {
   {
     "obsidian-nvim/obsidian.nvim",
     dependencies = { "nvim-lua/plenary.nvim" },
-    dir = "~/Plugins/obsidian.nvim/",
     opts = {
       completion = {
         blink = true,
