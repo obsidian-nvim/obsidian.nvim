@@ -12,6 +12,7 @@ If you're new to Obsidian we highly recommend watching [this excellent YouTube v
 _Keep in mind this plugin is not meant to replace Obsidian, but to complement it._ The Obsidian app is very powerful in its own way; it comes with a mobile app and has a lot of functionality that's not feasible to implement in Neovim, such as the graph explorer view. That said, this plugin stands on its own as well. You don't necessarily need to use it alongside the Obsidian app.
 
 ## About the fork
+
 The original project has not been actively maintained for quite a while and with the ever-changing Neovim ecosystem, new widely used tools such as [blink.cmp](https://github.com/Saghen/blink.cmp) or [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) were not supported.
 With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
 The fork aims to stay close to the original, but fix bugs, include and merge useful improvements, and ensure long term robustness.
@@ -122,6 +123,10 @@ To configure obsidian.nvim you just need to call `require("obsidian").setup({ ..
 Here are some examples using different plugin managers. The full set of [plugin dependencies](#plugin-dependencies) and [configuration options](#configuration-options) are listed below.
 
 > ⚠️ WARNING: if you install from the latest release (recommended for stability) instead of `main`, be aware that the README on `main` may reference features that haven't been released yet. For that reason I recommend viewing the README on the tag for the [latest release](https://github.com/obsidian-nvim/obsidian.nvim/releases) instead of `main`.
+
+> [!NOTE]
+> To see you installation status, run `:checkhealth obsidian`
+> To try out or debug this plugin, use `minimal.lua` in the repo to run a clean instance of obsidian.nvim
 
 #### Using [`lazy.nvim`](https://github.com/folke/lazy.nvim)
 
@@ -807,4 +812,5 @@ And keep in mind that to reset a configuration option to `nil` you'll have to us
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/.github/CONTRIBUTING.md) guide before submitting a pull request.
 
 ## Acknowledgement
+
 We would like to thank [epwalsh](https://github.com/epwalsh) for creating this beautiful plugin. If you're feeling especially generous, [he still appreciates some coffee funds! ❤️](https://www.buymeacoffee.com/epwalsh).
