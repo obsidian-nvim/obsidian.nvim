@@ -1,0 +1,5 @@
+-- ObsidianExtractNote
+-- ObsidianQuickSwitch
+-- ObsidianNew
+-- ObsidianBacklinks
+-- ObsidianDailies
