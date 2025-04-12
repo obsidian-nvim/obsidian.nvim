@@ -1,6 +1,9 @@
 local obsidian_client = require("obsidian").get_client()
 local link_style = obsidian_client.opts.preferred_link_style
 
+-- TODO: completion for anchor, blocks
+-- TODO: complete wiki format like nvim-cmp source and obsidan app
+
 local function calc_insert_text(note, partial)
   local title = note.title
   if link_style == "markdown" then
@@ -34,25 +37,28 @@ end
 
 local function build_tag_items(partial, handler)
   local items = {}
-  local tags = obsidian_client:list_tags_async(partial, function(tags)
-    for _, tag in ipairs(tags) do
-      if tag and tag:lower():find(vim.pesc(partial:lower())) then
-        table.insert(items, {
-          kind = "File",
-          label = tag,
-          filterText = tag,
-          insertText = tag,
-          labelDetails = { description = "ObsidianTag" },
-        })
+  obsidian_client:list_tags_async(
+    partial,
+    vim.schedule_wrap(function(tags)
+      for _, tag in ipairs(tags) do
+        if tag and tag:lower():find(vim.pesc(partial:lower())) then
+          table.insert(items, {
+            kind = "File",
+            label = tag,
+            filterText = tag,
+            insertText = tag,
+            labelDetails = { description = "ObsidianTag" },
+          })
+        end
       end
-    end
-    handler(nil, {
-      items = items,
-    })
-  end)
+      handler(nil, {
+        items = items,
+      })
+    end)
+  )
 end
 
-return function(_, params, handler, _)
+return function(params, handler, _)
   local uri = params.textDocument.uri
   local line_num = params.position.line
   local char_num = params.position.character
