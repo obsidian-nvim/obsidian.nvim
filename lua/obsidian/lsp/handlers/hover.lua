@@ -12,7 +12,7 @@ local function read_file(file)
   return data
 end
 
-return function(_, params, handler, _)
+return function(params, handler, _)
   local term = util.parse_cursor_link()
   if term then
     obsidian_client:find_notes_async(

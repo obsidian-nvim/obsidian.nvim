@@ -19,8 +19,7 @@ obsidian_ls.start = function()
       local _ = dispatchers
       local members = {
         request = function(method, params, handler, _)
-          print(method)
-          handlers[method](method, params, handler, _)
+          handlers[method](params, handler, _)
         end,
         notify = function() end, -- Handle notify events
         is_closing = function() end,
