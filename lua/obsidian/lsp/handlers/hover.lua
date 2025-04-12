@@ -1,25 +1,39 @@
 local obsidian_client = require("obsidian").get_client()
+local util = require "obsidian.util"
+
+--- TODO: hover on tags
+--- TODO: should not work on frontmatter?
+
+local function read_file(file)
+  local fd = assert(io.open(file, "r"))
+  ---@type string
+  local data = fd:read "*a"
+  fd:close()
+  return data
+end
 
 return function(_, params, handler, _)
-  --- TODO: more precise sense of node under cursor
-  --- TODO: hover on tags?
-  --- TODO: not work on frontmatter?
-  local note_name = vim.fn.expand "<cfile>"
-  obsidian_client:find_notes_async(
-    note_name,
-    vim.schedule_wrap(function(notes)
-      for i, note in ipairs(notes) do
-        if vim.uri_from_fname(note.path.filename) == params.textDocument.uri then
-          table.remove(notes, i)
+  local term = util.parse_cursor_link()
+  if term then
+    obsidian_client:find_notes_async(
+      term,
+      vim.schedule_wrap(function(notes)
+        for i, note in ipairs(notes) do
+          if vim.uri_from_fname(note.path.filename) == params.textDocument.uri then
+            table.remove(notes, i)
+          end
         end
-      end
-      local note = notes[1]
-      if note then
-        local content = table.concat(vim.fn.readfile(note.path.filename), "\n")
-        handler(nil, { contents = content })
-      else
-        vim.notify("No notes found", 3)
-      end
-    end)
-  )
+        local note = notes[1]
+        if note then
+          handler(nil, {
+            contents = read_file(note.path.filename),
+          })
+        else
+          vim.notify("No notes found", 3)
+        end
+      end)
+    )
+  else
+    vim.notify("No notes found", 3)
+  end
 end
