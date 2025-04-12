@@ -3,7 +3,7 @@ SHELL:=/usr/bin/env bash
 .DEFAULT_GOAL:=help
 PROJECT_NAME = "obsidian.nvim"
 TEST = test/obsidian
-# This is where you have plenary installed locally. Override this at runtime if yours is elsewhere.
+# Depending on your setup you have to override the locations at runtime.
 PLENARY = ~/.local/share/nvim/lazy/plenary.nvim/
 MINIDOC = ~/.local/share/nvim/lazy/mini.doc/
 
@@ -22,7 +22,7 @@ test: $(PLENARY) ## Run unit tests
 		-c "PlenaryBustedDirectory $(TEST) { minimal_init = './test/minimal_init.vim' }"
 
 $(PLENARY):
-	git clone git@github.com:nvim-lua/plenary.nvim.git $(PLENARY)
+	git clone --depth 1 https://github.com/nvim-lua/plenary.nvim.git $(PLENARY)
 
 .PHONY: api-docs
 api-docs: $(MINIDOC) ## Generate API documentation with mini.doc
@@ -34,7 +34,7 @@ api-docs: $(MINIDOC) ## Generate API documentation with mini.doc
 		-c "qa!"
 
 $(MINIDOC):
-	git clone git@github.com:echasnovski/mini.doc.git $(MINIDOC)
+	git clone --depth 1 https://github.com/echasnovski/mini.doc $(MINIDOC)
 
 .PHONY: lint
 lint: ## Lint the code
