@@ -1,13 +1,55 @@
 local obsidian_client = require("obsidian").get_client()
 local link_style = obsidian_client.opts.preferred_link_style
 
-local function calc_insert_text(note, text_after_cursor)
-  -- TODO: consider incomplete
+local function calc_insert_text(note, partial)
+  local title = note.title
   if link_style == "markdown" then
-    return note.title .. "](" .. note.path.filename .. ")"
+    return title .. "](" .. note.path.filename .. ")"
   else
-    return note.title .. "]]"
+    return title .. "]]"
   end
+end
+
+local function build_ref_items(partial, handler)
+  local items = {}
+  obsidian_client:find_notes_async(
+    partial,
+    vim.schedule_wrap(function(notes)
+      for _, note in ipairs(notes) do
+        local title = note.title
+        if title and title:lower():find(vim.pesc(partial:lower())) then
+          table.insert(items, {
+            kind = "File",
+            label = title,
+            filterText = title,
+            insertText = calc_insert_text(note, partial),
+            labelDetails = { description = "Obsidian" },
+          })
+        end
+      end
+      handler(nil, { items = items })
+    end)
+  )
+end
+
+local function build_tag_items(partial, handler)
+  local items = {}
+  local tags = obsidian_client:list_tags_async(partial, function(tags)
+    for _, tag in ipairs(tags) do
+      if tag and tag:lower():find(vim.pesc(partial:lower())) then
+        table.insert(items, {
+          kind = "File",
+          label = tag,
+          filterText = tag,
+          insertText = tag,
+          labelDetails = { description = "ObsidianTag" },
+        })
+      end
+    end
+    handler(nil, {
+      items = items,
+    })
+  end)
 end
 
 return function(_, params, handler, _)
@@ -21,37 +63,20 @@ return function(_, params, handler, _)
   local line_text = (vim.api.nvim_buf_get_lines(buf, line_num, line_num + 1, false)[1] or "")
   local text_before_cursor = line_text:sub(1, char_num)
 
-  local trigger_pattern = "%[%[.*$"
+  local trigger_pattern = "[["
   if link_style == "markdown" then
-    trigger_pattern = "%[.*$"
+    trigger_pattern = "["
   end
 
-  local bracket_start = text_before_cursor:find(trigger_pattern)
+  local hastag_start = text_before_cursor:find("#", 1, true)
 
-  if not bracket_start then
-    handler(nil, { items = {} }, params.context)
-    return
+  local bracket_start = text_before_cursor:find(vim.pesc(trigger_pattern))
+
+  if bracket_start then
+    local partial = text_before_cursor:sub(bracket_start + 2)
+    build_ref_items(partial, handler)
+  elseif hastag_start then
+    local partial = text_before_cursor:sub(hastag_start + 1)
+    build_tag_items(partial, handler)
   end
-
-  local partial = text_before_cursor:sub(bracket_start + 2)
-
-  local items = {}
-  obsidian_client:find_notes_async(
-    partial,
-    vim.schedule_wrap(function(notes)
-      for _, note in ipairs(notes) do
-        local title = note.title
-        if title and title:lower():find(partial:lower(), 1, true) then
-          table.insert(items, {
-            kind = "File",
-            label = title,
-            filterText = title,
-            insertText = calc_insert_text(note),
-            labelDetails = { description = "Obsidian" },
-          })
-        end
-      end
-      handler(nil, { items = items })
-    end)
-  )
 end
