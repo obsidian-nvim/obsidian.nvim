@@ -158,12 +158,15 @@ obsidian.setup = function(opts)
         vim.keymap.set("n", mapping_keys, mapping_config.action, mapping_config.opts)
       end
 
-      -- Inject completion sources, providers to their plugin configurations
-      if opts.completion.nvim_cmp then
-        require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
-      elseif opts.completion.blink then
-        require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
-      end
+      -- if opts.completion.nvim_cmp then
+      --   require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources()
+      -- elseif opts.completion.blink then
+      --   require("obsidian.completion.plugin_initializers.blink").inject_sources()
+      -- end
+
+      vim.bo[ev.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
+      vim.bo[ev.buf].completeopt = "menu,menuone,noselect"
+      require("obsidian.lsp").start()
 
       -- Run enter-note callback.
       client.callback_manager:enter_note(function()
