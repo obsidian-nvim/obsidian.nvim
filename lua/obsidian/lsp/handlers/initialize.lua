@@ -41,6 +41,6 @@ local initializeResult = {
   },
 }
 
-return function(_, params, handler, _)
+return function(params, handler, _)
   return handler(nil, initializeResult, params.context)
 end
