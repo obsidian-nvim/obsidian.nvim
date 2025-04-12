@@ -1,64 +1,63 @@
-local obsidian_client = require("obsidian").get_client()
-local link_style = obsidian_client.opts.preferred_link_style
-
 -- TODO: completion for anchor, blocks
 -- TODO: complete wiki format like nvim-cmp source and obsidan app
 
-local function calc_insert_text(note, partial)
-  local title = note.title
-  if link_style == "markdown" then
-    return title .. "](" .. note.path.filename .. ")"
-  else
-    return title .. "]]"
+return function(obsidian_client, params, handler, _)
+  local link_style = obsidian_client.opts.preferred_link_style
+
+  local function calc_insert_text(note, partial)
+    local title = note.title
+    if link_style == "markdown" then
+      return title .. "](" .. note.path.filename .. ")"
+    else
+      return title .. "]]"
+    end
   end
-end
 
-local function build_ref_items(partial, handler)
-  local items = {}
-  obsidian_client:find_notes_async(
-    partial,
-    vim.schedule_wrap(function(notes)
-      for _, note in ipairs(notes) do
-        local title = note.title
-        if title and title:lower():find(vim.pesc(partial:lower())) then
-          table.insert(items, {
-            kind = "File",
-            label = title,
-            filterText = title,
-            insertText = calc_insert_text(note, partial),
-            labelDetails = { description = "Obsidian" },
-          })
+  local function build_ref_items(partial)
+    local items = {}
+    obsidian_client:find_notes_async(
+      partial,
+      vim.schedule_wrap(function(notes)
+        for _, note in ipairs(notes) do
+          local title = note.title
+          if title and title:lower():find(vim.pesc(partial:lower())) then
+            table.insert(items, {
+              kind = "File",
+              label = title,
+              filterText = title,
+              insertText = calc_insert_text(note, partial),
+              labelDetails = { description = "Obsidian" },
+            })
+          end
         end
-      end
-      handler(nil, { items = items })
-    end)
-  )
-end
+        handler(nil, { items = items })
+      end)
+    )
+  end
 
-local function build_tag_items(partial, handler)
-  local items = {}
-  obsidian_client:list_tags_async(
-    partial,
-    vim.schedule_wrap(function(tags)
-      for _, tag in ipairs(tags) do
-        if tag and tag:lower():find(vim.pesc(partial:lower())) then
-          table.insert(items, {
-            kind = "File",
-            label = tag,
-            filterText = tag,
-            insertText = tag,
-            labelDetails = { description = "ObsidianTag" },
-          })
+  local function build_tag_items(partial)
+    local items = {}
+    obsidian_client:list_tags_async(
+      partial,
+      vim.schedule_wrap(function(tags)
+        for _, tag in ipairs(tags) do
+          if tag and tag:lower():find(vim.pesc(partial:lower())) then
+            table.insert(items, {
+              kind = "File",
+              label = tag,
+              filterText = tag,
+              insertText = tag,
+              labelDetails = { description = "ObsidianTag" },
+            })
+          end
         end
-      end
-      handler(nil, {
-        items = items,
-      })
-    end)
-  )
-end
+        handler(nil, {
+          items = items,
+        })
+      end)
+    )
+  end
 
-return function(params, handler, _)
   local uri = params.textDocument.uri
   local line_num = params.position.line
   local char_num = params.position.character
@@ -80,9 +79,9 @@ return function(params, handler, _)
 
   if bracket_start then
     local partial = text_before_cursor:sub(bracket_start + 2)
-    build_ref_items(partial, handler)
+    build_ref_items(partial)
   elseif hastag_start then
     local partial = text_before_cursor:sub(hastag_start + 1)
-    build_tag_items(partial, handler)
+    build_tag_items(partial)
   end
 end

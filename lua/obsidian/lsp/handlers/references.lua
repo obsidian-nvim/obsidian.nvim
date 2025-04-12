@@ -1,12 +1,11 @@
 ---@diagnostic disable: missing-fields
 
-local obsidian_client = require("obsidian").get_client()
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
 
 -- TODO: references for anchor, blocks
 
-return function(_, handler, _)
+return function(obsidian_client, _, handler, _)
   local tag = util.cursor_tag(nil, nil)
   if tag then
     obsidian_client:find_tags_async(tag, function(tag_locations)
