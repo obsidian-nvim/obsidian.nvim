@@ -1,4 +1,3 @@
-local obsidian_client = require("obsidian").get_client()
 local util = require "obsidian.util"
 
 --- TODO: hover on tags
@@ -12,7 +11,7 @@ local function read_file(file)
   return data
 end
 
-return function(params, handler, _)
+return function(obsidian_client, params, handler, _)
   local term = util.parse_cursor_link()
   if term then
     obsidian_client:find_notes_async(
