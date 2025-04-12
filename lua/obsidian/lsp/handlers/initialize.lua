@@ -4,7 +4,7 @@ local completion_options
 
 if config.complete then
   completion_options = {
-    triggerCharacters = { "[[" },
+    triggerCharacters = { "[", "#" },
     resolveProvider = true,
     completionItem = {
       labelDetailsSupport = true,
@@ -20,11 +20,7 @@ local initializeResult = {
     definitionProvider = true,
     implementationProvider = true,
     declarationProvider = true,
-    signatureHelpProvider = {
-      triggerCharacters = { "(", "," },
-      retriggerCharacters = {},
-    },
-    -- Add diagnostic support
+    -- TODO: Add diagnostic support
     diagnosticProvider = {
       interFileDependencies = false,
       workspaceDiagnostics = true,
