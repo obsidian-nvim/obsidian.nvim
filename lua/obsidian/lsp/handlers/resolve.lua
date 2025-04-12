@@ -1,8 +1,6 @@
-local obsidian_client = require("obsidian").get_client()
+-- FIXME: not working
 
--- TODO: not working
-
-return function(params, handler, _)
+return function(obsidian_client, params, handler, _)
   local buf = vim.api.nvim_get_current_buf()
   local current_uri = vim.uri_from_bufnr(buf)
   obsidian_client:find_notes_async(

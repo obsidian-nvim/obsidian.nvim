@@ -3,3 +3,4 @@
 -- ObsidianNew
 -- ObsidianBacklinks
 -- ObsidianDailies
+-- ObsidianLinkNew
