@@ -12,7 +12,8 @@ M.providers = {
 }
 
 local function add_provider(blink, provider_name, proivder_module)
-  blink.add_provider(provider_name, {
+  local add_source_provider = blink.add_source_provider or blink.add_provider
+  add_source_provider(provider_name, {
     name = provider_name,
     module = proivder_module,
     async = true,

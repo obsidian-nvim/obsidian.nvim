@@ -3,9 +3,15 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with respect to the public API, which currently includes the installation steps, dependencies, configuration, keymappings, commands, and other plugin functionality. At the moment this does *not* include the Lua `Client` API, although in the future it will once that API stabilizes.
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with respect to the public API, which currently includes the installation steps, dependencies, configuration, keymappings, commands, and other plugin functionality. At the moment this does _not_ include the Lua `Client` API, although in the future it will once that API stabilizes.
 
 ## Unreleased
+
+### Added
+
+- Added support `text/uri-list` to `ObsidianPasteImg`.
+
+## [v3.10.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.10.0) - 2025-04-12
 
 ### Added
 
@@ -13,12 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added better handling for undefined template fields, which will now be prompted for.
 - Added support for the [`snacks.picker`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) picker
 - Added support for the [`blink.cmp`](https://github.com/Saghen/blink.cmp) completion plugin.
-- Added support `text/uri-list` to `ObsidianPasteImg`.
+- Added health check module
+- Added a minimal sandbox script `minimal.lua`
 
 ### Changed
 
 - Renamed `opts.image_name_func` to `opts.attachments.img_name_func`.
 - Default to not activate ui render when `render-markdown.nvim` or `markview.nvim` is present
+- `smart_action` shows picker for tags (`ObsidianTag`) when cursor is on a tag
+- `ObsidianToggleCheckbox` now works with numbered lists
+- `Makefile` is friendlier: self-documenting and automatically gets dependencies
 
 ### Fixed
 
@@ -197,11 +207,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 There's a lot of new features and improvements here that I'm really excited about 🥳 They've improved my workflow a ton and I hope they do for you too. To highlight the 3 biggest additions:
 
 1. 🔗 Full support for header anchor links and block links! That means both for following links and completion of links. Various forms of anchor/block links are support. Here are a few examples:
-    - Typical Obsidian-style wiki links, e.g. `[[My note#Heading 1]]`, `[[My note#Heading 1#Sub heading]]`, `[[My note#^block-123]]`.
-    - Wiki links with a label, e.g. `[[my-note#heading-1|Heading 1 in My Note]]`.
-    - Markdown links, e.g. `[Heading 1 in My Note](my-note.md#heading-1)`.
 
-    We also support links to headers within the same note, like for a table of contents, e.g. `[[#Heading 1]]`, `[[#heading-1|Heading]]`, `[[#^block-1]]`.
+   - Typical Obsidian-style wiki links, e.g. `[[My note#Heading 1]]`, `[[My note#Heading 1#Sub heading]]`, `[[My note#^block-123]]`.
+   - Wiki links with a label, e.g. `[[my-note#heading-1|Heading 1 in My Note]]`.
+   - Markdown links, e.g. `[Heading 1 in My Note](my-note.md#heading-1)`.
+
+   We also support links to headers within the same note, like for a table of contents, e.g. `[[#Heading 1]]`, `[[#heading-1|Heading]]`, `[[#^block-1]]`.
 
 2. 📲 A basic callback system to let you easily customize obisidian.nvim's behavior even more. There are currently 4 events: `post_setup`, `enter_note`, `pre_write_note`, and `post_set_workspace`. You can define a function for each of these in your config.
 3. 🔭 Improved picker integrations (especially for telescope), particular for the `:ObsidianTags` command. See <https://github.com/epwalsh/obsidian.nvim/discussions/450> for a demo.
@@ -212,44 +223,44 @@ Full changelog below 👇
 
 - Added a configurable callback system to further customize obsidian.nvim's behavior. Callbacks are defined through the `callbacks` field in the config:
 
-    ```lua
-    callbacks = {
-      -- Runs at the end of `require("obsidian").setup()`.
-      ---@param client obsidian.Client
-      post_setup = function(client) end,
+  ```lua
+  callbacks = {
+    -- Runs at the end of `require("obsidian").setup()`.
+    ---@param client obsidian.Client
+    post_setup = function(client) end,
 
-      -- Runs anytime you enter the buffer for a note.
-      ---@param client obsidian.Client
-      ---@param note obsidian.Note
-      enter_note = function(client, note) end,
+    -- Runs anytime you enter the buffer for a note.
+    ---@param client obsidian.Client
+    ---@param note obsidian.Note
+    enter_note = function(client, note) end,
 
-      -- Runs anytime you leave the buffer for a note.
-      ---@param client obsidian.Client
-      ---@param note obsidian.Note
-      leave_note = function(client, note) end,
+    -- Runs anytime you leave the buffer for a note.
+    ---@param client obsidian.Client
+    ---@param note obsidian.Note
+    leave_note = function(client, note) end,
 
-      -- Runs right before writing the buffer for a note.
-      ---@param client obsidian.Client
-      ---@param note obsidian.Note
-      pre_write_note = function(client, note) end,
+    -- Runs right before writing the buffer for a note.
+    ---@param client obsidian.Client
+    ---@param note obsidian.Note
+    pre_write_note = function(client, note) end,
 
-      -- Runs anytime the workspace is set/changed.
-      ---@param client obsidian.Client
-      ---@param workspace obsidian.Workspace
-      post_set_workspace = function(client, workspace) end,
-    }
-    ```
+    -- Runs anytime the workspace is set/changed.
+    ---@param client obsidian.Client
+    ---@param workspace obsidian.Workspace
+    post_set_workspace = function(client, workspace) end,
+  }
+  ```
 
 - Added configuration option `note_path_func(spec): obsidian.Path` for customizing how file names for new notes are generated. This takes a single argument, a table that looks like `{ id: string, dir: obsidian.Path, title: string|? }`, and returns an `obsidian.Path` object. The default behavior is equivalent to this:
 
-    ```lua
-    ---@param spec { id: string, dir: obsidian.Path, title: string|? }
-    ---@return string|obsidian.Path The full path to the new note.
-    note_path_func = function(spec)
-      local path = spec.dir / tostring(spec.id)
-      return path:with_suffix(".md")
-    end
-    ```
+  ```lua
+  ---@param spec { id: string, dir: obsidian.Path, title: string|? }
+  ---@return string|obsidian.Path The full path to the new note.
+  note_path_func = function(spec)
+    local path = spec.dir / tostring(spec.id)
+    return path:with_suffix ".md"
+  end
+  ```
 
 - Added config option `picker.tag_mappings`, analogous to `picker.note_mappings`.
 - Added `log` field to `obsidian.Client` for easier access to the logger.
@@ -499,7 +510,7 @@ Minor internal improvements.
 
 ### Added
 
-- Added extmarks that conceal "-", "*", or "+" with "•" by default. This can turned off by setting `.ui.bullets` to `nil` in your config.
+- Added extmarks that conceal "-", "\*", or "+" with "•" by default. This can turned off by setting `.ui.bullets` to `nil` in your config.
 
 ### Fixed
 
@@ -555,26 +566,26 @@ Minor internal improvements.
 - Added Lua API methods `Client:set_workspace(workspace: obsidian.Workspace)` and `Client:switch_workspace(workspace: string|obsidian.Workspace)`.
 - Added the ability to override settings per workspace by providing the `overrides` field in a workspace definition. For example:
 
-    ```lua
-    require("obsidian").setup({
-      workspaces = {
-        {
-          name = "personal",
-          path = "~/vaults/personal",
-        },
-        {
-          name = "work",
-          path = "~/vaults/work",
-          -- Optional, override certain settings.
-          overrides = {
-            notes_subdir = "notes",
-          },
+  ```lua
+  require("obsidian").setup {
+    workspaces = {
+      {
+        name = "personal",
+        path = "~/vaults/personal",
+      },
+      {
+        name = "work",
+        path = "~/vaults/work",
+        -- Optional, override certain settings.
+        overrides = {
+          notes_subdir = "notes",
         },
       },
+    },
 
-      -- ... other options ...
-    })
-    ```
+    -- ... other options ...
+  }
+  ```
 
 ### Fixed
 
@@ -906,7 +917,7 @@ Major internal refactoring to bring performance improvements through async execu
 ### Added
 
 - Added support for [fzf-lua](https://github.com/ibhagwan/fzf-lua) as one of the possible fallbacks for the `:ObsidianQuickSwitch` command.
-- Added `:ObsidianQuickSwitch` to fuzzy-find a note by name in telescope/fzf *a la* <C-O> in Obsidian.
+- Added `:ObsidianQuickSwitch` to fuzzy-find a note by name in telescope/fzf _a la_ <C-O> in Obsidian.
 - Added support for [fzf-lua](https://github.com/ibhagwan/fzf-lua) as one of the possible fallbacks for the `:ObsidianSearch` command.
 - Added `:ObsidianFollowLink` and companion function `util.cursor_on_markdown_link`
 - Added `:ObsidianLink` and `:ObsidianLinkNew` commands.

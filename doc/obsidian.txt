@@ -11,7 +11,7 @@ notes app – but love Neovim too much to stand typing characters into anything
 else.
 
 If you’re new to Obsidian we highly recommend watching this excellent YouTube
-video <https://youtu.be/5ht8NYkU9wQ?si=8nbnNsRVnw0xfX2S> for a great overview.
+video <https://youtu.be/5ht8NYkU9wQ> for a great overview.
 
 _Keep in mind this plugin is not meant to replace Obsidian, but to complement
 it._ The Obsidian app is very powerful in its own way; it comes with a mobile
@@ -179,6 +179,10 @@ managers. The full set of |obsidian-plugin-dependencies| and
   features that haven’t been released yet. For that reason I recommend viewing
   the README on the tag for the latest release
   <https://github.com/obsidian-nvim/obsidian.nvim/releases> instead of `main`.
+
+  [!NOTE] To see you installation status, run `:checkhealth obsidian` To try out
+  or debug this plugin, use `minimal.lua` in the repo to run a clean instance of
+  obsidian.nvim
 
 USING LAZY.NVIM ~
 
@@ -385,7 +389,7 @@ carefully and customize it to your needs:
           end,
           opts = { buffer = true },
         },
-        -- Smart action depending on context, either follow link or toggle checkbox.
+        -- Smart action depending on context: follow link, show notes with tag, or toggle checkbox.
         ["<cr>"] = {
           action = function()
             return require("obsidian").util.smart_action()
