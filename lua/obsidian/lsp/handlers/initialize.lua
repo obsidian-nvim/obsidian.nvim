@@ -20,6 +20,7 @@ local initializeResult = {
     definitionProvider = true,
     implementationProvider = true,
     declarationProvider = true,
+    documentLinkProvider = true,
     -- TODO: Add diagnostic support
     diagnosticProvider = {
       interFileDependencies = false,
