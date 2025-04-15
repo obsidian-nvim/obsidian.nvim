@@ -175,7 +175,13 @@ obsidian.setup = function(opts)
       vim.bo[ev.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
       vim.bo[ev.buf].completeopt = "menu,menuone,noselect"
       vim.bo[ev.buf].iskeyword = "@,48-57,192-255" -- HACK: so that completion for note names with `-` in it works in native completion
-      require("obsidian.lsp").start()
+
+      local client_id = require("obsidian.lsp").start()
+      assert(client_id)
+
+      if not pcall(require, "blink.cmp") then
+        vim.lsp.completion.enable(true, client_id, ev.buf, { autotrigger = true })
+      end
 
       -- Run enter-note callback.
       local note = obsidian.Note.from_buffer(ev.buf)

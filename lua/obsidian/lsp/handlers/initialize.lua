@@ -2,9 +2,15 @@ local config = require "obsidian.lsp.handlers.config"
 
 local completion_options
 
+-- TODO: what about non-english chars, or emojis?
+local chars = {}
+for i = 32, 126 do
+  table.insert(chars, string.char(i))
+end
+
 if config.complete then
   completion_options = {
-    triggerCharacters = { "[", "#" },
+    triggerCharacters = chars,
     resolveProvider = true,
     completionItem = {
       labelDetailsSupport = true,
@@ -33,7 +39,7 @@ local initializeResult = {
     completionProvider = completion_options,
     textDocumentSync = {
       openClose = true,
-      change = 2,
+      change = 1,
     },
   },
   serverInfo = {
