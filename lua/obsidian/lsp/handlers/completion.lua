@@ -1,24 +1,24 @@
 -- TODO: completion for anchor, blocks
 -- TODO: complete wiki format like nvim-cmp source and obsidan app
 
----@param obsidian_client obsidian.Client
+---@param client obsidian.Client
 ---@param params table
 ---@param handler function
-return function(obsidian_client, params, handler, _)
-  local link_style = obsidian_client.opts.preferred_link_style
+return function(client, params, handler, _)
+  local link_style = client.opts.preferred_link_style
 
-  local function calc_insert_text(note, partial)
-    local title = note.title
+  local function calc_insert_text(note)
+    local link_text = client:format_link(note)
     if link_style == "markdown" then
-      return title .. "](" .. note.path.filename .. ")"
+      return link_text:sub(2)
     else
-      return title .. "]]"
+      return link_text:sub(3)
     end
   end
 
-  local function build_ref_items(partial)
+  local function handle_ref(partial)
     local items = {}
-    obsidian_client:find_notes_async(
+    client:find_notes_async(
       partial,
       vim.schedule_wrap(function(notes)
         for _, note in ipairs(notes) do
@@ -28,7 +28,7 @@ return function(obsidian_client, params, handler, _)
               kind = "File",
               label = title,
               filterText = title,
-              insertText = calc_insert_text(note, partial),
+              insertText = calc_insert_text(note),
               labelDetails = { description = "Obsidian" },
             })
           end
@@ -38,9 +38,9 @@ return function(obsidian_client, params, handler, _)
     )
   end
 
-  local function build_tag_items(partial)
+  local function handle_tag(partial)
     local items = {}
-    obsidian_client:list_tags_async(
+    client:list_tags_async(
       partial,
       vim.schedule_wrap(function(tags)
         for _, tag in ipairs(tags) do
@@ -54,9 +54,7 @@ return function(obsidian_client, params, handler, _)
             })
           end
         end
-        handler(nil, {
-          items = items,
-        })
+        handler(nil, { items = items })
       end)
     )
   end
@@ -64,27 +62,24 @@ return function(obsidian_client, params, handler, _)
   local uri = params.textDocument.uri
   local line_num = params.position.line
   local char_num = params.position.character
-
-  local file_path = vim.uri_to_fname(uri)
-  local buf = vim.fn.bufnr(file_path, false)
+  local buf = vim.uri_to_bufnr(uri)
 
   local line_text = (vim.api.nvim_buf_get_lines(buf, line_num, line_num + 1, false)[1] or "")
   local text_before_cursor = line_text:sub(1, char_num)
 
-  local trigger_pattern = "[["
+  local ref_trigger_pattern = "[["
   if link_style == "markdown" then
-    trigger_pattern = "["
+    ref_trigger_pattern = "["
   end
 
-  local hastag_start = text_before_cursor:find("#", 1, true)
+  local tag_start = text_before_cursor:find("#", 1, true)
+  local ref_start = text_before_cursor:find(ref_trigger_pattern, 1, true)
 
-  local bracket_start = text_before_cursor:find(vim.pesc(trigger_pattern))
-
-  if bracket_start then
-    local partial = text_before_cursor:sub(bracket_start + 2)
-    build_ref_items(partial)
-  elseif hastag_start then
-    local partial = text_before_cursor:sub(hastag_start + 1)
-    build_tag_items(partial)
+  if ref_start then
+    local partial = text_before_cursor:sub(ref_start + 2)
+    handle_ref(partial)
+  elseif tag_start then
+    local partial = text_before_cursor:sub(tag_start + 1)
+    handle_tag(partial)
   end
 end
