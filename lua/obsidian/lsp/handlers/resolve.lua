@@ -1,5 +1,8 @@
 -- FIXME: not working
 
+---@param obsidian_client obsidian.Client
+---@param params table
+---@param handler function
 return function(obsidian_client, params, handler, _)
   local buf = vim.api.nvim_get_current_buf()
   local current_uri = vim.uri_from_bufnr(buf)

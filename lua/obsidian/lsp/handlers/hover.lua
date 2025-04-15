@@ -11,6 +11,9 @@ local function read_file(file)
   return data
 end
 
+---@param obsidian_client obsidian.Client
+---@param params table
+---@param handler function
 return function(obsidian_client, params, handler, _)
   local term = util.parse_cursor_link()
   if term then
