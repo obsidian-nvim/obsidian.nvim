@@ -1,4 +1,4 @@
----TODO: move to the idea of textEdits
+-- TODO: move to the idea of textEdits
 
 ---@param obsidian_client obsidian.Client
 ---@param params table
