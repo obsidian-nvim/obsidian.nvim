@@ -1,6 +1,9 @@
 -- TODO: completion for anchor, blocks
 -- TODO: complete wiki format like nvim-cmp source and obsidan app
 
+---@param obsidian_client obsidian.Client
+---@param params table
+---@param handler function
 return function(obsidian_client, params, handler, _)
   local link_style = obsidian_client.opts.preferred_link_style
 
