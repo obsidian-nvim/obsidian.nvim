@@ -149,7 +149,9 @@ M.get_links = function(client, bufnr)
   return links
 end
 
-local function read_file(file)
+-- TODO: make async in the future?
+
+function M.read_file(file)
   local fd = assert(io.open(file, "r"))
   ---@type string
   local data = fd:read "*a"
