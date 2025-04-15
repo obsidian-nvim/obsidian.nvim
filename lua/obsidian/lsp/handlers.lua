@@ -8,6 +8,7 @@ return setmetatable({
   [ms.workspace_diagnostic] = require "obsidian.lsp.handlers.workplace_diagnostics",
   [ms.textDocument_rename] = require "obsidian.lsp.handlers.rename",
   [ms.textDocument_references] = require "obsidian.lsp.handlers.references",
+  [ms.textDocument_documentSymbol] = require "obsidian.lsp.handlers.symbols",
 }, {
   __index = function(_, k)
     print("obsidian_ls does not support method " .. k .. " yet")
