@@ -15,13 +15,14 @@ obsidian_ls.start = function()
   local client_id = vim.lsp.start {
     name = "obsidian-ls",
     capabilities = capabilities,
-    cmd = function(dispatchers)
-      local _ = dispatchers
+    cmd = function()
       local members = {
         request = function(method, params, handler, _)
           handlers[method](obsidian_client, params, handler, _)
         end,
-        notify = function() end, -- Handle notify events
+        notify = function(method, params, handler, _)
+          handlers[method](obsidian_client, params, handler, _)
+        end,
         is_closing = function() end,
         terminate = function() end,
       }
