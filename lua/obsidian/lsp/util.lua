@@ -1,5 +1,25 @@
 local M = {}
 local ts = vim.treesitter
+local server_config = require "obsidian.lsp.config"
+
+M.preview_tag = function(client, _, term, cb)
+  client:find_tags_async(
+    term,
+    vim.schedule_wrap(function(tag_locs)
+      cb(server_config.preview.tag(tag_locs, _))
+    end)
+  )
+end
+
+-- TODO: if term is file path then just read the file
+M.preview_ref = function(client, params, term, cb)
+  client:find_notes_async(
+    term,
+    vim.schedule_wrap(function(notes)
+      cb(server_config.preview.note(notes, params))
+    end)
+  )
+end
 
 local heading_query = [[
     (setext_heading
