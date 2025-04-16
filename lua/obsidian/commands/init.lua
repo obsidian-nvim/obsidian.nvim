@@ -26,6 +26,7 @@ local command_lookups = {
   ObsidianExtractNote = "obsidian.commands.extract_note",
   ObsidianDebug = "obsidian.commands.debug",
   ObsidianTOC = "obsidian.commands.toc",
+  ObsidianTasks = "obsidian.commands.tasks",
 }
 
 local M = setmetatable({
@@ -190,5 +191,7 @@ M.register(
 M.register("ObsidianDebug", { opts = { nargs = 0, desc = "Log some information for debugging" } })
 
 M.register("ObsidianTOC", { opts = { nargs = 0, desc = "Load the table of contents into a picker" } })
+
+M.register("ObsidianTasks", { opts = { nargs = "?", desc = "List all tasks" } })
 
 return M
