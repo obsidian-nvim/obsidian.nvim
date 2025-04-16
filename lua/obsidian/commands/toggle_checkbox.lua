@@ -11,7 +11,7 @@ return function(client, opts)
 
   for line_nb = start_line, end_line do
     local current_line = vim.api.nvim_buf_get_lines(buf, line_nb - 1, line_nb, false)[1]
-    if current_line and current_line:match("%S") then
+    if current_line and current_line:match "%S" then
       table.sort(checkboxes, function(a, b)
         return (client.opts.ui.checkboxes[a].order or 1000) < (client.opts.ui.checkboxes[b].order or 1000)
       end)
