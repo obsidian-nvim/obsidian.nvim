@@ -601,4 +601,14 @@ Path.unlink = function(self, opts)
   end
 end
 
+--- Read the file
+Path.read = function(self, _)
+  local file = tostring(self)
+  local fd = assert(io.open(file, "r"))
+  ---@type string
+  local data = fd:read "*a"
+  fd:close()
+  return data
+end
+
 return Path

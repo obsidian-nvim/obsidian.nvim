@@ -1,4 +1,4 @@
-local config = require "obsidian.lsp.handlers.config"
+local config = require "obsidian.lsp.config"
 
 local completion_options
 
