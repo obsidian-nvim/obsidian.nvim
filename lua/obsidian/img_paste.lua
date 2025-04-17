@@ -111,7 +111,7 @@ M.paste_img = function(opts)
 
   -- Get filename to save to.
   if fname == nil or fname == "" then
-    if opts.default_name ~= nil and not opts.should_confirm then
+    if #opt.default_dir > 0 and opts.default_name ~= nil and not opts.should_confirm then
       fname = opts.default_name
     else
       fname = util.input("Enter file name: ", { default = opts.default_name, completion = "file" })
