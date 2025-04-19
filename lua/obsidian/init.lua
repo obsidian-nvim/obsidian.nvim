@@ -179,6 +179,14 @@ obsidian.setup = function(opts)
       local client_id = require("obsidian.lsp").start()
       assert(client_id)
 
+      vim.keymap.set("n", "<leader>cH", function()
+        local lsp_client = assert(vim.lsp.get_client_by_id(client_id))
+        lsp_client:exec_cmd({
+          title = "toggle checkbox",
+          command = "toggleCheckbox",
+        }, { bufnr = ev.buf })
+      end, { buffer = ev.buf })
+
       if not pcall(require, "blink.cmp") then
         vim.lsp.completion.enable(true, client_id, ev.buf, { autotrigger = true })
       end

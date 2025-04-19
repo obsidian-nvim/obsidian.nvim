@@ -12,6 +12,8 @@ return setmetatable({
   [ms.textDocument_documentLink] = require "obsidian.lsp.handlers.document_link",
   [ms.textDocument_didOpen] = require "obsidian.lsp.handlers.did_open",
   [ms.textDocument_didChange] = require "obsidian.lsp.handlers.did_change",
+  [ms.initialized] = require "obsidian.lsp.handlers.initialized",
+  [ms.workspace_executeCommand] = require "obsidian.lsp.handlers.execute_command",
 }, {
   __index = function(_, k)
     vim.notify("obsidian_ls does not support method " .. k .. " yet", 3)
