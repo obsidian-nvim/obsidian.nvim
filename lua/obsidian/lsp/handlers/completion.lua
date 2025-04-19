@@ -21,29 +21,26 @@ end
 
 local function handle_ref(client, partial, handler)
   local items = {}
-  client:find_notes_async(
-    partial,
-    vim.schedule_wrap(function(notes)
-      for _, note in ipairs(notes) do
-        local title = note.title
-        local pattern = vim.pesc(lower(partial))
-        if title and find(lower(title), pattern) then
-          table.insert(items, {
-            kind = 17,
-            label = title,
-            filterText = title,
-            insertText = calc_insert_text(client, note),
-            labelDetails = { description = "Obsidian" },
-            data = {
-              file = note.path.filename,
-              kind = "ref",
-            },
-          })
-        end
+  client:find_notes_async(partial, function(notes)
+    for _, note in ipairs(notes) do
+      local title = note.title
+      local pattern = vim.pesc(lower(partial))
+      if title and find(lower(title), pattern) then
+        table.insert(items, {
+          kind = 17,
+          label = title,
+          filterText = title,
+          insertText = calc_insert_text(client, note),
+          labelDetails = { description = "Obsidian" },
+          data = {
+            file = note.path.filename,
+            kind = "ref",
+          },
+        })
       end
-      handler(nil, { items = items })
-    end)
-  )
+    end
+    handler(nil, { items = items })
+  end)
 end
 
 local function handle_tag(client, partial, handler)
