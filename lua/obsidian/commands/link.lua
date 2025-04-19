@@ -2,6 +2,7 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   local viz = util.get_visual_selection()
   if not viz then

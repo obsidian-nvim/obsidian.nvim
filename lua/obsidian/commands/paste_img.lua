@@ -3,6 +3,7 @@ local util = require "obsidian.util"
 local paste_img = require("obsidian.img_paste").paste_img
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   local img_folder = Path.new(client.opts.attachments.img_folder)
   if not img_folder:is_absolute() then

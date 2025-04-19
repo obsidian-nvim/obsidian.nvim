@@ -5,6 +5,7 @@ local util = require "obsidian.util"
 ---and replace the selection with a link to the new note.
 ---
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   local viz = util.get_visual_selection()
   if not viz then

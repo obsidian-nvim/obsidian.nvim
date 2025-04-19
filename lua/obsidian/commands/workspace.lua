@@ -2,6 +2,7 @@ local log = require "obsidian.log"
 local Workspace = require "obsidian.workspace"
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   if not data.args or string.len(data.args) == 0 then
     local picker = client:picker()

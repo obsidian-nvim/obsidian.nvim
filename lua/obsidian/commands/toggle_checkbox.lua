@@ -1,11 +1,12 @@
 local toggle_checkbox = require("obsidian.util").toggle_checkbox
 
 ---@param client obsidian.Client
-return function(client, opts)
+---@param data CommandArgs
+return function(client, data)
   local start_line, end_line
   local checkboxes = vim.tbl_keys(client.opts.ui.checkboxes)
-  start_line = opts.line1
-  end_line = opts.line2
+  start_line = data.line1
+  end_line = data.line2
 
   local buf = vim.api.nvim_get_current_buf()
 

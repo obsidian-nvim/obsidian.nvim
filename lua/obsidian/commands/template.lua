@@ -3,6 +3,7 @@ local log = require "obsidian.log"
 local util = require "obsidian.util"
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   if not client:templates_dir() then
     log.err "Templates folder is not defined or does not exist"

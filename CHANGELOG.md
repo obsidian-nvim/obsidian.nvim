@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `ObsidianToggleCheckbox` now works in visual mode for multiline toggle
 - `ObsidianRename` input field is pre-filled filled with the current note id to ease renaming
+- Improved type annotations for user commands: add `CommandArgs` type.
+
+### Fixed
+
+- Enhanced completion menu to correctly display and handle non-English (ex. Korean) file names and tags in link, fixing Unicode encoding issues
 
 ## [v3.10.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.10.0) - 2025-04-12
 

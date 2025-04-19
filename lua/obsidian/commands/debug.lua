@@ -53,6 +53,7 @@ local function check_completion_with_blink()
 end
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   data = data or {}
 

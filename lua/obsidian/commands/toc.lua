@@ -1,6 +1,7 @@
 local util = require "obsidian.util"
 
 ---@param client obsidian.Client
+---@param _ CommandArgs
 return function(client, _)
   local note = assert(client:current_note(0, { collect_anchor_links = true }))
 

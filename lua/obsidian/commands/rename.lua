@@ -10,6 +10,7 @@ local zip = require("obsidian.itertools").zip
 local compat = require "obsidian.compat"
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   -- Resolve the note to rename.
   ---@type boolean
