@@ -2,6 +2,10 @@
 
 return {
   complete = true,
+  checkboxs = {
+    ---@type "- [ ] " | "* [ ] " | "+ [ ] " | "1. [ ] " | "1) [ ] "
+    style = "- [ ] ",
+  },
   preview = {
     tag = function(tag_locs, params)
       return ([[Tag used in %d notes]]):format(#tag_locs)
