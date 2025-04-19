@@ -1,9 +1,9 @@
 local util = require "obsidian.lsp.util"
 
----@param _ obsidian.Client
+---@param client obsidian.Client
 ---@param params table
 ---@param handler function
-return function(_, params, handler, _)
+return function(client, params, handler, _)
   local kind = params.data.kind
 
   if kind == "ref" then
@@ -17,5 +17,13 @@ return function(_, params, handler, _)
     else
       vim.notify("No notes found", 3)
     end
+  elseif kind == "tag" then
+    util.preview_tag(client, params, params.label, function(content)
+      params.documentation = {
+        value = content,
+        kind = "plaintext",
+      }
+      handler(nil, params)
+    end)
   end
 end
