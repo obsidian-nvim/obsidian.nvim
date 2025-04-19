@@ -72,6 +72,7 @@ local function open_in_app(client, path)
 end
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   ---@type string|?
   local search_term

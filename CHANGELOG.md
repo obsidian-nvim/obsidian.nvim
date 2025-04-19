@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `ObsidianToggleCheckbox` now works in visual mode for multiline toggle
+- Improved type annotations for user commands: add `CommandArgs` type.
+
+### Fixed
 
 ## [v3.10.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.10.0) - 2025-04-12
 

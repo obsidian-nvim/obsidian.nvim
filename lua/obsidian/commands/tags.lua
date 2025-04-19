@@ -48,6 +48,7 @@ local function gather_tag_picker_list(client, picker, tags)
 end
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   local picker = client:picker()
   if not picker then

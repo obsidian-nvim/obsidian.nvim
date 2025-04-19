@@ -2,6 +2,7 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   local offset_days = 0
   local arg = util.string_replace(data.args, " ", "")
