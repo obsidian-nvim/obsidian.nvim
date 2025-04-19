@@ -176,18 +176,15 @@ obsidian.setup = function(opts)
       vim.bo[ev.buf].completeopt = "menu,menuone,noselect"
       vim.bo[ev.buf].iskeyword = "@,48-57,192-255" -- HACK: so that completion for note names with `-` in it works in native completion
 
-      local client_id = require("obsidian.lsp").start()
-      assert(client_id)
+      local client_id = client:lsp_start()
 
+      -- place holders
       vim.keymap.set("n", "<leader>cH", function()
         local lsp_client = assert(vim.lsp.get_client_by_id(client_id))
-        lsp_client:exec_cmd({
-          title = "toggle checkbox",
-          command = "toggleCheckbox",
-        }, { bufnr = ev.buf })
+        lsp_client:exec_cmd({ title = "toggle checkbox", command = "toggleCheckbox" }, { bufnr = ev.buf })
       end, { buffer = ev.buf })
 
-      if not pcall(require, "blink.cmp") then
+      if not (pcall(require, "blink.cmp") or pcall(require, "cmp")) then
         vim.lsp.completion.enable(true, client_id, ev.buf, { autotrigger = true })
       end
 
