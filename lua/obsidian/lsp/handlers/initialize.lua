@@ -36,6 +36,11 @@ local initializeResult = {
     renameProvider = true,
     referencesProvider = true,
     documentSymbolProvider = true,
+    executeCommandProvider = {
+      commands = {
+        "toggleCheckbox",
+      },
+    },
     completionProvider = completion_options,
     textDocumentSync = {
       openClose = true,
