@@ -128,7 +128,7 @@ util.urlencode = function(str, opts)
   opts = opts or {}
   local url = str
   url = url:gsub("\n", "\r\n")
-  url = url:gsub("([^/%w _%%%-%.~])", char_to_hex)
+  url = url:gsub("([%(%)%*%?%[%]%$\"':<>|\\'{}])", char_to_hex)
   if not opts.keep_path_sep then
     url = url:gsub("/", char_to_hex)
   end
@@ -1158,7 +1158,7 @@ util.get_icon = function(path)
 end
 
 -- We are very loose here because obsidian allows pretty much anything
-util.ANCHOR_LINK_PATTERN = "#[%w%d][^#]*"
+util.ANCHOR_LINK_PATTERN = "#[%w%d\128-\255][^#]*"
 
 util.BLOCK_PATTERN = "%^[%w%d][%w%d-]*"
 
@@ -1271,7 +1271,7 @@ util.standardize_anchor = function(anchor)
   -- Replace whitespace with "-".
   anchor = string.gsub(anchor, "%s", "-")
   -- Remove every non-alphanumeric character.
-  anchor = string.gsub(anchor, "[^#%w_-]", "")
+  anchor = string.gsub(anchor, "[^#%w\128-\255_-]", "")
   return anchor
 end
 
