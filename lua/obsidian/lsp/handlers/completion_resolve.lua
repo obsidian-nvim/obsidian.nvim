@@ -18,12 +18,11 @@ return function(client, params, handler, _)
       vim.notify("No notes found", 3)
     end
   elseif kind == "tag" then
-    util.preview_tag(client, params, params.label, function(content)
-      params.documentation = {
-        value = content,
-        kind = "plaintext",
-      }
-      handler(nil, params)
-    end)
+    local content = util.preview_tag_sync(client, params, params.label)
+    params.documentation = {
+      value = content,
+      kind = "markdown",
+    }
+    handler(nil, params)
   end
 end
