@@ -1790,4 +1790,42 @@ Client.picker = function(self, picker_name)
   return require("obsidian.pickers").get(self, picker_name)
 end
 
+--- Register the global variable that updates itself
+Client.statusline = function(self)
+  local current_note
+
+  local refresh = function()
+    local note = self:current_note()
+    if not note then -- no note
+      return ""
+    elseif current_note == note then -- no refresh
+      return
+    else -- refresh
+      current_note = note
+    end
+
+    self:find_backlinks_async(
+      note,
+      vim.schedule_wrap(function(backlinks)
+        local format = assert(self.opts.statusline.format)
+        local wc = vim.fn.wordcount()
+        local info = {
+          words = wc.words,
+          chars = wc.chars,
+          backlinks = #backlinks,
+          properties = vim.tbl_count(note:frontmatter()),
+        }
+        for k, v in pairs(info) do
+          format = format:gsub("{{" .. k .. "}}", v)
+        end
+        vim.g.obsidian = format
+      end)
+    )
+  end
+
+  local timer = uv:new_timer()
+  assert(timer, "Failed to create timer")
+  timer:start(0, 1000, vim.schedule_wrap(refresh))
+end
+
 return Client
