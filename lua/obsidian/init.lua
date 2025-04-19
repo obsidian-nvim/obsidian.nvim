@@ -99,13 +99,6 @@ obsidian.setup = function(opts)
   -- These will be available across all buffers, not just note buffers in the vault.
   obsidian.commands.install(client)
 
-  -- Register completion sources, providers
-  if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()
-  elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").register_providers()
-  end
-
   local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
   -- Complete setup and update workspace (if needed) when entering a markdown buffer.
@@ -137,29 +130,19 @@ obsidian.setup = function(opts)
         vim.keymap.set("n", mapping_keys, mapping_config.action, mapping_config.opts)
       end
 
-      -- Inject completion sources, providers to their plugin configurations
-      -- if opts.completion.nvim_cmp then
-      --   require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources()
-      -- elseif opts.completion.blink then
-      --   require("obsidian.completion.plugin_initializers.blink").inject_sources()
-      -- end
-
       vim.bo[ev.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
       vim.bo[ev.buf].completeopt = "menu,menuone,noselect"
       vim.bo[ev.buf].iskeyword = "@,48-57,192-255" -- HACK: so that completion for note names with `-` in it works in native completion
 
-      local client_id = require("obsidian.lsp").start()
-      assert(client_id)
+      local client_id = client:lsp_start()
 
+      -- place holders
       vim.keymap.set("n", "<leader>cH", function()
         local lsp_client = assert(vim.lsp.get_client_by_id(client_id))
-        lsp_client:exec_cmd({
-          title = "toggle checkbox",
-          command = "toggleCheckbox",
-        }, { bufnr = ev.buf })
+        lsp_client:exec_cmd({ title = "toggle checkbox", command = "toggleCheckbox" }, { bufnr = ev.buf })
       end, { buffer = ev.buf })
 
-      if not pcall(require, "blink.cmp") then
+      if not (pcall(require, "blink.cmp") or pcall(require, "cmp")) then
         vim.lsp.completion.enable(true, client_id, ev.buf, { autotrigger = true })
       end
 

@@ -2076,4 +2076,43 @@ Client.picker = function(self, picker_name)
   return require("obsidian.pickers").get(self, picker_name)
 end
 
+--- Start the lsp client
+---
+---@return integer
+Client.lsp_start = function(self)
+  local handlers = require "obsidian.lsp.handlers"
+  local has_blink, blink = pcall(require, "blink.cmp")
+  local has_cmp, cmp_lsp = pcall(require, "cmp_nvim_lsp")
+
+  local capabilities
+  if has_blink then
+    capabilities = blink.get_lsp_capabilities({}, true)
+  elseif has_cmp then
+    capabilities = cmp_lsp.default_capabilities()
+  else
+    capabilities = vim.lsp.protocol.make_client_capabilities()
+  end
+  local client_id = vim.lsp.start {
+    name = "obsidian-ls",
+    capabilities = capabilities,
+    cmd = function()
+      return {
+        request = function(method, params, handler, _)
+          handlers[method](self, params, handler, _)
+        end,
+        notify = function(method, params, handler, _)
+          handlers[method](self, params, handler, _)
+        end,
+        is_closing = function() end,
+        terminate = function() end,
+      }
+    end,
+    init_options = {},
+    root_dir = tostring(self.dir),
+  }
+  assert(client_id, "failed to start obsidian_ls")
+
+  return client_id
+end
+
 return Client
