@@ -11,6 +11,12 @@ M.preview_tag = function(client, _, term, cb)
   )
 end
 
+M.preview_tag_sync = function(client, _, term)
+  local tag_locs = client:find_tags(term, { timeout = 4000 })
+
+  return server_config.preview.tag(tag_locs, _)
+end
+
 -- TODO: if term is file path then just read the file
 M.preview_ref = function(client, params, term, cb)
   client:find_notes_async(
