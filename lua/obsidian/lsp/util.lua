@@ -70,10 +70,9 @@ local link_query = [[
 ]]
 
 ---Extract headings from buffer
----@param client obsidian.Client
 ---@param bufnr integer
----@return table TODO:
-M.get_headings = function(client, bufnr)
+---@return lsp.DocumentSymbol[]
+M.get_headings = function(bufnr)
   local lang = ts.language.get_lang(vim.bo[bufnr].filetype)
   if not lang then
     return {}
@@ -85,7 +84,7 @@ M.get_headings = function(client, bufnr)
   for id, node, _, _ in query:iter_captures(root, bufnr) do
     local text = string.rep("#", id) .. " " .. ts.get_node_text(node, bufnr)
     local row, _ = node:start()
-    table.insert(headings, {
+    headings[#headings + 1] = {
       kind = 15,
       range = {
         start = { line = row, character = 1 },
@@ -96,7 +95,7 @@ M.get_headings = function(client, bufnr)
         ["end"] = { line = row, character = 1 },
       },
       name = text,
-    })
+    }
   end
   return headings
 end
