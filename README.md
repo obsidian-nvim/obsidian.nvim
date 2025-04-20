@@ -809,7 +809,7 @@ And keep in mind that to reset a configuration option to `nil` you'll have to us
 
 ## Contributing
 
-Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/.github/CONTRIBUTING.md) guide before submitting a pull request.
+Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.
 
 ## Acknowledgement
 
