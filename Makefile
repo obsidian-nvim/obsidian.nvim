@@ -42,7 +42,7 @@ $(PLENARY):
 .PHONY: user-docs
 user-docs: ## Generate user documentation with panvimdoc
 	@if [ ! -f "$(PANVIMDOC_PATH)" ]; then \
-		echo "panvimdoc.sh not found at $${PANVIMDOC_PATH}. Make sure it is installed and check the path."; \
+		echo "panvimdoc.sh not found at '$(PANVIMDOC_PATH)'. Make sure it is installed and check the path."; \
 		exit 1; \
 	fi
 	$(PANVIMDOC_PATH) \
