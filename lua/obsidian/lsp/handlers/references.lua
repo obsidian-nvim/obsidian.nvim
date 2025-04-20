@@ -52,6 +52,7 @@ return function(obsidian_client, _, handler, _)
       --   return
       -- end
       --
+
       local entries = {}
       for _, matches in ipairs(backlinks) do
         for _, match in ipairs(matches.matches) do
