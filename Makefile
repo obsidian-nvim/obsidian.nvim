@@ -3,15 +3,30 @@ SHELL:=/usr/bin/env bash
 .DEFAULT_GOAL:=help
 PROJECT_NAME = "obsidian.nvim"
 TEST = test/obsidian
-# Depending on your setup you have to override the locations at runtime.
+
+# Depending on your setup you have to override the locations at runtime. E.g.:
+#   make test PLENARY=~/path/to/plenary.nvim
+#   make user-docs PANVIMDOC_PATH=~/path/to/panvimdoc/panvimdoc.sh
 PLENARY = ~/.local/share/nvim/lazy/plenary.nvim/
 MINIDOC = ~/.local/share/nvim/lazy/mini.doc/
+PANVIMDOC_PATH = ../panvimdoc/panvimdoc.sh
 
+################################################################################
+##@ Start here
+.PHONY: chores
+chores: style lint test ## Run develoment tasks (lint, style, test); PRs must pass this.
 
 ################################################################################
 ##@ Developmment
-.PHONY: chores
-chores: style lint test ## Run all develoment tasks
+.PHONY: lint
+lint: ## Lint the code with luacheck
+	luacheck .
+
+.PHONY: style
+style:  ## Format the code with stylua
+	stylua --check .
+
+# TODO: add type checking with lua-ls
 
 .PHONY: test
 test: $(PLENARY) ## Run unit tests
@@ -24,6 +39,24 @@ test: $(PLENARY) ## Run unit tests
 $(PLENARY):
 	git clone --depth 1 https://github.com/nvim-lua/plenary.nvim.git $(PLENARY)
 
+.PHONY: user-docs
+user-docs: ## Generate user documentation with panvimdoc
+	@if [ ! -f "$(PANVIMDOC_PATH)" ]; then \
+		echo "panvimdoc.sh not found at $${PANVIMDOC_PATH}. Make sure it is installed and check the path."; \
+		exit 1; \
+	fi
+	$(PANVIMDOC_PATH) \
+		--project-name obsidian \
+		--input-file README.md \
+		--toc false \
+		--description 'a plugin for writing and navigating an Obsidian vault' \
+		--vim-version 'NVIM v0.10.0' \
+		--demojify false \
+		--dedup-subheadings false \
+		--shift-heading-level-by -1 \
+		--ignore-rawblocks true \
+		&& mv doc/obsidian.txt /tmp/
+
 .PHONY: api-docs
 api-docs: $(MINIDOC) ## Generate API documentation with mini.doc
 	MINIDOC=$(MINIDOC) nvim \
@@ -35,14 +68,6 @@ api-docs: $(MINIDOC) ## Generate API documentation with mini.doc
 
 $(MINIDOC):
 	git clone --depth 1 https://github.com/echasnovski/mini.doc $(MINIDOC)
-
-.PHONY: lint
-lint: ## Lint the code
-	luacheck .
-
-.PHONY: style
-style:  ## format the code
-	stylua --check .
 
 
 ################################################################################
