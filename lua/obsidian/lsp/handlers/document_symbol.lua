@@ -5,5 +5,6 @@ local util = require "obsidian.lsp.util"
 ---@param handler function
 return function(client, params, handler)
   local bufnr = vim.uri_to_bufnr(params.textDocument.uri)
-  handler(nil, util.get_headings(client, bufnr))
+  local symbols = util.get_headings(bufnr)
+  handler(nil, symbols)
 end

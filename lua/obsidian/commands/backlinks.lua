@@ -1,57 +1,24 @@
-local util = require "obsidian.util"
 local log = require "obsidian.log"
-local RefTypes = require("obsidian.search").RefTypes
-local api = require "obsidian.api"
-
----@param client obsidian.Client
----@param picker obsidian.Picker
----@param note obsidian.Note
----@param opts { anchor: string|?, block: string|? }|?
-local function collect_backlinks(client, picker, note, opts)
-  opts = opts or {}
-
-  client:find_backlinks_async(note, function(backlinks)
-    if vim.tbl_isempty(backlinks) then
-      if opts.anchor then
-        log.info("No backlinks found for anchor '%s' in note '%s'", opts.anchor, note.id)
-      elseif opts.block then
-        log.info("No backlinks found for block '%s' in note '%s'", opts.block, note.id)
-      else
-        log.info("No backlinks found for note '%s'", note.id)
-      end
-      return
-    end
-
-    local entries = {}
-    for _, matches in ipairs(backlinks) do
-      for _, match in ipairs(matches.matches) do
-        entries[#entries + 1] = {
-          value = { path = matches.path, line = match.line },
-          filename = tostring(matches.path),
-          lnum = match.line,
-        }
-      end
-    end
-
-    ---@type string
-    local prompt_title
-    if opts.anchor then
-      prompt_title = string.format("Backlinks to '%s%s'", note.id, opts.anchor)
-    elseif opts.block then
-      prompt_title = string.format("Backlinks to '%s#%s'", note.id, util.standardize_block(opts.block))
-    else
-      prompt_title = string.format("Backlinks to '%s'", note.id)
-    end
-
-    vim.schedule(function()
-      picker:pick(entries, {
-        prompt_title = prompt_title,
-        callback = function(value)
-          api.open_buffer(value.path, { line = value.line })
+local telescope_on_list = function(data)
+  local pickers = require "telescope.pickers"
+  local finders = require "telescope.finders"
+  pickers
+    .new({}, {
+      prompt_title = "References",
+      finder = finders.new_table {
+        results = data.items,
+        entry_maker = function(value)
+          return {
+            value = value,
+            display = value.text,
+            path = value.filename,
+            ordinal = value.text,
+            lnum = value.lnum,
+          }
         end,
-      })
-    end)
-  end, { search = { sort = true }, anchor = opts.anchor, block = opts.block })
+      },
+    })
+    :find()
 end
 
 ---@param client obsidian.Client
@@ -61,53 +28,18 @@ return function(client)
     log.err "No picker configured"
     return
   end
+  local picker_name = tostring(picker)
 
-  local location, _, ref_type = util.parse_cursor_link { include_block_ids = true }
-
-  if
-    location ~= nil
-    and ref_type ~= RefTypes.NakedUrl
-    and ref_type ~= RefTypes.FileUrl
-    and ref_type ~= RefTypes.BlockID
-  then
-    -- Remove block links from the end if there are any.
-    -- TODO: handle block links.
-    ---@type string|?
-    local block_link
-    location, block_link = util.strip_block_links(location)
-
-    -- Remove anchor links from the end if there are any.
-    ---@type string|?
-    local anchor_link
-    location, anchor_link = util.strip_anchor_links(location)
-
-    -- Assume 'location' is current buffer path if empty, like for TOCs.
-    if string.len(location) == 0 then
-      location = vim.api.nvim_buf_get_name(0)
-    end
-
-    local opts = { anchor = anchor_link, block = block_link }
-
-    client:resolve_note_async(location, function(...)
-      ---@type obsidian.Note[]
-      local notes = { ... }
-
-      if #notes == 0 then
-        log.err("No notes matching '%s'", location)
-        return
-      elseif #notes == 1 then
-        return collect_backlinks(client, picker, notes[1], opts)
-      else
-        return vim.schedule(function()
-          picker:pick_note(notes, {
-            prompt_title = "Select note",
-            callback = function(note)
-              collect_backlinks(client, picker, note, opts)
-            end,
-          })
-        end)
-      end
-    end)
+  if picker_name == "TelescopePicker()" then
+    vim.lsp.buf.references({
+      includeDeclaration = false,
+    }, { on_list = telescope_on_list })
+  elseif picker_name == "SnacksPicker()" then
+    require("snacks.picker").lsp_symbols()
+  elseif picker_name == "FzfPicker()" then
+    require("fzf-lua").lsp_document_symbols()
+  elseif picker_name == "MiniPicker()" then
+    -- vim.lsp.buf.document_symbol { on_list = mini_pick_on_list }
   else
     ---@type { anchor: string|?, block: string|? }
     local opts = {}
@@ -135,5 +67,6 @@ return function(client)
     else
       collect_backlinks(client, picker, note, opts)
     end
+    vim.lsp.buf.document_symbol { loclist = false }
   end
 end
