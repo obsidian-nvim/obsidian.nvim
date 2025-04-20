@@ -26,10 +26,8 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
   - [System requirements](#system-requirements)
   - [Install and configure](#install-and-configure)
   - [Plugin dependencies](#plugin-dependencies)
-  - [Configuration options](#configuration-options)
-  - [Notes on configuration](#notes-on-configuration)
-  - [Using templates](#using-templates)
-  - [Usage outside of a workspace or vault](#usage-outside-of-a-workspace-or-vault)
+  - [Configuration](#configuration)
+  - [Documentation](#documentation)
 - ➕ [Contributing](#contributing)
 
 ## Features
@@ -88,7 +86,7 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 - `:ObsidianPasteImg [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option.
 
-- `:ObsidianRename [NEWNAME] [--dry-run]` to rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault. Since this command is still relatively new and could potentially write a lot of changes to your vault, I highly recommend committing the current state of your vault (if you're using version control) before running it, or doing a dry-run first by appending "--dry-run" to the command, e.g. `:ObsidianRename new-id --dry-run`.
+- `:ObsidianRename [NEWNAME] [--dry-run]` to rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault. It is highly recommended to commit the current state of your vault (if you're using version control) before running it, or doing a dry-run first by `:ObsidianRename new-id --dry-run`.
 
 - `:ObsidianToggleCheckbox` to cycle through checkbox options.
 
@@ -105,7 +103,7 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 ### System requirements
 
-- NeoVim >= 0.8.0 (this plugin uses `vim.fs` which was only added in 0.8).
+- NeoVim >= 0.10.0
 - If you want completion and search features (recommended) you'll need [ripgrep](https://github.com/BurntSushi/ripgrep) to be installed and on your `$PATH`.
   See [ripgrep#installation](https://github.com/BurntSushi/ripgrep) for install options.
 
@@ -122,10 +120,12 @@ Search functionality (e.g. via the `:ObsidianSearch` and `:ObsidianQuickSwitch` 
 To configure obsidian.nvim you just need to call `require("obsidian").setup({ ... })` with the desired options.
 Here are some examples using different plugin managers. The full set of [plugin dependencies](#plugin-dependencies) and [configuration options](#configuration-options) are listed below.
 
-> ⚠️ WARNING: if you install from the latest release (recommended for stability) instead of `main`, be aware that the README on `main` may reference features that haven't been released yet. For that reason I recommend viewing the README on the tag for the [latest release](https://github.com/obsidian-nvim/obsidian.nvim/releases) instead of `main`.
+> [!WARNING]
+> If you install from the latest release (recommended for stability) instead of `main`, be aware that the README on `main` may reference features that haven't been released yet. For that reason I recommend viewing the README on the tag for the [latest release](https://github.com/obsidian-nvim/obsidian.nvim/releases) instead of `main`.
 
-> [!NOTE]
-> To see you installation status, run `:checkhealth obsidian`
+> [!TIP]
+> To see your installation status, run `:checkhealth obsidian`
+>
 > To try out or debug this plugin, use `minimal.lua` in the repo to run a clean instance of obsidian.nvim
 
 #### Using [`lazy.nvim`](https://github.com/folke/lazy.nvim)
@@ -245,18 +245,16 @@ See [syntax highlighting](#syntax-highlighting) for more details.
   - [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)
   - [markview.nvim](https://github.com/OXY2DEV/markview.nvim)
 
-**Miscellaneous:**
-
-- 🆕 [pomo.nvim](https://github.com/epwalsh/pomo.nvim): for running lightweight [pomodoro](https://en.wikipedia.org/wiki/Pomodoro_Technique) timers.
-
 If you choose to use any of these you should include them in the "dependencies" or "requires" field of the obsidian.nvim plugin spec for your package manager.
 
 ### Configuration options
 
-This is a complete list of all of the options that can be passed to `require("obsidian").setup()`. The settings below are _not necessarily the defaults, but represent reasonable default settings_. Please read each option carefully and customize it to your needs:
+This is a complete list of all the options that can be passed to `require("obsidian").setup()`. The settings below are _not necessarily the defaults, but represent reasonable default settings_. Please read each option carefully and customize it to your needs.
+
+<details><summary><bold>Click to see configuration options</bold></summary>
 
 ```lua
-{
+require("obsidian").setup {
   -- A list of workspace names, paths, and configuration overrides.
   -- If you use the Obsidian app, the 'path' of a workspace should generally be
   -- your vault root (where the `.obsidian` folder is located).
@@ -286,7 +284,7 @@ This is a complete list of all of the options that can be passed to `require("ob
   notes_subdir = "notes",
 
   -- Optional, set the log level for obsidian.nvim. This is an integer corresponding to one of the log
-  -- levels defined by "vim.log.levels.*".
+  -- levels defined by "vim.log.levels.\*".
   log_level = vim.log.levels.INFO,
 
   daily_notes = {
@@ -299,7 +297,7 @@ This is a complete list of all of the options that can be passed to `require("ob
     -- Optional, default tags to add to each new daily note created.
     default_tags = { "daily-notes" },
     -- Optional, if you want to automatically insert a template from your template directory like 'daily.md'
-    template = nil
+    template = nil,
   },
 
   -- Optional, completion of wiki links, local markdown links, and tags using nvim-cmp.
@@ -335,12 +333,12 @@ This is a complete list of all of the options that can be passed to `require("ob
         return require("obsidian").util.smart_action()
       end,
       opts = { buffer = true, expr = true },
-    }
+    },
   },
 
   -- Where to put new notes. Valid options are
-  --  * "current_dir" - put new notes in same directory as the current buffer.
-  --  * "notes_subdir" - put new notes in the default notes subdirectory.
+  -- _ "current_dir" - put new notes in same directory as the current buffer.
+  -- _ "notes_subdir" - put new notes in the default notes subdirectory.
   new_notes_location = "notes_subdir",
 
   -- Optional, customize how note IDs are generated given an optional title.
@@ -369,14 +367,14 @@ This is a complete list of all of the options that can be passed to `require("ob
   note_path_func = function(spec)
     -- This is equivalent to the default behavior.
     local path = spec.dir / tostring(spec.id)
-    return path:with_suffix(".md")
+    return path:with_suffix ".md"
   end,
 
   -- Optional, customize how wiki links are formatted. You can set this to one of:
-  --  * "use_alias_only", e.g. '[[Foo Bar]]'
-  --  * "prepend_note_id", e.g. '[[foo-bar|Foo Bar]]'
-  --  * "prepend_note_path", e.g. '[[foo-bar.md|Foo Bar]]'
-  --  * "use_path_only", e.g. '[[foo-bar.md]]'
+  -- _ "use_alias_only", e.g. '[[Foo Bar]]'
+  -- _ "prepend*note_id", e.g. '[[foo-bar|Foo Bar]]'
+  -- * "prepend*note_path", e.g. '[[foo-bar.md|Foo Bar]]'
+  -- * "use_path_only", e.g. '[[foo-bar.md]]'
   -- Or you can set it to a function that takes a table of options and returns a string, like this:
   wiki_link_func = function(opts)
     return require("obsidian.util").wiki_link_id_prefix(opts)
@@ -429,8 +427,8 @@ This is a complete list of all of the options that can be passed to `require("ob
   ---@param url string
   follow_url_func = function(url)
     -- Open the URL in the default web browser.
-    vim.fn.jobstart({"open", url})  -- Mac OS
-    -- vim.fn.jobstart({"xdg-open", url})  -- linux
+    vim.fn.jobstart { "open", url } -- Mac OS
+    -- vim.fn.jobstart({"xdg-open", url}) -- linux
     -- vim.cmd(':silent exec "!start ' .. url .. '"') -- Windows
     -- vim.ui.open(url) -- need Neovim 0.10.0+
   end,
@@ -439,8 +437,8 @@ This is a complete list of all of the options that can be passed to `require("ob
   -- file it will be ignored but you can customize this behavior here.
   ---@param img string
   follow_img_func = function(img)
-    vim.fn.jobstart { "qlmanage", "-p", img }  -- Mac OS quick look preview
-    -- vim.fn.jobstart({"xdg-open", url})  -- linux
+    vim.fn.jobstart { "qlmanage", "-p", img } -- Mac OS quick look preview
+    -- vim.fn.jobstart({"xdg-open", url}) -- linux
     -- vim.cmd(':silent exec "!start ' .. url .. '"') -- Windows
   end,
 
@@ -515,9 +513,9 @@ This is a complete list of all of the options that can be passed to `require("ob
   -- Optional, configure additional syntax highlighting / extmarks.
   -- This requires you have `conceallevel` set to 1 or 2. See `:help conceallevel` for more details.
   ui = {
-    enable = true,  -- set to false to disable all additional syntax features
-    update_debounce = 200,  -- update delay after a text change (in milliseconds)
-    max_file_length = 5000,  -- disable UI features for files with more than this many lines
+    enable = true, -- set to false to disable all additional syntax features
+    update_debounce = 200, -- update delay after a text change (in milliseconds)
+    max_file_length = 5000, -- disable UI features for files with more than this many lines
     -- Define how various check-boxes are displayed
     checkboxes = {
       -- NOTE: the 'char' value has to be a single character, and the highlight groups are defined below.
@@ -562,7 +560,7 @@ This is a complete list of all of the options that can be passed to `require("ob
     -- The default folder to place images in via `:ObsidianPasteImg`.
     -- If this is a relative path it will be interpreted as relative to the vault root.
     -- You can always override this per image by passing a full path to the command instead of just a filename.
-    img_folder = "assets/imgs",  -- This is the default
+    img_folder = "assets/imgs", -- This is the default
 
     -- A function that determines default name or prefix when pasting images via `:ObsidianPasteImg`.
     ---@return string
@@ -585,227 +583,11 @@ This is a complete list of all of the options that can be passed to `require("ob
 }
 ```
 
-### Notes on configuration
+</details>
 
-#### Workspaces
+## Documentation
 
-For most Obsidian users, each workspace you configure in your obsidian.nvim config should correspond to a unique Obsidian vault, in which case the `path` of each workspace should be set to the corresponding vault root path.
-
-For example, suppose you have an Obsidian vault at `~/vaults/personal`, then the `workspaces` field in your config would look like this:
-
-```lua
-config = {
-  workspaces = {
-    {
-      name = "personal",
-      path = "~/vaults/personal",
-    },
-  },
-}
-```
-
-However obsidian.nvim's concept of workspaces is a little more general than that of vaults, since it's also valid to configure a workspace that doesn't correspond to a vault, or to configure multiple workspaces for a single vault. The latter case can be useful if you want to segment a single vault into multiple directories with different settings applied to each directory. For example:
-
-```lua
-config = {
-  workspaces = {
-    {
-      name = "project-1",
-      path = "~/vaults/personal/project-1",
-      -- `strict=true` here tells obsidian to use the `path` as the workspace/vault root,
-      -- even though the actual Obsidian vault root may be `~/vaults/personal/`.
-      strict = true,
-      overrides = {
-        -- ...
-      },
-    },
-    {
-      name = "project-2",
-      path = "~/vaults/personal/project-2",
-      strict = true,
-      overrides = {
-        -- ...
-      },
-    },
-  },
-}
-```
-
-obsidian.nvim also supports "dynamic" workspaces. These are simply workspaces where the `path` is set to a Lua function (that returns a path) instead of a hard-coded path. This can be useful in several scenarios, such as when you want a workspace whose `path` is always set to the parent directory of the current buffer:
-
-```lua
-config = {
-  workspaces = {
-    {
-      name = "buf-parent",
-      path = function()
-        return assert(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
-      end,
-    },
-  },
-}
-```
-
-Dynamic workspaces are also useful when you want to use a subset of this plugin's functionality on markdown files outside of your "fixed" vaults.
-See [using obsidian.nvim outside of a workspace / Obsidian vault](#usage-outside-of-a-workspace-or-vault).
-
-#### Completion
-
-obsidian.nvim supports nvim_cmp and blink.cmp completion plugins.
-
-obsidian.nvim will set itself up automatically when you enter a markdown buffer within your vault directory, you do **not** need to specify this plugin as a cmp source manually.
-
-Note that in order to trigger completion for tags _within YAML frontmatter_ you still need to type the "#" at the start of the tag. obsidian.nvim will remove the "#" when you hit enter on the tag completion item.
-
-#### Syntax highlighting
-
-If you're using [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter/blob/master/README.md) you're configuration should include both "markdown" and "markdown_inline" sources:
-
-```lua
-require("nvim-treesitter.configs").setup {
-  ensure_installed = { "markdown", "markdown_inline", ... },
-  highlight = {
-    enable = true,
-  },
-}
-```
-
-If you use `vim-markdown` you'll probably want to disable its frontmatter syntax highlighting (`vim.g.vim_markdown_frontmatter = 1`) which I've found doesn't work very well.
-
-#### Concealing characters
-
-If you wish to use the formatting concealment features, you will need to have `conceallevel` set to a value that allows it (either `1` or `2`), for example:
-`set conceallevel=1` in viml or `vim.opt.conceallevel = 1` in a lua config.
-
-#### Note naming and location
-
-The `notes_subdir` and `note_id_func` options are not mutually exclusive. You can use them both. For example, using a combination of both of the above settings, a new note called "My new note" will assigned a path like `notes/1657296016-my-new-note.md`.
-
-#### `gf` passthrough
-
-If you want the `gf` passthrough functionality but you've already overridden the `gf` keybinding, just change your `gf` mapping definition to something like this:
-
-```lua
-vim.keymap.set("n", "gf", function()
-  if require("obsidian").util.cursor_on_markdown_link() then
-    return "<cmd>ObsidianFollowLink<CR>"
-  else
-    return "gf"
-  end
-end, { noremap = false, expr = true })
-```
-
-Then make sure to comment out the `gf` keybinding in your obsidian.nvim config:
-
-```lua
-mappings = {
-  -- ["gf"] = ...
-},
-```
-
-Or alternatively you could map obsidian.nvim's follow functionality to a different key:
-
-```lua
-mappings = {
-  ["fo"] = {
-    action = function()
-      return require("obsidian").util.gf_passthrough()
-    end,
-    opts = { noremap = false, expr = true, buffer = true },
-  },
-},
-```
-
-### Using templates
-
-To insert a template in the current note, run the command `:ObsidianTemplate`. This will open a list of available templates in your templates folder with your preferred picker. Select a template and hit `<CR>` to insert.
-To create a new note from a template, run the command `:ObsidianNewFromTemplate`. This will prompt you for an optional path for the new note and will open a list of available templates in your templates folder with your preferred picker. Select a template and hit `<CR>` to create the new note with the selected template.
-Substitutions for `{{id}}`, `{{title}}`, `{{path}}`, `{{date}}`, and `{{time}}` are supported out-of-the-box.
-For example, with the following configuration
-
-```lua
-{
-  -- other fields ...
-
-  templates = {
-      folder = "my-templates-folder",
-      date_format = "%Y-%m-%d-%a",
-      time_format = "%H:%M",
-  },
-}
-```
-
-and the file `~/my-vault/my-templates-folder/note template.md`:
-
-```markdown
-# {{title}}
-
-Date created: {{date}}
-```
-
-creating the note `Configuring Neovim.md` and executing `:ObsidianTemplate` will insert
-
-```markdown
-# Configuring Neovim
-
-Date created: 2023-03-01-Wed
-```
-
-above the cursor position.
-
-You can also define custom template substitutions with the configuration field `templates.substitutions`. For example, to automatically substitute the template variable `{{yesterday}}` when inserting a template, you could add this to your config:
-
-```lua
-{
--- other fields ...
-templates = {
-  substitutions = {
-    yesterday = function()
-      return os.date("%Y-%m-%d", os.time() - 86400)
-    end
-  }
-}
-```
-
-### Usage outside of a workspace or vault
-
-It's possible to configure obsidian.nvim to work on individual markdown files outside of a regular workspace / Obsidian vault by configuring a "dynamic" workspace. To do so you just need to add a special workspace with a function for the `path` field (instead of a string), which should return a _parent_ directory of the current buffer. This tells obsidian.nvim to use that directory as the workspace `path` and `root` (vault root) when the buffer is not located inside another fixed workspace.
-
-For example, to extend the configuration above this way:
-
-```diff
-{
-  workspaces = {
-     {
-       name = "personal",
-       path = "~/vaults/personal",
-     },
-     ...
-+    {
-+      name = "no-vault",
-+      path = function()
-+        -- alternatively use the CWD:
-+        -- return assert(vim.fn.getcwd())
-+        return assert(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
-+      end,
-+      overrides = {
-+        notes_subdir = vim.NIL,  -- have to use 'vim.NIL' instead of 'nil'
-+        new_notes_location = "current_dir",
-+        templates = {
-+          folder = vim.NIL,
-+        },
-+        disable_frontmatter = true,
-+      },
-+    },
-+  },
-   ...
-}
-```
-
-With this configuration, anytime you enter a markdown buffer outside of "~/vaults/personal" (or whatever your configured fixed vaults are), obsidian.nvim will switch to the dynamic workspace with the path / root set to the parent directory of the buffer.
-
-Please note that in order to avoid unexpected behavior (like a new directory being created for `notes_subdir`) it's important to carefully set the workspace `overrides` options.
-And keep in mind that to reset a configuration option to `nil` you'll have to use `vim.NIL` there instead of the builtin Lua `nil` due to the way Lua tables work.
+See the [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki)
 
 ## Contributing
 
