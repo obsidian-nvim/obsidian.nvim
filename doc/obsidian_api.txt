@@ -6,13 +6,13 @@ The Obsidian.nvim Lua API.
 
 Table of contents
 
-  obsidian.Client............................................|obsidian.Client|
+  obsidian.Client .......................................... |obsidian.Client|
   
-  obsidian.Note................................................|obsidian.Note|
+  obsidian.Note .............................................. |obsidian.Note|
   
-  obsidian.Workspace......................................|obsidian.Workspace|
+  obsidian.Workspace .................................... |obsidian.Workspace|
   
-  obsidian.Path................................................|obsidian.Path|
+  obsidian.Path .............................................. |obsidian.Path|
   
 ------------------------------------------------------------------------------
                                                            *obsidian.SearchOpts*
