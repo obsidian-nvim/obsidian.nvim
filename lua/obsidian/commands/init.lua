@@ -168,7 +168,7 @@ M.register("ObsidianLinks", { opts = { nargs = 0, desc = "Collect all links with
 
 M.register("ObsidianFollowLink", { opts = { nargs = "?", desc = "Follow reference or link under cursor" } })
 
-M.register("ObsidianToggleCheckbox", { opts = { nargs = 0, desc = "Toggle checkbox" } })
+M.register("ObsidianToggleCheckbox", { opts = { nargs = 0, desc = "Toggle checkbox", range = true } })
 
 M.register("ObsidianWorkspace", { opts = { nargs = "?", desc = "Check or switch workspace" } })
 

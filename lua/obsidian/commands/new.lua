@@ -2,6 +2,7 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
   ---@type obsidian.Note
   local note

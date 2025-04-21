@@ -10,32 +10,8 @@ local zip = require("obsidian.itertools").zip
 local compat = require "obsidian.compat"
 
 ---@param client obsidian.Client
+---@param data CommandArgs
 return function(client, data)
-  -- Validate args.
-  local dry_run = false
-  ---@type string|?
-  local arg
-
-  if data.args == "--dry-run" then
-    dry_run = true
-    data.args = nil
-  end
-
-  if data.args ~= nil and string.len(data.args) > 0 then
-    arg = util.strip_whitespace(data.args)
-  else
-    arg = util.input("Enter new note ID/name/path: ", { completion = "file" })
-    if not arg or string.len(arg) == 0 then
-      log.warn "Rename aborted"
-      return
-    end
-  end
-
-  if vim.endswith(arg, " --dry-run") then
-    dry_run = true
-    arg = util.strip_whitespace(string.sub(arg, 1, -string.len " --dry-run" - 1))
-  end
-
   -- Resolve the note to rename.
   ---@type boolean
   local is_current_buf
@@ -45,14 +21,17 @@ return function(client, data)
   local cur_note_path
   ---@type obsidian.Note
   local cur_note
+
   local cur_note_id = util.parse_cursor_link()
   if cur_note_id == nil then
+    -- rename current note
     is_current_buf = true
     cur_note_bufnr = assert(vim.fn.bufnr())
     cur_note_path = Path.buffer(cur_note_bufnr)
     cur_note = Note.from_file(cur_note_path)
     cur_note_id = tostring(cur_note.id)
   else
+    -- rename note under the cursor
     local notes = { client:resolve_note(cur_note_id) }
     if #notes == 0 then
       log.err("Failed to resolve '%s' to a note", cur_note_id)
@@ -73,6 +52,31 @@ return function(client, data)
         break
       end
     end
+  end
+
+  -- Validate args.
+  local dry_run = false
+  ---@type string|?
+  local arg
+
+  if data.args == "--dry-run" then
+    dry_run = true
+    data.args = nil
+  end
+
+  if data.args ~= nil and string.len(data.args) > 0 then
+    arg = util.strip_whitespace(data.args)
+  else
+    arg = util.input("Enter new note ID/name/path: ", { completion = "file", default = cur_note_id })
+    if not arg or string.len(arg) == 0 then
+      log.warn "Rename aborted"
+      return
+    end
+  end
+
+  if vim.endswith(arg, " --dry-run") then
+    dry_run = true
+    arg = util.strip_whitespace(string.sub(arg, 1, -string.len " --dry-run" - 1))
   end
 
   assert(cur_note_path)

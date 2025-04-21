@@ -3,6 +3,7 @@ local log = require "obsidian.log"
 local iter = require("obsidian.itertools").iter
 
 ---@param client obsidian.Client
+---@param _ CommandArgs
 return function(client, _)
   local start_time = vim.loop.hrtime()
   local count = 0
