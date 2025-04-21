@@ -483,9 +483,6 @@ config.AttachmentsOpts = {}
 config.AttachmentsOpts.default = function()
   return {
     img_folder = "assets/imgs",
-    ---@param client obsidian.Client
-    ---@param path obsidian.Path the absolute path to the image file
-    ---@return string
     img_text_func = function(client, path)
       path = client:vault_relative_path(path) or path
       return string.format("![%s](%s)", path.name, util.urlencode(tostring(path)))
