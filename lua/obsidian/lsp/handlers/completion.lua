@@ -11,23 +11,32 @@ local util = require "obsidian.util"
 
 local find, sub, lower = string.find, string.sub, string.lower
 
+local function insert_snippet_marker(text, style)
+  if style == "markdown" then
+    local pos = text:find "]"
+    local a, b = sub(text, 1, pos - 1), sub(text, pos)
+    return a .. "$1" .. b
+  end
+end
+
 ---@param note obsidian.Note
 ---@param insert_text string
 ---@param insert_start integer
 ---@param insert_end integer
 ---@param line_num integer
 ---@return lsp.CompletionItem
-local function calc_ref_item(note, insert_text, insert_start, insert_end, line_num)
+local function calc_ref_item(note, insert_text, insert_start, insert_end, line_num, style)
   return {
     kind = 17,
     label = note.title,
     filterText = note.title,
+    insertTextFormat = 2, -- is snippet
     textEdit = {
       range = {
         start = { line = line_num, character = insert_start },
         ["end"] = { line = line_num, character = insert_end },
       },
-      newText = insert_text,
+      newText = insert_snippet_marker(insert_text, style),
     },
     labelDetails = { description = "Obsidian" },
     data = {
@@ -55,7 +64,8 @@ local function handle_ref(client, partial, ref_start, cursor_col, line_num, hand
         local pattern = vim.pesc(lower(partial))
         if title and find(lower(title), pattern) then
           local link_text = client:format_link(note)
-          items[#items + 1] = calc_ref_item(note, link_text, ref_start, cursor_col, line_num)
+          local style = client.opts.preferred_link_style
+          items[#items + 1] = calc_ref_item(note, link_text, ref_start, cursor_col, line_num, style)
         end
       end
       handler(nil, { items = items })
@@ -103,9 +113,9 @@ return function(client, params, handler, _)
   local buf = vim.uri_to_bufnr(uri)
   local line_text = vim.api.nvim_buf_get_lines(buf, line_num, line_num + 1, false)[1]
 
-  print(util.strip_anchor_links(line_text))
-  print(util.strip_block_links(line_text))
-
+  -- print(util.strip_anchor_links(line_text))
+  -- print(util.strip_block_links(line_text))
+  --
   local text_before_cursor = sub(line_text, 1, char_num)
 
   local tag_start = find(text_before_cursor, "#", 1, true)
