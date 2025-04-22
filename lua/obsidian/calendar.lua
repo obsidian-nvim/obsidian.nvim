@@ -5,12 +5,7 @@ return {
     local datetime = os.time { year = year, month = month, day = day }
     local daily_note_path = client:daily_note_path(datetime)
 
-    vim.cmd.quit()
-    Notes = require "obsidian.note"
+    vim.cmd "wincmd h"
     client:open_note(daily_note_path)
-    vim.schedule(function()
-      vim.cmd "CalendarVR"
-      vim.cmd "wincmd h"
-    end)
   end,
 }
