@@ -3,6 +3,7 @@ local iter = require("obsidian.itertools").iter
 
 local command_lookups = {
   ObsidianCheck = "obsidian.commands.check",
+  ObsidianCalendar = "obsidian.commands.calendar",
   ObsidianToggleCheckbox = "obsidian.commands.toggle_checkbox",
   ObsidianToday = "obsidian.commands.today",
   ObsidianYesterday = "obsidian.commands.yesterday",
@@ -129,6 +130,8 @@ M.complete_args_search = function(client, _, cmd_line, _)
 end
 
 M.register("ObsidianCheck", { opts = { nargs = 0, desc = "Check for issues in your vault" } })
+
+M.register("ObsidianCalendar", { opts = { nargs = 0, desc = "Open calendar-vim to open your daily notes" } })
 
 M.register("ObsidianToday", { opts = { nargs = "?", desc = "Open today's daily note" } })
 
