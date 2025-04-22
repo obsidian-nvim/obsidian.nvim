@@ -95,6 +95,9 @@ obsidian.setup = function(opts)
   local client = obsidian.new(opts)
   log.set_level(client.opts.log_level)
 
+  -- register drag and drop handler
+  vim.paste = require("obsidian.attachments").register(vim.paste)
+
   -- Install commands.
   -- These will be available across all buffers, not just note buffers in the vault.
   obsidian.commands.install(client)
