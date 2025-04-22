@@ -46,31 +46,113 @@ local function calc_ref_item(note, insert_text, insert_start, insert_end, line_n
   }
 end
 
+local state = {
+  ---@type obsidian.Note
+  current_note = nil,
+}
+
+---Collect matching anchor links.
+---@param note obsidian.Note
+---@param anchor_link string?
+---@return obsidian.note.HeaderAnchor[]?
+local function collect_matching_anchors(note, anchor_link)
+  ---@type obsidian.note.HeaderAnchor[]|?
+  local matching_anchors
+  if anchor_link then
+    assert(note.anchor_links)
+    matching_anchors = {}
+    for anchor, anchor_data in pairs(note.anchor_links) do
+      if vim.startswith(anchor, anchor_link) then
+        table.insert(matching_anchors, anchor_data)
+      end
+    end
+
+    if #matching_anchors == 0 then
+      -- Unmatched, create a mock one.
+      table.insert(matching_anchors, { anchor = anchor_link, header = string.sub(anchor_link, 2), level = 1, line = 1 })
+    end
+  end
+
+  return matching_anchors
+end
+
+---@client obsidian.Client
 local function handle_ref(client, partial, ref_start, cursor_col, line_num, handler)
   ---@type string|?
   -- local block_link
   -- cc.search, block_link = util.strip_block_links(cc.search)
   --
-  -- ---@type string|?
-  -- local anchor_link
-  -- cc.search, anchor_link = util.strip_anchor_links(cc.search)
+  ---@type string|?
+  local anchor_link
+  partial, anchor_link = util.strip_anchor_links(partial)
+  print(partial)
 
   local items = {}
-  client:find_notes_async(
-    partial,
-    vim.schedule_wrap(function(notes)
-      for _, note in ipairs(notes) do
-        local title = note.title
-        local pattern = vim.pesc(lower(partial))
-        if title and find(lower(title), pattern) then
-          local link_text = client:format_link(note)
-          local style = client.opts.preferred_link_style
-          items[#items + 1] = calc_ref_item(note, link_text, ref_start, cursor_col, line_num, style)
+  if not anchor_link then
+    client:find_notes_async(
+      partial,
+      vim.schedule_wrap(function(notes)
+        for _, note in ipairs(notes) do
+          local title = note.title
+          local pattern = vim.pesc(lower(partial))
+          if title and find(lower(title), pattern) then
+            local link_text = client:format_link(note)
+            local style = client.opts.preferred_link_style
+            items[#items + 1] = calc_ref_item(note, link_text, ref_start, cursor_col, line_num, style)
+          end
+          handler(nil, { items = items })
         end
-      end
-      handler(nil, { items = items })
-    end)
-  )
+      end)
+    )
+  else
+    local Note = require "obsidian.note"
+    -- state.current_note = state.current_note or client:find_notes(partial)[2]
+    -- TODO: calc current_note once
+    -- TODO: handle two cases:
+    -- 1. typing partial note name, no completeed text after cursor, insert the full link
+    -- 2. jumped to heading, only insert anchor
+    -- TODO: need to do more textEdit to insert additional #title to path so that app supports?
+    client:find_notes_async(
+      partial,
+      vim.schedule_wrap(function(notes)
+        for _, note in ipairs(notes) do
+          local title = note.title
+          local pattern = vim.pesc(lower(partial))
+          if title and find(lower(title), pattern) then
+            local note2 = Note.from_file(note.path.filename, { collect_anchor_links = true })
+
+            local note_anchors = collect_matching_anchors(note2, anchor_link)
+            if not note_anchors then
+              return
+            end
+            for _, anchor in ipairs(note_anchors) do
+              items[#items + 1] = {
+                kind = 17,
+                label = anchor.header,
+                filterText = anchor.header,
+                insertText = anchor.header,
+                -- insertTextFormat = 2, -- is snippet
+                -- textEdit = {
+                --   range = {
+                --     start = { line = line_num, character = insert_start },
+                --     ["end"] = { line = line_num, character = insert_end },
+                --   },
+                --   newText = insert_snippet_marker(insert_text, style),
+                -- },
+                labelDetails = { description = "ObsidianAnchor" },
+                data = {
+                  file = note.path.filename,
+                  kind = "anchor",
+                },
+              }
+            end
+          end
+          handler(nil, { items = items })
+        end
+      end)
+    )
+    vim.print(state.current_note)
+  end
 end
 
 local function calc_tag_item(tag)
@@ -99,6 +181,18 @@ local function handle_tag(client, partial, handler)
   )
 end
 
+local function handle_heading(client)
+  -- TODO: client:find_headings_async
+  -- client:find_
+end
+
+-- util.BLOCK_PATTERN = "%^[%w%d][%w%d-]*"
+local anchor_trigger_pattern = {
+  markdown = "%[%S+#(%w*)",
+}
+
+local heading_trigger_pattern = "[##"
+
 ---@param client obsidian.Client
 ---@param params table
 ---@param handler function
@@ -118,10 +212,16 @@ return function(client, params, handler, _)
   --
   local text_before_cursor = sub(line_text, 1, char_num)
 
-  local tag_start = find(text_before_cursor, "#", 1, true)
   local ref_start = find(text_before_cursor, ref_trigger_pattern[link_style], 1, true)
+  local tag_start = find(text_before_cursor, "#", 1, true)
+  local heading_start = find(text_before_cursor, heading_trigger_pattern, 1, true)
 
-  if ref_start then
+  if heading_start then
+    local partial = sub(text_before_cursor, heading_start + #heading_trigger_pattern)
+    -- if #partial >= min_chars then
+    --   handle_heading(client, partial, ref_start - 1, char_num, line_num, handler)
+    -- end
+  elseif ref_start then
     local partial = sub(text_before_cursor, ref_start + #ref_trigger_pattern[link_style])
     if #partial >= min_chars then
       handle_ref(client, partial, ref_start - 1, char_num, line_num, handler)
@@ -131,5 +231,6 @@ return function(client, params, handler, _)
     if #partial >= min_chars then
       handle_tag(client, partial, handler)
     end
+  else
   end
 end
