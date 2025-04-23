@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added default `image_name_func` similar to Obsidian's.
 - Added support `text/uri-list` to `ObsidianPasteImg`.
+- Added support for drag and drop into notes
 
 ### Changed
 
