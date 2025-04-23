@@ -38,22 +38,6 @@ The original project has not been actively maintained for quite a while and with
 With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
 The fork aims to stay close to the original, but fix bugs, include and merge useful improvements, and ensure long term robustness.
 
-## 📎 Table of contents
-
-- [🍴 About the fork](#🍴-about-the-fork)
-- [📎 Table of contents](#📎-table-of-contents)
-- [⭐ Features](#⭐-features)
-  - [Commands](#commands)
-  - [Demo](#demo)
-- [📝 Requirements](#📝-requirements)
-  - [System requirements](#system-requirements)
-  - [Plugin dependencies](#plugin-dependencies)
-- [📥 Installation](#📥-installation)
-- [⚙️ Configuration](⚙️-configuration)
-- [📖 Documentation](#📖-documentation)
-- [🤝 Contributing](#🤝-contributing)
-- [❤️ Acknowledgement](❤️-acknowledgement)
-
 ## ⭐ Features
 
 ▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki links, `[` for markdown links, or `#` for tags), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep).
