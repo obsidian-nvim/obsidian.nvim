@@ -113,12 +113,12 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 ### System requirements
 
 - Neovim >= 0.10.0
-- For completion and search features (recommended) you'll need:
+- For completion and search features:
 
-  - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep) for install options.
+  - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep)
   - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
 
-- Additional system dependencies for commands
+- Additional system dependencies:
 
   - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:ObsidianOpen`.
   - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:ObsidianPasteImg`.
