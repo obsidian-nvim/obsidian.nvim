@@ -490,6 +490,20 @@ config.AttachmentsOpts.default = function()
     img_name_func = function()
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
+
+    file_name_func = function(uri, ft, remote)
+      _ = ft -- user can leverage this to put file into sub folders
+      if remote then
+        return string.format("Attachment %s", os.date "%Y%m%d%H%M%S")
+      else
+        return vim.fs.basename(uri)
+      end
+    end,
+
+    file_path_func = function(client, path, ft, remote)
+      local base = client.opts.attachments.file_name_func(path, ft, remote)
+      return client.dir / "assets" / base
+    end,
     confirm_img_paste = true,
   }
 end

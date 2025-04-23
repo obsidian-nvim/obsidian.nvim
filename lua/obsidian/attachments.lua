@@ -1,6 +1,7 @@
 -- accpeted file formats: https://help.obsidian.md/file-formats
 
-local filetypes = {
+---@enum obsidian.attachment.ft
+local ft = {
   -- markdown
   "md",
   -- json canvas
@@ -32,64 +33,9 @@ local filetypes = {
   "pdf",
 }
 
-local m_filetype = {}
-
-for _, v in ipairs(filetypes) do
-  m_filetype[v] = true
-end
-
-local function supports_extension(path)
-  local basename = vim.fs.basename(path)
-  local ext = basename:match "^.+%.(.+)$"
-  return m_filetype[ext], basename
-end
-
 local function insert_link(client, dst)
   local new_link = "!" .. client:format_link(dst)
   vim.api.nvim_put({ new_link }, "l", true, true)
-end
-
-local function drop_local_file(line)
-  local from = vim.fs.abspath(line):gsub("\\", "")
-  local support, base = supports_extension(from)
-
-  if support then
-    local Path = require "obsidian.path"
-    local client = require("obsidian").get_client()
-    local dst = (Path.new(client.dir) / client.opts.attachments.img_folder / base):resolve()
-
-    local copy_ok, err = vim.uv.fs_copyfile(from, tostring(dst))
-    if not copy_ok then
-      vim.notify(err or "failed to copy file", 3)
-      return false
-    end
-    insert_link(client, dst)
-    vim.notify("Copied file to " .. tostring(dst))
-    return true
-  else
-    vim.notify("file extension not supported", 3)
-    return false
-  end
-end
-
-local drop_remote_file = function(url)
-  local Path = require "obsidian.path"
-  local client = require("obsidian").get_client()
-  local base = client.opts.attachments.img_name_func()
-
-  local dst = (Path.new(client.dir) / client.opts.attachments.img_folder / base):resolve()
-  dst = tostring(dst)
-
-  local obj = vim.system({ "curl", url, "-o", dst }, {}):wait()
-
-  if obj.code == 0 then
-    vim.notify("file " .. dst .. " saved")
-    insert_link(client, dst)
-    return true
-  else
-    vim.notify("file " .. dst .. " failed to save")
-    return false
-  end
 end
 
 ---@param str string
@@ -106,48 +52,114 @@ end
 
 ---@param str string
 ---@return boolean
-local is_image_url = function(str)
+---@return string?
+local is_remote = function(str)
   -- return early if not a valid url to a subdomain
   if not str:match "^https?://[^/]+/[^.]+" then
     return false
   end
 
   -- assume its a valid image link if it the url ends with an extension
-  if str:match "%.png$" or str:match "%.jpg$" or str:match "%.jpeg$" then
-    return true
+  for _, ext in ipairs(ft) do
+    local pattern = "%." .. ext .. "$"
+
+    local before_pat = "%." .. ext .. "%?"
+    if str:match(pattern) or str:match(before_pat) then
+      return true, ext
+    end
   end
 
+  return false
+
   -- send a head request to the url and check content type
-  local cmd = { "curl", "-s", "-I", "-w", "%%{content_type}", str }
-  local obj = vim.system(cmd):wait()
-  local output, exit_code = obj.stdout, obj.code
-  return exit_code == 0 and output ~= nil and (output:match "image/png" ~= nil or output:match "image/jpeg" ~= nil)
+  -- local cmd = { "curl", "-s", "-I", "-w", "%%{content_type}", str }
+  -- local obj = vim.system(cmd):wait()
+  -- local output, exit_code = obj.stdout, obj.code
+  -- return exit_code == 0 and output ~= nil and (output:match "image/png" ~= nil or output:match "image/jpeg" ~= nil)
 end
 
 ---@param str string
 ---@return boolean
-local is_image_path = function(str)
+---@return string?
+local is_local = function(str)
   str = string.lower(str)
 
+  --- TODO: correct path sep
   local has_path_sep = str:find "/" ~= nil or str:find "\\" ~= nil
-  local has_image_ext = str:match "^.*%.(png)$" ~= nil
-    or str:match "^.*%.(jpg)$" ~= nil
-    or str:match "^.*%.(jpeg)$" ~= nil
 
-  return has_path_sep and has_image_ext
-end
-
-local function handle(input)
-  input = sanitize_input(input)
-
-  if is_image_url(input) then
-    print "here"
-    return drop_remote_file(input)
-  elseif is_image_path(input) then
-    return drop_local_file(input)
+  if not has_path_sep then
+    return false
   end
 
-  return false
+  -- assume its a valid link if it the url ends with an extension
+  for _, ext in ipairs(ft) do
+    local end_pat = "%." .. ext .. "$"
+    if str:match(end_pat) then
+      return true, ext
+    end
+  end
+end
+
+---@param client obsidian.Client
+---@param path string
+---@param ext string?
+---@return boolean
+---@return string
+local function drop_local(client, path, ext)
+  local from = vim.fs.abspath(path):gsub("\\", "")
+
+  local dst = client.opts.attachments.file_path_func(client, path, ext, false)
+
+  -- TODO: obsidian has option to hold Ctrl to just link instead of copying
+  local copy_ok, err = vim.uv.fs_copyfile(from, tostring(dst))
+  if not copy_ok then
+    vim.notify(err or "failed to copy file", 3)
+    return false
+  end
+  vim.notify("Copied file to " .. tostring(dst))
+  return true, dst
+end
+
+local drop_remote = function(client, url, ext)
+  local dst = client.opts.attachments.file_path_func(client, url, ext, true)
+
+  dst = tostring(dst)
+
+  local obj = vim.system({ "curl", url, "-o", dst }, {}):wait()
+
+  if obj.code == 0 then
+    vim.notify("file " .. dst .. " saved")
+    return true, dst
+  else
+    vim.notify("file " .. dst .. " failed to save")
+    return false
+  end
+end
+
+---@param client obsidian.Client
+---@param input string
+---@return boolean
+local function try_drop(client, input)
+  input = sanitize_input(input)
+
+  local ok, link, ext, remote, loc
+  remote, ext = is_remote(input)
+  loc, ext = is_local(input)
+
+  if remote then
+    ok, link = drop_remote(client, input, ext)
+  elseif loc then
+    ok, link = drop_local(client, input, ext)
+  else
+    return false
+  end
+
+  if ok then
+    insert_link(client, link)
+    return true
+  else
+    return false
+  end
 end
 
 -- TODO: do more checks
@@ -161,7 +173,7 @@ return {
         return og_paste(lines, phase)
       end
 
-      local ok = handle(line)
+      local ok = try_drop(require("obsidian").get_client(), line)
 
       if not ok then
         vim.notify "Did not handle paste, calling original vim.paste"
