@@ -1,3 +1,7 @@
+<!--toc:start-->
+
+<!--toc:end-->
+
 <h1 align="center">obsidian.nvim</h1>
 
 <div><h4 align="center"><a href="#setup">Setup</a> · <a href="#configuration-options">Configure</a> · <a href="#contributing">Contribute</a> · <a href="https://github.com/obsidian-nvim/obsidian.nvim/discussions">Discuss</a></h4></div>
@@ -28,26 +32,29 @@ If you're new to Obsidian we highly recommend watching [this excellent YouTube v
 
 _Keep in mind this plugin is not meant to replace Obsidian, but to complement it._ The Obsidian app is very powerful in its own way; it comes with a mobile app and has a lot of functionality that's not feasible to implement in Neovim, such as the graph explorer view. That said, this plugin stands on its own as well. You don't necessarily need to use it alongside the Obsidian app.
 
-## About the fork
+## 🍴 About the fork
 
 The original project has not been actively maintained for quite a while and with the ever-changing Neovim ecosystem, new widely used tools such as [blink.cmp](https://github.com/Saghen/blink.cmp) or [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) were not supported.
 With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
 The fork aims to stay close to the original, but fix bugs, include and merge useful improvements, and ensure long term robustness.
 
-## Table of contents
+## 📎 Table of contents
 
-- 👉 [Features](#features)
+- [🍴 About the fork](#🍴-about-the-fork)
+- [📎 Table of contents](#📎-table-of-contents)
+- [⭐ Features](#⭐-features)
   - [Commands](#commands)
   - [Demo](#demo)
-- ⚙️ [Setup](#setup)
+- [📝 Requirements](#📝-requirements)
   - [System requirements](#system-requirements)
-  - [Install and configure](#install-and-configure)
   - [Plugin dependencies](#plugin-dependencies)
-  - [Configuration](#configuration)
-  - [Documentation](#documentation)
-- ➕ [Contributing](#contributing)
+- [📥 Installation](#📥-installation)
+- [⚙️ Configuration](⚙️-configuration)
+- [📖 Documentation](#📖-documentation)
+- [🤝 Contributing](#🤝-contributing)
+- [❤️ Acknowledgement](❤️-acknowledgement)
 
-## Features
+## ⭐ Features
 
 ▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki links, `[` for markdown links, or `#` for tags), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep).
 
@@ -116,11 +123,11 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 [![2024-01-31 14 22 52](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)
 
-## Setup
+## 📝 Requirements
 
 ### System requirements
 
-- NeoVim >= 0.10.0
+- Neovim >= 0.10.0
 - If you want completion and search features (recommended) you'll need [ripgrep](https://github.com/BurntSushi/ripgrep) to be installed and on your `$PATH`.
   See [ripgrep#installation](https://github.com/BurntSushi/ripgrep) for install options.
 
@@ -132,7 +139,36 @@ Specific operating systems also require additional dependencies in order to use 
 
 Search functionality (e.g. via the `:ObsidianSearch` and `:ObsidianQuickSwitch` commands) also requires a picker such [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) (see [plugin dependencies](#plugin-dependencies) below).
 
-### Install and configure
+### Plugin dependencies
+
+The only **required** plugin dependency is [plenary.nvim](https://github.com/nvim-lua/plenary.nvim), but there are a number of optional dependencies that enhance the obsidian.nvim experience.
+
+**Completion:**
+
+- **[recommended]** [hrsh7th/nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
+- [blink.cmp](https://github.com/Saghen/blink.cmp) (new)
+
+**Pickers:**
+
+- **[recommended]** [nvim-telescope/telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
+- [ibhagwan/fzf-lua](https://github.com/ibhagwan/fzf-lua)
+- [Mini.Pick](https://github.com/echasnovski/mini.pick) from the mini.nvim library
+- [Snacks.Picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) from the snacks.nvim library
+
+**Syntax highlighting:**
+
+See [syntax highlighting](#syntax-highlighting) for more details.
+
+- For base syntax highlighting:
+  - **[recommended]** [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
+  - [preservim/vim-markdown](https://github.com/preservim/vim-markdown)
+- For additional syntax features:
+  - [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)
+  - [markview.nvim](https://github.com/OXY2DEV/markview.nvim)
+
+If you choose to use any of these you should include them in the "dependencies" or "requires" field of the obsidian.nvim plugin spec for your package manager.
+
+## 📥 Installation
 
 To configure obsidian.nvim you just need to call `require("obsidian").setup({ ... })` with the desired options.
 Here are some examples using different plugin managers. The full set of [plugin dependencies](#plugin-dependencies) and [configuration options](#configuration-options) are listed below.
@@ -145,7 +181,7 @@ Here are some examples using different plugin managers. The full set of [plugin 
 >
 > To try out or debug this plugin, use `minimal.lua` in the repo to run a clean instance of obsidian.nvim
 
-#### Using [`lazy.nvim`](https://github.com/folke/lazy.nvim)
+### Using [`lazy.nvim`](https://github.com/folke/lazy.nvim)
 
 <details><summary>Click for install snippet</summary>
 
@@ -188,7 +224,7 @@ return {
 
 </details>
 
-#### Using [`rocks.nvim`](https://github.com/nvim-neorocks/rocks.nvim)
+### Using [`rocks.nvim`](https://github.com/nvim-neorocks/rocks.nvim)
 
 <details><summary>Click for install snippet</summary>
 
@@ -198,7 +234,7 @@ return {
 
 </details>
 
-#### Using [`packer.nvim`](https://github.com/wbthomason/packer.nvim)
+### Using [`packer.nvim`](https://github.com/wbthomason/packer.nvim)
 
 It is not recommended because packer.nvim is currently unmaintained
 
@@ -235,36 +271,7 @@ use {
 
 </details>
 
-### Plugin dependencies
-
-The only **required** plugin dependency is [plenary.nvim](https://github.com/nvim-lua/plenary.nvim), but there are a number of optional dependencies that enhance the obsidian.nvim experience.
-
-**Completion:**
-
-- **[recommended]** [hrsh7th/nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
-- [blink.cmp](https://github.com/Saghen/blink.cmp) (new)
-
-**Pickers:**
-
-- **[recommended]** [nvim-telescope/telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
-- [ibhagwan/fzf-lua](https://github.com/ibhagwan/fzf-lua)
-- [Mini.Pick](https://github.com/echasnovski/mini.pick) from the mini.nvim library
-- [Snacks.Picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) from the snacks.nvim library
-
-**Syntax highlighting:**
-
-See [syntax highlighting](#syntax-highlighting) for more details.
-
-- For base syntax highlighting:
-  - **[recommended]** [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
-  - [preservim/vim-markdown](https://github.com/preservim/vim-markdown)
-- For additional syntax features:
-  - [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)
-  - [markview.nvim](https://github.com/OXY2DEV/markview.nvim)
-
-If you choose to use any of these you should include them in the "dependencies" or "requires" field of the obsidian.nvim plugin spec for your package manager.
-
-### Configuration options
+## ⚙️ Configuration
 
 This is a complete list of all the options that can be passed to `require("obsidian").setup()`. The settings below are _not necessarily the defaults, but represent reasonable default settings_. Please read each option carefully and customize it to your needs.
 
@@ -602,14 +609,14 @@ require("obsidian").setup {
 
 </details>
 
-## Documentation
+## 📖 Documentation
 
 See the [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki)
 
-## Contributing
+## 🤝 Contributing
 
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.
 
-## Acknowledgement
+## ❤️ Acknowledgement
 
-We would like to thank [epwalsh](https://github.com/epwalsh) for creating this beautiful plugin. If you're feeling especially generous, [he still appreciates some coffee funds! ❤️](https://www.buymeacoffee.com/epwalsh).
+We would like to thank [epwalsh](https://github.com/epwalsh) for creating this beautiful plugin. If you're feeling especially generous, [he still appreciates some coffee funds!](https://www.buymeacoffee.com/epwalsh).
