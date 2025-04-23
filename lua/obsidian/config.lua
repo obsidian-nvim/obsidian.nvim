@@ -32,6 +32,7 @@ local config = {}
 ---@field ui obsidian.config.UIOpts | table<string, any>
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig
+---@field calendar obsidian.config.CalendarConfig
 config.ClientOpts = {}
 
 --- Get defaults.
@@ -65,6 +66,7 @@ config.ClientOpts.default = function()
     ui = config.UIOpts.default(),
     attachments = config.AttachmentsOpts.default(),
     callbacks = config.CallbackConfig.default(),
+    calendar = config.CalendarConfig.default(),
   }
 end
 
@@ -506,6 +508,34 @@ config.CallbackConfig = {}
 ---@return obsidian.config.CallbackConfig
 config.CallbackConfig.default = function()
   return {}
+end
+
+---@class obsidian.config.CalendarConfig
+---
+---calendar week display mode: 1 -> 'WK01', 2 -> 'WK 1', 3 -> 'KW01', 4 -> 'KW 1', 5 -> '1'
+---@field weeknum 1 | 2 | 3 | 4
+---
+---use monday as first day of week: 1 -> true, 0 -> false
+---@field monday 1 | 0
+---
+---calendar mark: where to put mark for marked days
+---@field mark "left" | "right" | "left-fit"
+---
+---calendar-vim command to run
+---@field cmd "Calendar" | "CalendarT" | "CalendarH" | "CalendarVR"
+---
+---whether calendar window is closed after opening note
+---@field close_after boolean
+config.CalendarConfig = {}
+
+config.CalendarConfig.default = function()
+  return {
+    weeknm = 3,
+    monday = 1,
+    mark = "left-fit",
+    cmd = "CalendarVR",
+    close_after = false,
+  }
 end
 
 return config
