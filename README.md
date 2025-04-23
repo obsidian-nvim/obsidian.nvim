@@ -129,16 +129,16 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 ### System requirements
 
 - Neovim >= 0.10.0
-- If you want completion and search features (recommended) you'll need [ripgrep](https://github.com/BurntSushi/ripgrep) to be installed and on your `$PATH`.
-  See [ripgrep#installation](https://github.com/BurntSushi/ripgrep) for install options.
+- For completion and search features (recommended) you'll need:
 
-Specific operating systems also require additional dependencies in order to use all of obsidian.nvim's functionality:
+  - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep) for install options.
+  - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
 
-- **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for the `:ObsidianOpen` command.
-- **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for the `:ObsidianPasteImg` command.
-- **Linux** users need xclip (X11) or wl-clipboard (Wayland) for the `:ObsidianPasteImg` command.
+- Additional system dependencies for commands
 
-Search functionality (e.g. via the `:ObsidianSearch` and `:ObsidianQuickSwitch` commands) also requires a picker such [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) (see [plugin dependencies](#plugin-dependencies) below).
+  - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:ObsidianOpen`.
+  - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:ObsidianPasteImg`.
+  - **Linux** users need xclip (X11) or wl-clipboard (Wayland) for `:ObsidianPasteImg`.
 
 ### Plugin dependencies
 
