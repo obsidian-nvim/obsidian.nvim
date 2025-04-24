@@ -66,7 +66,7 @@ config.ClientOpts.default = function()
     ui = config.UIOpts.default(),
     attachments = config.AttachmentsOpts.default(),
     callbacks = config.CallbackConfig.default(),
-    legacy_commands = false,
+    legacy_commands = true,
   }
 end
 

@@ -772,27 +772,29 @@ util.cursor_tag = function(line, col)
 end
 
 util.gf_passthrough = function()
+  local legacy = require("obsidian").get_client().opts.legacy_commands
   if util.cursor_on_markdown_link(nil, nil, true) then
-    return "<cmd>ObsidianFollowLink<CR>"
+    return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
   else
     return "gf"
   end
 end
 
 util.smart_action = function()
+  local legacy = require("obsidian").get_client().opts.legacy_commands
   -- follow link if possible
   if util.cursor_on_markdown_link(nil, nil, true) then
-    return "<cmd>ObsidianFollowLink<CR>"
+    return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
   end
 
   -- show notes with tag if possible
   if util.cursor_tag(nil, nil) then
-    return "<cmd>ObsidianTag<CR>"
+    return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
   end
 
   -- toggle task if possible
   -- cycles through your custom UI checkboxes, default: [ ] [~] [>] [x]
-  return "<cmd>ObsidianToggleCheckbox<CR>"
+  return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
 end
 
 ---Get the path to where a plugin is installed.

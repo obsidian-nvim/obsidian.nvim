@@ -54,9 +54,9 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 - `:Obsidian new [TITLE]` to create a new note.
   This command has one optional argument: the title of the new note.
 
-- `:Obsidian quickswitch` to quickly switch to (or open) another note in your vault, searching by its name using [ripgrep](https://github.com/BurntSushi/ripgrep) with your preferred picker (see [plugin dependencies](#plugin-dependencies) below).
+- `:Obsidian quick_switch` to quickly switch to (or open) another note in your vault, searching by its name using [ripgrep](https://github.com/BurntSushi/ripgrep) with your preferred picker (see [plugin dependencies](#plugin-dependencies) below).
 
-- `:Obsidian followlink [vsplit|hsplit]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
+- `:Obsidian follow_link [vsplit|hsplit]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
 
 - `:Obsidian backlinks` for getting a picker list of references to the current buffer.
 
@@ -82,17 +82,17 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 - `:Obsidian links` to collect all links within the current buffer into a picker window.
 
-- `:Obsidian extractnote [TITLE]` to extract the visually selected text into a new note and link to it.
+- `:Obsidian extract_note [TITLE]` to extract the visually selected text into a new note and link to it.
 
 - `:Obsidian workspace [NAME]` to switch to another workspace.
 
-- `:Obsidian pasteimg [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option.
+- `:Obsidian paste_img [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option.
 
 - `:Obsidian rename [NEWNAME] [--dry-run]` to rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault. Since this command is still relatively new and could potentially write a lot of changes to your vault, I highly recommend committing the current state of your vault (if you're using version control) before running it, or doing a dry-run first by appending "--dry-run" to the command, e.g. `:Obsidian rename new-id --dry-run`.
 
-- `:Obsidian togglecheckbox` to cycle through checkbox options.
+- `:Obsidian toggle_checkbox` to cycle through checkbox options.
 
-- `:Obsidian newfromtemplate [TITLE]` to create a new note from a template in the templates folder. Selecting from a list using your preferred picker.
+- `:Obsidian new_from_template [TITLE]` to create a new note from a template in the templates folder. Selecting from a list using your preferred picker.
   This command has one optional argument: the title of the new note.
 
 - `:Obsidian toc` to load the table of contents of the current note into a picker list.

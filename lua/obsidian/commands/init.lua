@@ -2,38 +2,11 @@ local iter = require("obsidian.itertools").iter
 local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
 
-local command_lookups = {
-  check = "obsidian.commands.check",
-  togglecheckbox = "obsidian.commands.toggle_checkbox",
-  today = "obsidian.commands.today",
-  yesterday = "obsidian.commands.yesterday",
-  tomorrow = "obsidian.commands.tomorrow",
-  dailies = "obsidian.commands.dailies",
-  new = "obsidian.commands.new",
-  open = "obsidian.commands.open",
-  backlinks = "obsidian.commands.backlinks",
-  search = "obsidian.commands.search",
-  tags = "obsidian.commands.tags",
-  template = "obsidian.commands.template",
-  newfromtemplate = "obsidian.commands.new_from_template",
-  quickswitch = "obsidian.commands.quick_switch",
-  linknew = "obsidian.commands.link_new",
-  link = "obsidian.commands.link",
-  links = "obsidian.commands.links",
-  followlink = "obsidian.commands.follow_link",
-  workspace = "obsidian.commands.workspace",
-  rename = "obsidian.commands.rename",
-  pasteimg = "obsidian.commands.paste_img",
-  extractnote = "obsidian.commands.extract_note",
-  debug = "obsidian.commands.debug",
-  toc = "obsidian.commands.toc",
-}
-
 local M = setmetatable({
   commands = {},
 }, {
   __index = function(t, k)
-    local require_path = command_lookups[k]
+    local require_path = "obsidian.commands." .. k
     if not require_path then
       return
     end
@@ -219,27 +192,27 @@ M.register("search", { nargs = "?" })
 
 M.register("template", { nargs = "?" })
 
-M.register("newfromtemplate", { nargs = "?" })
+M.register("new_from_template", { nargs = "?" })
 
-M.register("quickswitch", { nargs = "?" })
+M.register("quick_switch", { nargs = "?" })
 
-M.register("linknew", { nargs = "?", range = true })
+M.register("link_new", { nargs = "?", range = true })
 
 M.register("link", { nargs = "?", range = true, complete = M.note_complete })
 
 M.register("links", { nargs = 0 })
 
-M.register("followlink", { nargs = "?" })
+M.register("follow_link", { nargs = "?" })
 
-M.register("togglecheckbox", { nargs = 0 })
+M.register("toggle_checkbox", { nargs = 0 })
 
 M.register("workspace", { nargs = "?" })
 
 M.register("rename", { nargs = "?", complete = "file" })
 
-M.register("pasteimg", { nargs = "?", complete = "file" })
+M.register("paste_img", { nargs = "?", complete = "file" })
 
-M.register("extractnote", { nargs = "?", range = true })
+M.register("extract_note", { nargs = "?", range = true })
 
 M.register("debug", { nargs = 0 })
 
