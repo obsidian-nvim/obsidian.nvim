@@ -1,7 +1,3 @@
-<!--toc:start-->
-
-<!--toc:end-->
-
 <h1 align="center">obsidian.nvim</h1>
 
 <div><h4 align="center"><a href="#setup">Setup</a> · <a href="#configuration-options">Configure</a> · <a href="#contributing">Contribute</a> · <a href="https://github.com/obsidian-nvim/obsidian.nvim/discussions">Discuss</a></h4></div>
@@ -20,6 +16,10 @@
 </a>
 <a href="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim">
 	<img src="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim/shield?style=for-the-badge" />
+</a>
+
+<a href="https://github.com/obsidian-nvim/obsidian.nvim">
+	<img src="https://img.shields.io/github/all-contributors/obsidian-nvim/obsidian.nvim?color=ee8449&style=for-the-badge" />
 </a>
 </div>
 <hr>
@@ -607,3 +607,14 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
 ## ❤️ Acknowledgement
 
 We would like to thank [epwalsh](https://github.com/epwalsh) for creating this beautiful plugin. If you're feeling especially generous, [he still appreciates some coffee funds!](https://www.buymeacoffee.com/epwalsh).
+
+## Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
