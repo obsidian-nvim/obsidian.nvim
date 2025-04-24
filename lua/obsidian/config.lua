@@ -32,6 +32,7 @@ local config = {}
 ---@field ui obsidian.config.UIOpts | table<string, any>
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig
+---@field legacy_commands boolean
 config.ClientOpts = {}
 
 --- Get defaults.
@@ -65,6 +66,7 @@ config.ClientOpts.default = function()
     ui = config.UIOpts.default(),
     attachments = config.AttachmentsOpts.default(),
     callbacks = config.CallbackConfig.default(),
+    legacy_commands = false,
   }
 end
 
@@ -213,6 +215,11 @@ config.ClientOpts.normalize = function(opts, defaults)
     end
     opts.attachments.img_name_func = opts.image_name_func
     opts.image_name_func = nil
+  end
+
+  if opts.legacy_commands then
+    log.warn_once "The 'legacy_commands' config option is deprecated and will be removed in a future update."
+    opts.tags = nil
   end
 
   --------------------------

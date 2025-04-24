@@ -76,64 +76,64 @@ extmarks for references, tags, and check-boxes.
 
 COMMANDS                                                   *obsidian-commands*
 
-- `:ObsidianOpen [QUERY]` to open a note in the Obsidian app. This command has
+- `:Obsidian open [QUERY]` to open a note in the Obsidian app. This command has
     one optional argument: a query used to resolve the note to open by ID, path, or
     alias. If not given, the note corresponding to the current buffer is opened.
-- `:ObsidianNew [TITLE]` to create a new note. This command has one optional
+- `:Obsidian new [TITLE]` to create a new note. This command has one optional
     argument: the title of the new note.
-- `:ObsidianQuickSwitch` to quickly switch to (or open) another note in your
+- `:Obsidian quickswitch` to quickly switch to (or open) another note in your
     vault, searching by its name using ripgrep
     <https://github.com/BurntSushi/ripgrep> with your preferred picker (see
     |obsidian-plugin-dependencies| below).
-- `:ObsidianFollowLink [vsplit|hsplit]` to follow a note reference under the
+- `:Obsidian followlink [vsplit|hsplit]` to follow a note reference under the
     cursor, optionally opening it in a vertical or horizontal split.
-- `:ObsidianBacklinks` for getting a picker list of references to the current
+- `:Obsidian backlinks` for getting a picker list of references to the current
     buffer.
-- `:ObsidianTags [TAG ...]` for getting a picker list of all occurrences of the
+- `:Obsidian tags [TAG ...]` for getting a picker list of all occurrences of the
     given tags.
-- `:ObsidianToday [OFFSET]` to open/create a new daily note. This command also
+- `:Obsidian today [OFFSET]` to open/create a new daily note. This command also
     takes an optional offset in days, e.g. use `:ObsidianToday -1` to go to
     yesterday’s note. Unlike `:ObsidianYesterday` and `:ObsidianTomorrow` this
     command does not differentiate between weekdays and weekends.
-- `:ObsidianYesterday` to open/create the daily note for the previous working
+- `:Obsidian yesterday` to open/create the daily note for the previous working
     day.
-- `:ObsidianTomorrow` to open/create the daily note for the next working day.
-- `:ObsidianDailies [OFFSET ...]` to open a picker list of daily notes. For
+- `:Obsidian tomorrow` to open/create the daily note for the next working day.
+- `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For
     example, `:ObsidianDailies -2 1` to list daily notes from 2 days ago until
     tomorrow.
-- `:ObsidianTemplate [NAME]` to insert a template from the templates folder,
+- `:Obsidian template [NAME]` to insert a template from the templates folder,
     selecting from a list using your preferred picker. See
     |obsidian-"using-templates"| for more information.
-- `:ObsidianSearch [QUERY]` to search for (or create) notes in your vault using
+- `:Obsidian search [QUERY]` to search for (or create) notes in your vault using
     `ripgrep` with your preferred picker.
-- `:ObsidianLink [QUERY]` to link an inline visual selection of text to a note.
+- `:Obsidian link [QUERY]` to link an inline visual selection of text to a note.
     This command has one optional argument: a query that will be used to resolve
     the note by ID, path, or alias. If not given, the selected text will be used as
     the query.
-- `:ObsidianLinkNew [TITLE]` to create a new note and link it to an inline visual
+- `:Obsidian linknew [TITLE]` to create a new note and link it to an inline visual
     selection of text. This command has one optional argument: the title of the new
     note. If not given, the selected text will be used as the title.
-- `:ObsidianLinks` to collect all links within the current buffer into a picker
+- `:Obsidian links` to collect all links within the current buffer into a picker
     window.
-- `:ObsidianExtractNote [TITLE]` to extract the visually selected text into a new
+- `:Obsidian extractnote [TITLE]` to extract the visually selected text into a new
     note and link to it.
-- `:ObsidianWorkspace [NAME]` to switch to another workspace.
-- `:ObsidianPasteImg [IMGNAME]` to paste an image from the clipboard into the
+- `:Obsidian workspace [NAME]` to switch to another workspace.
+- `:Obsidian pasteimg [IMGNAME]` to paste an image from the clipboard into the
     note at the cursor position by saving it to the vault and adding a markdown
     image link. You can configure the default folder to save images to with the
     `attachments.img_folder` option.
-- `:ObsidianRename [NEWNAME] [--dry-run]` to rename the note of the current
+- `:Obsidian rename [NEWNAME] [--dry-run]` to rename the note of the current
     buffer or reference under the cursor, updating all backlinks across the vault.
     Since this command is still relatively new and could potentially write a lot of
     changes to your vault, I highly recommend committing the current state of your
     vault (if you’re using version control) before running it, or doing a dry-run
     first by appending "–dry-run" to the command, e.g. `:ObsidianRename new-id
     --dry-run`.
-- `:ObsidianToggleCheckbox` to cycle through checkbox options.
-- `:ObsidianNewFromTemplate [TITLE]` to create a new note from a template in the
+- `:Obsidian togglecheckbox` to cycle through checkbox options.
+- `:Obsidian newfromtemplate [TITLE]` to create a new note from a template in the
     templates folder. Selecting from a list using your preferred picker. This
     command has one optional argument: the title of the new note.
-- `:ObsidianTOC` to load the table of contents of the current note into a picker
+- `:Obsidian toc` to load the table of contents of the current note into a picker
     list.
 
 
@@ -160,8 +160,8 @@ all of obsidian.nvim’s functionality:
 - **MacOS** users need `pngpaste` <https://github.com/jcsalterego/pngpaste> (`brew install pngpaste`) for the `:ObsidianPasteImg` command.
 - **Linux** users need xclip (X11) or wl-clipboard (Wayland) for the `:ObsidianPasteImg` command.
 
-Search functionality (e.g. via the `:ObsidianSearch` and
-`:ObsidianQuickSwitch` commands) also requires a picker such telescope.nvim
+Search functionality (e.g. via the `:Obsidian search` and
+`:Obsidian quickswitch` commands) also requires a picker such telescope.nvim
 <https://github.com/nvim-telescope/telescope.nvim> (see
 |obsidian-plugin-dependencies| below).
 

@@ -117,7 +117,7 @@ return function(client, data)
         .. "'...\n"
         .. "This will write all buffers and potentially modify a lot of files. If you're using version control "
         .. "with your vault it would be a good idea to commit the current state of your vault before running this.\n"
-        .. "You can also do a dry run of this by running ':ObsidianRename "
+        .. "You can also do a dry run of this by running ':Obsidian rename "
         .. arg
         .. " --dry-run'.\n"
         .. "Do you want to continue?"
