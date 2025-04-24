@@ -33,7 +33,7 @@ local config = {}
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
----@field statusline { format: string }
+---@field statusline { enabled: boolean, format: string }
 config.ClientOpts = {}
 
 --- Get defaults.

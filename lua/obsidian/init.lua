@@ -95,7 +95,9 @@ obsidian.setup = function(opts)
   local client = obsidian.new(opts)
   log.set_level(client.opts.log_level)
 
-  client:statusline()
+  if opts.statusline.enabled then
+    client:statusline()
+  end
 
   -- Install commands.
   -- These will be available across all buffers, not just note buffers in the vault.
