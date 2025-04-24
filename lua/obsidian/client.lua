@@ -22,6 +22,7 @@ local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local CallbackManager = require("obsidian.callbacks").CallbackManager
 local block_on = require("obsidian.async").block_on
 local iter = require("obsidian.itertools").iter
+local uv = vim.uv
 
 ---@class obsidian.SearchOpts : obsidian.ABC
 ---
@@ -2074,6 +2075,40 @@ end
 ---@return obsidian.Picker|?
 Client.picker = function(self, picker_name)
   return require("obsidian.pickers").get(self, picker_name)
+end
+
+Client.statusline = function(self)
+  local function refresh()
+    local note = self:current_note()
+
+    if not note then
+      return ""
+    end
+
+    local wc = vim.fn.wordcount()
+    self:find_backlinks_async(note, function(backlinks)
+      local info = {
+        words = wc.words,
+        chars = wc.chars,
+        backlinks = #backlinks,
+        properties = vim.tbl_count(note:frontmatter() or {}),
+      }
+      local acc = self.opts.statusline.format
+
+      for k, v in pairs(info) do
+        acc = acc:gsub("{{" .. k .. "}}", v)
+      end
+      vim.g.obsidian = acc
+    end)
+  end
+
+  local timer = uv:new_timer()
+
+  if timer then
+    timer:start(0, 1000, function()
+      vim.schedule(refresh)
+    end)
+  end
 end
 
 return Client

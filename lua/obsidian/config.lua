@@ -33,6 +33,7 @@ local config = {}
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
+---@field statusline { format: string }
 config.ClientOpts = {}
 
 --- Get defaults.
@@ -67,6 +68,9 @@ config.ClientOpts.default = function()
     attachments = config.AttachmentsOpts.default(),
     callbacks = config.CallbackConfig.default(),
     legacy_commands = true,
+    statusline = {
+      format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+    },
   }
 end
 
