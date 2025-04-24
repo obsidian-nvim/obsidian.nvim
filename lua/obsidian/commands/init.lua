@@ -2,21 +2,45 @@ local iter = require("obsidian.itertools").iter
 local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
 
-local M = setmetatable({
-  commands = {},
-}, {
-  __index = function(t, k)
-    local require_path = "obsidian.commands." .. k
-    if not require_path then
-      return
+local cmds = {
+  "backlinks",
+  "check",
+  "dailies",
+  "debug",
+  "extract_note",
+  "follow_link",
+  "link",
+  "link_new",
+  "links",
+  "new",
+  "new_from_template",
+  "open",
+  "paste_img",
+  "quick_switch",
+  "rename",
+  "search",
+  "tags",
+  "template",
+  "toc",
+  "today",
+  "toggle_checkbox",
+  "tomorrow",
+  "workspace",
+  "yesterday",
+}
+
+-- TODO: this will be context-sensitive in the future
+local function show_menu()
+  vim.ui.select(cmds, { prompt = "Obsidian Commands" }, function(item)
+    if item then
+      return vim.cmd.Obsidian(item)
+    else
+      vim.notify("Aborted", 3)
     end
+  end)
+end
 
-    local mod = require(require_path)
-    t[k] = mod
-
-    return mod
-  end,
-})
+local M = { commands = {} }
 
 ---@class obsidian.CommandConfig
 ---@field complete function|string|?
@@ -30,7 +54,8 @@ local M = setmetatable({
 M.register = function(name, config)
   if not config.func then
     config.func = function(client, data)
-      return M[name](client, data)
+      local mod = require("obsidian.commands." .. name)
+      return mod(client, data)
     end
   end
   M.commands[name] = config
@@ -41,9 +66,13 @@ end
 ---@param client obsidian.Client
 M.install = function(client)
   vim.api.nvim_create_user_command("Obsidian", function(data)
+    if #data.fargs == 0 then
+      show_menu()
+      return
+    end
     M.handle_command(client, data)
   end, {
-    nargs = "+",
+    nargs = "*",
     complete = function(_, cmdline, _)
       return M.get_completions(client, cmdline)
     end,
@@ -99,12 +128,12 @@ M.get_completions = function(client, cmdline)
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
   local obsidiancmd = splitcmd[2]
   if cmdline:match(obspat .. "%s$") then
-    return vim.tbl_keys(M.commands)
+    return cmds
   end
   if cmdline:match(obspat .. "%s%S+$") then
     return vim.tbl_filter(function(s)
       return s:sub(1, #obsidiancmd) == obsidiancmd
-    end, vim.tbl_keys(M.commands))
+    end, cmds)
   end
   local cmdconfig = M.commands[obsidiancmd]
   if cmdconfig == nil then
