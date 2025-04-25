@@ -233,7 +233,7 @@ M.register("links", { nargs = 0 })
 
 M.register("follow_link", { nargs = "?" })
 
-M.register("toggle_checkbox", { nargs = 0 })
+M.register("toggle_checkbox", { nargs = 0, range = true })
 
 M.register("workspace", { nargs = "?" })
 
