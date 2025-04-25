@@ -152,11 +152,8 @@ return function(client, data)
       -- If we're renaming the note of a current buffer, save as the new path.
       if not dry_run then
         quietly(vim.cmd.saveas, tostring(new_note_path))
-        for bufnr, bufname in util.get_named_buffers() do
-          if bufname == cur_note_path then
-            quietly(vim.cmd.bdelete, bufnr)
-          end
-        end
+        local new_bufnr_current_note = vim.fn.bufnr(tostring(cur_note_path))
+        quietly(vim.cmd.bdelete, new_bufnr_current_note)
         vim.fn.delete(tostring(cur_note_path))
       else
         log.info("Dry run: saving current buffer as '" .. tostring(new_note_path) .. "' and removing old file")
@@ -186,16 +183,14 @@ return function(client, data)
     end
   end
 
-  if not is_current_buf then
-    -- When the note to rename is not the current buffer we need to update its frontmatter
-    -- to account for the rename.
-    cur_note.id = new_note_id
-    cur_note.path = Path.new(new_note_path)
-    if not dry_run then
-      cur_note:save()
-    else
-      log.info("Dry run: updating frontmatter of '" .. tostring(new_note_path) .. "'")
-    end
+  -- We need to update its frontmatter note_id
+  -- to account for the rename.
+  cur_note.id = new_note_id
+  cur_note.path = Path.new(new_note_path)
+  if not dry_run then
+    cur_note:save()
+  else
+    log.info("Dry run: updating frontmatter of '" .. tostring(new_note_path) .. "'")
   end
 
   local cur_note_rel_path = tostring(client:vault_relative_path(cur_note_path, { strict = true }))
