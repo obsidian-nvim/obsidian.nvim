@@ -2150,6 +2150,7 @@ Client.lsp_start = function(self)
           handlers[method](self, params, handler, _)
         end,
         notify = function(method, params, handler, _)
+          print(method)
           handlers[method](self, params, handler, _)
         end,
         is_closing = function() end,
