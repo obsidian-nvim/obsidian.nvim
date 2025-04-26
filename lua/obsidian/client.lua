@@ -863,26 +863,19 @@ Client.follow_link_async = function(self, link, opts)
     ---@param res obsidian.ResolveLinkResult
     local function follow_link(res)
       if res.url ~= nil then
-        if self.opts.follow_url_func ~= nil then
-          self.opts.follow_url_func(res.url)
-        else
-          log.warn "This looks like a URL. You can customize the behavior of URLs with the 'follow_url_func' option."
-        end
+        self.opts.follow_url_func(res.url)
+        return
+      end
+
+      if util.is_img(res.location) then
+        local path = self.dir / res.location
+        self.opts.follow_img_func(tostring(path))
         return
       end
 
       if res.note ~= nil then
         -- Go to resolved note.
         return self:open_note(res.note, { line = res.line, col = res.col, open_strategy = opts.open_strategy })
-      end
-
-      if util.is_img(res.location) then
-        if self.opts.follow_img_func ~= nil then
-          self.opts.follow_img_func(res.location)
-        else
-          log.warn "This looks like an image path. You can customize the behavior of images with the 'follow_img_func' option."
-        end
-        return
       end
 
       if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
