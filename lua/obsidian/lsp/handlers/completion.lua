@@ -1,5 +1,4 @@
 -- TODO: completion for anchor, blocks
--- TODO: create item
 -- TODO: memoize?
 
 local ref_trigger_pattern = {
@@ -11,39 +10,13 @@ local util = require "obsidian.util"
 
 local find, sub, lower = string.find, string.sub, string.lower
 
+-- TODO:
 local function insert_snippet_marker(text, style)
   if style == "markdown" then
     local pos = text:find "]"
     local a, b = sub(text, 1, pos - 1), sub(text, pos)
     return a .. "$1" .. b
   end
-end
-
----@param note obsidian.Note
----@param insert_text string
----@param insert_start integer
----@param insert_end integer
----@param line_num integer
----@return lsp.CompletionItem
-local function calc_ref_item(note, insert_text, insert_start, insert_end, line_num, style)
-  return {
-    kind = 17,
-    label = note.title,
-    filterText = note.title,
-    insertTextFormat = 2, -- is snippet
-    textEdit = {
-      range = {
-        start = { line = line_num, character = insert_start },
-        ["end"] = { line = line_num, character = insert_end },
-      },
-      newText = insert_snippet_marker(insert_text, style),
-    },
-    labelDetails = { description = "Obsidian" },
-    data = {
-      file = note.path.filename,
-      kind = "ref",
-    },
-  }
 end
 
 local state = {
@@ -76,6 +49,60 @@ local function collect_matching_anchors(note, anchor_link)
   return matching_anchors
 end
 
+-- A more generic pure function, don't require label to exist
+local function format_link(label, format_func)
+  local path = util.urlencode(label) .. ".md"
+  local opts = { label = label, path = path }
+  return format_func(opts)
+end
+
+---@param label string
+---@param path string
+---@param new_text string
+---@param range lsp.Range
+---@return lsp.CompletionItem
+local function gen_ref_item(label, path, new_text, range, style, is_snippet)
+  return {
+    kind = 17,
+    label = label,
+    filterText = label,
+    insertTextFormat = 2, -- is snippet TODO: extract to config option
+    textEdit = {
+      range = range,
+      newText = insert_snippet_marker(new_text, style),
+    },
+    labelDetails = { description = "Obsidian" },
+    data = {
+      file = path,
+      kind = "ref",
+    },
+  }
+end
+
+---@param label string
+---@param range lsp.Range
+---@param format_func function
+---@return lsp.CompletionItem
+local function gen_create_item(label, range, format_func)
+  return {
+    kind = 17,
+    label = label .. " (create)",
+    filterText = label,
+    textEdit = {
+      range = range,
+      newText = format_link(label, format_func),
+    },
+    labelDetails = { description = "Obsidian" },
+    command = { -- runs after accept
+      command = "createNote",
+      arguments = { label },
+    },
+    data = {
+      kind = "ref_create", -- TODO: resolve to a tooltip window
+    },
+  }
+end
+
 ---@client obsidian.Client
 local function handle_ref(client, partial, ref_start, cursor_col, line_num, handler)
   ---@type string|?
@@ -85,23 +112,35 @@ local function handle_ref(client, partial, ref_start, cursor_col, line_num, hand
   ---@type string|?
   local anchor_link
   partial, anchor_link = util.strip_anchor_links(partial)
-  print(partial)
+  local style = client.opts.preferred_link_style
 
-  local items = {}
+  local range = {
+    start = { line = line_num, character = ref_start },
+    ["end"] = { line = line_num, character = cursor_col }, -- if auto parired
+  }
+
+  local format_func
+  if style == "markdown" then
+    format_func = client.opts.markdown_link_func
+  else
+    format_func = client.opts.wiki_link_func
+  end
+
   if not anchor_link then
     client:find_notes_async(
       partial,
       vim.schedule_wrap(function(notes)
-        for _, note in ipairs(notes) do
+        local items = {}
+        for _, note in ipairs(notes or {}) do
           local title = note.title
           local pattern = vim.pesc(lower(partial))
           if title and find(lower(title), pattern) then
             local link_text = client:format_link(note)
-            local style = client.opts.preferred_link_style
-            items[#items + 1] = calc_ref_item(note, link_text, ref_start, cursor_col, line_num, style)
+            items[#items + 1] = gen_ref_item(note.title, note.path.filename, link_text, range, style)
           end
-          handler(nil, { items = items })
         end
+        items[#items + 1] = gen_create_item(partial, range, format_func)
+        handler(nil, { items = items })
       end)
     )
   else
