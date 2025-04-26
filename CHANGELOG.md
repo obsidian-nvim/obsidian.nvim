@@ -15,8 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `ObsidianToggleCheckbox` now works in visual mode for multiline toggle
-- `ObsidianRename` input field is pre-filled filled with the current note id to ease renaming
+- Moved all commands into one `:Obsidian` command.
+- Added `opts.legacy_commands` option which enables the old commands.
+- `ObsidianToggleCheckbox` now works in visual mode for multiline toggle.
+- `ObsidianRename` input field is pre-filled filled with the current note id to ease renaming.
 - Improved type annotations for user commands: add `CommandArgs` type.
 - `follow_url_func` and `follow_img_func` defaults to `vim.ui.open`
 
@@ -31,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `opts.follow_img_func` option for customizing how to handle image paths.
 - Added better handling for undefined template fields, which will now be prompted for.
-- Added support for the [`snacks.picker`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) picker
+- Added support for the [`snacks.picker`](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) picker.
 - Added support for the [`blink.cmp`](https://github.com/Saghen/blink.cmp) completion plugin.
 - Added health check module
 - Added a minimal sandbox script `minimal.lua`
@@ -42,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default to not activate ui render when `render-markdown.nvim` or `markview.nvim` is present
 - `smart_action` shows picker for tags (`ObsidianTag`) when cursor is on a tag
 - `ObsidianToggleCheckbox` now works with numbered lists
-- `Makefile` is friendlier: self-documenting and automatically gets dependencies
+- # `Makefile` is friendlier: self-documenting and automatically gets dependencies
+- Default to not activate ui render when `render-markdown.nvim` or `markview.nvim` is present.
 
 ### Fixed
 
