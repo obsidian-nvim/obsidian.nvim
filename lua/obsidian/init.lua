@@ -178,6 +178,23 @@ obsidian.setup = function(opts)
 
       local client_id = client:lsp_start()
 
+      vim.keymap.set("n", "<leader>ii", function()
+        local lsp_client = assert(vim.lsp.get_client_by_id(client_id))
+
+        vim.ui.input({}, function(input)
+          if not input then
+            return
+          end
+          lsp_client:exec_cmd({
+            arguments = {
+              input,
+            },
+            title = "create note",
+            command = "createNote",
+          }, { bufnr = ev.buf })
+        end, { buffer = ev.buf })
+      end)
+
       -- place holders
       vim.keymap.set("n", "<leader>cH", function()
         local lsp_client = assert(vim.lsp.get_client_by_id(client_id))

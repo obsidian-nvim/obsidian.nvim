@@ -39,6 +39,7 @@ local initializeResult = {
     executeCommandProvider = {
       commands = {
         "toggleCheckbox",
+        "createNote",
       },
     },
     completionProvider = completion_options,
