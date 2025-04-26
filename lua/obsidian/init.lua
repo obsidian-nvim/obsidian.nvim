@@ -148,6 +148,20 @@ obsidian.setup = function(opts)
         require("obsidian.completion.plugin_initializers.blink").inject_sources()
       end
 
+      local win = vim.api.nvim_get_current_win()
+
+      vim.opt.fillchars = {
+        foldopen = "",
+        foldclose = "",
+        fold = " ",
+        foldsep = " ",
+      }
+      vim.wo[win].foldmethod = "expr"
+      vim.wo[win].foldexpr = "v:lua.require'obsidian.util'.foldexpr()"
+      vim.wo[win].foldtext = ""
+      vim.wo[win].foldlevel = 99
+      vim.wo[win].smoothscroll = true
+
       -- Run enter-note callback.
       client.callback_manager:enter_note(function()
         return obsidian.Note.from_buffer(ev.bufnr)
