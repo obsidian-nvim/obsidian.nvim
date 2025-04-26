@@ -2096,10 +2096,16 @@ end
 
 --- Register the global variable that updates itself
 Client.statusline = function(self)
+  local current_note
+
   local refresh = function()
     local note = self:current_note()
-    if not note then
+    if not note then -- no note
       return ""
+    elseif current_note == note then -- no refresh
+      return
+    else -- refresh
+      current_note = note
     end
 
     self:find_backlinks_async(

@@ -72,7 +72,7 @@ config.ClientOpts.default = function()
     ---@field format? string
     ---@field enabled? boolean
     statusline = {
-      format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+      format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
       enabled = true,
     },
   }
