@@ -312,9 +312,8 @@ end
 ---@param cmd_name string The name of the command.
 ---@param cmd_data table|? The payload for the command.
 Client.command = function(self, cmd_name, cmd_data)
-  local commands = require "obsidian.commands"
-
-  commands[cmd_name](self, cmd_data)
+  local command = require("obsidian.commands." .. cmd_name)
+  command(self, cmd_data)
 end
 
 --- Get the default search options.
