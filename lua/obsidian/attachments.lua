@@ -54,8 +54,7 @@ end
 ---@return boolean
 ---@return string?
 local is_remote = function(str)
-  -- return early if not a valid url to a subdomain
-  if not str:match "^https?://[^/]+/[^.]+" then
+  if not str:match "^https?://[^/]+/[^.]+" then -- return early if not a valid url to a subdomain
     return false
   end
 
@@ -70,18 +69,16 @@ local is_remote = function(str)
   end
 
   return false
-
-  -- send a head request to the url and check content type
-  -- local cmd = { "curl", "-s", "-I", "-w", "%%{content_type}", str }
-  -- local obj = vim.system(cmd):wait()
-  -- local output, exit_code = obj.stdout, obj.code
-  -- return exit_code == 0 and output ~= nil and (output:match "image/png" ~= nil or output:match "image/jpeg" ~= nil)
 end
 
 ---@param str string
 ---@return boolean
 ---@return string?
 local is_local = function(str)
+  if str:match "^https?://[^/]+/[^.]+" then -- return early if looks like url
+    return false
+  end
+
   str = string.lower(str)
 
   --- TODO: correct path sep
@@ -98,17 +95,20 @@ local is_local = function(str)
       return true, ext
     end
   end
+  return false
 end
 
 ---@param client obsidian.Client
 ---@param path string
 ---@param ext string?
 ---@return boolean
----@return string
+---@return string?
 local function drop_local(client, path, ext)
   local from = vim.fs.abspath(path):gsub("\\", "")
 
   local dst = client.opts.attachments.file_path_func(client, path, ext, false)
+
+  vim.print(dst)
 
   -- TODO: obsidian has option to hold Ctrl to just link instead of copying
   local copy_ok, err = vim.uv.fs_copyfile(from, tostring(dst))
@@ -164,6 +164,8 @@ end
 
 -- TODO: do more checks
 return {
+  is_remote = is_remote,
+  is_local = is_local,
   register = function(og_paste)
     return function(lines, phase)
       local line = lines[1]

@@ -477,6 +477,8 @@ end
 ---@field img_name_func (fun(): string)|?
 ---@field img_text_func fun(client: obsidian.Client, path: obsidian.Path): string
 ---@field confirm_img_paste boolean Whether to confirm the paste or not. Defaults to true.
+---@field file_name_func (fun(client: obsidian.Client, ft: string, remote: boolean): string)
+---@field file_path_func (fun(client: obsidian.Client, path: obsidian.Path | string, ft: string, remote: boolean): string)
 config.AttachmentsOpts = {}
 
 ---@return obsidian.config.AttachmentsOpts
@@ -491,18 +493,20 @@ config.AttachmentsOpts.default = function()
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
 
+    ---@diagnostic disable-next-line: unused-local
     file_name_func = function(uri, ft, remote)
-      _ = ft -- user can leverage this to put file into sub folders
       if remote then
         return string.format("Attachment %s", os.date "%Y%m%d%H%M%S")
       else
         return vim.fs.basename(uri)
       end
     end,
-
     file_path_func = function(client, path, ft, remote)
       local base = client.opts.attachments.file_name_func(path, ft, remote)
-      return client.dir / "assets" / base
+      -- HACK: format link should be more smart
+      local ret = client.dir / "assets" / base
+      -- ret.label = base
+      return ret
     end,
     confirm_img_paste = true,
   }
