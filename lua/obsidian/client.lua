@@ -2084,7 +2084,7 @@ end
 
 ---@return obsidian.Task[]
 Client.find_tasks = function(self)
-  local openTasks = search.search(self.dir, "- \\[(.)\\]", search.SearchOpts.default())
+  local openTasks = search.search(self.dir, "^\\s*([-+*]|\\d+\\.) \\[.\\]", search.SearchOpts.default())
   --- @type obsidian.Task[]
   local result = {}
 
@@ -2092,7 +2092,7 @@ Client.find_tasks = function(self)
   local taskMatch = openTasks()
   while taskMatch do
     -- matching in lua since ripgrep doesn't support capturing groups in the --json output
-    local status, description = string.match(taskMatch.lines.text, "- %[(.)%] (.*)")
+    local status, description = string.match(taskMatch.lines.text, "%[(.)%] (.*)")
     result[#result + 1] = {
       status = status,
       description = description,
