@@ -97,6 +97,8 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 - `:Obsidian toc` to load the table of contents of the current note into a picker list.
 
+- `:Obsidian tasks [STATUS]` to load the list of tasks of the current vault into a picker list.
+
 ### Demo
 
 [![2024-01-31 14 22 52](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)
@@ -520,12 +522,12 @@ This is a complete list of all of the options that can be passed to `require("ob
     max_file_length = 5000,  -- disable UI features for files with more than this many lines
     -- Define how various check-boxes are displayed
     checkboxes = {
-      -- NOTE: the 'char' value has to be a single character, and the highlight groups are defined below.
-      [" "] = { char = "󰄱", hl_group = "ObsidianTodo" },
-      ["x"] = { char = "", hl_group = "ObsidianDone" },
-      [">"] = { char = "", hl_group = "ObsidianRightArrow" },
-      ["~"] = { char = "󰰱", hl_group = "ObsidianTilde" },
-      ["!"] = { char = "", hl_group = "ObsidianImportant" },
+      -- NOTE: the 'char' value and the status has to be a single character, and the highlight groups are defined below.
+      [" "] = { char = "󰄱", order = 1, name = "todo", hl_group = "ObsidianTodo" },
+      ["x"] = { char = "", order = 2, name = "done", hl_group = "ObsidianDone" },
+      [">"] = { char = "", order = 3, name = "doing", hl_group = "ObsidianRightArrow" },
+      ["~"] = { char = "󰰱", order = 4, name = "cancelled", hl_group = "ObsidianTilde" },
+      ["!"] = { char = "", order = 5, name = "important", hl_group = "ObsidianImportant" },
       -- Replace the above with this if you don't have a patched font:
       -- [" "] = { char = "☐", hl_group = "ObsidianTodo" },
       -- ["x"] = { char = "✔", hl_group = "ObsidianDone" },
