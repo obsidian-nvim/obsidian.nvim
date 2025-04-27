@@ -2104,4 +2104,23 @@ Client.find_tasks = function(self)
   return result
 end
 
+-- Build the list of task status names sorted by order
+Client.get_task_status_names = function(self)
+  local checkboxes = self.opts.ui.checkboxes
+  -- index by status name
+  local task_by_status_name = {}
+  local status_names = {}
+  for _, c in pairs(checkboxes) do
+    task_by_status_name[c.name] = c
+    status_names[#status_names + 1] = c.name
+  end
+
+  -- sort list of status names
+  table.sort(status_names, function(a, b)
+    return (task_by_status_name[a].order or 0) < (task_by_status_name[b].order or 0)
+  end)
+
+  return status_names
+end
+
 return Client

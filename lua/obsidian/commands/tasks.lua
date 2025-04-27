@@ -1,27 +1,3 @@
----@class CheckboxConfig
----@field name string
----@field order integer
-
--- Build the list of task status names sorted by order
----@param checkbox_config table<string,CheckboxConfig>
-local function get_task_status_names(checkbox_config)
-  -- index by status name
-  ---@type table<string, CheckboxConfig>
-  local task_by_status_name = {}
-  local status_names = {}
-  for _, c in pairs(checkbox_config) do
-    task_by_status_name[c.name] = c
-    status_names[#status_names + 1] = c.name
-  end
-
-  -- sort list of status names
-  table.sort(status_names, function(a, b)
-    return (task_by_status_name[a].order or 0) < (task_by_status_name[b].order or 0)
-  end)
-
-  return status_names
-end
-
 ---@param current string|nil
 ---@param status_names table<integer, string>
 local function get_next_status(current, status_names)
@@ -43,7 +19,7 @@ local function showTasks(client, data)
   local picker = assert(client:picker(), "No picker configured")
 
   local checkboxes = client.opts.ui.checkboxes
-  local status_names = get_task_status_names(checkboxes)
+  local status_names = client:get_task_status_names()
 
   local tasks = client:find_tasks()
   local toShow = {}
