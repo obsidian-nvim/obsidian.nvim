@@ -573,6 +573,22 @@ util.is_working_day = function(time)
   return not (is_saturday or is_sunday)
 end
 
+--- Returns the previous day from given time
+---
+--- @param time integer
+--- @return integer
+util.previous_day = function(time)
+  return time - (24 * 60 * 60)
+end
+---
+--- Returns the next day from given time
+---
+--- @param time integer
+--- @return integer
+util.next_day = function(time)
+  return time + (24 * 60 * 60)
+end
+
 ---Determines the last working day before a given time
 ---
 ---@param time integer
