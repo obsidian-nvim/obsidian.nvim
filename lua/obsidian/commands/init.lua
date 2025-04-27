@@ -200,6 +200,12 @@ M.note_complete = function(client, cmd_arg)
   return completions
 end
 
+---@param client obsidian.Client
+---@return string[]
+M.task_status_name_complete = function(client, _, _, _)
+  return client:get_task_status_names()
+end
+
 M.register("check", { nargs = 0 })
 
 M.register("today", { nargs = "?" })
@@ -248,6 +254,6 @@ M.register("debug", { nargs = 0 })
 
 M.register("toc", { nargs = 0 })
 
-M.register("tasks", { nargs = "?", desc = "List all tasks" })
+M.register("tasks", { nargs = "?", desc = "List all tasks", complete = M.task_status_name_complete })
 
 return M

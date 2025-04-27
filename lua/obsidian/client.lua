@@ -2104,7 +2104,8 @@ Client.find_tasks = function(self)
   return result
 end
 
--- Build the list of task status names sorted by order
+--- Build the list of task status names sorted by order
+---@return string[]
 Client.get_task_status_names = function(self)
   local checkboxes = self.opts.ui.checkboxes
   -- index by status name

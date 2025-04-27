@@ -129,9 +129,10 @@ M.complete_args_search = function(client, _, cmd_line, _)
   return completions
 end
 
-M.complete_task_name = function(client, _, _, _)
-  local status_names = client:get_task_status_names()
-  return status_names
+---@param client obsidian.Client
+---@return string[]
+M.task_status_name_complete = function(client, _, _, _)
+  return client:get_task_status_names()
 end
 
 M.register("ObsidianCheck", { opts = { nargs = 0, desc = "Check for issues in your vault" } })
@@ -199,7 +200,7 @@ M.register("ObsidianTOC", { opts = { nargs = 0, desc = "Load the table of conten
 
 M.register("ObsidianTasks", {
   opts = { nargs = "?", desc = "List all tasks" },
-  complete = M.complete_task_name,
+  complete = M.task_status_name_complete,
 })
 
 return M
