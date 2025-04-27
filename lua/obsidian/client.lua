@@ -2112,8 +2112,8 @@ Client.get_task_status_names = function(self)
   local task_by_status_name = {}
   local status_names = {}
   for _, c in pairs(checkboxes) do
-    task_by_status_name[c.name] = c
-    status_names[#status_names + 1] = c.name
+    task_by_status_name[c.name or c.char] = c
+    status_names[#status_names + 1] = c.name or c.char
   end
 
   -- sort list of status names
