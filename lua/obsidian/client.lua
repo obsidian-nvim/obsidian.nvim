@@ -1996,18 +1996,30 @@ Client.today = function(self)
   return self:_daily(os.time())
 end
 
---- Open (or create) the daily note from the last weekday.
+--- Open (or create) the daily note from the last day.
+---
+--- This is configured via opts.daily_notes.schedule.
 ---
 ---@return obsidian.Note
 Client.yesterday = function(self)
-  return self:_daily(util.working_day_before(os.time()))
+  if self.opts.daily_notes.schedule == "workweek" then
+    return self:_daily(util.working_day_before(os.time()))
+  else
+    return self:_daily(util.previous_day(os.time()))
+  end
 end
 
---- Open (or create) the daily note for the next weekday.
+--- Open (or create) the daily note for the next day.
+---
+--- This is configured via opts.daily_notes.schedule.
 ---
 ---@return obsidian.Note
 Client.tomorrow = function(self)
-  return self:_daily(util.working_day_after(os.time()))
+  if self.opts.daily_notes.schedule == "workweek" then
+    return self:_daily(util.working_day_after(os.time()))
+  else
+    return self:_daily(util.next_day(os.time()))
+  end
 end
 
 --- Open (or create) the daily note for today + `offset_days`.
