@@ -40,7 +40,7 @@ local function showTasks(client, data)
     prompt_title = filter and (filter .. " tasks") or "tasks",
     query_mappings = {
       ["<C-n>"] = {
-        desc = "Toggle task status",
+        desc = "Toggle task filter",
         callback = function()
           local next_state_name = get_next_status(filter, status_names)
           showTasks(client, { fargs = { next_state_name } })
