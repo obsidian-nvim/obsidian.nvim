@@ -2084,7 +2084,7 @@ end
 
 ---@return obsidian.Task[]
 Client.find_tasks = function(self)
-  local openTasks = search.search(self.dir, "^\\s*([-+*]|\\d+\\.) \\[.\\]", search.SearchOpts.default())
+  local openTasks = search.search(self.dir, "^\\s*([-+*]|\\d+[\\.)]) \\[.\\]", search.SearchOpts.default())
   --- @type obsidian.Task[]
   local result = {}
 

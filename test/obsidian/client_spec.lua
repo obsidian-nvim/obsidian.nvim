@@ -24,7 +24,7 @@ local with_tmp_client = function(run)
 
   local ok, err = pcall(run, client)
 
-  -- dir:rmtree()
+  dir:rmtree()
 
   if not ok then
     error(err)
@@ -246,6 +246,8 @@ describe("Client:find_tasks()", function()
           .. "- [!] normal !-ed\n"
           .. "- [~] normal ~-ed (render-markdown)\n"
           .. "1. [ ] ordered\n"
+          .. "1) [ ] ordered\n"
+          .. "12) [ ] ordered\n"
           .. "  22. [x] ordered x-ed\n"
       )
       file:close()
@@ -253,8 +255,8 @@ describe("Client:find_tasks()", function()
       -- search for tasks
       local tasks = client:find_tasks()
 
-      -- len of tasks should be 1
-      assert(#tasks == 9)
+      -- len of tasks should be 11
+      assert(#tasks == 11, "Wrong number of taks found:" .. #tasks)
       assert(tasks[1].description == "first\n")
       assert(tasks[#tasks].description == "ordered x-ed\n")
     end)
