@@ -257,8 +257,8 @@ describe("Client:find_tasks()", function()
 
       -- len of tasks should be 11
       assert(#tasks == 11, "Wrong number of taks found:" .. #tasks)
-      assert(tasks[1].description == "first\n")
-      assert(tasks[#tasks].description == "ordered x-ed\n")
+      assert(tasks[1].description == "first")
+      assert(tasks[#tasks].description == "ordered x-ed")
     end)
   end)
 end)

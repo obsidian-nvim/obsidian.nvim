@@ -2095,7 +2095,7 @@ Client.find_tasks = function(self)
     local status, description = string.match(taskMatch.lines.text, "%[(.)%] (.*)")
     result[#result + 1] = {
       status = status,
-      description = description,
+      description = string.gsub(description, "\n", ""),
       line = taskMatch.line_number,
       path = taskMatch.path.text,
     }
