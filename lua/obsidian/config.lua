@@ -284,12 +284,6 @@ config.LinkStyle = {
   markdown = "markdown",
 }
 
----@enum obsidian.config.DailyNotesSchedule
-config.DailyNotesSchedule = {
-  calendar = "calendar",
-  workweek = "workweek",
-}
-
 ---@class obsidian.config.CompletionOpts
 ---
 ---@field nvim_cmp boolean
@@ -385,7 +379,7 @@ end
 ---@field alias_format string|?
 ---@field template string|?
 ---@field default_tags string[]|?
----@field schedule obsidian.config.DailyNotesSchedule|?
+---@field workweek_only boolean
 config.DailyNotesOpts = {}
 
 --- Get defaults.
@@ -397,7 +391,7 @@ config.DailyNotesOpts.default = function()
     date_format = nil,
     alias_format = nil,
     default_tags = { "daily-notes" },
-    schedule = "workweek",
+    workweek_only = true,
   }
 end
 
