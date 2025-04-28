@@ -787,6 +787,16 @@ util.cursor_tag = function(line, col)
   return nil
 end
 
+--- Get the heading under the cursor, if there is one.
+---
+---@param line string|?
+---
+---@return string|?
+util.cursor_heading = function(line)
+  local current_line = line and line or vim.api.nvim_get_current_line()
+  return current_line:match "^(%s*)(#+)%s*(.*)$"
+end
+
 util.gf_passthrough = function()
   local legacy = require("obsidian").get_client().opts.legacy_commands
   if util.cursor_on_markdown_link(nil, nil, true) then
@@ -806,6 +816,10 @@ util.smart_action = function()
   -- show notes with tag if possible
   if util.cursor_tag(nil, nil) then
     return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
+  end
+
+  if util.cursor_heading() then
+    return "za"
   end
 
   -- toggle task if possible
