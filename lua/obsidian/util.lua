@@ -2,6 +2,7 @@ local iter = require("obsidian.itertools").iter
 local enumerate = require("obsidian.itertools").enumerate
 local log = require "obsidian.log"
 local compat = require "obsidian.compat"
+local ts = vim.treesitter
 
 local util = {}
 
@@ -803,7 +804,7 @@ util.smart_action = function()
   end
 
   if util.cursor_heading() then
-    return "za"
+    return "<Plug>(ObsidianCycle)"
   end
 
   -- toggle task if possible
@@ -1400,12 +1401,163 @@ util.contains_invalid_characters = function(fname)
   return string.find(fname, "[" .. invalid_chars .. "]") ~= nil
 end
 
----Check if a string is NaN
+--- Check if a string is NaN
 ---
 ---@param v any
 ---@return boolean
 util.isNan = function(v)
   return tostring(v) == tostring(0 / 0)
+end
+
+--- Adapted from `nvim-orgmode/orgmode`
+--- Cycle all headings in file between "Show All", "Contents" and "Overview"
+---
+util.cycle_global = function()
+  local mode = vim.g.obsidian_global_cycle_mode or "Show All"
+  if not vim.wo.foldenable or mode == "Show All" then
+    mode = "Overview"
+    vim.cmd [[silent! norm! zMzX]]
+  elseif mode == "Contents" then
+    mode = "Show All"
+    vim.cmd [[silent! norm! zR]]
+  elseif mode == "Overview" then
+    mode = "Contents"
+    vim.wo.foldlevel = 1
+    vim.cmd [[silent! norm! zx]]
+  end
+  vim.api.nvim_echo({ { "Obsidian: " .. mode } }, false, {})
+  vim.g.obsidian_global_cycle_mode = mode
+end
+
+---@param bufnr integer
+---@param cursor integer[]
+---@return TSNode?
+local function closest_section_node(bufnr, cursor)
+  local parser = ts.get_parser(bufnr, "markdown", {})
+  assert(parser)
+  local cursor_range = { cursor[1] - 1, cursor[2], cursor[1] - 1, cursor[2] + 1 }
+  local node = parser:named_node_for_range(cursor_range)
+
+  if not node then
+    return nil
+  end
+
+  if node:type() == "section" then
+    return node
+  end
+
+  while node and node:type() ~= "section" do
+    node = node:parent()
+  end
+
+  return node
+end
+
+---@param node TSNode
+---@return boolean
+local function has_child_headlines(node)
+  return vim.iter(node:iter_children()):any(function(child)
+    return child:type() == "atx_heading"
+  end)
+end
+
+---@param node TSNode
+---@return TSNode[]?
+local function get_child_headlines(node)
+  local ret = {}
+  for child in node:iter_children() do
+    if child:type() == "section" then
+      ret[#ret + 1] = child
+    end
+  end
+  return ret
+end
+
+---@return boolean
+local function is_one_line(node)
+  local start_row, _, end_row, end_col = node:parent():range()
+  -- One line sections have end range on the next line with 0 column
+  -- Example: If headline is on line 5, range will be (5, 1, 6, 0)
+  return start_row == end_row or (start_row + 1 == end_row and end_col == 0)
+end
+
+---@param node TSNode
+---@return boolean
+local function can_section_expand(node)
+  return not is_one_line(node) or has_child_headlines(node)
+end
+
+--- Cycle heading state under cursor
+util.cycle = function()
+  local current_buffer = vim.api.nvim_get_current_buf()
+  local cursor_position = vim.api.nvim_win_get_cursor(0)
+  local current_line = vim.fn.line "."
+
+  -- Ensure fold system is active
+  if not vim.wo.foldenable then
+    vim.wo.foldenable = true
+    vim.cmd [[silent! norm! zx]] -- Refresh folds
+  end
+
+  -- Check current fold state
+  local current_fold_level = vim.fn.foldlevel(current_line)
+  if current_fold_level == 0 then
+    return
+  end
+
+  -- Handle closed folds first
+  local is_fold_closed = vim.fn.foldclosed(current_line) ~= -1
+  if is_fold_closed then
+    return vim.cmd [[silent! norm! zo]] -- Open closed fold
+  end
+
+  -- Find Markdown section structure
+  local current_section_node = closest_section_node(current_buffer, cursor_position)
+  if not current_section_node then
+    return
+  end
+
+  -- Ignore non-expandable sections
+  if not can_section_expand(current_section_node) then
+    return
+  end
+
+  -- Fold state management
+  local child_sections = get_child_headlines(current_section_node)
+  local should_close_parent = #child_sections == 0
+
+  if not should_close_parent then
+    local has_nested_structure = false
+
+    -- Process child fold states
+    for _, child_node in ipairs(child_sections or {}) do
+      if can_section_expand(child_node) then
+        has_nested_structure = true
+        local child_start_line = child_node:start() + 1
+
+        -- Close open child folds first
+        if vim.fn.foldclosed(child_start_line) == -1 then
+          vim.cmd(string.format("silent! keepjumps norm! %dggzc", child_start_line))
+          should_close_parent = true
+        end
+      end
+    end
+
+    -- Return to original cursor position
+    vim.cmd(string.format("silent! keepjumps norm! %dgg", current_line))
+
+    -- Close parent if no actual nesting exists
+    if not should_close_parent and not has_nested_structure then
+      should_close_parent = true
+    end
+  end
+
+  -- Execute final fold action
+  if should_close_parent then
+    vim.cmd [[silent! norm! zc]] -- Close parent fold
+  else
+    vim.cmd [[silent! norm! zczO]] -- Force fold refresh
+  end
 end
 
 return util

@@ -314,6 +314,8 @@ config.MappingOpts.default = function()
     ["gf"] = mappings.gf_passthrough(),
     ["<leader>ch"] = mappings.toggle_checkbox(),
     ["<cr>"] = mappings.smart_action(),
+    ["<S-Tab>"] = mappings.cycle_global(),
+    ["<Tab>"] = mappings.cycle(),
   }
 end
 
