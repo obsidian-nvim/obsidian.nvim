@@ -300,7 +300,7 @@ This is a complete list of all of the options that can be passed to `require("ob
     default_tags = { "daily-notes" },
     -- Optional, if you want to automatically insert a template from your template directory like 'daily.md'
     template = nil,
-    -- Optional, if you want ObsidianYesterday and ObsidianTomorrow to return the last work week day.
+    -- Optional, if you want ObsidianYesterday to return the last work week day or ObsidianTomorrow to return the next work week day.
     workweek_only = true,
   },
 
