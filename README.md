@@ -300,8 +300,8 @@ This is a complete list of all of the options that can be passed to `require("ob
     default_tags = { "daily-notes" },
     -- Optional, if you want to automatically insert a template from your template directory like 'daily.md'
     template = nil,
-    -- Optional, if you want ObsidianYesterday to return the last work week day or ObsidianTomorrow to return the next work week day.
-    workweek_only = true,
+    -- Optional, if you want ObsidianYesterday to return the last work day or ObsidianTomorrow to return the next work day.
+    workdays_only = true,
   },
 
   -- Optional, completion of wiki links, local markdown links, and tags using nvim-cmp.

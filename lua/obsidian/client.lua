@@ -2003,7 +2003,7 @@ Client.yesterday = function(self)
   local now = os.time()
   local yesterday
 
-  if self.opts.daily_notes.workweek_only then
+  if self.opts.daily_notes.workdays_only then
     yesterday = util.working_day_before(now)
   else
     yesterday = util.previous_day(now)
@@ -2019,7 +2019,7 @@ Client.tomorrow = function(self)
   local now = os.time()
   local tomorrow
 
-  if self.opts.daily_notes.workweek_only then
+  if self.opts.daily_notes.workdays_only then
     tomorrow = util.working_day_after(now)
   else
     tomorrow = util.next_day(now)
