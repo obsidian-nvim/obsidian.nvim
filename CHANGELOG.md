@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added default `image_name_func` similar to Obsidian's.
 - Added support `text/uri-list` to `ObsidianPasteImg`.
-- Added support for obsidian style `%%` comment
+- Added support for obsidian style `%%` comment.
+- Added `opts.daily_notes.workweek_only` option which adds support for weekend daily notes.
 
 ### Changed
 
