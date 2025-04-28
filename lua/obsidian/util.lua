@@ -1,5 +1,6 @@
 local compat = require "obsidian.compat"
 local string, table = string, table
+local ts = vim.treesitter
 local util = {}
 
 setmetatable(util, {
@@ -511,9 +512,282 @@ util.parse_link = function(link, opts)
   return link_location, link_name, link_type
 end
 
+<<<<<<< HEAD
 ------------------------------------
 -- Miscellaneous helper functions --
 ------------------------------------
+=======
+--- Get the tag under the cursor, if there is one.
+---
+---@param line string|?
+---@param col integer|?
+---
+---@return string|?
+util.cursor_tag = function(line, col)
+  local search = require "obsidian.search"
+
+  local current_line = line and line or vim.api.nvim_get_current_line()
+  local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
+  cur_col = col or cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
+
+  for match in iter(search.find_tags(current_line)) do
+    local open, close, _ = unpack(match)
+    if open <= cur_col and cur_col <= close then
+      return string.sub(current_line, open + 1, close)
+    end
+  end
+
+  return nil
+end
+
+--- Get the heading under the cursor, if there is one.
+---
+---@param line string|?
+---
+---@return string|?
+util.cursor_heading = function(line)
+  local current_line = line and line or vim.api.nvim_get_current_line()
+  return current_line:match "^(%s*)(#+)%s*(.*)$"
+end
+
+util.gf_passthrough = function()
+  local legacy = require("obsidian").get_client().opts.legacy_commands
+  if util.cursor_on_markdown_link(nil, nil, true) then
+    return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
+  else
+    return "gf"
+  end
+end
+
+util.smart_action = function()
+  local legacy = require("obsidian").get_client().opts.legacy_commands
+  -- follow link if possible
+  if util.cursor_on_markdown_link(nil, nil, true) then
+    return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
+  end
+
+  -- show notes with tag if possible
+  if util.cursor_tag(nil, nil) then
+    return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
+  end
+
+  if util.cursor_heading() then
+    return "<Plug>(ObsidianCycle)"
+  end
+
+  -- toggle task if possible
+  -- cycles through your custom UI checkboxes, default: [ ] [~] [>] [x]
+  return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
+end
+
+---Get the path to where a plugin is installed.
+---@param name string|?
+---@return string|?
+util.get_src_root = function(name)
+  name = name and name or "obsidian.nvim"
+  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
+    if vim.endswith(path, name) then
+      return path
+    end
+  end
+  return nil
+end
+
+--- Get info about a plugin.
+---
+---@param name string|?
+---
+---@return { commit: string|?, path: string }|?
+util.get_plugin_info = function(name)
+  name = name and name or "obsidian.nvim"
+
+  local src_root = util.get_src_root(name)
+  if src_root == nil then
+    return nil
+  end
+
+  local out = { path = src_root }
+
+  local Job = require "plenary.job"
+  local output, exit_code = Job:new({ ---@diagnostic disable-line: missing-fields
+    command = "git",
+    args = { "rev-parse", "HEAD" },
+    cwd = src_root,
+    enable_recording = true,
+  }):sync(1000)
+
+  if exit_code == 0 then
+    out.commit = output[1]
+  end
+
+  return out
+end
+
+---@param cmd string
+---@return string|?
+util.get_external_dependency_info = function(cmd)
+  local Job = require "plenary.job"
+  local output, exit_code = Job:new({ ---@diagnostic disable-line: missing-fields
+    command = cmd,
+    args = { "--version" },
+    enable_recording = true,
+  }):sync(1000)
+
+  if exit_code == 0 then
+    return output[1]
+  end
+end
+
+---Get an iterator of (bufnr, bufname) over all named buffers. The buffer names will be absolute paths.
+---
+---@return function () -> (integer, string)|?
+util.get_named_buffers = function()
+  local idx = 0
+  local buffers = vim.api.nvim_list_bufs()
+
+  ---@return integer|?
+  ---@return string|?
+  return function()
+    while idx < #buffers do
+      idx = idx + 1
+      local bufnr = buffers[idx]
+      if vim.api.nvim_buf_is_loaded(bufnr) then
+        return bufnr, vim.api.nvim_buf_get_name(bufnr)
+      end
+    end
+  end
+end
+
+---Insert text at current cursor position.
+---@param text string
+util.insert_text = function(text)
+  local curpos = vim.fn.getcurpos()
+  local line_num, line_col = curpos[2], curpos[3]
+  local indent = string.rep(" ", line_col)
+
+  -- Convert text to lines table so we can handle multi-line strings.
+  local lines = {}
+  for line in text:gmatch "[^\r\n]+" do
+    lines[#lines + 1] = line
+  end
+
+  for line_index, line in pairs(lines) do
+    local current_line_num = line_num + line_index - 1
+    local current_line = vim.fn.getline(current_line_num)
+    assert(type(current_line) == "string")
+
+    -- Since there's no column 0, remove extra space when current line is blank.
+    if current_line == "" then
+      indent = indent:sub(1, -2)
+    end
+
+    local pre_txt = current_line:sub(1, line_col)
+    local post_txt = current_line:sub(line_col + 1, -1)
+    local inserted_txt = pre_txt .. line .. post_txt
+
+    vim.fn.setline(current_line_num, inserted_txt)
+
+    -- Create new line so inserted_txt doesn't replace next lines
+    if line_index ~= #lines then
+      vim.fn.append(current_line_num, indent)
+    end
+  end
+end
+
+---@param bufnr integer
+---@return string
+util.buf_get_full_text = function(bufnr)
+  local text = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, true), "\n")
+  if vim.api.nvim_get_option_value("eol", { buf = bufnr }) then
+    text = text .. "\n"
+  end
+  return text
+end
+
+--- Get the current visual selection of text and exit visual mode.
+---
+---@param opts { strict: boolean|? }|?
+---
+---@return { lines: string[], selection: string, csrow: integer, cscol: integer, cerow: integer, cecol: integer }|?
+util.get_visual_selection = function(opts)
+  opts = opts or {}
+  -- Adapted from fzf-lua:
+  -- https://github.com/ibhagwan/fzf-lua/blob/6ee73fdf2a79bbd74ec56d980262e29993b46f2b/lua/fzf-lua/utils.lua#L434-L466
+  -- this will exit visual mode
+  -- use 'gv' to reselect the text
+  local _, csrow, cscol, cerow, cecol
+  local mode = vim.fn.mode()
+  if opts.strict and not vim.endswith(string.lower(mode), "v") then
+    return
+  end
+
+  if mode == "v" or mode == "V" or mode == "" then
+    -- if we are in visual mode use the live position
+    _, csrow, cscol, _ = unpack(vim.fn.getpos ".")
+    _, cerow, cecol, _ = unpack(vim.fn.getpos "v")
+    if mode == "V" then
+      -- visual line doesn't provide columns
+      cscol, cecol = 0, 999
+    end
+    -- exit visual mode
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+  else
+    -- otherwise, use the last known visual position
+    _, csrow, cscol, _ = unpack(vim.fn.getpos "'<")
+    _, cerow, cecol, _ = unpack(vim.fn.getpos "'>")
+  end
+
+  -- Swap vars if needed
+  if cerow < csrow then
+    csrow, cerow = cerow, csrow
+    cscol, cecol = cecol, cscol
+  elseif cerow == csrow and cecol < cscol then
+    cscol, cecol = cecol, cscol
+  end
+
+  local lines = vim.fn.getline(csrow, cerow)
+  assert(type(lines) == "table")
+  if vim.tbl_isempty(lines) then
+    return
+  end
+
+  -- When the whole line is selected via visual line mode ("V"), cscol / cecol will be equal to "v:maxcol"
+  -- for some odd reason. So change that to what they should be here. See ':h getpos' for more info.
+  local maxcol = vim.api.nvim_get_vvar "maxcol"
+  if cscol == maxcol then
+    cscol = string.len(lines[1])
+  end
+  if cecol == maxcol then
+    cecol = string.len(lines[#lines])
+  end
+
+  ---@type string
+  local selection
+  local n = #lines
+  if n <= 0 then
+    selection = ""
+  elseif n == 1 then
+    selection = string.sub(lines[1], cscol, cecol)
+  elseif n == 2 then
+    selection = string.sub(lines[1], cscol) .. "\n" .. string.sub(lines[n], 1, cecol)
+  else
+    selection = string.sub(lines[1], cscol)
+      .. "\n"
+      .. table.concat(lines, "\n", 2, n - 1)
+      .. "\n"
+      .. string.sub(lines[n], 1, cecol)
+  end
+
+  return {
+    lines = lines,
+    selection = selection,
+    csrow = csrow,
+    cscol = cscol,
+    cerow = cerow,
+    cecol = cecol,
+  }
+end
+
 ---@param anchor obsidian.note.HeaderAnchor
 ---@return string
 util.format_anchor_label = function(anchor)
@@ -678,7 +952,7 @@ util.contains_invalid_characters = function(fname)
   return string.find(fname, "[" .. invalid_chars .. "]") ~= nil
 end
 
----Check if a string is NaN
+--- Check if a string is NaN
 ---
 ---@param v any
 ---@return boolean
@@ -721,6 +995,157 @@ util.fire_callback = function(event, callback, ...)
   else
     log.error("Error running %s callback: %s", event, err)
     return false
+  end
+end
+
+--- Adapted from `nvim-orgmode/orgmode`
+--- Cycle all headings in file between "Show All", "Contents" and "Overview"
+---
+util.cycle_global = function()
+  local mode = vim.g.obsidian_global_cycle_mode or "Show All"
+  if not vim.wo.foldenable or mode == "Show All" then
+    mode = "Overview"
+    vim.cmd [[silent! norm! zMzX]]
+  elseif mode == "Contents" then
+    mode = "Show All"
+    vim.cmd [[silent! norm! zR]]
+  elseif mode == "Overview" then
+    mode = "Contents"
+    vim.wo.foldlevel = 1
+    vim.cmd [[silent! norm! zx]]
+  end
+  vim.api.nvim_echo({ { "Obsidian: " .. mode } }, false, {})
+  vim.g.obsidian_global_cycle_mode = mode
+end
+
+---@param bufnr integer
+---@param cursor integer[]
+---@return TSNode?
+local function closest_section_node(bufnr, cursor)
+  local parser = ts.get_parser(bufnr, "markdown", {})
+  assert(parser)
+  local cursor_range = { cursor[1] - 1, cursor[2], cursor[1] - 1, cursor[2] + 1 }
+  local node = parser:named_node_for_range(cursor_range)
+
+  if not node then
+    return nil
+  end
+
+  if node:type() == "section" then
+    return node
+  end
+
+  while node and node:type() ~= "section" do
+    node = node:parent()
+  end
+
+  return node
+end
+
+---@param node TSNode
+---@return boolean
+local function has_child_headlines(node)
+  return vim.iter(node:iter_children()):any(function(child)
+    return child:type() == "atx_heading"
+  end)
+end
+
+---@param node TSNode
+---@return TSNode[]?
+local function get_child_headlines(node)
+  local ret = {}
+  for child in node:iter_children() do
+    if child:type() == "section" then
+      ret[#ret + 1] = child
+    end
+  end
+  return ret
+end
+
+---@return boolean
+local function is_one_line(node)
+  local start_row, _, end_row, end_col = node:parent():range()
+  -- One line sections have end range on the next line with 0 column
+  -- Example: If headline is on line 5, range will be (5, 1, 6, 0)
+  return start_row == end_row or (start_row + 1 == end_row and end_col == 0)
+end
+
+---@param node TSNode
+---@return boolean
+local function can_section_expand(node)
+  return not is_one_line(node) or has_child_headlines(node)
+end
+
+--- Cycle heading state under cursor
+util.cycle = function()
+  local current_buffer = vim.api.nvim_get_current_buf()
+  local cursor_position = vim.api.nvim_win_get_cursor(0)
+  local current_line = vim.fn.line "."
+
+  -- Ensure fold system is active
+  if not vim.wo.foldenable then
+    vim.wo.foldenable = true
+    vim.cmd [[silent! norm! zx]] -- Refresh folds
+  end
+
+  -- Check current fold state
+  local current_fold_level = vim.fn.foldlevel(current_line)
+  if current_fold_level == 0 then
+    return
+  end
+
+  -- Handle closed folds first
+  local is_fold_closed = vim.fn.foldclosed(current_line) ~= -1
+  if is_fold_closed then
+    return vim.cmd [[silent! norm! zo]] -- Open closed fold
+  end
+
+  -- Find Markdown section structure
+  local current_section_node = closest_section_node(current_buffer, cursor_position)
+  if not current_section_node then
+    return
+  end
+
+  -- Ignore non-expandable sections
+  if not can_section_expand(current_section_node) then
+    return
+  end
+
+  -- Fold state management
+  local child_sections = get_child_headlines(current_section_node)
+  local should_close_parent = #child_sections == 0
+
+  if not should_close_parent then
+    local has_nested_structure = false
+
+    -- Process child fold states
+    for _, child_node in ipairs(child_sections or {}) do
+      if can_section_expand(child_node) then
+        has_nested_structure = true
+        local child_start_line = child_node:start() + 1
+
+        -- Close open child folds first
+        if vim.fn.foldclosed(child_start_line) == -1 then
+          vim.cmd(string.format("silent! keepjumps norm! %dggzc", child_start_line))
+          should_close_parent = true
+        end
+      end
+    end
+
+    -- Return to original cursor position
+    vim.cmd(string.format("silent! keepjumps norm! %dgg", current_line))
+
+    -- Close parent if no actual nesting exists
+    if not should_close_parent and not has_nested_structure then
+      should_close_parent = true
+    end
+  end
+
+  -- Execute final fold action
+  if should_close_parent then
+    vim.cmd [[silent! norm! zc]] -- Close parent fold
+  else
+    vim.cmd [[silent! norm! zczO]] -- Force fold refresh
   end
 end
 
