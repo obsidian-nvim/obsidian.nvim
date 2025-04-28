@@ -440,6 +440,7 @@ config.UIOpts = {}
 ---@field char string
 ---@field hl_group string
 ---@field order integer
+---@field name string
 
 ---@class obsidian.config.UIStyleSpec
 ---
@@ -452,11 +453,11 @@ config.UIOpts.default = function()
     update_debounce = 200,
     max_file_length = 5000,
     checkboxes = {
-      [" "] = { order = 1, char = "󰄱", hl_group = "ObsidianTodo" },
-      ["~"] = { order = 2, char = "󰰱", hl_group = "ObsidianTilde" },
-      ["!"] = { order = 3, char = "", hl_group = "ObsidianImportant" },
-      [">"] = { order = 4, char = "", hl_group = "ObsidianRightArrow" },
-      ["x"] = { order = 5, char = "", hl_group = "ObsidianDone" },
+      [" "] = { order = 1, char = "󰄱", hl_group = "ObsidianTodo", name = "todo" },
+      ["!"] = { order = 2, char = "", hl_group = "ObsidianImportant", name = "important" },
+      [">"] = { order = 3, char = "", hl_group = "ObsidianRightArrow", name = "doing" },
+      ["~"] = { order = 4, char = "󰰱", hl_group = "ObsidianTilde", name = "cancelled" },
+      ["x"] = { order = 5, char = "", hl_group = "ObsidianDone", name = "done" },
     },
     bullets = { char = "•", hl_group = "ObsidianBullet" },
     external_link_icon = { char = "", hl_group = "ObsidianExtLinkIcon" },

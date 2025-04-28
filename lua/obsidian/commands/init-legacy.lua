@@ -26,6 +26,7 @@ local command_lookups = {
   ObsidianExtractNote = "obsidian.commands.extract_note",
   ObsidianDebug = "obsidian.commands.debug",
   ObsidianTOC = "obsidian.commands.toc",
+  ObsidianTasks = "obsidian.commands.tasks",
 }
 
 local M = setmetatable({
@@ -128,6 +129,12 @@ M.complete_args_search = function(client, _, cmd_line, _)
   return completions
 end
 
+---@param client obsidian.Client
+---@return string[]
+M.task_status_name_complete = function(client, _, _, _)
+  return client:get_task_status_names()
+end
+
 M.register("ObsidianCheck", { opts = { nargs = 0, desc = "Check for issues in your vault" } })
 
 M.register("ObsidianToday", { opts = { nargs = "?", desc = "Open today's daily note" } })
@@ -190,5 +197,10 @@ M.register(
 M.register("ObsidianDebug", { opts = { nargs = 0, desc = "Log some information for debugging" } })
 
 M.register("ObsidianTOC", { opts = { nargs = 0, desc = "Load the table of contents into a picker" } })
+
+M.register("ObsidianTasks", {
+  opts = { nargs = "?", desc = "List all tasks" },
+  complete = M.task_status_name_complete,
+})
 
 return M

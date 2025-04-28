@@ -160,7 +160,7 @@ describe("Client:parse_title_id_path()", function()
     with_tmp_client(function(client)
       client.opts.note_path_func = function(_)
         return "foo-bar-123.md"
-      end;
+      end
 
       (client.dir / "notes"):mkdir { exist_ok = true }
 
@@ -224,6 +224,41 @@ describe("Client:daily_note_path()", function()
       local path, id = client:daily_note_path()
       assert(vim.endswith(tostring(path), tostring(os.date("%Y/%b/%Y-%m-%d.md", os.time()))))
       assert.equals(id, os.date("%Y-%m-%d", os.time()))
+    end)
+  end)
+end)
+
+describe("Client:find_tasks()", function()
+  it("should match any task list", function()
+    with_tmp_client(function(client)
+      -- create a test file with a task list
+      local test_file_name = tostring(client.dir) .. "/list.md"
+      local file = io.open(test_file_name, "a+")
+      if file == nil then
+        error("Failed to open file: " .. test_file_name)
+      end
+      file:write(
+        "- [ ] first\n"
+          .. "  - [ ] second\n"
+          .. "+ [ ] plus\n"
+          .. "* [ ] star\n"
+          .. "- [x] normal x-ed\n"
+          .. "- [!] normal !-ed\n"
+          .. "- [~] normal ~-ed (render-markdown)\n"
+          .. "1. [ ] ordered\n"
+          .. "1) [ ] ordered\n"
+          .. "12) [ ] ordered\n"
+          .. "  22. [x] ordered x-ed\n"
+      )
+      file:close()
+
+      -- search for tasks
+      local tasks = client:find_tasks()
+
+      -- len of tasks should be 11
+      assert(#tasks == 11, "Wrong number of taks found:" .. #tasks)
+      assert(tasks[1].description == "first")
+      assert(tasks[#tasks].description == "ordered x-ed")
     end)
   end)
 end)

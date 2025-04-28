@@ -667,6 +667,29 @@ Return ~
 
 ------------------------------------------------------------------------------
 Class ~
+{obsidian.Task}
+
+Fields ~
+{path} `(string)` The path to the note.
+{line} `(integer)` The line number (1-indexed) where the task was found.
+{description} `(string)` The text of the line where the task was found.
+{status} `(string)` The status of the task.
+
+------------------------------------------------------------------------------
+                                                  *obsidian.Client.find_tasks()*
+                          `Client.find_tasks`({self})
+Return ~
+`(obsidian.Task[])`
+
+------------------------------------------------------------------------------
+                                       *obsidian.Client.get_task_status_names()*
+                     `Client.get_task_status_names`({self})
+Build the list of task status names sorted by order
+Return ~
+`(string[])`
+
+------------------------------------------------------------------------------
+Class ~
 {obsidian.note.HeaderAnchor}
 
 Fields ~

@@ -2093,4 +2093,53 @@ Client.picker = function(self, picker_name)
   return require("obsidian.pickers").get(self, picker_name)
 end
 
+---@class obsidian.Task
+---
+---@field path string The path to the note.
+---@field line integer The line number (1-indexed) where the task was found.
+---@field description string The text of the line where the task was found.
+---@field status string The status of the task.
+
+---@return obsidian.Task[]
+Client.find_tasks = function(self)
+  local openTasks = search.search(self.dir, "^\\s*([-+*]|\\d+[\\.)]) \\[.\\]", search.SearchOpts.default())
+  --- @type obsidian.Task[]
+  local result = {}
+
+  --- @type MatchData|?
+  local taskMatch = openTasks()
+  while taskMatch do
+    -- matching in lua since ripgrep doesn't support capturing groups in the --json output
+    local status, description = string.match(taskMatch.lines.text, "%[(.)%] (.*)")
+    result[#result + 1] = {
+      status = status,
+      description = string.gsub(description, "\n", ""),
+      line = taskMatch.line_number,
+      path = taskMatch.path.text,
+    }
+    taskMatch = openTasks()
+  end
+  return result
+end
+
+--- Build the list of task status names sorted by order
+---@return string[]
+Client.get_task_status_names = function(self)
+  local checkboxes = self.opts.ui.checkboxes
+  -- index by status name
+  local task_by_status_name = {}
+  local status_names = {}
+  for _, c in pairs(checkboxes) do
+    task_by_status_name[c.name or c.char] = c
+    status_names[#status_names + 1] = c.name or c.char
+  end
+
+  -- sort list of status names
+  table.sort(status_names, function(a, b)
+    return (task_by_status_name[a].order or 0) < (task_by_status_name[b].order or 0)
+  end)
+
+  return status_names
+end
+
 return Client
