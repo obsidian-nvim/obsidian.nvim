@@ -25,50 +25,7 @@ local function open_in_app(client, path)
     uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
   end
 
-  uri = vim.fn.shellescape(uri)
-  ---@type string, string[]
-  local cmd, args
-  local run_in_shell = true
-  if this_os == util.OSType.Linux or this_os == util.OSType.FreeBSD then
-    cmd = "xdg-open"
-    args = { uri }
-  elseif this_os == util.OSType.Wsl then
-    cmd = "wsl-open"
-    args = { uri }
-  elseif this_os == util.OSType.Windows then
-    run_in_shell = false
-    cmd = "powershell"
-    args = { "Start-Process", uri }
-  elseif this_os == util.OSType.Darwin then
-    cmd = "open"
-    if client.opts.open_app_foreground then
-      args = { "-a", "/Applications/Obsidian.app", uri }
-    else
-      args = { "-a", "/Applications/Obsidian.app", "--background", uri }
-    end
-  else
-    log.err("open command does not support OS type '" .. this_os .. "'")
-    return
-  end
-
-  assert(cmd)
-  assert(args)
-
-  ---@type string|string[]
-  local cmd_with_args
-  if run_in_shell then
-    cmd_with_args = cmd .. " " .. table.concat(args, " ")
-  else
-    cmd_with_args = { cmd, unpack(args) }
-  end
-
-  vim.fn.jobstart(cmd_with_args, {
-    on_exit = function(_, exit_code)
-      if exit_code ~= 0 then
-        log.err("open command failed with exit code '%s': %s", exit_code, cmd_with_args)
-      end
-    end,
-  })
+  vim.ui.open(uri)
 end
 
 ---@param client obsidian.Client
