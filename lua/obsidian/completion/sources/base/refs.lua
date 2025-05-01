@@ -217,6 +217,7 @@ function RefsSourceBase:process_search_results(cc, results)
           alias_case_matched ~= nil
           and alias_case_matched ~= alias
           and not util.tbl_contains(note.aliases, alias_case_matched)
+          and cc.client.opts.completion.match_case
         then
           self:update_completion_options(cc, alias_case_matched, nil, matching_anchors, matching_blocks, note)
         end
