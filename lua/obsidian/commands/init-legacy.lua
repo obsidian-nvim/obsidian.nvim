@@ -153,7 +153,7 @@ M.register("ObsidianSearch", { opts = { nargs = "?", desc = "Search vault" } })
 
 M.register("ObsidianTemplate", { opts = { nargs = "?", desc = "Insert a template" } })
 
-M.register("ObsidianNewFromTemplate", { opts = { nargs = "?", desc = "Create a new note from a template" } })
+M.register("ObsidianNewFromTemplate", { opts = { nargs = "*", desc = "Create a new note from a template" } })
 
 M.register("ObsidianQuickSwitch", { opts = { nargs = "?", desc = "Switch notes" } })
 

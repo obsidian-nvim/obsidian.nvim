@@ -5,9 +5,9 @@
 <div align="center">
 <a href="https://github.com/obsidian-nvim/obsidian.nvim/releases/latest">
   <img alt="Latest release" src="https://img.shields.io/github/v/release/obsidian-nvim/obsidian.nvim?style=for-the-badge&logo=starship&logoColor=D9E0EE&labelColor=302D41&&color=d9b3ff&include_prerelease&sort=semver" />
-</a> 
+</a>
 <a href="https://github.com/obsidian-nvim/obsidian.nvim/pulse">
-  <img alt="Last commit" src="https://img.shields.io/github/last-commit/obsidian-nvim/obsidian.nvim?style=for-the-badge&logo=github&logoColor=D9E0EE&labelColor=302D41&color=9fdf9f"/></a> 
+  <img alt="Last commit" src="https://img.shields.io/github/last-commit/obsidian-nvim/obsidian.nvim?style=for-the-badge&logo=github&logoColor=D9E0EE&labelColor=302D41&color=9fdf9f"/></a>
 <a href="https://github.com/neovim/neovim/releases/latest">
   <img alt="Latest Neovim" src="https://img.shields.io/github/v/release/neovim/neovim?style=for-the-badge&logo=neovim&logoColor=D9E0EE&label=Neovim&labelColor=302D41&color=99d6ff&sort=semver" />
 </a>
@@ -15,7 +15,7 @@
   <img alt="Made with Lua" src="https://img.shields.io/badge/Built%20with%20Lua-grey?style=for-the-badge&logo=lua&logoColor=D9E0EE&label=Lua&labelColor=302D41&color=b3b3ff">
 </a>
 <a href="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim">
-	<img src="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim/shield?style=for-the-badge" />
+ <img src="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim/shield?style=for-the-badge" />
 </a>
 </div>
 <hr>
@@ -83,7 +83,8 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 - `:Obsidian new [TITLE]` to create a new note.
   One optional argument: the title of the new note.
 
-- `:Obsidian new_from_template [TITLE]` to create a new note from a template in the templates folder. Selecting from a list using your preferred picker.
+- `:Obsidian new_from_template [TITLE] [TEMPLATE]` to create a new note with `TITLE` from a template with the name `TEMPLATE`.
+  Both arguments are optional. If not given, the template will be selected from a list using your preferred picker.
 
 - `:Obsidian open [QUERY]` to open a note in the Obsidian app.
   One optional argument: a query used to resolve the note to open by ID, path, or alias. If not given, the current buffer is used.

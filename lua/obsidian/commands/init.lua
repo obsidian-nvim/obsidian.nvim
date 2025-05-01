@@ -221,7 +221,7 @@ M.register("search", { nargs = "?" })
 
 M.register("template", { nargs = "?" })
 
-M.register("new_from_template", { nargs = "?" })
+M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
