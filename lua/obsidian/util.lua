@@ -573,12 +573,28 @@ util.is_working_day = function(time)
   return not (is_saturday or is_sunday)
 end
 
+--- Returns the previous day from given time
+---
+--- @param time integer
+--- @return integer
+util.previous_day = function(time)
+  return time - (24 * 60 * 60)
+end
+---
+--- Returns the next day from given time
+---
+--- @param time integer
+--- @return integer
+util.next_day = function(time)
+  return time + (24 * 60 * 60)
+end
+
 ---Determines the last working day before a given time
 ---
 ---@param time integer
 ---@return integer
 util.working_day_before = function(time)
-  local previous_day = time - (24 * 60 * 60)
+  local previous_day = util.previous_day(time)
   if util.is_working_day(previous_day) then
     return previous_day
   else
@@ -591,7 +607,7 @@ end
 ---@param time integer
 ---@return integer
 util.working_day_after = function(time)
-  local next_day = time + (24 * 60 * 60)
+  local next_day = util.next_day(time)
   if util.is_working_day(next_day) then
     return next_day
   else
@@ -771,28 +787,44 @@ util.cursor_tag = function(line, col)
   return nil
 end
 
+--- Get the heading under the cursor, if there is one.
+---
+---@param line string|?
+---
+---@return string|?
+util.cursor_heading = function(line)
+  local current_line = line and line or vim.api.nvim_get_current_line()
+  return current_line:match "^(%s*)(#+)%s*(.*)$"
+end
+
 util.gf_passthrough = function()
+  local legacy = require("obsidian").get_client().opts.legacy_commands
   if util.cursor_on_markdown_link(nil, nil, true) then
-    return "<cmd>ObsidianFollowLink<CR>"
+    return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
   else
     return "gf"
   end
 end
 
 util.smart_action = function()
+  local legacy = require("obsidian").get_client().opts.legacy_commands
   -- follow link if possible
   if util.cursor_on_markdown_link(nil, nil, true) then
-    return "<cmd>ObsidianFollowLink<CR>"
+    return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
   end
 
   -- show notes with tag if possible
   if util.cursor_tag(nil, nil) then
-    return "<cmd>ObsidianTag<CR>"
+    return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
+  end
+
+  if util.cursor_heading() then
+    return "za"
   end
 
   -- toggle task if possible
   -- cycles through your custom UI checkboxes, default: [ ] [~] [>] [x]
-  return "<cmd>ObsidianToggleCheckbox<CR>"
+  return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
 end
 
 ---Get the path to where a plugin is installed.

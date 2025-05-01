@@ -609,7 +609,7 @@ Return ~
 ------------------------------------------------------------------------------
                                                    *obsidian.Client.yesterday()*
                            `Client.yesterday`({self})
-Open (or create) the daily note from the last weekday.
+Open (or create) the daily note from the last day.
 
 Return ~
 `(obsidian.Note)`
@@ -617,7 +617,7 @@ Return ~
 ------------------------------------------------------------------------------
                                                     *obsidian.Client.tomorrow()*
                            `Client.tomorrow`({self})
-Open (or create) the daily note for the next weekday.
+Open (or create) the daily note for the next day.
 
 Return ~
 `(obsidian.Note)`

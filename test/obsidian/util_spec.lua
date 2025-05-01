@@ -29,6 +29,38 @@ describe("util.match_case()", function()
   end)
 end)
 
+describe("util.previous_day", function()
+  it("returns one day prior", function()
+    local now = os.time { year = 2025, month = 4, day = 27 }
+
+    assert.equals(util.previous_day(now), os.time { year = 2025, month = 4, day = 26 })
+  end)
+end)
+
+describe("util.next_day", function()
+  it("returns the day after", function()
+    local now = os.time { year = 2025, month = 4, day = 27 }
+
+    assert.equals(util.next_day(now), os.time { year = 2025, month = 4, day = 28 })
+  end)
+end)
+
+describe("util.working_day_before", function()
+  it("returns the last working day", function()
+    local now = os.time { year = 2025, month = 4, day = 27 }
+
+    assert.equals(util.working_day_before(now), os.time { year = 2025, month = 4, day = 25 })
+  end)
+end)
+
+describe("util.working_day_after", function()
+  it("returns the last working day", function()
+    local now = os.time { year = 2025, month = 4, day = 25 }
+
+    assert.equals(util.working_day_after(now), os.time { year = 2025, month = 4, day = 28 })
+  end)
+end)
+
 describe("util.cursor_on_markdown_link()", function()
   it("should correctly find if coursor is on markdown/wiki link", function()
     --           0    5    10   15   20   25   30   35   40    45  50   55

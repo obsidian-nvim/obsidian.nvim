@@ -1,52 +1,51 @@
-local util = require "obsidian.util"
 local iter = require("obsidian.itertools").iter
+local log = require "obsidian.log"
+local legacycommands = require "obsidian.commands.init-legacy"
 
-local command_lookups = {
-  ObsidianCheck = "obsidian.commands.check",
-  ObsidianToggleCheckbox = "obsidian.commands.toggle_checkbox",
-  ObsidianToday = "obsidian.commands.today",
-  ObsidianYesterday = "obsidian.commands.yesterday",
-  ObsidianTomorrow = "obsidian.commands.tomorrow",
-  ObsidianDailies = "obsidian.commands.dailies",
-  ObsidianNew = "obsidian.commands.new",
-  ObsidianOpen = "obsidian.commands.open",
-  ObsidianBacklinks = "obsidian.commands.backlinks",
-  ObsidianSearch = "obsidian.commands.search",
-  ObsidianTags = "obsidian.commands.tags",
-  ObsidianTemplate = "obsidian.commands.template",
-  ObsidianNewFromTemplate = "obsidian.commands.new_from_template",
-  ObsidianQuickSwitch = "obsidian.commands.quick_switch",
-  ObsidianLinkNew = "obsidian.commands.link_new",
-  ObsidianLink = "obsidian.commands.link",
-  ObsidianLinks = "obsidian.commands.links",
-  ObsidianFollowLink = "obsidian.commands.follow_link",
-  ObsidianWorkspace = "obsidian.commands.workspace",
-  ObsidianRename = "obsidian.commands.rename",
-  ObsidianPasteImg = "obsidian.commands.paste_img",
-  ObsidianExtractNote = "obsidian.commands.extract_note",
-  ObsidianDebug = "obsidian.commands.debug",
-  ObsidianTOC = "obsidian.commands.toc",
+local cmds = {
+  "backlinks",
+  "check",
+  "dailies",
+  "debug",
+  "extract_note",
+  "follow_link",
+  "link",
+  "link_new",
+  "links",
+  "new",
+  "new_from_template",
+  "open",
+  "paste_img",
+  "quick_switch",
+  "rename",
+  "search",
+  "tags",
+  "template",
+  "toc",
+  "today",
+  "toggle_checkbox",
+  "tomorrow",
+  "workspace",
+  "yesterday",
 }
 
-local M = setmetatable({
-  commands = {},
-}, {
-  __index = function(t, k)
-    local require_path = command_lookups[k]
-    if not require_path then
-      return
+-- TODO: this will be context-sensitive in the future
+local function show_menu()
+  vim.ui.select(cmds, { prompt = "Obsidian Commands" }, function(item)
+    if item then
+      return vim.cmd.Obsidian(item)
+    else
+      vim.notify("Aborted", 3)
     end
+  end)
+end
 
-    local mod = require(require_path)
-    t[k] = mod
-
-    return mod
-  end,
-})
+local M = { commands = {} }
 
 ---@class obsidian.CommandConfig
----@field opts table
----@field complete function|?
+---@field complete function|string|?
+---@field nargs string|integer|?
+---@field range boolean|?
 ---@field func function|? (obsidian.Client, table) -> nil
 
 ---Register a new command.
@@ -55,7 +54,8 @@ local M = setmetatable({
 M.register = function(name, config)
   if not config.func then
     config.func = function(client, data)
-      return M[name](client, data)
+      local mod = require("obsidian.commands." .. name)
+      return mod(client, data)
     end
   end
   M.commands[name] = config
@@ -65,26 +65,97 @@ end
 ---
 ---@param client obsidian.Client
 M.install = function(client)
-  for command_name, command_config in pairs(M.commands) do
-    local func = function(data)
-      command_config.func(client, data)
+  vim.api.nvim_create_user_command("Obsidian", function(data)
+    if #data.fargs == 0 then
+      show_menu()
+      return
     end
+    M.handle_command(client, data)
+  end, {
+    nargs = "*",
+    complete = function(_, cmdline, _)
+      return M.get_completions(client, cmdline)
+    end,
+    range = 2,
+  })
+end
 
-    if command_config.complete ~= nil then
-      command_config.opts.complete = function(arg_lead, cmd_line, cursor_pos)
-        return command_config.complete(client, arg_lead, cmd_line, cursor_pos)
-      end
-    end
+M.install_legacy = legacycommands.install
 
-    vim.api.nvim_create_user_command(command_name, func, command_config.opts)
+---@param client obsidian.Client
+M.handle_command = function(client, data)
+  local cmd = data.fargs[1]
+  table.remove(data.fargs, 1)
+  data.args = table.concat(data.fargs, " ")
+  local nargs = #data.fargs
+
+  local cmdconfig = M.commands[cmd]
+  if cmdconfig == nil then
+    log.err("Command '" .. cmd .. "' not found")
+    return
   end
+
+  local exp_nargs = cmdconfig.nargs
+  local range_allowed = cmdconfig.range
+
+  if exp_nargs == "?" then
+    if nargs > 1 then
+      log.err("Command '" .. cmd .. "' expects 0 or 1 arguments, but " .. nargs .. " were provided")
+      return
+    end
+  elseif exp_nargs == "+" then
+    if nargs == 0 then
+      log.err("Command '" .. cmd .. "' expects at least one argument, but none were provided")
+      return
+    end
+  elseif exp_nargs ~= "*" and exp_nargs ~= nargs then
+    log.err("Command '" .. cmd .. "' expects " .. exp_nargs .. " arguments, but " .. nargs .. " were provided")
+    return
+  end
+
+  if not range_allowed and data.range > 0 then
+    log.error("Command '" .. cmd .. "' does not accept a range")
+    return
+  end
+
+  cmdconfig.func(client, data)
 end
 
 ---@param client obsidian.Client
+---@param cmdline string
+M.get_completions = function(client, cmdline)
+  local obspat = "^['<,'>]*Obsidian[!]?"
+  local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
+  local obsidiancmd = splitcmd[2]
+  if cmdline:match(obspat .. "%s$") then
+    return cmds
+  end
+  if cmdline:match(obspat .. "%s%S+$") then
+    return vim.tbl_filter(function(s)
+      return s:sub(1, #obsidiancmd) == obsidiancmd
+    end, cmds)
+  end
+  local cmdconfig = M.commands[obsidiancmd]
+  if cmdconfig == nil then
+    return
+  end
+  if cmdline:match(obspat .. "%s%S*%s%S*$") then
+    local cmd_arg = table.concat(vim.list_slice(splitcmd, 3), " ")
+    local complete_type = type(cmdconfig.complete)
+    if complete_type == "function" then
+      return cmdconfig.complete(client, cmd_arg)
+    end
+    if complete_type == "string" then
+      return vim.fn.getcompletion(cmd_arg, cmdconfig.complete)
+    end
+  end
+end
+
+--TODO: Note completion is currently broken (see: https://github.com/epwalsh/obsidian.nvim/issues/753)
+---@param client obsidian.Client
 ---@return string[]
-M.complete_args_search = function(client, _, cmd_line, _)
+M.note_complete = function(client, cmd_arg)
   local query
-  local cmd_arg, _ = util.lstrip_whitespace(string.gsub(cmd_line, "^.*Obsidian[A-Za-z0-9]+", ""))
   if string.len(cmd_arg) > 0 then
     if string.find(cmd_arg, "|", 1, true) then
       return {}
@@ -128,67 +199,52 @@ M.complete_args_search = function(client, _, cmd_line, _)
   return completions
 end
 
-M.register("ObsidianCheck", { opts = { nargs = 0, desc = "Check for issues in your vault" } })
+M.register("check", { nargs = 0 })
 
-M.register("ObsidianToday", { opts = { nargs = "?", desc = "Open today's daily note" } })
+M.register("today", { nargs = "?" })
 
-M.register("ObsidianYesterday", { opts = { nargs = 0, desc = "Open the daily note for the previous working day" } })
+M.register("yesterday", { nargs = 0 })
 
-M.register("ObsidianTomorrow", { opts = { nargs = 0, desc = "Open the daily note for the next working day" } })
+M.register("tomorrow", { nargs = 0 })
 
-M.register("ObsidianDailies", { opts = { nargs = "*", desc = "Open a picker with daily notes" } })
+M.register("dailies", { nargs = "*" })
 
-M.register("ObsidianNew", { opts = { nargs = "?", complete = "file", desc = "Create a new note" } })
+M.register("new", { nargs = "?", complete = "file" })
 
-M.register(
-  "ObsidianOpen",
-  { opts = { nargs = "?", desc = "Open in the Obsidian app" }, complete = M.complete_args_search }
-)
+M.register("open", { nargs = "?", complete = M.note_complete })
 
-M.register("ObsidianBacklinks", { opts = { nargs = 0, desc = "Collect backlinks" } })
+M.register("backlinks", { nargs = 0 })
 
-M.register("ObsidianTags", { opts = { nargs = "*", range = true, desc = "Find tags" } })
+M.register("tags", { nargs = "*", range = true })
 
-M.register("ObsidianSearch", { opts = { nargs = "?", desc = "Search vault" } })
+M.register("search", { nargs = "?" })
 
-M.register("ObsidianTemplate", { opts = { nargs = "?", desc = "Insert a template" } })
+M.register("template", { nargs = "?" })
 
-M.register("ObsidianNewFromTemplate", { opts = { nargs = "?", desc = "Create a new note from a template" } })
+M.register("new_from_template", { nargs = "?" })
 
-M.register("ObsidianQuickSwitch", { opts = { nargs = "?", desc = "Switch notes" } })
+M.register("quick_switch", { nargs = "?" })
 
-M.register("ObsidianLinkNew", { opts = { nargs = "?", range = true, desc = "Link selected text to a new note" } })
+M.register("link_new", { nargs = "?", range = true })
 
-M.register("ObsidianLink", {
-  opts = { nargs = "?", range = true, desc = "Link selected text to an existing note" },
-  complete = M.complete_args_search,
-})
+M.register("link", { nargs = "?", range = true, complete = M.note_complete })
 
-M.register("ObsidianLinks", { opts = { nargs = 0, desc = "Collect all links within the current buffer" } })
+M.register("links", { nargs = 0 })
 
-M.register("ObsidianFollowLink", { opts = { nargs = "?", desc = "Follow reference or link under cursor" } })
+M.register("follow_link", { nargs = "?" })
 
-M.register("ObsidianToggleCheckbox", { opts = { nargs = 0, desc = "Toggle checkbox", range = true } })
+M.register("toggle_checkbox", { nargs = 0, range = true })
 
-M.register("ObsidianWorkspace", { opts = { nargs = "?", desc = "Check or switch workspace" } })
+M.register("workspace", { nargs = "?" })
 
-M.register(
-  "ObsidianRename",
-  { opts = { nargs = "?", complete = "file", desc = "Rename note and update all references to it" } }
-)
+M.register("rename", { nargs = "?", complete = "file" })
 
-M.register(
-  "ObsidianPasteImg",
-  { opts = { nargs = "?", complete = "file", desc = "Paste an image from the clipboard" } }
-)
+M.register("paste_img", { nargs = "?", complete = "file" })
 
-M.register(
-  "ObsidianExtractNote",
-  { opts = { nargs = "?", range = true, desc = "Extract selected text to a new note and link to it" } }
-)
+M.register("extract_note", { nargs = "?", range = true })
 
-M.register("ObsidianDebug", { opts = { nargs = 0, desc = "Log some information for debugging" } })
+M.register("debug", { nargs = 0 })
 
-M.register("ObsidianTOC", { opts = { nargs = 0, desc = "Load the table of contents into a picker" } })
+M.register("toc", { nargs = 0 })
 
 return M

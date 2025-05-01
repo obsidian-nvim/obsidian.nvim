@@ -99,6 +99,10 @@ obsidian.setup = function(opts)
   -- These will be available across all buffers, not just note buffers in the vault.
   obsidian.commands.install(client)
 
+  if opts.legacy_commands then
+    obsidian.commands.install_legacy(client)
+  end
+
   -- Register completion sources, providers
   if opts.completion.nvim_cmp then
     require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()
@@ -143,6 +147,17 @@ obsidian.setup = function(opts)
       elseif opts.completion.blink then
         require("obsidian.completion.plugin_initializers.blink").inject_sources()
       end
+
+      local win = vim.api.nvim_get_current_win()
+
+      vim.treesitter.start(ev.buf, "markdown") -- for when user don't use nvim-treesitter
+
+      vim.wo[win].foldmethod = "expr"
+      vim.wo[win].foldexpr = "v:lua.vim.treesitter.foldexpr()"
+      vim.wo[win].fillchars = "foldopen:,foldclose:,fold: ,foldsep: "
+      vim.wo[win].foldtext = ""
+      vim.wo[win].foldlevel = 99
+      vim.wo[win].smoothscroll = true
 
       -- Run enter-note callback.
       client.callback_manager:enter_note(function()

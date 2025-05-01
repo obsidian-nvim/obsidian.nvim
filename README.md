@@ -54,55 +54,49 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 ### Commands
 
-- `:ObsidianBacklinks` for getting a picker list of references to the current buffer.
+- `:Obsidian backlinks` for getting a picker list of references to the current buffer.
 
-- `:ObsidianDailies [OFFSET ...]` to open a picker list of daily notes. For example, `:ObsidianDailies -2 1` to list daily notes from 2 days ago until tomorrow.
+- `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For example, `:ObsidianDailies -2 1` to list daily notes from 2 days ago until tomorrow.
 
-- `:ObsidianFollowLink [vsplit|hsplit]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
+- `:Obsidian follow_link [vsplit|hsplit]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
 
-- `:ObsidianExtractNote [TITLE]` to extract the visually selected text into a new note and link to it.
-
-- `:ObsidianLink [QUERY]` to link an inline visual selection of text to a note.
+- `:Obsidian link [QUERY]` to link an inline visual selection of text to a note.
   One optional argument: a query that will be used to resolve the note by ID, path, or alias. If not given, the selected text will be used as the query.
 
-- `:ObsidianLinkNew [TITLE]` to create a new note and link it to an inline visual selection of text.
+- `:Obsidian link_new [TITLE]` to create a new note and link it to an inline visual selection of text.
   One optional argument: the title of the new note. If not given, the selected text will be used as the title.
 
-- `:ObsidianLinks` to collect all links within the current buffer into a picker window.
+- `:Obsidian links` to collect all links within the current buffer into a picker window.
 
-- `:ObsidianNew [TITLE]` to create a new note.
+- `:Obsidian new [TITLE]` to create a new note.
   One optional argument: the title of the new note.
 
-- `:ObsidianNewFromTemplate [TITLE]` to create a new note from a template in the templates folder. Selecting from a list using your preferred picker.
+- `:Obsidian new_from_template [TITLE]` to create a new note from a template in the templates folder. Selecting from a list using your preferred picker.
 
-- `:ObsidianOpen [QUERY]` to open a note in the Obsidian app.
+- `:Obsidian open [QUERY]` to open a note in the Obsidian app.
   One optional argument: a query used to resolve the note to open by ID, path, or alias. If not given, the current buffer is used.
 
-- `:ObsidianPasteImg [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option.
+- `:Obsidian quick_switch` to quickly switch to another note in your vault, searching by its name with a picker.
 
-- `:ObsidianQuickSwitch` to quickly switch to another note in your vault, searching by its name with a picker.
+- `:Obsidian rename [NEWNAME] [--dry-run]` to rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault. It is highly recommended to commit the current state of your vault (if you're using version control) before running it, or doing a dry-run first by `:Obsidian rename new-id --dry-run`.
 
-- `:ObsidianRename [NEWNAME] [--dry-run]` to rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault. It is highly recommended to commit the current state of your vault (if you're using version control) before running it, or doing a dry-run first by `:ObsidianRename new-id --dry-run`.
+- `:Obsidian search [QUERY]` to search for (or create) notes in your vault using `ripgrep` with your preferred picker.
 
-- `:ObsidianSearch [QUERY]` to search for (or create) notes in your vault using `ripgrep` with your preferred picker.
+- `:Obsidian tags [TAG ...]` for getting a picker list of all occurrences of the given tags.
 
-- `:ObsidianTags [TAG ...]` for getting a picker list of all occurrences of the given tags.
+- `:Obsidian template [NAME]` to insert a template from the templates folder, selecting from a list using your preferred picker. See [using templates](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Using-templates).
 
-- `:ObsidianTemplate [NAME]` to insert a template from the templates folder, selecting from a list using your preferred picker. See [using templates](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Using-templates).
+- `:Obsidian today [OFFSET]` to open/create a new daily note. This command also takes an optional offset in days, e.g. use `:Obsidian today -1` to go to yesterday's note. Unlike `:Obsidian yesterday` and `:Obsidian tomorrow` this command does not differentiate between weekdays and weekends.
 
-- `:ObsidianToday [OFFSET]` to open/create a new daily note. This command also takes an optional offset in days, e.g. use `:ObsidianToday -1` to go to yesterday's note. Unlike `:ObsidianYesterday` and `:ObsidianTomorrow` this command does not differentiate between weekdays and weekends.
+- `:Obsidian tomorrow` to open/create the daily note for the next working day.
 
-- `:ObsidianTomorrow` to open/create the daily note for the next working day.
+- `:Obsidian toc` to load the table of contents of the current note into a picker list.
 
-- `:ObsidianTOC` to load the table of contents of the current note into a picker list.
+- `:Obsidian toggle_checkbox` to cycle through checkbox options.
 
-- `:ObsidianToggleCheckbox` to cycle through checkbox options.
+- `:Obsidian workspace [NAME]` to switch to another workspace.
 
-- `:ObsidianWorkspace [NAME]` to switch to another workspace.
-
-- `:ObsidianYesterday` to open/create the daily note for the previous working day.
-
-  This command has one optional argument: the title of the new note.
+- `:Obsidian yesterday` to open/create the daily note for the previous working day.
 
 ### Demo
 
@@ -309,6 +303,8 @@ require("obsidian").setup {
     default_tags = { "daily-notes" },
     -- Optional, if you want to automatically insert a template from your template directory like 'daily.md'
     template = nil,
+    -- Optional, if you want `Obsidian yesterday` to return the last work day or `Obsidian tomorrow` to return the next work day.
+    workdays_only = true,
   },
 
   -- Optional, completion of wiki links, local markdown links, and tags using nvim-cmp.
@@ -338,7 +334,7 @@ require("obsidian").setup {
       end,
       opts = { buffer = true },
     },
-    -- Smart action depending on context: follow link, show notes with tag, or toggle checkbox.
+    -- Smart action depending on context: follow link, show notes with tag, toggle checkbox, or toggle heading fold
     ["<cr>"] = {
       action = function()
         return require("obsidian").util.smart_action()
@@ -433,7 +429,7 @@ require("obsidian").setup {
     substitutions = {},
   },
 
-  -- Optional, by default when you use `:ObsidianFollowLink` on a link to an external
+  -- Optional, by default when you use `:Obsidian followlink` on a link to an external
   -- URL it will be ignored but you can customize this behavior here.
   ---@param url string
   follow_url_func = function(url)
@@ -444,7 +440,7 @@ require("obsidian").setup {
     -- vim.ui.open(url) -- need Neovim 0.10.0+
   end,
 
-  -- Optional, by default when you use `:ObsidianFollowLink` on a link to an image
+  -- Optional, by default when you use `:Obsidian followlink` on a link to an image
   -- file it will be ignored but you can customize this behavior here.
   ---@param img string
   follow_img_func = function(img)
@@ -457,7 +453,7 @@ require("obsidian").setup {
   -- https://github.com/Vinzent03/obsidian-advanced-uri
   use_advanced_uri = false,
 
-  -- Optional, set to true to force ':ObsidianOpen' to bring the app to the foreground.
+  -- Optional, set to true to force ':Obsidian open' to bring the app to the foreground.
   open_app_foreground = false,
 
   picker = {
@@ -481,7 +477,7 @@ require("obsidian").setup {
 
   -- Optional, sort search results by "path", "modified", "accessed", or "created".
   -- The recommend value is "modified" and `true` for `sort_reversed`, which means, for example,
-  -- that `:ObsidianQuickSwitch` will show the notes sorted by latest modified time
+  -- that `:Obsidian quickswitch` will show the notes sorted by latest modified time
   sort_by = "modified",
   sort_reversed = true,
 
@@ -568,7 +564,7 @@ require("obsidian").setup {
 
   -- Specify how to handle attachments.
   attachments = {
-    -- The default folder to place images in via `:ObsidianPasteImg`.
+    -- The default folder to place images in via `:Obsidian pasteimg`.
     -- If this is a relative path it will be interpreted as relative to the vault root.
     -- You can always override this per image by passing a full path to the command instead of just a filename.
     img_folder = "assets/imgs", -- This is the default
