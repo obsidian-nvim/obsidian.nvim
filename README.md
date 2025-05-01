@@ -17,10 +17,6 @@
 <a href="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim">
 	<img src="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim/shield?style=for-the-badge" />
 </a>
-
-<a href="https://github.com/obsidian-nvim/obsidian.nvim">
-	<img src="https://img.shields.io/github/all-contributors/obsidian-nvim/obsidian.nvim?color=ee8449&style=for-the-badge" />
-</a>
 </div>
 <hr>
 
@@ -35,8 +31,11 @@ _Keep in mind this plugin is not meant to replace Obsidian, but to complement it
 ## 🍴 About the fork
 
 The original project has not been actively maintained for quite a while and with the ever-changing Neovim ecosystem, new widely used tools such as [blink.cmp](https://github.com/Saghen/blink.cmp) or [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) were not supported.
-With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
+
+With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project. Discussions are happening in [GitHub discussions](https://github.com/obsidian-nvim/obsidian.nvim/discussions/6).
+
 The fork aims to stay close to the original, but fix bugs, include and merge useful improvements, and ensure long term robustness.
+
 
 ## ⭐ Features
 
@@ -52,11 +51,23 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 [![See this screenshot](https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687)
 
+## Keymaps
+
+These default keymaps will only be set if you are in a valid workspace and a markdown buffer:
+
+- `smart_action` is the most important one you will use, it is bind to `<CR>` by default, it will
+  - If cursor is on a link, follow the link
+  - If cursor is on a tag, show all notes with that tag in a picker
+  - If cursor is on a checkbox, toggle the checkbox
+  - If cursor is on a heading, cycle the fold of that heading
+- `gf`: Follow link under the cursor, falls back to normal vim `gf` if not on a link
+- `<leader>ch>`: Toggle check-boxes
+
 ### Commands
 
 - `:Obsidian backlinks` for getting a picker list of references to the current buffer.
 
-- `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For example, `:ObsidianDailies -2 1` to list daily notes from 2 days ago until tomorrow.
+- `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For example, `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow.
 
 - `:Obsidian follow_link [vsplit|hsplit]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
 
@@ -114,9 +125,9 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 - Additional system dependencies:
 
-  - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:ObsidianOpen`.
-  - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:ObsidianPasteImg`.
-  - **Linux** users need xclip (X11) or wl-clipboard (Wayland) for `:ObsidianPasteImg`.
+  - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:Obsidian open`.
+  - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:Obsidian paste_img`.
+  - **Linux** users need xclip (X11) or wl-clipboard (Wayland) for `:Obsidian paste_img`.
 
 ### Plugin dependencies
 
@@ -603,14 +614,3 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
 ## ❤️ Acknowledgement
 
 We would like to thank [epwalsh](https://github.com/epwalsh) for creating this beautiful plugin. If you're feeling especially generous, [he still appreciates some coffee funds!](https://www.buymeacoffee.com/epwalsh).
-
-## Contributors
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-
-<!-- markdownlint-restore -->
-<!-- prettier-ignore-end -->
-
-<!-- ALL-CONTRIBUTORS-LIST:END -->
