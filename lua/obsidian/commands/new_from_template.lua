@@ -29,13 +29,15 @@ return function(client, data)
     end
   end
 
-  ---@type obsidian.Note
-  local note = client:create_note { title = title, no_write = true }
-  client:open_note(note, { sync = true })
-
   picker:find_templates {
     callback = function(name)
-      client:write_note_to_buffer(note, { template = name })
+      if name == nil or name == "" then
+        log.warn "Aborted"
+        return
+      end
+      ---@type obsidian.Note
+      local note = client:create_note { title = title, template = name, no_write = false }
+      client:open_note(note, { sync = false })
     end,
   }
 end
