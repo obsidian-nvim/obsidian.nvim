@@ -6,8 +6,8 @@ local M = {}
 M.generate_completion_request_from_editor_state = function(context)
   local row = context.cursor[1]
   local col = context.cursor[2] + 1
-  local cursor_before_line = context.line:sub(1, col)
-  local cursor_after_line = context.line:sub(col + 1)
+  local cursor_before_line = context.line:sub(1, col - 1)
+  local cursor_after_line = context.line:sub(col)
 
   return {
     context = {
