@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed bug where `ObsidianRename` did not update the note_id if run in current buffer and not remove the old buffer
 - Fixed `<C-x>` not working after command merging
 - Fixed `blink.cmp` new notes source completion not working properly
+- Fixed `blink.cmp` off by one insert start position
 
 ## [v3.10.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.10.0) - 2025-04-12
 
