@@ -166,17 +166,7 @@ obsidian.setup = function(opts)
         obsidian.api.nav_link "prev"
       end, { buffer = true, desc = "Obsidian Previous Link" })
 
-      -- if opts.completion.nvim_cmp then
-      --   require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources()
-      -- elseif opts.completion.blink then
-      --   require("obsidian.completion.plugin_initializers.blink").inject_sources()
-      -- end
-
-      vim.bo[ev.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
-      vim.bo[ev.buf].completeopt = "menu,menuone,noselect"
-      vim.bo[ev.buf].iskeyword = "@,48-57,192-255" -- HACK: so that completion for note names with `-` in it works in native completion
-
-      local client_id = client:lsp_start()
+      local client_id = client:lsp_start(ev.buf)
 
       vim.keymap.set("n", "<leader>ii", function()
         local lsp_client = assert(vim.lsp.get_client_by_id(client_id))
