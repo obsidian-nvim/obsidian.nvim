@@ -36,7 +36,6 @@ With bugs, issues and pull requests piling up, people from the community decided
 
 The fork aims to stay close to the original, but fix bugs, include and merge useful improvements, and ensure long term robustness.
 
-
 ## ⭐ Features
 
 ▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki links, `[` for markdown links, or `#` for tags), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep).
@@ -193,7 +192,7 @@ return {
     -- Required.
     "nvim-lua/plenary.nvim",
 
-    -- see below for full list of optional dependencies 👇
+    -- see above for full list of optional dependencies ☝️
   },
   ---@module 'obsidian'
   ---@type obsidian.config.ClientOpts
@@ -240,7 +239,7 @@ use {
     -- Required.
     "nvim-lua/plenary.nvim",
 
-    -- see below for full list of optional dependencies 👇
+    -- see above for full list of optional dependencies ☝️
   },
   config = function()
     require("obsidian").setup {
@@ -431,7 +430,7 @@ require("obsidian").setup {
     return out
   end,
 
-  -- Optional, for templates (see below).
+  -- Optional, for templates (see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Using-templates)
   templates = {
     folder = "templates",
     date_format = "%Y-%m-%d",
@@ -451,7 +450,7 @@ require("obsidian").setup {
     -- vim.ui.open(url) -- need Neovim 0.10.0+
   end,
 
-  -- Optional, by default when you use `:Obsidian followlink` on a link to an image
+  -- Optional, by default when you use `:Obsidian follow_link` on a link to an image
   -- file it will be ignored but you can customize this behavior here.
   ---@param img string
   follow_img_func = function(img)
@@ -488,7 +487,7 @@ require("obsidian").setup {
 
   -- Optional, sort search results by "path", "modified", "accessed", or "created".
   -- The recommend value is "modified" and `true` for `sort_reversed`, which means, for example,
-  -- that `:Obsidian quickswitch` will show the notes sorted by latest modified time
+  -- that `:Obsidian quick_switch` will show the notes sorted by latest modified time
   sort_by = "modified",
   sort_reversed = true,
 
@@ -575,12 +574,12 @@ require("obsidian").setup {
 
   -- Specify how to handle attachments.
   attachments = {
-    -- The default folder to place images in via `:Obsidian pasteimg`.
+    -- The default folder to place images in via `:Obsidian paste_img`.
     -- If this is a relative path it will be interpreted as relative to the vault root.
     -- You can always override this per image by passing a full path to the command instead of just a filename.
     img_folder = "assets/imgs", -- This is the default
 
-    -- A function that determines default name or prefix when pasting images via `:ObsidianPasteImg`.
+    -- A function that determines default name or prefix when pasting images via `:Obsidian paste_img`.
     ---@return string
     img_name_func = function()
       -- Prefix image names with timestamp.
