@@ -314,7 +314,7 @@ Picker._note_query_mappings = function(self)
     mappings[self.client.opts.picker.note_mappings.new] = {
       desc = "new",
       callback = function(query)
-        self.client:command("ObsidianNew", { args = query })
+        self.client:command("new", { args = query })
       end,
     }
   end

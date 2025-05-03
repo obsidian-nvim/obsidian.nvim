@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added a statusline component provider similar to Obsidian app.
 - Added default `image_name_func` similar to Obsidian's.
 - Added support `text/uri-list` to `ObsidianPasteImg`.
-- Added support for obsidian style `%%` comment
+- Added support for obsidian style `%%` comment.
+- Added `opts.daily_notes.workdays_only` option which, when false, adds support for weekend daily notes.
 
 ### Changed
 
@@ -21,11 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ObsidianRename` input field is pre-filled filled with the current note id to ease renaming.
 - Improved type annotations for user commands: add `CommandArgs` type.
 - `follow_url_func` and `follow_img_func` defaults to `vim.ui.open`
+- `smart_action` now can also toggle heading folds.
 
 ### Fixed
 
 - Enhanced completion menu to correctly display and handle non-English (ex. Korean) file names and tags in link, fixing Unicode encoding issues
 - Fixed bug where `ObsidianRename` did not update the note_id if run in current buffer and not remove the old buffer
+- Fixed `<C-x>` not working after command merging
+- Fixed `blink.cmp` new notes source completion not working properly
+- Fixed `blink.cmp` off by one insert start position
 
 ## [v3.10.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.10.0) - 2025-04-12
 
