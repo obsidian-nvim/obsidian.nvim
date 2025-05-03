@@ -33,6 +33,7 @@ local config = {}
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
+---@field statusline obsidian.config.StatuslineOpts
 config.ClientOpts = {}
 
 --- Get defaults.
@@ -67,6 +68,13 @@ config.ClientOpts.default = function()
     attachments = config.AttachmentsOpts.default(),
     callbacks = config.CallbackConfig.default(),
     legacy_commands = true,
+    ---@class obsidian.config.StatuslineOpts
+    ---@field format? string
+    ---@field enabled? boolean
+    statusline = {
+      format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+      enabled = true,
+    },
   }
 end
 
@@ -236,6 +244,7 @@ config.ClientOpts.normalize = function(opts, defaults)
   opts.templates = tbl_override(defaults.templates, opts.templates)
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
+  opts.statusline = tbl_override(defaults.statusline, opts.statusline)
 
   ---------------
   -- Validate. --

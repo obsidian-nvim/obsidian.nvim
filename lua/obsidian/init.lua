@@ -103,6 +103,10 @@ obsidian.setup = function(opts)
     obsidian.commands.install_legacy(client)
   end
 
+  if opts.statusline.enabled then
+    client:statusline()
+  end
+
   -- Register completion sources, providers
   if opts.completion.nvim_cmp then
     require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()

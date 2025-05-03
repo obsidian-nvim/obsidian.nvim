@@ -597,6 +597,12 @@ require("obsidian").setup {
       return string.format("![%s](%s)", path.name, path)
     end,
   },
+
+  -- See https://github.com/obsidian-nvim/obsidian.nvim/wiki/Notes-on-configuration#statusline-component
+  statusline = {
+    enabled = true,
+    format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+  },
 }
 ```
 
