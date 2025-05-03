@@ -109,8 +109,6 @@ SnacksPicker.pick = function(self, values, opts)
 
   debug_once("pick opts: ", opts)
 
-  local buf = opts.buf or vim.api.nvim_get_current_buf()
-
   local entries = {}
   for _, value in ipairs(values) do
     if type(value) == "string" then
@@ -122,7 +120,7 @@ SnacksPicker.pick = function(self, values, opts)
       local name = self:_make_display(value)
       table.insert(entries, {
         text = name,
-        buf = buf,
+        buf = self.calling_bufnr,
         filename = value.filename,
         value = value.value,
         pos = { value.lnum, value.col or 0 },
