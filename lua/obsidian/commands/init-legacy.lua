@@ -44,14 +44,14 @@ local M = setmetatable({
   end,
 })
 
----@class obsidian.CommandConfig
+---@class obsidian.CommandConfigLegacy
 ---@field opts table
 ---@field complete function|?
 ---@field func function|? (obsidian.Client, table) -> nil
 
 ---Register a new command.
 ---@param name string
----@param config obsidian.CommandConfig
+---@param config obsidian.CommandConfigLegacy
 M.register = function(name, config)
   if not config.func then
     config.func = function(client, data)
