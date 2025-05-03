@@ -46,6 +46,8 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 📷 **Images:** Paste images into notes.
 
+📈 **Status:** See note status in statusline like obsidian app.
+
 💅 **Syntax:** Additional markdown syntax highlighting, concealing, and extmarks for references, tags, and check-boxes.
 
 [![See this screenshot](https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687)
