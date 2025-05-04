@@ -57,7 +57,7 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 [![See this screenshot](https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687)
 
-## Keymaps
+### Keymaps
 
 These default keymaps will only be set if you are in a valid workspace and a markdown buffer:
 
