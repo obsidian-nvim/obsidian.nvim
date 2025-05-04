@@ -22,7 +22,6 @@
 " />
 </a>
 </div>
-</div>
 <hr>
 
 A **community fork** of the Neovim plugin for writing and navigating [Obsidian](https://obsidian.md) vaults, written in Lua, created by [epwalsh](https://github.com/epwalsh).
