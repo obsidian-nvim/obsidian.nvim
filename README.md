@@ -17,6 +17,11 @@
 <a href="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim">
  <img src="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim/shield?style=for-the-badge" />
 </a>
+<a href="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim">
+ <img src="https://img.shields.io/github/all-contributors/obsidian-nvim/obsidian.nvim?style=for-the-badge
+" />
+</a>
+</div>
 </div>
 <hr>
 
@@ -612,6 +617,15 @@ See the [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki
 ## 🤝 Contributing
 
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 ## ❤️ Acknowledgement
 
