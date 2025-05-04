@@ -17,7 +17,7 @@
 <a href="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim">
  <img src="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim/shield?style=for-the-badge" />
 </a>
-<a href="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim">
+<a href="https://github.com/obsidian-nvim/obsidian.nvim?tab=readme-ov-file#-contributing">
  <img src="https://img.shields.io/github/all-contributors/obsidian-nvim/obsidian.nvim?style=for-the-badge
 " />
 </a>
