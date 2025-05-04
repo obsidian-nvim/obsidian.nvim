@@ -138,7 +138,7 @@ M.register("ObsidianTomorrow", { opts = { nargs = 0, desc = "Open the daily note
 
 M.register("ObsidianDailies", { opts = { nargs = "*", desc = "Open a picker with daily notes" } })
 
-M.register("ObsidianNew", { opts = { nargs = "?", complete = "file", desc = "Create a new note" } })
+M.register("ObsidianNew", { opts = { nargs = "?", desc = "Create a new note" } })
 
 M.register(
   "ObsidianOpen",
@@ -174,12 +174,12 @@ M.register("ObsidianWorkspace", { opts = { nargs = "?", desc = "Check or switch 
 
 M.register(
   "ObsidianRename",
-  { opts = { nargs = "?", complete = "file", desc = "Rename note and update all references to it" } }
+  { opts = { nargs = "?", desc = "Rename note and update all references to it" } }
 )
 
 M.register(
   "ObsidianPasteImg",
-  { opts = { nargs = "?", complete = "file", desc = "Paste an image from the clipboard" } }
+  { opts = { nargs = "?", desc = "Paste an image from the clipboard" } }
 )
 
 M.register(
