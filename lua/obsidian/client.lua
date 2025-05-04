@@ -62,6 +62,7 @@ end
 ---
 ---@field current_workspace obsidian.Workspace The current workspace.
 ---@field dir obsidian.Path The root of the vault for the current workspace.
+---@field cache obsidian.Cache
 ---@field opts obsidian.config.ClientOpts The client config.
 ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
 ---@field callback_manager obsidian.CallbackManager
@@ -96,6 +97,8 @@ Client.new = function(opts)
   end
 
   self:set_workspace(workspace)
+
+  self.cache = require("obsidian.cache").new(self)
 
   return self
 end
@@ -483,6 +486,8 @@ Client.find_notes_async = function(self, term, callback, opts)
     if paths[tostring(path)] then
       return nil
     end
+
+    vim.print(path)
 
     local ok, res = pcall(Note.from_file_async, path, opts.notes)
 

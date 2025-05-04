@@ -10,6 +10,8 @@ local Note = require "obsidian.note"
 ---@field calling_bufnr integer
 local Picker = abc.new_class()
 
+---@param client obsidian.Client
+---@return obsidian.Picker
 Picker.new = function(client)
   local self = Picker.init()
   self.client = client
@@ -147,6 +149,7 @@ Picker.find_notes = function(self, opts)
   end
 
   return self:find_files {
+    notes = self.client.cache:get_links_from_cache(),
     prompt_title = opts.prompt_title or "Notes",
     dir = self.client.dir,
     callback = opts.callback,

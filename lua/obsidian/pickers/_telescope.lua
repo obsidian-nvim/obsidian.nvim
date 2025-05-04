@@ -126,6 +126,10 @@ end
 
 ---@param opts obsidian.PickerFindOpts|? Options.
 TelescopePicker.find_files = function(self, opts)
+  local pickers = require "telescope.pickers"
+  local finders = require "telescope.finders"
+  local conf = require("telescope.config").values
+
   opts = opts or {}
 
   local prompt_title = self:_build_prompt {
@@ -134,20 +138,32 @@ TelescopePicker.find_files = function(self, opts)
     selection_mappings = opts.selection_mappings,
   }
 
-  telescope.find_files {
-    prompt_title = prompt_title,
-    cwd = opts.dir and tostring(opts.dir) or tostring(self.client.dir),
-    find_command = self:_build_find_cmd(),
-    attach_mappings = function(_, map)
-      attach_picker_mappings(map, {
-        entry_key = "path",
-        callback = opts.callback,
-        query_mappings = opts.query_mappings,
-        selection_mappings = opts.selection_mappings,
-      })
-      return true
-    end,
-  }
+  pickers
+    .new(opts, {
+      prompt_title = prompt_title,
+      cwd = opts.dir,
+      finder = finders.new_table {
+        results = opts.notes,
+        entry_maker = function(entry)
+          return {
+            value = entry,
+            display = entry[1],
+            ordinal = entry[1],
+          }
+        end,
+      },
+      sorter = conf.generic_sorter(opts),
+      attach_mappings = function(_, map)
+        attach_picker_mappings(map, {
+          entry_key = "path",
+          callback = opts.callback,
+          query_mappings = opts.query_mappings,
+          selection_mappings = opts.selection_mappings,
+        })
+        return true
+      end,
+    })
+    :find()
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.

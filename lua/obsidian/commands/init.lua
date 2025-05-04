@@ -16,6 +16,7 @@ local command_lookups = {
   ObsidianTemplate = "obsidian.commands.template",
   ObsidianNewFromTemplate = "obsidian.commands.new_from_template",
   ObsidianQuickSwitch = "obsidian.commands.quick_switch",
+  ObsidianIndexVault = "obsidian.commands.index_vault",
   ObsidianLinkNew = "obsidian.commands.link_new",
   ObsidianLink = "obsidian.commands.link",
   ObsidianLinks = "obsidian.commands.links",
@@ -156,6 +157,8 @@ M.register("ObsidianTemplate", { opts = { nargs = "?", desc = "Insert a template
 M.register("ObsidianNewFromTemplate", { opts = { nargs = "?", desc = "Create a new note from a template" } })
 
 M.register("ObsidianQuickSwitch", { opts = { nargs = "?", desc = "Switch notes" } })
+
+M.register("ObsidianIndexVault", { opts = { nargs = "?", desc = "Index vault" } })
 
 M.register("ObsidianLinkNew", { opts = { nargs = "?", range = true, desc = "Link selected text to a new note" } })
 

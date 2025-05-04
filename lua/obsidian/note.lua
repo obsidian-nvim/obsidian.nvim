@@ -255,10 +255,11 @@ Note.get_field = function(self, key)
 end
 
 ---@class obsidian.note.LoadOpts
----@field max_lines integer|?
----@field load_contents boolean|?
----@field collect_anchor_links boolean|?
----@field collect_blocks boolean|?
+---@field max_lines integer|? Stops reading file if reached max lines.
+---@field read_only_frontmatter boolean|? Stops reading file if reached end of frontmatter.
+---@field load_contents boolean|?  Save contents of the file if not frontmatter or block to obsidian.Note.contents. Still reads whole file if other options are true.
+---@field collect_anchor_links boolean|? Save anchor_links of the file if not in frontmatter or block to obsidian.Note.anchor_links. Still reads whole file if other options are true.
+---@field collect_blocks boolean|? Save code blocks to obsidian.Note.blocks. Still reads whole file if other options are true.
 
 --- Initialize a note from a file.
 ---
@@ -488,6 +489,8 @@ Note.from_lines = function(lines, path, opts)
     if
       line_idx > max_lines
       or (title and not opts.load_contents and not opts.collect_anchor_links and not opts.collect_blocks)
+      or (opts.read_only_frontmatter and not has_frontmatter)
+      or (opts.read_only_frontmatter and has_frontmatter and not at_boundary)
     then
       break
     end
