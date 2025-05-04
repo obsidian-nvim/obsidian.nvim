@@ -24,8 +24,12 @@ end
 ---Implements the execute method of the completion provider
 ---@param _ blink.cmp.Context
 ---@param item blink.cmp.CompletionItem
-function NewNoteSource:execute(_, item)
+---@param callback fun(),
+---@param default_implementation fun(context?: blink.cmp.Context, item?: blink.cmp.CompletionItem)): ((fun(): nil) | nil)
+function NewNoteSource:execute(_, item, callback, default_implementation)
   self:process_execute(item)
+  default_implementation() -- Ensure completion is still executed
+  callback() -- Required (as per blink documentation)
 end
 
 return NewNoteSource
