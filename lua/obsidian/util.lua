@@ -894,17 +894,10 @@ util.get_plugin_info = function(name)
   end
 
   local out = { path = src_root }
+  local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
 
-  local Job = require "plenary.job"
-  local output, exit_code = Job:new({ ---@diagnostic disable-line: missing-fields
-    command = "git",
-    args = { "rev-parse", "HEAD" },
-    cwd = src_root,
-    enable_recording = true,
-  }):sync(1000)
-
-  if exit_code == 0 then
-    out.commit = output[1]
+  if obj.code == 0 then
+    out.commit = vim.trim(obj.stdout)
   end
 
   return out
@@ -913,15 +906,13 @@ end
 ---@param cmd string
 ---@return string|?
 util.get_external_dependency_info = function(cmd)
-  local Job = require "plenary.job"
-  local output, exit_code = Job:new({ ---@diagnostic disable-line: missing-fields
-    command = cmd,
-    args = { "--version" },
-    enable_recording = true,
-  }):sync(1000)
+  local obj = vim.system({ cmd, "--version" }, {}):wait(1000)
 
-  if exit_code == 0 then
-    return output[1]
+  if obj.code == 0 then
+    local version = vim.version.parse(obj.stdout)
+    if version then
+      return ("%d.%d.%d"):format(version.major, version.minor, version.patch)
+    end
   end
 end
 
