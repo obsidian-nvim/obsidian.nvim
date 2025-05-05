@@ -666,6 +666,11 @@ Return ~
 `(obsidian.Picker| `(optional))``
 
 ------------------------------------------------------------------------------
+                                                  *obsidian.Client.statusline()*
+                          `Client.statusline`({self})
+Register the global variable that updates itself
+
+------------------------------------------------------------------------------
 Class ~
 {obsidian.note.HeaderAnchor}
 

@@ -4,7 +4,7 @@ local async = require "plenary.async"
 local channel = require("plenary.async.control").channel
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local iter = require("obsidian.itertools").iter
+local iter = vim.iter
 local uv = vim.loop
 
 local M = {}

@@ -11,7 +11,6 @@ local module_lookups = {
   config = "obsidian.config",
   log = "obsidian.log",
   img_paste = "obsidian.img_paste",
-  itertools = "obsidian.itertools",
   mappings = "obsidian.mappings",
   Note = "obsidian.note",
   Path = "obsidian.path",
@@ -101,6 +100,10 @@ obsidian.setup = function(opts)
 
   if opts.legacy_commands then
     obsidian.commands.install_legacy(client)
+  end
+
+  if opts.statusline.enabled then
+    client:statusline()
   end
 
   -- Register completion sources, providers

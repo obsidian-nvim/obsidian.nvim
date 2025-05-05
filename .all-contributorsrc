@@ -1,0 +1,48 @@
+{
+  "projectName": "obsidian.nvim",
+  "projectOwner": "obsidian-nvim",
+  "files": [
+    "README.md"
+  ],
+  "commitType": "docs",
+  "commitConvention": "angular",
+  "contributorsPerLine": 7,
+  "contributors": [
+    {
+      "login": "neo451",
+      "name": "neo451",
+      "avatar_url": "https://avatars.githubusercontent.com/u/111681693?v=4",
+      "profile": "https://github.com/neo451",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "sotte",
+      "name": "Stefan Otte",
+      "avatar_url": "https://avatars.githubusercontent.com/u/79138?v=4",
+      "profile": "https://github.com/sotte",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "guspix",
+      "name": "guspix",
+      "avatar_url": "https://avatars.githubusercontent.com/u/33852783?v=4",
+      "profile": "https://github.com/guspix",
+     "contributions": [
+        "code"
+      ]
+},
+{
+      "login": "ffricken",
+      "name": "ffricken",
+      "avatar_url": "https://avatars.githubusercontent.com/u/44709001?v=4",
+      "profile": "https://github.com/ffricken",
+      "contributions": [
+        "code"
+      ]
+    }
+  ]
+}

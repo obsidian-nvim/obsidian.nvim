@@ -1,6 +1,6 @@
 local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.tags"
-local iter = require("obsidian.itertools").iter
+local iter = vim.iter
 local obsidian = require "obsidian"
 local util = require "obsidian.util"
 

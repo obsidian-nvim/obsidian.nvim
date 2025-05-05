@@ -5,9 +5,8 @@ local File = require("obsidian.async").File
 local log = require "obsidian.log"
 local search = require "obsidian.search"
 local util = require "obsidian.util"
-local enumerate = require("obsidian.itertools").enumerate
-local zip = require("obsidian.itertools").zip
 local compat = require "obsidian.compat"
+local enumerate, zip = util.enumerate, util.zip
 
 ---@param client obsidian.Client
 ---@param data CommandArgs

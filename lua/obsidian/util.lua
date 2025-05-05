@@ -1,9 +1,49 @@
-local iter = require("obsidian.itertools").iter
-local enumerate = require("obsidian.itertools").enumerate
+local iter = vim.iter
 local log = require "obsidian.log"
 local compat = require "obsidian.compat"
 
 local util = {}
+
+-------------------
+--- Iter tools ----
+-------------------
+
+---Create an enumeration iterator over an iterable.
+---@param iterable table|string|function
+---@return function
+util.enumerate = function(iterable)
+  local iterator = vim.iter(iterable)
+  local i = 0
+
+  return function()
+    local next = iterator()
+    if next == nil then
+      return nil, nil
+    else
+      i = i + 1
+      return i, next
+    end
+  end
+end
+
+---Zip two iterables together.
+---@param iterable1 table|string|function
+---@param iterable2 table|string|function
+---@return function
+util.zip = function(iterable1, iterable2)
+  local iterator1 = vim.iter(iterable1)
+  local iterator2 = vim.iter(iterable2)
+
+  return function()
+    local next1 = iterator1()
+    local next2 = iterator2()
+    if next1 == nil or next2 == nil then
+      return nil
+    else
+      return next1, next2
+    end
+  end
+end
 
 -------------------
 -- Table methods --
@@ -170,10 +210,6 @@ util.match_case = function(prefix, key)
     end
   end
   return table.concat(out_chars, "")
-end
-
-util.escape_magic_characters = function(text)
-  return text:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
 end
 
 ---Check if a string is a checkbox list item
@@ -543,8 +579,8 @@ util.toggle_checkbox = function(opts, line_num)
   local checkboxes = opts or { " ", "x" }
 
   if util.is_checkbox(line) then
-    for i, check_char in enumerate(checkboxes) do
-      if string.match(line, "^.* %[" .. util.escape_magic_characters(check_char) .. "%].*") then
+    for i, check_char in ipairs(checkboxes) do
+      if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
         i = i % #checkboxes
         line = util.string_replace(line, "[" .. check_char .. "]", "[" .. checkboxes[i + 1] .. "]", 1)
         break

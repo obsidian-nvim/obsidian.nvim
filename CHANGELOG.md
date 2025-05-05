@@ -9,11 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `makefile types` target to check types via lua-ls
+
+### Changed
+
+- Remove `itertools.lua` in favor of `vim.iter`
+
+## [v3.11.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.11.0) - 2025-05-04
+
+### Added
+
+- Added a statusline component provider similar to Obsidian app.
 - Added default `image_name_func` similar to Obsidian's.
 - Added support `text/uri-list` to `ObsidianPasteImg`.
 - Added support for obsidian style `%%` comment.
 - Added `opts.daily_notes.workdays_only` option which, when false, adds support for weekend daily notes.
-- Added `makefile types` target to check types via lua-ls
+- Added configuration option `completion.match_case`, allowing removal of duplicates when note case does not match search string case. Defaults to true for non-breaking behavior.
 
 ### Changed
 
@@ -22,13 +33,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ObsidianToggleCheckbox` now works in visual mode for multiline toggle.
 - `ObsidianRename` input field is pre-filled filled with the current note id to ease renaming.
 - Improved type annotations for user commands: add `CommandArgs` type.
+- `follow_url_func` and `follow_img_func` defaults to `vim.ui.open`
 - `smart_action` now can also toggle heading folds.
+- `Obsidian new_from_template` accepts an optional `TEMPLATE` argument.
 
 ### Fixed
 
 - Enhanced completion menu to correctly display and handle non-English (ex. Korean) file names and tags in link, fixing Unicode encoding issues
 - Fixed bug where `ObsidianRename` did not update the note_id if run in current buffer and not remove the old buffer
 - Fixed `<C-x>` not working after command merging
+- Fixed `blink.cmp` new notes source completion not working properly
+- Fixed `blink.cmp` off by one insert start position
+- Fixed `ObsidianNew`, `ObsidianRename`, and `ObsidianPasteImg` not to evaluate backticked substrings in its arguments, disabling `-complete=file`
 
 ## [v3.10.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.10.0) - 2025-04-12
 
@@ -47,9 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default to not activate ui render when `render-markdown.nvim` or `markview.nvim` is present
 - `smart_action` shows picker for tags (`ObsidianTag`) when cursor is on a tag
 - `ObsidianToggleCheckbox` now works with numbered lists
-
-- # `Makefile` is friendlier: self-documenting and automatically gets dependencies
-
+- `Makefile` is friendlier: self-documenting and automatically gets dependencies
 - Default to not activate ui render when `render-markdown.nvim` or `markview.nvim` is present.
 
 ### Fixed

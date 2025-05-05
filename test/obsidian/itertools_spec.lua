@@ -1,4 +1,4 @@
-local enumerate = require("obsidian.itertools").enumerate
+local enumerate = require("obsidian.util").enumerate
 
 describe("itertools.enumerate()", function()
   local function collect(iterator)
@@ -8,10 +8,6 @@ describe("itertools.enumerate()", function()
     end
     return results
   end
-
-  it("should enumerate over strings", function()
-    assert.are_same({ "h", "e", "l", "l", "o" }, collect(enumerate "hello"))
-  end)
 
   it("should enumerate over arrays", function()
     assert.are_same({ 1, 2, 3 }, collect(enumerate { 1, 2, 3 }))

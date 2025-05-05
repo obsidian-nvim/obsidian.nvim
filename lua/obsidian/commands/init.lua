@@ -1,4 +1,4 @@
-local iter = require("obsidian.itertools").iter
+local iter = vim.iter
 local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
 
@@ -209,7 +209,7 @@ M.register("tomorrow", { nargs = 0 })
 
 M.register("dailies", { nargs = "*" })
 
-M.register("new", { nargs = "?", complete = "file" })
+M.register("new", { nargs = "?" })
 
 M.register("open", { nargs = "?", complete = M.note_complete })
 
@@ -221,7 +221,7 @@ M.register("search", { nargs = "?" })
 
 M.register("template", { nargs = "?" })
 
-M.register("new_from_template", { nargs = "?" })
+M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
@@ -237,9 +237,9 @@ M.register("toggle_checkbox", { nargs = 0, range = true })
 
 M.register("workspace", { nargs = "?" })
 
-M.register("rename", { nargs = "?", complete = "file" })
+M.register("rename", { nargs = "?" })
 
-M.register("paste_img", { nargs = "?", complete = "file" })
+M.register("paste_img", { nargs = "?" })
 
 M.register("extract_note", { nargs = "?", range = true })
 
