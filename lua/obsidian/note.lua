@@ -490,7 +490,7 @@ Note.from_lines = function(lines, path, opts)
       line_idx > max_lines
       or (title and not opts.load_contents and not opts.collect_anchor_links and not opts.collect_blocks)
       or (opts.read_only_frontmatter and not has_frontmatter)
-      or (opts.read_only_frontmatter and has_frontmatter and not at_boundary)
+      or (opts.read_only_frontmatter and has_frontmatter and not in_frontmatter)
     then
       break
     end

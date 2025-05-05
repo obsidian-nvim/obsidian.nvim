@@ -149,7 +149,6 @@ Picker.find_notes = function(self, opts)
   end
 
   return self:find_files {
-    notes = self.client.cache:get_links_from_cache(),
     prompt_title = opts.prompt_title or "Notes",
     dir = self.client.dir,
     callback = opts.callback,

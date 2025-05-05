@@ -31,8 +31,6 @@ local function watch_with_function(path, on_event, on_error, opts)
   end
 
   local event_cb = function(err, filename, events)
-    vim.print("file " .. filename .. " is changed")
-    error "what the hell"
     if err then
       on_error(error, unwatch_cb)
     else
@@ -44,6 +42,8 @@ local function watch_with_function(path, on_event, on_error, opts)
   end
 
   path = path .. "/Base"
+
+  -- todo: subscribe to subfolders if on linux
   local success, err, err_name = uv.fs_event_start(handle, path, flags, event_cb)
 
   if not success then

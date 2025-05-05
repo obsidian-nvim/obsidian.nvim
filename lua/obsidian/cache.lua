@@ -16,7 +16,12 @@ Cache.new = function(client)
 
   require("obsidian.filewatch").watch(client.dir.filename, {
     on_event = function(filename, events)
-      vim.print(filename .. "changed!")
+      -- TODO get the full path without async
+      local full_path = client:resolve_note(filename)
+      vim.print(full_path)
+
+      -- TODO update the cache for the updated file
+      -- TODO implement fast search of the note
     end,
   }, {
     watch_entry = true,
@@ -35,15 +40,21 @@ local get_links_from_vault = function(client)
 
   local notepath = interator()
 
+  --TODO add updated progress
+  local note_amount = 0
   while notepath do
     local note = Note.from_file(notepath, { read_only_frontmatter = true })
 
     local relative_path = note.path.filename:gsub(client.dir.filename .. "/", "")
-    local note_cache = { relative_path, note.aliases }
+    -- TODO: add last update time to updated notes that were updated when neovim was offline
+    -- TODO add typing
+    local note_cache = { note.path.filename, note.aliases, relative_path }
 
     table.insert(founded_aliases, note_cache)
 
     notepath = interator()
+
+    note_amount = note_amount + 1
   end
 
   return founded_aliases
@@ -67,6 +78,7 @@ Cache.index_vault = function(self)
 end
 
 Cache.get_links_from_cache = function(self)
+  -- TODO: allow change the save location and use hidden name
   local file, err = io.open("./temp.json", "r")
 
   if file then

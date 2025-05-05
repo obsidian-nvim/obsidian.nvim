@@ -1,6 +1,7 @@
 local telescope = require "telescope.builtin"
 local telescope_actions = require "telescope.actions"
 local actions_state = require "telescope.actions.state"
+local compat = require "obsidian.compat"
 
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
@@ -128,6 +129,8 @@ end
 TelescopePicker.find_files = function(self, opts)
   local pickers = require "telescope.pickers"
   local finders = require "telescope.finders"
+  local actions = require "telescope.actions"
+  local action_state = require "telescope.actions.state"
   local conf = require("telescope.config").values
 
   opts = opts or {}
@@ -143,17 +146,35 @@ TelescopePicker.find_files = function(self, opts)
       prompt_title = prompt_title,
       cwd = opts.dir,
       finder = finders.new_table {
-        results = opts.notes,
+        results = self.client.cache:get_links_from_cache(),
         entry_maker = function(entry)
+          local names = compat.flatten { entry[3], entry[2] }
+          local name_with_aliases = table.concat(names, "|")
+
           return {
             value = entry,
-            display = entry[1],
-            ordinal = entry[1],
+            display = name_with_aliases,
+            ordinal = name_with_aliases,
+            filename = entry[1],
           }
         end,
       },
       sorter = conf.generic_sorter(opts),
-      attach_mappings = function(_, map)
+      attach_mappings = function(prompt_bufnr, map)
+        actions.select_default:replace(function()
+          actions.close(prompt_bufnr)
+
+          local selection = action_state.get_selected_entry()
+
+          if not selection or not selection.filename then
+            return
+          end
+
+          vim.schedule(function()
+            self.client:open_note(selection.filename)
+          end)
+        end)
+
         attach_picker_mappings(map, {
           entry_key = "path",
           callback = opts.callback,
