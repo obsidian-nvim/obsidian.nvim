@@ -151,10 +151,28 @@ obsidian.setup = function(opts)
         require("obsidian.completion.plugin_initializers.blink").inject_sources()
       end
 
+      local win = vim.api.nvim_get_current_win()
+
+      vim.treesitter.start(ev.buf, "markdown") -- for when user don't use nvim-treesitter
+
+      vim.wo[win].foldmethod = "expr"
+      vim.wo[win].foldexpr = "v:lua.vim.treesitter.foldexpr()"
+      vim.wo[win].fillchars = "foldopen:,foldclose:,fold: ,foldsep: "
+      vim.wo[win].foldtext = ""
+      vim.wo[win].foldlevel = 99
+      vim.wo[win].smoothscroll = true
+
       -- Run enter-note callback.
       client.callback_manager:enter_note(function()
         return obsidian.Note.from_buffer(ev.bufnr)
       end)
+
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "ObsidianEnterNote",
+        data = {
+          note = obsidian.note.from_buffer(ev.buf),
+        },
+      })
     end,
   })
 
@@ -173,10 +191,12 @@ obsidian.setup = function(opts)
         return
       end
 
-      -- Run leave-note callback.
-      client.callback_manager:leave_note(function()
-        return obsidian.Note.from_buffer(ev.bufnr)
-      end)
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "ObsidianLeaveNote",
+        data = {
+          note = obsidian.note.from_buffer(ev.buf),
+        },
+      })
     end,
   })
 
@@ -202,8 +222,12 @@ obsidian.setup = function(opts)
       local bufnr = ev.buf
       local note = obsidian.Note.from_buffer(bufnr)
 
-      -- Run pre-write-note callback.
-      client.callback_manager:pre_write_note(note)
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "ObsidianPreWriteNote",
+        data = {
+          note = obsidian.note.from_buffer(ev.buf),
+        },
+      })
 
       -- Update buffer with new frontmatter.
       if client:update_frontmatter(note, bufnr) then
