@@ -170,7 +170,7 @@ obsidian.setup = function(opts)
       vim.api.nvim_exec_autocmds("User", {
         pattern = "ObsidianEnterNote",
         data = {
-          note = obsidian.note.from_buffer(ev.buf),
+          note = require("obsidian.note").from_buffer(ev.buf),
         },
       })
     end,
@@ -194,7 +194,7 @@ obsidian.setup = function(opts)
       vim.api.nvim_exec_autocmds("User", {
         pattern = "ObsidianLeaveNote",
         data = {
-          note = obsidian.note.from_buffer(ev.buf),
+          note = require("obsidian.note").from_buffer(ev.buf),
         },
       })
     end,
@@ -225,7 +225,7 @@ obsidian.setup = function(opts)
       vim.api.nvim_exec_autocmds("User", {
         pattern = "ObsidianPreWriteNote",
         data = {
-          note = obsidian.note.from_buffer(ev.buf),
+          note = note,
         },
       })
 
@@ -233,6 +233,36 @@ obsidian.setup = function(opts)
       if client:update_frontmatter(note, bufnr) then
         log.info "Updated frontmatter"
       end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+    group = group,
+    pattern = "*.md",
+    callback = function(ev)
+      local buf_dir = vim.fs.dirname(ev.match)
+
+      -- Check if we're in a workspace.
+      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, client.opts.workspaces)
+      if not workspace then
+        return
+      end
+
+      -- Check if current buffer is actually a note within the workspace.
+      if not client:path_is_note(ev.match, workspace) then
+        return
+      end
+
+      -- Initialize note.
+      local bufnr = ev.buf
+      local note = obsidian.Note.from_buffer(bufnr)
+
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "ObsidianPostWriteNote",
+        data = {
+          note = note,
+        },
+      })
     end,
   })
 
