@@ -456,8 +456,8 @@ require("obsidian").setup {
   -- Sets how you follow images
   ---@param img string
   follow_img_func = function(img)
-    vim.ui.open(url)
-    -- vim.ui.open(url, { cmd = { "loupe" } })
+    vim.ui.open(img)
+    -- vim.ui.open(img, { cmd = { "loupe" } })
   end,
 
   -- Optional, set to true if you use the Obsidian Advanced URI plugin.
