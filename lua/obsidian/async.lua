@@ -1,4 +1,3 @@
-local Job = require "plenary.job"
 local abc = require "obsidian.abc"
 local async = require "plenary.async"
 local channel = require("plenary.async.control").channel
@@ -331,47 +330,68 @@ end
 ---@param args string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
----@return Job
-local init_job = function(cmd, args, on_stdout, on_exit)
+---@param sync boolean
+local init_job = function(cmd, args, on_stdout, on_exit, sync)
   local stderr_lines = false
 
-  log.debug("Initializing job '%s' with args '%s'", cmd, args)
+  local on_exit = function(obj)
+    --- NOTE: commands like `rg` return a non-zero exit code when there are no matches, which is okay.
+    --- So we only log no-zero exit codes as errors when there's also stderr lines.
+    if obj.code > 0 and stderr_lines then
+      log.err("Command '%s' with args '%s' exited with non-zero code %s. See logs for stderr.", cmd, args, obj.code)
+    elseif stderr_lines then
+      log.warn("Captured stderr output while running command '%s' with args '%s'. See logs for details.", cmd, args)
+    end
+    if on_exit ~= nil then
+      on_exit(obj.code)
+    end
+  end
 
-  return Job:new { ---@diagnostic disable-line: missing-fields
-    command = cmd,
-    args = args,
-    on_stdout = function(err, line)
-      if err ~= nil then
-        return log.err("Error running command '%s' with args '%s'\n:%s", cmd, args, err)
-      end
-      if on_stdout ~= nil then
+  local function stdout(err, data)
+    if err ~= nil then
+      return log.err("Error running command '%s' with args '%s'\n:%s", cmd, args, err)
+    end
+    if on_stdout ~= nil and data ~= nil then
+      for line in vim.gsplit(data, "\n", { trimempty = true }) do
         on_stdout(line)
       end
-    end,
-    on_stderr = function(err, line)
-      if err then
-        return log.err("Error running command '%s' with args '%s'\n:%s", cmd, args, err)
-      elseif line ~= nil then
-        if not stderr_lines then
-          log.err("Captured stderr output while running command '%s' with args '%s'", cmd, args)
-          stderr_lines = true
-        end
-        log.err("[stderr] %s", line)
+    end
+  end
+
+  local function stderr(err, data)
+    if err then
+      return log.err("Error running command '%s' with args '%s'\n:%s", cmd, args, err)
+    elseif data ~= nil then
+      if not stderr_lines then
+        log.err("Captured stderr output while running command '%s' with args '%s'", cmd, args)
+        stderr_lines = true
       end
-    end,
-    on_exit = function(_, code, _)
-      --- NOTE: commands like `rg` return a non-zero exit code when there are no matches, which is okay.
-      --- So we only log no-zero exit codes as errors when there's also stderr lines.
-      if code > 0 and stderr_lines then
-        log.err("Command '%s' with args '%s' exited with non-zero code %s. See logs for stderr.", cmd, args, code)
-      elseif stderr_lines then
-        log.warn("Captured stderr output while running command '%s' with args '%s'. See logs for details.", cmd, args)
-      end
-      if on_exit ~= nil then
-        on_exit(code)
-      end
-    end,
-  }
+      log.err("[stderr] %s", data)
+    end
+  end
+
+  return function()
+    log.debug("Initializing job '%s' with args '%s'", cmd, args)
+
+    local cmds = { cmd }
+    vim.list_extend(cmds, args)
+
+    if sync then
+      local obj = vim
+        .system(cmds, {
+          stdout = stdout,
+          stderr = stderr,
+        })
+        :wait()
+      on_exit(obj)
+      return obj
+    else
+      vim.system(cmds, {
+        stdout = stdout,
+        stderr = stderr,
+      }, on_exit)
+    end
+  end
 end
 
 ---@param cmd string
@@ -380,9 +400,8 @@ end
 ---@param on_exit function|? (integer) -> nil
 ---@return integer exit_code
 M.run_job = function(cmd, args, on_stdout, on_exit)
-  local job = init_job(cmd, args, on_stdout, on_exit)
-  job:sync()
-  return job.code
+  local job = init_job(cmd, args, on_stdout, on_exit, true)
+  return job().code
 end
 
 ---@param cmd string
@@ -390,8 +409,8 @@ end
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
 M.run_job_async = function(cmd, args, on_stdout, on_exit)
-  local job = init_job(cmd, args, on_stdout, on_exit)
-  job:start()
+  local job = init_job(cmd, args, on_stdout, on_exit, false)
+  job()
 end
 
 ---@param fn function
