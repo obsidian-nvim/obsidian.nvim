@@ -334,7 +334,7 @@ end
 local init_job = function(cmd, args, on_stdout, on_exit, sync)
   local stderr_lines = false
 
-  local on_exit = function(obj)
+  local on_obj = function(obj)
     --- NOTE: commands like `rg` return a non-zero exit code when there are no matches, which is okay.
     --- So we only log no-zero exit codes as errors when there's also stderr lines.
     if obj.code > 0 and stderr_lines then
@@ -377,19 +377,11 @@ local init_job = function(cmd, args, on_stdout, on_exit, sync)
     vim.list_extend(cmds, args)
 
     if sync then
-      local obj = vim
-        .system(cmds, {
-          stdout = stdout,
-          stderr = stderr,
-        })
-        :wait()
-      on_exit(obj)
+      local obj = vim.system(cmds, { stdout = stdout, stderr = stderr }):wait()
+      on_obj(obj)
       return obj
     else
-      vim.system(cmds, {
-        stdout = stdout,
-        stderr = stderr,
-      }, on_exit)
+      vim.system(cmds, { stdout = stdout, stderr = stderr }, on_obj)
     end
   end
 end
