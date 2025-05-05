@@ -7,8 +7,8 @@ local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local search = require "obsidian.search"
-local iter = require("obsidian.itertools").iter
-local enumerate = require("obsidian.itertools").enumerate
+local iter = vim.iter
+local enumerate = util.enumerate
 local compat = require "obsidian.compat"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }

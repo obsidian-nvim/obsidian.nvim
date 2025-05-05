@@ -1,5 +1,5 @@
 local util = require "obsidian.util"
-local iter = require("obsidian.itertools").iter
+local iter = vim.iter
 
 local command_lookups = {
   ObsidianCheck = "obsidian.commands.check",
@@ -44,14 +44,14 @@ local M = setmetatable({
   end,
 })
 
----@class obsidian.CommandConfig
+---@class obsidian.CommandConfigLegacy
 ---@field opts table
 ---@field complete function|?
 ---@field func function|? (obsidian.Client, table) -> nil
 
 ---Register a new command.
 ---@param name string
----@param config obsidian.CommandConfig
+---@param config obsidian.CommandConfigLegacy
 M.register = function(name, config)
   if not config.func then
     config.func = function(client, data)
@@ -138,7 +138,7 @@ M.register("ObsidianTomorrow", { opts = { nargs = 0, desc = "Open the daily note
 
 M.register("ObsidianDailies", { opts = { nargs = "*", desc = "Open a picker with daily notes" } })
 
-M.register("ObsidianNew", { opts = { nargs = "?", complete = "file", desc = "Create a new note" } })
+M.register("ObsidianNew", { opts = { nargs = "?", desc = "Create a new note" } })
 
 M.register(
   "ObsidianOpen",
@@ -153,7 +153,7 @@ M.register("ObsidianSearch", { opts = { nargs = "?", desc = "Search vault" } })
 
 M.register("ObsidianTemplate", { opts = { nargs = "?", desc = "Insert a template" } })
 
-M.register("ObsidianNewFromTemplate", { opts = { nargs = "?", desc = "Create a new note from a template" } })
+M.register("ObsidianNewFromTemplate", { opts = { nargs = "*", desc = "Create a new note from a template" } })
 
 M.register("ObsidianQuickSwitch", { opts = { nargs = "?", desc = "Switch notes" } })
 
@@ -172,15 +172,9 @@ M.register("ObsidianToggleCheckbox", { opts = { nargs = 0, desc = "Toggle checkb
 
 M.register("ObsidianWorkspace", { opts = { nargs = "?", desc = "Check or switch workspace" } })
 
-M.register(
-  "ObsidianRename",
-  { opts = { nargs = "?", complete = "file", desc = "Rename note and update all references to it" } }
-)
+M.register("ObsidianRename", { opts = { nargs = "?", desc = "Rename note and update all references to it" } })
 
-M.register(
-  "ObsidianPasteImg",
-  { opts = { nargs = "?", complete = "file", desc = "Paste an image from the clipboard" } }
-)
+M.register("ObsidianPasteImg", { opts = { nargs = "?", desc = "Paste an image from the clipboard" } })
 
 M.register(
   "ObsidianExtractNote",

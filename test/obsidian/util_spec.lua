@@ -86,22 +86,6 @@ describe("util.cursor_on_markdown_link()", function()
   end)
 end)
 
-describe("util.escape_magic_characters()", function()
-  it("should correctly escape magic characters", function()
-    -- special characters: ^$()%.[]*+-?
-    assert.equals(util.escape_magic_characters "^foo", "%^foo")
-    assert.equal(util.escape_magic_characters "foo$", "foo%$")
-    assert.equal(util.escape_magic_characters "foo(bar)", "foo%(bar%)")
-    assert.equal(util.escape_magic_characters "foo.bar", "foo%.bar")
-    assert.equal(util.escape_magic_characters "foo[bar]", "foo%[bar%]")
-    assert.equal(util.escape_magic_characters "foo*bar", "foo%*bar")
-    assert.equal(util.escape_magic_characters "foo+bar", "foo%+bar")
-    assert.equal(util.escape_magic_characters "foo-bar", "foo%-bar")
-    assert.equal(util.escape_magic_characters "foo?bar", "foo%?bar")
-    assert.equal(util.escape_magic_characters "foo%bar", "foo%%bar")
-  end)
-end)
-
 describe("util.unescape_single_backslash()", function()
   it("should correctly remove single backslash", function()
     -- [[123\|NOTE1]] should get [[123|NOTE1]] in markdown file

@@ -3,7 +3,7 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
 local DefaultTbl = require("obsidian.collections").DefaultTbl
-local iter = require("obsidian.itertools").iter
+local iter = vim.iter
 
 local M = {}
 
@@ -188,8 +188,7 @@ end
 ---@return ExtMark[]
 local function get_line_check_extmarks(marks, line, lnum, ui_opts)
   for char, opts in pairs(ui_opts.checkboxes) do
-    -- TODO: escape `char` if needed
-    if string.match(line, "^%s*- %[" .. util.escape_magic_characters(char) .. "%]") then
+    if string.match(line, "^%s*- %[" .. vim.pesc(char) .. "%]") then
       local indent = util.count_indent(line)
       marks[#marks + 1] = ExtMark.new(
         nil,

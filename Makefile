@@ -3,6 +3,7 @@ SHELL:=/usr/bin/env bash
 .DEFAULT_GOAL:=help
 PROJECT_NAME = "obsidian.nvim"
 TEST = test/obsidian
+LUARC = $(shell readlink -f .luarc.json)
 
 # Depending on your setup you have to override the locations at runtime. E.g.:
 #   make test PLENARY=~/path/to/plenary.nvim
@@ -14,7 +15,7 @@ PANVIMDOC_PATH = ../panvimdoc/panvimdoc.sh
 ################################################################################
 ##@ Start here
 .PHONY: chores
-chores: style lint test ## Run develoment tasks (lint, style, test); PRs must pass this.
+chores: style lint types test ## Run develoment tasks (lint, style, types, test); PRs must pass this.
 
 ################################################################################
 ##@ Developmment
@@ -27,6 +28,8 @@ style:  ## Format the code with stylua
 	stylua --check .
 
 # TODO: add type checking with lua-ls
+types: ## Type check with lua-ls
+	lua-language-server --configpath $(LUARC) --check lua/obsidian/
 
 .PHONY: test
 test: $(PLENARY) ## Run unit tests

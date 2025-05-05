@@ -4,6 +4,5 @@
 tmp.*
 *.sqlite
 doc/tags
-.luarc.json
 _neovim
 _runtime
