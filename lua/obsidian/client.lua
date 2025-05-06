@@ -1544,44 +1544,20 @@ end
 ---  - `timeout`: An optional timeout.
 ---  - `pattern`: A Lua search pattern. Defaults to ".*%.md".
 Client.apply_async_raw = function(self, on_path, opts)
-  local scan = require "plenary.scandir"
   opts = opts or {}
+  local skip_dir = self:templates_dir()
 
-  local skip_dirs = {}
-  local templates_dir = self:templates_dir()
-  if templates_dir ~= nil then
-    skip_dirs[#skip_dirs + 1] = templates_dir
+  --- TODO: test depth, skip
+  for path in vim.fs.dir(tostring(self.dir)) do
+    local absolute_path = vim.fs.joinpath(tostring(self.dir), path)
+    local skip = skip_dir and skip_dir:is_parent_of(absolute_path)
+
+    if not skip and vim.endswith(absolute_path, ".md") then
+      on_path(absolute_path)
+    end
   end
 
-  local executor = AsyncExecutor.new()
-
-  scan.scan_dir(tostring(self.dir), {
-    hidden = false,
-    add_dirs = false,
-    respect_gitignore = true,
-    search_pattern = opts.pattern or ".*%.md",
-    on_insert = function(entry)
-      entry = Path.new(entry):resolve { strict = true }
-
-      if entry.suffix ~= ".md" then
-        return
-      end
-
-      for skip_dir in iter(skip_dirs) do
-        if skip_dir:is_parent_of(entry) then
-          return
-        end
-      end
-
-      executor:submit(on_path, nil, tostring(entry))
-    end,
-  })
-
-  if opts.on_done then
-    executor:join_and_then(opts.timeout, opts.on_done)
-  else
-    executor:join_and_then(opts.timeout, function() end)
-  end
+  opts.on_done()
 end
 
 --- Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,

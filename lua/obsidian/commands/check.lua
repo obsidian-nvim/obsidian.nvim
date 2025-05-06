@@ -38,7 +38,7 @@ return function(client, _)
 
   client:apply_async_raw(function(path)
     local relative_path = client:vault_relative_path(path, { strict = true })
-    local ok, res = pcall(Note.from_file_async, path)
+    local ok, res = pcall(Note.from_file, path)
 
     if not ok then
       errors[#errors + 1] = string.format("Failed to parse note '%s': ", relative_path, res)
