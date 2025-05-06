@@ -5,6 +5,18 @@ local compat = require "obsidian.compat"
 local util = {}
 
 -------------------
+--- File tools ----
+-------------------
+
+---@param file string
+---@param contents string
+util.write_file = function(file, contents)
+  local fd = assert(io.open(file, "w+"))
+  fd:write(contents)
+  fd:close()
+end
+
+-------------------
 --- Iter tools ----
 -------------------
 
