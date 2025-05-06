@@ -1541,19 +1541,18 @@ end
 ---
 --- Options:
 ---  - `on_done`: A function to call when all paths have been processed.
----  - `timeout`: An optional timeout.
----  - `pattern`: A Lua search pattern. Defaults to ".*%.md".
 Client.apply_async_raw = function(self, on_path, opts)
   opts = opts or {}
-  for path in
-    vim.fs.dir(tostring(self.dir), {
-      depth = 10,
-      skip = function(dir)
-        return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(self:templates_dir()))
-      end,
-      follow = true,
-    })
-  do
+
+  local dir_opts = {
+    depth = 10,
+    skip = function(dir)
+      return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(self:templates_dir()))
+    end,
+    follow = true,
+  }
+
+  for path in vim.fs.dir(tostring(self.dir), dir_opts) do
     local absolute_path = vim.fs.joinpath(tostring(self.dir), path)
 
     if vim.endswith(absolute_path, ".md") then
@@ -1561,7 +1560,9 @@ Client.apply_async_raw = function(self, on_path, opts)
     end
   end
 
-  opts.on_done()
+  if opts.on_done then
+    opts.on_done()
+  end
 end
 
 --- Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
