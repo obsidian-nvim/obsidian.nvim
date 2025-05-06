@@ -31,15 +31,24 @@
       "name": "guspix",
       "avatar_url": "https://avatars.githubusercontent.com/u/33852783?v=4",
       "profile": "https://github.com/guspix",
-     "contributions": [
+      "contributions": [
         "code"
       ]
-},
-{
+    },
+    {
       "login": "ffricken",
       "name": "ffricken",
       "avatar_url": "https://avatars.githubusercontent.com/u/44709001?v=4",
       "profile": "https://github.com/ffricken",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "ErlanRG",
+      "name": "Erlan Rangel",
+      "avatar_url": "https://avatars.githubusercontent.com/u/32745670?v=4",
+      "profile": "https://github.com/ErlanRG",
       "contributions": [
         "code"
       ]
