@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update Stylua version from 0.15.1 → 2.1.0.
 - Use `vim.deprecate` to show deprecate warnings.
 - Deprecate `open_app_foreground`.
+- Remove most `plenary.nvim` usage.
 
 ### Fixed
 
