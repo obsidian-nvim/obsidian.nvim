@@ -61,6 +61,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "ddogfoodd",
+      "name": "Jost Alemann",
+      "avatar_url": "https://avatars.githubusercontent.com/u/58050402?v=4",
+      "profile": "https://alemann.dev",
+      "contributions": [
+        "doc"
+      ]
     }
   ]
 }
