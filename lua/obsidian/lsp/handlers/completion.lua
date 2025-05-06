@@ -69,7 +69,8 @@ local function gen_ref_item(label, path, new_text, range, style, is_snippet)
     insertTextFormat = 2, -- is snippet TODO: extract to config option
     textEdit = {
       range = range,
-      newText = insert_snippet_marker(new_text, style),
+      newText = new_text,
+      -- insert_snippet_marker(new_text, style),
     },
     labelDetails = { description = "Obsidian" },
     data = {
