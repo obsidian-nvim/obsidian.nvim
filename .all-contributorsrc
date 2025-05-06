@@ -70,6 +70,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "ottersome",
+      "name": "Luis Garcia",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9465391?v=4",
+      "profile": "https://github.com/ottersome",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }
