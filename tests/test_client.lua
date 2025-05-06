@@ -2,12 +2,18 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local obsidian = require "obsidian"
 
+local fixtures = vim.fs.joinpath(vim.uv.cwd(), "test", "fixtures", "notes")
+
 ---Get a client in a temporary directory.
 ---
 ---@param run fun(client: obsidian.Client)
-local with_tmp_client = function(run)
-  local dir = Path.temp { suffix = "-obsidian" }
-  dir:mkdir { parents = true }
+local with_tmp_client = function(run, dir)
+  local tmp
+  if not dir then
+    tmp = true
+    dir = dir or Path.temp { suffix = "-obsidian" }
+    dir:mkdir { parents = true }
+  end
 
   local client = obsidian.new_from_dir(tostring(dir))
   client.opts.note_id_func = function(title)
@@ -24,7 +30,9 @@ local with_tmp_client = function(run)
 
   local ok, err = pcall(run, client)
 
-  vim.fn.delete(tostring(dir), "rf")
+  if tmp then
+    vim.fn.delete(tostring(dir), "rf")
+  end
 
   if not ok then
     error(err)
@@ -248,5 +256,21 @@ describe("Client:daily_note_path()", function()
       assert(vim.endswith(tostring(path), tostring(os.date("%Y/%b/%Y-%m-%d.md", os.time()))))
       MiniTest.expect.equality(id, os.date("%Y-%m-%d", os.time()))
     end)
+  end)
+end)
+
+describe("Client:apply_async_raw", function()
+  it("should iterate over all notes in your workspace", function()
+    local c = 0
+    with_tmp_client(function(client)
+      client:apply_async_raw(function(path)
+        assert.equals(true, vim.endswith(path, ".md"))
+        c = c + 1
+      end, {
+        on_done = function()
+          assert.equal(11, c)
+        end,
+      })
+    end, fixtures)
   end)
 end)
