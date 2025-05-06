@@ -633,6 +633,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ottersome"><img src="https://avatars.githubusercontent.com/u/9465391?v=4?s=100" width="100px;" alt="Luis Garcia"/><br /><sub><b>Luis Garcia</b></sub></a><br /><a href="#code-ottersome" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/jblsp"><img src="https://avatars.githubusercontent.com/u/48526917?v=4?s=100" width="100px;" alt="Joe"/><br /><sub><b>Joe</b></sub></a><br /><a href="#code-jblsp" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/horiagug"><img src="https://avatars.githubusercontent.com/u/23277222?v=4?s=100" width="100px;" alt="Horia Gug"/><br /><sub><b>Horia Gug</b></sub></a><br /><a href="#code-horiagug" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
