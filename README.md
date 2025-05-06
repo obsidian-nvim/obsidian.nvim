@@ -627,6 +627,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/guspix"><img src="https://avatars.githubusercontent.com/u/33852783?v=4?s=100" width="100px;" alt="guspix"/><br /><sub><b>guspix</b></sub></a><br /><a href="#code-guspix" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ffricken"><img src="https://avatars.githubusercontent.com/u/44709001?v=4?s=100" width="100px;" alt="ffricken"/><br /><sub><b>ffricken</b></sub></a><br /><a href="#code-ffricken" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ErlanRG"><img src="https://avatars.githubusercontent.com/u/32745670?v=4?s=100" width="100px;" alt="Erlan Rangel"/><br /><sub><b>Erlan Rangel</b></sub></a><br /><a href="#code-ErlanRG" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/bosvik"><img src="https://avatars.githubusercontent.com/u/132846580?v=4?s=100" width="100px;" alt="bosvik"/><br /><sub><b>bosvik</b></sub></a><br /><a href="#code-bosvik" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
