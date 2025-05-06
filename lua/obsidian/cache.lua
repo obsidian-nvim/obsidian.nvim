@@ -7,6 +7,17 @@ local Note = require "obsidian.note"
 ---@field client obsidian.Client
 local Cache = abc.new_class()
 
+local save_links_to_cache = function(links)
+  local file, err = io.open("./temp.json", "w")
+
+  if file then
+    file:write(vim.fn.json_encode(links))
+    file:close()
+  else
+    error("couldn't write vault index to file: " .. err)
+  end
+end
+
 --- Cache description
 ---
 ---@param client obsidian.Client
@@ -16,9 +27,12 @@ Cache.new = function(client)
 
   require("obsidian.filewatch").watch(client.dir.filename, {
     on_event = function(filename, events)
-      -- TODO get the full path without async
-      local full_path = client:resolve_note(filename)
-      vim.print(full_path)
+      local links = self:get_links_from_cache()
+      for _, v in ipairs(links) do
+        if v[1] == filename then
+          print("founded!" .. filename)
+        end
+      end
 
       -- TODO update the cache for the updated file
       -- TODO implement fast search of the note
@@ -67,14 +81,7 @@ Cache.index_vault = function(self)
     error "couldn't get links from vault"
   end
 
-  local file, err = io.open("./temp.json", "w")
-
-  if file then
-    file:write(vim.fn.json_encode(founded_links))
-    file:close()
-  else
-    error("couldn't write vault index to file: " .. err)
-  end
+  save_links_to_cache(founded_links)
 end
 
 Cache.get_links_from_cache = function(self)

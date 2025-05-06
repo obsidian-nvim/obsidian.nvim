@@ -21,9 +21,9 @@ local function watch_with_function(path, on_event, on_error, opts)
 
   -- these are just the default values
   local flags = {
-    watch_entry = opts.watch_entry, -- true = when dir, watch dir inode, not dir content
+    watch_entry = false, -- true = if you pass dir, watch the dir inode only, not the dir content
     stat = false, -- true = don't use inotify/kqueue but periodic check, not implemented
-    recursive = opts.recursive, -- true = watch dirs inside dirs
+    recursive = opts.recursive, -- true = watch dirs inside dirs. For now only works on Windows and MacOS
   }
 
   local unwatch_cb = function()
@@ -34,7 +34,29 @@ local function watch_with_function(path, on_event, on_error, opts)
     if err then
       on_error(error, unwatch_cb)
     else
-      on_event(filename, events, unwatch_cb)
+      -- Sometimes the event returns a number
+      if tonumber(filename) then
+        return
+      end
+      --
+      -- Sometimes the event returns the path with ~
+      if filename:sub(#filename) == "~" then
+        return
+      end
+
+      local folder_path = uv.fs_event_getpath(handle)
+
+      -- TODO prevent from multiple triggering
+      uv.fs_stat(table.concat { folder_path, "/", filename }, function(err, stat)
+        if err then
+          error(err)
+        else
+          print "update time: "
+          print(vim.inspect(stat.mtime))
+
+          on_event(filename, events, unwatch_cb)
+        end
+      end)
     end
     if opts.is_oneshot then
       unwatch_cb()
