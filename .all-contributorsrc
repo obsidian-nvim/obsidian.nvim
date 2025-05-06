@@ -178,6 +178,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "rstacruz",
+      "name": "Rico Sta. Cruz",
+      "avatar_url": "https://avatars.githubusercontent.com/u/74385?v=4",
+      "profile": "https://ricostacruz.com/",
+      "contributions": [
+        "doc"
+      ]
     }
   ]
 }
