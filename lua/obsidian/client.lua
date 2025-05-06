@@ -1545,14 +1545,18 @@ end
 ---  - `pattern`: A Lua search pattern. Defaults to ".*%.md".
 Client.apply_async_raw = function(self, on_path, opts)
   opts = opts or {}
-  local skip_dir = self:templates_dir()
-
-  --- TODO: test depth, skip
-  for path in vim.fs.dir(tostring(self.dir)) do
+  for path in
+    vim.fs.dir(tostring(self.dir), {
+      depth = 10,
+      skip = function(dir)
+        return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(self:templates_dir()))
+      end,
+      follow = true,
+    })
+  do
     local absolute_path = vim.fs.joinpath(tostring(self.dir), path)
-    local skip = skip_dir and skip_dir:is_parent_of(absolute_path)
 
-    if not skip and vim.endswith(absolute_path, ".md") then
+    if vim.endswith(absolute_path, ".md") then
       on_path(absolute_path)
     end
   end
