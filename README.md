@@ -637,6 +637,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="http://www.linkedin.com/in/aquilesgomez"><img src="https://avatars.githubusercontent.com/u/20983181?v=4?s=100" width="100px;" alt="Aquiles Gomez"/><br /><sub><b>Aquiles Gomez</b></sub></a><br /><a href="#code-aquilesg" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/alvarosevilla95"><img src="https://avatars.githubusercontent.com/u/1376447?v=4?s=100" width="100px;" alt="Alvaro Sevilla"/><br /><sub><b>Alvaro Sevilla</b></sub></a><br /><a href="#code-alvarosevilla95" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/sstark"><img src="https://avatars.githubusercontent.com/u/837918?v=4?s=100" width="100px;" alt="Sebastian Stark"/><br /><sub><b>Sebastian Stark</b></sub></a><br /><a href="#code-sstark" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Peeeaje"><img src="https://avatars.githubusercontent.com/u/74146834?v=4?s=100" width="100px;" alt="Jumpei Yamakawa"/><br /><sub><b>Jumpei Yamakawa</b></sub></a><br /><a href="#code-Peeeaje" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
