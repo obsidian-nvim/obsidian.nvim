@@ -162,10 +162,12 @@ obsidian.setup = function(opts)
       vim.wo[win].foldlevel = 99
       vim.wo[win].smoothscroll = true
 
-      -- Run enter-note callback.
-      client.callback_manager:enter_note(function()
-        return obsidian.Note.from_buffer(ev.bufnr)
-      end)
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "ObsidianEnterNote",
+        data = {
+          note = require("obsidian.note").from_buffer(ev.buf),
+        },
+      })
     end,
   })
 
@@ -184,10 +186,12 @@ obsidian.setup = function(opts)
         return
       end
 
-      -- Run leave-note callback.
-      client.callback_manager:leave_note(function()
-        return obsidian.Note.from_buffer(ev.bufnr)
-      end)
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "ObsidianLeaveNote",
+        data = {
+          note = require("obsidian.note").from_buffer(ev.buf),
+        },
+      })
     end,
   })
 
@@ -213,13 +217,47 @@ obsidian.setup = function(opts)
       local bufnr = ev.buf
       local note = obsidian.Note.from_buffer(bufnr)
 
-      -- Run pre-write-note callback.
-      client.callback_manager:pre_write_note(note)
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "ObsidianPreWriteNote",
+        data = {
+          note = note,
+        },
+      })
 
       -- Update buffer with new frontmatter.
       if client:update_frontmatter(note, bufnr) then
         log.info "Updated frontmatter"
       end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+    group = group,
+    pattern = "*.md",
+    callback = function(ev)
+      local buf_dir = vim.fs.dirname(ev.match)
+
+      -- Check if we're in a workspace.
+      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, client.opts.workspaces)
+      if not workspace then
+        return
+      end
+
+      -- Check if current buffer is actually a note within the workspace.
+      if not client:path_is_note(ev.match, workspace) then
+        return
+      end
+
+      -- Initialize note.
+      local bufnr = ev.buf
+      local note = obsidian.Note.from_buffer(bufnr)
+
+      vim.api.nvim_exec_autocmds("User", {
+        pattern = "ObsidianPostWriteNote",
+        data = {
+          note = note,
+        },
+      })
     end,
   })
 
