@@ -160,7 +160,7 @@ function NewNoteSourceBase:process_completion(cc)
           },
           ["end"] = {
             line = cc.request.context.cursor.row - 1,
-            character = cc.insert_end,
+            character = cc.insert_end + 1,
           },
         },
       },

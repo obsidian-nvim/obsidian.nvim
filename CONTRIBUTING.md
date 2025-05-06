@@ -61,6 +61,16 @@ TL;DR: `make lint`
 We use [luacheck](https://github.com/mpeterv/luacheck) to lint the Lua code.
 Once you have `luacheck` installed, you can run `make lint` to get a report.
 
+### Checking types
+
+TL;DR: `make types`
+
+We use `lua-ls` to check the type annotations in the lua code.
+Once you have [`lua-ls`](https://github.com/LuaLS/lua-language-server) installed,
+you can run `make types` to check types.
+
+Newly written code should have type annotations.
+
 ### Running tests
 
 TL;DR: `make test`

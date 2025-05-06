@@ -4,7 +4,7 @@ local scan = require "plenary.scandir"
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
 local util = require "obsidian.util"
-local iter = require("obsidian.itertools").iter
+local iter = vim.iter
 local run_job_async = require("obsidian.async").run_job_async
 local compat = require "obsidian.compat"
 

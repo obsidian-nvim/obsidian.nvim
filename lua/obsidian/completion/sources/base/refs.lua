@@ -3,7 +3,7 @@ local completion = require "obsidian.completion.refs"
 local LinkStyle = require("obsidian.config").LinkStyle
 local obsidian = require "obsidian"
 local util = require "obsidian.util"
-local iter = require("obsidian.itertools").iter
+local iter = vim.iter
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
@@ -217,6 +217,7 @@ function RefsSourceBase:process_search_results(cc, results)
           alias_case_matched ~= nil
           and alias_case_matched ~= alias
           and not util.tbl_contains(note.aliases, alias_case_matched)
+          and cc.client.opts.completion.match_case
         then
           self:update_completion_options(cc, alias_case_matched, nil, matching_anchors, matching_blocks, note)
         end

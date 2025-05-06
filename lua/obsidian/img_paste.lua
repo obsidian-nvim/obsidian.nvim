@@ -37,23 +37,25 @@ local function clipboard_is_img()
     content[#content + 1] = output
   end
 
+  local is_img = false
   -- See: [Data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme)
   local this_os = util.get_os()
   if this_os == util.OSType.Linux or this_os == util.OSType.FreeBSD then
     if vim.tbl_contains(content, "image/png") then
-      return true
+      is_img = true
     elseif vim.tbl_contains(content, "text/uri-list") then
       local success =
         os.execute "wl-paste --type text/uri-list | sed 's|file://||' | head -n1 | tr -d '[:space:]' | xargs -I{} sh -c 'wl-copy < \"$1\"' _ {}"
-      return success == 0
+      is_img = success == 0
     end
   elseif this_os == util.OSType.Darwin then
-    return string.sub(content[1], 1, 9) == "iVBORw0KG" -- Magic png number in base64
+    is_img = string.sub(content[1], 1, 9) == "iVBORw0KG" -- Magic png number in base64
   elseif this_os == util.OSType.Windows or this_os == util.OSType.Wsl then
-    return content ~= nil
+    is_img = content ~= nil
   else
     error("image saving not implemented for OS '" .. this_os .. "'")
   end
+  return is_img
 end
 
 --- Save image from clipboard to `path`.
@@ -115,7 +117,9 @@ M.paste_img = function(opts)
       fname = opts.default_name
     else
       fname = util.input("Enter file name: ", { default = opts.default_name, completion = "file" })
-      if not fname then
+      if fname == "" then
+        fname = opts.default_name
+      elseif not fname then
         log.warn "Paste aborted"
         return
       end
@@ -125,7 +129,10 @@ M.paste_img = function(opts)
   assert(fname)
   fname = util.strip_whitespace(fname)
 
-  if fname == "" then
+  -- Verify filename
+  if util.contains_invalid_characters(fname) then
+    log.warn "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |"
+  elseif fname == "" then
     log.err "Invalid file name"
     return
   end

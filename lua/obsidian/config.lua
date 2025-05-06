@@ -32,6 +32,8 @@ local config = {}
 ---@field ui obsidian.config.UIOpts | table<string, any>
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig
+---@field legacy_commands boolean
+---@field statusline obsidian.config.StatuslineOpts
 config.ClientOpts = {}
 
 --- Get defaults.
@@ -49,7 +51,8 @@ config.ClientOpts.default = function()
     wiki_link_func = util.wiki_link_id_prefix,
     markdown_link_func = util.markdown_link,
     preferred_link_style = config.LinkStyle.wiki,
-    follow_url_func = nil,
+    follow_url_func = vim.ui.open,
+    follow_img_func = vim.ui.open,
     note_frontmatter_func = nil,
     disable_frontmatter = false,
     completion = config.CompletionOpts.default(),
@@ -65,6 +68,14 @@ config.ClientOpts.default = function()
     ui = config.UIOpts.default(),
     attachments = config.AttachmentsOpts.default(),
     callbacks = config.CallbackConfig.default(),
+    legacy_commands = true,
+    ---@class obsidian.config.StatuslineOpts
+    ---@field format? string
+    ---@field enabled? boolean
+    statusline = {
+      format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+      enabled = true,
+    },
   }
 end
 
@@ -215,6 +226,11 @@ config.ClientOpts.normalize = function(opts, defaults)
     opts.image_name_func = nil
   end
 
+  if opts.legacy_commands then
+    log.warn_once "The 'legacy_commands' config option is deprecated and will be removed in a future update."
+    opts.tags = nil
+  end
+
   --------------------------
   -- Merge with defaults. --
   --------------------------
@@ -229,6 +245,7 @@ config.ClientOpts.normalize = function(opts, defaults)
   opts.templates = tbl_override(defaults.templates, opts.templates)
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
+  opts.statusline = tbl_override(defaults.statusline, opts.statusline)
 
   ---------------
   -- Validate. --
@@ -282,6 +299,7 @@ config.LinkStyle = {
 ---@field nvim_cmp boolean
 ---@field blink boolean
 ---@field min_chars integer
+---@field match_case boolean
 config.CompletionOpts = {}
 
 --- Get defaults.
@@ -292,6 +310,7 @@ config.CompletionOpts.default = function()
   return {
     nvim_cmp = has_nvim_cmp,
     min_chars = 2,
+    match_case = true,
   }
 end
 
@@ -372,6 +391,7 @@ end
 ---@field alias_format string|?
 ---@field template string|?
 ---@field default_tags string[]|?
+---@field workdays_only boolean
 config.DailyNotesOpts = {}
 
 --- Get defaults.
@@ -383,6 +403,7 @@ config.DailyNotesOpts.default = function()
     date_format = nil,
     alias_format = nil,
     default_tags = { "daily-notes" },
+    workdays_only = true,
   }
 end
 
@@ -483,12 +504,12 @@ config.AttachmentsOpts = {}
 config.AttachmentsOpts.default = function()
   return {
     img_folder = "assets/imgs",
-    ---@param client obsidian.Client
-    ---@param path obsidian.Path the absolute path to the image file
-    ---@return string
     img_text_func = function(client, path)
       path = client:vault_relative_path(path) or path
-      return string.format("![%s](%s)", path.name, path)
+      return string.format("![%s](%s)", path.name, util.urlencode(tostring(path)))
+    end,
+    img_name_func = function()
+      return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
     confirm_img_paste = true,
   }

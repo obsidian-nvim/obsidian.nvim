@@ -21,7 +21,8 @@ local search = require "obsidian.search"
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local CallbackManager = require("obsidian.callbacks").CallbackManager
 local block_on = require("obsidian.async").block_on
-local iter = require("obsidian.itertools").iter
+local iter = vim.iter
+local uv = vim.uv
 
 ---@class obsidian.SearchOpts : obsidian.ABC
 ---
@@ -315,9 +316,8 @@ end
 ---@param cmd_name string The name of the command.
 ---@param cmd_data table|? The payload for the command.
 Client.command = function(self, cmd_name, cmd_data)
-  local commands = require "obsidian.commands"
-
-  commands[cmd_name](self, cmd_data)
+  local command = require("obsidian.commands." .. cmd_name)
+  command(self, cmd_data)
 end
 
 --- Get the default search options.
@@ -868,26 +868,19 @@ Client.follow_link_async = function(self, link, opts)
     ---@param res obsidian.ResolveLinkResult
     local function follow_link(res)
       if res.url ~= nil then
-        if self.opts.follow_url_func ~= nil then
-          self.opts.follow_url_func(res.url)
-        else
-          log.warn "This looks like a URL. You can customize the behavior of URLs with the 'follow_url_func' option."
-        end
+        self.opts.follow_url_func(res.url)
+        return
+      end
+
+      if util.is_img(res.location) then
+        local path = self.dir / res.location
+        self.opts.follow_img_func(tostring(path))
         return
       end
 
       if res.note ~= nil then
         -- Go to resolved note.
         return self:open_note(res.note, { line = res.line, col = res.col, open_strategy = opts.open_strategy })
-      end
-
-      if util.is_img(res.location) then
-        if self.opts.follow_img_func ~= nil then
-          self.opts.follow_img_func(res.location)
-        else
-          log.warn "This looks like an image path. You can customize the behavior of images with the 'follow_img_func' option."
-        end
-        return
       end
 
       if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
@@ -2002,18 +1995,36 @@ Client.today = function(self)
   return self:_daily(os.time())
 end
 
---- Open (or create) the daily note from the last weekday.
+--- Open (or create) the daily note from the last day.
 ---
 ---@return obsidian.Note
 Client.yesterday = function(self)
-  return self:_daily(util.working_day_before(os.time()))
+  local now = os.time()
+  local yesterday
+
+  if self.opts.daily_notes.workdays_only then
+    yesterday = util.working_day_before(now)
+  else
+    yesterday = util.previous_day(now)
+  end
+
+  return self:_daily(yesterday)
 end
 
---- Open (or create) the daily note for the next weekday.
+--- Open (or create) the daily note for the next day.
 ---
 ---@return obsidian.Note
 Client.tomorrow = function(self)
-  return self:_daily(util.working_day_after(os.time()))
+  local now = os.time()
+  local tomorrow
+
+  if self.opts.daily_notes.workdays_only then
+    tomorrow = util.working_day_after(now)
+  else
+    tomorrow = util.next_day(now)
+  end
+
+  return self:_daily(tomorrow)
 end
 
 --- Open (or create) the daily note for today + `offset_days`.
@@ -2079,6 +2090,44 @@ end
 ---@return obsidian.Picker|?
 Client.picker = function(self, picker_name)
   return require("obsidian.pickers").get(self, picker_name)
+end
+
+--- Register the global variable that updates itself
+Client.statusline = function(self)
+  local current_note
+
+  local refresh = function()
+    local note = self:current_note()
+    if not note then -- no note
+      return ""
+    elseif current_note == note then -- no refresh
+      return
+    else -- refresh
+      current_note = note
+    end
+
+    self:find_backlinks_async(
+      note,
+      vim.schedule_wrap(function(backlinks)
+        local format = self.opts.statusline.format
+        local wc = vim.fn.wordcount()
+        local info = {
+          words = wc.words,
+          chars = wc.chars,
+          backlinks = #backlinks,
+          properties = vim.tbl_count(note:frontmatter()),
+        }
+        for k, v in pairs(info) do
+          format = format:gsub("{{" .. k .. "}}", v)
+        end
+        vim.g.obsidian = format
+      end)
+    )
+  end
+
+  local timer = uv:new_timer()
+  assert(timer, "Failed to create timer")
+  timer:start(0, 1000, vim.schedule_wrap(refresh))
 end
 
 return Client

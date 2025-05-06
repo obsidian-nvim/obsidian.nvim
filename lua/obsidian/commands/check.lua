@@ -1,6 +1,6 @@
 local Note = require "obsidian.note"
 local log = require "obsidian.log"
-local iter = require("obsidian.itertools").iter
+local iter = vim.iter
 
 ---@param client obsidian.Client
 ---@param _ CommandArgs
