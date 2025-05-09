@@ -85,7 +85,6 @@ function M.check()
   start "Dependencies"
   info("  ✓ rg: %s", util.get_external_dependency_info "rg" or "not found")
   has_plugin("plenary.nvim", false)
-  has_plugin("sqlite", true)
 end
 
 return M

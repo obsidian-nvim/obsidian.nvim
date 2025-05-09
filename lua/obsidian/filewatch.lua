@@ -22,6 +22,33 @@ M.EventTypes = {
   deleted = 3,
 }
 
+--- Minimal time in milliseconds to allow the event to fire.
+local MIN_INTERVAL = 50
+
+---Check if the event is not a duplicate or the received name is not `~` or a number.
+---@param filename string
+---@param last_received_files {[string]: number|?}
+---@return boolean
+local can_fire_callback = function(filename, last_received_files)
+  local now = uv.now()
+
+  local last_callback_time = last_received_files[filename]
+
+  if last_callback_time then
+    if now - last_callback_time < MIN_INTERVAL then
+      return false
+    end
+  end
+
+  last_received_files[filename] = now
+
+  if filename:sub(#filename - 2, #filename) ~= ".md" then
+    return false
+  end
+
+  return true
+end
+
 --- Watch path and calls on_event(filename, event_type) or on_error(error)
 ---@param path string
 ---@param on_event fun (absolute_path: string, event_type: obsidian.filewatch.EventType, stat: uv.fs_stat.result|?)
@@ -41,8 +68,6 @@ local function watch_path(path, on_event, on_error, opts)
     recursive = opts.recursive, -- true = watch dirs inside dirs. For now only works on Windows and MacOS
   }
 
-  --- Minimal time in milliseconds to allow the event to fire.
-  local MIN_INTERVAL = 50
   local last_received_files = {}
 
   local event_cb = function(err, filename, events)
@@ -51,26 +76,7 @@ local function watch_path(path, on_event, on_error, opts)
       return
     end
 
-    --TODO add description why it's needed, and move all cheks to a function
-    local now = uv.now()
-    local founded = false
-    for i, value in ipairs(last_received_files) do
-      if value[1] == filename then
-        founded = true
-        if now - value[2] < MIN_INTERVAL then
-          return
-        else
-          last_received_files[i] = { filename, now }
-          break
-        end
-      end
-    end
-
-    if not founded then
-      last_received_files[#last_received_files + 1] = { filename, now }
-    end
-
-    if filename:sub(#filename - 2, #filename) ~= ".md" then
+    if not can_fire_callback(filename, last_received_files) then
       return
     end
 
