@@ -1,6 +1,12 @@
+local Config = require "obsidian.lsp.config"
+
 ---@param client obsidian.Client
 ---@param params table
 return function(client, params)
-  -- return require "obsidian.lsp.handlers.commands.toggleCheckbox"(client, params)
-  return require "obsidian.lsp.handlers.commands.createNote"(client, params)
+  local cmd = params.command
+
+  Config.actions[cmd].fn()
+
+  -- return require("obsidian.lsp.handlers.commands." .. cmd)(client, params)
+  -- return require "obsidian.lsp.handlers.commands.createNote"(client, params)
 end
