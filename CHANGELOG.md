@@ -23,18 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed types in `_snacks.lua`
 
-## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.11.0)
-
-### Added
-
-- Added file-watch: code that tracks changed notes in the vault.
-- Added cache: a JSON file, which stores aliases, last update date and path to the note. Updated using file-watch.
-- Added a new configuration option - `cache`, which is disabled by default.
-
-### Changed
-
-- In telescope an option was added to search notes by aliases.
-
 ## [v3.11.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.11.0) - 2025-05-04
 
 ### Added
