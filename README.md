@@ -114,7 +114,7 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian yesterday` to open/create the daily note for the previous working day.
 
-- `:Obsidian index_vault` to manually updated the cache of the vault. (see cache)
+- `:Obsidian index_vault` to manually updated the cache of the vault.
 
 ### Demo
 
@@ -127,7 +127,7 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 - Neovim >= 0.10.0
 - For completion and search features:
 
-  - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep).
+  - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep)
   - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
 
 - Additional system dependencies:
