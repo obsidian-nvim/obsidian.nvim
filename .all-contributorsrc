@@ -31,17 +31,161 @@
       "name": "guspix",
       "avatar_url": "https://avatars.githubusercontent.com/u/33852783?v=4",
       "profile": "https://github.com/guspix",
-     "contributions": [
+      "contributions": [
         "code"
       ]
-},
-{
+    },
+    {
       "login": "ffricken",
       "name": "ffricken",
       "avatar_url": "https://avatars.githubusercontent.com/u/44709001?v=4",
       "profile": "https://github.com/ffricken",
       "contributions": [
         "code"
+      ]
+    },
+    {
+      "login": "ErlanRG",
+      "name": "Erlan Rangel",
+      "avatar_url": "https://avatars.githubusercontent.com/u/32745670?v=4",
+      "profile": "https://github.com/ErlanRG",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "bosvik",
+      "name": "bosvik",
+      "avatar_url": "https://avatars.githubusercontent.com/u/132846580?v=4",
+      "profile": "https://github.com/bosvik",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "ddogfoodd",
+      "name": "Jost Alemann",
+      "avatar_url": "https://avatars.githubusercontent.com/u/58050402?v=4",
+      "profile": "https://alemann.dev",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "ottersome",
+      "name": "Luis Garcia",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9465391?v=4",
+      "profile": "https://github.com/ottersome",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "jblsp",
+      "name": "Joe",
+      "avatar_url": "https://avatars.githubusercontent.com/u/48526917?v=4",
+      "profile": "https://github.com/jblsp",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "horiagug",
+      "name": "Horia Gug",
+      "avatar_url": "https://avatars.githubusercontent.com/u/23277222?v=4",
+      "profile": "https://github.com/horiagug",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "aquilesg",
+      "name": "Aquiles Gomez",
+      "avatar_url": "https://avatars.githubusercontent.com/u/20983181?v=4",
+      "profile": "http://www.linkedin.com/in/aquilesgomez",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "alvarosevilla95",
+      "name": "Alvaro Sevilla",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1376447?v=4",
+      "profile": "https://github.com/alvarosevilla95",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "sstark",
+      "name": "Sebastian Stark",
+      "avatar_url": "https://avatars.githubusercontent.com/u/837918?v=4",
+      "profile": "https://github.com/sstark",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Peeeaje",
+      "name": "Jumpei Yamakawa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/74146834?v=4",
+      "profile": "https://github.com/Peeeaje",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "marcocofano",
+      "name": "marcocofano",
+      "avatar_url": "https://avatars.githubusercontent.com/u/63420833?v=4",
+      "profile": "https://github.com/marcocofano",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Jaehaks",
+      "name": "Jaehaks",
+      "avatar_url": "https://avatars.githubusercontent.com/u/26200835?v=4",
+      "profile": "https://github.com/Jaehaks",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "magnusriga",
+      "name": "Magnus",
+      "avatar_url": "https://avatars.githubusercontent.com/u/38915578?v=4",
+      "profile": "https://www.linkedin.com/in/magnusriga/",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "noamsto",
+      "name": "Noam Stolero",
+      "avatar_url": "https://avatars.githubusercontent.com/u/17932324?v=4",
+      "profile": "https://github.com/noamsto",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "aileot",
+      "name": "aileot",
+      "avatar_url": "https://avatars.githubusercontent.com/u/46470475?v=4",
+      "profile": "https://github.com/aileot",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "rstacruz",
+      "name": "Rico Sta. Cruz",
+      "avatar_url": "https://avatars.githubusercontent.com/u/74385?v=4",
+      "profile": "https://ricostacruz.com/",
+      "contributions": [
+        "doc"
       ]
     }
   ]

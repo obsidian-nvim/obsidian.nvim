@@ -18,8 +18,7 @@
  <img src="https://dotfyle.com/plugins/obsidian-nvim/obsidian.nvim/shield?style=for-the-badge" />
 </a>
 <a href="https://github.com/obsidian-nvim/obsidian.nvim?tab=readme-ov-file#-contributing">
- <img src="https://img.shields.io/github/all-contributors/obsidian-nvim/obsidian.nvim?style=for-the-badge
-" />
+ <img src="https://img.shields.io/github/all-contributors/obsidian-nvim/obsidian.nvim?style=for-the-badge" />
 </a>
 </div>
 <hr>
@@ -627,6 +626,26 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/sotte"><img src="https://avatars.githubusercontent.com/u/79138?v=4?s=100" width="100px;" alt="Stefan Otte"/><br /><sub><b>Stefan Otte</b></sub></a><br /><a href="#code-sotte" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/guspix"><img src="https://avatars.githubusercontent.com/u/33852783?v=4?s=100" width="100px;" alt="guspix"/><br /><sub><b>guspix</b></sub></a><br /><a href="#code-guspix" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ffricken"><img src="https://avatars.githubusercontent.com/u/44709001?v=4?s=100" width="100px;" alt="ffricken"/><br /><sub><b>ffricken</b></sub></a><br /><a href="#code-ffricken" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ErlanRG"><img src="https://avatars.githubusercontent.com/u/32745670?v=4?s=100" width="100px;" alt="Erlan Rangel"/><br /><sub><b>Erlan Rangel</b></sub></a><br /><a href="#code-ErlanRG" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/bosvik"><img src="https://avatars.githubusercontent.com/u/132846580?v=4?s=100" width="100px;" alt="bosvik"/><br /><sub><b>bosvik</b></sub></a><br /><a href="#code-bosvik" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://alemann.dev"><img src="https://avatars.githubusercontent.com/u/58050402?v=4?s=100" width="100px;" alt="Jost Alemann"/><br /><sub><b>Jost Alemann</b></sub></a><br /><a href="#doc-ddogfoodd" title="Documentation">📖</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ottersome"><img src="https://avatars.githubusercontent.com/u/9465391?v=4?s=100" width="100px;" alt="Luis Garcia"/><br /><sub><b>Luis Garcia</b></sub></a><br /><a href="#code-ottersome" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/jblsp"><img src="https://avatars.githubusercontent.com/u/48526917?v=4?s=100" width="100px;" alt="Joe"/><br /><sub><b>Joe</b></sub></a><br /><a href="#code-jblsp" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/horiagug"><img src="https://avatars.githubusercontent.com/u/23277222?v=4?s=100" width="100px;" alt="Horia Gug"/><br /><sub><b>Horia Gug</b></sub></a><br /><a href="#code-horiagug" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.linkedin.com/in/aquilesgomez"><img src="https://avatars.githubusercontent.com/u/20983181?v=4?s=100" width="100px;" alt="Aquiles Gomez"/><br /><sub><b>Aquiles Gomez</b></sub></a><br /><a href="#code-aquilesg" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/alvarosevilla95"><img src="https://avatars.githubusercontent.com/u/1376447?v=4?s=100" width="100px;" alt="Alvaro Sevilla"/><br /><sub><b>Alvaro Sevilla</b></sub></a><br /><a href="#code-alvarosevilla95" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/sstark"><img src="https://avatars.githubusercontent.com/u/837918?v=4?s=100" width="100px;" alt="Sebastian Stark"/><br /><sub><b>Sebastian Stark</b></sub></a><br /><a href="#code-sstark" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Peeeaje"><img src="https://avatars.githubusercontent.com/u/74146834?v=4?s=100" width="100px;" alt="Jumpei Yamakawa"/><br /><sub><b>Jumpei Yamakawa</b></sub></a><br /><a href="#code-Peeeaje" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/marcocofano"><img src="https://avatars.githubusercontent.com/u/63420833?v=4?s=100" width="100px;" alt="marcocofano"/><br /><sub><b>marcocofano</b></sub></a><br /><a href="#code-marcocofano" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Jaehaks"><img src="https://avatars.githubusercontent.com/u/26200835?v=4?s=100" width="100px;" alt="Jaehaks"/><br /><sub><b>Jaehaks</b></sub></a><br /><a href="#code-Jaehaks" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://www.linkedin.com/in/magnusriga/"><img src="https://avatars.githubusercontent.com/u/38915578?v=4?s=100" width="100px;" alt="Magnus"/><br /><sub><b>Magnus</b></sub></a><br /><a href="#code-magnusriga" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/noamsto"><img src="https://avatars.githubusercontent.com/u/17932324?v=4?s=100" width="100px;" alt="Noam Stolero"/><br /><sub><b>Noam Stolero</b></sub></a><br /><a href="#code-noamsto" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/aileot"><img src="https://avatars.githubusercontent.com/u/46470475?v=4?s=100" width="100px;" alt="aileot"/><br /><sub><b>aileot</b></sub></a><br /><a href="#code-aileot" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://ricostacruz.com/"><img src="https://avatars.githubusercontent.com/u/74385?v=4?s=100" width="100px;" alt="Rico Sta. Cruz"/><br /><sub><b>Rico Sta. Cruz</b></sub></a><br /><a href="#doc-rstacruz" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
