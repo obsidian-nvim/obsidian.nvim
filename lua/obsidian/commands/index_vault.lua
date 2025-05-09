@@ -1,5 +1,3 @@
-local log = require "obsidian.log"
-
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)

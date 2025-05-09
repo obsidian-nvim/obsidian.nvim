@@ -114,6 +114,8 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian yesterday` to open/create the daily note for the previous working day.
 
+- `:Obsidian index_vault` to manually updated the cache of the vault. (see cache)
+
 ### Demo
 
 [![2024-01-31 14 22 52](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)
@@ -125,7 +127,7 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 - Neovim >= 0.10.0
 - For completion and search features:
 
-  - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep)
+  - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep).
   - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
 
 - Additional system dependencies:
@@ -133,6 +135,9 @@ These default keymaps will only be set if you are in a valid workspace and a mar
   - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:Obsidian open`.
   - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:Obsidian paste_img`.
   - **Linux** users need xclip (X11) or wl-clipboard (Wayland) for `:Obsidian paste_img`.
+
+- Optional dependencies:
+  - Backend: [fd](https://github.com/sharkdp/fd), see [fd#installation](https://github.com/sharkdp/fd#installation) for `:Obsidian index_vault`
 
 ### Plugin dependencies
 
@@ -603,6 +608,12 @@ require("obsidian").setup {
     enabled = true,
     format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
   },
+
+  -- Experimental feature, disabled by default.
+  cache = {
+    use_cache = false,
+    cache_path = "./.cache.json",
+  }
 }
 ```
 

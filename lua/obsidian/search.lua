@@ -337,8 +337,6 @@ SearchOpts.to_ripgrep_opts = function(self)
     opts[#opts + 1] = "--smart-case"
   end
 
-  opts[#opts + 1] = "--color=never"
-
   if self.exclude ~= nil then
     assert(type(self.exclude) == "table")
     for path in iter(self.exclude) do
