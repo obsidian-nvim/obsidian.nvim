@@ -1,6 +1,7 @@
 -- TODO：eventaully move to config
 
-return {
+local defualt = {
+  actions = {},
   complete = true,
   checkboxs = {
     ---@type "- [ ] " | "* [ ] " | "+ [ ] " | "1. [ ] " | "1) [ ] "
@@ -22,3 +23,18 @@ return {
   },
   -- option to only show first few links on hover, and completion doc
 }
+
+local cmds = require "obsidian.commands"
+
+-- TODO: make context aware
+for _, cmd in ipairs(vim.tbl_keys(cmds.commands)) do
+  defualt.actions[cmd] = {
+    title = cmd,
+    command = cmd,
+    fn = function()
+      vim.cmd.Obsidian(cmd)
+    end,
+  }
+end
+
+return defualt
