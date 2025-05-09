@@ -168,29 +168,6 @@ obsidian.setup = function(opts)
 
       local client_id = client:lsp_start(ev.buf)
 
-      vim.keymap.set("n", "<leader>ii", function()
-        local lsp_client = assert(vim.lsp.get_client_by_id(client_id))
-
-        vim.ui.input({}, function(input)
-          if not input then
-            return
-          end
-          lsp_client:exec_cmd({
-            arguments = {
-              input,
-            },
-            title = "create note",
-            command = "createNote",
-          }, { bufnr = ev.buf })
-        end, { buffer = ev.buf })
-      end)
-
-      -- place holders
-      vim.keymap.set("n", "<leader>cH", function()
-        local lsp_client = assert(vim.lsp.get_client_by_id(client_id))
-        lsp_client:exec_cmd({ title = "toggle checkbox", command = "toggleCheckbox" }, { bufnr = ev.buf })
-      end, { buffer = ev.buf })
-
       if not (pcall(require, "blink.cmp") or pcall(require, "cmp")) then
         vim.lsp.completion.enable(true, client_id, ev.buf, { autotrigger = true })
       end

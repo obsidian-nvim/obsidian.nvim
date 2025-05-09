@@ -1,4 +1,4 @@
-local config = require "obsidian.lsp.config"
+local Config = require "obsidian.lsp.config"
 
 local completion_options
 
@@ -8,7 +8,7 @@ for i = 32, 126 do
   table.insert(chars, string.char(i))
 end
 
-if config.complete then
+if Config.complete then
   completion_options = {
     triggerCharacters = chars,
     resolveProvider = true,
@@ -22,6 +22,7 @@ end
 
 local initializeResult = {
   capabilities = {
+    codeActionProvider = true,
     hoverProvider = true,
     definitionProvider = true,
     implementationProvider = true,
@@ -54,9 +55,11 @@ local initializeResult = {
   },
 }
 
----@param obsidian_client obsidian.Client
+---@param client obsidian.Client
 ---@param params table
 ---@param handler function
-return function(obsidian_client, params, handler, _)
+return function(client, params, handler, _)
+  vim.list_extend(initializeResult.capabilities.executeCommandProvider.commands, vim.tbl_keys(Config.actions))
+
   return handler(nil, initializeResult, params.context)
 end
