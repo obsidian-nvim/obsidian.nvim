@@ -4,14 +4,26 @@ local legacycommands = require "obsidian.commands.init-legacy"
 
 local M = { commands = {} }
 
-local M = { commands = {} }
+local note_action = {
+  backlinks = true,
+  template = true,
+  link_new = true,
+  link = true, -- TODO: ???
+  links = true,
+  follow_link = true,
+  toggle_checkbox = true,
+  rename = true,
+  paste_img = true,
+  extract_note = true,
+  toc = true,
+}
 
--- TODO: this will be context-sensitive in the future
-local function show_menu(data)
-  local is_visual = data.range ~= 0
+local function in_note()
+  local buf = vim.api.nvim_get_current_buf()
+  return vim.bo[buf].filetype == "markdown"
+end
 
-  local choices = M.commands
-
+local function get_commands(choices, is_visual, is_note)
   choices = vim.tbl_filter(function(config)
     if is_visual then
       return config.range ~= nil
@@ -19,6 +31,21 @@ local function show_menu(data)
       return config.range == nil
     end
   end, choices)
+
+  choices = vim.tbl_filter(function(config)
+    if is_note then
+      return true
+    else
+      return not note_action[config.name]
+    end
+  end, choices)
+  return choices
+end
+
+-- TODO: this will be context-sensitive in the future
+local function show_menu(data)
+  local is_visual, is_note = data.range ~= 0, in_note()
+  local choices = get_commands(M.commands, is_visual, is_note)
 
   vim.ui.select(choices, {
     prompt = "Obsidian Commands",
@@ -39,7 +66,7 @@ end
 ---@field nargs string|integer|?
 ---@field range boolean|?
 ---@field func function|? (obsidian.Client, table) -> nil
----@field name string
+---@field name string?
 
 ---Register a new command.
 ---@param name string
@@ -122,16 +149,8 @@ M.get_completions = function(client, cmdline)
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
   local obsidiancmd = splitcmd[2]
   if cmdline:match(obspat .. "%s$") then
-    local choices = M.commands
-
-    choices = vim.tbl_filter(function(config)
-      local is_visual = vim.startswith(cmdline, "'<,'>")
-      if is_visual then
-        return config.range ~= nil
-      else
-        return config.range == nil
-      end
-    end, choices)
+    local is_visual = vim.startswith(cmdline, "'<,'>")
+    local choices = get_commands(M.commands, is_visual, in_note())
 
     return vim.tbl_map(function(item)
       return item.name
