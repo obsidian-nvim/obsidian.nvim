@@ -4,11 +4,30 @@ local legacycommands = require "obsidian.commands.init-legacy"
 
 local M = { commands = {} }
 
+local M = { commands = {} }
+
 -- TODO: this will be context-sensitive in the future
-local function show_menu()
-  vim.ui.select(vim.tbl_keys(M.commands), { prompt = "Obsidian Commands" }, function(item)
+local function show_menu(data)
+  local is_visual = data.range ~= 0
+
+  local choices = M.commands
+
+  choices = vim.tbl_filter(function(config)
+    if is_visual then
+      return config.range ~= nil
+    else
+      return config.range == nil
+    end
+  end, choices)
+
+  vim.ui.select(choices, {
+    prompt = "Obsidian Commands",
+    format_item = function(item)
+      return item.name
+    end,
+  }, function(item)
     if item then
-      return vim.cmd.Obsidian(item)
+      return vim.cmd.Obsidian(item.name)
     else
       vim.notify("Aborted", 3)
     end
@@ -20,6 +39,7 @@ end
 ---@field nargs string|integer|?
 ---@field range boolean|?
 ---@field func function|? (obsidian.Client, table) -> nil
+---@field name string
 
 ---Register a new command.
 ---@param name string
@@ -31,6 +51,7 @@ M.register = function(name, config)
       return mod(client, data)
     end
   end
+  config.name = name
   M.commands[name] = config
 end
 
@@ -40,7 +61,7 @@ end
 M.install = function(client)
   vim.api.nvim_create_user_command("Obsidian", function(data)
     if #data.fargs == 0 then
-      show_menu()
+      show_menu(data)
       return
     end
     M.handle_command(client, data)
@@ -101,7 +122,20 @@ M.get_completions = function(client, cmdline)
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
   local obsidiancmd = splitcmd[2]
   if cmdline:match(obspat .. "%s$") then
-    return vim.tbl_keys(M.commands)
+    local choices = M.commands
+
+    choices = vim.tbl_filter(function(config)
+      local is_visual = vim.startswith(cmdline, "'<,'>")
+      if is_visual then
+        return config.range ~= nil
+      else
+        return config.range == nil
+      end
+    end, choices)
+
+    return vim.tbl_map(function(item)
+      return item.name
+    end, choices)
   end
   if cmdline:match(obspat .. "%s%S+$") then
     return vim.tbl_filter(function(s)
@@ -198,7 +232,7 @@ M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
-M.register("link_new", { nargs = "?", range = true })
+M.register("link_new", { mode = "v", nargs = "?", range = true })
 
 M.register("link", { nargs = "?", range = true, complete = M.note_complete })
 
@@ -214,7 +248,7 @@ M.register("rename", { nargs = "?" })
 
 M.register("paste_img", { nargs = "?" })
 
-M.register("extract_note", { nargs = "?", range = true })
+M.register("extract_note", { mode = "v", nargs = "?", range = true })
 
 M.register("debug", { nargs = 0 })
 
