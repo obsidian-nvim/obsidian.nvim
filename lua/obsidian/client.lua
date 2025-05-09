@@ -63,6 +63,7 @@ end
 ---
 ---@field current_workspace obsidian.Workspace The current workspace.
 ---@field dir obsidian.Path The root of the vault for the current workspace.
+---@field cache obsidian.Cache
 ---@field opts obsidian.config.ClientOpts The client config.
 ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
 ---@field callback_manager obsidian.CallbackManager
@@ -97,6 +98,8 @@ Client.new = function(opts)
   end
 
   self:set_workspace(workspace)
+
+  self.cache = require("obsidian.cache").new(self)
 
   return self
 end

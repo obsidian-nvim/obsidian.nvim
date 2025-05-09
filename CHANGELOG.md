@@ -10,10 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `makefile types` target to check types via lua-ls
+- Added file-watch: code that tracks changed notes in the vault.
+- Added cache: a JSON file, which stores aliases, last update date and path to the note. Updated using file-watch.
+- Added a new configuration option - `cache`, which is disabled by default.
 
 ### Changed
 
 - Remove `itertools.lua` in favor of `vim.iter`
+- In telescope an option was added to search notes by aliases.
 
 ### Fixed
 

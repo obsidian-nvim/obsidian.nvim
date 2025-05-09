@@ -10,7 +10,7 @@ return function(client, data)
       return
     end
 
-    picker:find_notes()
+    picker:find_notes { use_cache = client.opts.cache.use_cache }
   else
     client:resolve_note_async_with_picker_fallback(data.args, function(note)
       client:open_note(note)
