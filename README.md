@@ -114,7 +114,7 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian yesterday` to open/create the daily note for the previous working day.
 
-- `:Obsidian index_vault` to manually updated the cache of the vault.
+- `:Obsidian index_vault` to manually update the cache of the vault.
 
 ### Demo
 
