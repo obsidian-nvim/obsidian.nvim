@@ -34,6 +34,7 @@ local config = {}
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
+---@field cache obsidian.config.CacheOpts
 config.ClientOpts = {}
 
 --- Get defaults.
@@ -68,6 +69,7 @@ config.ClientOpts.default = function()
     ui = config.UIOpts.default(),
     attachments = config.AttachmentsOpts.default(),
     callbacks = config.CallbackConfig.default(),
+    cache = config.CacheOpts.default(),
     legacy_commands = true,
     ---@class obsidian.config.StatuslineOpts
     ---@field format? string
@@ -263,6 +265,8 @@ config.ClientOpts.normalize = function(opts, defaults)
   if opts.dir ~= nil then
     table.insert(opts.workspaces, 1, { path = opts.dir })
   end
+
+  opts.cache = tbl_override(defaults.cache, opts.cache)
 
   return opts
 end
@@ -527,6 +531,20 @@ config.CallbackConfig = {}
 ---@return obsidian.config.CallbackConfig
 config.CallbackConfig.default = function()
   return {}
+end
+
+---@class obsidian.config.CacheOpts
+---
+---@field use_cache boolean|? Use cache when searching for notes
+---@field cache_path string The file where the cache will be saved
+config.CacheOpts = {}
+
+---@return obsidian.config.CacheOpts
+config.CacheOpts.default = function()
+  return {
+    use_cache = false,
+    cache_path = "./.cache.json",
+  }
 end
 
 return config

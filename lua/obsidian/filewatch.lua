@@ -1,71 +1,102 @@
 local uv = vim.loop
+local util = require "obsidian.util"
 
-local make_default_error_cb = function(path, runnable)
-  return function(error, _)
-    error("fwatch.watch(" .. path .. ", " .. runnable .. ")" .. "encountered an error: " .. error)
+local M = {}
+
+---@class obsidian.filewatch.FileWatchOpts
+
+---Creates default callback if error occured in fs_event_start.
+---@param path string The filepath where error occured.
+---@return fun(error: string) Default function which accepts an error.
+local make_default_error_cb = function(path)
+  return function(error)
+    error(table.concat { "obsidian.watch(", path, ")", "encountered an error: ", error })
   end
 end
 
--- Watch path and calls on_event(filename, events) or on_error(error)
---
--- opts:
---  is_oneshot -> don't reattach after running, no matter the return value
-local function watch_with_function(path, on_event, on_error, opts)
-  opts = opts or {}
+---@enum obsidian.filewatch.EventType
+M.EventTypes = {
+  unknown = 0,
+  changed = 1,
+  renamed = 2,
+  deleted = 3,
+}
 
+--- Watch path and calls on_event(filename, event_type) or on_error(error)
+---@param path string
+---@param on_event fun (absolute_path: string, event_type: obsidian.filewatch.EventType, stat: uv.fs_stat.result|?)
+---@param on_error fun (err: string)
+---@param opts {recursive: boolean}
+---@return uv.uv_fs_event_t
+local function watch_path(path, on_event, on_error, opts)
   local handle = uv.new_fs_event()
 
   if not handle then
     error "couldn't create event handler"
   end
 
-  -- these are just the default values
   local flags = {
     watch_entry = false, -- true = if you pass dir, watch the dir inode only, not the dir content
     stat = false, -- true = don't use inotify/kqueue but periodic check, not implemented
     recursive = opts.recursive, -- true = watch dirs inside dirs. For now only works on Windows and MacOS
   }
 
-  local unwatch_cb = function()
-    uv.fs_event_stop(handle)
-  end
+  --- Minimal time in milliseconds to allow the event to fire.
+  local MIN_INTERVAL = 50
+  local last_received_files = {}
 
   local event_cb = function(err, filename, events)
     if err then
-      on_error(error, unwatch_cb)
-    else
-      -- Sometimes the event returns a number
-      if tonumber(filename) then
-        return
-      end
-      --
-      -- Sometimes the event returns the path with ~
-      if filename:sub(#filename) == "~" then
-        return
-      end
+      on_error(err)
+      return
+    end
 
-      local folder_path = uv.fs_event_getpath(handle)
-
-      -- TODO prevent from multiple triggering
-      uv.fs_stat(table.concat { folder_path, "/", filename }, function(err, stat)
-        if err then
-          error(err)
+    --TODO add description why it's needed, and move all cheks to a function
+    local now = uv.now()
+    local founded = false
+    for i, value in ipairs(last_received_files) do
+      if value[1] == filename then
+        founded = true
+        if now - value[2] < MIN_INTERVAL then
+          return
         else
-          print "update time: "
-          print(vim.inspect(stat.mtime))
-
-          on_event(filename, events, unwatch_cb)
+          last_received_files[i] = { filename, now }
+          break
         end
-      end)
+      end
     end
-    if opts.is_oneshot then
-      unwatch_cb()
+
+    if not founded then
+      last_received_files[#last_received_files + 1] = { filename, now }
     end
+
+    if filename:sub(#filename - 2, #filename) ~= ".md" then
+      return
+    end
+
+    local folder_path = uv.fs_event_getpath(handle)
+
+    local full_path = table.concat { folder_path, "/", filename }
+
+    uv.fs_stat(full_path, function(stat_err, stat)
+      if stat_err then
+        on_event(full_path, M.EventTypes.deleted, nil)
+        return
+      end
+
+      local event_type
+      if events.change then
+        event_type = M.EventTypes.changed
+      elseif events.rename then
+        event_type = M.EventTypes.renamed
+      else
+        event_type = M.EventTypes.unknown
+      end
+
+      on_event(full_path, event_type, stat)
+    end)
   end
 
-  path = path .. "/Base"
-
-  -- todo: subscribe to subfolders if on linux
   local success, err, err_name = uv.fs_event_start(handle, path, flags, event_cb)
 
   if not success then
@@ -75,57 +106,46 @@ local function watch_with_function(path, on_event, on_error, opts)
   return handle
 end
 
--- Watch a path and run given string as an ex command
---
--- Internally creates on_event and on_error handler and
--- delegates to watch_with_function.
-local function watch_with_string(path, string, opts)
-  local on_event = function(_, _)
-    vim.schedule(function()
-      vim.cmd(string)
-    end)
+---Create a watch handler which uses callback function when a file is changed.
+---If an error occured, called on_error function.
+---TODO if a new folder will be created, it won't be tracked
+---@param path string
+---@param callback fun (absolute_path: string, event_type: obsidian.filewatch.EventType, stat: uv.fs_stat.result|?)
+---@param on_error fun (err: string)|?
+---@return uv.uv_fs_event_t[]
+M.watch = function(path, callback, on_error)
+  if not path or path == "" then
+    error "Path cannot be empty."
   end
-  local on_error = make_default_error_cb(path, string)
-  return watch_with_function(path, on_event, on_error, opts)
-end
 
--- Sniff parameters and call appropriate watch handler
-local function do_watch(path, runnable, opts)
-  if type(runnable) == "string" then
-    return watch_with_string(path, runnable, opts)
-  elseif type(runnable) == "table" then
-    assert(runnable.on_event, "must provide on_event to watch")
-    assert(type(runnable.on_event) == "function", "on_event must be a function")
+  if not callback then
+    error "Callback cannot be empty!"
+  end
 
-    -- no on_error provided, make default
-    if runnable.on_error == nil then
-      table.on_error = make_default_error_cb(path, "on_event_cb")
+  if on_error == nil then
+    on_error = make_default_error_cb(path)
+  end
+
+  local sysname = util.get_os()
+
+  if sysname == util.OSType.Linux then
+    local handle = io.popen("fd -t directory -a --base-directory " .. path)
+    if not handle then
+      error "Failed to execute command"
     end
 
-    return watch_with_function(path, runnable.on_event, runnable.on_error, opts)
+    local subdirs_handlers = {}
+
+    for dir in handle:lines() do
+      table.insert(subdirs_handlers, watch_path(dir, callback, on_error, { recursive = false }))
+    end
+
+    handle:close()
+
+    return subdirs_handlers
   else
-    error("Unknown runnable type given to watch," .. " must be string or {on_event = function, on_error = function}.")
+    return { watch_path(path, callback, on_error, { recursive = true }) }
   end
 end
-
-M = {
-  -- create watcher
-  watch = function(path, vim_command_or_callback_table, opts)
-    opts = opts or {}
-    opts.is_oneshot = false
-    return do_watch(path, vim_command_or_callback_table, opts)
-  end,
-  -- stop watcher
-  unwatch = function(handle)
-    return uv.fs_event_stop(handle)
-  end,
-  -- create watcher that auto stops
-  once = function(path, vim_command_or_callback_table, opts)
-    opts = opts or {}
-    opts.is_oneshot = true
-
-    return do_watch(path, vim_command_or_callback_table, opts)
-  end,
-}
 
 return M

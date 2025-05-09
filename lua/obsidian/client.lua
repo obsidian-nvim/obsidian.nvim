@@ -487,8 +487,6 @@ Client.find_notes_async = function(self, term, callback, opts)
       return nil
     end
 
-    vim.print(path)
-
     local ok, res = pcall(Note.from_file_async, path, opts.notes)
 
     if ok then

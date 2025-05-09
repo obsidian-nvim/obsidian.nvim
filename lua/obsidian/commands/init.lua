@@ -226,7 +226,7 @@ M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
-M.register("index_vault", { opts = { nargs = "?", desc = "Index vault" } })
+M.register("index_vault", { nargs = "?" })
 
 M.register("link_new", { nargs = "?", range = true })
 
