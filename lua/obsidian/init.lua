@@ -144,11 +144,10 @@ obsidian.setup = function(opts)
         vim.keymap.set("n", mapping_keys, mapping_config.action, mapping_config.opts)
       end
 
-      -- Inject completion sources, providers to their plugin configurations
-      if opts.completion.nvim_cmp then
-        require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources()
-      elseif opts.completion.blink then
-        require("obsidian.completion.plugin_initializers.blink").inject_sources()
+      local client_id = client:lsp_start(ev.buf)
+
+      if not (pcall(require, "blink.cmp") or pcall(require, "cmp")) then
+        vim.lsp.completion.enable(true, client_id, ev.buf, { autotrigger = true })
       end
 
       local win = vim.api.nvim_get_current_win()
@@ -164,7 +163,7 @@ obsidian.setup = function(opts)
 
       -- Run enter-note callback.
       client.callback_manager:enter_note(function()
-        return obsidian.Note.from_buffer(ev.bufnr)
+        return obsidian.Note.from_buffer(ev.buf)
       end)
     end,
   })
