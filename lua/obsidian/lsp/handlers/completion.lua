@@ -95,7 +95,7 @@ local function gen_create_item(label, range, format_func)
     },
     labelDetails = { description = "Obsidian" },
     command = { -- runs after accept
-      command = "createNote",
+      command = "create_note",
       arguments = { label },
     },
     data = {
