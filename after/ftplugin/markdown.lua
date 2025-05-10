@@ -10,3 +10,7 @@ if not workspace then
 end
 
 vim.o.commentstring = "%%%s%%"
+
+vim.treesitter.start(buf, "markdown") -- for when user don't use nvim-treesitter
+vim.opt_local.foldmethod = "expr"
+vim.opt_local.foldexpr = "v:lua.vim.treesitter.foldexpr()"
