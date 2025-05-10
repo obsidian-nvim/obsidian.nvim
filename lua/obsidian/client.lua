@@ -1832,7 +1832,13 @@ Client.write_note = function(self, note, opts)
   else
     verb = "Created"
     if opts.template ~= nil then
-      note = clone_template { template_name = opts.template, path = path, client = self, note = note }
+      note = clone_template {
+        client = self,
+        cursor_location = util.get_active_window_cursor_location(),
+        template_name = opts.template,
+        note_override = note,
+        path_override = path,
+      }
     end
   end
 
@@ -1869,10 +1875,10 @@ Client.write_note_to_buffer = function(self, note, opts)
 
   if opts.template and util.buffer_is_empty(opts.bufnr) then
     note = insert_template {
-      note = note,
-      template_name = opts.template,
       client = self,
-      location = util.get_active_window_cursor_location(),
+      cursor_location = util.get_active_window_cursor_location(),
+      template_name = opts.template,
+      note_override = note,
     }
   end
 

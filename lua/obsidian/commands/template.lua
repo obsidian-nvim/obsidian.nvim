@@ -14,7 +14,11 @@ return function(client, data)
   local insert_location = util.get_active_window_cursor_location()
 
   local function insert_template(name)
-    templates.insert_template { template_name = name, client = client, location = insert_location }
+    templates.insert_template {
+      client = client,
+      template_name = name,
+      cursor_location = insert_location,
+    }
   end
 
   if string.len(data.args) > 0 then

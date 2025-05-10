@@ -1,5 +1,6 @@
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
+local subst = require "obsidian.subst"
 local util = require "obsidian.util"
 
 local M = {}
@@ -39,80 +40,16 @@ local resolve_template = function(template_name, client)
   return template_path
 end
 
---- Substitute variables inside the given text.
----
----@param text string
----@param client obsidian.Client
----@param note obsidian.Note
----
----@return string
-M.substitute_template_variables = function(text, client, note)
-  local methods = vim.deepcopy(client.opts.templates.substitutions or {})
-
-  if not methods["date"] then
-    methods["date"] = function()
-      local date_format = client.opts.templates.date_format or "%Y-%m-%d"
-      return tostring(os.date(date_format))
-    end
-  end
-
-  if not methods["time"] then
-    methods["time"] = function()
-      local time_format = client.opts.templates.time_format or "%H:%M"
-      return tostring(os.date(time_format))
-    end
-  end
-
-  if not methods["title"] then
-    methods["title"] = note.title or note:display_name()
-  end
-
-  if not methods["id"] then
-    methods["id"] = tostring(note.id)
-  end
-
-  if not methods["path"] and note.path then
-    methods["path"] = tostring(note.path)
-  end
-
-  -- Replace known variables.
-  for key, subst in pairs(methods) do
-    for m_start, m_end in util.gfind(text, "{{" .. key .. "}}", nil, true) do
-      ---@type string
-      local value
-      if type(subst) == "string" then
-        value = subst
-      else
-        value = subst()
-        -- cache the result
-        methods[key] = value
-      end
-      text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
-    end
-  end
-
-  -- Find unknown variables and prompt for them.
-  for m_start, m_end in util.gfind(text, "{{[^}]+}}") do
-    local key = util.strip_whitespace(string.sub(text, m_start + 2, m_end - 2))
-    local value = util.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
-    if value and string.len(value) > 0 then
-      text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
-    end
-  end
-
-  return text
-end
-
 --- Clone template to a new note.
 ---
----@param opts { template_name: string|obsidian.Path, path: obsidian.Path|string, client: obsidian.Client, note: obsidian.Note } Options.
+---@param ctx obsidian.SubstitutionContext
 ---
 ---@return obsidian.Note
-M.clone_template = function(opts)
-  local note_path = Path.new(opts.path)
+M.clone_template = function(ctx)
+  local note_path = Path.new(ctx.path_override)
   assert(note_path:parent()):mkdir { parents = true, exist_ok = true }
 
-  local template_path = resolve_template(opts.template_name, opts.client)
+  local template_path = resolve_template(ctx.template_name, ctx.client)
 
   local template_file, read_err = io.open(tostring(template_path), "r")
   if not template_file then
@@ -125,7 +62,7 @@ M.clone_template = function(opts)
   end
 
   for line in template_file:lines "L" do
-    line = M.substitute_template_variables(line, opts.client, opts.note)
+    line = subst.substitute_template_variables(line, ctx)
     note_file:write(line)
   end
 
@@ -135,14 +72,14 @@ M.clone_template = function(opts)
   local new_note = Note.from_file(note_path)
 
   -- Transfer fields from `opts.note`.
-  new_note.id = opts.note.id
+  new_note.id = ctx.note_override.id
   if new_note.title == nil then
-    new_note.title = opts.note.title
+    new_note.title = ctx.note_override.title
   end
-  for _, alias in ipairs(opts.note.aliases) do
+  for _, alias in ipairs(ctx.note_override.aliases) do
     new_note:add_alias(alias)
   end
-  for _, tag in ipairs(opts.note.tags) do
+  for _, tag in ipairs(ctx.note_override.tags) do
     new_note:add_tag(tag)
   end
 
@@ -151,23 +88,23 @@ end
 
 ---Insert a template at the given location.
 ---
----@param opts { note: obsidian.Note|?, template_name: string|obsidian.Path, client: obsidian.Client, location: { [1]: integer, [2]: integer, [3]: integer, [4]: integer } } Options.
+---@param ctx obsidian.SubstitutionContext
 ---
 ---@return obsidian.Note
-M.insert_template = function(opts)
-  local buf, win, row, _ = unpack(opts.location)
-  if opts.note == nil then
-    opts.note = Note.from_buffer(buf)
+M.insert_template = function(ctx)
+  local buf, win, row, _ = unpack(ctx.cursor_location)
+  if ctx.note_override == nil then
+    ctx.note_override = Note.from_buffer(buf)
   end
 
-  local template_path = resolve_template(opts.template_name, opts.client)
+  local template_path = resolve_template(ctx.template_name, ctx.client)
 
   local insert_lines = {}
   local template_file = io.open(tostring(template_path), "r")
   if template_file then
     local lines = template_file:lines()
     for line in lines do
-      local new_lines = M.substitute_template_variables(line, opts.client, opts.note)
+      local new_lines = subst.substitute_template_variables(line, ctx)
       if string.find(new_lines, "[\r\n]") then
         local line_start = 1
         for line_end in util.gfind(new_lines, "[\r\n]") do
@@ -192,7 +129,7 @@ M.insert_template = function(opts)
   local new_cursor_row, _ = unpack(vim.api.nvim_win_get_cursor(win))
   vim.api.nvim_win_set_cursor(0, { new_cursor_row, 0 })
 
-  opts.client:update_ui(0)
+  ctx.client:update_ui(0)
 
   return Note.from_buffer(buf)
 end
