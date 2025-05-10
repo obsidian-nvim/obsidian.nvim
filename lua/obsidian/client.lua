@@ -1834,7 +1834,6 @@ Client.write_note = function(self, note, opts)
     if opts.template ~= nil then
       note = clone_template {
         client = self,
-        cursor_location = util.get_active_window_cursor_location(),
         template_name = opts.template,
         note_override = note,
         path_override = path,

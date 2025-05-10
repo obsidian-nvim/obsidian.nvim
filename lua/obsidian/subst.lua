@@ -9,7 +9,24 @@ local util = require "obsidian.util"
 ---@field note_override obsidian.Note|?
 ---@field path_override obsidian.Path|?
 
+--- Provides a variable's value within the provided substitution context.
+--- NOTE: Non-nil return values are coerced into strings with neovim's tostring() function.
+---
+--- @alias obsidian.SubstitutionFunction fun(ctx: obsidian.SubstitutionContext): any|?
+
 local M = {}
+
+---@param subst obsidian.SubstitutionFunction|string
+---@param ctx obsidian.SubstitutionContext
+---@return any|nil
+local function get_subst_value(subst, ctx)
+  if type(subst) == "string" then
+    return subst
+  else
+    local ok, value = pcall(subst, ctx)
+    return ok and value and tostring(value) or nil
+  end
+end
 
 --- Substitute variables inside the given text.
 ---
@@ -21,17 +38,13 @@ M.substitute_template_variables = function(text, ctx)
   local methods = vim.deepcopy(ctx.client.opts.templates.substitutions or {})
 
   if not methods["date"] then
-    methods["date"] = function()
-      local date_format = ctx.client.opts.templates.date_format or "%Y-%m-%d"
-      return tostring(os.date(date_format))
-    end
+    local date_format = ctx.client.opts.templates.date_format or "%Y-%m-%d"
+    methods["date"] = tostring(os.date(date_format))
   end
 
   if not methods["time"] then
-    methods["time"] = function()
-      local time_format = ctx.client.opts.templates.time_format or "%H:%M"
-      return tostring(os.date(time_format))
-    end
+    local time_format = ctx.client.opts.templates.time_format or "%H:%M"
+    methods["time"] = tostring(os.date(time_format))
   end
 
   if not methods["title"] then
@@ -49,16 +62,10 @@ M.substitute_template_variables = function(text, ctx)
   -- Replace known variables.
   for key, subst in pairs(methods) do
     for m_start, m_end in util.gfind(text, "{{" .. key .. "}}", nil, true) do
-      ---@type string
-      local value
-      if type(subst) == "string" then
-        value = subst
-      else
-        value = subst()
-        -- cache the result
-        methods[key] = value
+      local value = get_subst_value(subst, ctx)
+      if value and string.len(value) > 0 then
+        text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
       end
-      text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
     end
   end
 
