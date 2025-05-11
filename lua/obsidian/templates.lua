@@ -12,7 +12,7 @@ local M = {}
 M.clone_template = function(ctx)
   ctx = subst.assert_valid_context(ctx, "clone_template")
 
-  ctx.target_note.path:mkdir { parents = true, exist_ok = true }
+  ctx.target_note.path:parent():mkdir { parents = true, exist_ok = true }
   local template_file, read_err = io.open(tostring(ctx.template), "r")
   if not template_file then
     error(string.format("Unable to read template at '%s': %s", ctx.template, tostring(read_err)))
