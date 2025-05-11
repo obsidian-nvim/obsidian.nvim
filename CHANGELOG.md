@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `makefile types` target to check types via lua-ls
+- Added a builtin lsp to handle completion, hover, diagnostics and code actions
 
 ### Changed
 
