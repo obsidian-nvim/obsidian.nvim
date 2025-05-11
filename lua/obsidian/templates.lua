@@ -11,9 +11,8 @@ local M = {}
 ---@return obsidian.Note
 M.clone_template = function(ctx)
   ctx = subst.assert_valid_context(ctx, "clone_template")
-  assert(ctx.action == "clone_template", string.format("bad clone_template context: ", tostring(ctx)))
-  assert(ctx.target_note.path:parent()):mkdir { parents = true, exist_ok = true }
 
+  ctx.target_note.path:mkdir { parents = true, exist_ok = true }
   local template_file, read_err = io.open(tostring(ctx.template_path), "r")
   if not template_file then
     error(string.format("Unable to read template at '%s': %s", ctx.template_path, tostring(read_err)))

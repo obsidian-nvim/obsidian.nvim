@@ -69,7 +69,7 @@ M.assert_valid_context = function(ctx, expected_action)
   )
 
   if ctx.action == "clone_template" then
-    assert(ctx.target_note, "target note is required to clone templates")
+    assert(ctx.target_note and ctx.target_note.path:parent(), "target note is required to clone templates")
   elseif ctx.action == "insert_template" then
     assert(ctx.target_location, "cursor location is required to insert templates")
   else
