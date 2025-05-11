@@ -23,38 +23,42 @@ local function in_note()
   return vim.bo[buf].filetype == "markdown"
 end
 
-local function get_commands(choices, is_visual, is_note)
-  choices = vim.tbl_filter(function(config)
-    if is_visual then
-      return config.range ~= nil
-    else
-      return config.range == nil
-    end
-  end, choices)
-
-  choices = vim.tbl_filter(function(config)
-    if is_note then
-      return true
-    else
-      return not note_action[config.name]
-    end
-  end, choices)
-  return choices
+---@param commands obsidian.CommandConfig[]
+---@param is_visual boolean
+---@param is_note boolean
+---@return string[]
+local function get_commands_by_context(commands, is_visual, is_note)
+  local choices = vim.tbl_values(commands)
+  return vim
+    .iter(choices)
+    :filter(function(config)
+      if is_visual then
+        return config.range ~= nil
+      else
+        return config.range == nil
+      end
+    end)
+    :filter(function(config)
+      if is_note then
+        return true
+      else
+        return not note_action[config.name]
+      end
+    end)
+    :map(function(config)
+      return config.name
+    end)
+    :totable()
 end
 
 -- TODO: this will be context-sensitive in the future
 local function show_menu(data)
   local is_visual, is_note = data.range ~= 0, in_note()
-  local choices = get_commands(M.commands, is_visual, is_note)
+  local choices = get_commands_by_context(M.commands, is_visual, is_note)
 
-  vim.ui.select(choices, {
-    prompt = "Obsidian Commands",
-    format_item = function(item)
-      return item.name
-    end,
-  }, function(item)
+  vim.ui.select(choices, { prompt = "Obsidian Commands" }, function(item)
     if item then
-      return vim.cmd.Obsidian(item.name)
+      return vim.cmd.Obsidian(item)
     else
       vim.notify("Aborted", 3)
     end
@@ -150,11 +154,7 @@ M.get_completions = function(client, cmdline)
   local obsidiancmd = splitcmd[2]
   if cmdline:match(obspat .. "%s$") then
     local is_visual = vim.startswith(cmdline, "'<,'>")
-    local choices = get_commands(M.commands, is_visual, in_note())
-
-    return vim.tbl_map(function(item)
-      return item.name
-    end, choices)
+    return get_commands_by_context(M.commands, is_visual, in_note())
   end
   if cmdline:match(obspat .. "%s%S+$") then
     return vim.tbl_filter(function(s)
@@ -211,11 +211,11 @@ M.note_complete = function(client, cmd_arg)
   for note in iter(client:find_notes(query, { search = { sort = true } })) do
     local note_path = assert(client:vault_relative_path(note.path, { strict = true }))
     if string.find(string.lower(note:display_name()), query_lower, 1, true) then
-      table.insert(completions, note:display_name() .. "  " .. note_path)
+      table.insert(completions, note:display_name() .. "  " .. tostring(note_path))
     else
       for _, alias in pairs(note.aliases) do
         if string.find(string.lower(alias), query_lower, 1, true) then
-          table.insert(completions, alias .. "  " .. note_path)
+          table.insert(completions, alias .. "  " .. tostring(note_path))
           break
         end
       end

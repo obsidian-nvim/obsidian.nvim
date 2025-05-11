@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `obsidian.InsertTemplateContext` and `obsidian.CloneTemplateContext` as these new "context" objects.
 - Github workflow and `make types` now use `lua-language-server` to check type issues.
 - Added the `completion.create_new` option to allow for disabling new note creation in the picker.
+- Added `makefile types` target to check types via lua-ls
+
+### Changed
+
+- Remove `itertools.lua` in favor of `vim.iter`
+- Commands are now context sensitive (mode and if in note)
 
 ### Fixed
 
