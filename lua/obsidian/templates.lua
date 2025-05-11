@@ -1,44 +1,8 @@
-local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local subst = require "obsidian.subst"
 local util = require "obsidian.util"
 
 local M = {}
-
---- Resolve a template name to a path.
----
----@param template_name string|obsidian.Path
----@param client obsidian.Client
----
----@return obsidian.Path
-local resolve_template = function(template_name, client)
-  local templates_dir = client:templates_dir()
-  if templates_dir == nil then
-    error "Templates folder is not defined or does not exist"
-  end
-
-  ---@type obsidian.Path|?
-  local template_path
-  local paths_to_check = { templates_dir / tostring(template_name), Path:new(template_name) }
-  for _, path in ipairs(paths_to_check) do
-    if path:is_file() then
-      template_path = path
-      break
-    elseif not vim.endswith(tostring(path), ".md") then
-      local path_with_suffix = Path:new(tostring(path) .. ".md")
-      if path_with_suffix:is_file() then
-        template_path = path_with_suffix
-        break
-      end
-    end
-  end
-
-  if template_path == nil then
-    error(string.format("Template '%s' not found", template_name))
-  end
-
-  return template_path
-end
 
 --- Clone template to a new note.
 ---
@@ -46,19 +10,18 @@ end
 ---
 ---@return obsidian.Note
 M.clone_template = function(ctx)
-  local note_path = Path.new(ctx.path_override)
-  assert(note_path:parent()):mkdir { parents = true, exist_ok = true }
+  ctx = subst.assert_valid_context(ctx, "clone_template")
+  assert(ctx.action == "clone_template", string.format("bad clone_template context: ", tostring(ctx)))
+  assert(ctx.target_note.path:parent()):mkdir { parents = true, exist_ok = true }
 
-  local template_path = resolve_template(ctx.template_name, ctx.client)
-
-  local template_file, read_err = io.open(tostring(template_path), "r")
+  local template_file, read_err = io.open(tostring(ctx.template_path), "r")
   if not template_file then
-    error(string.format("Unable to read template at '%s': %s", template_path, tostring(read_err)))
+    error(string.format("Unable to read template at '%s': %s", ctx.template_path, tostring(read_err)))
   end
 
-  local note_file, write_err = io.open(tostring(note_path), "w")
+  local note_file, write_err = io.open(tostring(ctx.target_note.path), "w")
   if not note_file then
-    error(string.format("Unable to write note at '%s': %s", note_path, tostring(write_err)))
+    error(string.format("Unable to write note at '%s': %s", ctx.target_note.path, tostring(write_err)))
   end
 
   for line in template_file:lines "L" do
@@ -69,17 +32,17 @@ M.clone_template = function(ctx)
   assert(template_file:close())
   assert(note_file:close())
 
-  local new_note = Note.from_file(note_path)
+  local new_note = Note.from_file(ctx.target_note.path)
 
   -- Transfer fields from `opts.note`.
-  new_note.id = ctx.note_override.id
+  new_note.id = ctx.target_note.id
   if new_note.title == nil then
-    new_note.title = ctx.note_override.title
+    new_note.title = ctx.target_note.title
   end
-  for _, alias in ipairs(ctx.note_override.aliases) do
+  for _, alias in ipairs(ctx.target_note.aliases) do
     new_note:add_alias(alias)
   end
-  for _, tag in ipairs(ctx.note_override.tags) do
+  for _, tag in ipairs(ctx.target_note.tags) do
     new_note:add_tag(tag)
   end
 
@@ -92,15 +55,12 @@ end
 ---
 ---@return obsidian.Note
 M.insert_template = function(ctx)
-  local buf, win, row, _ = unpack(ctx.cursor_location)
-  if ctx.note_override == nil then
-    ctx.note_override = Note.from_buffer(buf)
-  end
+  ctx = subst.assert_valid_context(ctx, "insert_template")
 
-  local template_path = resolve_template(ctx.template_name, ctx.client)
+  local buf, win, row, _ = unpack(ctx.target_location)
+  local template_file = io.open(tostring(ctx.template_path), "r")
 
   local insert_lines = {}
-  local template_file = io.open(tostring(template_path), "r")
   if template_file then
     local lines = template_file:lines()
     for line in lines do
@@ -122,7 +82,7 @@ M.insert_template = function(ctx)
     end
     template_file:close()
   else
-    error(string.format("Template file '%s' not found", template_path))
+    error(string.format("Template file '%s' not found", ctx.template_path))
   end
 
   vim.api.nvim_buf_set_lines(buf, row - 1, row - 1, false, insert_lines)

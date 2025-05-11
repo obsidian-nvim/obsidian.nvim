@@ -86,6 +86,21 @@ Note.new = function(id, aliases, tags, path)
   return self
 end
 
+--- Clone an existing note object.
+---
+---@return obsidian.Note copy clone of the current note object.
+Note.clone = function(self)
+  local copy = Note.init()
+  copy.id = self.id
+  copy.aliases = self.aliases and vim.deepcopy(self.aliases) or nil
+  copy.tags = self.tags and vim.deepcopy(self.tags) or nil
+  copy.path = self.path and Path.new(self.path) or nil
+  copy.metadata = vim.deepcopy(self.metadata)
+  copy.has_frontmatter = self.has_frontmatter
+  copy.frontmatter_end_line = self.frontmatter_end_line
+  return copy
+end
+
 --- Get markdown display info about the note.
 ---
 ---@param opts { label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|?

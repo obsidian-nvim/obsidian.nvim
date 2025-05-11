@@ -2,7 +2,6 @@ local obsidian = require "obsidian"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local subst = require "obsidian.subst"
-local util = require "obsidian.util"
 
 ---Get a client in a temporary directory.
 ---
@@ -26,8 +25,9 @@ describe("subst.substitute_template_variables()", function()
     assert.equal(
       string.format("today is %s and the title of the note is %s", os.date "%Y-%m-%d", "FOO"),
       subst.substitute_template_variables(text, {
+        action = "clone_template",
         client = client,
-        note_override = Note.new("FOO", { "FOO" }, {}),
+        target_note = Note.new("FOO", { "FOO" }, {}),
       })
     )
   end)
@@ -43,8 +43,9 @@ describe("subst.substitute_template_variables()", function()
     assert.equal(
       "today is Monday",
       subst.substitute_template_variables(text, {
+        action = "clone_template",
         client = client,
-        note_override = Note.new("foo", {}, {}),
+        target_note = Note.new("foo", {}, {}),
       })
     )
 
