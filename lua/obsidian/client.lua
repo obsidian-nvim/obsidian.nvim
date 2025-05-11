@@ -1822,11 +1822,7 @@ Client.write_note = function(self, note, opts)
   local clone_template = require("obsidian.templates").clone_template
   opts = opts or {}
 
-  if opts.path then
-    note = note:clone()
-    note.path = Path.new(opts.path)
-  end
-
+  note.path = (opts.path and Path.new(opts.path)) or (note.path and Path.new(note.path))
   assert(note.path, "A path must be provided")
 
   ---@type string
