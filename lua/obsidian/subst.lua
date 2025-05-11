@@ -7,7 +7,7 @@ local util = require "obsidian.util"
 ---@class obsidian.SubstitutionContext
 ---@field action obsidian.SubstitutionContext.Action
 ---@field client obsidian.Client
----@field template_path obsidian.Path|string|?
+---@field template string|obsidian.Path|?
 ---@field target_location [number, number, number, number]|?
 ---@field target_note obsidian.Note|?
 ---
@@ -62,11 +62,9 @@ end
 M.assert_valid_context = function(ctx, expected_action)
   assert(ctx.action == expected_action, string.format("unexpected substitution action: %s", ctx.action))
   assert(ctx.client, "obsidian.nvim client is required")
-  assert(ctx.template_path, "template name is required")
-  local template_path = assert(
-    resolve_template_path(ctx.template_path, ctx.client),
-    string.format("template does not exist: %s", ctx.template_path)
-  )
+  assert(ctx.template, "template is required")
+  local resolved_template_path =
+    assert(resolve_template_path(ctx.template, ctx.client), string.format("template does not exist: %s", ctx.template))
 
   if ctx.action == "clone_template" then
     assert(ctx.target_note and ctx.target_note.path:parent(), "target note is required to clone templates")
@@ -80,7 +78,7 @@ M.assert_valid_context = function(ctx, expected_action)
   return {
     action = ctx.action,
     client = ctx.client,
-    template_path = template_path,
+    template = resolved_template_path,
     target_note = ctx.target_note,
     target_location = ctx.target_location,
   }

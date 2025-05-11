@@ -1835,7 +1835,7 @@ Client.write_note = function(self, note, opts)
       note = clone_template {
         action = "clone_template",
         client = self,
-        template_path = opts.template,
+        template = opts.template,
         target_note = note,
       }
     end
@@ -1876,7 +1876,7 @@ Client.write_note_to_buffer = function(self, note, opts)
     note = insert_template {
       action = "insert_template",
       client = self,
-      template_path = opts.template,
+      template = opts.template,
       target_location = util.get_active_window_cursor_location(),
     }
   end

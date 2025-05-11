@@ -17,7 +17,7 @@ return function(client, data)
     templates.insert_template {
       action = "insert_template",
       client = client,
-      template_path = template_path,
+      template = template_path,
       target_location = cursor_location,
     }
   end

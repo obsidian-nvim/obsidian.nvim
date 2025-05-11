@@ -13,9 +13,9 @@ M.clone_template = function(ctx)
   ctx = subst.assert_valid_context(ctx, "clone_template")
 
   ctx.target_note.path:mkdir { parents = true, exist_ok = true }
-  local template_file, read_err = io.open(tostring(ctx.template_path), "r")
+  local template_file, read_err = io.open(tostring(ctx.template), "r")
   if not template_file then
-    error(string.format("Unable to read template at '%s': %s", ctx.template_path, tostring(read_err)))
+    error(string.format("Unable to read template at '%s': %s", ctx.template, tostring(read_err)))
   end
 
   local note_file, write_err = io.open(tostring(ctx.target_note.path), "w")
@@ -57,7 +57,7 @@ M.insert_template = function(ctx)
   ctx = subst.assert_valid_context(ctx, "insert_template")
 
   local buf, win, row, _ = unpack(ctx.target_location)
-  local template_file = io.open(tostring(ctx.template_path), "r")
+  local template_file = io.open(tostring(ctx.template), "r")
 
   local insert_lines = {}
   if template_file then
@@ -81,7 +81,7 @@ M.insert_template = function(ctx)
     end
     template_file:close()
   else
-    error(string.format("Template file '%s' not found", ctx.template_path))
+    error(string.format("Template file '%s' not found", ctx.template))
   end
 
   vim.api.nvim_buf_set_lines(buf, row - 1, row - 1, false, insert_lines)
