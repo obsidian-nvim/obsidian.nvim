@@ -131,12 +131,12 @@ M.substitute_template_variables = function(text, ctx)
     substitutions["title"] = ctx.target_note.title or ctx.target_note:display_name()
   end
 
-  if not substitutions["id"] and ctx.target_note then
-    substitutions["id"] = tostring(ctx.target_note.id)
+  if not substitutions["path"] and ctx.target_note then
+    substitutions["path"] = ctx.target_note.path and tostring(ctx.target_note.path)
   end
 
-  if not substitutions["path"] and ctx.target_note then
-    substitutions["path"] = tostring(ctx.target_note.path)
+  if not substitutions["id"] and ctx.target_note then
+    substitutions["id"] = ctx.target_note.id and tostring(ctx.target_note.id)
   end
 
   -- Replace known variables.
