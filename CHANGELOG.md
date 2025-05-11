@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Remove `itertools.lua` in favor of `vim.iter`
+- Commands are now context sensitive (mode and if in note)
 
 ### Fixed
 
