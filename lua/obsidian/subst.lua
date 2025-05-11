@@ -17,23 +17,23 @@ local util = require "obsidian.util"
 ---
 --- @alias obsidian.SubstitutionFunction fun(ctx: obsidian.SubstitutionContext): string|?
 
-local M = {}
+--- Resolve the template path and returns it. Otherwise, if invalid, then returns nil and an error message.
+---
+--- @overload fun(client: obsidian.Client, template: string|obsidian.Path|?): obsidian.Path, nil
+--- @overload fun(client: obsidian.Client, template: string|obsidian.Path|?): nil, string
+local resolve_template_path = function(client, template)
+  if template == nil then
+    return nil, "Template is not defined"
+  end
 
---- Resolve a template name to a path.
----
----@param template_path string|obsidian.Path
----@param client obsidian.Client
----
----@return obsidian.Path
-local resolve_template_path = function(template_path, client)
   local templates_dir = client:templates_dir()
   if templates_dir == nil then
-    error "Templates folder is not defined or does not exist"
+    return nil, "Templates folder is not defined or does not exist"
   end
 
   ---@type obsidian.Path|?
   local resolved_path
-  local paths_to_check = { templates_dir / tostring(template_path), Path:new(template_path) }
+  local paths_to_check = { templates_dir / tostring(template), Path:new(template) }
   for _, path in ipairs(paths_to_check) do
     if path:is_file() then
       resolved_path = path
@@ -48,35 +48,39 @@ local resolve_template_path = function(template_path, client)
   end
 
   if resolved_path == nil then
-    error(string.format("Template '%s' not found", template_path))
+    return nil, string.format("Template '%s' not found", template)
   end
 
-  return resolved_path
+  return resolved_path, nil
 end
 
---- Returns a validated context, otherwise returns nil and an error message.
+local M = {}
+
+--- Validates and resolves context values.
 ---
 ---@param expected_action obsidian.SubstitutionContext.Action
 ---@param ctx obsidian.SubstitutionContext
 ---@return obsidian.SubstitutionContext
 M.assert_valid_context = function(ctx, expected_action)
-  assert(ctx.action == expected_action, string.format("unexpected substitution action: %s", ctx.action))
-  assert(ctx.client, "obsidian.nvim client is required")
-  assert(ctx.template, "template is required")
-  local resolved_template_path =
-    assert(resolve_template_path(ctx.template, ctx.client), string.format("template does not exist: %s", ctx.template))
-
   if ctx.action == "clone_template" then
-    assert(ctx.target_note and ctx.target_note.path:parent(), "target note is required to clone templates")
+    assert(ctx.action == expected_action, string.format("unexpected action: %s", ctx.action))
+    assert(ctx.target_note, "target note must be defined")
+    assert(ctx.target_note.path:parent(), "target note must include a parent folder in its path")
   elseif ctx.action == "insert_template" then
-    assert(ctx.target_location, "cursor location is required to insert templates")
+    assert(ctx.action == expected_action, string.format("unexpected action: %s", ctx.action))
+    assert(ctx.target_location, "cursor location must be defined")
+  else
+    error(string.format("unknown action: %s", ctx.action))
   end
+
+  local valid_client = assert(ctx.client, "obsidian.nvim client is required")
+  local valid_template = assert(resolve_template_path(valid_client, ctx.template))
 
   ---@type obsidian.SubstitutionContext
   return {
     action = ctx.action,
-    client = ctx.client,
-    template = resolved_template_path,
+    client = valid_client,
+    template = valid_template,
     target_note = ctx.target_note,
     target_location = ctx.target_location,
   }
@@ -113,32 +117,30 @@ end
 ---
 ---@return string
 M.substitute_template_variables = function(text, ctx)
-  local methods = vim.deepcopy(ctx.client.opts.templates.substitutions or {})
+  local substitutions = vim.deepcopy(ctx.client.opts.templates.substitutions or {})
 
-  if not methods["date"] then
-    local date_format = ctx.client.opts.templates.date_format or "%Y-%m-%d"
-    methods["date"] = tostring(os.date(date_format))
+  if not substitutions["date"] then
+    substitutions["date"] = tostring(os.date(ctx.client.opts.templates.date_format or "%Y-%m-%d"))
   end
 
-  if not methods["time"] then
-    local time_format = ctx.client.opts.templates.time_format or "%H:%M"
-    methods["time"] = tostring(os.date(time_format))
+  if not substitutions["time"] then
+    substitutions["time"] = tostring(os.date(ctx.client.opts.templates.time_format or "%H:%M"))
   end
 
-  if not methods["title"] then
-    methods["title"] = ctx.target_note.title or ctx.target_note:display_name()
+  if not substitutions["title"] and ctx.target_note then
+    substitutions["title"] = ctx.target_note.title or ctx.target_note:display_name()
   end
 
-  if not methods["id"] then
-    methods["id"] = tostring(ctx.target_note.id)
+  if not substitutions["id"] and ctx.target_note then
+    substitutions["id"] = tostring(ctx.target_note.id)
   end
 
-  if not methods["path"] and ctx.target_note.path then
-    methods["path"] = tostring(ctx.target_note.path)
+  if not substitutions["path"] and ctx.target_note then
+    substitutions["path"] = tostring(ctx.target_note.path)
   end
 
   -- Replace known variables.
-  for key, subst in pairs(methods) do
+  for key, subst in pairs(substitutions) do
     for m_start, m_end in util.gfind(text, "{{" .. key .. "}}", nil, true) do
       local value = get_subst_value_safely(key, subst, ctx)
       if value then
