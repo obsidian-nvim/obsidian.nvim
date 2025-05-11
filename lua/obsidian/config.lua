@@ -535,14 +535,14 @@ end
 
 ---@class obsidian.config.CacheOpts
 ---
----@field use_cache boolean|? Use cache when searching for notes
+---@field enable boolean|? Use cache when searching for notes
 ---@field cache_path string The file where the cache will be saved
 config.CacheOpts = {}
 
 ---@return obsidian.config.CacheOpts
 config.CacheOpts.default = function()
   return {
-    use_cache = false,
+    enable = false,
     cache_path = "./.cache.json",
   }
 end
