@@ -86,7 +86,7 @@ end
 ---@param subst obsidian.SubstitutionFunction|string
 ---@param ctx obsidian.SubstitutionContext
 ---@return string|?
-local function substitute_variable_safely(var_name, subst, ctx)
+local function get_subst_value_safely(var_name, subst, ctx)
   if type(subst) == "string" then
     return subst
   elseif vim.is_callable(subst) then
@@ -140,7 +140,7 @@ M.substitute_template_variables = function(text, ctx)
   -- Replace known variables.
   for key, subst in pairs(methods) do
     for m_start, m_end in util.gfind(text, "{{" .. key .. "}}", nil, true) do
-      local value = substitute_variable_safely(key, subst, ctx)
+      local value = get_subst_value_safely(key, subst, ctx)
       if value then
         text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
       end
