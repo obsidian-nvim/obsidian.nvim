@@ -54,6 +54,11 @@ local create_on_file_change_callback = function(self)
 
       local links = self:get_cache_notes_from_file()
       for i, v in ipairs(links) do
+        if not v then
+          log.warn("empty note cache is founded")
+          v = {}
+          v.absolute_path = "NAN"
+        end
         if v.absolute_path == filename then
           if event_type == EventTypes.deleted then
             table.remove(links, i)
