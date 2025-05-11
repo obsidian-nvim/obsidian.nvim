@@ -1,5 +1,6 @@
 local uv = vim.loop
 local util = require "obsidian.util"
+local log = require("obsidian.log")
 
 local M = {}
 
@@ -63,8 +64,8 @@ local function watch_path(path, on_event, on_error, opts)
   end
 
   local flags = {
-    watch_entry = false, -- true = if you pass dir, watch the dir inode only, not the dir content
-    stat = false, -- true = don't use inotify/kqueue but periodic check, not implemented
+    watch_entry = false,        -- true = if you pass dir, watch the dir inode only, not the dir content
+    stat = false,               -- true = don't use inotify/kqueue but periodic check, not implemented
     recursive = opts.recursive, -- true = watch dirs inside dirs. For now only works on Windows and MacOS
   }
 
@@ -98,6 +99,8 @@ local function watch_path(path, on_event, on_error, opts)
       else
         event_type = M.EventTypes.unknown
       end
+
+      log.warn(table.concat({ "File (", filename, ") was updated at " .. os.date("%H:%M:%S") }))
 
       on_event(full_path, event_type, stat)
     end)
