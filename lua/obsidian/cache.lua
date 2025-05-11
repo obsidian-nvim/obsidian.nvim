@@ -197,7 +197,7 @@ Cache.new = function(client)
   local self = Cache.init()
   self.client = client
 
-  if client.opts.cache.use_cache then
+  if client.opts.cache.enable then
     enable_filewatch(self)
 
     check_vault_cache(self)
@@ -253,7 +253,7 @@ end
 --- Reads all notes in the vaults and saves them to the cache file.
 ---@param self obsidian.Cache
 Cache.index_vault = function(self)
-  if not self.client.opts.cache.use_cache then
+  if not self.client.opts.cache.enable then
     log.error "The cache is disabled. Cannot index vault."
   end
 
