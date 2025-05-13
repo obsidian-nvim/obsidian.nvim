@@ -128,7 +128,8 @@ local check_cache_notes_are_fresh = function(self)
   for _, note_cache in ipairs(note_cache_list) do
     uv.fs_stat(note_cache.absolute_path, function(err, stat)
       if err then
-        err("Couldn't get stat from the file " .. note_cache.relative_path .. " when performing reindex: " .. err)
+        log.err("Couldn't get stat from the file " .. note_cache.relative_path .. " when performing reindex: " .. err)
+        return
       end
 
       local aliases
