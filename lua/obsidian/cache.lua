@@ -52,13 +52,15 @@ local create_on_file_change_callback = function(self)
     vim.schedule(function()
       local founded = false
 
-      local links = self:get_cache_notes_from_file()
+      local ok, links = pcall(self.get_cache_notes_from_file, self)
+
+      if not ok then
+        log.err("error when reading from file")
+        print(vim.inspect(links))
+        return
+      end
+
       for i, v in ipairs(links) do
-        if not v then
-          log.warn("empty note cache is founded")
-          v = {}
-          v.absolute_path = "NAN"
-        end
         if v.absolute_path == filename then
           if event_type == EventTypes.deleted then
             table.remove(links, i)
