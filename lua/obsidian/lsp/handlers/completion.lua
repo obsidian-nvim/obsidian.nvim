@@ -1,14 +1,18 @@
 -- TODO: completion for anchor, blocks
 -- TODO: memoize?
 
+local util = require "obsidian.util"
+local find, sub, lower = string.find, string.sub, string.lower
 local ref_trigger_pattern = {
   wiki = "[[",
   markdown = "[",
 }
 
-local util = require "obsidian.util"
-
-local find, sub, lower = string.find, string.sub, string.lower
+-- TODO: remove
+local state = {
+  ---@type obsidian.Note
+  current_note = nil,
+}
 
 -- TODO:
 local function insert_snippet_marker(text, style)
@@ -18,11 +22,6 @@ local function insert_snippet_marker(text, style)
     return a .. "$1" .. b
   end
 end
-
-local state = {
-  ---@type obsidian.Note
-  current_note = nil,
-}
 
 ---Collect matching anchor links.
 ---@param note obsidian.Note
@@ -104,12 +103,31 @@ local function gen_create_item(label, range, format_func)
   }
 end
 
----@client obsidian.Client
+local handle_bare_links = function(client, partial, range, handler, format_func)
+  local pattern = vim.pesc(lower(partial))
+
+  local function match(title)
+    return title and find(lower(title), pattern)
+  end
+
+  local style = client.opts.preferred_link_style
+
+  client:find_notes_async(partial, function(notes)
+    local items = {}
+    for _, note in ipairs(notes or {}) do
+      local title = note.title
+      if match(title) then
+        local link_text = client:format_link(note)
+        items[#items + 1] = gen_ref_item(note.title, note.path.filename, link_text, range, style)
+      end
+    end
+    items[#items + 1] = gen_create_item(partial, range, format_func)
+    handler(nil, { items = items })
+  end)
+end
+
+---@param client obsidian.Client
 local function handle_ref(client, partial, ref_start, cursor_col, line_num, handler)
-  ---@type string|?
-  -- local block_link
-  -- cc.search, block_link = util.strip_block_links(cc.search)
-  --
   ---@type string|?
   local anchor_link
   partial, anchor_link = util.strip_anchor_links(partial)
@@ -128,22 +146,7 @@ local function handle_ref(client, partial, ref_start, cursor_col, line_num, hand
   end
 
   if not anchor_link then
-    client:find_notes_async(
-      partial,
-      vim.schedule_wrap(function(notes)
-        local items = {}
-        for _, note in ipairs(notes or {}) do
-          local title = note.title
-          local pattern = vim.pesc(lower(partial))
-          if title and find(lower(title), pattern) then
-            local link_text = client:format_link(note)
-            items[#items + 1] = gen_ref_item(note.title, note.path.filename, link_text, range, style)
-          end
-        end
-        items[#items + 1] = gen_create_item(partial, range, format_func)
-        handler(nil, { items = items })
-      end)
-    )
+    handle_bare_links(client, partial, range, handler, format_func)
   else
     local Note = require "obsidian.note"
     -- state.current_note = state.current_note or client:find_notes(partial)[2]
@@ -152,6 +155,7 @@ local function handle_ref(client, partial, ref_start, cursor_col, line_num, hand
     -- 1. typing partial note name, no completeed text after cursor, insert the full link
     -- 2. jumped to heading, only insert anchor
     -- TODO: need to do more textEdit to insert additional #title to path so that app supports?
+    local items = {}
     client:find_notes_async(
       partial,
       vim.schedule_wrap(function(notes)
@@ -191,7 +195,6 @@ local function handle_ref(client, partial, ref_start, cursor_col, line_num, hand
         end
       end)
     )
-    vim.print(state.current_note)
   end
 end
 
@@ -233,6 +236,41 @@ local anchor_trigger_pattern = {
 
 local heading_trigger_pattern = "[##"
 
+local CmpType = {
+  ref = 1,
+  tag = 2,
+  anchor = 3,
+}
+
+---@param text string
+---@param style obsidian.config.LinkStyle
+---@param min_char integer
+---@return integer?
+---@return string?
+---@return integer?
+local function get_type(text, style, min_char)
+  local ref_start = find(text, ref_trigger_pattern[style], 1, true)
+  local tag_start = find(text, "#", 1, true)
+  -- local heading_start = find(text, heading_trigger_pattern, 1, true)
+
+  if ref_start then
+    local partial = sub(text, ref_start + #ref_trigger_pattern[style])
+    if #partial >= min_char then
+      return CmpType.ref, partial, ref_start
+    end
+  elseif tag_start then
+    local partial = sub(text, tag_start + 1)
+    if #partial >= min_char then
+      return CmpType.tag, partial, tag_start
+    end
+    -- elseif heading_start then
+    --   local partial = sub(text, heading_start + #heading_trigger_pattern)
+    --   if #partial >= min_char then
+    --     return CmpType.anchor, partial, heading_start
+    --   end
+  end
+end
+
 ---@param client obsidian.Client
 ---@param params table
 ---@param handler function
@@ -246,31 +284,15 @@ return function(client, params, handler, _)
 
   local buf = vim.uri_to_bufnr(uri)
   local line_text = vim.api.nvim_buf_get_lines(buf, line_num, line_num + 1, false)[1]
+  local text_before = sub(line_text, 1, char_num)
+  local t, partial, start = get_type(text_before, link_style, min_chars)
 
-  -- print(util.strip_anchor_links(line_text))
-  -- print(util.strip_block_links(line_text))
-  --
-  local text_before_cursor = sub(line_text, 1, char_num)
-
-  local ref_start = find(text_before_cursor, ref_trigger_pattern[link_style], 1, true)
-  local tag_start = find(text_before_cursor, "#", 1, true)
-  local heading_start = find(text_before_cursor, heading_trigger_pattern, 1, true)
-
-  if heading_start then
-    local partial = sub(text_before_cursor, heading_start + #heading_trigger_pattern)
-    -- if #partial >= min_chars then
-    --   handle_heading(client, partial, ref_start - 1, char_num, line_num, handler)
-    -- end
-  elseif ref_start then
-    local partial = sub(text_before_cursor, ref_start + #ref_trigger_pattern[link_style])
-    if #partial >= min_chars then
-      handle_ref(client, partial, ref_start - 1, char_num, line_num, handler)
-    end
-  elseif tag_start then
-    local partial = sub(text_before_cursor, tag_start + 1)
-    if #partial >= min_chars then
-      handle_tag(client, partial, handler)
-    end
+  if t == CmpType.ref then
+    handle_ref(client, partial, start - 1, char_num, line_num, handler)
+  elseif t == CmpType.tag then
+    handle_tag(client, partial, handler)
+  elseif t == CmpType.anchor then
   else
+    return
   end
 end
