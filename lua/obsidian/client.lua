@@ -1621,7 +1621,14 @@ Client.new_note_path = function(self, spec)
   else
     path = spec.dir / tostring(spec.id)
   end
-  return path:with_suffix ".md"
+
+  -- Ensure there is only one ".md" suffix. This might arise if `note_path_func`
+  -- supplies an unusual implementation returning something like /bad/note/id.md.md.md
+  while path.filename:match("%.md$") do
+    path.filename = path.filename:gsub("%.md$", "")
+  end
+
+  return path:with_suffix(".md", true)
 end
 
 --- Parse the title, ID, and path for a new note.

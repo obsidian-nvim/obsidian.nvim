@@ -61,6 +61,20 @@ describe("Client", function()
   end)
 end)
 
+describe("Client:new_note_path()", function()
+  it("should only append one \".md\" at the end of the path", function()
+    with_tmp_client(function(client)
+      client.opts.note_path_func = function(spec)
+        return (spec.dir / "foo-bar-123"):with_suffix ".md.md.md"
+      end
+
+      -- Okay to set `id` and `dir` to default values because `note_path_func` is set
+      local path = client:new_note_path({ id = "", dir = Path:new() })
+      assert.equals(Path:new() / "foo-bar-123.md", path)
+    end)
+  end)
+end)
+
 describe("Client:parse_title_id_path()", function()
   it("should parse a title that's a partial path and generate new ID", function()
     with_tmp_client(function(client)
@@ -118,6 +132,15 @@ describe("Client:parse_title_id_path()", function()
       assert.equals(title, "Foo Bar")
       assert.equals(id, "Foo Bar")
       assert.equals(tostring(path), tostring(Path:new(client.dir) / "notes" / "Foo Bar.md"))
+    end)
+  end)
+
+  it("should keep allow decimals in ID", function()
+    with_tmp_client(function(client)
+      local title, id, path = client:parse_title_id_path("Title", "johnny.decimal", "notes")
+      assert.equals(title, "Title")
+      assert.equals(id, "johnny.decimal")
+      assert.equals(tostring(Path.new(client.dir) / "notes" / "johnny.decimal.md"), tostring(path))
     end)
   end)
 
