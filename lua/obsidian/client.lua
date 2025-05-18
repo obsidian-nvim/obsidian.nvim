@@ -1624,7 +1624,7 @@ Client.new_note_path = function(self, spec)
 
   -- Ensure there is only one ".md" suffix. This might arise if `note_path_func`
   -- supplies an unusual implementation returning something like /bad/note/id.md.md.md
-  while path.filename:match("%.md$") do
+  while path.filename:match "%.md$" do
     path.filename = path.filename:gsub("%.md$", "")
   end
 

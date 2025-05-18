@@ -123,7 +123,7 @@ describe("Path.with_suffix()", function()
   end)
 
   it("should allow appending the suffix instead of replacing it", function()
-    assert.equals(Path.new "johnny.md", Path.new("johnny.decimal"):with_suffix(".md"))
+    assert.equals(Path.new "johnny.md", Path.new("johnny.decimal"):with_suffix ".md")
     assert.equals(Path.new "johnny.decimal.md", Path.new("johnny.decimal"):with_suffix(".md", true))
   end)
 end)

@@ -62,14 +62,14 @@ describe("Client", function()
 end)
 
 describe("Client:new_note_path()", function()
-  it("should only append one \".md\" at the end of the path", function()
+  it('should only append one ".md" at the end of the path', function()
     with_tmp_client(function(client)
       client.opts.note_path_func = function(spec)
         return (spec.dir / "foo-bar-123"):with_suffix ".md.md.md"
       end
 
       -- Okay to set `id` and `dir` to default values because `note_path_func` is set
-      local path = client:new_note_path({ id = "", dir = Path:new() })
+      local path = client:new_note_path { id = "", dir = Path:new() }
       assert.equals(Path:new() / "foo-bar-123.md", path)
     end)
   end)
@@ -157,7 +157,7 @@ describe("Client:parse_title_id_path()", function()
     with_tmp_client(function(client)
       client.opts.note_path_func = function(spec)
         return (spec.dir / "foo-bar-123"):with_suffix ".md"
-      end
+      end;
 
       local title, id, path = client:parse_title_id_path "New Note"
       assert.equals("New Note", title)
@@ -183,7 +183,7 @@ describe("Client:parse_title_id_path()", function()
     with_tmp_client(function(client)
       client.opts.note_path_func = function(_)
         return "foo-bar-123.md"
-      end;
+      end
 
       (client.dir / "notes"):mkdir { exist_ok = true }
 
