@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `.github/pull_request_template.md` to make contributing simpler
 - Allow users to have a period in the note ID as in a [Johnny.Decimal](https://johnnydecimal.com/) format
 - Added `backlinks` config table with the associated `obsidian.config.BacklinkOpts`
+- Allow users to have a period in the note ID as in a [Johnny.Decimal](https://johnnydecimal.com/) format
 
 ### Changed
 
