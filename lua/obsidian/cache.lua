@@ -45,6 +45,9 @@ local save_cache_notes_to_file = function(links, note_path)
   end
 end
 
+---TODO: there can be a possibility, that multiple files will be changed at the same time, which will trigger multiple
+---change events, which can lead to data loss. In order to avoid this the filewatcher should return multiple files only after
+---some time.
 ---@param self obsidian.Cache
 ---@return fun (absolute_path: string, event_type: obsidian.filewatch.EventType, stat: uv.fs_stat.result)
 local create_on_file_change_callback = function(self)
@@ -55,8 +58,7 @@ local create_on_file_change_callback = function(self)
       local ok, links = pcall(self.get_cache_notes_from_file, self)
 
       if not ok then
-        log.err("error when reading from file")
-        print(vim.inspect(links))
+        log.err("error when reading from the cache file")
         return
       end
 
