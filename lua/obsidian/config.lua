@@ -297,7 +297,6 @@ config.LinkStyle = {
 }
 
 ---@class obsidian.config.BacklinkOpts
----@field parse_headers boolean
 config.BacklinkOpts = {}
 
 --- Get defaults.
