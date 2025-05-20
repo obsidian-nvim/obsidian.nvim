@@ -272,6 +272,8 @@ config.OpenStrategy = {
   current = "current",
   vsplit = "vsplit",
   hsplit = "hsplit",
+  vsplit_force = "vsplit_force",
+  hsplit_force = "hsplit_force",
 }
 
 ---@enum obsidian.config.SortBy
