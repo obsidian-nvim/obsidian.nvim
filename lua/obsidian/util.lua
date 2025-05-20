@@ -548,6 +548,10 @@ util.get_open_strategy = function(opt)
     else
       return "e "
     end
+  elseif vim.startswith(OpenStrategy.vsplit_force, opt) then
+    return "vsplit "
+  elseif vim.startswith(OpenStrategy.hsplit_force, opt) then
+    return "hsplit "
   elseif vim.startswith(OpenStrategy.current, opt) then
     return "e "
   else
