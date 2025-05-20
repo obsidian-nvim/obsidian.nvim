@@ -1,4 +1,4 @@
-<h1 align="center">obsidian.nvim</h1>
+/<h1 align="center">obsidian.nvim</h1>
 
 <div><h4 align="center"><a href="#setup">Setup</a> · <a href="#configuration-options">Configure</a> · <a href="#contributing">Contribute</a> · <a href="https://github.com/obsidian-nvim/obsidian.nvim/discussions">Discuss</a></h4></div>
 
@@ -73,7 +73,7 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For example, `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow.
 
-- `:Obsidian follow_link [vsplit|hsplit]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
+- `:Obsidian follow_link [vsplit|hsplit|vsplit_force|hsplit_force]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
 
 - `:Obsidian link [QUERY]` to link an inline visual selection of text to a note.
   One optional argument: a query that will be used to resolve the note by ID, path, or alias. If not given, the selected text will be used as the query.
@@ -496,10 +496,10 @@ require("obsidian").setup {
 
   -- Optional, determines how certain commands open notes. The valid options are:
   -- 1. "current" (the default) - to always open in the current window
-  -- 2. "vsplit" - to open in a vertical split if there's not already a vertical split
-  -- 3. "hsplit" - to open in a horizontal split if there's not already a horizontal split
-  -- 4. "vsplit_force" - to open in a vertical split if the file is not already in the adjacent split.
-  -- 5. "hsplit_force" - to open in a horizontal split if the file is not already in the adjacent split.
+  -- 2. "vsplit" - only open in a vertical split if a vsplit does not exist.
+  -- 3. "hsplit" - only open in a horizontal split if a hsplit does not exist.
+  -- 4. "vsplit_force" - always open a new vertical split if the file is not in the adjacent vsplit.
+  -- 5. "hsplit_force" - always open a new horizontal split if the file is not in the adjacent hsplit.
   open_notes_in = "current",
 
   -- Optional, define your own callbacks to further customize behavior.
