@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `makefile types` target to check types via lua-ls
 - Added `.github/pull_request_template.md` to make contributing simpler
+- Added `vsplit_force` and `hsplit_force` open strategies. These will always open a vertical/horizontal split if the file is not already in the adjacent split.
 
 ### Changed
 
