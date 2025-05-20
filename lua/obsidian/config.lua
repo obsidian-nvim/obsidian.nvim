@@ -26,6 +26,7 @@ local config = {}
 ---@field daily_notes obsidian.config.DailyNotesOpts
 ---@field use_advanced_uri boolean|?
 ---@field open_app_foreground boolean|?
+---@field parse_headers boolean|?
 ---@field sort_by obsidian.config.SortBy|?
 ---@field sort_reversed boolean|?
 ---@field search_max_lines integer
@@ -63,6 +64,7 @@ config.ClientOpts.default = function()
     daily_notes = config.DailyNotesOpts.default(),
     use_advanced_uri = nil,
     open_app_foreground = false,
+    parse_headers = true,
     sort_by = "modified",
     sort_reversed = true,
     search_max_lines = 1000,

@@ -122,9 +122,11 @@ return function(client)
     local note = client:current_note(0, load_opts)
 
     -- Check if cursor is on a header, if so, use that anchor.
-    local header_match = util.parse_header(vim.api.nvim_get_current_line())
-    if header_match then
-      opts.anchor = header_match.anchor
+    if client.opts.parse_headers then
+      local header_match = util.parse_header(vim.api.nvim_get_current_line())
+      if header_match then
+        opts.anchor = header_match.anchor
+      end
     end
 
     if note == nil then
