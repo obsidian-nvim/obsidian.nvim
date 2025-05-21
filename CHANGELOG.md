@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove `itertools.lua` in favor of `vim.iter`
 - In telescope an option was added to search notes by aliases.
+- Configure `foldmethod`, `foldexpr`, and `foldlevel` in ftplugin instead of the BufEnter event. This allows user overrides of these configurations.
+- Remove `fillchars`, `foldtext`, and `smoothscroll` configurations.
 
 ### Fixed
 
