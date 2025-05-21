@@ -100,8 +100,6 @@ local function watch_path(path, on_event, on_error, opts)
         event_type = M.EventTypes.unknown
       end
 
-      log.debug(table.concat({ "File (", filename, ") was updated at " .. os.date("%H:%M:%S") }))
-
       on_event(full_path, event_type, stat)
     end)
   end
