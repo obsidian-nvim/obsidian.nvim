@@ -27,7 +27,7 @@ jobs:
         uses: JohnnyMorganz/stylua-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: 0.15.1
+          version: 2.1.0
           args: --check .
   # test_windows:
   #   name: Test (Windows)
