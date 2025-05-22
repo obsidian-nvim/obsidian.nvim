@@ -347,14 +347,14 @@ local init_job = function(cmd, args, on_stdout, on_exit, sync)
     end
   end
 
+  on_stdout = util.buffer_fn(on_stdout)
+
   local function stdout(err, data)
     if err ~= nil then
       return log.err("Error running command '%s' with args '%s'\n:%s", cmd, args, err)
     end
-    if on_stdout ~= nil and data ~= nil then
-      for line in vim.gsplit(data, "\n", { trimempty = true }) do
-        on_stdout(line)
-      end
+    if data ~= nil then
+      on_stdout(data)
     end
   end
 

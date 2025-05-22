@@ -1467,4 +1467,24 @@ util.isNan = function(v)
   return tostring(v) == tostring(0 / 0)
 end
 
+---Higher order function, make sure a function is called with complete lines
+---@param fn fun(string)?
+---@return fun(string)
+util.buffer_fn = function(fn)
+  if not fn then
+    return function() end
+  end
+  local buffer = ""
+  return function(data)
+    buffer = buffer .. data
+    local lines = vim.split(buffer, "\n")
+    if #lines > 1 then
+      for i = 1, #lines - 1 do
+        fn(lines[i])
+      end
+      buffer = lines[#lines] -- Store remaining partial line
+    end
+  end
+end
+
 return util
