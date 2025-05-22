@@ -561,9 +561,7 @@ end
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
   local cmd = M.build_find_cmd(tostring(norm_dir), term, opts)
-  run_job_async(cmd[1], { unpack(cmd, 2) }, function(line)
-    on_match(line)
-  end, function(code)
+  run_job_async(cmd[1], { unpack(cmd, 2) }, on_match, function(code)
     if on_exit ~= nil then
       on_exit(code)
     end
