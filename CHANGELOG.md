@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configure `foldmethod`, `foldexpr`, and `foldlevel` in ftplugin instead of the BufEnter event. This allows user overrides of these configurations.
 - Remove `fillchars`, `foldtext`, and `smoothscroll` configurations.
 - Relaxed yaml dump quoting condition so that dates are not quoted
+- Update Stylua version from 0.15.1 → 2.1.0
 
 ### Fixed
 
