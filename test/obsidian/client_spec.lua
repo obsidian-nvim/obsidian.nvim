@@ -157,7 +157,7 @@ describe("Client:parse_title_id_path()", function()
     with_tmp_client(function(client)
       client.opts.note_path_func = function(spec)
         return (spec.dir / "foo-bar-123"):with_suffix ".md"
-      end;
+      end
 
       local title, id, path = client:parse_title_id_path "New Note"
       assert.equals("New Note", title)
