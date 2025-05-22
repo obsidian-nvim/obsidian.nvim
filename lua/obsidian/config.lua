@@ -63,7 +63,6 @@ config.ClientOpts.default = function()
     daily_notes = config.DailyNotesOpts.default(),
     use_advanced_uri = nil,
     open_app_foreground = false,
-    parse_headers = true,
     sort_by = "modified",
     sort_reversed = true,
     search_max_lines = 1000,
