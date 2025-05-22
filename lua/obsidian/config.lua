@@ -196,11 +196,6 @@ config.ClientOpts.normalize = function(opts, defaults)
     opts.overwrite_mappings = nil
   end
 
-  if opts.backlinks ~= nil then
-    log.warn_once "The 'backlinks' config option is deprecated and no longer has any affect."
-    opts.backlinks = nil
-  end
-
   if opts.tags ~= nil then
     log.warn_once "The 'tags' config option is deprecated and no longer has any affect."
     opts.tags = nil
@@ -240,6 +235,7 @@ config.ClientOpts.normalize = function(opts, defaults)
   ---@type obsidian.config.ClientOpts
   opts = tbl_override(defaults, opts)
 
+  opts.backlinks = tbl_override(defaults.backlinks, opts.backlinks)
   opts.completion = tbl_override(defaults.completion, opts.completion)
   opts.mappings = opts.mappings and opts.mappings or defaults.mappings
   opts.picker = tbl_override(defaults.picker, opts.picker)
