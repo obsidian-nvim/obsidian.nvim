@@ -658,6 +658,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/bburgess19"><img src="https://avatars.githubusercontent.com/u/55334507?v=4?s=100" width="100px;" alt="Ben Burgess"/><br /><sub><b>Ben Burgess</b></sub></a><br /><a href="#code-bburgess19" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://sebszyller.com"><img src="https://avatars.githubusercontent.com/u/11989990?v=4?s=100" width="100px;" alt="Sebastian Szyller"/><br /><sub><b>Sebastian Szyller</b></sub></a><br /><a href="#code-sebszyller" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
