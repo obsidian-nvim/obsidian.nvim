@@ -5,6 +5,7 @@ local Note = require "obsidian.note"
 local log = require "obsidian.log"
 local EventTypes = require("obsidian.filewatch").EventTypes
 local uv = vim.uv
+local os_util = require("obsidian.os_util")
 
 ---This class allows you to find the notes in your vault more quickly.
 ---It scans your vault and saves the founded metadata to the file specified in your CacheOpts (by default it's ".cache.json").
@@ -45,13 +46,11 @@ local save_cache_notes_to_file = function(cache_notes, cache_file_path)
   end
 end
 
----TODO: there can be a possibility, that multiple files will be changed at the same time, which will trigger multiple
----change events, which can lead to performance issues and data loss. In order to avoid this the filewatcher should return multiple files only after
----some time.
+---Update the cache file for changed files.
 ---@param self obsidian.Cache
----@return fun (absolute_path: string, event_type: obsidian.filewatch.EventType, stat: uv.fs_stat.result)
+---@return fun (changed_files: obsidian.filewatch.CallbackArgs[])
 local create_on_file_change_callback = function(self)
-  return function(absolute_path, event_type, stat)
+  return function(changed_files)
     vim.schedule(function()
       local ok, cache_notes = pcall(self.get_cache_notes_from_file, self)
 
@@ -60,75 +59,54 @@ local create_on_file_change_callback = function(self)
         return
       end
 
-      local relative_path = absolute_path:gsub(self.client.dir.filename .. "/", "")
-
-      ---update the vault when the note is returned
-      ---@param note obsidian.Note|?
-      local refresh_vault = function(note)
-        if note then
-          local founded_cache = {
-            absolute_path = absolute_path,
-            aliases = note.aliases,
-            relative_path = relative_path,
-            last_updated = stat.mtime.sec,
-          }
-
-          cache_notes[relative_path] = founded_cache
-        end
-
+      local update_cache_file = function()
         vim.schedule(function()
           save_cache_notes_to_file(cache_notes, self.client.opts.cache.cache_path)
         end)
       end
 
-      if event_type == EventTypes.deleted and cache_notes[relative_path] then
-        cache_notes[relative_path] = nil
-        refresh_vault()
-      else
-        async.run(function()
-          return Note.from_file_async(absolute_path, { read_only_frontmatter = true })
-        end, refresh_vault)
+      local left = #changed_files
+
+      for _, file in ipairs(changed_files) do
+        local relative_path = file.absolute_path:gsub(self.client.dir.filename .. "/", "")
+
+        ---@param note obsidian.Note|?
+        local update_cache_dictionary = function(note)
+          if note then
+            local founded_cache = {
+              absolute_path = absolute_path,
+              aliases = note.aliases,
+              relative_path = relative_path,
+              last_updated = file.stat.mtime.sec,
+            }
+
+            cache_notes[relative_path] = founded_cache
+          end
+
+          left = left - 1
+
+          if left == 0 then
+            update_cache_file()
+          end
+        end
+
+        if file.event == EventTypes.deleted and cache_notes[relative_path] then
+          cache_notes[relative_path] = nil
+          update_cache_dictionary()
+        else
+          async.run(function()
+            return Note.from_file_async(file.absolute_path, { read_only_frontmatter = true })
+          end, update_cache_dictionary)
+        end
       end
     end)
   end
 end
 
----Gets the notes from the vault recursivly
----@param path string Path to a subfolder of the vault.
----@param files string[]|? Founded pathes to notes.
----@return string[]
-local function list_notes_recursive(path, files)
-  files = files or {}
-  local req = uv.fs_scandir(path)
-  if not req then return files end
-
-  while true do
-    local name, type = uv.fs_scandir_next(req)
-    if not name then break end
-    if name ~= "." and name ~= ".." then
-      local full_path = path .. "/" .. name
-      if type == "directory" then
-        list_notes_recursive(full_path, files)
-      elseif type == "file" and full_path:sub(#full_path - 2, #full_path) == ".md" then
-        table.insert(files, full_path)
-      end
-    end
-  end
-
-  return files
-end
-
----Gets all notes from the vault.
----@param path string The path to the vault.
----@return string[] The path to the notes.
-local function get_all_notes_from_vault(path)
-  return list_notes_recursive(path)
-end
-
 ---Checks for note cache that were updated outside the vault.
 ---@param self obsidian.Cache
 local check_cache_notes_are_fresh = function(self)
-  local founded_notes = get_all_notes_from_vault(self.client:vault_root().filename)
+  local founded_notes = os_util.get_all_notes_from_vault(self.client:vault_root().filename)
   local cache_notes = self.get_cache_notes_from_file(self)
 
   ---@type { [string]: obsidian.cache.CacheNote }
