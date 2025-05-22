@@ -19,6 +19,7 @@ local config = {}
 ---@field follow_img_func fun(img: string)|?
 ---@field note_frontmatter_func (fun(note: obsidian.Note): table)|?
 ---@field disable_frontmatter (fun(fname: string?): boolean)|boolean|?
+---@field backlinks obsidian.config.BacklinkOpts
 ---@field completion obsidian.config.CompletionOpts
 ---@field mappings obsidian.config.MappingOpts
 ---@field picker obsidian.config.PickerOpts
@@ -55,6 +56,7 @@ config.ClientOpts.default = function()
     follow_img_func = vim.ui.open,
     note_frontmatter_func = nil,
     disable_frontmatter = false,
+    backlinks = config.BacklinkOpts.default(),
     completion = config.CompletionOpts.default(),
     mappings = config.MappingOpts.default(),
     picker = config.PickerOpts.default(),
@@ -293,6 +295,15 @@ config.LinkStyle = {
   wiki = "wiki",
   markdown = "markdown",
 }
+
+---@class obsidian.config.BacklinkOpts
+config.BacklinkOpts = {}
+
+--- Get defaults.
+---@return obsidian.config.BacklinkOpts
+config.BacklinkOpts.default = function()
+  return {}
+end
 
 ---@class obsidian.config.CompletionOpts
 ---
