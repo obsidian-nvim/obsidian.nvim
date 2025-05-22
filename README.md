@@ -489,7 +489,9 @@ require("obsidian").setup {
   -- Optional, by default, `:ObsidianBacklinks` parses the header under
   -- the cursor. Setting to `false` will get the backlinks for the current
   -- note instead. Doesn't affect other link behaviour.
-  parse_headers = true
+  backlinks = {
+    parse_headers = true
+  }
 
   -- Optional, sort search results by "path", "modified", "accessed", or "created".
   -- The recommend value is "modified" and `true` for `sort_reversed`, which means, for example,

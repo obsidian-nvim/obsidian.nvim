@@ -11,9 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `makefile types` target to check types via lua-ls
 - Added `.github/pull_request_template.md` to make contributing simpler
+<<<<<<< HEAD
 - Allow users to have a period in the note ID as in a [Johnny.Decimal](https://johnnydecimal.com/) format
 - Added `backlinks` config table with the associated `obsidian.config.BacklinkOpts`
 - Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
+||||||| parent of 6190c38 (review: update CHANGELOG.md)
+- Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
+=======
+- Added `parse_headers` toggle that disables markdown header parsing for `Obsidian backlinks`.
+>>>>>>> 6190c38 (review: update CHANGELOG.md)
 
 ### Changed
 

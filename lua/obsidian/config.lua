@@ -26,7 +26,6 @@ local config = {}
 ---@field daily_notes obsidian.config.DailyNotesOpts
 ---@field use_advanced_uri boolean|?
 ---@field open_app_foreground boolean|?
----@field parse_headers boolean|?
 ---@field sort_by obsidian.config.SortBy|?
 ---@field sort_reversed boolean|?
 ---@field search_max_lines integer
@@ -299,12 +298,15 @@ config.LinkStyle = {
 }
 
 ---@class obsidian.config.BacklinkOpts
+---@field parse_headers boolean
 config.BacklinkOpts = {}
 
 --- Get defaults.
 ---@return obsidian.config.BacklinkOpts
 config.BacklinkOpts.default = function()
-  return {}
+  return {
+    parse_headers = true,
+  }
 end
 
 ---@class obsidian.config.CompletionOpts
