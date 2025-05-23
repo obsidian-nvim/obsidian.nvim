@@ -115,6 +115,19 @@ obsidian.setup = function(opts)
 
   local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
+  -- wrapper for creating autocmd events
+  ---@param pattern string
+  ---@param buf integer
+  local function exec_autocmds(pattern, buf)
+    vim.api.nvim_exec_autocmds("User", {
+      pattern = pattern,
+      group = group,
+      data = {
+        note = require("obsidian.note").from_buffer(buf),
+      },
+    })
+  end
+
   -- Complete setup and update workspace (if needed) when entering a markdown buffer.
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     group = group,
@@ -164,15 +177,10 @@ obsidian.setup = function(opts)
 
       -- Run enter-note callback.
       client.callback_manager:enter_note(function()
-        return obsidian.Note.from_buffer(ev.bufnr)
+        return obsidian.Note.from_buffer(ev.buf)
       end)
 
-      vim.api.nvim_exec_autocmds("User", {
-        pattern = "ObsidianEnterNote",
-        data = {
-          note = require("obsidian.note").from_buffer(ev.buf),
-        },
-      })
+      exec_autocmds("ObsidianNoteEnter", ev.buf)
     end,
   })
 
@@ -191,12 +199,12 @@ obsidian.setup = function(opts)
         return
       end
 
-      vim.api.nvim_exec_autocmds("User", {
-        pattern = "ObsidianLeaveNote",
-        data = {
-          note = require("obsidian.note").from_buffer(ev.buf),
-        },
-      })
+      -- Run leave-note callback.
+      client.callback_manager:leave_note(function()
+        return obsidian.Note.from_buffer(ev.buf)
+      end)
+
+      exec_autocmds("ObsidianNoteLeave", ev.buf)
     end,
   })
 
@@ -222,12 +230,10 @@ obsidian.setup = function(opts)
       local bufnr = ev.buf
       local note = obsidian.Note.from_buffer(bufnr)
 
-      vim.api.nvim_exec_autocmds("User", {
-        pattern = "ObsidianPreWriteNote",
-        data = {
-          note = note,
-        },
-      })
+      -- Run pre-write-note callback.
+      client.callback_manager:pre_write_note(note)
+
+      exec_autocmds("ObsidianNoteWritePre", ev.buf)
 
       -- Update buffer with new frontmatter.
       if client:update_frontmatter(note, bufnr) then
@@ -253,16 +259,7 @@ obsidian.setup = function(opts)
         return
       end
 
-      -- Initialize note.
-      local bufnr = ev.buf
-      local note = obsidian.Note.from_buffer(bufnr)
-
-      vim.api.nvim_exec_autocmds("User", {
-        pattern = "ObsidianPostWriteNote",
-        data = {
-          note = note,
-        },
-      })
+      exec_autocmds("ObsidianNoteWritePost", ev.buf)
     end,
   })
 
