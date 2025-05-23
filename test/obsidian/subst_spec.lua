@@ -1,7 +1,7 @@
 local obsidian = require "obsidian"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
-local templates = require "obsidian.templates"
+local subst = require "obsidian.subst"
 
 ---Get a client in a temporary directory.
 ---
@@ -18,13 +18,17 @@ local tmp_client = function()
   return obsidian.new_from_dir(tostring(dir))
 end
 
-describe("templates.substitute_template_variables()", function()
+describe("subst.substitute_template_variables()", function()
   it("should substitute built-in variables", function()
     local client = tmp_client()
     local text = "today is {{date}} and the title of the note is {{title}}"
     assert.equal(
       string.format("today is %s and the title of the note is %s", os.date "%Y-%m-%d", "FOO"),
-      templates.substitute_template_variables(text, client, Note.new("FOO", { "FOO" }, {}))
+      subst.substitute_template_variables(text, {
+        action = "clone_template",
+        client = client,
+        target_note = Note.new("FOO", { "FOO" }, {}),
+      })
     )
   end)
 
@@ -36,7 +40,14 @@ describe("templates.substitute_template_variables()", function()
       end,
     }
     local text = "today is {{weekday}}"
-    assert.equal("today is Monday", templates.substitute_template_variables(text, client, Note.new("foo", {}, {})))
+    assert.equal(
+      "today is Monday",
+      subst.substitute_template_variables(text, {
+        action = "clone_template",
+        client = client,
+        target_note = Note.new("foo", {}, {}),
+      })
+    )
 
     -- Make sure the client opts has not been modified.
     assert.equal(1, vim.tbl_count(client.opts.templates.substitutions))
