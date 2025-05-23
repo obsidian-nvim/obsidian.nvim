@@ -73,6 +73,8 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For example, `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow.
 
+- `:ObsidianExtractNote [TITLE]` to extract the visually selected text into a new note and link to it.
+
 - `:Obsidian follow_link [vsplit|hsplit]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
 
 - `:Obsidian link [QUERY]` to link an inline visual selection of text to a note.
@@ -91,6 +93,8 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian open [QUERY]` to open a note in the Obsidian app.
   One optional argument: a query used to resolve the note to open by ID, path, or alias. If not given, the current buffer is used.
+
+- `:Obsidian paste_img [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option.
 
 - `:Obsidian quick_switch` to quickly switch to another note in your vault, searching by its name with a picker.
 

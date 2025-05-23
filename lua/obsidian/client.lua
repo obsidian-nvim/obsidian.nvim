@@ -308,7 +308,7 @@ end
 
 --- Run an obsidian command directly.
 ---
----@usage `client:command("ObsidianNew", { args = "Foo" })`
+---@usage `client:command("new", { args = "Foo" })`
 ---
 ---@param cmd_name string The name of the command.
 ---@param cmd_data table|? The payload for the command.

@@ -63,7 +63,7 @@ obsidian.info = function()
   end
 
   local client = obsidian.get_client()
-  client:command("ObsidianDebug", { raw_print = true })
+  client:command("debug", { raw_print = true })
 end
 
 ---Create a new Obsidian client without additional setup.
