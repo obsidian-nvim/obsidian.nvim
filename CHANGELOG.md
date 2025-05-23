@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow users to have a period in the note ID as in a [Johnny.Decimal](https://johnnydecimal.com/) format
 - Added `backlinks` config table with the associated `obsidian.config.BacklinkOpts`
 - Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
+- Added autocmd events for user scripting, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Autocmds
 
 ### Changed
 

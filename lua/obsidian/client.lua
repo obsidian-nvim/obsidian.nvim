@@ -137,7 +137,7 @@ Client.set_workspace = function(self, workspace, opts)
 
   self.callback_manager:post_set_workspace(workspace)
   vim.api.nvim_exec_autocmds("User", {
-    pattern = "ObsidianSetWorkpspacePost",
+    pattern = "ObsidianWorkpspaceSet",
     data = { workspace = workspace },
   })
 end

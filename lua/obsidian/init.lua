@@ -121,7 +121,6 @@ obsidian.setup = function(opts)
   local function exec_autocmds(pattern, buf)
     vim.api.nvim_exec_autocmds("User", {
       pattern = pattern,
-      group = group,
       data = {
         note = require("obsidian.note").from_buffer(buf),
       },
