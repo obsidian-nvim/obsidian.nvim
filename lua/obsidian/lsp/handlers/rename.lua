@@ -40,7 +40,7 @@ local ref_patterns = {
 }
 
 ---@param client obsidian.Client
----@param params table
+---@param params lsp.RenameParams
 local function rename_current_note(client, params)
   local new_note_id = params.newName
   local uri = params.textDocument.uri

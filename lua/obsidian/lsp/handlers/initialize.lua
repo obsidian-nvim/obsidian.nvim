@@ -56,10 +56,10 @@ local initializeResult = {
 }
 
 ---@param client obsidian.Client
----@param params table
+---@param params lsp.InitializeParams
 ---@param handler function
 return function(client, params, handler, _)
   vim.list_extend(initializeResult.capabilities.executeCommandProvider.commands, vim.tbl_keys(Config.actions))
 
-  return handler(nil, initializeResult, params.context)
+  return handler(nil, initializeResult)
 end

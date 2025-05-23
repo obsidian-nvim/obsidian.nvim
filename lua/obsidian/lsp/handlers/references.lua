@@ -6,7 +6,7 @@ local Note = require "obsidian.note"
 -- TODO: references for anchor, blocks
 
 ---@param obsidian_client obsidian.Client
----@param _ table
+---@param _ lsp.ReferenceParams
 ---@param handler function
 return function(obsidian_client, _, handler, _)
   local tag = util.cursor_tag(nil, nil)

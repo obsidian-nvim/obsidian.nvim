@@ -1,8 +1,8 @@
 local util = require "obsidian.lsp.util"
 
 ---@param client obsidian.Client
----@param params table
----@param handler function
+---@param params lsp.CompletionItem
+---@param handler fun(nil, lsp.CompletionItem)
 return function(client, params, handler, _)
   local kind = params.data.kind
 
