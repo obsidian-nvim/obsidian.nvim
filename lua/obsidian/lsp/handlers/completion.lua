@@ -272,7 +272,7 @@ local function get_type(text, style, min_char)
 end
 
 ---@param client obsidian.Client
----@param params table
+---@param params lsp.CompletionParams
 ---@param handler function
 return function(client, params, handler, _)
   local link_style = client.opts.preferred_link_style

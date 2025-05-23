@@ -4,7 +4,7 @@ local lsp_util = require "obsidian.lsp.util"
 --- TODO: tag hover should also work on frontmatter
 
 ---@param client obsidian.Client
----@param params table
+---@param params lsp.HoverParams
 ---@param handler function
 return function(client, params, handler, _)
   local cursor_ref = util.parse_cursor_link() -- TODO: use title to validate if note is right
