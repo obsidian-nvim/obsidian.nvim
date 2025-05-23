@@ -1,7 +1,7 @@
 local Config = require "obsidian.lsp.config"
 
 ---@param client obsidian.Client
----@param params table
+---@param params lsp.ExecuteCommandParams
 return function(client, params)
   local cmd = params.command
 
