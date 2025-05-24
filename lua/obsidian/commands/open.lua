@@ -1,10 +1,12 @@
 local util = require "obsidian.util"
-local log = require "obsidian.log"
 local RefTypes = require("obsidian.search").RefTypes
 
 ---@param client obsidian.Client
----@param path string|obsidian.Path
+---@param path? string|obsidian.Path
 local function open_in_app(client, path)
+  if not path then
+    return client.opts.open.func("obsidian://open?vault=" .. util.urlencode(client:vault_name()))
+  end
   path = tostring(client:vault_relative_path(path, { strict = true }))
   local vault_name = client:vault_name()
   local this_os = util.get_os()
@@ -54,12 +56,7 @@ return function(client, data)
   else
     -- Otherwise use the path of the current buffer.
     local bufname = vim.api.nvim_buf_get_name(0)
-    local path = client:vault_relative_path(bufname, { strict = true })
-    if path == nil then
-      log.err("Current buffer '%s' does not appear to be inside the vault", bufname)
-      return
-    else
-      return open_in_app(client, path)
-    end
+    local path = client:vault_relative_path(bufname)
+    open_in_app(client, path)
   end
 end
