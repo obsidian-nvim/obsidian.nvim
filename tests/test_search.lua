@@ -1,0 +1,270 @@
+local async = require "plenary.async"
+local channel = require("plenary.async.control").channel
+local search = require "obsidian.search"
+local Path = require "obsidian.path"
+
+local RefTypes = search.RefTypes
+local SearchOpts = search.SearchOpts
+local Patterns = search.Patterns
+
+describe("search.find_notes_async()", function()
+  it("should recursively find notes in a directory given a file name", function()
+    async.util.block_on(function()
+      local tx, rx = channel.oneshot()
+      search.find_notes_async(".", "foo.md", function(matches)
+        MiniTest.expect.equality(#matches, 1)
+        MiniTest.expect.equality(
+          tostring(matches[1]),
+          tostring(Path.new("./test/fixtures/notes/foo.md"):resolve { strict = true })
+        )
+        tx()
+      end)
+      rx()
+    end, 2000)
+  end)
+  it("should recursively find notes in a directory given a partial path", function()
+    async.util.block_on(function()
+      local tx, rx = channel.oneshot()
+      search.find_notes_async(".", "notes/foo.md", function(matches)
+        MiniTest.expect.equality(#matches, 1)
+        MiniTest.expect.equality(
+          tostring(matches[1]),
+          tostring(Path.new("./test/fixtures/notes/foo.md"):resolve { strict = true })
+        )
+        tx()
+      end)
+      rx()
+    end, 2000)
+  end)
+end)
+
+describe("search.find_refs()", function()
+  it("should find positions of all refs", function()
+    local s = "[[Foo]] [[foo|Bar]]"
+    MiniTest.expect.equality({ { 1, 7, RefTypes.Wiki }, { 9, 19, RefTypes.WikiWithAlias } }, search.find_refs(s))
+  end)
+
+  it("should ignore refs within an inline code block", function()
+    local s = "`[[Foo]]` [[foo|Bar]]"
+    MiniTest.expect.equality({ { 11, 21, RefTypes.WikiWithAlias } }, search.find_refs(s))
+
+    s = "[nvim-cmp](https://github.com/hrsh7th/nvim-cmp) (triggered by typing `[[` for wiki links or "
+      .. "just `[` for markdown links), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep)"
+    MiniTest.expect.equality({ { 1, 47, RefTypes.Markdown }, { 134, 183, RefTypes.Markdown } }, search.find_refs(s))
+  end)
+
+  it("should find block IDs at the end of a line", function()
+    MiniTest.expect.equality(
+      { { 14, 25, RefTypes.BlockID } },
+      search.find_refs("Hello World! ^hello-world", { include_block_ids = true })
+    )
+  end)
+end)
+
+describe("search.find_tags()", function()
+  it("should find positions of all tags", function()
+    local s = "I have a #meeting at noon"
+    MiniTest.expect.equality({ { 10, 17, RefTypes.Tag } }, search.find_tags(s))
+  end)
+
+  it("should ignore escaped tags", function()
+    local s = "I have a #meeting at noon \\#not-a-tag"
+    MiniTest.expect.equality({ { 10, 17, RefTypes.Tag } }, search.find_tags(s))
+    s = [[\#notatag]]
+    MiniTest.expect.equality({}, search.find_tags(s))
+  end)
+
+  it("should ignore anchor links that look like tags", function()
+    local s = "[readme](README#installation)"
+    MiniTest.expect.equality({}, search.find_tags(s))
+  end)
+end)
+
+describe("search.find_and_replace_refs()", function()
+  it("should find and replace all refs", function()
+    local s, indices = search.find_and_replace_refs "[[Foo]] [[foo|Bar]]"
+    local expected_s = "Foo Bar"
+    local expected_indices = { { 1, 3 }, { 5, 7 } }
+    MiniTest.expect.equality(s, expected_s)
+    MiniTest.expect.equality(#indices, #expected_indices)
+    for i = 1, #indices do
+      MiniTest.expect.equality(indices[i][1], expected_indices[i][1])
+      MiniTest.expect.equality(indices[i][2], expected_indices[i][2])
+    end
+  end)
+end)
+
+describe("search.replace_refs()", function()
+  it("should remove refs and links from a string", function()
+    MiniTest.expect.equality(search.replace_refs "Hi there [[foo|Bar]]", "Hi there Bar")
+    MiniTest.expect.equality(search.replace_refs "Hi there [[Bar]]", "Hi there Bar")
+    MiniTest.expect.equality(search.replace_refs "Hi there [Bar](foo)", "Hi there Bar")
+    MiniTest.expect.equality(search.replace_refs "Hi there [[foo|Bar]] [[Baz]]", "Hi there Bar Baz")
+  end)
+end)
+
+describe("search.SearchOpts", function()
+  it("should initialize from a raw table and resolve to ripgrep options", function()
+    local opts = SearchOpts.from_tbl {
+      sort_by = "modified",
+      fixed_strings = true,
+      ignore_case = true,
+      exclude = { "templates" },
+      max_count_per_file = 1,
+    }
+    MiniTest.expect.equality(
+      opts:to_ripgrep_opts(),
+      { "--sortr=modified", "--fixed-strings", "--ignore-case", "-g!templates", "-m=1" }
+    )
+  end)
+
+  it("should not include any options with defaults", function()
+    local opts = SearchOpts.from_tbl {}
+    MiniTest.expect.equality(opts:to_ripgrep_opts(), {})
+  end)
+
+  it("should initialize from another SearchOpts instance", function()
+    local opts = SearchOpts.from_tbl(SearchOpts.from_tbl { fixed_strings = true })
+    MiniTest.expect.equality(opts:to_ripgrep_opts(), { "--fixed-strings" })
+  end)
+
+  it("should merge with another SearchOpts instance", function()
+    local opts = SearchOpts.from_tbl { fixed_strings = true, max_count_per_file = 1 }
+    opts = opts:merge { fixed_strings = false, ignore_case = true }
+    MiniTest.expect.equality(opts:to_ripgrep_opts(), { "--ignore-case", "-m=1" })
+  end)
+end)
+
+describe("search.RefTypes", function()
+  it("should have all keys matching values", function()
+    for k, v in pairs(RefTypes) do
+      assert(k == v)
+    end
+  end)
+end)
+
+describe("search.Patterns", function()
+  it("should include a pattern for every RefType", function()
+    for _, ref_type in pairs(RefTypes) do
+      assert(type(Patterns[ref_type]) == "string")
+    end
+  end)
+end)
+
+describe("search.find_code_blocks", function()
+  it("should find generic code blocks", function()
+    ---@type string[]
+    local lines
+    local results = {
+      { 3, 6 },
+    }
+
+    -- no indentation
+    lines = {
+      "this is a python function:",
+      "",
+      "```",
+      "def foo():",
+      "    pass",
+      "```",
+      "",
+    }
+    MiniTest.expect.equality(results, search.find_code_blocks(lines))
+
+    -- indentation
+    lines = {
+      "  this is a python function:",
+      "",
+      "  ```",
+      "  def foo():",
+      "      pass",
+      "  ```",
+      "",
+    }
+    MiniTest.expect.equality(results, search.find_code_blocks(lines))
+  end)
+
+  it("should find generic inline code blocks", function()
+    ---@type string[]
+    local lines
+    local results = {
+      { 3, 3 },
+    }
+
+    -- no indentation
+    lines = {
+      "this is a python function:",
+      "",
+      "```lambda x: x + 1```",
+      "",
+    }
+    MiniTest.expect.equality(results, search.find_code_blocks(lines))
+
+    -- indentation
+    lines = {
+      "  this is a python function:",
+      "",
+      "  ```lambda x: x + 1```",
+      "",
+    }
+    MiniTest.expect.equality(results, search.find_code_blocks(lines))
+  end)
+
+  it("should find lang-specific code blocks", function()
+    ---@type string[]
+    local lines
+    local results = {
+      { 3, 6 },
+    }
+
+    -- no indentation
+    lines = {
+      "this is a python function:",
+      "",
+      "```python",
+      "def foo():",
+      "    pass",
+      "```",
+      "",
+    }
+    MiniTest.expect.equality(results, search.find_code_blocks(lines))
+
+    -- indentation
+    lines = {
+      "  this is a python function:",
+      "",
+      "  ```",
+      "  def foo():",
+      "      pass",
+      "  ```",
+      "",
+    }
+    MiniTest.expect.equality(results, search.find_code_blocks(lines))
+  end)
+
+  it("should find lang-specific inline code blocks", function()
+    ---@type string[]
+    local lines
+    local results = {
+      { 3, 3 },
+    }
+
+    -- no indentation
+    lines = {
+      "this is a python function:",
+      "",
+      "```{python} lambda x: x + 1```",
+      "",
+    }
+    MiniTest.expect.equality(results, search.find_code_blocks(lines))
+
+    -- indentation
+    lines = {
+      "  this is a python function:",
+      "",
+      "  ```{python} lambda x: x + 1```",
+      "",
+    }
+    MiniTest.expect.equality(results, search.find_code_blocks(lines))
+  end)
+end)
