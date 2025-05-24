@@ -175,7 +175,7 @@ describe("Note.from_file()", function()
   it("should be able to be read frontmatter that's formatted differently", function()
     local note = Note.from_file "test/fixtures/notes/note_with_different_frontmatter_format.md"
     MiniTest.expect.equality(note.id, "note_with_different_frontmatter_format")
-    MiniTest.expect.no_equality(note.metadata, nil)
+    MiniTest.expect.equality(note.metadata, nil)
     MiniTest.expect.equality(#note.aliases, 3)
     MiniTest.expect.equality(note.aliases[1], "Amanda Green")
     MiniTest.expect.equality(note.aliases[2], "Detective Green")
