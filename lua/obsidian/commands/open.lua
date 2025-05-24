@@ -25,7 +25,7 @@ local function open_in_app(client, path)
     uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
   end
 
-  vim.ui.open(uri)
+  client.opts.open.func(uri)
 end
 
 ---@param client obsidian.Client
