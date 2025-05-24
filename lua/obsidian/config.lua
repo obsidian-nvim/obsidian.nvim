@@ -24,7 +24,6 @@ local config = {}
 ---@field mappings obsidian.config.MappingOpts
 ---@field picker obsidian.config.PickerOpts
 ---@field daily_notes obsidian.config.DailyNotesOpts
----@field use_advanced_uri boolean|?
 ---@field sort_by obsidian.config.SortBy|?
 ---@field sort_reversed boolean|?
 ---@field search_max_lines integer
@@ -62,7 +61,6 @@ config.ClientOpts.default = function()
     mappings = config.MappingOpts.default(),
     picker = config.PickerOpts.default(),
     daily_notes = config.DailyNotesOpts.default(),
-    use_advanced_uri = nil,
     sort_by = "modified",
     sort_reversed = true,
     search_max_lines = 1000,
@@ -216,6 +214,11 @@ config.ClientOpts.normalize = function(opts, defaults)
   }
 }
 ```]]
+  end
+
+  if opts.use_advanced_uri ~= nil then
+    opts.use_advanced_uri = nil
+    log.warn_once [[The config option 'use_advanced_uri' is deprecated, please use in `open` module instead]]
   end
 
   if opts.overwrite_mappings ~= nil then
