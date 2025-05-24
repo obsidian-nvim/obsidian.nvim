@@ -77,7 +77,6 @@ config.ClientOpts.default = function()
       enabled = true,
     },
     ---@class obsidian.config.OpenOpts
-    ---@field foreground boolean only effects MacOs
     ---@field use_advanced_uri boolean opens the file with current line number
     ---@field func fun(uri: string) default to vim.ui.open
     open = {
