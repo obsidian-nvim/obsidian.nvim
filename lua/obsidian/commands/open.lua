@@ -18,7 +18,7 @@ local function open_in_app(client, path)
   local encoded_path = util.urlencode(path)
 
   local uri
-  if client.opts.use_advanced_uri then
+  if client.opts.open.use_advanced_uri then
     local line = vim.api.nvim_win_get_cursor(0)[1] or 1
     uri = ("obsidian://advanced-uri?vault=%s&filepath=%s&line=%i"):format(encoded_vault, encoded_path, line)
   else

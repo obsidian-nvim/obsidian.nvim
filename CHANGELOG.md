@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `backlinks` config table with the associated `obsidian.config.BacklinkOpts`
 - Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
 - Added autocmd events for user scripting, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Autocmds
+- Added `open` module for `Obsidian open` related options
 
 ### Changed
 
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `fillchars`, `foldtext`, and `smoothscroll` configurations.
 - Relaxed yaml dump quoting condition so that dates are not quoted
 - Update Stylua version from 0.15.1 → 2.1.0
+- Deprecate `open_app_foreground`
 
 ### Fixed
 
