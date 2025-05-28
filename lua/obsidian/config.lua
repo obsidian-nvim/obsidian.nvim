@@ -91,6 +91,10 @@ local tbl_override = function(defaults, overrides)
   return out
 end
 
+local function deprecate(name, alternative, version)
+  vim.deprecate(name, alternative, version, "obsidian.nvim", false)
+end
+
 --- Normalize options.
 ---
 ---@param opts table<string, any>
@@ -224,7 +228,7 @@ config.ClientOpts.normalize = function(opts, defaults)
   end
 
   if opts.legacy_commands then
-    log.warn_once "The 'legacy_commands' config option is deprecated and will be removed in a future update."
+    deprecate("legacy_commands", [[move from commands like `Obsidian backlinks` to `ObsidianBacklinks`]], "4.0")
     opts.tags = nil
   end
 
