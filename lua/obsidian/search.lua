@@ -1,5 +1,3 @@
-local Deque = require("plenary.async.structs").Deque
-
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
 local util = require "obsidian.util"
@@ -461,41 +459,7 @@ end
 ---@field absolute_offset integer
 ---@field submatches SubMatch[]
 
---- Search markdown files in a directory for a given term. Return an iterator
---- over `MatchData`.
----
----@param dir string|obsidian.Path
----@param term string
----@param opts obsidian.search.SearchOpts|?
----
----@return function
-M.search = function(dir, term, opts)
-  local matches = Deque.new()
-  local done = false
-
-  M.search_async(dir, term, opts, function(match_data)
-    matches:pushright(match_data)
-  end, function(_)
-    done = true
-  end)
-
-  ---Iterator over matches.
-  ---
-  ---@return MatchData|?
-  return function()
-    while true do
-      if not matches:is_empty() then
-        return matches:popleft()
-      elseif matches:is_empty() and done then
-        return nil
-      else
-        vim.wait(100)
-      end
-    end
-  end
-end
-
---- An async version of `.search()`. Each match is passed to the `on_match` callback.
+--- Search markdown files in a directory for a given term. Each match is passed to the `on_match` callback.
 ---
 ---@param dir string|obsidian.Path
 ---@param term string|string[]
@@ -517,41 +481,7 @@ M.search_async = function(dir, term, opts, on_match, on_exit)
   end)
 end
 
---- Find markdown files in a directory matching a given term. Return an iterator
---- over file names.
----
----@param dir string|obsidian.Path
----@param term string
----@param opts obsidian.search.SearchOpts|?
----
----@return function
-M.find = function(dir, term, opts)
-  local paths = Deque.new()
-  local done = false
-
-  M.find_async(dir, term, opts, function(path)
-    paths:pushright(path)
-  end, function(_)
-    done = true
-  end)
-
-  --- Iterator over matches.
-  ---
-  ---@return MatchData|?
-  return function()
-    while true do
-      if not paths:is_empty() then
-        return paths:popleft()
-      elseif paths:is_empty() and done then
-        return nil
-      else
-        vim.wait(100)
-      end
-    end
-  end
-end
-
---- An async version of `.find()`. Each matching path is passed to the `on_match` callback.
+--- Find markdown files in a directory matching a given term. Each matching path is passed to the `on_match` callback.
 ---
 ---@param dir string|obsidian.Path
 ---@param term string
