@@ -326,21 +326,20 @@ File.write_lines = function(self, lines)
   end
 end
 
----@param cmd string
----@param args string[]
+---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
 ---@param sync boolean
-local init_job = function(cmd, args, on_stdout, on_exit, sync)
+local init_job = function(cmds, on_stdout, on_exit, sync)
   local stderr_lines = false
 
   local on_obj = function(obj)
     --- NOTE: commands like `rg` return a non-zero exit code when there are no matches, which is okay.
     --- So we only log no-zero exit codes as errors when there's also stderr lines.
     if obj.code > 0 and stderr_lines then
-      log.err("Command '%s' with args '%s' exited with non-zero code %s. See logs for stderr.", cmd, args, obj.code)
+      log.err("Command '%s' exited with non-zero code %s. See logs for stderr.", cmds, obj.code)
     elseif stderr_lines then
-      log.warn("Captured stderr output while running command '%s' with args '%s'. See logs for details.", cmd, args)
+      log.warn("Captured stderr output while running command '%s'. See logs for details.", cmds)
     end
     if on_exit ~= nil then
       on_exit(obj.code)
@@ -351,7 +350,7 @@ local init_job = function(cmd, args, on_stdout, on_exit, sync)
 
   local function stdout(err, data)
     if err ~= nil then
-      return log.err("Error running command '%s' with args '%s'\n:%s", cmd, args, err)
+      return log.err("Error running command '%s'\n:%s", cmds, err)
     end
     if data ~= nil then
       on_stdout(data)
@@ -360,10 +359,10 @@ local init_job = function(cmd, args, on_stdout, on_exit, sync)
 
   local function stderr(err, data)
     if err then
-      return log.err("Error running command '%s' with args '%s'\n:%s", cmd, args, err)
+      return log.err("Error running command '%s'\n:%s", cmds, err)
     elseif data ~= nil then
       if not stderr_lines then
-        log.err("Captured stderr output while running command '%s' with args '%s'", cmd, args)
+        log.err("Captured stderr output while running command '%s'", cmds)
         stderr_lines = true
       end
       log.err("[stderr] %s", data)
@@ -371,10 +370,7 @@ local init_job = function(cmd, args, on_stdout, on_exit, sync)
   end
 
   return function()
-    log.debug("Initializing job '%s' with args '%s'", cmd, args)
-
-    local cmds = { cmd }
-    vim.list_extend(cmds, args)
+    log.debug("Initializing job '%s'", cmds)
 
     if sync then
       local obj = vim.system(cmds, { stdout = stdout, stderr = stderr }):wait()
@@ -386,22 +382,20 @@ local init_job = function(cmd, args, on_stdout, on_exit, sync)
   end
 end
 
----@param cmd string
----@param args string[]
+---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
 ---@return integer exit_code
-M.run_job = function(cmd, args, on_stdout, on_exit)
-  local job = init_job(cmd, args, on_stdout, on_exit, true)
+M.run_job = function(cmds, on_stdout, on_exit)
+  local job = init_job(cmds, on_stdout, on_exit, true)
   return job().code
 end
 
----@param cmd string
----@param args string[]
+---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
-M.run_job_async = function(cmd, args, on_stdout, on_exit)
-  local job = init_job(cmd, args, on_stdout, on_exit, false)
+M.run_job_async = function(cmds, on_stdout, on_exit)
+  local job = init_job(cmds, on_stdout, on_exit, false)
   job()
 end
 
