@@ -448,6 +448,9 @@ require("obsidian").setup {
     time_format = "%H:%M",
     -- A map for custom variables, the key should be the variable and the value a function
     substitutions = {},
+
+    -- A map for configuring unique directories and paths for specific templates
+    customizations = {},
   },
 
   -- Sets how you follow URLs
