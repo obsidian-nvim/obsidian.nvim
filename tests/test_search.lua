@@ -3,6 +3,35 @@ local RefTypes = search.RefTypes
 local SearchOpts = search.SearchOpts
 local Patterns = search.Patterns
 
+describe("search.find_async", function()
+  it("should find files with search term in name", function()
+    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "test", "fixtures", "notes")
+    local match_counter = 0
+
+    search.find_async(fixtures, "foo", {}, function(match)
+      MiniTest.expect.equality(true, match:find "foo" ~= nil)
+      match_counter = match_counter + 1
+    end, function(exit_code)
+      MiniTest.expect.equality(0, exit_code)
+      MiniTest.expect.equality(2, match_counter)
+    end)
+  end)
+end)
+
+describe("search.search_async", function()
+  it("should find files with search term in content", function()
+    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "test", "fixtures", "notes")
+    local match_counter = 0
+    search.search_async(fixtures, "foo", {}, function(match)
+      MiniTest.expect.equality("foo", match.submatches[1].match.text)
+      match_counter = match_counter + 1
+    end, function(exit_code)
+      MiniTest.expect.equality(0, exit_code)
+      MiniTest.expect.equality(8, match_counter)
+    end)
+  end)
+end)
+
 describe("search.find_refs()", function()
   it("should find positions of all refs", function()
     local s = "[[Foo]] [[foo|Bar]]"
