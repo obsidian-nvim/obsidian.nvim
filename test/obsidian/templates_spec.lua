@@ -1,5 +1,5 @@
-local obsidian = require "obsidian"
-local Path = require "obsidian.path"
+local get_tmp_client = require("test_utils").get_tmp_client
+local cleanup_tmp_client = require("test_utils").cleanup_tmp_client
 local Note = require "obsidian.note"
 local templates = require "obsidian.templates"
 
