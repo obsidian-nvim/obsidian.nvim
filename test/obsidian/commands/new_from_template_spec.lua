@@ -48,7 +48,7 @@ describe("new_from_template", function()
 
     -- Act
     ---@diagnostic disable-next-line: missing-fields
-    new_from_template(client, { fargs = { "Special Title", "Zettel" } })
+    new_from_template(client, { fargs = { "Special Title", "zettel" } })
 
     -- Assert
     assert.spy(templates.load_template_customizations).was.called()
@@ -71,10 +71,9 @@ describe("new_from_template", function()
     end
 
     -- Act
-    ---@diagnostic disable-next-line: missing-fields
 
-    -- Must pass path here because we mock the fuzzy finder
-    new_from_template(client, { fargs = { title, "Zettel" } })
+    ---@diagnostic disable-next-line: missing-fields
+    new_from_template(client, { fargs = { title, "zettel" } })
     local f = io.open(expected, "r")
 
     -- Assert

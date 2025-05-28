@@ -44,7 +44,7 @@ describe("template", function()
       local old_id_func = client.opts.note_id_func
 
       -- Act
-      templates.load_template_customizations("Zettel", client)
+      templates.load_template_customizations("zettel", client)
 
       -- Assert
       assert.falsy(client.opts.notes_subdir)
@@ -57,7 +57,7 @@ describe("template", function()
       client:create_note { dir = templates_dir, id = "zettel" }
 
       -- Act
-      templates.load_template_customizations("Zettel", client)
+      templates.load_template_customizations("zettel", client)
 
       -- Assert
       assert.equal(zettelConfig.dir, client.opts.notes_subdir)
@@ -101,7 +101,7 @@ describe("template", function()
       }
 
       -- Act
-      templates.load_template_customizations("Zettel", client)
+      templates.load_template_customizations("zettel", client)
       assert.equal(zettelConfig.dir, client.opts.notes_subdir)
       assert.equal(NewNotesLocation.notes_subdir, client.opts.new_notes_location)
       assert.equal(zettelConfig.note_id_func, client.opts.note_id_func)
