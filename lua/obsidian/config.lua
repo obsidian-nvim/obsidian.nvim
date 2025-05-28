@@ -228,7 +228,7 @@ config.ClientOpts.normalize = function(opts, defaults)
   end
 
   if opts.legacy_commands then
-    deprecate("legacy_commands", [[move from commands like `Obsidian backlinks` to `ObsidianBacklinks`]], "4.0")
+    deprecate("legacy_commands", [[move from commands like `ObsidianBacklinks` to `Obsidian backlinks`]], "4.0")
     opts.tags = nil
   end
 
