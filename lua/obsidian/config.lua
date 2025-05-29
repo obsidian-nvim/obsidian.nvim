@@ -444,6 +444,7 @@ end
 ---@class obsidian.config.UIOpts
 ---
 ---@field enable boolean
+---@field ignore_conceal_warn boolean
 ---@field update_debounce integer
 ---@field max_file_length integer|?
 ---@field checkboxes table<string, obsidian.config.CheckboxSpec>
@@ -475,6 +476,7 @@ config.UIOpts = {}
 config.UIOpts.default = function()
   return {
     enable = true,
+    ignore_conceal_warn = false,
     update_debounce = 200,
     max_file_length = 5000,
     checkboxes = {
