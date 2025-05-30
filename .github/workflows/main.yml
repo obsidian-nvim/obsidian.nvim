@@ -94,6 +94,13 @@ jobs:
           Expand-Archive -F nvim-win64.zip .
           Move-Item -Path nvim-win64 -Destination _neovim
 
+      - name: Install plugin dependencies
+        shell: bash
+        run: |
+          # Clone plenary.
+          mkdir -p _runtime
+          # git clone --depth 1 https://github.com/nvim-lua/plenary.nvim _runtime/plenary.nvim
+
       - name: Show environment
         shell: bash
         run: |
