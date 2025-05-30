@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `backlinks` config table with the associated `obsidian.config.BacklinkOpts`
 - Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
 - Added autocmd events for user scripting, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Autocmds
+- Allow custom directory and ID logic for templates
 
 ### Changed
 
@@ -31,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed types in `_snacks.lua`
 - Fixed command documentation
+- Fixed improper tmp-file creation during template tests
 
 ## [v3.11.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.11.0) - 2025-05-04
 
