@@ -33,15 +33,7 @@ types: ## Type check with lua-ls
 	lua-language-server --configpath $(LUARC) --check lua/obsidian/
 
 .PHONY: test
-test: $(PLENARY) ## Run unit tests
-	PLENARY=$(PLENARY) nvim \
-		--headless \
-		--noplugin \
-		-u test/minimal_init.vim \
-		-c "PlenaryBustedDirectory $(TEST) { minimal_init = './test/minimal_init.vim' }"
-
-.PHONY: test2
-test2: $(MINITEST) $(PLENARY)
+test: $(MINITEST) $(PLENARY)
 	nvim --headless --noplugin -u ./scripts/minimal_init.lua -c "lua MiniTest.run()"
 
 $(MINITEST):
