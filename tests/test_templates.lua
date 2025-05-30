@@ -36,7 +36,10 @@ describe("templates.substitute_template_variables()", function()
       end,
     }
     local text = "today is {{weekday}}"
-    MiniTest.expect.equality("today is Monday", templates.substitute_template_variables(text, client, Note.new("foo", {}, {})))
+    MiniTest.expect.equality(
+      "today is Monday",
+      templates.substitute_template_variables(text, client, Note.new("foo", {}, {}))
+    )
 
     -- Make sure the client opts has not been modified.
     MiniTest.expect.equality(1, vim.tbl_count(client.opts.templates.substitutions))

@@ -6,7 +6,10 @@ describe("util.urlencode()", function()
   end)
 
   it("should keep path separated when asks", function()
-    MiniTest.expect.equality([[~/Library/Foo%20Bar.md]], util.urlencode([[~/Library/Foo Bar.md]], { keep_path_sep = true }))
+    MiniTest.expect.equality(
+      [[~/Library/Foo%20Bar.md]],
+      util.urlencode([[~/Library/Foo Bar.md]], { keep_path_sep = true })
+    )
   end)
 end)
 
@@ -296,16 +299,28 @@ end)
 
 describe("util.parse_header()", function()
   it("should include spaces", function()
-    MiniTest.expect.equality({ header = "Hello World", level = 2, anchor = "#hello-world" }, util.parse_header "## Hello World")
-    MiniTest.expect.equality({ header = "Hello World", level = 1, anchor = "#hello-world" }, util.parse_header "# Hello World")
+    MiniTest.expect.equality(
+      { header = "Hello World", level = 2, anchor = "#hello-world" },
+      util.parse_header "## Hello World"
+    )
+    MiniTest.expect.equality(
+      { header = "Hello World", level = 1, anchor = "#hello-world" },
+      util.parse_header "# Hello World"
+    )
   end)
 
   it("should include extra spaces at the beginning", function()
-    MiniTest.expect.equality({ header = "Hello World", level = 2, anchor = "#hello-world" }, util.parse_header "##  Hello World")
+    MiniTest.expect.equality(
+      { header = "Hello World", level = 2, anchor = "#hello-world" },
+      util.parse_header "##  Hello World"
+    )
   end)
 
   it("should strip white space at the end", function()
-    MiniTest.expect.equality({ header = "Hello World", level = 2, anchor = "#hello-world" }, util.parse_header "## Hello World ")
+    MiniTest.expect.equality(
+      { header = "Hello World", level = 2, anchor = "#hello-world" },
+      util.parse_header "## Hello World "
+    )
   end)
 end)
 
@@ -326,7 +341,10 @@ end)
 
 describe("util.wiki_link_id_prefix()", function()
   it("should work without an anchor link", function()
-    MiniTest.expect.equality("[[123-foo|Foo]]", util.wiki_link_id_prefix { path = "123-foo.md", id = "123-foo", label = "Foo" })
+    MiniTest.expect.equality(
+      "[[123-foo|Foo]]",
+      util.wiki_link_id_prefix { path = "123-foo.md", id = "123-foo", label = "Foo" }
+    )
   end)
 
   it("should work with an anchor link", function()
@@ -365,7 +383,10 @@ end)
 
 describe("util.wiki_link_path_only()", function()
   it("should work without an anchor link", function()
-    MiniTest.expect.equality("[[123-foo.md]]", util.wiki_link_path_only { path = "123-foo.md", id = "123-foo", label = "Foo" })
+    MiniTest.expect.equality(
+      "[[123-foo.md]]",
+      util.wiki_link_path_only { path = "123-foo.md", id = "123-foo", label = "Foo" }
+    )
   end)
 
   it("should work with an anchor link", function()
@@ -383,7 +404,10 @@ end)
 
 describe("util.markdown_link()", function()
   it("should work without an anchor link", function()
-    MiniTest.expect.equality("[Foo](123-foo.md)", util.markdown_link { path = "123-foo.md", id = "123-foo", label = "Foo" })
+    MiniTest.expect.equality(
+      "[Foo](123-foo.md)",
+      util.markdown_link { path = "123-foo.md", id = "123-foo", label = "Foo" }
+    )
   end)
 
   it("should work with an anchor link", function()

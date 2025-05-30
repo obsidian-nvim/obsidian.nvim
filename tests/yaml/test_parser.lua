@@ -26,15 +26,24 @@ describe("Parser class", function()
   end)
 
   it("should error when trying to parse an invalid number", function()
-    MiniTest.expect.equality(false, pcall(function(str)
-      return parser:parse_number(str)
-    end, "foo"))
-    MiniTest.expect.equality(false, pcall(function(str)
-      return parser:parse_number(str)
-    end, "Nan"))
-    MiniTest.expect.equality(false, pcall(function()
-      return parser:parse_number " 2025.5.6"
-    end))
+    MiniTest.expect.equality(
+      false,
+      pcall(function(str)
+        return parser:parse_number(str)
+      end, "foo")
+    )
+    MiniTest.expect.equality(
+      false,
+      pcall(function(str)
+        return parser:parse_number(str)
+      end, "Nan")
+    )
+    MiniTest.expect.equality(
+      false,
+      pcall(function()
+        return parser:parse_number " 2025.5.6"
+      end)
+    )
   end)
 
   it("should parse booleans while trimming whitespace", function()
@@ -220,7 +229,10 @@ describe("Parser class", function()
       "sources:",
       " - https://example.com",
     }, "\n"))
-    MiniTest.expect.equality({ aliases = { "Research project: staged training" }, sources = { "https://example.com" } }, result)
+    MiniTest.expect.equality(
+      { aliases = { "Research project: staged training" }, sources = { "https://example.com" } },
+      result
+    )
   end)
 
   it("should parse array item strings with '#' in them", function()
