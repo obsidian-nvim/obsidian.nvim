@@ -15,7 +15,7 @@ end)
 
 describe("Note.from_file()", function()
   it("should work from a file", function()
-    local note = Note.from_file "test/fixtures/notes/foo.md"
+    local note = Note.from_file "tests/fixtures/notes/foo.md"
     MiniTest.expect.equality(note.id, "foo")
     MiniTest.expect.equality(note.aliases[1], "foo")
     MiniTest.expect.equality(note.aliases[2], "Foo")
@@ -25,7 +25,7 @@ describe("Note.from_file()", function()
   end)
 
   it("should be able to collect anchor links", function()
-    local note = Note.from_file("test/fixtures/notes/note_with_a_bunch_of_headers.md", { collect_anchor_links = true })
+    local note = Note.from_file("tests/fixtures/notes/note_with_a_bunch_of_headers.md", { collect_anchor_links = true })
     MiniTest.expect.equality(note.id, "note_with_a_bunch_of_headers")
     MiniTest.expect.no_equality(note.anchor_links, nil)
 
@@ -91,7 +91,8 @@ describe("Note.from_file()", function()
   end)
 
   it("should be able to resolve anchor links after the fact", function()
-    local note = Note.from_file("test/fixtures/notes/note_with_a_bunch_of_headers.md", { collect_anchor_links = false })
+    local note =
+      Note.from_file("tests/fixtures/notes/note_with_a_bunch_of_headers.md", { collect_anchor_links = false })
     MiniTest.expect.equality(note.id, "note_with_a_bunch_of_headers")
     MiniTest.expect.equality(nil, note.anchor_links)
     MiniTest.expect.equality(
@@ -101,7 +102,7 @@ describe("Note.from_file()", function()
   end)
 
   it("should be able to collect blocks", function()
-    local note = Note.from_file("test/fixtures/notes/note_with_a_bunch_of_blocks.md", { collect_blocks = true })
+    local note = Note.from_file("tests/fixtures/notes/note_with_a_bunch_of_blocks.md", { collect_blocks = true })
     MiniTest.expect.no_equality(nil, note.blocks)
 
     MiniTest.expect.equality({
@@ -118,7 +119,7 @@ describe("Note.from_file()", function()
   end)
 
   it("should be able to collect blocks after the fact", function()
-    local note = Note.from_file("test/fixtures/notes/note_with_a_bunch_of_blocks.md", { collect_blocks = false })
+    local note = Note.from_file("tests/fixtures/notes/note_with_a_bunch_of_blocks.md", { collect_blocks = false })
     MiniTest.expect.equality(nil, note.blocks)
 
     MiniTest.expect.equality({
@@ -143,7 +144,7 @@ describe("Note.from_file()", function()
   end)
 
   it("should work from a file w/o frontmatter", function()
-    local note = Note.from_file "test/fixtures/notes/note_without_frontmatter.md"
+    local note = Note.from_file "tests/fixtures/notes/note_without_frontmatter.md"
     MiniTest.expect.equality(note.id, "note_without_frontmatter")
     MiniTest.expect.equality(note.title, "Hey there")
     MiniTest.expect.equality(#note.aliases, 0)
@@ -154,7 +155,7 @@ describe("Note.from_file()", function()
   end)
 
   it("should collect additional frontmatter metadata", function()
-    local note = Note.from_file "test/fixtures/notes/note_with_additional_metadata.md"
+    local note = Note.from_file "tests/fixtures/notes/note_with_additional_metadata.md"
     MiniTest.expect.equality(note.id, "note_with_additional_metadata")
     MiniTest.expect.no_equality(note.metadata, nil)
     MiniTest.expect.equality(note.metadata.foo, "bar")
@@ -169,11 +170,11 @@ describe("Note.from_file()", function()
         "---",
       }, "\n")
     )
-    note:save { path = "./test/fixtures/notes/note_with_additional_metadata_saved.md" }
+    note:save { path = "./tests/fixtures/notes/note_with_additional_metadata_saved.md" }
   end)
 
   it("should be able to be read frontmatter that's formatted differently", function()
-    local note = Note.from_file "test/fixtures/notes/note_with_different_frontmatter_format.md"
+    local note = Note.from_file "tests/fixtures/notes/note_with_different_frontmatter_format.md"
     MiniTest.expect.equality(note.id, "note_with_different_frontmatter_format")
     MiniTest.expect.equality(note.metadata, nil)
     MiniTest.expect.equality(#note.aliases, 3)
@@ -187,7 +188,7 @@ end)
 describe("Note.from_file_async()", function()
   it("should work from a file", function()
     async.util.block_on(function()
-      local note = Note.from_file_async "test/fixtures/notes/foo.md"
+      local note = Note.from_file_async "tests/fixtures/notes/foo.md"
       MiniTest.expect.equality(note.id, "foo")
       MiniTest.expect.equality(note.aliases[1], "foo")
       MiniTest.expect.equality(note.aliases[2], "Foo")
@@ -201,7 +202,7 @@ end)
 describe("Note.from_file_with_contents_async()", function()
   it("should work from a file", function()
     async.util.block_on(function()
-      local note, contents = Note.from_file_with_contents_async "test/fixtures/notes/foo.md"
+      local note, contents = Note.from_file_with_contents_async "tests/fixtures/notes/foo.md"
       MiniTest.expect.equality(note.id, "foo")
       MiniTest.expect.equality(note.aliases[1], "foo")
       MiniTest.expect.equality(note.aliases[2], "Foo")
@@ -215,7 +216,7 @@ end)
 
 describe("Note:add_alias()", function()
   it("should be able to add an alias", function()
-    local note = Note.from_file "test/fixtures/notes/foo.md"
+    local note = Note.from_file "tests/fixtures/notes/foo.md"
     MiniTest.expect.equality(#note.aliases, 2)
     note:add_alias "Foo Bar"
     MiniTest.expect.equality(#note.aliases, 3)
@@ -224,14 +225,14 @@ end)
 
 describe("Note.save()", function()
   it("should be able to save to file", function()
-    local note = Note.from_file "test/fixtures/notes/foo.md"
+    local note = Note.from_file "tests/fixtures/notes/foo.md"
     note:add_alias "Foo Bar"
-    note:save { path = "./test/fixtures/notes/foo_bar.md" }
+    note:save { path = "./tests/fixtures/notes/foo_bar.md" }
   end)
 
   it("should be able to save a note w/o frontmatter", function()
-    local note = Note.from_file "test/fixtures/notes/note_without_frontmatter.md"
-    note:save { path = "./test/fixtures/notes/note_without_frontmatter_saved.md" }
+    local note = Note.from_file "tests/fixtures/notes/note_without_frontmatter.md"
+    note:save { path = "./tests/fixtures/notes/note_without_frontmatter_saved.md" }
   end)
 
   it("should be able to save a new note", function()
