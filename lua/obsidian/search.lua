@@ -1,5 +1,4 @@
 local Deque = require("plenary.async.structs").Deque
-local scan = require "plenary.scandir"
 
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
@@ -569,44 +568,6 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
       on_exit(code)
     end
   end)
-end
-
---- Find all notes with the given file_name recursively in a directory.
----
----@param dir string|obsidian.Path
----@param note_file_name string
----@param callback fun(paths: obsidian.Path[])
-M.find_notes_async = function(dir, note_file_name, callback)
-  if not vim.endswith(note_file_name, ".md") then
-    note_file_name = note_file_name .. ".md"
-  end
-
-  local notes = {}
-  local root_dir = Path.new(dir):resolve { strict = true }
-
-  local visit_dir = function(entry)
-    ---@type obsidian.Path
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    local note_path = Path:new(entry) / note_file_name
-    if note_path:is_file() then
-      notes[#notes + 1] = note_path
-    end
-  end
-
-  -- We must separately check the vault's root dir because scan_dir will
-  -- skip it, but Obsidian does allow root-level notes.
-  visit_dir(root_dir)
-
-  scan.scan_dir_async(root_dir.filename, {
-    hidden = false,
-    add_dirs = false,
-    only_dirs = true,
-    respect_gitignore = true,
-    on_insert = visit_dir,
-    on_exit = function(_)
-      callback(notes)
-    end,
-  })
 end
 
 return M

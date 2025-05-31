@@ -1,42 +1,7 @@
-local async = require "plenary.async"
-local channel = require("plenary.async.control").channel
 local search = require "obsidian.search"
-local Path = require "obsidian.path"
-
 local RefTypes = search.RefTypes
 local SearchOpts = search.SearchOpts
 local Patterns = search.Patterns
-
-describe("search.find_notes_async()", function()
-  it("should recursively find notes in a directory given a file name", function()
-    async.util.block_on(function()
-      local tx, rx = channel.oneshot()
-      search.find_notes_async(".", "foo.md", function(matches)
-        MiniTest.expect.equality(#matches, 1)
-        MiniTest.expect.equality(
-          tostring(matches[1]),
-          tostring(Path.new("./test/fixtures/notes/foo.md"):resolve { strict = true })
-        )
-        tx()
-      end)
-      rx()
-    end, 2000)
-  end)
-  it("should recursively find notes in a directory given a partial path", function()
-    async.util.block_on(function()
-      local tx, rx = channel.oneshot()
-      search.find_notes_async(".", "notes/foo.md", function(matches)
-        MiniTest.expect.equality(#matches, 1)
-        MiniTest.expect.equality(
-          tostring(matches[1]),
-          tostring(Path.new("./test/fixtures/notes/foo.md"):resolve { strict = true })
-        )
-        tx()
-      end)
-      rx()
-    end, 2000)
-  end)
-end)
 
 describe("search.find_refs()", function()
   it("should find positions of all refs", function()

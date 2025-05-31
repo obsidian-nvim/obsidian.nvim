@@ -479,32 +479,9 @@ Path.rmdir = function(self)
   end
 end
 
+-- TODO: not implemented and not used, after we get to 0.11 we can simply use vim.fs.rm
 --- Recursively remove an entire directory and its contents.
-Path.rmtree = function(self)
-  local scan = require "plenary.scandir"
-
-  local resolved = self:resolve { strict = true }
-  if not resolved:is_dir() then
-    error("NotADirectoryError: " .. resolved.filename)
-  end
-
-  -- First unlink all files.
-  scan.scan_dir(resolved.filename, {
-    hidden = true,
-    on_insert = function(file)
-      Path.new(file):unlink()
-    end,
-  })
-
-  -- Now iterate backwards to clean up remaining dirs.
-  local dirs = scan.scan_dir(resolved.filename, { add_dirs = true, hidden = true })
-  for i = #dirs, 1, -1 do
-    Path.new(dirs[i]):rmdir()
-  end
-
-  -- And finally remove the top level dir.
-  resolved:rmdir()
-end
+Path.rmtree = function(self) end
 
 --- Create a file at this given path.
 ---

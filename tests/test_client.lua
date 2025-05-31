@@ -24,7 +24,7 @@ local with_tmp_client = function(run)
 
   local ok, err = pcall(run, client)
 
-  dir:rmtree()
+  vim.fn.delete(tostring(dir), "rf")
 
   if not ok then
     error(err)
