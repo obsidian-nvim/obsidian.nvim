@@ -2,7 +2,7 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local obsidian = require "obsidian"
 
-local fixtures = vim.fs.joinpath(vim.uv.cwd(), "test", "fixtures", "notes")
+local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
 
 ---Get a client in a temporary directory.
 ---
@@ -264,11 +264,11 @@ describe("Client:apply_async_raw", function()
     local c = 0
     with_tmp_client(function(client)
       client:apply_async_raw(function(path)
-        assert.equals(true, vim.endswith(path, ".md"))
+        MiniTest.expect.equality(true, vim.endswith(path, ".md"))
         c = c + 1
       end, {
         on_done = function()
-          assert.equal(11, c)
+          MiniTest.expect.equality(11, c)
         end,
       })
     end, fixtures)
