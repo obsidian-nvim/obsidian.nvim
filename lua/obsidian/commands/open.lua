@@ -7,7 +7,7 @@ local function open_in_app(client, path)
   if not path then
     return client.opts.open.func("obsidian://open?vault=" .. util.urlencode(client:vault_name()))
   end
-  path = tostring(client:vault_relative_path(path, { strict = true }))
+  path = tostring(path)
   local vault_name = client:vault_name()
   local this_os = util.get_os()
 
@@ -26,6 +26,8 @@ local function open_in_app(client, path)
   else
     uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
   end
+
+  uri = vim.fn.shellescape(uri)
 
   client.opts.open.func(uri)
 end
