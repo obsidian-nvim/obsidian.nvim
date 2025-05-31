@@ -5,7 +5,7 @@ local Patterns = search.Patterns
 
 describe("search.find_async", function()
   it("should find files with search term in name", function()
-    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "test", "fixtures", "notes")
+    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
     local match_counter = 0
 
     search.find_async(fixtures, "foo", {}, function(match)
@@ -20,7 +20,7 @@ end)
 
 describe("search.search_async", function()
   it("should find files with search term in content", function()
-    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "test", "fixtures", "notes")
+    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
     local match_counter = 0
     search.search_async(fixtures, "foo", {}, function(match)
       MiniTest.expect.equality("foo", match.submatches[1].match.text)
