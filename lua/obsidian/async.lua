@@ -3,8 +3,7 @@ local async = require "plenary.async"
 local channel = require("plenary.async.control").channel
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local iter = vim.iter
-local uv = vim.loop
+local iter, uv = vim.iter, vim.uv
 
 local M = {}
 
@@ -412,11 +411,11 @@ M.throttle = function(fn, timeout)
       timer:stop()
     end
 
-    local ms_remaining = timeout - (vim.loop.now() - last_call)
+    local ms_remaining = timeout - (vim.uv.now() - last_call)
 
     if ms_remaining > 0 then
       if timer == nil then
-        timer = assert(vim.loop.new_timer())
+        timer = assert(vim.uv.new_timer())
       end
 
       local args = { ... }
@@ -431,12 +430,12 @@ M.throttle = function(fn, timeout)
             timer = nil
           end
 
-          last_call = vim.loop.now()
+          last_call = vim.uv.now()
           fn(unpack(args))
         end)
       )
     else
-      last_call = vim.loop.now()
+      last_call = vim.uv.now()
       fn(...)
     end
   end
