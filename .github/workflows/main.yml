@@ -63,8 +63,8 @@ jobs:
 
           - os: windows-latest
             nvim_url: https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.zip
-            manager: choco
             packages: ripgrep
+            manager: choco
             task:
               name: Test
               run: |
@@ -82,7 +82,9 @@ jobs:
         if: matrix.os == 'windows-latest' && matrix.packages
         shell: powershell
         run: |
-          Set-ExecutionPolicy Bypass -Scope Process -Force iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1')) choco install ${{ matrix.packages }} -y
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+          choco install ${{ matrix.packages }} -y
 
       - name: Install neovim (nix)
         shell: bash
