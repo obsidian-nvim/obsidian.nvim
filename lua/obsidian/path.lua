@@ -194,11 +194,11 @@ Path.temp = function(opts)
   return Path.new(tmpname)
 end
 
---- Get a path corresponding to the current working directory as given by `vim.loop.cwd()`.
+--- Get a path corresponding to the current working directory as given by `vim.uv.cwd()`.
 ---
 ---@return obsidian.Path
 Path.cwd = function()
-  return assert(Path.new(vim.loop.cwd()))
+  return assert(Path.new(vim.uv.cwd()))
 end
 
 --- Get a path corresponding to a buffer.
@@ -390,7 +390,7 @@ end
 Path.stat = function(self)
   local realpath = self:abspath()
   if realpath then
-    local stat, _ = vim.loop.fs_stat(realpath)
+    local stat, _ = vim.uv.fs_stat(realpath)
     return stat
   end
 end
@@ -447,7 +447,7 @@ Path.mkdir = function(self, opts)
     end
   end
 
-  if vim.loop.fs_mkdir(self.filename, mode) then
+  if vim.uv.fs_mkdir(self.filename, mode) then
     return
   end
 
@@ -473,7 +473,7 @@ Path.rmdir = function(self)
     return
   end
 
-  local ok, err_name, err_msg = vim.loop.fs_rmdir(resolved.filename)
+  local ok, err_name, err_msg = vim.uv.fs_rmdir(resolved.filename)
   if not ok then
     error(err_name .. ": " .. err_msg)
   end
@@ -493,7 +493,7 @@ Path.touch = function(self, opts)
   local resolved = self:resolve { strict = false }
   if resolved:exists() then
     local new_time = os.time()
-    vim.loop.fs_utime(resolved.filename, new_time, new_time)
+    vim.uv.fs_utime(resolved.filename, new_time, new_time)
     return
   end
 
@@ -502,11 +502,11 @@ Path.touch = function(self, opts)
     error("FileNotFoundError: " .. parent.filename)
   end
 
-  local fd, err_name, err_msg = vim.loop.fs_open(resolved.filename, "w", mode)
+  local fd, err_name, err_msg = vim.uv.fs_open(resolved.filename, "w", mode)
   if not fd then
     error(err_name .. ": " .. err_msg)
   end
-  vim.loop.fs_close(fd)
+  vim.uv.fs_close(fd)
 end
 
 --- Rename this file or directory to the given target.
@@ -518,7 +518,7 @@ Path.rename = function(self, target)
   local resolved = self:resolve { strict = false }
   target = Path.new(target)
 
-  local ok, err_name, err_msg = vim.loop.fs_rename(resolved.filename, target.filename)
+  local ok, err_name, err_msg = vim.uv.fs_rename(resolved.filename, target.filename)
   if not ok then
     error(err_name .. ": " .. err_msg)
   end
@@ -541,7 +541,7 @@ Path.unlink = function(self, opts)
     return
   end
 
-  local ok, err_name, err_msg = vim.loop.fs_unlink(resolved.filename)
+  local ok, err_name, err_msg = vim.uv.fs_unlink(resolved.filename)
   if not ok then
     error(err_name .. ": " .. err_msg)
   end
