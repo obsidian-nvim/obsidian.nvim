@@ -158,8 +158,6 @@ end
 ---
 ---@return obsidian.Path
 Path.new = function(...)
-  local util = require "obsidian.util"
-
   local self = Path.init()
 
   local args = { ... }
@@ -178,13 +176,6 @@ Path.new = function(...)
   end
 
   self.filename = vim.fs.normalize(tostring(arg))
-  -- On Windows, normalize 'c:/' to 'C:/'
-  if
-    (util.get_os() == util.OSType.Windows or util.get_os() == util.OSType.Wsl)
-    and string.match(self.filename, "^[%a]:/.*$")
-  then
-    self.filename = string.upper(string.sub(self.filename, 1, 1)) .. string.sub(self.filename, 2)
-  end
 
   return self
 end
@@ -196,10 +187,7 @@ end
 ---@return obsidian.Path
 Path.temp = function(opts)
   opts = opts or {}
-  -- os.tmpname gives us a temporary file, but we really want a temporary directory, so we
-  -- immediately delete that file.
-  local tmpname = os.tmpname()
-  os.remove(tmpname)
+  local tmpname = vim.fn.tempname()
   if opts.suffix then
     tmpname = tmpname .. opts.suffix
   end
@@ -286,20 +274,10 @@ end
 Path.joinpath = function(self, ...)
   local args = { ... }
   -- `vim.fs.joinpath` was introduced after neovim 0.9.*
-  -- for i, v in ipairs(args) do
-  --   args[i] = tostring(v)
-  -- end
-  -- return Path.new(vim.fs.joinpath(self.filename, unpack(args)))
-  local filename = self.filename
-  for _, v in ipairs(args) do
-    v = vim.fs.normalize(tostring(v))
-    if vim.startswith(v, "/") then
-      filename = filename .. v
-    else
-      filename = filename .. "/" .. v
-    end
+  for i, v in ipairs(args) do
+    args[i] = tostring(v)
   end
-  return Path.new(filename)
+  return Path.new(vim.fs.joinpath(self.filename, unpack(args)))
 end
 
 --- Try to resolve a version of the path relative to the other.
