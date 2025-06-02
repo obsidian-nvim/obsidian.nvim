@@ -1,11 +1,13 @@
 local util = require "obsidian.util"
-local log = require "obsidian.log"
 local RefTypes = require("obsidian.search").RefTypes
 
 ---@param client obsidian.Client
----@param path string|obsidian.Path
+---@param path? string|obsidian.Path
 local function open_in_app(client, path)
-  path = tostring(client:vault_relative_path(path, { strict = true }))
+  if not path then
+    return client.opts.open.func("obsidian://open?vault=" .. util.urlencode(client:vault_name()))
+  end
+  path = tostring(path)
   local vault_name = client:vault_name()
   local this_os = util.get_os()
 
@@ -18,7 +20,7 @@ local function open_in_app(client, path)
   local encoded_path = util.urlencode(path)
 
   local uri
-  if client.opts.use_advanced_uri then
+  if client.opts.open.use_advanced_uri then
     local line = vim.api.nvim_win_get_cursor(0)[1] or 1
     uri = ("obsidian://advanced-uri?vault=%s&filepath=%s&line=%i"):format(encoded_vault, encoded_path, line)
   else
@@ -26,49 +28,8 @@ local function open_in_app(client, path)
   end
 
   uri = vim.fn.shellescape(uri)
-  ---@type string, string[]
-  local cmd, args
-  local run_in_shell = true
-  if this_os == util.OSType.Linux or this_os == util.OSType.FreeBSD then
-    cmd = "xdg-open"
-    args = { uri }
-  elseif this_os == util.OSType.Wsl then
-    cmd = "wsl-open"
-    args = { uri }
-  elseif this_os == util.OSType.Windows then
-    run_in_shell = false
-    cmd = "powershell"
-    args = { "Start-Process", uri }
-  elseif this_os == util.OSType.Darwin then
-    cmd = "open"
-    if client.opts.open_app_foreground then
-      args = { "-a", "/Applications/Obsidian.app", uri }
-    else
-      args = { "-a", "/Applications/Obsidian.app", "--background", uri }
-    end
-  else
-    log.err("open command does not support OS type '" .. this_os .. "'")
-    return
-  end
 
-  assert(cmd)
-  assert(args)
-
-  ---@type string|string[]
-  local cmd_with_args
-  if run_in_shell then
-    cmd_with_args = cmd .. " " .. table.concat(args, " ")
-  else
-    cmd_with_args = { cmd, unpack(args) }
-  end
-
-  vim.fn.jobstart(cmd_with_args, {
-    on_exit = function(_, exit_code)
-      if exit_code ~= 0 then
-        log.err("open command failed with exit code '%s': %s", exit_code, cmd_with_args)
-      end
-    end,
-  })
+  client.opts.open.func(uri)
 end
 
 ---@param client obsidian.Client
@@ -97,12 +58,7 @@ return function(client, data)
   else
     -- Otherwise use the path of the current buffer.
     local bufname = vim.api.nvim_buf_get_name(0)
-    local path = client:vault_relative_path(bufname, { strict = true })
-    if path == nil then
-      log.err("Current buffer '%s' does not appear to be inside the vault", bufname)
-      return
-    else
-      return open_in_app(client, path)
-    end
+    local path = client:vault_relative_path(bufname)
+    open_in_app(client, path)
   end
 end

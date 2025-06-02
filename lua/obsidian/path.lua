@@ -238,16 +238,17 @@ end
 --- Return a new path with the suffix changed.
 ---
 ---@param suffix string
+---@param should_append boolean|? should the suffix append a suffix instead of replacing one which may be there?
 ---
 ---@return obsidian.Path
-Path.with_suffix = function(self, suffix)
+Path.with_suffix = function(self, suffix, should_append)
   if not vim.startswith(suffix, ".") and string.len(suffix) > 1 then
     error(string.format("invalid suffix '%s'", suffix))
   elseif self.stem == nil then
     error(string.format("path '%s' has no stem", self.filename))
   end
 
-  local new_name = self.stem .. suffix
+  local new_name = ((should_append == true) and self.name or self.stem) .. suffix
 
   ---@type obsidian.Path|?
   local parent = nil
