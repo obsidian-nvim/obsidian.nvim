@@ -272,11 +272,7 @@ end
 ---@param ... obsidian.Path|string
 ---@return obsidian.Path
 Path.joinpath = function(self, ...)
-  local args = { ... }
-  -- `vim.fs.joinpath` was introduced after neovim 0.9.*
-  for i, v in ipairs(args) do
-    args[i] = tostring(v)
-  end
+  local args = vim.iter({ ... }):map(tostring):totable()
   return Path.new(vim.fs.joinpath(self.filename, unpack(args)))
 end
 
@@ -329,11 +325,7 @@ end
 ---
 ---@return obsidian.Path[]
 Path.parents = function(self)
-  local parents = {}
-  for parent in vim.fs.parents(self.filename) do
-    table.insert(parents, Path.new(parent))
-  end
-  return parents
+  return vim.iter(vim.fs.parents(self.filename)):map(Path.new):totable()
 end
 
 --- Check if the path is a parent of other. This is a pure path method, so it only checks by
