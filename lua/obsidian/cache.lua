@@ -175,18 +175,12 @@ end
 ---Watches the vault for changes.
 ---@param self obsidian.Cache
 local enable_filewatch = function(self)
-  local handlers = require("obsidian.filewatch").watch(self.client.dir.filename, create_on_file_change_callback(self))
+  local filewatch = require("obsidian.filewatch")
+  filewatch.watch(self.client.dir.filename, create_on_file_change_callback(self))
 
   vim.api.nvim_create_autocmd({ "QuitPre", "ExitPre" }, {
     callback = function()
-      for _, handle in ipairs(handlers) do
-        if handle then
-          handle:stop()
-          if not handle.is_closing then
-            handle:close()
-          end
-        end
-      end
+      filewatch.release_resources()
     end,
   })
 end

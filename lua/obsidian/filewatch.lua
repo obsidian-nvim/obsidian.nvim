@@ -31,6 +31,13 @@ local MIN_INTERVAL = 50
 --- The time in milleseconds when the changed files will be send to the client.
 local CALLBACK_AFTER_INTERVAL = 500
 
+---@type obsidian.filewatch.CallbackArgs[]
+local queue_to_send = {}
+---@type uv.uv_timer_t
+local queue_timer
+---@type uv.uv_fs_event_t[]
+local watch_handlers = {}
+
 ---Check if the event is not a duplicate or the received name is not `~` or a number.
 ---@param filename string
 ---@param last_received_files {[string]: number|?}
@@ -76,24 +83,18 @@ local function watch_path(path, on_event, on_error, opts)
 
   ---@type {[string]: number|?}
   local last_received_files = {}
-  ---@type obsidian.filewatch.CallbackArgs[]
-  local queue_to_send = {}
-  local queue_timer = uv.new_timer()
-  if not queue_timer then
-    error("Couldn't create queue timer!")
-  end
 
   ---Tracks the changed files and returns them to the client after some time.
   ---@param send_arg obsidian.filewatch.CallbackArgs
   local add_to_queue = function(send_arg)
     table.insert(queue_to_send, send_arg)
 
-    if #queue_to_send == 0 then
-      queue_timer:start(CALLBACK_AFTER_INTERVAL, 0, function()
-        on_event(queue_to_send)
-        queue_to_send = {}
-      end)
-    end
+    queue_timer:stop();
+
+    queue_timer:start(CALLBACK_AFTER_INTERVAL, 0, function()
+      on_event(queue_to_send)
+      queue_to_send = {}
+    end)
   end
 
   local event_cb = function(err, filename, events)
@@ -153,7 +154,6 @@ end
 ---@param path string The path to the watch folder.
 ---@param callback fun (changed_files: obsidian.filewatch.CallbackArgs[])
 ---@param on_error fun (err: string)|?
----@return uv.uv_fs_event_t[]
 M.watch = function(path, callback, on_error)
   if not path or path == "" then
     error "Path cannot be empty."
@@ -167,19 +167,39 @@ M.watch = function(path, callback, on_error)
     on_error = make_default_error_cb(path)
   end
 
+  local new_timer = uv.new_timer()
+
+  if not new_timer then
+    error("Couldn't create queue timer!")
+  end
+
+  queue_timer = new_timer
+
   local sysname = util.get_os()
 
   -- uv doesn't support recursive flag on Linux
   if sysname == util.OSType.Linux then
-    local subdirs_handlers = {}
-
-    for dir in os_util.get_sub_dirs_from_vault(path) do
-      table.insert(subdirs_handlers, watch_path(dir, callback, on_error, { recursive = false }))
+    for _, dir in ipairs(os_util.get_sub_dirs_from_vault(path)) do
+      table.insert(watch_handlers, watch_path(dir, callback, on_error, { recursive = false }))
     end
-
-    return subdirs_handlers
   else
-    return { watch_path(path, callback, on_error, { recursive = true }) }
+    watch_handlers = { watch_path(path, callback, on_error, { recursive = true }) }
+  end
+end
+
+M.release_resources = function()
+  for _, handle in ipairs(watch_handlers) do
+    if handle then
+      handle:stop()
+      if not handle.is_closing then
+        handle:close()
+      end
+    end
+  end
+
+  queue_timer:stop()
+  if not queue_timer.is_closing then
+    queue_timer:close()
   end
 end
 
