@@ -61,7 +61,7 @@ local create_on_file_change_callback = function(self)
 
       local update_cache_file = function()
         vim.schedule(function()
-          save_cache_notes_to_file(cache_notes, self.client.opts.cache.cache_path)
+          save_cache_notes_to_file(cache_notes, self.client.opts.cache.path)
         end)
       end
 
@@ -118,7 +118,7 @@ local check_cache_notes_are_fresh = function(self)
 
     if completed == total then
       vim.schedule(function()
-        save_cache_notes_to_file(updated, self.client.opts.cache.cache_path)
+        save_cache_notes_to_file(updated, self.client.opts.cache.path)
       end)
     end
   end
@@ -187,7 +187,7 @@ end
 
 ---@param self obsidian.Cache
 local check_vault_cache = function(self)
-  check_file_exists(self.client.opts.cache.cache_path, function(exists)
+  check_file_exists(self.client.opts.cache.path, function(exists)
     if exists then
       vim.schedule(function()
         check_cache_notes_are_fresh(self)
@@ -268,16 +268,16 @@ Cache.index_vault = function(self)
 
   local founded_links = get_cache_notes_from_vault(self.client)
 
-  save_cache_notes_to_file(founded_links, self.client.opts.cache.cache_path)
+  save_cache_notes_to_file(founded_links, self.client.opts.cache.path)
 
   log.info "Vault was indexed succesfully."
 end
 
----Reads the cache file from client.opts.cache.cache_path and returns the loaded cache.
+---Reads the cache file from client.opts.cache.path and returns the loaded cache.
 ---@param self obsidian.Cache
 ---@return { [string]: obsidian.cache.CacheNote } Key is the relative path to the vault, value is the cache of the note.
 Cache.get_cache_notes_from_file = function(self)
-  local file, err = io.open(self.client.opts.cache.cache_path, "r")
+  local file, err = io.open(self.client.opts.cache.path, "r")
 
   if file then
     local links_json = file:read()
@@ -288,7 +288,7 @@ Cache.get_cache_notes_from_file = function(self)
   end
 end
 
----Reads the cache file from client.opts.cache.cache_path and returns founded note cache without key.
+---Reads the cache file from client.opts.cache.path and returns founded note cache without key.
 ---@param self obsidian.Cache
 ---@return obsidian.cache.CacheNote[]
 Cache.get_cache_notes_without_key = function(self)
