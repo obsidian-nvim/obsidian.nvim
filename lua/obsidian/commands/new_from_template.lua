@@ -11,8 +11,9 @@ return function(client, data)
     return
   end
 
-  local title = data.fargs[1]
-  local template = data.fargs[2]
+  local title = table.concat(data.fargs, " ", 1, #data.fargs - 1)
+  local template = data.fargs[#data.fargs]
+
   if title ~= nil and template ~= nil then
     templates.load_template_customizations(template, client)
     local note = client:create_note { title = title, template = template, no_write = false }
