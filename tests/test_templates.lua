@@ -44,8 +44,8 @@ describe("template", function()
 
       templates.load_template_customizations("zettel", client)
 
-      MiniTest.expect.falsy(client.opts.notes_subdir)
-      MiniTest.expect.ne(zettelConfig.note_id_func, client.opts.note_id_func)
+      MiniTest.expect.equality(client.opts.notes_subdir, nil)
+      MiniTest.expect.no_equality(zettelConfig.note_id_func, client.opts.note_id_func)
       MiniTest.expect.equality(old_id_func, client.opts.note_id_func)
     end)
 
