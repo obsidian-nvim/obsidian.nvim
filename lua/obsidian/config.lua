@@ -33,6 +33,7 @@ local config = {}
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
+---@field cache obsidian.config.CacheOpts
 ---@field open obsidian.config.OpenOpts
 
 config.ClientOpts = {}
@@ -68,6 +69,7 @@ config.ClientOpts.default = function()
     ui = config.UIOpts.default(),
     attachments = config.AttachmentsOpts.default(),
     callbacks = config.CallbackConfig.default(),
+    cache = config.CacheOpts.default(),
     legacy_commands = true,
     ---@class obsidian.config.StatuslineOpts
     ---@field format? string
@@ -156,8 +158,8 @@ config.ClientOpts.normalize = function(opts, defaults)
     if warn then
       log.warn_once(
         "The config options 'completion.prepend_note_id', 'completion.prepend_note_path', and 'completion.use_path_only' "
-          .. "are deprecated. Please use 'wiki_link_func' instead.\n"
-          .. "See https://github.com/epwalsh/obsidian.nvim/pull/406"
+        .. "are deprecated. Please use 'wiki_link_func' instead.\n"
+        .. "See https://github.com/epwalsh/obsidian.nvim/pull/406"
       )
     end
   end
@@ -179,7 +181,7 @@ config.ClientOpts.normalize = function(opts, defaults)
     opts.completion.preferred_link_style = nil
     log.warn_once(
       "The config option 'completion.preferred_link_style' is deprecated, please use the top-level "
-        .. "'preferred_link_style' instead."
+      .. "'preferred_link_style' instead."
     )
   end
 
@@ -188,7 +190,7 @@ config.ClientOpts.normalize = function(opts, defaults)
     opts.completion.new_notes_location = nil
     log.warn_once(
       "The config option 'completion.new_notes_location' is deprecated, please use the top-level "
-        .. "'new_notes_location' instead."
+      .. "'new_notes_location' instead."
     )
   end
 
@@ -196,7 +198,7 @@ config.ClientOpts.normalize = function(opts, defaults)
     opts.detect_cwd = nil
     log.warn_once(
       "The 'detect_cwd' field is deprecated and no longer has any affect.\n"
-        .. "See https://github.com/epwalsh/obsidian.nvim/pull/366 for more details."
+      .. "See https://github.com/epwalsh/obsidian.nvim/pull/366 for more details."
     )
   end
 
@@ -290,6 +292,8 @@ config.ClientOpts.normalize = function(opts, defaults)
   if opts.dir ~= nil then
     table.insert(opts.workspaces, 1, { path = opts.dir })
   end
+
+  opts.cache = tbl_override(defaults.cache, opts.cache)
 
   return opts
 end
@@ -568,6 +572,20 @@ config.CallbackConfig = {}
 ---@return obsidian.config.CallbackConfig
 config.CallbackConfig.default = function()
   return {}
+end
+
+---@class obsidian.config.CacheOpts
+---
+---@field enable boolean|? Use cache when searching for notes
+---@field path string The file where the cache will be saved
+config.CacheOpts = {}
+
+---@return obsidian.config.CacheOpts
+config.CacheOpts.default = function()
+  return {
+    enable = false,
+    path = "./.cache.json",
+  }
 end
 
 return config
