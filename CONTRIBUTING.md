@@ -30,7 +30,9 @@ You can do this by adding a `.luarc.json` configuration file that looks like thi
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
-  "workspace.library": ["~/.local/share/nvim/lazy/plenary.nvim/"],
+  "workspace.library": [
+    "~/.local/share/nvim/lazy/plenary.nvim/"
+  ],
   "runtime.version": "Lua 5.1"
 }
 ```
@@ -75,10 +77,9 @@ Newly written code should have type annotations.
 
 TL;DR: `make test`
 
-Tests are written in the `test/` folder and are run using the [Plenary](https://github.com/nvim-lua/plenary.nvim) test harness.
-Since Plenary is a dependency of `obsidian.nvim`, you probably already have it installed somewhere.
-To run the tests locally you'll need to know where it's installed, which depends on your plugin manager.
-In my case I use `Lazy.nvim` which puts Plenary at `~/.local/share/nvim/lazy/plenary.nvim/`.
+Tests are written in the `tests/` folder and are run using [mini.test](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-test.md). The make command will download the dependencies for you.
+For a reference of using mini.test, see [this](https://github.com/echasnovski/mini.nvim/blob/main/TESTING.md).
+We are currently in the process of migrating from busted style tests to mini's style, if you are writing test for a new module, prefer the mini style.
 
 ### Building the vim user documentation
 

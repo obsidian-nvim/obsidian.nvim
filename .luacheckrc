@@ -20,4 +20,8 @@ ignore = {
 read_globals = {
   "vim",
   "MiniDoc",
+  "MiniTest",
+  "it",
+  "describe",
+  "before_each",
 }

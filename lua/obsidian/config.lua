@@ -24,8 +24,6 @@ local config = {}
 ---@field mappings obsidian.config.MappingOpts
 ---@field picker obsidian.config.PickerOpts
 ---@field daily_notes obsidian.config.DailyNotesOpts
----@field use_advanced_uri boolean|?
----@field open_app_foreground boolean|?
 ---@field sort_by obsidian.config.SortBy|?
 ---@field sort_reversed boolean|?
 ---@field search_max_lines integer
@@ -35,6 +33,8 @@ local config = {}
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
+---@field open obsidian.config.OpenOpts
+
 config.ClientOpts = {}
 
 --- Get defaults.
@@ -61,8 +61,6 @@ config.ClientOpts.default = function()
     mappings = config.MappingOpts.default(),
     picker = config.PickerOpts.default(),
     daily_notes = config.DailyNotesOpts.default(),
-    use_advanced_uri = nil,
-    open_app_foreground = false,
     sort_by = "modified",
     sort_reversed = true,
     search_max_lines = 1000,
@@ -77,6 +75,13 @@ config.ClientOpts.default = function()
     statusline = {
       format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
       enabled = true,
+    },
+    ---@class obsidian.config.OpenOpts
+    ---@field use_advanced_uri boolean opens the file with current line number
+    ---@field func fun(uri: string) default to vim.ui.open
+    open = {
+      use_advanced_uri = false,
+      func = vim.ui.open,
     },
   }
 end
@@ -193,6 +198,26 @@ config.ClientOpts.normalize = function(opts, defaults)
       "The 'detect_cwd' field is deprecated and no longer has any affect.\n"
         .. "See https://github.com/epwalsh/obsidian.nvim/pull/366 for more details."
     )
+  end
+
+  if opts.open_app_foreground ~= nil then
+    opts.open_app_foreground = nil
+    log.warn_once [[The config option 'open_app_foreground' is deprecated, please use the `func` field in `open` module:
+
+```lua
+{
+  open = {
+    func = function(uri)
+      vim.ui.open(uri, { cmd = { "open", "-a", "/Applications/Obsidian.app" } })
+    end
+  }
+}
+```]]
+  end
+
+  if opts.use_advanced_uri ~= nil then
+    opts.use_advanced_uri = nil
+    log.warn_once [[The config option 'use_advanced_uri' is deprecated, please use in `open` module instead]]
   end
 
   if opts.overwrite_mappings ~= nil then
@@ -451,6 +476,7 @@ end
 ---@class obsidian.config.UIOpts
 ---
 ---@field enable boolean
+---@field ignore_conceal_warn boolean
 ---@field update_debounce integer
 ---@field max_file_length integer|?
 ---@field checkboxes table<string, obsidian.config.CheckboxSpec>
@@ -482,6 +508,7 @@ config.UIOpts = {}
 config.UIOpts.default = function()
   return {
     enable = true,
+    ignore_conceal_warn = false,
     update_debounce = 200,
     max_file_length = 5000,
     checkboxes = {

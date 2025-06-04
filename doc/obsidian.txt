@@ -1,7 +1,6 @@
 *obsidian.nvim*           a plugin for writing and navigating an Obsidian vault
 
 obsidian.nvim
-
 A **community fork** of the Neovim plugin for writing and navigating Obsidian
 <https://obsidian.md> vaults, written in Lua, created by epwalsh
 <https://github.com/epwalsh>.
@@ -574,6 +573,7 @@ Click to see configuration options ~
       -- This requires you have `conceallevel` set to 1 or 2. See `:help conceallevel` for more details.
       ui = {
         enable = true, -- set to false to disable all additional syntax features
+        ignore_conceal_warn = false, -- set to true to disable conceallevel specific warning
         update_debounce = 200, -- update delay after a text change (in milliseconds)
         max_file_length = 5000, -- disable UI features for files with more than this many lines
         -- Define how various check-boxes are displayed
@@ -664,7 +664,7 @@ Please read the CONTRIBUTING
 <https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md>
 guide before submitting a pull request.
 
-neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻
+neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻
 ==============================================================================
 8. ❤️ Acknowledgement                    *obsidian-❤️-acknowledgement*
 

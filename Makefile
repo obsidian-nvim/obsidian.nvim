@@ -8,7 +8,8 @@ LUARC = $(shell readlink -f .luarc.json)
 # Depending on your setup you have to override the locations at runtime. E.g.:
 #   make test PLENARY=~/path/to/plenary.nvim
 #   make user-docs PANVIMDOC_PATH=~/path/to/panvimdoc/panvimdoc.sh
-PLENARY = ~/.local/share/nvim/lazy/plenary.nvim/
+PLENARY = deps/plenary.nvim
+MINITEST = deps/mini.test
 MINIDOC = ~/.local/share/nvim/lazy/mini.doc/
 PANVIMDOC_PATH = ../panvimdoc/panvimdoc.sh
 
@@ -32,14 +33,15 @@ types: ## Type check with lua-ls
 	lua-language-server --configpath $(LUARC) --check lua/obsidian/
 
 .PHONY: test
-test: $(PLENARY) ## Run unit tests
-	PLENARY=$(PLENARY) nvim \
-		--headless \
-		--noplugin \
-		-u test/minimal_init.vim \
-		-c "PlenaryBustedDirectory $(TEST) { minimal_init = './test/minimal_init.vim' }"
+test: $(MINITEST) $(PLENARY)
+	nvim --headless --noplugin -u ./scripts/minimal_init.lua -c "lua MiniTest.run()"
+
+$(MINITEST):
+	mkdir -p deps
+	git clone --filter=blob:none https://github.com/echasnovski/mini.test $(MINITEST)
 
 $(PLENARY):
+	mkdir -p deps
 	git clone --depth 1 https://github.com/nvim-lua/plenary.nvim.git $(PLENARY)
 
 .PHONY: user-docs
