@@ -12,7 +12,7 @@ describe("AsyncExecutor.map()", function()
 
     executor:map(
       function(id)
-        local uv = vim.loop
+        local uv = vim.uv
         uv.sleep(100)
         return id
       end,
@@ -36,7 +36,7 @@ describe("AsyncExecutor.map()", function()
 
     executor:map(
       function(id)
-        local uv = vim.loop
+        local uv = vim.uv
         uv.sleep(100)
         return id
       end,
@@ -57,7 +57,7 @@ describe("ThreadPoolExecutor.map()", function()
 
     executor:map(
       function(id)
-        local uv = vim.loop
+        local uv = vim.uv
         uv.sleep(100)
         return id
       end,
@@ -81,7 +81,7 @@ describe("ThreadPoolExecutor.map()", function()
 
     executor:map(
       function(id)
-        local uv = vim.loop
+        local uv = vim.uv
         uv.sleep(100)
         return id
       end,

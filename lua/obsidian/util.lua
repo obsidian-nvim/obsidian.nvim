@@ -5,6 +5,18 @@ local compat = require "obsidian.compat"
 local util = {}
 
 -------------------
+--- File tools ----
+-------------------
+
+---@param file string
+---@param contents string
+util.write_file = function(file, contents)
+  local fd = assert(io.open(file, "w+"))
+  fd:write(contents)
+  fd:close()
+end
+
+-------------------
 --- Iter tools ----
 -------------------
 
@@ -512,8 +524,8 @@ util.get_os = function()
   if vim.fn.has "win32" == 1 then
     this_os = util.OSType.Windows
   else
-    local sysname = vim.loop.os_uname().sysname
-    local release = vim.loop.os_uname().release:lower()
+    local sysname = vim.uv.os_uname().sysname
+    local release = vim.uv.os_uname().release:lower()
     if sysname:lower() == "linux" and string.find(release, "microsoft") then
       this_os = util.OSType.Wsl
     else
@@ -890,17 +902,10 @@ util.get_plugin_info = function(name)
   end
 
   local out = { path = src_root }
+  local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
 
-  local Job = require "plenary.job"
-  local output, exit_code = Job:new({ ---@diagnostic disable-line: missing-fields
-    command = "git",
-    args = { "rev-parse", "HEAD" },
-    cwd = src_root,
-    enable_recording = true,
-  }):sync(1000)
-
-  if exit_code == 0 then
-    out.commit = output[1]
+  if obj.code == 0 then
+    out.commit = vim.trim(obj.stdout)
   end
 
   return out
@@ -909,15 +914,13 @@ end
 ---@param cmd string
 ---@return string|?
 util.get_external_dependency_info = function(cmd)
-  local Job = require "plenary.job"
-  local output, exit_code = Job:new({ ---@diagnostic disable-line: missing-fields
-    command = cmd,
-    args = { "--version" },
-    enable_recording = true,
-  }):sync(1000)
+  local obj = vim.system({ cmd, "--version" }, {}):wait(1000)
 
-  if exit_code == 0 then
-    return output[1]
+  if obj.code == 0 then
+    local version = vim.version.parse(obj.stdout)
+    if version then
+      return ("%d.%d.%d"):format(version.major, version.minor, version.patch)
+    end
   end
 end
 
@@ -1458,6 +1461,26 @@ end
 ---@return boolean
 util.isNan = function(v)
   return tostring(v) == tostring(0 / 0)
+end
+
+---Higher order function, make sure a function is called with complete lines
+---@param fn fun(string)?
+---@return fun(string)
+util.buffer_fn = function(fn)
+  if not fn then
+    return function() end
+  end
+  local buffer = ""
+  return function(data)
+    buffer = buffer .. data
+    local lines = vim.split(buffer, "\n")
+    if #lines > 1 then
+      for i = 1, #lines - 1 do
+        fn(lines[i])
+      end
+      buffer = lines[#lines] -- Store remaining partial line
+    end
+  end
 end
 
 return util

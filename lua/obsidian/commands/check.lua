@@ -5,14 +5,14 @@ local iter = vim.iter
 ---@param client obsidian.Client
 ---@param _ CommandArgs
 return function(client, _)
-  local start_time = vim.loop.hrtime()
+  local start_time = vim.uv.hrtime()
   local count = 0
   local errors = {}
   local warnings = {}
   local opts = {
     timeout = 5000,
     on_done = function()
-      local runtime = math.floor((vim.loop.hrtime() - start_time) / 1000000)
+      local runtime = math.floor((vim.uv.hrtime() - start_time) / 1000000)
       local messages = { "Checked " .. tostring(count) .. " notes in " .. runtime .. "ms" }
       local log_level = vim.log.levels.INFO
 
@@ -38,7 +38,7 @@ return function(client, _)
 
   client:apply_async_raw(function(path)
     local relative_path = client:vault_relative_path(path, { strict = true })
-    local ok, res = pcall(Note.from_file_async, path)
+    local ok, res = pcall(Note.from_file, path)
 
     if not ok then
       errors[#errors + 1] = string.format("Failed to parse note '%s': ", relative_path, res)
