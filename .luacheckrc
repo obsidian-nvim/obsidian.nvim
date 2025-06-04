@@ -7,6 +7,7 @@ self = false
 exclude_files = {
   "_neovim/*",
   "_runtime/*",
+  "deps/*",
 }
 
 -- Glorious list of warnings: https://luacheck.readthedocs.io/en/stable/warnings.html
@@ -24,4 +25,5 @@ read_globals = {
   "it",
   "describe",
   "before_each",
+  "after_each",
 }
