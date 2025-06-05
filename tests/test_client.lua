@@ -61,6 +61,35 @@ describe("Client", function()
   end)
 end)
 
+describe("Client:new_note_id()", function()
+  it("should generate default Zettelkasten-style ID when `note_id_func` is unset", function()
+    with_tmp_client(function(client)
+      client.opts.note_id_func = nil
+      local expectedMatch = "^%d+-[A-Z][A-Z][A-Z][A-Z]"
+      local actual = client:new_note_id "My Cool Title"
+      MiniTest.expect.no_equality(string.find(actual, expectedMatch), nil)
+    end)
+  end)
+
+  it("should allow users to use the path of the note in their `note_id_func`", function()
+    with_tmp_client(function(client)
+      client.opts.note_id_func = function(title, path)
+        local id = ""
+        for str in string.gmatch(path.filename, "([^/]+)") do
+          id = id .. str .. "-"
+        end
+        -- Separate the path components by dashes instead of slashes
+        return id .. title
+      end
+
+      local path = Path:new() / "path" / "to" / "note"
+      local expected = "path-to-note-My Cool Title"
+      local actual = client:new_note_id("My Cool Title", path)
+      MiniTest.expect.no_equality(string.find(actual, expected, 0, true), nil)
+    end)
+  end)
+end)
+
 describe("Client:new_note_path()", function()
   it('should only append one ".md" at the end of the path', function()
     with_tmp_client(function(client)

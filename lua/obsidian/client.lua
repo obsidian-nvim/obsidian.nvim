@@ -1588,11 +1588,12 @@ end
 --- otherwise falls back to generated a Zettelkasten style ID.
 ---
 ---@param title string|?
+---@param path obsidian.Path|?
 ---
 ---@return string
-Client.new_note_id = function(self, title)
+Client.new_note_id = function(self, title, path)
   if self.opts.note_id_func ~= nil then
-    local new_id = self.opts.note_id_func(title)
+    local new_id = self.opts.note_id_func(title, path)
     if new_id == nil or string.len(new_id) == 0 then
       error(string.format("Your 'note_id_func' must return a non-empty string, got '%s'!", tostring(new_id)))
     end
