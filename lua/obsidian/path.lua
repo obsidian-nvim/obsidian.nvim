@@ -158,8 +158,6 @@ end
 ---
 ---@return obsidian.Path
 Path.new = function(...)
-  local util = require "obsidian.util"
-
   local self = Path.init()
 
   local args = { ... }
@@ -178,13 +176,6 @@ Path.new = function(...)
   end
 
   self.filename = vim.fs.normalize(tostring(arg))
-  -- On Windows, normalize 'c:/' to 'C:/'
-  if
-    (util.get_os() == util.OSType.Windows or util.get_os() == util.OSType.Wsl)
-    and string.match(self.filename, "^[%a]:/.*$")
-  then
-    self.filename = string.upper(string.sub(self.filename, 1, 1)) .. string.sub(self.filename, 2)
-  end
 
   return self
 end
@@ -196,10 +187,7 @@ end
 ---@return obsidian.Path
 Path.temp = function(opts)
   opts = opts or {}
-  -- os.tmpname gives us a temporary file, but we really want a temporary directory, so we
-  -- immediately delete that file.
-  local tmpname = os.tmpname()
-  os.remove(tmpname)
+  local tmpname = vim.fn.tempname()
   if opts.suffix then
     tmpname = tmpname .. opts.suffix
   end
@@ -284,22 +272,8 @@ end
 ---@param ... obsidian.Path|string
 ---@return obsidian.Path
 Path.joinpath = function(self, ...)
-  local args = { ... }
-  -- `vim.fs.joinpath` was introduced after neovim 0.9.*
-  -- for i, v in ipairs(args) do
-  --   args[i] = tostring(v)
-  -- end
-  -- return Path.new(vim.fs.joinpath(self.filename, unpack(args)))
-  local filename = self.filename
-  for _, v in ipairs(args) do
-    v = vim.fs.normalize(tostring(v))
-    if vim.startswith(v, "/") then
-      filename = filename .. v
-    else
-      filename = filename .. "/" .. v
-    end
-  end
-  return Path.new(filename)
+  local args = vim.iter({ ... }):map(tostring):totable()
+  return Path.new(vim.fs.joinpath(self.filename, unpack(args)))
 end
 
 --- Try to resolve a version of the path relative to the other.
@@ -351,11 +325,7 @@ end
 ---
 ---@return obsidian.Path[]
 Path.parents = function(self)
-  local parents = {}
-  for parent in vim.fs.parents(self.filename) do
-    table.insert(parents, Path.new(parent))
-  end
-  return parents
+  return vim.iter(vim.fs.parents(self.filename)):map(Path.new):totable()
 end
 
 --- Check if the path is a parent of other. This is a pure path method, so it only checks by
@@ -379,14 +349,6 @@ end
 --- Concrete path methods.
 -------------------------------------------------------------------------------
 
----@return string|?
----@private
-Path.fs_realpath = function(self)
-  local path = vim.loop.fs_realpath(vim.fn.resolve(self.filename))
-  ---@cast path string|?
-  return path
-end
-
 --- Make the path absolute, resolving any symlinks.
 --- If `strict` is true and the path doesn't exist, an error is raised.
 ---
@@ -396,7 +358,7 @@ end
 Path.resolve = function(self, opts)
   opts = opts or {}
 
-  local realpath = self:fs_realpath()
+  local realpath = vim.fs.abspath(tostring(self))
   if realpath then
     return Path.new(realpath)
   elseif opts.strict then
@@ -407,7 +369,7 @@ Path.resolve = function(self, opts)
   -- does exist, and then put the path back together from there.
   local parents = self:parents()
   for _, parent in ipairs(parents) do
-    local parent_realpath = parent:fs_realpath()
+    local parent_realpath = vim.fs.abspath(tostring(parent))
     if parent_realpath then
       return Path.new(parent_realpath) / self:relative_to(parent)
     end
@@ -420,7 +382,7 @@ end
 ---
 ---@return table|?
 Path.stat = function(self)
-  local realpath = self:fs_realpath()
+  local realpath = vim.fs.abspath(tostring(self))
   if realpath then
     local stat, _ = vim.loop.fs_stat(realpath)
     return stat

@@ -7,35 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- Added `opts.ui.ignore_conceal_warn` option to ignore conceal-related warnings.
-- Added support for multiword note title in new_from_template.
-
 ### Added
 
-- Added `makefile types` target to check types via lua-ls
-- Added `.github/pull_request_template.md` to make contributing simpler
-- Allow users to have a period in the note ID as in a [Johnny.Decimal](https://johnnydecimal.com/) format
-- Added `backlinks` config table with the associated `obsidian.config.BacklinkOpts`
-- Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
-- Added autocmd events for user scripting, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Autocmds
 - Allow custom directory and ID logic for templates
-- Added `open` module for `Obsidian open` related options
 
 ### Changed
 
-- Remove `itertools.lua` in favor of `vim.iter`
+### Fixed
+
+- Fixed improper tmp-file creation during template tests
+
+## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
+
+### Added
+
+- Allow users to have a period in the note ID as in a [Johnny.Decimal](https://johnnydecimal.com/) format.
+- Added `make types` target to check types via lua-ls.
+- Added `.github/pull_request_template.md` to make contributing simpler.
+- Added `backlinks` module with the associated `obsidian.config.BacklinkOpts`.
+  - Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
+- Added `open` module for `Obsidian open` related options.
+- Added autocmd events for user scripting, see [wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Autocmds).
+- Added `opts.ui.ignore_conceal_warn` option to ignore conceal-related warnings.
+
+### Changed
+
+- Remove `itertools.lua` in favor of `vim.iter`.
 - Configure `foldmethod`, `foldexpr`, and `foldlevel` in ftplugin instead of the BufEnter event. This allows user overrides of these configurations.
 - Remove `fillchars`, `foldtext`, and `smoothscroll` configurations.
-- Relaxed yaml dump quoting condition so that dates are not quoted
-- Update Stylua version from 0.15.1 → 2.1.0
-- Use `vim.deprecate` to show deprecate warnings
-- Deprecate `open_app_foreground`
+- Refactored `path.lua` to use more functions from `vim.fs`.
+- Relaxed yaml dump quoting condition so that dates are not quoted.
+- Update Stylua version from 0.15.1 → 2.1.0.
+- Use `vim.deprecate` to show deprecate warnings.
+- Deprecate `open_app_foreground`.
 
 ### Fixed
 
-- Fixed types in `_snacks.lua`
-- Fixed command documentation
-- Fixed improper tmp-file creation during template tests
+- Allow multiword note title in `new_from_template`.
+- Fixed types in `_snacks.lua`.
+- Fixed command documentation.
 
 ## [v3.11.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.11.0) - 2025-05-04
 
