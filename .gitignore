@@ -6,3 +6,4 @@ tmp.*
 doc/tags
 _neovim
 _runtime
+deps/

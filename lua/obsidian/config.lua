@@ -452,6 +452,7 @@ end
 ---@field date_format string|?
 ---@field time_format string|?
 ---@field substitutions table<string, function|string>|?
+---@field customizations table<string, obsidian.config.CustomTemplateOpts>
 config.TemplateOpts = {}
 
 --- Get defaults.
@@ -463,8 +464,14 @@ config.TemplateOpts.default = function()
     date_format = nil,
     time_format = nil,
     substitutions = {},
+    customizations = {},
   }
 end
+
+---@class obsidian.config.CustomTemplateOpts
+---
+---@field dir string|?
+---@field note_id_func function|?
 
 ---@class obsidian.config.UIOpts
 ---
