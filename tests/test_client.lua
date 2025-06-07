@@ -40,6 +40,18 @@ describe("Client", function()
     end)
   end)
 
+  it("should be able to initialize a daily note with custom func", function()
+    with_tmp_client(function(client)
+      client.opts.daily_notes.func = function(datetime)
+				local note = os.date("%Y/%m-%B/%Y-%m-%d", datetime)
+				return "journal/" .. note .. ".md"
+			end
+      local note = client:today()
+      MiniTest.expect.equality(true, note.path ~= nil)
+      MiniTest.expect.equality(true, note:exists())
+    end)
+  end)
+
   it("should not add frontmatter for today when disabled", function()
     with_tmp_client(function(client)
       client.opts.disable_frontmatter = true

@@ -431,6 +431,7 @@ end
 ---@field template string|?
 ---@field default_tags string[]|?
 ---@field workdays_only boolean
+---@field func? fun(datetime: integer): (string, string|?) default to nil
 config.DailyNotesOpts = {}
 
 --- Get defaults.
@@ -443,6 +444,7 @@ config.DailyNotesOpts.default = function()
     alias_format = nil,
     default_tags = { "daily-notes" },
     workdays_only = true,
+    func = nil,
   }
 end
 
