@@ -326,6 +326,12 @@ require("obsidian").setup {
     template = nil,
     -- Optional, if you want `Obsidian yesterday` to return the last work day or `Obsidian tomorrow` to return the next work day.
     workdays_only = true,
+    -- Optional, a function for more complex customization.
+    -- If defined, it is called with datetime (integer) as its only argument. 
+    -- The return value must be a tuple (string, string|nil) which represents note path and alias where alias is optional.
+    -- The note path must be relative and is treated as a sub path of the vault! Don't forget to add ".md" at the end if desired.
+    -- If this function is defined, it's returned values are used instead of folder, date_format and alias_format.
+    func = nil,
   },
 
   -- Optional, completion of wiki links, local markdown links, and tags using nvim-cmp.

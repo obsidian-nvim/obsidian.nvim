@@ -117,7 +117,7 @@ Client.set_workspace = function(self, workspace, opts)
     notes_subdir:mkdir { parents = true, exists_ok = true }
   end
 
-  if self.opts.daily_notes.folder ~= nil then
+  if self.opts.daily_notes.func == nil and self.opts.daily_notes.folder ~= nil then
     local daily_notes_subdir = self.dir / self.opts.daily_notes.folder
     daily_notes_subdir:mkdir { parents = true, exists_ok = true }
   end
@@ -642,6 +642,8 @@ Client.resolve_note_async = function(self, query, callback, opts)
   if self.opts.notes_subdir ~= nil then
     paths_to_check[#paths_to_check + 1] = self.dir / self.opts.notes_subdir / fname
   end
+
+  -- TODO: Check the notes created by custom daily notes func...
 
   if self.opts.daily_notes.folder ~= nil then
     paths_to_check[#paths_to_check + 1] = self.dir / self.opts.daily_notes.folder / fname
@@ -1717,6 +1719,7 @@ Client.parse_title_id_path = function(self, title, id, dir)
       -- note is actually in the workspace.
       and self.dir:is_parent_of(bufpath)
       -- note is not in dailies folder
+      -- TODO: handle custom daily notes function
       and (self.opts.daily_notes.folder == nil or not (self.dir / self.opts.daily_notes.folder):is_parent_of(bufpath))
     then
       base_dir = self.buf_dir or assert(bufpath:parent())
@@ -1966,11 +1969,30 @@ end
 Client._daily = function(self, datetime, opts)
   opts = opts or {}
 
-  local path, id = self:daily_note_path(datetime)
+  ---@type string|?, string|?
+  local custom_path, custom_alias
+  if self.opts.daily_notes.func ~= nil then
+    custom_path, custom_alias = self.opts.daily_notes.func(datetime)
+    if custom_path == nil then
+      error "Custom daily notes function must return non-nil path"
+    end
+  end
+
+  ---@type obsidian.Path|?, string|number
+  local path, id
+  if custom_path ~= nil then
+    path = Path:new(self.dir) / custom_path
+    path:parent():mkdir { parents = true, exists_ok = true }
+    id = path.stem
+  else
+    path, id = self:daily_note_path(datetime)
+  end
 
   ---@type string|?
   local alias
-  if self.opts.daily_notes.alias_format ~= nil then
+  if custom_alias ~= nil then
+    alias = custom_alias
+  elseif self.opts.daily_notes.alias_format ~= nil then
     alias = tostring(os.date(self.opts.daily_notes.alias_format, datetime))
   end
 
