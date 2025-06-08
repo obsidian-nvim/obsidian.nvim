@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Allow multiword note title in `new_from_template`.
+- Allow `@` in urls to better open youtube links.
 - Fixed types in `_snacks.lua`.
 - Fixed command documentation.
 
