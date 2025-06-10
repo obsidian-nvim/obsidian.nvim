@@ -345,6 +345,12 @@ Path.is_parent_of = function(self, other)
   return false
 end
 
+---@private
+Path.abspath = function(self)
+  local abspath = vim.fs.abspath and vim.fs.abspath or vim.fs.realpath
+  return abspath(tostring(self))
+end
+
 -------------------------------------------------------------------------------
 --- Concrete path methods.
 -------------------------------------------------------------------------------
@@ -358,7 +364,7 @@ end
 Path.resolve = function(self, opts)
   opts = opts or {}
 
-  local realpath = vim.fs.abspath(tostring(self))
+  local realpath = self:abspath()
   if realpath then
     return Path.new(realpath)
   elseif opts.strict then
@@ -369,7 +375,7 @@ Path.resolve = function(self, opts)
   -- does exist, and then put the path back together from there.
   local parents = self:parents()
   for _, parent in ipairs(parents) do
-    local parent_realpath = vim.fs.abspath(tostring(parent))
+    local parent_realpath = parent:abspath()
     if parent_realpath then
       return Path.new(parent_realpath) / self:relative_to(parent)
     end
@@ -382,7 +388,7 @@ end
 ---
 ---@return table|?
 Path.stat = function(self)
-  local realpath = vim.fs.abspath(tostring(self))
+  local realpath = self:abspath()
   if realpath then
     local stat, _ = vim.loop.fs_stat(realpath)
     return stat
