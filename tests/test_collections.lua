@@ -9,21 +9,21 @@ describe("DefaultTbl", function()
     local x = t["a"]
     x[#x + 1] = 1
 
-    assert.are_same(t["a"], { 1 })
+    MiniTest.expect.equality(t["a"], { 1 })
   end)
 
   it("should work with set", function()
     local t = DefaultTbl.with_tbl()
 
     t["a"][1] = 1
-    assert.are_same(t["a"], { 1 })
+    MiniTest.expect.equality(t["a"], { 1 })
   end)
 
   it("should work with nested DefaultTbls", function()
     local t = DefaultTbl.new(DefaultTbl.with_tbl)
 
     t["a"]["b"][1] = 1
-    assert.are_same(t["a"]["b"], { 1 })
+    MiniTest.expect.equality(t["a"]["b"], { 1 })
   end)
 end)
 
@@ -34,7 +34,7 @@ end)
 --     local t = OrderedTbl.new()
 
 --     t["a"] = 1
---     assert.are_same(t["a"], 1)
+--     MiniTest.expect.equality(t["a"], 1)
 --   end)
 
 --   it("should maintain order with pairs()", function()
@@ -50,6 +50,6 @@ end)
 --       key_values[#key_values + 1] = { k, v }
 --     end
 
---     assert.are_same({ { "a", 1 }, { "b", 2 }, { "c", 3 }, { "d", 4 } }, key_values)
+--     MiniTest.expect.equality({ { "a", 1 }, { "b", 2 }, { "c", 3 }, { "d", 4 } }, key_values)
 --   end)
 -- end)

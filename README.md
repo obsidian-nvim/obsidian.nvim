@@ -1,7 +1,5 @@
 /<h1 align="center">obsidian.nvim</h1>
 
-<div><h4 align="center"><a href="#setup">Setup</a> · <a href="#configuration-options">Configure</a> · <a href="#contributing">Contribute</a> · <a href="https://github.com/obsidian-nvim/obsidian.nvim/discussions">Discuss</a></h4></div>
-
 <div align="center">
 <a href="https://github.com/obsidian-nvim/obsidian.nvim/releases/latest">
   <img alt="Latest release" src="https://img.shields.io/github/v/release/obsidian-nvim/obsidian.nvim?style=for-the-badge&logo=starship&logoColor=D9E0EE&labelColor=302D41&&color=d9b3ff&include_prerelease&sort=semver" />
@@ -19,6 +17,9 @@
 </a>
 <a href="https://github.com/obsidian-nvim/obsidian.nvim?tab=readme-ov-file#-contributing">
  <img src="https://img.shields.io/github/all-contributors/obsidian-nvim/obsidian.nvim?style=for-the-badge" />
+</a>
+<a href="https://github.com/orgs/obsidian-nvim/discussions">
+ <img alt="GitHub Discussions" src="https://img.shields.io/github/discussions/obsidian-nvim/obsidian.nvim?style=for-the-badge">
 </a>
 </div>
 <hr>
@@ -73,6 +74,8 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For example, `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow.
 
+- `:Obsidian extract_note [TITLE]` to extract the visually selected text into a new note and link to it.
+
 - `:Obsidian follow_link [vsplit|hsplit|vsplit_force|hsplit_force]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
 
 - `:Obsidian link [QUERY]` to link an inline visual selection of text to a note.
@@ -91,6 +94,8 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian open [QUERY]` to open a note in the Obsidian app.
   One optional argument: a query used to resolve the note to open by ID, path, or alias. If not given, the current buffer is used.
+
+- `:Obsidian paste_img [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option.
 
 - `:Obsidian quick_switch` to quickly switch to another note in your vault, searching by its name with a picker.
 
@@ -370,7 +375,8 @@ require("obsidian").setup {
   note_id_func = function(title)
     -- Create note IDs in a Zettelkasten format with a timestamp and a suffix.
     -- In this case a note with the title 'My new note' will be given an ID that looks
-    -- like '1657296016-my-new-note', and therefore the file name '1657296016-my-new-note.md'
+    -- like '1657296016-my-new-note', and therefore the file name '1657296016-my-new-note.md'.
+    -- You may have as many periods in the note ID as you'd like—the ".md" will be added automatically
     local suffix = ""
     if title ~= nil then
       -- If title is given, transform it into valid file name.
@@ -485,6 +491,13 @@ require("obsidian").setup {
     },
   },
 
+  -- Optional, by default, `:ObsidianBacklinks` parses the header under
+  -- the cursor. Setting to `false` will get the backlinks for the current
+  -- note instead. Doesn't affect other link behaviour.
+  backlinks = {
+    parse_headers = true
+  }
+
   -- Optional, sort search results by "path", "modified", "accessed", or "created".
   -- The recommend value is "modified" and `true` for `sort_reversed`, which means, for example,
   -- that `:Obsidian quick_switch` will show the notes sorted by latest modified time
@@ -533,6 +546,7 @@ require("obsidian").setup {
   -- This requires you have `conceallevel` set to 1 or 2. See `:help conceallevel` for more details.
   ui = {
     enable = true, -- set to false to disable all additional syntax features
+    ignore_conceal_warn = false, -- set to true to disable conceallevel specific warning
     update_debounce = 200, -- update delay after a text change (in milliseconds)
     max_file_length = 5000, -- disable UI features for files with more than this many lines
     -- Define how various check-boxes are displayed
@@ -649,6 +663,12 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/aileot"><img src="https://avatars.githubusercontent.com/u/46470475?v=4?s=100" width="100px;" alt="aileot"/><br /><sub><b>aileot</b></sub></a><br /><a href="#code-aileot" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://ricostacruz.com/"><img src="https://avatars.githubusercontent.com/u/74385?v=4?s=100" width="100px;" alt="Rico Sta. Cruz"/><br /><sub><b>Rico Sta. Cruz</b></sub></a><br /><a href="#doc-rstacruz" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/hnjae"><img src="https://avatars.githubusercontent.com/u/42675338?v=4?s=100" width="100px;" alt="KIM Hyunjae"/><br /><sub><b>KIM Hyunjae</b></sub></a><br /><a href="#code-hnjae" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/bburgess19"><img src="https://avatars.githubusercontent.com/u/55334507?v=4?s=100" width="100px;" alt="Ben Burgess"/><br /><sub><b>Ben Burgess</b></sub></a><br /><a href="#code-bburgess19" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://sebszyller.com"><img src="https://avatars.githubusercontent.com/u/11989990?v=4?s=100" width="100px;" alt="Sebastian Szyller"/><br /><sub><b>Sebastian Szyller</b></sub></a><br /><a href="#code-sebszyller" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://nobe4.fr"><img src="https://avatars.githubusercontent.com/u/2452791?v=4?s=100" width="100px;" alt="nobe4"/><br /><sub><b>nobe4</b></sub></a><br /><a href="#code-nobe4" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Anaritus"><img src="https://avatars.githubusercontent.com/u/61704392?v=4?s=100" width="100px;" alt="Anaritus"/><br /><sub><b>Anaritus</b></sub></a><br /><a href="#code-Anaritus" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

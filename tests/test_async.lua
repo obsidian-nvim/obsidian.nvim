@@ -18,7 +18,7 @@ describe("AsyncExecutor.map()", function()
       end,
       task_args,
       function(results)
-        assert.are_same(results, { { 1 }, { 2 }, { 3 }, { 4 } })
+        MiniTest.expect.equality(results, { { 1 }, { 2 }, { 3 }, { 4 } })
       end
     )
 
@@ -42,7 +42,7 @@ describe("AsyncExecutor.map()", function()
       end,
       task_args_gen,
       function(results)
-        assert.are_same(results, { { 1 }, { 2 }, { 3 }, { 4 } })
+        MiniTest.expect.equality(results, { { 1 }, { 2 }, { 3 }, { 4 } })
       end
     )
 
@@ -63,7 +63,7 @@ describe("ThreadPoolExecutor.map()", function()
       end,
       task_args,
       function(results)
-        assert.are_same(results, { { 1 }, { 2 }, { 3 }, { 4 } })
+        MiniTest.expect.equality(results, { { 1 }, { 2 }, { 3 }, { 4 } })
       end
     )
 
@@ -87,7 +87,7 @@ describe("ThreadPoolExecutor.map()", function()
       end,
       task_args_gen,
       function(results)
-        assert.are_same(results, { { 1 }, { 2 }, { 3 }, { 4 } })
+        MiniTest.expect.equality(results, { { 1 }, { 2 }, { 3 }, { 4 } })
       end
     )
 
@@ -115,6 +115,6 @@ describe("File.lines()", function()
       f:close()
     end, 1000)
 
-    assert.are_same(lines, actual_lines)
+    MiniTest.expect.equality(lines, actual_lines)
   end)
 end)
