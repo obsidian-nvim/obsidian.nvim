@@ -16,3 +16,26 @@
 ---@field reg string The optional register, if specified <reg>
 ---@field mods string Command modifiers, if any <mods>
 ---@field smods table Command modifiers in a structured format. Has the same structure as the "mods" key of
+
+---@class obsidian.InsertTemplateContext
+---The table passed to user substitution functions when inserting templates into a buffer.
+---
+---@field type "insert_template"
+---@field template_name string|obsidian.Path The name or path of the template being used.
+---@field template_opts obsidian.config.TemplateOpts The template options being used.
+---@field templates_dir obsidian.Path The folder containing the template file.
+---@field location [number, number, number, number] `{ buf, win, row, col }` location from which the request was made.
+---@field partial_note? obsidian.Note An optional note with fields to copy from.
+
+---@class obsidian.CloneTemplateContext
+---The table passed to user substitution functions when cloning template files to create new notes.
+---
+---@field type "clone_template"
+---@field template_name string|obsidian.Path The name or path of the template being used.
+---@field template_opts obsidian.config.TemplateOpts The template options being used.
+---@field templates_dir obsidian.Path The folder containing the template file.
+---@field destination_path obsidian.Path The path the cloned template will be written to.
+---@field partial_note obsidian.Note The note being written.
+
+---@alias obsidian.TemplateContext obsidian.InsertTemplateContext | obsidian.CloneTemplateContext
+---The table passed to user substitution functions. Use `ctx.type` to distinguish between the different kinds.

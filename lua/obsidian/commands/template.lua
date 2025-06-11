@@ -1,24 +1,26 @@
-local log = require "obsidian.log"
 local templates = require "obsidian.templates"
+local log = require "obsidian.log"
 local util = require "obsidian.util"
 
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)
-  if not client:templates_dir() then
+  local templates_dir = client:templates_dir()
+  if not templates_dir then
     log.err "Templates folder is not defined or does not exist"
     return
   end
 
   -- We need to get this upfront before the picker hijacks the current window.
-  local cursor_location = util.get_active_window_cursor_location()
+  local insert_location = util.get_active_window_cursor_location()
 
-  local function insert_template(template_path)
+  local function insert_template(name)
     templates.insert_template {
-      action = "insert_template",
-      client = client,
-      template = template_path,
-      target_location = cursor_location,
+      type = "insert_template",
+      template_name = name,
+      template_opts = client.opts.templates,
+      templates_dir = templates_dir,
+      location = insert_location,
     }
   end
 

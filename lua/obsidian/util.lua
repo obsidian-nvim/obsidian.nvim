@@ -651,12 +651,13 @@ util.working_day_after = function(time)
   end
 end
 
----@return [number, number, number, number] location values are: `{ buffer_id, window_id, cursor_row, cursor_col }`
+---@return [number, number, number, number] tuple containing { buf, win, row, col }
 util.get_active_window_cursor_location = function()
-  local buffer_id = vim.api.nvim_win_get_buf(0)
-  local window_id = vim.api.nvim_get_current_win()
-  local cursor_row, cursor_col = unpack(vim.api.nvim_win_get_cursor(window_id))
-  return { buffer_id, window_id, cursor_row, cursor_col }
+  local buf = vim.api.nvim_win_get_buf(0)
+  local win = vim.api.nvim_get_current_win()
+  local row, col = unpack(vim.api.nvim_win_get_cursor(win))
+  local location = { buf, win, row, col }
+  return location
 end
 
 ---Determines if cursor is currently inside markdown link.

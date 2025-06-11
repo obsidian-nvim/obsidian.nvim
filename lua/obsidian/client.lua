@@ -1833,21 +1833,23 @@ Client.write_note = function(self, note, opts)
   local clone_template = require("obsidian.templates").clone_template
   opts = opts or {}
 
-  note.path = (opts.path and Path.new(opts.path)) or (note.path and Path.new(note.path))
-  assert(note.path, "A path must be provided")
+  local path = assert(opts.path or note.path, "A path must be provided")
+  path = Path.new(path)
 
   ---@type string
   local verb
-  if note.path:is_file() then
+  if path:is_file() then
     verb = "Updated"
   else
     verb = "Created"
     if opts.template ~= nil then
       note = clone_template {
-        action = "clone_template",
-        client = self,
-        template = opts.template,
-        target_note = note,
+        type = "clone_template",
+        template_name = opts.template,
+        destination_path = path,
+        template_opts = self.opts.templates,
+        templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
+        partial_note = note,
       }
     end
   end
@@ -1858,7 +1860,7 @@ Client.write_note = function(self, note, opts)
   end
 
   note:save {
-    path = note.path,
+    path = path,
     insert_frontmatter = self:should_save_frontmatter(note),
     frontmatter = frontmatter,
     update_content = opts.update_content,
@@ -1885,10 +1887,12 @@ Client.write_note_to_buffer = function(self, note, opts)
 
   if opts.template and util.buffer_is_empty(opts.bufnr) then
     note = insert_template {
-      action = "insert_template",
-      client = self,
-      template = opts.template,
-      target_location = util.get_active_window_cursor_location(),
+      type = "insert_template",
+      template_name = opts.template,
+      template_opts = self.opts.templates,
+      templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
+      location = util.get_active_window_cursor_location(),
+      partial_note = note,
     }
   end
 

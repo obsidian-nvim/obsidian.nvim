@@ -451,7 +451,7 @@ end
 ---@field folder string|obsidian.Path|?
 ---@field date_format string|?
 ---@field time_format string|?
----@field substitutions table<string, string|obsidian.SubstitutionFunction>|?
+---@field substitutions table<string, (fun(ctx: obsidian.TemplateContext):string)|(fun(): string)|string>|?
 config.TemplateOpts = {}
 
 --- Get defaults.
