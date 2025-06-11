@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed types in `_snacks.lua`.
 - Fixed command documentation.
 - Fixed compatibility issue in using `vim.fs`
+- Fixed default open func
 
 ## [v3.11.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.11.0) - 2025-05-04
 

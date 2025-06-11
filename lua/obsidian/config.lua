@@ -273,6 +273,7 @@ config.ClientOpts.normalize = function(opts, defaults)
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
   opts.statusline = tbl_override(defaults.statusline, opts.statusline)
+  opts.open = tbl_override(defaults.open, opts.open)
 
   ---------------
   -- Validate. --
