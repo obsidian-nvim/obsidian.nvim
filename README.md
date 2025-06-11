@@ -1,4 +1,4 @@
-/<h1 align="center">obsidian.nvim</h1>
+<h1 align="center">obsidian.nvim</h1>
 
 <div align="center">
 <a href="https://github.com/obsidian-nvim/obsidian.nvim/releases/latest">
