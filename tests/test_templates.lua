@@ -61,6 +61,20 @@ describe("templates.substitute_template_variables()", function()
     MiniTest.expect.equality("function", type(client.opts.templates.substitutions.weekday))
   end)
 
+  it("should substitute consecutive custom variables", function()
+    local client = tmp_client()
+    client.opts.templates.substitutions = {
+      value = function()
+        return "VALUE"
+      end,
+    }
+    local text = "{{value}} and then {{value}} and then {{value}}"
+    MiniTest.expect.equality(
+      "VALUE and then VALUE and then VALUE",
+      templates.substitute_template_variables(text, tmp_template_context(client))
+    )
+  end)
+
   it("should provide substitution functions with template context", function()
     local client = tmp_client()
     client.opts.templates.substitutions = {
