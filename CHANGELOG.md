@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-11
-
 ### Added
 
 - When filling out a template with user-provided substitution functions, pass a "context" object to each invocation so that users can respond accordingly.
   - Added `obsidian.InsertTemplateContext` and `obsidian.CloneTemplateContext` as these new "context" objects.
+
+## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
+
+### Added
+
 - Allow users to have a period in the note ID as in a [Johnny.Decimal](https://johnnydecimal.com/) format.
 - Added `make types` target to check types via lua-ls.
 - Added `.github/pull_request_template.md` to make contributing simpler.
@@ -40,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed types in `_snacks.lua`.
 - Fixed command documentation.
 - Fixed compatibility issue in using `vim.fs`
+- Fixed default open func
 
 ## [v3.11.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.11.0) - 2025-05-04
 
