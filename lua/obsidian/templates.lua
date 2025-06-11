@@ -73,7 +73,11 @@ M.substitute_template_variables = function(text, ctx)
 
   -- Replace known variables.
   for key, subst in pairs(methods) do
-    for m_start, m_end in util.gfind(text, "{{" .. key .. "}}", nil, true) do
+    while true do
+      local m_start, m_end = string.find(text, "{{" .. key .. "}}", nil, true)
+      if not m_start or not m_end then
+        break
+      end
       ---@type string
       local value
       if type(subst) == "string" then
