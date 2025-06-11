@@ -63,7 +63,7 @@ obsidian.info = function()
   end
 
   local client = obsidian.get_client()
-  client:command("ObsidianDebug", { raw_print = true })
+  client:command("debug", { raw_print = true })
 end
 
 ---Create a new Obsidian client without additional setup.
@@ -115,6 +115,18 @@ obsidian.setup = function(opts)
 
   local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
+  -- wrapper for creating autocmd events
+  ---@param pattern string
+  ---@param buf integer
+  local function exec_autocmds(pattern, buf)
+    vim.api.nvim_exec_autocmds("User", {
+      pattern = pattern,
+      data = {
+        note = require("obsidian.note").from_buffer(buf),
+      },
+    })
+  end
+
   -- Complete setup and update workspace (if needed) when entering a markdown buffer.
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     group = group,
@@ -151,21 +163,12 @@ obsidian.setup = function(opts)
         require("obsidian.completion.plugin_initializers.blink").inject_sources()
       end
 
-      local win = vim.api.nvim_get_current_win()
-
-      vim.treesitter.start(ev.buf, "markdown") -- for when user don't use nvim-treesitter
-
-      vim.wo[win].foldmethod = "expr"
-      vim.wo[win].foldexpr = "v:lua.vim.treesitter.foldexpr()"
-      vim.wo[win].fillchars = "foldopen:,foldclose:,fold: ,foldsep: "
-      vim.wo[win].foldtext = ""
-      vim.wo[win].foldlevel = 99
-      vim.wo[win].smoothscroll = true
-
       -- Run enter-note callback.
       client.callback_manager:enter_note(function()
-        return obsidian.Note.from_buffer(ev.bufnr)
+        return obsidian.Note.from_buffer(ev.buf)
       end)
+
+      exec_autocmds("ObsidianNoteEnter", ev.buf)
     end,
   })
 
@@ -186,8 +189,10 @@ obsidian.setup = function(opts)
 
       -- Run leave-note callback.
       client.callback_manager:leave_note(function()
-        return obsidian.Note.from_buffer(ev.bufnr)
+        return obsidian.Note.from_buffer(ev.buf)
       end)
+
+      exec_autocmds("ObsidianNoteLeave", ev.buf)
     end,
   })
 
@@ -216,10 +221,33 @@ obsidian.setup = function(opts)
       -- Run pre-write-note callback.
       client.callback_manager:pre_write_note(note)
 
+      exec_autocmds("ObsidianNoteWritePre", ev.buf)
+
       -- Update buffer with new frontmatter.
       if client:update_frontmatter(note, bufnr) then
         log.info "Updated frontmatter"
       end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+    group = group,
+    pattern = "*.md",
+    callback = function(ev)
+      local buf_dir = vim.fs.dirname(ev.match)
+
+      -- Check if we're in a workspace.
+      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, client.opts.workspaces)
+      if not workspace then
+        return
+      end
+
+      -- Check if current buffer is actually a note within the workspace.
+      if not client:path_is_note(ev.match, workspace) then
+        return
+      end
+
+      exec_autocmds("ObsidianNoteWritePost", ev.buf)
     end,
   })
 

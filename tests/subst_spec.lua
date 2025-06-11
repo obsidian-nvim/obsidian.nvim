@@ -22,7 +22,7 @@ describe("subst.substitute_template_variables()", function()
   it("should substitute built-in variables", function()
     local client = tmp_client()
     local text = "today is {{date}} and the title of the note is {{title}}"
-    assert.equal(
+    MiniTest.expect.equality(
       string.format("today is %s and the title of the note is %s", os.date "%Y-%m-%d", "FOO"),
       subst.substitute_template_variables(text, {
         action = "clone_template",
@@ -40,6 +40,7 @@ describe("subst.substitute_template_variables()", function()
       end,
     }
     local text = "today is {{weekday}}"
+<<<<<<<< HEAD:tests/subst_spec.lua
     assert.equal(
       "today is Monday",
       subst.substitute_template_variables(text, {
@@ -47,10 +48,15 @@ describe("subst.substitute_template_variables()", function()
         client = client,
         target_note = Note.new("foo", {}, {}),
       })
+========
+    MiniTest.expect.equality(
+      "today is Monday",
+      templates.substitute_template_variables(text, client, Note.new("foo", {}, {}))
+>>>>>>>> main:tests/test_templates.lua
     )
 
     -- Make sure the client opts has not been modified.
-    assert.equal(1, vim.tbl_count(client.opts.templates.substitutions))
-    assert.equal("function", type(client.opts.templates.substitutions.weekday))
+    MiniTest.expect.equality(1, vim.tbl_count(client.opts.templates.substitutions))
+    MiniTest.expect.equality("function", type(client.opts.templates.substitutions.weekday))
   end)
 end)
