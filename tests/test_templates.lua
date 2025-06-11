@@ -47,6 +47,18 @@ T["substitute_template_variables()"]["should substitute custom variables"] = fun
   end)
 end
 
+T["substitute_template_variables()"]["should substitute consecutive custom variables"] = function()
+  h.with_tmp_client(function(client)
+    client.opts.templates.substitutions = {
+      value = function()
+        return "VALUE"
+      end,
+    }
+    local text = "{{value}} and then {{value}} and then {{value}}"
+    eq("VALUE and then VALUE and then VALUE", M.substitute_template_variables(text, tmp_template_context(client)))
+  end)
+end
+
 T["substitute_template_variables()"]["should provide substitution functions with template context"] = function()
   h.with_tmp_client(function(client)
     client.opts.templates.substitutions = {
