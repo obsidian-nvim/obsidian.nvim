@@ -1,8 +1,10 @@
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
+local config = require "obsidian.config"
 
 local M = {}
+local restore_client_key = "__restore_client_key"
 
 --- Resolve a template name to a path.
 ---
@@ -195,6 +197,60 @@ M.insert_template = function(opts)
   opts.client:update_ui(0)
 
   return Note.from_buffer(buf)
+end
+
+--- Loads the client with customizations for a template identified by `template_name` if present
+---
+--- @param template_name string The template name
+--- @param client obsidian.Client The client
+M.load_template_customizations = function(template_name, client)
+  local success, template_path = pcall(resolve_template, template_name, client)
+
+  if not success then
+    return
+  end
+
+  --- @type obsidian.config.CustomTemplateOpts|?
+  local customization = nil
+
+  -- Check if the configuration has a custom key for this template
+  for template_key, template_config in pairs(client.opts.templates.customizations) do
+    if template_key:lower() == template_path.stem:lower() then
+      customization = template_config
+      break
+    end
+  end
+
+  if not customization then
+    return
+  end
+
+  local restore_values = {
+    dir = client.opts.notes_subdir,
+    note_id_func = client.opts.note_id_func,
+    new_notes_location = client.opts.new_notes_location,
+  }
+
+  client[restore_client_key] = restore_values
+  client.opts.notes_subdir = customization.dir
+  client.opts.note_id_func = customization.note_id_func
+  client.opts.new_notes_location = config.NewNotesLocation.notes_subdir
+  return nil
+end
+
+--- Restores the client's configuration if saved previously (during `load_template_customizations`), does nothing otherwise
+--- @param client obsidian.Client The client
+M.restore_client_configurations = function(client)
+  --- @type unknown
+  local restore_values = rawget(client, restore_client_key)
+
+  if not restore_values then
+    return
+  end
+
+  client.opts.notes_subdir = restore_values.dir
+  client.opts.note_id_func = restore_values.note_id_func
+  client.opts.new_notes_location = restore_values.new_notes_location
 end
 
 return M

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Allow custom directory and ID logic for templates
+
+### Changed
+
+### Fixed
+
+- Fixed improper tmp-file creation during template tests
+
 ## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
 
 ### Added
