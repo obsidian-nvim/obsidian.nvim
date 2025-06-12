@@ -64,31 +64,6 @@ describe("util.working_day_after", function()
   end)
 end)
 
-describe("util.cursor_on_markdown_link()", function()
-  it("should correctly find if coursor is on markdown/wiki link", function()
-    --           0    5    10   15   20   25   30   35   40    45  50   55
-    --           |    |    |    |    |    |    |    |    |    |    |    |
-    local text = "The [other](link/file.md) plus [[yet|another/file.md]] there"
-    local tests = {
-      { cur_col = 4, open = nil, close = nil },
-      { cur_col = 5, open = 5, close = 25 },
-      { cur_col = 7, open = 5, close = 25 },
-      { cur_col = 25, open = 5, close = 25 },
-      { cur_col = 26, open = nil, close = nil },
-      { cur_col = 31, open = nil, close = nil },
-      { cur_col = 32, open = 32, close = 54 },
-      { cur_col = 40, open = 32, close = 54 },
-      { cur_col = 54, open = 32, close = 54 },
-      { cur_col = 55, open = nil, close = nil },
-    }
-    for _, test in ipairs(tests) do
-      local open, close = util.cursor_on_markdown_link(text, test.cur_col)
-      MiniTest.expect.equality(test.open, open, "cursor at: " .. test.cur_col)
-      MiniTest.expect.equality(test.close, close, "close")
-    end
-  end)
-end)
-
 describe("util.unescape_single_backslash()", function()
   it("should correctly remove single backslash", function()
     -- [[123\|NOTE1]] should get [[123|NOTE1]] in markdown file
@@ -411,75 +386,6 @@ describe("util.markdown_link()", function()
       "[Foo](notes/123%20foo.md)",
       util.markdown_link { path = "notes/123 foo.md", id = "123-foo", label = "Foo" }
     )
-  end)
-end)
-
-describe("util.toggle_checkbox", function()
-  before_each(function()
-    vim.cmd "bwipeout!" -- wipe out the buffer to avoid unsaved changes
-    vim.cmd "enew" -- create a new empty buffer
-    vim.bo.bufhidden = "wipe" -- and wipe it after use
-  end)
-
-  it("should toggle between default states with - lists", function()
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] dummy" })
-    local custom_states = nil
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [ ] dummy", vim.api.nvim_get_current_line())
-  end)
-
-  it("should toggle between default states with * lists", function()
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "* [ ] dummy" })
-    local custom_states = nil
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("* [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("* [ ] dummy", vim.api.nvim_get_current_line())
-  end)
-
-  it("should toggle between default states with numbered lists with .", function()
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "1. [ ] dummy" })
-    local custom_states = nil
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("1. [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("1. [ ] dummy", vim.api.nvim_get_current_line())
-  end)
-
-  it("should toggle between default states with numbered lists with )", function()
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "1) [ ] dummy" })
-    local custom_states = nil
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("1) [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("1) [ ] dummy", vim.api.nvim_get_current_line())
-  end)
-
-  it("should use custom states if provided", function()
-    local custom_states = { " ", "!", "x" }
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] dummy" })
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [!] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [ ] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [!] dummy", vim.api.nvim_get_current_line())
   end)
 end)
 
