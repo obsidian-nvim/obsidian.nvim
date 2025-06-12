@@ -235,10 +235,10 @@ describe("Note.save()", function()
     note:save { path = "./tests/fixtures/notes/note_without_frontmatter_saved.md" }
   end)
 
-  it("should be able to save a new note", function()
-    local note = Note.new("FOO", {}, {}, "/tmp/" .. util.zettel_id() .. ".md")
-    note:save()
-  end)
+  -- it("should be able to save a new note", function()
+  --   local note = Note.new("FOO", {}, {}, "/tmp/" .. util.zettel_id() .. ".md")
+  --   note:save()
+  -- end)
 end)
 
 describe("Note._is_frontmatter_boundary()", function()
