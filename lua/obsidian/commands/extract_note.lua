@@ -1,5 +1,4 @@
 local log = require "obsidian.log"
-local util = require "obsidian.util"
 local api = require "obsidian.api"
 
 ---Extract the selected text into a new note
@@ -8,7 +7,7 @@ local api = require "obsidian.api"
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)
-  local viz = util.get_visual_selection()
+  local viz = api.get_visual_selection()
   if not viz then
     log.err "ObsidianExtractNote must be called with visual selection"
     return
