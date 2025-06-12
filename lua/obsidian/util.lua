@@ -2,6 +2,12 @@ local compat = require "obsidian.compat"
 local string, table = string, table
 local util = {}
 
+setmetatable(util, {
+  __index = function(_, k)
+    return require("obsidian.api")[k] or require("obsidian.builtin")[k]
+  end,
+})
+
 -------------------
 --- File tools ----
 -------------------
