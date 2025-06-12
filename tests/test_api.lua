@@ -104,4 +104,12 @@ T["cursor_tag"] = function()
   end
 end
 
+T["cursor_heading"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "# Hello", "world" })
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  eq("Hello", child.lua [[return M.cursor_heading()]])
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  eq(vim.NIL, child.lua [[return M.cursor_heading()]])
+end
+
 return T

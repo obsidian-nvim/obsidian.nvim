@@ -41,6 +41,7 @@ M.Patterns = {
   FileUrl = "file:/[/{2}]?.*", -- file:///
   MailtoUrl = "mailto:.*", -- mailto:emailaddress
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
+  Heading = "^#+%s*(.*)$",
 }
 
 ---@type table<obsidian.search.RefTypes, { ignore_if_escape_prefix: boolean|? }>
