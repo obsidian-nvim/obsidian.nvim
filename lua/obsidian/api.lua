@@ -1,7 +1,7 @@
 local M = {}
 local util = require "obsidian.util"
 local log = require "obsidian.log"
-local iter = vim.iter
+local iter, string, table = vim.iter, string, table
 
 ---builtin functions that are impure, interacts with editor state, like vim.api
 
@@ -168,18 +168,13 @@ M.parse_link = function(link, opts)
   return link_location, link_name, link_type
 end
 
---- Get the tag under the cursor, if there is one.
----
----@param line string|?
----@param col integer|?
----
----@return string|?
-M.cursor_tag = function(line, col)
+---Get the tag under the cursor, if there is one.
+---@return string?
+M.cursor_tag = function()
   local search = require "obsidian.search"
-
-  local current_line = line and line or vim.api.nvim_get_current_line()
+  local current_line = vim.api.nvim_get_current_line()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
-  cur_col = col or cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
+  cur_col = cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
 
   for match in iter(search.find_tags(current_line)) do
     local open, close, _ = unpack(match)
@@ -192,13 +187,9 @@ M.cursor_tag = function(line, col)
 end
 
 --- Get the heading under the cursor, if there is one.
----
----@param line string|?
----
----@return string|?
-M.cursor_heading = function(line)
-  local current_line = line and line or vim.api.nvim_get_current_line()
-  return current_line:match "^(%s*)(#+)%s*(.*)$"
+---@return string?
+M.cursor_heading = function()
+  return vim.api.nvim_get_current_line():match(require("obsidian.search").Patterns.Heading)
 end
 
 ------------------
