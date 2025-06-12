@@ -84,4 +84,24 @@ T["cursor_on_markdown_link"] = function()
   end
 end
 
+T["cursor_tag"] = function()
+  --                                               0    5    10   15   20   25
+  --                                               |    |    |    |    |    |
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] Do the dishes #TODO " })
+
+  local tests = {
+    { cur_col = 0, res = vim.NIL },
+    { cur_col = 19, res = vim.NIL },
+    { cur_col = 20, res = "TODO" },
+    { cur_col = 24, res = "TODO" },
+    { cur_col = 25, res = vim.NIL },
+  }
+
+  for _, test in ipairs(tests) do
+    child.api.nvim_win_set_cursor(0, { 1, test.cur_col })
+    local tag = child.lua [[return M.cursor_tag()]]
+    eq(test.res, tag)
+  end
+end
+
 return T
