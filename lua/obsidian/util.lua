@@ -501,48 +501,6 @@ util.get_open_strategy = function(opt)
   end
 end
 
----Create a new unique Zettel ID.
----
----@return string
-util.zettel_id = function()
-  local suffix = ""
-  for _ = 1, 4 do
-    suffix = suffix .. string.char(math.random(65, 90))
-  end
-  return tostring(os.time()) .. "-" .. suffix
-end
-
----Toggle the checkbox on the current line.
----
----@param opts table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
----@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
-util.toggle_checkbox = function(opts, line_num)
-  -- Allow line_num to be optional, defaulting to the current line if not provided
-  line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
-  local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
-
-  local checkboxes = opts or { " ", "x" }
-
-  if util.is_checkbox(line) then
-    for i, check_char in ipairs(checkboxes) do
-      if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
-        i = i % #checkboxes
-        line = string.gsub(line, vim.pesc("[" .. check_char .. "]"), "[" .. checkboxes[i + 1] .. "]", 1)
-        break
-      end
-    end
-  else
-    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
-    if string.match(line, unordered_list_pattern) then
-      line = string.gsub(line, unordered_list_pattern, "%1- [ ] %2")
-    else
-      line = string.gsub(line, "^(%s*)", "%1- [ ] ")
-    end
-  end
-  -- 0-indexed
-  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { line })
-end
-
 ---Determines if the given date is a working day (not weekend)
 ---
 ---@param time integer
@@ -1088,44 +1046,6 @@ util.markdown_link = function(opts)
   return string.format("[%s%s](%s%s)", opts.label, header, path, anchor)
 end
 
---- Open a buffer for the corresponding path.
----
----@param path string|obsidian.Path
----@param opts { line: integer|?, col: integer|?, cmd: string|? }|?
----@return integer bufnr
-util.open_buffer = function(path, opts)
-  local Path = require "obsidian.path"
-
-  path = Path.new(path):resolve()
-  opts = opts and opts or {}
-  local cmd = vim.trim(opts.cmd and opts.cmd or "e")
-
-  ---@type integer|?
-  local result_bufnr
-
-  -- Check for buffer in windows and use 'drop' command if one is found.
-  for _, winnr in ipairs(vim.api.nvim_list_wins()) do
-    local bufnr = vim.api.nvim_win_get_buf(winnr)
-    local bufname = vim.api.nvim_buf_get_name(bufnr)
-    if bufname == tostring(path) then
-      cmd = "drop"
-      result_bufnr = bufnr
-      break
-    end
-  end
-
-  vim.cmd(string.format("%s %s", cmd, vim.fn.fnameescape(tostring(path))))
-  if opts.line then
-    vim.api.nvim_win_set_cursor(0, { tonumber(opts.line), opts.col and opts.col or 0 })
-  end
-
-  if not result_bufnr then
-    result_bufnr = vim.api.nvim_get_current_buf()
-  end
-
-  return result_bufnr
-end
-
 --- Get a nice icon for a file or URL, if possible.
 ---
 ---@param path string
@@ -1280,56 +1200,6 @@ util.header_to_anchor = function(header)
   return util.standardize_anchor("#" .. anchor)
 end
 
-local INPUT_CANCELLED = "~~~INPUT-CANCELLED~~~"
-
---- Prompt user for an input. Returns nil if canceled, otherwise a string (possibly empty).
----
----@param prompt string
----@param opts { completion: string|?, default: string|? }|?
----
----@return string|?
-util.input = function(prompt, opts)
-  opts = opts or {}
-
-  if not vim.endswith(prompt, " ") then
-    prompt = prompt .. " "
-  end
-
-  local input = vim.trim(
-    vim.fn.input { prompt = prompt, completion = opts.completion, default = opts.default, cancelreturn = INPUT_CANCELLED }
-  )
-
-  if input ~= INPUT_CANCELLED then
-    return input
-  else
-    return nil
-  end
-end
-
---- Prompt user for a confirmation.
----
----@param prompt string
----
----@return boolean
-util.confirm = function(prompt)
-  if not vim.endswith(util.rstrip_whitespace(prompt), "[Y/n]") then
-    prompt = util.rstrip_whitespace(prompt) .. " [Y/n] "
-  end
-
-  local confirmation = util.input(prompt)
-  if confirmation == nil then
-    return false
-  end
-
-  confirmation = string.lower(confirmation)
-
-  if confirmation == "" or confirmation == "y" or confirmation == "yes" then
-    return true
-  else
-    return false
-  end
-end
-
 ---@alias datetime_cadence "daily"
 
 --- Parse possible relative date macros like '@tomorrow'.
@@ -1347,25 +1217,6 @@ util.resolve_date_macro = function(macro)
     end
   end
   return out
-end
-
---- Check if a buffer is empty.
----
----@param bufnr integer|?
----
----@return boolean
-util.buffer_is_empty = function(bufnr)
-  bufnr = bufnr or 0
-  if vim.api.nvim_buf_line_count(bufnr) > 1 then
-    return false
-  else
-    local first_text = vim.api.nvim_buf_get_text(bufnr, 0, 0, 0, 0, {})
-    if vim.tbl_isempty(first_text) or first_text[1] == "" then
-      return true
-    else
-      return false
-    end
-  end
 end
 
 --- Check if a string contains invalid characters.

@@ -21,7 +21,7 @@ return function(client, data)
   end
 
   if title == nil or title == "" then
-    title = util.input("Enter title or path (optional): ", { completion = "file" })
+    title = api.input("Enter title or path (optional): ", { completion = "file" })
     if not title then
       log.warn "Aborted"
       return

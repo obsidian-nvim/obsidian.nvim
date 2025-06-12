@@ -7,6 +7,7 @@ local search = require "obsidian.search"
 local iter = vim.iter
 local enumerate = util.enumerate
 local compat = require "obsidian.compat"
+local api = require "obsidian.api"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
@@ -753,7 +754,7 @@ Note.save_to_buffer = function(self, opts)
     new_lines = {}
   end
 
-  if util.buffer_is_empty(bufnr) and self.title ~= nil then
+  if api.buffer_is_empty(bufnr) and self.title ~= nil then
     table.insert(new_lines, "# " .. self.title)
   end
 

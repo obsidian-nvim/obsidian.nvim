@@ -2,6 +2,7 @@ local Path = require "obsidian.path"
 local util = require "obsidian.util"
 local log = require "obsidian.log"
 local run_job = require("obsidian.async").run_job
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -116,7 +117,7 @@ M.paste_img = function(opts)
     if opts.default_name ~= nil and not opts.should_confirm then
       fname = opts.default_name
     else
-      fname = util.input("Enter file name: ", { default = opts.default_name, completion = "file" })
+      fname = api.input("Enter file name: ", { default = opts.default_name, completion = "file" })
       if fname == "" then
         fname = opts.default_name
       elseif not fname then
@@ -160,7 +161,7 @@ M.paste_img = function(opts)
 
   if opts.should_confirm then
     -- Get confirmation from user.
-    if not util.confirm("Saving image to '" .. tostring(path) .. "'. Do you want to continue?") then
+    if not api.confirm("Saving image to '" .. tostring(path) .. "'. Do you want to continue?") then
       log.warn "Paste aborted"
       return
     end
