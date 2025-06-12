@@ -1,6 +1,7 @@
 local iter = vim.iter
 local log = require "obsidian.log"
 local compat = require "obsidian.compat"
+local string, table = string, table
 
 local util = {}
 
@@ -63,11 +64,11 @@ end
 
 ---Check if a table contains a key.
 ---
----@param table table
+---@param t table
 ---@param needle any
 ---@return boolean
-util.tbl_contains_key = function(table, needle)
-  return vim.list_contains(vim.tbl_keys(table), needle)
+util.tbl_contains_key = function(t, needle)
+  return vim.list_contains(vim.tbl_keys(t), needle)
 end
 
 ---Check if an object is an array-like table.
@@ -90,11 +91,11 @@ end
 
 ---Return a new list table with only the unique values of the original table.
 ---
----@param table table
+---@param t table
 ---@return any[]
-util.tbl_unique = function(table)
+util.tbl_unique = function(t)
   local out = {}
-  for _, val in pairs(table) do
+  for _, val in pairs(t) do
     if not vim.list_contains(out, val) then
       out[#out + 1] = val
     end
@@ -133,14 +134,6 @@ util.gfind = function(s, pattern, init, plain)
     end
     return nil
   end
-end
-
----Quote a string for safe command-line usage.
----
----@param str string
----@return string
-util.quote = function(str)
-  return vim.fn.shellescape(str)
 end
 
 local char_to_hex = function(c)
@@ -433,34 +426,6 @@ util.string_contains = function(str, substr)
   return i ~= nil
 end
 
----Replace up to `n` occurrences of `what` in `s` with `with`.
----@param s string
----@param what string
----@param with string
----@param n integer|?
----@return string
----@return integer
-util.string_replace = function(s, what, with, n)
-  local count = 0
-
-  local function replace(s_)
-    if n ~= nil and count >= n then
-      return s_
-    end
-
-    local b_idx, e_idx = string.find(s_, what, 1, true)
-    if b_idx == nil or e_idx == nil then
-      return s_
-    end
-
-    count = count + 1
-    return string.sub(s_, 1, b_idx - 1) .. with .. replace(string.sub(s_, e_idx + 1))
-  end
-
-  s = replace(s)
-  return s, count
-end
-
 ------------------------------------
 -- Miscellaneous helper functions --
 ------------------------------------
@@ -562,7 +527,7 @@ util.toggle_checkbox = function(opts, line_num)
     for i, check_char in ipairs(checkboxes) do
       if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
         i = i % #checkboxes
-        line = util.string_replace(line, "[" .. check_char .. "]", "[" .. checkboxes[i + 1] .. "]", 1)
+        line = string.gsub(line, vim.pesc("[" .. check_char .. "]"), "[" .. checkboxes[i + 1] .. "]", 1)
         break
       end
     end
@@ -946,16 +911,6 @@ util.insert_text = function(text)
       vim.fn.append(current_line_num, indent)
     end
   end
-end
-
----@param bufnr integer
----@return string
-util.buf_get_full_text = function(bufnr)
-  local text = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, true), "\n")
-  if vim.api.nvim_get_option_value("eol", { buf = bufnr }) then
-    text = text .. "\n"
-  end
-  return text
 end
 
 --- Get the current visual selection of text and exit visual mode.

@@ -192,22 +192,6 @@ describe("util.strip_comments()", function()
   end)
 end)
 
-describe("util.string_replace()", function()
-  it("replace all instances", function()
-    MiniTest.expect.equality(
-      "the link is [[bar|Foo]] or [[bar]], right?",
-      util.string_replace("the link is [[foo|Foo]] or [[foo]], right?", "[[foo", "[[bar")
-    )
-  end)
-
-  it("not replace more than requested", function()
-    MiniTest.expect.equality(
-      "the link is [[bar|Foo]] or [[foo]], right?",
-      util.string_replace("the link is [[foo|Foo]] or [[foo]], right?", "[[foo", "[[bar", 1)
-    )
-  end)
-end)
-
 describe("util.is_url()", function()
   it("should identify basic URLs", function()
     MiniTest.expect.equality(true, util.is_url "https://example.com")
