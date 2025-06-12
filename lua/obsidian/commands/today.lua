@@ -1,11 +1,10 @@
-local util = require "obsidian.util"
 local log = require "obsidian.log"
 
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)
   local offset_days = 0
-  local arg = util.string_replace(data.args, " ", "")
+  local arg = string.gsub(data.args, " ", "")
   if string.len(arg) > 0 then
     local offset = tonumber(arg)
     if offset == nil then

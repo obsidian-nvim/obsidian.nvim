@@ -4,7 +4,6 @@ local entry_to_file = require("fzf-lua.path").entry_to_file
 
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
-local util = require "obsidian.util"
 local Picker = require "obsidian.pickers.picker"
 local log = require "obsidian.log"
 
@@ -22,8 +21,8 @@ end
 ---@return string
 local function format_keymap(keymap)
   keymap = string.lower(keymap)
-  keymap = util.string_replace(keymap, "<c-", "ctrl-")
-  keymap = util.string_replace(keymap, ">", "")
+  keymap = string.gsub(keymap, vim.pesc "<c-", "ctrl-")
+  keymap = string.gsub(keymap, vim.pesc ">", "")
   return keymap
 end
 

@@ -534,7 +534,7 @@ end
 Parser._parse_string = function(self, i, text)
   if vim.startswith(text, [["]]) and vim.endswith(text, [["]]) then
     -- when the text is enclosed with double-quotes we need to un-escape certain characters.
-    text = util.string_replace(text, [[\"]], [["]])
+    text = string.gsub(text, vim.pesc [[\"]], [["]])
   end
   return true, nil, util.strip_enclosing_chars(vim.trim(text))
 end
