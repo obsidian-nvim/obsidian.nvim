@@ -1,4 +1,4 @@
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 local log = require "obsidian.log"
 
 ---@param client obsidian.Client
