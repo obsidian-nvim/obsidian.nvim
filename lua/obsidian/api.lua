@@ -187,9 +187,9 @@ M.cursor_tag = function()
 end
 
 --- Get the heading under the cursor, if there is one.
----@return string?
+---@return { header: string, level: integer, anchor: string }|?
 M.cursor_heading = function()
-  return vim.api.nvim_get_current_line():match(require("obsidian.search").Patterns.Heading)
+  return util.parse_header(vim.api.nvim_get_current_line())
 end
 
 ------------------
