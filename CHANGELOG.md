@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Only error once if template folder is not found.
 - Use `vim.defaulttable` instead of custom impl
 
+### Changed
+
+- Refactor the `util` module.
+
 ## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
 
 ### Added
