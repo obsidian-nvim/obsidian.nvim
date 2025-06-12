@@ -61,32 +61,13 @@ end
 -- Table methods --
 -------------------
 
----Check if a list table contains a value.
----
----@param table any[]
----@param val any
----@return boolean
-util.tbl_contains = function(table, val)
-  for i = 1, #table do
-    if vim.deep_equal(table[i], val) then
-      return true
-    end
-  end
-  return false
-end
-
 ---Check if a table contains a key.
 ---
 ---@param table table
 ---@param needle any
 ---@return boolean
 util.tbl_contains_key = function(table, needle)
-  for key, _ in pairs(table) do
-    if key == needle then
-      return true
-    end
-  end
-  return false
+  return vim.list_contains(vim.tbl_keys(table), needle)
 end
 
 ---Check if an object is an array-like table.
@@ -114,7 +95,7 @@ end
 util.tbl_unique = function(table)
   local out = {}
   for _, val in pairs(table) do
-    if not util.tbl_contains(out, val) then
+    if not vim.list_contains(out, val) then
       out[#out + 1] = val
     end
   end
@@ -255,9 +236,9 @@ util.is_url = function(s)
   local search = require "obsidian.search"
 
   if
-    string.match(util.strip_whitespace(s), "^" .. search.Patterns[search.RefTypes.NakedUrl] .. "$")
-    or string.match(util.strip_whitespace(s), "^" .. search.Patterns[search.RefTypes.FileUrl] .. "$")
-    or string.match(util.strip_whitespace(s), "^" .. search.Patterns[search.RefTypes.MailtoUrl] .. "$")
+    string.match(vim.trim(s), "^" .. search.Patterns[search.RefTypes.NakedUrl] .. "$")
+    or string.match(vim.trim(s), "^" .. search.Patterns[search.RefTypes.FileUrl] .. "$")
+    or string.match(vim.trim(s), "^" .. search.Patterns[search.RefTypes.MailtoUrl] .. "$")
   then
     return true
   else
@@ -378,13 +359,6 @@ util.next_item = function(str, stop_chars, keep_stop_char)
   return nil, og_str
 end
 
----Strip whitespace from the ends of a string.
----@param str string
----@return string
-util.strip_whitespace = function(str)
-  return util.rstrip_whitespace(util.lstrip_whitespace(str))
-end
-
 ---Strip whitespace from the right end of a string.
 ---@param str string
 ---@return string
@@ -485,16 +459,6 @@ util.string_replace = function(s, what, with, n)
 
   s = replace(s)
   return s, count
-end
-
---- Count occurrences of the `pattern` in `s`.
----
----@param s string
----@param pattern string
----
----@return integer
-util.string_count = function(s, pattern)
-  return select(2, string.gsub(s, pattern, ""))
 end
 
 ------------------------------------
@@ -1179,7 +1143,7 @@ util.open_buffer = function(path, opts)
 
   path = Path.new(path):resolve()
   opts = opts and opts or {}
-  local cmd = util.strip_whitespace(opts.cmd and opts.cmd or "e")
+  local cmd = vim.trim(opts.cmd and opts.cmd or "e")
 
   ---@type integer|?
   local result_bufnr
@@ -1324,9 +1288,9 @@ end
 util.parse_header = function(line)
   local header_start, header = string.match(line, "^(#+)%s+([^%s]+.*)$")
   if header_start and header then
-    header = util.strip_whitespace(header)
+    header = vim.trim(header)
     return {
-      header = util.strip_whitespace(header),
+      header = vim.trim(header),
       level = string.len(header_start),
       anchor = util.header_to_anchor(header),
     }
@@ -1357,7 +1321,7 @@ end
 ---@return string
 util.header_to_anchor = function(header)
   -- Remove leading '#' and strip whitespace.
-  local anchor = util.strip_whitespace(string.gsub(header, [[^#+%s+]], ""))
+  local anchor = vim.trim(string.gsub(header, [[^#+%s+]], ""))
   return util.standardize_anchor("#" .. anchor)
 end
 
@@ -1376,7 +1340,7 @@ util.input = function(prompt, opts)
     prompt = prompt .. " "
   end
 
-  local input = util.strip_whitespace(
+  local input = vim.trim(
     vim.fn.input { prompt = prompt, completion = opts.completion, default = opts.default, cancelreturn = INPUT_CANCELLED }
   )
 

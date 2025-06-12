@@ -63,7 +63,7 @@ return function(client, data)
   end
 
   if data.args ~= nil and string.len(data.args) > 0 then
-    arg = util.strip_whitespace(data.args)
+    arg = vim.trim(data.args)
   else
     arg = util.input("Enter new note ID/name/path: ", { completion = "file", default = cur_note_id })
     if not arg or string.len(arg) == 0 then
@@ -74,7 +74,7 @@ return function(client, data)
 
   if vim.endswith(arg, " --dry-run") then
     dry_run = true
-    arg = util.strip_whitespace(string.sub(arg, 1, -string.len " --dry-run" - 1))
+    arg = vim.trim(string.sub(arg, 1, -string.len " --dry-run" - 1))
   end
 
   assert(cur_note_path)

@@ -524,7 +524,7 @@ local function update_extmarks(bufnr, ns_id, ui_opts)
       if #new_line_marks > 0 then
         -- Materialize new marks.
         for mark in iter(new_line_marks) do
-          if not util.tbl_contains(cur_line_marks, mark) then
+          if not vim.list_contains(cur_line_marks, mark) then
             mark:materialize(bufnr, ns_id)
             n_marks_added = n_marks_added + 1
           end
@@ -532,7 +532,7 @@ local function update_extmarks(bufnr, ns_id, ui_opts)
 
         -- Clear old marks.
         for mark in iter(cur_line_marks) do
-          if not util.tbl_contains(new_line_marks, mark) then
+          if not vim.list_contains(new_line_marks, mark) then
             mark:clear(bufnr, ns_id)
             n_marks_cleared = n_marks_cleared + 1
           end

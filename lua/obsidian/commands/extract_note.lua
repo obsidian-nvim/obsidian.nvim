@@ -18,7 +18,7 @@ return function(client, data)
   ---@type string|?
   local title
   if data.args ~= nil and string.len(data.args) > 0 then
-    title = util.strip_whitespace(data.args)
+    title = vim.trim(data.args)
   else
     title = util.input "Enter title (optional): "
     if not title then

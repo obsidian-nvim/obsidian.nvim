@@ -158,9 +158,9 @@ describe("util.next_item()", function()
   end)
 end)
 
-describe("util.strip_whitespace()", function()
+describe("vim.trim()", function()
   it("should strip tabs and spaces from both ends", function()
-    MiniTest.expect.equality("foo", util.strip_whitespace "	foo ")
+    MiniTest.expect.equality("foo", vim.trim "	foo ")
   end)
 end)
 
