@@ -1,4 +1,4 @@
-local toggle_checkbox = require("obsidian.util").toggle_checkbox
+local toggle_checkbox = require("obsidian.api").toggle_checkbox
 
 ---@param client obsidian.Client
 ---@param data CommandArgs

@@ -1,6 +1,7 @@
 local util = require "obsidian.util"
 local log = require "obsidian.log"
 local RefTypes = require("obsidian.search").RefTypes
+local api = require "obsidian.api"
 
 ---@param client obsidian.Client
 ---@param picker obsidian.Picker
@@ -46,7 +47,7 @@ local function collect_backlinks(client, picker, note, opts)
       picker:pick(entries, {
         prompt_title = prompt_title,
         callback = function(value)
-          util.open_buffer(value.path, { line = value.line })
+          api.open_buffer(value.path, { line = value.line })
         end,
       })
     end)

@@ -1,6 +1,6 @@
 local templates = require "obsidian.templates"
 local log = require "obsidian.log"
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 
 ---@param client obsidian.Client
 ---@param data CommandArgs
@@ -12,7 +12,7 @@ return function(client, data)
   end
 
   -- We need to get this upfront before the picker hijacks the current window.
-  local insert_location = util.get_active_window_cursor_location()
+  local insert_location = api.get_active_window_cursor_location()
 
   local function insert_template(name)
     templates.insert_template {

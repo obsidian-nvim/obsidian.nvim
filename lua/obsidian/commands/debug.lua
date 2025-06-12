@@ -3,6 +3,7 @@ local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local VERSION = require "obsidian.version"
+local api = require "obsidian.api"
 
 ---@return { available: boolean, refs: boolean|?, tags: boolean|?, new: boolean|?, sources: string[]|? }
 local function check_completion_with_nvim_cmp()
@@ -57,7 +58,7 @@ end
 return function(client, data)
   data = data or {}
 
-  local info = util.get_plugin_info() or {}
+  local info = api.get_plugin_info() or {}
   log.lazy_info("Obsidian.nvim v%s (%s)", VERSION, info.commit or "unknown commit")
 
   log.lazy_info "Status:"
@@ -84,7 +85,7 @@ return function(client, data)
     "mini.pick",
     "snacks.pick",
   } do
-    local plugin_info = util.get_plugin_info(plugin)
+    local plugin_info = api.get_plugin_info(plugin)
     if plugin_info ~= nil then
       log.lazy_info("  ✓ %s: %s", plugin, plugin_info.commit or "unknown")
     end

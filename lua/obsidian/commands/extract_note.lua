@@ -1,5 +1,6 @@
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 
 ---Extract the selected text into a new note
 ---and replace the selection with a link to the new note.
@@ -20,7 +21,7 @@ return function(client, data)
   if data.args ~= nil and string.len(data.args) > 0 then
     title = vim.trim(data.args)
   else
-    title = util.input "Enter title (optional): "
+    title = api.input "Enter title (optional): "
     if not title then
       log.warn "Aborted"
       return

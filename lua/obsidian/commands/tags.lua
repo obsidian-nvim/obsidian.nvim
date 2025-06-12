@@ -1,6 +1,7 @@
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local search = require "obsidian.search"
+local api = require "obsidian.api"
 
 ---@param client obsidian.Client
 ---@param picker obsidian.Picker
@@ -40,7 +41,7 @@ local function gather_tag_picker_list(client, picker, tags)
       picker:pick(entries, {
         prompt_title = "#" .. table.concat(tags, ", #"),
         callback = function(value)
-          util.open_buffer(value.path, { line = value.line, col = value.col })
+          api.open_buffer(value.path, { line = value.line, col = value.col })
         end,
       })
     end)
@@ -71,7 +72,7 @@ return function(client, data)
       tags = { tag }
     else
       -- Otherwise check for a tag under the cursor.
-      local tag = util.cursor_tag()
+      local tag = api.cursor_tag()
       if tag then
         tags = { tag }
       end
