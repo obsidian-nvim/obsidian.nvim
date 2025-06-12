@@ -9,7 +9,7 @@ local api = require "obsidian.api"
 return function(client, data)
   local viz = api.get_visual_selection()
   if not viz then
-    log.err "ObsidianExtractNote must be called with visual selection"
+    log.err "Obsidian extract_note must be called with visual selection"
     return
   end
 
