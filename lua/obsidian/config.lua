@@ -1,5 +1,6 @@
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local builtin = require "obsidian.builtin"
 
 local config = {}
 
@@ -49,8 +50,8 @@ config.ClientOpts.default = function()
     new_notes_location = config.NewNotesLocation.current_dir,
     templates = config.TemplateOpts.default(),
     note_id_func = nil,
-    wiki_link_func = util.wiki_link_id_prefix,
-    markdown_link_func = util.markdown_link,
+    wiki_link_func = builtin.wiki_link_id_prefix,
+    markdown_link_func = builtin.markdown_link,
     preferred_link_style = config.LinkStyle.wiki,
     follow_url_func = vim.ui.open,
     follow_img_func = vim.ui.open,
@@ -140,15 +141,15 @@ config.ClientOpts.normalize = function(opts, defaults)
     local warn = false
 
     if opts.completion.prepend_note_id then
-      opts.wiki_link_func = util.wiki_link_id_prefix
+      opts.wiki_link_func = builtin.wiki_link_id_prefix
       opts.completion.prepend_note_id = nil
       warn = true
     elseif opts.completion.prepend_note_path then
-      opts.wiki_link_func = util.wiki_link_path_prefix
+      opts.wiki_link_func = builtin.wiki_link_path_prefix
       opts.completion.prepend_note_path = nil
       warn = true
     elseif opts.completion.use_path_only then
-      opts.wiki_link_func = util.wiki_link_path_only
+      opts.wiki_link_func = builtin.wiki_link_path_only
       opts.completion.use_path_only = nil
       warn = true
     end
@@ -163,13 +164,13 @@ config.ClientOpts.normalize = function(opts, defaults)
   end
 
   if opts.wiki_link_func == "prepend_note_id" then
-    opts.wiki_link_func = util.wiki_link_id_prefix
+    opts.wiki_link_func = builtin.wiki_link_id_prefix
   elseif opts.wiki_link_func == "prepend_note_path" then
-    opts.wiki_link_func = util.wiki_link_path_prefix
+    opts.wiki_link_func = builtin.wiki_link_path_prefix
   elseif opts.wiki_link_func == "use_path_only" then
-    opts.wiki_link_func = util.wiki_link_path_only
+    opts.wiki_link_func = builtin.wiki_link_path_only
   elseif opts.wiki_link_func == "use_alias_only" then
-    opts.wiki_link_func = util.wiki_link_alias_only
+    opts.wiki_link_func = builtin.wiki_link_alias_only
   elseif type(opts.wiki_link_func) == "string" then
     error(string.format("invalid option '%s' for 'wiki_link_func'", opts.wiki_link_func))
   end

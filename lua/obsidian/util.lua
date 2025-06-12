@@ -1,8 +1,5 @@
-local iter = vim.iter
-local log = require "obsidian.log"
 local compat = require "obsidian.compat"
 local string, table = string, table
-
 local util = {}
 
 -------------------
@@ -59,7 +56,7 @@ util.zip = function(iterable1, iterable2)
 end
 
 -------------------
--- Table methods --
+--- Table tools ---
 -------------------
 
 ---Check if a table contains a key.
@@ -113,7 +110,7 @@ util.tbl_clear = function(t)
 end
 
 --------------------
--- String methods --
+--- String Tools ---
 --------------------
 
 ---Iterate over all matches of 'pattern' in 's'. 'gfind' is to 'find' as 'gsub' is to 'sub'.
@@ -501,6 +498,10 @@ util.get_open_strategy = function(opt)
   end
 end
 
+--------------------
+--- Date helpers ---
+--------------------
+
 ---Determines if the given date is a working day (not weekend)
 ---
 ---@param time integer
@@ -835,215 +836,44 @@ util.get_named_buffers = function()
   end
 end
 
----Insert text at current cursor position.
----@param text string
-util.insert_text = function(text)
-  local curpos = vim.fn.getcurpos()
-  local line_num, line_col = curpos[2], curpos[3]
-  local indent = string.rep(" ", line_col)
+------------------------------------
+-- Miscellaneous helper functions --
+------------------------------------
+---@enum OSType
+util.OSType = {
+  Linux = "Linux",
+  Wsl = "Wsl",
+  Windows = "Windows",
+  Darwin = "Darwin",
+  FreeBSD = "FreeBSD",
+}
 
-  -- Convert text to lines table so we can handle multi-line strings.
-  local lines = {}
-  for line in text:gmatch "[^\r\n]+" do
-    lines[#lines + 1] = line
+util._current_os = nil
+
+---Get the running operating system.
+---Reference https://vi.stackexchange.com/a/2577/33116
+---@return OSType
+util.get_os = function()
+  if util._current_os ~= nil then
+    return util._current_os
   end
 
-  for line_index, line in pairs(lines) do
-    local current_line_num = line_num + line_index - 1
-    local current_line = vim.fn.getline(current_line_num)
-    assert(type(current_line) == "string")
-
-    -- Since there's no column 0, remove extra space when current line is blank.
-    if current_line == "" then
-      indent = indent:sub(1, -2)
+  local this_os
+  if vim.fn.has "win32" == 1 then
+    this_os = util.OSType.Windows
+  else
+    local sysname = vim.loop.os_uname().sysname
+    local release = vim.loop.os_uname().release:lower()
+    if sysname:lower() == "linux" and string.find(release, "microsoft") then
+      this_os = util.OSType.Wsl
+    else
+      this_os = sysname
     end
-
-    local pre_txt = current_line:sub(1, line_col)
-    local post_txt = current_line:sub(line_col + 1, -1)
-    local inserted_txt = pre_txt .. line .. post_txt
-
-    vim.fn.setline(current_line_num, inserted_txt)
-
-    -- Create new line so inserted_txt doesn't replace next lines
-    if line_index ~= #lines then
-      vim.fn.append(current_line_num, indent)
-    end
-  end
-end
-
---- Get the current visual selection of text and exit visual mode.
----
----@param opts { strict: boolean|? }|?
----
----@return { lines: string[], selection: string, csrow: integer, cscol: integer, cerow: integer, cecol: integer }|?
-util.get_visual_selection = function(opts)
-  opts = opts or {}
-  -- Adapted from fzf-lua:
-  -- https://github.com/ibhagwan/fzf-lua/blob/6ee73fdf2a79bbd74ec56d980262e29993b46f2b/lua/fzf-lua/utils.lua#L434-L466
-  -- this will exit visual mode
-  -- use 'gv' to reselect the text
-  local _, csrow, cscol, cerow, cecol
-  local mode = vim.fn.mode()
-  if opts.strict and not vim.endswith(string.lower(mode), "v") then
-    return
   end
 
-  if mode == "v" or mode == "V" or mode == "" then
-    -- if we are in visual mode use the live position
-    _, csrow, cscol, _ = unpack(vim.fn.getpos ".")
-    _, cerow, cecol, _ = unpack(vim.fn.getpos "v")
-    if mode == "V" then
-      -- visual line doesn't provide columns
-      cscol, cecol = 0, 999
-    end
-    -- exit visual mode
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
-  else
-    -- otherwise, use the last known visual position
-    _, csrow, cscol, _ = unpack(vim.fn.getpos "'<")
-    _, cerow, cecol, _ = unpack(vim.fn.getpos "'>")
-  end
-
-  -- Swap vars if needed
-  if cerow < csrow then
-    csrow, cerow = cerow, csrow
-    cscol, cecol = cecol, cscol
-  elseif cerow == csrow and cecol < cscol then
-    cscol, cecol = cecol, cscol
-  end
-
-  local lines = vim.fn.getline(csrow, cerow)
-  assert(type(lines) == "table")
-  if vim.tbl_isempty(lines) then
-    return
-  end
-
-  -- When the whole line is selected via visual line mode ("V"), cscol / cecol will be equal to "v:maxcol"
-  -- for some odd reason. So change that to what they should be here. See ':h getpos' for more info.
-  local maxcol = vim.api.nvim_get_vvar "maxcol"
-  if cscol == maxcol then
-    cscol = string.len(lines[1])
-  end
-  if cecol == maxcol then
-    cecol = string.len(lines[#lines])
-  end
-
-  ---@type string
-  local selection
-  local n = #lines
-  if n <= 0 then
-    selection = ""
-  elseif n == 1 then
-    selection = string.sub(lines[1], cscol, cecol)
-  elseif n == 2 then
-    selection = string.sub(lines[1], cscol) .. "\n" .. string.sub(lines[n], 1, cecol)
-  else
-    selection = string.sub(lines[1], cscol)
-      .. "\n"
-      .. table.concat(lines, "\n", 2, n - 1)
-      .. "\n"
-      .. string.sub(lines[n], 1, cecol)
-  end
-
-  return {
-    lines = lines,
-    selection = selection,
-    csrow = csrow,
-    cscol = cscol,
-    cerow = cerow,
-    cecol = cecol,
-  }
-end
-
----@param anchor obsidian.note.HeaderAnchor
----@return string
-util.format_anchor_label = function(anchor)
-  return string.format(" ❯ %s", anchor.header)
-end
-
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
----@return string
-util.wiki_link_alias_only = function(opts)
-  ---@type string
-  local header_or_block = ""
-  if opts.anchor then
-    header_or_block = string.format("#%s", opts.anchor.header)
-  elseif opts.block then
-    header_or_block = string.format("#%s", opts.block.id)
-  end
-  return string.format("[[%s%s]]", opts.label, header_or_block)
-end
-
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
----@return string
-util.wiki_link_path_only = function(opts)
-  ---@type string
-  local header_or_block = ""
-  if opts.anchor then
-    header_or_block = opts.anchor.anchor
-  elseif opts.block then
-    header_or_block = string.format("#%s", opts.block.id)
-  end
-  return string.format("[[%s%s]]", opts.path, header_or_block)
-end
-
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
----@return string
-util.wiki_link_path_prefix = function(opts)
-  local anchor = ""
-  local header = ""
-  if opts.anchor then
-    anchor = opts.anchor.anchor
-    header = util.format_anchor_label(opts.anchor)
-  elseif opts.block then
-    anchor = "#" .. opts.block.id
-    header = "#" .. opts.block.id
-  end
-
-  if opts.label ~= opts.path then
-    return string.format("[[%s%s|%s%s]]", opts.path, anchor, opts.label, header)
-  else
-    return string.format("[[%s%s]]", opts.path, anchor)
-  end
-end
-
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
----@return string
-util.wiki_link_id_prefix = function(opts)
-  local anchor = ""
-  local header = ""
-  if opts.anchor then
-    anchor = opts.anchor.anchor
-    header = util.format_anchor_label(opts.anchor)
-  elseif opts.block then
-    anchor = "#" .. opts.block.id
-    header = "#" .. opts.block.id
-  end
-
-  if opts.id == nil then
-    return string.format("[[%s%s]]", opts.label, anchor)
-  elseif opts.label ~= opts.id then
-    return string.format("[[%s%s|%s%s]]", opts.id, anchor, opts.label, header)
-  else
-    return string.format("[[%s%s]]", opts.id, anchor)
-  end
-end
-
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
----@return string
-util.markdown_link = function(opts)
-  local anchor = ""
-  local header = ""
-  if opts.anchor then
-    anchor = opts.anchor.anchor
-    header = util.format_anchor_label(opts.anchor)
-  elseif opts.block then
-    anchor = "#" .. opts.block.id
-    header = "#" .. opts.block.id
-  end
-
-  local path = util.urlencode(opts.path, { keep_path_sep = true })
-  return string.format("[%s%s](%s%s)", opts.label, header, path, anchor)
+  assert(this_os)
+  util._current_os = this_os
+  return this_os
 end
 
 --- Get a nice icon for a file or URL, if possible.
@@ -1069,6 +899,12 @@ util.get_icon = function(path)
     end
   end
   return nil
+end
+
+---@param anchor obsidian.note.HeaderAnchor
+---@return string
+util.format_anchor_label = function(anchor)
+  return string.format(" ❯ %s", anchor.header)
 end
 
 -- We are very loose here because obsidian allows pretty much anything
