@@ -245,7 +245,7 @@ return function(client, data)
     for line_num, line in enumerate(f:lines "*L") do
       for ref, replacement in zip(reference_forms, replace_with) do
         local n
-        line, n = util.string_replace(line, ref, replacement)
+        line, n = string.gsub(line, vim.pesc(ref), replacement)
         if dry_run and n > 0 then
           log.info(
             "Dry run: '"
