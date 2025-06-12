@@ -344,21 +344,21 @@ require("obsidian").setup {
     -- Overrides the 'gf' mapping to work on markdown/wiki links within your vault.
     ["gf"] = {
       action = function()
-        return require("obsidian.builtin").gf_passthrough()
+        return require("obsidian").util.gf_passthrough()
       end,
       opts = { noremap = false, expr = true, buffer = true },
     },
     -- Toggle check-boxes.
     ["<leader>ch"] = {
       action = function()
-        return require("obsidian.api").toggle_checkbox() -- FIXME:
+        return require("obsidian").util.toggle_checkbox()
       end,
       opts = { buffer = true },
     },
     -- Smart action depending on context: follow link, show notes with tag, toggle checkbox, or toggle heading fold
     ["<cr>"] = {
       action = function()
-        return require("obsidian.builtin").smart_action()
+        return require("obsidian").util.smart_action()
       end,
       opts = { buffer = true, expr = true },
     },
