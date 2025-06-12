@@ -1,5 +1,6 @@
 local M = {}
 local util = require "obsidian.util"
+local log = require "obsidian.log"
 local iter = vim.iter
 
 ---builtin functions that are impure, interacts with editor state, like vim.api
@@ -278,6 +279,168 @@ M.get_named_buffers = function()
         return bufnr, vim.api.nvim_buf_get_name(bufnr)
       end
     end
+  end
+end
+
+----------------
+--- text api ---
+----------------
+
+---Insert text at current cursor position.
+---@param text string
+M.insert_text = function(text)
+  local curpos = vim.fn.getcurpos()
+  local line_num, line_col = curpos[2], curpos[3]
+  local indent = string.rep(" ", line_col)
+
+  -- Convert text to lines table so we can handle multi-line strings.
+  local lines = {}
+  for line in text:gmatch "[^\r\n]+" do
+    lines[#lines + 1] = line
+  end
+
+  for line_index, line in pairs(lines) do
+    local current_line_num = line_num + line_index - 1
+    local current_line = vim.fn.getline(current_line_num)
+    assert(type(current_line) == "string")
+
+    -- Since there's no column 0, remove extra space when current line is blank.
+    if current_line == "" then
+      indent = indent:sub(1, -2)
+    end
+
+    local pre_txt = current_line:sub(1, line_col)
+    local post_txt = current_line:sub(line_col + 1, -1)
+    local inserted_txt = pre_txt .. line .. post_txt
+
+    vim.fn.setline(current_line_num, inserted_txt)
+
+    -- Create new line so inserted_txt doesn't replace next lines
+    if line_index ~= #lines then
+      vim.fn.append(current_line_num, indent)
+    end
+  end
+end
+
+--- Get the current visual selection of text and exit visual mode.
+---
+---@param opts { strict: boolean|? }|?
+---
+---@return { lines: string[], selection: string, csrow: integer, cscol: integer, cerow: integer, cecol: integer }|?
+M.get_visual_selection = function(opts)
+  opts = opts or {}
+  -- Adapted from fzf-lua:
+  -- https://github.com/ibhagwan/fzf-lua/blob/6ee73fdf2a79bbd74ec56d980262e29993b46f2b/lua/fzf-lua/utils.lua#L434-L466
+  -- this will exit visual mode
+  -- use 'gv' to reselect the text
+  local _, csrow, cscol, cerow, cecol
+  local mode = vim.fn.mode()
+  if opts.strict and not vim.endswith(string.lower(mode), "v") then
+    return
+  end
+
+  if mode == "v" or mode == "V" or mode == "" then
+    -- if we are in visual mode use the live position
+    _, csrow, cscol, _ = unpack(vim.fn.getpos ".")
+    _, cerow, cecol, _ = unpack(vim.fn.getpos "v")
+    if mode == "V" then
+      -- visual line doesn't provide columns
+      cscol, cecol = 0, 999
+    end
+    -- exit visual mode
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+  else
+    -- otherwise, use the last known visual position
+    _, csrow, cscol, _ = unpack(vim.fn.getpos "'<")
+    _, cerow, cecol, _ = unpack(vim.fn.getpos "'>")
+  end
+
+  -- Swap vars if needed
+  if cerow < csrow then
+    csrow, cerow = cerow, csrow
+    cscol, cecol = cecol, cscol
+  elseif cerow == csrow and cecol < cscol then
+    cscol, cecol = cecol, cscol
+  end
+
+  local lines = vim.fn.getline(csrow, cerow)
+  assert(type(lines) == "table")
+  if vim.tbl_isempty(lines) then
+    return
+  end
+
+  -- When the whole line is selected via visual line mode ("V"), cscol / cecol will be equal to "v:maxcol"
+  -- for some odd reason. So change that to what they should be here. See ':h getpos' for more info.
+  local maxcol = vim.api.nvim_get_vvar "maxcol"
+  if cscol == maxcol then
+    cscol = string.len(lines[1])
+  end
+  if cecol == maxcol then
+    cecol = string.len(lines[#lines])
+  end
+
+  ---@type string
+  local selection
+  local n = #lines
+  if n <= 0 then
+    selection = ""
+  elseif n == 1 then
+    selection = string.sub(lines[1], cscol, cecol)
+  elseif n == 2 then
+    selection = string.sub(lines[1], cscol) .. "\n" .. string.sub(lines[n], 1, cecol)
+  else
+    selection = string.sub(lines[1], cscol)
+      .. "\n"
+      .. table.concat(lines, "\n", 2, n - 1)
+      .. "\n"
+      .. string.sub(lines[n], 1, cecol)
+  end
+
+  return {
+    lines = lines,
+    selection = selection,
+    csrow = csrow,
+    cscol = cscol,
+    cerow = cerow,
+    cecol = cecol,
+  }
+end
+
+------------------
+--- UI helpers ---
+------------------
+
+---Get the strategy for opening notes
+---
+---@param opt obsidian.config.OpenStrategy
+---@return string
+M.get_open_strategy = function(opt)
+  local OpenStrategy = require("obsidian.config").OpenStrategy
+
+  -- either 'leaf', 'row' for vertically split windows, or 'col' for horizontally split windows
+  local cur_layout = vim.fn.winlayout()[1]
+
+  if vim.startswith(OpenStrategy.hsplit, opt) then
+    if cur_layout ~= "col" then
+      return "split "
+    else
+      return "e "
+    end
+  elseif vim.startswith(OpenStrategy.vsplit, opt) then
+    if cur_layout ~= "row" then
+      return "vsplit "
+    else
+      return "e "
+    end
+  elseif vim.startswith(OpenStrategy.vsplit_force, opt) then
+    return "vsplit "
+  elseif vim.startswith(OpenStrategy.hsplit_force, opt) then
+    return "hsplit "
+  elseif vim.startswith(OpenStrategy.current, opt) then
+    return "e "
+  else
+    log.err("undefined open strategy '%s'", opt)
+    return "e "
   end
 end
 

@@ -1,5 +1,5 @@
 local Path = require "obsidian.path"
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 local paste_img = require("obsidian.img_paste").paste_img
 
 ---@param client obsidian.Client
@@ -24,6 +24,6 @@ return function(client, data)
   }
 
   if path ~= nil then
-    util.insert_text(client.opts.attachments.img_text_func(client, path))
+    api.insert_text(client.opts.attachments.img_text_func(client, path))
   end
 end

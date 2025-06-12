@@ -1,7 +1,6 @@
 ---@diagnostic disable: invisible
 
 local Note = require "obsidian.note"
-local util = require "obsidian.util"
 local async = require "plenary.async"
 
 describe("Note.new()", function()
