@@ -25,7 +25,7 @@ return function(client, data)
   end
 
   if string.len(data.args) > 0 then
-    local template_name = util.strip_whitespace(data.args)
+    local template_name = vim.trim(data.args)
     insert_template(template_name)
     return
   end

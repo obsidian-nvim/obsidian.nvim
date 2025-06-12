@@ -104,7 +104,7 @@ end
 M.paste_img = function(opts)
   opts = opts or {}
 
-  local fname = opts.fname and util.strip_whitespace(opts.fname) or nil
+  local fname = opts.fname and vim.trim(opts.fname) or nil
 
   if not clipboard_is_img() then
     log.err "There is no image data in the clipboard"
@@ -127,7 +127,7 @@ M.paste_img = function(opts)
   end
 
   assert(fname)
-  fname = util.strip_whitespace(fname)
+  fname = vim.trim(fname)
 
   -- Verify filename
   if util.contains_invalid_characters(fname) then

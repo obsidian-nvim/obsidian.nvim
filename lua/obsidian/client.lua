@@ -676,7 +676,7 @@ Client.resolve_note_async = function(self, query, callback, opts)
       local reference_ids = note:reference_ids { lowercase = true }
 
       -- Check for exact match.
-      if util.tbl_contains(reference_ids, query_lwr) then
+      if vim.list_contains(reference_ids, query_lwr) then
         table.insert(exact_matches, note)
       else
         -- Fall back to fuzzy match.
@@ -1146,7 +1146,7 @@ Client.find_tags_async = function(self, term, callback, opts)
         end
       end
 
-      local line = util.strip_whitespace(match_data.lines.text)
+      local line = vim.trim(match_data.lines.text)
       local n_matches = 0
 
       -- check for tag in the wild of the form '#{tag}'
@@ -1644,14 +1644,14 @@ end
 ---@return string|?,string,obsidian.Path
 Client.parse_title_id_path = function(self, title, id, dir)
   if title then
-    title = util.strip_whitespace(title)
+    title = vim.trim(title)
     if title == "" then
       title = nil
     end
   end
 
   if id then
-    id = util.strip_whitespace(id)
+    id = vim.trim(id)
     if id == "" then
       id = nil
     end
@@ -1793,7 +1793,7 @@ Client.create_note = function(self, opts)
   ---@type string[]
   ---@diagnostic disable-next-line: assign-type-mismatch
   local aliases = opts.aliases or {}
-  if new_title ~= nil and new_title:len() > 0 and not util.tbl_contains(aliases, new_title) then
+  if new_title ~= nil and new_title:len() > 0 and not vim.list_contains(aliases, new_title) then
     aliases[#aliases + 1] = new_title
   end
 

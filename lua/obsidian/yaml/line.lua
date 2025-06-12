@@ -25,7 +25,7 @@ Line.new = function(raw_line, base_indent)
     self.indent = self.indent - base_indent
   end
   self.raw_content = util.lstrip_whitespace(raw_line, base_indent)
-  self.content = util.strip_whitespace(self.raw_content)
+  self.content = vim.trim(self.raw_content)
   return self
 end
 

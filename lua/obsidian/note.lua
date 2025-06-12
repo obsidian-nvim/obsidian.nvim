@@ -172,7 +172,7 @@ end
 
 Note.should_save_frontmatter = function(self)
   local fname = self:fname()
-  return (fname ~= nil and not util.tbl_contains(SKIP_UPDATING_FRONTMATTER, fname))
+  return (fname ~= nil and not vim.list_contains(SKIP_UPDATING_FRONTMATTER, fname))
 end
 
 --- Check if a note has a given alias.
@@ -181,7 +181,7 @@ end
 ---
 ---@return boolean
 Note.has_alias = function(self, alias)
-  return util.tbl_contains(self.aliases, alias)
+  return vim.list_contains(self.aliases, alias)
 end
 
 --- Check if a note has a given tag.
@@ -190,7 +190,7 @@ end
 ---
 ---@return boolean
 Note.has_tag = function(self, tag)
-  return util.tbl_contains(self.tags, tag)
+  return vim.list_contains(self.tags, tag)
 end
 
 --- Add an alias to the note.
