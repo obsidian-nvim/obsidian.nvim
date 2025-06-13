@@ -226,7 +226,7 @@ Parser._try_parse_field = function(self, lines, i, text)
     _, _, key, value = string.find(text, "([a-zA-Z0-9_-]+[a-zA-Z0-9_ -]*): (.*)")
   end
 
-  value = value and util.strip_whitespace(value) or nil
+  value = value and vim.trim(value) or nil
   if value == "" then
     value = nil
   end
@@ -534,9 +534,9 @@ end
 Parser._parse_string = function(self, i, text)
   if vim.startswith(text, [["]]) and vim.endswith(text, [["]]) then
     -- when the text is enclosed with double-quotes we need to un-escape certain characters.
-    text = util.string_replace(text, [[\"]], [["]])
+    text = string.gsub(text, vim.pesc [[\"]], [["]])
   end
-  return true, nil, util.strip_enclosing_chars(util.strip_whitespace(text))
+  return true, nil, util.strip_enclosing_chars(vim.trim(text))
 end
 
 ---Parse a string value.
@@ -567,7 +567,7 @@ end
 ---@param text string
 ---@return number
 Parser.parse_number = function(self, text)
-  local ok, errmsg, res = self:_parse_number(1, util.strip_whitespace(util.strip_comments(text)))
+  local ok, errmsg, res = self:_parse_number(1, vim.trim(util.strip_comments(text)))
   if not ok then
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a number", 1, text)
     error(errmsg)
@@ -597,7 +597,7 @@ end
 ---@param text string
 ---@return boolean
 Parser.parse_boolean = function(self, text)
-  local ok, errmsg, res = self:_parse_boolean(1, util.strip_whitespace(util.strip_comments(text)))
+  local ok, errmsg, res = self:_parse_boolean(1, vim.trim(util.strip_comments(text)))
   if not ok then
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a boolean", 1, text)
     error(errmsg)
@@ -624,7 +624,7 @@ end
 ---@param text string
 ---@return vim.NIL|nil
 Parser.parse_null = function(self, text)
-  local ok, errmsg, res = self:_parse_null(1, util.strip_whitespace(util.strip_comments(text)))
+  local ok, errmsg, res = self:_parse_null(1, vim.trim(util.strip_comments(text)))
   if not ok then
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a null value", 1, text)
     error(errmsg)

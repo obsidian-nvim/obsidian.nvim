@@ -6,6 +6,7 @@ local log = require "obsidian.log"
 local search = require "obsidian.search"
 local util = require "obsidian.util"
 local compat = require "obsidian.compat"
+local api = require "obsidian.api"
 local enumerate, zip = util.enumerate, util.zip
 
 ---@param client obsidian.Client
@@ -45,7 +46,7 @@ return function(client, data)
     is_current_buf = false
     cur_note_id = tostring(cur_note.id)
     cur_note_path = cur_note.path
-    for bufnr, bufpath in util.get_named_buffers() do
+    for bufnr, bufpath in api.get_named_buffers() do
       if bufpath == cur_note_path then
         cur_note_bufnr = bufnr
         break
@@ -64,9 +65,9 @@ return function(client, data)
   end
 
   if data.args ~= nil and string.len(data.args) > 0 then
-    arg = util.strip_whitespace(data.args)
+    arg = vim.trim(data.args)
   else
-    arg = util.input("Enter new note ID/name/path: ", { completion = "file", default = cur_note_id })
+    arg = api.input("Enter new note ID/name/path: ", { completion = "file", default = cur_note_id })
     if not arg or string.len(arg) == 0 then
       log.warn "Rename aborted"
       return
@@ -75,7 +76,7 @@ return function(client, data)
 
   if vim.endswith(arg, " --dry-run") then
     dry_run = true
-    arg = util.strip_whitespace(string.sub(arg, 1, -string.len " --dry-run" - 1))
+    arg = vim.trim(string.sub(arg, 1, -string.len " --dry-run" - 1))
   end
 
   assert(cur_note_path)
@@ -108,7 +109,7 @@ return function(client, data)
   -- Get confirmation before continuing.
   local confirmation
   if not dry_run then
-    confirmation = util.confirm(
+    confirmation = api.confirm(
       "Renaming '"
         .. cur_note_id
         .. "' to '"
@@ -122,7 +123,7 @@ return function(client, data)
         .. "Do you want to continue?"
     )
   else
-    confirmation = util.confirm(
+    confirmation = api.confirm(
       "Dry run: renaming '" .. cur_note_id .. "' to '" .. new_note_id .. "'...\n" .. "Do you want to continue?"
     )
   end
@@ -245,7 +246,7 @@ return function(client, data)
     for line_num, line in enumerate(f:lines(true)) do
       for ref, replacement in zip(reference_forms, replace_with) do
         local n
-        line, n = util.string_replace(line, ref, replacement)
+        line, n = string.gsub(line, vim.pesc(ref), replacement)
         if dry_run and n > 0 then
           log.info(
             "Dry run: '"

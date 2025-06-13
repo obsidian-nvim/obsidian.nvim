@@ -64,31 +64,6 @@ describe("util.working_day_after", function()
   end)
 end)
 
-describe("util.cursor_on_markdown_link()", function()
-  it("should correctly find if coursor is on markdown/wiki link", function()
-    --           0    5    10   15   20   25   30   35   40    45  50   55
-    --           |    |    |    |    |    |    |    |    |    |    |    |
-    local text = "The [other](link/file.md) plus [[yet|another/file.md]] there"
-    local tests = {
-      { cur_col = 4, open = nil, close = nil },
-      { cur_col = 5, open = 5, close = 25 },
-      { cur_col = 7, open = 5, close = 25 },
-      { cur_col = 25, open = 5, close = 25 },
-      { cur_col = 26, open = nil, close = nil },
-      { cur_col = 31, open = nil, close = nil },
-      { cur_col = 32, open = 32, close = 54 },
-      { cur_col = 40, open = 32, close = 54 },
-      { cur_col = 54, open = 32, close = 54 },
-      { cur_col = 55, open = nil, close = nil },
-    }
-    for _, test in ipairs(tests) do
-      local open, close = util.cursor_on_markdown_link(text, test.cur_col)
-      MiniTest.expect.equality(test.open, open, "cursor at: " .. test.cur_col)
-      MiniTest.expect.equality(test.close, close, "close")
-    end
-  end)
-end)
-
 describe("util.unescape_single_backslash()", function()
   it("should correctly remove single backslash", function()
     -- [[123\|NOTE1]] should get [[123|NOTE1]] in markdown file
@@ -158,9 +133,9 @@ describe("util.next_item()", function()
   end)
 end)
 
-describe("util.strip_whitespace()", function()
+describe("vim.trim()", function()
   it("should strip tabs and spaces from both ends", function()
-    MiniTest.expect.equality("foo", util.strip_whitespace "	foo ")
+    MiniTest.expect.equality("foo", vim.trim "	foo ")
   end)
 end)
 
@@ -189,22 +164,6 @@ describe("util.strip_comments()", function()
 
   it("should ignore an escaped '#'", function()
     MiniTest.expect.equality([[hashtags start with \# right?]], util.strip_comments [[hashtags start with \# right?]])
-  end)
-end)
-
-describe("util.string_replace()", function()
-  it("replace all instances", function()
-    MiniTest.expect.equality(
-      "the link is [[bar|Foo]] or [[bar]], right?",
-      util.string_replace("the link is [[foo|Foo]] or [[foo]], right?", "[[foo", "[[bar")
-    )
-  end)
-
-  it("not replace more than requested", function()
-    MiniTest.expect.equality(
-      "the link is [[bar|Foo]] or [[foo]], right?",
-      util.string_replace("the link is [[foo|Foo]] or [[foo]], right?", "[[foo", "[[bar", 1)
-    )
   end)
 end)
 
@@ -336,166 +295,6 @@ describe("util.header_level()", function()
 
   it("should return 2 for H2 headers", function()
     MiniTest.expect.equality(2, util.header_level "## Hello World")
-  end)
-end)
-
-describe("util.wiki_link_id_prefix()", function()
-  it("should work without an anchor link", function()
-    MiniTest.expect.equality(
-      "[[123-foo|Foo]]",
-      util.wiki_link_id_prefix { path = "123-foo.md", id = "123-foo", label = "Foo" }
-    )
-  end)
-
-  it("should work with an anchor link", function()
-    MiniTest.expect.equality(
-      "[[123-foo#heading|Foo ❯ Heading]]",
-      util.wiki_link_id_prefix {
-        path = "123-foo.md",
-        id = "123-foo",
-        label = "Foo",
-        anchor = { anchor = "#heading", header = "Heading", level = 1, line = 1 },
-      }
-    )
-  end)
-end)
-
-describe("util.wiki_link_path_prefix()", function()
-  it("should work without an anchor link", function()
-    MiniTest.expect.equality(
-      "[[123-foo.md|Foo]]",
-      util.wiki_link_path_prefix { path = "123-foo.md", id = "123-foo", label = "Foo" }
-    )
-  end)
-
-  it("should work with an anchor link and header", function()
-    MiniTest.expect.equality(
-      "[[123-foo.md#heading|Foo ❯ Heading]]",
-      util.wiki_link_path_prefix {
-        path = "123-foo.md",
-        id = "123-foo",
-        label = "Foo",
-        anchor = { anchor = "#heading", header = "Heading", level = 1, line = 1 },
-      }
-    )
-  end)
-end)
-
-describe("util.wiki_link_path_only()", function()
-  it("should work without an anchor link", function()
-    MiniTest.expect.equality(
-      "[[123-foo.md]]",
-      util.wiki_link_path_only { path = "123-foo.md", id = "123-foo", label = "Foo" }
-    )
-  end)
-
-  it("should work with an anchor link", function()
-    MiniTest.expect.equality(
-      "[[123-foo.md#heading]]",
-      util.wiki_link_path_only {
-        path = "123-foo.md",
-        id = "123-foo",
-        label = "Foo",
-        anchor = { anchor = "#heading", header = "Heading", level = 1, line = 1 },
-      }
-    )
-  end)
-end)
-
-describe("util.markdown_link()", function()
-  it("should work without an anchor link", function()
-    MiniTest.expect.equality(
-      "[Foo](123-foo.md)",
-      util.markdown_link { path = "123-foo.md", id = "123-foo", label = "Foo" }
-    )
-  end)
-
-  it("should work with an anchor link", function()
-    MiniTest.expect.equality(
-      "[Foo ❯ Heading](123-foo.md#heading)",
-      util.markdown_link {
-        path = "123-foo.md",
-        id = "123-foo",
-        label = "Foo",
-        anchor = { anchor = "#heading", header = "Heading", level = 1, line = 1 },
-      }
-    )
-  end)
-
-  it("should URL-encode paths", function()
-    MiniTest.expect.equality(
-      "[Foo](notes/123%20foo.md)",
-      util.markdown_link { path = "notes/123 foo.md", id = "123-foo", label = "Foo" }
-    )
-  end)
-end)
-
-describe("util.toggle_checkbox", function()
-  before_each(function()
-    vim.cmd "bwipeout!" -- wipe out the buffer to avoid unsaved changes
-    vim.cmd "enew" -- create a new empty buffer
-    vim.bo.bufhidden = "wipe" -- and wipe it after use
-  end)
-
-  it("should toggle between default states with - lists", function()
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] dummy" })
-    local custom_states = nil
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [ ] dummy", vim.api.nvim_get_current_line())
-  end)
-
-  it("should toggle between default states with * lists", function()
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "* [ ] dummy" })
-    local custom_states = nil
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("* [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("* [ ] dummy", vim.api.nvim_get_current_line())
-  end)
-
-  it("should toggle between default states with numbered lists with .", function()
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "1. [ ] dummy" })
-    local custom_states = nil
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("1. [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("1. [ ] dummy", vim.api.nvim_get_current_line())
-  end)
-
-  it("should toggle between default states with numbered lists with )", function()
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "1) [ ] dummy" })
-    local custom_states = nil
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("1) [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("1) [ ] dummy", vim.api.nvim_get_current_line())
-  end)
-
-  it("should use custom states if provided", function()
-    local custom_states = { " ", "!", "x" }
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] dummy" })
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [!] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [x] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [ ] dummy", vim.api.nvim_get_current_line())
-
-    util.toggle_checkbox(custom_states)
-    MiniTest.expect.equality("- [!] dummy", vim.api.nvim_get_current_line())
   end)
 end)
 

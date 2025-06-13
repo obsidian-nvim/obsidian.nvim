@@ -2,6 +2,7 @@ local Path = require "obsidian.path"
 local util = require "obsidian.util"
 local log = require "obsidian.log"
 local run_job = require("obsidian.async").run_job
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -104,7 +105,7 @@ end
 M.paste_img = function(opts)
   opts = opts or {}
 
-  local fname = opts.fname and util.strip_whitespace(opts.fname) or nil
+  local fname = opts.fname and vim.trim(opts.fname) or nil
 
   if not clipboard_is_img() then
     log.err "There is no image data in the clipboard"
@@ -116,7 +117,7 @@ M.paste_img = function(opts)
     if opts.default_name ~= nil and not opts.should_confirm then
       fname = opts.default_name
     else
-      fname = util.input("Enter file name: ", { default = opts.default_name, completion = "file" })
+      fname = api.input("Enter file name: ", { default = opts.default_name, completion = "file" })
       if fname == "" then
         fname = opts.default_name
       elseif not fname then
@@ -127,7 +128,7 @@ M.paste_img = function(opts)
   end
 
   assert(fname)
-  fname = util.strip_whitespace(fname)
+  fname = vim.trim(fname)
 
   -- Verify filename
   if util.contains_invalid_characters(fname) then
@@ -160,7 +161,7 @@ M.paste_img = function(opts)
 
   if opts.should_confirm then
     -- Get confirmation from user.
-    if not util.confirm("Saving image to '" .. tostring(path) .. "'. Do you want to continue?") then
+    if not api.confirm("Saving image to '" .. tostring(path) .. "'. Do you want to continue?") then
       log.warn "Paste aborted"
       return
     end
