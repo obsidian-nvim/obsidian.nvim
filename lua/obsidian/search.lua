@@ -178,8 +178,9 @@ M.find_tags = function(s)
   -- NOTE: we search over all reference types to make sure we're not including anchor links within
   -- references, which otherwise look just like tags.
   for match in iter(M.find_refs(s, { include_naked_urls = true, include_tags = true })) do
-    local _, _, m_type = unpack(match)
-    if m_type == M.RefTypes.Tag then
+    local st, ed, m_type = unpack(match)
+    local match_string = s:sub(st, ed)
+    if m_type == M.RefTypes.Tag and not util.is_hex_color(match_string) then
       matches[#matches + 1] = match
     end
   end
