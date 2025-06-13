@@ -1,4 +1,5 @@
 local log = require "obsidian.log"
+local Path = require "obsidian.path"
 
 ---@param arg string
 ---@return number
@@ -46,8 +47,32 @@ return function(client, data)
   local dailies = {}
   for offset = offset_end, offset_start, -1 do
     local datetime = os.time() + (offset * 3600 * 24)
-    local daily_note_path = client:daily_note_path(datetime)
-    local daily_note_alias = tostring(os.date(client.opts.daily_notes.alias_format or "%A %B %-d, %Y", datetime))
+
+    ---@type string|?, string|?
+    local custom_path, custom_alias
+    if client.opts.daily_notes.func ~= nil then
+      custom_path, custom_alias = client.opts.daily_notes.func(datetime)
+      if custom_path == nil then
+        error "Custom daily notes function must return non-nil path"
+      end
+    end
+
+    ---@type obsidian.Path|?
+    local daily_note_path
+    if custom_path ~= nil then
+      daily_note_path = Path:new(client.dir) / custom_path
+    else
+      daily_note_path = client:daily_note_path(datetime)
+    end
+
+    ---@type string|?
+    local daily_note_alias
+    if custom_alias ~= nil then
+      daily_note_alias = custom_alias
+    else
+      daily_note_alias = tostring(os.date(client.opts.daily_notes.alias_format or "%A %B %-d, %Y", datetime))
+    end
+
     if offset == 0 then
       daily_note_alias = daily_note_alias .. " @today"
     elseif offset == -1 then
