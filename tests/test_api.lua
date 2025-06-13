@@ -62,7 +62,7 @@ end
 T["cursor_on_markdown_link"] = function()
   --                                               0    5    10   15   20   25   30   35   40    45  50   55
   --                                               |    |    |    |    |    |    |    |    |    |    |    |
-  child.api.nvim_buf_set_lines(0, 0, -1, false, { "The [other](link/file.md) plus [[yet|another/file.md]] there" })
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "The [other](link/file.md) plus [[another/file.md|yet]] there" })
 
   local tests = {
     { cur_col = 3, open = nil, close = nil },
@@ -81,6 +81,26 @@ T["cursor_on_markdown_link"] = function()
     local open, close = unpack(child.lua [[local open, close = M.cursor_on_markdown_link(); return { open, close }]])
     eq(test.open, open)
     eq(test.close, close)
+  end
+end
+
+T["parse_cursor_link"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "The [other](link/file.md) plus [[another/file.md|yet]] there" })
+
+  local tests = {
+    { cur_col = 4, loc = "link/file.md", name = "other", t = "Markdown" },
+    { cur_col = 6, loc = "link/file.md", name = "other", t = "Markdown" },
+    { cur_col = 24, loc = "link/file.md", name = "other", t = "Markdown" },
+    { cur_col = 31, loc = "another/file.md", name = "yet", t = "WikiWithAlias" },
+    { cur_col = 39, loc = "another/file.md", name = "yet", t = "WikiWithAlias" },
+    { cur_col = 53, loc = "another/file.md", name = "yet", t = "WikiWithAlias" },
+  }
+  for _, test in ipairs(tests) do
+    child.api.nvim_win_set_cursor(0, { 1, test.cur_col })
+    local loc, name, t = unpack(child.lua [[local loc, name, t = M.parse_cursor_link(); return { loc, name, t }]])
+    eq(test.loc, loc)
+    eq(test.name, name)
+    eq(test.t, t)
   end
 end
 

@@ -1042,6 +1042,70 @@ util.header_to_anchor = function(header)
   return util.standardize_anchor("#" .. anchor)
 end
 
+---@param link string
+---@param opts { include_naked_urls: boolean|?, include_file_urls: boolean|?, include_block_ids: boolean|?, link_type: obsidian.search.RefTypes|? }|?
+---@return string|?
+---@return string|?
+---@return obsidian.search.RefTypes|?
+util.parse_link = function(link, opts)
+  local search = require "obsidian.search"
+
+  opts = opts and opts or {}
+
+  local link_type = opts.link_type
+  if link_type == nil then
+    for match in
+      vim.iter(search.find_refs(link, {
+        include_naked_urls = opts.include_naked_urls,
+        include_file_urls = opts.include_file_urls,
+        include_block_ids = opts.include_block_ids,
+      }))
+    do
+      local _, _, m_type = unpack(match)
+      if m_type then
+        link_type = m_type
+        break
+      end
+    end
+  end
+
+  if link_type == nil then
+    return nil
+  end
+
+  local link_location, link_name
+  if link_type == search.RefTypes.Markdown then
+    link_location = link:gsub("^%[(.-)%]%((.*)%)$", "%2")
+    link_name = link:gsub("^%[(.-)%]%((.*)%)$", "%1")
+  elseif link_type == search.RefTypes.NakedUrl then
+    link_location = link
+    link_name = link
+  elseif link_type == search.RefTypes.FileUrl then
+    link_location = link
+    link_name = link
+  elseif link_type == search.RefTypes.WikiWithAlias then
+    link = util.unescape_single_backslash(link)
+    -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'
+    link = link:sub(3, #link - 2)
+    -- split on the "|"
+    local split_idx = link:find "|"
+    link_location = link:sub(1, split_idx - 1)
+    link_name = link:sub(split_idx + 1)
+  elseif link_type == search.RefTypes.Wiki then
+    -- remove boundary brackets, e.g. '[[YYY]]' -> 'YYY'
+    link = link:sub(3, #link - 2)
+    link_location = link
+    link_name = link
+  elseif link_type == search.RefTypes.BlockID then
+    link_location = util.standardize_block(link)
+    link_name = link
+  else
+    error("not implemented for " .. link_type)
+  end
+
+  return link_location, link_name, link_type
+end
+
 ---@alias datetime_cadence "daily"
 
 --- Parse possible relative date macros like '@tomorrow'.
