@@ -272,8 +272,6 @@ Note.from_file = function(path, opts)
   return Note.from_lines(io.lines(path), path, opts)
 end
 
--- TODO: used by find_notes_async, resolve_note_async, find_backlinks_async
-
 --- An async version of `.from_file()`, i.e. it needs to be called in an async context.
 ---
 ---@param path string|obsidian.Path
@@ -281,8 +279,10 @@ end
 ---
 ---@return obsidian.Note
 Note.from_file_async = function(path, opts)
-  local f = File.open(Path.new(path):resolve { strict = true })
-  local ok, res = pcall(Note.from_lines, f:lines(false), path, opts)
+  path = Path.new(path):resolve { strict = true }
+  local f = io.open(tostring(path), "r")
+  assert(f)
+  local ok, res = pcall(Note.from_lines, f:lines "*l", path, opts)
   f:close()
   if ok then
     return res

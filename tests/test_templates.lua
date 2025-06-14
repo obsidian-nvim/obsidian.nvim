@@ -1,22 +1,9 @@
-local obsidian = require "obsidian"
-local Path = require "obsidian.path"
+local h = dofile "tests/helpers.lua"
+local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
+local M = require "obsidian.templates"
 local Note = require "obsidian.note"
-local templates = require "obsidian.templates"
 
----Get a client in a temporary directory.
----
----@return obsidian.Client
-local tmp_client = function()
-  -- This gives us a tmp file name, but we really want a directory.
-  -- So we delete that file immediately.
-  local tmpname = os.tmpname()
-  os.remove(tmpname)
-
-  local dir = Path:new(tmpname .. "-obsidian/")
-  dir:mkdir { parents = true }
-
-  return obsidian.new_from_dir(tostring(dir))
-end
+local T = new_set()
 
 ---Get a template context from a client.
 ---
@@ -33,36 +20,35 @@ local tmp_template_context = function(client, ctx)
   })
 end
 
-describe("templates.substitute_template_variables()", function()
-  it("should substitute built-in variables", function()
-    local client = tmp_client()
+T["substitute_template_variables()"] = new_set()
+
+T["substitute_template_variables()"]["should substitute built-in variables"] = function()
+  h.with_tmp_client(function(client)
     local text = "today is {{date}} and the title of the note is {{title}}"
-    MiniTest.expect.equality(
+    eq(
       string.format("today is %s and the title of the note is %s", os.date "%Y-%m-%d", "FOO"),
-      templates.substitute_template_variables(text, tmp_template_context(client))
+      M.substitute_template_variables(text, tmp_template_context(client))
     )
   end)
+end
 
-  it("should substitute custom variables", function()
-    local client = tmp_client()
+T["substitute_template_variables()"]["should substitute custom variables"] = function()
+  h.with_tmp_client(function(client)
     client.opts.templates.substitutions = {
       weekday = function()
         return "Monday"
       end,
     }
     local text = "today is {{weekday}}"
-    MiniTest.expect.equality(
-      "today is Monday",
-      templates.substitute_template_variables(text, tmp_template_context(client))
-    )
+    eq("today is Monday", M.substitute_template_variables(text, tmp_template_context(client)))
 
-    -- Make sure the client opts has not been modified.
-    MiniTest.expect.equality(1, vim.tbl_count(client.opts.templates.substitutions))
-    MiniTest.expect.equality("function", type(client.opts.templates.substitutions.weekday))
+    eq(1, vim.tbl_count(client.opts.templates.substitutions))
+    eq("function", type(client.opts.templates.substitutions.weekday))
   end)
+end
 
-  it("should provide substitution functions with template context", function()
-    local client = tmp_client()
+T["substitute_template_variables()"]["should provide substitution functions with template context"] = function()
+  h.with_tmp_client(function(client)
     client.opts.templates.substitutions = {
       test_var = function(ctx)
         return tostring(ctx.template_name)
@@ -70,6 +56,8 @@ describe("templates.substitute_template_variables()", function()
     }
     local text = "my template is: {{test_var}}"
     local ctx = tmp_template_context(client, { template_name = "My Template.md" })
-    MiniTest.expect.equality("my template is: My Template.md", templates.substitute_template_variables(text, ctx))
+    eq("my template is: My Template.md", M.substitute_template_variables(text, ctx))
   end)
-end)
+end
+
+return T

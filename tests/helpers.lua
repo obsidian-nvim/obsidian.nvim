@@ -5,8 +5,9 @@ local M = {}
 
 ---Get a client in a temporary directory.
 ---
----@param run fun(client: obsidian.Client)
-M.with_tmp_client = function(run, dir)
+---@param f fun(client: obsidian.Client)
+---@param opts obsidian.config.ClientOpts
+M.with_tmp_client = function(f, dir, opts)
   local tmp
   if not dir then
     tmp = true
@@ -15,19 +16,11 @@ M.with_tmp_client = function(run, dir)
   end
 
   local client = obsidian.new_from_dir(tostring(dir))
-  client.opts.note_id_func = function(title)
-    local id = ""
-    if title ~= nil then
-      id = title:gsub(" ", "-"):gsub("[^A-Za-z0-9-]", ""):lower()
-    else
-      for _ = 1, 4 do
-        id = id .. string.char(math.random(65, 90))
-      end
-    end
-    return id
-  end
 
-  local ok, err = pcall(run, client)
+  if opts then
+    client.opts = vim.deepcopy(opts)
+  end
+  local ok, err = pcall(f, client)
 
   if tmp then
     vim.fn.delete(tostring(dir), "rf")
