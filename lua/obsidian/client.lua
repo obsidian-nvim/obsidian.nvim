@@ -2126,32 +2126,4 @@ Client.statusline = function(self)
   timer:start(0, 1000, vim.schedule_wrap(refresh))
 end
 
---- Start the lsp client
----
----@return integer
-Client.lsp_start = function(self, buf)
-  local handlers = require "obsidian.lsp.handlers"
-  local client_id = vim.lsp.start {
-    name = "obsidian-ls",
-    capabilities = vim.lsp.protocol.make_client_capabilities(),
-    cmd = function()
-      return {
-        request = function(method, params, handler, _)
-          handlers[method](self, params, handler, _)
-        end,
-        notify = function(method, params, handler, _)
-          handlers[method](self, params, handler, _)
-        end,
-        is_closing = function() end,
-        terminate = function() end,
-      }
-    end,
-    init_options = {},
-    root_dir = tostring(self.dir),
-  }
-  assert(client_id, "failed to start obsidian_ls")
-
-  return client_id
-end
-
 return Client
