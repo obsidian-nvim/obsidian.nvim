@@ -234,13 +234,13 @@ return function(client, data)
   local replacement_count = 0
   local all_tasks_submitted = false
 
-  ---@param path string|obsidian.Path
+  ---@param path string
   ---@return integer
   local function replace_refs(path)
     --- Read lines, replacing refs as we go.
     local count = 0
     local lines = {}
-    local f = io.open(tostring(path), "r")
+    local f = io.open(path, "r")
     assert(f)
     for line_num, line in enumerate(f:lines "*L") do
       for ref, replacement in zip(reference_forms, replace_with) do
@@ -269,7 +269,7 @@ return function(client, data)
 
     --- Write the new lines back.
     if not dry_run and count > 0 then
-      f = io.open(tostring(path), "w")
+      f = io.open(path, "w")
       assert(f)
       f:write(unpack(lines))
       f:close()
@@ -279,7 +279,7 @@ return function(client, data)
   end
 
   local function on_search_match(match)
-    local path = Path.new(match.path.text):resolve { strict = true }
+    local path = tostring(Path.new(match.path.text):resolve { strict = true })
     file_count = file_count + 1
     executor:submit(replace_refs, function(count)
       replacement_count = replacement_count + count
