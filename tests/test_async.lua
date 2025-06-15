@@ -1,8 +1,5 @@
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local ThreadPoolExecutor = require("obsidian.async").ThreadPoolExecutor
-local a = require "plenary.async"
-local with = require("plenary.context_manager").with
-local open = require("plenary.context_manager").open
 
 describe("AsyncExecutor.map()", function()
   it("should maintain order of results with a table of args", function()
