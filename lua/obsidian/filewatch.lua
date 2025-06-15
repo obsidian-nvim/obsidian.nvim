@@ -179,6 +179,8 @@ M.watch = function(path, callback, on_error)
 
   -- uv doesn't support recursive flag on Linux
   if sysname == util.OSType.Linux then
+    table.insert(watch_handlers, watch_path(path, callback, on_error, { recursive = false }))
+
     for _, dir in ipairs(os_util.get_sub_dirs_from_vault(path)) do
       table.insert(watch_handlers, watch_path(dir, callback, on_error, { recursive = false }))
     end
