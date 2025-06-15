@@ -275,6 +275,7 @@ config.ClientOpts.normalize = function(opts, defaults)
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
   opts.statusline = tbl_override(defaults.statusline, opts.statusline)
+  opts.open = tbl_override(defaults.open, opts.open)
 
   ---------------
   -- Validate. --
@@ -303,6 +304,8 @@ config.OpenStrategy = {
   current = "current",
   vsplit = "vsplit",
   hsplit = "hsplit",
+  vsplit_force = "vsplit_force",
+  hsplit_force = "hsplit_force",
 }
 
 ---@enum obsidian.config.SortBy
@@ -455,7 +458,7 @@ end
 ---@field folder string|obsidian.Path|?
 ---@field date_format string|?
 ---@field time_format string|?
----@field substitutions table<string, function|string>|?
+---@field substitutions table<string, (fun(ctx: obsidian.TemplateContext):string)|(fun(): string)|string>|?
 config.TemplateOpts = {}
 
 --- Get defaults.
@@ -466,6 +469,9 @@ config.TemplateOpts.default = function()
     folder = nil,
     date_format = nil,
     time_format = nil,
+    -- A map for custom variables, the key should be the variable and the value a function.
+    -- Functions are called with obsidian.TemplateContext objects as their sole parameter.
+    -- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
     substitutions = {},
   }
 end

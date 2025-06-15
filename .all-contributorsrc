@@ -223,6 +223,33 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "Anaritus",
+      "name": "Anaritus",
+      "avatar_url": "https://avatars.githubusercontent.com/u/61704392?v=4",
+      "profile": "https://github.com/Anaritus",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "mdavis36",
+      "name": "Michael Davis",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25917313?v=4",
+      "profile": "https://github.com/mdavis36",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "brianrodri",
+      "name": "Brian Rodriguez",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5094060?v=4",
+      "profile": "https://brianrodri.com",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }

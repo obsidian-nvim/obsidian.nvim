@@ -1544,46 +1544,27 @@ end
 ---
 --- Options:
 ---  - `on_done`: A function to call when all paths have been processed.
----  - `timeout`: An optional timeout.
----  - `pattern`: A Lua search pattern. Defaults to ".*%.md".
 Client.apply_async_raw = function(self, on_path, opts)
-  local scan = require "plenary.scandir"
   opts = opts or {}
 
-  local skip_dirs = {}
-  local templates_dir = self:templates_dir()
-  if templates_dir ~= nil then
-    skip_dirs[#skip_dirs + 1] = templates_dir
+  local dir_opts = {
+    depth = 10,
+    skip = function(dir)
+      return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(self:templates_dir()))
+    end,
+    follow = true,
+  }
+
+  for path in vim.fs.dir(tostring(self.dir), dir_opts) do
+    local absolute_path = vim.fs.joinpath(tostring(self.dir), path)
+
+    if vim.endswith(absolute_path, ".md") then
+      on_path(absolute_path)
+    end
   end
 
-  local executor = AsyncExecutor.new()
-
-  scan.scan_dir(tostring(self.dir), {
-    hidden = false,
-    add_dirs = false,
-    respect_gitignore = true,
-    search_pattern = opts.pattern or ".*%.md",
-    on_insert = function(entry)
-      entry = Path.new(entry):resolve { strict = true }
-
-      if entry.suffix ~= ".md" then
-        return
-      end
-
-      for skip_dir in iter(skip_dirs) do
-        if skip_dir:is_parent_of(entry) then
-          return
-        end
-      end
-
-      executor:submit(on_path, nil, tostring(entry))
-    end,
-  })
-
   if opts.on_done then
-    executor:join_and_then(opts.timeout, opts.on_done)
-  else
-    executor:join_and_then(opts.timeout, function() end)
+    opts.on_done()
   end
 end
 
@@ -1846,7 +1827,14 @@ Client.write_note = function(self, note, opts)
   else
     verb = "Created"
     if opts.template ~= nil then
-      note = clone_template { template_name = opts.template, path = path, client = self, note = note }
+      note = clone_template {
+        type = "clone_template",
+        template_name = opts.template,
+        destination_path = path,
+        template_opts = self.opts.templates,
+        templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
+        partial_note = note,
+      }
     end
   end
 
@@ -1883,10 +1871,12 @@ Client.write_note_to_buffer = function(self, note, opts)
 
   if opts.template and util.buffer_is_empty(opts.bufnr) then
     note = insert_template {
-      note = note,
+      type = "insert_template",
       template_name = opts.template,
-      client = self,
+      template_opts = self.opts.templates,
+      templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
       location = util.get_active_window_cursor_location(),
+      partial_note = note,
     }
   end
 

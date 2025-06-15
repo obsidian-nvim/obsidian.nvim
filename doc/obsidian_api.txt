@@ -450,8 +450,6 @@ Parameters ~
 
 Options:
  - `on_done`: A function to call when all paths have been processed.
- - `timeout`: An optional timeout.
- - `pattern`: A Lua search pattern. Defaults to ".*%.md".
 
 ------------------------------------------------------------------------------
                                                  *obsidian.Client.new_note_id()*
@@ -903,7 +901,7 @@ Return ~
 Initialize a note from an iterator of lines.
 
 Parameters ~
-{lines} `(fun(): string|?)`
+{lines} `(fun(): string|? | Iter)`
 {path} `(string|obsidian.Path)`
 {opts} `(obsidian.note.LoadOpts|)`?
 
@@ -1199,7 +1197,7 @@ Return ~
 ------------------------------------------------------------------------------
                                                            *obsidian.Path.cwd()*
                                   `Path.cwd`()
-Get a path corresponding to the current working directory as given by `vim.loop.cwd()`.
+Get a path corresponding to the current working directory as given by `vim.uv.cwd()`.
 
 Return ~
 `(obsidian.Path)`

@@ -5,7 +5,8 @@ local util = require "obsidian.util"
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)
-  if not client:templates_dir() then
+  local templates_dir = client:templates_dir()
+  if not templates_dir then
     log.err "Templates folder is not defined or does not exist"
     return
   end
@@ -14,7 +15,13 @@ return function(client, data)
   local insert_location = util.get_active_window_cursor_location()
 
   local function insert_template(name)
-    templates.insert_template { template_name = name, client = client, location = insert_location }
+    templates.insert_template {
+      type = "insert_template",
+      template_name = name,
+      template_opts = client.opts.templates,
+      templates_dir = templates_dir,
+      location = insert_location,
+    }
   end
 
   if string.len(data.args) > 0 then

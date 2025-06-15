@@ -76,7 +76,7 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian extract_note [TITLE]` to extract the visually selected text into a new note and link to it.
 
-- `:Obsidian follow_link [vsplit|hsplit]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
+- `:Obsidian follow_link [vsplit|hsplit|vsplit_force|hsplit_force]` to follow a note reference under the cursor, optionally opening it in a vertical or horizontal split.
 
 - `:Obsidian link [QUERY]` to link an inline visual selection of text to a note.
   One optional argument: a query that will be used to resolve the note by ID, path, or alias. If not given, the selected text will be used as the query.
@@ -452,7 +452,9 @@ require("obsidian").setup {
     folder = "templates",
     date_format = "%Y-%m-%d",
     time_format = "%H:%M",
-    -- A map for custom variables, the key should be the variable and the value a function
+    -- A map for custom variables, the key should be the variable and the value a function.
+    -- Functions are called with obsidian.TemplateContext objects as their sole parameter.
+    -- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
     substitutions = {},
   },
 
@@ -514,8 +516,10 @@ require("obsidian").setup {
 
   -- Optional, determines how certain commands open notes. The valid options are:
   -- 1. "current" (the default) - to always open in the current window
-  -- 2. "vsplit" - to open in a vertical split if there's not already a vertical split
-  -- 3. "hsplit" - to open in a horizontal split if there's not already a horizontal split
+  -- 2. "vsplit" - only open in a vertical split if a vsplit does not exist.
+  -- 3. "hsplit" - only open in a horizontal split if a hsplit does not exist.
+  -- 4. "vsplit_force" - always open a new vertical split if the file is not in the adjacent vsplit.
+  -- 5. "hsplit_force" - always open a new horizontal split if the file is not in the adjacent hsplit.
   open_notes_in = "current",
 
   -- Optional, define your own callbacks to further customize behavior.
@@ -677,6 +681,9 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/bburgess19"><img src="https://avatars.githubusercontent.com/u/55334507?v=4?s=100" width="100px;" alt="Ben Burgess"/><br /><sub><b>Ben Burgess</b></sub></a><br /><a href="#code-bburgess19" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://sebszyller.com"><img src="https://avatars.githubusercontent.com/u/11989990?v=4?s=100" width="100px;" alt="Sebastian Szyller"/><br /><sub><b>Sebastian Szyller</b></sub></a><br /><a href="#code-sebszyller" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://nobe4.fr"><img src="https://avatars.githubusercontent.com/u/2452791?v=4?s=100" width="100px;" alt="nobe4"/><br /><sub><b>nobe4</b></sub></a><br /><a href="#code-nobe4" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Anaritus"><img src="https://avatars.githubusercontent.com/u/61704392?v=4?s=100" width="100px;" alt="Anaritus"/><br /><sub><b>Anaritus</b></sub></a><br /><a href="#code-Anaritus" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/mdavis36"><img src="https://avatars.githubusercontent.com/u/25917313?v=4?s=100" width="100px;" alt="Michael Davis"/><br /><sub><b>Michael Davis</b></sub></a><br /><a href="#code-mdavis36" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://brianrodri.com"><img src="https://avatars.githubusercontent.com/u/5094060?v=4?s=100" width="100px;" alt="Brian Rodriguez"/><br /><sub><b>Brian Rodriguez</b></sub></a><br /><a href="#code-brianrodri" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

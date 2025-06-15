@@ -1,8 +1,6 @@
 local Path = require "obsidian.path"
 local File = require("obsidian.async").File
 local abc = require "obsidian.abc"
-local with = require("plenary.context_manager").with
-local open = require("plenary.context_manager").open
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
@@ -271,12 +269,11 @@ Note.from_file = function(path, opts)
   if path == nil then
     error "note path cannot be nil"
   end
-  local n
-  with(open(tostring(Path.new(path):resolve { strict = true })), function(reader)
-    n = Note.from_lines(reader:lines(), path, opts)
-  end)
-  return n
+  path = tostring(Path.new(path):resolve { strict = true })
+  return Note.from_lines(io.lines(path), path, opts)
 end
+
+-- TODO: used by find_notes_async, resolve_note_async, find_backlinks_async
 
 --- An async version of `.from_file()`, i.e. it needs to be called in an async context.
 ---
@@ -337,7 +334,7 @@ end
 
 --- Initialize a note from an iterator of lines.
 ---
----@param lines fun(): string|?
+---@param lines fun(): string|? | Iter
 ---@param path string|obsidian.Path
 ---@param opts obsidian.note.LoadOpts|?
 ---
@@ -694,26 +691,26 @@ Note.save = function(self, opts)
   ---@type string[]
   local existing_frontmatter = {}
   if self.path ~= nil and self.path:is_file() then
-    with(open(tostring(self.path)), function(reader)
-      local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
-      for idx, line in enumerate(reader:lines()) do
-        if idx == 1 and Note._is_frontmatter_boundary(line) then
-          at_boundary = true
-          in_frontmatter = true
-        elseif in_frontmatter and Note._is_frontmatter_boundary(line) then
-          at_boundary = true
-          in_frontmatter = false
-        else
-          at_boundary = false
-        end
-
-        if not in_frontmatter and not at_boundary then
-          table.insert(content, line)
-        else
-          table.insert(existing_frontmatter, line)
-        end
+    -- with(open(tostring(self.path)), function(reader)
+    local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
+    for idx, line in enumerate(io.lines(tostring(self.path))) do
+      if idx == 1 and Note._is_frontmatter_boundary(line) then
+        at_boundary = true
+        in_frontmatter = true
+      elseif in_frontmatter and Note._is_frontmatter_boundary(line) then
+        at_boundary = true
+        in_frontmatter = false
+      else
+        at_boundary = false
       end
-    end)
+
+      if not in_frontmatter and not at_boundary then
+        table.insert(content, line)
+      else
+        table.insert(existing_frontmatter, line)
+      end
+    end
+    -- end)
   elseif self.title ~= nil then
     -- Add a header.
     table.insert(content, "# " .. self.title)
@@ -734,12 +731,7 @@ Note.save = function(self, opts)
     new_lines = compat.flatten { existing_frontmatter, content }
   end
 
-  -- Write new lines.
-  with(open(tostring(save_path), "w"), function(writer)
-    for _, line in ipairs(new_lines) do
-      writer:write(line .. "\n")
-    end
-  end)
+  util.write_file(tostring(save_path), table.concat(new_lines, "\n"))
 end
 
 --- Save frontmatter to the given buffer.

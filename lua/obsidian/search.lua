@@ -1,6 +1,3 @@
-local Deque = require("plenary.async.structs").Deque
-local scan = require "plenary.scandir"
-
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
 local util = require "obsidian.util"
@@ -41,7 +38,7 @@ M.Patterns = {
   WikiWithAlias = "%[%[[^][%|]+%|[^%]]+%]%]", -- [[xxx|yyy]]
   Wiki = "%[%[[^][%|]+%]%]", -- [[xxx]]
   Markdown = "%[[^][]+%]%([^%)]+%)", -- [yyy](xxx)
-  NakedUrl = "https?://[a-zA-Z0-9._-]+[a-zA-Z0-9._#/=&?:+%%-]+[a-zA-Z0-9/]", -- https://xyz.com
+  NakedUrl = "https?://[a-zA-Z0-9._-@]+[a-zA-Z0-9._#/=&?:+%%-@]+[a-zA-Z0-9/]", -- https://xyz.com
   FileUrl = "file:/[/{2}]?.*", -- file:///
   MailtoUrl = "mailto:.*", -- mailto:emailaddress
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
@@ -462,41 +459,7 @@ end
 ---@field absolute_offset integer
 ---@field submatches SubMatch[]
 
---- Search markdown files in a directory for a given term. Return an iterator
---- over `MatchData`.
----
----@param dir string|obsidian.Path
----@param term string
----@param opts obsidian.search.SearchOpts|?
----
----@return function
-M.search = function(dir, term, opts)
-  local matches = Deque.new()
-  local done = false
-
-  M.search_async(dir, term, opts, function(match_data)
-    matches:pushright(match_data)
-  end, function(_)
-    done = true
-  end)
-
-  ---Iterator over matches.
-  ---
-  ---@return MatchData|?
-  return function()
-    while true do
-      if not matches:is_empty() then
-        return matches:popleft()
-      elseif matches:is_empty() and done then
-        return nil
-      else
-        vim.wait(100)
-      end
-    end
-  end
-end
-
---- An async version of `.search()`. Each match is passed to the `on_match` callback.
+--- Search markdown files in a directory for a given term. Each match is passed to the `on_match` callback.
 ---
 ---@param dir string|obsidian.Path
 ---@param term string|string[]
@@ -505,7 +468,7 @@ end
 ---@param on_exit fun(exit_code: integer)|?
 M.search_async = function(dir, term, opts, on_match, on_exit)
   local cmd = M.build_search_cmd(dir, term, opts)
-  run_job_async(cmd[1], { unpack(cmd, 2) }, function(line)
+  run_job_async(cmd, function(line)
     local data = vim.json.decode(line)
     if data["type"] == "match" then
       local match_data = data.data
@@ -518,41 +481,7 @@ M.search_async = function(dir, term, opts, on_match, on_exit)
   end)
 end
 
---- Find markdown files in a directory matching a given term. Return an iterator
---- over file names.
----
----@param dir string|obsidian.Path
----@param term string
----@param opts obsidian.search.SearchOpts|?
----
----@return function
-M.find = function(dir, term, opts)
-  local paths = Deque.new()
-  local done = false
-
-  M.find_async(dir, term, opts, function(path)
-    paths:pushright(path)
-  end, function(_)
-    done = true
-  end)
-
-  --- Iterator over matches.
-  ---
-  ---@return MatchData|?
-  return function()
-    while true do
-      if not paths:is_empty() then
-        return paths:popleft()
-      elseif paths:is_empty() and done then
-        return nil
-      else
-        vim.wait(100)
-      end
-    end
-  end
-end
-
---- An async version of `.find()`. Each matching path is passed to the `on_match` callback.
+--- Find markdown files in a directory matching a given term. Each matching path is passed to the `on_match` callback.
 ---
 ---@param dir string|obsidian.Path
 ---@param term string
@@ -562,51 +491,11 @@ end
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
   local cmd = M.build_find_cmd(tostring(norm_dir), term, opts)
-  run_job_async(cmd[1], { unpack(cmd, 2) }, function(line)
-    on_match(line)
-  end, function(code)
+  run_job_async(cmd, on_match, function(code)
     if on_exit ~= nil then
       on_exit(code)
     end
   end)
-end
-
---- Find all notes with the given file_name recursively in a directory.
----
----@param dir string|obsidian.Path
----@param note_file_name string
----@param callback fun(paths: obsidian.Path[])
-M.find_notes_async = function(dir, note_file_name, callback)
-  if not vim.endswith(note_file_name, ".md") then
-    note_file_name = note_file_name .. ".md"
-  end
-
-  local notes = {}
-  local root_dir = Path.new(dir):resolve { strict = true }
-
-  local visit_dir = function(entry)
-    ---@type obsidian.Path
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    local note_path = Path:new(entry) / note_file_name
-    if note_path:is_file() then
-      notes[#notes + 1] = note_path
-    end
-  end
-
-  -- We must separately check the vault's root dir because scan_dir will
-  -- skip it, but Obsidian does allow root-level notes.
-  visit_dir(root_dir)
-
-  scan.scan_dir_async(root_dir.filename, {
-    hidden = false,
-    add_dirs = false,
-    only_dirs = true,
-    respect_gitignore = true,
-    on_insert = visit_dir,
-    on_exit = function(_)
-      callback(notes)
-    end,
-  })
 end
 
 return M

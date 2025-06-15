@@ -1,40 +1,34 @@
-local async = require "plenary.async"
-local channel = require("plenary.async.control").channel
 local search = require "obsidian.search"
-local Path = require "obsidian.path"
-
 local RefTypes = search.RefTypes
 local SearchOpts = search.SearchOpts
 local Patterns = search.Patterns
 
-describe("search.find_notes_async()", function()
-  it("should recursively find notes in a directory given a file name", function()
-    async.util.block_on(function()
-      local tx, rx = channel.oneshot()
-      search.find_notes_async(".", "foo.md", function(matches)
-        MiniTest.expect.equality(#matches, 1)
-        MiniTest.expect.equality(
-          tostring(matches[1]),
-          tostring(Path.new("./test/fixtures/notes/foo.md"):resolve { strict = true })
-        )
-        tx()
-      end)
-      rx()
-    end, 2000)
+describe("search.find_async", function()
+  it("should find files with search term in name", function()
+    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
+    local match_counter = 0
+
+    search.find_async(fixtures, "foo", {}, function(match)
+      MiniTest.expect.equality(true, match:find "foo" ~= nil)
+      match_counter = match_counter + 1
+    end, function(exit_code)
+      MiniTest.expect.equality(0, exit_code)
+      MiniTest.expect.equality(2, match_counter)
+    end)
   end)
-  it("should recursively find notes in a directory given a partial path", function()
-    async.util.block_on(function()
-      local tx, rx = channel.oneshot()
-      search.find_notes_async(".", "notes/foo.md", function(matches)
-        MiniTest.expect.equality(#matches, 1)
-        MiniTest.expect.equality(
-          tostring(matches[1]),
-          tostring(Path.new("./test/fixtures/notes/foo.md"):resolve { strict = true })
-        )
-        tx()
-      end)
-      rx()
-    end, 2000)
+end)
+
+describe("search.search_async", function()
+  it("should find files with search term in content", function()
+    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
+    local match_counter = 0
+    search.search_async(fixtures, "foo", {}, function(match)
+      MiniTest.expect.equality("foo", match.submatches[1].match.text)
+      match_counter = match_counter + 1
+    end, function(exit_code)
+      MiniTest.expect.equality(0, exit_code)
+      MiniTest.expect.equality(8, match_counter)
+    end)
   end)
 end)
 
