@@ -175,11 +175,13 @@ local create_cache_picker = function(self, prompt_title, opts)
       ---@return obsidian.pickers.telescope_picker.CacheSelectedEntry
       entry_maker = function(entry)
         local concated_aliases = table.concat(entry.aliases, "|")
+        local relative_path = entry.absolute_path:gsub(self.client.dir.filename .. "/", "")
         local display_name
+
         if concated_aliases and concated_aliases ~= "" then
-          display_name = table.concat({ entry.relative_path, concated_aliases }, "|")
+          display_name = table.concat({ relative_path, concated_aliases }, "|")
         else
-          display_name = entry.relative_path
+          display_name = relative_path
         end
 
         return {

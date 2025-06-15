@@ -1,12 +1,15 @@
+local log = require "obsidian.log"
+
 local M = {}
 
 ---Gets all notes from the vault.
 ---@param path string The path to the vault.
----@return string[] The path to the notes.
+---@return string[]|? The path to the notes.
 M.get_all_notes_from_vault = function(path)
   local handle = io.popen("fd -t file -a --base-directory " .. path)
   if not handle then
-    error "Failed to execute command"
+    log.err "Failed to execute command"
+    return nil
   end
 
   local files = {}

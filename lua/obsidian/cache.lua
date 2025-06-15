@@ -20,7 +20,6 @@ local Cache = abc.new_class()
 ---@class obsidian.cache.CacheNote
 ---
 ---@field absolute_path string The full path to the note.
----@field relative_path string The relative path to the root of the vault.
 ---@field aliases string[] The alises of the note founded in the frontmatter.
 ---@field last_updated number The last time the note was updated in seconds since epoch.
 
@@ -52,10 +51,9 @@ end
 local create_on_file_change_callback = function(self)
   return function(changed_files)
     vim.schedule(function()
-      local ok, cache_notes = pcall(self.get_cache_notes_from_file, self)
+      local cache_notes = self:get_cache_notes_from_file()
 
-      if not ok then
-        log.err("An error occured when reading from the cache file.")
+      if not cache_notes then
         return
       end
 
@@ -76,7 +74,6 @@ local create_on_file_change_callback = function(self)
             local founded_cache = {
               absolute_path = absolute_path,
               aliases = note.aliases,
-              relative_path = relative_path,
               last_updated = file.stat.mtime.sec,
             }
 
@@ -107,7 +104,11 @@ end
 ---@param self obsidian.Cache
 local check_cache_notes_are_fresh = function(self)
   local founded_notes = os_util.get_all_notes_from_vault(self.client:vault_root().filename)
-  local cache_notes = self.get_cache_notes_from_file(self)
+  local cache_notes = self:get_cache_notes_from_file()
+
+  if not cache_notes or not founded_notes then
+    return
+  end
 
   ---@type { [string]: obsidian.cache.CacheNote }
   local updated = {}
@@ -148,7 +149,6 @@ local check_cache_notes_are_fresh = function(self)
         absolute_path = founded_note,
         last_updated = stat.mtime.sec,
         aliases = aliases,
-        relative_path = relative_path,
       }
 
       updated[relative_path] = updated_cache
@@ -164,11 +164,7 @@ end
 ---@param callback fun (result: boolean)
 local check_file_exists = function(path, callback)
   uv.fs_stat(path, function(err, _)
-    if not err then
-      callback(true)
-    else
-      callback(false)
-    end
+    callback(err == nil)
   end)
 end
 
@@ -194,7 +190,7 @@ local check_vault_cache = function(self)
       end)
     else
       vim.schedule(function()
-        self:index_vault()
+        self:rebuild_cache()
       end)
     end
   end)
@@ -218,15 +214,10 @@ end
 ---@param client obsidian.Client
 ---@return { [string]: obsidian.cache.CacheNote }
 local get_cache_notes_from_vault = function(client)
-  local interator = search.find(client.dir, "", nil)
-
   ---@type { [string]: obsidian.cache.CacheNote }
   local created_note_caches = {}
 
-  local notepath = interator()
-
-  --TODO add indexing progress
-  while notepath do
+  for notepath in search.find(client.dir, "", nil) do
     --TODO make async
     local note = Note.from_file(notepath, { read_only_frontmatter = true })
 
@@ -247,13 +238,10 @@ local get_cache_notes_from_vault = function(client)
     local note_cache = {
       absolute_path = absolute_path,
       aliases = note.aliases,
-      relative_path = relative_path,
       last_updated = last_updated,
     }
 
     created_note_caches[relative_path] = note_cache
-
-    notepath = interator()
   end
 
   return created_note_caches
@@ -261,7 +249,7 @@ end
 
 --- Reads all notes in the vaults and saves them to the cache file.
 ---@param self obsidian.Cache
-Cache.index_vault = function(self)
+Cache.rebuild_cache = function(self)
   if not self.client.opts.cache.enable then
     log.error "The cache is disabled. Cannot index vault."
   end
@@ -275,7 +263,7 @@ end
 
 ---Reads the cache file from client.opts.cache.path and returns the loaded cache.
 ---@param self obsidian.Cache
----@return { [string]: obsidian.cache.CacheNote } Key is the relative path to the vault, value is the cache of the note.
+---@return { [string]: obsidian.cache.CacheNote }|? Key is the relative path to the vault, value is the cache of the note.
 Cache.get_cache_notes_from_file = function(self)
   local file, err = io.open(self.client.opts.cache.path, "r")
 
@@ -284,7 +272,8 @@ Cache.get_cache_notes_from_file = function(self)
     file:close()
     return vim.fn.json_decode(links_json)
   else
-    print(err)
+    log.err(err)
+    return nil
   end
 end
 
@@ -293,6 +282,10 @@ end
 ---@return obsidian.cache.CacheNote[]
 Cache.get_cache_notes_without_key = function(self)
   local cache_with_index = self:get_cache_notes_from_file()
+
+  if not cache_with_index then
+    return {}
+  end
 
   local cache_without_index = {}
   for _, value in pairs(cache_with_index) do

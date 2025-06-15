@@ -119,7 +119,7 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian yesterday` to open/create the daily note for the previous working day.
 
-- `:Obsidian index_vault` to manually update the cache of the vault.
+- `:Obsidian rebuild_cache` to manually update the cache of the workspace.
 
 ### Demo
 
@@ -142,7 +142,7 @@ These default keymaps will only be set if you are in a valid workspace and a mar
   - **Linux** users need xclip (X11) or wl-clipboard (Wayland) for `:Obsidian paste_img`.
 
 - Optional dependencies:
-  - Backend: [fd](https://github.com/sharkdp/fd), see [fd#installation](https://github.com/sharkdp/fd#installation) for `:Obsidian index_vault`
+  - Backend: [fd](https://github.com/sharkdp/fd), see [fd#installation](https://github.com/sharkdp/fd#installation) for `:Obsidian rebuild_cache`
 
 ### Plugin dependencies
 
