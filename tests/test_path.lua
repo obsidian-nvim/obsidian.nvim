@@ -1,5 +1,5 @@
 local Path = require "obsidian.path"
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 
 describe("Path.new()", function()
   it("should initialize with both method syntax and regular dot access", function()
@@ -31,7 +31,7 @@ describe("Path.new()", function()
     end)
   end)
 
-  if util.get_os() == util.OSType.Windows then
+  if api.get_os() == api.OSType.Windows then
     it("should normalize lowercase c drives on windows correctly", function()
       local path = Path:new "c:/foo/bar"
       MiniTest.expect.equality(path.filename, "C:/foo/bar")
@@ -131,7 +131,7 @@ end)
 describe("Path.is_absolute()", function()
   it("should work for windows or unix paths", function()
     assert(Path:new("/foo/"):is_absolute())
-    if util.get_os() == util.OSType.Windows then
+    if api.get_os() == api.OSType.Windows then
       assert(Path:new("C:/foo/"):is_absolute())
       assert(Path:new("C:\\foo\\"):is_absolute())
     end

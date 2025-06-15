@@ -1,6 +1,6 @@
 local abc = require "obsidian.abc"
 local log = require "obsidian.log"
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 local strings = require "plenary.strings"
 local Note = require "obsidian.note"
 
@@ -462,7 +462,7 @@ Picker._make_display = function(self, entry)
       icon = entry.icon
       icon_hl = entry.icon_hl
     else
-      icon, icon_hl = util.get_icon(entry.filename)
+      icon, icon_hl = api.get_icon(entry.filename)
     end
 
     if icon ~= nil then

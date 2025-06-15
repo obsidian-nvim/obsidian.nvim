@@ -906,7 +906,7 @@ Client.follow_link_async = function(self, link, opts)
         for _, res in ipairs(results) do
           local icon, icon_hl
           if res.url ~= nil then
-            icon, icon_hl = util.get_icon(res.url)
+            icon, icon_hl = api.get_icon(res.url)
           end
           table.insert(entries, {
             value = res,

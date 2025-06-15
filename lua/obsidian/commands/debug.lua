@@ -1,7 +1,6 @@
 local Workspace = require "obsidian.workspace"
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
-local util = require "obsidian.util"
 local VERSION = require "obsidian.version"
 local api = require "obsidian.api"
 
@@ -137,10 +136,10 @@ return function(client, data)
   end
 
   log.lazy_info "Tools:"
-  log.lazy_info("  ✓ rg: %s", util.get_external_dependency_info "rg" or "not found")
+  log.lazy_info("  ✓ rg: %s", api.get_external_dependency_info "rg" or "not found")
 
   log.lazy_info "Environment:"
-  log.lazy_info("  • operating system: %s", util.get_os())
+  log.lazy_info("  • operating system: %s", api.get_os())
 
   log.lazy_info "Config:"
   log.lazy_info("  • notes_subdir: %s", client.opts.notes_subdir)

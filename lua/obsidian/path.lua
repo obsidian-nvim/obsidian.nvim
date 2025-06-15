@@ -255,11 +255,11 @@ end
 ---
 ---@return boolean
 Path.is_absolute = function(self)
-  local util = require "obsidian.util"
+  local api = require "obsidian.api"
   if
     vim.startswith(self.filename, "/")
     or (
-      (util.get_os() == util.OSType.Windows or util.get_os() == util.OSType.Wsl)
+      (api.get_os() == api.OSType.Windows or api.get_os() == api.OSType.Wsl)
       and string.match(self.filename, "^[%a]:/.*$")
     )
   then

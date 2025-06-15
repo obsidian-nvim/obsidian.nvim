@@ -1,6 +1,6 @@
 local M = {}
-local util = require "obsidian.util"
 local log = require "obsidian.log"
+local util = require "obsidian.util"
 local iter, string, table = vim.iter, string, table
 
 ---builtin functions that are impure, interacts with editor state, like vim.api
@@ -466,8 +466,8 @@ end
 ---
 ---@return boolean
 M.confirm = function(prompt)
-  if not vim.endswith(util.rstrip_whitespace(prompt), "[Y/n]") then
-    prompt = util.rstrip_whitespace(prompt) .. " [Y/n] "
+  if not vim.endswith(M.rstrip_whitespace(prompt), "[Y/n]") then
+    prompt = M.rstrip_whitespace(prompt) .. " [Y/n] "
   end
 
   local confirmation = M.input(prompt)
@@ -482,6 +482,68 @@ M.confirm = function(prompt)
   else
     return false
   end
+end
+
+---@enum OSType
+M.OSType = {
+  Linux = "Linux",
+  Wsl = "Wsl",
+  Windows = "Windows",
+  Darwin = "Darwin",
+  FreeBSD = "FreeBSD",
+}
+
+M._current_os = nil
+
+---Get the running operating system.
+---Reference https://vi.stackexchange.com/a/2577/33116
+---@return OSType
+M.get_os = function()
+  if M._current_os ~= nil then
+    return M._current_os
+  end
+
+  local this_os
+  if vim.fn.has "win32" == 1 then
+    this_os = M.OSType.Windows
+  else
+    local sysname = vim.loop.os_uname().sysname
+    local release = vim.loop.os_uname().release:lower()
+    if sysname:lower() == "linux" and string.find(release, "microsoft") then
+      this_os = M.OSType.Wsl
+    else
+      this_os = sysname
+    end
+  end
+
+  assert(this_os)
+  M._current_os = this_os
+  return this_os
+end
+
+--- Get a nice icon for a file or URL, if possible.
+---
+---@param path string
+---
+---@return string|?, string|? (icon, hl_group) The icon and highlight group.
+M.get_icon = function(path)
+  if M.is_url(path) then
+    local icon = ""
+    local _, hl_group = M.get_icon "blah.html"
+    return icon, hl_group
+  else
+    local ok, res = pcall(function()
+      local icon, hl_group = require("nvim-web-devicons").get_icon(path, nil, { default = true })
+      return { icon, hl_group }
+    end)
+    if ok and type(res) == "table" then
+      local icon, hlgroup = unpack(res)
+      return icon, hlgroup
+    elseif vim.endswith(path, ".md") then
+      return ""
+    end
+  end
+  return nil
 end
 
 return M
