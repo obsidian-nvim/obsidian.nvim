@@ -176,7 +176,7 @@ Return ~
 Run an obsidian command directly.
 
 Usage ~
-`client:command("ObsidianNew", { args = "Foo" })`
+`client:command("new", { args = "Foo" })`
 
 Parameters ~
 {cmd_name} `(string)` The name of the command.
@@ -1232,11 +1232,12 @@ Pure path methods.
 
 ------------------------------------------------------------------------------
                                                    *obsidian.Path.with_suffix()*
-                      `Path.with_suffix`({self}, {suffix})
+             `Path.with_suffix`({self}, {suffix}, {should_append})
 Return a new path with the suffix changed.
 
 Parameters ~
 {suffix} `(string)`
+{should_append} `(boolean|? should)` the suffix append a suffix instead of replacing one which may be there?
 
 Return ~
 `(obsidian.Path)`

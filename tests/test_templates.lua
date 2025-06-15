@@ -22,7 +22,7 @@ describe("templates.substitute_template_variables()", function()
   it("should substitute built-in variables", function()
     local client = tmp_client()
     local text = "today is {{date}} and the title of the note is {{title}}"
-    assert.equal(
+    MiniTest.expect.equality(
       string.format("today is %s and the title of the note is %s", os.date "%Y-%m-%d", "FOO"),
       templates.substitute_template_variables(text, client, Note.new("FOO", { "FOO" }, {}))
     )
@@ -36,10 +36,13 @@ describe("templates.substitute_template_variables()", function()
       end,
     }
     local text = "today is {{weekday}}"
-    assert.equal("today is Monday", templates.substitute_template_variables(text, client, Note.new("foo", {}, {})))
+    MiniTest.expect.equality(
+      "today is Monday",
+      templates.substitute_template_variables(text, client, Note.new("foo", {}, {}))
+    )
 
     -- Make sure the client opts has not been modified.
-    assert.equal(1, vim.tbl_count(client.opts.templates.substitutions))
-    assert.equal("function", type(client.opts.templates.substitutions.weekday))
+    MiniTest.expect.equality(1, vim.tbl_count(client.opts.templates.substitutions))
+    MiniTest.expect.equality("function", type(client.opts.templates.substitutions.weekday))
   end)
 end)

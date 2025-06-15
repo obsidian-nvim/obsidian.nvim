@@ -27,7 +27,7 @@ jobs:
         uses: JohnnyMorganz/stylua-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: 0.15.1
+          version: 2.1.0
           args: --check .
   # test_windows:
   #   name: Test (Windows)
@@ -47,7 +47,7 @@ jobs:
         task:
           - name: Test
             run: |
-              make test PLENARY=_runtime/plenary.nvim
+              make test
 
           - name: Lint
             prepare: |
@@ -66,7 +66,7 @@ jobs:
             task:
               name: Test
               run: |
-                make test PLENARY=_runtime/plenary.nvim
+                make test
 
     steps:
       - name: Checkout
@@ -93,19 +93,6 @@ jobs:
           curl -o nvim-win64.zip ${{ matrix.nvim_url }}
           Expand-Archive -F nvim-win64.zip .
           Move-Item -Path nvim-win64 -Destination _neovim
-
-      - name: Install plugin dependencies
-        shell: bash
-        run: |
-          # Clone plenary.
-          mkdir -p _runtime
-          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim _runtime/plenary.nvim
-
-      - name: Show environment
-        shell: bash
-        run: |
-          ls -lh _neovim
-          ls -lh _runtime
 
       - name: Prepare
         if: ${{ matrix.task.prepare }}

@@ -139,6 +139,10 @@ Client.set_workspace = function(self, workspace, opts)
   end
 
   self.callback_manager:post_set_workspace(workspace)
+  vim.api.nvim_exec_autocmds("User", {
+    pattern = "ObsidianWorkpspaceSet",
+    data = { workspace = workspace },
+  })
 end
 
 --- Get the normalize opts for a given workspace.
@@ -311,7 +315,7 @@ end
 
 --- Run an obsidian command directly.
 ---
----@usage `client:command("ObsidianNew", { args = "Foo" })`
+---@usage `client:command("new", { args = "Foo" })`
 ---
 ---@param cmd_name string The name of the command.
 ---@param cmd_data table|? The payload for the command.
@@ -1624,7 +1628,14 @@ Client.new_note_path = function(self, spec)
   else
     path = spec.dir / tostring(spec.id)
   end
-  return path:with_suffix ".md"
+
+  -- Ensure there is only one ".md" suffix. This might arise if `note_path_func`
+  -- supplies an unusual implementation returning something like /bad/note/id.md.md.md
+  while path.filename:match "%.md$" do
+    path.filename = path.filename:gsub("%.md$", "")
+  end
+
+  return path:with_suffix(".md", true)
 end
 
 --- Parse the title, ID, and path for a new note.

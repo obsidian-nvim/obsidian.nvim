@@ -18,9 +18,6 @@ local should_quote = function(s)
   -- Check if it starts with a special character.
   if string.match(s, [[^["'\\[{&!-].*]]) then
     return true
-  -- Check if it looks like a number.
-  elseif string.match(s, "^[%d.-]+$") then
-    return true
   -- Check if it has a colon followed by whitespace.
   elseif string.find(s, ": ", 1, true) then
     return true

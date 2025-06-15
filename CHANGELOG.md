@@ -7,21 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Added `opts.ui.ignore_conceal_warn` option to ignore conceal-related warnings.
+
 ### Added
 
 - Added `makefile types` target to check types via lua-ls
 - Added file-watch: code that tracks changed notes in the vault.
 - Added cache: a JSON file, which stores aliases, last update date and path to the note. Updated using file-watch.
 - Added a new configuration option - `cache`, which is disabled by default.
+- Added `.github/pull_request_template.md` to make contributing simpler
+- Allow users to have a period in the note ID as in a [Johnny.Decimal](https://johnnydecimal.com/) format
+- Added `backlinks` config table with the associated `obsidian.config.BacklinkOpts`
+- Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
+- Added autocmd events for user scripting, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Autocmds
+- Added `open` module for `Obsidian open` related options
 
 ### Changed
 
 - Remove `itertools.lua` in favor of `vim.iter`
 - In telescope an option was added to search notes by aliases.
+- Configure `foldmethod`, `foldexpr`, and `foldlevel` in ftplugin instead of the BufEnter event. This allows user overrides of these configurations.
+- Remove `fillchars`, `foldtext`, and `smoothscroll` configurations.
+- Relaxed yaml dump quoting condition so that dates are not quoted
+- Update Stylua version from 0.15.1 → 2.1.0
+- Use `vim.deprecate` to show deprecate warnings
+- Deprecate `open_app_foreground`
 
 ### Fixed
 
 - Fixed types in `_snacks.lua`
+- Fixed command documentation
 
 ## [v3.11.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.11.0) - 2025-05-04
 

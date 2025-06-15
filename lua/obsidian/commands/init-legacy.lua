@@ -114,11 +114,11 @@ M.complete_args_search = function(client, _, cmd_line, _)
   for note in iter(client:find_notes(query, { search = { sort = true } })) do
     local note_path = assert(client:vault_relative_path(note.path, { strict = true }))
     if string.find(string.lower(note:display_name()), query_lower, 1, true) then
-      table.insert(completions, note:display_name() .. "  " .. note_path)
+      table.insert(completions, note:display_name() .. "  " .. tostring(note_path))
     else
       for _, alias in pairs(note.aliases) do
         if string.find(string.lower(alias), query_lower, 1, true) then
-          table.insert(completions, alias .. "  " .. note_path)
+          table.insert(completions, alias .. "  " .. tostring(note_path))
           break
         end
       end

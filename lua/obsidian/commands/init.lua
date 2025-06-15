@@ -17,7 +17,7 @@ local cmds = {
   "open",
   "paste_img",
   "quick_switch",
-  "index_vault",
+  "rebuild_cache",
   "rename",
   "search",
   "tags",
@@ -226,7 +226,7 @@ M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
-M.register("index_vault", { nargs = "?" })
+M.register("rebuild_cache", { nargs = "?" })
 
 M.register("link_new", { nargs = "?", range = true })
 

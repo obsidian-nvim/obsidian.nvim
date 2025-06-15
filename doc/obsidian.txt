@@ -1,7 +1,6 @@
 *obsidian.nvim*           a plugin for writing and navigating an Obsidian vault
 
 obsidian.nvim
-
 A **community fork** of the Neovim plugin for writing and navigating Obsidian
 <https://obsidian.md> vaults, written in Lua, created by epwalsh
 <https://github.com/epwalsh>.
@@ -84,6 +83,8 @@ COMMANDS                                                   *obsidian-commands*
 - `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For
     example, `:Obsidian dailies -2 1` to list daily notes from 2 days ago until
     tomorrow.
+- `:Obsidian extract_note [TITLE]` to extract the visually selected text into a
+    new note and link to it.
 - `:Obsidian follow_link [vsplit|hsplit]` to follow a note reference under the
     cursor, optionally opening it in a vertical or horizontal split.
 - `:Obsidian link [QUERY]` to link an inline visual selection of text to a note.
@@ -103,6 +104,10 @@ COMMANDS                                                   *obsidian-commands*
 - `:Obsidian open [QUERY]` to open a note in the Obsidian app. One optional
     argument: a query used to resolve the note to open by ID, path, or alias. If
     not given, the current buffer is used.
+- `:Obsidian paste_img [IMGNAME]` to paste an image from the clipboard into the
+    note at the cursor position by saving it to the vault and adding a markdown
+    image link. You can configure the default folder to save images to with the
+    `attachments.img_folder` option.
 - `:Obsidian quick_switch` to quickly switch to another note in your vault,
     searching by its name with a picker.
 - `:Obsidian rename [NEWNAME] [--dry-run]` to rename the note of the current
@@ -399,7 +404,8 @@ Click to see configuration options ~
       note_id_func = function(title)
         -- Create note IDs in a Zettelkasten format with a timestamp and a suffix.
         -- In this case a note with the title 'My new note' will be given an ID that looks
-        -- like '1657296016-my-new-note', and therefore the file name '1657296016-my-new-note.md'
+        -- like '1657296016-my-new-note', and therefore the file name '1657296016-my-new-note.md'.
+        -- You may have as many periods in the note ID as you'd like—the ".md" will be added automatically
         local suffix = ""
         if title ~= nil then
           -- If title is given, transform it into valid file name.
@@ -514,6 +520,13 @@ Click to see configuration options ~
         },
       },
     
+      -- Optional, by default, `:ObsidianBacklinks` parses the header under
+      -- the cursor. Setting to `false` will get the backlinks for the current
+      -- note instead. Doesn't affect other link behaviour.
+      backlinks = {
+        parse_headers = true
+      }
+    
       -- Optional, sort search results by "path", "modified", "accessed", or "created".
       -- The recommend value is "modified" and `true` for `sort_reversed`, which means, for example,
       -- that `:Obsidian quick_switch` will show the notes sorted by latest modified time
@@ -560,6 +573,7 @@ Click to see configuration options ~
       -- This requires you have `conceallevel` set to 1 or 2. See `:help conceallevel` for more details.
       ui = {
         enable = true, -- set to false to disable all additional syntax features
+        ignore_conceal_warn = false, -- set to true to disable conceallevel specific warning
         update_debounce = 200, -- update delay after a text change (in milliseconds)
         max_file_length = 5000, -- disable UI features for files with more than this many lines
         -- Define how various check-boxes are displayed
@@ -650,7 +664,7 @@ Please read the CONTRIBUTING
 <https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md>
 guide before submitting a pull request.
 
-neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖
+neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻
 ==============================================================================
 8. ❤️ Acknowledgement                    *obsidian-❤️-acknowledgement*
 
