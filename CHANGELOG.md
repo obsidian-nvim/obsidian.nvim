@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use `vim.deprecate` to show deprecate warnings.
 - Deprecate `open_app_foreground`.
 - Remove most `plenary.nvim` usage.
+- `Note.from_file_async` use `io:lines`
 
 ### Fixed
 

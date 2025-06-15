@@ -144,6 +144,8 @@ obsidian.setup = function(opts)
         return
       end
 
+      client:lsp_start(ev.buf)
+
       -- Switch to the workspace and complete the workspace setup.
       if not client.current_workspace.locked and workspace ~= client.current_workspace then
         log.debug("Switching to workspace '%s' @ '%s'", workspace.name, workspace.path)

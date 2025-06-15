@@ -241,8 +241,9 @@ return function(client, data)
     --- Read lines, replacing refs as we go.
     local count = 0
     local lines = {}
-    local f = File.open(tostring(path), "r")
-    for line_num, line in enumerate(f:lines(true)) do
+    local f = io.open(tostring(path), "r")
+    assert(f)
+    for line_num, line in enumerate(f:lines "*L") do
       for ref, replacement in zip(reference_forms, replace_with) do
         local n
         line, n = util.string_replace(line, ref, replacement)
@@ -269,8 +270,9 @@ return function(client, data)
 
     --- Write the new lines back.
     if not dry_run and count > 0 then
-      f = File.open(tostring(path), "w")
-      f:write_lines(lines)
+      f = io.open(tostring(path), "w")
+      assert(f)
+      f:write(unpack(lines))
       f:close()
     end
 

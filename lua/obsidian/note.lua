@@ -1,5 +1,4 @@
 local Path = require "obsidian.path"
-local File = require("obsidian.async").File
 local abc = require "obsidian.abc"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"

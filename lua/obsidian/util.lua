@@ -1487,4 +1487,71 @@ util.buffer_fn = function(fn)
   end
 end
 
+--------------
+--- lsp ------
+--------------
+
+---@alias obsidian.lsp.fileinfo { fname: string, dirname: string, id: string, rel_path: string }
+
+util.info_from_uri = function(uri, client)
+  local Note = require "obsidian.note"
+  local path = vim.uri_to_fname(uri)
+  local dirname = vim.fs.dirname(path)
+  local note = Note.from_file(path)
+  local rel_path = tostring(client:vault_relative_path(path, { strict = true }))
+  return {
+    path = path,
+    dirname = dirname,
+    id = tostring(note.id),
+    rel_path = rel_path,
+  }
+end
+
+---@param base string
+---@param dirname string
+---@param client obsidian.Client
+util.info_from_base = function(base, dirname, client)
+  local path = vim.fs.joinpath(dirname, base) .. ".md"
+  local rel_path = tostring(client:vault_relative_path(path, { strict = true }))
+  return {
+    path = path,
+    dirname = dirname,
+    id = base,
+    rel_path = rel_path,
+  }
+end
+
+-- Search notes on disk for any references to `cur_note_id`.
+-- We look for the following forms of references:
+-- * '[[cur_note_id]]'
+-- * '[[cur_note_id|ALIAS]]'
+-- * '[[cur_note_id\|ALIAS]]' (a wiki link within a table)
+-- * '[ALIAS](cur_note_id)'
+-- And all of the above with relative paths (from the vault root) to the note instead of just the note ID,
+-- with and without the ".md" suffix.
+-- Another possible form is [[ALIAS]], but we don't change the note's aliases when renaming
+-- so those links will still be valid.
+local ref_patterns = {
+  "[[%s]]", -- wiki
+  "[[%s|", -- wiki with alias
+  "[[%s\\|", -- wiki link within a table
+  "[[%s#", -- wiki with heading
+  "](%s)", -- markdown
+  "](%s#", -- markdown with heading
+}
+
+---@param old obsidian.lsp.fileinfo
+---@param new obsidian.lsp.fileinfo
+---@param table<string, string>
+util.build_replace_lookup = function(old, new)
+  local replace_lookup = {}
+
+  for _, pat in ipairs(ref_patterns) do
+    replace_lookup[pat:format(old.id)] = pat:format(new.id)
+    replace_lookup[pat:format(old.rel_path)] = pat:format(new.rel_path)
+    replace_lookup[pat:format(old.rel_path:sub(1, -4))] = pat:format(new.rel_path:sub(1, -4))
+  end
+  return replace_lookup
+end
+
 return util
