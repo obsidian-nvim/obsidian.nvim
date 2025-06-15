@@ -1,6 +1,7 @@
 local async = require "plenary.async"
 local abc = require "obsidian.abc"
 local search = require "obsidian.search"
+local channel = require("plenary.async.control").channel
 local Note = require "obsidian.note"
 local log = require "obsidian.log"
 local EventTypes = require("obsidian.filewatch").EventTypes
@@ -25,20 +26,12 @@ local Cache = abc.new_class()
 
 ---Converts the cache to JSON and saves to the file at the given path.
 ---@param cache_notes { [string]: obsidian.cache.CacheNote } Dictionary where key is the relative path and value is the cache of the note.
----@param cache_file_path string|obsidian.Note Location to save the cache
+---@param cache_file_path string Location to save the cache
 local save_cache_notes_to_file = function(cache_notes, cache_file_path)
-  local save_path
-
-  if type(cache_file_path) == "obsidian.Note" then
-    save_path = cache_file_path.path.filename
-  else
-    save_path = cache_file_path
-  end
-
-  local file, err = io.open(save_path, "w")
+  local file, err = io.open(cache_file_path, "w")
 
   if file then
-    file:write(vim.fn.json_encode(cache_notes))
+    file:write(vim.json.encode(cache_notes))
     file:close()
   else
     error(table.concat { "Couldn't write vault index to the file: ", save_path, ". Description: ", err })
@@ -59,7 +52,7 @@ local create_on_file_change_callback = function(self)
 
       local update_cache_file = function()
         vim.schedule(function()
-          save_cache_notes_to_file(cache_notes, self.client.opts.cache.path)
+          save_cache_notes_to_file(cache_notes, self:get_cache_path())
         end)
       end
 
@@ -72,7 +65,7 @@ local create_on_file_change_callback = function(self)
         local update_cache_dictionary = function(note)
           if note then
             local founded_cache = {
-              absolute_path = absolute_path,
+              absolute_path = file.absolute_path,
               aliases = note.aliases,
               last_updated = file.stat.mtime.sec,
             }
@@ -119,7 +112,7 @@ local check_cache_notes_are_fresh = function(self)
 
     if completed == total then
       vim.schedule(function()
-        save_cache_notes_to_file(updated, self.client.opts.cache.path)
+        save_cache_notes_to_file(updated, self:get_cache_path())
       end)
     end
   end
@@ -183,7 +176,7 @@ end
 
 ---@param self obsidian.Cache
 local check_vault_cache = function(self)
-  check_file_exists(self.client.opts.cache.path, function(exists)
+  check_file_exists(self:get_cache_path(), function(exists)
     if exists then
       vim.schedule(function()
         check_cache_notes_are_fresh(self)
@@ -201,7 +194,7 @@ Cache.new = function(client)
   local self = Cache.init()
   self.client = client
 
-  if client.opts.cache.enable then
+  if client.opts.cache.enabled then
     enable_filewatch(self)
 
     check_vault_cache(self)
@@ -212,14 +205,15 @@ end
 
 --- Reads all notes in the vaults and returns the founded data.
 ---@param client obsidian.Client
----@return { [string]: obsidian.cache.CacheNote }
-local get_cache_notes_from_vault = function(client)
+---@param callback fun (note_caches: { [string]: obsidian.cache.CacheNote })
+local get_cache_notes_from_vault = function(client, callback)
   ---@type { [string]: obsidian.cache.CacheNote }
   local created_note_caches = {}
 
-  for notepath in search.find(client.dir, "", nil) do
-    --TODO make async
-    local note = Note.from_file(notepath, { read_only_frontmatter = true })
+  local tx, rx = channel.oneshot()
+
+  local on_find_match = function(path_match)
+    local note = Note.from_file(path_match, { read_only_frontmatter = true })
 
     local absolute_path = note.path.filename
     local relative_path = absolute_path:gsub(client.dir.filename .. "/", "")
@@ -244,37 +238,49 @@ local get_cache_notes_from_vault = function(client)
     created_note_caches[relative_path] = note_cache
   end
 
-  return created_note_caches
+  local on_exit = function(_)
+    tx()
+  end
+
+  search.find_async(client.dir, "", nil, on_find_match, on_exit)
+
+  async.run(function()
+    rx()
+    return created_note_caches
+  end, callback)
 end
 
 --- Reads all notes in the vaults and saves them to the cache file.
 ---@param self obsidian.Cache
 Cache.rebuild_cache = function(self)
-  if not self.client.opts.cache.enable then
+  if not self.client.opts.cache.enabled then
     log.error "The cache is disabled. Cannot index vault."
+    return;
   end
 
-  local founded_links = get_cache_notes_from_vault(self.client)
+  log.info("Rebuilding cache...")
 
-  save_cache_notes_to_file(founded_links, self.client.opts.cache.path)
-
-  log.info "Vault was indexed succesfully."
+  get_cache_notes_from_vault(self.client, function(founded_links)
+    save_cache_notes_to_file(founded_links, self:get_cache_path())
+    log.info("The cache was rebuild.")
+  end)
 end
 
 ---Reads the cache file from client.opts.cache.path and returns the loaded cache.
 ---@param self obsidian.Cache
 ---@return { [string]: obsidian.cache.CacheNote }|? Key is the relative path to the vault, value is the cache of the note.
 Cache.get_cache_notes_from_file = function(self)
-  local file, err = io.open(self.client.opts.cache.path, "r")
+  local file, err = io.open(self:get_cache_path(), "r")
 
   if file then
     local links_json = file:read()
     file:close()
-    return vim.fn.json_decode(links_json)
-  else
+    return vim.json.decode(links_json)
+  elseif err then
     log.err(err)
-    return nil
   end
+
+  return nil
 end
 
 ---Reads the cache file from client.opts.cache.path and returns founded note cache without key.
@@ -282,17 +288,13 @@ end
 ---@return obsidian.cache.CacheNote[]
 Cache.get_cache_notes_without_key = function(self)
   local cache_with_index = self:get_cache_notes_from_file()
+  assert(cache_with_index)
+  return vim.tbl_values(cache_with_index)
+end
 
-  if not cache_with_index then
-    return {}
-  end
-
-  local cache_without_index = {}
-  for _, value in pairs(cache_with_index) do
-    table.insert(cache_without_index, value)
-  end
-
-  return cache_without_index
+Cache.get_cache_path = function(self)
+  local normalized_path = vim.fs.normalize(self.client.opts.cache.path)
+  return vim.fs.joinpath(self.client.dir.filename, normalized_path)
 end
 
 return Cache

@@ -629,7 +629,7 @@ require("obsidian").setup {
 
   -- Experimental feature, disabled by default.
   cache = {
-    enable = false,
+    enabled = false,
     path = "./.cache.json",
   }
 }
