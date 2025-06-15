@@ -1,7 +1,6 @@
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
-local File = require("obsidian.async").File
 local log = require "obsidian.log"
 local search = require "obsidian.search"
 local util = require "obsidian.util"
