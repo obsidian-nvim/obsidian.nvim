@@ -733,7 +733,7 @@ end
 Client.resolve_link_async = function(self, link, callback)
   local location, name, link_type
   if link then
-    location, name, link_type = api.parse_link(link, { include_naked_urls = true, include_file_urls = true })
+    location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
   else
     location, name, link_type = api.parse_cursor_link { include_naked_urls = true, include_file_urls = true }
   end
@@ -751,7 +751,7 @@ Client.resolve_link_async = function(self, link, callback)
   end
 
   -- The Obsidian app will follow URL-encoded links, so we should to.
-  location = util.urldecode(location)
+  location = vim.uri_decode(location)
 
   -- Remove block links from the end if there are any.
   -- TODO: handle block links.

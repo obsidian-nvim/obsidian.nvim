@@ -143,10 +143,6 @@ local char_to_hex = function(c)
   return string.format("%%%02X", string.byte(c))
 end
 
-local hex_to_char = function(hex)
-  return string.char(tonumber(hex, 16))
-end
-
 --- Encode a string into URL-safe version.
 ---
 ---@param str string
@@ -168,16 +164,6 @@ util.urlencode = function(str, opts)
   -- function.
   url = url:gsub(" ", "%%20")
   return url
-end
-
---- Decode a URL-encoded string.
----
----@param str string
----
----@return string
-util.urldecode = function(str)
-  str = str:gsub("%%(%x%x)", hex_to_char)
-  return str
 end
 
 ---Match the case of 'key' to the given 'prefix' of the key.
