@@ -469,7 +469,7 @@ Client.find_notes_async = function(self, term, callback, opts)
 
   ---@param path obsidian.Path
   local function on_path(path)
-    local ok, res = pcall(Note.from_file_async, path, opts.notes)
+    local ok, res = pcall(Note.from_file, path, opts.notes)
 
     if ok then
       num_results = num_results + 1
@@ -513,7 +513,6 @@ Client.find_notes_async = function(self, term, callback, opts)
       )
     end
 
-    -- Execute callback.
     callback(notes)
   end
 
@@ -1028,8 +1027,8 @@ Client.find_tags_async = function(self, term, callback, opts)
   ---@param path obsidian.Path
   ---@return { [1]: obsidian.Note, [2]: {[1]: integer, [2]: integer}[] }
   local load_note = function(path)
-    local note, contents = Note.from_file_with_contents_async(path, { max_lines = self.opts.search_max_lines })
-    return { note, search.find_code_blocks(contents) }
+    local note = Note.from_file(path, { max_lines = self.opts.search_max_lines })
+    return { note, search.find_code_blocks(note.contents) }
   end
 
   ---@param match_data MatchData
@@ -1300,7 +1299,7 @@ Client.find_backlinks_async = function(self, note, callback, opts)
     -- Load note.
     local n = path_to_note[path]
     if not n then
-      local ok, res = pcall(Note.from_file_async, path, load_opts)
+      local ok, res = pcall(Note.from_file, path, load_opts)
       if ok then
         n = res
         path_to_note[path] = n
@@ -1430,7 +1429,7 @@ end
 ---  - `pattern`: A Lua search pattern. Defaults to ".*%.md".
 Client.apply_async = function(self, on_note, opts)
   self:apply_async_raw(function(path)
-    local ok, res = pcall(Note.from_file_async, path)
+    local ok, res = pcall(Note.from_file, path)
     if not ok then
       log.warn("Failed to load note at '%s': %s", path, res)
     else

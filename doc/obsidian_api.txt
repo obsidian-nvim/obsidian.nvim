@@ -850,8 +850,8 @@ Return ~
 `(obsidian.Note)`
 
 ------------------------------------------------------------------------------
-                                               *obsidian.Note.from_file_async()*
-                     `Note.from_file_async`({path}, {opts})
+                                               *obsidian.Note.from_file()*
+                     `Note.from_file`({path}, {opts})
 An async version of `.from_file()`, i.e. it needs to be called in an async context.
 
 Parameters ~
