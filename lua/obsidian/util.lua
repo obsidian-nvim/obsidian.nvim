@@ -16,6 +16,41 @@ util.write_file = function(file, contents)
   fd:close()
 end
 
+util.strdisplaywidth = (function()
+  local fallback = function(str, col)
+    str = tostring(str)
+    if vim.in_fast_event() then
+      return #str - (col or 0)
+    end
+    return vim.fn.strdisplaywidth(str, col)
+  end
+
+  if jit and vim.fn.has "win32" ~= 1 then
+    local ffi = require "ffi"
+    ffi.cdef [[
+      typedef unsigned char char_u;
+      int linetabsize_col(int startcol, char_u *s);
+    ]]
+
+    local ffi_func = function(str, col)
+      str = tostring(str)
+      local startcol = col or 0
+      local s = ffi.new("char[?]", #str + 1)
+      ffi.copy(s, str)
+      return ffi.C.linetabsize_col(startcol, s) - startcol
+    end
+
+    local ok = pcall(ffi_func, "hello")
+    if ok then
+      return ffi_func
+    else
+      return fallback
+    end
+  else
+    return fallback
+  end
+end)()
+
 -------------------
 --- Iter tools ----
 -------------------

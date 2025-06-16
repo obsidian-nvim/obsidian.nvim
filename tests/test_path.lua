@@ -18,12 +18,6 @@ describe("Path.new()", function()
     MiniTest.expect.equality(path, Path.new(path))
   end)
 
-  it("should init from a plenary path", function()
-    local PlenaryPath = require "plenary.path"
-    local path = Path.new "README.md"
-    MiniTest.expect.equality(true, path == Path.new(PlenaryPath:new "README.md"))
-  end)
-
   it("should raise an error if 2 args are passed and the first isn't Path", function()
     MiniTest.expect.error(function()
       ---@diagnostic disable-next-line

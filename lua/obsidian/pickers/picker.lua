@@ -1,7 +1,6 @@
 local abc = require "obsidian.abc"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local strings = require "plenary.strings"
 local Note = require "obsidian.note"
 
 ---@class obsidian.Picker : obsidian.ABC
@@ -468,7 +467,7 @@ Picker._make_display = function(self, entry)
     if icon ~= nil then
       display = display .. icon .. " "
       if icon_hl ~= nil then
-        highlights[#highlights + 1] = { { 0, strings.strdisplaywidth(icon) }, icon_hl }
+        highlights[#highlights + 1] = { { 0, util.strdisplaywidth(icon) }, icon_hl }
       end
     end
 
