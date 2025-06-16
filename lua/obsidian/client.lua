@@ -1027,7 +1027,10 @@ Client.find_tags_async = function(self, term, callback, opts)
   ---@param path obsidian.Path
   ---@return { [1]: obsidian.Note, [2]: {[1]: integer, [2]: integer}[] }
   local load_note = function(path)
-    local note = Note.from_file(path, { max_lines = self.opts.search_max_lines })
+    local note = Note.from_file(path, {
+      load_contents = true,
+      max_lines = self.opts.search_max_lines,
+    })
     return { note, search.find_code_blocks(note.contents) }
   end
 
@@ -1040,7 +1043,6 @@ Client.find_tags_async = function(self, term, callback, opts)
       path_order[path] = num_paths
     end
 
-    -- executor:submit(function()
     -- Load note.
     local note = path_to_note[path]
     local code_blocks = path_to_code_blocks[path]
@@ -1295,7 +1297,6 @@ Client.find_backlinks_async = function(self, note, callback, opts)
       path_order[path] = num_paths
     end
 
-    -- executor:submit(function()
     -- Load note.
     local n = path_to_note[path]
     if not n then
