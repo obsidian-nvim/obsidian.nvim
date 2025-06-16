@@ -24,20 +24,7 @@ You can override some parts of the `Makefile` by setting env variables.
 
 ### Local development with LuaLS and `plenary.nvim`
 
-If you're using the [Lua Language Server](https://luals.github.io) (LuaLS) you'll probably want to add `plenary.nvim` as a workspace library since we rely heavily on plenary throughout the codebase.
-You can do this by adding a `.luarc.json` configuration file that looks like this:
-
-```json
-{
-  "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
-  "workspace.library": [
-    "~/.local/share/nvim/lazy/plenary.nvim/"
-  ],
-  "runtime.version": "Lua 5.1"
-}
-```
-
-Make sure that the path there to plenary is correct for you.
+Be sure to setup [Lua Language Server](https://luals.github.io)
 
 ### Keeping the `CHANGELOG.md` up-to-date
 

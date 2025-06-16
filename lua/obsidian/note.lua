@@ -271,38 +271,6 @@ Note.from_file = function(path, opts)
   return Note.from_lines(io.lines(path), path, opts)
 end
 
---- An async version of `.from_file()`, i.e. it needs to be called in an async context.
----
----@param path string|obsidian.Path
----@param opts obsidian.note.LoadOpts|?
----
----@return obsidian.Note
-Note.from_file_async = function(path, opts)
-  path = Path.new(path):resolve { strict = true }
-  local f = io.open(tostring(path), "r")
-  assert(f)
-  local ok, res = pcall(Note.from_lines, f:lines "*l", path, opts)
-  f:close()
-  if ok then
-    return res
-  else
-    error(res)
-  end
-end
-
---- Like `.from_file_async()` but also returns the contents of the file as a list of lines.
----
----@param path string|obsidian.Path
----@param opts obsidian.note.LoadOpts|?
----
----@return obsidian.Note,string[]
-Note.from_file_with_contents_async = function(path, opts)
-  opts = vim.tbl_extend("force", opts or {}, { load_contents = true })
-  local note = Note.from_file_async(path, opts)
-  assert(note.contents ~= nil)
-  return note, note.contents
-end
-
 --- Initialize a note from a buffer.
 ---
 ---@param bufnr integer|?

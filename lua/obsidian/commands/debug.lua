@@ -76,7 +76,6 @@ return function(client, data)
   log.lazy_info "Dependencies:"
 
   for _, plugin in ipairs {
-    "plenary.nvim",
     "nvim-cmp",
     "blink.cmp",
     "telescope.nvim",

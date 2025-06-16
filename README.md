@@ -141,7 +141,7 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 ### Plugin dependencies
 
-The only **required** plugin dependency is [plenary.nvim](https://github.com/nvim-lua/plenary.nvim), but there are a number of optional dependencies that enhance the obsidian.nvim experience.
+There is no required dependency, but there are a number of optional dependencies that enhance the obsidian.nvim experience.
 
 **Completion:**
 
@@ -199,12 +199,6 @@ return {
   --   "BufReadPre path/to/my-vault/*.md",
   --   "BufNewFile path/to/my-vault/*.md",
   -- },
-  dependencies = {
-    -- Required.
-    "nvim-lua/plenary.nvim",
-
-    -- see above for full list of optional dependencies ☝️
-  },
   ---@module 'obsidian'
   ---@type obsidian.config.ClientOpts
   opts = {
@@ -246,12 +240,6 @@ It is not recommended because packer.nvim is currently unmaintained
 use {
   "obsidian-nvim/obsidian.nvim",
   tag = "*", -- recommended, use latest release instead of latest commit
-  requires = {
-    -- Required.
-    "nvim-lua/plenary.nvim",
-
-    -- see above for full list of optional dependencies ☝️
-  },
   config = function()
     require("obsidian").setup {
       workspaces = {

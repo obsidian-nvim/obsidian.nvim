@@ -1,9 +1,8 @@
-local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local log = require "obsidian.log"
 local search = require "obsidian.search"
 local iter = vim.iter
 local util = require "obsidian.util"
-local channel = require("plenary.async.control").channel
+local table, string = table, string
 
 ---@param client obsidian.Client
 return function(client)
@@ -26,62 +25,44 @@ return function(client)
     end
   end
 
-  local executor = AsyncExecutor.new()
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  local done = 0
+  local n_tasks = vim.tbl_count(links)
 
-  executor:map(
-    function(link)
-      local tx, rx = channel.oneshot()
+  local function on_exit()
+    table.sort(entries, function(a, b)
+      return links[a.value] < links[b.value] -- Sort by line number within the buffer.
+    end)
+    picker:pick(entries, {
+      prompt_title = "Links",
+      callback = function(link)
+        client:follow_link_async(link)
+      end,
+    })
+  end
 
-      ---@type obsidian.PickerEntry[]
-      local entries = {}
-
-      client:resolve_link_async(link, function(...)
-        for res in iter { ... } do
-          local icon, icon_hl
-          if res.url ~= nil then
-            icon, icon_hl = util.get_icon(res.url)
-          end
-          table.insert(entries, {
-            value = link,
-            display = res.name,
-            filename = res.path and tostring(res.path) or nil,
-            icon = icon,
-            icon_hl = icon_hl,
-            lnum = res.line,
-            col = res.col,
-          })
+  for link in vim.iter(links) do
+    client:resolve_link_async(link, function(...)
+      for res in iter { ... } do
+        local icon, icon_hl
+        if res.url ~= nil then
+          icon, icon_hl = util.get_icon(res.url)
         end
-
-        tx()
-      end)
-
-      rx()
-      return unpack(entries)
-    end,
-    vim.tbl_keys(links),
-    function(results)
-      vim.schedule(function()
-        -- Flatten entries.
-        local entries = {}
-        for res in iter(results) do
-          for r in iter(res) do
-            entries[#entries + 1] = r
-          end
-        end
-
-        -- Sort by position within the buffer.
-        table.sort(entries, function(a, b)
-          return links[a.value] < links[b.value]
-        end)
-
-        -- Launch picker.
-        picker:pick(entries, {
-          prompt_title = "Links",
-          callback = function(link)
-            client:follow_link_async(link)
-          end,
+        table.insert(entries, {
+          value = link,
+          display = res.name,
+          filename = res.path and tostring(res.path) or nil,
+          icon = icon,
+          icon_hl = icon_hl,
+          lnum = res.line,
+          col = res.col,
         })
-      end)
-    end
-  )
+      end
+      done = done + 1
+      if done == n_tasks then
+        on_exit()
+      end
+    end)
+  end
 end
