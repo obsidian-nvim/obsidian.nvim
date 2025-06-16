@@ -447,6 +447,60 @@ Client._search_iter_async = function(self, term, search_opts, find_opts)
   end
 end
 
+---@param term string
+---@param search_opts obsidian.SearchOpts|boolean|?
+---@param find_opts obsidian.SearchOpts|boolean|?
+---@param callback fun(path: obsidian.Path)
+---@param exit_callback fun(paths: obsidian.Path[])
+---@private
+Client._search_async = function(self, term, search_opts, find_opts, callback, exit_callback)
+  local found = {}
+  local result = {}
+  local cmds_done = 0
+
+  local function dedup_send(path)
+    local key = tostring(path:resolve { strict = true })
+    if not found[key] then
+      found[key] = true
+      result[#result + 1] = path
+    end
+    callback(path)
+  end
+
+  local function on_search_match(content_match)
+    local path = Path.new(content_match.path.text)
+    dedup_send(path)
+  end
+
+  local function on_find_match(path_match)
+    local path = Path.new(path_match)
+    dedup_send(path)
+  end
+
+  local function on_exit()
+    cmds_done = cmds_done + 1
+    if cmds_done == 2 then
+      exit_callback(result)
+    end
+  end
+
+  search.search_async(
+    self.dir,
+    term,
+    self:_prepare_search_opts(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
+    on_search_match,
+    on_exit
+  )
+
+  search.find_async(
+    self.dir,
+    term,
+    self:_prepare_search_opts(find_opts, { ignore_case = true }),
+    on_find_match,
+    on_exit
+  )
+end
+
 --- Find notes matching the given term. Notes are searched based on ID, title, filename, and aliases.
 ---
 ---@param term string The term to search for
@@ -547,6 +601,79 @@ Client.find_notes_async = function(self, term, callback, opts)
       callback(results_)
     end)
   end, function(_) end)
+end
+
+--- An async version of `find_notes()` that runs the callback with an array of all matching notes.
+---
+---@param term string The term to search for
+---@param callback fun(notes: obsidian.Note[])
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|? }|?
+Client.find_notes_async2 = function(self, term, callback, opts)
+  opts = opts or {}
+  opts.notes = opts.notes or {}
+  if not opts.notes.max_lines then
+    opts.notes.max_lines = self.opts.search_max_lines
+  end
+
+  ---@type table<string, integer>
+  local paths = {}
+  local num_results = 0
+  local err_count = 0
+  local first_err
+  local first_err_path
+  local results = {}
+
+  ---@param path obsidian.Path
+  local function on_path(path)
+    local ok, res = pcall(Note.from_file_async, path, opts.notes)
+
+    if ok then
+      num_results = num_results + 1
+      paths[tostring(path)] = num_results
+      results[#results + 1] = res
+    else
+      err_count = err_count + 1
+      if first_err == nil then
+        first_err = res
+        first_err_path = path
+      end
+    end
+  end
+
+  local on_exit = function()
+    -- Then sort by original order.
+    table.sort(results, function(a, b)
+      return paths[tostring(a.path)] < paths[tostring(b.path)]
+    end)
+
+    -- Check for datetime macros.
+    if string.len(term) > 0 then
+      for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
+        if dt_offset.cadence == "daily" then
+          local note = self:daily(dt_offset.offset, { no_write = true, load = opts.notes })
+          if not paths[tostring(note.path)] and note.path:is_file() then
+            note.alt_alias = dt_offset.macro
+            results[#results + 1] = note
+          end
+        end
+      end
+    end
+
+    -- Check for errors.
+    if first_err ~= nil and first_err_path ~= nil then
+      log.err(
+        "%d error(s) occurred during search. First error from note at '%s':\n%s",
+        err_count,
+        first_err_path,
+        first_err
+      )
+    end
+
+    -- Execute callback.
+    callback(results)
+  end
+
+  self:_search_async(term, opts.search, nil, on_path, on_exit)
 end
 
 --- Find non-markdown files in the vault.
