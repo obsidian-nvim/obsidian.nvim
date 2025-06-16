@@ -7,14 +7,13 @@ local iter, string, table = vim.iter, string, table
 
 ---Toggle the checkbox on the current line.
 ---
----@param opts table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
+---@param states table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
 ---@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
-M.toggle_checkbox = function(opts, line_num)
-  -- Allow line_num to be optional, defaulting to the current line if not provided
+M.toggle_checkbox = function(states, line_num)
   line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
 
-  local checkboxes = opts or { " ", "x" }
+  local checkboxes = states or { " ", "x" }
 
   if util.is_checkbox(line) then
     for i, check_char in ipairs(checkboxes) do
@@ -55,8 +54,7 @@ end
 ---@return integer|nil, integer|nil, obsidian.search.RefTypes|? - start and end column of link (1-indexed)
 M.cursor_on_markdown_link = function(line, col, include_naked_urls, include_file_urls, include_block_ids)
   local search = require "obsidian.search"
-
-  local current_line = line and line or vim.api.nvim_get_current_line()
+  local current_line = line or vim.api.nvim_get_current_line()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
   cur_col = col or cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
 
@@ -82,7 +80,7 @@ end
 ---
 ---@return string|?, string|?, obsidian.search.RefTypes|?
 M.parse_cursor_link = function(opts)
-  opts = opts and opts or {}
+  opts = opts or {}
 
   local current_line = opts.line and opts.line or vim.api.nvim_get_current_line()
   local open, close, link_type = M.cursor_on_markdown_link(
@@ -159,7 +157,6 @@ end
 ---@return integer bufnr
 M.open_buffer = function(path, opts)
   local Path = require "obsidian.path"
-
   path = Path.new(path):resolve()
   opts = opts and opts or {}
   local cmd = vim.trim(opts.cmd and opts.cmd or "e")
@@ -214,6 +211,8 @@ end
 --- text api ---
 ----------------
 
+--- TODO: use vim.api
+---
 ---Insert text at current cursor position.
 ---@param text string
 M.insert_text = function(text)
@@ -376,63 +375,53 @@ end
 --- Integration helpers ----
 ----------------------------
 
----Get the path to where a plugin is installed.
----@param name string|?
+--- Get the path to where a plugin is installed.
+---
+---@param name string
 ---@return string|?
 local get_src_root = function(name)
-  name = name and name or "obsidian.nvim"
-  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
-    if vim.endswith(path, name) then
-      return path
-    end
-  end
-  return nil
+  return vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
+    return vim.endswith(path, name)
+  end)
 end
 
 --- Get info about a plugin.
 ---
----@param name string|?
+---@param name string
 ---
 ---@return { commit: string|?, path: string }|?
 M.get_plugin_info = function(name)
-  name = name and name or "obsidian.nvim"
-
   local src_root = get_src_root(name)
-  if src_root == nil then
-    return nil
+  if not src_root then
+    return
   end
-
   local out = { path = src_root }
-
-  local Job = require "plenary.job"
-  local output, exit_code = Job:new({ ---@diagnostic disable-line: missing-fields
-    command = "git",
-    args = { "rev-parse", "HEAD" },
-    cwd = src_root,
-    enable_recording = true,
-  }):sync(1000)
-
-  if exit_code == 0 then
-    out.commit = output[1]
+  local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
+  if obj.code ~= 0 then
+    return
   end
-
+  out.commit = vim.trim(obj.stdout)
   return out
 end
 
+--- Get info about a external dependency.
+---
 ---@param cmd string
 ---@return string|?
 M.get_external_dependency_info = function(cmd)
-  local Job = require "plenary.job"
-  local output, exit_code = Job:new({ ---@diagnostic disable-line: missing-fields
-    command = cmd,
-    args = { "--version" },
-    enable_recording = true,
-  }):sync(1000)
-
-  if exit_code == 0 then
-    return output[1]
+  local obj = vim.system({ cmd, "--version" }, {}):wait(1000)
+  if obj.code ~= 0 then
+    return
+  end
+  local version = vim.version.parse(obj.stdout)
+  if version then
+    return ("%d.%d.%d"):format(version.major, version.minor, version.patch)
   end
 end
+
+------------------
+--- UI helpers ---
+------------------
 
 local INPUT_CANCELLED = "~~~INPUT-CANCELLED~~~"
 
@@ -466,8 +455,8 @@ end
 ---
 ---@return boolean
 M.confirm = function(prompt)
-  if not vim.endswith(M.rstrip_whitespace(prompt), "[Y/n]") then
-    prompt = M.rstrip_whitespace(prompt) .. " [Y/n] "
+  if not vim.endswith(util.rstrip_whitespace(prompt), "[Y/n]") then
+    prompt = util.rstrip_whitespace(prompt) .. " [Y/n] "
   end
 
   local confirmation = M.input(prompt)
@@ -507,8 +496,8 @@ M.get_os = function()
   if vim.fn.has "win32" == 1 then
     this_os = M.OSType.Windows
   else
-    local sysname = vim.loop.os_uname().sysname
-    local release = vim.loop.os_uname().release:lower()
+    local sysname = vim.uv.os_uname().sysname
+    local release = vim.uv.os_uname().release:lower()
     if sysname:lower() == "linux" and string.find(release, "microsoft") then
       this_os = M.OSType.Wsl
     else
@@ -527,7 +516,7 @@ end
 ---
 ---@return string|?, string|? (icon, hl_group) The icon and highlight group.
 M.get_icon = function(path)
-  if M.is_url(path) then
+  if util.is_url(path) then
     local icon = ""
     local _, hl_group = M.get_icon "blah.html"
     return icon, hl_group

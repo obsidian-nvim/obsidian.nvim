@@ -5,7 +5,7 @@ local RefTypes = require("obsidian.search").RefTypes
 ---@param path? string|obsidian.Path
 local function open_in_app(client, path)
   if not path then
-    return client.opts.open.func("obsidian://open?vault=" .. api.urlencode(client:vault_name()))
+    return client.opts.open.func("obsidian://open?vault=" .. vim.uri_encode(client:vault_name()))
   end
   path = tostring(path)
   local vault_name = client:vault_name()
@@ -16,8 +16,8 @@ local function open_in_app(client, path)
     path = string.gsub(path, "/", "\\")
   end
 
-  local encoded_vault = api.urlencode(vault_name)
-  local encoded_path = api.urlencode(path)
+  local encoded_vault = vim.uri_encode(vault_name)
+  local encoded_path = vim.uri_encode(path)
 
   local uri
   if client.opts.open.use_advanced_uri then

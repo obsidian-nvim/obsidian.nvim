@@ -57,7 +57,7 @@ end
 return function(client, data)
   data = data or {}
 
-  local info = api.get_plugin_info() or {}
+  local info = api.get_plugin_info "obsidian.nvim" or {}
   log.lazy_info("Obsidian.nvim v%s (%s)", VERSION, info.commit or "unknown commit")
 
   log.lazy_info "Status:"

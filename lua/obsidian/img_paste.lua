@@ -2,6 +2,7 @@ local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local run_job = require("obsidian.async").run_job
 local api = require "obsidian.api"
+local util = require "obsidian.util"
 
 local M = {}
 
@@ -57,6 +58,8 @@ local function clipboard_is_img()
   end
   return is_img
 end
+
+--- TODO: refactor with run_job?
 
 --- Save image from clipboard to `path`.
 ---@param path string
@@ -130,7 +133,7 @@ M.paste_img = function(opts)
   fname = vim.trim(fname)
 
   -- Verify filename
-  if api.contains_invalid_characters(fname) then
+  if util.contains_invalid_characters(fname) then
     log.warn "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |"
   elseif fname == "" then
     log.err "Invalid file name"
