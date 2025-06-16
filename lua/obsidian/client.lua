@@ -10,15 +10,12 @@
 
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
-local async = require "plenary.async"
-local channel = require("plenary.async.control").channel
 local config = require "obsidian.config"
 local Note = require "obsidian.note"
 local Workspace = require "obsidian.workspace"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local search = require "obsidian.search"
-local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local CallbackManager = require("obsidian.callbacks").CallbackManager
 local block_on = require("obsidian.async").block_on
 local iter = vim.iter
@@ -386,70 +383,6 @@ end
 ---@param term string
 ---@param search_opts obsidian.SearchOpts|boolean|?
 ---@param find_opts obsidian.SearchOpts|boolean|?
----
----@return function
----
----@private
-Client._search_iter_async = function(self, term, search_opts, find_opts)
-  local tx, rx = channel.mpsc()
-  local found = {}
-
-  local function on_exit(_)
-    tx.send(nil)
-  end
-
-  ---@param content_match MatchData
-  local function on_search_match(content_match)
-    local path = Path.new(content_match.path.text):resolve { strict = true }
-    if not found[path.filename] then
-      found[path.filename] = true
-      tx.send(path)
-    end
-  end
-
-  ---@param path_match string
-  local function on_find_match(path_match)
-    local path = Path.new(path_match):resolve { strict = true }
-    if not found[path.filename] then
-      found[path.filename] = true
-      tx.send(path)
-    end
-  end
-
-  local cmds_done = 0 -- out of the two, one for 'search' and one for 'find'
-
-  search.search_async(
-    self.dir,
-    term,
-    self:_prepare_search_opts(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
-    on_search_match,
-    on_exit
-  )
-
-  search.find_async(
-    self.dir,
-    term,
-    self:_prepare_search_opts(find_opts, { ignore_case = true }),
-    on_find_match,
-    on_exit
-  )
-
-  return function()
-    while cmds_done < 2 do
-      local value = rx.recv()
-      if value == nil then
-        cmds_done = cmds_done + 1
-      else
-        return value
-      end
-    end
-    return nil
-  end
-end
-
----@param term string
----@param search_opts obsidian.SearchOpts|boolean|?
----@param find_opts obsidian.SearchOpts|boolean|?
 ---@param callback fun(path: obsidian.Path)
 ---@param exit_callback fun(paths: obsidian.Path[])
 ---@private
@@ -526,102 +459,13 @@ Client.find_notes_async = function(self, term, callback, opts)
     opts.notes.max_lines = self.opts.search_max_lines
   end
 
-  local next_path = self:_search_iter_async(term, opts.search)
-  local executor = AsyncExecutor.new()
-
   ---@type table<string, integer>
   local paths = {}
   local num_results = 0
   local err_count = 0
   local first_err
   local first_err_path
-
-  ---@param path obsidian.Path
-  local function task_fn(path)
-    if paths[tostring(path)] then
-      return nil
-    end
-
-    local ok, res = pcall(Note.from_file_async, path, opts.notes)
-
-    if ok then
-      num_results = num_results + 1
-      paths[tostring(path)] = num_results
-      return res
-    else
-      err_count = err_count + 1
-      if first_err == nil then
-        first_err = res
-        first_err_path = path
-      end
-      return nil
-    end
-  end
-
-  async.run(function()
-    executor:map(task_fn, next_path, function(results)
-      -- Filter out error results (nils), and unpack the ok results.
-      ---@type obsidian.Note[]
-      local results_ = {}
-      for res in iter(results) do
-        if res[1] ~= nil then
-          results_[#results_ + 1] = res[1]
-        end
-      end
-
-      -- Then sort by original order.
-      table.sort(results_, function(a, b)
-        return paths[tostring(a.path)] < paths[tostring(b.path)]
-      end)
-
-      -- Check for datetime macros.
-      if string.len(term) > 0 then
-        for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
-          if dt_offset.cadence == "daily" then
-            local note = self:daily(dt_offset.offset, { no_write = true, load = opts.notes })
-            if not paths[tostring(note.path)] and note.path:is_file() then
-              note.alt_alias = dt_offset.macro
-              results_[#results_ + 1] = note
-            end
-          end
-        end
-      end
-
-      -- Check for errors.
-      if first_err ~= nil and first_err_path ~= nil then
-        log.err(
-          "%d error(s) occurred during search. First error from note at '%s':\n%s",
-          err_count,
-          first_err_path,
-          first_err
-        )
-      end
-
-      -- Execute callback.
-      callback(results_)
-    end)
-  end, function(_) end)
-end
-
---- An async version of `find_notes()` that runs the callback with an array of all matching notes.
----
----@param term string The term to search for
----@param callback fun(notes: obsidian.Note[])
----@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|? }|?
-Client.find_notes_async2 = function(self, term, callback, opts)
-  opts = opts or {}
-  opts.notes = opts.notes or {}
-  if not opts.notes.max_lines then
-    opts.notes.max_lines = self.opts.search_max_lines
-  end
-
-  ---@type table<string, integer>
-  local paths = {}
-  local num_results = 0
-  local err_count = 0
-  local first_err
-  local first_err_path
-  local results = {}
+  local notes = {}
 
   ---@param path obsidian.Path
   local function on_path(path)
@@ -630,7 +474,7 @@ Client.find_notes_async2 = function(self, term, callback, opts)
     if ok then
       num_results = num_results + 1
       paths[tostring(path)] = num_results
-      results[#results + 1] = res
+      notes[#notes + 1] = res
     else
       err_count = err_count + 1
       if first_err == nil then
@@ -642,7 +486,7 @@ Client.find_notes_async2 = function(self, term, callback, opts)
 
   local on_exit = function()
     -- Then sort by original order.
-    table.sort(results, function(a, b)
+    table.sort(notes, function(a, b)
       return paths[tostring(a.path)] < paths[tostring(b.path)]
     end)
 
@@ -653,7 +497,7 @@ Client.find_notes_async2 = function(self, term, callback, opts)
           local note = self:daily(dt_offset.offset, { no_write = true, load = opts.notes })
           if not paths[tostring(note.path)] and note.path:is_file() then
             note.alt_alias = dt_offset.macro
-            results[#results + 1] = note
+            notes[#notes + 1] = note
           end
         end
       end
@@ -670,53 +514,10 @@ Client.find_notes_async2 = function(self, term, callback, opts)
     end
 
     -- Execute callback.
-    callback(results)
+    callback(notes)
   end
 
   self:_search_async(term, opts.search, nil, on_path, on_exit)
-end
-
---- Find non-markdown files in the vault.
----
----@param term string The search term.
----@param opts { search: obsidian.SearchOpts, timeout: integer|? }|?
----
----@return obsidian.Path[]
-Client.find_files = function(self, term, opts)
-  opts = opts or {}
-  return block_on(function(cb)
-    return self:find_files_async(term, cb, opts)
-  end, opts.timeout)
-end
-
---- An async version of `find_files`.
----
----@param term string The search term.
----@param callback fun(paths: obsidian.Path[])
----@param opts { search: obsidian.SearchOpts }|?
-Client.find_files_async = function(self, term, callback, opts)
-  opts = opts or {}
-
-  local matches = {}
-  local tx, rx = channel.oneshot()
-  local on_find_match = function(path_match)
-    matches[#matches + 1] = Path.new(path_match)
-  end
-
-  local on_exit = function(_)
-    tx()
-  end
-
-  local find_opts = self:_prepare_search_opts(opts.search)
-  find_opts:add_exclude "*.md"
-  find_opts.include_non_markdown = true
-
-  search.find_async(self.dir, term, find_opts, on_find_match, on_exit)
-
-  async.run(function()
-    rx()
-    return matches
-  end, callback)
 end
 
 --- Resolve the query to a single note if possible, otherwise all close matches are returned.
@@ -753,9 +554,7 @@ Client.resolve_note_async = function(self, query, callback, opts)
     ---@type obsidian.Path
     ---@diagnostic disable-next-line: assign-type-mismatch
     local full_path = self.dir / note_path
-    return async.run(function()
-      return Note.from_file_async(full_path, opts.notes)
-    end, callback)
+    return callback(Note.from_file(full_path, opts.notes))
   end
 
   -- Query might be a path.
@@ -780,9 +579,7 @@ Client.resolve_note_async = function(self, query, callback, opts)
 
   for _, path in pairs(paths_to_check) do
     if path:is_file() then
-      return async.run(function()
-        return Note.from_file_async(path, opts.notes)
-      end, callback)
+      return callback(Note.from_file(path, opts.notes))
     end
   end
 
@@ -821,7 +618,7 @@ Client.resolve_note_async = function(self, query, callback, opts)
     else
       return callback(unpack(fuzzy_matches))
     end
-  end, { search = { sort = true, ignore_case = true }, notes = opts.notes })
+  end, { { sort = true, ignore_case = true }, notes = opts.notes })
 end
 
 --- Same as `resolve_note_async` but opens a picker to choose a single note when
@@ -1201,8 +998,6 @@ Client.find_tags_async = function(self, term, callback, opts)
   local first_err = nil
   local first_err_path = nil
 
-  local executor = AsyncExecutor.new()
-
   ---@param tag string
   ---@param path string|obsidian.Path
   ---@param note obsidian.Note
@@ -1246,60 +1041,58 @@ Client.find_tags_async = function(self, term, callback, opts)
       path_order[path] = num_paths
     end
 
-    executor:submit(function()
-      -- Load note.
-      local note = path_to_note[path]
-      local code_blocks = path_to_code_blocks[path]
-      if not note or not code_blocks then
-        local ok, res = pcall(load_note, path)
-        if ok then
-          note, code_blocks = unpack(res)
-          path_to_note[path] = note
-          path_to_code_blocks[path] = code_blocks
-        else
-          err_count = err_count + 1
-          if first_err == nil then
-            first_err = res
-            first_err_path = path
+    -- executor:submit(function()
+    -- Load note.
+    local note = path_to_note[path]
+    local code_blocks = path_to_code_blocks[path]
+    if not note or not code_blocks then
+      local ok, res = pcall(load_note, path)
+      if ok then
+        note, code_blocks = unpack(res)
+        path_to_note[path] = note
+        path_to_code_blocks[path] = code_blocks
+      else
+        err_count = err_count + 1
+        if first_err == nil then
+          first_err = res
+          first_err_path = path
+        end
+        return
+      end
+    end
+
+    -- check if the match was inside a code block.
+    for block in iter(code_blocks) do
+      if block[1] <= match_data.line_number and match_data.line_number <= block[2] then
+        return
+      end
+    end
+
+    local line = util.strip_whitespace(match_data.lines.text)
+    local n_matches = 0
+
+    -- check for tag in the wild of the form '#{tag}'
+    for match in iter(search.find_tags(line)) do
+      local m_start, m_end, _ = unpack(match)
+      local tag = string.sub(line, m_start + 1, m_end)
+      if string.match(tag, "^" .. search.Patterns.TagCharsRequired .. "$") then
+        add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
+      end
+    end
+
+    -- check for tags in frontmatter
+    if n_matches == 0 and note.tags ~= nil and (vim.startswith(line, "tags:") or string.match(line, "%s*- ")) then
+      for tag in iter(note.tags) do
+        tag = tostring(tag)
+        for _, t in ipairs(terms) do
+          if string.len(t) == 0 or util.string_contains(tag, t) then
+            add_match(tag, path, note, match_data.line_number, line)
           end
-          return
         end
       end
-
-      -- check if the match was inside a code block.
-      for block in iter(code_blocks) do
-        if block[1] <= match_data.line_number and match_data.line_number <= block[2] then
-          return
-        end
-      end
-
-      local line = util.strip_whitespace(match_data.lines.text)
-      local n_matches = 0
-
-      -- check for tag in the wild of the form '#{tag}'
-      for match in iter(search.find_tags(line)) do
-        local m_start, m_end, _ = unpack(match)
-        local tag = string.sub(line, m_start + 1, m_end)
-        if string.match(tag, "^" .. search.Patterns.TagCharsRequired .. "$") then
-          add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
-        end
-      end
-
-      -- check for tags in frontmatter
-      if n_matches == 0 and note.tags ~= nil and (vim.startswith(line, "tags:") or string.match(line, "%s*- ")) then
-        for tag in iter(note.tags) do
-          tag = tostring(tag)
-          for _, t in ipairs(terms) do
-            if string.len(t) == 0 or util.string_contains(tag, t) then
-              add_match(tag, path, note, match_data.line_number, line)
-            end
-          end
-        end
-      end
-    end)
+    end
+    -- end)
   end
-
-  local tx, rx = channel.oneshot()
 
   local search_terms = {}
   for t in iter(terms) do
@@ -1332,49 +1125,45 @@ Client.find_tags_async = function(self, term, callback, opts)
     search_terms,
     self:_prepare_search_opts(opts.search, { ignore_case = true }),
     on_match,
-    function(_)
-      tx()
-    end
-  )
+    function(code)
+      if code ~= 0 then
+        callback {}
+      end
+      ---@type obsidian.TagLocation[]
+      local tags_list = {}
 
-  async.run(function()
-    rx()
-    executor:join_async()
+      -- Order by path.
+      local paths = {}
+      for path, idx in pairs(path_order) do
+        paths[idx] = path
+      end
 
-    ---@type obsidian.TagLocation[]
-    local tags_list = {}
-
-    -- Order by path.
-    local paths = {}
-    for path, idx in pairs(path_order) do
-      paths[idx] = path
-    end
-
-    -- Gather results in path order.
-    for _, path in ipairs(paths) do
-      local tag_locs = path_to_tag_loc[path]
-      if tag_locs ~= nil then
-        table.sort(tag_locs, function(a, b)
-          return a.line < b.line
-        end)
-        for _, tag_loc in ipairs(tag_locs) do
-          tags_list[#tags_list + 1] = tag_loc
+      -- Gather results in path order.
+      for _, path in ipairs(paths) do
+        local tag_locs = path_to_tag_loc[path]
+        if tag_locs ~= nil then
+          table.sort(tag_locs, function(a, b)
+            return a.line < b.line
+          end)
+          for _, tag_loc in ipairs(tag_locs) do
+            tags_list[#tags_list + 1] = tag_loc
+          end
         end
       end
-    end
 
-    -- Log any errors.
-    if first_err ~= nil and first_err_path ~= nil then
-      log.err(
-        "%d error(s) occurred during search. First error from note at '%s':\n%s",
-        err_count,
-        first_err_path,
-        first_err
-      )
-    end
+      -- Log any errors.
+      if first_err ~= nil and first_err_path ~= nil then
+        log.err(
+          "%d error(s) occurred during search. First error from note at '%s':\n%s",
+          err_count,
+          first_err_path,
+          first_err
+        )
+      end
 
-    return tags_list
-  end, callback)
+      callback(tags_list)
+    end
+  )
 end
 
 ---@class obsidian.BacklinkMatches
@@ -1431,9 +1220,6 @@ Client.find_backlinks_async = function(self, note, callback, opts)
   local first_err = nil
   local first_err_path = nil
 
-  local executor = AsyncExecutor.new()
-
-  -- Prepare search terms.
   local search_terms = {}
   local note_path = Path.new(note.path)
   for raw_ref in iter { tostring(note.id), note_path.name, note_path.stem, self:vault_relative_path(note.path) } do
@@ -1510,106 +1296,98 @@ Client.find_backlinks_async = function(self, note, callback, opts)
       path_order[path] = num_paths
     end
 
-    executor:submit(function()
-      -- Load note.
-      local n = path_to_note[path]
-      if not n then
-        local ok, res = pcall(Note.from_file_async, path, load_opts)
-        if ok then
-          n = res
-          path_to_note[path] = n
-        else
-          err_count = err_count + 1
-          if first_err == nil then
-            first_err = res
-            first_err_path = path
-          end
+    -- executor:submit(function()
+    -- Load note.
+    local n = path_to_note[path]
+    if not n then
+      local ok, res = pcall(Note.from_file_async, path, load_opts)
+      if ok then
+        n = res
+        path_to_note[path] = n
+      else
+        err_count = err_count + 1
+        if first_err == nil then
+          first_err = res
+          first_err_path = path
+        end
+        return
+      end
+    end
+
+    if anchor then
+      -- Check for a match with the anchor.
+      -- NOTE: no need to do this with blocks, since blocks are standardized.
+      local match_text = string.sub(match.lines.text, match.submatches[1].start)
+      local link_location = util.parse_link(match_text)
+      if not link_location then
+        log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
+        return
+      end
+
+      local anchor_link = select(2, util.strip_anchor_links(link_location))
+      if not anchor_link then
+        return
+      end
+
+      if anchor_link ~= anchor and anchor_obj ~= nil then
+        local resolved_anchor = note:resolve_anchor_link(anchor_link)
+        if resolved_anchor == nil or resolved_anchor.header ~= anchor_obj.header then
           return
         end
       end
+    end
 
-      if anchor then
-        -- Check for a match with the anchor.
-        -- NOTE: no need to do this with blocks, since blocks are standardized.
-        local match_text = string.sub(match.lines.text, match.submatches[1].start)
-        local link_location = util.parse_link(match_text)
-        if not link_location then
-          log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
-          return
-        end
+    ---@type obsidian.BacklinkMatch[]
+    local line_matches = backlink_matches[path]
+    if line_matches == nil then
+      line_matches = {}
+      backlink_matches[path] = line_matches
+    end
 
-        local anchor_link = select(2, util.strip_anchor_links(link_location))
-        if not anchor_link then
-          return
-        end
-
-        if anchor_link ~= anchor and anchor_obj ~= nil then
-          local resolved_anchor = note:resolve_anchor_link(anchor_link)
-          if resolved_anchor == nil or resolved_anchor.header ~= anchor_obj.header then
-            return
-          end
-        end
-      end
-
-      ---@type obsidian.BacklinkMatch[]
-      local line_matches = backlink_matches[path]
-      if line_matches == nil then
-        line_matches = {}
-        backlink_matches[path] = line_matches
-      end
-
-      line_matches[#line_matches + 1] = {
-        line = match.line_number,
-        text = util.rstrip_whitespace(match.lines.text),
-      }
-    end)
+    line_matches[#line_matches + 1] = {
+      line = match.line_number,
+      text = util.rstrip_whitespace(match.lines.text),
+    }
   end
 
-  local tx, rx = channel.oneshot()
-
-  -- Execute search.
   search.search_async(
     self.dir,
     util.tbl_unique(search_terms),
     self:_prepare_search_opts(opts.search, { fixed_strings = true, ignore_case = true }),
     on_match,
-    function()
-      tx()
+    function(code)
+      if code ~= 0 then
+        callback {}
+      end
+      ---@type obsidian.BacklinkMatches[]
+      local results = {}
+
+      -- Order by path.
+      local paths = {}
+      for path, idx in pairs(path_order) do
+        paths[idx] = path
+      end
+
+      -- Gather results.
+      for i, path in ipairs(paths) do
+        results[i] = { note = path_to_note[path], path = path, matches = backlink_matches[path] }
+      end
+
+      -- Log any errors.
+      if first_err ~= nil and first_err_path ~= nil then
+        log.err(
+          "%d error(s) occurred during search. First error from note at '%s':\n%s",
+          err_count,
+          first_err_path,
+          first_err
+        )
+      end
+
+      callback(vim.tbl_filter(function(bl)
+        return bl.matches ~= nil
+      end, results))
     end
   )
-
-  async.run(function()
-    rx()
-    executor:join_async()
-
-    ---@type obsidian.BacklinkMatches[]
-    local results = {}
-
-    -- Order by path.
-    local paths = {}
-    for path, idx in pairs(path_order) do
-      paths[idx] = path
-    end
-
-    -- Gather results.
-    for i, path in ipairs(paths) do
-      results[i] = { note = path_to_note[path], path = path, matches = backlink_matches[path] }
-    end
-
-    -- Log any errors.
-    if first_err ~= nil and first_err_path ~= nil then
-      log.err(
-        "%d error(s) occurred during search. First error from note at '%s':\n%s",
-        err_count,
-        first_err_path,
-        first_err
-      )
-    end
-
-    return vim.tbl_filter(function(bl)
-      return bl.matches ~= nil
-    end, results)
-  end, callback)
 end
 
 --- Gather a list of all tags in the vault. If 'term' is provided, only tags that partially match the search
