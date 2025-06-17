@@ -78,4 +78,18 @@ T["find_tags"]["should ignore hexcolors"] = function()
   eq({}, M.find_tags(s))
 end
 
+T["find_tags"]["should ignore tags in HTML entities"] = function()
+  eq({}, M.find_tags "Here is an entity: &#NOT_A_TAG;")
+end
+
+T["find_tags"]["should ignore tags not on word boundaries"] = function()
+  eq({}, M.find_tags "foobar#notatag")
+  eq({ { 9, 12, RefTypes.Tag } }, M.find_tags "foo bar #tag")
+end
+
+T["find_tags"]["should ignore tags in markdown links with parentheses"] = function()
+  local s = "[autobox](https://en.wikipedia.org/wiki/Object_type_(object-oriented_programming)#NOT_A_TAG)"
+  eq({}, M.find_tags(s))
+end
+
 return T
