@@ -28,7 +28,7 @@ M.Patterns = {
   -- Tags
   TagCharsOptional = "[A-Za-z0-9_/-]*",
   TagCharsRequired = "[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+", -- assumes tag is at least 2 chars
-  Tag = "#[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+",
+  Tag = "%f[%S]#%f[%a][A-Za-z][A-Za-z0-9_-]*",
 
   -- Miscellaneous
   Highlight = "==[^=]+==", -- ==text==
