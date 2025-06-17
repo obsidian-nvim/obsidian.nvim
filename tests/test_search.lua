@@ -1,6 +1,5 @@
 local search = require "obsidian.search"
 local RefTypes = search.RefTypes
-local SearchOpts = search.SearchOpts
 local Patterns = search.Patterns
 
 describe("search.find_async", function()
