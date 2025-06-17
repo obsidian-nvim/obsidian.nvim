@@ -278,7 +278,7 @@ Client.templates_dir = function(self, workspace)
     end
   end
 
-  log.err("'%s' is not a valid templates directory", opts.templates.folder)
+  log.err_once("'%s' is not a valid templates directory", opts.templates.folder)
   return nil
 end
 
