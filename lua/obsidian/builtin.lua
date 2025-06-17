@@ -21,7 +21,7 @@ M.smart_action = function()
   end
 
   -- show notes with tag if possible
-  if api.cursor_tag(nil, nil) then
+  if api.cursor_tag() then
     return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
   end
 
