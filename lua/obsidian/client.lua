@@ -30,16 +30,6 @@ local uv = vim.uv
 ---@field include_templates boolean|?
 ---@field ignore_case boolean|?
 ---@field default function?
-local SearchOpts = {}
-
----@return obsidian.SearchOpts
-SearchOpts.default = function()
-  return {
-    sort = false,
-    include_templates = false,
-    ignore_case = false,
-  }
-end
 
 --- The Obsidian client is the main API for programmatically interacting with obsidian.nvim's features
 --- in Lua. To get the client instance, run:
@@ -313,12 +303,12 @@ end
 --- Get the default search options.
 ---
 ---@return obsidian.SearchOpts
-Client.search_defaults = function(self)
-  local opts = SearchOpts.default()
-  if opts.sort and self.opts.sort_by == nil then
-    opts.sort = false
-  end
-  return opts
+Client.search_defaults = function()
+  return {
+    sort = false,
+    include_templates = false,
+    ignore_case = false,
+  }
 end
 
 ---@param opts obsidian.SearchOpts|boolean|?
@@ -331,7 +321,7 @@ Client._search_opts_from_arg = function(self, opts)
     opts = self:search_defaults()
   elseif type(opts) == "boolean" then
     local sort = opts
-    opts = SearchOpts.default()
+    opts = self:search_defaults()
     opts.sort = sort
   else
     error("unexpected type for SearchOpts: '" .. type(opts) .. "'")
