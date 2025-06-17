@@ -56,8 +56,6 @@ jobs:
               make lint
 
           - name: Types
-            prepare: |
-              sudo apt-get install -y lua-language-server
             run: |
               make types
 
@@ -109,6 +107,13 @@ jobs:
           curl -o nvim-win64.zip ${{ matrix.nvim_url }}
           Expand-Archive -F nvim-win64.zip .
           Move-Item -Path nvim-win64 -Destination _neovim
+
+      - name: Install lua-language-server
+        if: matrix.task.name == 'Types'
+        uses: jdx/mise-action@v2
+        with:
+          tool_versions: |
+            lua-language-server latest
 
       - name: Prepare
         if: ${{ matrix.task.prepare }}
