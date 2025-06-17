@@ -185,7 +185,10 @@ describe("Client:_prepare_search_opts()", function()
     h.with_tmp_client(function(client)
       ---@diagnostic disable-next-line: invisible
       local opts = client:_prepare_search_opts(true, { max_count_per_file = 1 })
-      MiniTest.expect.equality(opts:to_ripgrep_opts(), { "--sortr=modified", "-m=1" })
+      MiniTest.expect.equality(
+        require("obsidian.search").SearchOpts.to_ripgrep_opts(opts),
+        { "--sortr=modified", "-m=1" }
+      )
     end)
   end)
 end)

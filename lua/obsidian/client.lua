@@ -364,7 +364,7 @@ Client._prepare_search_opts = function(self, opts, additional_opts)
   end
 
   if additional_opts ~= nil then
-    search_opts = search_opts:merge(additional_opts)
+    search_opts = search.SearchOpts.merge(search_opts, additional_opts)
   end
 
   return search_opts
