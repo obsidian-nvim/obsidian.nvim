@@ -51,6 +51,18 @@ T["find_tags"]["should find positions of all tags"] = function()
   eq({ { 10, 17, RefTypes.Tag } }, M.find_tags(s))
 end
 
+T["find_tags"]["should find four cases"] = function()
+  eq(1, #M.find_tags " #camelCase")
+  eq(1, #M.find_tags " #PascalCase")
+  eq(1, #M.find_tags " #snake_case")
+  eq(1, #M.find_tags " #kebab-case")
+end
+
+T["find_tags"]["should find nested tags"] = function()
+  eq(1, #M.find_tags " #inbox/processing")
+  eq(1, #M.find_tags " #inbox/to-read")
+end
+
 T["find_tags"]["should ignore escaped tags"] = function()
   local s = "I have a #meeting at noon \\#not-a-tag"
   eq({ { 10, 17, RefTypes.Tag } }, M.find_tags(s))
