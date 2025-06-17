@@ -21,7 +21,7 @@ end
 -- For example, "󰄱" is turned into "1\1\15".
 -- TODO: if we knew how to un-mangle the conceal char we wouldn't need the cache.
 
-M._buf_mark_cache = DefaultTbl.new(DefaultTbl.with_tbl)
+M._buf_mark_cache = vim.defaulttable()
 
 ---@param bufnr integer
 ---@param ns_id integer
