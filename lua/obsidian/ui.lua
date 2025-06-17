@@ -2,7 +2,6 @@ local abc = require "obsidian.abc"
 local util = require "obsidian.util"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
-local DefaultTbl = require("obsidian.collections").DefaultTbl
 local iter = vim.iter
 
 local M = {}
@@ -491,7 +490,7 @@ local function update_extmarks(bufnr, ns_id, ui_opts)
   local n_marks_cleared = 0
 
   -- Collect all current marks, grouped by line.
-  local cur_marks_by_line = DefaultTbl.with_tbl()
+  local cur_marks_by_line = vim.defaulttable()
   for mark in iter(ExtMark.collect(bufnr, ns_id)) do
     local cur_line_marks = cur_marks_by_line[mark.row]
     cur_line_marks[#cur_line_marks + 1] = mark
