@@ -55,6 +55,12 @@ jobs:
             run: |
               make lint
 
+          - name: Types
+            prepare: |
+              sudo apt-get install -y lua-language-server
+            run: |
+              make types
+
         include:
           - os: ubuntu-latest
             nvim_url: https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz
@@ -112,7 +118,7 @@ jobs:
         shell: bash
         run: |
           export PATH="${PWD}/_neovim/bin:${PATH}"
-          export VIM="${PWD}/_neovim/share/nvim/runtime"
+          export VIMRUNTIME="${PWD}/_neovim/share/nvim/runtime"
 
           nvim --version
 
