@@ -1,4 +1,3 @@
-local abc = require "obsidian.abc"
 local util = require "obsidian.util"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
@@ -58,28 +57,31 @@ end
 ---@field row integer 0-based row index to place the mark.
 ---@field col integer 0-based col index to place the mark.
 ---@field opts ExtMarkOpts Optional parameters passed directly to `nvim_buf_set_extmark()`.
-local ExtMark = abc.new_class {
-  __eq = function(a, b)
-    return a.row == b.row and a.col == b.col and a.opts == b.opts
-  end,
-}
+local ExtMark = {}
+ExtMark.__index = ExtMark
+
+ExtMark.__eq = function(a, b)
+  return a.row == b.row and a.col == b.col and a.opts == b.opts
+end
 
 M.ExtMark = ExtMark
 
----@class ExtMarkOpts : obsidian.ABC
+---@class ExtMarkOpts
 ---@field end_row integer
 ---@field end_col integer
 ---@field conceal string|?
 ---@field hl_group string|?
 ---@field spell boolean|?
-local ExtMarkOpts = abc.new_class()
+local ExtMarkOpts = {}
+ExtMarkOpts.__index = ExtMarkOpts
+ExtMarkOpts.__eq = vim.deep_equal
 
 M.ExtMarkOpts = ExtMarkOpts
 
 ---@param data table
 ---@return ExtMarkOpts
 ExtMarkOpts.from_tbl = function(data)
-  local self = ExtMarkOpts.init()
+  local self = setmetatable({}, ExtMarkOpts)
   self.end_row = data.end_row
   self.end_col = data.end_col
   self.conceal = data.conceal
@@ -106,7 +108,7 @@ end
 ---@param opts ExtMarkOpts
 ---@return ExtMark
 ExtMark.new = function(id, row, col, opts)
-  local self = ExtMark.init()
+  local self = setmetatable({}, ExtMark)
   self.id = id
   self.row = row
   self.col = col

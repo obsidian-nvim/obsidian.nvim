@@ -1,5 +1,4 @@
 local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
 
 ---@class obsidian.workspace.WorkspaceSpec
 ---
@@ -29,18 +28,20 @@ local abc = require "obsidian.abc"
 ---@field root obsidian.Path The normalized path to the vault root of the workspace. This usually matches 'path'.
 ---@field overrides table|obsidian.config.ClientOpts|?
 ---@field locked boolean|?
-local Workspace = abc.new_class {
-  __tostring = function(self)
-    return string.format("Workspace(name='%s', path='%s', root='%s')", self.name, self.path, self.root)
-  end,
-  __eq = function(a, b)
-    local a_fields = a:as_tbl()
-    a_fields.locked = nil
-    local b_fields = b:as_tbl()
-    b_fields.locked = nil
-    return vim.deep_equal(a_fields, b_fields)
-  end,
-}
+local Workspace = {}
+Workspace.__index = Workspace
+
+Workspace.__tostring = function(self)
+  return string.format("Workspace(name='%s', path='%s', root='%s')", self.name, self.path, self.root)
+end
+
+Workspace.__eq = function(a, b)
+  local a_fields = a:as_tbl()
+  a_fields.locked = nil
+  local b_fields = b:as_tbl()
+  b_fields.locked = nil
+  return vim.deep_equal(a_fields, b_fields)
+end
 
 --- Find the vault root from a given directory.
 ---
@@ -75,7 +76,7 @@ end
 Workspace.new = function(path, opts)
   opts = opts and opts or {}
 
-  local self = Workspace.init()
+  local self = {}
   self.path = Path.new(path):resolve { strict = true }
   self.name = assert(opts.name or self.path.name)
   self.overrides = opts.overrides
@@ -91,7 +92,7 @@ Workspace.new = function(path, opts)
     end
   end
 
-  return self
+  return setmetatable(self, Workspace)
 end
 
 --- Initialize a new 'Workspace' object from a workspace spec.

@@ -9,7 +9,6 @@
 ---@toc
 
 local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
 local async = require "plenary.async"
 local channel = require("plenary.async.control").channel
 local config = require "obsidian.config"
@@ -39,7 +38,7 @@ local uv = vim.uv
 ---
 ---@toc_entry obsidian.Client
 ---
----@class obsidian.Client : obsidian.ABC
+---@class obsidian.Client
 ---
 ---@field current_workspace obsidian.Workspace The current workspace.
 ---@field dir obsidian.Path The root of the vault for the current workspace.
@@ -49,11 +48,12 @@ local uv = vim.uv
 ---@field log obsidian.Logger
 ---@field _default_opts obsidian.config.ClientOpts
 ---@field _quiet boolean
-local Client = abc.new_class {
-  __tostring = function(self)
-    return string.format("obsidian.Client('%s')", self.dir)
-  end,
-}
+local Client = {}
+Client.__index = Client
+
+Client.__tostring = function(self)
+  return string.format("obsidian.Client('%s')", self.dir)
+end
 
 --- Create a new Obsidian client without additional setup.
 --- This is mostly used for testing. In practice you usually want to obtain the existing
@@ -65,7 +65,7 @@ local Client = abc.new_class {
 ---
 ---@return obsidian.Client
 Client.new = function(opts)
-  local self = Client.init()
+  local self = setmetatable({}, Client)
 
   self.log = log
   self._default_opts = opts
