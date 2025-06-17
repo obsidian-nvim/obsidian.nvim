@@ -289,7 +289,7 @@ return function(client, data)
   search.search_async(
     client.dir,
     reference_forms,
-    search.SearchOpts.from_tbl { fixed_strings = true, max_count_per_file = 1 },
+    { fixed_strings = true, max_count_per_file = 1 },
     on_search_match,
     function(_)
       all_tasks_submitted = true

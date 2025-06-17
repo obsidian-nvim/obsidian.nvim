@@ -86,7 +86,7 @@ local function save_clipboard_image(path)
       .. '"'
     return os.execute(cmd)
   elseif this_os == util.OSType.Darwin then
-    return run_job("pngpaste", { path })
+    return run_job { "pngpaste", path }
   else
     error("image saving not implemented for OS '" .. this_os .. "'")
   end

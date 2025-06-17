@@ -503,14 +503,13 @@ end
 ---@return string[]
 Picker._build_find_cmd = function(self)
   local search = require "obsidian.search"
-  local search_opts =
-    search.SearchOpts.from_tbl { sort_by = self.client.opts.sort_by, sort_reversed = self.client.opts.sort_reversed }
+  local search_opts = { sort_by = self.client.opts.sort_by, sort_reversed = self.client.opts.sort_reversed }
   return search.build_find_cmd(".", nil, search_opts)
 end
 
 Picker._build_grep_cmd = function(self)
   local search = require "obsidian.search"
-  local search_opts = search.SearchOpts.from_tbl {
+  local search_opts = {
     sort_by = self.client.opts.sort_by,
     sort_reversed = self.client.opts.sort_reversed,
     smart_case = true,

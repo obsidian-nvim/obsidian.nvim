@@ -326,7 +326,7 @@ end
 M.throttle = function(fn, timeout)
   ---@type integer
   local last_call = 0
-  ---@type uv_timer_t|?
+  ---@type uv.uv_timer_t?
   local timer = nil
 
   return function(...)
@@ -368,7 +368,7 @@ end
 ---callback parameters with the results. This function returns those results.
 ---@param async_fn_with_callback function (function,) -> any
 ---@param timeout integer|?
----@return any results
+---@return ...any results
 M.block_on = function(async_fn_with_callback, timeout)
   local done = false
   local result
