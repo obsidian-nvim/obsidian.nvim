@@ -119,6 +119,8 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - `:Obsidian yesterday` to open/create the daily note for the previous working day.
 
+- `:Obsidian rebuild_cache` to manually update the cache of the workspace.
+
 ### Demo
 
 [![2024-01-31 14 22 52](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)
@@ -138,6 +140,9 @@ These default keymaps will only be set if you are in a valid workspace and a mar
   - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:Obsidian open`.
   - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:Obsidian paste_img`.
   - **Linux** users need xclip (X11) or wl-clipboard (Wayland) for `:Obsidian paste_img`.
+
+- Optional dependencies:
+  - Backend: [fd](https://github.com/sharkdp/fd), see [fd#installation](https://github.com/sharkdp/fd#installation) for `:Obsidian rebuild_cache`
 
 ### Plugin dependencies
 
@@ -621,6 +626,12 @@ require("obsidian").setup {
     enabled = true,
     format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
   },
+
+  -- Experimental feature, disabled by default.
+  cache = {
+    enabled = false,
+    path = "./.cache.json",
+  }
 }
 ```
 

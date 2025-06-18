@@ -17,6 +17,7 @@ local cmds = {
   "open",
   "paste_img",
   "quick_switch",
+  "rebuild_cache",
   "rename",
   "search",
   "tags",
@@ -224,6 +225,8 @@ M.register("template", { nargs = "?" })
 M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
+
+M.register("rebuild_cache", { nargs = "?" })
 
 M.register("link_new", { nargs = "?", range = true })
 

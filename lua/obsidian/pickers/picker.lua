@@ -10,6 +10,8 @@ local Note = require "obsidian.note"
 ---@field calling_bufnr integer
 local Picker = abc.new_class()
 
+---@param client obsidian.Client
+---@return obsidian.Picker
 Picker.new = function(client)
   local self = Picker.init()
   self.client = client
@@ -39,6 +41,7 @@ end
 ---@field no_default_mappings boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
+---@field use_cache boolean|?
 
 --- Find files in a directory.
 ---
@@ -128,7 +131,7 @@ end
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|? }|? Options.
+---@param opts { prompt_title: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|?, use_cache :boolean|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -153,6 +156,7 @@ Picker.find_notes = function(self, opts)
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
+    use_cache = opts.use_cache,
   }
 end
 
