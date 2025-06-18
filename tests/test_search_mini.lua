@@ -63,6 +63,15 @@ T["find_tags"]["should find nested tags"] = function()
   eq(1, #M.find_tags " #inbox/to-read")
 end
 
+--
+-- T["find_tags"]["should find non-English tags"] = function()
+--   eq(1, M.find_tags " #你好")
+--   eq(1, M.find_tags " #タグ")
+--   eq(1, M.find_tags " #mañana")
+--   eq(1, M.find_tags " #день")
+--   eq(1, M.find_tags " #项目_计划")
+-- end
+
 T["find_tags"]["should ignore escaped tags"] = function()
   local s = "I have a #meeting at noon \\#not-a-tag"
   eq({ { 10, 17, RefTypes.Tag } }, M.find_tags(s))
@@ -81,7 +90,7 @@ T["find_tags"]["should ignore section in urls"] = function()
 end
 
 T["find_tags"]["should ignore issue numbers"] = function()
-  local s = "#100 is something"
+  local s = "Issue: #100"
   eq({}, M.find_tags(s))
 end
 
