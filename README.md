@@ -336,6 +336,8 @@ require("obsidian").setup {
     blink = false,
     -- Trigger completion at 2 chars.
     min_chars = 2,
+    -- Set to false to disable new note creation in the picker
+    create_new = true,
   },
 
   -- Optional, configure key mappings. These are the defaults. If you don't want to set any keymappings this

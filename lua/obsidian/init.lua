@@ -108,9 +108,9 @@ obsidian.setup = function(opts)
 
   -- Register completion sources, providers
   if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()
+    require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources(opts)
   elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").register_providers()
+    require("obsidian.completion.plugin_initializers.blink").register_providers(opts)
   end
 
   local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
@@ -158,9 +158,9 @@ obsidian.setup = function(opts)
 
       -- Inject completion sources, providers to their plugin configurations
       if opts.completion.nvim_cmp then
-        require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources()
+        require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
       elseif opts.completion.blink then
-        require("obsidian.completion.plugin_initializers.blink").inject_sources()
+        require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
       end
 
       -- Run enter-note callback.

@@ -343,6 +343,7 @@ end
 ---@field blink boolean
 ---@field min_chars integer
 ---@field match_case boolean
+---@field create_files boolean
 config.CompletionOpts = {}
 
 --- Get defaults.
@@ -354,6 +355,7 @@ config.CompletionOpts.default = function()
     nvim_cmp = has_nvim_cmp,
     min_chars = 2,
     match_case = true,
+    create_files = true,
   }
 end
 
