@@ -2,15 +2,19 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 local RefTypes = require("obsidian.search").RefTypes
 local api = require "obsidian.api"
+local find = require "obsidian.find"
 
----@param client obsidian.Client
 ---@param picker obsidian.Picker
 ---@param note obsidian.Note
 ---@param opts { anchor: string|?, block: string|? }|?
-local function collect_backlinks(client, picker, note, opts)
+local function collect_backlinks(picker, note, opts)
   opts = opts or {}
 
-  client:find_backlinks_async(note, function(backlinks)
+  find.backlinks(note, {
+    search = { sort = true },
+    anchor = opts.anchor,
+    block = opts.block,
+  }, function(backlinks)
     if vim.tbl_isempty(backlinks) then
       if opts.anchor then
         log.info("No backlinks found for anchor '%s' in note '%s'", opts.anchor, note.id)
@@ -23,14 +27,12 @@ local function collect_backlinks(client, picker, note, opts)
     end
 
     local entries = {}
-    for _, matches in ipairs(backlinks) do
-      for _, match in ipairs(matches.matches) do
-        entries[#entries + 1] = {
-          value = { path = matches.path, line = match.line },
-          filename = tostring(matches.path),
-          lnum = match.line,
-        }
-      end
+    for _, match in ipairs(backlinks) do
+      entries[#entries + 1] = {
+        value = { path = match.path, line = match.line },
+        filename = tostring(match.path),
+        lnum = match.line,
+      }
     end
 
     ---@type string
@@ -51,7 +53,7 @@ local function collect_backlinks(client, picker, note, opts)
         end,
       })
     end)
-  end, { search = { sort = true }, anchor = opts.anchor, block = opts.block })
+  end) -- TODO:
 end
 
 ---@param client obsidian.Client
@@ -96,13 +98,13 @@ return function(client)
         log.err("No notes matching '%s'", location)
         return
       elseif #notes == 1 then
-        return collect_backlinks(client, picker, notes[1], opts)
+        return collect_backlinks(picker, notes[1], opts)
       else
         return vim.schedule(function()
           picker:pick_note(notes, {
             prompt_title = "Select note",
             callback = function(note)
-              collect_backlinks(client, picker, note, opts)
+              collect_backlinks(picker, note, opts)
             end,
           })
         end)
@@ -133,7 +135,7 @@ return function(client)
     if note == nil then
       log.err "Current buffer does not appear to be a note inside the vault"
     else
-      collect_backlinks(client, picker, note, opts)
+      collect_backlinks(picker, note, opts)
     end
   end
 end
