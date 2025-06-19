@@ -27,11 +27,11 @@ local function collect_backlinks(picker, note, opts)
     end
 
     local entries = {}
-    for _, match in ipairs(backlinks) do
+    for _, backlink in ipairs(backlinks) do
       entries[#entries + 1] = {
-        value = { path = match.path, line = match.line },
-        filename = tostring(match.path),
-        lnum = match.line,
+        value = { path = backlink.path, line = backlink.line },
+        filename = tostring(backlink.path),
+        lnum = backlink.line,
       }
     end
 
@@ -53,7 +53,7 @@ local function collect_backlinks(picker, note, opts)
         end,
       })
     end)
-  end) -- TODO:
+  end)
 end
 
 ---@param client obsidian.Client
