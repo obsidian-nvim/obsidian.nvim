@@ -107,15 +107,6 @@ end
 
 --  BUG: markdown list item ... just use cache value...
 
----@class obsidian._BacklinkMatch
----
----@field note obsidian.Note The note instance where the backlinks were found.
----@field path string|obsidian.Path The path to the note where the backlinks were found.
----@field line integer The line number (1-indexed) where the backlink was found.
----@field text string The text of the line where the backlink was found.
-
-local n = Note.from_file "~/Notes/21-30 Tinker/13 Music/13.1 kpop/dem jointz.md"
-
 local function build_backlink_search_term(note, anchor, block)
   -- Prepare search terms.
   local search_terms = {}
@@ -188,6 +179,12 @@ local function build_backlink_search_term(note, anchor, block)
   return search_terms
 end
 
+---@class obsidian._BacklinkMatch
+---
+---@field path string|obsidian.Path The path to the note where the backlinks were found.
+---@field line integer The line number (1-indexed) where the backlink was found.
+---@field text string The text of the line where the backlink was found.
+
 ---@param note obsidian.Note
 ---@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian._BacklinkMatch), anchor: string, block: string }
 ---@param callback fun(matches: obsidian._BacklinkMatch[])
@@ -200,41 +197,42 @@ local function find_backlinks(note, opts, callback)
   local block = opts.block and util.standardize_block(opts.block) or nil
   local anchor = opts.anchor and util.standardize_anchor(opts.anchor) or nil
 
-  local path_to_note = {}
+  local anchor_obj
+  if anchor then
+    anchor_obj = note:resolve_anchor_link(anchor)
+  end
 
   ---@type obsidian._BacklinkMatch[]
   local results = {}
 
   ---@param match MatchData
-  local on_line = function(match)
+  local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
-    local linkee = path_to_note[path] or Note.from_file(path, { load_contents = true })
-    --
-    -- if anchor then
-    --   -- Check for a match with the anchor.
-    --   -- NOTE: no need to do this with blocks, since blocks are standardized.
-    --   local match_text = string.sub(match.lines.text, match.submatches[1].start)
-    --   local link_location = util.parse_link(match_text)
-    --   if not link_location then
-    --     log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
-    --     return
-    --   end
-    --
-    --   local anchor_link = select(2, util.strip_anchor_links(link_location))
-    --   if not anchor_link then
-    --     return
-    --   end
-    --
-    --   if anchor_link ~= anchor and anchor_obj ~= nil then
-    --     local resolved_anchor = note:resolve_anchor_link(anchor_link)
-    --     if resolved_anchor == nil or resolved_anchor.header ~= anchor_obj.header then
-    --       return
-    --     end
-    --   end
-    -- end
+
+    if anchor then
+      -- Check for a match with the anchor.
+      -- NOTE: no need to do this with blocks, since blocks are standardized.
+      local match_text = string.sub(match.lines.text, match.submatches[1].start)
+      local link_location = util.parse_link(match_text)
+      if not link_location then
+        log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
+        return
+      end
+
+      local anchor_link = select(2, vim.trim(link_location))
+      if not anchor_link then
+        return
+      end
+
+      if anchor_link ~= anchor and anchor_obj ~= nil then
+        local resolved_anchor = note:resolve_anchor_link(anchor_link)
+        if resolved_anchor == nil or resolved_anchor.header ~= anchor_obj.header then
+          return
+        end
+      end
+    end
 
     results[#results + 1] = {
-      note = linkee,
       path = path,
       line = match.line_number,
       text = util.rstrip_whitespace(match.lines.text),
@@ -245,12 +243,27 @@ local function find_backlinks(note, opts, callback)
     opts.dir,
     build_backlink_search_term(note, anchor, block),
     prepare_search_opts(opts.search, { fixed_strings = true, ignore_case = true }),
-    on_line,
+    _on_match,
     function(code)
       assert(code == 0)
       callback(results)
     end
   )
+end
+
+local function find_links(note, opts, callback)
+  -- Gather all unique raw links (strings) from the buffer.
+  ---@type table<string, integer>
+  local links = {}
+  for lnum, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, true)) do
+    for match in vim.iter(search.find_refs(line, { include_naked_urls = true, include_file_urls = true })) do
+      local m_start, m_end = unpack(match)
+      local link = string.sub(line, m_start, m_end)
+      if not links[link] then
+        links[link] = lnum
+      end
+    end
+  end
 end
 
 return {
