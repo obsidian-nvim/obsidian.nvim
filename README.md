@@ -498,7 +498,7 @@ require("obsidian").setup {
   -- note instead. Doesn't affect other link behaviour.
   backlinks = {
     parse_headers = true
-  }
+  },
 
   -- Optional, sort search results by "path", "modified", "accessed", or "created".
   -- The recommend value is "modified" and `true` for `sort_reversed`, which means, for example,
