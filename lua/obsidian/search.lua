@@ -28,7 +28,7 @@ M.Patterns = {
   -- Tags
   TagCharsOptional = "[A-Za-z0-9_/-]*",
   TagCharsRequired = "[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+", -- assumes tag is at least 2 chars
-  Tag = "#[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+",
+  Tag = "%f[%S]#%f[%a][A-Za-z][A-Za-z0-9_-]*[A-Za-z0-9]", -- reference: https://help.obsidian.md/tags
 
   -- Miscellaneous
   Highlight = "==[^=]+==", -- ==text==
@@ -175,11 +175,10 @@ end
 ---@return {[1]: integer, [2]: integer, [3]: obsidian.search.RefTypes}[]
 M.find_tags = function(s)
   local matches = {}
-  -- NOTE: we search over all reference types to make sure we're not including anchor links within
-  -- references, which otherwise look just like tags.
-  for match in iter(M.find_refs(s, { include_naked_urls = true, include_tags = true })) do
-    local _, _, m_type = unpack(match)
-    if m_type == M.RefTypes.Tag then
+  for match in iter(M.find_matches(s, { M.RefTypes.Tag })) do
+    local st, ed, m_type = unpack(match)
+    local match_string = s:sub(st, ed)
+    if m_type == M.RefTypes.Tag and not util.is_hex_color(match_string) then
       matches[#matches + 1] = match
     end
   end
