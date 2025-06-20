@@ -673,6 +673,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Anaritus"><img src="https://avatars.githubusercontent.com/u/61704392?v=4?s=100" width="100px;" alt="Anaritus"/><br /><sub><b>Anaritus</b></sub></a><br /><a href="#code-Anaritus" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mdavis36"><img src="https://avatars.githubusercontent.com/u/25917313?v=4?s=100" width="100px;" alt="Michael Davis"/><br /><sub><b>Michael Davis</b></sub></a><br /><a href="#code-mdavis36" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://brianrodri.com"><img src="https://avatars.githubusercontent.com/u/5094060?v=4?s=100" width="100px;" alt="Brian Rodriguez"/><br /><sub><b>Brian Rodriguez</b></sub></a><br /><a href="#code-brianrodri" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/carschandler"><img src="https://avatars.githubusercontent.com/u/92899389?v=4?s=100" width="100px;" alt="carschandler"/><br /><sub><b>carschandler</b></sub></a><br /><a href="#doc-carschandler" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
