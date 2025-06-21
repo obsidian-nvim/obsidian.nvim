@@ -1,19 +1,20 @@
-local abc = require "obsidian.abc"
 local log = require "obsidian.log"
 
 local M = {}
 
----@class obsidian.CallbackManager : obsidian.ABC
+---@class obsidian.CallbackManager
 ---
 ---@field client obsidian.Client
 ---@field callbacks obsidian.config.CallbackConfig
-local CallbackManager = abc.new_class()
+local CallbackManager = {}
+CallbackManager.__index = CallbackManager
+
 M.CallbackManager = CallbackManager
 
 ---@param client obsidian.Client
 ---@param callbacks obsidian.config.CallbackConfig
 CallbackManager.new = function(client, callbacks)
-  local self = CallbackManager.init()
+  local self = setmetatable({}, CallbackManager)
   self.client = client
   self.callbacks = callbacks
   return self

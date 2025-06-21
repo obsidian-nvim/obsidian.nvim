@@ -1,5 +1,3 @@
-local abc = require "obsidian.abc"
-
 local function coerce(v)
   if v == vim.NIL then
     return nil
@@ -93,47 +91,48 @@ end
 ---
 ---@toc_entry obsidian.Path
 ---
----@class obsidian.Path : obsidian.ABC
+---@class obsidian.Path
 ---
 ---@field filename string The underlying filename as a string.
 ---@field name string|? The final path component, if any.
 ---@field suffix string|? The final extension of the path, if any.
 ---@field suffixes string[] A list of all of the path's extensions.
 ---@field stem string|? The final path component, without its suffix.
-local Path = abc.new_class()
+local Path = {}
 
-Path.mt = {
-  __tostring = function(self)
-    return self.filename
-  end,
-  __eq = function(a, b)
-    return a.filename == b.filename
-  end,
-  __div = function(self, other)
-    return self:joinpath(other)
-  end,
-  __index = function(self, k)
-    local raw = rawget(Path, k)
-    if raw then
-      return raw
-    end
+Path.__tostring = function(self)
+  return self.filename
+end
 
-    local factory
-    if k == "name" then
-      factory = get_name
-    elseif k == "suffix" then
-      factory = get_suffix
-    elseif k == "suffixes" then
-      factory = get_suffixes
-    elseif k == "stem" then
-      factory = get_stem
-    end
+Path.__eq = function(a, b)
+  return a.filename == b.filename
+end
 
-    if factory then
-      return cached_get(self, k, factory)
-    end
-  end,
-}
+Path.__div = function(self, other)
+  return self:joinpath(other)
+end
+
+Path.__index = function(self, k)
+  local raw = rawget(Path, k)
+  if raw then
+    return raw
+  end
+
+  local factory
+  if k == "name" then
+    factory = get_name
+  elseif k == "suffix" then
+    factory = get_suffix
+  elseif k == "suffixes" then
+    factory = get_suffixes
+  elseif k == "stem" then
+    factory = get_stem
+  end
+
+  if factory then
+    return cached_get(self, k, factory)
+  end
+end
 
 --- Check if an object is an `obsidian.Path` object.
 ---
@@ -141,7 +140,7 @@ Path.mt = {
 ---
 ---@return boolean
 Path.is_path_obj = function(path)
-  if getmetatable(path) == Path.mt then
+  if getmetatable(path) == Path then
     return true
   else
     return false
@@ -158,7 +157,7 @@ end
 ---
 ---@return obsidian.Path
 Path.new = function(...)
-  local self = Path.init()
+  local self = {}
 
   local args = { ... }
   local arg
@@ -177,7 +176,7 @@ Path.new = function(...)
 
   self.filename = vim.fs.normalize(tostring(arg))
 
-  return self
+  return setmetatable(self, Path)
 end
 
 --- Get a temporary path with a unique name.
