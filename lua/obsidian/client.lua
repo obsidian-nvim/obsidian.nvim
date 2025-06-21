@@ -2102,4 +2102,51 @@ Client.statusline = function(self)
   timer:start(0, 1000, vim.schedule_wrap(refresh))
 end
 
+--- Start the lsp client
+---
+---@return integer
+Client.lsp_start = function(self, buf)
+  local handlers = require "obsidian.lsp.handlers"
+  local has_blink, blink = pcall(require, "blink.cmp")
+  local has_cmp, cmp_lsp = pcall(require, "cmp_nvim_lsp")
+
+  local capabilities
+  if has_blink then
+    capabilities = blink.get_lsp_capabilities({}, true)
+  elseif has_cmp then
+    capabilities = cmp_lsp.default_capabilities()
+  else
+    capabilities = vim.lsp.protocol.make_client_capabilities()
+  end
+
+  local client_id = vim.lsp.start {
+    name = "obsidian-ls",
+    capabilities = capabilities,
+    cmd = function()
+      return {
+        request = function(method, params, handler, _)
+          handlers[method](self, params, handler, _)
+        end,
+        notify = function(method, params, handler, _)
+          handlers[method](self, params, handler, _)
+        end,
+        is_closing = function() end,
+        terminate = function() end,
+      }
+    end,
+    init_options = {},
+    root_dir = tostring(self.dir),
+  }
+  assert(client_id, "failed to start obsidian_ls")
+
+  if not (has_blink or has_cmp) then
+    vim.lsp.completion.enable(true, client_id, buf, { autotrigger = true })
+    vim.bo[buf].omnifunc = "v:lua.vim.lsp.omnifunc"
+    vim.bo[buf].completeopt = "menu,menuone,noselect"
+    vim.bo[buf].iskeyword = "@,48-57,192-255" -- HACK: so that completion for note names with `-` in it works in native completion
+  end
+
+  return client_id
+end
+
 return Client

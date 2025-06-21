@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Github workflow and `make types` now use `lua-language-server` to check type issues.
 - Added the `completion.create_new` option to allow for disabling new note creation in the picker.
 - Added `makefile types` target to check types via lua-ls
+- Added a builtin lsp to handle completion, hover, diagnostics and code actions
 
 ### Changed
 
