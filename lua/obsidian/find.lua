@@ -1,6 +1,5 @@
 local search = require "obsidian.search"
 local util = require "obsidian.util"
-local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
 
@@ -272,6 +271,8 @@ end
 ---@field link string
 ---@field line integer
 
+-- TODO: generalize to search link in any note
+
 ---@param note obsidian.Note
 ---@param opts { on_match: fun(link: obsidian.LinkMatch) }
 ---@param callback fun(links: obsidian.LinkMatch[])
@@ -309,4 +310,5 @@ return {
   backlinks = find_backlinks,
   links = find_links,
   list_tags = list_tags,
+  _prepare_opts = prepare_search_opts,
 }
