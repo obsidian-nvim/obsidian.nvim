@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove `itertools.lua` in favor of `vim.iter`
 - Commands are now context sensitive (mode and if in note)
+- Remove `debug` command, and point user to `checkhealth obsidian`
 
 ### Fixed
 
