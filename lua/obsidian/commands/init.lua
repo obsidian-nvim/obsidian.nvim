@@ -238,8 +238,6 @@ M.register("quick_switch", { nargs = "?" })
 
 M.register("workspace", { nargs = "?" })
 
-M.register("debug", { nargs = 0 })
-
 ---------------------
 ---- note action ----
 ---------------------
