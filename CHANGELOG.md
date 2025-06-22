@@ -23,20 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Only error once if template folder is not found.
-- Use `vim.defaulttable` instead of custom impl
+- Fixed corrupted text when custom variables appear more than once in a template file (#198)
+- Add further checks to void false positives when finding tags
 
 ### Changed
 
 - Refactor the `util` module.
-- Move `opts.ui.checkboxes` to `opts.checkbox`
-
-### Fixed
-
-- Fixed corrupted text when custom variables appear more than once in a template file (#198)
-
-### Fixed
-
-- Add further checks to void false positives when finding tags
+- Use `vim.defaulttable` instead of custom impl.
 
 ## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
 
