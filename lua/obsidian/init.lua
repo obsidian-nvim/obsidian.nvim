@@ -51,21 +51,6 @@ obsidian.get_client = function()
   end
 end
 
----Print general information about the current installation of Obsidian.nvim.
-obsidian.info = function()
-  if obsidian._client == nil then
-    print(
-      "ERROR: it appears obsidian.nvim has not been setup.\n"
-        .. "Please ensure obsidian.nvim loads upfront (e.g. by setting 'lazy=false' with your plugin manager) "
-        .. "and then run this again."
-    )
-    return
-  end
-
-  local client = obsidian.get_client()
-  client:command("debug", { raw_print = true })
-end
-
 obsidian.register_command = require("obsidian.commands").register
 
 ---Create a new Obsidian client without additional setup.

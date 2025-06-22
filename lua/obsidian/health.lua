@@ -65,6 +65,12 @@ function M.check()
   start "Version"
   info("Obsidian.nvim v%s (%s)", VERSION, api.get_plugin_info("obsidian.nvim").commit)
 
+  start "Environment"
+  info("  • operating system: %s", api.get_os())
+
+  start "Config"
+  info("  • dir: %s", require("obsidian").get_client().dir)
+
   start "Pickers"
 
   has_one_of {
