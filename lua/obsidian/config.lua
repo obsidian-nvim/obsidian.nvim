@@ -19,7 +19,6 @@ local config = {}
 ---@field disable_frontmatter? (fun(fname: string?): boolean)|boolean
 ---@field backlinks? obsidian.config.BacklinkOpts
 ---@field completion? obsidian.config.CompletionOpts
----@field mappings? table<string, obsidian.mappings.MappingConfig>
 ---@field picker? obsidian.config.PickerOpts
 ---@field daily_notes? obsidian.config.DailyNotesOpts
 ---@field sort_by? obsidian.config.SortBy
@@ -52,7 +51,6 @@ local config = {}
 ---@field disable_frontmatter (fun(fname: string?): boolean)|boolean|?
 ---@field backlinks obsidian.config.BacklinkOpts
 ---@field completion obsidian.config.CompletionOpts
----@field mappings? table<string, obsidian.mappings.MappingConfig>
 ---@field picker obsidian.config.PickerOpts
 ---@field daily_notes obsidian.config.DailyNotesOpts
 ---@field sort_by obsidian.config.SortBy|?
@@ -164,15 +162,6 @@ config.default = {
       min_chars = 2,
       match_case = true,
       create_files = true,
-    }
-  end)(),
-
-  mappings = (function()
-    local mappings = require "obsidian.mappings"
-    return {
-      ["gf"] = mappings.gf_passthrough(),
-      ["<leader>ch"] = mappings.toggle_checkbox(),
-      ["<cr>"] = mappings.smart_action(),
     }
   end)(),
 
@@ -527,7 +516,6 @@ config.normalize = function(opts, defaults)
 
   opts.backlinks = tbl_override(defaults.backlinks, opts.backlinks)
   opts.completion = tbl_override(defaults.completion, opts.completion)
-  opts.mappings = opts.mappings and opts.mappings or defaults.mappings
   opts.picker = tbl_override(defaults.picker, opts.picker)
   opts.daily_notes = tbl_override(defaults.daily_notes, opts.daily_notes)
   opts.templates = tbl_override(defaults.templates, opts.templates)

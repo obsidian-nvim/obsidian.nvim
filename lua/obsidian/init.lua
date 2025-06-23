@@ -11,7 +11,6 @@ local module_lookups = {
   config = "obsidian.config",
   log = "obsidian.log",
   img_paste = "obsidian.img_paste",
-  mappings = "obsidian.mappings",
   Note = "obsidian.note",
   Path = "obsidian.path",
   pickers = "obsidian.pickers",
@@ -138,10 +137,12 @@ obsidian.setup = function(opts)
         client:update_ui(ev.buf)
       end
 
-      -- Register mappings.
-      for mapping_keys, mapping_config in pairs(opts.mappings) do
-        vim.keymap.set("n", mapping_keys, mapping_config.action, mapping_config.opts)
-      end
+      -- Register keymap.
+      vim.keymap.set("n", "<CR>", require("obsidian.builtin").smart_action, {
+        expr = true,
+        buffer = ev.buf,
+        noremap = false,
+      })
 
       -- Inject completion sources, providers to their plugin configurations
       if opts.completion.nvim_cmp then
