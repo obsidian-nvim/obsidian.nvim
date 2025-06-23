@@ -314,7 +314,8 @@ Picker._note_query_mappings = function(self)
     mappings[self.client.opts.picker.note_mappings.new] = {
       desc = "new",
       callback = function(query)
-        self.client:command("new", { args = query })
+        ---@diagnostic disable-next-line: missing-fields
+        require "obsidian.commands.new"(self.client, { args = query })
       end,
     }
   end
@@ -341,7 +342,7 @@ Picker._note_selection_mappings = function(self)
         end
         local link = self.client:format_link(note, {})
         vim.api.nvim_put({ link }, "", false, true)
-        self.client:update_ui()
+        require("obsidian.ui").update(0)
       end,
     }
   end

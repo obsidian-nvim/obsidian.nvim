@@ -194,7 +194,7 @@ M.insert_template = function(ctx)
   local new_cursor_row, _ = unpack(vim.api.nvim_win_get_cursor(win))
   vim.api.nvim_win_set_cursor(0, { new_cursor_row, 0 })
 
-  obsidian.get_client():update_ui(0)
+  require("obsidian.ui").update(0)
 
   return Note.from_buffer(buf)
 end

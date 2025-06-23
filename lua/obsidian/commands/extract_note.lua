@@ -35,7 +35,8 @@ return function(client, data)
   -- replace selection with link to new note
   local link = client:format_link(note)
   vim.api.nvim_buf_set_text(0, viz.csrow - 1, viz.cscol - 1, viz.cerow - 1, viz.cecol, { link })
-  client:update_ui(0)
+
+  require("obsidian.ui").update(0)
 
   -- add the selected text to the end of the new note
   client:open_note(note, { sync = true })

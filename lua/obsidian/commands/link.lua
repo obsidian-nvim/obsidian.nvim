@@ -29,7 +29,7 @@ return function(client, data)
       .. client:format_link(note, { label = viz.selection })
       .. string.sub(line, viz.cecol + 1)
     vim.api.nvim_buf_set_lines(0, viz.csrow - 1, viz.csrow, false, { new_line })
-    client:update_ui()
+    require("obsidian.ui").update(0)
   end
 
   client:resolve_note_async_with_picker_fallback(search_term, function(note)

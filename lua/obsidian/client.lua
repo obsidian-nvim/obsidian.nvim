@@ -23,7 +23,6 @@ local CallbackManager = require("obsidian.callbacks").CallbackManager
 local block_on = require("obsidian.async").block_on
 local api = require "obsidian.api"
 local iter = vim.iter
-local uv = vim.uv
 
 ---@class obsidian.SearchOpts
 ---
@@ -290,17 +289,6 @@ Client.should_save_frontmatter = function(self, note)
   end
 end
 
---- Run an obsidian command directly.
----
----@usage `client:command("new", { args = "Foo" })`
----
----@param cmd_name string The name of the command.
----@param cmd_data table|? The payload for the command.
-Client.command = function(self, cmd_name, cmd_data)
-  local command = require("obsidian.commands." .. cmd_name)
-  command(self, cmd_data)
-end
-
 --- Get the default search options.
 ---
 ---@return obsidian.SearchOpts
@@ -500,7 +488,7 @@ Client.find_notes_async = function(self, term, callback, opts)
       if string.len(term) > 0 then
         for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
           if dt_offset.cadence == "daily" then
-            local note = self:daily(dt_offset.offset, { no_write = true, load = opts.notes })
+            local note = require("obsidian.daily").daily(dt_offset.offset, { no_write = true, load = opts.notes })
             if not paths[tostring(note.path)] and note.path:is_file() then
               note.alt_alias = dt_offset.macro
               results_[#results_ + 1] = note
@@ -1886,138 +1874,6 @@ Client.update_frontmatter = function(self, note, bufnr)
   return note:save_to_buffer { bufnr = bufnr, frontmatter = frontmatter }
 end
 
---- Get the path to a daily note.
----
----@param datetime integer|?
----
----@return obsidian.Path, string (Path, ID) The path and ID of the note.
-Client.daily_note_path = function(self, datetime)
-  datetime = datetime and datetime or os.time()
-
-  ---@type obsidian.Path
-  local path = Path:new(self.dir)
-
-  if self.opts.daily_notes.folder ~= nil then
-    ---@type obsidian.Path
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    path = path / self.opts.daily_notes.folder
-  elseif self.opts.notes_subdir ~= nil then
-    ---@type obsidian.Path
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    path = path / self.opts.notes_subdir
-  end
-
-  local id
-  if self.opts.daily_notes.date_format ~= nil then
-    id = tostring(os.date(self.opts.daily_notes.date_format, datetime))
-  else
-    id = tostring(os.date("%Y-%m-%d", datetime))
-  end
-
-  path = path / (id .. ".md")
-
-  -- ID may contain additional path components, so make sure we use the stem.
-  id = path.stem
-
-  return path, id
-end
-
---- Open (or create) the daily note.
----
----@param self obsidian.Client
----@param datetime integer
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
----
----@return obsidian.Note
----
----@private
-Client._daily = function(self, datetime, opts)
-  opts = opts or {}
-
-  local path, id = self:daily_note_path(datetime)
-
-  ---@type string|?
-  local alias
-  if self.opts.daily_notes.alias_format ~= nil then
-    alias = tostring(os.date(self.opts.daily_notes.alias_format, datetime))
-  end
-
-  ---@type obsidian.Note
-  local note
-  if path:exists() then
-    note = Note.from_file(path, opts.load)
-  else
-    note = Note.new(id, {}, self.opts.daily_notes.default_tags or {}, path)
-
-    if alias then
-      note:add_alias(alias)
-      note.title = alias
-    end
-
-    if not opts.no_write then
-      self:write_note(note, { template = self.opts.daily_notes.template })
-    end
-  end
-
-  return note
-end
-
---- Open (or create) the daily note for today.
----
----@return obsidian.Note
-Client.today = function(self)
-  return self:_daily(os.time())
-end
-
---- Open (or create) the daily note from the last day.
----
----@return obsidian.Note
-Client.yesterday = function(self)
-  local now = os.time()
-  local yesterday
-
-  if self.opts.daily_notes.workdays_only then
-    yesterday = util.working_day_before(now)
-  else
-    yesterday = util.previous_day(now)
-  end
-
-  return self:_daily(yesterday)
-end
-
---- Open (or create) the daily note for the next day.
----
----@return obsidian.Note
-Client.tomorrow = function(self)
-  local now = os.time()
-  local tomorrow
-
-  if self.opts.daily_notes.workdays_only then
-    tomorrow = util.working_day_after(now)
-  else
-    tomorrow = util.next_day(now)
-  end
-
-  return self:_daily(tomorrow)
-end
-
---- Open (or create) the daily note for today + `offset_days`.
----
----@param offset_days integer|?
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
----
----@return obsidian.Note
-Client.daily = function(self, offset_days, opts)
-  return self:_daily(os.time() + (offset_days * 3600 * 24), opts)
-end
-
---- Manually update extmarks in a buffer.
----
----@param bufnr integer|?
-Client.update_ui = function(self, bufnr)
-  require("obsidian.ui").update(self.opts.ui, bufnr)
-end
-
 --- Create a formatted markdown / wiki link for a note.
 ---
 ---@param note obsidian.Note|obsidian.Path|string The note/path to link to.
@@ -2064,44 +1920,6 @@ end
 ---@return obsidian.Picker|?
 Client.picker = function(self, picker_name)
   return require("obsidian.pickers").get(self, picker_name)
-end
-
---- Register the global variable that updates itself
-Client.statusline = function(self)
-  local current_note
-
-  local refresh = function()
-    local note = self:current_note()
-    if not note then -- no note
-      return ""
-    elseif current_note == note then -- no refresh
-      return
-    else -- refresh
-      current_note = note
-    end
-
-    self:find_backlinks_async(
-      note,
-      vim.schedule_wrap(function(backlinks)
-        local format = assert(self.opts.statusline.format)
-        local wc = vim.fn.wordcount()
-        local info = {
-          words = wc.words,
-          chars = wc.chars,
-          backlinks = #backlinks,
-          properties = vim.tbl_count(note:frontmatter()),
-        }
-        for k, v in pairs(info) do
-          format = format:gsub("{{" .. k .. "}}", v)
-        end
-        vim.g.obsidian = format
-      end)
-    )
-  end
-
-  local timer = uv:new_timer()
-  assert(timer, "Failed to create timer")
-  timer:start(0, 1000, vim.schedule_wrap(refresh))
 end
 
 return Client
