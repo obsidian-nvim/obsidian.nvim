@@ -4,9 +4,13 @@ std = luajit
 codes = true
 self = false
 
+include_files = {
+  "lua/obsidian/*",
+  "tests/*",
+}
+
 exclude_files = {
-  "_neovim/*",
-  "_runtime/*",
+  "tests/fixtures",
 }
 
 -- Glorious list of warnings: https://luacheck.readthedocs.io/en/stable/warnings.html

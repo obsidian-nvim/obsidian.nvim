@@ -15,30 +15,14 @@ Table of contents
   obsidian.Path .............................................. |obsidian.Path|
   
 ------------------------------------------------------------------------------
-                                                           *obsidian.SearchOpts*
-                                  `SearchOpts`
 Class ~
-{obsidian.SearchOpts} : obsidian.ABC
+{obsidian.SearchOpts}
 
 Fields ~
 {sort} `(boolean|)`?
 {include_templates} `(boolean|)`?
 {ignore_case} `(boolean|)`?
-
-------------------------------------------------------------------------------
-                                                *obsidian.SearchOpts.from_tbl()*
-                         `SearchOpts.from_tbl`({opts})
-Parameters ~
-{opts} `(obsidian.SearchOpts|table<string, any>)`
-
-Return ~
-`(obsidian.SearchOpts)`
-
-------------------------------------------------------------------------------
-                                                 *obsidian.SearchOpts.default()*
-                             `SearchOpts.default`()
-Return ~
-`(obsidian.SearchOpts)`
+{default} `(function?)`
 
 ------------------------------------------------------------------------------
                                                                *obsidian.Client*
@@ -184,7 +168,7 @@ Parameters ~
 
 ------------------------------------------------------------------------------
                                              *obsidian.Client.search_defaults()*
-                        `Client.search_defaults`({self})
+                           `Client.search_defaults`()
 Get the default search options.
 
 Return ~

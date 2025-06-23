@@ -42,10 +42,9 @@ body:
     label: Environment
     description: |
       Please run the following and paste the output below, wrapped in a ```` ```triple quotes code block``` ````.
-      
-      ```sh
-      nvim --version
-      nvim --headless -c 'lua require("obsidian").info()' -c q
+
+      ```vim
+      :checkhealth obsidian
       ```
 
       Note that you'll have to ensure obsidian.nvim loads up front for that command to be able to gather all of the information it needs, which means ensuring your plugin manager does not load obsidian.nvim lazily.

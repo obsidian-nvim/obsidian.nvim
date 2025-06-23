@@ -1,6 +1,6 @@
 local M = {}
 local VERSION = require "obsidian.version"
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 
 local error = vim.health.error
 local warn = vim.health.warn
@@ -23,7 +23,7 @@ end
 ---@param optional boolean
 ---@return boolean
 local function has_plugin(plugin, optional)
-  local plugin_info = util.get_plugin_info(plugin)
+  local plugin_info = api.get_plugin_info(plugin)
   if plugin_info then
     info("  ✓ %s: %s", plugin, plugin_info.commit or "unknown")
     return true
@@ -63,7 +63,13 @@ end
 function M.check()
   neovim("0.8", "0.11")
   start "Version"
-  info("Obsidian.nvim v%s (%s)", VERSION, util.get_plugin_info("obsidian.nvim").commit)
+  info("Obsidian.nvim v%s (%s)", VERSION, api.get_plugin_info("obsidian.nvim").commit)
+
+  start "Environment"
+  info("  • operating system: %s", api.get_os())
+
+  start "Config"
+  info("  • dir: %s", require("obsidian").get_client().dir)
 
   start "Pickers"
 
@@ -83,7 +89,7 @@ function M.check()
   }
 
   start "Dependencies"
-  info("  ✓ rg: %s", util.get_external_dependency_info "rg" or "not found")
+  info("  ✓ rg: %s", api.get_external_dependency_info "rg" or "not found")
   has_plugin("plenary.nvim", false)
 end
 

@@ -55,6 +55,10 @@ jobs:
             run: |
               make lint
 
+          - name: Types
+            run: |
+              make types
+
         include:
           - os: ubuntu-latest
             nvim_url: https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz
@@ -104,6 +108,13 @@ jobs:
           Expand-Archive -F nvim-win64.zip .
           Move-Item -Path nvim-win64 -Destination _neovim
 
+      - name: Install lua-language-server
+        if: matrix.task.name == 'Types'
+        uses: jdx/mise-action@v2
+        with:
+          tool_versions: |
+            lua-language-server latest
+
       - name: Prepare
         if: ${{ matrix.task.prepare }}
         run: ${{ matrix.task.prepare }}
@@ -112,7 +123,7 @@ jobs:
         shell: bash
         run: |
           export PATH="${PWD}/_neovim/bin:${PATH}"
-          export VIM="${PWD}/_neovim/share/nvim/runtime"
+          export VIMRUNTIME="${PWD}/_neovim/share/nvim/runtime"
 
           nvim --version
 

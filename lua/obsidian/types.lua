@@ -16,6 +16,7 @@
 ---@field reg string The optional register, if specified <reg>
 ---@field mods string Command modifiers, if any <mods>
 ---@field smods table Command modifiers in a structured format. Has the same structure as the "mods" key of
+---@field raw_print boolean HACK: for debug command and info
 
 ---@class obsidian.InsertTemplateContext
 ---The table passed to user substitution functions when inserting templates into a buffer.

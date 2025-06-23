@@ -8,7 +8,6 @@ M.injected_once = false
 M.providers = {
   { name = "obsidian", module = "obsidian.completion.sources.blink.refs" },
   { name = "obsidian_tags", module = "obsidian.completion.sources.blink.tags" },
-  { name = "obsidian_new", module = "obsidian.completion.sources.blink.new" },
 }
 
 local function add_provider(blink, provider_name, proivder_module)
@@ -28,8 +27,13 @@ local function add_provider(blink, provider_name, proivder_module)
 end
 
 -- Ran once on the plugin startup
-function M.register_providers()
+---@param opts obsidian.config.ClientOpts
+function M.register_providers(opts)
   local blink = require "blink.cmp"
+
+  if opts.completion.create_new then
+    table.insert(M.providers, { name = "obsidian_new", module = "obsidian.completion.sources.blink.new" })
+  end
 
   for _, provider in pairs(M.providers) do
     add_provider(blink, provider.name, provider.module)
@@ -164,7 +168,8 @@ end
 --
 -- In-case the user used functions to configure their sources, the completion will properly work just for the markdown
 -- files that are in a workspace. Otherwise, the completion will work for all markdown files.
-function M.inject_sources()
+---@param opts obsidian.config.ClientOpts
+function M.inject_sources(opts)
   if M.injected_once then
     return
   end

@@ -1,325 +1,315 @@
 local Path = require "obsidian.path"
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 
-describe("Path.new()", function()
-  it("should initialize with both method syntax and regular dot access", function()
-    ---@type obsidian.Path
-    local path
+local new_set, eq, has_error = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.error
 
-    path = Path.new "README.md"
-    MiniTest.expect.equality("README.md", path.filename)
+local T = new_set()
 
-    path = Path:new "README.md"
-    MiniTest.expect.equality("README.md", path.filename)
+T["new"] = new_set()
+
+T["new"]["should initialize with both method syntax and regular dot access"] = function()
+  ---@type obsidian.Path
+  local path
+
+  path = Path.new "README.md"
+  eq("README.md", path.filename)
+
+  path = Path:new "README.md"
+  eq("README.md", path.filename)
+end
+
+T["new"]["should return same object when arg is already a path"] = function()
+  local path = Path.new "README.md"
+  eq(path, Path.new(path))
+end
+
+T["new"]["should init from a plenary path"] = function()
+  local PlenaryPath = require "plenary.path"
+  local path = Path.new "README.md"
+  eq(true, path == Path.new(PlenaryPath:new "README.md"))
+end
+
+T["new"]["should raise an error if 2 args are passed and the first isn't Path"] = function()
+  has_error(function()
+    ---@diagnostic disable-next-line
+    Path.new(1, "bar")
   end)
+end
 
-  it("should return same object when arg is already a path", function()
-    local path = Path.new "README.md"
-    MiniTest.expect.equality(path, Path.new(path))
-  end)
-
-  it("should init from a plenary path", function()
-    local PlenaryPath = require "plenary.path"
-    local path = Path.new "README.md"
-    MiniTest.expect.equality(true, path == Path.new(PlenaryPath:new "README.md"))
-  end)
-
-  it("should raise an error if 2 args are passed and the first isn't Path", function()
-    MiniTest.expect.error(function()
-      ---@diagnostic disable-next-line
-      Path.new(1, "bar")
-    end)
-  end)
-
-  if util.get_os() == util.OSType.Windows then
-    it("should normalize lowercase c drives on windows correctly", function()
-      local path = Path:new "c:/foo/bar"
-      MiniTest.expect.equality(path.filename, "C:/foo/bar")
-    end)
+if api.get_os() == api.OSType.Windows then
+  T["new"]["should normalize lowercase c drives on windows correctly"] = function()
+    local path = Path:new "c:/foo/bar"
+    eq(path.filename, "C:/foo/bar")
   end
-end)
+end
 
-describe("Path.is_path_obj()", function()
-  it("should return true for obsidian.Path objects", function()
-    local path = Path.new "README.md"
-    MiniTest.expect.equality(true, Path.is_path_obj(path))
+T["is_path_obj"] = new_set()
+
+T["is_path_obj"]["should return true for obsidian.Path objects"] = function()
+  local path = Path.new "README.md"
+  eq(true, Path.is_path_obj(path))
+end
+
+T["is_path_obj"]["should return false for all other kinds of objects"] = function()
+  eq(false, Path.is_path_obj(1))
+  eq(false, Path.is_path_obj { a = 2 })
+  eq(false, Path.is_path_obj(nil))
+end
+
+T["__eq"] = new_set()
+
+T["__eq"]["should compare with other paths correctly"] = function()
+  eq(true, Path:new "README.md" == Path:new "README.md")
+  eq(true, Path:new "/foo" == Path:new "/foo/")
+
+  local path = Path:new "README.md"
+  local _ = path.name
+  eq(true, path == Path:new "README.md")
+  eq(true, path == Path.new(path))
+end
+
+T["__div"] = new_set()
+
+T["__div"]["should join paths"] = function()
+  assert(Path:new "/foo/" / "bar" == Path:new "/foo/bar")
+end
+
+T["name"] = new_set()
+
+T["name"]["should return final component"] = function()
+  eq("bar.md", Path:new("/foo/bar.md").name)
+end
+
+T["suffix"] = new_set()
+
+T["suffix"]["should return final suffix"] = function()
+  eq(".md", Path:new("/foo/bar.md").suffix)
+  eq(".gz", Path:new("/foo/bar.tar.gz").suffix)
+end
+
+T["suffix"]["should return nil when there is no suffix"] = function()
+  eq(nil, Path:new("/foo/bar").suffix)
+end
+
+T["suffixes"] = new_set()
+T["suffixes"]["should return all extensions"] = function()
+  eq({ ".md" }, Path:new("/foo/bar.md").suffixes)
+  eq({ ".tar", ".gz" }, Path:new("/foo/bar.tar.gz").suffixes)
+end
+
+T["suffixes"]["should return empty list when there is no suffix"] = function()
+  eq({}, Path:new("/foo/bar").suffixes)
+end
+
+T["stem"] = new_set()
+
+T["stem"]["should return the final name without suffix"] = function()
+  eq("bar", Path:new("/foo/bar.md").stem)
+  eq(nil, Path:new("/").stem)
+end
+
+T["with_suffix"] = new_set()
+
+T["with_suffix"]["should create a new path with the new suffix"] = function()
+  eq(true, Path:new("/foo/bar.md"):with_suffix ".tar.gz" == Path.new "/foo/bar.tar.gz")
+  eq(true, Path:new("/foo/bar.tar.gz"):with_suffix ".bz2" == Path.new "/foo/bar.tar.bz2")
+  eq(true, Path:new("/foo/bar"):with_suffix ".md" == Path.new "/foo/bar.md")
+end
+
+T["with_suffix"]["should not add anything else to the filename"] = function()
+  eq(Path.new "foo-bar.png", Path.new("foo-bar"):with_suffix ".png")
+end
+
+T["with_suffix"]["should fail when there is no stem"] = function()
+  has_error(function()
+    Path.new("/"):with_suffix ".png"
+  end)
+end
+
+T["with_suffix"]["should allow appending the suffix instead of replacing it"] = function()
+  eq(Path.new "johnny.md", Path.new("johnny.decimal"):with_suffix ".md")
+  eq(Path.new "johnny.decimal.md", Path.new("johnny.decimal"):with_suffix(".md", true))
+end
+
+T["is_absolute"] = new_set()
+
+T["is_absolute"]["should work for windows or unix paths"] = function()
+  assert(Path:new("/foo/"):is_absolute())
+  if api.get_os() == api.OSType.Windows then
+    assert(Path:new("C:/foo/"):is_absolute())
+    assert(Path:new("C:\\foo\\"):is_absolute())
+  end
+end
+
+T["joinpath"] = new_set()
+T["joinpath"]["can join multiple"] = function()
+  eq(true, Path.new "foo/bar/baz.md" == Path.new("foo"):joinpath("bar", "baz.md"))
+  eq(true, Path.new "foo/bar/baz.md" == Path.new("foo/"):joinpath("bar/", "baz.md"))
+  eq(true, Path.new "foo/bar/baz.md" == Path.new("foo/"):joinpath("bar/", "/baz.md"))
+end
+
+T["relative_to"] = new_set()
+
+T["relative_to"]["should work on absolute paths"] = function()
+  eq("baz.md", Path:new("/foo/bar/baz.md"):relative_to("/foo/bar/").filename)
+  eq("baz.md", Path:new("/foo/bar/baz.md"):relative_to("/foo/bar").filename)
+  eq("baz.md", Path:new("/baz.md"):relative_to("/").filename)
+end
+
+T["relative_to"]["should raise an error when the relative path can't be resolved"] = function()
+  has_error(function()
+    Path:new("/bar/bar/baz.md"):relative_to "/foo/"
   end)
 
-  it("should return false for all other kinds of objects", function()
-    MiniTest.expect.equality(false, Path.is_path_obj(1))
-    MiniTest.expect.equality(false, Path.is_path_obj { a = 2 })
-    MiniTest.expect.equality(false, Path.is_path_obj(nil))
+  has_error(function()
+    Path:new("bar/bar/baz.md"):relative_to "/bar"
   end)
-end)
+end
 
-describe("Path.__eq", function()
-  it("should compare with other paths correctly", function()
-    MiniTest.expect.equality(true, Path:new "README.md" == Path:new "README.md")
-    MiniTest.expect.equality(true, Path:new "/foo" == Path:new "/foo/")
+T["relative_to"]["should work on relative paths"] = function()
+  eq("img.png", Path:new("assets/img.png"):relative_to("assets").filename)
+  eq("img.png", Path:new("assets/img.png"):relative_to("./assets").filename)
 
-    local path = Path:new "README.md"
-    local _ = path.name
-    MiniTest.expect.equality(true, path == Path:new "README.md")
-    MiniTest.expect.equality(true, path == Path.new(path))
-  end)
-end)
+  eq("assets/img.png", Path:new("assets/img.png"):relative_to("./").filename)
+  eq("assets/img.png", Path:new("./assets/img.png"):relative_to("./").filename)
+end
 
-describe("Path.__div", function()
-  it("should join paths", function()
-    assert(Path:new "/foo/" / "bar" == Path:new "/foo/bar")
-  end)
-end)
+T["parent"] = new_set()
 
-describe("Path.name", function()
-  it("should return final component", function()
-    MiniTest.expect.equality("bar.md", Path:new("/foo/bar.md").name)
-  end)
-end)
+T["parent"]["should get the parent of the current"] = function()
+  eq(Path.new("/foo/bar/README.md"):parent(), Path.new "/foo/bar")
+end
 
-describe("Path.suffix", function()
-  it("should return final suffix", function()
-    MiniTest.expect.equality(".md", Path:new("/foo/bar.md").suffix)
-    MiniTest.expect.equality(".gz", Path:new("/foo/bar.tar.gz").suffix)
-  end)
+T["parent"]["should return './' for an unresolved name to match Python pathlib API"] = function()
+  eq(Path.new "./", Path.new("foo-bar"):parent())
+end
 
-  it("should return nil when there is no suffix", function()
-    MiniTest.expect.equality(nil, Path:new("/foo/bar").suffix)
-  end)
-end)
+T["parent"]["should return '/' for '/' to match Python pathlib API"] = function()
+  eq(Path.new "/", Path.new("/"):parent())
+end
 
-describe("Path.suffix", function()
-  it("should return all extensions", function()
-    MiniTest.expect.equality({ ".md" }, Path:new("/foo/bar.md").suffixes)
-    MiniTest.expect.equality({ ".tar", ".gz" }, Path:new("/foo/bar.tar.gz").suffixes)
-  end)
+T["parents"] = new_set()
 
-  it("should return empty list when there is no suffix", function()
-    MiniTest.expect.equality({}, Path:new("/foo/bar").suffixes)
-  end)
-end)
+T["parents"]["should collect all logical parents"] = function()
+  eq(Path.new("/foo/bar/README.md"):parents(), { Path.new "/foo/bar", Path.new "/foo", Path.new "/" })
+end
 
-describe("Path.stem", function()
-  it("should return the final name without suffix", function()
-    MiniTest.expect.equality("bar", Path:new("/foo/bar.md").stem)
-    MiniTest.expect.equality(nil, Path:new("/").stem)
-  end)
-end)
+T["resolve"] = new_set()
 
-describe("Path.with_suffix()", function()
-  it("should create a new path with the new suffix", function()
-    MiniTest.expect.equality(true, Path:new("/foo/bar.md"):with_suffix ".tar.gz" == Path.new "/foo/bar.tar.gz")
-    MiniTest.expect.equality(true, Path:new("/foo/bar.tar.gz"):with_suffix ".bz2" == Path.new "/foo/bar.tar.bz2")
-    MiniTest.expect.equality(true, Path:new("/foo/bar"):with_suffix ".md" == Path.new "/foo/bar.md")
-  end)
+T["resolve"]["should always resolve to the absolute path when it exists"] = function()
+  eq(vim.fs.normalize(assert(vim.uv.fs_realpath "README.md")), Path.new("README.md"):resolve().filename)
+end
 
-  it("should not add anything else to the filename", function()
-    MiniTest.expect.equality(Path.new "foo-bar.png", Path.new("foo-bar"):with_suffix ".png")
-  end)
+T["resolve"]["should always resolve to an absolute path if a parent exists"] = function()
+  eq(vim.fs.normalize(assert(vim.uv.fs_realpath ".")) .. "/tmp/dne.md", Path.new("tmp/dne.md"):resolve().filename)
 
-  it("should fail when there is no stem", function()
-    MiniTest.expect.error(function()
-      Path.new("/"):with_suffix ".png"
-    end)
-  end)
+  eq(vim.fs.normalize(assert(vim.uv.fs_realpath ".")) .. "/dne.md", Path.new("dne.md"):resolve().filename)
+end
 
-  it("should allow appending the suffix instead of replacing it", function()
-    MiniTest.expect.equality(Path.new "johnny.md", Path.new("johnny.decimal"):with_suffix ".md")
-    MiniTest.expect.equality(Path.new "johnny.decimal.md", Path.new("johnny.decimal"):with_suffix(".md", true))
-  end)
-end)
+T["exists"] = new_set()
 
-describe("Path.is_absolute()", function()
-  it("should work for windows or unix paths", function()
-    assert(Path:new("/foo/"):is_absolute())
-    if util.get_os() == util.OSType.Windows then
-      assert(Path:new("C:/foo/"):is_absolute())
-      assert(Path:new("C:\\foo\\"):is_absolute())
-    end
-  end)
-end)
+T["exists"]["should return true when the path exists"] = function()
+  eq(true, Path.new("README.md"):exists())
+  eq(true, Path.new("lua"):exists())
+end
 
-describe("Path.joinpath()", function()
-  it("can join multiple", function()
-    MiniTest.expect.equality(true, Path.new "foo/bar/baz.md" == Path.new("foo"):joinpath("bar", "baz.md"))
-    MiniTest.expect.equality(true, Path.new "foo/bar/baz.md" == Path.new("foo/"):joinpath("bar/", "baz.md"))
-    MiniTest.expect.equality(true, Path.new "foo/bar/baz.md" == Path.new("foo/"):joinpath("bar/", "/baz.md"))
-  end)
-end)
+T["exists"]["should return false when the path does not exists"] = function()
+  eq(false, Path.new("dne.md"):exists())
+end
 
-describe("Path.relative_to()", function()
-  it("should work on absolute paths", function()
-    MiniTest.expect.equality("baz.md", Path:new("/foo/bar/baz.md"):relative_to("/foo/bar/").filename)
-    MiniTest.expect.equality("baz.md", Path:new("/foo/bar/baz.md"):relative_to("/foo/bar").filename)
-    MiniTest.expect.equality("baz.md", Path:new("/baz.md"):relative_to("/").filename)
+T["is_file"] = new_set()
+
+T["is_file"]["should return true when the path is a file"] = function()
+  eq(true, Path.new("README.md"):is_file())
+  eq(false, Path.new("README.md"):is_dir())
+end
+
+T["is_file"]["should return false when the path is a directory"] = function()
+  eq(false, Path.new("lua"):is_file())
+end
+
+T["is_dir"] = new_set()
+
+T["is_dir"]["should return true when the path is a directory"] = function()
+  eq(true, Path.new("lua"):is_dir())
+  eq(false, Path.new("lua"):is_file())
+end
+
+T["is_dir"]["should return false when the path is a file"] = function()
+  eq(false, Path.new("README.md"):is_dir())
+end
+
+T["is_dir"]["should return false when the path does not exist"] = function()
+  eq(false, Path.new("dne.md"):is_dir())
+end
+
+T["mkdir"] = new_set()
+
+T["mkdir"]["should make a directory"] = function()
+  local dir = Path.temp()
+  eq(false, dir:exists())
+  dir:mkdir()
+  eq(true, dir:exists())
+  eq(true, dir:is_dir())
+  eq(false, dir:is_file())
+
+  dir:mkdir { exist_ok = true }
+  eq(true, dir:exists())
+  has_error(function()
+    dir:mkdir { exist_ok = false }
   end)
 
-  it("should raise an error when the relative path can't be resolved", function()
-    MiniTest.expect.error(function()
-      Path:new("/bar/bar/baz.md"):relative_to "/foo/"
-    end)
+  dir:rmdir()
+  eq(false, dir:exists())
+end
 
-    MiniTest.expect.error(function()
-      Path:new("bar/bar/baz.md"):relative_to "/bar"
-    end)
-  end)
+T["mkdir"]["should make a directory and its parents"] = function()
+  local base_dir = Path.temp()
+  local dir = base_dir / "foo"
+  eq(false, base_dir:exists())
+  eq(false, dir:exists())
 
-  it("should work on relative paths", function()
-    MiniTest.expect.equality("img.png", Path:new("assets/img.png"):relative_to("assets").filename)
-    MiniTest.expect.equality("img.png", Path:new("assets/img.png"):relative_to("./assets").filename)
+  dir:mkdir { parents = true }
+  eq(true, base_dir:exists())
+  eq(true, dir:exists())
 
-    MiniTest.expect.equality("assets/img.png", Path:new("assets/img.png"):relative_to("./").filename)
-    MiniTest.expect.equality("assets/img.png", Path:new("./assets/img.png"):relative_to("./").filename)
-  end)
-end)
+  dir:rmdir()
+  eq(false, dir:exists())
 
-describe("Path.parent()", function()
-  it("should get the parent of the current", function()
-    MiniTest.expect.equality(Path.new("/foo/bar/README.md"):parent(), Path.new "/foo/bar")
-  end)
+  base_dir:rmdir()
+  eq(false, base_dir:exists())
+end
 
-  it("should return './' for an unresolved name to match Python pathlib API", function()
-    MiniTest.expect.equality(Path.new "./", Path.new("foo-bar"):parent())
-  end)
+T["mkdir"]["should rename a file"] = function()
+  local temp_file = Path.temp()
+  temp_file:touch()
+  eq(true, temp_file:is_file())
 
-  it("should return '/' for '/' to match Python pathlib API", function()
-    MiniTest.expect.equality(Path.new "/", Path.new("/"):parent())
-  end)
-end)
+  local target = Path.temp()
+  eq(false, target:exists())
 
-describe("Path.parents()", function()
-  it("should collect all logical parents", function()
-    MiniTest.expect.equality(
-      Path.new("/foo/bar/README.md"):parents(),
-      { Path.new "/foo/bar", Path.new "/foo", Path.new "/" }
-    )
-  end)
-end)
+  temp_file:rename(target)
+  eq(true, target:is_file())
+  eq(false, temp_file:is_file())
 
-describe("Path.resolve()", function()
-  it("should always resolve to the absolute path when it exists", function()
-    MiniTest.expect.equality(
-      vim.fs.normalize(assert(vim.uv.fs_realpath "README.md")),
-      Path.new("README.md"):resolve().filename
-    )
-  end)
+  target:unlink()
+  eq(false, target:is_file())
+end
 
-  it("should always resolve to an absolute path if a parent exists", function()
-    MiniTest.expect.equality(
-      vim.fs.normalize(assert(vim.uv.fs_realpath ".")) .. "/tmp/dne.md",
-      Path.new("tmp/dne.md"):resolve().filename
-    )
+T["mkdir"]["should rename a directory"] = function()
+  local temp_dir = Path.temp()
+  temp_dir:mkdir()
+  eq(true, temp_dir:is_dir())
 
-    MiniTest.expect.equality(
-      vim.fs.normalize(assert(vim.uv.fs_realpath ".")) .. "/dne.md",
-      Path.new("dne.md"):resolve().filename
-    )
-  end)
-end)
+  local target = Path.temp()
+  eq(false, target:exists())
 
-describe("Path.exists()", function()
-  it("should return true when the path exists", function()
-    MiniTest.expect.equality(true, Path.new("README.md"):exists())
-    MiniTest.expect.equality(true, Path.new("lua"):exists())
-  end)
+  temp_dir:rename(target)
+  eq(true, target:is_dir())
+  eq(false, temp_dir:is_dir())
 
-  it("should return false when the path does not exists", function()
-    MiniTest.expect.equality(false, Path.new("dne.md"):exists())
-  end)
-end)
+  target:rmdir()
+  eq(false, target:exists())
+end
 
-describe("Path.is_file()", function()
-  it("should return true when the path is a file", function()
-    MiniTest.expect.equality(true, Path.new("README.md"):is_file())
-    MiniTest.expect.equality(false, Path.new("README.md"):is_dir())
-  end)
-
-  it("should return false when the path is a directory", function()
-    MiniTest.expect.equality(false, Path.new("lua"):is_file())
-  end)
-end)
-
-describe("Path.is_dir()", function()
-  it("should return true when the path is a directory", function()
-    MiniTest.expect.equality(true, Path.new("lua"):is_dir())
-    MiniTest.expect.equality(false, Path.new("lua"):is_file())
-  end)
-
-  it("should return false when the path is a file", function()
-    MiniTest.expect.equality(false, Path.new("README.md"):is_dir())
-  end)
-
-  it("should return false when the path does not exist", function()
-    MiniTest.expect.equality(false, Path.new("dne.md"):is_dir())
-  end)
-end)
-
-describe("Path.mkdir()", function()
-  it("should make a directory", function()
-    local dir = Path.temp()
-    MiniTest.expect.equality(false, dir:exists())
-
-    dir:mkdir()
-    MiniTest.expect.equality(true, dir:exists())
-    MiniTest.expect.equality(true, dir:is_dir())
-    MiniTest.expect.equality(false, dir:is_file())
-
-    dir:mkdir { exist_ok = true }
-    MiniTest.expect.equality(true, dir:exists())
-
-    MiniTest.expect.error(function()
-      dir:mkdir { exist_ok = false }
-    end)
-
-    dir:rmdir()
-    MiniTest.expect.equality(false, dir:exists())
-  end)
-
-  it("should make a directory and its parents", function()
-    local base_dir = Path.temp()
-    local dir = base_dir / "foo"
-    MiniTest.expect.equality(false, base_dir:exists())
-    MiniTest.expect.equality(false, dir:exists())
-
-    dir:mkdir { parents = true }
-    MiniTest.expect.equality(true, base_dir:exists())
-    MiniTest.expect.equality(true, dir:exists())
-
-    dir:rmdir()
-    MiniTest.expect.equality(false, dir:exists())
-
-    base_dir:rmdir()
-    MiniTest.expect.equality(false, base_dir:exists())
-  end)
-
-  it("should rename a file", function()
-    local temp_file = Path.temp()
-    temp_file:touch()
-    MiniTest.expect.equality(true, temp_file:is_file())
-
-    local target = Path.temp()
-    MiniTest.expect.equality(false, target:exists())
-
-    temp_file:rename(target)
-    MiniTest.expect.equality(true, target:is_file())
-    MiniTest.expect.equality(false, temp_file:is_file())
-
-    target:unlink()
-    MiniTest.expect.equality(false, target:is_file())
-  end)
-
-  it("should rename a directory", function()
-    local temp_dir = Path.temp()
-    temp_dir:mkdir()
-    MiniTest.expect.equality(true, temp_dir:is_dir())
-
-    local target = Path.temp()
-    MiniTest.expect.equality(false, target:exists())
-
-    temp_dir:rename(target)
-    MiniTest.expect.equality(true, target:is_dir())
-    MiniTest.expect.equality(false, temp_dir:is_dir())
-
-    target:rmdir()
-    MiniTest.expect.equality(false, target:exists())
-  end)
-end)
+return T

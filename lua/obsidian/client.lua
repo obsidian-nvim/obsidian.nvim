@@ -21,36 +21,16 @@ local search = require "obsidian.search"
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local CallbackManager = require("obsidian.callbacks").CallbackManager
 local block_on = require("obsidian.async").block_on
+local api = require "obsidian.api"
 local iter = vim.iter
 local uv = vim.uv
 
----@class obsidian.SearchOpts : obsidian.ABC
+---@class obsidian.SearchOpts
 ---
 ---@field sort boolean|?
 ---@field include_templates boolean|?
 ---@field ignore_case boolean|?
-local SearchOpts = abc.new_class {
-  __tostring = function(self)
-    return string.format("SearchOpts(%s)", vim.inspect(self:as_tbl()))
-  end,
-}
-
----@param opts obsidian.SearchOpts|table<string, any>
----
----@return obsidian.SearchOpts
-SearchOpts.from_tbl = function(opts)
-  setmetatable(opts, SearchOpts.mt)
-  return opts
-end
-
----@return obsidian.SearchOpts
-SearchOpts.default = function()
-  return SearchOpts.from_tbl {
-    sort = false,
-    include_templates = false,
-    ignore_case = false,
-  }
-end
+---@field default function?
 
 --- The Obsidian client is the main API for programmatically interacting with obsidian.nvim's features
 --- in Lua. To get the client instance, run:
@@ -129,7 +109,7 @@ Client.set_workspace = function(self, workspace, opts)
   self.callback_manager = CallbackManager.new(self, self.opts.callbacks)
 
   -- Setup UI add-ons.
-  local has_no_renderer = not (util.get_plugin_info "render-markdown.nvim" or util.get_plugin_info "markview.nvim")
+  local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
   if has_no_renderer and self.opts.ui.enable then
     require("obsidian.ui").setup(self.current_workspace, self.opts.ui)
   end
@@ -152,7 +132,7 @@ end
 ---@return obsidian.config.ClientOpts
 Client.opts_for_workspace = function(self, workspace)
   if workspace then
-    return config.ClientOpts.normalize(workspace.overrides and workspace.overrides or {}, self._default_opts)
+    return config.normalize(workspace.overrides and workspace.overrides or {}, self._default_opts)
   else
     return self.opts
   end
@@ -281,7 +261,7 @@ Client.templates_dir = function(self, workspace)
     end
   end
 
-  log.err("'%s' is not a valid templates directory", opts.templates.folder)
+  log.err_once("'%s' is not a valid templates directory", opts.templates.folder)
   return nil
 end
 
@@ -327,12 +307,12 @@ end
 --- Get the default search options.
 ---
 ---@return obsidian.SearchOpts
-Client.search_defaults = function(self)
-  local opts = SearchOpts.default()
-  if opts.sort and self.opts.sort_by == nil then
-    opts.sort = false
-  end
-  return opts
+Client.search_defaults = function()
+  return {
+    sort = false,
+    include_templates = false,
+    ignore_case = false,
+  }
 end
 
 ---@param opts obsidian.SearchOpts|boolean|?
@@ -343,14 +323,10 @@ end
 Client._search_opts_from_arg = function(self, opts)
   if opts == nil then
     opts = self:search_defaults()
-  elseif type(opts) == "table" then
-    opts = SearchOpts.from_tbl(opts)
   elseif type(opts) == "boolean" then
     local sort = opts
-    opts = SearchOpts.default()
+    opts = self:search_defaults()
     opts.sort = sort
-  else
-    error("unexpected type for SearchOpts: '" .. type(opts) .. "'")
   end
   return opts
 end
@@ -364,7 +340,7 @@ end
 Client._prepare_search_opts = function(self, opts, additional_opts)
   opts = self:_search_opts_from_arg(opts)
 
-  local search_opts = search.SearchOpts.default()
+  local search_opts = {}
 
   if opts.sort then
     search_opts.sort_by = self.opts.sort_by
@@ -372,7 +348,7 @@ Client._prepare_search_opts = function(self, opts, additional_opts)
   end
 
   if not opts.include_templates and self.opts.templates ~= nil and self.opts.templates.folder ~= nil then
-    search_opts:add_exclude(tostring(self.opts.templates.folder))
+    search.SearchOpts.add_exclude(search_opts, tostring(self.opts.templates.folder))
   end
 
   if opts.ignore_case then
@@ -380,7 +356,7 @@ Client._prepare_search_opts = function(self, opts, additional_opts)
   end
 
   if additional_opts ~= nil then
-    search_opts = search_opts:merge(additional_opts)
+    search_opts = search.SearchOpts.merge(search_opts, additional_opts)
   end
 
   return search_opts
@@ -584,7 +560,7 @@ Client.find_files_async = function(self, term, callback, opts)
   end
 
   local find_opts = self:_prepare_search_opts(opts.search)
-  find_opts:add_exclude "*.md"
+  search.SearchOpts.add_exclude(find_opts, "*.md")
   find_opts.include_non_markdown = true
 
   search.find_async(self.dir, term, find_opts, on_find_match, on_exit)
@@ -679,7 +655,7 @@ Client.resolve_note_async = function(self, query, callback, opts)
       local reference_ids = note:reference_ids { lowercase = true }
 
       -- Check for exact match.
-      if util.tbl_contains(reference_ids, query_lwr) then
+      if vim.list_contains(reference_ids, query_lwr) then
         table.insert(exact_matches, note)
       else
         -- Fall back to fuzzy match.
@@ -760,7 +736,7 @@ Client.resolve_link_async = function(self, link, callback)
   if link then
     location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
   else
-    location, name, link_type = util.parse_cursor_link { include_naked_urls = true, include_file_urls = true }
+    location, name, link_type = api.parse_cursor_link { include_naked_urls = true, include_file_urls = true }
   end
 
   if location == nil or name == nil or link_type == nil then
@@ -776,7 +752,7 @@ Client.resolve_link_async = function(self, link, callback)
   end
 
   -- The Obsidian app will follow URL-encoded links, so we should to.
-  location = util.urldecode(location)
+  location = vim.uri_decode(location)
 
   -- Remove block links from the end if there are any.
   -- TODO: handle block links.
@@ -887,7 +863,7 @@ Client.follow_link_async = function(self, link, opts)
 
       if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
         -- Prompt to create a new note.
-        if util.confirm("Create new note '" .. res.location .. "'?") then
+        if api.confirm("Create new note '" .. res.location .. "'?") then
           -- Create a new note.
           ---@type string|?, string[]
           local id, aliases
@@ -931,7 +907,7 @@ Client.follow_link_async = function(self, link, opts)
         for _, res in ipairs(results) do
           local icon, icon_hl
           if res.url ~= nil then
-            icon, icon_hl = util.get_icon(res.url)
+            icon, icon_hl = api.get_icon(res.url)
           end
           table.insert(entries, {
             value = res,
@@ -977,9 +953,9 @@ Client.open_note = function(self, note_or_path, opts)
   end
 
   local function open_it()
-    local open_cmd = util.get_open_strategy(opts.open_strategy and opts.open_strategy or self.opts.open_notes_in)
+    local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or self.opts.open_notes_in)
     ---@cast path obsidian.Path
-    local bufnr = util.open_buffer(path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    local bufnr = api.open_buffer(path, { line = opts.line, col = opts.col, cmd = open_cmd })
     if opts.callback then
       opts.callback(bufnr)
     end
@@ -1142,14 +1118,16 @@ Client.find_tags_async = function(self, term, callback, opts)
         end
       end
 
+      local line_number = match_data.line_number + 1 -- match_data.line_number is 0-indexed
+
       -- check if the match was inside a code block.
       for block in iter(code_blocks) do
-        if block[1] <= match_data.line_number and match_data.line_number <= block[2] then
+        if block[1] <= line_number and line_number <= block[2] then
           return
         end
       end
 
-      local line = util.strip_whitespace(match_data.lines.text)
+      local line = vim.trim(match_data.lines.text)
       local n_matches = 0
 
       -- check for tag in the wild of the form '#{tag}'
@@ -1584,7 +1562,7 @@ Client.new_note_id = function(self, title)
     new_id = new_id:gsub("%.md$", "", 1)
     return new_id
   else
-    return util.zettel_id()
+    return require("obsidian.builtin").zettel_id()
   end
 end
 
@@ -1628,14 +1606,14 @@ end
 ---@return string|?,string,obsidian.Path
 Client.parse_title_id_path = function(self, title, id, dir)
   if title then
-    title = util.strip_whitespace(title)
+    title = vim.trim(title)
     if title == "" then
       title = nil
     end
   end
 
   if id then
-    id = util.strip_whitespace(id)
+    id = vim.trim(id)
     if id == "" then
       id = nil
     end
@@ -1777,7 +1755,7 @@ Client.create_note = function(self, opts)
   ---@type string[]
   ---@diagnostic disable-next-line: assign-type-mismatch
   local aliases = opts.aliases or {}
-  if new_title ~= nil and new_title:len() > 0 and not util.tbl_contains(aliases, new_title) then
+  if new_title ~= nil and new_title:len() > 0 and not vim.list_contains(aliases, new_title) then
     aliases[#aliases + 1] = new_title
   end
 
@@ -1869,13 +1847,13 @@ Client.write_note_to_buffer = function(self, note, opts)
   local insert_template = require("obsidian.templates").insert_template
   opts = opts or {}
 
-  if opts.template and util.buffer_is_empty(opts.bufnr) then
+  if opts.template and api.buffer_is_empty(opts.bufnr) then
     note = insert_template {
       type = "insert_template",
       template_name = opts.template,
       template_opts = self.opts.templates,
       templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
-      location = util.get_active_window_cursor_location(),
+      location = api.get_active_window_cursor_location(),
       partial_note = note,
     }
   end
@@ -2108,7 +2086,7 @@ Client.statusline = function(self)
     self:find_backlinks_async(
       note,
       vim.schedule_wrap(function(backlinks)
-        local format = self.opts.statusline.format
+        local format = assert(self.opts.statusline.format)
         local wc = vim.fn.wordcount()
         local info = {
           words = wc.words,

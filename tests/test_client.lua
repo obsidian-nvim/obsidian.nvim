@@ -2,6 +2,20 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local h = dofile "tests/helpers.lua"
 
+local client_opts = {
+  note_id_func = function(title)
+    local id = ""
+    if title ~= nil then
+      id = title:gsub(" ", "-"):gsub("[^A-Za-z0-9-]", ""):lower()
+    else
+      for _ = 1, 4 do
+        id = id .. string.char(math.random(65, 90))
+      end
+    end
+    return id
+  end,
+}
+
 describe("Client", function()
   it("should be able to initialize a daily note", function()
     h.with_tmp_client(function(client)
@@ -58,7 +72,7 @@ describe("Client:parse_title_id_path()", function()
       MiniTest.expect.equality("New Title", title)
       MiniTest.expect.equality("new-title", id)
       MiniTest.expect.equality(Path:new(client.dir) / "notes" / "new-title.md", path)
-    end)
+    end, nil, client_opts)
   end)
 
   it("should interpret relative directories relative to vault root.", function()
@@ -67,7 +81,7 @@ describe("Client:parse_title_id_path()", function()
       MiniTest.expect.equality(title, "Foo")
       MiniTest.expect.equality(id, "foo")
       MiniTest.expect.equality(path, Path:new(client.dir) / "new-notes" / "foo.md")
-    end)
+    end, nil, client_opts)
   end)
 
   it("should parse an ID that's a path", function()
@@ -76,7 +90,7 @@ describe("Client:parse_title_id_path()", function()
       MiniTest.expect.equality(title, "Foo")
       MiniTest.expect.equality(id, "1234-foo")
       MiniTest.expect.equality(tostring(path), tostring(Path:new(client.dir) / "notes" / "1234-foo.md"))
-    end)
+    end, nil, client_opts)
   end)
 
   it("should parse a title that's an exact path", function()
@@ -94,7 +108,7 @@ describe("Client:parse_title_id_path()", function()
       MiniTest.expect.equality(title, "Foo")
       MiniTest.expect.equality(id, "foo")
       MiniTest.expect.equality(tostring(path), tostring(Path:new(client.dir) / "notes" / "foo.md"))
-    end)
+    end, nil, client_opts)
   end)
 
   it("should keep whitespace within a path when parsing a title", function()
@@ -104,7 +118,7 @@ describe("Client:parse_title_id_path()", function()
       MiniTest.expect.equality(id, "Foo Bar")
       MiniTest.expect.equality(tostring(path), tostring(Path:new(client.dir) / "notes" / "Foo Bar.md"))
     end)
-  end)
+  end, nil, client_opts)
 
   it("should keep allow decimals in ID", function()
     h.with_tmp_client(function(client)
@@ -121,7 +135,7 @@ describe("Client:parse_title_id_path()", function()
       MiniTest.expect.equality(title, nil)
       MiniTest.expect.equality(#id, 4)
       MiniTest.expect.equality(tostring(path), tostring(Path:new(client.dir) / "notes" / (id .. ".md")))
-    end)
+    end, nil, client_opts)
   end)
 
   it("should respect configured 'note_path_func'", function()
@@ -134,7 +148,7 @@ describe("Client:parse_title_id_path()", function()
       MiniTest.expect.equality("New Note", title)
       MiniTest.expect.equality("new-note", id)
       MiniTest.expect.equality(Path:new(client.dir) / "foo-bar-123.md", path)
-    end)
+    end, nil, client_opts)
   end)
 
   it("should ensure result of 'note_path_func' always has '.md' suffix", function()
@@ -147,7 +161,7 @@ describe("Client:parse_title_id_path()", function()
       MiniTest.expect.equality("New Note", title)
       MiniTest.expect.equality("new-note", id)
       MiniTest.expect.equality(Path:new(client.dir) / "foo-bar-123.md", path)
-    end)
+    end, nil, client_opts)
   end)
 
   it("should ensure result of 'note_path_func' is always an absolute path and within provided directory", function()
@@ -162,7 +176,7 @@ describe("Client:parse_title_id_path()", function()
       MiniTest.expect.equality("New Note", title)
       MiniTest.expect.equality("new-note", id)
       MiniTest.expect.equality(Path:new(client.dir) / "notes" / "foo-bar-123.md", path)
-    end)
+    end, nil, client_opts)
   end)
 end)
 
@@ -171,7 +185,10 @@ describe("Client:_prepare_search_opts()", function()
     h.with_tmp_client(function(client)
       ---@diagnostic disable-next-line: invisible
       local opts = client:_prepare_search_opts(true, { max_count_per_file = 1 })
-      MiniTest.expect.equality(opts:to_ripgrep_opts(), { "--sortr=modified", "-m=1" })
+      MiniTest.expect.equality(
+        require("obsidian.search").SearchOpts.to_ripgrep_opts(opts),
+        { "--sortr=modified", "-m=1" }
+      )
     end)
   end)
 end)
@@ -207,7 +224,7 @@ describe("Client:create_note()", function()
       MiniTest.expect.equality(note.aliases, { "Bar", "Foo" })
       MiniTest.expect.equality(note.tags, { "note" })
       MiniTest.expect.equality(note.path, client.dir / "foo.md")
-    end)
+    end, nil, client_opts)
   end)
 end)
 
