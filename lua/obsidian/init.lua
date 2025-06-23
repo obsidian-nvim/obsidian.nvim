@@ -66,7 +66,7 @@ end
 ---@param dir string
 ---@return obsidian.Client
 obsidian.new_from_dir = function(dir)
-  local opts = obsidian.config.ClientOpts.default()
+  local opts = obsidian.config.default
   opts.workspaces = { { path = dir } }
   return obsidian.new(opts)
 end
@@ -77,7 +77,7 @@ end
 ---
 ---@return obsidian.Client
 obsidian.setup = function(opts)
-  opts = obsidian.config.ClientOpts.normalize(opts)
+  opts = obsidian.config.normalize(opts)
   local client = obsidian.new(opts)
   log.set_level(client.opts.log_level)
 
