@@ -484,6 +484,12 @@ config.normalize = function(opts, defaults)
     opts.overwrite_mappings = nil
   end
 
+  if opts.overwrite_mappings ~= nil then
+    log.warn_once [[The 'mappings' config option is deprecated and no longer has any affect.
+See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
+    opts.overwrite_mappings = nil
+  end
+
   if opts.tags ~= nil then
     log.warn_once "The 'tags' config option is deprecated and no longer has any affect."
     opts.tags = nil
