@@ -16,36 +16,6 @@ local client_opts = {
   end,
 }
 
-describe("Client", function()
-  it("should be able to initialize a daily note", function()
-    h.with_tmp_client(function(client)
-      local note = client:today()
-      MiniTest.expect.equality(true, note.path ~= nil)
-      MiniTest.expect.equality(true, note:exists())
-    end)
-  end)
-
-  it("should not add frontmatter for today when disabled", function()
-    h.with_tmp_client(function(client)
-      client.opts.disable_frontmatter = true
-      local new_note = client:today()
-
-      local saved_note = Note.from_file(new_note.path)
-      MiniTest.expect.equality(false, saved_note.has_frontmatter)
-    end)
-  end)
-
-  it("should not add frontmatter for yesterday when disabled", function()
-    h.with_tmp_client(function(client)
-      client.opts.disable_frontmatter = true
-      local new_note = client:yesterday()
-
-      local saved_note = Note.from_file(new_note.path)
-      MiniTest.expect.equality(false, saved_note.has_frontmatter)
-    end)
-  end)
-end)
-
 describe("Client:new_note_path()", function()
   it('should only append one ".md" at the end of the path', function()
     h.with_tmp_client(function(client)
@@ -225,16 +195,5 @@ describe("Client:create_note()", function()
       MiniTest.expect.equality(note.tags, { "note" })
       MiniTest.expect.equality(note.path, client.dir / "foo.md")
     end, nil, client_opts)
-  end)
-end)
-
-describe("Client:daily_note_path()", function()
-  it("should use the path stem as the ID", function()
-    h.with_tmp_client(function(client)
-      client.opts.daily_notes.date_format = "%Y/%b/%Y-%m-%d"
-      local path, id = client:daily_note_path()
-      assert(vim.endswith(tostring(path), tostring(os.date("%Y/%b/%Y-%m-%d.md", os.time()))))
-      MiniTest.expect.equality(id, os.date("%Y-%m-%d", os.time()))
-    end)
   end)
 end)
