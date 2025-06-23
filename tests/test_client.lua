@@ -1,5 +1,4 @@
 local Path = require "obsidian.path"
-local Note = require "obsidian.note"
 local h = dofile "tests/helpers.lua"
 
 local client_opts = {

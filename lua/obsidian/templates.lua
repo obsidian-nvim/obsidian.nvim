@@ -1,4 +1,3 @@
-local obsidian = require "obsidian"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
