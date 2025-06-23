@@ -488,7 +488,8 @@ Client.find_notes_async = function(self, term, callback, opts)
       if string.len(term) > 0 then
         for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
           if dt_offset.cadence == "daily" then
-            local note = require("obsidian.daily").daily(dt_offset.offset, { no_write = true, load = opts.notes })
+            local note =
+              require("obsidian.daily").daily(dt_offset.offset, { no_write = true, load = opts.notes }, self.opts)
             if not paths[tostring(note.path)] and note.path:is_file() then
               note.alt_alias = dt_offset.macro
               results_[#results_ + 1] = note

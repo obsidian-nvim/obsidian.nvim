@@ -70,7 +70,7 @@ return function(client, data)
   picker:pick(dailies, {
     prompt_title = "Dailies",
     callback = function(offset)
-      local note = daily.daily(offset)
+      local note = daily.daily(offset, {}, client.opts)
       client:open_note(note)
     end,
   })
