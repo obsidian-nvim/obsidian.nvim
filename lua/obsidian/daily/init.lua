@@ -10,10 +10,9 @@ local util = require "obsidian.util"
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
 local daily_note_path = function(datetime, opts)
   datetime = datetime and datetime or os.time()
-  local client = require("obsidian").get_client()
-  opts = opts or client.opts
+
   ---@type obsidian.Path
-  local path = Path:new(client.dir)
+  local path = Path:new(require("obsidian").get_client().dir)
 
   if opts.daily_notes.folder ~= nil then
     ---@type obsidian.Path
@@ -51,7 +50,6 @@ end
 local _daily = function(datetime, opts)
   opts = opts or {}
 
-  local client = require("obsidian").get_client()
   local path, id = daily_note_path(datetime, opts)
 
   ---@type string|?
@@ -84,8 +82,6 @@ end
 ---
 ---@return obsidian.Note
 local today = function(opts)
-  local client = require("obsidian").get_client()
-  opts = opts or client.opts
   return _daily(os.time(), opts)
 end
 
@@ -111,8 +107,6 @@ end
 local tomorrow = function(opts)
   local now = os.time()
   local tomorrow
-  local client = require("obsidian").get_client()
-  opts = opts or client.opts
 
   if opts.daily_notes.workdays_only then
     tomorrow = util.working_day_after(now)
