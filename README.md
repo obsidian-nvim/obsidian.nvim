@@ -206,7 +206,7 @@ return {
     -- see above for full list of optional dependencies ☝️
   },
   ---@module 'obsidian'
-  ---@type obsidian.config.ClientOpts
+  ---@type obsidian.config
   opts = {
     workspaces = {
       {
@@ -499,7 +499,7 @@ require("obsidian").setup {
   -- the cursor. Setting to `false` will get the backlinks for the current
   -- note instead. Doesn't affect other link behaviour.
   backlinks = {
-    parse_headers = true
+    parse_headers = true,
   },
 
   -- Optional, sort search results by "path", "modified", "accessed", or "created".
