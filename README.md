@@ -52,21 +52,16 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 📈 **Status:** See note status in statusline like obsidian app.
 
-💅 **Syntax:** Additional markdown syntax highlighting, concealing, and extmarks for references, tags, and check-boxes.
-
-[![See this screenshot](https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687)
-
 ### Keymaps
 
-These default keymaps will only be set if you are in a valid workspace and a markdown buffer:
+There's only one default keymap, `<CR>` will:
 
-- `smart_action` is the most important one you will use, it is bind to `<CR>` by default, it will
-  - If cursor is on a link, follow the link
-  - If cursor is on a tag, show all notes with that tag in a picker
-  - If cursor is on a checkbox, toggle the checkbox
-  - If cursor is on a heading, cycle the fold of that heading
-- `gf`: Follow link under the cursor, falls back to normal vim `gf` if not on a link
-- `<leader>ch>`: Toggle check-boxes
+- If cursor is on a link, follow the link
+- If cursor is on a tag, show all notes with that tag in a picker
+- If cursor is on a checkbox, toggle the checkbox
+- If cursor is on a heading, cycle the fold of that heading
+
+For remapping and creating your own mappings, see [Keymaps](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps)
 
 ### Commands
 
@@ -131,12 +126,10 @@ These default keymaps will only be set if you are in a valid workspace and a mar
 
 - Neovim >= 0.10.0
 - For completion and search features:
-
   - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep)
   - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
 
 - Additional system dependencies:
-
   - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:Obsidian open`.
   - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:Obsidian paste_img`.
   - **Linux** users need xclip (X11) or wl-clipboard (Wayland) for `:Obsidian paste_img`.
@@ -211,7 +204,7 @@ return {
     -- see above for full list of optional dependencies ☝️
   },
   ---@module 'obsidian'
-  ---@type obsidian.config.ClientOpts
+  ---@type obsidian.config
   opts = {
     workspaces = {
       {
@@ -341,32 +334,8 @@ require("obsidian").setup {
     blink = false,
     -- Trigger completion at 2 chars.
     min_chars = 2,
-  },
-
-  -- Optional, configure key mappings. These are the defaults. If you don't want to set any keymappings this
-  -- way then set 'mappings = {}'.
-  mappings = {
-    -- Overrides the 'gf' mapping to work on markdown/wiki links within your vault.
-    ["gf"] = {
-      action = function()
-        return require("obsidian").util.gf_passthrough()
-      end,
-      opts = { noremap = false, expr = true, buffer = true },
-    },
-    -- Toggle check-boxes.
-    ["<leader>ch"] = {
-      action = function()
-        return require("obsidian").util.toggle_checkbox()
-      end,
-      opts = { buffer = true },
-    },
-    -- Smart action depending on context: follow link, show notes with tag, toggle checkbox, or toggle heading fold
-    ["<cr>"] = {
-      action = function()
-        return require("obsidian").util.smart_action()
-      end,
-      opts = { buffer = true, expr = true },
-    },
+    -- Set to false to disable new note creation in the picker
+    create_new = true,
   },
 
   -- Where to put new notes. Valid options are
@@ -472,12 +441,17 @@ require("obsidian").setup {
     -- vim.ui.open(img, { cmd = { "loupe" } })
   end,
 
-  -- Optional, set to true if you use the Obsidian Advanced URI plugin.
-  -- https://github.com/Vinzent03/obsidian-advanced-uri
-  use_advanced_uri = false,
-
-  -- Optional, set to true to force ':Obsidian open' to bring the app to the foreground.
-  open_app_foreground = false,
+  ---@class obsidian.config.OpenOpts
+  ---
+  ---Opens the file with current line number
+  ---@field use_advanced_uri? boolean
+  ---
+  ---Function to do the opening, default to vim.ui.open
+  ---@field func? fun(uri: string)
+  open = {
+    use_advanced_uri = false,
+    func = vim.ui.open,
+  },
 
   picker = {
     -- Set your preferred picker. Can be one of 'telescope.nvim', 'fzf-lua', 'mini.pick' or 'snacks.pick'.
@@ -502,8 +476,8 @@ require("obsidian").setup {
   -- the cursor. Setting to `false` will get the backlinks for the current
   -- note instead. Doesn't affect other link behaviour.
   backlinks = {
-    parse_headers = true
-  }
+    parse_headers = true,
+  },
 
   -- Optional, sort search results by "path", "modified", "accessed", or "created".
   -- The recommend value is "modified" and `true` for `sort_reversed`, which means, for example,
@@ -684,6 +658,10 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Anaritus"><img src="https://avatars.githubusercontent.com/u/61704392?v=4?s=100" width="100px;" alt="Anaritus"/><br /><sub><b>Anaritus</b></sub></a><br /><a href="#code-Anaritus" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mdavis36"><img src="https://avatars.githubusercontent.com/u/25917313?v=4?s=100" width="100px;" alt="Michael Davis"/><br /><sub><b>Michael Davis</b></sub></a><br /><a href="#code-mdavis36" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://brianrodri.com"><img src="https://avatars.githubusercontent.com/u/5094060?v=4?s=100" width="100px;" alt="Brian Rodriguez"/><br /><sub><b>Brian Rodriguez</b></sub></a><br /><a href="#code-brianrodri" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/carschandler"><img src="https://avatars.githubusercontent.com/u/92899389?v=4?s=100" width="100px;" alt="carschandler"/><br /><sub><b>carschandler</b></sub></a><br /><a href="#doc-carschandler" title="Documentation">📖</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://escapewindow.com"><img src="https://avatars.githubusercontent.com/u/826343?v=4?s=100" width="100px;" alt="Aki Sasaki"/><br /><sub><b>Aki Sasaki</b></sub></a><br /><a href="#code-escapewindow" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

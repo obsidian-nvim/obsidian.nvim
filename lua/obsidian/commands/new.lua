@@ -1,4 +1,4 @@
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 local log = require "obsidian.log"
 
 ---@param client obsidian.Client
@@ -9,7 +9,7 @@ return function(client, data)
   if data.args:len() > 0 then
     note = client:create_note { title = data.args, no_write = true }
   else
-    local title = util.input("Enter title or path (optional): ", { completion = "file" })
+    local title = api.input("Enter title or path (optional): ", { completion = "file" })
     if not title then
       log.warn "Aborted"
       return

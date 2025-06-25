@@ -1,5 +1,4 @@
 local Path = require "obsidian.path"
-local File = require("obsidian.async").File
 local abc = require "obsidian.abc"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
@@ -8,6 +7,7 @@ local search = require "obsidian.search"
 local iter = vim.iter
 local enumerate = util.enumerate
 local compat = require "obsidian.compat"
+local api = require "obsidian.api"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
@@ -170,7 +170,7 @@ end
 
 Note.should_save_frontmatter = function(self)
   local fname = self:fname()
-  return (fname ~= nil and not util.tbl_contains(SKIP_UPDATING_FRONTMATTER, fname))
+  return (fname ~= nil and not vim.list_contains(SKIP_UPDATING_FRONTMATTER, fname))
 end
 
 --- Check if a note has a given alias.
@@ -179,7 +179,7 @@ end
 ---
 ---@return boolean
 Note.has_alias = function(self, alias)
-  return util.tbl_contains(self.aliases, alias)
+  return vim.list_contains(self.aliases, alias)
 end
 
 --- Check if a note has a given tag.
@@ -188,7 +188,7 @@ end
 ---
 ---@return boolean
 Note.has_tag = function(self, tag)
-  return util.tbl_contains(self.tags, tag)
+  return vim.list_contains(self.tags, tag)
 end
 
 --- Add an alias to the note.
@@ -273,8 +273,6 @@ Note.from_file = function(path, opts)
   return Note.from_lines(io.lines(path), path, opts)
 end
 
--- TODO: used by find_notes_async, resolve_note_async, find_backlinks_async
-
 --- An async version of `.from_file()`, i.e. it needs to be called in an async context.
 ---
 ---@param path string|obsidian.Path
@@ -282,8 +280,10 @@ end
 ---
 ---@return obsidian.Note
 Note.from_file_async = function(path, opts)
-  local f = File.open(Path.new(path):resolve { strict = true })
-  local ok, res = pcall(Note.from_lines, f:lines(false), path, opts)
+  path = Path.new(path):resolve { strict = true }
+  local f = io.open(tostring(path), "r")
+  assert(f)
+  local ok, res = pcall(Note.from_lines, f:lines "*l", path, opts)
   f:close()
   if ok then
     return res
@@ -757,7 +757,7 @@ Note.save_to_buffer = function(self, opts)
     new_lines = {}
   end
 
-  if util.buffer_is_empty(bufnr) and self.title ~= nil then
+  if api.buffer_is_empty(bufnr) and self.title ~= nil then
     table.insert(new_lines, "# " .. self.title)
   end
 

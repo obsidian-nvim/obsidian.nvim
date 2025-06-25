@@ -250,6 +250,24 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "carschandler",
+      "name": "carschandler",
+      "avatar_url": "https://avatars.githubusercontent.com/u/92899389?v=4",
+      "profile": "https://github.com/carschandler",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "escapewindow",
+      "name": "Aki Sasaki",
+      "avatar_url": "https://avatars.githubusercontent.com/u/826343?v=4",
+      "profile": "https://escapewindow.com",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }

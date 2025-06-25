@@ -55,25 +55,18 @@ to another note.
 
 📈 **Status:** See note status in statusline like obsidian app.
 
-💅 **Syntax:** Additional markdown syntax highlighting, concealing, and
-extmarks for references, tags, and check-boxes.
-
-
-<https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687>
-
 
 KEYMAPS                                                     *obsidian-keymaps*
 
-These default keymaps will only be set if you are in a valid workspace and a
-markdown buffer:
+There’s only one default keymap, `<CR>` will:
 
-- `smart_action` is the most important one you will use, it is bind to `<CR>` by default, it will
-    - If cursor is on a link, follow the link
-    - If cursor is on a tag, show all notes with that tag in a picker
-    - If cursor is on a checkbox, toggle the checkbox
-    - If cursor is on a heading, cycle the fold of that heading
-- `gf`: Follow link under the cursor, falls back to normal vim `gf` if not on a link
-- `<leader>ch>`: Toggle check-boxes
+- If cursor is on a link, follow the link
+- If cursor is on a tag, show all notes with that tag in a picker
+- If cursor is on a checkbox, toggle the checkbox
+- If cursor is on a heading, cycle the fold of that heading
+
+For remapping and creating your own mappings, see Keymaps
+<https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps>
 
 
 COMMANDS                                                   *obsidian-commands*
@@ -235,7 +228,7 @@ Click for install snippet ~
         -- see above for full list of optional dependencies ☝️
       },
       ---@module 'obsidian'
-      ---@type obsidian.config.ClientOpts
+      ---@type obsidian.config
       opts = {
         workspaces = {
           {
@@ -366,32 +359,8 @@ Click to see configuration options ~
         blink = false,
         -- Trigger completion at 2 chars.
         min_chars = 2,
-      },
-    
-      -- Optional, configure key mappings. These are the defaults. If you don't want to set any keymappings this
-      -- way then set 'mappings = {}'.
-      mappings = {
-        -- Overrides the 'gf' mapping to work on markdown/wiki links within your vault.
-        ["gf"] = {
-          action = function()
-            return require("obsidian").util.gf_passthrough()
-          end,
-          opts = { noremap = false, expr = true, buffer = true },
-        },
-        -- Toggle check-boxes.
-        ["<leader>ch"] = {
-          action = function()
-            return require("obsidian").util.toggle_checkbox()
-          end,
-          opts = { buffer = true },
-        },
-        -- Smart action depending on context: follow link, show notes with tag, toggle checkbox, or toggle heading fold
-        ["<cr>"] = {
-          action = function()
-            return require("obsidian").util.smart_action()
-          end,
-          opts = { buffer = true, expr = true },
-        },
+        -- Set to false to disable new note creation in the picker
+        create_new = true,
       },
     
       -- Where to put new notes. Valid options are
@@ -497,12 +466,17 @@ Click to see configuration options ~
         -- vim.ui.open(img, { cmd = { "loupe" } })
       end,
     
-      -- Optional, set to true if you use the Obsidian Advanced URI plugin.
-      -- https://github.com/Vinzent03/obsidian-advanced-uri
-      use_advanced_uri = false,
-    
-      -- Optional, set to true to force ':Obsidian open' to bring the app to the foreground.
-      open_app_foreground = false,
+      ---@class obsidian.config.OpenOpts
+      ---
+      ---Opens the file with current line number
+      ---@field use_advanced_uri? boolean
+      ---
+      ---Function to do the opening, default to vim.ui.open
+      ---@field func? fun(uri: string)
+      open = {
+        use_advanced_uri = false,
+        func = vim.ui.open,
+      },
     
       picker = {
         -- Set your preferred picker. Can be one of 'telescope.nvim', 'fzf-lua', 'mini.pick' or 'snacks.pick'.
@@ -527,8 +501,8 @@ Click to see configuration options ~
       -- the cursor. Setting to `false` will get the backlinks for the current
       -- note instead. Doesn't affect other link behaviour.
       backlinks = {
-        parse_headers = true
-      }
+        parse_headers = true,
+      },
     
       -- Optional, sort search results by "path", "modified", "accessed", or "created".
       -- The recommend value is "modified" and `true` for `sort_reversed`, which means, for example,
@@ -669,7 +643,7 @@ Please read the CONTRIBUTING
 <https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md>
 guide before submitting a pull request.
 
-neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻Anaritus💻Michael Davis💻Brian Rodriguez💻
+neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻Anaritus💻Michael Davis💻Brian Rodriguez💻carschandler📖Aki Sasaki💻
 ==============================================================================
 8. ❤️ Acknowledgement                    *obsidian-❤️-acknowledgement*
 
@@ -681,8 +655,7 @@ some coffee funds! <https://www.buymeacoffee.com/epwalsh>.
 9. Links                                                      *obsidian-links*
 
 1. *See this screenshot*: https://github.com/epwalsh/obsidian.nvim/assets/8812459/90d5f218-06cd-4ebb-b00b-b59c2f5c3cc1
-2. *See this screenshot*: https://github.com/epwalsh/obsidian.nvim/assets/8812459/e74f5267-21b5-49bc-a3bb-3b9db5fa6687
-3. *2024-01-31 14 22 52*: https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e
+2. *2024-01-31 14 22 52*: https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e
 
 Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 

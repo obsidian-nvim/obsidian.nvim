@@ -3,7 +3,7 @@ local async = require "plenary.async"
 local channel = require("plenary.async.control").channel
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local iter, uv = vim.iter, vim.uv
+local uv = vim.uv
 
 local M = {}
 
@@ -248,83 +248,6 @@ ThreadPoolExecutor.submit = function(self, fn, callback, ...)
   ctx:queue(...)
 end
 
----Represents a file.
----@class obsidian.File : obsidian.ABC
----@field fd userdata
-local File = abc.new_class()
-
-M.File = File
-
----@param path string|obsidian.Path
----@param mode string|?
----@return obsidian.File
-File.open = function(path, mode)
-  local self = File.init()
-  local err, fd = async.uv.fs_open(tostring(path), mode and mode or "r", 438)
-  assert(not err, err)
-  self.fd = fd
-  return self
-end
-
----Close the file.
----@param self obsidian.File
-File.close = function(self)
-  local err = async.uv.fs_close(self.fd)
-  assert(not err, err)
-end
-
----Get at iterator over lines in the file.
----@param include_new_line_char boolean|?
-File.lines = function(self, include_new_line_char)
-  local offset = 0
-  local chunk_size = 1024
-  local buffer = ""
-  local eof_reached = false
-
-  local lines = function()
-    local idx_s, idx_e = string.find(buffer, "\r?\n")
-    while idx_s == nil and not eof_reached do
-      ---@diagnostic disable-next-line: redefined-local
-      local err, data
-      err, data = async.uv.fs_read(self.fd, chunk_size, offset)
-      assert(not err, err)
-      if string.len(data) == 0 then
-        eof_reached = true
-      else
-        buffer = buffer .. data
-        offset = offset + string.len(data)
-        idx_s, idx_e = string.find(buffer, "\r?\n")
-      end
-    end
-
-    if idx_s ~= nil then
-      assert(idx_e)
-      local line = string.sub(buffer, 1, idx_s)
-      buffer = string.sub(buffer, idx_e + 1)
-      if include_new_line_char then
-        return line
-      else
-        return string.sub(line, 1, -2)
-      end
-    else
-      return nil
-    end
-  end
-
-  return lines
-end
-
----Write all lines to the file.
----@param lines string[]|function
-File.write_lines = function(self, lines)
-  for line in iter(lines) do
-    if not string.find(line, "[\r\n]") then
-      line = line .. "\n"
-    end
-    async.uv.fs_write(self.fd, line)
-  end
-end
-
 ---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
@@ -403,7 +326,7 @@ end
 M.throttle = function(fn, timeout)
   ---@type integer
   local last_call = 0
-  ---@type uv_timer_t|?
+  ---@type uv.uv_timer_t?
   local timer = nil
 
   return function(...)
@@ -445,7 +368,7 @@ end
 ---callback parameters with the results. This function returns those results.
 ---@param async_fn_with_callback function (function,) -> any
 ---@param timeout integer|?
----@return any results
+---@return ...any results
 M.block_on = function(async_fn_with_callback, timeout)
   local done = false
   local result

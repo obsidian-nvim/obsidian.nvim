@@ -1,4 +1,4 @@
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 local log = require "obsidian.log"
 
 ---@param client obsidian.Client
@@ -10,6 +10,7 @@ return function(client, data)
     return
   end
 
+  ---@type string?
   local title = table.concat(data.fargs, " ", 1, #data.fargs - 1)
   local template = data.fargs[#data.fargs]
 
@@ -20,7 +21,7 @@ return function(client, data)
   end
 
   if title == nil or title == "" then
-    title = util.input("Enter title or path (optional): ", { completion = "file" })
+    title = api.input("Enter title or path (optional): ", { completion = "file" })
     if not title then
       log.warn "Aborted"
       return

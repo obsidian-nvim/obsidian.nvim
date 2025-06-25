@@ -1,6 +1,6 @@
 local abc = require "obsidian.abc"
 local log = require "obsidian.log"
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 local strings = require "plenary.strings"
 local Note = require "obsidian.note"
 
@@ -466,7 +466,7 @@ Picker._make_display = function(self, entry)
       icon = entry.icon
       icon_hl = entry.icon_hl
     else
-      icon, icon_hl = util.get_icon(entry.filename)
+      icon, icon_hl = api.get_icon(entry.filename)
     end
 
     if icon ~= nil then
@@ -507,14 +507,13 @@ end
 ---@return string[]
 Picker._build_find_cmd = function(self)
   local search = require "obsidian.search"
-  local search_opts =
-    search.SearchOpts.from_tbl { sort_by = self.client.opts.sort_by, sort_reversed = self.client.opts.sort_reversed }
+  local search_opts = { sort_by = self.client.opts.sort_by, sort_reversed = self.client.opts.sort_reversed }
   return search.build_find_cmd(".", nil, search_opts)
 end
 
 Picker._build_grep_cmd = function(self)
   local search = require "obsidian.search"
-  local search_opts = search.SearchOpts.from_tbl {
+  local search_opts = {
     sort_by = self.client.opts.sort_by,
     sort_reversed = self.client.opts.sort_reversed,
     smart_case = true,

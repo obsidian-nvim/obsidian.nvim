@@ -2,7 +2,6 @@ local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.tags"
 local iter = vim.iter
 local obsidian = require "obsidian"
-local util = require "obsidian.util"
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
@@ -107,7 +106,7 @@ function TagsSourceBase:process_execute(item)
     -- TODO: ideally we should be able to do this by specifying the completion item in the right way,
     -- but I haven't figured out how to do that.
     local line = vim.api.nvim_buf_get_lines(item.data.bufnr, item.data.line, item.data.line + 1, true)[1]
-    line = util.string_replace(line, "#" .. item.data.tag, item.data.tag, 1)
+    line = string.gsub(line, vim.pesc("#" .. item.data.tag), item.data.tag, 1)
     vim.api.nvim_buf_set_lines(item.data.bufnr, item.data.line, item.data.line + 1, true, { line })
   end
 end

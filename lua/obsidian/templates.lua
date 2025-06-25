@@ -2,6 +2,7 @@ local obsidian = require "obsidian"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -72,7 +73,11 @@ M.substitute_template_variables = function(text, ctx)
 
   -- Replace known variables.
   for key, subst in pairs(methods) do
-    for m_start, m_end in util.gfind(text, "{{" .. key .. "}}", nil, true) do
+    while true do
+      local m_start, m_end = string.find(text, "{{" .. key .. "}}", nil, true)
+      if not m_start or not m_end then
+        break
+      end
       ---@type string
       local value
       if type(subst) == "string" then
@@ -88,8 +93,8 @@ M.substitute_template_variables = function(text, ctx)
 
   -- Find unknown variables and prompt for them.
   for m_start, m_end in util.gfind(text, "{{[^}]+}}") do
-    local key = util.strip_whitespace(string.sub(text, m_start + 2, m_end - 2))
-    local value = util.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
+    local key = vim.trim(string.sub(text, m_start + 2, m_end - 2))
+    local value = api.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
     if value and string.len(value) > 0 then
       text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
     end

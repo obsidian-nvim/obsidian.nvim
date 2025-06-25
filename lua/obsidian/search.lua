@@ -1,5 +1,4 @@
 local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
 local util = require "obsidian.util"
 local iter = vim.iter
 local run_job_async = require("obsidian.async").run_job_async
@@ -29,7 +28,7 @@ M.Patterns = {
   -- Tags
   TagCharsOptional = "[A-Za-z0-9_/-]*",
   TagCharsRequired = "[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+", -- assumes tag is at least 2 chars
-  Tag = "#[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+",
+  Tag = "%f[%S]#%f[%a][A-Za-z][A-Za-z0-9_-]*[A-Za-z0-9]", -- reference: https://help.obsidian.md/tags
 
   -- Miscellaneous
   Highlight = "==[^=]+==", -- ==text==
@@ -131,7 +130,7 @@ M.find_highlight = function(s)
     -- Remove highlights that begin/end with whitespace
     local match_start, match_end, _ = unpack(match)
     local text = string.sub(s, match_start + 2, match_end - 2)
-    if util.strip_whitespace(text) == text then
+    if vim.trim(text) == text then
       matches[#matches + 1] = match
     end
   end
@@ -176,11 +175,10 @@ end
 ---@return {[1]: integer, [2]: integer, [3]: obsidian.search.RefTypes}[]
 M.find_tags = function(s)
   local matches = {}
-  -- NOTE: we search over all reference types to make sure we're not including anchor links within
-  -- references, which otherwise look just like tags.
-  for match in iter(M.find_refs(s, { include_naked_urls = true, include_tags = true })) do
-    local _, _, m_type = unpack(match)
-    if m_type == M.RefTypes.Tag then
+  for match in iter(M.find_matches(s, { M.RefTypes.Tag })) do
+    local st, ed, m_type = unpack(match)
+    local match_string = s:sub(st, ed)
+    if m_type == M.RefTypes.Tag and not util.is_hex_color(match_string) then
       matches[#matches + 1] = match
     end
   end
@@ -265,7 +263,7 @@ M.find_code_blocks = function(lines)
   return blocks
 end
 
----@class obsidian.search.SearchOpts : obsidian.ABC
+---@class obsidian.search.SearchOpts
 ---
 ---@field sort_by obsidian.config.SortBy|?
 ---@field sort_reversed boolean|?
@@ -276,76 +274,73 @@ end
 ---@field max_count_per_file integer|?
 ---@field escape_path boolean|?
 ---@field include_non_markdown boolean|?
-local SearchOpts = abc.new_class {
-  __tostring = function(self)
-    return string.format("search.SearchOpts(%s)", vim.inspect(self:as_tbl()))
-  end,
-}
 
+local SearchOpts = {}
 M.SearchOpts = SearchOpts
 
----@param opts obsidian.search.SearchOpts|table<string, any>
----@return obsidian.search.SearchOpts
-SearchOpts.from_tbl = function(opts)
-  setmetatable(opts, SearchOpts.mt)
-  return opts
+SearchOpts.as_tbl = function(self)
+  local fields = {}
+  for k, v in pairs(self) do
+    if not vim.startswith(k, "__") then
+      fields[k] = v
+    end
+  end
+  return fields
 end
 
----@return obsidian.search.SearchOpts
-SearchOpts.default = function()
-  return SearchOpts.from_tbl {}
-end
-
+---@param one obsidian.search.SearchOpts|table
 ---@param other obsidian.search.SearchOpts|table
 ---@return obsidian.search.SearchOpts
-SearchOpts.merge = function(self, other)
-  return SearchOpts.from_tbl(vim.tbl_extend("force", self:as_tbl(), SearchOpts.from_tbl(other):as_tbl()))
+SearchOpts.merge = function(one, other)
+  return vim.tbl_extend("force", SearchOpts.as_tbl(one), SearchOpts.as_tbl(other))
 end
 
+---@param opts obsidian.search.SearchOpts
 ---@param path string
-SearchOpts.add_exclude = function(self, path)
-  if self.exclude == nil then
-    self.exclude = {}
+SearchOpts.add_exclude = function(opts, path)
+  if opts.exclude == nil then
+    opts.exclude = {}
   end
-  self.exclude[#self.exclude + 1] = path
+  opts.exclude[#opts.exclude + 1] = path
 end
 
+---@param opts obsidian.search.SearchOpts
 ---@return string[]
-SearchOpts.to_ripgrep_opts = function(self)
-  local opts = {}
+SearchOpts.to_ripgrep_opts = function(opts)
+  local ret = {}
 
-  if self.sort_by ~= nil then
+  if opts.sort_by ~= nil then
     local sort = "sortr" -- default sort is reverse
-    if self.sort_reversed == false then
+    if opts.sort_reversed == false then
       sort = "sort"
     end
-    opts[#opts + 1] = "--" .. sort .. "=" .. self.sort_by
+    ret[#ret + 1] = "--" .. sort .. "=" .. opts.sort_by
   end
 
-  if self.fixed_strings then
-    opts[#opts + 1] = "--fixed-strings"
+  if opts.fixed_strings then
+    ret[#ret + 1] = "--fixed-strings"
   end
 
-  if self.ignore_case then
-    opts[#opts + 1] = "--ignore-case"
+  if opts.ignore_case then
+    ret[#ret + 1] = "--ignore-case"
   end
 
-  if self.smart_case then
-    opts[#opts + 1] = "--smart-case"
+  if opts.smart_case then
+    ret[#ret + 1] = "--smart-case"
   end
 
-  if self.exclude ~= nil then
-    assert(type(self.exclude) == "table")
-    for path in iter(self.exclude) do
-      opts[#opts + 1] = "-g!" .. path
+  if opts.exclude ~= nil then
+    assert(type(opts.exclude) == "table")
+    for path in iter(opts.exclude) do
+      ret[#ret + 1] = "-g!" .. path
     end
   end
 
-  if self.max_count_per_file ~= nil then
-    opts[#opts + 1] = "-m=" .. self.max_count_per_file
+  if opts.max_count_per_file ~= nil then
+    ret[#ret + 1] = "-m=" .. opts.max_count_per_file
   end
 
-  return opts
+  return ret
 end
 
 ---@param dir string|obsidian.Path
@@ -354,7 +349,7 @@ end
 ---
 ---@return string[]
 M.build_search_cmd = function(dir, term, opts)
-  opts = SearchOpts.from_tbl(opts and opts or {})
+  opts = opts and opts or {}
 
   local search_terms
   if type(term) == "string" then
@@ -374,7 +369,7 @@ M.build_search_cmd = function(dir, term, opts)
 
   return compat.flatten {
     M._SEARCH_CMD,
-    opts:to_ripgrep_opts(),
+    SearchOpts.to_ripgrep_opts(opts),
     search_terms,
     path,
   }
@@ -388,7 +383,7 @@ end
 ---
 ---@return string[]
 M.build_find_cmd = function(path, term, opts)
-  opts = SearchOpts.from_tbl(opts and opts or {})
+  opts = opts and opts or {}
 
   local additional_opts = {}
 
@@ -415,7 +410,7 @@ M.build_find_cmd = function(path, term, opts)
     additional_opts[#additional_opts + 1] = path
   end
 
-  return compat.flatten { M._FIND_CMD, opts:to_ripgrep_opts(), additional_opts }
+  return compat.flatten { M._FIND_CMD, SearchOpts.to_ripgrep_opts(opts), additional_opts }
 end
 
 --- Build the 'rg' grep command for pickers.
@@ -424,11 +419,11 @@ end
 ---
 ---@return string[]
 M.build_grep_cmd = function(opts)
-  opts = SearchOpts.from_tbl(opts and opts or {})
+  opts = opts and opts or {}
 
   return compat.flatten {
     M._BASE_CMD,
-    opts:to_ripgrep_opts(),
+    SearchOpts.to_ripgrep_opts(opts),
     "--column",
     "--line-number",
     "--no-heading",
@@ -455,7 +450,7 @@ end
 ---
 ---@field path MatchPath
 ---@field lines MatchText
----@field line_number integer
+---@field line_number integer 0-indexed
 ---@field absolute_offset integer
 ---@field submatches SubMatch[]
 

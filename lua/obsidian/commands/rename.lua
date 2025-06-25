@@ -1,11 +1,11 @@
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
-local File = require("obsidian.async").File
 local log = require "obsidian.log"
 local search = require "obsidian.search"
 local util = require "obsidian.util"
 local compat = require "obsidian.compat"
+local api = require "obsidian.api"
 local enumerate, zip = util.enumerate, util.zip
 
 ---@param client obsidian.Client
@@ -45,7 +45,7 @@ return function(client, data)
     is_current_buf = false
     cur_note_id = tostring(cur_note.id)
     cur_note_path = cur_note.path
-    for bufnr, bufpath in util.get_named_buffers() do
+    for bufnr, bufpath in api.get_named_buffers() do
       if bufpath == cur_note_path then
         cur_note_bufnr = bufnr
         break
@@ -64,9 +64,9 @@ return function(client, data)
   end
 
   if data.args ~= nil and string.len(data.args) > 0 then
-    arg = util.strip_whitespace(data.args)
+    arg = vim.trim(data.args)
   else
-    arg = util.input("Enter new note ID/name/path: ", { completion = "file", default = cur_note_id })
+    arg = api.input("Enter new note ID/name/path: ", { completion = "file", default = cur_note_id })
     if not arg or string.len(arg) == 0 then
       log.warn "Rename aborted"
       return
@@ -75,7 +75,7 @@ return function(client, data)
 
   if vim.endswith(arg, " --dry-run") then
     dry_run = true
-    arg = util.strip_whitespace(string.sub(arg, 1, -string.len " --dry-run" - 1))
+    arg = vim.trim(string.sub(arg, 1, -string.len " --dry-run" - 1))
   end
 
   assert(cur_note_path)
@@ -108,7 +108,7 @@ return function(client, data)
   -- Get confirmation before continuing.
   local confirmation
   if not dry_run then
-    confirmation = util.confirm(
+    confirmation = api.confirm(
       "Renaming '"
         .. cur_note_id
         .. "' to '"
@@ -122,7 +122,7 @@ return function(client, data)
         .. "Do you want to continue?"
     )
   else
-    confirmation = util.confirm(
+    confirmation = api.confirm(
       "Dry run: renaming '" .. cur_note_id .. "' to '" .. new_note_id .. "'...\n" .. "Do you want to continue?"
     )
   end
@@ -235,17 +235,18 @@ return function(client, data)
   local replacement_count = 0
   local all_tasks_submitted = false
 
-  ---@param path string|obsidian.Path
+  ---@param path string
   ---@return integer
   local function replace_refs(path)
     --- Read lines, replacing refs as we go.
     local count = 0
     local lines = {}
-    local f = File.open(tostring(path), "r")
-    for line_num, line in enumerate(f:lines(true)) do
+    local f = io.open(path, "r")
+    assert(f)
+    for line_num, line in enumerate(f:lines "*L") do
       for ref, replacement in zip(reference_forms, replace_with) do
         local n
-        line, n = util.string_replace(line, ref, replacement)
+        line, n = string.gsub(line, vim.pesc(ref), replacement)
         if dry_run and n > 0 then
           log.info(
             "Dry run: '"
@@ -269,8 +270,9 @@ return function(client, data)
 
     --- Write the new lines back.
     if not dry_run and count > 0 then
-      f = File.open(tostring(path), "w")
-      f:write_lines(lines)
+      f = io.open(path, "w")
+      assert(f)
+      f:write(unpack(lines))
       f:close()
     end
 
@@ -278,7 +280,7 @@ return function(client, data)
   end
 
   local function on_search_match(match)
-    local path = Path.new(match.path.text):resolve { strict = true }
+    local path = tostring(Path.new(match.path.text):resolve { strict = true })
     file_count = file_count + 1
     executor:submit(replace_refs, function(count)
       replacement_count = replacement_count + count
@@ -288,7 +290,7 @@ return function(client, data)
   search.search_async(
     client.dir,
     reference_forms,
-    search.SearchOpts.from_tbl { fixed_strings = true, max_count_per_file = 1 },
+    { fixed_strings = true, max_count_per_file = 1 },
     on_search_match,
     function(_)
       all_tasks_submitted = true
