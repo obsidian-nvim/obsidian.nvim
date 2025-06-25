@@ -135,7 +135,7 @@ end
 ---@param self obsidian.pickers.TelescopePicker
 ---@param prompt_title string
 ---@param opts obsidian.PickerFindOpts
----@return Picker
+---@return obsidian.Picker
 local create_cache_picker = function(self, prompt_title, opts)
   local pickers = require "telescope.pickers"
   local finders = require "telescope.finders"
