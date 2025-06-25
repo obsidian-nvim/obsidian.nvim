@@ -134,9 +134,6 @@ For remapping and creating your own mappings, see [Keymaps](https://github.com/o
   - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:Obsidian paste_img`.
   - **Linux** users need xclip (X11) or wl-clipboard (Wayland) for `:Obsidian paste_img`.
 
-- Optional dependencies:
-  - Backend: [fd](https://github.com/sharkdp/fd), see [fd#installation](https://github.com/sharkdp/fd#installation) for `:Obsidian rebuild_cache`
-
 ### Plugin dependencies
 
 The only **required** plugin dependency is [plenary.nvim](https://github.com/nvim-lua/plenary.nvim), but there are a number of optional dependencies that enhance the obsidian.nvim experience.

@@ -539,21 +539,14 @@ end
 ---@param path string The path to the vault.
 ---@return string[]|? The path to the notes.
 M.get_all_notes_from_vault = function(path)
-  local handle = io.popen("fd -t file -a --base-directory " .. path)
-
-  if not handle then
-    log.err "Failed to execute command"
-    return nil
-  end
-
   local files = {}
 
-  for file in handle:lines() do
-    table.insert(files, file)
+  for name, t in vim.fs.dir(path, { depth = 10 }) do
+    if t == "file" and vim.endswith(name, ".md") then
+      local full_path = vim.fs.joinpath(path, name)
+      files[#files + 1] = full_path
+    end
   end
-
-  handle:close()
-
   return files
 end
 
@@ -561,21 +554,14 @@ end
 ---@param path string The path to the vault.
 ---@return string[]|? The path to the subfolders
 M.get_sub_dirs_from_vault = function(path)
-  local handle = io.popen("fd -t directory -a --base-directory " .. path)
-
-  if not handle then
-    log.err "Failed to execute command"
-    return nil
-  end
-
   local subdirs = {}
 
-  for dir in handle:lines() do
-    table.insert(subdirs, dir)
+  for name, t in vim.fs.dir(path, { depth = 10 }) do
+    if t == "directory" then
+      local full_path = vim.fs.joinpath(path, name)
+      subdirs[#subdirs + 1] = full_path
+    end
   end
-
-  handle:close()
-
   return subdirs
 end
 

@@ -212,6 +212,7 @@ TelescopePicker.find_files = function(self, opts)
   }
 
   if opts.use_cache then
+    ---@diagnostic disable-next-line: undefined-field
     create_cache_picker(self, prompt_title, opts):find()
   else
     telescope.find_files {
