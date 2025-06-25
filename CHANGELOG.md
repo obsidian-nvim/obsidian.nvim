@@ -21,10 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Remove `itertools.lua` in favor of `vim.iter`
-- Commands are now context sensitive (mode and if in note)
-- Remove `debug` command, and point user to `checkhealth obsidian`
+- Remove `itertools.lua` in favor of `vim.iter`.
+- Commands are now context sensitive (mode and if in note).
+- Remove `debug` command, and point user to `checkhealth obsidian`.
 - Remove `mappings.lua`, see: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps
+- Moved `daily` as its own module instead of client method.
 
 ### Fixed
 

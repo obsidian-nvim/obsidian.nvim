@@ -593,10 +593,11 @@ local function get_extmarks_autocmd_callback(ui_opts, throttle)
 end
 
 ---Manually update extmarks.
----@param ui_opts obsidian.config.UIOpts
+---
 ---@param bufnr integer|?
-M.update = function(ui_opts, bufnr)
+M.update = function(bufnr)
   bufnr = bufnr or 0
+  local ui_opts = require("obsidian").get_client().opts.ui
   if not should_update(ui_opts, bufnr) then
     return
   end

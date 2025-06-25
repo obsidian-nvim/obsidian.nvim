@@ -113,4 +113,122 @@ T["find_tags"]["should ignore tags in markdown links with parentheses"] = functi
   eq({}, M.find_tags(s))
 end
 
+T["find_code_blocks"] = new_set()
+
+T["find_code_blocks"]["should find generic code blocks"] = function()
+  ---@type string[]
+  local lines
+  local results = {
+    { 3, 6 },
+  }
+
+  -- no indentation
+  lines = {
+    "this is a python function:",
+    "",
+    "```",
+    "def foo():",
+    "    pass",
+    "```",
+    "",
+  }
+  eq(results, M.find_code_blocks(lines))
+
+  -- indentation
+  lines = {
+    "  this is a python function:",
+    "",
+    "  ```",
+    "  def foo():",
+    "      pass",
+    "  ```",
+    "",
+  }
+  eq(results, M.find_code_blocks(lines))
+end
+
+T["find_code_blocks"]["should find generic inline code blocks"] = function()
+  ---@type string[]
+  local lines
+  local results = {
+    { 3, 3 },
+  }
+
+  -- no indentation
+  lines = {
+    "this is a python function:",
+    "",
+    "```lambda x: x + 1```",
+    "",
+  }
+  eq(results, M.find_code_blocks(lines))
+
+  -- indentation
+  lines = {
+    "  this is a python function:",
+    "",
+    "  ```lambda x: x + 1```",
+    "",
+  }
+  eq(results, M.find_code_blocks(lines))
+end
+
+T["find_code_blocks"]["should find lang-specific code blocks"] = function()
+  ---@type string[]
+  local lines
+  local results = {
+    { 3, 6 },
+  }
+
+  -- no indentation
+  lines = {
+    "this is a python function:",
+    "",
+    "```python",
+    "def foo():",
+    "    pass",
+    "```",
+    "",
+  }
+  eq(results, M.find_code_blocks(lines))
+
+  -- indentation
+  lines = {
+    "  this is a python function:",
+    "",
+    "  ```",
+    "  def foo():",
+    "      pass",
+    "  ```",
+    "",
+  }
+  eq(results, M.find_code_blocks(lines))
+end
+
+T["find_code_blocks"]["should find lang-specific inline code blocks"] = function()
+  ---@type string[]
+  local lines
+  local results = {
+    { 3, 3 },
+  }
+
+  -- no indentation
+  lines = {
+    "this is a python function:",
+    "",
+    "```{python} lambda x: x + 1```",
+    "",
+  }
+  eq(results, M.find_code_blocks(lines))
+
+  -- indentation
+  lines = {
+    "  this is a python function:",
+    "",
+    "  ```{python} lambda x: x + 1```",
+    "",
+  }
+  eq(results, M.find_code_blocks(lines))
+end
+
 return T

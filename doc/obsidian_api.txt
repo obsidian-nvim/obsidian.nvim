@@ -155,18 +155,6 @@ Return ~
 `(boolean)`
 
 ------------------------------------------------------------------------------
-                                                     *obsidian.Client.command()*
-                `Client.command`({self}, {cmd_name}, {cmd_data})
-Run an obsidian command directly.
-
-Usage ~
-`client:command("new", { args = "Foo" })`
-
-Parameters ~
-{cmd_name} `(string)` The name of the command.
-{cmd_data} `(table|? The)` payload for the command.
-
-------------------------------------------------------------------------------
                                              *obsidian.Client.search_defaults()*
                            `Client.search_defaults`()
 Get the default search options.
@@ -571,61 +559,6 @@ Return ~
 `(boolean)` updated If the the frontmatter was updated.
 
 ------------------------------------------------------------------------------
-                                             *obsidian.Client.daily_note_path()*
-                  `Client.daily_note_path`({self}, {datetime})
-Get the path to a daily note.
-
-Parameters ~
-{datetime} `(integer|)`?
-
-Return ~
-`(obsidian.Path)`, string (Path, ID) The path and ID of the note.
-
-------------------------------------------------------------------------------
-                                                       *obsidian.Client.today()*
-                             `Client.today`({self})
-Open (or create) the daily note for today.
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                                   *obsidian.Client.yesterday()*
-                           `Client.yesterday`({self})
-Open (or create) the daily note from the last day.
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                                    *obsidian.Client.tomorrow()*
-                           `Client.tomorrow`({self})
-Open (or create) the daily note for the next day.
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                                       *obsidian.Client.daily()*
-                 `Client.daily`({self}, {offset_days}, {opts})
-Open (or create) the daily note for today + `offset_days`.
-
-Parameters ~
-{offset_days} `(integer|)`?
-{opts} `({ no_write: boolean|?, load: obsidian.note.LoadOpts|? }|)`?
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                                   *obsidian.Client.update_ui()*
-                      `Client.update_ui`({self}, {bufnr})
-Manually update extmarks in a buffer.
-
-Parameters ~
-{bufnr} `(integer|)`?
-
-------------------------------------------------------------------------------
                                                  *obsidian.Client.format_link()*
                   `Client.format_link`({self}, {note}, {opts})
 Create a formatted markdown / wiki link for a note.
@@ -647,11 +580,6 @@ Parameters ~
 
 Return ~
 `(obsidian.Picker| `(optional))``
-
-------------------------------------------------------------------------------
-                                                  *obsidian.Client.statusline()*
-                          `Client.statusline`({self})
-Register the global variable that updates itself
 
 ------------------------------------------------------------------------------
 Class ~

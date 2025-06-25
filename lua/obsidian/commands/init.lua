@@ -228,7 +228,7 @@ M.register("new", { nargs = "?" })
 
 M.register("open", { nargs = "?", complete = M.note_complete })
 
-M.register("tags", { nargs = "*", range = true })
+M.register("tags", { nargs = "*" })
 
 M.register("search", { nargs = "?" })
 

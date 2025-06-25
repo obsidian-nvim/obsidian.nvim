@@ -97,13 +97,11 @@ end
 ---@param t table
 ---@return any[]
 util.tbl_unique = function(t)
-  local out = {}
+  local found = {}
   for _, val in pairs(t) do
-    if not vim.list_contains(out, val) then
-      out[#out + 1] = val
-    end
+    found[val] = true
   end
-  return out
+  return vim.tbl_keys(found)
 end
 
 --- Clear all values from a table.

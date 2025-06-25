@@ -3,6 +3,10 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
+T["tbl_unique"] = function()
+  eq(#M.tbl_unique { "hi", "hey", "hi", "hi" }, 2)
+end
+
 T["match_case"] = new_set()
 
 T["match_case"]["should match case of key to prefix"] = function()

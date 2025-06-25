@@ -1,6 +1,5 @@
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local search = require "obsidian.search"
 local api = require "obsidian.api"
 
 ---@param client obsidian.Client
@@ -60,22 +59,9 @@ return function(client, data)
   local tags = data.fargs or {}
 
   if vim.tbl_isempty(tags) then
-    -- Check for visual selection.
-    local viz = api.get_visual_selection { strict = true }
-    if viz and #viz.lines == 1 and string.match(viz.selection, "^#?" .. search.Patterns.TagCharsRequired .. "$") then
-      local tag = viz.selection
-
-      if vim.startswith(tag, "#") then
-        tag = string.sub(tag, 2)
-      end
-
+    local tag = api.cursor_tag()
+    if tag then
       tags = { tag }
-    else
-      -- Otherwise check for a tag under the cursor.
-      local tag = api.cursor_tag()
-      if tag then
-        tags = { tag }
-      end
     end
   end
 
