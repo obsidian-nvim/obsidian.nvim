@@ -1,6 +1,6 @@
-local api = require "obsidian.api"
 local log = require "obsidian.log"
 local templates = require "obsidian.templates"
+local util = require "obsidian.util"
 
 ---@param client obsidian.Client
 ---@param data CommandArgs
