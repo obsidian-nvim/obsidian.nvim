@@ -194,11 +194,11 @@ Path.temp = function(opts)
   return Path.new(tmpname)
 end
 
---- Get a path corresponding to the current working directory as given by `vim.loop.cwd()`.
+--- Get a path corresponding to the current working directory as given by `vim.uv.cwd()`.
 ---
 ---@return obsidian.Path
 Path.cwd = function()
-  return assert(Path.new(vim.loop.cwd()))
+  return assert(Path.new(vim.uv.cwd()))
 end
 
 --- Get a path corresponding to a buffer.
@@ -255,11 +255,11 @@ end
 ---
 ---@return boolean
 Path.is_absolute = function(self)
-  local util = require "obsidian.util"
+  local api = require "obsidian.api"
   if
     vim.startswith(self.filename, "/")
     or (
-      (util.get_os() == util.OSType.Windows or util.get_os() == util.OSType.Wsl)
+      (api.get_os() == api.OSType.Windows or api.get_os() == api.OSType.Wsl)
       and string.match(self.filename, "^[%a]:/.*$")
     )
   then
@@ -345,6 +345,12 @@ Path.is_parent_of = function(self, other)
   return false
 end
 
+---@private
+Path.abspath = function(self)
+  local abspath = vim.fs.abspath and vim.fs.abspath or vim.fs.realpath
+  return abspath(tostring(self))
+end
+
 -------------------------------------------------------------------------------
 --- Concrete path methods.
 -------------------------------------------------------------------------------
@@ -358,7 +364,7 @@ end
 Path.resolve = function(self, opts)
   opts = opts or {}
 
-  local realpath = vim.fs.abspath(tostring(self))
+  local realpath = self:abspath()
   if realpath then
     return Path.new(realpath)
   elseif opts.strict then
@@ -369,7 +375,7 @@ Path.resolve = function(self, opts)
   -- does exist, and then put the path back together from there.
   local parents = self:parents()
   for _, parent in ipairs(parents) do
-    local parent_realpath = vim.fs.abspath(tostring(parent))
+    local parent_realpath = parent:abspath()
     if parent_realpath then
       return Path.new(parent_realpath) / self:relative_to(parent)
     end
@@ -382,9 +388,9 @@ end
 ---
 ---@return table|?
 Path.stat = function(self)
-  local realpath = vim.fs.abspath(tostring(self))
+  local realpath = self:abspath()
   if realpath then
-    local stat, _ = vim.loop.fs_stat(realpath)
+    local stat, _ = vim.uv.fs_stat(realpath)
     return stat
   end
 end
@@ -441,7 +447,7 @@ Path.mkdir = function(self, opts)
     end
   end
 
-  if vim.loop.fs_mkdir(self.filename, mode) then
+  if vim.uv.fs_mkdir(self.filename, mode) then
     return
   end
 
@@ -467,38 +473,15 @@ Path.rmdir = function(self)
     return
   end
 
-  local ok, err_name, err_msg = vim.loop.fs_rmdir(resolved.filename)
+  local ok, err_name, err_msg = vim.uv.fs_rmdir(resolved.filename)
   if not ok then
     error(err_name .. ": " .. err_msg)
   end
 end
 
+-- TODO: not implemented and not used, after we get to 0.11 we can simply use vim.fs.rm
 --- Recursively remove an entire directory and its contents.
-Path.rmtree = function(self)
-  local scan = require "plenary.scandir"
-
-  local resolved = self:resolve { strict = true }
-  if not resolved:is_dir() then
-    error("NotADirectoryError: " .. resolved.filename)
-  end
-
-  -- First unlink all files.
-  scan.scan_dir(resolved.filename, {
-    hidden = true,
-    on_insert = function(file)
-      Path.new(file):unlink()
-    end,
-  })
-
-  -- Now iterate backwards to clean up remaining dirs.
-  local dirs = scan.scan_dir(resolved.filename, { add_dirs = true, hidden = true })
-  for i = #dirs, 1, -1 do
-    Path.new(dirs[i]):rmdir()
-  end
-
-  -- And finally remove the top level dir.
-  resolved:rmdir()
-end
+Path.rmtree = function(self) end
 
 --- Create a file at this given path.
 ---
@@ -510,7 +493,7 @@ Path.touch = function(self, opts)
   local resolved = self:resolve { strict = false }
   if resolved:exists() then
     local new_time = os.time()
-    vim.loop.fs_utime(resolved.filename, new_time, new_time)
+    vim.uv.fs_utime(resolved.filename, new_time, new_time)
     return
   end
 
@@ -519,11 +502,11 @@ Path.touch = function(self, opts)
     error("FileNotFoundError: " .. parent.filename)
   end
 
-  local fd, err_name, err_msg = vim.loop.fs_open(resolved.filename, "w", mode)
+  local fd, err_name, err_msg = vim.uv.fs_open(resolved.filename, "w", mode)
   if not fd then
     error(err_name .. ": " .. err_msg)
   end
-  vim.loop.fs_close(fd)
+  vim.uv.fs_close(fd)
 end
 
 --- Rename this file or directory to the given target.
@@ -535,7 +518,7 @@ Path.rename = function(self, target)
   local resolved = self:resolve { strict = false }
   target = Path.new(target)
 
-  local ok, err_name, err_msg = vim.loop.fs_rename(resolved.filename, target.filename)
+  local ok, err_name, err_msg = vim.uv.fs_rename(resolved.filename, target.filename)
   if not ok then
     error(err_name .. ": " .. err_msg)
   end
@@ -558,7 +541,7 @@ Path.unlink = function(self, opts)
     return
   end
 
-  local ok, err_name, err_msg = vim.loop.fs_unlink(resolved.filename)
+  local ok, err_name, err_msg = vim.uv.fs_unlink(resolved.filename)
   if not ok then
     error(err_name .. ": " .. err_msg)
   end

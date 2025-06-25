@@ -1,5 +1,5 @@
 local log = require "obsidian.log"
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 
 ---Extract the selected text into a new note
 ---and replace the selection with a link to the new note.
@@ -7,9 +7,9 @@ local util = require "obsidian.util"
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)
-  local viz = util.get_visual_selection()
+  local viz = api.get_visual_selection()
   if not viz then
-    log.err "ObsidianExtractNote must be called with visual selection"
+    log.err "Obsidian extract_note must be called with visual selection"
     return
   end
 
@@ -18,9 +18,9 @@ return function(client, data)
   ---@type string|?
   local title
   if data.args ~= nil and string.len(data.args) > 0 then
-    title = util.strip_whitespace(data.args)
+    title = vim.trim(data.args)
   else
-    title = util.input "Enter title (optional): "
+    title = api.input "Enter title (optional): "
     if not title then
       log.warn "Aborted"
       return
@@ -35,7 +35,8 @@ return function(client, data)
   -- replace selection with link to new note
   local link = client:format_link(note)
   vim.api.nvim_buf_set_text(0, viz.csrow - 1, viz.cscol - 1, viz.cerow - 1, viz.cecol, { link })
-  client:update_ui(0)
+
+  require("obsidian.ui").update(0)
 
   -- add the selected text to the end of the new note
   client:open_note(note, { sync = true })

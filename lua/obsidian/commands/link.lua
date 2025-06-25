@@ -1,10 +1,10 @@
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 local log = require "obsidian.log"
 
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)
-  local viz = util.get_visual_selection()
+  local viz = api.get_visual_selection()
   if not viz then
     log.err "ObsidianLink must be called with visual selection"
     return
@@ -29,7 +29,7 @@ return function(client, data)
       .. client:format_link(note, { label = viz.selection })
       .. string.sub(line, viz.cecol + 1)
     vim.api.nvim_buf_set_lines(0, viz.csrow - 1, viz.csrow, false, { new_line })
-    client:update_ui()
+    require("obsidian.ui").update(0)
   end
 
   client:resolve_note_async_with_picker_fallback(search_term, function(note)

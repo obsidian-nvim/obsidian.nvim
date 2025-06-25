@@ -2,6 +2,7 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
+local api = require "obsidian.api"
 
 local M = {}
 local restore_client_key = "__restore_client_key"
@@ -9,15 +10,10 @@ local restore_client_key = "__restore_client_key"
 --- Resolve a template name to a path.
 ---
 ---@param template_name string|obsidian.Path
----@param client obsidian.Client
+---@param templates_dir obsidian.Path
 ---
 ---@return obsidian.Path
-local resolve_template = function(template_name, client)
-  local templates_dir = client:templates_dir()
-  if templates_dir == nil then
-    error "Templates folder is not defined or does not exist"
-  end
-
+local resolve_template = function(template_name, templates_dir)
   ---@type obsidian.Path|?
   local template_path
   local paths_to_check = { templates_dir / tostring(template_name), Path:new(template_name) }
@@ -44,48 +40,51 @@ end
 --- Substitute variables inside the given text.
 ---
 ---@param text string
----@param client obsidian.Client
----@param note obsidian.Note
+---@param ctx obsidian.TemplateContext
 ---
 ---@return string
-M.substitute_template_variables = function(text, client, note)
-  local methods = vim.deepcopy(client.opts.templates.substitutions or {})
+M.substitute_template_variables = function(text, ctx)
+  local methods = vim.deepcopy(ctx.template_opts.substitutions or {})
 
   if not methods["date"] then
     methods["date"] = function()
-      local date_format = client.opts.templates.date_format or "%Y-%m-%d"
+      local date_format = ctx.template_opts.date_format or "%Y-%m-%d"
       return tostring(os.date(date_format))
     end
   end
 
   if not methods["time"] then
     methods["time"] = function()
-      local time_format = client.opts.templates.time_format or "%H:%M"
+      local time_format = ctx.template_opts.time_format or "%H:%M"
       return tostring(os.date(time_format))
     end
   end
 
-  if not methods["title"] then
-    methods["title"] = note.title or note:display_name()
+  if not methods["title"] and ctx.partial_note then
+    methods["title"] = ctx.partial_note.title or ctx.partial_note:display_name()
   end
 
-  if not methods["id"] then
-    methods["id"] = tostring(note.id)
+  if not methods["id"] and ctx.partial_note then
+    methods["id"] = tostring(ctx.partial_note.id)
   end
 
-  if not methods["path"] and note.path then
-    methods["path"] = tostring(note.path)
+  if not methods["path"] and ctx.partial_note and ctx.partial_note.path then
+    methods["path"] = tostring(ctx.partial_note.path)
   end
 
   -- Replace known variables.
   for key, subst in pairs(methods) do
-    for m_start, m_end in util.gfind(text, "{{" .. key .. "}}", nil, true) do
+    while true do
+      local m_start, m_end = string.find(text, "{{" .. key .. "}}", nil, true)
+      if not m_start or not m_end then
+        break
+      end
       ---@type string
       local value
       if type(subst) == "string" then
         value = subst
       else
-        value = subst()
+        value = subst(ctx)
         -- cache the result
         methods[key] = value
       end
@@ -95,8 +94,8 @@ M.substitute_template_variables = function(text, client, note)
 
   -- Find unknown variables and prompt for them.
   for m_start, m_end in util.gfind(text, "{{[^}]+}}") do
-    local key = util.strip_whitespace(string.sub(text, m_start + 2, m_end - 2))
-    local value = util.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
+    local key = vim.trim(string.sub(text, m_start + 2, m_end - 2))
+    local value = api.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
     if value and string.len(value) > 0 then
       text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
     end
@@ -107,14 +106,14 @@ end
 
 --- Clone template to a new note.
 ---
----@param opts { template_name: string|obsidian.Path, path: obsidian.Path|string, client: obsidian.Client, note: obsidian.Note } Options.
+---@param ctx obsidian.CloneTemplateContext
 ---
 ---@return obsidian.Note
-M.clone_template = function(opts)
-  local note_path = Path.new(opts.path)
+M.clone_template = function(ctx)
+  local note_path = Path.new(ctx.destination_path)
   assert(note_path:parent()):mkdir { parents = true, exist_ok = true }
 
-  local template_path = resolve_template(opts.template_name, opts.client)
+  local template_path = resolve_template(ctx.template_name, ctx.templates_dir)
 
   local template_file, read_err = io.open(tostring(template_path), "r")
   if not template_file then
@@ -127,7 +126,7 @@ M.clone_template = function(opts)
   end
 
   for line in template_file:lines "L" do
-    line = M.substitute_template_variables(line, opts.client, opts.note)
+    line = M.substitute_template_variables(line, ctx)
     note_file:write(line)
   end
 
@@ -136,16 +135,18 @@ M.clone_template = function(opts)
 
   local new_note = Note.from_file(note_path)
 
-  -- Transfer fields from `opts.note`.
-  new_note.id = opts.note.id
-  if new_note.title == nil then
-    new_note.title = opts.note.title
-  end
-  for _, alias in ipairs(opts.note.aliases) do
-    new_note:add_alias(alias)
-  end
-  for _, tag in ipairs(opts.note.tags) do
-    new_note:add_tag(tag)
+  if ctx.partial_note then
+    -- Transfer fields from `ctx.partial_note`.
+    new_note.id = ctx.partial_note.id
+    if new_note.title == nil then
+      new_note.title = ctx.partial_note.title
+    end
+    for _, alias in ipairs(ctx.partial_note.aliases) do
+      new_note:add_alias(alias)
+    end
+    for _, tag in ipairs(ctx.partial_note.tags) do
+      new_note:add_tag(tag)
+    end
   end
 
   return new_note
@@ -153,23 +154,23 @@ end
 
 ---Insert a template at the given location.
 ---
----@param opts { note: obsidian.Note|?, template_name: string|obsidian.Path, client: obsidian.Client, location: { [1]: integer, [2]: integer, [3]: integer, [4]: integer } } Options.
+---@param ctx obsidian.InsertTemplateContext
 ---
 ---@return obsidian.Note
-M.insert_template = function(opts)
-  local buf, win, row, _ = unpack(opts.location)
-  if opts.note == nil then
-    opts.note = Note.from_buffer(buf)
+M.insert_template = function(ctx)
+  local buf, win, row, _ = unpack(ctx.location)
+  if ctx.partial_note == nil then
+    ctx.partial_note = Note.from_buffer(buf)
   end
 
-  local template_path = resolve_template(opts.template_name, opts.client)
+  local template_path = resolve_template(ctx.template_name, ctx.templates_dir)
 
   local insert_lines = {}
   local template_file = io.open(tostring(template_path), "r")
   if template_file then
     local lines = template_file:lines()
     for line in lines do
-      local new_lines = M.substitute_template_variables(line, opts.client, opts.note)
+      local new_lines = M.substitute_template_variables(line, ctx)
       if string.find(new_lines, "[\r\n]") then
         local line_start = 1
         for line_end in util.gfind(new_lines, "[\r\n]") do
@@ -194,7 +195,7 @@ M.insert_template = function(opts)
   local new_cursor_row, _ = unpack(vim.api.nvim_win_get_cursor(win))
   vim.api.nvim_win_set_cursor(0, { new_cursor_row, 0 })
 
-  opts.client:update_ui(0)
+  require("obsidian.ui").update(0)
 
   return Note.from_buffer(buf)
 end
@@ -204,8 +205,7 @@ end
 --- @param template_name string The template name
 --- @param client obsidian.Client The client
 M.load_template_customizations = function(template_name, client)
-  local success, template_path = pcall(resolve_template, template_name, client)
-
+  local success, template_path = pcall(resolve_template, template_name, client:templates_dir())
   if not success then
     return
   end

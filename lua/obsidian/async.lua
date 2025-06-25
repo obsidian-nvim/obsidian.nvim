@@ -1,11 +1,9 @@
-local Job = require "plenary.job"
 local abc = require "obsidian.abc"
 local async = require "plenary.async"
 local channel = require("plenary.async.control").channel
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local iter = vim.iter
-local uv = vim.loop
+local uv = vim.uv
 
 local M = {}
 
@@ -250,148 +248,77 @@ ThreadPoolExecutor.submit = function(self, fn, callback, ...)
   ctx:queue(...)
 end
 
----Represents a file.
----@class obsidian.File : obsidian.ABC
----@field fd userdata
-local File = abc.new_class()
-
-M.File = File
-
----@param path string|obsidian.Path
----@param mode string|?
----@return obsidian.File
-File.open = function(path, mode)
-  local self = File.init()
-  local err, fd = async.uv.fs_open(tostring(path), mode and mode or "r", 438)
-  assert(not err, err)
-  self.fd = fd
-  return self
-end
-
----Close the file.
----@param self obsidian.File
-File.close = function(self)
-  local err = async.uv.fs_close(self.fd)
-  assert(not err, err)
-end
-
----Get at iterator over lines in the file.
----@param include_new_line_char boolean|?
-File.lines = function(self, include_new_line_char)
-  local offset = 0
-  local chunk_size = 1024
-  local buffer = ""
-  local eof_reached = false
-
-  local lines = function()
-    local idx_s, idx_e = string.find(buffer, "\r?\n")
-    while idx_s == nil and not eof_reached do
-      ---@diagnostic disable-next-line: redefined-local
-      local err, data
-      err, data = async.uv.fs_read(self.fd, chunk_size, offset)
-      assert(not err, err)
-      if string.len(data) == 0 then
-        eof_reached = true
-      else
-        buffer = buffer .. data
-        offset = offset + string.len(data)
-        idx_s, idx_e = string.find(buffer, "\r?\n")
-      end
-    end
-
-    if idx_s ~= nil then
-      assert(idx_e)
-      local line = string.sub(buffer, 1, idx_s)
-      buffer = string.sub(buffer, idx_e + 1)
-      if include_new_line_char then
-        return line
-      else
-        return string.sub(line, 1, -2)
-      end
-    else
-      return nil
-    end
-  end
-
-  return lines
-end
-
----Write all lines to the file.
----@param lines string[]|function
-File.write_lines = function(self, lines)
-  for line in iter(lines) do
-    if not string.find(line, "[\r\n]") then
-      line = line .. "\n"
-    end
-    async.uv.fs_write(self.fd, line)
-  end
-end
-
----@param cmd string
----@param args string[]
+---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
----@return Job
-local init_job = function(cmd, args, on_stdout, on_exit)
+---@param sync boolean
+local init_job = function(cmds, on_stdout, on_exit, sync)
   local stderr_lines = false
 
-  log.debug("Initializing job '%s' with args '%s'", cmd, args)
+  local on_obj = function(obj)
+    --- NOTE: commands like `rg` return a non-zero exit code when there are no matches, which is okay.
+    --- So we only log no-zero exit codes as errors when there's also stderr lines.
+    if obj.code > 0 and stderr_lines then
+      log.err("Command '%s' exited with non-zero code %s. See logs for stderr.", cmds, obj.code)
+    elseif stderr_lines then
+      log.warn("Captured stderr output while running command '%s'. See logs for details.", cmds)
+    end
+    if on_exit ~= nil then
+      on_exit(obj.code)
+    end
+  end
 
-  return Job:new { ---@diagnostic disable-line: missing-fields
-    command = cmd,
-    args = args,
-    on_stdout = function(err, line)
-      if err ~= nil then
-        return log.err("Error running command '%s' with args '%s'\n:%s", cmd, args, err)
+  on_stdout = util.buffer_fn(on_stdout)
+
+  local function stdout(err, data)
+    if err ~= nil then
+      return log.err("Error running command '%s'\n:%s", cmds, err)
+    end
+    if data ~= nil then
+      on_stdout(data)
+    end
+  end
+
+  local function stderr(err, data)
+    if err then
+      return log.err("Error running command '%s'\n:%s", cmds, err)
+    elseif data ~= nil then
+      if not stderr_lines then
+        log.err("Captured stderr output while running command '%s'", cmds)
+        stderr_lines = true
       end
-      if on_stdout ~= nil then
-        on_stdout(line)
-      end
-    end,
-    on_stderr = function(err, line)
-      if err then
-        return log.err("Error running command '%s' with args '%s'\n:%s", cmd, args, err)
-      elseif line ~= nil then
-        if not stderr_lines then
-          log.err("Captured stderr output while running command '%s' with args '%s'", cmd, args)
-          stderr_lines = true
-        end
-        log.err("[stderr] %s", line)
-      end
-    end,
-    on_exit = function(_, code, _)
-      --- NOTE: commands like `rg` return a non-zero exit code when there are no matches, which is okay.
-      --- So we only log no-zero exit codes as errors when there's also stderr lines.
-      if code > 0 and stderr_lines then
-        log.err("Command '%s' with args '%s' exited with non-zero code %s. See logs for stderr.", cmd, args, code)
-      elseif stderr_lines then
-        log.warn("Captured stderr output while running command '%s' with args '%s'. See logs for details.", cmd, args)
-      end
-      if on_exit ~= nil then
-        on_exit(code)
-      end
-    end,
-  }
+      log.err("[stderr] %s", data)
+    end
+  end
+
+  return function()
+    log.debug("Initializing job '%s'", cmds)
+
+    if sync then
+      local obj = vim.system(cmds, { stdout = stdout, stderr = stderr }):wait()
+      on_obj(obj)
+      return obj
+    else
+      vim.system(cmds, { stdout = stdout, stderr = stderr }, on_obj)
+    end
+  end
 end
 
----@param cmd string
----@param args string[]
+---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
 ---@return integer exit_code
-M.run_job = function(cmd, args, on_stdout, on_exit)
-  local job = init_job(cmd, args, on_stdout, on_exit)
-  job:sync()
-  return job.code
+M.run_job = function(cmds, on_stdout, on_exit)
+  local job = init_job(cmds, on_stdout, on_exit, true)
+  return job().code
 end
 
----@param cmd string
----@param args string[]
+---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
-M.run_job_async = function(cmd, args, on_stdout, on_exit)
-  local job = init_job(cmd, args, on_stdout, on_exit)
-  job:start()
+M.run_job_async = function(cmds, on_stdout, on_exit)
+  local job = init_job(cmds, on_stdout, on_exit, false)
+  job()
 end
 
 ---@param fn function
@@ -399,7 +326,7 @@ end
 M.throttle = function(fn, timeout)
   ---@type integer
   local last_call = 0
-  ---@type uv_timer_t|?
+  ---@type uv.uv_timer_t?
   local timer = nil
 
   return function(...)
@@ -407,11 +334,11 @@ M.throttle = function(fn, timeout)
       timer:stop()
     end
 
-    local ms_remaining = timeout - (vim.loop.now() - last_call)
+    local ms_remaining = timeout - (vim.uv.now() - last_call)
 
     if ms_remaining > 0 then
       if timer == nil then
-        timer = assert(vim.loop.new_timer())
+        timer = assert(vim.uv.new_timer())
       end
 
       local args = { ... }
@@ -426,12 +353,12 @@ M.throttle = function(fn, timeout)
             timer = nil
           end
 
-          last_call = vim.loop.now()
+          last_call = vim.uv.now()
           fn(unpack(args))
         end)
       )
     else
-      last_call = vim.loop.now()
+      last_call = vim.uv.now()
       fn(...)
     end
   end
@@ -441,7 +368,7 @@ end
 ---callback parameters with the results. This function returns those results.
 ---@param async_fn_with_callback function (function,) -> any
 ---@param timeout integer|?
----@return any results
+---@return ...any results
 M.block_on = function(async_fn_with_callback, timeout)
   local done = false
   local result

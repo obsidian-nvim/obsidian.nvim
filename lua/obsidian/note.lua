@@ -1,8 +1,5 @@
 local Path = require "obsidian.path"
-local File = require("obsidian.async").File
 local abc = require "obsidian.abc"
-local with = require("plenary.context_manager").with
-local open = require("plenary.context_manager").open
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
@@ -10,6 +7,7 @@ local search = require "obsidian.search"
 local iter = vim.iter
 local enumerate = util.enumerate
 local compat = require "obsidian.compat"
+local api = require "obsidian.api"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
@@ -172,7 +170,7 @@ end
 
 Note.should_save_frontmatter = function(self)
   local fname = self:fname()
-  return (fname ~= nil and not util.tbl_contains(SKIP_UPDATING_FRONTMATTER, fname))
+  return (fname ~= nil and not vim.list_contains(SKIP_UPDATING_FRONTMATTER, fname))
 end
 
 --- Check if a note has a given alias.
@@ -181,7 +179,7 @@ end
 ---
 ---@return boolean
 Note.has_alias = function(self, alias)
-  return util.tbl_contains(self.aliases, alias)
+  return vim.list_contains(self.aliases, alias)
 end
 
 --- Check if a note has a given tag.
@@ -190,7 +188,7 @@ end
 ---
 ---@return boolean
 Note.has_tag = function(self, tag)
-  return util.tbl_contains(self.tags, tag)
+  return vim.list_contains(self.tags, tag)
 end
 
 --- Add an alias to the note.
@@ -270,11 +268,8 @@ Note.from_file = function(path, opts)
   if path == nil then
     error "note path cannot be nil"
   end
-  local n
-  with(open(tostring(Path.new(path):resolve { strict = true })), function(reader)
-    n = Note.from_lines(reader:lines(), path, opts)
-  end)
-  return n
+  path = tostring(Path.new(path):resolve { strict = true })
+  return Note.from_lines(io.lines(path), path, opts)
 end
 
 --- An async version of `.from_file()`, i.e. it needs to be called in an async context.
@@ -284,8 +279,10 @@ end
 ---
 ---@return obsidian.Note
 Note.from_file_async = function(path, opts)
-  local f = File.open(Path.new(path):resolve { strict = true })
-  local ok, res = pcall(Note.from_lines, f:lines(false), path, opts)
+  path = Path.new(path):resolve { strict = true }
+  local f = io.open(tostring(path), "r")
+  assert(f)
+  local ok, res = pcall(Note.from_lines, f:lines "*l", path, opts)
   f:close()
   if ok then
     return res
@@ -336,7 +333,7 @@ end
 
 --- Initialize a note from an iterator of lines.
 ---
----@param lines fun(): string|?
+---@param lines fun(): string|? | Iter
 ---@param path string|obsidian.Path
 ---@param opts obsidian.note.LoadOpts|?
 ---
@@ -691,26 +688,26 @@ Note.save = function(self, opts)
   ---@type string[]
   local existing_frontmatter = {}
   if self.path ~= nil and self.path:is_file() then
-    with(open(tostring(self.path)), function(reader)
-      local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
-      for idx, line in enumerate(reader:lines()) do
-        if idx == 1 and Note._is_frontmatter_boundary(line) then
-          at_boundary = true
-          in_frontmatter = true
-        elseif in_frontmatter and Note._is_frontmatter_boundary(line) then
-          at_boundary = true
-          in_frontmatter = false
-        else
-          at_boundary = false
-        end
-
-        if not in_frontmatter and not at_boundary then
-          table.insert(content, line)
-        else
-          table.insert(existing_frontmatter, line)
-        end
+    -- with(open(tostring(self.path)), function(reader)
+    local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
+    for idx, line in enumerate(io.lines(tostring(self.path))) do
+      if idx == 1 and Note._is_frontmatter_boundary(line) then
+        at_boundary = true
+        in_frontmatter = true
+      elseif in_frontmatter and Note._is_frontmatter_boundary(line) then
+        at_boundary = true
+        in_frontmatter = false
+      else
+        at_boundary = false
       end
-    end)
+
+      if not in_frontmatter and not at_boundary then
+        table.insert(content, line)
+      else
+        table.insert(existing_frontmatter, line)
+      end
+    end
+    -- end)
   elseif self.title ~= nil then
     -- Add a header.
     table.insert(content, "# " .. self.title)
@@ -731,12 +728,7 @@ Note.save = function(self, opts)
     new_lines = compat.flatten { existing_frontmatter, content }
   end
 
-  -- Write new lines.
-  with(open(tostring(save_path), "w"), function(writer)
-    for _, line in ipairs(new_lines) do
-      writer:write(line .. "\n")
-    end
-  end)
+  util.write_file(tostring(save_path), table.concat(new_lines, "\n"))
 end
 
 --- Save frontmatter to the given buffer.
@@ -762,7 +754,7 @@ Note.save_to_buffer = function(self, opts)
     new_lines = {}
   end
 
-  if util.buffer_is_empty(bufnr) and self.title ~= nil then
+  if api.buffer_is_empty(bufnr) and self.title ~= nil then
     table.insert(new_lines, "# " .. self.title)
   end
 

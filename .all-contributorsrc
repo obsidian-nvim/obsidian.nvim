@@ -232,6 +232,42 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "mdavis36",
+      "name": "Michael Davis",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25917313?v=4",
+      "profile": "https://github.com/mdavis36",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "brianrodri",
+      "name": "Brian Rodriguez",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5094060?v=4",
+      "profile": "https://brianrodri.com",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "carschandler",
+      "name": "carschandler",
+      "avatar_url": "https://avatars.githubusercontent.com/u/92899389?v=4",
+      "profile": "https://github.com/carschandler",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "escapewindow",
+      "name": "Aki Sasaki",
+      "avatar_url": "https://avatars.githubusercontent.com/u/826343?v=4",
+      "profile": "https://escapewindow.com",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }

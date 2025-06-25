@@ -1,9 +1,5 @@
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local ThreadPoolExecutor = require("obsidian.async").ThreadPoolExecutor
-local File = require("obsidian.async").File
-local a = require "plenary.async"
-local with = require("plenary.context_manager").with
-local open = require("plenary.context_manager").open
 
 describe("AsyncExecutor.map()", function()
   it("should maintain order of results with a table of args", function()
@@ -12,7 +8,7 @@ describe("AsyncExecutor.map()", function()
 
     executor:map(
       function(id)
-        local uv = vim.loop
+        local uv = vim.uv
         uv.sleep(100)
         return id
       end,
@@ -36,7 +32,7 @@ describe("AsyncExecutor.map()", function()
 
     executor:map(
       function(id)
-        local uv = vim.loop
+        local uv = vim.uv
         uv.sleep(100)
         return id
       end,
@@ -57,7 +53,7 @@ describe("ThreadPoolExecutor.map()", function()
 
     executor:map(
       function(id)
-        local uv = vim.loop
+        local uv = vim.uv
         uv.sleep(100)
         return id
       end,
@@ -81,7 +77,7 @@ describe("ThreadPoolExecutor.map()", function()
 
     executor:map(
       function(id)
-        local uv = vim.loop
+        local uv = vim.uv
         uv.sleep(100)
         return id
       end,
@@ -92,29 +88,5 @@ describe("ThreadPoolExecutor.map()", function()
     )
 
     executor:join(500)
-  end)
-end)
-
-describe("File.lines()", function()
-  it("should correctly read all lines from a file", function()
-    local path = ".github/RELEASE_PROCESS.md"
-    local actual_lines = {}
-    with(open(path), function(reader)
-      for line in reader:lines() do
-        actual_lines[#actual_lines + 1] = line
-      end
-    end)
-
-    local lines = {}
-    a.util.block_on(function()
-      ---@diagnostic disable-next-line: redefined-local
-      local f = File.open(path)
-      for line in f:lines(false) do
-        lines[#lines + 1] = line
-      end
-      f:close()
-    end, 1000)
-
-    MiniTest.expect.equality(lines, actual_lines)
   end)
 end)

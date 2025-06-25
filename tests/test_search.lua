@@ -1,40 +1,33 @@
-local async = require "plenary.async"
-local channel = require("plenary.async.control").channel
 local search = require "obsidian.search"
-local Path = require "obsidian.path"
-
 local RefTypes = search.RefTypes
-local SearchOpts = search.SearchOpts
 local Patterns = search.Patterns
 
-describe("search.find_notes_async()", function()
-  it("should recursively find notes in a directory given a file name", function()
-    async.util.block_on(function()
-      local tx, rx = channel.oneshot()
-      search.find_notes_async(".", "foo.md", function(matches)
-        MiniTest.expect.equality(#matches, 1)
-        MiniTest.expect.equality(
-          tostring(matches[1]),
-          tostring(Path.new("./test/fixtures/notes/foo.md"):resolve { strict = true })
-        )
-        tx()
-      end)
-      rx()
-    end, 2000)
+describe("search.find_async", function()
+  it("should find files with search term in name", function()
+    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
+    local match_counter = 0
+
+    search.find_async(fixtures, "foo", {}, function(match)
+      MiniTest.expect.equality(true, match:find "foo" ~= nil)
+      match_counter = match_counter + 1
+    end, function(exit_code)
+      MiniTest.expect.equality(0, exit_code)
+      MiniTest.expect.equality(2, match_counter)
+    end)
   end)
-  it("should recursively find notes in a directory given a partial path", function()
-    async.util.block_on(function()
-      local tx, rx = channel.oneshot()
-      search.find_notes_async(".", "notes/foo.md", function(matches)
-        MiniTest.expect.equality(#matches, 1)
-        MiniTest.expect.equality(
-          tostring(matches[1]),
-          tostring(Path.new("./test/fixtures/notes/foo.md"):resolve { strict = true })
-        )
-        tx()
-      end)
-      rx()
-    end, 2000)
+end)
+
+describe("search.search_async", function()
+  it("should find files with search term in content", function()
+    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
+    local match_counter = 0
+    search.search_async(fixtures, "foo", {}, function(match)
+      MiniTest.expect.equality("foo", match.submatches[1].match.text)
+      match_counter = match_counter + 1
+    end, function(exit_code)
+      MiniTest.expect.equality(0, exit_code)
+      MiniTest.expect.equality(8, match_counter)
+    end)
   end)
 end)
 
@@ -61,25 +54,6 @@ describe("search.find_refs()", function()
   end)
 end)
 
-describe("search.find_tags()", function()
-  it("should find positions of all tags", function()
-    local s = "I have a #meeting at noon"
-    MiniTest.expect.equality({ { 10, 17, RefTypes.Tag } }, search.find_tags(s))
-  end)
-
-  it("should ignore escaped tags", function()
-    local s = "I have a #meeting at noon \\#not-a-tag"
-    MiniTest.expect.equality({ { 10, 17, RefTypes.Tag } }, search.find_tags(s))
-    s = [[\#notatag]]
-    MiniTest.expect.equality({}, search.find_tags(s))
-  end)
-
-  it("should ignore anchor links that look like tags", function()
-    local s = "[readme](README#installation)"
-    MiniTest.expect.equality({}, search.find_tags(s))
-  end)
-end)
-
 describe("search.find_and_replace_refs()", function()
   it("should find and replace all refs", function()
     local s, indices = search.find_and_replace_refs "[[Foo]] [[foo|Bar]]"
@@ -103,38 +77,6 @@ describe("search.replace_refs()", function()
   end)
 end)
 
-describe("search.SearchOpts", function()
-  it("should initialize from a raw table and resolve to ripgrep options", function()
-    local opts = SearchOpts.from_tbl {
-      sort_by = "modified",
-      fixed_strings = true,
-      ignore_case = true,
-      exclude = { "templates" },
-      max_count_per_file = 1,
-    }
-    MiniTest.expect.equality(
-      opts:to_ripgrep_opts(),
-      { "--sortr=modified", "--fixed-strings", "--ignore-case", "-g!templates", "-m=1" }
-    )
-  end)
-
-  it("should not include any options with defaults", function()
-    local opts = SearchOpts.from_tbl {}
-    MiniTest.expect.equality(opts:to_ripgrep_opts(), {})
-  end)
-
-  it("should initialize from another SearchOpts instance", function()
-    local opts = SearchOpts.from_tbl(SearchOpts.from_tbl { fixed_strings = true })
-    MiniTest.expect.equality(opts:to_ripgrep_opts(), { "--fixed-strings" })
-  end)
-
-  it("should merge with another SearchOpts instance", function()
-    local opts = SearchOpts.from_tbl { fixed_strings = true, max_count_per_file = 1 }
-    opts = opts:merge { fixed_strings = false, ignore_case = true }
-    MiniTest.expect.equality(opts:to_ripgrep_opts(), { "--ignore-case", "-m=1" })
-  end)
-end)
-
 describe("search.RefTypes", function()
   it("should have all keys matching values", function()
     for k, v in pairs(RefTypes) do
@@ -148,123 +90,5 @@ describe("search.Patterns", function()
     for _, ref_type in pairs(RefTypes) do
       assert(type(Patterns[ref_type]) == "string")
     end
-  end)
-end)
-
-describe("search.find_code_blocks", function()
-  it("should find generic code blocks", function()
-    ---@type string[]
-    local lines
-    local results = {
-      { 3, 6 },
-    }
-
-    -- no indentation
-    lines = {
-      "this is a python function:",
-      "",
-      "```",
-      "def foo():",
-      "    pass",
-      "```",
-      "",
-    }
-    MiniTest.expect.equality(results, search.find_code_blocks(lines))
-
-    -- indentation
-    lines = {
-      "  this is a python function:",
-      "",
-      "  ```",
-      "  def foo():",
-      "      pass",
-      "  ```",
-      "",
-    }
-    MiniTest.expect.equality(results, search.find_code_blocks(lines))
-  end)
-
-  it("should find generic inline code blocks", function()
-    ---@type string[]
-    local lines
-    local results = {
-      { 3, 3 },
-    }
-
-    -- no indentation
-    lines = {
-      "this is a python function:",
-      "",
-      "```lambda x: x + 1```",
-      "",
-    }
-    MiniTest.expect.equality(results, search.find_code_blocks(lines))
-
-    -- indentation
-    lines = {
-      "  this is a python function:",
-      "",
-      "  ```lambda x: x + 1```",
-      "",
-    }
-    MiniTest.expect.equality(results, search.find_code_blocks(lines))
-  end)
-
-  it("should find lang-specific code blocks", function()
-    ---@type string[]
-    local lines
-    local results = {
-      { 3, 6 },
-    }
-
-    -- no indentation
-    lines = {
-      "this is a python function:",
-      "",
-      "```python",
-      "def foo():",
-      "    pass",
-      "```",
-      "",
-    }
-    MiniTest.expect.equality(results, search.find_code_blocks(lines))
-
-    -- indentation
-    lines = {
-      "  this is a python function:",
-      "",
-      "  ```",
-      "  def foo():",
-      "      pass",
-      "  ```",
-      "",
-    }
-    MiniTest.expect.equality(results, search.find_code_blocks(lines))
-  end)
-
-  it("should find lang-specific inline code blocks", function()
-    ---@type string[]
-    local lines
-    local results = {
-      { 3, 3 },
-    }
-
-    -- no indentation
-    lines = {
-      "this is a python function:",
-      "",
-      "```{python} lambda x: x + 1```",
-      "",
-    }
-    MiniTest.expect.equality(results, search.find_code_blocks(lines))
-
-    -- indentation
-    lines = {
-      "  this is a python function:",
-      "",
-      "  ```{python} lambda x: x + 1```",
-      "",
-    }
-    MiniTest.expect.equality(results, search.find_code_blocks(lines))
   end)
 end)

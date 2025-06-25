@@ -21,36 +21,15 @@ local search = require "obsidian.search"
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local CallbackManager = require("obsidian.callbacks").CallbackManager
 local block_on = require("obsidian.async").block_on
+local api = require "obsidian.api"
 local iter = vim.iter
-local uv = vim.uv
 
----@class obsidian.SearchOpts : obsidian.ABC
+---@class obsidian.SearchOpts
 ---
 ---@field sort boolean|?
 ---@field include_templates boolean|?
 ---@field ignore_case boolean|?
-local SearchOpts = abc.new_class {
-  __tostring = function(self)
-    return string.format("SearchOpts(%s)", vim.inspect(self:as_tbl()))
-  end,
-}
-
----@param opts obsidian.SearchOpts|table<string, any>
----
----@return obsidian.SearchOpts
-SearchOpts.from_tbl = function(opts)
-  setmetatable(opts, SearchOpts.mt)
-  return opts
-end
-
----@return obsidian.SearchOpts
-SearchOpts.default = function()
-  return SearchOpts.from_tbl {
-    sort = false,
-    include_templates = false,
-    ignore_case = false,
-  }
-end
+---@field default function?
 
 --- The Obsidian client is the main API for programmatically interacting with obsidian.nvim's features
 --- in Lua. To get the client instance, run:
@@ -117,6 +96,12 @@ Client.set_workspace = function(self, workspace, opts)
     notes_subdir:mkdir { parents = true, exists_ok = true }
   end
 
+  if self.opts.templates.folder ~= nil then
+    local templates_subdir = self.dir / self.opts.templates.folder
+    print("templates_subdir:", templates_subdir)
+    templates_subdir:mkdir { parents = true, exists_ok = true }
+  end
+
   if self.opts.daily_notes.folder ~= nil then
     local daily_notes_subdir = self.dir / self.opts.daily_notes.folder
     daily_notes_subdir:mkdir { parents = true, exists_ok = true }
@@ -126,7 +111,7 @@ Client.set_workspace = function(self, workspace, opts)
   self.callback_manager = CallbackManager.new(self, self.opts.callbacks)
 
   -- Setup UI add-ons.
-  local has_no_renderer = not (util.get_plugin_info "render-markdown.nvim" or util.get_plugin_info "markview.nvim")
+  local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
   if has_no_renderer and self.opts.ui.enable then
     require("obsidian.ui").setup(self.current_workspace, self.opts.ui)
   end
@@ -149,7 +134,7 @@ end
 ---@return obsidian.config.ClientOpts
 Client.opts_for_workspace = function(self, workspace)
   if workspace then
-    return config.ClientOpts.normalize(workspace.overrides and workspace.overrides or {}, self._default_opts)
+    return config.normalize(workspace.overrides and workspace.overrides or {}, self._default_opts)
   else
     return self.opts
   end
@@ -278,7 +263,7 @@ Client.templates_dir = function(self, workspace)
     end
   end
 
-  log.err("'%s' is not a valid templates directory", opts.templates.folder)
+  log.err_once("'%s' is not a valid templates directory", opts.templates.folder)
   return nil
 end
 
@@ -310,26 +295,15 @@ Client.should_save_frontmatter = function(self, note)
   end
 end
 
---- Run an obsidian command directly.
----
----@usage `client:command("new", { args = "Foo" })`
----
----@param cmd_name string The name of the command.
----@param cmd_data table|? The payload for the command.
-Client.command = function(self, cmd_name, cmd_data)
-  local command = require("obsidian.commands." .. cmd_name)
-  command(self, cmd_data)
-end
-
 --- Get the default search options.
 ---
 ---@return obsidian.SearchOpts
-Client.search_defaults = function(self)
-  local opts = SearchOpts.default()
-  if opts.sort and self.opts.sort_by == nil then
-    opts.sort = false
-  end
-  return opts
+Client.search_defaults = function()
+  return {
+    sort = false,
+    include_templates = false,
+    ignore_case = false,
+  }
 end
 
 ---@param opts obsidian.SearchOpts|boolean|?
@@ -340,14 +314,10 @@ end
 Client._search_opts_from_arg = function(self, opts)
   if opts == nil then
     opts = self:search_defaults()
-  elseif type(opts) == "table" then
-    opts = SearchOpts.from_tbl(opts)
   elseif type(opts) == "boolean" then
     local sort = opts
-    opts = SearchOpts.default()
+    opts = self:search_defaults()
     opts.sort = sort
-  else
-    error("unexpected type for SearchOpts: '" .. type(opts) .. "'")
   end
   return opts
 end
@@ -361,7 +331,7 @@ end
 Client._prepare_search_opts = function(self, opts, additional_opts)
   opts = self:_search_opts_from_arg(opts)
 
-  local search_opts = search.SearchOpts.default()
+  local search_opts = {}
 
   if opts.sort then
     search_opts.sort_by = self.opts.sort_by
@@ -369,7 +339,7 @@ Client._prepare_search_opts = function(self, opts, additional_opts)
   end
 
   if not opts.include_templates and self.opts.templates ~= nil and self.opts.templates.folder ~= nil then
-    search_opts:add_exclude(tostring(self.opts.templates.folder))
+    search.SearchOpts.add_exclude(search_opts, tostring(self.opts.templates.folder))
   end
 
   if opts.ignore_case then
@@ -377,7 +347,7 @@ Client._prepare_search_opts = function(self, opts, additional_opts)
   end
 
   if additional_opts ~= nil then
-    search_opts = search_opts:merge(additional_opts)
+    search_opts = search.SearchOpts.merge(search_opts, additional_opts)
   end
 
   return search_opts
@@ -524,7 +494,8 @@ Client.find_notes_async = function(self, term, callback, opts)
       if string.len(term) > 0 then
         for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
           if dt_offset.cadence == "daily" then
-            local note = self:daily(dt_offset.offset, { no_write = true, load = opts.notes })
+            local note =
+              require("obsidian.daily").daily(dt_offset.offset, { no_write = true, load = opts.notes }, self.opts)
             if not paths[tostring(note.path)] and note.path:is_file() then
               note.alt_alias = dt_offset.macro
               results_[#results_ + 1] = note
@@ -581,7 +552,7 @@ Client.find_files_async = function(self, term, callback, opts)
   end
 
   local find_opts = self:_prepare_search_opts(opts.search)
-  find_opts:add_exclude "*.md"
+  search.SearchOpts.add_exclude(find_opts, "*.md")
   find_opts.include_non_markdown = true
 
   search.find_async(self.dir, term, find_opts, on_find_match, on_exit)
@@ -676,7 +647,7 @@ Client.resolve_note_async = function(self, query, callback, opts)
       local reference_ids = note:reference_ids { lowercase = true }
 
       -- Check for exact match.
-      if util.tbl_contains(reference_ids, query_lwr) then
+      if vim.list_contains(reference_ids, query_lwr) then
         table.insert(exact_matches, note)
       else
         -- Fall back to fuzzy match.
@@ -757,7 +728,7 @@ Client.resolve_link_async = function(self, link, callback)
   if link then
     location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
   else
-    location, name, link_type = util.parse_cursor_link { include_naked_urls = true, include_file_urls = true }
+    location, name, link_type = api.parse_cursor_link { include_naked_urls = true, include_file_urls = true }
   end
 
   if location == nil or name == nil or link_type == nil then
@@ -773,7 +744,7 @@ Client.resolve_link_async = function(self, link, callback)
   end
 
   -- The Obsidian app will follow URL-encoded links, so we should to.
-  location = util.urldecode(location)
+  location = vim.uri_decode(location)
 
   -- Remove block links from the end if there are any.
   -- TODO: handle block links.
@@ -884,7 +855,7 @@ Client.follow_link_async = function(self, link, opts)
 
       if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
         -- Prompt to create a new note.
-        if util.confirm("Create new note '" .. res.location .. "'?") then
+        if api.confirm("Create new note '" .. res.location .. "'?") then
           -- Create a new note.
           ---@type string|?, string[]
           local id, aliases
@@ -928,7 +899,7 @@ Client.follow_link_async = function(self, link, opts)
         for _, res in ipairs(results) do
           local icon, icon_hl
           if res.url ~= nil then
-            icon, icon_hl = util.get_icon(res.url)
+            icon, icon_hl = api.get_icon(res.url)
           end
           table.insert(entries, {
             value = res,
@@ -974,9 +945,9 @@ Client.open_note = function(self, note_or_path, opts)
   end
 
   local function open_it()
-    local open_cmd = util.get_open_strategy(opts.open_strategy and opts.open_strategy or self.opts.open_notes_in)
+    local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or self.opts.open_notes_in)
     ---@cast path obsidian.Path
-    local bufnr = util.open_buffer(path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    local bufnr = api.open_buffer(path, { line = opts.line, col = opts.col, cmd = open_cmd })
     if opts.callback then
       opts.callback(bufnr)
     end
@@ -1139,14 +1110,16 @@ Client.find_tags_async = function(self, term, callback, opts)
         end
       end
 
+      local line_number = match_data.line_number + 1 -- match_data.line_number is 0-indexed
+
       -- check if the match was inside a code block.
       for block in iter(code_blocks) do
-        if block[1] <= match_data.line_number and match_data.line_number <= block[2] then
+        if block[1] <= line_number and line_number <= block[2] then
           return
         end
       end
 
-      local line = util.strip_whitespace(match_data.lines.text)
+      local line = vim.trim(match_data.lines.text)
       local n_matches = 0
 
       -- check for tag in the wild of the form '#{tag}'
@@ -1541,46 +1514,27 @@ end
 ---
 --- Options:
 ---  - `on_done`: A function to call when all paths have been processed.
----  - `timeout`: An optional timeout.
----  - `pattern`: A Lua search pattern. Defaults to ".*%.md".
 Client.apply_async_raw = function(self, on_path, opts)
-  local scan = require "plenary.scandir"
   opts = opts or {}
 
-  local skip_dirs = {}
-  local templates_dir = self:templates_dir()
-  if templates_dir ~= nil then
-    skip_dirs[#skip_dirs + 1] = templates_dir
+  local dir_opts = {
+    depth = 10,
+    skip = function(dir)
+      return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(self:templates_dir()))
+    end,
+    follow = true,
+  }
+
+  for path in vim.fs.dir(tostring(self.dir), dir_opts) do
+    local absolute_path = vim.fs.joinpath(tostring(self.dir), path)
+
+    if vim.endswith(absolute_path, ".md") then
+      on_path(absolute_path)
+    end
   end
 
-  local executor = AsyncExecutor.new()
-
-  scan.scan_dir(tostring(self.dir), {
-    hidden = false,
-    add_dirs = false,
-    respect_gitignore = true,
-    search_pattern = opts.pattern or ".*%.md",
-    on_insert = function(entry)
-      entry = Path.new(entry):resolve { strict = true }
-
-      if entry.suffix ~= ".md" then
-        return
-      end
-
-      for skip_dir in iter(skip_dirs) do
-        if skip_dir:is_parent_of(entry) then
-          return
-        end
-      end
-
-      executor:submit(on_path, nil, tostring(entry))
-    end,
-  })
-
   if opts.on_done then
-    executor:join_and_then(opts.timeout, opts.on_done)
-  else
-    executor:join_and_then(opts.timeout, function() end)
+    opts.on_done()
   end
 end
 
@@ -1600,7 +1554,7 @@ Client.new_note_id = function(self, title)
     new_id = new_id:gsub("%.md$", "", 1)
     return new_id
   else
-    return util.zettel_id()
+    return require("obsidian.builtin").zettel_id()
   end
 end
 
@@ -1644,14 +1598,14 @@ end
 ---@return string|?,string,obsidian.Path
 Client.parse_title_id_path = function(self, title, id, dir)
   if title then
-    title = util.strip_whitespace(title)
+    title = vim.trim(title)
     if title == "" then
       title = nil
     end
   end
 
   if id then
-    id = util.strip_whitespace(id)
+    id = vim.trim(id)
     if id == "" then
       id = nil
     end
@@ -1793,7 +1747,7 @@ Client.create_note = function(self, opts)
   ---@type string[]
   ---@diagnostic disable-next-line: assign-type-mismatch
   local aliases = opts.aliases or {}
-  if new_title ~= nil and new_title:len() > 0 and not util.tbl_contains(aliases, new_title) then
+  if new_title ~= nil and new_title:len() > 0 and not vim.list_contains(aliases, new_title) then
     aliases[#aliases + 1] = new_title
   end
 
@@ -1843,7 +1797,14 @@ Client.write_note = function(self, note, opts)
   else
     verb = "Created"
     if opts.template ~= nil then
-      note = clone_template { template_name = opts.template, path = path, client = self, note = note }
+      note = clone_template {
+        type = "clone_template",
+        template_name = opts.template,
+        destination_path = path,
+        template_opts = self.opts.templates,
+        templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
+        partial_note = note,
+      }
     end
   end
 
@@ -1878,12 +1839,14 @@ Client.write_note_to_buffer = function(self, note, opts)
   local insert_template = require("obsidian.templates").insert_template
   opts = opts or {}
 
-  if opts.template and util.buffer_is_empty(opts.bufnr) then
+  if opts.template and api.buffer_is_empty(opts.bufnr) then
     note = insert_template {
-      note = note,
+      type = "insert_template",
       template_name = opts.template,
-      client = self,
-      location = util.get_active_window_cursor_location(),
+      template_opts = self.opts.templates,
+      templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
+      location = api.get_active_window_cursor_location(),
+      partial_note = note,
     }
   end
 
@@ -1916,138 +1879,6 @@ Client.update_frontmatter = function(self, note, bufnr)
     frontmatter = self.opts.note_frontmatter_func(note)
   end
   return note:save_to_buffer { bufnr = bufnr, frontmatter = frontmatter }
-end
-
---- Get the path to a daily note.
----
----@param datetime integer|?
----
----@return obsidian.Path, string (Path, ID) The path and ID of the note.
-Client.daily_note_path = function(self, datetime)
-  datetime = datetime and datetime or os.time()
-
-  ---@type obsidian.Path
-  local path = Path:new(self.dir)
-
-  if self.opts.daily_notes.folder ~= nil then
-    ---@type obsidian.Path
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    path = path / self.opts.daily_notes.folder
-  elseif self.opts.notes_subdir ~= nil then
-    ---@type obsidian.Path
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    path = path / self.opts.notes_subdir
-  end
-
-  local id
-  if self.opts.daily_notes.date_format ~= nil then
-    id = tostring(os.date(self.opts.daily_notes.date_format, datetime))
-  else
-    id = tostring(os.date("%Y-%m-%d", datetime))
-  end
-
-  path = path / (id .. ".md")
-
-  -- ID may contain additional path components, so make sure we use the stem.
-  id = path.stem
-
-  return path, id
-end
-
---- Open (or create) the daily note.
----
----@param self obsidian.Client
----@param datetime integer
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
----
----@return obsidian.Note
----
----@private
-Client._daily = function(self, datetime, opts)
-  opts = opts or {}
-
-  local path, id = self:daily_note_path(datetime)
-
-  ---@type string|?
-  local alias
-  if self.opts.daily_notes.alias_format ~= nil then
-    alias = tostring(os.date(self.opts.daily_notes.alias_format, datetime))
-  end
-
-  ---@type obsidian.Note
-  local note
-  if path:exists() then
-    note = Note.from_file(path, opts.load)
-  else
-    note = Note.new(id, {}, self.opts.daily_notes.default_tags or {}, path)
-
-    if alias then
-      note:add_alias(alias)
-      note.title = alias
-    end
-
-    if not opts.no_write then
-      self:write_note(note, { template = self.opts.daily_notes.template })
-    end
-  end
-
-  return note
-end
-
---- Open (or create) the daily note for today.
----
----@return obsidian.Note
-Client.today = function(self)
-  return self:_daily(os.time())
-end
-
---- Open (or create) the daily note from the last day.
----
----@return obsidian.Note
-Client.yesterday = function(self)
-  local now = os.time()
-  local yesterday
-
-  if self.opts.daily_notes.workdays_only then
-    yesterday = util.working_day_before(now)
-  else
-    yesterday = util.previous_day(now)
-  end
-
-  return self:_daily(yesterday)
-end
-
---- Open (or create) the daily note for the next day.
----
----@return obsidian.Note
-Client.tomorrow = function(self)
-  local now = os.time()
-  local tomorrow
-
-  if self.opts.daily_notes.workdays_only then
-    tomorrow = util.working_day_after(now)
-  else
-    tomorrow = util.next_day(now)
-  end
-
-  return self:_daily(tomorrow)
-end
-
---- Open (or create) the daily note for today + `offset_days`.
----
----@param offset_days integer|?
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
----
----@return obsidian.Note
-Client.daily = function(self, offset_days, opts)
-  return self:_daily(os.time() + (offset_days * 3600 * 24), opts)
-end
-
---- Manually update extmarks in a buffer.
----
----@param bufnr integer|?
-Client.update_ui = function(self, bufnr)
-  require("obsidian.ui").update(self.opts.ui, bufnr)
 end
 
 --- Create a formatted markdown / wiki link for a note.
@@ -2096,44 +1927,6 @@ end
 ---@return obsidian.Picker|?
 Client.picker = function(self, picker_name)
   return require("obsidian.pickers").get(self, picker_name)
-end
-
---- Register the global variable that updates itself
-Client.statusline = function(self)
-  local current_note
-
-  local refresh = function()
-    local note = self:current_note()
-    if not note then -- no note
-      return ""
-    elseif current_note == note then -- no refresh
-      return
-    else -- refresh
-      current_note = note
-    end
-
-    self:find_backlinks_async(
-      note,
-      vim.schedule_wrap(function(backlinks)
-        local format = self.opts.statusline.format
-        local wc = vim.fn.wordcount()
-        local info = {
-          words = wc.words,
-          chars = wc.chars,
-          backlinks = #backlinks,
-          properties = vim.tbl_count(note:frontmatter()),
-        }
-        for k, v in pairs(info) do
-          format = format:gsub("{{" .. k .. "}}", v)
-        end
-        vim.g.obsidian = format
-      end)
-    )
-  end
-
-  local timer = uv:new_timer()
-  assert(timer, "Failed to create timer")
-  timer:start(0, 1000, vim.schedule_wrap(refresh))
 end
 
 return Client

@@ -1,4 +1,5 @@
 local log = require "obsidian.log"
+local daily = require "obsidian.daily"
 
 ---@param arg string
 ---@return number
@@ -46,7 +47,7 @@ return function(client, data)
   local dailies = {}
   for offset = offset_end, offset_start, -1 do
     local datetime = os.time() + (offset * 3600 * 24)
-    local daily_note_path = client:daily_note_path(datetime)
+    local daily_note_path = daily.daily_note_path(datetime, client.opts)
     local daily_note_alias = tostring(os.date(client.opts.daily_notes.alias_format or "%A %B %-d, %Y", datetime))
     if offset == 0 then
       daily_note_alias = daily_note_alias .. " @today"
@@ -69,7 +70,7 @@ return function(client, data)
   picker:pick(dailies, {
     prompt_title = "Dailies",
     callback = function(offset)
-      local note = client:daily(offset)
+      local note = daily.daily(offset, {}, client.opts)
       client:open_note(note)
     end,
   })

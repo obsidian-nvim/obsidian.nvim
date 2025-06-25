@@ -10,12 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Allow custom directory and ID logic for templates
+- When filling out a template with user-provided substitution functions, pass a "context" object to each invocation so that users can respond accordingly.
+  - Added `obsidian.InsertTemplateContext` and `obsidian.CloneTemplateContext` as these new "context" objects.
+- Github workflow and `make types` now use `lua-language-server` to check type issues.
+- Added the `completion.create_new` option to allow for disabling new note creation in the picker.
+- Added `makefile types` target to check types via lua-ls.
+- New `obsidian.config` type for user config type check.
 
 ### Changed
+
+- Remove `itertools.lua` in favor of `vim.iter`.
+- Commands are now context sensitive (mode and if in note).
+- Remove `debug` command, and point user to `checkhealth obsidian`.
+- Remove `mappings.lua`, see: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps
+- Moved `daily` as its own module instead of client method.
+- Refactor the `util` module.
+- Use `vim.defaulttable` instead of custom impl.
 
 ### Fixed
 
 - Fixed improper tmp-file creation during template tests
+- Only error once if template folder is not found.
+- Fixed corrupted text when custom variables appear more than once in a template file (#198)
+- Add further checks to void false positives when finding tags
+- Off-by-one bug when avoiding tag in code blocks
 
 ## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
 
@@ -29,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `open` module for `Obsidian open` related options.
 - Added autocmd events for user scripting, see [wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Autocmds).
 - Added `opts.ui.ignore_conceal_warn` option to ignore conceal-related warnings.
+- Added `vsplit_force` and `hsplit_force` open strategies. These will always open a vertical/horizontal split if the file is not already in the adjacent split.
 
 ### Changed
 
@@ -40,12 +59,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update Stylua version from 0.15.1 → 2.1.0.
 - Use `vim.deprecate` to show deprecate warnings.
 - Deprecate `open_app_foreground`.
+- Remove most `plenary.nvim` usage.
+- Use `io` functions instead of `File` class
 
 ### Fixed
 
 - Allow multiword note title in `new_from_template`.
+- Allow `@` in urls to better open youtube links.
 - Fixed types in `_snacks.lua`.
 - Fixed command documentation.
+- Fixed compatibility issue in using `vim.fs`
+- Fixed default open func
 
 ## [v3.11.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.11.0) - 2025-05-04
 
@@ -275,7 +299,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 There's a lot of new features and improvements here that I'm really excited about 🥳 They've improved my workflow a ton and I hope they do for you too. To highlight the 3 biggest additions:
 
 1. 🔗 Full support for header anchor links and block links! That means both for following links and completion of links. Various forms of anchor/block links are support. Here are a few examples:
-
    - Typical Obsidian-style wiki links, e.g. `[[My note#Heading 1]]`, `[[My note#Heading 1#Sub heading]]`, `[[My note#^block-123]]`.
    - Wiki links with a label, e.g. `[[my-note#heading-1|Heading 1 in My Note]]`.
    - Markdown links, e.g. `[Heading 1 in My Note](my-note.md#heading-1)`.

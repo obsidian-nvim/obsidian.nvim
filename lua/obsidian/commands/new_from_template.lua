@@ -1,4 +1,4 @@
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 local log = require "obsidian.log"
 local templates = require "obsidian.templates"
 
@@ -11,6 +11,7 @@ return function(client, data)
     return
   end
 
+  ---@type string?
   local title = table.concat(data.fargs, " ", 1, #data.fargs - 1)
   local template = data.fargs[#data.fargs]
 

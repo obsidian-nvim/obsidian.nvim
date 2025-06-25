@@ -1,7 +1,37 @@
 local log = require "obsidian.log"
-local util = require "obsidian.util"
 
 local config = {}
+
+---@class obsidian.config
+---@field workspaces obsidian.workspace.WorkspaceSpec[]
+---@field log_level? integer
+---@field notes_subdir? string
+---@field templates? obsidian.config.TemplateOpts
+---@field new_notes_location? obsidian.config.NewNotesLocation
+---@field note_id_func? fun(title: string|?): string
+---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
+---@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
+---@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
+---@field preferred_link_style? obsidian.config.LinkStyle
+---@field follow_url_func? fun(url: string)
+---@field follow_img_func? fun(img: string)
+---@field note_frontmatter_func? (fun(note: obsidian.Note): table)
+---@field disable_frontmatter? (fun(fname: string?): boolean)|boolean
+---@field backlinks? obsidian.config.BacklinkOpts
+---@field completion? obsidian.config.CompletionOpts
+---@field picker? obsidian.config.PickerOpts
+---@field daily_notes? obsidian.config.DailyNotesOpts
+---@field sort_by? obsidian.config.SortBy
+---@field sort_reversed? boolean
+---@field search_max_lines? integer
+---@field open_notes_in? obsidian.config.OpenStrategy
+---@field ui? obsidian.config.UIOpts | table<string, any>
+---@field attachments? obsidian.config.AttachmentsOpts
+---@field callbacks? obsidian.config.CallbackConfig
+---@field legacy_commands? boolean
+---@field statusline? obsidian.config.StatuslineOpts
+---@field open? obsidian.config.OpenOpts
+---@field checkbox? obsidian.config.CheckboxOpts
 
 ---@class obsidian.config.ClientOpts
 ---@field dir string|?
@@ -21,7 +51,6 @@ local config = {}
 ---@field disable_frontmatter (fun(fname: string?): boolean)|boolean|?
 ---@field backlinks obsidian.config.BacklinkOpts
 ---@field completion obsidian.config.CompletionOpts
----@field mappings obsidian.config.MappingOpts
 ---@field picker obsidian.config.PickerOpts
 ---@field daily_notes obsidian.config.DailyNotesOpts
 ---@field sort_by obsidian.config.SortBy|?
@@ -34,57 +63,291 @@ local config = {}
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
 ---@field open obsidian.config.OpenOpts
+---@field checkbox obsidian.config.CheckboxOpts
 
-config.ClientOpts = {}
+---@enum obsidian.config.OpenStrategy
+config.OpenStrategy = {
+  current = "current",
+  vsplit = "vsplit",
+  hsplit = "hsplit",
+  vsplit_force = "vsplit_force",
+  hsplit_force = "hsplit_force",
+}
+
+---@enum obsidian.config.SortBy
+config.SortBy = {
+  path = "path",
+  modified = "modified",
+  accessed = "accessed",
+  created = "created",
+}
+
+---@enum obsidian.config.NewNotesLocation
+config.NewNotesLocation = {
+  current_dir = "current_dir",
+  notes_subdir = "notes_subdir",
+}
+
+---@enum obsidian.config.LinkStyle
+config.LinkStyle = {
+  wiki = "wiki",
+  markdown = "markdown",
+}
+
+---@enum obsidian.config.Picker
+config.Picker = {
+  telescope = "telescope.nvim",
+  fzf_lua = "fzf-lua",
+  mini = "mini.pick",
+  snacks = "snacks.pick",
+}
 
 --- Get defaults.
 ---
 ---@return obsidian.config.ClientOpts
-config.ClientOpts.default = function()
-  return {
-    dir = nil,
-    workspaces = {},
-    log_level = vim.log.levels.INFO,
-    notes_subdir = nil,
-    new_notes_location = config.NewNotesLocation.current_dir,
-    templates = config.TemplateOpts.default(),
-    note_id_func = nil,
-    wiki_link_func = util.wiki_link_id_prefix,
-    markdown_link_func = util.markdown_link,
-    preferred_link_style = config.LinkStyle.wiki,
-    follow_url_func = vim.ui.open,
-    follow_img_func = vim.ui.open,
-    note_frontmatter_func = nil,
-    disable_frontmatter = false,
-    backlinks = config.BacklinkOpts.default(),
-    completion = config.CompletionOpts.default(),
-    mappings = config.MappingOpts.default(),
-    picker = config.PickerOpts.default(),
-    daily_notes = config.DailyNotesOpts.default(),
-    sort_by = "modified",
-    sort_reversed = true,
-    search_max_lines = 1000,
-    open_notes_in = "current",
-    ui = config.UIOpts.default(),
-    attachments = config.AttachmentsOpts.default(),
-    callbacks = config.CallbackConfig.default(),
-    legacy_commands = true,
-    ---@class obsidian.config.StatuslineOpts
-    ---@field format? string
-    ---@field enabled? boolean
-    statusline = {
-      format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
-      enabled = true,
+config.default = {
+  legacy_commands = true,
+  dir = nil,
+  workspaces = {},
+  log_level = vim.log.levels.INFO,
+  notes_subdir = nil,
+  new_notes_location = config.NewNotesLocation.current_dir,
+  note_id_func = nil,
+  wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
+  markdown_link_func = require("obsidian.builtin").markdown_link,
+  preferred_link_style = config.LinkStyle.wiki,
+  follow_url_func = vim.ui.open,
+  follow_img_func = vim.ui.open,
+  note_frontmatter_func = nil,
+  disable_frontmatter = false,
+  sort_by = "modified",
+  sort_reversed = true,
+  search_max_lines = 1000,
+  open_notes_in = "current",
+
+  ---@class obsidian.config.TemplateOpts
+  ---
+  ---@field folder string|obsidian.Path|?
+  ---@field date_format string|?
+  ---@field time_format string|?
+  --- A map for custom variables, the key should be the variable and the value a function.
+  --- Functions are called with obsidian.TemplateContext objects as their sole parameter.
+  --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
+  ---@field substitutions table<string, (fun(ctx: obsidian.TemplateContext):string)|(fun(): string)|string>|?
+  ---@field customizations table<string, obsidian.config.CustomTemplateOpts>
+  templates = {
+    folder = nil,
+    date_format = nil,
+    time_format = nil,
+    substitutions = {},
+
+    ---@class obsidian.config.CustomTemplateOpts
+    ---
+    ---@field dir string|?
+    ---@field note_id_func function|?
+    customizations = {},
+  },
+
+  ---@class obsidian.config.BacklinkOpts
+  ---
+  ---@field parse_headers boolean
+  backlinks = {
+    parse_headers = true,
+  },
+
+  ---@class obsidian.config.CompletionOpts
+  ---
+  ---@field nvim_cmp? boolean
+  ---@field blink? boolean
+  ---@field min_chars? integer
+  ---@field match_case? boolean
+  ---@field create_files? boolean
+  completion = (function()
+    local has_nvim_cmp, _ = pcall(require, "cmp")
+    return {
+      nvim_cmp = has_nvim_cmp,
+      min_chars = 2,
+      match_case = true,
+      create_files = true,
+    }
+  end)(),
+
+  ---@class obsidian.config.PickerNoteMappingOpts
+  ---
+  ---@field new? string
+  ---@field insert_link? string
+
+  ---@class obsidian.config.PickerTagMappingOpts
+  ---
+  ---@field tag_note? string
+  ---@field insert_tag? string
+
+  ---@class obsidian.config.PickerOpts
+  ---
+  ---@field name obsidian.config.Picker|?
+  ---@field note_mappings? obsidian.config.PickerNoteMappingOpts
+  ---@field tag_mappings? obsidian.config.PickerTagMappingOpts
+  picker = {
+    name = nil,
+    note_mappings = {
+      new = "<C-x>",
+      insert_link = "<C-l>",
     },
-    ---@class obsidian.config.OpenOpts
-    ---@field use_advanced_uri boolean opens the file with current line number
-    ---@field func fun(uri: string) default to vim.ui.open
-    open = {
-      use_advanced_uri = false,
-      func = vim.ui.open,
+    tag_mappings = {
+      tag_note = "<C-x>",
+      insert_tag = "<C-l>",
     },
-  }
-end
+  },
+
+  ---@class obsidian.config.DailyNotesOpts
+  ---
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  ---@field workdays_only? boolean
+  daily_notes = {
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "daily-notes" },
+    workdays_only = true,
+  },
+
+  ---@class obsidian.config.UICharSpec
+  ---@field char string
+  ---@field hl_group string
+
+  ---@class obsidian.config.CheckboxSpec : obsidian.config.UICharSpec
+  ---@field char string
+  ---@field hl_group string
+
+  ---@class obsidian.config.UIStyleSpec
+  ---@field hl_group string
+
+  ---@class obsidian.config.UIOpts
+  ---
+  ---@field enable boolean
+  ---@field ignore_conceal_warn boolean
+  ---@field update_debounce integer
+  ---@field max_file_length integer|?
+  ---@field checkboxes table<string, obsidian.config.CheckboxSpec>
+  ---@field bullets obsidian.config.UICharSpec|?
+  ---@field external_link_icon obsidian.config.UICharSpec
+  ---@field reference_text obsidian.config.UIStyleSpec
+  ---@field highlight_text obsidian.config.UIStyleSpec
+  ---@field tags obsidian.config.UIStyleSpec
+  ---@field block_ids obsidian.config.UIStyleSpec
+  ---@field hl_groups table<string, table>
+  ui = {
+    enable = true,
+    ignore_conceal_warn = false,
+    update_debounce = 200,
+    max_file_length = 5000,
+    checkboxes = {
+      [" "] = { char = "󰄱", hl_group = "obsidiantodo" },
+      ["~"] = { char = "󰰱", hl_group = "obsidiantilde" },
+      ["!"] = { char = "", hl_group = "obsidianimportant" },
+      [">"] = { char = "", hl_group = "obsidianrightarrow" },
+      ["x"] = { char = "", hl_group = "obsidiandone" },
+    },
+    bullets = { char = "•", hl_group = "ObsidianBullet" },
+    external_link_icon = { char = "", hl_group = "ObsidianExtLinkIcon" },
+    reference_text = { hl_group = "ObsidianRefText" },
+    highlight_text = { hl_group = "ObsidianHighlightText" },
+    tags = { hl_group = "ObsidianTag" },
+    block_ids = { hl_group = "ObsidianBlockID" },
+    hl_groups = {
+      ObsidianTodo = { bold = true, fg = "#f78c6c" },
+      ObsidianDone = { bold = true, fg = "#89ddff" },
+      ObsidianRightArrow = { bold = true, fg = "#f78c6c" },
+      ObsidianTilde = { bold = true, fg = "#ff5370" },
+      ObsidianImportant = { bold = true, fg = "#d73128" },
+      ObsidianBullet = { bold = true, fg = "#89ddff" },
+      ObsidianRefText = { underline = true, fg = "#c792ea" },
+      ObsidianExtLinkIcon = { fg = "#c792ea" },
+      ObsidianTag = { italic = true, fg = "#89ddff" },
+      ObsidianBlockID = { italic = true, fg = "#89ddff" },
+      ObsidianHighlightText = { bg = "#75662e" },
+    },
+  },
+
+  ---@class obsidian.config.AttachmentsOpts
+  ---
+  ---Default folder to save images to, relative to the vault root.
+  ---@field img_folder? string
+  ---
+  ---Default name for pasted images
+  ---@field img_name_func? fun(): string
+  ---
+  ---Default text to insert for pasted images
+  ---@field img_text_func? fun(client: obsidian.Client, path: obsidian.Path): string
+  ---
+  ---Whether to confirm the paste or not. Defaults to true.
+  ---@field confirm_img_paste? boolean
+  attachments = {
+    img_folder = "assets/imgs",
+    img_text_func = function(client, path)
+      path = client:vault_relative_path(path) or path
+      return string.format("![%s](%s)", path.name, require("obsidian.util").urlencode(tostring(path)))
+    end,
+    img_name_func = function()
+      return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
+    end,
+    confirm_img_paste = true,
+  },
+
+  ---@class obsidian.config.CallbackConfig
+  ---
+  ---Runs right after the `obsidian.Client` is initialized.
+  ---@field post_setup? fun(client: obsidian.Client)
+  ---
+  ---Runs when entering a note buffer.
+  ---@field enter_note? fun(client: obsidian.Client, note: obsidian.Note)
+  ---
+  ---Runs when leaving a note buffer.
+  ---@field leave_note? fun(client: obsidian.Client, note: obsidian.Note)
+  ---
+  ---Runs right before writing a note buffer.
+  ---@field pre_write_note? fun(client: obsidian.Client, note: obsidian.Note)
+  ---
+  ---Runs anytime the workspace is set/changed.
+  ---@field post_set_workspace? fun(client: obsidian.Client, workspace: obsidian.Workspace)
+  callbacks = {},
+
+  ---@class obsidian.config.StatuslineOpts
+  ---
+  ---@field format? string
+  ---@field enabled? boolean
+  statusline = {
+    format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+    enabled = true,
+  },
+
+  ---@class obsidian.config.OpenOpts
+  ---
+  ---Opens the file with current line number
+  ---@field use_advanced_uri? boolean
+  ---
+  ---Function to do the opening, default to vim.ui.open
+  ---@field func? fun(uri: string)
+  open = {
+    use_advanced_uri = false,
+    func = vim.ui.open,
+  },
+
+  ---@class obsidian.config.CheckboxOpts
+  ---
+  ---@field enabled? boolean
+  ---
+  ---Order of checkbox state chars, e.g. { " ", "x" }
+  ---@field order? string[]
+  checkbox = {
+    enabled = true,
+    order = { " ", "~", "!", ">", "x" },
+  },
+}
 
 local tbl_override = function(defaults, overrides)
   local out = vim.tbl_extend("force", defaults, overrides)
@@ -106,9 +369,12 @@ end
 ---@param defaults obsidian.config.ClientOpts|?
 ---
 ---@return obsidian.config.ClientOpts
-config.ClientOpts.normalize = function(opts, defaults)
+config.normalize = function(opts, defaults)
+  local builtin = require "obsidian.builtin"
+  local util = require "obsidian.util"
+
   if not defaults then
-    defaults = config.ClientOpts.default()
+    defaults = config.default
   end
 
   -------------------------------------------------------------------------------------
@@ -140,15 +406,15 @@ config.ClientOpts.normalize = function(opts, defaults)
     local warn = false
 
     if opts.completion.prepend_note_id then
-      opts.wiki_link_func = util.wiki_link_id_prefix
+      opts.wiki_link_func = builtin.wiki_link_id_prefix
       opts.completion.prepend_note_id = nil
       warn = true
     elseif opts.completion.prepend_note_path then
-      opts.wiki_link_func = util.wiki_link_path_prefix
+      opts.wiki_link_func = builtin.wiki_link_path_prefix
       opts.completion.prepend_note_path = nil
       warn = true
     elseif opts.completion.use_path_only then
-      opts.wiki_link_func = util.wiki_link_path_only
+      opts.wiki_link_func = builtin.wiki_link_path_only
       opts.completion.use_path_only = nil
       warn = true
     end
@@ -163,13 +429,13 @@ config.ClientOpts.normalize = function(opts, defaults)
   end
 
   if opts.wiki_link_func == "prepend_note_id" then
-    opts.wiki_link_func = util.wiki_link_id_prefix
+    opts.wiki_link_func = builtin.wiki_link_id_prefix
   elseif opts.wiki_link_func == "prepend_note_path" then
-    opts.wiki_link_func = util.wiki_link_path_prefix
+    opts.wiki_link_func = builtin.wiki_link_path_prefix
   elseif opts.wiki_link_func == "use_path_only" then
-    opts.wiki_link_func = util.wiki_link_path_only
+    opts.wiki_link_func = builtin.wiki_link_path_only
   elseif opts.wiki_link_func == "use_alias_only" then
-    opts.wiki_link_func = util.wiki_link_alias_only
+    opts.wiki_link_func = builtin.wiki_link_alias_only
   elseif type(opts.wiki_link_func) == "string" then
     error(string.format("invalid option '%s' for 'wiki_link_func'", opts.wiki_link_func))
   end
@@ -225,18 +491,15 @@ config.ClientOpts.normalize = function(opts, defaults)
     opts.overwrite_mappings = nil
   end
 
+  if opts.mappings ~= nil then
+    log.warn_once [[The 'mappings' config option is deprecated and no longer has any affect.
+See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
+    opts.overwrite_mappings = nil
+  end
+
   if opts.tags ~= nil then
     log.warn_once "The 'tags' config option is deprecated and no longer has any affect."
     opts.tags = nil
-  end
-
-  if opts.ui and opts.ui.checkboxes then
-    -- Add a default 'order' for backwards compat.
-    for i, char in ipairs { " ", "x" } do
-      if opts.ui.checkboxes[char] and not opts.ui.checkboxes[char].order then
-        opts.ui.checkboxes[char].order = i
-      end
-    end
   end
 
   if opts.templates and opts.templates.subdir then
@@ -266,13 +529,13 @@ config.ClientOpts.normalize = function(opts, defaults)
 
   opts.backlinks = tbl_override(defaults.backlinks, opts.backlinks)
   opts.completion = tbl_override(defaults.completion, opts.completion)
-  opts.mappings = opts.mappings and opts.mappings or defaults.mappings
   opts.picker = tbl_override(defaults.picker, opts.picker)
   opts.daily_notes = tbl_override(defaults.daily_notes, opts.daily_notes)
   opts.templates = tbl_override(defaults.templates, opts.templates)
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
   opts.statusline = tbl_override(defaults.statusline, opts.statusline)
+  opts.open = tbl_override(defaults.open, opts.open)
 
   ---------------
   -- Validate. --
@@ -292,289 +555,6 @@ config.ClientOpts.normalize = function(opts, defaults)
   end
 
   return opts
-end
-
----@enum obsidian.config.OpenStrategy
-config.OpenStrategy = {
-  current = "current",
-  vsplit = "vsplit",
-  hsplit = "hsplit",
-}
-
----@enum obsidian.config.SortBy
-config.SortBy = {
-  path = "path",
-  modified = "modified",
-  accessed = "accessed",
-  created = "created",
-}
-
----@enum obsidian.config.NewNotesLocation
-config.NewNotesLocation = {
-  current_dir = "current_dir",
-  notes_subdir = "notes_subdir",
-}
-
----@enum obsidian.config.LinkStyle
-config.LinkStyle = {
-  wiki = "wiki",
-  markdown = "markdown",
-}
-
----@class obsidian.config.BacklinkOpts
----@field parse_headers boolean
-config.BacklinkOpts = {}
-
---- Get defaults.
----@return obsidian.config.BacklinkOpts
-config.BacklinkOpts.default = function()
-  return {
-    parse_headers = true,
-  }
-end
-
----@class obsidian.config.CompletionOpts
----
----@field nvim_cmp boolean
----@field blink boolean
----@field min_chars integer
----@field match_case boolean
-config.CompletionOpts = {}
-
---- Get defaults.
----
----@return obsidian.config.CompletionOpts
-config.CompletionOpts.default = function()
-  local has_nvim_cmp, _ = pcall(require, "cmp")
-  return {
-    nvim_cmp = has_nvim_cmp,
-    min_chars = 2,
-    match_case = true,
-  }
-end
-
----@class obsidian.config.MappingOpts
-config.MappingOpts = {}
-
----Get defaults.
----@return obsidian.config.MappingOpts
-config.MappingOpts.default = function()
-  local mappings = require "obsidian.mappings"
-
-  return {
-    ["gf"] = mappings.gf_passthrough(),
-    ["<leader>ch"] = mappings.toggle_checkbox(),
-    ["<cr>"] = mappings.smart_action(),
-  }
-end
-
----@class obsidian.config.PickerNoteMappingOpts
----
----@field new string|?
----@field insert_link string|?
-config.PickerNoteMappingOpts = {}
-
----Get defaults.
----@return obsidian.config.PickerNoteMappingOpts
-config.PickerNoteMappingOpts.default = function()
-  return {
-    new = "<C-x>",
-    insert_link = "<C-l>",
-  }
-end
-
----@class obsidian.config.PickerTagMappingOpts
----
----@field tag_note string|?
----@field insert_tag string|?
-config.PickerTagMappingOpts = {}
-
----@return obsidian.config.PickerTagMappingOpts
-config.PickerTagMappingOpts.default = function()
-  return {
-    tag_note = "<C-x>",
-    insert_tag = "<C-l>",
-  }
-end
-
----@enum obsidian.config.Picker
-config.Picker = {
-  telescope = "telescope.nvim",
-  fzf_lua = "fzf-lua",
-  mini = "mini.pick",
-  snacks = "snacks.pick",
-}
-
----@class obsidian.config.PickerOpts
----
----@field name obsidian.config.Picker|?
----@field note_mappings obsidian.config.PickerNoteMappingOpts
----@field tag_mappings obsidian.config.PickerTagMappingOpts
-config.PickerOpts = {}
-
---- Get the defaults.
----
----@return obsidian.config.PickerOpts
-config.PickerOpts.default = function()
-  return {
-    name = nil,
-    note_mappings = config.PickerNoteMappingOpts.default(),
-    tag_mappings = config.PickerTagMappingOpts.default(),
-  }
-end
-
----@class obsidian.config.DailyNotesOpts
----
----@field folder string|?
----@field date_format string|?
----@field alias_format string|?
----@field template string|?
----@field default_tags string[]|?
----@field workdays_only boolean
-config.DailyNotesOpts = {}
-
---- Get defaults.
----
----@return obsidian.config.DailyNotesOpts
-config.DailyNotesOpts.default = function()
-  return {
-    folder = nil,
-    date_format = nil,
-    alias_format = nil,
-    default_tags = { "daily-notes" },
-    workdays_only = true,
-  }
-end
-
----@class obsidian.config.TemplateOpts
----
----@field folder string|obsidian.Path|?
----@field date_format string|?
----@field time_format string|?
----@field substitutions table<string, function|string>|?
----@field customizations table<string, obsidian.config.CustomTemplateOpts>
-config.TemplateOpts = {}
-
---- Get defaults.
----
----@return obsidian.config.TemplateOpts
-config.TemplateOpts.default = function()
-  return {
-    folder = nil,
-    date_format = nil,
-    time_format = nil,
-    substitutions = {},
-    customizations = {},
-  }
-end
-
----@class obsidian.config.CustomTemplateOpts
----
----@field dir string|?
----@field note_id_func function|?
-
----@class obsidian.config.UIOpts
----
----@field enable boolean
----@field ignore_conceal_warn boolean
----@field update_debounce integer
----@field max_file_length integer|?
----@field checkboxes table<string, obsidian.config.CheckboxSpec>
----@field bullets obsidian.config.UICharSpec|?
----@field external_link_icon obsidian.config.UICharSpec
----@field reference_text obsidian.config.UIStyleSpec
----@field highlight_text obsidian.config.UIStyleSpec
----@field tags obsidian.config.UIStyleSpec
----@field block_ids obsidian.config.UIStyleSpec
----@field hl_groups table<string, table>
-config.UIOpts = {}
-
----@class obsidian.config.UICharSpec
----
----@field char string
----@field hl_group string
-
----@class obsidian.config.CheckboxSpec : obsidian.config.UICharSpec
----
----@field char string
----@field hl_group string
----@field order integer
-
----@class obsidian.config.UIStyleSpec
----
----@field hl_group string
-
----@return obsidian.config.UIOpts
-config.UIOpts.default = function()
-  return {
-    enable = true,
-    ignore_conceal_warn = false,
-    update_debounce = 200,
-    max_file_length = 5000,
-    checkboxes = {
-      [" "] = { order = 1, char = "󰄱", hl_group = "ObsidianTodo" },
-      ["~"] = { order = 2, char = "󰰱", hl_group = "ObsidianTilde" },
-      ["!"] = { order = 3, char = "", hl_group = "ObsidianImportant" },
-      [">"] = { order = 4, char = "", hl_group = "ObsidianRightArrow" },
-      ["x"] = { order = 5, char = "", hl_group = "ObsidianDone" },
-    },
-    bullets = { char = "•", hl_group = "ObsidianBullet" },
-    external_link_icon = { char = "", hl_group = "ObsidianExtLinkIcon" },
-    reference_text = { hl_group = "ObsidianRefText" },
-    highlight_text = { hl_group = "ObsidianHighlightText" },
-    tags = { hl_group = "ObsidianTag" },
-    block_ids = { hl_group = "ObsidianBlockID" },
-    hl_groups = {
-      ObsidianTodo = { bold = true, fg = "#f78c6c" },
-      ObsidianDone = { bold = true, fg = "#89ddff" },
-      ObsidianRightArrow = { bold = true, fg = "#f78c6c" },
-      ObsidianTilde = { bold = true, fg = "#ff5370" },
-      ObsidianImportant = { bold = true, fg = "#d73128" },
-      ObsidianBullet = { bold = true, fg = "#89ddff" },
-      ObsidianRefText = { underline = true, fg = "#c792ea" },
-      ObsidianExtLinkIcon = { fg = "#c792ea" },
-      ObsidianTag = { italic = true, fg = "#89ddff" },
-      ObsidianBlockID = { italic = true, fg = "#89ddff" },
-      ObsidianHighlightText = { bg = "#75662e" },
-    },
-  }
-end
-
----@class obsidian.config.AttachmentsOpts
----
----@field img_folder string Default folder to save images to, relative to the vault root.
----@field img_name_func (fun(): string)|?
----@field img_text_func fun(client: obsidian.Client, path: obsidian.Path): string
----@field confirm_img_paste boolean Whether to confirm the paste or not. Defaults to true.
-config.AttachmentsOpts = {}
-
----@return obsidian.config.AttachmentsOpts
-config.AttachmentsOpts.default = function()
-  return {
-    img_folder = "assets/imgs",
-    img_text_func = function(client, path)
-      path = client:vault_relative_path(path) or path
-      return string.format("![%s](%s)", path.name, util.urlencode(tostring(path)))
-    end,
-    img_name_func = function()
-      return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
-    end,
-    confirm_img_paste = true,
-  }
-end
-
----@class obsidian.config.CallbackConfig
----
----@field post_setup fun(client: obsidian.Client)|? Runs right after the `obsidian.Client` is initialized.
----@field enter_note fun(client: obsidian.Client, note: obsidian.Note)|? Runs when entering a note buffer.
----@field leave_note fun(client: obsidian.Client, note: obsidian.Note)|? Runs when leaving a note buffer.
----@field pre_write_note fun(client: obsidian.Client, note: obsidian.Note)|? Runs right before writing a note buffer.
----@field post_set_workspace fun(client: obsidian.Client, workspace: obsidian.Workspace)|? Runs anytime the workspace is set/changed.
-config.CallbackConfig = {}
-
----@return obsidian.config.CallbackConfig
-config.CallbackConfig.default = function()
-  return {}
 end
 
 return config

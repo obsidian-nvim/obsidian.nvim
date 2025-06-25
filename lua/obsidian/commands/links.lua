@@ -2,7 +2,7 @@ local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local log = require "obsidian.log"
 local search = require "obsidian.search"
 local iter = vim.iter
-local util = require "obsidian.util"
+local api = require "obsidian.api"
 local channel = require("plenary.async.control").channel
 
 ---@param client obsidian.Client
@@ -39,7 +39,7 @@ return function(client)
         for res in iter { ... } do
           local icon, icon_hl
           if res.url ~= nil then
-            icon, icon_hl = util.get_icon(res.url)
+            icon, icon_hl = api.get_icon(res.url)
           end
           table.insert(entries, {
             value = link,
