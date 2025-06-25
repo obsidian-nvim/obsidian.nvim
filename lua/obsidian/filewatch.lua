@@ -109,7 +109,7 @@ local function watch_path(path, on_event, on_error, opts)
 
     local folder_path = uv.fs_event_getpath(handle)
 
-    local full_path = table.concat { folder_path, filename }
+    local full_path = table.concat { folder_path, "/", filename }
 
     uv.fs_stat(full_path, function(stat_err, stat)
       if stat_err then

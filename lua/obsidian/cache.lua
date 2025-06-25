@@ -63,10 +63,12 @@ local create_on_file_change_callback = function(self)
         ---@param note obsidian.Note|?
         local update_cache_dictionary = function(note)
           if note then
+            ---@type obsidian.cache.CacheNote
             local founded_cache = {
               absolute_path = file.absolute_path,
               aliases = note.aliases,
               last_updated = file.stat.mtime.sec,
+              tags = note.tags,
             }
 
             cache_notes[relative_path] = founded_cache
