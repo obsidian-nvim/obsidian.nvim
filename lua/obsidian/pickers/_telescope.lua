@@ -175,6 +175,7 @@ local create_cache_picker = function(self, prompt_title, opts)
       ---@return obsidian.pickers.telescope_picker.CacheSelectedEntry
       entry_maker = function(entry)
         local concated_aliases = table.concat(entry.aliases, "|")
+        local concated_tags = table.concat(entry.tags, "#")
         local relative_path = entry.absolute_path:gsub(self.client.dir.filename .. "/", "")
         local display_name
 
@@ -182,6 +183,10 @@ local create_cache_picker = function(self, prompt_title, opts)
           display_name = table.concat({ relative_path, concated_aliases }, "|")
         else
           display_name = relative_path
+        end
+
+        if concated_tags and concated_tags ~= "" then
+          display_name = table.concat({ display_name, concated_tags }, "#")
         end
 
         return {
@@ -311,7 +316,7 @@ TelescopePicker.pick = function(self, values, opts)
         local picker_conf = conf.pickers[picker_name]
         if picker_conf and picker_conf.theme then
           picker_opts =
-              vim.tbl_extend("force", picker_opts, require("telescope.themes")["get_" .. picker_conf.theme] {})
+            vim.tbl_extend("force", picker_opts, require("telescope.themes")["get_" .. picker_conf.theme] {})
           break
         end
       end
@@ -321,42 +326,42 @@ TelescopePicker.pick = function(self, values, opts)
   local make_entry_from_string = make_entry.gen_from_string(picker_opts)
 
   pickers
-      .new(picker_opts, {
-        prompt_title = prompt_title,
-        finder = finders.new_table {
-          results = values,
-          entry_maker = function(v)
-            if type(v) == "string" then
-              return make_entry_from_string(v)
-            else
-              local ordinal = v.ordinal
-              if ordinal == nil then
-                ordinal = ""
-                if type(v.display) == "string" then
-                  ordinal = ordinal .. v.display
-                end
-                if v.filename ~= nil then
-                  ordinal = ordinal .. " " .. v.filename
-                end
+    .new(picker_opts, {
+      prompt_title = prompt_title,
+      finder = finders.new_table {
+        results = values,
+        entry_maker = function(v)
+          if type(v) == "string" then
+            return make_entry_from_string(v)
+          else
+            local ordinal = v.ordinal
+            if ordinal == nil then
+              ordinal = ""
+              if type(v.display) == "string" then
+                ordinal = ordinal .. v.display
               end
-
-              return {
-                value = v.value,
-                display = displayer,
-                ordinal = ordinal,
-                filename = v.filename,
-                valid = v.valid,
-                lnum = v.lnum,
-                col = v.col,
-                raw = v,
-              }
+              if v.filename ~= nil then
+                ordinal = ordinal .. " " .. v.filename
+              end
             end
-          end,
-        },
-        sorter = conf.values.generic_sorter(picker_opts),
-        previewer = previewer,
-      })
-      :find()
+
+            return {
+              value = v.value,
+              display = displayer,
+              ordinal = ordinal,
+              filename = v.filename,
+              valid = v.valid,
+              lnum = v.lnum,
+              col = v.col,
+              raw = v,
+            }
+          end
+        end,
+      },
+      sorter = conf.values.generic_sorter(picker_opts),
+      previewer = previewer,
+    })
+    :find()
 end
 
 return TelescopePicker

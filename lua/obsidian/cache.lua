@@ -1,12 +1,10 @@
 local async = require "plenary.async"
 local abc = require "obsidian.abc"
-local search = require "obsidian.search"
-local channel = require("plenary.async.control").channel
 local Note = require "obsidian.note"
 local log = require "obsidian.log"
 local EventTypes = require("obsidian.filewatch").EventTypes
 local uv = vim.uv
-local os_util = require("obsidian.os_util")
+local api = require "obsidian.api"
 
 ---This class allows you to find the notes in your vault more quickly.
 ---It scans your vault and saves the founded metadata to the file specified in your CacheOpts (by default it's ".cache.json").
@@ -23,6 +21,7 @@ local Cache = abc.new_class()
 ---@field absolute_path string The full path to the note.
 ---@field aliases string[] The alises of the note founded in the frontmatter.
 ---@field last_updated number The last time the note was updated in seconds since epoch.
+---@field tags string[] The tags of the note.
 
 ---Converts the cache to JSON and saves to the file at the given path.
 ---@param cache_notes { [string]: obsidian.cache.CacheNote } Dictionary where key is the relative path and value is the cache of the note.
@@ -34,7 +33,7 @@ local save_cache_notes_to_file = function(cache_notes, cache_file_path)
     file:write(vim.json.encode(cache_notes))
     file:close()
   else
-    error(table.concat { "Couldn't write vault index to the file: ", save_path, ". Description: ", err })
+    error(table.concat { "Couldn't write vault index to the file: ", cache_file_path, ". Description: ", err })
   end
 end
 
@@ -96,7 +95,7 @@ end
 ---Checks for note cache that were updated outside the vault.
 ---@param self obsidian.Cache
 local check_cache_notes_are_fresh = function(self)
-  local founded_notes = os_util.get_all_notes_from_vault(self.client:vault_root().filename)
+  local founded_notes = api.get_all_notes_from_vault(self.client:vault_root().filename)
   local cache_notes = self:get_cache_notes_from_file()
 
   if not cache_notes or not founded_notes then
@@ -130,11 +129,14 @@ local check_cache_notes_are_fresh = function(self)
       local cache_note = cache_notes[relative_path]
 
       local aliases
+      local tags
       if cache_note and cache_note.last_updated == stat.mtime.sec then
         aliases = cache_note.aliases
+        tags = cache_note.tags
       else
         local note = Note.from_file(founded_note, { read_only_frontmatter = true })
         aliases = note.aliases
+        tags = note.tags
       end
 
       ---@type obsidian.cache.CacheNote
@@ -142,6 +144,7 @@ local check_cache_notes_are_fresh = function(self)
         absolute_path = founded_note,
         last_updated = stat.mtime.sec,
         aliases = aliases,
+        tags = tags,
       }
 
       updated[relative_path] = updated_cache
@@ -150,7 +153,6 @@ local check_cache_notes_are_fresh = function(self)
     end)
   end
 end
-
 
 ---Checks that file exits
 ---@param path string
@@ -164,7 +166,7 @@ end
 ---Watches the vault for changes.
 ---@param self obsidian.Cache
 local enable_filewatch = function(self)
-  local filewatch = require("obsidian.filewatch")
+  local filewatch = require "obsidian.filewatch"
   filewatch.watch(self.client.dir.filename, create_on_file_change_callback(self))
 
   vim.api.nvim_create_autocmd({ "QuitPre", "ExitPre" }, {
@@ -194,7 +196,7 @@ Cache.new = function(client)
   local self = Cache.init()
   self.client = client
 
-  if client.opts.cache.enabled then
+  if client.opts.cache.enable then
     enable_filewatch(self)
 
     check_vault_cache(self)
@@ -210,11 +212,17 @@ local get_cache_notes_from_vault = function(client, callback)
   ---@type { [string]: obsidian.cache.CacheNote }
   local created_note_caches = {}
 
-  local tx, rx = channel.oneshot()
+  local founded_notes = api.get_all_notes_from_vault(client.dir.filename)
 
-  local on_find_match = function(path_match)
-    local note = Note.from_file(path_match, { read_only_frontmatter = true })
+  assert(founded_notes)
 
+  local notes_parsed = 0
+
+  local on_exit = function()
+    callback(created_note_caches)
+  end
+
+  local on_note_parsed = function(note)
     local absolute_path = note.path.filename
     local relative_path = absolute_path:gsub(client.dir.filename .. "/", "")
 
@@ -233,36 +241,38 @@ local get_cache_notes_from_vault = function(client, callback)
       absolute_path = absolute_path,
       aliases = note.aliases,
       last_updated = last_updated,
+      tags = note.tags or {},
     }
 
     created_note_caches[relative_path] = note_cache
+
+    notes_parsed = notes_parsed + 1
+
+    if notes_parsed == #founded_notes then
+      on_exit()
+    end
   end
 
-  local on_exit = function(_)
-    tx()
+  for _, note_path in ipairs(founded_notes) do
+    async.run(function()
+      return Note.from_file_async(note_path, { read_only_frontmatter = true })
+    end, on_note_parsed)
   end
-
-  search.find_async(client.dir, "", nil, on_find_match, on_exit)
-
-  async.run(function()
-    rx()
-    return created_note_caches
-  end, callback)
 end
 
 --- Reads all notes in the vaults and saves them to the cache file.
 ---@param self obsidian.Cache
 Cache.rebuild_cache = function(self)
-  if not self.client.opts.cache.enabled then
+  if not self.client.opts.cache.enable then
     log.error "The cache is disabled. Cannot index vault."
-    return;
+    return
   end
 
-  log.info("Rebuilding cache...")
+  log.info "Rebuilding cache..."
 
   get_cache_notes_from_vault(self.client, function(founded_links)
     save_cache_notes_to_file(founded_links, self:get_cache_path())
-    log.info("The cache was rebuild.")
+    log.info "The cache was rebuild."
   end)
 end
 

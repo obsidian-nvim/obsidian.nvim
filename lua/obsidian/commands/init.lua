@@ -15,25 +15,25 @@ end
 local function get_commands_by_context(commands, is_visual, is_note)
   local choices = vim.tbl_values(commands)
   return vim
-      .iter(choices)
-      :filter(function(config)
-        if is_visual then
-          return config.range ~= nil
-        else
-          return config.range == nil
-        end
-      end)
-      :filter(function(config)
-        if is_note then
-          return true
-        else
-          return not config.note_action
-        end
-      end)
-      :map(function(config)
-        return config.name
-      end)
-      :totable()
+    .iter(choices)
+    :filter(function(config)
+      if is_visual then
+        return config.range ~= nil
+      else
+        return config.range == nil
+      end
+    end)
+    :filter(function(config)
+      if is_note then
+        return true
+      else
+        return not config.note_action
+      end
+    end)
+    :map(function(config)
+      return config.name
+    end)
+    :totable()
 end
 
 local function show_menu(data)

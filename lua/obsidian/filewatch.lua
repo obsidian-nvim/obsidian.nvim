@@ -1,6 +1,6 @@
 local uv = vim.loop
 local util = require "obsidian.util"
-local os_util = require("obsidian.os_util")
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -76,8 +76,8 @@ local function watch_path(path, on_event, on_error, opts)
   end
 
   local flags = {
-    watch_entry = false,        -- true = if you pass dir, watch the dir inode only, not the dir content
-    stat = false,               -- true = don't use inotify/kqueue but periodic check, not implemented
+    watch_entry = false, -- true = if you pass dir, watch the dir inode only, not the dir content
+    stat = false, -- true = don't use inotify/kqueue but periodic check, not implemented
     recursive = opts.recursive, -- true = watch dirs inside dirs. For now only works on Windows and MacOS
   }
 
@@ -89,7 +89,7 @@ local function watch_path(path, on_event, on_error, opts)
   local add_to_queue = function(send_arg)
     table.insert(queue_to_send, send_arg)
 
-    queue_timer:stop();
+    queue_timer:stop()
 
     queue_timer:start(CALLBACK_AFTER_INTERVAL, 0, function()
       on_event(queue_to_send)
@@ -113,11 +113,11 @@ local function watch_path(path, on_event, on_error, opts)
 
     uv.fs_stat(full_path, function(stat_err, stat)
       if stat_err then
-        on_event({
+        on_event {
           absolute_path = full_path,
           event = M.EventTypes.deleted,
-          stat = nil
-        })
+          stat = nil,
+        }
         return
       end
 
@@ -130,11 +130,11 @@ local function watch_path(path, on_event, on_error, opts)
         event_type = M.EventTypes.unknown
       end
 
-      add_to_queue({
+      add_to_queue {
         absolute_path = full_path,
         event = event_type,
-        stat = stat
-      })
+        stat = stat,
+      }
     end)
   end
 
@@ -159,9 +159,7 @@ M.watch = function(path, callback, on_error)
     error "Path cannot be empty."
   end
 
-  if not callback then
-    error "Callback cannot be empty!"
-  end
+  assert(callback)
 
   if on_error == nil then
     on_error = make_default_error_cb(path)
@@ -169,9 +167,7 @@ M.watch = function(path, callback, on_error)
 
   local new_timer = uv.new_timer()
 
-  if not new_timer then
-    error("Couldn't create queue timer!")
-  end
+  assert(new_timer)
 
   queue_timer = new_timer
 
@@ -181,7 +177,11 @@ M.watch = function(path, callback, on_error)
   if sysname == util.OSType.Linux then
     table.insert(watch_handlers, watch_path(path, callback, on_error, { recursive = false }))
 
-    for _, dir in ipairs(os_util.get_sub_dirs_from_vault(path)) do
+    local subfolders = api.get_sub_dirs_from_vault(path)
+
+    assert(subfolders)
+
+    for _, dir in ipairs(subfolders) do
       table.insert(watch_handlers, watch_path(dir, callback, on_error, { recursive = false }))
     end
   else

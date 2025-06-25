@@ -425,8 +425,8 @@ config.normalize = function(opts, defaults)
     if warn then
       log.warn_once(
         "The config options 'completion.prepend_note_id', 'completion.prepend_note_path', and 'completion.use_path_only' "
-        .. "are deprecated. Please use 'wiki_link_func' instead.\n"
-        .. "See https://github.com/epwalsh/obsidian.nvim/pull/406"
+          .. "are deprecated. Please use 'wiki_link_func' instead.\n"
+          .. "See https://github.com/epwalsh/obsidian.nvim/pull/406"
       )
     end
   end
@@ -448,7 +448,7 @@ config.normalize = function(opts, defaults)
     opts.completion.preferred_link_style = nil
     log.warn_once(
       "The config option 'completion.preferred_link_style' is deprecated, please use the top-level "
-      .. "'preferred_link_style' instead."
+        .. "'preferred_link_style' instead."
     )
   end
 
@@ -457,7 +457,7 @@ config.normalize = function(opts, defaults)
     opts.completion.new_notes_location = nil
     log.warn_once(
       "The config option 'completion.new_notes_location' is deprecated, please use the top-level "
-      .. "'new_notes_location' instead."
+        .. "'new_notes_location' instead."
     )
   end
 
@@ -465,7 +465,7 @@ config.normalize = function(opts, defaults)
     opts.detect_cwd = nil
     log.warn_once(
       "The 'detect_cwd' field is deprecated and no longer has any affect.\n"
-      .. "See https://github.com/epwalsh/obsidian.nvim/pull/366 for more details."
+        .. "See https://github.com/epwalsh/obsidian.nvim/pull/366 for more details."
     )
   end
 
