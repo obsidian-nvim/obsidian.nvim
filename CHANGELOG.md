@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `debug` command, and point user to `checkhealth obsidian`.
 - Remove `mappings.lua`, see: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps
 - Moved `daily` as its own module instead of client method.
+- Moved tag finding as its own module.
 
 ### Fixed
 
