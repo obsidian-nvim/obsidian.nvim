@@ -1,7 +1,6 @@
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
-local Tags = require "obsidian.tags"
 local Note = require "obsidian.note"
 
 ---@param picker obsidian.Picker
@@ -9,7 +8,7 @@ local Note = require "obsidian.note"
 local function gather_tag_picker_list(picker, tags)
   local entries = {}
 
-  Tags.find(tags, {
+  api.find_tags(tags, {
     on_match = function(tag_loc)
       for _, tag in ipairs(tags) do
         if tag_loc.tag == tag or vim.startswith(tag_loc.tag, tag .. "/") then
@@ -69,7 +68,7 @@ return function(client, data)
   if not vim.tbl_isempty(tags) then
     return gather_tag_picker_list(picker, util.tbl_unique(tags))
   else
-    Tags.list(function(all_tags)
+    api.list_tags(function(all_tags)
       vim.schedule(function()
         -- Open picker with tags.
         picker:pick_tag(all_tags, {

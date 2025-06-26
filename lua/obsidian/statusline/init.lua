@@ -1,5 +1,6 @@
 local M = {}
 local uv = vim.uv
+local api = require "obsidian.api"
 
 --- Register the global variable that updates itself
 M.start = function(client)
@@ -15,8 +16,9 @@ M.start = function(client)
       current_note = note
     end
 
-    client:find_backlinks_async(
+    api.find_backlinks(
       note,
+      {},
       vim.schedule_wrap(function(backlinks)
         local format = assert(client.opts.statusline.format)
         local wc = vim.fn.wordcount()

@@ -5,7 +5,7 @@ local T = new_set {
   hooks = {
     pre_case = function()
       child.restart { "-u", "scripts/minimal_init.lua" }
-      child.lua [[M = require"obsidian.tags";
+      child.lua [[M = require"obsidian.api";
 Path = require "obsidian.path"
 _G.dir = Path.temp { suffix = "-obsidian" }
 dir:mkdir { parents = true }
@@ -25,9 +25,7 @@ vim.fn.writefile({
   " #higher",
 }, file)
 
-_G.res = nil
-
-M.find("hi", { dir = tostring(dir) }, function(tag_locs)
+M.find_tags("hi", { dir = tostring(dir) }, function(exit_code, tag_locs)
   res = tag_locs
   vim.fn.delete(tostring(_G.dir), "rf")
 end)
