@@ -6,7 +6,6 @@ return setmetatable({
   [ms.initialized] = require "obsidian.lsp.handlers.initialized",
 }, {
   __index = function(_, k)
-    vim.notify("obsidian_ls does not support method " .. k .. " yet", 3)
     return function() end
   end,
 })
