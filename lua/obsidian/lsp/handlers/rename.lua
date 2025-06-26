@@ -40,6 +40,8 @@ local function build_search_lookup(old, new)
   return replace_lookup, vim.tbl_keys(replace_lookup)
 end
 
+---Return file info from uri
+---
 ---@return obsidian.lsp.note_info
 local function info_from_uri(uri, client)
   local path = vim.uri_to_fname(uri)
@@ -56,7 +58,10 @@ local function info_from_uri(uri, client)
 end
 
 --- TODO: should move to other dirs, with new name like ../newname
+--- TODO: note id func?
 
+---Return file info from id and old path
+---
 ---@return obsidian.lsp.note_info
 local function info_from_id(id, old_path, client)
   local dirname = vim.fs.dirname(old_path)
@@ -139,7 +144,7 @@ local function rename_note(client, uri, new_name)
 end
 
 ---@param client obsidian.Client
----@param params table
+---@param params lsp.RenameParams
 return function(client, params, _, _)
   local query = api.parse_cursor_link()
 

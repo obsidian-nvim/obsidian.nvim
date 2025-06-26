@@ -166,11 +166,7 @@ obsidian.setup = function(opts)
         obsidian.api.nav_link "prev"
       end, { buffer = true, desc = "Obsidian Previous Link" })
 
-      local lsp_id = require("obsidian.lsp").start(client, ev.buf)
-
-      local lsp = vim.lsp.get_client_by_id(lsp_id)
-
-      _, _ = lsp_id, lsp
+      require("obsidian.lsp").start(client, ev.buf)
 
       -- Run enter-note callback.
       local note = obsidian.Note.from_buffer(ev.buf)
