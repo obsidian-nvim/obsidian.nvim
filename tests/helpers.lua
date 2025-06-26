@@ -15,11 +15,7 @@ M.with_tmp_client = function(f, dir, opts)
     dir:mkdir { parents = true }
   end
 
-  local client = obsidian.new_from_dir(tostring(dir))
-
-  if opts then
-    client.opts = vim.deepcopy(opts)
-  end
+  local client = obsidian.new_from_dir(tostring(dir), opts)
   local ok, err = pcall(f, client)
 
   if tmp then

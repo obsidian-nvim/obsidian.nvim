@@ -96,6 +96,12 @@ Client.set_workspace = function(self, workspace, opts)
     notes_subdir:mkdir { parents = true, exists_ok = true }
   end
 
+  if self.opts.templates.folder ~= nil then
+    local templates_subdir = self.dir / self.opts.templates.folder
+    print("templates_subdir:", templates_subdir)
+    templates_subdir:mkdir { parents = true, exists_ok = true }
+  end
+
   if self.opts.daily_notes.folder ~= nil then
     local daily_notes_subdir = self.dir / self.opts.daily_notes.folder
     daily_notes_subdir:mkdir { parents = true, exists_ok = true }

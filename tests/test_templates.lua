@@ -1,7 +1,18 @@
+local NewNotesLocation = require("obsidian.config").NewNotesLocation
+
 local h = dofile "tests/helpers.lua"
-local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
+local new_set, eq, neq = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.no_equality
 local M = require "obsidian.templates"
 local Note = require "obsidian.note"
+require "obsidian.client"
+
+--- @type obsidian.config.CustomTemplateOpts
+local zettelConfig = {
+  dir = "/custom/path/to/zettels",
+  note_id_func = function()
+    return "hummus"
+  end,
+}
 
 local T = new_set()
 
@@ -21,6 +32,72 @@ local tmp_template_context = function(client, ctx)
 end
 
 T["substitute_template_variables()"] = new_set()
+T["load_template_customizations()"] = new_set()
+T["restore_client_configurations()"] = new_set()
+
+T["load_template_customizations()"]["should not load customizations for non-existant templates"] = function()
+  h.with_tmp_client(function(client)
+    client.opts.templates.customizations = {
+      Zettel = zettelConfig,
+    }
+    local old_id_func = client.opts.note_id_func
+
+    M.load_template_customizations("zettel", client)
+
+    eq(client.opts.notes_subdir, nil)
+    neq(zettelConfig.note_id_func, client.opts.note_id_func)
+    eq(old_id_func, client.opts.note_id_func)
+  end, nil, { templates = { folder = "templates" } })
+end
+
+T["load_template_customizations()"]["should load customizations for existing template"] = function()
+  h.with_tmp_client(function(client)
+    client.opts.templates.customizations = {
+      Zettel = zettelConfig,
+    }
+
+    client:create_note { dir = client:templates_dir(), id = "zettel" }
+
+    M.load_template_customizations("zettel", client)
+
+    eq(zettelConfig.dir, client.opts.notes_subdir)
+    eq(zettelConfig.note_id_func, client.opts.note_id_func)
+  end, nil, { templates = { folder = "templates" } })
+end
+
+T["restore_client_configurations()"]["should do nothing if no configuration is cached"] = function()
+  h.with_tmp_client(function(client)
+    local old_id_func = client.opts.note_id_func
+    local notes_subdir = client.opts.notes_subdir
+
+    M.restore_client_configurations(client)
+
+    eq(old_id_func, client.opts.note_id_func)
+    eq(notes_subdir, client.opts.notes_subdir)
+  end)
+end
+
+T["restore_client_configurations()"]["should reload client configuration after successfully loading previously"] = function()
+  h.with_tmp_client(function(client)
+    client:create_note { dir = client:templates_dir(), id = "zettel" }
+    local old_id_func = client.opts.note_id_func
+    local notes_subdir = client.opts.notes_subdir
+    client.opts.templates.customizations = {
+      Zettel = zettelConfig,
+    }
+
+    M.load_template_customizations("zettel", client)
+    eq(zettelConfig.dir, client.opts.notes_subdir)
+    eq(NewNotesLocation.notes_subdir, client.opts.new_notes_location)
+    eq(zettelConfig.note_id_func, client.opts.note_id_func)
+
+    M.restore_client_configurations(client)
+
+    eq(old_id_func, client.opts.note_id_func)
+    eq(NewNotesLocation.current_dir, client.opts.new_notes_location)
+    eq(notes_subdir, client.opts.notes_subdir)
+  end, nil, { templates = { folder = "templates" } })
+end
 
 T["substitute_template_variables()"]["should substitute built-in variables"] = function()
   h.with_tmp_client(function(client)

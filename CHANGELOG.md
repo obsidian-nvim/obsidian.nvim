@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Allow custom directory and ID logic for templates
 - When filling out a template with user-provided substitution functions, pass a "context" object to each invocation so that users can respond accordingly.
   - Added `obsidian.InsertTemplateContext` and `obsidian.CloneTemplateContext` as these new "context" objects.
 - Github workflow and `make types` now use `lua-language-server` to check type issues.
@@ -23,18 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `debug` command and lazy log functions, and point user to `checkhealth obsidian`.
 - Remove `mappings.lua`, see: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps
 - Moved `daily` as its own module instead of client method.
+- Refactor the `util` module.
+- Use `vim.defaulttable` instead of custom impl.
 
 ### Fixed
 
+- Fixed improper tmp-file creation during template tests
 - Only error once if template folder is not found.
 - Fixed corrupted text when custom variables appear more than once in a template file (#198)
 - Add further checks to void false positives when finding tags
 - Off-by-one bug when avoiding tag in code blocks
-
-### Changed
-
-- Refactor the `util` module.
-- Use `vim.defaulttable` instead of custom impl.
 
 ## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
 
