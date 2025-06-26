@@ -1,8 +1,8 @@
+local util = require "obsidian.util"
 local log = require "obsidian.log"
 local RefTypes = require("obsidian.search").RefTypes
 local api = require "obsidian.api"
 local search = require "obsidian.search"
-local util = require "obsidian.util"
 
 ---@param client obsidian.Client
 ---@param picker obsidian.Picker
@@ -62,7 +62,6 @@ return function(client)
     log.err "No picker configured"
     return
   end
-  local picker_name = tostring(picker)
 
   local cur_link, link_type = api.cursor_link()
 
@@ -94,7 +93,6 @@ return function(client)
     local opts = { anchor = anchor_link, block = block_link }
 
     search.resolve_note_async(location, function(...)
-      ---@type obsidian.Note[]
       local notes = { ... }
 
       if #notes == 0 then
@@ -140,6 +138,5 @@ return function(client)
     else
       collect_backlinks(client, picker, note, opts)
     end
-    vim.lsp.buf.document_symbol { loclist = false }
   end
 end
