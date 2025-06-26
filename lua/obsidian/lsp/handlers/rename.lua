@@ -2,6 +2,7 @@ local lsp = vim.lsp
 local Note = require "obsidian.note"
 local search = require "obsidian.search"
 local log = require "obsidian.log"
+local api = require "obsidian.api"
 
 -- Search notes on disk for any references to `cur_note_id`.
 -- We look for the following forms of references:
@@ -71,10 +72,11 @@ local function info_from_id(id, old_path, client)
 end
 
 ---@param client obsidian.Client
----@param params lsp.RenameParams
-local function rename_current_note(client, params)
-  local old = info_from_uri(params.textDocument.uri, client)
-  local new = info_from_id(params.newName, old.path, client)
+---@param uri string
+---@param new_name string
+local function rename_note(client, uri, new_name)
+  local old = info_from_uri(uri, client)
+  local new = info_from_id(new_name, old.path, client)
 
   local search_lookup = build_search_lookup(old, new)
   local count = 0
@@ -126,21 +128,43 @@ local function rename_current_note(client, params)
 
   log.info("renamed " .. count .. " reference(s) across " .. vim.tbl_count(file_map) .. " file(s)")
 
-  local note = client:current_note()
+  -- new file
+  local note = Note.from_file(new.path)
   note.id = new.id
 
   assert(note)
   note:save()
-  client:open_note(note)
-end
 
-local function rename_note_at_cursor(params) end
+  return note
+end
 
 ---@param client obsidian.Client
 ---@param params table
 return function(client, params, _, _)
-  local position = params.position
+  local query = api.parse_cursor_link()
 
-  -- TODO: check if cursor on link
-  rename_current_note(client, params)
+  local ok, err = pcall(vim.cmd.wall)
+
+  if not ok then
+    log.err(err and err or "failed writing all buffers before renaming, abort")
+    return
+  end
+
+  if query then
+    local notes, note = { client:resolve_note(query) }, nil
+    if #notes == 0 then
+      log.err("Failed to resolve '%s' to a note", query)
+      return
+    elseif #notes > 1 then
+      log.err("Failed to resolve '%s' to a single note, found %d matches", query, #notes)
+      return
+    else
+      note = notes[1]
+    end
+    local path = tostring(note.path)
+    rename_note(client, vim.uri_from_fname(path), params.newName)
+  else
+    local note = rename_note(client, params.textDocument.uri, params.newName)
+    client:open_note(note)
+  end
 end

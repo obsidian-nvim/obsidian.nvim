@@ -1,10 +1,16 @@
----@param client obsidian.Client
----@param params table
-return function(client, params, handler, _)
-  handler(nil, {
-    placeholder = client:current_note().id,
-  })
+local api = require "obsidian.api"
 
-  -- TODO: check if cursor on link
-  -- rename_current_note(client, params)
+---@param client obsidian.Client
+return function(client, _, handler)
+  local link = api.parse_cursor_link()
+  local placeholder
+  if link then
+    placeholder = link
+  else
+    placeholder = client:current_note().id
+  end
+
+  handler(nil, {
+    placeholder = placeholder,
+  })
 end
