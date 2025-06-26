@@ -156,17 +156,15 @@ return function(client, params, _, _)
   end
 
   if query then
-    local notes, note = { client:resolve_note(query) }, nil
+    local notes = { client:resolve_note(query) }
     if #notes == 0 then
       log.err("Failed to resolve '%s' to a note", query)
       return
     elseif #notes > 1 then
       log.err("Failed to resolve '%s' to a single note, found %d matches", query, #notes)
       return
-    else
-      note = notes[1]
     end
-    local path = tostring(note.path)
+    local path = tostring(notes[1].path)
     rename_note(client, vim.uri_from_fname(path), params.newName)
   else
     local note = rename_note(client, params.textDocument.uri, params.newName)
