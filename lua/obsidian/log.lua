@@ -3,9 +3,6 @@ local log = {}
 
 log._log_level = vim.log.levels.INFO
 
----@type { msg: string, level: integer }[]
-local buffer = {}
-
 ---@param t table
 ---@return boolean
 local function has_tostring(t)
