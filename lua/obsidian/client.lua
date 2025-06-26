@@ -1874,4 +1874,5 @@ Client.lsp_start = function(self, buf)
 
   return client_id
 end
+
 return Client
