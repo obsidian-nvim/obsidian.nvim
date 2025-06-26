@@ -65,15 +65,6 @@ end
 --- Table tools ---
 -------------------
 
----Check if a table contains a key.
----
----@param t table
----@param needle any
----@return boolean
-util.tbl_contains_key = function(t, needle)
-  return vim.list_contains(vim.tbl_keys(t), needle)
-end
-
 ---Check if an object is an array-like table.
 --- TODO: after 0.12 replace with vim.islist
 ---
@@ -81,13 +72,6 @@ end
 ---@return boolean
 util.islist = function(t)
   return compat.is_list(t)
-end
-
----Check if an object is an non-array table.
----@param t any
----@return boolean
-util.tbl_is_mapping = function(t)
-  return type(t) == "table" and (vim.tbl_isempty(t) or not util.islist(t))
 end
 
 ---Return a new list table with only the unique values of the original table.
@@ -100,15 +84,6 @@ util.tbl_unique = function(t)
     found[val] = true
   end
   return vim.tbl_keys(found)
-end
-
---- Clear all values from a table.
----
----@param t table
-util.tbl_clear = function(t)
-  for k, _ in pairs(t) do
-    t[k] = nil
-  end
 end
 
 --------------------
