@@ -166,6 +166,13 @@ obsidian.setup = function(opts)
         obsidian.api.nav_link "prev"
       end, { buffer = true, desc = "Obsidian Previous Link" })
 
+      -- Inject completion sources, providers to their plugin configurations
+      if opts.completion.nvim_cmp then
+        require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
+      elseif opts.completion.blink then
+        require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
+      end
+
       require("obsidian.lsp").start(client, ev.buf)
 
       -- Run enter-note callback.
