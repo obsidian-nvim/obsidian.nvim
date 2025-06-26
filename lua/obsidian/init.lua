@@ -166,11 +166,9 @@ obsidian.setup = function(opts)
         obsidian.api.nav_link "prev"
       end, { buffer = true, desc = "Obsidian Previous Link" })
 
-      local client_id = client:lsp_start(ev.buf)
+      local lsp_id = require("obsidian.lsp").start(client, ev.buf)
 
-      if not (pcall(require, "blink.cmp") or pcall(require, "cmp")) then
-        vim.lsp.completion.enable(true, client_id, ev.buf, { autotrigger = true })
-      end
+      _ = lsp_id
 
       -- Run enter-note callback.
       local note = obsidian.Note.from_buffer(ev.buf)
