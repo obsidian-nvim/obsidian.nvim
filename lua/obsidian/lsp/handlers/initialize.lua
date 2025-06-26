@@ -1,6 +1,8 @@
 local initializeResult = {
   capabilities = {
-    renameProvider = true,
+    renameProvider = {
+      prepareProvider = true,
+    },
   },
   serverInfo = {
     name = "obsidian-ls",

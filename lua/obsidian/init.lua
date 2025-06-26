@@ -168,7 +168,9 @@ obsidian.setup = function(opts)
 
       local lsp_id = require("obsidian.lsp").start(client, ev.buf)
 
-      _ = lsp_id
+      local lsp = vim.lsp.get_client_by_id(lsp_id)
+
+      _, _ = lsp_id, lsp
 
       -- Run enter-note callback.
       local note = obsidian.Note.from_buffer(ev.buf)
