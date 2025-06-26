@@ -144,6 +144,13 @@ obsidian.setup = function(opts)
         desc = "Obsidian Smart Action",
       })
 
+      -- Inject completion sources, providers to their plugin configurations
+      if opts.completion.nvim_cmp then
+        require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
+      elseif opts.completion.blink then
+        require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
+      end
+
       require("obsidian.lsp").start(client, ev.buf)
 
       -- Run enter-note callback.
