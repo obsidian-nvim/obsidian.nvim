@@ -43,7 +43,6 @@ local iter = vim.iter
 ---@field dir obsidian.Path The root of the vault for the current workspace.
 ---@field opts obsidian.config.ClientOpts The client config.
 ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
----@field callback_manager obsidian.CallbackManager
 ---@field _default_opts obsidian.config.ClientOpts
 local Client = abc.new_class {
   __tostring = function(self)
@@ -96,9 +95,6 @@ Client.set_workspace = function(self, workspace, opts)
     daily_notes_subdir:mkdir { parents = true, exists_ok = true }
   end
 
-  -- Initialize callback manager.
-  -- self.callback_manager = CallbackManager.new(self, self.opts.callbacks)
-
   -- Setup UI add-ons.
   local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
   if has_no_renderer and self.opts.ui.enable then
@@ -109,7 +105,7 @@ Client.set_workspace = function(self, workspace, opts)
     self.current_workspace:lock()
   end
 
-  util.fire_callback("post_set_workspace", self.opts.callbacks.post_set_workspace, client, workspace)
+  util.fire_callback("post_set_workspace", self.opts.callbacks.post_set_workspace, self, workspace)
 
   vim.api.nvim_exec_autocmds("User", {
     pattern = "ObsidianWorkpspaceSet",

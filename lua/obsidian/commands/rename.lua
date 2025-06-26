@@ -134,9 +134,7 @@ return function(client, data)
 
   ---@param fn function
   local function quietly(fn, ...)
-    client._quiet = true
     local ok, res = pcall(fn, ...)
-    client._quiet = false
     if not ok then
       error(res)
     end

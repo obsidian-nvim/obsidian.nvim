@@ -151,10 +151,6 @@ obsidian.setup = function(opts)
       end
 
       -- Run enter-note callback.
-      -- client.callback_manager:enter_note(function()
-      --   return obsidian.Note.from_buffer(ev.buf)
-      -- end)
-
       local note = obsidian.Note.from_buffer(ev.buf)
       obsidian.util.fire_callback("enter_note", client.opts.callbacks.enter_note, client, note)
 
@@ -178,10 +174,6 @@ obsidian.setup = function(opts)
       end
 
       -- Run leave-note callback.
-      -- client.callback_manager:leave_note(function()
-      --   return obsidian.Note.from_buffer(ev.buf)
-      -- end)
-
       local note = obsidian.Note.from_buffer(ev.buf)
       obsidian.util.fire_callback("leave_note", client.opts.callbacks.leave_note, client, note)
 
@@ -212,8 +204,6 @@ obsidian.setup = function(opts)
       local note = obsidian.Note.from_buffer(bufnr)
 
       -- Run pre-write-note callback.
-      -- client.callback_manager:pre_write_note(note)
-
       obsidian.util.fire_callback("pre_write_note", client.opts.callbacks.pre_write_note, client, note)
 
       exec_autocmds("ObsidianNoteWritePre", ev.buf)
