@@ -706,4 +706,22 @@ util.buffer_fn = function(fn)
   end
 end
 
+---@param event string
+---@param callback fun(...)
+---@param ... any
+---@return boolean success
+util.fire_callback = function(event, callback, ...)
+  local log = require "obsidian.log"
+  if not callback then
+    return false
+  end
+  local ok, err = pcall(callback, ...)
+  if ok then
+    return true
+  else
+    log.error("Error running %s callback: %s", event, err)
+    return false
+  end
+end
+
 return util

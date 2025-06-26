@@ -19,7 +19,6 @@ local log = require "obsidian.log"
 local util = require "obsidian.util"
 local search = require "obsidian.search"
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
-local CallbackManager = require("obsidian.callbacks").CallbackManager
 local block_on = require("obsidian.async").block_on
 local api = require "obsidian.api"
 local iter = vim.iter
@@ -45,9 +44,7 @@ local iter = vim.iter
 ---@field opts obsidian.config.ClientOpts The client config.
 ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
 ---@field callback_manager obsidian.CallbackManager
----@field log obsidian.Logger
 ---@field _default_opts obsidian.config.ClientOpts
----@field _quiet boolean
 local Client = abc.new_class {
   __tostring = function(self)
     return string.format("obsidian.Client('%s')", self.dir)
@@ -66,9 +63,7 @@ local Client = abc.new_class {
 Client.new = function(opts)
   local self = Client.init()
 
-  self.log = log
   self._default_opts = opts
-  self._quiet = false
 
   local workspace = Workspace.get_from_opts(opts)
   if not workspace then
@@ -102,7 +97,7 @@ Client.set_workspace = function(self, workspace, opts)
   end
 
   -- Initialize callback manager.
-  self.callback_manager = CallbackManager.new(self, self.opts.callbacks)
+  -- self.callback_manager = CallbackManager.new(self, self.opts.callbacks)
 
   -- Setup UI add-ons.
   local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
@@ -114,7 +109,8 @@ Client.set_workspace = function(self, workspace, opts)
     self.current_workspace:lock()
   end
 
-  self.callback_manager:post_set_workspace(workspace)
+  util.fire_callback("post_set_workspace", self.opts.callbacks.post_set_workspace, client, workspace)
+
   vim.api.nvim_exec_autocmds("User", {
     pattern = "ObsidianWorkpspaceSet",
     data = { workspace = workspace },

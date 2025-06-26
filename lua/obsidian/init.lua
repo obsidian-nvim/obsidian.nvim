@@ -2,10 +2,9 @@ local log = require "obsidian.log"
 
 local module_lookups = {
   abc = "obsidian.abc",
+  api = "obsidian.api",
   async = "obsidian.async",
   Client = "obsidian.client",
-  callbacks = "obsidian.callbacks",
-  collections = "obsidian.collections",
   commands = "obsidian.commands",
   completion = "obsidian.completion",
   config = "obsidian.config",
@@ -152,9 +151,12 @@ obsidian.setup = function(opts)
       end
 
       -- Run enter-note callback.
-      client.callback_manager:enter_note(function()
-        return obsidian.Note.from_buffer(ev.buf)
-      end)
+      -- client.callback_manager:enter_note(function()
+      --   return obsidian.Note.from_buffer(ev.buf)
+      -- end)
+
+      local note = obsidian.Note.from_buffer(ev.buf)
+      obsidian.util.fire_callback("enter_note", client.opts.callbacks.enter_note, client, note)
 
       exec_autocmds("ObsidianNoteEnter", ev.buf)
     end,
@@ -176,9 +178,12 @@ obsidian.setup = function(opts)
       end
 
       -- Run leave-note callback.
-      client.callback_manager:leave_note(function()
-        return obsidian.Note.from_buffer(ev.buf)
-      end)
+      -- client.callback_manager:leave_note(function()
+      --   return obsidian.Note.from_buffer(ev.buf)
+      -- end)
+
+      local note = obsidian.Note.from_buffer(ev.buf)
+      obsidian.util.fire_callback("leave_note", client.opts.callbacks.leave_note, client, note)
 
       exec_autocmds("ObsidianNoteLeave", ev.buf)
     end,
@@ -207,7 +212,9 @@ obsidian.setup = function(opts)
       local note = obsidian.Note.from_buffer(bufnr)
 
       -- Run pre-write-note callback.
-      client.callback_manager:pre_write_note(note)
+      -- client.callback_manager:pre_write_note(note)
+
+      obsidian.util.fire_callback("pre_write_note", client.opts.callbacks.pre_write_note, client, note)
 
       exec_autocmds("ObsidianNoteWritePre", ev.buf)
 
@@ -243,7 +250,9 @@ obsidian.setup = function(opts)
   obsidian._client = client
 
   -- Call post-setup callback.
-  client.callback_manager:post_setup()
+  -- client.callback_manager:post_setup()
+
+  obsidian.util.fire_callback("post_setup", client.opts.callbacks.post_setup, client)
 
   return client
 end
