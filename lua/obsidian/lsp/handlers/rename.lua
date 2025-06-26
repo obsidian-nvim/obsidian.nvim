@@ -1,23 +1,7 @@
 local lsp = vim.lsp
-local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local search = require "obsidian.search"
-
----@param old_uri string
----@param new_uri string
-local function rename_file(old_uri, new_uri)
-  -- ---@type lsp.WorkspaceEdit
-  -- local edit = {
-  --   documentChanges = {
-  --     {
-  --       kind = "rename",
-  --       oldUri = old_uri,
-  --       newUri = new_uri,
-  --     },
-  --   },
-  -- }
-  -- lsp.util.apply_workspace_edit(edit, "utf-8")
-end
+local log = require "obsidian.log"
 
 -- Search notes on disk for any references to `cur_note_id`.
 -- We look for the following forms of references:
@@ -93,13 +77,17 @@ local function rename_current_note(client, params)
   local new = info_from_id(params.newName, old.path, client)
 
   local search_lookup = build_search_lookup(old, new)
+  local count = 0
+  local all_tasks_submitted = false
+  local file_map = {}
 
   search.search_async(
     client.dir,
     vim.tbl_keys(search_lookup),
-    search.SearchOpts.from_tbl { fixed_strings = true, max_count_per_file = 1 },
+    { fixed_strings = true },
     vim.schedule_wrap(function(match)
       local file = match.path.text
+      file_map[file] = true
       local line = match.line_number - 1
       local start, _end = match.submatches[1].start, match.submatches[1]["end"]
       local matched = match.submatches[1].match.text
@@ -122,16 +110,28 @@ local function rename_current_note(client, params)
         },
       }
       lsp.util.apply_workspace_edit(edit, "utf-8")
+      count = count + 1
     end),
     function(_)
-      -- TODO: conclude the rename
+      all_tasks_submitted = true
     end
   )
 
   vim.lsp.util.rename(old.path, new.path)
 
-  -- local note = client:current_note()
-  -- note.id = new_note_id
+  -- Wait for all tasks to get submitted.
+  vim.wait(2000, function()
+    return all_tasks_submitted
+  end, 50, false)
+
+  log.info("renamed " .. count .. " reference(s) across " .. vim.tbl_count(file_map) .. " file(s)")
+
+  local note = client:current_note()
+  note.id = new.id
+
+  assert(note)
+  note:save()
+  client:open_note(note)
 end
 
 local function rename_note_at_cursor(params) end
