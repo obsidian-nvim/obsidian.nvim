@@ -2,8 +2,14 @@ local M = {}
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local iter, string, table = vim.iter, string, table
+local search = require "obsidian.search"
 
 ---builtin functions that are impure, interacts with editor state, like vim.api
+
+M.find_tags = search.find_tags
+M.list_tags = search.list_tags
+M.find_backlinks = search.find_backlinks
+M.find_links = search.find_links
 
 ---Toggle the checkbox on the current line.
 ---
@@ -111,7 +117,7 @@ M.cursor_tag = function()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
   cur_col = cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
 
-  for match in iter(search.find_tags(current_line)) do
+  for match in iter(search.find_tags_string(current_line)) do
     local open, close, _ = unpack(match)
     if open <= cur_col and cur_col <= close then
       return string.sub(current_line, open + 1, close)

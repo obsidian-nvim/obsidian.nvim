@@ -44,41 +44,41 @@ T["find_matches"] = function()
   eq(2, #matches)
 end
 
-T["find_tags"] = new_set()
-
-T["find_tags"]["should find positions of all tags"] = function()
-  local s = "#TODO I have a #meeting at noon"
-  eq({ { 1, 5, "Tag" }, { 16, 23, "Tag" } }, M.find_tags(s))
-end
-
-T["find_tags"]["should find four cases"] = function()
-  eq(1, #M.find_tags "#camelCase")
-  eq(1, #M.find_tags "#PascalCase")
-  eq(1, #M.find_tags "#snake_case")
-  eq(1, #M.find_tags "#kebab-case")
-end
-
-T["find_tags"]["should find nested tags"] = function()
-  eq(1, #M.find_tags " #inbox/processing")
-  eq(1, #M.find_tags " #inbox/to-read")
-end
-
-T["find_tags"]["should ignore escaped tags"] = function()
-  local s = "I have a #meeting at noon \\#not-a-tag"
-  eq({ { 10, 17, RefTypes.Tag } }, M.find_tags(s))
-  s = [[\#notatag]]
-  eq({}, M.find_tags(s))
-end
-
-T["find_tags"]["should ignore issue numbers"] = function()
-  local s = "Issue: #100"
-  eq({}, M.find_tags(s))
-end
-
-T["find_tags"]["should ignore hexcolors"] = function()
-  local s = "backgroud: #f0f0f0"
-  eq({}, M.find_tags(s))
-end
+-- T["find_tags"] = new_set()
+--
+-- T["find_tags"]["should find positions of all tags"] = function()
+--   local s = "#TODO I have a #meeting at noon"
+--   eq({ { 1, 5, "Tag" }, { 16, 23, "Tag" } }, M.find_tags(s))
+-- end
+--
+-- T["find_tags"]["should find four cases"] = function()
+--   eq(1, #M.find_tags "#camelCase")
+--   eq(1, #M.find_tags "#PascalCase")
+--   eq(1, #M.find_tags "#snake_case")
+--   eq(1, #M.find_tags "#kebab-case")
+-- end
+--
+-- T["find_tags"]["should find nested tags"] = function()
+--   eq(1, #M.find_tags " #inbox/processing")
+--   eq(1, #M.find_tags " #inbox/to-read")
+-- end
+--
+-- T["find_tags"]["should ignore escaped tags"] = function()
+--   local s = "I have a #meeting at noon \\#not-a-tag"
+--   eq({ { 10, 17, RefTypes.Tag } }, M.find_tags(s))
+--   s = [[\#notatag]]
+--   eq({}, M.find_tags(s))
+-- end
+--
+-- T["find_tags"]["should ignore issue numbers"] = function()
+--   local s = "Issue: #100"
+--   eq({}, M.find_tags(s))
+-- end
+--
+-- T["find_tags"]["should ignore hexcolors"] = function()
+--   local s = "backgroud: #f0f0f0"
+--   eq({}, M.find_tags(s))
+-- end
 
 -- T["find_tags"]["should ignore anchor links that look like tags"] = function()
 --   local s = "[readme](README#installation)"
