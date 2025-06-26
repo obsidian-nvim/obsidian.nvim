@@ -314,9 +314,11 @@ config.default = {
   ---
   ---@field enabled boolean|? Use cache when searching for notes
   ---@field path string The file where the cache will be saved
+  ---@field show_tags boolean|? Show tags in the picker
   cache = {
     enabled = false,
     path = "./.cache.json",
+    show_tags = false,
   },
 
   ---@class obsidian.config.StatuslineOpts

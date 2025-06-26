@@ -602,6 +602,7 @@ require("obsidian").setup {
   cache = {
     enabled = false,
     path = "./.cache.json",
+    show_tags = false -- will show tags after a note name and after aliases.
   }
 }
 ```

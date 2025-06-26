@@ -175,7 +175,7 @@ local create_cache_picker = function(self, prompt_title, opts)
       ---@return obsidian.pickers.telescope_picker.CacheSelectedEntry
       entry_maker = function(entry)
         local concated_aliases = table.concat(entry.aliases, "|")
-        local concated_tags = table.concat(entry.tags, "#")
+        local concated_tags = table.concat(entry.tags, " #")
         local relative_path = entry.absolute_path:gsub(self.client.dir.filename .. "/", "")
         local display_name
 
@@ -185,8 +185,8 @@ local create_cache_picker = function(self, prompt_title, opts)
           display_name = relative_path
         end
 
-        if concated_tags and concated_tags ~= "" then
-          display_name = table.concat({ display_name, concated_tags }, "#")
+        if self.client.opts.cache.show_tags and concated_tags and concated_tags ~= "" then
+          display_name = table.concat({ display_name, concated_tags }, " #")
         end
 
         return {
