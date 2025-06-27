@@ -9,7 +9,6 @@
 ---@toc
 
 local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
 local async = require "plenary.async"
 local channel = require("plenary.async.control").channel
 local config = require "obsidian.config"
@@ -38,7 +37,29 @@ local iter = vim.iter
 ---@toc_entry obsidian.Client
 ---
 ---@class obsidian.Client : obsidian.ABC
-local Client = abc.new_class {}
+local Client = {}
+
+local depreacted_lookup = {
+  dir = "dir",
+  buf_dir = "buf_dir",
+  current_workspace = "workspace",
+  opts = "opts",
+}
+
+Client.__index = function(_, k)
+  if depreacted_lookup[k] then
+    local msg = string.format(
+      [[client.%s is depreacted, use Obsidian.%s instead.
+client is going to be removed in the future as well.]],
+      k,
+      depreacted_lookup[k]
+    )
+    log.warn(msg)
+    return Obsidian[depreacted_lookup[k]]
+  elseif rawget(Client, k) then
+    return rawget(Client, k)
+  end
+end
 
 --- Create a new Obsidian client without additional setup.
 --- This is mostly used for testing. In practice you usually want to obtain the existing
@@ -50,7 +71,7 @@ local Client = abc.new_class {}
 ---
 ---@return obsidian.Client
 Client.new = function(opts)
-  local self = Client.init()
+  local self = setmetatable({}, Client)
 
   Obsidian._opts = opts
 
