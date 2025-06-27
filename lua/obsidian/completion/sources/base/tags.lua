@@ -57,7 +57,7 @@ function TagsSourceBase:process_completion(cc)
   local search_opts = cc.client.search_defaults()
   search_opts.sort = false
 
-  cc.client:find_tags_async(cc.search, function(tag_locs)
+  obsidian.api.find_tags(cc.search, {}, function(exit_code, tag_locs)
     local tags = {}
     for tag_loc in iter(tag_locs) do
       tags[tag_loc.tag] = true
