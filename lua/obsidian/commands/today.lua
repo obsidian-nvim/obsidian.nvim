@@ -14,6 +14,6 @@ return function(client, data)
       offset_days = offset
     end
   end
-  local note = require("obsidian.daily").daily(offset_days, {}, Obsidian.opts)
+  local note = require("obsidian.daily").daily(offset_days, {})
   client:open_note(note)
 end

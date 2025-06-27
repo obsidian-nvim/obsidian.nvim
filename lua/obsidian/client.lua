@@ -38,16 +38,7 @@ local iter = vim.iter
 ---@toc_entry obsidian.Client
 ---
 ---@class obsidian.Client : obsidian.ABC
----
----@field current_workspace obsidian.Workspace The current workspace.
----@field dir obsidian.Path The root of the vault for the current workspace.
----@field buf_dir obsidian.Path|? The parent directory of the current buffer.
----@field _default_opts obsidian.config.ClientOpts
-local Client = abc.new_class {
-  __tostring = function(self)
-    return string.format("obsidian.Client('%s')", Obsidian.dir)
-  end,
-}
+local Client = abc.new_class {}
 
 --- Create a new Obsidian client without additional setup.
 --- This is mostly used for testing. In practice you usually want to obtain the existing
@@ -61,7 +52,7 @@ local Client = abc.new_class {
 Client.new = function(opts)
   local self = Client.init()
 
-  self._default_opts = opts
+  Obsidian._opts = opts
 
   local workspace = Workspace.get_from_opts(opts)
   assert(workspace)
@@ -120,7 +111,7 @@ end
 ---@return obsidian.config.ClientOpts
 Client.opts_for_workspace = function(self, workspace)
   if workspace then
-    return config.normalize(workspace.overrides and workspace.overrides or {}, self._default_opts)
+    return config.normalize(workspace.overrides and workspace.overrides or {}, Obsidian._opts)
   else
     return Obsidian.opts
   end

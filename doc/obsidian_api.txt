@@ -35,13 +35,6 @@ in Lua. To get the client instance, run:
 Class ~
 {obsidian.Client} : obsidian.ABC
 
-Fields ~
-{current_workspace} `(obsidian.Workspace)` The current workspace.
-{dir} `(obsidian.Path)` The root of the vault for the current workspace.
-{opts} `(obsidian.config.ClientOpts)` The client config.
-{buf_dir} `(obsidian.Path|? The)` parent directory of the current buffer.
-{_default_opts} `(obsidian.config.ClientOpts)`
-
 ------------------------------------------------------------------------------
                                                          *obsidian.Client.new()*
                               `Client.new`({opts})
@@ -66,7 +59,7 @@ Parameters ~
 
 ------------------------------------------------------------------------------
                                           *obsidian.Client.opts_for_workspace()*
-                `Client.opts_for_workspace`({self}, {workspace})
+                 `Client.opts_for_workspace`({_}, {workspace})
 Get the normalize opts for a given workspace.
 
 Parameters ~
@@ -98,7 +91,7 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                   *obsidian.Client.vault_root()*
-                    `Client.vault_root`({self}, {workspace})
+                     `Client.vault_root`({_}, {workspace})
 Get the absolute path to the root of the Obsidian vault for the given workspace or the
 current workspace.
 
@@ -278,7 +271,7 @@ Parameters ~
 
 ------------------------------------------------------------------------------
                                                    *obsidian.Client.open_note()*
-               `Client.open_note`({self}, {note_or_path}, {opts})
+                `Client.open_note`({_}, {note_or_path}, {opts})
 Open a note in a buffer.
 
 Parameters ~
@@ -421,7 +414,7 @@ Options:
 
 ------------------------------------------------------------------------------
                                                  *obsidian.Client.new_note_id()*
-                     `Client.new_note_id`({self}, {title})
+                       `Client.new_note_id`({_}, {title})
 Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
 otherwise falls back to generated a Zettelkasten style ID.
 
@@ -433,7 +426,7 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                *obsidian.Client.new_note_path()*
-                     `Client.new_note_path`({self}, {spec})
+                      `Client.new_note_path`({_}, {spec})
 Generate the file path for a new note given its ID, parent directory, and title.
 This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 `spec.dir / (spec.id .. ".md")`.
@@ -956,29 +949,6 @@ Initialize a new 'Workspace' object from a workspace spec.
 
 Parameters ~
 {spec} `(obsidian.workspace.WorkspaceSpec)`
-
-Return ~
-`(obsidian.Workspace)`
-
-------------------------------------------------------------------------------
-                                             *obsidian.Workspace.new_from_cwd()*
-                        `Workspace.new_from_cwd`({opts})
-Initialize a 'Workspace' object from the current working directory.
-
-Parameters ~
-{opts} `(obsidian.workspace.WorkspaceOpts|)`?
-
-Return ~
-`(obsidian.Workspace)`
-
-------------------------------------------------------------------------------
-                                             *obsidian.Workspace.new_from_buf()*
-                   `Workspace.new_from_buf`({bufnr}, {opts})
-Initialize a 'Workspace' object from the parent directory of the current buffer.
-
-Parameters ~
-{bufnr} `(integer|)`?
-{opts} `(obsidian.workspace.WorkspaceOpts|)`?
 
 Return ~
 `(obsidian.Workspace)`

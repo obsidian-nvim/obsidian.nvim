@@ -100,7 +100,7 @@ function M.check()
   info("operating system: %s", os)
 
   start "Config"
-  info("dir: %s", require("obsidian").get_client().dir)
+  info("  • dir: %s", Obsidian.dir)
 
   start "Pickers"
 

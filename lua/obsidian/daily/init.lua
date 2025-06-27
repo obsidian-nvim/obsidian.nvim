@@ -11,7 +11,7 @@ local daily_note_path = function(datetime)
   datetime = datetime and datetime or os.time()
 
   ---@type obsidian.Path
-  local path = Path:new(require("obsidian").get_client().dir)
+  local path = Path:new(Obsidian.dir)
 
   local options = Obsidian.opts
 

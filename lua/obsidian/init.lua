@@ -81,7 +81,8 @@ obsidian.setup = function(opts)
   ---@field workspace obsidian.Workspace The current workspace.
   ---@field dir obsidian.Path The root of the vault for the current workspace.
   ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
-  ---@field opts obsidian.config.ClientOpts
+  ---@field opts obsidian.config.ClientOpts current options
+  ---@field _opts obsidian.config.ClientOpts default options
   _G.Obsidian = {} -- init a state table
 
   local client = obsidian.new(opts)

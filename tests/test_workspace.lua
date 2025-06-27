@@ -13,10 +13,4 @@ T["should be able to initialize a workspace"] = function()
   tmpdir:rmdir()
 end
 
-T["should be able to initialize from cwd"] = function()
-  local ws = workspace.new_from_cwd()
-  local cwd = Path.cwd()
-  eq(true, cwd == ws.path)
-end
-
 return T
