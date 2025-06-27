@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `api.insert_text`, use `vim.api.nvim_put`
 - change `clipboard_is_img` to use `vim.fn.system` instead of `io.popen` to get the output of the command with awareness of the shell variables.
 - use `run_job` wrap with `bash` to run `save_clipboard_image` async for Wayland sessions to avoid data corruption.
+- Use a `Obsidian` global variable to hold the state instead of client.
 
 ### Fixed
 

@@ -1,7 +1,8 @@
 local Path = require "obsidian.path"
 local h = dofile "tests/helpers.lua"
 
-Obsidian = {}
+---@diagnostic disable-next-line: missing-fields
+_G.Obsidian = {}
 
 local client_opts = {
   note_id_func = function(title)
