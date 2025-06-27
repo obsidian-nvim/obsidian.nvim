@@ -18,7 +18,7 @@ local client_opts = {
 describe("Client:new_note_path()", function()
   it('should only append one ".md" at the end of the path', function()
     h.with_tmp_client(function(client)
-      client.opts.note_path_func = function(spec)
+      Obsidian.opts.note_path_func = function(spec)
         return (spec.dir / "foo-bar-123"):with_suffix ".md.md.md"
       end
 
@@ -109,7 +109,7 @@ describe("Client:parse_title_id_path()", function()
 
   it("should respect configured 'note_path_func'", function()
     h.with_tmp_client(function(client)
-      client.opts.note_path_func = function(spec)
+      Obsidian.opts.note_path_func = function(spec)
         return (spec.dir / "foo-bar-123"):with_suffix ".md"
       end
 
@@ -122,7 +122,7 @@ describe("Client:parse_title_id_path()", function()
 
   it("should ensure result of 'note_path_func' always has '.md' suffix", function()
     h.with_tmp_client(function(client)
-      client.opts.note_path_func = function(spec)
+      Obsidian.opts.note_path_func = function(spec)
         return spec.dir / "foo-bar-123"
       end
 
@@ -135,7 +135,7 @@ describe("Client:parse_title_id_path()", function()
 
   it("should ensure result of 'note_path_func' is always an absolute path and within provided directory", function()
     h.with_tmp_client(function(client)
-      client.opts.note_path_func = function(_)
+      Obsidian.opts.note_path_func = function(_)
         return "foo-bar-123.md"
       end
 

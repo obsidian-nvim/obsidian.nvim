@@ -95,7 +95,7 @@ return function(client, data)
   local new_note_path
   if #parts > 1 then
     parts[#parts] = nil
-    new_note_path = client.dir:joinpath(unpack(compat.flatten { parts, new_note_id })):with_suffix ".md"
+    new_note_path = Obsidian.dir:joinpath(unpack(compat.flatten { parts, new_note_id })):with_suffix ".md"
   else
     new_note_path = (dirname / new_note_id):with_suffix ".md"
   end
@@ -286,7 +286,7 @@ return function(client, data)
   end
 
   search.search_async(
-    client.dir,
+    Obsidian.dir,
     reference_forms,
     { fixed_strings = true, max_count_per_file = 1 },
     on_search_match,

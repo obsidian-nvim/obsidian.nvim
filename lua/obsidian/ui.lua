@@ -597,7 +597,7 @@ end
 ---@param bufnr integer|?
 M.update = function(bufnr)
   bufnr = bufnr or 0
-  local ui_opts = require("obsidian").get_client().opts.ui
+  local ui_opts = Obsidian.opts.ui
   if not should_update(ui_opts, bufnr) then
     return
   end

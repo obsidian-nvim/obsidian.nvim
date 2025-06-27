@@ -9,7 +9,7 @@ local M = {}
 ---
 ---@return obsidian.Picker|?
 M.get = function(client, picker_name)
-  picker_name = picker_name and picker_name or client.opts.picker.name
+  picker_name = picker_name and picker_name or Obsidian.opts.picker.name
   if picker_name then
     picker_name = string.lower(picker_name)
   else

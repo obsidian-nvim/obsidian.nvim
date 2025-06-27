@@ -44,7 +44,7 @@ SnacksPicker.find_files = function(self, opts)
   opts = opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir.filename and Path:new(opts.dir.filename) or self.client.dir
+  local dir = opts.dir.filename and Path:new(opts.dir.filename) or Obsidian.dir
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
@@ -75,7 +75,7 @@ SnacksPicker.grep = function(self, opts)
   debug_once("grep opts : ", opts)
 
   ---@type obsidian.Path
-  local dir = opts.dir.filename and Path:new(opts.dir.filename) or self.client.dir
+  local dir = opts.dir.filename and Path:new(opts.dir.filename) or Obsidian.dir
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 

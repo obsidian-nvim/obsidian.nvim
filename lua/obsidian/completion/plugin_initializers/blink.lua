@@ -50,8 +50,7 @@ local function should_return_if_not_in_workspace()
   local current_file_path = vim.api.nvim_buf_get_name(0)
   local buf_dir = vim.fs.dirname(current_file_path)
 
-  local obsidian_client = assert(obsidian.get_client())
-  local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, obsidian_client.opts.workspaces)
+  local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
   if not workspace then
     return true
   else

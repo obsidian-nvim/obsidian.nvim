@@ -117,27 +117,6 @@ Workspace.new_from_spec = function(spec)
   })
 end
 
---- Initialize a 'Workspace' object from the current working directory.
----
----@param opts obsidian.workspace.WorkspaceOpts|?
----
----@return obsidian.Workspace
-Workspace.new_from_cwd = function(opts)
-  local cwd = assert(vim.fn.getcwd())
-  return Workspace.new(cwd, opts)
-end
-
---- Initialize a 'Workspace' object from the parent directory of the current buffer.
----
----@param bufnr integer|?
----@param opts obsidian.workspace.WorkspaceOpts|?
----
----@return obsidian.Workspace
-Workspace.new_from_buf = function(bufnr, opts)
-  local bufdir = Path.buf_dir(bufnr)
-  return Workspace.new(bufdir, opts)
-end
-
 --- Lock the workspace.
 Workspace.lock = function(self)
   self.locked = true

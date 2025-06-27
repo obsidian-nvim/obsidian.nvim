@@ -148,7 +148,7 @@ Picker.find_notes = function(self, opts)
 
   return self:find_files {
     prompt_title = opts.prompt_title or "Notes",
-    dir = self.client.dir,
+    dir = Obsidian.dir,
     callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
@@ -205,7 +205,7 @@ Picker.grep_notes = function(self, opts)
 
   self:grep {
     prompt_title = opts.prompt_title or "Grep notes",
-    dir = self.client.dir,
+    dir = Obsidian.dir,
     query = opts.query,
     callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
@@ -310,8 +310,8 @@ Picker._note_query_mappings = function(self)
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
-  if self.client.opts.picker.note_mappings and key_is_set(self.client.opts.picker.note_mappings.new) then
-    mappings[self.client.opts.picker.note_mappings.new] = {
+  if Obsidian.opts.picker.note_mappings and key_is_set(Obsidian.opts.picker.note_mappings.new) then
+    mappings[Obsidian.opts.picker.note_mappings.new] = {
       desc = "new",
       callback = function(query)
         ---@diagnostic disable-next-line: missing-fields
@@ -329,8 +329,8 @@ Picker._note_selection_mappings = function(self)
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
-  if self.client.opts.picker.note_mappings and key_is_set(self.client.opts.picker.note_mappings.insert_link) then
-    mappings[self.client.opts.picker.note_mappings.insert_link] = {
+  if Obsidian.opts.picker.note_mappings and key_is_set(Obsidian.opts.picker.note_mappings.insert_link) then
+    mappings[Obsidian.opts.picker.note_mappings.insert_link] = {
       desc = "insert link",
       callback = function(note_or_path)
         ---@type obsidian.Note
@@ -356,9 +356,9 @@ Picker._tag_selection_mappings = function(self)
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
-  if self.client.opts.picker.tag_mappings then
-    if key_is_set(self.client.opts.picker.tag_mappings.tag_note) then
-      mappings[self.client.opts.picker.tag_mappings.tag_note] = {
+  if Obsidian.opts.picker.tag_mappings then
+    if key_is_set(Obsidian.opts.picker.tag_mappings.tag_note) then
+      mappings[Obsidian.opts.picker.tag_mappings.tag_note] = {
         desc = "tag note",
         callback = function(...)
           local tags = { ... }
@@ -398,8 +398,8 @@ Picker._tag_selection_mappings = function(self)
       }
     end
 
-    if key_is_set(self.client.opts.picker.tag_mappings.insert_tag) then
-      mappings[self.client.opts.picker.tag_mappings.insert_tag] = {
+    if key_is_set(Obsidian.opts.picker.tag_mappings.insert_tag) then
+      mappings[Obsidian.opts.picker.tag_mappings.insert_tag] = {
         desc = "insert tag",
         callback = function(tag)
           vim.api.nvim_put({ "#" .. tag }, "", false, true)
@@ -504,15 +504,15 @@ end
 ---@return string[]
 Picker._build_find_cmd = function(self)
   local search = require "obsidian.search"
-  local search_opts = { sort_by = self.client.opts.sort_by, sort_reversed = self.client.opts.sort_reversed }
+  local search_opts = { sort_by = Obsidian.opts.sort_by, sort_reversed = Obsidian.opts.sort_reversed }
   return search.build_find_cmd(".", nil, search_opts)
 end
 
 Picker._build_grep_cmd = function(self)
   local search = require "obsidian.search"
   local search_opts = {
-    sort_by = self.client.opts.sort_by,
-    sort_reversed = self.client.opts.sort_reversed,
+    sort_by = Obsidian.opts.sort_by,
+    sort_reversed = Obsidian.opts.sort_reversed,
     smart_case = true,
     fixed_strings = true,
   }

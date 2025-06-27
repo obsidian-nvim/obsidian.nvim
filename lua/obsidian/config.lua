@@ -539,6 +539,8 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
 
   if not util.islist(opts.workspaces) then
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
+  elseif vim.tbl_isempty(opts.workspaces) then
+    error "At least one workspace is required!\nPlease specify a workspace "
   end
 
   for i, workspace in ipairs(opts.workspaces) do

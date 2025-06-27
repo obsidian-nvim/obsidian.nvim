@@ -41,12 +41,11 @@ local iter = vim.iter
 ---
 ---@field current_workspace obsidian.Workspace The current workspace.
 ---@field dir obsidian.Path The root of the vault for the current workspace.
----@field opts obsidian.config.ClientOpts The client config.
 ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
 ---@field _default_opts obsidian.config.ClientOpts
 local Client = abc.new_class {
   __tostring = function(self)
-    return string.format("obsidian.Client('%s')", self.dir)
+    return string.format("obsidian.Client('%s')", Obsidian.dir)
   end,
 }
 
@@ -65,12 +64,9 @@ Client.new = function(opts)
   self._default_opts = opts
 
   local workspace = Workspace.get_from_opts(opts)
-  if not workspace then
-    error "At least one workspace is required!\nPlease specify a workspace in your Obsidian.nvim config."
-  end
+  assert(workspace)
 
   self:set_workspace(workspace)
-
   return self
 end
 
@@ -78,34 +74,38 @@ end
 ---@param opts { lock: boolean|? }|?
 Client.set_workspace = function(self, workspace, opts)
   opts = opts and opts or {}
-  self.current_workspace = workspace
-  self.dir = self:vault_root(workspace)
-  self.opts = self:opts_for_workspace(workspace)
+
+  local dir = self:vault_root(workspace)
+  local options = self:opts_for_workspace(workspace)
+
+  Obsidian.workspace = workspace
+  Obsidian.dir = dir
+  Obsidian.opts = options
 
   -- Ensure directories exist.
-  self.dir:mkdir { parents = true, exists_ok = true }
+  dir:mkdir { parents = true, exists_ok = true }
 
-  if self.opts.notes_subdir ~= nil then
-    local notes_subdir = self.dir / self.opts.notes_subdir
+  if options.notes_subdir ~= nil then
+    local notes_subdir = dir / Obsidian.opts.notes_subdir
     notes_subdir:mkdir { parents = true, exists_ok = true }
   end
 
-  if self.opts.daily_notes.folder ~= nil then
-    local daily_notes_subdir = self.dir / self.opts.daily_notes.folder
+  if Obsidian.opts.daily_notes.folder ~= nil then
+    local daily_notes_subdir = Obsidian.dir / Obsidian.opts.daily_notes.folder
     daily_notes_subdir:mkdir { parents = true, exists_ok = true }
   end
 
   -- Setup UI add-ons.
   local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
-  if has_no_renderer and self.opts.ui.enable then
-    require("obsidian.ui").setup(self.current_workspace, self.opts.ui)
+  if has_no_renderer and Obsidian.opts.ui.enable then
+    require("obsidian.ui").setup(Obsidian.workspace, Obsidian.opts.ui)
   end
 
   if opts.lock then
-    self.current_workspace:lock()
+    Obsidian.workspace:lock()
   end
 
-  util.fire_callback("post_set_workspace", self.opts.callbacks.post_set_workspace, self, workspace)
+  util.fire_callback("post_set_workspace", Obsidian.opts.callbacks.post_set_workspace, self, workspace)
 
   vim.api.nvim_exec_autocmds("User", {
     pattern = "ObsidianWorkpspaceSet",
@@ -122,7 +122,7 @@ Client.opts_for_workspace = function(self, workspace)
   if workspace then
     return config.normalize(workspace.overrides and workspace.overrides or {}, self._default_opts)
   else
-    return self.opts
+    return Obsidian.opts
   end
 end
 
@@ -134,12 +134,12 @@ Client.switch_workspace = function(self, workspace, opts)
   opts = opts and opts or {}
 
   if type(workspace) == "string" then
-    if workspace == self.current_workspace.name then
-      log.info("Already in workspace '%s' @ '%s'", workspace, self.current_workspace.path)
+    if workspace == Obsidian.workspace.name then
+      log.info("Already in workspace '%s' @ '%s'", workspace, Obsidian.workspace.path)
       return
     end
 
-    for _, ws in ipairs(self.opts.workspaces) do
+    for _, ws in ipairs(Obsidian.opts.workspaces) do
       if ws.name == workspace then
         return self:switch_workspace(Workspace.new_from_spec(ws), opts)
       end
@@ -147,7 +147,7 @@ Client.switch_workspace = function(self, workspace, opts)
 
     error(string.format("Workspace '%s' not found", workspace))
   else
-    if workspace == self.current_workspace then
+    if workspace == Obsidian.workspace then
       log.info("Already in workspace '%s' @ '%s'", workspace.name, workspace.path)
       return
     end
@@ -189,7 +189,7 @@ end
 ---
 ---@return obsidian.Path
 Client.vault_root = function(self, workspace)
-  workspace = workspace and workspace or self.current_workspace
+  workspace = workspace and workspace or Obsidian.workspace
   return Path.new(workspace.root)
 end
 
@@ -233,8 +233,8 @@ end
 ---
 ---@return obsidian.Path|?
 Client.templates_dir = function(self, workspace)
-  local opts = self.opts
-  if workspace and workspace ~= self.current_workspace then
+  local opts = Obsidian.opts
+  if workspace and workspace ~= Obsidian.workspace then
     opts = self:opts_for_workspace(workspace)
   end
 
@@ -272,10 +272,10 @@ Client.should_save_frontmatter = function(self, note)
 
   if not note:should_save_frontmatter() then
     return false
-  elseif type(self.opts.disable_frontmatter) == "boolean" then
-    return not self.opts.disable_frontmatter
-  elseif type(self.opts.disable_frontmatter) == "function" then
-    return not self.opts.disable_frontmatter(tostring(self:vault_relative_path(note.path, { strict = true })))
+  elseif type(Obsidian.opts.disable_frontmatter) == "boolean" then
+    return not Obsidian.opts.disable_frontmatter
+  elseif type(Obsidian.opts.disable_frontmatter) == "function" then
+    return not Obsidian.opts.disable_frontmatter(tostring(self:vault_relative_path(note.path, { strict = true })))
   else
     return true
   end
@@ -320,12 +320,12 @@ Client._prepare_search_opts = function(self, opts, additional_opts)
   local search_opts = {}
 
   if opts.sort then
-    search_opts.sort_by = self.opts.sort_by
-    search_opts.sort_reversed = self.opts.sort_reversed
+    search_opts.sort_by = Obsidian.opts.sort_by
+    search_opts.sort_reversed = Obsidian.opts.sort_reversed
   end
 
-  if not opts.include_templates and self.opts.templates ~= nil and self.opts.templates.folder ~= nil then
-    search.SearchOpts.add_exclude(search_opts, tostring(self.opts.templates.folder))
+  if not opts.include_templates and Obsidian.opts.templates ~= nil and Obsidian.opts.templates.folder ~= nil then
+    search.SearchOpts.add_exclude(search_opts, tostring(Obsidian.opts.templates.folder))
   end
 
   if opts.ignore_case then
@@ -375,7 +375,7 @@ Client._search_iter_async = function(self, term, search_opts, find_opts)
   local cmds_done = 0 -- out of the two, one for 'search' and one for 'find'
 
   search.search_async(
-    self.dir,
+    Obsidian.dir,
     term,
     self:_prepare_search_opts(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
     on_search_match,
@@ -383,7 +383,7 @@ Client._search_iter_async = function(self, term, search_opts, find_opts)
   )
 
   search.find_async(
-    self.dir,
+    Obsidian.dir,
     term,
     self:_prepare_search_opts(find_opts, { ignore_case = true }),
     on_find_match,
@@ -425,7 +425,7 @@ Client.find_notes_async = function(self, term, callback, opts)
   opts = opts or {}
   opts.notes = opts.notes or {}
   if not opts.notes.max_lines then
-    opts.notes.max_lines = self.opts.search_max_lines
+    opts.notes.max_lines = Obsidian.opts.search_max_lines
   end
 
   local next_path = self:_search_iter_async(term, opts.search)
@@ -480,8 +480,7 @@ Client.find_notes_async = function(self, term, callback, opts)
       if string.len(term) > 0 then
         for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
           if dt_offset.cadence == "daily" then
-            local note =
-              require("obsidian.daily").daily(dt_offset.offset, { no_write = true, load = opts.notes }, self.opts)
+            local note = require("obsidian.daily").daily(dt_offset.offset, { no_write = true, load = opts.notes })
             if not paths[tostring(note.path)] and note.path:is_file() then
               note.alt_alias = dt_offset.macro
               results_[#results_ + 1] = note
@@ -541,7 +540,7 @@ Client.find_files_async = function(self, term, callback, opts)
   search.SearchOpts.add_exclude(find_opts, "*.md")
   find_opts.include_non_markdown = true
 
-  search.find_async(self.dir, term, find_opts, on_find_match, on_exit)
+  search.find_async(Obsidian.dir, term, find_opts, on_find_match, on_exit)
 
   async.run(function()
     rx()
@@ -574,7 +573,7 @@ Client.resolve_note_async = function(self, query, callback, opts)
   opts = opts or {}
   opts.notes = opts.notes or {}
   if not opts.notes.max_lines then
-    opts.notes.max_lines = self.opts.search_max_lines
+    opts.notes.max_lines = Obsidian.opts.search_max_lines
   end
 
   -- Autocompletion for command args will have this format.
@@ -582,7 +581,7 @@ Client.resolve_note_async = function(self, query, callback, opts)
   if count > 0 then
     ---@type obsidian.Path
     ---@diagnostic disable-next-line: assign-type-mismatch
-    local full_path = self.dir / note_path
+    local full_path = Obsidian.dir / note_path
     return async.run(function()
       return Note.from_file_async(full_path, opts.notes)
     end, callback)
@@ -594,18 +593,18 @@ Client.resolve_note_async = function(self, query, callback, opts)
     fname = fname .. ".md"
   end
 
-  local paths_to_check = { Path.new(fname), self.dir / fname }
+  local paths_to_check = { Path.new(fname), Obsidian.dir / fname }
 
-  if self.opts.notes_subdir ~= nil then
-    paths_to_check[#paths_to_check + 1] = self.dir / self.opts.notes_subdir / fname
+  if Obsidian.opts.notes_subdir ~= nil then
+    paths_to_check[#paths_to_check + 1] = Obsidian.dir / Obsidian.opts.notes_subdir / fname
   end
 
-  if self.opts.daily_notes.folder ~= nil then
-    paths_to_check[#paths_to_check + 1] = self.dir / self.opts.daily_notes.folder / fname
+  if Obsidian.opts.daily_notes.folder ~= nil then
+    paths_to_check[#paths_to_check + 1] = Obsidian.dir / Obsidian.opts.daily_notes.folder / fname
   end
 
-  if self.buf_dir ~= nil then
-    paths_to_check[#paths_to_check + 1] = self.buf_dir / fname
+  if Obsidian.buf_dir ~= nil then
+    paths_to_check[#paths_to_check + 1] = Obsidian.buf_dir / fname
   end
 
   for _, path in pairs(paths_to_check) do
@@ -773,7 +772,7 @@ Client.resolve_link_async = function(self, link, callback)
   local load_opts = {
     collect_anchor_links = anchor_link and true or false,
     collect_blocks = block_link and true or false,
-    max_lines = self.opts.search_max_lines,
+    max_lines = Obsidian.opts.search_max_lines,
   }
 
   -- Assume 'location' is current buffer path if empty, like for TOCs.
@@ -824,13 +823,13 @@ Client.follow_link_async = function(self, link, opts)
     ---@param res obsidian.ResolveLinkResult
     local function follow_link(res)
       if res.url ~= nil then
-        self.opts.follow_url_func(res.url)
+        Obsidian.opts.follow_url_func(res.url)
         return
       end
 
       if util.is_img(res.location) then
-        local path = self.dir / res.location
-        self.opts.follow_img_func(tostring(path))
+        local path = Obsidian.dir / res.location
+        Obsidian.opts.follow_img_func(tostring(path))
         return
       end
 
@@ -931,7 +930,7 @@ Client.open_note = function(self, note_or_path, opts)
   end
 
   local function open_it()
-    local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or self.opts.open_notes_in)
+    local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
     ---@cast path obsidian.Path
     local bufnr = api.open_buffer(path, { line = opts.line, col = opts.col, cmd = open_cmd })
     if opts.callback then
@@ -961,7 +960,7 @@ Client.current_note = function(self, bufnr, opts)
 
   opts = opts or {}
   if not opts.max_lines then
-    opts.max_lines = self.opts.search_max_lines
+    opts.max_lines = Obsidian.opts.search_max_lines
   end
   return Note.from_buffer(bufnr, opts)
 end
@@ -1063,7 +1062,7 @@ Client.find_tags_async = function(self, term, callback, opts)
   ---@param path obsidian.Path
   ---@return { [1]: obsidian.Note, [2]: {[1]: integer, [2]: integer}[] }
   local load_note = function(path)
-    local note, contents = Note.from_file_with_contents_async(path, { max_lines = self.opts.search_max_lines })
+    local note, contents = Note.from_file_with_contents_async(path, { max_lines = Obsidian.opts.search_max_lines })
     return { note, search.find_code_blocks(contents) }
   end
 
@@ -1160,7 +1159,7 @@ Client.find_tags_async = function(self, term, callback, opts)
   end
 
   search.search_async(
-    self.dir,
+    Obsidian.dir,
     search_terms,
     self:_prepare_search_opts(opts.search, { ignore_case = true }),
     on_match,
@@ -1330,7 +1329,7 @@ Client.find_backlinks_async = function(self, note, callback, opts)
   local load_opts = {
     collect_anchor_links = opts.anchor ~= nil,
     collect_blocks = opts.block ~= nil,
-    max_lines = self.opts.search_max_lines,
+    max_lines = Obsidian.opts.search_max_lines,
   }
 
   ---@param match MatchData
@@ -1401,7 +1400,7 @@ Client.find_backlinks_async = function(self, note, callback, opts)
 
   -- Execute search.
   search.search_async(
-    self.dir,
+    Obsidian.dir,
     util.tbl_unique(search_terms),
     self:_prepare_search_opts(opts.search, { fixed_strings = true, ignore_case = true }),
     on_match,
@@ -1514,8 +1513,8 @@ Client.apply_async_raw = function(self, on_path, opts)
     follow = true,
   }
 
-  for path in vim.fs.dir(tostring(self.dir), dir_opts) do
-    local absolute_path = vim.fs.joinpath(tostring(self.dir), path)
+  for path in vim.fs.dir(tostring(Obsidian.dir), dir_opts) do
+    local absolute_path = vim.fs.joinpath(tostring(Obsidian.dir), path)
 
     if vim.endswith(absolute_path, ".md") then
       on_path(absolute_path)
@@ -1534,8 +1533,8 @@ end
 ---
 ---@return string
 Client.new_note_id = function(self, title)
-  if self.opts.note_id_func ~= nil then
-    local new_id = self.opts.note_id_func(title)
+  if Obsidian.opts.note_id_func ~= nil then
+    local new_id = Obsidian.opts.note_id_func(title)
     if new_id == nil or string.len(new_id) == 0 then
       error(string.format("Your 'note_id_func' must return a non-empty string, got '%s'!", tostring(new_id)))
     end
@@ -1557,8 +1556,8 @@ end
 Client.new_note_path = function(self, spec)
   ---@type obsidian.Path
   local path
-  if self.opts.note_path_func ~= nil then
-    path = Path.new(self.opts.note_path_func(spec))
+  if Obsidian.opts.note_path_func ~= nil then
+    path = Path.new(Obsidian.opts.note_path_func(spec))
     -- Ensure path is either absolute or inside `spec.dir`.
     -- NOTE: `spec.dir` should always be absolute, but for extra safety we handle the case where
     -- it's not.
@@ -1645,28 +1644,31 @@ Client.parse_title_id_path = function(self, title, id, dir)
   ---@type obsidian.Path
   local base_dir
   if parent then
-    base_dir = self.dir / parent
+    base_dir = Obsidian.dir / parent
   elseif dir ~= nil then
     base_dir = Path.new(dir)
     if not base_dir:is_absolute() then
-      base_dir = self.dir / base_dir
+      base_dir = Obsidian.dir / base_dir
     else
       base_dir = base_dir:resolve()
     end
   else
     local bufpath = Path.buffer(0):resolve()
     if
-      self.opts.new_notes_location == config.NewNotesLocation.current_dir
+      Obsidian.opts.new_notes_location == config.NewNotesLocation.current_dir
       -- note is actually in the workspace.
-      and self.dir:is_parent_of(bufpath)
+      and Obsidian.dir:is_parent_of(bufpath)
       -- note is not in dailies folder
-      and (self.opts.daily_notes.folder == nil or not (self.dir / self.opts.daily_notes.folder):is_parent_of(bufpath))
+      and (
+        Obsidian.opts.daily_notes.folder == nil
+        or not (Obsidian.dir / Obsidian.opts.daily_notes.folder):is_parent_of(bufpath)
+      )
     then
-      base_dir = self.buf_dir or assert(bufpath:parent())
+      base_dir = Obsidian.buf_dir or assert(bufpath:parent())
     else
-      base_dir = self.dir
-      if self.opts.notes_subdir then
-        base_dir = base_dir / self.opts.notes_subdir
+      base_dir = Obsidian.dir
+      if Obsidian.opts.notes_subdir then
+        base_dir = base_dir / Obsidian.opts.notes_subdir
       end
     end
   end
@@ -1790,7 +1792,7 @@ Client.write_note = function(self, note, opts)
         type = "clone_template",
         template_name = opts.template,
         destination_path = path,
-        template_opts = self.opts.templates,
+        template_opts = Obsidian.opts.templates,
         templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
         partial_note = note,
       }
@@ -1798,8 +1800,8 @@ Client.write_note = function(self, note, opts)
   end
 
   local frontmatter = nil
-  if self.opts.note_frontmatter_func ~= nil then
-    frontmatter = self.opts.note_frontmatter_func(note)
+  if Obsidian.opts.note_frontmatter_func ~= nil then
+    frontmatter = Obsidian.opts.note_frontmatter_func(note)
   end
 
   note:save {
@@ -1832,7 +1834,7 @@ Client.write_note_to_buffer = function(self, note, opts)
     note = insert_template {
       type = "insert_template",
       template_name = opts.template,
-      template_opts = self.opts.templates,
+      template_opts = Obsidian.opts.templates,
       templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
       location = api.get_active_window_cursor_location(),
       partial_note = note,
@@ -1841,8 +1843,8 @@ Client.write_note_to_buffer = function(self, note, opts)
 
   local frontmatter = nil
   local should_save_frontmatter = self:should_save_frontmatter(note)
-  if should_save_frontmatter and self.opts.note_frontmatter_func ~= nil then
-    frontmatter = self.opts.note_frontmatter_func(note)
+  if should_save_frontmatter and Obsidian.opts.note_frontmatter_func ~= nil then
+    frontmatter = Obsidian.opts.note_frontmatter_func(note)
   end
 
   return note:save_to_buffer {
@@ -1864,8 +1866,8 @@ Client.update_frontmatter = function(self, note, bufnr)
   end
 
   local frontmatter = nil
-  if self.opts.note_frontmatter_func ~= nil then
-    frontmatter = self.opts.note_frontmatter_func(note)
+  if Obsidian.opts.note_frontmatter_func ~= nil then
+    frontmatter = Obsidian.opts.note_frontmatter_func(note)
   end
   return note:save_to_buffer { bufnr = bufnr, frontmatter = frontmatter }
 end
@@ -1895,15 +1897,15 @@ Client.format_link = function(self, note, opts)
 
   local link_style = opts.link_style
   if link_style == nil then
-    link_style = self.opts.preferred_link_style
+    link_style = Obsidian.opts.preferred_link_style
   end
 
   local new_opts = { path = rel_path, label = label, id = note_id, anchor = opts.anchor, block = opts.block }
 
   if link_style == config.LinkStyle.markdown then
-    return self.opts.markdown_link_func(new_opts)
+    return Obsidian.opts.markdown_link_func(new_opts)
   elseif link_style == config.LinkStyle.wiki or link_style == nil then
-    return self.opts.wiki_link_func(new_opts)
+    return Obsidian.opts.wiki_link_func(new_opts)
   else
     error(string.format("Invalid link style '%s'", link_style))
   end

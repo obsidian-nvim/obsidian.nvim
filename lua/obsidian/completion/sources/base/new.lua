@@ -113,7 +113,7 @@ function NewNoteSourceBase:process_completion(cc)
       note = cc.client:daily(dt_offset.offset, { no_write = true })
       if not note:exists() then
         new_notes_opts[#new_notes_opts + 1] =
-          { label = dt_offset.macro, note = note, template = cc.client.opts.daily_notes.template }
+          { label = dt_offset.macro, note = note, template = cc.Obsidian.opts.daily_notes.template }
       end
     end
   end
@@ -185,7 +185,7 @@ function NewNoteSourceBase:can_complete_request(cc)
     cc.search = util.lstrip_whitespace(cc.search)
   end
 
-  if not (can_complete and cc.search ~= nil and #cc.search >= cc.client.opts.completion.min_chars) then
+  if not (can_complete and cc.search ~= nil and #cc.search >= cc.Obsidian.opts.completion.min_chars) then
     cc.completion_resolve_callback(self.incomplete_response)
     return false
   end

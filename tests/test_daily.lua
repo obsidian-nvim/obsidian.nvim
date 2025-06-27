@@ -24,7 +24,7 @@ local T = new_set {
 T["daily_note_path"] = new_set()
 
 T["daily_note_path"]["should use the path stem as the ID"] = function()
-  _G.client.opts.daily_notes.date_format = "%Y/%b/%Y-%m-%d"
+  _G.Obsidian.opts.daily_notes.date_format = "%Y/%b/%Y-%m-%d"
   local path, id = M.daily_note_path(nil, _G.client.opts)
   assert(vim.endswith(tostring(path), tostring(os.date("%Y/%b/%Y-%m-%d.md", os.time()))))
   eq(id, os.date("%Y-%m-%d", os.time()))
@@ -38,7 +38,7 @@ end
 
 T["daily_note_path"]["should not add frontmatter for today when disabled"] = function()
   h.with_tmp_client(function(client)
-    _G.client.opts.disable_frontmatter = true
+    _G.Obsidian.opts.disable_frontmatter = true
     local new_note = M.today(_G.client.opts)
 
     local saved_note = Note.from_file(new_note.path)
@@ -47,7 +47,7 @@ T["daily_note_path"]["should not add frontmatter for today when disabled"] = fun
 end
 
 T["daily_note_path"]["should not add frontmatter for yesterday when disabled"] = function()
-  _G.client.opts.disable_frontmatter = true
+  _G.Obsidian.opts.disable_frontmatter = true
   local new_note = M.yesterday(_G.client.opts)
   local saved_note = Note.from_file(new_note.path)
   eq(false, saved_note.has_frontmatter)

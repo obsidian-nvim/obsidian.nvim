@@ -127,7 +127,7 @@ FzfPicker.find_files = function(self, opts)
   opts = opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or self.client.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   fzf.files {
     cwd = tostring(dir),
@@ -146,7 +146,7 @@ FzfPicker.grep = function(self, opts)
   opts = opts and opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path:new(opts.dir) or self.client.dir
+  local dir = opts.dir and Path:new(opts.dir) or Obsidian.dir
   local cmd = table.concat(self:_build_grep_cmd(), " ")
   local actions = get_path_actions {
     callback = opts.callback,

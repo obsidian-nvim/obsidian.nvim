@@ -5,7 +5,7 @@ local util = require "obsidian.util"
 ---builtin functions that are default values for actions, and modules
 
 M.smart_action = function()
-  local legacy = require("obsidian").get_client().opts.legacy_commands
+  local legacy = Obsidian.opts.legacy_commands
   -- follow link if possible
   if api.cursor_on_markdown_link(nil, nil, true) then
     return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
