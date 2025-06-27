@@ -87,6 +87,7 @@ local function rename_note(client, uri, new_name)
   local count = 0
   local all_tasks_submitted = false
   local file_map = {}
+  local buf_list = {}
 
   search.search_async(
     client.dir,
@@ -117,6 +118,8 @@ local function rename_note(client, uri, new_name)
         },
       }
       lsp.util.apply_workspace_edit(edit, "utf-8")
+      local buf = vim.fn.bufnr(file)
+      buf_list[#buf_list + 1] = buf
       count = count + 1
     end),
     function(_)
@@ -139,6 +142,11 @@ local function rename_note(client, uri, new_name)
 
   assert(note)
   note:save()
+
+  -- so that file with renamed refs are displaying correctly
+  for _, buf in ipairs(buf_list) do
+    vim.bo[buf].filetype = "markdown"
+  end
 
   return note
 end
