@@ -42,25 +42,6 @@ util.enumerate = function(iterable)
   end
 end
 
----Zip two iterables together.
----@param iterable1 table|string|function
----@param iterable2 table|string|function
----@return function
-util.zip = function(iterable1, iterable2)
-  local iterator1 = vim.iter(iterable1)
-  local iterator2 = vim.iter(iterable2)
-
-  return function()
-    local next1 = iterator1()
-    local next2 = iterator2()
-    if next1 == nil or next2 == nil then
-      return nil
-    else
-      return next1, next2
-    end
-  end
-end
-
 -------------------
 --- Table tools ---
 -------------------
