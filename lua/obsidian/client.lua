@@ -1680,20 +1680,6 @@ Client.parse_title_id_path = function(self, title, id, dir)
   return title, id, path
 end
 
---- Create and save a new note.
---- Deprecated: prefer `Client:create_note()` instead.
----
----@param title string|? The title for the note.
----@param id string|? An optional ID for the note. If not provided one will be generated.
----@param dir string|obsidian.Path|? An optional directory to place the note. If this is a relative path it will be interpreted relative the workspace / vault root.
----@param aliases string[]|? Additional aliases to assign to the note.
----
----@return obsidian.Note
----@deprecated
-Client.new_note = function(self, title, id, dir, aliases)
-  return self:create_note { title = title, id = id, dir = dir, aliases = aliases }
-end
-
 ---@class obsidian.CreateNoteOpts
 ---
 ---@field title string|?
