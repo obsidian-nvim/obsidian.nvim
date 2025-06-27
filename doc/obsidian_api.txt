@@ -59,7 +59,7 @@ Parameters ~
 
 ------------------------------------------------------------------------------
                                           *obsidian.Client.opts_for_workspace()*
-                 `Client.opts_for_workspace`({_}, {workspace})
+                `Client.opts_for_workspace`({self}, {workspace})
 Get the normalize opts for a given workspace.
 
 Parameters ~
@@ -91,7 +91,7 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                   *obsidian.Client.vault_root()*
-                     `Client.vault_root`({_}, {workspace})
+                    `Client.vault_root`({self}, {workspace})
 Get the absolute path to the root of the Obsidian vault for the given workspace or the
 current workspace.
 
@@ -271,7 +271,7 @@ Parameters ~
 
 ------------------------------------------------------------------------------
                                                    *obsidian.Client.open_note()*
-                `Client.open_note`({_}, {note_or_path}, {opts})
+               `Client.open_note`({self}, {note_or_path}, {opts})
 Open a note in a buffer.
 
 Parameters ~
@@ -414,7 +414,7 @@ Options:
 
 ------------------------------------------------------------------------------
                                                  *obsidian.Client.new_note_id()*
-                       `Client.new_note_id`({_}, {title})
+                     `Client.new_note_id`({self}, {title})
 Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
 otherwise falls back to generated a Zettelkasten style ID.
 
@@ -426,7 +426,7 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                *obsidian.Client.new_note_path()*
-                      `Client.new_note_path`({_}, {spec})
+                     `Client.new_note_path`({self}, {spec})
 Generate the file path for a new note given its ID, parent directory, and title.
 This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 `spec.dir / (spec.id .. ".md")`.
@@ -449,21 +449,6 @@ Parameters ~
 
 Return ~
 `(string| `(optional))``,string,obsidian.Path
-
-------------------------------------------------------------------------------
-                                                    *obsidian.Client.new_note()*
-           `Client.new_note`({self}, {title}, {id}, {dir}, {aliases})
-Create and save a new note.
-Deprecated: prefer `Client:create_note()` instead.
-
-Parameters ~
-{title} `(string|? The)` title for the note.
-{id} `(string|? An)` optional ID for the note. If not provided one will be generated.
-{dir} `(string|obsidian.Path|? An)` optional directory to place the note. If this is a relative path it will be interpreted relative the workspace / vault root.
-{aliases} `(string[]|? Additional)` aliases to assign to the note.
-
-Return ~
-`(obsidian.Note)`
 
 ------------------------------------------------------------------------------
 Class ~
