@@ -1,5 +1,8 @@
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
+local api = require "obsidian.api"
+local util = require "obsidian.util"
+local config = require "obsidian.config"
 
 ---@class obsidian.workspace.WorkspaceSpec
 ---
@@ -189,6 +192,62 @@ Workspace.get_from_opts = function(opts)
   end
 
   return current_workspace
+end
+
+--- Get the normalize opts for a given workspace.
+---
+---@param workspace obsidian.Workspace|?
+---
+---@return obsidian.config.ClientOpts
+Workspace.normalize_opts = function(workspace)
+  if workspace then
+    return config.normalize(workspace.overrides and workspace.overrides or {}, Obsidian._opts)
+  else
+    return Obsidian.opts
+  end
+end
+
+---@param workspace obsidian.Workspace
+---@param opts { lock: boolean|? }|?
+Workspace.set = function(workspace, opts)
+  opts = opts and opts or {}
+
+  local dir = workspace.root
+  local options = Workspace.normalize_opts(workspace) -- TODO: test
+
+  Obsidian.workspace = workspace
+  Obsidian.dir = dir
+  Obsidian.opts = options
+
+  -- Ensure directories exist.
+  dir:mkdir { parents = true, exists_ok = true }
+
+  if options.notes_subdir ~= nil then
+    local notes_subdir = dir / Obsidian.opts.notes_subdir
+    notes_subdir:mkdir { parents = true, exists_ok = true }
+  end
+
+  if Obsidian.opts.daily_notes.folder ~= nil then
+    local daily_notes_subdir = Obsidian.dir / Obsidian.opts.daily_notes.folder
+    daily_notes_subdir:mkdir { parents = true, exists_ok = true }
+  end
+
+  -- Setup UI add-ons.
+  local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
+  if has_no_renderer and Obsidian.opts.ui.enable then
+    require("obsidian.ui").setup(Obsidian.workspace, Obsidian.opts.ui)
+  end
+
+  if opts.lock then
+    Obsidian.workspace:lock()
+  end
+
+  util.fire_callback("post_set_workspace", Obsidian.opts.callbacks.post_set_workspace, workspace)
+
+  vim.api.nvim_exec_autocmds("User", {
+    pattern = "ObsidianWorkpspaceSet",
+    data = { workspace = workspace },
+  })
 end
 
 return Workspace

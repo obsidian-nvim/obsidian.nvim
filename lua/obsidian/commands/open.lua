@@ -4,11 +4,11 @@ local RefTypes = require("obsidian.search").RefTypes
 ---@param client obsidian.Client
 ---@param path? string|obsidian.Path
 local function open_in_app(client, path)
+  local vault_name = vim.fs.basename(tostring(Obsidian.workspace.root))
   if not path then
-    return Obsidian.opts.open.func("obsidian://open?vault=" .. vim.uri_encode(client:vault_name()))
+    return Obsidian.opts.open.func("obsidian://open?vault=" .. vim.uri_encode(vault_name))
   end
   path = tostring(path)
-  local vault_name = client:vault_name()
   local this_os = api.get_os()
 
   -- Normalize path for windows.

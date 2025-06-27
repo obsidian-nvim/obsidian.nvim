@@ -141,7 +141,7 @@ obsidian.setup = function(opts)
       -- Switch to the workspace and complete the workspace setup.
       if not Obsidian.workspace.locked and workspace ~= Obsidian.workspace then
         log.debug("Switching to workspace '%s' @ '%s'", workspace.name, workspace.path)
-        client:set_workspace(workspace)
+        obsidian.Workspace.set(workspace)
         require("obsidian.ui").update(ev.buf)
       end
 
@@ -178,7 +178,7 @@ obsidian.setup = function(opts)
       end
 
       -- Check if current buffer is actually a note within the workspace.
-      if not client:path_is_note(ev.match, workspace) then
+      if not client:path_is_note(ev.match) then
         return
       end
 
@@ -204,7 +204,7 @@ obsidian.setup = function(opts)
       end
 
       -- Check if current buffer is actually a note within the workspace.
-      if not client:path_is_note(ev.match, workspace) then
+      if not client:path_is_note(ev.match) then
         return
       end
 
@@ -237,7 +237,7 @@ obsidian.setup = function(opts)
       end
 
       -- Check if current buffer is actually a note within the workspace.
-      if not client:path_is_note(ev.match, workspace) then
+      if not client:path_is_note(ev.match) then
         return
       end
 

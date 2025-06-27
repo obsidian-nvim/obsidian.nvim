@@ -78,96 +78,11 @@ Client.new = function(opts)
   local workspace = Workspace.get_from_opts(opts)
   assert(workspace)
 
-  self:set_workspace(workspace)
+  Workspace.set(workspace, {})
   return self
 end
 
----@param workspace obsidian.Workspace
----@param opts { lock: boolean|? }|?
-Client.set_workspace = function(self, workspace, opts)
-  opts = opts and opts or {}
-
-  local dir = self:vault_root(workspace)
-  local options = self:opts_for_workspace(workspace)
-
-  Obsidian.workspace = workspace
-  Obsidian.dir = dir
-  Obsidian.opts = options
-
-  -- Ensure directories exist.
-  dir:mkdir { parents = true, exists_ok = true }
-
-  if options.notes_subdir ~= nil then
-    local notes_subdir = dir / Obsidian.opts.notes_subdir
-    notes_subdir:mkdir { parents = true, exists_ok = true }
-  end
-
-  if Obsidian.opts.daily_notes.folder ~= nil then
-    local daily_notes_subdir = Obsidian.dir / Obsidian.opts.daily_notes.folder
-    daily_notes_subdir:mkdir { parents = true, exists_ok = true }
-  end
-
-  -- Setup UI add-ons.
-  local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
-  if has_no_renderer and Obsidian.opts.ui.enable then
-    require("obsidian.ui").setup(Obsidian.workspace, Obsidian.opts.ui)
-  end
-
-  if opts.lock then
-    Obsidian.workspace:lock()
-  end
-
-  util.fire_callback("post_set_workspace", Obsidian.opts.callbacks.post_set_workspace, self, workspace)
-
-  vim.api.nvim_exec_autocmds("User", {
-    pattern = "ObsidianWorkpspaceSet",
-    data = { workspace = workspace },
-  })
-end
-
---- Get the normalize opts for a given workspace.
----
----@param workspace obsidian.Workspace|?
----
----@return obsidian.config.ClientOpts
-Client.opts_for_workspace = function(self, workspace)
-  if workspace then
-    return config.normalize(workspace.overrides and workspace.overrides or {}, Obsidian._opts)
-  else
-    return Obsidian.opts
-  end
-end
-
---- Switch to a different workspace.
----
----@param workspace obsidian.Workspace|string The workspace object or the name of an existing workspace.
----@param opts { lock: boolean|? }|?
-Client.switch_workspace = function(self, workspace, opts)
-  opts = opts and opts or {}
-
-  if type(workspace) == "string" then
-    if workspace == Obsidian.workspace.name then
-      log.info("Already in workspace '%s' @ '%s'", workspace, Obsidian.workspace.path)
-      return
-    end
-
-    for _, ws in ipairs(Obsidian.opts.workspaces) do
-      if ws.name == workspace then
-        return self:switch_workspace(Workspace.new_from_spec(ws), opts)
-      end
-    end
-
-    error(string.format("Workspace '%s' not found", workspace))
-  else
-    if workspace == Obsidian.workspace then
-      log.info("Already in workspace '%s' @ '%s'", workspace.name, workspace.path)
-      return
-    end
-
-    log.info("Switching to workspace '%s' @ '%s'", workspace.name, workspace.path)
-    self:set_workspace(workspace, opts)
-  end
-end
+-- Client.set_workspace = function(self, workspace, opts) end
 
 --- Check if a path represents a note in the workspace.
 ---
@@ -194,24 +109,6 @@ Client.path_is_note = function(self, path, workspace)
   return true
 end
 
---- Get the absolute path to the root of the Obsidian vault for the given workspace or the
---- current workspace.
----
----@param workspace obsidian.Workspace|?
----
----@return obsidian.Path
-Client.vault_root = function(self, workspace)
-  workspace = workspace and workspace or Obsidian.workspace
-  return Path.new(workspace.root)
-end
-
---- Get the name of the current vault.
----
----@return string
-Client.vault_name = function(self)
-  return assert(vim.fs.basename(tostring(self:vault_root())))
-end
-
 --- Make a path relative to the vault root, if possible.
 ---
 ---@param path string|obsidian.Path
@@ -227,7 +124,7 @@ Client.vault_relative_path = function(self, path, opts)
   path = Path.new(path)
 
   local ok, relative_path = pcall(function()
-    return path:relative_to(self:vault_root())
+    return path:relative_to(Obsidian.workspace.root)
   end)
 
   if ok and relative_path then
@@ -235,26 +132,25 @@ Client.vault_relative_path = function(self, path, opts)
   elseif not path:is_absolute() then
     return path
   elseif opts.strict then
-    error(string.format("failed to resolve '%s' relative to vault root '%s'", path, self:vault_root()))
+    error(string.format("failed to resolve '%s' relative to vault root '%s'", path, Obsidian.workspace.root))
   end
 end
 
 --- Get the templates folder.
 ---
----@param workspace obsidian.Workspace|?
----
 ---@return obsidian.Path|?
 Client.templates_dir = function(self, workspace)
   local opts = Obsidian.opts
+
   if workspace and workspace ~= Obsidian.workspace then
-    opts = self:opts_for_workspace(workspace)
+    opts = Workspace.normalize_opts(workspace)
   end
 
   if opts.templates == nil or opts.templates.folder == nil then
     return nil
   end
 
-  local paths_to_check = { self:vault_root(workspace) / opts.templates.folder, Path.new(opts.templates.folder) }
+  local paths_to_check = { Obsidian.workspace.root / opts.templates.folder, Path.new(opts.templates.folder) }
   for _, path in ipairs(paths_to_check) do
     if path:is_dir() then
       return path
