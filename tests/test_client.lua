@@ -1,6 +1,8 @@
 local Path = require "obsidian.path"
 local h = dofile "tests/helpers.lua"
 
+Obsidian = {}
+
 local client_opts = {
   note_id_func = function(title)
     local id = ""
@@ -35,12 +37,12 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path "notes/Foo"
       MiniTest.expect.equality("Foo", title)
       MiniTest.expect.equality("foo", id)
-      MiniTest.expect.equality(Path:new(client.dir) / "notes" / "foo.md", path)
+      MiniTest.expect.equality(Path:new(Obsidian.dir) / "notes" / "foo.md", path)
 
       title, id, path = client:parse_title_id_path "notes/New Title"
       MiniTest.expect.equality("New Title", title)
       MiniTest.expect.equality("new-title", id)
-      MiniTest.expect.equality(Path:new(client.dir) / "notes" / "new-title.md", path)
+      MiniTest.expect.equality(Path:new(Obsidian.dir) / "notes" / "new-title.md", path)
     end, nil, client_opts)
   end)
 
@@ -49,7 +51,7 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path("Foo", nil, "new-notes")
       MiniTest.expect.equality(title, "Foo")
       MiniTest.expect.equality(id, "foo")
-      MiniTest.expect.equality(path, Path:new(client.dir) / "new-notes" / "foo.md")
+      MiniTest.expect.equality(path, Path:new(Obsidian.dir) / "new-notes" / "foo.md")
     end, nil, client_opts)
   end)
 
@@ -58,7 +60,7 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path("Foo", "notes/1234-foo")
       MiniTest.expect.equality(title, "Foo")
       MiniTest.expect.equality(id, "1234-foo")
-      MiniTest.expect.equality(tostring(path), tostring(Path:new(client.dir) / "notes" / "1234-foo.md"))
+      MiniTest.expect.equality(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "1234-foo.md"))
     end, nil, client_opts)
   end)
 
@@ -67,7 +69,7 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path "notes/foo.md"
       MiniTest.expect.equality(title, "foo")
       MiniTest.expect.equality(id, "foo")
-      MiniTest.expect.equality(tostring(path), tostring(Path:new(client.dir) / "notes" / "foo.md"))
+      MiniTest.expect.equality(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "foo.md"))
     end)
   end)
 
@@ -76,7 +78,7 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path "notes/Foo  "
       MiniTest.expect.equality(title, "Foo")
       MiniTest.expect.equality(id, "foo")
-      MiniTest.expect.equality(tostring(path), tostring(Path:new(client.dir) / "notes" / "foo.md"))
+      MiniTest.expect.equality(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "foo.md"))
     end, nil, client_opts)
   end)
 
@@ -85,7 +87,7 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path "notes/Foo Bar.md"
       MiniTest.expect.equality(title, "Foo Bar")
       MiniTest.expect.equality(id, "Foo Bar")
-      MiniTest.expect.equality(tostring(path), tostring(Path:new(client.dir) / "notes" / "Foo Bar.md"))
+      MiniTest.expect.equality(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "Foo Bar.md"))
     end)
   end, nil, client_opts)
 
@@ -94,7 +96,7 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path("Title", "johnny.decimal", "notes")
       MiniTest.expect.equality(title, "Title")
       MiniTest.expect.equality(id, "johnny.decimal")
-      MiniTest.expect.equality(tostring(Path.new(client.dir) / "notes" / "johnny.decimal.md"), tostring(path))
+      MiniTest.expect.equality(tostring(Path.new(Obsidian.dir) / "notes" / "johnny.decimal.md"), tostring(path))
     end)
   end)
 
@@ -103,7 +105,7 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path "notes/"
       MiniTest.expect.equality(title, nil)
       MiniTest.expect.equality(#id, 4)
-      MiniTest.expect.equality(tostring(path), tostring(Path:new(client.dir) / "notes" / (id .. ".md")))
+      MiniTest.expect.equality(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / (id .. ".md")))
     end, nil, client_opts)
   end)
 
@@ -116,7 +118,7 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path "New Note"
       MiniTest.expect.equality("New Note", title)
       MiniTest.expect.equality("new-note", id)
-      MiniTest.expect.equality(Path:new(client.dir) / "foo-bar-123.md", path)
+      MiniTest.expect.equality(Path:new(Obsidian.dir) / "foo-bar-123.md", path)
     end, nil, client_opts)
   end)
 
@@ -129,7 +131,7 @@ describe("Client:parse_title_id_path()", function()
       local title, id, path = client:parse_title_id_path "New Note"
       MiniTest.expect.equality("New Note", title)
       MiniTest.expect.equality("new-note", id)
-      MiniTest.expect.equality(Path:new(client.dir) / "foo-bar-123.md", path)
+      MiniTest.expect.equality(Path:new(Obsidian.dir) / "foo-bar-123.md", path)
     end, nil, client_opts)
   end)
 
@@ -139,12 +141,12 @@ describe("Client:parse_title_id_path()", function()
         return "foo-bar-123.md"
       end
 
-      (client.dir / "notes"):mkdir { exist_ok = true }
+      (Obsidian.dir / "notes"):mkdir { exist_ok = true }
 
-      local title, id, path = client:parse_title_id_path("New Note", nil, client.dir / "notes")
+      local title, id, path = client:parse_title_id_path("New Note", nil, Obsidian.dir / "notes")
       MiniTest.expect.equality("New Note", title)
       MiniTest.expect.equality("new-note", id)
-      MiniTest.expect.equality(Path:new(client.dir) / "notes" / "foo-bar-123.md", path)
+      MiniTest.expect.equality(Path:new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
     end, nil, client_opts)
   end)
 end)
@@ -166,7 +168,7 @@ describe("Client:vault_relative_path()", function()
   it("should resolve relative paths", function()
     h.with_tmp_client(function(client)
       MiniTest.expect.equality(client:vault_relative_path "foo.md", Path.new "foo.md")
-      MiniTest.expect.equality(client:vault_relative_path(client.dir / "foo.md"), Path.new "foo.md")
+      MiniTest.expect.equality(client:vault_relative_path(Obsidian.dir / "foo.md"), Path.new "foo.md")
     end)
   end)
 
@@ -192,7 +194,7 @@ describe("Client:create_note()", function()
       MiniTest.expect.equality(note.title, "Foo")
       MiniTest.expect.equality(note.aliases, { "Bar", "Foo" })
       MiniTest.expect.equality(note.tags, { "note" })
-      MiniTest.expect.equality(note.path, client.dir / "foo.md")
+      MiniTest.expect.equality(note.path, Obsidian.dir / "foo.md")
     end, nil, client_opts)
   end)
 end)
