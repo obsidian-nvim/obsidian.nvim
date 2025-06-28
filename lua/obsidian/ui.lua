@@ -640,6 +640,24 @@ M.setup = function(workspace, ui_opts)
     end,
   })
 
+  vim.api.nvim_create_autocmd({ 'ColorScheme' }, {
+    group = group,
+    -- Remove the pattern completely for ColorScheme events
+    callback = function()
+      install_hl_groups(ui_opts)
+
+      -- Also need to update extmarks for all open markdown buffers
+      -- to ensure they use the new highlight groups
+      local ns_id = vim.api.nvim_create_namespace(NAMESPACE)
+      for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_loaded(bufnr) and should_update(ui_opts, bufnr)
+        then
+          update_extmarks(bufnr, ns_id, ui_opts)
+        end
+      end
+    end,
+  })
+
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     group = group,
     pattern = pattern,
