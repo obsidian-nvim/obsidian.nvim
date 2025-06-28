@@ -3,6 +3,7 @@ local log = require "obsidian.log"
 local api = require "obsidian.api"
 local strings = require "plenary.strings"
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 
 ---@class obsidian.Picker : obsidian.ABC
 ---
@@ -241,7 +242,7 @@ Picker.pick_note = function(self, notes, opts)
   local entries = {}
   for _, note in ipairs(notes) do
     assert(note.path)
-    local rel_path = tostring(assert(self.client:vault_relative_path(note.path, { strict = true })))
+    local rel_path = assert(note.path:vault_relative_path { strict = true })
     local display_name = note:display_name()
     entries[#entries + 1] = {
       value = note,
@@ -473,7 +474,7 @@ Picker._make_display = function(self, entry)
       end
     end
 
-    display = display .. tostring(self.client:vault_relative_path(entry.filename, { strict = true }))
+    display = display .. Path.new(entry.filename):vault_relative_path { strict = true }
 
     if entry.lnum ~= nil then
       display = display .. ":" .. entry.lnum

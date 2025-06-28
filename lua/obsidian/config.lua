@@ -281,8 +281,8 @@ config.default = {
   attachments = {
     img_folder = "assets/imgs",
     img_text_func = function(client, path)
-      path = client:vault_relative_path(path) or path
-      return string.format("![%s](%s)", path.name, require("obsidian.util").urlencode(tostring(path)))
+      local encoded_path = require("obsidian.util").urlencode(path:vault_relative_path() or tostring(path))
+      return string.format("![%s](%s)", path.name, encoded_path)
     end,
     img_name_func = function()
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")

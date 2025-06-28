@@ -1,5 +1,6 @@
 local api = require "obsidian.api"
 local RefTypes = require("obsidian.search").RefTypes
+local Path = require "obsidian.path"
 
 ---@param client obsidian.Client
 ---@param path? string|obsidian.Path
@@ -56,7 +57,7 @@ return function(client, data)
   else
     -- Otherwise use the path of the current buffer.
     local bufname = vim.api.nvim_buf_get_name(0)
-    local path = client:vault_relative_path(bufname)
+    local path = Path.new(bufname):vault_relative_path()
     open_in_app(client, path)
   end
 end

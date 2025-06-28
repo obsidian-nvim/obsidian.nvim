@@ -109,33 +109,6 @@ Client.path_is_note = function(self, path, workspace)
   return true
 end
 
---- Make a path relative to the vault root, if possible.
----
----@param path string|obsidian.Path
----@param opts { strict: boolean|? }|?
----
----@return obsidian.Path|?
-Client.vault_relative_path = function(self, path, opts)
-  opts = opts or {}
-
-  -- NOTE: we don't try to resolve the `path` here because that would make the path absolute,
-  -- which may result in the wrong relative path if the current working directory is not within
-  -- the vault.
-  path = Path.new(path)
-
-  local ok, relative_path = pcall(function()
-    return path:relative_to(Obsidian.workspace.root)
-  end)
-
-  if ok and relative_path then
-    return relative_path
-  elseif not path:is_absolute() then
-    return path
-  elseif opts.strict then
-    error(string.format("failed to resolve '%s' relative to vault root '%s'", path, Obsidian.workspace.root))
-  end
-end
-
 --- Get the templates folder.
 ---
 ---@return obsidian.Path|?
@@ -183,7 +156,8 @@ Client.should_save_frontmatter = function(self, note)
   elseif type(Obsidian.opts.disable_frontmatter) == "boolean" then
     return not Obsidian.opts.disable_frontmatter
   elseif type(Obsidian.opts.disable_frontmatter) == "function" then
-    return not Obsidian.opts.disable_frontmatter(tostring(self:vault_relative_path(note.path, { strict = true })))
+    -- return not Obsidian.opts.disable_frontmatter(tostring(self:vault_relative_path(note.path, { strict = true })))
+    return not Obsidian.opts.disable_frontmatter(note.path:vault_relative_path { strict = true })
   else
     return true
   end
@@ -1175,7 +1149,7 @@ Client.find_backlinks_async = function(self, note, callback, opts)
   -- Prepare search terms.
   local search_terms = {}
   local note_path = Path.new(note.path)
-  for raw_ref in iter { tostring(note.id), note_path.name, note_path.stem, self:vault_relative_path(note.path) } do
+  for raw_ref in iter { tostring(note.id), note_path.name, note_path.stem, note.path:vault_relative_path() } do
     for ref in
       iter(util.tbl_unique {
         raw_ref,
@@ -1705,7 +1679,7 @@ Client.write_note = function(self, note, opts)
     update_content = opts.update_content,
   }
 
-  log.info("%s note '%s' at '%s'", verb, note.id, self:vault_relative_path(note.path) or note.path)
+  log.info("%s note '%s' at '%s'", verb, note.id, note.path:vault_relative_path() or note.path)
 
   return note
 end
@@ -1779,12 +1753,14 @@ Client.format_link = function(self, note, opts)
   local rel_path, label, note_id
   if type(note) == "string" or Path.is_path_obj(note) then
     ---@cast note string|obsidian.Path
-    rel_path = tostring(self:vault_relative_path(note, { strict = true }))
+    -- rel_path = tostring(self:vault_relative_path(note, { strict = true }))
+    rel_path = assert(Path.new(note):vault_relative_path { strict = true })
     label = opts.label or tostring(note)
     note_id = opts.id
   else
     ---@cast note obsidian.Note
-    rel_path = tostring(self:vault_relative_path(note.path, { strict = true }))
+    -- rel_path = tostring(self:vault_relative_path(note.path, { strict = true }))
+    rel_path = assert(note.path:vault_relative_path { strict = true })
     label = opts.label or note:display_name()
     note_id = opts.id or note.id
   end

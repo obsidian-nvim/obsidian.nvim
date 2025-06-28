@@ -1,5 +1,6 @@
 local Path = require "obsidian.path"
 local api = require "obsidian.api"
+local h = dofile "tests/helpers.lua"
 
 local new_set, eq, has_error = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.error
 
@@ -310,6 +311,29 @@ T["mkdir"]["should rename a directory"] = function()
 
   target:rmdir()
   eq(false, target:exists())
+end
+
+T["vault_relative_path"] = new_set()
+
+T["vault_relative_path"]["should resolve relative paths"] = function()
+  h.with_tmp_client(function(client)
+    eq(Path.new("foo.md"):vault_relative_path(), "foo.md")
+    eq(Path.new(Obsidian.dir / "foo.md"):vault_relative_path(), "foo.md")
+  end)
+end
+
+T["vault_relative_path"]["should error when strict=true and the relative path can't be resolved"] = function()
+  h.with_tmp_client(function(client)
+    has_error(function()
+      Path.new("/Users/petew/foo.md"):vault_relative_path { strict = true }
+    end)
+  end)
+end
+
+T["vault_relative_path"]["should not error when strict=false and the relative path can't be resolved"] = function()
+  h.with_tmp_client(function(client)
+    eq(nil, Path.new("/Users/petew/foo.md"):vault_relative_path())
+  end)
 end
 
 return T

@@ -564,30 +564,29 @@ require("obsidian").setup {
     },
   },
 
-  -- Specify how to handle attachments.
+  ---@class obsidian.config.AttachmentsOpts
+  ---
+  ---Default folder to save images to, relative to the vault root.
+  ---@field img_folder? string
+  ---
+  ---Default name for pasted images
+  ---@field img_name_func? fun(): string
+  ---
+  ---Default text to insert for pasted images
+  ---@field img_text_func? fun(client: obsidian.Client, path: obsidian.Path): string
+  ---
+  ---Whether to confirm the paste or not. Defaults to true.
+  ---@field confirm_img_paste? boolean
   attachments = {
-    -- The default folder to place images in via `:Obsidian paste_img`.
-    -- If this is a relative path it will be interpreted as relative to the vault root.
-    -- You can always override this per image by passing a full path to the command instead of just a filename.
-    img_folder = "assets/imgs", -- This is the default
-
-    -- A function that determines default name or prefix when pasting images via `:Obsidian paste_img`.
-    ---@return string
+    img_folder = "assets/imgs",
+    img_text_func = function(client, path)
+      local encoded_path = require("obsidian.util").urlencode(path:vault_relative_path() or tostring(path))
+      return string.format("![%s](%s)", path.name, encoded_path)
+    end,
     img_name_func = function()
-      -- Prefix image names with timestamp.
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
-
-    -- A function that determines the text to insert in the note when pasting an image.
-    -- It takes two arguments, the `obsidian.Client` and an `obsidian.Path` to the image file.
-    -- This is the default implementation.
-    ---@param client obsidian.Client
-    ---@param path obsidian.Path the absolute path to the image file
-    ---@return string
-    img_text_func = function(client, path)
-      path = client:vault_relative_path(path) or path
-      return string.format("![%s](%s)", path.name, path)
-    end,
+    confirm_img_paste = true,
   },
 
   -- See https://github.com/obsidian-nvim/obsidian.nvim/wiki/Notes-on-configuration#statusline-component
