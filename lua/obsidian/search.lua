@@ -271,9 +271,9 @@ end
 ---@field ignore_case boolean|?
 ---@field smart_case boolean|?
 ---@field exclude string[]|? paths to exclude
----@field max_count_per_file integer|?
+---@field max_count_per_file integer|? Limit the number of matching lines per file searched to max_count_per_file.
 ---@field escape_path boolean|?
----@field include_non_markdown boolean|?
+---@field include_non_markdown boolean|? search for .*? If false, searches for .md
 
 local SearchOpts = {}
 M.SearchOpts = SearchOpts

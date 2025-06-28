@@ -62,6 +62,7 @@ local config = {}
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
+---@field cache obsidian.config.CacheOpts
 ---@field open obsidian.config.OpenOpts
 ---@field checkbox obsidian.config.CheckboxOpts
 
@@ -308,6 +309,17 @@ config.default = {
   ---@field post_set_workspace? fun(client: obsidian.Client, workspace: obsidian.Workspace)
   callbacks = {},
 
+  ---@class obsidian.config.CacheOpts
+  ---
+  ---@field enabled boolean|? Use cache when searching for notes
+  ---@field path string The file where the cache will be saved
+  ---@field show_tags boolean|? Show tags in the picker
+  cache = {
+    enabled = false,
+    path = "./.cache.json",
+    show_tags = false,
+  },
+
   ---@class obsidian.config.StatuslineOpts
   ---
   ---@field format? string
@@ -551,6 +563,8 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   if opts.dir ~= nil then
     table.insert(opts.workspaces, 1, { path = opts.dir })
   end
+
+  opts.cache = tbl_override(defaults.cache, opts.cache)
 
   return opts
 end

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added file-watch: code that tracks changed notes in the vault.
+- Added cache: a JSON file, which stores aliases, last update date and path to the note. Updated using file-watch.
+- Added a new configuration option - `cache`, which is disabled by default.
 - When filling out a template with user-provided substitution functions, pass a "context" object to each invocation so that users can respond accordingly.
   - Added `obsidian.InsertTemplateContext` and `obsidian.CloneTemplateContext` as these new "context" objects.
 - Github workflow and `make types` now use `lua-language-server` to check type issues.
@@ -38,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Refactor the `util` module.
 - Use `vim.defaulttable` instead of custom impl.
+
+### Changed
+- In telescope an option was added to search notes by aliases.
 
 ## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
 

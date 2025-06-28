@@ -15,6 +15,13 @@ local TelescopePicker = abc.new_class({
   end,
 }, Picker)
 
+---@class obsidian.pickers.telescope_picker.CacheSelectedEntry
+---
+---@field value obsidian.cache.CacheNote[]
+---@field display string
+---@field ordinal string
+---@field absolute_path string
+
 ---@param prompt_bufnr integer
 ---@param keep_open boolean|?
 ---@return table|?
@@ -124,6 +131,76 @@ local function attach_picker_mappings(map, opts)
   end
 end
 
+---Creates custom picker to search the notes using obsidian.cache.NoteCache
+---@param self obsidian.pickers.TelescopePicker
+---@param prompt_title string
+---@param opts obsidian.PickerFindOpts
+---@return obsidian.Picker
+local create_cache_picker = function(self, prompt_title, opts)
+  local pickers = require "telescope.pickers"
+  local finders = require "telescope.finders"
+  local config = require("telescope.config").values
+  local actions = require "telescope.actions"
+
+  local picker_opts = {
+    prompt_title = prompt_title,
+    attach_mappings = function(prompt_bufnr, map)
+      actions.select_default:replace(function()
+        local selection = get_entry(prompt_bufnr, false)
+
+        if not selection or not selection.absolute_path then
+          return
+        end
+
+        vim.schedule(function()
+          self.client:open_note(selection.absolute_path)
+        end)
+      end)
+
+      attach_picker_mappings(map, {
+        entry_key = "absolute_path",
+        callback = opts.callback,
+        query_mappings = opts.query_mappings,
+        selection_mappings = opts.selection_mappings,
+      })
+      return true
+    end,
+  }
+
+  return pickers.new(picker_opts, {
+    cwd = opts.dir,
+    finder = finders.new_table {
+      results = self.client.cache:get_cache_notes_without_key(),
+      ---@param entry obsidian.cache.CacheNote
+      ---@return obsidian.pickers.telescope_picker.CacheSelectedEntry
+      entry_maker = function(entry)
+        local concated_aliases = table.concat(entry.aliases, "|")
+        local concated_tags = table.concat(entry.tags, " #")
+        local relative_path = entry.absolute_path:gsub(self.client.dir.filename .. "/", "")
+        local display_name
+
+        if concated_aliases and concated_aliases ~= "" then
+          display_name = table.concat({ relative_path, concated_aliases }, "|")
+        else
+          display_name = relative_path
+        end
+
+        if self.client.opts.cache.show_tags and concated_tags and concated_tags ~= "" then
+          display_name = table.concat({ display_name, concated_tags }, " #")
+        end
+
+        return {
+          value = entry,
+          display = display_name,
+          ordinal = display_name,
+          absolute_path = entry.absolute_path,
+        }
+      end,
+    },
+    sorter = config.generic_sorter(),
+  })
+end
+
 ---@param opts obsidian.PickerFindOpts|? Options.
 TelescopePicker.find_files = function(self, opts)
   opts = opts or {}
@@ -134,20 +211,25 @@ TelescopePicker.find_files = function(self, opts)
     selection_mappings = opts.selection_mappings,
   }
 
-  telescope.find_files {
-    prompt_title = prompt_title,
-    cwd = opts.dir and tostring(opts.dir) or tostring(self.client.dir),
-    find_command = self:_build_find_cmd(),
-    attach_mappings = function(_, map)
-      attach_picker_mappings(map, {
-        entry_key = "path",
-        callback = opts.callback,
-        query_mappings = opts.query_mappings,
-        selection_mappings = opts.selection_mappings,
-      })
-      return true
-    end,
-  }
+  if opts.use_cache then
+    ---@diagnostic disable-next-line: undefined-field
+    create_cache_picker(self, prompt_title, opts):find()
+  else
+    telescope.find_files {
+      prompt_title = prompt_title,
+      cwd = opts.dir and tostring(opts.dir) or tostring(self.client.dir),
+      find_command = self:_build_find_cmd(),
+      attach_mappings = function(_, map)
+        attach_picker_mappings(map, {
+          entry_key = "path",
+          callback = opts.callback,
+          query_mappings = opts.query_mappings,
+          selection_mappings = opts.selection_mappings,
+        })
+        return true
+      end,
+    }
+  end
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.

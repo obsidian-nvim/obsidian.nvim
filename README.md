@@ -114,6 +114,8 @@ For remapping and creating your own mappings, see [Keymaps](https://github.com/o
 
 - `:Obsidian yesterday` to open/create the daily note for the previous working day.
 
+- `:Obsidian rebuild_cache` to manually update the cache of the workspace.
+
 ### Demo
 
 [![2024-01-31 14 22 52](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)
@@ -595,6 +597,13 @@ require("obsidian").setup {
     enabled = true,
     format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
   },
+
+  -- Experimental feature, disabled by default.
+  cache = {
+    enabled = false,
+    path = "./.cache.json",
+    show_tags = false -- will show tags after a note name and after aliases.
+  }
 }
 ```
 
