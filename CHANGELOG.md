@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed highlight groups not applying after changing colorschemes
 - Only error once if template folder is not found.
 - Fixed corrupted text when custom variables appear more than once in a template file (#198)
 - Add further checks to void false positives when finding tags
