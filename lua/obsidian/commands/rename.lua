@@ -190,8 +190,8 @@ return function(client, data)
     log.info("Dry run: updating frontmatter of '" .. tostring(new_note_path) .. "'")
   end
 
-  local cur_note_rel_path = cur_note_path:vault_relative_path { strict = true }
-  local new_note_rel_path = new_note_path:vault_relative_path { strict = true }
+  local cur_note_rel_path = assert(cur_note_path:vault_relative_path { strict = true })
+  local new_note_rel_path = assert(new_note_path:vault_relative_path { strict = true })
 
   -- Search notes on disk for any references to `cur_note_id`.
   -- We look for the following forms of references:
