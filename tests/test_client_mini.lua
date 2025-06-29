@@ -2,7 +2,7 @@ local h = dofile "tests/helpers.lua"
 local Path = require "obsidian.path"
 
 local new_set, expect = MiniTest.new_set, MiniTest.expect
-local eq, has_error = expect.equality, expect.error
+local eq = expect.equality
 
 local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
 
