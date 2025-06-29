@@ -21,10 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `itertools.lua` in favor of `vim.iter`.
 - Commands are now context sensitive (mode and if in note).
 - Remove `debug` command and lazy log functions, and point user to `checkhealth obsidian`.
-- Remove `mappings.lua`, see: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps
+- Remove `mappings.lua`, see: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps>
 - Moved `daily` as its own module instead of client method.
 - Remove the class `obsdian.CallbackManager`, but callback system is not changed.
 - Remove `api.insert_text`, use `vim.api.nvim_put`
+- change `clipboard_is_img` to use `vim.fn.system` instead of `io.popen` to get the output of the command with awareness of the shell variables.
+- use `run_job` wrap with `bash` to run `save_clipboard_image` async for Wayland sessions to avoid data corruption.
 
 ### Fixed
 
@@ -33,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add further checks to void false positives when finding tags
 - Off-by-one bug when avoiding tag in code blocks
 - Make tag picker case insensitive
+- `ObsidianPasteImg` will now work on Wayland sessions
 
 ### Changed
 
