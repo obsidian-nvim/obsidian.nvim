@@ -3,6 +3,7 @@ local Note = require "obsidian.note"
 local search = require "obsidian.search"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
+local Path = require "obsidian.path"
 
 -- Search notes on disk for any references to `cur_note_id`.
 -- We look for the following forms of references:
@@ -43,9 +44,9 @@ end
 ---Return file info from uri
 ---
 ---@return obsidian.lsp.note_info
-local function info_from_uri(uri, client)
+local function info_from_uri(uri)
   local path = vim.uri_to_fname(uri)
-  local rel_path = tostring(client:vault_relative_path(path, { strict = true }))
+  local rel_path = Path.new(path):vault_relative_path { strict = true }
 
   local note = Note.from_file(path)
   local id = tostring(note.id)
@@ -63,11 +64,11 @@ end
 ---Return file info from id and old path
 ---
 ---@return obsidian.lsp.note_info
-local function info_from_id(id, old_path, client)
+local function info_from_id(id, old_path)
   local dirname = vim.fs.dirname(old_path)
 
   local path = vim.fs.joinpath(dirname, id) .. ".md"
-  local rel_path = tostring(client:vault_relative_path(path, { strict = true }))
+  local rel_path = Path.new(path):vault_relative_path { strict = true }
 
   return {
     rel_path = rel_path,
@@ -76,12 +77,11 @@ local function info_from_id(id, old_path, client)
   }
 end
 
----@param client obsidian.Client
 ---@param uri string
 ---@param new_name string
-local function rename_note(client, uri, new_name)
-  local old = info_from_uri(uri, client)
-  local new = info_from_id(new_name, old.path, client)
+local function rename_note(uri, new_name)
+  local old = info_from_uri(uri)
+  local new = info_from_id(new_name, old.path)
 
   local search_lookup = build_search_lookup(old, new)
   local count = 0
@@ -90,7 +90,7 @@ local function rename_note(client, uri, new_name)
   local buf_list = {}
 
   search.search_async(
-    client.dir,
+    Obsidian.dir,
     vim.tbl_keys(search_lookup),
     { fixed_strings = true },
     vim.schedule_wrap(function(match)
@@ -173,9 +173,9 @@ return function(client, params, _, _)
       return
     end
     local path = tostring(notes[1].path)
-    rename_note(client, vim.uri_from_fname(path), params.newName)
+    rename_note(vim.uri_from_fname(path), params.newName)
   else
-    local note = rename_note(client, params.textDocument.uri, params.newName)
-    client:open_note(note)
+    local note = rename_note(params.textDocument.uri, params.newName)
+    Note.open(note)
   end
 end
