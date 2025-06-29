@@ -25,7 +25,7 @@ lsp.start = function(client, buf)
       }
     end,
     init_options = {},
-    root_dir = tostring(client.dir),
+    root_dir = tostring(Obsidian.dir),
   }, { bufnr = buf })
   assert(client_id, "failed to start obsidian_ls")
 
