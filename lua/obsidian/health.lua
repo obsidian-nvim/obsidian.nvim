@@ -48,6 +48,19 @@ local function has_one_of(plugins)
   end
 end
 
+local function has(name)
+  if vim.fn.executable(name) == 1 then
+    local version = api.get_external_dependency_info(name)
+    if version then
+      info("  ✓ %s: %s", name, version)
+    else
+      info("  ✓ %s: found", name)
+    end
+  else
+    error(string.format "  ✗ %s not found")
+  end
+end
+
 ---@param minimum string
 ---@param recommended string
 local function neovim(minimum, recommended)
@@ -61,12 +74,13 @@ local function neovim(minimum, recommended)
 end
 
 function M.check()
-  neovim("0.8", "0.11")
+  local os = api.get_os()
+  neovim("0.10", "0.11")
   start "Version"
   info("Obsidian.nvim v%s (%s)", VERSION, api.get_plugin_info("obsidian.nvim").commit)
 
   start "Environment"
-  info("  • operating system: %s", api.get_os())
+  info("  • operating system: %s", os)
 
   start "Config"
   info("  • dir: %s", require("obsidian").get_client().dir)
@@ -81,6 +95,15 @@ function M.check()
     "snacks.nvim",
   }
 
+  if os == api.OSType.Wsl then
+    has "wsl-open"
+  elseif os == api.OSType.Linux then
+    has_one_of {
+      "xclip",
+      "wl-paste", -- ?
+    }
+  end
+
   start "Completion"
 
   has_one_of {
@@ -89,7 +112,7 @@ function M.check()
   }
 
   start "Dependencies"
-  info("  ✓ rg: %s", api.get_external_dependency_info "rg" or "not found")
+  has "rg"
   has_plugin("plenary.nvim", false)
 end
 
