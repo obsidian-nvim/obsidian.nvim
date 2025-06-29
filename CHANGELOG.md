@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `makefile types` target to check types via lua-ls.
 - New `obsidian.config` type for user config type check.
 - More informative healthcheck.
+- Added a builtin lsp to handle completion, hover, diagnostics and code actions
 
 ### Changed
 
