@@ -514,6 +514,7 @@ end
 ------------------------------------
 -- Miscellaneous helper functions --
 ------------------------------------
+
 ---@param anchor obsidian.note.HeaderAnchor
 ---@return string
 util.format_anchor_label = function(anchor)
@@ -678,7 +679,7 @@ util.contains_invalid_characters = function(fname)
   return string.find(fname, "[" .. invalid_chars .. "]") ~= nil
 end
 
----Check if a string is NaN
+--- Check if a string is NaN
 ---
 ---@param v any
 ---@return boolean

@@ -152,6 +152,16 @@ obsidian.setup = function(opts)
         desc = "Obsidian Smart Action",
       })
 
+      vim.keymap.set("n", "<Tab>", require("obsidian.api").cycle, {
+        buffer = true,
+        desc = "Obsidian Cycle",
+      })
+
+      vim.keymap.set("n", "<S-Tab>", require("obsidian.api").cycle_global, {
+        buffer = true,
+        desc = "Obsidian Global Cyble",
+      })
+
       -- Inject completion sources, providers to their plugin configurations
       if opts.completion.nvim_cmp then
         require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
