@@ -62,7 +62,7 @@ Executor.map = function(self, fn, task_args, callback)
     end
   end
 
-  if type(task_args) == "table" and util.tbl_is_array(task_args) then
+  if type(task_args) == "table" and util.islist(task_args) then
     num_tasks = #task_args
     for i, args in ipairs(task_args) do
       if i == #task_args then

@@ -26,7 +26,7 @@ local tmp_template_context = function(client, ctx)
   return vim.tbl_extend("keep", ctx or {}, {
     type = "insert_template",
     templates_dir = client:templates_dir(),
-    template_opts = client.opts.templates,
+    template_opts = Obsidian.opts.templates,
     partial_note = Note.new { id = "FOO", aliases = { "FOO" }, tags = {} },
   })
 end
@@ -111,7 +111,7 @@ end
 
 T["substitute_template_variables()"]["should substitute custom variables"] = function()
   h.with_tmp_client(function(client)
-    client.opts.templates.substitutions = {
+    Obsidian.opts.templates.substitutions = {
       weekday = function()
         return "Monday"
       end,
@@ -119,14 +119,14 @@ T["substitute_template_variables()"]["should substitute custom variables"] = fun
     local text = "today is {{weekday}}"
     eq("today is Monday", M.substitute_template_variables(text, tmp_template_context(client)))
 
-    eq(1, vim.tbl_count(client.opts.templates.substitutions))
-    eq("function", type(client.opts.templates.substitutions.weekday))
+    eq(1, vim.tbl_count(Obsidian.opts.templates.substitutions))
+    eq("function", type(Obsidian.opts.templates.substitutions.weekday))
   end)
 end
 
 T["substitute_template_variables()"]["should substitute consecutive custom variables"] = function()
   h.with_tmp_client(function(client)
-    client.opts.templates.substitutions = {
+    Obsidian.opts.templates.substitutions = {
       value = function()
         return "VALUE"
       end,
@@ -138,7 +138,7 @@ end
 
 T["substitute_template_variables()"]["should provide substitution functions with template context"] = function()
   h.with_tmp_client(function(client)
-    client.opts.templates.substitutions = {
+    Obsidian.opts.templates.substitutions = {
       test_var = function(ctx)
         return tostring(ctx.template_name)
       end,

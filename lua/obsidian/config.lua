@@ -107,7 +107,6 @@ config.Picker = {
 ---@return obsidian.config.ClientOpts
 config.default = {
   legacy_commands = true,
-  dir = nil,
   workspaces = {},
   log_level = vim.log.levels.INFO,
   notes_subdir = nil,
@@ -161,14 +160,14 @@ config.default = {
   ---@field blink? boolean
   ---@field min_chars? integer
   ---@field match_case? boolean
-  ---@field create_files? boolean
+  ---@field create_new? boolean
   completion = (function()
     local has_nvim_cmp, _ = pcall(require, "cmp")
     return {
       nvim_cmp = has_nvim_cmp,
       min_chars = 2,
       match_case = true,
-      create_files = true,
+      create_new = true,
     }
   end)(),
 
@@ -289,8 +288,8 @@ config.default = {
   attachments = {
     img_folder = "assets/imgs",
     img_text_func = function(client, path)
-      path = client:vault_relative_path(path) or path
-      return string.format("![%s](%s)", path.name, require("obsidian.util").urlencode(tostring(path)))
+      local encoded_path = require("obsidian.util").urlencode(path:vault_relative_path() or tostring(path))
+      return string.format("![%s](%s)", path.name, encoded_path)
     end,
     img_name_func = function()
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
@@ -545,8 +544,16 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     error("Invalid 'sort_by' option '" .. opts.sort_by .. "' in obsidian.nvim config.")
   end
 
-  if not util.tbl_is_array(opts.workspaces) then
+  if not util.islist(opts.workspaces) then
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
+  elseif vim.tbl_isempty(opts.workspaces) then
+    error "At least one workspace is required!\nPlease specify a workspace "
+  end
+
+  for i, workspace in ipairs(opts.workspaces) do
+    local path = type(workspace.path) == "function" and workspace.path() or workspace.path
+    ---@cast path -function
+    opts.workspaces[i].path = vim.fn.resolve(vim.fs.normalize(path))
   end
 
   -- Convert dir to workspace format.

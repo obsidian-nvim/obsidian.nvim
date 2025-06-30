@@ -54,7 +54,7 @@ dumps = function(x, indent, order)
   if type(x) == "table" then
     local out = {}
 
-    if util.tbl_is_array(x) then
+    if util.islist(x) then
       for _, v in ipairs(x) do
         local item_lines = dumps(v, indent + 2)
         table.insert(out, indent_str .. "- " .. util.lstrip_whitespace(item_lines[1]))

@@ -5,28 +5,29 @@ local util = require "obsidian.util"
 --- Get the path to a daily note.
 ---
 ---@param datetime integer|?
----@param config obsidian.config.ClientOpts
 ---
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
-local daily_note_path = function(datetime, config)
+local daily_note_path = function(datetime)
   datetime = datetime and datetime or os.time()
 
   ---@type obsidian.Path
-  local path = Path:new(require("obsidian").get_client().dir)
+  local path = Path:new(Obsidian.dir)
 
-  if config.daily_notes.folder ~= nil then
+  local options = Obsidian.opts
+
+  if options.daily_notes.folder ~= nil then
     ---@type obsidian.Path
     ---@diagnostic disable-next-line: assign-type-mismatch
-    path = path / config.daily_notes.folder
-  elseif config.notes_subdir ~= nil then
+    path = path / options.daily_notes.folder
+  elseif options.notes_subdir ~= nil then
     ---@type obsidian.Path
     ---@diagnostic disable-next-line: assign-type-mismatch
-    path = path / config.notes_subdir
+    path = path / options.notes_subdir
   end
 
   local id
-  if config.daily_notes.date_format ~= nil then
-    id = tostring(os.date(config.daily_notes.date_format, datetime))
+  if options.daily_notes.date_format ~= nil then
+    id = tostring(os.date(options.daily_notes.date_format, datetime))
   else
     id = tostring(os.date("%Y-%m-%d", datetime))
   end
@@ -43,20 +44,21 @@ end
 ---
 ---@param datetime integer
 ---@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
----@param config obsidian.config.ClientOpts
 ---
 ---@return obsidian.Note
 ---
 ---@private
-local _daily = function(datetime, opts, config)
+local _daily = function(datetime, opts)
   opts = opts or {}
 
-  local path, id = daily_note_path(datetime, config)
+  local path, id = daily_note_path(datetime)
+
+  local options = Obsidian.opts
 
   ---@type string|?
   local alias
-  if config.daily_notes.alias_format ~= nil then
-    alias = tostring(os.date(config.daily_notes.alias_format, datetime))
+  if options.daily_notes.alias_format ~= nil then
+    alias = tostring(os.date(options.daily_notes.alias_format, datetime))
   end
 
   ---@type obsidian.Note
@@ -64,7 +66,7 @@ local _daily = function(datetime, opts, config)
   if path:exists() then
     note = Note.from_file(path, opts.load)
   else
-    note = Note.new { id = id, aliases = {}, tags = config.daily_notes.default_tags or {}, path = path }
+    note = Note.new { id = id, aliases = {}, tags = options.daily_notes.default_tags or {}, path = path }
 
     if alias then
       note:add_alias(alias)
@@ -72,7 +74,7 @@ local _daily = function(datetime, opts, config)
     end
 
     if not opts.no_write then
-      require("obsidian").get_client():write_note(note, { template = config.daily_notes.template })
+      require("obsidian").get_client():write_note(note, { template = options.daily_notes.template })
     end
   end
 
@@ -81,55 +83,51 @@ end
 
 --- Open (or create) the daily note for today.
 ---
----@param config obsidian.config.ClientOpts
 ---@return obsidian.Note
-local today = function(config)
-  return _daily(os.time(), {}, config)
+local today = function()
+  return _daily(os.time(), {})
 end
 
 --- Open (or create) the daily note from the last day.
 ---
----@param config obsidian.config.ClientOpts
 ---@return obsidian.Note
-local yesterday = function(config)
+local yesterday = function()
   local now = os.time()
   local yesterday
 
-  if config.daily_notes.workdays_only then
+  if Obsidian.opts.daily_notes.workdays_only then
     yesterday = util.working_day_before(now)
   else
     yesterday = util.previous_day(now)
   end
 
-  return _daily(yesterday, {}, config)
+  return _daily(yesterday, {})
 end
 
 --- Open (or create) the daily note for the next day.
 ---
----@param config obsidian.config.ClientOpts
 ---@return obsidian.Note
-local tomorrow = function(config)
+local tomorrow = function()
   local now = os.time()
   local tomorrow
 
-  if config.daily_notes.workdays_only then
+  if Obsidian.opts.daily_notes.workdays_only then
     tomorrow = util.working_day_after(now)
   else
     tomorrow = util.next_day(now)
   end
 
-  return _daily(tomorrow, {}, config)
+  return _daily(tomorrow, {})
 end
 
 --- Open (or create) the daily note for today + `offset_days`.
 ---
 ---@param offset_days integer|?
 ---@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
----@param config obsidian.config.ClientOpts
 ---
 ---@return obsidian.Note
-local daily = function(offset_days, opts, config)
-  return _daily(os.time() + (offset_days * 3600 * 24), opts, config)
+local daily = function(offset_days, opts)
+  return _daily(os.time() + (offset_days * 3600 * 24), opts)
 end
 
 return {

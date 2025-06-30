@@ -94,7 +94,7 @@ function RefsSourceBase:can_complete_request(cc)
   local can_complete
   can_complete, cc.search, cc.insert_start, cc.insert_end, cc.ref_type = completion.can_complete(cc.request)
 
-  if not (can_complete and cc.search ~= nil and #cc.search >= cc.client.opts.completion.min_chars) then
+  if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
     cc.completion_resolve_callback(self.incomplete_response)
     return false
   end
@@ -217,7 +217,7 @@ function RefsSourceBase:process_search_results(cc, results)
           alias_case_matched ~= nil
           and alias_case_matched ~= alias
           and not vim.list_contains(note.aliases, alias_case_matched)
-          and cc.client.opts.completion.match_case
+          and Obsidian.opts.completion.match_case
         then
           self:update_completion_options(cc, alias_case_matched, nil, matching_anchors, matching_blocks, note)
         end

@@ -25,6 +25,7 @@ ignore = {
 
 -- Global objects defined by the C code
 read_globals = {
+  "Obsidian",
   "vim",
   "MiniDoc",
   "MiniTest",

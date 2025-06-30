@@ -1,4 +1,5 @@
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local iter = vim.iter
 
@@ -37,7 +38,7 @@ return function(client, _)
   }
 
   client:apply_async_raw(function(path)
-    local relative_path = client:vault_relative_path(path, { strict = true })
+    local relative_path = Path.new(path):vault_relative_path { strict = true }
     local ok, res = pcall(Note.from_file, path)
 
     if not ok then

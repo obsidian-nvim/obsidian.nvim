@@ -65,31 +65,13 @@ end
 --- Table tools ---
 -------------------
 
----Check if a table contains a key.
----
----@param t table
----@param needle any
----@return boolean
-util.tbl_contains_key = function(t, needle)
-  return vim.list_contains(vim.tbl_keys(t), needle)
-end
-
 ---Check if an object is an array-like table.
+--- TODO: after 0.12 replace with vim.islist
+---
 ---@param t any
 ---@return boolean
-util.tbl_is_array = function(t)
-  if type(t) ~= "table" then
-    return false
-  end
-
+util.islist = function(t)
   return compat.is_list(t)
-end
-
----Check if an object is an non-array table.
----@param t any
----@return boolean
-util.tbl_is_mapping = function(t)
-  return type(t) == "table" and (vim.tbl_isempty(t) or not util.tbl_is_array(t))
 end
 
 ---Return a new list table with only the unique values of the original table.
@@ -102,15 +84,6 @@ util.tbl_unique = function(t)
     found[val] = true
   end
   return vim.tbl_keys(found)
-end
-
---- Clear all values from a table.
----
----@param t table
-util.tbl_clear = function(t)
-  for k, _ in pairs(t) do
-    t[k] = nil
-  end
 end
 
 --------------------
@@ -730,6 +703,24 @@ util.buffer_fn = function(fn)
       end
       buffer = lines[#lines] -- Store remaining partial line
     end
+  end
+end
+
+---@param event string
+---@param callback fun(...)
+---@param ... any
+---@return boolean success
+util.fire_callback = function(event, callback, ...)
+  local log = require "obsidian.log"
+  if not callback then
+    return false
+  end
+  local ok, err = pcall(callback, ...)
+  if ok then
+    return true
+  else
+    log.error("Error running %s callback: %s", event, err)
+    return false
   end
 end
 
