@@ -1,6 +1,7 @@
 local log = require "obsidian.log"
 local templates = require "obsidian.templates"
 local util = require "obsidian.util"
+local Note = require "obsidian.note"
 
 ---@param client obsidian.Client
 ---@param data CommandArgs
@@ -17,7 +18,7 @@ return function(client, data)
 
   if title ~= nil and template ~= nil then
     templates.load_template_customizations(template, client)
-    local note = client:create_note { title = title, template = template, no_write = false }
+    local note = Note.new { title = title, template = template, should_write = true, client_opts = client.opts }
     client:open_note(note, { sync = true })
     templates.restore_client_configurations(client)
     return
@@ -47,7 +48,7 @@ return function(client, data)
       end
 
       ---@type obsidian.Note
-      local note = client:create_note { title = title, template = name, no_write = false }
+      local note = Note.new { title = title, template = name, no_write = false }
       client:open_note(note, { sync = false })
       templates.restore_client_configurations(client)
     end,

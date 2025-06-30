@@ -1752,7 +1752,7 @@ Client.create_note = function(self, opts)
   end
 
   -- Create `Note` object.
-  local note = Note.new(new_id, aliases, opts.tags or {}, path)
+  local note = Note.new { id = new_id, aliases = aliases, tags = opts.tags or {}, path }
   if new_title then
     note.title = new_title
   end

@@ -64,7 +64,7 @@ local _daily = function(datetime, opts, config)
   if path:exists() then
     note = Note.from_file(path, opts.load)
   else
-    note = Note.new(id, {}, config.daily_notes.default_tags or {}, path)
+    note = Note.new { id = id, aliases = {}, tags = config.daily_notes.default_tags or {}, path = path }
 
     if alias then
       note:add_alias(alias)

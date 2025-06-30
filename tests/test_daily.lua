@@ -37,7 +37,7 @@ T["daily_note_path"]["should be able to initialize a daily note"] = function()
 end
 
 T["daily_note_path"]["should not add frontmatter for today when disabled"] = function()
-  h.with_tmp_client(function(client)
+  h.with_tmp_client(function()
     _G.client.opts.disable_frontmatter = true
     local new_note = M.today(_G.client.opts)
 

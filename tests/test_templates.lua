@@ -27,7 +27,7 @@ local tmp_template_context = function(client, ctx)
     type = "insert_template",
     templates_dir = client:templates_dir(),
     template_opts = client.opts.templates,
-    partial_note = Note.new("FOO", { "FOO" }, {}),
+    partial_note = Note.new { id = "FOO", aliases = { "FOO" }, tags = {} },
   })
 end
 
@@ -35,7 +35,7 @@ T["substitute_template_variables()"] = new_set()
 T["load_template_customizations()"] = new_set()
 T["restore_client_configurations()"] = new_set()
 
-T["load_template_customizations()"]["should not load customizations for non-existant templates"] = function()
+T["load_template_customizations()"]["should not load customizations for non-existent templates"] = function()
   h.with_tmp_client(function(client)
     client.opts.templates.customizations = {
       Zettel = zettelConfig,
