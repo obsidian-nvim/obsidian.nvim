@@ -73,15 +73,33 @@ function TagsSourceBase:process_completion(cc)
         label_text = "Tag: " .. tag
       else
         -- Document body: insert tag with # (Obsidian format)
-        insert_text = "#" .. tag  
+        insert_text = "#" .. tag
         label_text = "Tag: #" .. tag
       end
+
+      -- Calculate the range to replace (the entire #tag pattern)
+      local cursor_before = cc.request.context.cursor_before_line
+      local hash_start = string.find(cursor_before, "#[^%s]*$")
+      local insert_start = hash_start and (hash_start - 1) or #cursor_before
+      local insert_end = #cursor_before
 
       items[#items + 1] = {
         sortText = "#" .. tag,
         label = label_text,
         kind = vim.lsp.protocol.CompletionItemKind.Text,
-        insertText = insert_text,
+        textEdit = {
+          newText = insert_text,
+          range = {
+            ["start"] = {
+              line = cc.request.context.cursor.row - 1,
+              character = insert_start,
+            },
+            ["end"] = {
+              line = cc.request.context.cursor.row - 1,
+              character = insert_end,
+            },
+          },
+        },
         data = {
           bufnr = cc.request.context.bufnr,
           in_frontmatter = cc.in_frontmatter,
@@ -109,6 +127,5 @@ function TagsSourceBase:can_complete_request(cc)
 
   return true
 end
-
 
 return TagsSourceBase
