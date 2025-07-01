@@ -296,26 +296,6 @@ M.open_buffer = function(path, opts)
   return result_bufnr
 end
 
----Get an iterator of (bufnr, bufname) over all named buffers. The buffer names will be absolute paths.
----
----@return function () -> (integer, string)|?
-M.get_named_buffers = function()
-  local idx = 0
-  local buffers = vim.api.nvim_list_bufs()
-
-  ---@return integer|?
-  ---@return string|?
-  return function()
-    while idx < #buffers do
-      idx = idx + 1
-      local bufnr = buffers[idx]
-      if vim.api.nvim_buf_is_loaded(bufnr) then
-        return bufnr, vim.api.nvim_buf_get_name(bufnr)
-      end
-    end
-  end
-end
-
 ----------------
 --- text api ---
 ----------------
