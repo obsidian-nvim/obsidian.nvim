@@ -65,11 +65,23 @@ function TagsSourceBase:process_completion(cc)
 
     local items = {}
     for tag, _ in pairs(tags) do
+      -- Generate context-appropriate text
+      local insert_text, label_text
+      if cc.in_frontmatter then
+        -- Frontmatter: insert tag without # (YAML format)
+        insert_text = tag
+        label_text = "Tag: " .. tag
+      else
+        -- Document body: insert tag with # (Obsidian format)
+        insert_text = "#" .. tag  
+        label_text = "Tag: #" .. tag
+      end
+
       items[#items + 1] = {
         sortText = "#" .. tag,
-        label = "Tag: #" .. tag,
+        label = label_text,
         kind = vim.lsp.protocol.CompletionItemKind.Text,
-        insertText = "#" .. tag,
+        insertText = insert_text,
         data = {
           bufnr = cc.request.context.bufnr,
           in_frontmatter = cc.in_frontmatter,
@@ -98,17 +110,5 @@ function TagsSourceBase:can_complete_request(cc)
   return true
 end
 
---- Runs a generalized version of the execute method
----@param item any
-function TagsSourceBase:process_execute(item)
-  if item.data.in_frontmatter then
-    -- Remove the '#' at the start of the tag.
-    -- TODO: ideally we should be able to do this by specifying the completion item in the right way,
-    -- but I haven't figured out how to do that.
-    local line = vim.api.nvim_buf_get_lines(item.data.bufnr, item.data.line, item.data.line + 1, true)[1]
-    line = string.gsub(line, vim.pesc("#" .. item.data.tag), item.data.tag, 1)
-    vim.api.nvim_buf_set_lines(item.data.bufnr, item.data.line, item.data.line + 1, true, { line })
-  end
-end
 
 return TagsSourceBase
