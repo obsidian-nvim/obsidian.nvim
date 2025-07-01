@@ -532,6 +532,10 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.templates.subdir = nil
   end
 
+  if opts.ui and opts.ui.checkboxes then
+    log.warn_once [[The 'ui.checkboxes' no longer effect the way checkboxes are ordered, use `checkbox.order`. See: https://github.com/obsidian-nvim/obsidian.nvim/issues/262]]
+  end
+
   if opts.image_name_func then
     if opts.attachments == nil then
       opts.attachments = {}
