@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Off-by-one bug when avoiding tag in code blocks
 - Make tag picker case insensitive
 - `ObsidianPasteImg` will now work on Wayland sessions
+- Handle error exit code from git in get_plugin_info
 
 ### Changed
 

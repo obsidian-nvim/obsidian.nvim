@@ -474,10 +474,11 @@ M.get_plugin_info = function(name)
   end
   local out = { path = src_root }
   local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
-  if obj.code ~= 0 then
-    return
+  if obj.code == 0 then
+    out.commit = vim.trim(obj.stdout)
+  else
+    out.commit = "unknown"
   end
-  out.commit = vim.trim(obj.stdout)
   return out
 end
 
