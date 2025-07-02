@@ -219,7 +219,7 @@ obsidian.setup = function(opts)
       exec_autocmds("ObsidianNoteWritePre", ev.buf)
 
       -- Update buffer with new frontmatter.
-      if client:update_frontmatter(note, bufnr) then
+      if note:update_frontmatter(bufnr) then
         log.info "Updated frontmatter"
       end
     end,

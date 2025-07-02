@@ -20,6 +20,7 @@ local search = require "obsidian.search"
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local block_on = require("obsidian.async").block_on
 local api = require "obsidian.api"
+local get_template_dir = require("obsidian.templates").get_template_dir
 local iter = vim.iter
 
 ---@class obsidian.SearchOpts
@@ -97,7 +98,7 @@ Client.path_is_note = function(self, path, workspace)
   end
 
   -- Ignore markdown files in the templates directory.
-  local templates_dir = self:templates_dir(workspace)
+  local templates_dir = get_template_dir(workspace)
   if templates_dir ~= nil then
     if templates_dir:is_parent_of(path) then
       return false
@@ -105,60 +106,6 @@ Client.path_is_note = function(self, path, workspace)
   end
 
   return true
-end
-
---- Get the templates folder.
----
----@return obsidian.Path|?
-Client.templates_dir = function(self, workspace)
-  local opts = Obsidian.opts
-
-  if workspace and workspace ~= Obsidian.workspace then
-    opts = Workspace.normalize_opts(workspace)
-  end
-
-  if opts.templates == nil or opts.templates.folder == nil then
-    return nil
-  end
-
-  local paths_to_check = { Obsidian.workspace.root / opts.templates.folder, Path.new(opts.templates.folder) }
-  for _, path in ipairs(paths_to_check) do
-    if path:is_dir() then
-      return path
-    end
-  end
-
-  log.err_once("'%s' is not a valid templates directory", opts.templates.folder)
-  return nil
-end
-
---- Determines whether a note's frontmatter is managed by obsidian.nvim.
----
----@param note obsidian.Note
----
----@return boolean
-Client.should_save_frontmatter = function(self, note)
-  -- Check if the note is a template.
-  local templates_dir = self:templates_dir()
-  if templates_dir ~= nil then
-    templates_dir = templates_dir:resolve()
-    for _, parent in ipairs(note.path:parents()) do
-      if parent == templates_dir then
-        return false
-      end
-    end
-  end
-
-  if not note:should_save_frontmatter() then
-    return false
-  elseif type(Obsidian.opts.disable_frontmatter) == "boolean" then
-    return not Obsidian.opts.disable_frontmatter
-  elseif type(Obsidian.opts.disable_frontmatter) == "function" then
-    -- return not Obsidian.opts.disable_frontmatter(tostring(self:vault_relative_path(note.path, { strict = true })))
-    return not Obsidian.opts.disable_frontmatter(note.path:vault_relative_path { strict = true })
-  else
-    return true
-  end
 end
 
 --- Get the default search options.
@@ -731,11 +678,11 @@ Client.follow_link_async = function(self, link, opts)
             id = res.location
           end
 
-          local note = self:create_note { title = res.name, id = id, aliases = aliases, no_write = true }
+          local note = Note.create { title = res.name, id = id, aliases = aliases }
           return self:open_note(note, {
             open_strategy = opts.open_strategy,
             callback = function(bufnr)
-              self:write_note_to_buffer(note, { bufnr = bufnr })
+              note:write_to_buffer { bufnr = bufnr }
             end,
           })
         else
@@ -1388,7 +1335,7 @@ Client.apply_async_raw = function(self, on_path, opts)
   local dir_opts = {
     depth = 10,
     skip = function(dir)
-      return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(self:templates_dir()))
+      return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(get_template_dir()))
     end,
     follow = true,
   }
@@ -1567,175 +1514,6 @@ Client.parse_title_id_path = function(self, title, id, dir)
   local path = self:new_note_path { id = id, dir = base_dir, title = title }
 
   return title, id, path
-end
-
----@class obsidian.CreateNoteOpts
----
----@field title string|?
----@field id string|?
----@field dir string|obsidian.Path|?
----@field aliases string[]|?
----@field tags string[]|?
----@field no_write boolean|?
----@field template string|?
-
---- Create a new note with the following options.
----
----@param opts obsidian.CreateNoteOpts|? Options.
----
---- Options:
----  - `title`: A title to assign the note.
----  - `id`: An ID to assign the note. If not specified one will be generated.
----  - `dir`: An optional directory to place the note in. Relative paths will be interpreted
----    relative to the workspace / vault root. If the directory doesn't exist it will be created,
----    regardless of the value of the `no_write` option.
----  - `aliases`: Additional aliases to assign to the note.
----  - `tags`: Additional tags to assign to the note.
----  - `no_write`: Don't write the note to disk.
----  - `template`: The name of a template to apply when writing the note to disk.
----
----@return obsidian.Note
-Client.create_note = function(self, opts)
-  opts = opts or {}
-
-  local new_title, new_id, path = self:parse_title_id_path(opts.title, opts.id, opts.dir)
-
-  -- Add title as an alias.
-  ---@type string[]
-  ---@diagnostic disable-next-line: assign-type-mismatch
-  local aliases = opts.aliases or {}
-  if new_title ~= nil and new_title:len() > 0 and not vim.list_contains(aliases, new_title) then
-    aliases[#aliases + 1] = new_title
-  end
-
-  -- Create `Note` object.
-  local note = Note.new { id = new_id, aliases = aliases, tags = opts.tags or {}, path }
-  if new_title then
-    note.title = new_title
-  end
-
-  -- Ensure the parent directory exists.
-  local parent = path:parent()
-  assert(parent)
-  parent:mkdir { parents = true, exist_ok = true }
-
-  -- Write to disk.
-  if not opts.no_write then
-    note = self:write_note(note, { template = opts.template })
-  end
-
-  return note
-end
-
---- Write the note to disk.
----
----@param note obsidian.Note
----@param opts { path: string|obsidian.Path, template: string|?, update_content: (fun(lines: string[]): string[])|? }|? Options.
----
---- Options:
----  - `path`: Override the path to write to.
----  - `template`: The name of a template to use if the note file doesn't already exist.
----  - `update_content`: A function to update the contents of the note. This takes a list of lines
----    representing the text to be written excluding frontmatter, and returns the lines that will
----    actually be written (again excluding frontmatter).
----
----@return obsidian.Note
-Client.write_note = function(self, note, opts)
-  local clone_template = require("obsidian.templates").clone_template
-  opts = opts or {}
-
-  local path = assert(opts.path or note.path, "A path must be provided")
-  path = Path.new(path)
-
-  ---@type string
-  local verb
-  if path:is_file() then
-    verb = "Updated"
-  else
-    verb = "Created"
-    if opts.template ~= nil then
-      note = clone_template {
-        type = "clone_template",
-        template_name = opts.template,
-        destination_path = path,
-        template_opts = Obsidian.opts.templates,
-        templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
-        partial_note = note,
-      }
-    end
-  end
-
-  local frontmatter = nil
-  if Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(note)
-  end
-
-  note:save {
-    path = path,
-    insert_frontmatter = self:should_save_frontmatter(note),
-    frontmatter = frontmatter,
-    update_content = opts.update_content,
-  }
-
-  log.info("%s note '%s' at '%s'", verb, note.id, note.path:vault_relative_path() or note.path)
-
-  return note
-end
-
---- Write the note to a buffer.
----
----@param note obsidian.Note
----@param opts { bufnr: integer|?, template: string|? }|? Options.
----
---- Options:
----  - `bufnr`: Override the buffer to write to. Defaults to current buffer.
----  - `template`: The name of a template to use if the buffer is empty.
----
----@return boolean updated If the buffer was updated.
-Client.write_note_to_buffer = function(self, note, opts)
-  local insert_template = require("obsidian.templates").insert_template
-  opts = opts or {}
-
-  if opts.template and api.buffer_is_empty(opts.bufnr) then
-    note = insert_template {
-      type = "insert_template",
-      template_name = opts.template,
-      template_opts = Obsidian.opts.templates,
-      templates_dir = assert(self:templates_dir(), "Templates folder is not defined or does not exist"),
-      location = api.get_active_window_cursor_location(),
-      partial_note = note,
-    }
-  end
-
-  local frontmatter = nil
-  local should_save_frontmatter = self:should_save_frontmatter(note)
-  if should_save_frontmatter and Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(note)
-  end
-
-  return note:save_to_buffer {
-    bufnr = opts.bufnr,
-    insert_frontmatter = should_save_frontmatter,
-    frontmatter = frontmatter,
-  }
-end
-
---- Update the frontmatter in a buffer for the note.
----
----@param note obsidian.Note
----@param bufnr integer|?
----
----@return boolean updated If the the frontmatter was updated.
-Client.update_frontmatter = function(self, note, bufnr)
-  if not self:should_save_frontmatter(note) then
-    return false
-  end
-
-  local frontmatter = nil
-  if Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(note)
-  end
-  return note:save_to_buffer { bufnr = bufnr, frontmatter = frontmatter }
 end
 
 --- Create a formatted markdown / wiki link for a note.

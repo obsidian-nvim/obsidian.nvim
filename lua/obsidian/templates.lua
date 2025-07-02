@@ -3,9 +3,10 @@ local Note = require "obsidian.note"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
 local api = require "obsidian.api"
+local log = require "obsidian.log"
+local Workspace = require "obsidian.workspace"
 
 local M = {}
-local restore_client_key = "__restore_client_key"
 
 --- Resolve a template name to a path.
 ---
@@ -35,6 +36,30 @@ local resolve_template = function(template_name, templates_dir)
   end
 
   return template_path
+end
+
+--- Get the template folder.
+--- @param workspace obsidian.Workspace|? An optional workspace
+M.get_template_dir = function(workspace)
+  local opts = Obsidian.opts
+
+  if workspace and workspace ~= Obsidian.workspace then
+    opts = Workspace.normalize_opts(workspace)
+  end
+
+  if opts.templates == nil or opts.templates.folder == nil then
+    return nil
+  end
+
+  local paths_to_check = { Obsidian.workspace.root / opts.templates.folder, Path.new(opts.templates.folder) }
+  for _, path in ipairs(paths_to_check) do
+    if path:is_dir() then
+      return path
+    end
+  end
+
+  log.err_once("'%s' is not a valid templates directory", opts.templates.folder)
+  return nil
 end
 
 --- Substitute variables inside the given text.
@@ -203,9 +228,10 @@ end
 --- Loads the client with customizations for a template identified by `template_name` if present
 ---
 --- @param template_name string The template name
---- @param client obsidian.Client The client
-M.load_template_customizations = function(template_name, client)
-  local success, template_path = pcall(resolve_template, template_name, client:templates_dir())
+--- @return obsidian.note.NoteCreationStrategy|?
+M.load_template_customizations = function(template_name)
+  local success, template_path = pcall(resolve_template, template_name, M.get_template_dir())
+
   if not success then
     return
   end
@@ -214,7 +240,7 @@ M.load_template_customizations = function(template_name, client)
   local customization = nil
 
   -- Check if the configuration has a custom key for this template
-  for template_key, template_config in pairs(client.opts.templates.customizations) do
+  for template_key, template_config in pairs(Obsidian.opts.templates.customizations) do
     if template_key:lower() == template_path.stem:lower() then
       customization = template_config
       break
@@ -225,32 +251,11 @@ M.load_template_customizations = function(template_name, client)
     return
   end
 
-  local restore_values = {
-    dir = client.opts.notes_subdir,
-    note_id_func = client.opts.note_id_func,
-    new_notes_location = client.opts.new_notes_location,
+  return {
+    notes_subdir = customization.notes_subdir,
+    note_id_func = customization.note_id_func,
+    new_notes_location = config.NewNotesLocation.notes_subdir,
   }
-
-  client[restore_client_key] = restore_values
-  client.opts.notes_subdir = customization.dir
-  client.opts.note_id_func = customization.note_id_func
-  client.opts.new_notes_location = config.NewNotesLocation.notes_subdir
-  return nil
-end
-
---- Restores the client's configuration if saved previously (during `load_template_customizations`), does nothing otherwise
---- @param client obsidian.Client The client
-M.restore_client_configurations = function(client)
-  --- @type unknown
-  local restore_values = rawget(client, restore_client_key)
-
-  if not restore_values then
-    return
-  end
-
-  client.opts.notes_subdir = restore_values.dir
-  client.opts.note_id_func = restore_values.note_id_func
-  client.opts.new_notes_location = restore_values.new_notes_location
 end
 
 return M

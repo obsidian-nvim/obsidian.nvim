@@ -168,7 +168,7 @@ Picker.find_templates = function(self, opts)
 
   opts = opts or {}
 
-  local templates_dir = self.client:templates_dir()
+  local templates_dir = require("obsidian.templates").get_template_dir()
 
   if templates_dir == nil then
     log.err "Templates folder is not defined or does not exist"
