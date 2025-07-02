@@ -7,13 +7,11 @@ local Path = require "obsidian.path"
 
 ---@class obsidian.Picker : obsidian.ABC
 ---
----@field client obsidian.Client
 ---@field calling_bufnr integer
 local Picker = abc.new_class()
 
-Picker.new = function(client)
+Picker.new = function()
   local self = Picker.init()
-  self.client = client
   self.calling_bufnr = vim.api.nvim_get_current_buf()
   return self
 end
@@ -168,7 +166,7 @@ Picker.find_templates = function(self, opts)
 
   opts = opts or {}
 
-  local templates_dir = require("obsidian.templates").get_template_dir()
+  local templates_dir = api.templates_dir()
 
   if templates_dir == nil then
     log.err "Templates folder is not defined or does not exist"
@@ -316,7 +314,7 @@ Picker._note_query_mappings = function(self)
       desc = "new",
       callback = function(query)
         ---@diagnostic disable-next-line: missing-fields
-        require "obsidian.commands.new"(self.client, { args = query })
+        require "obsidian.commands.new"(require("obsidian").get_client(), { args = query })
       end,
     }
   end
@@ -341,7 +339,7 @@ Picker._note_selection_mappings = function(self)
         else
           note = Note.from_file(note_or_path)
         end
-        local link = self.client:format_link(note, {})
+        local link = api.format_link(note, {})
         vim.api.nvim_put({ link }, "", false, true)
         require("obsidian.ui").update(0)
       end,
@@ -364,7 +362,7 @@ Picker._tag_selection_mappings = function(self)
         callback = function(...)
           local tags = { ... }
 
-          local note = self.client:current_note(self.calling_bufnr)
+          local note = api.current_note(self.calling_bufnr)
           if not note then
             log.warn("'%s' is not a note in your workspace", vim.api.nvim_buf_get_name(self.calling_bufnr))
             return
@@ -382,7 +380,7 @@ Picker._tag_selection_mappings = function(self)
           end
 
           if #tags_added > 0 then
-            if self.client:update_frontmatter(note, self.calling_bufnr) then
+            if require("obsidian").get_client():update_frontmatter(note, self.calling_bufnr) then
               log.info("Added tags %s to frontmatter", tags_added)
             else
               log.warn "Frontmatter unchanged"

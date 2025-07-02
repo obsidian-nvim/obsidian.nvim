@@ -3,8 +3,6 @@ local Note = require "obsidian.note"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
 local api = require "obsidian.api"
-local log = require "obsidian.log"
-local Workspace = require "obsidian.workspace"
 
 local M = {}
 
@@ -36,30 +34,6 @@ local resolve_template = function(template_name, templates_dir)
   end
 
   return template_path
-end
-
---- Get the template folder.
---- @param workspace obsidian.Workspace|? An optional workspace
-M.get_template_dir = function(workspace)
-  local opts = Obsidian.opts
-
-  if workspace and workspace ~= Obsidian.workspace then
-    opts = Workspace.normalize_opts(workspace)
-  end
-
-  if opts.templates == nil or opts.templates.folder == nil then
-    return nil
-  end
-
-  local paths_to_check = { Obsidian.workspace.root / opts.templates.folder, Path.new(opts.templates.folder) }
-  for _, path in ipairs(paths_to_check) do
-    if path:is_dir() then
-      return path
-    end
-  end
-
-  log.err_once("'%s' is not a valid templates directory", opts.templates.folder)
-  return nil
 end
 
 --- Substitute variables inside the given text.
@@ -230,7 +204,7 @@ end
 --- @param template_name string The template name
 --- @return obsidian.note.NoteCreationStrategy|?
 M.load_template_customizations = function(template_name)
-  local success, template_path = pcall(resolve_template, template_name, M.get_template_dir())
+  local success, template_path = pcall(resolve_template, template_name, api.templates_dir())
 
   if not success then
     return

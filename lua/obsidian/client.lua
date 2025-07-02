@@ -20,7 +20,6 @@ local search = require "obsidian.search"
 local AsyncExecutor = require("obsidian.async").AsyncExecutor
 local block_on = require("obsidian.async").block_on
 local api = require "obsidian.api"
-local get_template_dir = require("obsidian.templates").get_template_dir
 local iter = vim.iter
 
 ---@class obsidian.SearchOpts
@@ -98,7 +97,7 @@ Client.path_is_note = function(self, path, workspace)
   end
 
   -- Ignore markdown files in the templates directory.
-  local templates_dir = get_template_dir(workspace)
+  local templates_dir = api.templates_dir(workspace)
   if templates_dir ~= nil then
     if templates_dir:is_parent_of(path) then
       return false
@@ -504,7 +503,7 @@ Client.resolve_note_async_with_picker_fallback = function(self, query, callback,
     -- Fall back to picker.
     vim.schedule(function()
       -- Otherwise run the preferred picker to search for notes.
-      local picker = self:picker()
+      local picker = Obsidian.picker
       if not picker then
         log.err("Found multiple notes matching '%s', but no picker is configured", query)
         return
@@ -700,7 +699,7 @@ Client.follow_link_async = function(self, link, opts)
       end)
     else
       return vim.schedule(function()
-        local picker = self:picker()
+        local picker = Obsidian.picker
         if not picker then
           log.err("Found multiple matches to '%s', but no picker is configured", link)
           return
@@ -770,26 +769,6 @@ Client.open_note = function(self, note_or_path, opts)
   else
     vim.schedule(open_it)
   end
-end
-
---- Get the current note from a buffer.
----
----@param bufnr integer|?
----@param opts obsidian.note.LoadOpts|?
----
----@return obsidian.Note|?
----@diagnostic disable-next-line: unused-local
-Client.current_note = function(self, bufnr, opts)
-  bufnr = bufnr or 0
-  if not self:path_is_note(vim.api.nvim_buf_get_name(bufnr)) then
-    return nil
-  end
-
-  opts = opts or {}
-  if not opts.max_lines then
-    opts.max_lines = Obsidian.opts.search_max_lines
-  end
-  return Note.from_buffer(bufnr, opts)
 end
 
 ---@class obsidian.TagLocation
@@ -1335,7 +1314,7 @@ Client.apply_async_raw = function(self, on_path, opts)
   local dir_opts = {
     depth = 10,
     skip = function(dir)
-      return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(get_template_dir()))
+      return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(api.templates_dir()))
     end,
     follow = true,
   }

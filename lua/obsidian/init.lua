@@ -79,6 +79,7 @@ obsidian.setup = function(opts)
   opts = obsidian.config.normalize(opts)
 
   ---@class obsidian.state
+  ---@field picker obsidian.Picker The picker instance to use.
   ---@field workspace obsidian.Workspace The current workspace.
   ---@field dir obsidian.Path The root of the vault for the current workspace.
   ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
@@ -179,7 +180,7 @@ obsidian.setup = function(opts)
       end
 
       -- Check if current buffer is actually a note within the workspace.
-      if not client:path_is_note(ev.match) then
+      if not obsidian.api.path_is_note(ev.match) then
         return
       end
 
@@ -205,7 +206,7 @@ obsidian.setup = function(opts)
       end
 
       -- Check if current buffer is actually a note within the workspace.
-      if not client:path_is_note(ev.match) then
+      if not obsidian.api.path_is_note(ev.match) then
         return
       end
 
@@ -238,7 +239,7 @@ obsidian.setup = function(opts)
       end
 
       -- Check if current buffer is actually a note within the workspace.
-      if not client:path_is_note(ev.match) then
+      if not obsidian.api.path_is_note(ev.match) then
         return
       end
 

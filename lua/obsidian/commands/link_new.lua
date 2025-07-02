@@ -25,7 +25,7 @@ return function(client, data)
   local note = client:create_note { title = title }
 
   local new_line = string.sub(line, 1, viz.cscol - 1)
-    .. client:format_link(note, { label = title })
+    .. api.format_link(note, { label = title })
     .. string.sub(line, viz.cecol + 1)
 
   vim.api.nvim_buf_set_lines(0, viz.csrow - 1, viz.csrow, false, { new_line })

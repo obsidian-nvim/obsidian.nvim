@@ -33,7 +33,7 @@ return function(client, data)
   local note = client:create_note { title = title }
 
   -- replace selection with link to new note
-  local link = client:format_link(note)
+  local link = api.format_link(note)
   vim.api.nvim_buf_set_text(0, viz.csrow - 1, viz.cscol - 1, viz.cerow - 1, viz.cecol, { link })
 
   require("obsidian.ui").update(0)

@@ -1,12 +1,13 @@
 local M = {}
 local uv = vim.uv
+local api = require "obsidian.api"
 
 --- Register the global variable that updates itself
 M.start = function(client)
   local current_note
 
   local refresh = function()
-    local note = client:current_note()
+    local note = api.current_note()
     if not note then -- no note
       return ""
     elseif current_note == note then -- no refresh

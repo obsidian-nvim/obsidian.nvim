@@ -242,6 +242,8 @@ Workspace.set = function(workspace, opts)
     Obsidian.workspace:lock()
   end
 
+  Obsidian.picker = require("obsidian.pickers").get(Obsidian.opts.picker.name)
+
   util.fire_callback("post_set_workspace", Obsidian.opts.callbacks.post_set_workspace, workspace)
 
   vim.api.nvim_exec_autocmds("User", {

@@ -37,7 +37,7 @@ return function(client, data)
     end
   end
 
-  local picker = client:picker()
+  local picker = Obsidian.picker
   if not picker then
     log.err "No picker configured"
     return

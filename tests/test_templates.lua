@@ -2,6 +2,7 @@ local h = dofile "tests/helpers.lua"
 local new_set, eq, neq = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.no_equality
 local M = require "obsidian.templates"
 local Note = require "obsidian.note"
+local api = require "obsidian.api"
 require "obsidian.client"
 
 --- @type obsidian.config.CustomTemplateOpts
@@ -22,7 +23,7 @@ local T = new_set()
 local tmp_template_context = function(ctx)
   return vim.tbl_extend("keep", ctx or {}, {
     type = "insert_template",
-    templates_dir = M.get_template_dir(),
+    templates_dir = api.templates_dir(),
     template_opts = Obsidian.opts.templates,
     partial_note = Note.new("FOO", { "FOO" }, {}),
   })
@@ -53,9 +54,7 @@ T["load_template_customizations()"]["should load customizations for existing tem
       Zettel = zettelConfig,
     }
     Obsidian.opts.templates.folder = "templates"
-    print("M.get_template_dir():", M.get_template_dir())
-
-    local note = Note.create { dir = M.get_template_dir(), id = "zettel" }
+    local note = Note.create { dir = api.templates_dir(), id = "zettel" }
     note:write()
 
     local spec = assert(M.load_template_customizations "zettel")

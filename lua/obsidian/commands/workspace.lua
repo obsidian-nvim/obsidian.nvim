@@ -24,7 +24,7 @@ end
 ---@param data CommandArgs
 return function(client, data)
   if not data.args or string.len(data.args) == 0 then
-    local picker = client:picker()
+    local picker = Obsidian.picker
     if not picker then
       log.info("Current workspace: '%s' @ '%s'", Obsidian.workspace.name, Obsidian.workspace.path)
       return

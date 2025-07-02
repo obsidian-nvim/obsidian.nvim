@@ -5,7 +5,7 @@ local api = require "obsidian.api"
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)
-  local templates_dir = client:templates_dir()
+  local templates_dir = api.templates_dir()
   if not templates_dir then
     log.err "Templates folder is not defined or does not exist"
     return
@@ -30,7 +30,7 @@ return function(client, data)
     return
   end
 
-  local picker = client:picker()
+  local picker = Obsidian.picker
   if not picker then
     log.err "No picker configured"
     return

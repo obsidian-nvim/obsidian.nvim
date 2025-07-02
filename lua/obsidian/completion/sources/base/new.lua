@@ -2,6 +2,7 @@ local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
 local obsidian = require "obsidian"
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 local LinkStyle = require("obsidian.config").LinkStyle
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
@@ -138,7 +139,7 @@ function NewNoteSourceBase:process_completion(cc)
       error "not implemented"
     end
 
-    local new_text = cc.client:format_link(new_note, { link_style = link_style, anchor = anchor, block = block })
+    local new_text = api.format_link(new_note, { link_style = link_style, anchor = anchor, block = block })
     local documentation = {
       kind = "markdown",
       value = new_note:display_info {

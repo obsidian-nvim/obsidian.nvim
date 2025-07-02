@@ -3,6 +3,7 @@ local completion = require "obsidian.completion.refs"
 local LinkStyle = require("obsidian.config").LinkStyle
 local obsidian = require "obsidian"
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 local iter = vim.iter
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
@@ -68,7 +69,7 @@ function RefsSourceBase:process_completion(cc)
   self:determine_buffer_only_search_scope(cc)
 
   if cc.in_buffer_only then
-    local note = cc.client:current_note(0, { collect_anchor_links = true, collect_blocks = true })
+    local note = api.current_note(0, { collect_anchor_links = true, collect_blocks = true })
     if note then
       self:process_search_results(cc, { note })
     else
@@ -309,7 +310,7 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
     ---@type string, string, string, table|?
     local final_label, sort_text, new_text, documentation
     if option.label then
-      new_text = cc.client:format_link(
+      new_text = api.format_link(
         note,
         { label = option.label, link_style = link_style, anchor = option.anchor, block = option.block }
       )

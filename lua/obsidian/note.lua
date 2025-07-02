@@ -921,8 +921,7 @@ end
 ---@return boolean
 Note.should_save_frontmatter = function(self)
   -- Check if the note is a template.
-  local get_template_dir = require("obsidian.templates").get_template_dir
-  local templates_dir = get_template_dir()
+  local templates_dir = api.templates_dir()
   if templates_dir ~= nil then
     templates_dir = templates_dir:resolve()
     for _, parent in ipairs(self.path:parents()) do
@@ -973,7 +972,7 @@ Note.write = function(self, opts)
         template_name = opts.template,
         destination_path = path,
         template_opts = Obsidian.opts.templates,
-        templates_dir = assert(Template.get_template_dir(), "Templates folder is not defined or does not exist"),
+        templates_dir = assert(api.templates_dir(), "Templates folder is not defined or does not exist"),
         partial_note = self,
       }
     end
@@ -1087,7 +1086,7 @@ Note.write_to_buffer = function(self, opts)
       type = "insert_template",
       template_name = opts.template,
       template_opts = Obsidian.opts.templates,
-      templates_dir = assert(Template.get_template_dir(), "Templates folder is not defined or does not exist"),
+      templates_dir = assert(api.templates_dir(), "Templates folder is not defined or does not exist"),
       location = api.get_active_window_cursor_location(),
       partial_note = self,
     }

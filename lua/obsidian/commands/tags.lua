@@ -50,7 +50,7 @@ end
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)
-  local picker = client:picker()
+  local picker = Obsidian.picker
   if not picker then
     log.err "No picker configured"
     return

@@ -51,26 +51,6 @@ Return ~
 `(obsidian.Client)`
 
 ------------------------------------------------------------------------------
-                                                *obsidian.Client.path_is_note()*
-               `Client.path_is_note`({self}, {path}, {workspace})
-Check if a path represents a note in the workspace.
-
-Parameters ~
-{path} `(string|obsidian.Path)`
-{workspace} `(obsidian.Workspace|)`?
-
-Return ~
-`(boolean)`
-
-------------------------------------------------------------------------------
-                                               *obsidian.Client.templates_dir()*
-                  `Client.templates_dir`({self}, {workspace})
-Get the templates folder.
-
-Return ~
-`(obsidian.Path| `(optional))``
-
-------------------------------------------------------------------------------
                                      *obsidian.Client.should_save_frontmatter()*
                 `Client.should_save_frontmatter`({self}, {note})
 Determines whether a note's frontmatter is managed by obsidian.nvim.
@@ -215,18 +195,6 @@ Open a note in a buffer.
 Parameters ~
 {note_or_path} `(string|obsidian.Path|obsidian.Note)`
 {opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
-
-------------------------------------------------------------------------------
-                                                *obsidian.Client.current_note()*
-                 `Client.current_note`({self}, {bufnr}, {opts})
-Get the current note from a buffer.
-
-Parameters ~
-{bufnr} `(integer|)`?
-{opts} `(obsidian.note.LoadOpts|)`?
-
-Return ~
-`(obsidian.Note| `(optional))``
 
 ------------------------------------------------------------------------------
 Class ~
@@ -469,29 +437,6 @@ Parameters ~
 
 Return ~
 `(boolean)` updated If the the frontmatter was updated.
-
-------------------------------------------------------------------------------
-                                                 *obsidian.Client.format_link()*
-                  `Client.format_link`({self}, {note}, {opts})
-Create a formatted markdown / wiki link for a note.
-
-Parameters ~
-{note} `(obsidian.Note|obsidian.Path|string)` The note/path to link to.
-{opts} `({ label: string|?, link_style: obsidian.config.LinkStyle|?, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|? Options.)`
-
-Return ~
-`(string)`
-
-------------------------------------------------------------------------------
-                                                      *obsidian.Client.picker()*
-                     `Client.picker`({self}, {picker_name})
-Get the Picker.
-
-Parameters ~
-{picker_name} `(obsidian.config.Picker|)`?
-
-Return ~
-`(obsidian.Picker| `(optional))``
 
 ------------------------------------------------------------------------------
 Class ~
