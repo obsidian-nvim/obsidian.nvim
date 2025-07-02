@@ -30,7 +30,7 @@ style:  ## Format the code with stylua
 
 # TODO: add type checking with lua-ls
 types: ## Type check with lua-ls
-	lua-language-server --configpath $(LUARC) --check lua/obsidian/
+	lua-language-server --configpath "$(LUARC)" --check lua/obsidian/
 
 .PHONY: test
 test: $(MINITEST) $(PLENARY)
