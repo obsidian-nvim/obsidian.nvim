@@ -1,25 +1,8 @@
 local h = dofile "tests/helpers.lua"
-local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local M = require "obsidian.daily"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
-
-local T = new_set {
-  hooks = {
-    pre_case = function()
-      local dir = Path.temp { suffix = "-obsidian" }
-      dir:mkdir { parents = true }
-      require("obsidian").setup {
-        workspaces = { {
-          path = tostring(dir),
-        } },
-      }
-    end,
-    post_case = function()
-      vim.fn.delete(tostring(Obsidian.dir), "rf")
-    end,
-  },
-}
+local T = h.temp_vault
 
 T["daily_note_path"] = new_set()
 
