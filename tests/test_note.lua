@@ -1,14 +1,13 @@
 local M = require "obsidian.note"
+local T = dofile("tests/helpers.lua").temp_vault
 local util = require "obsidian.util"
 
 local new_set, eq, not_eq = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.no_equality
 
-local T = new_set()
-
 T["new"] = new_set()
 
 T["new"]["should be able to be initialize directly"] = function()
-  local note = M.new { id = "FOO", aliases = { "foo", "foos" }, tags = { "bar" } }
+  local note = M.new("FOO", { "foo", "foos" }, { "bar" })
   eq(note.id, "FOO")
   eq(note.aliases[1], "foo")
   eq(true, M.is_note_obj(note))
@@ -28,7 +27,7 @@ T["save"]["should be able to save a note w/o frontmatter"] = function()
 end
 
 T["save"]["should be able to save a new note"] = function()
-  local note = M.new { id = "FOO", aliases = {}, tags = {}, path = "/tmp/" .. util.zettel_id() .. ".md" }
+  local note = M.new("FOO", {}, {}, "/tmp/" .. util.zettel_id() .. ".md")
   note:save()
 end
 
