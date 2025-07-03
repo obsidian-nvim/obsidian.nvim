@@ -501,10 +501,10 @@ end
 --- Cycle all headings in file between "Show All", "Contents" and "Overview"
 ---
 M.cycle_global = function()
-  local mode = vim.g.obsidian_global_cycle_mode or "Show All"
+  local mode = Obsidian.cycle_mode or "Show All"
   if not vim.wo.foldenable or mode == "Show All" then
     mode = "Overview"
-    vim.cmd [[silent! norm! zMzX]]
+    vim.cmd "norm! zMzX"
   elseif mode == "Contents" then
     mode = "Show All"
     vim.cmd [[silent! norm! zR]]
@@ -514,31 +514,78 @@ M.cycle_global = function()
     vim.cmd [[silent! norm! zx]]
   end
   vim.api.nvim_echo({ { "Obsidian: " .. mode } }, false, {})
-  vim.g.obsidian_global_cycle_mode = mode
+  Obsidian.cycle_mode = mode
 end
+--
+-- ---@param bufnr integer
+-- ---@param cursor integer[]
+-- ---@return TSNode?
+-- local function closest_section_node(bufnr, cursor)
+--   local parser = ts.get_parser(bufnr, "markdown", {})
+--   assert(parser)
+--   local cursor_range = { cursor[1] - 1, cursor[2], cursor[1] - 1, cursor[2] + 1 }
+--   local node = parser:named_node_for_range(cursor_range)
+--
+--   if not node then
+--     return nil
+--   end
+--
+--   if node:type() == "section" then
+--     return node
+--   end
+--
+--   while node and node:type() ~= "section" do
+--     node = node:parent()
+--   end
+--
+--   return node
+-- end
 
----@param bufnr integer
----@param cursor integer[]
+-- ---@param buf number
+-- ---@param pos { [1]: number, [2]: number }
+-- ---@return TSNode?
+-- local function closest_section_node(buf, pos)
+--   local parser = vim.treesitter.get_parser(buf, "markdown")
+--   assert(parser)
+--   local tree = parser:parse()[1]
+--   local root = tree:root()
+--   local node = root:named_descendant_for_range(pos[1] - 1, pos[2], pos[1] - 1, pos[2])
+--
+--   while node do
+--     if node:type() == "section" then
+--       local first = node:named_child(0)
+--       if first and first:type() == "atx_heading" then
+--         return node
+--       end
+--     end
+--     node = node:parent()
+--   end
+--
+--   return nil
+-- end
+---@param buf number
+---@param pos { [1]: number, [2]: number }
 ---@return TSNode?
-local function closest_section_node(bufnr, cursor)
-  local parser = ts.get_parser(bufnr, "markdown", {})
+local function closest_section_node(buf, pos)
+  local parser = ts.get_parser(buf, "markdown")
   assert(parser)
-  local cursor_range = { cursor[1] - 1, cursor[2], cursor[1] - 1, cursor[2] + 1 }
-  local node = parser:named_node_for_range(cursor_range)
+  local tree = parser:parse()[1]
+  local root = tree:root()
+  local node = root:named_descendant_for_range(pos[1] - 1, pos[2], pos[1] - 1, pos[2])
 
-  if not node then
-    return nil
-  end
-
-  if node:type() == "section" then
-    return node
-  end
-
-  while node and node:type() ~= "section" do
+  while node do
+    if node:type() == "section" then
+      -- We only return a section if its first child is a heading
+      local first = node:named_child(0)
+      if first and first:type():match "_heading$" then -- supports 'atx_heading' and 'setext_heading'
+        print(node:type())
+        return node
+      end
+    end
     node = node:parent()
   end
 
-  return node
+  return nil
 end
 
 ---@param node TSNode
@@ -568,10 +615,17 @@ local function is_one_line(node)
   -- Example: If headline is on line 5, range will be (5, 1, 6, 0)
   return start_row == end_row or (start_row + 1 == end_row and end_col == 0)
 end
-
----@param node TSNode
----@return boolean
+--
+-- ---@param node TSNode
+-- ---@return boolean
+-- local function can_section_expand(node)
+--   return not is_one_line(node) or has_child_headlines(node)
+-- end
 local function can_section_expand(node)
+  local first = node:named_child(0)
+  if not first or first:type() ~= "atx_heading" then
+    return false
+  end
   return not is_one_line(node) or has_child_headlines(node)
 end
 
