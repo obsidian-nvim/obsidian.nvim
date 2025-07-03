@@ -887,6 +887,8 @@ end
 ---@class obsidian.LinkMatch
 ---@field link string
 ---@field line integer
+---@field start integer 0-indexed
+---@field end integer 0-indexed
 
 ---@param note obsidian.Note
 ---@param opts { on_match: fun(link: obsidian.LinkMatch) }
@@ -907,6 +909,8 @@ M.find_links = function(note, opts, callback)
         local match = {
           link = link,
           line = lnum,
+          start = m_start - 1,
+          ["end"] = m_end - 1,
         }
         matches[#matches + 1] = match
         found[link] = true

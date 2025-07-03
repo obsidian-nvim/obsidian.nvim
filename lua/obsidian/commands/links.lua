@@ -13,7 +13,6 @@ return function()
   assert(note, "not in a note")
 
   search.find_links(note, {}, function(entries)
-    vim.print(entries)
     entries = vim.tbl_map(function(match)
       return match.link
     end, entries)

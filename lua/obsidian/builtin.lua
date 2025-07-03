@@ -137,4 +137,37 @@ M.img_text_func = function(path)
   return string.format(format_string[style], name)
 end
 
+M.nav_link = function(direction)
+  direction = direction or "next"
+
+  local search = require "obsidian.search"
+  local Note = require "obsidian.note"
+  local line, start = unpack(vim.api.nvim_win_get_cursor(0))
+
+  local jumped = false
+  local function goto(row, col)
+    vim.api.nvim_win_set_cursor(0, { row, col })
+    jumped = true
+  end
+
+  search.find_links(Note.from_buffer(0), {
+    on_match = function(link_match)
+      if jumped then
+        return
+      end
+      if direction == "next" then
+        if (link_match.line > line) or (line == link_match.line and start < link_match.start) then
+          goto(link_match.line, link_match.start)
+        end
+      end
+
+      if direction == "prev" then
+        if (link_match.line < line) or (line == link_match.line and start > link_match.start) then
+          goto(link_match.line, link_match.start)
+        end
+      end
+    end,
+  }, function() end)
+end
+
 return M
