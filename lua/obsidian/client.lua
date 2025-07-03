@@ -82,31 +82,6 @@ Client.new = function(opts)
   return self
 end
 
---- Check if a path represents a note in the workspace.
----
----@param path string|obsidian.Path
----@param workspace obsidian.Workspace|?
----
----@return boolean
-Client.path_is_note = function(self, path, workspace)
-  path = Path.new(path):resolve()
-
-  -- Notes have to be markdown file.
-  if path.suffix ~= ".md" then
-    return false
-  end
-
-  -- Ignore markdown files in the templates directory.
-  local templates_dir = api.templates_dir(workspace)
-  if templates_dir ~= nil then
-    if templates_dir:is_parent_of(path) then
-      return false
-    end
-  end
-
-  return true
-end
-
 --- Get the default search options.
 ---
 ---@return obsidian.SearchOpts
@@ -1493,47 +1468,6 @@ Client.parse_title_id_path = function(self, title, id, dir)
   local path = self:new_note_path { id = id, dir = base_dir, title = title }
 
   return title, id, path
-end
-
---- Create a formatted markdown / wiki link for a note.
----
----@param note obsidian.Note|obsidian.Path|string The note/path to link to.
----@param opts { label: string|?, link_style: obsidian.config.LinkStyle|?, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|? Options.
----
----@return string
-Client.format_link = function(self, note, opts)
-  opts = opts or {}
-
-  ---@type string, string, string|integer|?
-  local rel_path, label, note_id
-  if type(note) == "string" or Path.is_path_obj(note) then
-    ---@cast note string|obsidian.Path
-    -- rel_path = tostring(self:vault_relative_path(note, { strict = true }))
-    rel_path = assert(Path.new(note):vault_relative_path { strict = true })
-    label = opts.label or tostring(note)
-    note_id = opts.id
-  else
-    ---@cast note obsidian.Note
-    -- rel_path = tostring(self:vault_relative_path(note.path, { strict = true }))
-    rel_path = assert(note.path:vault_relative_path { strict = true })
-    label = opts.label or note:display_name()
-    note_id = opts.id or note.id
-  end
-
-  local link_style = opts.link_style
-  if link_style == nil then
-    link_style = Obsidian.opts.preferred_link_style
-  end
-
-  local new_opts = { path = rel_path, label = label, id = note_id, anchor = opts.anchor, block = opts.block }
-
-  if link_style == config.LinkStyle.markdown then
-    return Obsidian.opts.markdown_link_func(new_opts)
-  elseif link_style == config.LinkStyle.wiki or link_style == nil then
-    return Obsidian.opts.wiki_link_func(new_opts)
-  else
-    error(string.format("Invalid link style '%s'", link_style))
-  end
 end
 
 return Client
