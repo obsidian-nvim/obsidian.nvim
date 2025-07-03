@@ -897,9 +897,9 @@ M.find_links = function(note, opts, callback)
   local matches = {}
   ---@type table<string, boolean>
   local found = {}
-  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, true)
-  local n_lines = vim.api.nvim_buf_line_count(0)
-  for lnum, line in iter(lines) do
+  local lines = io.lines(tostring(note.path))
+
+  for lnum, line in util.enumerate(lines) do
     for ref_match in vim.iter(M.find_refs(line, { include_naked_urls = true, include_file_urls = true })) do
       local m_start, m_end = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)
@@ -915,10 +915,9 @@ M.find_links = function(note, opts, callback)
         end
       end
     end
-    if n_lines == line then
-      callback(matches)
-    end
   end
+
+  callback(matches)
 end
 
 return M
