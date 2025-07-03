@@ -15,7 +15,6 @@ M.dir = function(dir)
     skip = function(p)
       return not vim.startswith(p, ".") and p ~= vim.fs.basename(tostring(M.templates_dir()))
     end,
-    follow = true,
   }
 
   return vim
