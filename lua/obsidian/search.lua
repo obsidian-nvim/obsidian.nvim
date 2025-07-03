@@ -495,7 +495,6 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
   end)
 end
 
-<<<<<<< HEAD
 local search_defualts = {
   sort = false,
   include_templates = false,
@@ -885,6 +884,10 @@ M.resolve_link_async = function(link, callback)
   end, { notes = load_opts, pick = false })
 end
 
+---@class obsidian.LinkMatch
+---@field link string
+---@field line integer
+
 ---@param note obsidian.Note
 ---@param opts { on_match: fun(link: obsidian.LinkMatch) }
 ---@param callback fun(links: obsidian.LinkMatch[])
@@ -894,8 +897,9 @@ M.find_links = function(note, opts, callback)
   local matches = {}
   ---@type table<string, boolean>
   local found = {}
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, true)
   local n_lines = vim.api.nvim_buf_line_count(0)
-  for lnum, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, true)) do
+  for lnum, line in iter(lines) do
     for ref_match in vim.iter(M.find_refs(line, { include_naked_urls = true, include_file_urls = true })) do
       local m_start, m_end = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)
