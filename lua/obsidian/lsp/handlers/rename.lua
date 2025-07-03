@@ -151,9 +151,8 @@ local function rename_note(uri, new_name)
   return note
 end
 
----@param client obsidian.Client
 ---@param params lsp.RenameParams
-return function(client, params, _, _)
+return function(params, _, _)
   local query = api.parse_cursor_link()
 
   local ok, err = pcall(vim.cmd.wall)
@@ -162,6 +161,8 @@ return function(client, params, _, _)
     log.err(err and err or "failed writing all buffers before renaming, abort")
     return
   end
+
+  local client = require("obsidian").get_client() -- HACK:
 
   if query then
     local notes = { client:resolve_note(query) }
