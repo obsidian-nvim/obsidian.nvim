@@ -1,8 +1,17 @@
 local M = require "obsidian.note"
 local T = dofile("tests/helpers.lua").temp_vault
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 
 local new_set, eq, not_eq = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.no_equality
+
+--- @type obsidian.config.CustomTemplateOpts
+local zettelConfig = {
+  notes_subdir = "/custom/path/to/zettels",
+  note_id_func = function()
+    return "hummus"
+  end,
+}
 
 T["new"] = new_set()
 
@@ -209,6 +218,34 @@ end
 T["_is_frontmatter_boundary()"] = function()
   eq(true, M._is_frontmatter_boundary "---")
   eq(true, M._is_frontmatter_boundary "----")
+end
+
+T["_get_note_creation_opts"] = new_set {
+  hooks = {
+    pre_case = function()
+      Obsidian.opts.templates.customizations = {
+        Zettel = zettelConfig,
+      }
+    end,
+  },
+}
+
+T["_get_note_creation_opts"]["should not load customizations for non-existent templates"] = function()
+  local spec = M._get_note_creation_opts { template = "zettel" }
+
+  eq(spec.notes_subdir, Obsidian.opts.notes_subdir)
+  eq(spec.note_id_func, Obsidian.opts.note_id_func)
+  eq(spec.new_notes_location, Obsidian.opts.new_notes_location)
+end
+
+T["_get_note_creation_opts"]["should load customizations for existing template"] = function()
+  local note = M.create { dir = api.templates_dir(), id = "zettel" }
+  note:write()
+
+  local spec = assert(M._get_note_creation_opts { template = "zettel" })
+
+  eq(spec.notes_subdir, zettelConfig.notes_subdir)
+  eq(spec.note_id_func, zettelConfig.note_id_func)
 end
 
 return T

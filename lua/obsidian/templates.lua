@@ -1,7 +1,6 @@
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
-local config = require "obsidian.config"
 local api = require "obsidian.api"
 
 local M = {}
@@ -12,7 +11,7 @@ local M = {}
 ---@param templates_dir obsidian.Path
 ---
 ---@return obsidian.Path
-local resolve_template = function(template_name, templates_dir)
+M.resolve_template = function(template_name, templates_dir)
   ---@type obsidian.Path|?
   local template_path
   local paths_to_check = { templates_dir / tostring(template_name), Path:new(template_name) }
@@ -112,7 +111,7 @@ M.clone_template = function(ctx)
   local note_path = Path.new(ctx.destination_path)
   assert(note_path:parent()):mkdir { parents = true, exist_ok = true }
 
-  local template_path = resolve_template(ctx.template_name, ctx.templates_dir)
+  local template_path = M.resolve_template(ctx.template_name, ctx.templates_dir)
 
   local template_file, read_err = io.open(tostring(template_path), "r")
   if not template_file then
@@ -162,7 +161,7 @@ M.insert_template = function(ctx)
     ctx.partial_note = Note.from_buffer(buf)
   end
 
-  local template_path = resolve_template(ctx.template_name, ctx.templates_dir)
+  local template_path = M.resolve_template(ctx.template_name, ctx.templates_dir)
 
   local insert_lines = {}
   local template_file = io.open(tostring(template_path), "r")
@@ -197,39 +196,6 @@ M.insert_template = function(ctx)
   require("obsidian.ui").update(0)
 
   return Note.from_buffer(buf)
-end
-
---- Loads the client with customizations for a template identified by `template_name` if present
----
---- @param template_name string The template name
---- @return obsidian.note.NoteCreationStrategy|?
-M.load_template_customizations = function(template_name)
-  local success, template_path = pcall(resolve_template, template_name, api.templates_dir())
-
-  if not success then
-    return
-  end
-
-  --- @type obsidian.config.CustomTemplateOpts|?
-  local customization = nil
-
-  -- Check if the configuration has a custom key for this template
-  for template_key, template_config in pairs(Obsidian.opts.templates.customizations) do
-    if template_key:lower() == template_path.stem:lower() then
-      customization = template_config
-      break
-    end
-  end
-
-  if not customization then
-    return
-  end
-
-  return {
-    notes_subdir = customization.notes_subdir,
-    note_id_func = customization.note_id_func,
-    new_notes_location = config.NewNotesLocation.notes_subdir,
-  }
 end
 
 return M

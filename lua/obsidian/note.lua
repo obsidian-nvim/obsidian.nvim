@@ -16,7 +16,7 @@ local DEFAULT_MAX_LINES = 500
 
 local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 
---- @class obsidian.note.NoteCreationStrategy
+--- @class obsidian.note.NoteCreationOpts
 --- @field notes_subdir string
 --- @field note_id_func fun()
 --- @field new_notes_location string
@@ -135,21 +135,35 @@ end
 
 --- Selects the strategy to use when resolving the note title, id, and path
 --- @param opts obsidian.note.NoteOpts The note creation options
---- @return obsidian.note.NoteCreationStrategy The strategy to use for creating the note
-local function get_note_resolver_strategy(opts)
-  --- @type obsidian.note.NoteCreationStrategy
+--- @return obsidian.note.NoteCreationOpts The strategy to use for creating the note
+--- @private
+Note._get_note_creation_opts = function(opts)
+  --- @type obsidian.note.NoteCreationOpts
   local default = {
     notes_subdir = Obsidian.opts.notes_subdir,
     note_id_func = Obsidian.opts.note_id_func,
     new_notes_location = Obsidian.opts.new_notes_location,
   }
 
-  local template_strategy = require("obsidian.templates").load_template_customizations(opts.template or "")
+  local resolve_template = require("obsidian.templates").resolve_template
+  local success, template_path = pcall(resolve_template, opts.template, api.templates_dir())
 
-  if template_strategy then
-    default = vim.tbl_extend("force", default, template_strategy)
+  if not success then
+    return default
   end
 
+  local stem = template_path.stem:lower()
+
+  -- Check if the configuration has a custom key for this template
+  for key, cfg in pairs(Obsidian.opts.templates.customizations) do
+    if key:lower() == stem then
+      return {
+        notes_subdir = cfg.notes_subdir,
+        note_id_func = cfg.note_id_func,
+        new_notes_location = config.NewNotesLocation.notes_subdir,
+      }
+    end
+  end
   return default
 end
 
@@ -158,7 +172,7 @@ end
 ---@param title string|?
 ---@param id string|?
 ---@param dir string|obsidian.Path|? The directory for the note
----@param strategy obsidian.note.NoteCreationStrategy Strategy for resolving note path and title
+---@param strategy obsidian.note.NoteCreationOpts Strategy for resolving note path and title
 ---@return string|?,string,obsidian.Path
 local function resolve_title_id_path(title, id, dir, strategy)
   if title then
@@ -270,7 +284,8 @@ end
 --- @param opts obsidian.note.NoteOpts Options
 --- @return obsidian.Note
 Note.create = function(opts)
-  local new_title, new_id, path = resolve_title_id_path(opts.title, opts.id, opts.dir, get_note_resolver_strategy(opts))
+  local new_title, new_id, path =
+    resolve_title_id_path(opts.title, opts.id, opts.dir, Note._get_note_creation_opts(opts))
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
   -- Add the title as an alias.

@@ -46,7 +46,12 @@ M.temp_vault = MiniTest.new_set {
         workspaces = { {
           path = tostring(dir),
         } },
+        templates = {
+          folder = "templates",
+        },
       }
+
+      Path.new(dir / "templates"):mkdir()
     end,
     post_case = function()
       vim.fn.delete(tostring(Obsidian.dir), "rf")
