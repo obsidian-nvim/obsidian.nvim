@@ -1,13 +1,13 @@
 local api = require "obsidian.api"
 
----@param client obsidian.Client
-return function(client, _, handler)
+---@param _ lsp.PrepareRenameParams
+return function(_, handler)
   local link = api.parse_cursor_link()
   local placeholder
   if link then
     placeholder = link
   else
-    placeholder = client:current_note().id
+    placeholder = api.current_note().id
   end
 
   handler(nil, {

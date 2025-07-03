@@ -10,9 +10,8 @@ local initializeResult = {
   },
 }
 
----@param client obsidian.Client
 ---@param params lsp.InitializeParams
 ---@param handler function
-return function(client, params, handler, _)
+return function(params, handler, _)
   return handler(nil, initializeResult)
 end
