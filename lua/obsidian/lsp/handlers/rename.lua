@@ -151,8 +151,31 @@ local function rename_note(uri, new_name)
   return note
 end
 
+local function validate_new_name(name)
+  for path in api.iter_files() do
+    local base_as_id = vim.fs.basename(path):sub(1, -4)
+    if name == base_as_id then
+      return false
+    end
+    local note = Note.from_file(path)
+    if note then
+      if name == note.id then
+        return false
+      end
+    end
+  end
+  return true
+end
+
 ---@param params lsp.RenameParams
 return function(params, _, _)
+  local new_name, uri = params.newName, params.textDocument.uri
+
+  if not validate_new_name(new_name) then
+    log.warn "Invalid rename id, note with the same id/filename already exists"
+    return
+  end
+
   local query = api.parse_cursor_link()
 
   local ok, err = pcall(vim.cmd.wall)
@@ -174,9 +197,9 @@ return function(params, _, _)
       return
     end
     local path = tostring(notes[1].path)
-    rename_note(vim.uri_from_fname(path), params.newName)
+    rename_note(vim.uri_from_fname(path), new_name)
   else
-    local note = rename_note(params.textDocument.uri, params.newName)
+    local note = rename_note(uri, new_name)
     Note.open(note)
   end
 end
