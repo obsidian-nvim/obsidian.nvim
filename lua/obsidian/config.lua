@@ -133,7 +133,7 @@ config.default = {
   --- Functions are called with obsidian.TemplateContext objects as their sole parameter.
   --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
   ---@field substitutions table<string, (fun(ctx: obsidian.TemplateContext):string)|(fun(): string)|string>|?
-  ---@field customizations table<string, obsidian.config.CustomTemplateOpts>
+  ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
   templates = {
     folder = nil,
     date_format = nil,
