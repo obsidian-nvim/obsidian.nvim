@@ -39,6 +39,12 @@ end
 ---@return boolean
 M.path_is_note = function(path, workspace)
   path = Path.new(path):resolve()
+  workspace = workspace or Obsidian.workspace
+
+  local in_vault = path.filename:find(vim.pesc(tostring(workspace.root))) ~= nil
+  if not in_vault then
+    return false
+  end
 
   -- Notes have to be markdown file.
   if path.suffix ~= ".md" then
@@ -611,6 +617,14 @@ M.get_icon = function(path)
     end
   end
   return nil
+end
+
+--- Resolve a basename to full path inside the vault.
+---
+---@param src string
+---@return string
+M.resolve_image_path = function(src)
+  return vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.img_folder, src)
 end
 
 return M

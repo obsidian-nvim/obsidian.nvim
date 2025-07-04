@@ -274,16 +274,13 @@ config.default = {
   ---@field img_name_func? fun(): string
   ---
   ---Default text to insert for pasted images
-  ---@field img_text_func? fun(client: obsidian.Client, path: obsidian.Path): string
+  ---@field img_text_func? fun(path: obsidian.Path): string
   ---
   ---Whether to confirm the paste or not. Defaults to true.
   ---@field confirm_img_paste? boolean
   attachments = {
     img_folder = "assets/imgs",
-    img_text_func = function(client, path)
-      local encoded_path = require("obsidian.util").urlencode(path:vault_relative_path() or tostring(path))
-      return string.format("![%s](%s)", path.name, encoded_path)
-    end,
+    img_text_func = require("obsidian.builtin").img_text_func,
     img_name_func = function()
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,

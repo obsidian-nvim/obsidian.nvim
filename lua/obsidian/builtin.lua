@@ -121,4 +121,20 @@ M.markdown_link = function(opts)
   return string.format("[%s%s](%s%s)", opts.label, header, path, anchor)
 end
 
+---@param path string
+M.img_text_func = function(path)
+  local format_string = {
+    markdown = "![](%s)",
+    wiki = "![[%s]]",
+  }
+  local style = Obsidian.opts.preferred_link_style
+  local name = vim.fs.basename(tostring(path))
+
+  if style == "markdown" then
+    name = require("obsidian.util").urlencode(name)
+  end
+
+  return string.format(format_string[style], name)
+end
+
 return M

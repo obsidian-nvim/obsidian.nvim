@@ -135,6 +135,7 @@ There's one entry point user command for this plugin: `Obsidian`
 
 - Neovim >= 0.10.0
 - For completion and search features:
+
   - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep)
   - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
 
@@ -149,15 +150,20 @@ The only **required** plugin dependency is [plenary.nvim](https://github.com/nvi
 
 **Completion:**
 
-- **[recommended]** [hrsh7th/nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
+- **[recommended]** [nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
 - [blink.cmp](https://github.com/Saghen/blink.cmp) (new)
 
 **Pickers:**
 
-- **[recommended]** [nvim-telescope/telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
-- [ibhagwan/fzf-lua](https://github.com/ibhagwan/fzf-lua)
-- [Mini.Pick](https://github.com/echasnovski/mini.pick) from the mini.nvim library
-- [Snacks.Picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) from the snacks.nvim library
+- **[recommended]** [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
+- [fzf-lua](https://github.com/ibhagwan/fzf-lua)
+- [mini.pick](https://github.com/echasnovski/mini.pick)
+- [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
+
+**Image viewing:**
+
+- [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
+- See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
 
 **Syntax highlighting:**
 
@@ -165,7 +171,7 @@ See [syntax highlighting](#syntax-highlighting) for more details.
 
 - For base syntax highlighting:
   - **[recommended]** [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
-  - [preservim/vim-markdown](https://github.com/preservim/vim-markdown)
+  - [vim-markdown](https://github.com/preservim/vim-markdown)
 - For additional syntax features:
   - [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)
   - [markview.nvim](https://github.com/OXY2DEV/markview.nvim)
@@ -583,17 +589,13 @@ require("obsidian").setup {
   ---Default name for pasted images
   ---@field img_name_func? fun(): string
   ---
-  ---Default text to insert for pasted images
-  ---@field img_text_func? fun(client: obsidian.Client, path: obsidian.Path): string
+  ---Default text to insert for pasted images, for customizing, see: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images
+  ---@field img_text_func? fun(path: obsidian.Path): string
   ---
   ---Whether to confirm the paste or not. Defaults to true.
   ---@field confirm_img_paste? boolean
   attachments = {
     img_folder = "assets/imgs",
-    img_text_func = function(client, path)
-      local encoded_path = require("obsidian.util").urlencode(path:vault_relative_path() or tostring(path))
-      return string.format("![%s](%s)", path.name, encoded_path)
-    end,
     img_name_func = function()
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,

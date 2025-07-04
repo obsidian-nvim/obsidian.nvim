@@ -23,6 +23,7 @@ return function(client, data)
   }
 
   if path ~= nil then
-    vim.api.nvim_put({ Obsidian.opts.attachments.img_text_func(client, path) }, "c", true, false)
+    local img_text = Obsidian.opts.attachments.img_text_func(path)
+    vim.api.nvim_put({ img_text }, "c", true, false)
   end
 end
