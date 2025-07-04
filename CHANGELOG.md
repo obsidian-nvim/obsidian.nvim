@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `makefile types` target to check types via lua-ls.
 - New `obsidian.config` type for user config type check.
 - More informative healthcheck.
+- A guide to embed images for both viewing in neovim and obsidian app: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images
 
 ### Changed
 
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - change `clipboard_is_img` to use `vim.fn.system` instead of `io.popen` to get the output of the command with awareness of the shell variables.
 - use `run_job` wrap with `bash` to run `save_clipboard_image` async for Wayland sessions to avoid data corruption.
 - Use a `Obsidian` global variable to hold the state instead of client.
+- `opts.img_text_func` has an obsidian app compatibility, and only accept one path argument.
 
 ### Fixed
 
