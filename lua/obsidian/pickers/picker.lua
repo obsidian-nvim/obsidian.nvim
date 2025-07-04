@@ -380,7 +380,7 @@ Picker._tag_selection_mappings = function(self)
           end
 
           if #tags_added > 0 then
-            if require("obsidian").get_client():update_frontmatter(note, self.calling_bufnr) then
+            if note:update_frontmatter(self.calling_bufnr) then
               log.info("Added tags %s to frontmatter", tags_added)
             else
               log.warn "Frontmatter unchanged"

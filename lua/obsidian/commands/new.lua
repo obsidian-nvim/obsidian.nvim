@@ -1,5 +1,6 @@
 local api = require "obsidian.api"
 local log = require "obsidian.log"
+local Note = require "obsidian.note"
 
 ---@param client obsidian.Client
 ---@param data CommandArgs
@@ -7,7 +8,7 @@ return function(client, data)
   ---@type obsidian.Note
   local note
   if data.args:len() > 0 then
-    note = client:create_note { title = data.args, no_write = true }
+    note = Note.create { title = data.args }
   else
     local title = api.input("Enter title or path (optional): ", { completion = "file" })
     if not title then
@@ -16,10 +17,10 @@ return function(client, data)
     elseif title == "" then
       title = nil
     end
-    note = client:create_note { title = title, no_write = true }
+    note = Note.create { title = title }
   end
 
   -- Open the note in a new buffer.
   client:open_note(note, { sync = true })
-  client:write_note_to_buffer(note)
+  note:write_to_buffer()
 end

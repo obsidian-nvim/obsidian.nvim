@@ -11,7 +11,7 @@ local M = {}
 ---@param templates_dir obsidian.Path
 ---
 ---@return obsidian.Path
-local resolve_template = function(template_name, templates_dir)
+M.resolve_template = function(template_name, templates_dir)
   ---@type obsidian.Path|?
   local template_path
   local paths_to_check = { templates_dir / tostring(template_name), Path:new(template_name) }
@@ -111,7 +111,7 @@ M.clone_template = function(ctx)
   local note_path = Path.new(ctx.destination_path)
   assert(note_path:parent()):mkdir { parents = true, exist_ok = true }
 
-  local template_path = resolve_template(ctx.template_name, ctx.templates_dir)
+  local template_path = M.resolve_template(ctx.template_name, ctx.templates_dir)
 
   local template_file, read_err = io.open(tostring(template_path), "r")
   if not template_file then
@@ -161,7 +161,7 @@ M.insert_template = function(ctx)
     ctx.partial_note = Note.from_buffer(buf)
   end
 
-  local template_path = resolve_template(ctx.template_name, ctx.templates_dir)
+  local template_path = M.resolve_template(ctx.template_name, ctx.templates_dir)
 
   local insert_lines = {}
   local template_file = io.open(tostring(template_path), "r")

@@ -437,6 +437,9 @@ require("obsidian").setup {
     -- Functions are called with obsidian.TemplateContext objects as their sole parameter.
     -- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
     substitutions = {},
+
+    -- A map for configuring unique directories and paths for specific templates
+    customizations = {},
   },
 
   -- Sets how you follow URLs

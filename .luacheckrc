@@ -10,6 +10,9 @@ include_files = {
 }
 
 exclude_files = {
+  "_neovim/*",
+  "_runtime/*",
+  "deps/*",
   "tests/fixtures",
 }
 
@@ -29,4 +32,5 @@ read_globals = {
   "it",
   "describe",
   "before_each",
+  "after_each",
 }

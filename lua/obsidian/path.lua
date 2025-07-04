@@ -349,7 +349,6 @@ end
 ---@private
 Path.abspath = function(self)
   local path = vim.loop.fs_realpath(vim.fn.resolve(self.filename))
-  ---@cast path string|?
   return path
 end
 
