@@ -160,6 +160,8 @@ obsidian.setup = function(opts)
         require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
       end
 
+      require("obsidian.lsp").start(ev.buf)
+
       -- Run enter-note callback.
       local note = obsidian.Note.from_buffer(ev.buf)
       obsidian.util.fire_callback("enter_note", Obsidian.opts.callbacks.enter_note, client, note)

@@ -135,6 +135,7 @@ There's one entry point user command for this plugin: `Obsidian`
 
 - Neovim >= 0.10.0
 - For completion and search features:
+
   - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep)
   - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
 
@@ -604,6 +605,14 @@ require("obsidian").setup {
   statusline = {
     enabled = true,
     format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+  },
+
+  ---@class obsidian.config.CheckboxOpts
+  ---
+  ---Order of checkbox state chars, e.g. { " ", "x" }
+  ---@field order? string[]
+  checkbox = {
+    order = { " ", "~", "!", ">", "x" },
   },
 }
 ```
