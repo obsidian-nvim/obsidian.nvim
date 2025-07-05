@@ -79,7 +79,8 @@ end
 
 ---@param uri string
 ---@param new_name string
-local function rename_note(uri, new_name)
+---@param target obsidian.Note
+local function rename_note(uri, new_name, target)
   local old = info_from_uri(uri)
   local new = info_from_id(new_name, old.path)
 
@@ -129,6 +130,10 @@ local function rename_note(uri, new_name)
 
   vim.lsp.util.rename(old.path, new.path)
 
+  if not target.bufnr then
+    target.bufnr = vim.fn.bufnr(new.path)
+  end
+
   -- Wait for all tasks to get submitted.
   vim.wait(2000, function()
     return all_tasks_submitted
@@ -136,19 +141,16 @@ local function rename_note(uri, new_name)
 
   log.info("renamed " .. count .. " reference(s) across " .. vim.tbl_count(file_map) .. " file(s)")
 
-  -- new file
-  local note = Note.from_file(new.path)
-  note.id = new.id
-
-  assert(note)
-  note:save()
+  target.id = new.id
+  target.path = Path.new(new.path)
+  target:save_to_buffer { bufnr = target.bufnr }
 
   -- so that file with renamed refs are displaying correctly
   for _, buf in ipairs(buf_list) do
     vim.bo[buf].filetype = "markdown"
   end
 
-  return note
+  return target
 end
 
 local function validate_new_name(name)
@@ -169,7 +171,7 @@ end
 
 ---@param params lsp.RenameParams
 return function(params, _, _)
-  local new_name, uri = params.newName, params.textDocument.uri
+  local new_name = params.newName
 
   if not validate_new_name(new_name) then
     log.warn "Invalid rename id, note with the same id/filename already exists"
@@ -196,10 +198,13 @@ return function(params, _, _)
       log.err("Failed to resolve '%s' to a single note, found %d matches", query, #notes)
       return
     end
-    local path = tostring(notes[1].path)
-    rename_note(vim.uri_from_fname(path), new_name)
+    local note = notes[1]
+    local uri = vim.uri_from_fname(tostring(note.path))
+    rename_note(uri, new_name, note)
   else
-    local note = rename_note(uri, new_name)
-    Note.open(note)
+    local uri = params.textDocument.uri
+    local note = assert(api.current_note(0))
+    local new_note = rename_note(uri, new_name, note)
+    Note.open(new_note)
   end
 end
