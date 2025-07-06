@@ -161,6 +161,15 @@ M.watch = function(path, callback, on_error)
 
   assert(callback)
 
+  for _, handler in ipairs(watch_handlers) do
+    local handlerPath = handler:getpath()
+
+    if handlerPath and path == handlerPath then
+      error("a file watch handler is already created for the given path - " .. path)
+      return
+    end
+  end
+
   if on_error == nil then
     on_error = make_default_error_cb(path)
   end
@@ -198,6 +207,8 @@ M.release_resources = function()
       end
     end
   end
+
+  watch_handlers = {}
 
   queue_timer:stop()
   if not queue_timer.is_closing then

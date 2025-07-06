@@ -82,6 +82,7 @@ obsidian.setup = function(opts)
   ---@field workspace obsidian.Workspace The current workspace.
   ---@field dir obsidian.Path The root of the vault for the current workspace.
   ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
+  ---@field cache { [string]: obsidian.cache.CacheNote } The cached notes to use
   ---@field opts obsidian.config.ClientOpts current options
   ---@field _opts obsidian.config.ClientOpts default options
   _G.Obsidian = {} -- init a state table

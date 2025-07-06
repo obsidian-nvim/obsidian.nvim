@@ -2,6 +2,7 @@ local telescope = require "telescope.builtin"
 local telescope_actions = require "telescope.actions"
 local actions_state = require "telescope.actions.state"
 
+local api = require "obsidian.api"
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
 local Picker = require "obsidian.pickers.picker"
@@ -153,7 +154,8 @@ local create_cache_picker = function(self, prompt_title, opts)
         end
 
         vim.schedule(function()
-          self.client:open_note(selection.absolute_path)
+          local open_cmd = api.get_open_strategy(Obsidian.opts.open_notes_in)
+          api.open_buffer(selection.absolute_path, { cmd = open_cmd })
         end)
       end)
 
@@ -167,16 +169,18 @@ local create_cache_picker = function(self, prompt_title, opts)
     end,
   }
 
+  local cache_without_relative_path = vim.tbl_values(Obsidian.cache)
+  local workspace_path = Obsidian.dir.filename
   return pickers.new(picker_opts, {
     cwd = opts.dir,
     finder = finders.new_table {
-      results = self.client.cache:get_cache_notes_without_key(),
+      results = cache_without_relative_path,
       ---@param entry obsidian.cache.CacheNote
       ---@return obsidian.pickers.telescope_picker.CacheSelectedEntry
       entry_maker = function(entry)
         local concated_aliases = table.concat(entry.aliases, "|")
         local concated_tags = table.concat(entry.tags, " #")
-        local relative_path = entry.absolute_path:gsub(self.client.dir.filename .. "/", "")
+        local relative_path = entry.absolute_path:gsub(workspace_path .. "/", "")
         local display_name
 
         if concated_aliases and concated_aliases ~= "" then
@@ -185,7 +189,7 @@ local create_cache_picker = function(self, prompt_title, opts)
           display_name = relative_path
         end
 
-        if self.client.opts.cache.show_tags and concated_tags and concated_tags ~= "" then
+        if Obsidian.opts.cache.show_tags and concated_tags and concated_tags ~= "" then
           display_name = table.concat({ display_name, concated_tags }, " #")
         end
 

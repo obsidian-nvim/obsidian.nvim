@@ -250,6 +250,10 @@ Workspace.set = function(workspace, opts)
     pattern = "ObsidianWorkpspaceSet",
     data = { workspace = workspace },
   })
+
+  if options.cache.enabled then
+    require("obsidian.cache").activate_cache()
+  end
 end
 
 return Workspace
