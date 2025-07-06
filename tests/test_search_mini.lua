@@ -1,4 +1,6 @@
 local M = require "obsidian.search"
+local h = dofile "tests/helpers.lua"
+local child
 
 local RefTypes, SearchOpts = M.RefTypes, M.SearchOpts
 
@@ -230,6 +232,43 @@ T["find_code_blocks"]["should find lang-specific inline code blocks"] = function
     "",
   }
   eq(results, M.find_code_blocks(lines))
+end
+
+T["find_links"], child = h.new_set_with_setup()
+
+T["find_links"]["should find all links in a file"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "test.md")
+  -- TODO: any link protocol
+  local file = [==[
+[[link]]
+  https://neovim.io
+]==]
+  vim.fn.writefile(vim.split(file, "\n"), filepath)
+  child.lua [[
+local search = require"obsidian.search"
+local note = require"obsidian.note".from_file(tostring(Obsidian.dir / "test.md"))
+search.find_links(note, {}, function(res)
+  _G.res = res
+end)
+  ]]
+  vim.uv.sleep(100)
+  local res = child.lua_get [[res]]
+
+  eq({
+    {
+      ["end"] = 7,
+      line = 1,
+      link = "[[link]]",
+      start = 0,
+    },
+    {
+      ["end"] = 18,
+      line = 2,
+      link = "https://neovim.io",
+      start = 2,
+    },
+  }, res)
 end
 
 return T

@@ -493,4 +493,45 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
   end)
 end
 
+---@class obsidian.LinkMatch
+---@field link string
+---@field line integer
+---@field start integer 0-indexed
+---@field end integer 0-indexed
+
+-- Gather all unique links from the a note.
+--
+---@param note obsidian.Note
+---@param opts { on_match: fun(link: obsidian.LinkMatch) }
+---@param callback fun(links: obsidian.LinkMatch[])
+M.find_links = function(note, opts, callback)
+  ---@type obsidian.LinkMatch[]
+  local matches = {}
+  ---@type table<string, boolean>
+  local found = {}
+  local lines = io.lines(tostring(note.path))
+
+  for lnum, line in util.enumerate(lines) do
+    for ref_match in vim.iter(M.find_refs(line, { include_naked_urls = true, include_file_urls = true })) do
+      local m_start, m_end = unpack(ref_match)
+      local link = string.sub(line, m_start, m_end)
+      if not found[link] then
+        local match = {
+          link = link,
+          line = lnum,
+          start = m_start - 1,
+          ["end"] = m_end - 1,
+        }
+        matches[#matches + 1] = match
+        found[link] = true
+        if opts.on_match then
+          opts.on_match(match)
+        end
+      end
+    end
+  end
+
+  callback(matches)
+end
+
 return M
