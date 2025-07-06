@@ -1,6 +1,8 @@
 local M = {}
 local api = require "obsidian.api"
 local util = require "obsidian.util"
+local search = require "obsidian.search"
+local Note = require "obsidian.note"
 
 ---builtin functions that are default values for actions, and modules
 
@@ -137,37 +139,30 @@ M.img_text_func = function(path)
   return string.format(format_string[style], name)
 end
 
+---@param direction "next" | "prev"
 M.nav_link = function(direction)
-  direction = direction or "next"
+  vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")
+  local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
 
-  local search = require "obsidian.search"
-  local Note = require "obsidian.note"
-  local line, start = unpack(vim.api.nvim_win_get_cursor(0))
-
-  local jumped = false
-  local function goto(row, col)
-    vim.api.nvim_win_set_cursor(0, { row, col })
-    jumped = true
-  end
-
-  search.find_links(Note.from_buffer(0), {
-    on_match = function(link_match)
-      if jumped then
-        return
-      end
-      if direction == "next" then
-        if (link_match.line > line) or (line == link_match.line and start < link_match.start) then
-          goto(link_match.line, link_match.start)
+  search.find_links(Note.from_buffer(0), {}, function(matches)
+    if direction == "next" then
+      for i = 1, #matches do
+        local match = matches[i]
+        if (match.line > cursor_line) or (cursor_line == match.line and cursor_col < match.start) then
+          return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
         end
       end
+    end
 
-      if direction == "prev" then
-        if (link_match.line < line) or (line == link_match.line and start > link_match.start) then
-          goto(link_match.line, link_match.start)
+    if direction == "prev" then
+      for i = #matches, 1, -1 do
+        local match = matches[i]
+        if (match.line < cursor_line) or (cursor_line == match.line and cursor_col > match.start) then
+          return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
         end
       end
-    end,
-  }, function() end)
+    end
+  end)
 end
 
 return M
