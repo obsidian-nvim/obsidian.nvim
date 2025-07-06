@@ -890,11 +890,12 @@ end
 ---@field start integer 0-indexed
 ---@field end integer 0-indexed
 
+-- Gather all unique links from the a note.
+--
 ---@param note obsidian.Note
 ---@param opts { on_match: fun(link: obsidian.LinkMatch) }
 ---@param callback fun(links: obsidian.LinkMatch[])
 M.find_links = function(note, opts, callback)
-  -- Gather all unique raw links (strings) from the buffer.
   ---@type obsidian.LinkMatch[]
   local matches = {}
   ---@type table<string, boolean>

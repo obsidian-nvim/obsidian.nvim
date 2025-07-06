@@ -1,5 +1,6 @@
 local Path = require "obsidian.path"
 local obsidian = require "obsidian"
+local child = MiniTest.new_child_neovim()
 
 local M = {}
 
@@ -69,5 +70,20 @@ M.temp_vault = MiniTest.new_set {
     end,
   },
 }
+
+M.new_set_with_setup = function()
+  return MiniTest.new_set {
+    hooks = {
+      pre_case = function()
+        child.restart { "-u", "scripts/minimal_init_with_setup.lua" }
+      end,
+      post_once = function()
+        child.lua [[vim.fn.delete(tostring(Obsidian.dir), "rf")]]
+        child.stop()
+      end,
+    },
+  },
+    child
+end
 
 return M
