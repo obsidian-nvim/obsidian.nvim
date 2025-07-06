@@ -138,11 +138,20 @@ obsidian.setup = function(opts)
       end
 
       -- Register keymap.
-      vim.keymap.set("n", "<CR>", require("obsidian.builtin").smart_action, {
-        expr = true,
-        buffer = true,
-        desc = "Obsidian Smart Action",
-      })
+      vim.keymap.set(
+        "n",
+        "<CR>",
+        obsidian.api.smart_action,
+        { expr = true, buffer = true, desc = "Obsidian Smart Action" }
+      )
+
+      vim.keymap.set("n", "]o", function()
+        obsidian.api.nav_link "next"
+      end, { buffer = true, desc = "Obsidian Next Link" })
+
+      vim.keymap.set("n", "[o", function()
+        obsidian.api.nav_link "prev"
+      end, { buffer = true, desc = "Obsidian Previous Link" })
 
       -- Inject completion sources, providers to their plugin configurations
       if opts.completion.nvim_cmp then

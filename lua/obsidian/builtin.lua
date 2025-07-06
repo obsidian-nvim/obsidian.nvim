@@ -1,8 +1,6 @@
 local M = {}
-local api = require "obsidian.api"
 local util = require "obsidian.util"
-local search = require "obsidian.search"
-local Note = require "obsidian.note"
+local api = require "obsidian.api"
 
 ---builtin functions that are default values for actions, and modules
 
@@ -137,32 +135,6 @@ M.img_text_func = function(path)
   end
 
   return string.format(format_string[style], name)
-end
-
----@param direction "next" | "prev"
-M.nav_link = function(direction)
-  vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")
-  local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
-
-  search.find_links(Note.from_buffer(0), {}, function(matches)
-    if direction == "next" then
-      for i = 1, #matches do
-        local match = matches[i]
-        if (match.line > cursor_line) or (cursor_line == match.line and cursor_col < match.start) then
-          return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
-        end
-      end
-    end
-
-    if direction == "prev" then
-      for i = #matches, 1, -1 do
-        local match = matches[i]
-        if (match.line < cursor_line) or (cursor_line == match.line and cursor_col > match.start) then
-          return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
-        end
-      end
-    end
-  end)
 end
 
 return M
