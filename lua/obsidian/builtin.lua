@@ -5,7 +5,7 @@ local util = require "obsidian.util"
 ---builtin functions that are default values for actions, and modules
 
 M.smart_action = function()
-  local legacy = require("obsidian").get_client().opts.legacy_commands
+  local legacy = Obsidian.opts.legacy_commands
   -- follow link if possible
   if api.cursor_on_markdown_link(nil, nil, true) then
     return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
@@ -119,6 +119,22 @@ M.markdown_link = function(opts)
 
   local path = util.urlencode(opts.path, { keep_path_sep = true })
   return string.format("[%s%s](%s%s)", opts.label, header, path, anchor)
+end
+
+---@param path string
+M.img_text_func = function(path)
+  local format_string = {
+    markdown = "![](%s)",
+    wiki = "![[%s]]",
+  }
+  local style = Obsidian.opts.preferred_link_style
+  local name = vim.fs.basename(tostring(path))
+
+  if style == "markdown" then
+    name = require("obsidian.util").urlencode(name)
+  end
+
+  return string.format(format_string[style], name)
 end
 
 return M

@@ -95,7 +95,7 @@ return function(client, data)
   local new_note_path
   if #parts > 1 then
     parts[#parts] = nil
-    new_note_path = client.dir:joinpath(unpack(compat.flatten { parts, new_note_id })):with_suffix ".md"
+    new_note_path = Obsidian.dir:joinpath(unpack(compat.flatten { parts, new_note_id })):with_suffix ".md"
   else
     new_note_path = (dirname / new_note_id):with_suffix ".md"
   end
@@ -134,9 +134,7 @@ return function(client, data)
 
   ---@param fn function
   local function quietly(fn, ...)
-    client._quiet = true
     local ok, res = pcall(fn, ...)
-    client._quiet = false
     if not ok then
       error(res)
     end
@@ -192,8 +190,8 @@ return function(client, data)
     log.info("Dry run: updating frontmatter of '" .. tostring(new_note_path) .. "'")
   end
 
-  local cur_note_rel_path = tostring(client:vault_relative_path(cur_note_path, { strict = true }))
-  local new_note_rel_path = tostring(client:vault_relative_path(new_note_path, { strict = true }))
+  local cur_note_rel_path = assert(cur_note_path:vault_relative_path { strict = true })
+  local new_note_rel_path = assert(new_note_path:vault_relative_path { strict = true })
 
   -- Search notes on disk for any references to `cur_note_id`.
   -- We look for the following forms of references:
@@ -288,7 +286,7 @@ return function(client, data)
   end
 
   search.search_async(
-    client.dir,
+    Obsidian.dir,
     reference_forms,
     { fixed_strings = true, max_count_per_file = 1 },
     on_search_match,

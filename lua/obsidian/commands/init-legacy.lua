@@ -111,7 +111,7 @@ M.complete_args_search = function(client, _, cmd_line, _)
   local completions = {}
   local query_lower = string.lower(query)
   for note in iter(client:find_notes(query, { search = { sort = true } })) do
-    local note_path = assert(client:vault_relative_path(note.path, { strict = true }))
+    local note_path = assert(note.path:vault_relative_path { strict = true })
     if string.find(string.lower(note:display_name()), query_lower, 1, true) then
       table.insert(completions, note:display_name() .. "  " .. tostring(note_path))
     else

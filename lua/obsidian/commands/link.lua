@@ -26,7 +26,7 @@ return function(client, data)
   ---@param note obsidian.Note
   local function insert_ref(note)
     local new_line = string.sub(line, 1, viz.cscol - 1)
-      .. client:format_link(note, { label = viz.selection })
+      .. api.format_link(note, { label = viz.selection })
       .. string.sub(line, viz.cecol + 1)
     vim.api.nvim_buf_set_lines(0, viz.csrow - 1, viz.csrow, false, { new_line })
     require("obsidian.ui").update(0)

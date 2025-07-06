@@ -2,10 +2,9 @@ local log = require "obsidian.log"
 
 local module_lookups = {
   abc = "obsidian.abc",
+  api = "obsidian.api",
   async = "obsidian.async",
   Client = "obsidian.client",
-  callbacks = "obsidian.callbacks",
-  collections = "obsidian.collections",
   commands = "obsidian.commands",
   completion = "obsidian.completion",
   config = "obsidian.config",
@@ -77,8 +76,18 @@ end
 ---@return obsidian.Client
 obsidian.setup = function(opts)
   opts = obsidian.config.normalize(opts)
+
+  ---@class obsidian.state
+  ---@field picker obsidian.Picker The picker instance to use.
+  ---@field workspace obsidian.Workspace The current workspace.
+  ---@field dir obsidian.Path The root of the vault for the current workspace.
+  ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
+  ---@field opts obsidian.config.ClientOpts current options
+  ---@field _opts obsidian.config.ClientOpts default options
+  _G.Obsidian = {} -- init a state table
+
   local client = obsidian.new(opts)
-  log.set_level(client.opts.log_level)
+  log.set_level(Obsidian.opts.log_level)
 
   -- Install commands.
   -- These will be available across all buffers, not just note buffers in the vault.
@@ -121,19 +130,19 @@ obsidian.setup = function(opts)
       -- Set the current directory of the buffer.
       local buf_dir = vim.fs.dirname(ev.match)
       if buf_dir then
-        client.buf_dir = obsidian.Path.new(buf_dir)
+        Obsidian.buf_dir = obsidian.Path.new(buf_dir)
       end
 
       -- Check if we're in *any* workspace.
-      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, client.opts.workspaces)
+      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
       if not workspace then
         return
       end
 
       -- Switch to the workspace and complete the workspace setup.
-      if not client.current_workspace.locked and workspace ~= client.current_workspace then
+      if not Obsidian.workspace.locked and workspace ~= Obsidian.workspace then
         log.debug("Switching to workspace '%s' @ '%s'", workspace.name, workspace.path)
-        client:set_workspace(workspace)
+        obsidian.Workspace.set(workspace)
         require("obsidian.ui").update(ev.buf)
       end
 
@@ -152,9 +161,8 @@ obsidian.setup = function(opts)
       end
 
       -- Run enter-note callback.
-      client.callback_manager:enter_note(function()
-        return obsidian.Note.from_buffer(ev.buf)
-      end)
+      local note = obsidian.Note.from_buffer(ev.buf)
+      obsidian.util.fire_callback("enter_note", Obsidian.opts.callbacks.enter_note, client, note)
 
       exec_autocmds("ObsidianNoteEnter", ev.buf)
     end,
@@ -165,20 +173,19 @@ obsidian.setup = function(opts)
     pattern = "*.md",
     callback = function(ev)
       -- Check if we're in *any* workspace.
-      local workspace = obsidian.Workspace.get_workspace_for_dir(vim.fs.dirname(ev.match), client.opts.workspaces)
+      local workspace = obsidian.Workspace.get_workspace_for_dir(vim.fs.dirname(ev.match), Obsidian.opts.workspaces)
       if not workspace then
         return
       end
 
       -- Check if current buffer is actually a note within the workspace.
-      if not client:path_is_note(ev.match, workspace) then
+      if not obsidian.api.path_is_note(ev.match) then
         return
       end
 
       -- Run leave-note callback.
-      client.callback_manager:leave_note(function()
-        return obsidian.Note.from_buffer(ev.buf)
-      end)
+      local note = obsidian.Note.from_buffer(ev.buf)
+      obsidian.util.fire_callback("leave_note", Obsidian.opts.callbacks.leave_note, client, note)
 
       exec_autocmds("ObsidianNoteLeave", ev.buf)
     end,
@@ -192,13 +199,13 @@ obsidian.setup = function(opts)
       local buf_dir = vim.fs.dirname(ev.match)
 
       -- Check if we're in a workspace.
-      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, client.opts.workspaces)
+      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
       if not workspace then
         return
       end
 
       -- Check if current buffer is actually a note within the workspace.
-      if not client:path_is_note(ev.match, workspace) then
+      if not obsidian.api.path_is_note(ev.match) then
         return
       end
 
@@ -207,7 +214,7 @@ obsidian.setup = function(opts)
       local note = obsidian.Note.from_buffer(bufnr)
 
       -- Run pre-write-note callback.
-      client.callback_manager:pre_write_note(note)
+      obsidian.util.fire_callback("pre_write_note", Obsidian.opts.callbacks.pre_write_note, client, note)
 
       exec_autocmds("ObsidianNoteWritePre", ev.buf)
 
@@ -225,13 +232,13 @@ obsidian.setup = function(opts)
       local buf_dir = vim.fs.dirname(ev.match)
 
       -- Check if we're in a workspace.
-      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, client.opts.workspaces)
+      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
       if not workspace then
         return
       end
 
       -- Check if current buffer is actually a note within the workspace.
-      if not client:path_is_note(ev.match, workspace) then
+      if not obsidian.api.path_is_note(ev.match) then
         return
       end
 
@@ -243,7 +250,9 @@ obsidian.setup = function(opts)
   obsidian._client = client
 
   -- Call post-setup callback.
-  client.callback_manager:post_setup()
+  -- client.callback_manager:post_setup()
+
+  obsidian.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup, client)
 
   return client
 end

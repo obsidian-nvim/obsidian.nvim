@@ -56,7 +56,7 @@ end
 
 ---@param client obsidian.Client
 return function(client)
-  local picker = assert(client:picker())
+  local picker = assert(Obsidian.picker)
   if not picker then
     log.err "No picker configured"
     return
@@ -120,10 +120,10 @@ return function(client)
       load_opts.collect_anchor_links = true
     end
 
-    local note = client:current_note(0, load_opts)
+    local note = api.current_note(0, load_opts)
 
     -- Check if cursor is on a header, if so and header parsing is enabled, use that anchor.
-    if client.opts.backlinks.parse_headers then
+    if Obsidian.opts.backlinks.parse_headers then
       local header_match = util.parse_header(vim.api.nvim_get_current_line())
       if header_match then
         opts.anchor = header_match.anchor

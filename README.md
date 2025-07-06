@@ -65,6 +65,17 @@ For remapping and creating your own mappings, see [Keymaps](https://github.com/o
 
 ### Commands
 
+There's one entry point user command for this plugin: `Obsidian`
+
+- `Obsidian<CR>` (`<enter>`) to select sub commands.
+- `Obsidian <Tab>` to get completion for sub commands.
+- Sub commands are context sensitive, meaning some actions will only appear when:
+  - you are in a note.
+  - you are in visual mode.
+- See [Commands](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands) for more info.
+
+**List of available commands:**
+
 - `:Obsidian backlinks` for getting a picker list of references to the current buffer.
 
 - `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For example, `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow.
@@ -126,6 +137,7 @@ For remapping and creating your own mappings, see [Keymaps](https://github.com/o
 
 - Neovim >= 0.10.0
 - For completion and search features:
+
   - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep)
   - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
 
@@ -140,15 +152,20 @@ The only **required** plugin dependency is [plenary.nvim](https://github.com/nvi
 
 **Completion:**
 
-- **[recommended]** [hrsh7th/nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
+- **[recommended]** [nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
 - [blink.cmp](https://github.com/Saghen/blink.cmp) (new)
 
 **Pickers:**
 
-- **[recommended]** [nvim-telescope/telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
-- [ibhagwan/fzf-lua](https://github.com/ibhagwan/fzf-lua)
-- [Mini.Pick](https://github.com/echasnovski/mini.pick) from the mini.nvim library
-- [Snacks.Picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) from the snacks.nvim library
+- **[recommended]** [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
+- [fzf-lua](https://github.com/ibhagwan/fzf-lua)
+- [mini.pick](https://github.com/echasnovski/mini.pick)
+- [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
+
+**Image viewing:**
+
+- [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
+- See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
 
 **Syntax highlighting:**
 
@@ -156,7 +173,7 @@ See [syntax highlighting](#syntax-highlighting) for more details.
 
 - For base syntax highlighting:
   - **[recommended]** [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
-  - [preservim/vim-markdown](https://github.com/preservim/vim-markdown)
+  - [vim-markdown](https://github.com/preservim/vim-markdown)
 - For additional syntax features:
   - [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)
   - [markview.nvim](https://github.com/OXY2DEV/markview.nvim)
@@ -566,30 +583,25 @@ require("obsidian").setup {
     },
   },
 
-  -- Specify how to handle attachments.
+  ---@class obsidian.config.AttachmentsOpts
+  ---
+  ---Default folder to save images to, relative to the vault root.
+  ---@field img_folder? string
+  ---
+  ---Default name for pasted images
+  ---@field img_name_func? fun(): string
+  ---
+  ---Default text to insert for pasted images, for customizing, see: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images
+  ---@field img_text_func? fun(path: obsidian.Path): string
+  ---
+  ---Whether to confirm the paste or not. Defaults to true.
+  ---@field confirm_img_paste? boolean
   attachments = {
-    -- The default folder to place images in via `:Obsidian paste_img`.
-    -- If this is a relative path it will be interpreted as relative to the vault root.
-    -- You can always override this per image by passing a full path to the command instead of just a filename.
-    img_folder = "assets/imgs", -- This is the default
-
-    -- A function that determines default name or prefix when pasting images via `:Obsidian paste_img`.
-    ---@return string
+    img_folder = "assets/imgs",
     img_name_func = function()
-      -- Prefix image names with timestamp.
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
-
-    -- A function that determines the text to insert in the note when pasting an image.
-    -- It takes two arguments, the `obsidian.Client` and an `obsidian.Path` to the image file.
-    -- This is the default implementation.
-    ---@param client obsidian.Client
-    ---@param path obsidian.Path the absolute path to the image file
-    ---@return string
-    img_text_func = function(client, path)
-      path = client:vault_relative_path(path) or path
-      return string.format("![%s](%s)", path.name, path)
-    end,
+    confirm_img_paste = true,
   },
 
   -- See https://github.com/obsidian-nvim/obsidian.nvim/wiki/Notes-on-configuration#statusline-component
@@ -660,6 +672,10 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://escapewindow.com"><img src="https://avatars.githubusercontent.com/u/826343?v=4?s=100" width="100px;" alt="Aki Sasaki"/><br /><sub><b>Aki Sasaki</b></sub></a><br /><a href="#code-escapewindow" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://www.linkedin.com/in/rim18/"><img src="https://avatars.githubusercontent.com/u/5428479?v=4?s=100" width="100px;" alt="Reinaldo Molina"/><br /><sub><b>Reinaldo Molina</b></sub></a><br /><a href="#code-tricktux" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/srackham"><img src="https://avatars.githubusercontent.com/u/674468?v=4?s=100" width="100px;" alt="Stuart Rackham"/><br /><sub><b>Stuart Rackham</b></sub></a><br /><a href="#code-srackham" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://redoxahmii.vercel.app"><img src="https://avatars.githubusercontent.com/u/13983258?v=4?s=100" width="100px;" alt="Ahmed Mughal"/><br /><sub><b>Ahmed Mughal</b></sub></a><br /><a href="#code-redoxahmii" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/trash-panda-v91-beta"><img src="https://avatars.githubusercontent.com/u/42897550?v=4?s=100" width="100px;" alt="trash-panda-v91-beta"/><br /><sub><b>trash-panda-v91-beta</b></sub></a><br /><a href="#code-trash-panda-v91-beta" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

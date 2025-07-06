@@ -2,6 +2,86 @@ local M = {}
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local iter, string, table = vim.iter, string, table
+local Path = require "obsidian.path"
+
+--- Get the templates folder.
+---
+---@return obsidian.Path|?
+M.templates_dir = function(workspace)
+  local opts = Obsidian.opts
+
+  local Workspace = require "obsidian.workspace"
+
+  if workspace and workspace ~= Obsidian.workspace then
+    opts = Workspace.normalize_opts(workspace)
+  end
+
+  if opts.templates == nil or opts.templates.folder == nil then
+    return nil
+  end
+
+  local paths_to_check = { Obsidian.workspace.root / opts.templates.folder, Path.new(opts.templates.folder) }
+  for _, path in ipairs(paths_to_check) do
+    if path:is_dir() then
+      return path
+    end
+  end
+
+  log.err_once("'%s' is not a valid templates directory", opts.templates.folder)
+  return nil
+end
+
+--- Check if a path represents a note in the workspace.
+---
+---@param path string|obsidian.Path
+---@param workspace obsidian.Workspace|?
+---
+---@return boolean
+M.path_is_note = function(path, workspace)
+  path = Path.new(path):resolve()
+  workspace = workspace or Obsidian.workspace
+
+  local in_vault = path.filename:find(vim.pesc(tostring(workspace.root))) ~= nil
+  if not in_vault then
+    return false
+  end
+
+  -- Notes have to be markdown file.
+  if path.suffix ~= ".md" then
+    return false
+  end
+
+  -- Ignore markdown files in the templates directory.
+  local templates_dir = M.templates_dir(workspace)
+  if templates_dir ~= nil then
+    if templates_dir:is_parent_of(path) then
+      return false
+    end
+  end
+
+  return true
+end
+
+--- Get the current note from a buffer.
+---
+---@param bufnr integer|?
+---@param opts obsidian.note.LoadOpts|?
+---
+---@return obsidian.Note|?
+---@diagnostic disable-next-line: unused-local
+M.current_note = function(bufnr, opts)
+  bufnr = bufnr or 0
+  local Note = require "obsidian.note"
+  if not M.path_is_note(vim.api.nvim_buf_get_name(bufnr)) then
+    return nil
+  end
+
+  opts = opts or {}
+  if not opts.max_lines then
+    opts.max_lines = Obsidian.opts.search_max_lines
+  end
+  return Note.from_buffer(bufnr, opts)
+end
 
 ---builtin functions that are impure, interacts with editor state, like vim.api
 
@@ -42,6 +122,48 @@ M.get_active_window_cursor_location = function()
   local row, col = unpack(vim.api.nvim_win_get_cursor(win))
   local location = { buf, win, row, col }
   return location
+end
+
+--- Create a formatted markdown / wiki link for a note.
+---
+---@param note obsidian.Note|obsidian.Path|string The note/path to link to.
+---@param opts { label: string|?, link_style: obsidian.config.LinkStyle|?, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|? Options.
+---
+---@return string
+M.format_link = function(note, opts)
+  local config = require "obsidian.config"
+  opts = opts or {}
+
+  ---@type string, string, string|integer|?
+  local rel_path, label, note_id
+  if type(note) == "string" or Path.is_path_obj(note) then
+    ---@cast note string|obsidian.Path
+    -- rel_path = tostring(self:vault_relative_path(note, { strict = true }))
+    rel_path = assert(Path.new(note):vault_relative_path { strict = true })
+    label = opts.label or tostring(note)
+    note_id = opts.id
+  else
+    ---@cast note obsidian.Note
+    -- rel_path = tostring(self:vault_relative_path(note.path, { strict = true }))
+    rel_path = assert(note.path:vault_relative_path { strict = true })
+    label = opts.label or note:display_name()
+    note_id = opts.id or note.id
+  end
+
+  local link_style = opts.link_style
+  if link_style == nil then
+    link_style = Obsidian.opts.preferred_link_style
+  end
+
+  local new_opts = { path = rel_path, label = label, id = note_id, anchor = opts.anchor, block = opts.block }
+
+  if link_style == config.LinkStyle.markdown then
+    return Obsidian.opts.markdown_link_func(new_opts)
+  elseif link_style == config.LinkStyle.wiki or link_style == nil then
+    return Obsidian.opts.wiki_link_func(new_opts)
+  else
+    error(string.format("Invalid link style '%s'", link_style))
+  end
 end
 
 ---Determines if cursor is currently inside markdown link.
@@ -156,7 +278,6 @@ end
 ---@param opts { line: integer|?, col: integer|?, cmd: string|? }|?
 ---@return integer bufnr
 M.open_buffer = function(path, opts)
-  local Path = require "obsidian.path"
   path = Path.new(path):resolve()
   opts = opts and opts or {}
   local cmd = vim.trim(opts.cmd and opts.cmd or "e")
@@ -210,44 +331,6 @@ end
 ----------------
 --- text api ---
 ----------------
-
---- TODO: use vim.api
----
----Insert text at current cursor position.
----@param text string
-M.insert_text = function(text)
-  local curpos = vim.fn.getcurpos()
-  local line_num, line_col = curpos[2], curpos[3]
-  local indent = string.rep(" ", line_col)
-
-  -- Convert text to lines table so we can handle multi-line strings.
-  local lines = {}
-  for line in text:gmatch "[^\r\n]+" do
-    lines[#lines + 1] = line
-  end
-
-  for line_index, line in pairs(lines) do
-    local current_line_num = line_num + line_index - 1
-    local current_line = vim.fn.getline(current_line_num)
-    assert(type(current_line) == "string")
-
-    -- Since there's no column 0, remove extra space when current line is blank.
-    if current_line == "" then
-      indent = indent:sub(1, -2)
-    end
-
-    local pre_txt = current_line:sub(1, line_col)
-    local post_txt = current_line:sub(line_col + 1, -1)
-    local inserted_txt = pre_txt .. line .. post_txt
-
-    vim.fn.setline(current_line_num, inserted_txt)
-
-    -- Create new line so inserted_txt doesn't replace next lines
-    if line_index ~= #lines then
-      vim.fn.append(current_line_num, indent)
-    end
-  end
-end
 
 --- Get the current visual selection of text and exit visual mode.
 ---
@@ -397,10 +480,11 @@ M.get_plugin_info = function(name)
   end
   local out = { path = src_root }
   local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
-  if obj.code ~= 0 then
-    return
+  if obj.code == 0 then
+    out.commit = vim.trim(obj.stdout)
+  else
+    out.commit = "unknown"
   end
-  out.commit = vim.trim(obj.stdout)
   return out
 end
 
@@ -563,6 +647,14 @@ M.get_sub_dirs_from_vault = function(path)
     end
   end
   return subdirs
+end
+
+--- Resolve a basename to full path inside the vault.
+---
+---@param src string
+---@return string
+M.resolve_image_path = function(src)
+  return vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.img_folder, src)
 end
 
 return M

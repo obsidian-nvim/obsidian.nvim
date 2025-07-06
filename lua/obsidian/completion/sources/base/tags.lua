@@ -90,7 +90,7 @@ function TagsSourceBase:can_complete_request(cc)
   local can_complete
   can_complete, cc.search, cc.in_frontmatter = completion.can_complete(cc.request)
 
-  if not (can_complete and cc.search ~= nil and #cc.search >= cc.client.opts.completion.min_chars) then
+  if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
     cc.completion_resolve_callback(self.incomplete_response)
     return false
   end

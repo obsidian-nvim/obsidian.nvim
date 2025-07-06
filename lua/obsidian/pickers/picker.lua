@@ -3,18 +3,15 @@ local log = require "obsidian.log"
 local api = require "obsidian.api"
 local strings = require "plenary.strings"
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 
 ---@class obsidian.Picker : obsidian.ABC
 ---
----@field client obsidian.Client
 ---@field calling_bufnr integer
 local Picker = abc.new_class()
 
----@param client obsidian.Client
----@return obsidian.Picker
-Picker.new = function(client)
+Picker.new = function()
   local self = Picker.init()
-  self.client = client
   self.calling_bufnr = vim.api.nvim_get_current_buf()
   return self
 end
@@ -151,7 +148,7 @@ Picker.find_notes = function(self, opts)
 
   return self:find_files {
     prompt_title = opts.prompt_title or "Notes",
-    dir = self.client.dir,
+    dir = Obsidian.dir,
     callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
@@ -171,7 +168,7 @@ Picker.find_templates = function(self, opts)
 
   opts = opts or {}
 
-  local templates_dir = self.client:templates_dir()
+  local templates_dir = api.templates_dir()
 
   if templates_dir == nil then
     log.err "Templates folder is not defined or does not exist"
@@ -209,7 +206,7 @@ Picker.grep_notes = function(self, opts)
 
   self:grep {
     prompt_title = opts.prompt_title or "Grep notes",
-    dir = self.client.dir,
+    dir = Obsidian.dir,
     query = opts.query,
     callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
@@ -245,7 +242,7 @@ Picker.pick_note = function(self, notes, opts)
   local entries = {}
   for _, note in ipairs(notes) do
     assert(note.path)
-    local rel_path = tostring(assert(self.client:vault_relative_path(note.path, { strict = true })))
+    local rel_path = assert(note.path:vault_relative_path { strict = true })
     local display_name = note:display_name()
     entries[#entries + 1] = {
       value = note,
@@ -314,12 +311,12 @@ Picker._note_query_mappings = function(self)
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
-  if self.client.opts.picker.note_mappings and key_is_set(self.client.opts.picker.note_mappings.new) then
-    mappings[self.client.opts.picker.note_mappings.new] = {
+  if Obsidian.opts.picker.note_mappings and key_is_set(Obsidian.opts.picker.note_mappings.new) then
+    mappings[Obsidian.opts.picker.note_mappings.new] = {
       desc = "new",
       callback = function(query)
         ---@diagnostic disable-next-line: missing-fields
-        require "obsidian.commands.new"(self.client, { args = query })
+        require "obsidian.commands.new"(require("obsidian").get_client(), { args = query })
       end,
     }
   end
@@ -333,8 +330,8 @@ Picker._note_selection_mappings = function(self)
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
-  if self.client.opts.picker.note_mappings and key_is_set(self.client.opts.picker.note_mappings.insert_link) then
-    mappings[self.client.opts.picker.note_mappings.insert_link] = {
+  if Obsidian.opts.picker.note_mappings and key_is_set(Obsidian.opts.picker.note_mappings.insert_link) then
+    mappings[Obsidian.opts.picker.note_mappings.insert_link] = {
       desc = "insert link",
       callback = function(note_or_path)
         ---@type obsidian.Note
@@ -344,7 +341,7 @@ Picker._note_selection_mappings = function(self)
         else
           note = Note.from_file(note_or_path)
         end
-        local link = self.client:format_link(note, {})
+        local link = api.format_link(note, {})
         vim.api.nvim_put({ link }, "", false, true)
         require("obsidian.ui").update(0)
       end,
@@ -360,14 +357,14 @@ Picker._tag_selection_mappings = function(self)
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
-  if self.client.opts.picker.tag_mappings then
-    if key_is_set(self.client.opts.picker.tag_mappings.tag_note) then
-      mappings[self.client.opts.picker.tag_mappings.tag_note] = {
+  if Obsidian.opts.picker.tag_mappings then
+    if key_is_set(Obsidian.opts.picker.tag_mappings.tag_note) then
+      mappings[Obsidian.opts.picker.tag_mappings.tag_note] = {
         desc = "tag note",
         callback = function(...)
           local tags = { ... }
 
-          local note = self.client:current_note(self.calling_bufnr)
+          local note = api.current_note(self.calling_bufnr)
           if not note then
             log.warn("'%s' is not a note in your workspace", vim.api.nvim_buf_get_name(self.calling_bufnr))
             return
@@ -385,7 +382,7 @@ Picker._tag_selection_mappings = function(self)
           end
 
           if #tags_added > 0 then
-            if self.client:update_frontmatter(note, self.calling_bufnr) then
+            if require("obsidian").get_client():update_frontmatter(note, self.calling_bufnr) then
               log.info("Added tags %s to frontmatter", tags_added)
             else
               log.warn "Frontmatter unchanged"
@@ -402,8 +399,8 @@ Picker._tag_selection_mappings = function(self)
       }
     end
 
-    if key_is_set(self.client.opts.picker.tag_mappings.insert_tag) then
-      mappings[self.client.opts.picker.tag_mappings.insert_tag] = {
+    if key_is_set(Obsidian.opts.picker.tag_mappings.insert_tag) then
+      mappings[Obsidian.opts.picker.tag_mappings.insert_tag] = {
         desc = "insert tag",
         callback = function(tag)
           vim.api.nvim_put({ "#" .. tag }, "", false, true)
@@ -477,7 +474,7 @@ Picker._make_display = function(self, entry)
       end
     end
 
-    display = display .. tostring(self.client:vault_relative_path(entry.filename, { strict = true }))
+    display = display .. Path.new(entry.filename):vault_relative_path { strict = true }
 
     if entry.lnum ~= nil then
       display = display .. ":" .. entry.lnum
@@ -508,15 +505,15 @@ end
 ---@return string[]
 Picker._build_find_cmd = function(self)
   local search = require "obsidian.search"
-  local search_opts = { sort_by = self.client.opts.sort_by, sort_reversed = self.client.opts.sort_reversed }
+  local search_opts = { sort_by = Obsidian.opts.sort_by, sort_reversed = Obsidian.opts.sort_reversed }
   return search.build_find_cmd(".", nil, search_opts)
 end
 
 Picker._build_grep_cmd = function(self)
   local search = require "obsidian.search"
   local search_opts = {
-    sort_by = self.client.opts.sort_by,
-    sort_reversed = self.client.opts.sort_reversed,
+    sort_by = Obsidian.opts.sort_by,
+    sort_reversed = Obsidian.opts.sort_reversed,
     smart_case = true,
     fixed_strings = true,
   }

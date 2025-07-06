@@ -2,6 +2,7 @@ local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
 local obsidian = require "obsidian"
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 local LinkStyle = require("obsidian.config").LinkStyle
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
@@ -110,10 +111,10 @@ function NewNoteSourceBase:process_completion(cc)
   -- Check for datetime macros.
   for _, dt_offset in ipairs(util.resolve_date_macro(cc.search)) do
     if dt_offset.cadence == "daily" then
-      note = cc.client:daily(dt_offset.offset, { no_write = true })
+      note = require("obsidian.daily").daily(dt_offset.offset, { no_write = true })
       if not note:exists() then
         new_notes_opts[#new_notes_opts + 1] =
-          { label = dt_offset.macro, note = note, template = cc.client.opts.daily_notes.template }
+          { label = dt_offset.macro, note = note, template = Obsidian.opts.daily_notes.template }
       end
     end
   end
@@ -138,7 +139,7 @@ function NewNoteSourceBase:process_completion(cc)
       error "not implemented"
     end
 
-    local new_text = cc.client:format_link(new_note, { link_style = link_style, anchor = anchor, block = block })
+    local new_text = api.format_link(new_note, { link_style = link_style, anchor = anchor, block = block })
     local documentation = {
       kind = "markdown",
       value = new_note:display_info {
@@ -185,7 +186,7 @@ function NewNoteSourceBase:can_complete_request(cc)
     cc.search = util.lstrip_whitespace(cc.search)
   end
 
-  if not (can_complete and cc.search ~= nil and #cc.search >= cc.client.opts.completion.min_chars) then
+  if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
     cc.completion_resolve_callback(self.incomplete_response)
     return false
   end

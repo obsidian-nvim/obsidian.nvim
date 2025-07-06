@@ -108,7 +108,6 @@ config.Picker = {
 ---@return obsidian.config.ClientOpts
 config.default = {
   legacy_commands = true,
-  dir = nil,
   workspaces = {},
   log_level = vim.log.levels.INFO,
   notes_subdir = nil,
@@ -155,14 +154,14 @@ config.default = {
   ---@field blink? boolean
   ---@field min_chars? integer
   ---@field match_case? boolean
-  ---@field create_files? boolean
+  ---@field create_new? boolean
   completion = (function()
     local has_nvim_cmp, _ = pcall(require, "cmp")
     return {
       nvim_cmp = has_nvim_cmp,
       min_chars = 2,
       match_case = true,
-      create_files = true,
+      create_new = true,
     }
   end)(),
 
@@ -276,16 +275,13 @@ config.default = {
   ---@field img_name_func? fun(): string
   ---
   ---Default text to insert for pasted images
-  ---@field img_text_func? fun(client: obsidian.Client, path: obsidian.Path): string
+  ---@field img_text_func? fun(path: obsidian.Path): string
   ---
   ---Whether to confirm the paste or not. Defaults to true.
   ---@field confirm_img_paste? boolean
   attachments = {
     img_folder = "assets/imgs",
-    img_text_func = function(client, path)
-      path = client:vault_relative_path(path) or path
-      return string.format("![%s](%s)", path.name, require("obsidian.util").urlencode(tostring(path)))
-    end,
+    img_text_func = require("obsidian.builtin").img_text_func,
     img_name_func = function()
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
@@ -520,11 +516,6 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.image_name_func = nil
   end
 
-  if opts.legacy_commands then
-    deprecate("legacy_commands", [[move from commands like `ObsidianBacklinks` to `Obsidian backlinks`]], "4.0")
-    opts.tags = nil
-  end
-
   --------------------------
   -- Merge with defaults. --
   --------------------------
@@ -546,12 +537,31 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   -- Validate. --
   ---------------
 
+  if opts.legacy_commands then
+    deprecate(
+      "legacy_commands",
+      [[move from commands like `ObsidianBacklinks` to `Obsidian backlinks`
+and set `opts.legacy_commands` to false to get rid of this warning.
+see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
+    ]],
+      "4.0"
+    )
+  end
+
   if opts.sort_by ~= nil and not vim.tbl_contains(vim.tbl_values(config.SortBy), opts.sort_by) then
     error("Invalid 'sort_by' option '" .. opts.sort_by .. "' in obsidian.nvim config.")
   end
 
-  if not util.tbl_is_array(opts.workspaces) then
+  if not util.islist(opts.workspaces) then
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
+  elseif vim.tbl_isempty(opts.workspaces) then
+    error "At least one workspace is required!\nPlease specify a workspace "
+  end
+
+  for i, workspace in ipairs(opts.workspaces) do
+    local path = type(workspace.path) == "function" and workspace.path() or workspace.path
+    ---@cast path -function
+    opts.workspaces[i].path = vim.fn.resolve(vim.fs.normalize(path))
   end
 
   -- Convert dir to workspace format.

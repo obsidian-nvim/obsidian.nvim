@@ -60,7 +60,6 @@ user-docs: ## Generate user documentation with panvimdoc
 		--dedup-subheadings false \
 		--shift-heading-level-by -1 \
 		--ignore-rawblocks true \
-		&& mv doc/obsidian.txt /tmp/
 
 .PHONY: api-docs
 api-docs: $(MINIDOC) ## Generate API documentation with mini.doc

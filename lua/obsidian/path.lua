@@ -345,10 +345,12 @@ Path.is_parent_of = function(self, other)
   return false
 end
 
+---@return string?
 ---@private
 Path.abspath = function(self)
-  local abspath = vim.fs.abspath and vim.fs.abspath or vim.fs.realpath
-  return abspath(tostring(self))
+  local path = vim.loop.fs_realpath(vim.fn.resolve(self.filename))
+  ---@cast path string|?
+  return path
 end
 
 -------------------------------------------------------------------------------
@@ -544,6 +546,31 @@ Path.unlink = function(self, opts)
   local ok, err_name, err_msg = vim.uv.fs_unlink(resolved.filename)
   if not ok then
     error(err_name .. ": " .. err_msg)
+  end
+end
+
+--- Make a path relative to the vault root, if possible, return a string
+---
+---@param opts { strict: boolean|? }|?
+---
+---@return string?
+Path.vault_relative_path = function(self, opts)
+  opts = opts or {}
+
+  -- NOTE: we don't try to resolve the `path` here because that would make the path absolute,
+  -- which may result in the wrong relative path if the current working directory is not within
+  -- the vault.
+
+  local ok, relative_path = pcall(function()
+    return self:relative_to(Obsidian.workspace.root)
+  end)
+
+  if ok and relative_path then
+    return tostring(relative_path)
+  elseif not self:is_absolute() then
+    return tostring(self)
+  elseif opts.strict then
+    error(string.format("failed to resolve '%s' relative to vault root '%s'", self, Obsidian.workspace.root))
   end
 end
 

@@ -50,8 +50,7 @@ local function should_return_if_not_in_workspace()
   local current_file_path = vim.api.nvim_buf_get_name(0)
   local buf_dir = vim.fs.dirname(current_file_path)
 
-  local obsidian_client = assert(obsidian.get_client())
-  local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, obsidian_client.opts.workspaces)
+  local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
   if not workspace then
     return true
   else
@@ -91,7 +90,7 @@ local function try_inject_blink_sources_into_per_filetype(blink_sources_per_file
   end
 
   local markdown_config_type = type(markdown_config)
-  if markdown_config_type == "table" and util.tbl_is_array(markdown_config) then
+  if markdown_config_type == "table" and util.islist(markdown_config) then
     for _, provider in pairs(M.providers) do
       add_element_to_list_if_not_exists(markdown_config, provider.name)
     end
@@ -147,7 +146,7 @@ local function try_inject_blink_sources_into_default(blink_sources_default)
     -- Overwrite the original config function with the newly generated one
     require("blink.cmp.config").sources.default = blink_sources_default
     return true
-  elseif blink_default_type == "table" and util.tbl_is_array(blink_sources_default) then
+  elseif blink_default_type == "table" and util.islist(blink_sources_default) then
     for _, provider in pairs(M.providers) do
       add_element_to_list_if_not_exists(blink_sources_default, provider.name)
     end

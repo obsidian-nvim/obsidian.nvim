@@ -4,17 +4,16 @@ local M = {}
 
 --- Get the default Picker.
 ---
----@param client obsidian.Client
 ---@param picker_name obsidian.config.Picker|?
 ---
 ---@return obsidian.Picker|?
-M.get = function(client, picker_name)
-  picker_name = picker_name and picker_name or client.opts.picker.name
+M.get = function(picker_name)
+  picker_name = picker_name and picker_name or Obsidian.opts.picker.name
   if picker_name then
     picker_name = string.lower(picker_name)
   else
     for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do
-      local ok, res = pcall(M.get, client, name)
+      local ok, res = pcall(M.get, name)
       if ok then
         return res
       end
@@ -23,13 +22,13 @@ M.get = function(client, picker_name)
   end
 
   if picker_name == string.lower(PickerName.telescope) then
-    return require("obsidian.pickers._telescope").new(client)
+    return require("obsidian.pickers._telescope").new()
   elseif picker_name == string.lower(PickerName.mini) then
-    return require("obsidian.pickers._mini").new(client)
+    return require("obsidian.pickers._mini").new()
   elseif picker_name == string.lower(PickerName.fzf_lua) then
-    return require("obsidian.pickers._fzf").new(client)
+    return require("obsidian.pickers._fzf").new()
   elseif picker_name == string.lower(PickerName.snacks) then
-    return require("obsidian.pickers._snacks").new(client)
+    return require("obsidian.pickers._snacks").new()
   elseif picker_name then
     error("not implemented for " .. picker_name)
   end

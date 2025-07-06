@@ -60,7 +60,7 @@ jobs:
       - name: Patch plugin docs tag
         run: |
           # Replace the title tag "*obsidian.txt*" with "*obsidian.nvim*"
-          sed -i '1 s/obsidian\.txt/obsidian.nvim/' doc/obsidian.txt
+          sed -i '1 s/obsidian\.txt/obsidian/' doc/obsidian.txt
 
       - name: Clean up
         run: |

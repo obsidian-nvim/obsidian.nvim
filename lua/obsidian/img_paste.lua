@@ -33,10 +33,9 @@ end
 ---
 ---@return boolean
 local function clipboard_is_img()
-  local content = {}
-  for output in assert(io.popen(get_clip_check_command())):lines() do
-    content[#content + 1] = output
-  end
+  local check_cmd = get_clip_check_command()
+  local result_string = vim.fn.system(check_cmd)
+  local content = vim.split(result_string, "\n")
 
   local is_img = false
   -- See: [Data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme)
@@ -74,7 +73,8 @@ local function save_clipboard_image(path)
     if display_server == "x11" or display_server == "tty" then
       cmd = string.format("xclip -selection clipboard -t image/png -o > '%s'", path)
     elseif display_server == "wayland" then
-      cmd = string.format("wl-paste --no-newline --type image/png > '%s'", path)
+      cmd = string.format("wl-paste --no-newline --type image/png > %s", vim.fn.shellescape(path))
+      return run_job { "bash", "-c", cmd }
     end
 
     local result = os.execute(cmd)

@@ -1,14 +1,15 @@
 local api = require "obsidian.api"
 local RefTypes = require("obsidian.search").RefTypes
+local Path = require "obsidian.path"
 
 ---@param client obsidian.Client
 ---@param path? string|obsidian.Path
 local function open_in_app(client, path)
+  local vault_name = vim.fs.basename(tostring(Obsidian.workspace.root))
   if not path then
-    return client.opts.open.func("obsidian://open?vault=" .. vim.uri_encode(client:vault_name()))
+    return Obsidian.opts.open.func("obsidian://open?vault=" .. vim.uri_encode(vault_name))
   end
   path = tostring(path)
-  local vault_name = client:vault_name()
   local this_os = api.get_os()
 
   -- Normalize path for windows.
@@ -20,14 +21,14 @@ local function open_in_app(client, path)
   local encoded_path = vim.uri_encode(path)
 
   local uri
-  if client.opts.open.use_advanced_uri then
+  if Obsidian.opts.open.use_advanced_uri then
     local line = vim.api.nvim_win_get_cursor(0)[1] or 1
     uri = ("obsidian://advanced-uri?vault=%s&filepath=%s&line=%i"):format(encoded_vault, encoded_path, line)
   else
     uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
   end
 
-  client.opts.open.func(uri)
+  Obsidian.opts.open.func(uri)
 end
 
 ---@param client obsidian.Client
@@ -56,7 +57,7 @@ return function(client, data)
   else
     -- Otherwise use the path of the current buffer.
     local bufname = vim.api.nvim_buf_get_name(0)
-    local path = client:vault_relative_path(bufname)
+    local path = Path.new(bufname):vault_relative_path()
     open_in_app(client, path)
   end
 end

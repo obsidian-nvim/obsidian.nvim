@@ -12,7 +12,7 @@ local function gather_tag_picker_list(client, picker, tags)
     local entries = {}
     for _, tag_loc in ipairs(tag_locations) do
       for _, tag in ipairs(tags) do
-        if tag_loc.tag == tag or vim.startswith(tag_loc.tag, tag .. "/") then
+        if tag_loc.tag:lower() == tag:lower() or vim.startswith(tag_loc.tag:lower(), tag:lower() .. "/") then
           local display = string.format("%s [%s] %s", tag_loc.note:display_name(), tag_loc.line, tag_loc.text)
           entries[#entries + 1] = {
             value = { path = tag_loc.path, line = tag_loc.line, col = tag_loc.tag_start },
@@ -50,7 +50,7 @@ end
 ---@param client obsidian.Client
 ---@param data CommandArgs
 return function(client, data)
-  local picker = client:picker()
+  local picker = Obsidian.picker
   if not picker then
     log.err "No picker configured"
     return

@@ -217,7 +217,7 @@ TelescopePicker.find_files = function(self, opts)
   else
     telescope.find_files {
       prompt_title = prompt_title,
-      cwd = opts.dir and tostring(opts.dir) or tostring(self.client.dir),
+      cwd = opts.dir and tostring(opts.dir) or tostring(Obsidian.dir),
       find_command = self:_build_find_cmd(),
       attach_mappings = function(_, map)
         attach_picker_mappings(map, {
@@ -236,7 +236,7 @@ end
 TelescopePicker.grep = function(self, opts)
   opts = opts or {}
 
-  local cwd = opts.dir and Path:new(opts.dir) or self.client.dir
+  local cwd = opts.dir and Path:new(opts.dir) or Obsidian.dir
 
   local prompt_title = self:_build_prompt {
     prompt_title = opts.prompt_title,

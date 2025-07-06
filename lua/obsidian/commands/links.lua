@@ -7,7 +7,7 @@ local channel = require("plenary.async.control").channel
 
 ---@param client obsidian.Client
 return function(client)
-  local picker = client:picker()
+  local picker = Obsidian.picker
   if not picker then
     log.err "No picker configured"
     return
