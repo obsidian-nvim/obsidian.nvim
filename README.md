@@ -105,7 +105,7 @@ There's one entry point user command for this plugin: `Obsidian`
 
 - `:Obsidian quick_switch` to quickly switch to another note in your vault, searching by its name with a picker.
 
-- `:Obsidian rename [NEWNAME] [--dry-run]` to rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault. It is highly recommended to commit the current state of your vault (if you're using version control) before running it, or doing a dry-run first by `:Obsidian rename new-id --dry-run`.
+- `:Obsidian rename [NEWNAME]` to rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault. It will run `:wa` before renaming, and load every note with backlinks into your buffer-list, then you need to do `:wa` after for changes to take effect. Alternatively, call `vim.lsp.buf.rename` or use `grn`.
 
 - `:Obsidian search [QUERY]` to search for (or create) notes in your vault using `ripgrep` with your preferred picker.
 
