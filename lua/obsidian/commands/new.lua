@@ -21,6 +21,6 @@ return function(client, data)
   end
 
   -- Open the note in a new buffer.
-  client:open_note(note, { sync = true })
+  note:open { sync = true }
   note:write_to_buffer()
 end

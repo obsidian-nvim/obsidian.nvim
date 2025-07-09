@@ -2,5 +2,5 @@
 ---@param _ CommandArgs
 return function(client, _)
   local note = require("obsidian.daily").yesterday()
-  client:open_note(note)
+  note:open()
 end

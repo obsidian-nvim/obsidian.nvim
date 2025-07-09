@@ -86,7 +86,7 @@ end
 --- @param path? obsidian.Path
 --- @param alt_id_func? (fun(title: string|?, path: obsidian.Path|?): string)
 ---@return string
-local function new_note_id(title, path, alt_id_func)
+local function generate_id(title, path, alt_id_func)
   if alt_id_func ~= nil then
     local new_id = alt_id_func(title, path)
     if new_id == nil or string.len(new_id) == 0 then
@@ -108,7 +108,8 @@ end
 --- @param id string The note ID
 --- @param dir obsidian.Path The note path
 ---@return obsidian.Path
-local function new_note_path(title, id, dir)
+---@private
+Note._generate_path = function(title, id, dir)
   ---@type obsidian.Path
   local path
 
@@ -137,7 +138,7 @@ end
 --- @param opts obsidian.note.NoteOpts The note creation options
 --- @return obsidian.note.NoteCreationOpts The strategy to use for creating the note
 --- @private
-Note._get_note_creation_opts = function(opts)
+Note._get_creation_opts = function(opts)
   --- @type obsidian.note.NoteCreationOpts
   local default = {
     notes_subdir = Obsidian.opts.notes_subdir,
@@ -174,7 +175,8 @@ end
 ---@param dir string|obsidian.Path|? The directory for the note
 ---@param strategy obsidian.note.NoteCreationOpts Strategy for resolving note path and title
 ---@return string|?,string,obsidian.Path
-local function resolve_title_id_path(title, id, dir, strategy)
+---@private
+Note._resolve_title_id_path = function(title, id, dir, strategy)
   if title then
     title = vim.trim(title)
     if title == "" then
@@ -268,13 +270,13 @@ local function resolve_title_id_path(title, id, dir, strategy)
 
   -- Generate new ID if needed.
   if not id then
-    id = new_note_id(title, base_dir, strategy.note_id_func)
+    id = generate_id(title, base_dir, strategy.note_id_func)
   end
 
   dir = base_dir
 
   -- Generate path.
-  local path = new_note_path(title, id, dir)
+  local path = Note._generate_path(title, id, dir)
 
   return title, id, path
 end
@@ -285,7 +287,7 @@ end
 --- @return obsidian.Note
 Note.create = function(opts)
   local new_title, new_id, path =
-    resolve_title_id_path(opts.title, opts.id, opts.dir, Note._get_note_creation_opts(opts))
+    Note._resolve_title_id_path(opts.title, opts.id, opts.dir, Note._get_creation_opts(opts))
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
   -- Add the title as an alias.
@@ -1200,6 +1202,29 @@ Note.resolve_block = function(self, block_id)
   local n = Note.from_file(self.path, { collect_blocks = true })
   self.blocks = n.blocks
   return self.blocks[block_id]
+end
+
+--- Open a note in a buffer.
+---@param opts { line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|?
+Note.open = function(self, opts)
+  opts = opts or {}
+
+  local path = self.path
+
+  local function open_it()
+    local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
+    ---@cast path obsidian.Path
+    local bufnr = api.open_buffer(path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    if opts.callback then
+      opts.callback(bufnr)
+    end
+  end
+
+  if opts.sync then
+    open_it()
+  else
+    vim.schedule(open_it)
+  end
 end
 
 return Note

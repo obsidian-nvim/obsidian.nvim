@@ -13,7 +13,7 @@ return function(client, data)
     picker:find_notes()
   else
     client:resolve_note_async_with_picker_fallback(data.args, function(note)
-      client:open_note(note)
+      note:open()
     end)
   end
 end

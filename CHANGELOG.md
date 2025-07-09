@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `mappings.lua`, see: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps>
 - Moved `daily` as its own module instead of client method.
 - Refactor the `util` module.
+- Refactor several note functionalities from `Client` into `Note`:
+
+  | Client (old)          | Note (new)              |
+  | --------------------- | ----------------------- |
+  | `write_note`          | `write`                 |
+  | `create_note`         | `create`                |
+  | `open_note`           | `open`                  |
+  | `parse_title_id_path` | `resolve_title_id_path` |
+  | `new_note_id`         | `generate_id`           |
+  | `new_note_path`       | `_generate_path`        |
+
 - Refactor `Client:create_note` → `Note:create` and `Client:write_note` → `Note:write`
 - Use `vim.defaulttable` instead of custom impl.
 - Remove the class `obsdian.CallbackManager`, but callback system is not changed.

@@ -422,6 +422,7 @@ require("obsidian").setup {
     substitutions = {},
 
     -- A map for configuring unique directories and paths for specific templates
+    --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#customizations
     customizations = {},
   },
 

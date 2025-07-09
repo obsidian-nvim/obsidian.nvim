@@ -17,7 +17,7 @@ return function(client, data)
 
   if title ~= nil and template ~= nil then
     local note = Note.create { title = title, template = template, should_write = true }
-    client:open_note(note, { sync = true })
+    note:open { sync = true }
     return
   end
 
@@ -43,7 +43,7 @@ return function(client, data)
 
       ---@type obsidian.Note
       local note = Note.create { title = title, template = template_name, should_write = true }
-      client:open_note(note, { sync = false })
+      note:open { sync = false }
     end,
   }
 end

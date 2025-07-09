@@ -71,7 +71,7 @@ return function(client, data)
     prompt_title = "Dailies",
     callback = function(offset)
       local note = daily.daily(offset, {})
-      client:open_note(note)
+      note:open()
     end,
   })
 end
