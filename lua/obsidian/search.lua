@@ -4,6 +4,7 @@ local iter = vim.iter
 local run_job_async = require("obsidian.async").run_job_async
 local compat = require "obsidian.compat"
 local log = require "obsidian.log"
+local block_on = require("obsidian.async").block_on
 
 local M = {}
 
@@ -636,6 +637,12 @@ M.find_notes_async = function(term, callback, opts)
   end
 
   _search_async(term, opts.search, nil, on_path, on_exit)
+end
+
+M.find_notes = function(term, opts)
+  return block_on(function(cb)
+    return M.find_notes_async(term, cb, { search = opts.search })
+  end, opts.timeout)
 end
 
 ---@param query string
