@@ -1,4 +1,4 @@
-*obsidian*           a plugin for writing and navigating an Obsidian vault
+*obsidian.txt*           a plugin for writing and navigating an Obsidian vault
 
 obsidian.nvim
 A **community fork** of the Neovim plugin for writing and navigating Obsidian
@@ -637,6 +637,11 @@ Click to see configuration options ~
     
       -- See https://github.com/obsidian-nvim/obsidian.nvim/wiki/Notes-on-configuration#statusline-component
       statusline = {
+        enabled = true,
+        format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+      },
+    
+      footer = {
         enabled = true,
         format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
       },
