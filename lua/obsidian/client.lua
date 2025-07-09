@@ -293,6 +293,7 @@ Client.find_notes_async = function(self, term, callback, opts)
   end, function(_) end)
 end
 
+--- TODO: remove after lsp rename is here
 --- Resolve the query to a single note if possible, otherwise all close matches are returned.
 --- The 'query' can be a path, filename, note ID, alias, title, etc.
 ---

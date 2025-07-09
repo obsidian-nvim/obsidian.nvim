@@ -728,36 +728,40 @@ end
 ---
 ---@param query string
 ---@param callback fun(obsidian.Note)
----@param opts { notes: obsidian.note.LoadOpts|?, prompt_title: string|? }|?
+---@param opts { notes: obsidian.note.LoadOpts|?, prompt_title: string|?, pick: boolean }|?
 ---
 ---@return obsidian.Note|?
 M.resolve_note_async = function(query, callback, opts)
   opts = opts or {}
+  opts.pick = vim.F.if_nil(opts.pick, true)
 
   _resolve_note_async(query, function(...)
-    local notes = { ... }
-
-    if #notes == 0 then
-      log.err("No notes matching '%s'", query)
-      return
-    elseif #notes == 1 then
-      return callback(notes[1])
-    end
-
-    -- Fall back to picker.
-    vim.schedule(function()
-      -- Otherwise run the preferred picker to search for notes.
-      local picker = Obsidian.picker
-      if not picker then
-        log.err("Found multiple notes matching '%s', but no picker is configured", query)
+    if opts.pick then
+      local notes = { ... }
+      if #notes == 0 then
+        log.err("No notes matching '%s'", query)
         return
+      elseif #notes == 1 then
+        return callback(notes[1])
       end
 
-      picker:pick_note(notes, {
-        prompt_title = opts.prompt_title,
-        callback = callback,
-      })
-    end)
+      -- Fall back to picker.
+      vim.schedule(function()
+        -- Otherwise run the preferred picker to search for notes.
+        local picker = Obsidian.picker
+        if not picker then
+          log.err("Found multiple notes matching '%s', but no picker is configured", query)
+          return
+        end
+
+        picker:pick_note(notes, {
+          prompt_title = opts.prompt_title,
+          callback = callback,
+        })
+      end)
+    else
+      callback(...)
+    end
   end, { notes = opts.notes })
 end
 
@@ -776,18 +780,13 @@ end
 
 --- Resolve a link. If the link argument is `nil` we attempt to resolve a link under the cursor.
 ---
----@param link string|?
+---@param link string
 ---@param callback fun(...: obsidian.ResolveLinkResult)
 M.resolve_link_async = function(link, callback)
-  local api = require "obsidian.api"
   local Note = require "obsidian.note"
 
   local location, name, link_type
-  if link then
-    location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
-  else
-    location, name, link_type = api.parse_cursor_link { include_naked_urls = true, include_file_urls = true }
-  end
+  location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
 
   if location == nil or name == nil or link_type == nil then
     return callback()
@@ -876,7 +875,7 @@ M.resolve_link_async = function(link, callback)
     end
 
     return callback(unpack(matches))
-  end, { notes = load_opts })
+  end, { notes = load_opts, pick = false })
 end
 
 return M

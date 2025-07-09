@@ -1,7 +1,7 @@
 local api = require "obsidian.api"
-local RefTypes = require("obsidian.search").RefTypes
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
+local log = require "obsidian.log"
 
 ---@param path? string|obsidian.Path
 local function open_in_app(path)
@@ -27,13 +27,13 @@ local function open_in_app(path)
   else
     uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
   end
+  print(uri)
 
   Obsidian.opts.open.func(uri)
 end
 
----@param client obsidian.Client
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   ---@type string|?
   local search_term
 
@@ -41,18 +41,19 @@ return function(client, data)
     search_term = data.args
   else
     -- Check for a note reference under the cursor.
-    local cursor_link, _, ref_type = api.parse_cursor_link()
-    if cursor_link ~= nil and ref_type ~= RefTypes.NakedUrl and ref_type ~= RefTypes.FileUrl then
-      search_term = cursor_link
-    end
+    local link_string, _ = api.cursor_link()
+    search_term = link_string
   end
 
   if search_term then
-    search.resolve_note_async(search_term, function(note)
+    search.resolve_link_async(search_term, function(result)
+      if not result then
+        return log.err "Note under cusros is not resolved"
+      end
       vim.schedule(function()
-        open_in_app(note.path)
+        open_in_app(result.path)
       end)
-    end, { prompt_title = "Select note to open" })
+    end)
   else
     -- Otherwise use the path of the current buffer.
     local bufname = vim.api.nvim_buf_get_name(0)
