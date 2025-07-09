@@ -30,6 +30,7 @@ local config = {}
 ---@field callbacks? obsidian.config.CallbackConfig
 ---@field legacy_commands? boolean
 ---@field statusline? obsidian.config.StatuslineOpts
+---@field footer? obsidian.config.FooterOpts
 ---@field open? obsidian.config.OpenOpts
 ---@field checkbox? obsidian.config.CheckboxOpts
 
@@ -62,6 +63,7 @@ local config = {}
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
+---@field footer obsidian.config.FooterOpts
 ---@field open obsidian.config.OpenOpts
 ---@field checkbox obsidian.config.CheckboxOpts
 
@@ -317,6 +319,15 @@ config.default = {
   ---@field format? string
   ---@field enabled? boolean
   statusline = {
+    format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+    enabled = true,
+  },
+
+  ---@class obsidian.config.FooterOpts
+  ---
+  ---@field format? string
+  ---@field enabled? boolean
+  footer = {
     format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
     enabled = true,
   },
