@@ -8,9 +8,16 @@ local compat = require "obsidian.compat"
 local api = require "obsidian.api"
 local enumerate, zip = util.enumerate, util.zip
 
----@param client obsidian.Client
+local resolve_note = function(query, opts)
+  opts = opts or {}
+  return require("obsidian.async").block_on(function(cb)
+    print(query)
+    return search.resolve_note_async(query, cb, { notes = opts.notes })
+  end, 5000)
+end
+
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   -- Resolve the note to rename.
   ---@type boolean
   local is_current_buf
@@ -19,10 +26,10 @@ return function(client, data)
   ---@type obsidian.Path
   local cur_note_path
   ---@type obsidian.Note
-  local cur_note
+  local cur_note, cur_note_id
 
-  local cur_note_id = util.parse_cursor_link()
-  if cur_note_id == nil then
+  local cur_link = api.cursor_link()
+  if not cur_link then
     -- rename current note
     is_current_buf = true
     cur_note_bufnr = assert(vim.fn.bufnr())
@@ -31,7 +38,8 @@ return function(client, data)
     cur_note_id = tostring(cur_note.id)
   else
     -- rename note under the cursor
-    local notes = { client:resolve_note(cur_note_id) }
+    local link_id = util.parse_link(cur_link)
+    local notes = { resolve_note(link_id) }
     if #notes == 0 then
       log.err("Failed to resolve '%s' to a note", cur_note_id)
       return

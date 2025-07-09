@@ -7,5 +7,9 @@ return function(_, data)
     opts.open_strategy = data.args
   end
 
-  api.follow_link(nil, opts)
+  local link = api.cursor_link()
+
+  if link then
+    api.follow_link(link, opts)
+  end
 end
