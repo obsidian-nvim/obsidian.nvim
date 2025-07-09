@@ -41,10 +41,10 @@ return function(_, data)
     local link_id = util.parse_link(cur_link)
     local notes = { resolve_note(link_id) }
     if #notes == 0 then
-      log.err("Failed to resolve '%s' to a note", cur_note_id)
+      log.err("Failed to resolve '%s' to a note", cur_link)
       return
     elseif #notes > 1 then
-      log.err("Failed to resolve '%s' to a single note, found %d matches", cur_note_id, #notes)
+      log.err("Failed to resolve '%s' to a single note, found %d matches", cur_link, #notes)
       return
     else
       cur_note = notes[1]

@@ -188,41 +188,24 @@ M.format_link = function(note, opts)
   end
 end
 
----Determines if cursor is currently inside markdown link.
----
----@return integer|nil, integer|nil, obsidian.search.RefTypes|? - start and end column of link (1-indexed)
-M.cursor_on_markdown_link = function()
-  local search = require "obsidian.search"
-  local current_line = vim.api.nvim_get_current_line()
-  local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
-  cur_col = cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
-
-  for match in
-    iter(
-      search.find_refs(current_line, { include_naked_urls = true, include_file_urls = true, include_block_ids = true })
-    )
-  do
-    local open, close, m_type = unpack(match)
-    if open <= cur_col and cur_col <= close then
-      return open, close, m_type
-    end
-  end
-
-  return nil
-end
-
 ---Return the full link under cursror
 ---
 ---@return string? link
 ---@return obsidian.search.RefTypes? link_type
 M.cursor_link = function()
-  local current_line = vim.api.nvim_get_current_line()
-  local open, close, link_type = M.cursor_on_markdown_link()
-  if open == nil or close == nil then
-    return
-  end
+  local search = require "obsidian.search"
+  local line = vim.api.nvim_get_current_line()
+  local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
+  cur_col = cur_col + 1 -- 0-indexed column to 1-indexed lua string position
 
-  return current_line:sub(open, close), link_type
+  local refs = search.find_refs(line, { include_naked_urls = true, include_file_urls = true, include_block_ids = true })
+
+  local match = iter(refs):find(function(match)
+    local open, close = unpack(match)
+    return cur_col >= open and cur_col <= close
+  end)
+
+  return line:sub(match[1], match[2]), match[3]
 end
 
 ---Get the tag under the cursor, if there is one.
