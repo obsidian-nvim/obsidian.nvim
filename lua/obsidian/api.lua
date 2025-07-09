@@ -204,8 +204,9 @@ M.cursor_link = function()
     local open, close = unpack(match)
     return cur_col >= open and cur_col <= close
   end)
-
-  return line:sub(match[1], match[2]), match[3]
+  if match then
+    return line:sub(match[1], match[2]), match[3]
+  end
 end
 
 ---Get the tag under the cursor, if there is one.
