@@ -1,9 +1,9 @@
+local search = require "obsidian.search"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 
----@param client obsidian.Client
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   local viz = api.get_visual_selection()
   if not viz then
     log.err "ObsidianLink must be called with visual selection"
@@ -32,7 +32,7 @@ return function(client, data)
     require("obsidian.ui").update(0)
   end
 
-  client:resolve_note_async_with_picker_fallback(search_term, function(note)
+  search.resolve_note_async(search_term, function(note)
     vim.schedule(function()
       insert_ref(note)
     end)

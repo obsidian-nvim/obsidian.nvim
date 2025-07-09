@@ -1,6 +1,7 @@
 local api = require "obsidian.api"
 local RefTypes = require("obsidian.search").RefTypes
 local Path = require "obsidian.path"
+local search = require "obsidian.search"
 
 ---@param path? string|obsidian.Path
 local function open_in_app(path)
@@ -47,8 +48,7 @@ return function(client, data)
   end
 
   if search_term then
-    -- Try to resolve search term to a single note.
-    client:resolve_note_async_with_picker_fallback(search_term, function(note)
+    search.resolve_note_async(search_term, function(note)
       vim.schedule(function()
         open_in_app(note.path)
       end)

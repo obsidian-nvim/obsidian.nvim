@@ -35,7 +35,7 @@ return function(client)
       ---@type obsidian.PickerEntry[]
       local entries = {}
 
-      client:resolve_link_async(link, function(...)
+      search.resolve_link_async(link, function(...)
         for res in iter { ... } do
           local icon, icon_hl
           if res.url ~= nil then
@@ -78,7 +78,7 @@ return function(client)
         picker:pick(entries, {
           prompt_title = "Links",
           callback = function(link)
-            client:follow_link_async(link)
+            api.follow_link(link)
           end,
         })
       end)
