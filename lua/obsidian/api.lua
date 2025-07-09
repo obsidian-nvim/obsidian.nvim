@@ -619,9 +619,7 @@ M.follow_link = function(link, opts)
   local search = require "obsidian.search"
   local Note = require "obsidian.note"
 
-  search.resolve_link_async(link, function(...)
-    local results = { ... }
-
+  search.resolve_link_async(link, function(results)
     if #results == 0 then
       return
     end

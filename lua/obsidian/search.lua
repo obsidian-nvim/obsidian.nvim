@@ -646,7 +646,7 @@ M.find_notes = function(term, opts)
 end
 
 ---@param query string
----@param callback fun(...: obsidian.Note)
+---@param callback fun(results: obsidian.Note[])
 ---@param opts { notes: obsidian.note.LoadOpts|? }|?
 ---
 ---@return obsidian.Note|?
@@ -664,7 +664,7 @@ local _resolve_note_async = function(query, callback, opts)
     ---@type obsidian.Path
     ---@diagnostic disable-next-line: assign-type-mismatch
     local full_path = Obsidian.dir / note_path
-    callback(Note.from_file(full_path, opts.notes))
+    callback { Note.from_file(full_path, opts.notes) }
   end
 
   -- Query might be a path.
@@ -689,7 +689,7 @@ local _resolve_note_async = function(query, callback, opts)
 
   for _, path in pairs(paths_to_check) do
     if path:is_file() then
-      return callback(Note.from_file(path, opts.notes))
+      return callback { Note.from_file(path, opts.notes) }
     end
   end
 
@@ -724,9 +724,9 @@ local _resolve_note_async = function(query, callback, opts)
     end
 
     if #exact_matches > 0 then
-      return callback(unpack(exact_matches))
+      return callback(exact_matches)
     else
-      return callback(unpack(fuzzy_matches))
+      return callback(fuzzy_matches)
     end
   end, { search = { sort = true, ignore_case = true }, notes = opts.notes })
 end
@@ -742,9 +742,8 @@ M.resolve_note_async = function(query, callback, opts)
   opts = opts or {}
   opts.pick = vim.F.if_nil(opts.pick, true)
 
-  _resolve_note_async(query, function(...)
+  _resolve_note_async(query, function(notes)
     if opts.pick then
-      local notes = { ... }
       if #notes == 0 then
         log.err("No notes matching '%s'", query)
         return
@@ -767,7 +766,7 @@ M.resolve_note_async = function(query, callback, opts)
         })
       end)
     else
-      callback(...)
+      callback(notes)
     end
   end, { notes = opts.notes })
 end
@@ -785,10 +784,10 @@ end
 ---@field anchor obsidian.note.HeaderAnchor|?
 ---@field block obsidian.note.Block|?
 
---- Resolve a link. If the link argument is `nil` we attempt to resolve a link under the cursor.
+--- Resolve a link.
 ---
 ---@param link string
----@param callback fun(...: obsidian.ResolveLinkResult)
+---@param callback fun(results: obsidian.ResolveLinkResult[])
 M.resolve_link_async = function(link, callback)
   local Note = require "obsidian.note"
 
@@ -796,7 +795,7 @@ M.resolve_link_async = function(link, callback)
   location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
 
   if location == nil or name == nil or link_type == nil then
-    return callback()
+    return callback {}
   end
 
   ---@type obsidian.ResolveLinkResult
@@ -804,7 +803,7 @@ M.resolve_link_async = function(link, callback)
 
   if util.is_url(location) then
     res.url = location
-    return callback(res)
+    return callback { res }
   end
 
   -- The Obsidian app will follow URL-encoded links, so we should to.
@@ -858,21 +857,19 @@ M.resolve_link_async = function(link, callback)
   if string.len(location) == 0 then
     res.location = vim.api.nvim_buf_get_name(0)
     local note = Note.from_buffer(0, load_opts)
-    return callback(finalize_result(note))
+    return callback { finalize_result(note) }
   end
 
   res.location = location
 
-  M.resolve_note_async(location, function(...)
-    local notes = { ... }
-
+  M.resolve_note_async(location, function(notes)
     if #notes == 0 then
       local path = Path.new(location)
       if path:exists() then
         res.path = path
-        return callback(res)
+        return callback { res }
       else
-        return callback(res)
+        return callback { res }
       end
     end
 
@@ -881,7 +878,7 @@ M.resolve_link_async = function(link, callback)
       table.insert(matches, finalize_result(note))
     end
 
-    return callback(unpack(matches))
+    return callback(matches)
   end, { notes = load_opts, pick = false })
 end
 
