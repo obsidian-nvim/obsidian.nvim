@@ -5,57 +5,29 @@ local ns_id = vim.api.nvim_create_namespace "ObsidianFooter"
 
 --- Register buffer-specific variables
 M.start = function(client)
-  local current_note
-
-  local refresh_footer_text = function(buf)
+  local refresh_info = function(buf)
     local note = api.current_note(buf)
-    if not note then -- no note
-      return ""
-    elseif current_note == note then -- no refresh
+    if not note then
       return
-    else -- refresh
-      current_note = note
     end
-    local format = assert(Obsidian.opts.footer.format)
-    client:find_backlinks_async(
-      note,
-      vim.schedule_wrap(function(backlinks)
-        local wc = vim.fn.wordcount()
-        local info = {
-          words = wc.words,
-          chars = wc.chars,
-          backlinks = #backlinks,
-          properties = vim.tbl_count(note:frontmatter()),
-        }
-        for k, v in pairs(info) do
-          format = format:gsub("{{" .. k .. "}}", v)
-        end
-        vim.b[buf].obsidian_footer_format = format
-      end)
-    )
-    -- FIXME: Return backlinks synchronously on TextChanged events.
-    -- local backlinks = client:find_backlinks(note)
-    -- local wc = vim.fn.wordcount()
-    -- local info = {
-    --   words = wc.words,
-    --   chars = wc.chars,
-    --   backlinks = #backlinks,
-    --   properties = vim.tbl_count(note:frontmatter()),
-    -- }
-    -- for k, v in pairs(info) do
-    --   format = format:gsub("{{" .. k .. "}}", v)
-    -- end
-    -- return format
+    local info = {}
+    local wc = vim.fn.wordcount()
+    info.words = wc.words
+    info.chars = wc.chars
+    info.properties = vim.tbl_count(note:frontmatter())
+    info.backlinks = #client:find_backlinks(note)
+    return info
   end
 
   local function update_obsidian_footer(buf)
-    local footer_text = refresh_footer_text(buf)
-    -- TODO: Remove the redundant vim.wait if we can collect backlinks
-    -- synchronously.
-    vim.wait(100, function()
-      footer_text = vim.b[buf].obsidian_footer_format
-      return footer_text
-    end)
+    local info = refresh_info(buf)
+    if info == nil then
+      return
+    end
+    local footer_text = assert(Obsidian.opts.footer.format)
+    for k, v in pairs(info) do
+      footer_text = footer_text:gsub("{{" .. k .. "}}", v)
+    end
     local row0 = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
     local col0 = 0
     local separator = string.rep("-", 80)
@@ -90,9 +62,9 @@ M.start = function(client)
         group = group,
         desc = "Update obsidian footer",
         buffer = ev.buf,
-        callback = function()
+        callback = vim.schedule_wrap(function()
           update_obsidian_footer(ev.buf)
-        end,
+        end),
       })
       attached_bufs[ev.buf] = id
     end,
