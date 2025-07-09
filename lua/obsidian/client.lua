@@ -635,7 +635,7 @@ Client.follow_link_async = function(self, link, opts)
 
       if res.note ~= nil then
         -- Go to resolved note.
-        return self:open_note(res.note, { line = res.line, col = res.col, open_strategy = opts.open_strategy })
+        return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
       end
 
       if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
@@ -652,12 +652,12 @@ Client.follow_link_async = function(self, link, opts)
           end
 
           local note = Note.create { title = res.name, id = id, aliases = aliases }
-          return self:open_note(note, {
+          return note:open {
             open_strategy = opts.open_strategy,
             callback = function(bufnr)
               note:write_to_buffer { bufnr = bufnr }
             end,
-          })
+          }
         else
           log.warn "Aborted"
           return
