@@ -611,6 +611,11 @@ require("obsidian").setup {
     enabled = true,
     format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
   },
+
+  footer = {
+    enabled = true,
+    format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+  },
 }
 ```
 
