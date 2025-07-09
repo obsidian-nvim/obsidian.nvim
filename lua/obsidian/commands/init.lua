@@ -1,6 +1,7 @@
 local iter = vim.iter
 local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
+local search = require "obsidian.search"
 
 local M = { commands = {} }
 
@@ -154,7 +155,7 @@ M.get_completions = function(client, cmdline)
     local cmd_arg = table.concat(vim.list_slice(splitcmd, 3), " ")
     local complete_type = type(cmdconfig.complete)
     if complete_type == "function" then
-      return cmdconfig.complete(client, cmd_arg)
+      return cmdconfig.complete(cmd_arg)
     end
     if complete_type == "string" then
       return vim.fn.getcompletion(cmd_arg, cmdconfig.complete)
@@ -163,9 +164,8 @@ M.get_completions = function(client, cmdline)
 end
 
 --TODO: Note completion is currently broken (see: https://github.com/epwalsh/obsidian.nvim/issues/753)
----@param client obsidian.Client
 ---@return string[]
-M.note_complete = function(client, cmd_arg)
+M.note_complete = function(cmd_arg)
   local query
   if string.len(cmd_arg) > 0 then
     if string.find(cmd_arg, "|", 1, true) then
@@ -193,7 +193,7 @@ M.note_complete = function(client, cmd_arg)
 
   local completions = {}
   local query_lower = string.lower(query)
-  for note in iter(client:find_notes(query, { search = { sort = true } })) do
+  for note in iter(search.find_notes(query, { search = { sort = true } })) do
     local note_path = assert(note.path:vault_relative_path { strict = true })
     if string.find(string.lower(note:display_name()), query_lower, 1, true) then
       table.insert(completions, note:display_name() .. "  " .. tostring(note_path))

@@ -4,6 +4,7 @@ local LinkStyle = require("obsidian.config").LinkStyle
 local obsidian = require "obsidian"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
+local search = require "obsidian.search"
 local iter = vim.iter
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
@@ -79,7 +80,7 @@ function RefsSourceBase:process_completion(cc)
     local search_ops = cc.client.search_defaults()
     search_ops.ignore_case = true
 
-    cc.client:find_notes_async(cc.search, function(results)
+    search.find_notes_async(cc.search, function(results)
       self:process_search_results(cc, results)
     end, {
       search = search_ops,
