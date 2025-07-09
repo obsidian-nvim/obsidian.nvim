@@ -46,12 +46,12 @@ return function(_, data)
   end
 
   if search_term then
-    search.resolve_link_async(search_term, function(result)
-      if not result then
+    search.resolve_link_async(search_term, function(results)
+      if vim.tbl_isempty(results) then
         return log.err "Note under cusros is not resolved"
       end
       vim.schedule(function()
-        open_in_app(result.path)
+        open_in_app(results[1].path)
       end)
     end)
   else
