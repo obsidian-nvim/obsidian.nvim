@@ -2,6 +2,7 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 local RefTypes = require("obsidian.search").RefTypes
 local api = require "obsidian.api"
+local search = require "obsidian.search"
 
 ---@param client obsidian.Client
 ---@param picker obsidian.Picker
@@ -88,7 +89,7 @@ return function(client)
 
     local opts = { anchor = anchor_link, block = block_link }
 
-    client:resolve_note_async(location, function(...)
+    search.resolve_note_async(location, function(...)
       ---@type obsidian.Note[]
       local notes = { ... }
 
