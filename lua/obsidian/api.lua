@@ -4,6 +4,25 @@ local util = require "obsidian.util"
 local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 
+M.iter_files = function()
+  local dir_opts = {
+    depth = 10,
+    skip = function(dir)
+      return not vim.startswith(dir, ".") and dir ~= vim.fs.basename(tostring(M.templates_dir()))
+    end,
+    follow = true,
+  }
+
+  return vim
+    .iter(vim.fs.dir(tostring(Obsidian.dir), dir_opts))
+    :filter(function(path)
+      return vim.endswith(path, ".md")
+    end)
+    :map(function(path)
+      return vim.fs.joinpath(tostring(Obsidian.dir), path)
+    end)
+end
+
 --- Get the templates folder.
 ---
 ---@return obsidian.Path|?
@@ -306,26 +325,6 @@ M.open_buffer = function(path, opts)
   end
 
   return result_bufnr
-end
-
----Get an iterator of (bufnr, bufname) over all named buffers. The buffer names will be absolute paths.
----
----@return function () -> (integer, string)|?
-M.get_named_buffers = function()
-  local idx = 0
-  local buffers = vim.api.nvim_list_bufs()
-
-  ---@return integer|?
-  ---@return string|?
-  return function()
-    while idx < #buffers do
-      idx = idx + 1
-      local bufnr = buffers[idx]
-      if vim.api.nvim_buf_is_loaded(bufnr) then
-        return bufnr, vim.api.nvim_buf_get_name(bufnr)
-      end
-    end
-  end
 end
 
 ----------------
