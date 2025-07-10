@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use a `Obsidian` global variable to hold the state instead of client.
 - `opts.img_text_func` has an obsidian app compatibility, and only accept one path argument.
 - Moved `client:apply_async` -> `api.dir`
+- Deprecate `statusline` options and `vim.g.obsidian` in favor of `footer` options and `vim.b.obsidian_footer`.
 
 ### Fixed
 
