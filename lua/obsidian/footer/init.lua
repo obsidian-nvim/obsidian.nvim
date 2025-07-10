@@ -38,6 +38,7 @@ M.start = function(client)
     local opts = { virt_lines = footer_chunks }
     vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
     vim.api.nvim_buf_set_extmark(buf, ns_id, row0, col0, opts)
+    vim.b[buf].obsidian_footer = footer_text
   end
 
   local group = vim.api.nvim_create_augroup("obsidian_footer", {})
