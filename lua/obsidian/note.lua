@@ -42,6 +42,10 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 --- A function to update the contents of the note. This takes a list of lines representing the text to be written
 --- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
 ---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
 
 ---@class obsidian.note.NoteWriteOpts
 --- Specify a path to save to. Defaults to `self.path`.
@@ -51,6 +55,10 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 --- A function to update the contents of the note. This takes a list of lines representing the text to be written
 --- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
 ---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
 
 ---@class obsidian.note.HeaderAnchor
 ---
@@ -1018,6 +1026,7 @@ Note.write = function(self, opts)
     insert_frontmatter = self:should_save_frontmatter(),
     frontmatter = frontmatter,
     update_content = opts.update_content,
+    check_buffers = opts.check_buffers,
   }
 
   log.info("%s note '%s' at '%s'", verb, self.id, self.path:vault_relative_path(self.path) or self.path)
@@ -1088,6 +1097,14 @@ Note.save = function(self, opts)
   end
 
   util.write_file(tostring(save_path), table.concat(new_lines, "\n"))
+
+  if opts.check_buffers then
+    -- `vim.fn.bufnr` returns the **max** bufnr loaded from the same path.
+    if vim.fn.bufnr(save_path.filename) ~= -1 then
+      -- But we want to call |checktime| on **all** buffers loaded from the path.
+      vim.cmd.checktime(save_path.filename)
+    end
+  end
 end
 
 --- Write the note to a buffer.
