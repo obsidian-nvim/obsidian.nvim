@@ -32,6 +32,15 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 --- @field should_write boolean|? Don't write the note to disk
 --- @field template string|? The name of the template
 
+---@class obsidian.note.NoteWriteOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- The name of a template to use if the note file doesn't already exist.
+---@field template? string
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+
 ---@class obsidian.note.HeaderAnchor
 ---
 ---@field anchor string
@@ -961,14 +970,7 @@ end
 
 --- Write the note to disk.
 ---
----@param opts { path: string|obsidian.Path, template: string|?, update_content: (fun(lines: string[]): string[])|? }|? Options.
----
---- Options:
----  - `template`: The name of a template to use if the note file doesn't already exist.
----  - `update_content`: A function to update the contents of the note. This takes a list of lines
----    representing the text to be written excluding frontmatter, and returns the lines that will
----    actually be written (again excluding frontmatter).
----
+---@param opts? obsidian.note.NoteWriteOpts
 ---@return obsidian.Note
 Note.write = function(self, opts)
   local Template = require "obsidian.templates"
