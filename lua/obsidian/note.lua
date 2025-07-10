@@ -32,6 +32,17 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 --- @field should_write boolean|? Don't write the note to disk
 --- @field template string|? The name of the template
 
+---@class obsidian.note.NoteSaveOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- Whether to insert/update frontmatter. Defaults to `true`.
+---@field insert_frontmatter? boolean
+--- Override the frontmatter. Defaults to the result of `self:frontmatter()`.
+---@field frontmatter? table
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+
 ---@class obsidian.note.NoteWriteOpts
 --- Specify a path to save to. Defaults to `self.path`.
 ---@field path? string|obsidian.Path
@@ -1018,15 +1029,7 @@ end
 --- In general this only updates the frontmatter and header, leaving the rest of the contents unchanged
 --- unless you use the `update_content()` callback.
 ---
----@param opts { path: string|obsidian.Path|?, insert_frontmatter: boolean|?, frontmatter: table|?, update_content: (fun(lines: string[]): string[])|? }|? Options.
----
---- Options:
----  - `path`: Specify a path to save to. Defaults to `self.path`.
----  - `insert_frontmatter`: Whether to insert/update frontmatter. Defaults to `true`.
----  - `frontmatter`: Override the frontmatter. Defaults to the result of `self:frontmatter()`.
----  - `update_content`: A function to update the contents of the note. This takes a list of lines
----    representing the text to be written excluding frontmatter, and returns the lines that will
----    actually be written (again excluding frontmatter).
+---@param opts? obsidian.note.NoteSaveOpts
 Note.save = function(self, opts)
   opts = opts or {}
 
