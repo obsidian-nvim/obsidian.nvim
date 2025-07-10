@@ -606,7 +606,7 @@ require("obsidian").setup {
     confirm_img_paste = true,
   },
 
-  -- See https://github.com/obsidian-nvim/obsidian.nvim/wiki/Notes-on-configuration#statusline-component
+  ---@deprecated in favor of the footer option below
   statusline = {
     enabled = true,
     format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
