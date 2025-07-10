@@ -100,6 +100,12 @@ obsidian.setup = function(opts)
 
   if opts.statusline.enabled then
     require("obsidian.statusline").start(client)
+    vim.deprecate(
+      "statusline.{enabled,format} and vim.g.obsidian",
+      "footer.{enabled,format} and vim.b.obsidian_footer",
+      "v4.0.0",
+      "obsidian.nvim"
+    )
   end
 
   if opts.footer.enabled then
