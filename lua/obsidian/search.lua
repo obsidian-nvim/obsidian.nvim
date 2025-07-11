@@ -640,6 +640,8 @@ M.find_notes_async = function(term, callback, opts)
 end
 
 M.find_notes = function(term, opts)
+  opts = opts or {}
+  opts.timeout = opts.timeout or 1000
   return block_on(function(cb)
     return M.find_notes_async(term, cb, { search = opts.search })
   end, opts.timeout)
