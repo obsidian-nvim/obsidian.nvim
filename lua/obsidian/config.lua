@@ -327,8 +327,10 @@ config.default = {
   ---
   ---@field format? string
   ---@field enabled? boolean
+  ---@field hl_group? string
   footer = {
     format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+    hl_group = "Comment",
     enabled = true,
   },
 
