@@ -325,7 +325,7 @@ config.default = {
 
   ---@class obsidian.config.FooterOpts
   ---
-  ---@field separator? string
+  ---@field separator? string|false Set false to disable separator; set an empty string to insert a blank line separator.
   ---@field format? string
   ---@field enabled? boolean
   ---@field hl_group? string

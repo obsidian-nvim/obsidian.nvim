@@ -32,9 +32,14 @@ M.start = function(client)
     local col0 = 0
     local separator = Obsidian.opts.footer.separator
     local hl_group = Obsidian.opts.footer.hl_group
-    local footer_separator = { { separator, hl_group } }
     local footer_contents = { { footer_text, hl_group } }
-    local footer_chunks = { footer_separator, footer_contents }
+    local footer_chunks
+    if separator then
+      local footer_separator = { { separator, hl_group } }
+      footer_chunks = { footer_separator, footer_contents }
+    else
+      footer_chunks = { footer_contents }
+    end
     local opts = { virt_lines = footer_chunks }
     vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
     vim.api.nvim_buf_set_extmark(buf, ns_id, row0, col0, opts)
