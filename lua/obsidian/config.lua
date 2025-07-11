@@ -30,6 +30,7 @@ local config = {}
 ---@field callbacks? obsidian.config.CallbackConfig
 ---@field legacy_commands? boolean
 ---@field statusline? obsidian.config.StatuslineOpts
+---@field footer? obsidian.config.FooterOpts
 ---@field open? obsidian.config.OpenOpts
 ---@field checkbox? obsidian.config.CheckboxOpts
 
@@ -62,6 +63,7 @@ local config = {}
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
+---@field footer obsidian.config.FooterOpts
 ---@field open obsidian.config.OpenOpts
 ---@field checkbox obsidian.config.CheckboxOpts
 
@@ -321,6 +323,19 @@ config.default = {
     enabled = true,
   },
 
+  ---@class obsidian.config.FooterOpts
+  ---
+  ---@field enabled? boolean
+  ---@field format? string
+  ---@field hl_group? string
+  ---@field separator? string|false Set false to disable separator; set an empty string to insert a blank line separator.
+  footer = {
+    enabled = true,
+    format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+    hl_group = "Comment",
+    separator = string.rep("-", 80),
+  },
+
   ---@class obsidian.config.OpenOpts
   ---
   ---Opens the file with current line number
@@ -526,6 +541,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
   opts.statusline = tbl_override(defaults.statusline, opts.statusline)
+  opts.footer = tbl_override(defaults.footer, opts.footer)
   opts.open = tbl_override(defaults.open, opts.open)
 
   ---------------
