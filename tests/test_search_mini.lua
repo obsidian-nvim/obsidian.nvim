@@ -1,4 +1,5 @@
 local M = require "obsidian.search"
+local h = dofile "tests/helpers.lua"
 
 local RefTypes, SearchOpts = M.RefTypes, M.SearchOpts
 
