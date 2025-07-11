@@ -325,10 +325,12 @@ config.default = {
 
   ---@class obsidian.config.FooterOpts
   ---
+  ---@field separator? string
   ---@field format? string
   ---@field enabled? boolean
   ---@field hl_group? string
   footer = {
+    separator = string.rep("-", 80),
     format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
     hl_group = "Comment",
     enabled = true,
@@ -539,6 +541,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
   opts.statusline = tbl_override(defaults.statusline, opts.statusline)
+  opts.footer = tbl_override(defaults.footer, opts.footer)
   opts.open = tbl_override(defaults.open, opts.open)
 
   ---------------

@@ -30,7 +30,7 @@ M.start = function(client)
     end
     local row0 = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
     local col0 = 0
-    local separator = string.rep("-", 80)
+    local separator = Obsidian.opts.footer.separator
     local hl_group = Obsidian.opts.footer.hl_group
     local footer_separator = { { separator, hl_group } }
     local footer_contents = { { footer_text, hl_group } }
