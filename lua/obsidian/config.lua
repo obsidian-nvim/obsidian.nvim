@@ -325,15 +325,15 @@ config.default = {
 
   ---@class obsidian.config.FooterOpts
   ---
-  ---@field separator? string|false Set false to disable separator; set an empty string to insert a blank line separator.
-  ---@field format? string
   ---@field enabled? boolean
+  ---@field format? string
   ---@field hl_group? string
+  ---@field separator? string|false Set false to disable separator; set an empty string to insert a blank line separator.
   footer = {
-    separator = string.rep("-", 80),
+    enabled = true,
     format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
     hl_group = "Comment",
-    enabled = true,
+    separator = string.rep("-", 80),
   },
 
   ---@class obsidian.config.OpenOpts
