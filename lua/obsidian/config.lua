@@ -314,7 +314,6 @@ config.default = {
   ---@field post_set_workspace? fun(client: obsidian.Client, workspace: obsidian.Workspace)
   callbacks = {},
 
-  ---@deprecated
   ---@class obsidian.config.StatuslineOpts
   ---
   ---@field format? string
