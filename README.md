@@ -612,9 +612,17 @@ require("obsidian").setup {
     format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
   },
 
+  ---@class obsidian.config.FooterOpts
+  ---
+  ---@field enabled? boolean
+  ---@field format? string
+  ---@field hl_group? string
+  ---@field separator? string|false Set false to disable separator; set an empty string to insert a blank line separator.
   footer = {
     enabled = true,
-    format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+    format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+    hl_group = "Comment",
+    separator = string.rep("-", 80),
   },
 }
 ```
