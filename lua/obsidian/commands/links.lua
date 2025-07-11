@@ -5,8 +5,7 @@ local iter = vim.iter
 local api = require "obsidian.api"
 local channel = require("plenary.async.control").channel
 
----@param client obsidian.Client
-return function(client)
+return function()
   local picker = Obsidian.picker
   if not picker then
     log.err "No picker configured"
@@ -35,7 +34,7 @@ return function(client)
       ---@type obsidian.PickerEntry[]
       local entries = {}
 
-      client:resolve_link_async(link, function(...)
+      search.resolve_link_async(link, function(...)
         for res in iter { ... } do
           local icon, icon_hl
           if res.url ~= nil then
@@ -78,7 +77,7 @@ return function(client)
         picker:pick(entries, {
           prompt_title = "Links",
           callback = function(link)
-            client:follow_link_async(link)
+            api.follow_link(link)
           end,
         })
       end)

@@ -188,63 +188,25 @@ M.format_link = function(note, opts)
   end
 end
 
----Determines if cursor is currently inside markdown link.
+---Return the full link under cursror
 ---
----@param line string|nil - line to check or current line if nil
----@param col  integer|nil - column to check or current column if nil (1-indexed)
----@param include_naked_urls boolean|?
----@param include_file_urls boolean|?
----@param include_block_ids boolean|?
----@return integer|nil, integer|nil, obsidian.search.RefTypes|? - start and end column of link (1-indexed)
-M.cursor_on_markdown_link = function(line, col, include_naked_urls, include_file_urls, include_block_ids)
+---@return string? link
+---@return obsidian.search.RefTypes? link_type
+M.cursor_link = function()
   local search = require "obsidian.search"
-  local current_line = line or vim.api.nvim_get_current_line()
+  local line = vim.api.nvim_get_current_line()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
-  cur_col = col or cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
+  cur_col = cur_col + 1 -- 0-indexed column to 1-indexed lua string position
 
-  for match in
-    iter(search.find_refs(current_line, {
-      include_naked_urls = include_naked_urls,
-      include_file_urls = include_file_urls,
-      include_block_ids = include_block_ids,
-    }))
-  do
-    local open, close, m_type = unpack(match)
-    if open <= cur_col and cur_col <= close then
-      return open, close, m_type
-    end
+  local refs = search.find_refs(line, { include_naked_urls = true, include_file_urls = true, include_block_ids = true })
+
+  local match = iter(refs):find(function(match)
+    local open, close = unpack(match)
+    return cur_col >= open and cur_col <= close
+  end)
+  if match then
+    return line:sub(match[1], match[2]), match[3]
   end
-
-  return nil
-end
-
---- Get the link location and name of the link under the cursor, if there is one.
----
----@param opts { line: string|?, col: integer|?, include_naked_urls: boolean|?, include_file_urls: boolean|?, include_block_ids: boolean|? }|?
----
----@return string|?, string|?, obsidian.search.RefTypes|?
-M.parse_cursor_link = function(opts)
-  opts = opts or {}
-
-  local current_line = opts.line and opts.line or vim.api.nvim_get_current_line()
-  local open, close, link_type = M.cursor_on_markdown_link(
-    current_line,
-    opts.col,
-    opts.include_naked_urls,
-    opts.include_file_urls,
-    opts.include_block_ids
-  )
-  if open == nil or close == nil then
-    return
-  end
-
-  local link = current_line:sub(open, close)
-  return util.parse_link(link, {
-    link_type = link_type,
-    include_naked_urls = opts.include_naked_urls,
-    include_file_urls = opts.include_file_urls,
-    include_block_ids = opts.include_block_ids,
-  })
 end
 
 ---Get the tag under the cursor, if there is one.
@@ -647,6 +609,106 @@ end
 ---@return string
 M.resolve_image_path = function(src)
   return vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.img_folder, src)
+end
+
+--- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
+---
+---@param link string
+---@param opts { open_strategy: obsidian.config.OpenStrategy|? }|?
+M.follow_link = function(link, opts)
+  opts = opts and opts or {}
+  local search = require "obsidian.search"
+  local Note = require "obsidian.note"
+
+  search.resolve_link_async(link, function(results)
+    if #results == 0 then
+      return
+    end
+
+    ---@param res obsidian.ResolveLinkResult
+    local function follow_link(res)
+      if res.url ~= nil then
+        Obsidian.opts.follow_url_func(res.url)
+        return
+      end
+
+      if util.is_img(res.location) then
+        local path = Obsidian.dir / res.location
+        Obsidian.opts.follow_img_func(tostring(path))
+        return
+      end
+
+      if res.note ~= nil then
+        -- Go to resolved note.
+        return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
+      end
+
+      if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
+        -- Prompt to create a new note.
+        if M.confirm("Create new note '" .. res.location .. "'?") then
+          -- Create a new note.
+          ---@type string|?, string[]
+          local id, aliases
+          if res.name == res.location then
+            aliases = {}
+          else
+            aliases = { res.name }
+            id = res.location
+          end
+
+          local note = Note.create { title = res.name, id = id, aliases = aliases }
+          return note:open {
+            open_strategy = opts.open_strategy,
+            callback = function(bufnr)
+              note:write_to_buffer { bufnr = bufnr }
+            end,
+          }
+        else
+          log.warn "Aborted"
+          return
+        end
+      end
+
+      return log.err("Failed to resolve file '" .. res.location .. "'")
+    end
+
+    if #results == 1 then
+      return vim.schedule(function()
+        follow_link(results[1])
+      end)
+    else
+      return vim.schedule(function()
+        local picker = Obsidian.picker
+        if not picker then
+          log.err("Found multiple matches to '%s', but no picker is configured", link)
+          return
+        end
+
+        ---@type obsidian.PickerEntry[]
+        local entries = {}
+        for _, res in ipairs(results) do
+          local icon, icon_hl
+          if res.url ~= nil then
+            icon, icon_hl = M.get_icon(res.url)
+          end
+          table.insert(entries, {
+            value = res,
+            display = res.name,
+            filename = res.path and tostring(res.path) or nil,
+            icon = icon,
+            icon_hl = icon_hl,
+          })
+        end
+
+        picker:pick(entries, {
+          prompt_title = "Follow link",
+          callback = function(res)
+            follow_link(res)
+          end,
+        })
+      end)
+    end
+  end)
 end
 
 return M
