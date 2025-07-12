@@ -2,6 +2,7 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
+local etlua = require "obsidian.lib.etlua"
 
 local M = {}
 
@@ -165,29 +166,33 @@ M.insert_template = function(ctx)
 
   local insert_lines = {}
   local template_file = io.open(tostring(template_path), "r")
-  if template_file then
-    local lines = template_file:lines()
-    for line in lines do
-      local new_lines = M.substitute_template_variables(line, ctx)
-      if string.find(new_lines, "[\r\n]") then
-        local line_start = 1
-        for line_end in util.gfind(new_lines, "[\r\n]") do
-          local new_line = string.sub(new_lines, line_start, line_end - 1)
-          table.insert(insert_lines, new_line)
-          line_start = line_end + 1
-        end
-        local last_line = string.sub(new_lines, line_start)
-        if string.len(last_line) > 0 then
-          table.insert(insert_lines, last_line)
-        end
-      else
-        table.insert(insert_lines, new_lines)
-      end
-    end
-    template_file:close()
-  else
-    error(string.format("Template file '%s' not found", template_path))
-  end
+  assert(template_file, string.format("Template file '%s' not found", template_path))
+
+  local str = template_file:read "*a"
+  template_file:close()
+  local template = vim.F.npcall(etlua.compile, str)
+  assert(template, "failed to compile template")
+  local compiled = vim.F.npcall(template, {
+    tp = {
+      date = {
+        today = os.date,
+      },
+      file = setmetatable({}, {
+        __index = function(_, k)
+          if k == "title" then
+            return api.current_note(0).title
+          elseif k == "tags" then
+            return api.current_note(0).tags
+          end
+        end,
+      }),
+    },
+  })
+
+  assert(template, "failed to run template")
+
+  ---@diagnostic disable-next-line: param-type-mismatch
+  insert_lines = vim.split(compiled, "\n")
 
   vim.api.nvim_buf_set_lines(buf, row - 1, row - 1, false, insert_lines)
   local new_cursor_row, _ = unpack(vim.api.nvim_win_get_cursor(win))
