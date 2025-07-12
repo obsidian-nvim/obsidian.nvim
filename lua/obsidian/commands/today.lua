@@ -1,8 +1,7 @@
 local log = require "obsidian.log"
 
----@param client obsidian.Client
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   local offset_days = 0
   local arg = string.gsub(data.args, " ", "")
   if string.len(arg) > 0 then
@@ -15,5 +14,5 @@ return function(client, data)
     end
   end
   local note = require("obsidian.daily").daily(offset_days, {})
-  client:open_note(note)
+  note:open()
 end

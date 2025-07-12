@@ -5,7 +5,7 @@
 local obsidian = require "obsidian"
 
 -- Test note.new():
-local n1 = obsidian.Note.new("FOO", { "foo", "foos" }, { "bar" })
+local n1 = obsidian.Note.new { id = "FOO", aliases = { "foo", tags = "foos" }, path = { "bar" } }
 assert(n1.id == "FOO")
 assert(n1.aliases[1] == "foo")
 

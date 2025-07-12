@@ -51,17 +51,6 @@ Return ~
 `(obsidian.Client)`
 
 ------------------------------------------------------------------------------
-                                     *obsidian.Client.should_save_frontmatter()*
-                `Client.should_save_frontmatter`({self}, {note})
-Determines whether a note's frontmatter is managed by obsidian.nvim.
-
-Parameters ~
-{note} `(obsidian.Note)`
-
-Return ~
-`(boolean)`
-
-------------------------------------------------------------------------------
                                              *obsidian.Client.search_defaults()*
                            `Client.search_defaults`()
 Get the default search options.
@@ -188,15 +177,6 @@ Parameters ~
 {opts} `({ open_strategy: obsidian.config.OpenStrategy|? }|)`?
 
 ------------------------------------------------------------------------------
-                                                   *obsidian.Client.open_note()*
-               `Client.open_note`({self}, {note_or_path}, {opts})
-Open a note in a buffer.
-
-Parameters ~
-{note_or_path} `(string|obsidian.Path|obsidian.Note)`
-{opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
-
-------------------------------------------------------------------------------
 Class ~
 {obsidian.TagLocation}
 
@@ -293,150 +273,22 @@ Parameters ~
 {callback} `(fun(tags: string[]))`
 
 ------------------------------------------------------------------------------
-                                                 *obsidian.Client.apply_async()*
-                `Client.apply_async`({self}, {on_note}, {opts})
-Apply a function over all notes in the current vault.
-
-Parameters ~
-{on_note} `(fun(note: obsidian.Note))`
-{opts} `({ on_done: fun()|?, timeout: integer|?, pattern: string|? }|)`?
-
-Options:
- - `on_done`: A function to call when all notes have been processed.
- - `timeout`: An optional timeout.
- - `pattern`: A Lua search pattern. Defaults to ".*%.md".
+@class obsidian.note.NoteCreationOpts
+@field notes_subdir string
+@field note_id_func fun()
+@field new_notes_location string
 
 ------------------------------------------------------------------------------
-                                             *obsidian.Client.apply_async_raw()*
-              `Client.apply_async_raw`({self}, {on_path}, {opts})
-Like apply, but the callback takes a path instead of a note instance.
-
-Parameters ~
-{on_path} `(fun(path: string))`
-{opts} `({ on_done: fun()|?, timeout: integer|?, pattern: string|? }|)`?
-
-Options:
- - `on_done`: A function to call when all paths have been processed.
-
-------------------------------------------------------------------------------
-                                                 *obsidian.Client.new_note_id()*
-                     `Client.new_note_id`({self}, {title})
-Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
-otherwise falls back to generated a Zettelkasten style ID.
-
-Parameters ~
-{title} `(string|)`?
-
-Return ~
-`(string)`
-
-------------------------------------------------------------------------------
-                                               *obsidian.Client.new_note_path()*
-                     `Client.new_note_path`({self}, {spec})
-Generate the file path for a new note given its ID, parent directory, and title.
-This respects the user's `note_path_func` if configured, otherwise essentially falls back to
-`spec.dir / (spec.id .. ".md")`.
-
-Parameters ~
-{spec} `({ id: string, dir: obsidian.Path, title: string|? })`
-
-Return ~
-`(obsidian.Path)`
-
-------------------------------------------------------------------------------
-                                         *obsidian.Client.parse_title_id_path()*
-           `Client.parse_title_id_path`({self}, {title}, {id}, {dir})
-Parse the title, ID, and path for a new note.
-
-Parameters ~
-{title} `(string|)`?
-{id} `(string|)`?
-{dir} `(string|obsidian.Path|)`?
-
-Return ~
-`(string| `(optional))``,string,obsidian.Path
-
-------------------------------------------------------------------------------
-Class ~
-{obsidian.CreateNoteOpts}
-
-Fields ~
-{title} `(string|)`?
-{id} `(string|)`?
-{dir} `(string|obsidian.Path|)`?
-{aliases} `(string[]|)`?
-{tags} `(string[]|)`?
-{no_write} `(boolean|)`?
-{template} `(string|)`?
-
-------------------------------------------------------------------------------
-                                                 *obsidian.Client.create_note()*
-                      `Client.create_note`({self}, {opts})
-Create a new note with the following options.
-
-Parameters ~
-{opts} `(obsidian.CreateNoteOpts|? Options.)`
-
-Options:
- - `title`: A title to assign the note.
- - `id`: An ID to assign the note. If not specified one will be generated.
- - `dir`: An optional directory to place the note in. Relative paths will be interpreted
-   relative to the workspace / vault root. If the directory doesn't exist it will be created,
-   regardless of the value of the `no_write` option.
- - `aliases`: Additional aliases to assign to the note.
- - `tags`: Additional tags to assign to the note.
- - `no_write`: Don't write the note to disk.
- - `template`: The name of a template to apply when writing the note to disk.
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                                  *obsidian.Client.write_note()*
-                  `Client.write_note`({self}, {note}, {opts})
-Write the note to disk.
-
-Parameters ~
-{note} `(obsidian.Note)`
-{opts} `({ path: string|obsidian.Path, template: string|?, update_content: (fun(lines: string[]): string[])|? }|? Options.)`
-
-Options:
- - `path`: Override the path to write to.
- - `template`: The name of a template to use if the note file doesn't already exist.
- - `update_content`: A function to update the contents of the note. This takes a list of lines
-   representing the text to be written excluding frontmatter, and returns the lines that will
-   actually be written (again excluding frontmatter).
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                        *obsidian.Client.write_note_to_buffer()*
-             `Client.write_note_to_buffer`({self}, {note}, {opts})
-Write the note to a buffer.
-
-Parameters ~
-{note} `(obsidian.Note)`
-{opts} `({ bufnr: integer|?, template: string|? }|? Options.)`
-
-Options:
- - `bufnr`: Override the buffer to write to. Defaults to current buffer.
- - `template`: The name of a template to use if the buffer is empty.
-
-Return ~
-`(boolean)` updated If the buffer was updated.
-
-------------------------------------------------------------------------------
-                                          *obsidian.Client.update_frontmatter()*
-              `Client.update_frontmatter`({self}, {note}, {bufnr})
-Update the frontmatter in a buffer for the note.
-
-Parameters ~
-{note} `(obsidian.Note)`
-{bufnr} `(integer|)`?
-
-Return ~
-`(boolean)` updated If the the frontmatter was updated.
+@class obsidian.note.NoteOpts
+@field title string|? The note's title
+@field id string|? An ID to assign the note. If not specified one will be generated.
+@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
+relative to the workspace / vault root. If the directory doesn't exist it will
+be created, regardless of the value of the `should_write` option.
+@field aliases string[]|? Aliases for the note
+@field tags string[]|?  Tags for this note
+@field should_write boolean|? Don't write the note to disk
+@field template string|? The name of the template
 
 ------------------------------------------------------------------------------
 Class ~
@@ -467,7 +319,7 @@ Class ~
 {obsidian.Note} : obsidian.ABC
 
 Fields ~
-{id} `(string|integer)`
+{id} `(string)`
 {aliases} `(string[])`
 {title} `(string|)`?
 {tags} `(string[])`
@@ -482,20 +334,45 @@ Fields ~
 {bufnr} `(integer|)`?
 
 ------------------------------------------------------------------------------
+                                                        *obsidian.generate_id()*
+                 `generate_id`({title}, {path}, {alt_id_func})
+Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
+otherwise falls back to generated a Zettelkasten style ID.
+
+@param title? string
+@param path? obsidian.Path
+@param alt_id_func? (fun(title: string|?, path: obsidian.Path|?): string)
+Return ~
+`(string)`
+
+------------------------------------------------------------------------------
+                                            *obsidian.Note._get_creation_opts()*
+                       `Note._get_creation_opts`({opts})
+Selects the strategy to use when resolving the note title, id, and path
+@param opts obsidian.note.NoteOpts The note creation options
+@return obsidian.note.NoteCreationOpts The strategy to use for creating the note
+@private
+
+------------------------------------------------------------------------------
+                                                        *obsidian.Note.create()*
+                             `Note.create`({opts})
+Creates a new note
+
+@param opts obsidian.note.NoteOpts Options
+@return obsidian.Note
+
+------------------------------------------------------------------------------
                                                            *obsidian.Note.new()*
                   `Note.new`({id}, {aliases}, {tags}, {path})
-Create new note object.
+Instantiates a new Note object
 
 Keep in mind that you have to call `note:save(...)` to create/update the note on disk.
 
-Parameters ~
-{id} `(string|number)`
-{aliases} `(string[])`
-{tags} `(string[])`
-{path} `(string|obsidian.Path|)`?
-
-Return ~
-`(obsidian.Note)`
+@param id string|number
+@param aliases string[]
+@param tags string[]
+@param path string|obsidian.Path|?
+@return obsidian.Note
 
 ------------------------------------------------------------------------------
                                                   *obsidian.Note.display_info()*
@@ -698,6 +575,51 @@ Return ~
 `(string[])`
 
 ------------------------------------------------------------------------------
+                                            *obsidian.Note.update_frontmatter()*
+                   `Note.update_frontmatter`({self}, {bufnr})
+Update the frontmatter in a buffer for the note.
+
+Parameters ~
+{bufnr} `(integer|)`?
+
+Return ~
+`(boolean)` updated If the the frontmatter was updated.
+
+------------------------------------------------------------------------------
+                                        *obsidian.is_in_frontmatter_blacklist()*
+                     `is_in_frontmatter_blacklist`({note})
+Checks if the parameter note is in the blacklist of files which shouldn't have
+frontmatter applied
+
+@param note obsidian.Note The note
+@return boolean true if so
+
+------------------------------------------------------------------------------
+                                       *obsidian.Note.should_save_frontmatter()*
+                     `Note.should_save_frontmatter`({self})
+Determines whether a note's frontmatter is managed by obsidian.nvim.
+
+Return ~
+`(boolean)`
+
+------------------------------------------------------------------------------
+                                                         *obsidian.Note.write()*
+                          `Note.write`({self}, {opts})
+Write the note to disk.
+
+Parameters ~
+{opts} `({ path: string|obsidian.Path, template: string|?, update_content: (fun(lines: string[]): string[])|? }|? Options.)`
+
+Options:
+ - `template`: The name of a template to use if the note file doesn't already exist.
+ - `update_content`: A function to update the contents of the note. This takes a list of lines
+   representing the text to be written excluding frontmatter, and returns the lines that will
+   actually be written (again excluding frontmatter).
+
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
                                                           *obsidian.Note.save()*
                           `Note.save`({self}, {opts})
 Save the note to a file.
@@ -716,9 +638,24 @@ Options:
    actually be written (again excluding frontmatter).
 
 ------------------------------------------------------------------------------
+                                               *obsidian.Note.write_to_buffer()*
+                     `Note.write_to_buffer`({self}, {opts})
+Write the note to a buffer.
+
+Parameters ~
+{opts} `({ bufnr: integer|?, template: string|? }|? Options.)`
+
+Options:
+ - `bufnr`: Override the buffer to write to. Defaults to current buffer.
+ - `template`: The name of a template to use if the buffer is empty.
+
+Return ~
+`(boolean)` updated If the buffer was updated.
+
+------------------------------------------------------------------------------
                                                 *obsidian.Note.save_to_buffer()*
                      `Note.save_to_buffer`({self}, {opts})
-Save frontmatter to the given buffer.
+Save the note to the buffer
 
 Parameters ~
 {opts} `({ bufnr: integer|?, insert_frontmatter: boolean|?, frontmatter: table|? }|? Options.)`
@@ -746,6 +683,13 @@ Parameters ~
 
 Return ~
 `(obsidian.note.Block| `(optional))``
+
+------------------------------------------------------------------------------
+                                                          *obsidian.Note.open()*
+                          `Note.open`({self}, {opts})
+Open a note in a buffer.
+Parameters ~
+{opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
 
 ------------------------------------------------------------------------------
 Class ~

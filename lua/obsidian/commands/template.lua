@@ -2,9 +2,8 @@ local templates = require "obsidian.templates"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 
----@param client obsidian.Client
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   local templates_dir = api.templates_dir()
   if not templates_dir then
     log.err "Templates folder is not defined or does not exist"

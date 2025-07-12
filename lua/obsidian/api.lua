@@ -4,6 +4,28 @@ local util = require "obsidian.util"
 local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 
+---@param dir string | obsidian.Path
+---@return Iter
+M.dir = function(dir)
+  dir = tostring(dir)
+  local dir_opts = {
+    depth = 10,
+    skip = function(p)
+      return not vim.startswith(p, ".") and p ~= vim.fs.basename(tostring(M.templates_dir()))
+    end,
+    follow = true,
+  }
+
+  return vim
+    .iter(vim.fs.dir(dir, dir_opts))
+    :filter(function(path)
+      return vim.endswith(path, ".md")
+    end)
+    :map(function(path)
+      return vim.fs.joinpath(dir, path)
+    end)
+end
+
 --- Get the templates folder.
 ---
 ---@return obsidian.Path|?

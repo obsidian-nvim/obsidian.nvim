@@ -1,9 +1,9 @@
-local api = require "obsidian.api"
 local log = require "obsidian.log"
+local util = require "obsidian.util"
+local Note = require "obsidian.note"
 
----@param client obsidian.Client
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   local picker = Obsidian.picker
   if not picker then
     log.err "No picker configured"
@@ -15,30 +15,34 @@ return function(client, data)
   local template = data.fargs[#data.fargs]
 
   if title ~= nil and template ~= nil then
-    local note = client:create_note { title = title, template = template, no_write = false }
-    client:open_note(note, { sync = true })
+    local note = Note.create { title = title, template = template, should_write = true }
+    note:open { sync = true }
     return
   end
 
-  if title == nil or title == "" then
-    title = api.input("Enter title or path (optional): ", { completion = "file" })
-    if not title then
-      log.warn "Aborted"
-      return
-    elseif title == "" then
-      title = nil
-    end
-  end
-
   picker:find_templates {
-    callback = function(name)
-      if name == nil or name == "" then
+    callback = function(template_name)
+      if title == nil or title == "" then
+        -- Must use pcall in case of KeyboardInterrupt
+        -- We cannot place `title` where `safe_title` is because it would be redeclaring it
+        local success, safe_title = pcall(util.input, "Enter title or path (optional): ", { completion = "file" })
+        title = safe_title
+        if not success or not safe_title then
+          log.warn "Aborted"
+          return
+        elseif safe_title == "" then
+          title = nil
+        end
+      end
+
+      if template_name == nil or template_name == "" then
         log.warn "Aborted"
         return
       end
+
       ---@type obsidian.Note
-      local note = client:create_note { title = title, template = name, no_write = false }
-      client:open_note(note, { sync = false })
+      local note = Note.create { title = title, template = template_name, should_write = true }
+      note:open { sync = false }
     end,
   }
 end

@@ -47,7 +47,6 @@ end
 ---
 ---@return obsidian.Note
 ---
----@private
 local _daily = function(datetime, opts)
   opts = opts or {}
 
@@ -66,7 +65,12 @@ local _daily = function(datetime, opts)
   if path:exists() then
     note = Note.from_file(path, opts.load)
   else
-    note = Note.new(id, {}, options.daily_notes.default_tags or {}, path)
+    note = Note.create {
+      id = id,
+      aliases = {},
+      tags = options.daily_notes.default_tags or {},
+      dir = options.daily_notes.folder,
+    }
 
     if alias then
       note:add_alias(alias)
@@ -74,7 +78,7 @@ local _daily = function(datetime, opts)
     end
 
     if not opts.no_write then
-      require("obsidian").get_client():write_note(note, { template = options.daily_notes.template })
+      note:write { template = options.daily_notes.template }
     end
   end
 

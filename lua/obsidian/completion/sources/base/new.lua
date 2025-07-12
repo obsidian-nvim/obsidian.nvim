@@ -103,7 +103,7 @@ function NewNoteSourceBase:process_completion(cc)
   ---@type { label: string, note: obsidian.Note, template: string|? }[]
   local new_notes_opts = {}
 
-  local note = cc.client:create_note { title = cc.search, no_write = true }
+  local note = Note.create { title = cc.search }
   if note.title and string.len(note.title) > 0 then
     new_notes_opts[#new_notes_opts + 1] = { label = cc.search, note = note }
   end
@@ -197,7 +197,6 @@ end
 ---@param item any
 ---@return table|? callback_return_value
 function NewNoteSourceBase:process_execute(item)
-  local client = assert(obsidian.get_client())
   local data = item.data
 
   if data == nil then
@@ -211,7 +210,7 @@ function NewNoteSourceBase:process_execute(item)
     data.note.path = setmetatable(data.note.path, Path.mt)
   end
 
-  client:write_note(data.note, { template = data.template })
+  data.note:write { template = data.template }
   return {}
 end
 

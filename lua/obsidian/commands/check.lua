@@ -1,43 +1,16 @@
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
+local api = require "obsidian.api"
 local iter = vim.iter
 
----@param client obsidian.Client
----@param _ CommandArgs
-return function(client, _)
+return function()
   local start_time = vim.uv.hrtime()
   local count = 0
   local errors = {}
   local warnings = {}
-  local opts = {
-    timeout = 5000,
-    on_done = function()
-      local runtime = math.floor((vim.uv.hrtime() - start_time) / 1000000)
-      local messages = { "Checked " .. tostring(count) .. " notes in " .. runtime .. "ms" }
-      local log_level = vim.log.levels.INFO
 
-      if #warnings > 0 then
-        messages[#messages + 1] = "\nThere were " .. tostring(#warnings) .. " warning(s):"
-        log_level = vim.log.levels.WARN
-        for warning in iter(warnings) do
-          messages[#messages + 1] = "  " .. warning
-        end
-      end
-
-      if #errors > 0 then
-        messages[#messages + 1] = "\nThere were " .. tostring(#errors) .. " error(s):"
-        for err in iter(errors) do
-          messages[#messages + 1] = "  " .. err
-        end
-        log_level = vim.log.levels.ERROR
-      end
-
-      log.log(table.concat(messages, "\n"), log_level)
-    end,
-  }
-
-  client:apply_async_raw(function(path)
+  for path in api.dir(Obsidian.dir) do
     local relative_path = Path.new(path):vault_relative_path { strict = true }
     local ok, res = pcall(Note.from_file, path)
 
@@ -46,7 +19,28 @@ return function(client, _)
     elseif res.has_frontmatter == false then
       warnings[#warnings + 1] = string.format("'%s' missing frontmatter", relative_path)
     end
-
     count = count + 1
-  end, opts)
+  end
+
+  local runtime = math.floor((vim.uv.hrtime() - start_time) / 1000000)
+  local messages = { "Checked " .. tostring(count) .. " notes in " .. runtime .. "ms" }
+  local log_level = vim.log.levels.INFO
+
+  if #warnings > 0 then
+    messages[#messages + 1] = "\nThere were " .. tostring(#warnings) .. " warning(s):"
+    log_level = vim.log.levels.WARN
+    for warning in iter(warnings) do
+      messages[#messages + 1] = "  " .. warning
+    end
+  end
+
+  if #errors > 0 then
+    messages[#messages + 1] = "\nThere were " .. tostring(#errors) .. " error(s):"
+    for err in iter(errors) do
+      messages[#messages + 1] = "  " .. err
+    end
+    log_level = vim.log.levels.ERROR
+  end
+
+  log.log(table.concat(messages, "\n"), log_level)
 end

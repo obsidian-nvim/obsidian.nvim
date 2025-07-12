@@ -20,9 +20,8 @@ local switch_workspace = function(workspace, opts)
   error(string.format("Workspace '%s' not found", workspace))
 end
 
----@param client obsidian.Client
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   if not data.args or string.len(data.args) == 0 then
     local picker = Obsidian.picker
     if not picker then

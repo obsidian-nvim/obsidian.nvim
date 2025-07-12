@@ -8,7 +8,7 @@ local config = {}
 ---@field notes_subdir? string
 ---@field templates? obsidian.config.TemplateOpts
 ---@field new_notes_location? obsidian.config.NewNotesLocation
----@field note_id_func? fun(title: string|?): string
+---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
 ---@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
@@ -40,7 +40,7 @@ local config = {}
 ---@field notes_subdir string|?
 ---@field templates obsidian.config.TemplateOpts
 ---@field new_notes_location obsidian.config.NewNotesLocation
----@field note_id_func (fun(title: string|?): string)|?
+---@field note_id_func (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path)|?
 ---@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
@@ -134,11 +134,18 @@ config.default = {
   --- Functions are called with obsidian.TemplateContext objects as their sole parameter.
   --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
   ---@field substitutions table<string, (fun(ctx: obsidian.TemplateContext):string)|(fun(): string)|string>|?
+  ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
   templates = {
     folder = nil,
     date_format = nil,
     time_format = nil,
     substitutions = {},
+
+    ---@class obsidian.config.CustomTemplateOpts
+    ---
+    ---@field notes_subdir? string
+    ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)
+    customizations = {},
   },
 
   ---@class obsidian.config.BacklinkOpts

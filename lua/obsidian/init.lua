@@ -62,10 +62,11 @@ end
 ---Create a new Obsidian client in a given vault directory.
 ---
 ---@param dir string
+---@param opts obsidian.config.ClientOpts|?
 ---@return obsidian.Client
-obsidian.new_from_dir = function(dir)
-  local opts = obsidian.config.default
-  opts.workspaces = { { path = dir } }
+obsidian.new_from_dir = function(dir, opts)
+  opts = vim.tbl_deep_extend("keep", opts or {}, obsidian.config.default)
+  opts.workspaces = { { path = dir, strict = true } }
   return obsidian.new(opts)
 end
 
@@ -220,7 +221,7 @@ obsidian.setup = function(opts)
       exec_autocmds("ObsidianNoteWritePre", ev.buf)
 
       -- Update buffer with new frontmatter.
-      if client:update_frontmatter(note, bufnr) then
+      if note:update_frontmatter(bufnr) then
         log.info "Updated frontmatter"
       end
     end,
