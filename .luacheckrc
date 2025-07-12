@@ -14,6 +14,7 @@ exclude_files = {
   "_runtime/*",
   "deps/*",
   "tests/fixtures",
+  "lua/obsidian/lib/",
 }
 
 -- Glorious list of warnings: https://luacheck.readthedocs.io/en/stable/warnings.html

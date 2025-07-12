@@ -164,7 +164,6 @@ M.insert_template = function(ctx)
 
   local template_path = M.resolve_template(ctx.template_name, ctx.templates_dir)
 
-  local insert_lines = {}
   local template_file = io.open(tostring(template_path), "r")
   assert(template_file, string.format("Template file '%s' not found", template_path))
 
@@ -192,7 +191,7 @@ M.insert_template = function(ctx)
   assert(template, "failed to run template")
 
   ---@diagnostic disable-next-line: param-type-mismatch
-  insert_lines = vim.split(compiled, "\n")
+  local insert_lines = vim.split(compiled, "\n")
 
   vim.api.nvim_buf_set_lines(buf, row - 1, row - 1, false, insert_lines)
   local new_cursor_row, _ = unpack(vim.api.nvim_win_get_cursor(win))

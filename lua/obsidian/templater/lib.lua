@@ -16,6 +16,14 @@ date.tommorrow = function() end
 date.weekday = function() end
 date.yesterday = function() end
 
-local moment = {}
-
-return {}
+return {
+  app = {},
+  config = {},
+  date = date,
+  file = {},
+  frontmatter = {},
+  hooks = {},
+  obsidian = {},
+  system = system,
+  web = {},
+}
