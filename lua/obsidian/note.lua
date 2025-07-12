@@ -42,7 +42,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 --- A function to update the contents of the note. This takes a list of lines representing the text to be written
 --- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
 ---@field update_content? fun(lines: string[]): string[]
---- Whether to call |checktime| on open buffers pointing to the written note.
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
 --- When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
 --- See `:help checktime` to learn more.
 ---@field check_buffers? boolean
@@ -55,7 +55,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 --- A function to update the contents of the note. This takes a list of lines representing the text to be written
 --- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
 ---@field update_content? fun(lines: string[]): string[]
---- Whether to call |checktime| on open buffers pointing to the written note.
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
 --- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
 --- See `:help checktime` to learn more.
 ---@field check_buffers? boolean
@@ -993,7 +993,7 @@ end
 ---@return obsidian.Note
 Note.write = function(self, opts)
   local Template = require "obsidian.templates"
-  opts = opts or {}
+  opts = vim.tbl_extend("keep", opts or {}, { check_buffers = true })
 
   local path = assert(self.path, "A path must be provided")
   path = Path.new(path)
@@ -1040,7 +1040,7 @@ end
 ---
 ---@param opts? obsidian.note.NoteSaveOpts
 Note.save = function(self, opts)
-  opts = opts or {}
+  opts = vim.tbl_extend("keep", opts or {}, { check_buffers = true })
 
   if self.path == nil then
     error "a path is required"
