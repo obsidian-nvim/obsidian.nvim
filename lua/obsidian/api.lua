@@ -641,6 +641,36 @@ M.get_icon = function(path)
   return nil
 end
 
+---Gets all notes from the vault.
+---@param path string The path to the vault.
+---@return string[]|? The path to the notes.
+M.get_all_notes_from_vault = function(path)
+  local files = {}
+
+  for name, t in vim.fs.dir(path, { depth = 10 }) do
+    if t == "file" and vim.endswith(name, ".md") then
+      local full_path = vim.fs.joinpath(path, name)
+      files[#files + 1] = full_path
+    end
+  end
+  return files
+end
+
+---Gets all subfolders from the vault.
+---@param path string The path to the vault.
+---@return string[]|? The path to the subfolders
+M.get_sub_dirs_from_vault = function(path)
+  local subdirs = {}
+
+  for name, t in vim.fs.dir(path, { depth = 10 }) do
+    if t == "directory" then
+      local full_path = vim.fs.joinpath(path, name)
+      subdirs[#subdirs + 1] = full_path
+    end
+  end
+  return subdirs
+end
+
 --- Resolve a basename to full path inside the vault.
 ---
 ---@param src string

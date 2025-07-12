@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added file-watch: code that tracks changed notes in the vault.
+- Added cache: a JSON file, which stores aliases, last update date and path to the note. Updated using file-watch.
+- Added a new configuration option - `cache`, which is disabled by default.
 - Allow custom directory and ID logic for templates
 - When filling out a template with user-provided substitution functions, pass a "context" object to each invocation so that users can respond accordingly.
   - Added `obsidian.InsertTemplateContext` and `obsidian.CloneTemplateContext` as these new "context" objects.
@@ -59,6 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ObsidianPasteImg` will now work on Wayland sessions
 - Handle error exit code from git in get_plugin_info
 - Fixed incorrect usage of `Note.create` in `daily_notes`.
+
+### Changed
+- In telescope an option was added to search notes by aliases.
 
 ## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
 
