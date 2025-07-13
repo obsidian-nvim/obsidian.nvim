@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - More informative healthcheck.
 - A guide to embed images for both viewing in neovim and obsidian app: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images
 - Added `check_buffers` option to `Note.write` and `Note.save` for automatically reloading buffers with `checktime` after writing them to disk
+- Added footer options.
 
 ### Changed
 
@@ -48,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use a `Obsidian` global variable to hold the state instead of client.
 - `opts.img_text_func` has an obsidian app compatibility, and only accept one path argument.
 - Moved `client:apply_async` -> `api.dir`
+- Deprecate `statusline` options and `vim.g.obsidian` in favor of `footer` options and `vim.b.obsidian_footer`.
 
 ### Fixed
 

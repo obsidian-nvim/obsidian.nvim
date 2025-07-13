@@ -113,7 +113,7 @@ jobs:
         uses: jdx/mise-action@v2
         with:
           tool_versions: |
-            lua-language-server latest
+            lua-language-server 3.15.0
 
       - name: Prepare
         if: ${{ matrix.task.prepare }}
