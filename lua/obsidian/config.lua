@@ -559,6 +559,14 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     )
   end
 
+  if opts.statusline.enabled then
+    deprecate(
+      "statusline.{enabled,format} and vim.g.obsidian",
+      "footer.{enabled,format} and vim.b.obsidian_footer",
+      "4.0"
+    )
+  end
+
   if opts.sort_by ~= nil and not vim.tbl_contains(vim.tbl_values(config.SortBy), opts.sort_by) then
     error("Invalid 'sort_by' option '" .. opts.sort_by .. "' in obsidian.nvim config.")
   end
