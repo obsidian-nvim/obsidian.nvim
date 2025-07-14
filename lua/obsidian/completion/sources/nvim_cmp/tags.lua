@@ -20,5 +20,4 @@ function TagsSource:complete(request, callback)
   self:process_completion(cc)
 end
 
-
 return TagsSource

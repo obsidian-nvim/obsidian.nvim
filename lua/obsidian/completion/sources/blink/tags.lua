@@ -21,5 +21,4 @@ function TagsSource:get_completions(context, resolve)
   self:process_completion(cc)
 end
 
-
 return TagsSource
