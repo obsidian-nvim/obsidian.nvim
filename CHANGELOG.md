@@ -62,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ObsidianPasteImg` will now work on Wayland sessions
 - Handle error exit code from git in get_plugin_info
 - Fixed incorrect usage of `Note.create` in `daily_notes`.
+- Fixed tag completion for blink.cmp and improved frontmatter tag handling
 
 ## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
 
