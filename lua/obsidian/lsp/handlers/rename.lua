@@ -3,6 +3,7 @@ local Note = require "obsidian.note"
 local search = require "obsidian.search"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
+local util = require "obsidian.util"
 local Path = require "obsidian.path"
 
 -- Search notes on disk for any references to `cur_note_id`.
@@ -154,7 +155,7 @@ local function rename_note(uri, new_name, target)
 end
 
 local function validate_new_name(name)
-  for path in api.iter_files() do
+  for path in api.dir(Obsidian.dir) do
     local base_as_id = vim.fs.basename(path):sub(1, -4)
     if name == base_as_id then
       return false
@@ -178,7 +179,7 @@ return function(params, _, _)
     return
   end
 
-  local query = api.parse_cursor_link()
+  local cur_link = api.cursor_link()
 
   local ok, err = pcall(vim.cmd.wall)
 
@@ -187,15 +188,14 @@ return function(params, _, _)
     return
   end
 
-  local client = require("obsidian").get_client() -- HACK:
-
-  if query then
-    local notes = { client:resolve_note(query) }
+  if cur_link then
+    local loc = util.parse_cursor(cur_link)
+    local notes = search.resolve_note(loc)
     if #notes == 0 then
-      log.err("Failed to resolve '%s' to a note", query)
+      log.err("Failed to resolve '%s' to a note", cur_link)
       return
     elseif #notes > 1 then
-      log.err("Failed to resolve '%s' to a single note, found %d matches", query, #notes)
+      log.err("Failed to resolve '%s' to a single note, found %d matches", cur_link, #notes)
       return
     end
     local note = notes[1]
