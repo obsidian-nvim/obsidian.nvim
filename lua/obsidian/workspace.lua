@@ -3,6 +3,7 @@ local abc = require "obsidian.abc"
 local api = require "obsidian.api"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
+local log = require "obsidian.log"
 
 ---@class obsidian.workspace.WorkspaceSpec
 ---
@@ -250,6 +251,25 @@ Workspace.set = function(workspace, opts)
     pattern = "ObsidianWorkpspaceSet",
     data = { workspace = workspace },
   })
+end
+
+---@param workspace obsidian.Workspace|string The workspace object or the name of an existing workspace.
+---@param opts { lock: boolean|? }|?
+Workspace.switch = function(workspace, opts)
+  opts = opts and opts or {}
+
+  if workspace == Obsidian.workspace.name then
+    log.info("Already in workspace '%s' @ '%s'", workspace, Obsidian.workspace.path)
+    return
+  end
+
+  for _, ws in ipairs(Obsidian.opts.workspaces) do
+    if ws.name == workspace then
+      return Workspace.set(Workspace.new_from_spec(ws), opts)
+    end
+  end
+
+  error(string.format("Workspace '%s' not found", workspace))
 end
 
 return Workspace

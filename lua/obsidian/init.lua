@@ -51,25 +51,6 @@ end
 
 obsidian.register_command = require("obsidian.commands").register
 
----Create a new Obsidian client without additional setup.
----
----@param opts obsidian.config.ClientOpts
----@return obsidian.Client
-obsidian.new = function(opts)
-  return obsidian.Client.new(opts)
-end
-
----Create a new Obsidian client in a given vault directory.
----
----@param dir string
----@param opts obsidian.config.ClientOpts|?
----@return obsidian.Client
-obsidian.new_from_dir = function(dir, opts)
-  opts = vim.tbl_deep_extend("keep", opts or {}, obsidian.config.default)
-  opts.workspaces = { { path = dir, strict = true } }
-  return obsidian.new(opts)
-end
-
 --- Setup a new Obsidian client. This should only be called once from an Nvim session.
 ---
 ---@param opts obsidian.config.ClientOpts | table<string, any>
@@ -87,7 +68,12 @@ obsidian.setup = function(opts)
   ---@field _opts obsidian.config.ClientOpts default options
   _G.Obsidian = {} -- init a state table
 
-  local client = obsidian.new(opts)
+  local client = obsidian.Client.new(opts)
+
+  Obsidian._opts = opts
+
+  obsidian.Workspace.set(assert(obsidian.Workspace.get_from_opts(opts)), {})
+
   log.set_level(Obsidian.opts.log_level)
 
   -- Install commands.
@@ -253,9 +239,6 @@ obsidian.setup = function(opts)
 
   -- Set global client.
   obsidian._client = client
-
-  -- Call post-setup callback.
-  -- client.callback_manager:post_setup()
 
   obsidian.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup, client)
 

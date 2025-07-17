@@ -3,6 +3,17 @@ local obsidian = require "obsidian"
 
 local M = {}
 
+---Create a new Obsidian client in a given vault directory.
+---
+---@param dir string
+---@param opts obsidian.config.ClientOpts|?
+---@return obsidian.Client
+local new_from_dir = function(dir, opts)
+  opts = vim.tbl_deep_extend("keep", opts or {}, obsidian.config.default)
+  opts.workspaces = { { path = dir, strict = true } }
+  return obsidian.Client.new(opts)
+end
+
 ---Get a client in a temporary directory.
 ---
 ---@param f fun(client: obsidian.Client)
@@ -21,7 +32,7 @@ M.with_tmp_client = function(f, dir, opts)
     end
   end
 
-  local client = obsidian.new_from_dir(tostring(dir), opts)
+  local client = new_from_dir(tostring(dir), opts)
   local ok, err = pcall(f, client)
 
   if tmp then

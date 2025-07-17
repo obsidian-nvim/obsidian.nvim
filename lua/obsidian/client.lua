@@ -12,7 +12,6 @@ local Path = require "obsidian.path"
 local async = require "plenary.async"
 local channel = require("plenary.async.control").channel
 local Note = require "obsidian.note"
-local Workspace = require "obsidian.workspace"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local search = require "obsidian.search"
@@ -66,19 +65,9 @@ end
 ---
 --- `require("obsidian").get_client()`
 ---
----@param opts obsidian.config.ClientOpts
----
 ---@return obsidian.Client
-Client.new = function(opts)
-  local self = setmetatable({}, Client)
-
-  Obsidian._opts = opts
-
-  local workspace = Workspace.get_from_opts(opts)
-  assert(workspace)
-
-  Workspace.set(workspace, {})
-  return self
+Client.new = function()
+  return setmetatable({}, Client)
 end
 
 --- Get the default search options.

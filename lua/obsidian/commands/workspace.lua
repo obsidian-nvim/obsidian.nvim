@@ -1,25 +1,6 @@
 local log = require "obsidian.log"
 local Workspace = require "obsidian.workspace"
 
----@param workspace obsidian.Workspace|string The workspace object or the name of an existing workspace.
----@param opts { lock: boolean|? }|?
-local switch_workspace = function(workspace, opts)
-  opts = opts and opts or {}
-
-  if workspace == Obsidian.workspace.name then
-    log.info("Already in workspace '%s' @ '%s'", workspace, Obsidian.workspace.path)
-    return
-  end
-
-  for _, ws in ipairs(Obsidian.opts.workspaces) do
-    if ws.name == workspace then
-      return Workspace.set(Workspace.new_from_spec(ws), opts)
-    end
-  end
-
-  error(string.format("Workspace '%s' not found", workspace))
-end
-
 ---@param data CommandArgs
 return function(_, data)
   if not data.args or string.len(data.args) == 0 then
@@ -43,10 +24,10 @@ return function(_, data)
       prompt_title = "Workspaces",
       callback = function(workspace_str)
         local idx = tonumber(string.match(workspace_str, "%*?%[(%d+)]"))
-        switch_workspace(Obsidian.opts.workspaces[idx].name, { lock = true })
+        Workspace.switch(Obsidian.opts.workspaces[idx].name, { lock = true })
       end,
     })
   else
-    switch_workspace(data.args, { lock = true })
+    Workspace.switch(data.args, { lock = true })
   end
 end
