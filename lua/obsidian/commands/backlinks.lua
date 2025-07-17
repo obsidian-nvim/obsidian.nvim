@@ -52,7 +52,7 @@ local function collect_backlinks(client, picker, note, opts)
         end,
       })
     end)
-  end, { search = { sort = true }, anchor = opts.anchor, block = opts.block })
+  end)
 end
 
 ---@param client obsidian.Client
@@ -93,7 +93,6 @@ return function(client)
     local opts = { anchor = anchor_link, block = block_link }
 
     search.resolve_note_async(location, function(...)
-      ---@type obsidian.Note[]
       local notes = { ... }
 
       if #notes == 0 then

@@ -773,6 +773,14 @@ M.resolve_note_async = function(query, callback, opts)
   end, { notes = opts.notes })
 end
 
+M.resolve_note = function(term, opts)
+  opts = opts or {}
+  opts.timeout = opts.timeout or 1000
+  return block_on(function(cb)
+    return M.resolve_note_async(term, cb, { search = opts.search })
+  end, opts.timeout)
+end
+
 ---@class obsidian.ResolveLinkResult
 ---
 ---@field location string
