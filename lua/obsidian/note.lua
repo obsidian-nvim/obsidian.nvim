@@ -783,7 +783,7 @@ Note.from_lines = function(lines, path, opts)
       ---@diagnostic disable-next-line: param-type-mismatch
       for k, v in pairs(data) do
         if k == "id" then
-          if type(v) == "string" then
+          if type(v) == "string" or type(v) == "number" then
             id = v
           else
             log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
