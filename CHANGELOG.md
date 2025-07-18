@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved `client:follow_link_async` -> `api.follow_link`
 - Moved `client:resolve_note_async` -> `search.resolve_note_async`
 - Moved `client:find_notes_async` -> `search.find_notes_async`
+- `Obsidian toggle_checkbox` will only be triggered in correct context, in `paragraph` and `list` ts nodes.
 
 ### Fixed
 
