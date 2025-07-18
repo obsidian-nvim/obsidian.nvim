@@ -54,12 +54,12 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 ### Keymaps
 
-There's only one default keymap, `<CR>` will:
-
-- If cursor is on a link, follow the link
-- If cursor is on a tag, show all notes with that tag in a picker
-- If cursor is on a checkbox, toggle the checkbox
-- If cursor is on a heading, cycle the fold of that heading
+- `smart_action`, bind to `<CR>` will:
+    - If cursor is on a link, follow the link
+    - If cursor is on a tag, show all notes with that tag in a picker
+    - If cursor is on a checkbox, toggle the checkbox
+    - If cursor is on a heading, cycle the fold of that heading
+- `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in the buffer.
 
 For remapping and creating your own mappings, see [Keymaps](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps)
 
