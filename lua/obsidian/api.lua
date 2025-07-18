@@ -113,6 +113,9 @@ end
 ---@param states table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
 ---@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
 M.toggle_checkbox = function(states, line_num)
+  if not util.in_node { "list", "paragraph" } or util.in_node "block_quote" then
+    return
+  end
   line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
 

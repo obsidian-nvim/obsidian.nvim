@@ -1,5 +1,5 @@
 local compat = require "obsidian.compat"
-local string, table = string, table
+local ts, string, table = vim.treesitter, string, table
 local util = {}
 
 setmetatable(util, {
@@ -722,6 +722,32 @@ util.fire_callback = function(event, callback, ...)
     log.error("Error running %s callback: %s", event, err)
     return false
   end
+end
+
+---@param node_type string | string[]
+---@return boolean
+util.in_node = function(node_type)
+  local function in_node(t)
+    local node = ts.get_node()
+    while node do
+      if node:type() == t then
+        return true
+      end
+      node = node:parent()
+    end
+    return false
+  end
+  if type(node_type) == "string" then
+    return in_node(node_type)
+  elseif type(node_type) == "table" then
+    for _, t in ipairs(node_type) do
+      local is_in_node = in_node(t)
+      if is_in_node then
+        return true
+      end
+    end
+  end
+  return false
 end
 
 return util
