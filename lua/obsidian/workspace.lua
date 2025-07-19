@@ -12,12 +12,6 @@ local log = require "obsidian.log"
 ---@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
 ---@field overrides table|obsidian.config.ClientOpts|?
 
----@class obsidian.workspace.WorkspaceOpts
----
----@field name string|?
----@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
----@field overrides table|obsidian.config.ClientOpts|?
-
 --- Each workspace represents a working directory (usually an Obsidian vault) along with
 --- a set of configuration options specific to the workspace.
 ---
@@ -72,19 +66,29 @@ end
 
 --- Create a new 'Workspace' object. This assumes the workspace already exists on the filesystem.
 ---
----@param path string|obsidian.Path Workspace path.
----@param opts obsidian.workspace.WorkspaceOpts|?
+---@param spec obsidian.workspace.WorkspaceSpec|?
 ---
 ---@return obsidian.Workspace
-Workspace.new = function(path, opts)
-  opts = opts and opts or {}
+Workspace.new = function(spec)
+  spec = spec and spec or {}
+
+  local path
+
+  if type(path) == "function" then
+    path = spec.path()
+  else
+    path = spec.path
+  end
+
+  ---@cast path -function
+  path = vim.fs.normalize(tostring(path))
 
   local self = Workspace.init()
   self.path = Path.new(path):resolve { strict = true }
-  self.name = assert(opts.name or self.path.name)
-  self.overrides = opts.overrides
+  self.name = assert(spec.name or self.path.name)
+  self.overrides = spec.overrides
 
-  if opts.strict then
+  if spec.strict then
     self.root = self.path
   else
     local vault_root = find_vault_root(self.path)
@@ -96,29 +100,6 @@ Workspace.new = function(path, opts)
   end
 
   return self
-end
-
---- Initialize a new 'Workspace' object from a workspace spec.
----
----@param spec obsidian.workspace.WorkspaceSpec
----
----@return obsidian.Workspace
-Workspace.new_from_spec = function(spec)
-  ---@type string|obsidian.Path
-  local path
-  if type(spec.path) == "function" then
-    path = spec.path()
-  else
-    ---@diagnostic disable-next-line: cast-local-type
-    path = spec.path
-  end
-
-  ---@diagnostic disable-next-line: param-type-mismatch
-  return Workspace.new(path, {
-    name = spec.name,
-    strict = spec.strict,
-    overrides = spec.overrides,
-  })
 end
 
 --- Lock the workspace.
@@ -149,50 +130,11 @@ Workspace.get_workspace_for_dir = function(cur_dir, workspaces)
   end
 
   for _, spec in ipairs(workspaces) do
-    local w = Workspace.new_from_spec(spec)
+    local w = Workspace.new(spec)
     if w.path == cur_dir or w.path:is_parent_of(cur_dir) then
       return w
     end
   end
-end
-
---- Get the workspace corresponding to the current working directory (or a parent of), if there
---- is one.
----
----@param workspaces obsidian.workspace.WorkspaceSpec[]
----
----@return obsidian.Workspace|?
-Workspace.get_workspace_for_cwd = function(workspaces)
-  local cwd = assert(vim.fn.getcwd())
-  return Workspace.get_workspace_for_dir(cwd, workspaces)
-end
-
---- Returns the default workspace.
----
----@param workspaces obsidian.workspace.WorkspaceSpec[]
----
----@return obsidian.Workspace|nil
-Workspace.get_default_workspace = function(workspaces)
-  if not vim.tbl_isempty(workspaces) then
-    return Workspace.new_from_spec(workspaces[1])
-  else
-    return nil
-  end
-end
-
---- Resolves current workspace from the client config.
----
----@param opts obsidian.config.ClientOpts
----
----@return obsidian.Workspace|?
-Workspace.get_from_opts = function(opts)
-  local current_workspace = Workspace.get_workspace_for_cwd(opts.workspaces)
-
-  if not current_workspace then
-    current_workspace = Workspace.get_default_workspace(opts.workspaces)
-  end
-
-  return current_workspace
 end
 
 --- Get the normalize opts for a given workspace.
@@ -200,7 +142,7 @@ end
 ---@param workspace obsidian.Workspace|?
 ---
 ---@return obsidian.config.ClientOpts
-Workspace.normalize_opts = function(workspace)
+local normalize_opts = function(workspace)
   if workspace then
     return config.normalize(workspace.overrides and workspace.overrides or {}, Obsidian._opts)
   else
@@ -214,7 +156,7 @@ Workspace.set = function(workspace, opts)
   opts = opts and opts or {}
 
   local dir = workspace.root
-  local options = Workspace.normalize_opts(workspace) -- TODO: test
+  local options = normalize_opts(workspace) -- TODO: test
 
   Obsidian.workspace = workspace
   Obsidian.dir = dir
@@ -253,7 +195,7 @@ Workspace.set = function(workspace, opts)
   })
 end
 
----@param workspace obsidian.Workspace|string The workspace object or the name of an existing workspace.
+---@param workspace string name of workspace
 ---@param opts { lock: boolean|? }|?
 Workspace.switch = function(workspace, opts)
   opts = opts and opts or {}
@@ -265,7 +207,7 @@ Workspace.switch = function(workspace, opts)
 
   for _, ws in ipairs(Obsidian.opts.workspaces) do
     if ws.name == workspace then
-      return Workspace.set(Workspace.new_from_spec(ws), opts)
+      return Workspace.set(Workspace.new(ws), opts)
     end
   end
 

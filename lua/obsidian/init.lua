@@ -57,27 +57,26 @@ obsidian.register_command = require("obsidian.commands").register
 ---
 ---@return obsidian.Client
 obsidian.setup = function(opts)
-  opts = obsidian.config.normalize(opts)
-
   ---@class obsidian.state
-  ---@field picker obsidian.Picker The picker instance to use.
-  ---@field workspace obsidian.Workspace The current workspace.
-  ---@field dir obsidian.Path The root of the vault for the current workspace.
-  ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
-  ---@field opts obsidian.config.ClientOpts current options
-  ---@field _opts obsidian.config.ClientOpts default options
-  _G.Obsidian = {} -- init a state table
+  ---@field picker obsidian.Picker Picker to use.
+  ---@field workspace obsidian.Workspace Current workspace.
+  ---@field workspaces obsidian.Workspace[] All workspaces.
+  ---@field dir obsidian.Path Root of the vault for the current workspace.
+  ---@field buf_dir obsidian.Path|? Parent directory of the current buffer.
+  ---@field opts obsidian.config.ClientOpts Current options.
+  ---@field _opts obsidian.config.ClientOpts User input options.
+  _G.Obsidian = {}
+
+  opts = obsidian.config.normalize(opts)
 
   local client = obsidian.Client.new(opts)
 
   Obsidian._opts = opts
 
-  obsidian.Workspace.set(assert(obsidian.Workspace.get_from_opts(opts)), {})
+  obsidian.Workspace.set(Obsidian.workspaces[1])
 
   log.set_level(Obsidian.opts.log_level)
 
-  -- Install commands.
-  -- These will be available across all buffers, not just note buffers in the vault.
   obsidian.commands.install(client)
 
   if opts.legacy_commands then
