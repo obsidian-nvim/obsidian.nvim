@@ -578,10 +578,10 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error "At least one workspace is required!\nPlease specify a workspace "
   end
 
-  for i, workspace in ipairs(opts.workspaces) do
-    local path = type(workspace.path) == "function" and workspace.path() or workspace.path
-    ---@cast path -function
-    opts.workspaces[i].path = vim.fn.resolve(vim.fs.normalize(path))
+  Obsidian.workspaces = {}
+
+  for i, spec in ipairs(opts.workspaces) do
+    Obsidian.workspaces[i] = require("obsidian.workspace").new(spec)
   end
 
   -- Convert dir to workspace format.

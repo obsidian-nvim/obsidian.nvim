@@ -1,32 +1,22 @@
-local log = require "obsidian.log"
 local Workspace = require "obsidian.workspace"
 
 ---@param data CommandArgs
 return function(_, data)
   if not data.args or string.len(data.args) == 0 then
-    local picker = Obsidian.picker
-    if not picker then
-      log.info("Current workspace: '%s' @ '%s'", Obsidian.workspace.name, Obsidian.workspace.path)
-      return
-    end
-
-    local options = {}
-    for i, spec in ipairs(Obsidian.opts.workspaces) do
-      local workspace = Workspace.new_from_spec(spec)
-      if workspace == Obsidian.workspace then
-        options[#options + 1] = string.format("*[%d] %s @ '%s'", i, workspace.name, workspace.path)
-      else
-        options[#options + 1] = string.format("[%d] %s @ '%s'", i, workspace.name, workspace.path)
-      end
-    end
-
-    picker:pick(options, {
-      prompt_title = "Workspaces",
-      callback = function(workspace_str)
-        local idx = tonumber(string.match(workspace_str, "%*?%[(%d+)]"))
-        Workspace.switch(Obsidian.opts.workspaces[idx].name, { lock = true })
+    vim.ui.select(Obsidian.workspaces, {
+      prompt = "Obsidian Workspace",
+      format_item = function(ws)
+        if ws.name == Obsidian.workspace.name then
+          return string.format("*[%s] @ '%s'", ws.name, ws.path)
+        end
+        return string.format("[%s] @ '%s'", ws.name, ws.path)
       end,
-    })
+    }, function(item)
+      if not item then
+        return
+      end
+      Workspace.switch(item.name, { lock = true })
+    end)
   else
     Workspace.switch(data.args, { lock = true })
   end
