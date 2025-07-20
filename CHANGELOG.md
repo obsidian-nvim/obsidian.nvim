@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `obsidian.config` type for user config type check.
 - More informative healthcheck.
 - A guide to embed images for both viewing in neovim and obsidian app: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images
+- Added `check_buffers` option to `Note.write` and `Note.save` for automatically reloading buffers with `checktime` after writing them to disk
+- Added footer options.
+- Added default mappings: `]o` and `[o`, for navigating links in note.
 
 ### Changed
 
@@ -50,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use a `Obsidian` global variable to hold the state instead of client.
 - `opts.img_text_func` has an obsidian app compatibility, and only accept one path argument.
 - Moved `client:apply_async` -> `api.dir`
+- Deprecate `statusline` options and `vim.g.obsidian` in favor of `footer` options and `vim.b.obsidian_footer`.
+- Moved `client:switch_workspace` -> `Workspace.switch`
+- Moved `client:follow_link_async` -> `api.follow_link`
+- Moved `client:resolve_note_async` -> `search.resolve_note_async`
+- Moved `client:find_notes_async` -> `search.find_notes_async`
+- `Obsidian toggle_checkbox` will only be triggered in correct context, in `paragraph` and `list` ts nodes.
+- `opts.checkbox.create_new` to configure whether insert new checkbox
 
 ### Fixed
 
@@ -62,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ObsidianPasteImg` will now work on Wayland sessions
 - Handle error exit code from git in get_plugin_info
 - Fixed incorrect usage of `Note.create` in `daily_notes`.
+- Fixed tag completion for blink.cmp and improved frontmatter tag handling
+- Fixed to allow numbers in note IDs.
+- Fixed ignore subdirectories specified in `daily_notes.date_format`
 
 ### Changed
 - In telescope an option was added to search notes by aliases.

@@ -69,7 +69,7 @@ local _daily = function(datetime, opts)
       id = id,
       aliases = {},
       tags = options.daily_notes.default_tags or {},
-      dir = options.daily_notes.folder,
+      dir = path:parent(),
     }
 
     if alias then

@@ -58,12 +58,12 @@ to another note.
 
 KEYMAPS                                                     *obsidian-keymaps*
 
-There’s only one default keymap, `<CR>` will:
-
-- If cursor is on a link, follow the link
-- If cursor is on a tag, show all notes with that tag in a picker
-- If cursor is on a checkbox, toggle the checkbox
-- If cursor is on a heading, cycle the fold of that heading
+- `smart_action`, bind to `<CR>` will:
+    - If cursor is on a link, follow the link
+    - If cursor is on a tag, show all notes with that tag in a picker
+    - If cursor is on a checkbox, toggle the checkbox
+    - If cursor is on a heading, cycle the fold of that heading
+- `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in the buffer.
 
 For remapping and creating your own mappings, see Keymaps
 <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps>
@@ -635,10 +635,23 @@ Click to see configuration options ~
         confirm_img_paste = true,
       },
     
-      -- See https://github.com/obsidian-nvim/obsidian.nvim/wiki/Notes-on-configuration#statusline-component
+      ---@deprecated in favor of the footer option below
       statusline = {
         enabled = true,
         format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+      },
+    
+      ---@class obsidian.config.FooterOpts
+      ---
+      ---@field enabled? boolean
+      ---@field format? string
+      ---@field hl_group? string
+      ---@field separator? string|false Set false to disable separator; set an empty string to insert a blank line separator.
+      footer = {
+        enabled = true,
+        format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+        hl_group = "Comment",
+        separator = string.rep("-", 80),
       },
     }
 <
@@ -658,7 +671,7 @@ Please read the CONTRIBUTING
 <https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md>
 guide before submitting a pull request.
 
-neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻Anaritus💻Michael Davis💻Brian Rodriguez💻carschandler📖Aki Sasaki💻Reinaldo Molina💻Stuart Rackham💻Ahmed Mughal💻trash-panda-v91-beta💻
+neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻Anaritus💻Michael Davis💻Brian Rodriguez💻carschandler📖Aki Sasaki💻Reinaldo Molina💻Stuart Rackham💻Ahmed Mughal💻trash-panda-v91-beta💻Jakob Westhoff💻Christian Johansen💻
 ==============================================================================
 8. ❤️ Acknowledgement                    *obsidian-❤️-acknowledgement*
 

@@ -21,11 +21,4 @@ function TagsSource:get_completions(context, resolve)
   self:process_completion(cc)
 end
 
----Implements the execute method of the completion provider
----@param _ blink.cmp.Context
----@param item blink.cmp.CompletionItem
-function TagsSource:execute(_, item)
-  self:process_execute(item)
-end
-
 return TagsSource

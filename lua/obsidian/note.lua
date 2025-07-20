@@ -32,6 +32,34 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 --- @field should_write boolean|? Don't write the note to disk
 --- @field template string|? The name of the template
 
+---@class obsidian.note.NoteSaveOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- Whether to insert/update frontmatter. Defaults to `true`.
+---@field insert_frontmatter? boolean
+--- Override the frontmatter. Defaults to the result of `self:frontmatter()`.
+---@field frontmatter? table
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
+
+---@class obsidian.note.NoteWriteOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- The name of a template to use if the note file doesn't already exist.
+---@field template? string
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
+
 ---@class obsidian.note.HeaderAnchor
 ---
 ---@field anchor string
@@ -758,7 +786,7 @@ Note.from_lines = function(lines, path, opts)
       ---@diagnostic disable-next-line: param-type-mismatch
       for k, v in pairs(data) do
         if k == "id" then
-          if type(v) == "string" then
+          if type(v) == "string" or type(v) == "number" then
             id = v
           else
             log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
@@ -964,18 +992,11 @@ end
 
 --- Write the note to disk.
 ---
----@param opts { path: string|obsidian.Path, template: string|?, update_content: (fun(lines: string[]): string[])|? }|? Options.
----
---- Options:
----  - `template`: The name of a template to use if the note file doesn't already exist.
----  - `update_content`: A function to update the contents of the note. This takes a list of lines
----    representing the text to be written excluding frontmatter, and returns the lines that will
----    actually be written (again excluding frontmatter).
----
+---@param opts? obsidian.note.NoteWriteOpts
 ---@return obsidian.Note
 Note.write = function(self, opts)
   local Template = require "obsidian.templates"
-  opts = opts or {}
+  opts = vim.tbl_extend("keep", opts or {}, { check_buffers = true })
 
   local path = assert(self.path, "A path must be provided")
   path = Path.new(path)
@@ -1008,6 +1029,7 @@ Note.write = function(self, opts)
     insert_frontmatter = self:should_save_frontmatter(),
     frontmatter = frontmatter,
     update_content = opts.update_content,
+    check_buffers = opts.check_buffers,
   }
 
   log.info("%s note '%s' at '%s'", verb, self.id, self.path:vault_relative_path(self.path) or self.path)
@@ -1019,17 +1041,9 @@ end
 --- In general this only updates the frontmatter and header, leaving the rest of the contents unchanged
 --- unless you use the `update_content()` callback.
 ---
----@param opts { path: string|obsidian.Path|?, insert_frontmatter: boolean|?, frontmatter: table|?, update_content: (fun(lines: string[]): string[])|? }|? Options.
----
---- Options:
----  - `path`: Specify a path to save to. Defaults to `self.path`.
----  - `insert_frontmatter`: Whether to insert/update frontmatter. Defaults to `true`.
----  - `frontmatter`: Override the frontmatter. Defaults to the result of `self:frontmatter()`.
----  - `update_content`: A function to update the contents of the note. This takes a list of lines
----    representing the text to be written excluding frontmatter, and returns the lines that will
----    actually be written (again excluding frontmatter).
+---@param opts? obsidian.note.NoteSaveOpts
 Note.save = function(self, opts)
-  opts = opts or {}
+  opts = vim.tbl_extend("keep", opts or {}, { check_buffers = true })
 
   if self.path == nil then
     error "a path is required"
@@ -1086,6 +1100,14 @@ Note.save = function(self, opts)
   end
 
   util.write_file(tostring(save_path), table.concat(new_lines, "\n"))
+
+  if opts.check_buffers then
+    -- `vim.fn.bufnr` returns the **max** bufnr loaded from the same path.
+    if vim.fn.bufnr(save_path.filename) ~= -1 then
+      -- But we want to call |checktime| on **all** buffers loaded from the path.
+      vim.cmd.checktime(save_path.filename)
+    end
+  end
 end
 
 --- Write the note to a buffer.

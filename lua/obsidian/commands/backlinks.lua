@@ -2,6 +2,7 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 local RefTypes = require("obsidian.search").RefTypes
 local api = require "obsidian.api"
+local search = require "obsidian.search"
 
 ---@param client obsidian.Client
 ---@param picker obsidian.Picker
@@ -62,14 +63,17 @@ return function(client)
     return
   end
 
-  local location, _, ref_type = util.parse_cursor_link { include_block_ids = true }
+  local cur_link, link_type = api.cursor_link()
 
   if
-    location ~= nil
-    and ref_type ~= RefTypes.NakedUrl
-    and ref_type ~= RefTypes.FileUrl
-    and ref_type ~= RefTypes.BlockID
+    cur_link ~= nil
+    and link_type ~= RefTypes.NakedUrl
+    and link_type ~= RefTypes.FileUrl
+    and link_type ~= RefTypes.BlockID
   then
+    local location = util.parse_link(cur_link, { include_block_ids = true })
+    assert(location, "cursor on a link but failed to parse, please report to repo")
+
     -- Remove block links from the end if there are any.
     -- TODO: handle block links.
     ---@type string|?
@@ -88,7 +92,7 @@ return function(client)
 
     local opts = { anchor = anchor_link, block = block_link }
 
-    client:resolve_note_async(location, function(...)
+    search.resolve_note_async(location, function(...)
       ---@type obsidian.Note[]
       local notes = { ... }
 
@@ -114,8 +118,8 @@ return function(client)
     ---@type obsidian.note.LoadOpts
     local load_opts = {}
 
-    if ref_type == RefTypes.BlockID then
-      opts.block = location
+    if cur_link and link_type == RefTypes.BlockID then
+      opts.block = util.parse_link(cur_link, { include_block_ids = true })
     else
       load_opts.collect_anchor_links = true
     end

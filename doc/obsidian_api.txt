@@ -37,15 +37,12 @@ Class ~
 
 ------------------------------------------------------------------------------
                                                          *obsidian.Client.new()*
-                              `Client.new`({opts})
+                                 `Client.new`()
 Create a new Obsidian client without additional setup.
 This is mostly used for testing. In practice you usually want to obtain the existing
 client through:
 
 `require("obsidian").get_client()`
-
-Parameters ~
-{opts} `(obsidian.config.ClientOpts)`
 
 Return ~
 `(obsidian.Client)`
@@ -57,124 +54,6 @@ Get the default search options.
 
 Return ~
 `(obsidian.SearchOpts)`
-
-------------------------------------------------------------------------------
-                                                  *obsidian.Client.find_notes()*
-                  `Client.find_notes`({self}, {term}, {opts})
-Find notes matching the given term. Notes are searched based on ID, title, filename, and aliases.
-
-Parameters ~
-{term} `(string)` The term to search for
-{opts} `({ search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, timeout: integer|? }|)`?
-
-Return ~
-`(obsidian.Note[])`
-
-------------------------------------------------------------------------------
-                                            *obsidian.Client.find_notes_async()*
-         `Client.find_notes_async`({self}, {term}, {callback}, {opts})
-An async version of `find_notes()` that runs the callback with an array of all matching notes.
-
-Parameters ~
-{term} `(string)` The term to search for
-{callback} `(fun(notes: obsidian.Note[]))`
-{opts} `({ search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|? }|)`?
-
-------------------------------------------------------------------------------
-                                                  *obsidian.Client.find_files()*
-                  `Client.find_files`({self}, {term}, {opts})
-Find non-markdown files in the vault.
-
-Parameters ~
-{term} `(string)` The search term.
-{opts} `({ search: obsidian.SearchOpts, timeout: integer|? }|)`?
-
-Return ~
-`(obsidian.Path[])`
-
-------------------------------------------------------------------------------
-                                            *obsidian.Client.find_files_async()*
-         `Client.find_files_async`({self}, {term}, {callback}, {opts})
-An async version of `find_files`.
-
-Parameters ~
-{term} `(string)` The search term.
-{callback} `(fun(paths: obsidian.Path[]))`
-{opts} `({ search: obsidian.SearchOpts }|)`?
-
-------------------------------------------------------------------------------
-                                                *obsidian.Client.resolve_note()*
-                 `Client.resolve_note`({self}, {query}, {opts})
-Resolve the query to a single note if possible, otherwise all close matches are returned.
-The 'query' can be a path, filename, note ID, alias, title, etc.
-
-Parameters ~
-{query} `(string)`
-{opts} `({ timeout: integer|?, notes: obsidian.note.LoadOpts|? }|)`?
-
-Return ~
-`(obsidian.Note)` ...
-
-------------------------------------------------------------------------------
-                                          *obsidian.Client.resolve_note_async()*
-        `Client.resolve_note_async`({self}, {query}, {callback}, {opts})
-An async version of `resolve_note()`.
-
-Parameters ~
-{query} `(string)`
-{callback} `(fun(...: obsidian.Note))`
-{opts} `({ notes: obsidian.note.LoadOpts|? }|)`?
-
-Return ~
-`(obsidian.Note| `(optional))``
-
-------------------------------------------------------------------------------
-                     *obsidian.Client.resolve_note_async_with_picker_fallback()*
-`Client.resolve_note_async_with_picker_fallback`({self}, {query}, {callback}, {opts})
-Same as `resolve_note_async` but opens a picker to choose a single note when
-there are multiple matches.
-
-Parameters ~
-{query} `(string)`
-{callback} `(fun(obsidian.Note))`
-{opts} `({ notes: obsidian.note.LoadOpts|?, prompt_title: string|? }|)`?
-
-Return ~
-`(obsidian.Note| `(optional))``
-
-------------------------------------------------------------------------------
-Class ~
-{obsidian.ResolveLinkResult}
-
-Fields ~
-{location} `(string)`
-{name} `(string)`
-{link_type} `(obsidian.search.RefTypes)`
-{path} `(obsidian.Path|)`?
-{note} `(obsidian.Note|)`?
-{url} `(string|)`?
-{line} `(integer|)`?
-{col} `(integer|)`?
-{anchor} `(obsidian.note.HeaderAnchor|)`?
-{block} `(obsidian.note.Block|)`?
-
-------------------------------------------------------------------------------
-                                          *obsidian.Client.resolve_link_async()*
-            `Client.resolve_link_async`({self}, {link}, {callback})
-Resolve a link. If the link argument is `nil` we attempt to resolve a link under the cursor.
-
-Parameters ~
-{link} `(string|)`?
-{callback} `(fun(...: obsidian.ResolveLinkResult))`
-
-------------------------------------------------------------------------------
-                                           *obsidian.Client.follow_link_async()*
-               `Client.follow_link_async`({self}, {link}, {opts})
-Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
-
-Parameters ~
-{link} `(string|)`?
-{opts} `({ open_strategy: obsidian.config.OpenStrategy|? }|)`?
 
 ------------------------------------------------------------------------------
 Class ~
@@ -289,6 +168,40 @@ be created, regardless of the value of the `should_write` option.
 @field tags string[]|?  Tags for this note
 @field should_write boolean|? Don't write the note to disk
 @field template string|? The name of the template
+
+------------------------------------------------------------------------------
+Class ~
+{obsidian.note.NoteSaveOpts}
+Specify a path to save to. Defaults to `self.path`.
+Fields ~
+{path} `(optional)` `(string|obsidian.Path)`
+Whether to insert/update frontmatter. Defaults to `true`.
+{insert_frontmatter} `(optional)` `(boolean)`
+Override the frontmatter. Defaults to the result of `self:frontmatter()`.
+{frontmatter} `(optional)` `(table)`
+A function to update the contents of the note. This takes a list of lines representing the text to be written
+excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+{update_content} `(optional)` `(fun(lines: string[]): string[])`
+Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
+See `:help checktime` to learn more.
+{check_buffers} `(optional)` `(boolean)`
+
+------------------------------------------------------------------------------
+Class ~
+{obsidian.note.NoteWriteOpts}
+Specify a path to save to. Defaults to `self.path`.
+Fields ~
+{path} `(optional)` `(string|obsidian.Path)`
+The name of a template to use if the note file doesn't already exist.
+{template} `(optional)` `(string)`
+A function to update the contents of the note. This takes a list of lines representing the text to be written
+excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+{update_content} `(optional)` `(fun(lines: string[]): string[])`
+Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
+See `:help checktime` to learn more.
+{check_buffers} `(optional)` `(boolean)`
 
 ------------------------------------------------------------------------------
 Class ~
@@ -608,14 +521,7 @@ Return ~
 Write the note to disk.
 
 Parameters ~
-{opts} `({ path: string|obsidian.Path, template: string|?, update_content: (fun(lines: string[]): string[])|? }|? Options.)`
-
-Options:
- - `template`: The name of a template to use if the note file doesn't already exist.
- - `update_content`: A function to update the contents of the note. This takes a list of lines
-   representing the text to be written excluding frontmatter, and returns the lines that will
-   actually be written (again excluding frontmatter).
-
+{opts} `(optional)` `(obsidian.note.NoteWriteOpts)`
 Return ~
 `(obsidian.Note)`
 
@@ -627,15 +533,7 @@ In general this only updates the frontmatter and header, leaving the rest of the
 unless you use the `update_content()` callback.
 
 Parameters ~
-{opts} `({ path: string|obsidian.Path|?, insert_frontmatter: boolean|?, frontmatter: table|?, update_content: (fun(lines: string[]): string[])|? }|? Options.)`
-
-Options:
- - `path`: Specify a path to save to. Defaults to `self.path`.
- - `insert_frontmatter`: Whether to insert/update frontmatter. Defaults to `true`.
- - `frontmatter`: Override the frontmatter. Defaults to the result of `self:frontmatter()`.
- - `update_content`: A function to update the contents of the note. This takes a list of lines
-   representing the text to be written excluding frontmatter, and returns the lines that will
-   actually be written (again excluding frontmatter).
+{opts} `(optional)` `(obsidian.note.NoteSaveOpts)`
 
 ------------------------------------------------------------------------------
                                                *obsidian.Note.write_to_buffer()*
@@ -839,6 +737,13 @@ Return ~
                       `Workspace.set`({workspace}, {opts})
 Parameters ~
 {workspace} `(obsidian.Workspace)`
+{opts} `({ lock: boolean|? }|)`?
+
+------------------------------------------------------------------------------
+                                                   *obsidian.Workspace.switch()*
+                    `Workspace.switch`({workspace}, {opts})
+Parameters ~
+{workspace} `(obsidian.Workspace|string)` The workspace object or the name of an existing workspace.
 {opts} `({ lock: boolean|? }|)`?
 
 ------------------------------------------------------------------------------

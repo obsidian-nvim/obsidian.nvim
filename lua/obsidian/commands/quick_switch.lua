@@ -1,8 +1,8 @@
 local log = require "obsidian.log"
+local search = require "obsidian.search"
 
----@param client obsidian.Client
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   if not data.args or string.len(data.args) == 0 then
     local picker = Obsidian.picker
     if not picker then
@@ -12,7 +12,7 @@ return function(client, data)
 
     picker:find_notes { use_cache = Obsidian.opts.cache.enabled }
   else
-    client:resolve_note_async_with_picker_fallback(data.args, function(note)
+    search.resolve_note_async(data.args, function(note)
       note:open()
     end)
   end

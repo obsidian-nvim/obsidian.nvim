@@ -20,9 +20,4 @@ function TagsSource:complete(request, callback)
   self:process_completion(cc)
 end
 
-function TagsSource:execute(item, callback)
-  self:process_execute(item)
-  return callback {}
-end
-
 return TagsSource

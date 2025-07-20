@@ -1,29 +1,6 @@
+---builtin functions that are default values for config options
 local M = {}
-local api = require "obsidian.api"
 local util = require "obsidian.util"
-
----builtin functions that are default values for actions, and modules
-
-M.smart_action = function()
-  local legacy = Obsidian.opts.legacy_commands
-  -- follow link if possible
-  if api.cursor_on_markdown_link(nil, nil, true) then
-    return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
-  end
-
-  -- show notes with tag if possible
-  if api.cursor_tag() then
-    return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
-  end
-
-  if api.cursor_heading() then
-    return "za"
-  end
-
-  -- toggle task if possible
-  -- cycles through your custom UI checkboxes, default: [ ] [~] [>] [x]
-  return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
-end
 
 ---Create a new unique Zettel ID.
 ---
@@ -122,6 +99,7 @@ M.markdown_link = function(opts)
 end
 
 ---@param path string
+---@return string
 M.img_text_func = function(path)
   local format_string = {
     markdown = "![](%s)",

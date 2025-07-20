@@ -1,7 +1,19 @@
 local Path = require "obsidian.path"
 local obsidian = require "obsidian"
+local child = MiniTest.new_child_neovim()
 
 local M = {}
+
+---Create a new Obsidian client in a given vault directory.
+---
+---@param dir string
+---@param opts obsidian.config.ClientOpts|?
+---@return obsidian.Client
+local new_from_dir = function(dir, opts)
+  opts = vim.tbl_deep_extend("keep", opts or {}, obsidian.config.default)
+  opts.workspaces = { { path = dir, strict = true } }
+  return obsidian.Client.new(opts)
+end
 
 ---Get a client in a temporary directory.
 ---
@@ -21,7 +33,7 @@ M.with_tmp_client = function(f, dir, opts)
     end
   end
 
-  local client = obsidian.new_from_dir(tostring(dir), opts)
+  local client = new_from_dir(tostring(dir), opts)
   local ok, err = pcall(f, client)
 
   if tmp then
@@ -58,5 +70,20 @@ M.temp_vault = MiniTest.new_set {
     end,
   },
 }
+
+M.new_set_with_setup = function()
+  return MiniTest.new_set {
+    hooks = {
+      pre_case = function()
+        child.restart { "-u", "scripts/minimal_init_with_setup.lua" }
+      end,
+      post_once = function()
+        child.lua [[vim.fn.delete(tostring(Obsidian.dir), "rf")]]
+        child.stop()
+      end,
+    },
+  },
+    child
+end
 
 return M
