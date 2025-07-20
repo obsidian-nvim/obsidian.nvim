@@ -761,6 +761,32 @@ M.get_sub_dirs_from_vault = function(path)
   return subdirs
 end
 
+---Cross-platform check if the pid exists.
+---@param pid string
+---@return boolean
+M.check_pid_exists = function(pid)
+  local system = M.get_os()
+
+  if system == M.OSType.Windows then
+    local cmd = string.format('tasklist /FI "PID eq %d" /NH', pid)
+    local pipe = io.popen(cmd)
+    assert(pipe)
+    local output = pipe:read()
+    pipe:close()
+
+    return output:match(pid) ~= nil
+  else
+    local cmd = "kill -0 " .. pid
+    local ok = os.execute(cmd)
+
+    if ok then
+      return true
+    else
+      return false
+    end
+  end
+end
+
 --- Resolve a basename to full path inside the vault.
 ---
 ---@param src string

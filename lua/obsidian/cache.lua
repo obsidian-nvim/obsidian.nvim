@@ -202,14 +202,24 @@ local enable_filewatch = function()
   local lock_file_path = vim.fs.joinpath(workspace_path, lock_name)
 
   if uv.fs_stat(lock_file_path) then
-    return
+    local lock_file = io.open(lock_file_path, "r")
+
+    assert(lock_file)
+
+    local pid = lock_file:read()
+    lock_file:close()
+
+    if api.check_pid_exists(pid) then
+      return
+    end
   end
 
   local lock_file_handler = io.open(lock_file_path, "w")
 
   assert(lock_file_handler)
 
-  lock_file_handler:write()
+  local current_nvim_pid = uv.os_getpid()
+  lock_file_handler:write(current_nvim_pid)
   lock_file_handler:close()
 
   local filewatch = require "obsidian.filewatch"
