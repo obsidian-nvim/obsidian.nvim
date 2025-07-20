@@ -1,5 +1,4 @@
 local uv = vim.loop
-local util = require "obsidian.util"
 local api = require "obsidian.api"
 
 local M = {}
@@ -180,10 +179,10 @@ M.watch = function(path, callback, on_error)
 
   queue_timer = new_timer
 
-  local sysname = util.get_os()
+  local sysname = api.get_os()
 
   -- uv doesn't support recursive flag on Linux
-  if sysname == util.OSType.Linux then
+  if sysname == api.OSType.Linux then
     table.insert(watch_handlers, watch_path(path, callback, on_error, { recursive = false }))
 
     local subfolders = api.get_sub_dirs_from_vault(path)
