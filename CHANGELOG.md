@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Fixed type hinting in `opts.workspaces[*].overrides`.
 - Added `opts.ui.ignore_conceal_warn` option to ignore conceal-related warnings.
 - Added support for multiword note title in new_from_template.
 
