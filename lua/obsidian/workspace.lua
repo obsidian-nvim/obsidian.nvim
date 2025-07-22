@@ -153,18 +153,18 @@ Workspace.set = function(workspace, opts)
   Obsidian.opts = options
 
   -- Ensure directories exist.
-  dir:mkdir { parents = true, exists_ok = true }
+  dir:mkdir { parents = true }
 
   if options.notes_subdir then
-    (dir / options.notes_subdir):mkdir { parents = true, exists_ok = true }
+    (dir / options.notes_subdir):mkdir { parents = true }
   end
 
   if options.templates.folder then
-    (dir / options.templates.folder):mkdir { parents = true, exists_ok = true }
+    (dir / options.templates.folder):mkdir { parents = true }
   end
 
   if options.daily_notes.folder then
-    (dir / options.daily_notes.folder):mkdir { parents = true, exists_ok = true }
+    (dir / options.daily_notes.folder):mkdir { parents = true }
   end
 
   if opts.lock then
