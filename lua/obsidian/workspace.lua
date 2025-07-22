@@ -6,7 +6,7 @@ local log = require "obsidian.log"
 
 ---@class obsidian.workspace.WorkspaceSpec
 ---
----@field path string | (fun(): string) | obsidian.Path | (fun(): obsidian.Path)
+---@field path string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path)
 ---@field name string|?
 ---@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
 ---@field overrides table|obsidian.config.ClientOpts|?
@@ -28,7 +28,10 @@ local log = require "obsidian.log"
 ---@field locked boolean|?
 local Workspace = abc.new_class {
   __tostring = function(self)
-    return string.format("Workspace(name='%s', path='%s', root='%s')", self.name, self.path, self.root)
+    if self.name == Obsidian.workspace.name then
+      return string.format("*[%s] @ '%s'", self.name, self.path)
+    end
+    return string.format("[%s] @ '%s'", self.name, self.path)
   end,
   __eq = function(a, b)
     local a_fields = a:as_tbl()

@@ -3,20 +3,33 @@ local Workspace = require "obsidian.workspace"
 ---@param data CommandArgs
 return function(_, data)
   if not data.args or string.len(data.args) == 0 then
-    vim.ui.select(Obsidian.workspaces, {
-      prompt = "Obsidian Workspace",
-      format_item = function(ws)
-        if ws.name == Obsidian.workspace.name then
-          return string.format("*[%s] @ '%s'", ws.name, ws.path)
+    local picker = Obsidian.picker
+    if picker then
+      ---@type obsidian.PickerEntry
+      local options = vim.tbl_map(function(ws)
+        return {
+          value = ws,
+          display = tostring(ws),
+          filename = tostring(ws.path),
+        }
+      end, Obsidian.workspaces)
+      picker:pick(options, {
+        prompt_title = "Obsidian Workspace",
+        callback = function(ws)
+          Workspace.switch(ws.name, { lock = true })
+        end,
+      })
+    else
+      vim.ui.select(Obsidian.workspaces, {
+        prompt = "Obsidian Workspace",
+        format_item = tostring,
+      }, function(ws)
+        if not ws then
+          return
         end
-        return string.format("[%s] @ '%s'", ws.name, ws.path)
-      end,
-    }, function(item)
-      if not item then
-        return
-      end
-      Workspace.switch(item.name, { lock = true })
-    end)
+        Workspace.switch(ws.name, { lock = true })
+      end)
+    end
   else
     Workspace.switch(data.args, { lock = true })
   end

@@ -592,6 +592,8 @@ M.get_icon = function(path)
     local icon = ""
     local _, hl_group = M.get_icon "blah.html"
     return icon, hl_group
+  elseif Path.new(path):is_dir() then
+    return "󰉋"
   else
     local ok, res = pcall(function()
       local icon, hl_group = require("nvim-web-devicons").get_icon(path, nil, { default = true })

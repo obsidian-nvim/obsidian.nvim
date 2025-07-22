@@ -101,7 +101,6 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
----@diagnostic disable-next-line: unused-local
 SnacksPicker.pick = function(self, values, opts)
   self.calling_bufnr = vim.api.nvim_get_current_buf()
 
@@ -116,14 +115,14 @@ SnacksPicker.pick = function(self, values, opts)
         text = value,
         value = value,
       })
-    elseif value.valid ~= false then
+    elseif type(value) == "table" then
       local name = self:_make_display(value)
       table.insert(entries, {
         text = name,
         buf = self.calling_bufnr,
         filename = value.filename,
         value = value.value,
-        pos = { value.lnum, value.col or 0 },
+        pos = value.lnum and { value.lnum, value.col or 0 },
       })
     end
   end
