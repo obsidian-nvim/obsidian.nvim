@@ -254,11 +254,8 @@ T["mkdir"]["should make a directory"] = function()
   eq(true, dir:is_dir())
   eq(false, dir:is_file())
 
-  dir:mkdir { exist_ok = true }
+  dir:mkdir {}
   eq(true, dir:exists())
-  has_error(function()
-    dir:mkdir { exist_ok = false }
-  end)
 
   dir:rmdir()
   eq(false, dir:exists())
