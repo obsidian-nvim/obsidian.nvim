@@ -596,7 +596,7 @@ Fields ~
 {path} `(string|(fun(): string))`
 {name} `(string|)`?
 {strict} `(boolean|? If)` true, the workspace root will be fixed to 'path' instead of the vault root (if different).
-{overrides} `(table|obsidian.config.ClientOpts|)`?
+{overrides} `(table|obsidian.config.ClientOpts?)`
 
 ------------------------------------------------------------------------------
 Class ~

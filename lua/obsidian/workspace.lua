@@ -9,7 +9,8 @@ local log = require "obsidian.log"
 ---@field path string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path)
 ---@field name string|?
 ---@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
----@field overrides table|obsidian.config.ClientOpts|?
+---@field overrides table|obsidian.config.ClientOpts?
+
 
 --- Each workspace represents a working directory (usually an Obsidian vault) along with
 --- a set of configuration options specific to the workspace.
