@@ -388,6 +388,8 @@ config.normalize = function(opts, defaults)
   local builtin = require "obsidian.builtin"
   local util = require "obsidian.util"
 
+  opts = opts or {}
+
   if not defaults then
     defaults = config.default
   end

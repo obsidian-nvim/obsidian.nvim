@@ -1,6 +1,5 @@
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
-local api = require "obsidian.api"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
 local log = require "obsidian.log"
@@ -74,7 +73,7 @@ Workspace.new = function(spec)
 
   local path
 
-  if type(path) == "function" then
+  if type(spec.path) == "function" then
     path = spec.path()
   else
     path = spec.path
@@ -137,26 +136,17 @@ Workspace.get_workspace_for_dir = function(cur_dir, workspaces)
   end
 end
 
---- Get the normalize opts for a given workspace.
+--- 1. Set Obsidian.workspace, Obsidian.dir, and opts
+--- 2. Make sure all the directories exists
+--- 3. fire callbacks and exec autocmd event
 ---
----@param workspace obsidian.Workspace|?
----
----@return obsidian.config.ClientOpts
-local normalize_opts = function(workspace)
-  if workspace then
-    return config.normalize(workspace.overrides and workspace.overrides or {}, Obsidian._opts)
-  else
-    return Obsidian.opts
-  end
-end
-
 ---@param workspace obsidian.Workspace
 ---@param opts { lock: boolean|? }|?
 Workspace.set = function(workspace, opts)
   opts = opts and opts or {}
 
   local dir = workspace.root
-  local options = normalize_opts(workspace) -- TODO: test
+  local options = config.normalize(workspace.overrides, Obsidian._opts)
 
   Obsidian.workspace = workspace
   Obsidian.dir = dir
@@ -165,29 +155,23 @@ Workspace.set = function(workspace, opts)
   -- Ensure directories exist.
   dir:mkdir { parents = true, exists_ok = true }
 
-  if options.notes_subdir ~= nil then
-    local notes_subdir = dir / Obsidian.opts.notes_subdir
-    notes_subdir:mkdir { parents = true, exists_ok = true }
+  if options.notes_subdir then
+    (dir / options.notes_subdir):mkdir { parents = true, exists_ok = true }
   end
 
-  if Obsidian.opts.daily_notes.folder ~= nil then
-    local daily_notes_subdir = Obsidian.dir / Obsidian.opts.daily_notes.folder
-    daily_notes_subdir:mkdir { parents = true, exists_ok = true }
+  if options.templates.folder then
+    (dir / options.templates.folder):mkdir { parents = true, exists_ok = true }
   end
 
-  -- Setup UI add-ons.
-  local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
-  if has_no_renderer and Obsidian.opts.ui.enable then
-    require("obsidian.ui").setup(Obsidian.workspace, Obsidian.opts.ui)
+  if options.daily_notes.folder then
+    (dir / options.daily_notes.folder):mkdir { parents = true, exists_ok = true }
   end
 
   if opts.lock then
     Obsidian.workspace:lock()
   end
 
-  Obsidian.picker = require("obsidian.pickers").get(Obsidian.opts.picker.name)
-
-  util.fire_callback("post_set_workspace", Obsidian.opts.callbacks.post_set_workspace, workspace)
+  util.fire_callback("post_set_workspace", options.callbacks.post_set_workspace, workspace)
 
   vim.api.nvim_exec_autocmds("User", {
     pattern = "ObsidianWorkpspaceSet",

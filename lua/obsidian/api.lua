@@ -4,6 +4,7 @@ local util = require "obsidian.util"
 local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
+local config = require "obsidian.config"
 
 ---@param dir string | obsidian.Path
 ---@return Iter
@@ -29,14 +30,13 @@ end
 
 --- Get the templates folder.
 ---
+---@param workspace obsidian.Workspace?
 ---@return obsidian.Path|?
 M.templates_dir = function(workspace)
   local opts = Obsidian.opts
 
-  local Workspace = require "obsidian.workspace"
-
   if workspace and workspace ~= Obsidian.workspace then
-    opts = Workspace.normalize_opts(workspace)
+    opts = config.normalize(workspace.overrides, Obsidian._opts)
   end
 
   if opts.templates == nil or opts.templates.folder == nil then
@@ -160,7 +160,6 @@ end
 ---
 ---@return string
 M.format_link = function(note, opts)
-  local config = require "obsidian.config"
   opts = opts or {}
 
   ---@type string, string, string|integer|?
