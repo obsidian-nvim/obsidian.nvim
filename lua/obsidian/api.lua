@@ -613,7 +613,15 @@ end
 ---@param src string
 ---@return string
 M.resolve_image_path = function(src)
-  return vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.img_folder, src)
+  local img_folder = Obsidian.opts.attachments.img_folder
+
+  ---@cast img_folder -nil
+  if vim.startswith(img_folder, ".") then
+    local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
+    return tostring(dirname / img_folder / src)
+  else
+    return tostring(Obsidian.dir / img_folder / src)
+  end
 end
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
