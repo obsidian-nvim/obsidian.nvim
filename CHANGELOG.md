@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `check_buffers` option to `Note.write` and `Note.save` for automatically reloading buffers with `checktime` after writing them to disk
 - Added footer options.
 - Added default mappings: `]o` and `[o`, for navigating links in note.
+- Support pasting image to sub directory in current directory.
 
 ### Changed
 
