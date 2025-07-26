@@ -1,4 +1,3 @@
-local Path = require "obsidian.path"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local img = require "obsidian.img_paste"
@@ -9,17 +8,12 @@ return function(_, data)
     return log.err "There is no image data in the clipboard"
   end
 
-  local img_folder = Path.new(Obsidian.opts.attachments.img_folder)
-  if not img_folder:is_absolute() then
-    img_folder = Obsidian.dir / Obsidian.opts.attachments.img_folder
-  end
-
   ---@type string|?
   local default_name = Obsidian.opts.attachments.img_name_func()
 
   local should_confirm = Obsidian.opts.attachments.confirm_img_paste
 
-  ---@type string?
+  ---@type string
   local fname = vim.trim(data.args)
 
   -- Get filename to save to.
@@ -27,15 +21,11 @@ return function(_, data)
     if default_name and not should_confirm then
       fname = default_name
     else
-      fname = api.input("Enter file name: ", {
-        default = default_name,
-        completion = "file",
-      })
-      if fname == "" then
-        fname = default_name
-      elseif not fname then
+      local input = api.input("Enter file name: ", { default = default_name, completion = "file" })
+      if not input then
         return log.warn "Paste aborted"
       end
+      fname = input
     end
   end
 
