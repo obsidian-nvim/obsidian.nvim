@@ -276,7 +276,7 @@ config.default = {
 
   ---@class obsidian.config.AttachmentsOpts
   ---
-  ---Default folder to save images to, relative to the vault root.
+  ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
   ---@field img_folder? string
   ---
   ---Default name for pasted images

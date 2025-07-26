@@ -101,7 +101,7 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian open [QUERY]` to open a note in the Obsidian app.
   One optional argument: a query used to resolve the note to open by ID, path, or alias. If not given, the current buffer is used.
 
-- `:Obsidian paste_img [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option.
+- `:Obsidian paste_img [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option. See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location).
 
 - `:Obsidian quick_switch` to quickly switch to another note in your vault, searching by its name with a picker.
 
