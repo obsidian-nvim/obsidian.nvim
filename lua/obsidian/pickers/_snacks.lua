@@ -4,10 +4,6 @@ local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
 local Picker = require "obsidian.pickers.picker"
 
-local function debug_once(msg, ...)
-  --    vim.notify(msg .. vim.inspect(...))
-end
-
 ---@param mapping table
 ---@return table
 local function notes_mappings(mapping)
@@ -19,7 +15,6 @@ local function notes_mappings(mapping)
         [k] = { name, mode = { "n", "i" }, desc = v.desc },
       }
       opts.actions[name] = function(picker, item)
-        debug_once("mappings :", item)
         picker:close()
         vim.schedule(function()
           v.callback(item.value or item._path)
@@ -56,10 +51,8 @@ SnacksPicker.find_files = function(self, opts)
       picker:close()
       if item then
         if opts.callback then
-          debug_once("find files callback: ", item)
           opts.callback(item._path)
         else
-          debug_once("find files jump: ", item)
           snacks_picker.actions.jump(picker, item, action)
         end
       end
@@ -71,8 +64,6 @@ end
 ---@param opts obsidian.PickerGrepOpts|? Options.
 SnacksPicker.grep = function(self, opts)
   opts = opts or {}
-
-  debug_once("grep opts : ", opts)
 
   ---@type obsidian.Path
   local dir = opts.dir.filename and Path:new(opts.dir.filename) or Obsidian.dir
@@ -87,10 +78,8 @@ SnacksPicker.grep = function(self, opts)
       picker:close()
       if item then
         if opts.callback then
-          debug_once("grep callback: ", item)
           opts.callback(item._path or item.filename)
         else
-          debug_once("grep jump: ", item)
           snacks_picker.actions.jump(picker, item, action)
         end
       end
@@ -106,7 +95,9 @@ SnacksPicker.pick = function(self, values, opts)
 
   opts = opts or {}
 
-  debug_once("pick opts: ", opts)
+  local preview = vim.iter(values):any(function(value)
+    return type(value) == "table" and value.filename ~= nil
+  end)
 
   local entries = {}
   for _, value in ipairs(values) do
@@ -119,10 +110,10 @@ SnacksPicker.pick = function(self, values, opts)
       local name = self:_make_display(value)
       table.insert(entries, {
         text = name,
-        buf = self.calling_bufnr,
-        filename = value.filename,
+        file = value.filename,
         value = value.value,
         pos = value.lnum and { value.lnum, value.col or 0 },
+        dir = Path.new(value.filename):is_dir(),
       })
     end
   end
@@ -130,20 +121,18 @@ SnacksPicker.pick = function(self, values, opts)
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
-    tilte = opts.prompt_title,
+    title = opts.prompt_title,
     items = entries,
     layout = {
-      preview = false,
+      preview = preview,
     },
-    format = "text",
+    format = preview and "file" or "text",
     confirm = function(picker, item, action)
       picker:close()
       if item then
         if opts.callback then
-          debug_once("pick callback: ", item)
           opts.callback(item.value)
         else
-          debug_once("pick jump: ", item)
           snacks_picker.actions.jump(picker, item, action)
         end
       end
