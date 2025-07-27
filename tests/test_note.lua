@@ -197,6 +197,7 @@ end
 T["from_file"]["should collect additional frontmatter metadata"] = function()
   local note = M.from_file "tests/fixtures/notes/note_with_additional_metadata.md"
   eq(note.id, "note_with_additional_metadata")
+  eq(note.title, "Note (has additional metadata)")
   not_eq(note.metadata, nil)
   eq(note.metadata.foo, "bar")
   eq(

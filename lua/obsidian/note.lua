@@ -766,11 +766,6 @@ Note.from_lines = function(lines, path, opts)
     end
   end
 
-  if title ~= nil then
-    -- Remove references and links from title
-    title = search.replace_refs(title)
-  end
-
   -- Parse the frontmatter YAML.
   local metadata = nil
   if #frontmatter_lines > 0 then
@@ -787,6 +782,12 @@ Note.from_lines = function(lines, path, opts)
             id = v
           else
             log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
+          end
+        elseif k == "title" then
+          if type(v) == "string" then
+            title = v
+          else
+            log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
           end
         elseif k == "aliases" then
           if type(v) == "table" then
@@ -836,6 +837,11 @@ Note.from_lines = function(lines, path, opts)
         end
       end
     end
+  end
+
+  if title ~= nil then
+    -- Remove references and links from title
+    title = search.replace_refs(title)
   end
 
   -- ID should default to the filename without the extension.
