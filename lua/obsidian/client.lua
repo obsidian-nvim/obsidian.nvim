@@ -315,7 +315,7 @@ Client.find_tags_async = function(self, term, callback, opts)
       end
     end
 
-    local line = util.strip_whitespace(match_data.lines.text)
+    local line = vim.trim(match_data.lines.text)
     local n_matches = 0
 
     -- check for tag in the wild of the form '#{tag}'
