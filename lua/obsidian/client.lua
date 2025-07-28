@@ -474,7 +474,6 @@ Client.find_backlinks_async = function(self, note, callback, opts)
     note_path.name,
     note_path.stem,
     note.path:vault_relative_path(),
-    -- self:vault_relative_path(note.path),
   } do
     for ref in
       iter(util.tbl_unique {
