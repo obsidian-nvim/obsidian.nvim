@@ -313,7 +313,7 @@ config.default = {
   ---@field pre_write_note? fun(client: obsidian.Client, note: obsidian.Note)
   ---
   ---Runs anytime the workspace is set/changed.
-  ---@field post_set_workspace? fun(client: obsidian.Client, workspace: obsidian.Workspace)
+  ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
   callbacks = {},
 
   ---@class obsidian.config.StatuslineOpts
