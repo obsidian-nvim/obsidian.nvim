@@ -132,7 +132,7 @@ local function rename_note(uri, new_name, target)
   vim.lsp.util.rename(old.path, new.path)
 
   if not target.bufnr then
-    target.bufnr = vim.fn.bufnr(new.path)
+    target.bufnr = vim.fn.bufnr(new.path, true)
   end
 
   -- Wait for all tasks to get submitted.
@@ -175,8 +175,7 @@ return function(params, _, _)
   local new_name = params.newName
 
   if not validate_new_name(new_name) then
-    log.warn "Invalid rename id, note with the same id/filename already exists"
-    return
+    return log.warn "Invalid rename id, note with the same id/filename already exists"
   end
 
   local cur_link = api.cursor_link()
@@ -184,21 +183,15 @@ return function(params, _, _)
   local ok, err = pcall(vim.cmd.wall)
 
   if not ok then
-    log.err(err and err or "failed writing all buffers before renaming, abort")
-    return
+    return log.err(err and err or "failed writing all buffers before renaming, abort")
   end
 
   if cur_link then
-    local loc = util.parse_cursor(cur_link)
-    local notes = search.resolve_note(loc)
-    if #notes == 0 then
-      log.err("Failed to resolve '%s' to a note", cur_link)
-      return
-    elseif #notes > 1 then
-      log.err("Failed to resolve '%s' to a single note, found %d matches", cur_link, #notes)
+    local loc = util.parse_link(cur_link)
+    local note = search.resolve_note(loc)
+    if not note then
       return
     end
-    local note = notes[1]
     local uri = vim.uri_from_fname(tostring(note.path))
     rename_note(uri, new_name, note)
   else

@@ -612,8 +612,8 @@ M.follow_link = function(link, opts)
   opts = opts and opts or {}
   local Note = require "obsidian.note"
 
-  search.resolve_link_async(link, function(results)
-    if #results == 0 then
+  search.resolve_link_async(link, function(result)
+    if not result then
       return
     end
 
@@ -664,43 +664,11 @@ M.follow_link = function(link, opts)
       return log.err("Failed to resolve file '" .. res.location .. "'")
     end
 
-    if #results == 1 then
-      return vim.schedule(function()
-        follow_link(results[1])
-      end)
-    else
-      return vim.schedule(function()
-        local picker = Obsidian.picker
-        if not picker then
-          log.err("Found multiple matches to '%s', but no picker is configured", link)
-          return
-        end
-
-        ---@type obsidian.PickerEntry[]
-        local entries = {}
-        for _, res in ipairs(results) do
-          local icon, icon_hl
-          if res.url ~= nil then
-            icon, icon_hl = M.get_icon(res.url)
-          end
-          table.insert(entries, {
-            value = res,
-            display = res.name,
-            filename = res.path and tostring(res.path) or nil,
-            icon = icon,
-            icon_hl = icon_hl,
-          })
-        end
-
-        picker:pick(entries, {
-          prompt_title = "Follow link",
-          callback = function(res)
-            follow_link(res)
-          end,
-        })
-      end)
-    end
-  end)
+    -- if #results == 1 then
+    return vim.schedule(function()
+      follow_link(result)
+    end)
+  end, { pick = true })
 end
 --------------------------
 ---- Mapping functions ---

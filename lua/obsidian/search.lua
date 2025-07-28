@@ -745,21 +745,18 @@ M.resolve_note_async = function(query, callback, opts)
   opts.pick = vim.F.if_nil(opts.pick, true)
 
   _resolve_note_async(query, function(notes)
+    if #notes == 0 then
+      return log.err("No notes matching '%s'", query)
+    elseif #notes == 1 then
+      return callback(notes[1])
+    end
     if opts.pick then
-      if #notes == 0 then
-        log.err("No notes matching '%s'", query)
-        return
-      elseif #notes == 1 then
-        return callback(notes[1])
-      end
-
       -- Fall back to picker.
       vim.schedule(function()
         -- Otherwise run the preferred picker to search for notes.
         local picker = Obsidian.picker
         if not picker then
-          log.err("Found multiple notes matching '%s', but no picker is configured", query)
-          return
+          return log.err("Found multiple notes matching '%s', but no picker is configured", query)
         end
 
         picker:pick_note(notes, {
@@ -768,7 +765,7 @@ M.resolve_note_async = function(query, callback, opts)
         })
       end)
     else
-      callback(notes)
+      return log.err("Failed to resolve '%s' to a single note, found %d matches", query, #notes)
     end
   end, { notes = opts.notes })
 end
@@ -797,15 +794,17 @@ end
 --- Resolve a link.
 ---
 ---@param link string
----@param callback fun(results: obsidian.ResolveLinkResult[])
-M.resolve_link_async = function(link, callback)
+---@param callback fun(results: obsidian.ResolveLinkResult?)
+---@param opts? { pick: boolean }
+M.resolve_link_async = function(link, callback, opts)
+  opts = opts or { pick = false }
   local Note = require "obsidian.note"
 
   local location, name, link_type
   location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
 
   if location == nil or name == nil or link_type == nil then
-    return callback {}
+    return callback()
   end
 
   ---@type obsidian.ResolveLinkResult
@@ -813,7 +812,7 @@ M.resolve_link_async = function(link, callback)
 
   if util.is_url(location) then
     res.url = location
-    return callback { res }
+    return callback(res)
   end
 
   -- The Obsidian app will follow URL-encoded links, so we should to.
@@ -867,29 +866,24 @@ M.resolve_link_async = function(link, callback)
   if string.len(location) == 0 then
     res.location = vim.api.nvim_buf_get_name(0)
     local note = Note.from_buffer(0, load_opts)
-    return callback { finalize_result(note) }
+    return callback(finalize_result(note))
   end
 
   res.location = location
 
-  M.resolve_note_async(location, function(notes)
-    if #notes == 0 then
+  M.resolve_note_async(location, function(note)
+    if not note then
       local path = Path.new(location)
       if path:exists() then
         res.path = path
-        return callback { res }
+        return callback(res)
       else
-        return callback { res }
+        return callback(res)
       end
     end
 
-    local matches = {}
-    for _, note in ipairs(notes) do
-      table.insert(matches, finalize_result(note))
-    end
-
-    return callback(matches)
-  end, { notes = load_opts, pick = false })
+    return callback(finalize_result(note))
+  end, { notes = load_opts, pick = opts.pick })
 end
 
 ---@class obsidian.LinkMatch
