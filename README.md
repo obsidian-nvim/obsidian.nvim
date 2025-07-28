@@ -209,9 +209,6 @@ return {
   --   "BufReadPre path/to/my-vault/*.md",
   --   "BufNewFile path/to/my-vault/*.md",
   -- },
-  dependencies = {
-    -- see above for full list of optional dependencies ☝️
-  },
   ---@module 'obsidian'
   ---@type obsidian.config
   opts = {
@@ -239,40 +236,6 @@ return {
 
 ```vim
 :Rocks install obsidian
-```
-
-</details>
-
-### Using [`packer.nvim`](https://github.com/wbthomason/packer.nvim)
-
-It is not recommended because packer.nvim is currently unmaintained
-
-<details><summary>Click for install snippet</summary>
-
-```lua
-use {
-  "obsidian-nvim/obsidian.nvim",
-  tag = "*", -- recommended, use latest release instead of latest commit
-  requires = {
-    -- see above for full list of optional dependencies ☝️
-  },
-  config = function()
-    require("obsidian").setup {
-      workspaces = {
-        {
-          name = "personal",
-          path = "~/vaults/personal",
-        },
-        {
-          name = "work",
-          path = "~/vaults/work",
-        },
-      },
-
-      -- see below for full list of options 👇
-    }
-  end,
-}
 ```
 
 </details>
