@@ -429,7 +429,25 @@ Click to see configuration options ~
         --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#customizations
         customizations = {},
       },
-    
+      -- Optional, URL patterns that can be handled by function `follow_img_func`
+      url_patterns = {
+	-- an arbitrary number of patterns can be provided
+        url_patterns = {
+          {
+	    -- example for an UUID like patttern, allows to open links like
+	    --   [UUID markdown](uuid://abcdef-1234-5678-90af-abcdef)
+	    --   [[uuid://abcdef-1234-5678-90af-abcdef|UUID wikki]]
+            name = "URL-UUID",
+            pattern = "uuid://[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+",
+          },
+          {
+	    -- example an app specific patttern, allows to open links like
+	    --   [App markdown](app:///data/testData)
+	    --   [[app:///data/testData|App wikki]]
+            name = "App",
+            pattern = "app:///data/[a-zA-Z]+",
+          },
+      },
       -- Sets how you follow URLs
       ---@param url string
       follow_url_func = function(url)

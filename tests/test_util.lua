@@ -36,6 +36,10 @@ T["is_url"]["should identify 'mailto' URLS"] = function()
   eq(true, M.is_url "mailto:mail@domain.com")
 end
 
+T["is_url"]["uncofigured URLs should not be identified"] = function()
+  eq(false, M.is_url "some_protocoll://data")
+end
+
 T["is_checkbox"] = new_set()
 
 T["is_checkbox"]["should return true for valid checkbox list items"] = function()
