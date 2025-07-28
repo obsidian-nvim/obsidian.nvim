@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added footer options.
 - Added default mappings: `]o` and `[o`, for navigating links in note.
 - Support pasting image to sub directory in current directory.
-- Added a builtin lsp to handle completion, hover, diagnostics and code actions
+- Reimplement `Obsidian rename` with `vim.lsp`.
+- Support parsing `title` frontmatter property.
 
 ### Changed
 
