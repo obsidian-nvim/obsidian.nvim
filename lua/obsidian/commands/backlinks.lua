@@ -92,23 +92,12 @@ return function(client)
 
     local opts = { anchor = anchor_link, block = block_link }
 
-    search.resolve_note_async(location, function(...)
-      local notes = { ... }
-
-      if #notes == 0 then
+    search.resolve_note_async(location, function(note)
+      if not note then
         log.err("No notes matching '%s'", location)
         return
-      elseif #notes == 1 then
-        return collect_backlinks(client, picker, notes[1], opts)
       else
-        return vim.schedule(function()
-          picker:pick_note(notes, {
-            prompt_title = "Select note",
-            callback = function(note)
-              collect_backlinks(client, picker, note, opts)
-            end,
-          })
-        end)
+        return collect_backlinks(client, picker, note, opts)
       end
     end)
   else
