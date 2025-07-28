@@ -441,7 +441,7 @@ Click to see configuration options ~
             pattern = "uuid://[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+%-[0-9a-fA-F]+",
           },
           {
-	    -- example an app specific patttern, allows to open links like
+	    -- example for an app specific patttern, allows to open links like
 	    --   [App markdown](app:///data/testData)
 	    --   [[app:///data/testData|App wikki]]
             name = "App",
