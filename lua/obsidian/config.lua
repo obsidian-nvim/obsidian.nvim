@@ -13,6 +13,7 @@ local config = {}
 ---@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field preferred_link_style? obsidian.config.LinkStyle
+---@field url_patterns? obsidian.search.UrlPatternSpec[]
 ---@field follow_url_func? fun(url: string)
 ---@field follow_img_func? fun(img: string)
 ---@field note_frontmatter_func? (fun(note: obsidian.Note): table)
@@ -45,6 +46,7 @@ local config = {}
 ---@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field preferred_link_style obsidian.config.LinkStyle
+---@field url_patterns? obsidian.search.UrlPatternSpec[]
 ---@field follow_url_func fun(url: string)|?
 ---@field follow_img_func fun(img: string)|?
 ---@field note_frontmatter_func (fun(note: obsidian.Note): table)|?
@@ -115,6 +117,7 @@ config.default = {
   wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
   markdown_link_func = require("obsidian.builtin").markdown_link,
   preferred_link_style = config.LinkStyle.wiki,
+  url_patterns = {},
   follow_url_func = vim.ui.open,
   follow_img_func = vim.ui.open,
   note_frontmatter_func = nil,
