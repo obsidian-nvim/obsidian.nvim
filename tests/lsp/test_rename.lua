@@ -34,22 +34,16 @@ vim.fn.writefile({
   "",
   "[[target]]",
 }, referencer_path)
-
-vim.cmd("edit " .. referencer_path)
 ]==]
+
+  child.lua [[vim.cmd("edit " .. referencer_path)]]
   child.lua [[vim.lsp.buf.rename("new_target", {})]]
   local root = child.lua_get [[tostring(Obsidian.dir)]]
   eq(true, (Path.new(root) / "new_target.md"):exists())
-  local bufs = child.lua_get [[vim.api.nvim_list_bufs()]]
+  local bufs = child.api.nvim_list_bufs()
   eq(2, #bufs)
-
-  child.lua_get [[vim.cmd.wa()]]
-  -- local f1 = child.lua_get [[vim.api.nvim_buf_get_name(1)]]
-  -- local f2 = child.lua_get [[vim.api.nvim_buf_get_name(2)]]
-  -- print(f1, f2)
-  --
-  -- local lines = vim.fn.readfile(child.lua_get [[referencer_path]])
-  -- eq("[[new_target]]", lines[2])
+  local lines = child.api.nvim_buf_get_lines(1, 0, -1, false) -- new_target
+  eq("id: new_target", lines[2])
 end
 
 return T
