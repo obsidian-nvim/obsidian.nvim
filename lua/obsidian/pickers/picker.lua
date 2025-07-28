@@ -1,7 +1,7 @@
 local abc = require "obsidian.abc"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
-local strings = require "plenary.strings"
+local util = require "obsidian.util"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 
@@ -468,7 +468,7 @@ Picker._make_display = function(self, entry)
     buf[#buf + 1] = icon
     buf[#buf + 1] = " "
     if icon_hl then
-      highlights[#highlights + 1] = { { 0, strings.strdisplaywidth(icon) }, icon_hl }
+      highlights[#highlights + 1] = { { 0, util.strdisplaywidth(icon) }, icon_hl }
     end
   end
 

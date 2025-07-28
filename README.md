@@ -55,10 +55,10 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 ### Keymaps
 
 - `smart_action`, bind to `<CR>` will:
-    - If cursor is on a link, follow the link
-    - If cursor is on a tag, show all notes with that tag in a picker
-    - If cursor is on a checkbox, toggle the checkbox
-    - If cursor is on a heading, cycle the fold of that heading
+  - If cursor is on a link, follow the link
+  - If cursor is on a tag, show all notes with that tag in a picker
+  - If cursor is on a checkbox, toggle the checkbox
+  - If cursor is on a heading, cycle the fold of that heading
 - `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in the buffer.
 
 For remapping and creating your own mappings, see [Keymaps](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps)
@@ -146,7 +146,7 @@ There's one entry point user command for this plugin: `Obsidian`
 
 ### Plugin dependencies
 
-The only **required** plugin dependency is [plenary.nvim](https://github.com/nvim-lua/plenary.nvim), but there are a number of optional dependencies that enhance the obsidian.nvim experience.
+There's no required dependency, but there are a number of optional dependencies that enhance the obsidian.nvim experience.
 
 **Completion:**
 
@@ -210,9 +210,6 @@ return {
   --   "BufNewFile path/to/my-vault/*.md",
   -- },
   dependencies = {
-    -- Required.
-    "nvim-lua/plenary.nvim",
-
     -- see above for full list of optional dependencies ☝️
   },
   ---@module 'obsidian'
@@ -257,9 +254,6 @@ use {
   "obsidian-nvim/obsidian.nvim",
   tag = "*", -- recommended, use latest release instead of latest commit
   requires = {
-    -- Required.
-    "nvim-lua/plenary.nvim",
-
     -- see above for full list of optional dependencies ☝️
   },
   config = function()

@@ -24,12 +24,6 @@ T["new"]["should return same object when arg is already a path"] = function()
   eq(path, Path.new(path))
 end
 
-T["new"]["should init from a plenary path"] = function()
-  local PlenaryPath = require "plenary.path"
-  local path = Path.new "README.md"
-  eq(true, path == Path.new(PlenaryPath:new "README.md"))
-end
-
 T["new"]["should raise an error if 2 args are passed and the first isn't Path"] = function()
   has_error(function()
     ---@diagnostic disable-next-line
