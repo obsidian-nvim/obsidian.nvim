@@ -304,6 +304,33 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "jakobwesthoff",
+      "name": "Jakob Westhoff",
+      "avatar_url": "https://avatars.githubusercontent.com/u/160529?v=4",
+      "profile": "http://westhoffswelt.de",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "chrhjoh",
+      "name": "Christian Johansen",
+      "avatar_url": "https://avatars.githubusercontent.com/u/80620482?v=4",
+      "profile": "https://github.com/chrhjoh",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "VVKot",
+      "name": "Volodymyr Kot",
+      "avatar_url": "https://avatars.githubusercontent.com/u/24480985?v=4",
+      "profile": "https://github.com/VVKot",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }

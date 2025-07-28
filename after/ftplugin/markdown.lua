@@ -7,8 +7,6 @@ if not workspace then
   return -- if not in any workspace.
 end
 
-vim.o.commentstring = "%%%s%%"
-
 local win = vim.api.nvim_get_current_win()
 
 vim.treesitter.start(buf, "markdown") -- for when user don't use nvim-treesitter

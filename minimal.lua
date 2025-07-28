@@ -8,7 +8,6 @@ vim.o.conceallevel = 2
 local plugins = {
   {
     "obsidian-nvim/obsidian.nvim",
-    dependencies = { "nvim-lua/plenary.nvim" },
     opts = {
       completion = {
         blink = true,

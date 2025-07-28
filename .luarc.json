@@ -1,13 +1,8 @@
 {
-  "runtime.version": "LuaJIT",  // the version for neovim
+  "runtime.version": "LuaJIT", // the version for neovim
   "diagnostics.libraryFiles": "Disable",
   "workspace.checkThirdParty": "Disable",
-  "workspace.ignoreDir": [
-    "completion/",
-    "compat.lua",
-  ],
-  "workspace.library": [
-    "$VIMRUNTIME/lua/",
-    "./lua/",
-  ]
+  "workspace.ignoreDir": ["completion/", "compat.lua"],
+  "workspace.library": ["$VIMRUNTIME/lua/", "./lua/"],
+  "diagnostics.globals": ["vim", "MiniTest"]
 }

@@ -13,9 +13,8 @@ local function parse_offset(arg)
   end
 end
 
----@param client obsidian.Client
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   local offset_start = -5
   local offset_end = 0
 
@@ -71,7 +70,7 @@ return function(client, data)
     prompt_title = "Dailies",
     callback = function(offset)
       local note = daily.daily(offset, {})
-      client:open_note(note)
+      note:open()
     end,
   })
 end

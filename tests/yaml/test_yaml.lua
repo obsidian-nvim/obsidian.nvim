@@ -1,114 +1,137 @@
 local yaml = require "obsidian.yaml"
+local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
-describe("obsidian.yaml.dumps", function()
-  it("should dump numbers", function()
-    MiniTest.expect.equality(yaml.dumps(1), "1")
-  end)
-  it("should dump strings", function()
-    MiniTest.expect.equality(yaml.dumps "hi there", "hi there")
-    MiniTest.expect.equality(yaml.dumps "hi it's me", "hi it's me")
-    MiniTest.expect.equality(yaml.dumps { foo = "bar" }, [[foo: bar]])
-  end)
-  it("should dump strings with a single quote without quoting", function()
-    MiniTest.expect.equality(yaml.dumps "hi it's me", "hi it's me")
-  end)
-  it("should dump table with string values", function()
-    MiniTest.expect.equality(yaml.dumps { foo = "bar" }, [[foo: bar]])
-  end)
-  it("should dump arrays with string values", function()
-    MiniTest.expect.equality(yaml.dumps { "foo", "bar" }, "- foo\n- bar")
-  end)
-  it("should dump arrays with number values", function()
-    MiniTest.expect.equality(yaml.dumps { 1, 2 }, "- 1\n- 2")
-  end)
-  it("should dump arrays with simple table values", function()
-    MiniTest.expect.equality(yaml.dumps { { a = 1 }, { b = 2 } }, "- a: 1\n- b: 2")
-  end)
-  it("should dump tables with string values", function()
-    MiniTest.expect.equality(yaml.dumps { a = "foo", b = "bar" }, "a: foo\nb: bar")
-  end)
-  it("should dump tables with number values", function()
-    MiniTest.expect.equality(yaml.dumps { a = 1, b = 2 }, "a: 1\nb: 2")
-  end)
-  it("should dump tables with array values", function()
-    MiniTest.expect.equality(yaml.dumps { a = { "foo" }, b = { "bar" } }, "a:\n  - foo\nb:\n  - bar")
-  end)
-  it("should dump tables with empty array", function()
-    MiniTest.expect.equality(yaml.dumps { a = {} }, "a: []")
-  end)
-  it("should quote empty strings or strings with just whitespace", function()
-    MiniTest.expect.equality(yaml.dumps { a = "" }, 'a: ""')
-    MiniTest.expect.equality(yaml.dumps { a = " " }, 'a: " "')
-  end)
-  it("should not quote date-like strings", function()
-    MiniTest.expect.equality(yaml.dumps { a = "2025.5.6" }, "a: 2025.5.6")
-    MiniTest.expect.equality(yaml.dumps { a = "2023_11_10 13:26" }, "a: 2023_11_10 13:26")
-  end)
-  it("should otherwise quote strings with a colon followed by whitespace", function()
-    MiniTest.expect.equality(yaml.dumps { a = "2023: a letter" }, [[a: "2023: a letter"]])
-  end)
-  it("should quote strings that start with special characters", function()
-    MiniTest.expect.equality(yaml.dumps { a = "& aaa" }, [[a: "& aaa"]])
-    MiniTest.expect.equality(yaml.dumps { a = "! aaa" }, [[a: "! aaa"]])
-    MiniTest.expect.equality(yaml.dumps { a = "- aaa" }, [[a: "- aaa"]])
-    MiniTest.expect.equality(yaml.dumps { a = "{ aaa" }, [[a: "{ aaa"]])
-    MiniTest.expect.equality(yaml.dumps { a = "[ aaa" }, [[a: "[ aaa"]])
-    MiniTest.expect.equality(yaml.dumps { a = "'aaa'" }, [[a: "'aaa'"]])
-    MiniTest.expect.equality(yaml.dumps { a = '"aaa"' }, [[a: "\"aaa\""]])
-  end)
-  it("should not unnecessarily escape double quotes in strings", function()
-    MiniTest.expect.equality(yaml.dumps { a = 'his name is "Winny the Poo"' }, 'a: his name is "Winny the Poo"')
-  end)
-end)
+local T = new_set()
 
-describe("obsidian.yaml.loads()", function()
-  it("should parse inline lists with quotes on items", function()
-    local data = yaml.loads 'aliases: ["Foo", "Bar", "Foo Baz"]'
-    MiniTest.expect.equality(type(data), "table")
-    MiniTest.expect.equality(type(data.aliases), "table")
-    MiniTest.expect.equality(#data.aliases, 3)
-    MiniTest.expect.equality(data.aliases[3], "Foo Baz")
+T["dump"] = new_set()
 
-    data = yaml.loads 'aliases: ["Foo"]'
-    MiniTest.expect.equality(type(data), "table")
-    MiniTest.expect.equality(type(data.aliases), "table")
-    MiniTest.expect.equality(#data.aliases, 1)
-    MiniTest.expect.equality(data.aliases[1], "Foo")
+T["dump"]["should dump numbers"] = function()
+  eq(yaml.dumps(1), "1")
+end
 
-    data = yaml.loads 'aliases: ["Foo Baz"]'
-    MiniTest.expect.equality(type(data), "table")
-    MiniTest.expect.equality(type(data.aliases), "table")
-    MiniTest.expect.equality(#data.aliases, 1)
-    MiniTest.expect.equality(data.aliases[1], "Foo Baz")
-  end)
-  it("should parse inline lists without quotes on items", function()
-    local data = yaml.loads "aliases: [Foo, Bar, Foo Baz]"
-    MiniTest.expect.equality(type(data), "table")
-    MiniTest.expect.equality(type(data.aliases), "table")
-    MiniTest.expect.equality(#data.aliases, 3)
-    MiniTest.expect.equality(data.aliases[3], "Foo Baz")
+T["dump"]["should dump strings"] = function()
+  eq(yaml.dumps "hi there", "hi there")
+  eq(yaml.dumps "hi it's me", "hi it's me")
+  eq(yaml.dumps { foo = "bar" }, [[foo: bar]])
+end
 
-    data = yaml.loads "aliases: [Foo]"
-    MiniTest.expect.equality(type(data), "table")
-    MiniTest.expect.equality(type(data.aliases), "table")
-    MiniTest.expect.equality(#data.aliases, 1)
-    MiniTest.expect.equality(data.aliases[1], "Foo")
+T["dump"]["should dump strings with a single quote without quoting"] = function()
+  eq(yaml.dumps "hi it's me", "hi it's me")
+end
 
-    data = yaml.loads "aliases: [Foo Baz]"
-    MiniTest.expect.equality(type(data), "table")
-    MiniTest.expect.equality(type(data.aliases), "table")
-    MiniTest.expect.equality(#data.aliases, 1)
-    MiniTest.expect.equality(data.aliases[1], "Foo Baz")
-  end)
-  it("should parse boolean field values", function()
-    local data = yaml.loads "complete: false"
-    MiniTest.expect.equality(type(data), "table")
-    MiniTest.expect.equality(type(data.complete), "boolean")
-  end)
-  it("should parse implicit null values", function()
-    local data = yaml.loads "tags: \ncomplete: false"
-    MiniTest.expect.equality(type(data), "table")
-    MiniTest.expect.equality(data.tags, nil)
-    MiniTest.expect.equality(data.complete, false)
-  end)
-end)
+T["dump"]["should dump table with string values"] = function()
+  eq(yaml.dumps { foo = "bar" }, [[foo: bar]])
+end
+
+T["dump"]["should dump arrays with string values"] = function()
+  eq(yaml.dumps { "foo", "bar" }, "- foo\n- bar")
+end
+
+T["dump"]["should dump arrays with number values"] = function()
+  eq(yaml.dumps { 1, 2 }, "- 1\n- 2")
+end
+
+T["dump"]["should dump arrays with simple table values"] = function()
+  eq(yaml.dumps { { a = 1 }, { b = 2 } }, "- a: 1\n- b: 2")
+end
+
+T["dump"]["should dump tables with string values"] = function()
+  eq(yaml.dumps { a = "foo", b = "bar" }, "a: foo\nb: bar")
+end
+
+T["dump"]["should dump tables with number values"] = function()
+  eq(yaml.dumps { a = 1, b = 2 }, "a: 1\nb: 2")
+end
+
+T["dump"]["should dump tables with array values"] = function()
+  eq(yaml.dumps { a = { "foo" }, b = { "bar" } }, "a:\n  - foo\nb:\n  - bar")
+end
+
+T["dump"]["should dump tables with empty array"] = function()
+  eq(yaml.dumps { a = {} }, "a: []")
+end
+
+T["dump"]["should quote empty strings or strings with just whitespace"] = function()
+  eq(yaml.dumps { a = "" }, 'a: ""')
+  eq(yaml.dumps { a = " " }, 'a: " "')
+end
+
+T["dump"]["should not quote date-like strings"] = function()
+  eq(yaml.dumps { a = "2025.5.6" }, "a: 2025.5.6")
+  eq(yaml.dumps { a = "2023_11_10 13:26" }, "a: 2023_11_10 13:26")
+end
+
+T["dump"]["should otherwise quote strings with a colon followed by whitespace"] = function()
+  eq(yaml.dumps { a = "2023: a letter" }, [[a: "2023: a letter"]])
+end
+
+T["dump"]["should quote strings that start with special characters"] = function()
+  eq(yaml.dumps { a = "& aaa" }, [[a: "& aaa"]])
+  eq(yaml.dumps { a = "! aaa" }, [[a: "! aaa"]])
+  eq(yaml.dumps { a = "- aaa" }, [[a: "- aaa"]])
+  eq(yaml.dumps { a = "{ aaa" }, [[a: "{ aaa"]])
+  eq(yaml.dumps { a = "[ aaa" }, [[a: "[ aaa"]])
+  eq(yaml.dumps { a = "'aaa'" }, [[a: "'aaa'"]])
+  eq(yaml.dumps { a = '"aaa"' }, [[a: "\"aaa\""]])
+end
+
+T["dump"]["should not unnecessarily escape double quotes in strings"] = function()
+  eq(yaml.dumps { a = 'his name is "Winny the Poo"' }, 'a: his name is "Winny the Poo"')
+end
+
+T["loads"] = new_set()
+
+T["loads"]["should parse inline lists with quotes on items"] = function()
+  local data = yaml.loads 'aliases: ["Foo", "Bar", "Foo Baz"]'
+  eq(type(data), "table")
+  eq(type(data.aliases), "table")
+  eq(#data.aliases, 3)
+  eq(data.aliases[3], "Foo Baz")
+
+  data = yaml.loads 'aliases: ["Foo"]'
+  eq(type(data), "table")
+  eq(type(data.aliases), "table")
+  eq(#data.aliases, 1)
+  eq(data.aliases[1], "Foo")
+
+  data = yaml.loads 'aliases: ["Foo Baz"]'
+  eq(type(data), "table")
+  eq(type(data.aliases), "table")
+  eq(#data.aliases, 1)
+  eq(data.aliases[1], "Foo Baz")
+end
+
+T["loads"]["should parse inline lists without quotes on items"] = function()
+  local data = yaml.loads "aliases: [Foo, Bar, Foo Baz]"
+  eq(type(data), "table")
+  eq(type(data.aliases), "table")
+  eq(#data.aliases, 3)
+  eq(data.aliases[3], "Foo Baz")
+
+  data = yaml.loads "aliases: [Foo]"
+  eq(type(data), "table")
+  eq(type(data.aliases), "table")
+  eq(#data.aliases, 1)
+  eq(data.aliases[1], "Foo")
+
+  data = yaml.loads "aliases: [Foo Baz]"
+  eq(type(data), "table")
+  eq(type(data.aliases), "table")
+  eq(#data.aliases, 1)
+  eq(data.aliases[1], "Foo Baz")
+end
+
+T["loads"]["should parse boolean field values"] = function()
+  local data = yaml.loads "complete: false"
+  eq(type(data), "table")
+  eq(type(data.complete), "boolean")
+end
+
+T["loads"]["should parse implicit null values"] = function()
+  local data = yaml.loads "tags: \ncomplete: false"
+  eq(type(data), "table")
+  eq(data.tags, nil)
+  eq(data.complete, false)
+end
+
+return T

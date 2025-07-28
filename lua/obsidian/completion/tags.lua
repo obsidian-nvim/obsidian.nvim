@@ -43,7 +43,7 @@ M.can_complete = function(request)
     frontmatter_start ~= nil
     and frontmatter_start <= (line + 1)
     and frontmatter_end ~= nil
-    and (line + 1) <= frontmatter_end
+    and line <= frontmatter_end
   then
     in_frontmatter = true
   end

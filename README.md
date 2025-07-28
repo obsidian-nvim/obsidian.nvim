@@ -54,12 +54,12 @@ The fork aims to stay close to the original, but fix bugs, include and merge use
 
 ### Keymaps
 
-There's only one default keymap, `<CR>` will:
-
-- If cursor is on a link, follow the link
-- If cursor is on a tag, show all notes with that tag in a picker
-- If cursor is on a checkbox, toggle the checkbox
-- If cursor is on a heading, cycle the fold of that heading
+- `smart_action`, bind to `<CR>` will:
+  - If cursor is on a link, follow the link
+  - If cursor is on a tag, show all notes with that tag in a picker
+  - If cursor is on a checkbox, toggle the checkbox
+  - If cursor is on a heading, cycle the fold of that heading
+- `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in the buffer.
 
 For remapping and creating your own mappings, see [Keymaps](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps)
 
@@ -101,11 +101,11 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian open [QUERY]` to open a note in the Obsidian app.
   One optional argument: a query used to resolve the note to open by ID, path, or alias. If not given, the current buffer is used.
 
-- `:Obsidian paste_img [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option.
+- `:Obsidian paste_img [IMGNAME]` to paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link. You can configure the default folder to save images to with the `attachments.img_folder` option. See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location).
 
 - `:Obsidian quick_switch` to quickly switch to another note in your vault, searching by its name with a picker.
 
-- `:Obsidian rename [NEWNAME] [--dry-run]` to rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault. It is highly recommended to commit the current state of your vault (if you're using version control) before running it, or doing a dry-run first by `:Obsidian rename new-id --dry-run`.
+- `:Obsidian rename [NEWNAME]` to rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault. It will run `:wa` before renaming, and load every note with backlinks into your buffer-list, then you need to do `:wa` after for changes to take effect. Alternatively, call `vim.lsp.buf.rename` or use `grn`.
 
 - `:Obsidian search [QUERY]` to search for (or create) notes in your vault using `ripgrep` with your preferred picker.
 
@@ -146,7 +146,7 @@ There's one entry point user command for this plugin: `Obsidian`
 
 ### Plugin dependencies
 
-The only **required** plugin dependency is [plenary.nvim](https://github.com/nvim-lua/plenary.nvim), but there are a number of optional dependencies that enhance the obsidian.nvim experience.
+There's no required dependency, but there are a number of optional dependencies that enhance the obsidian.nvim experience.
 
 **Completion:**
 
@@ -209,12 +209,6 @@ return {
   --   "BufReadPre path/to/my-vault/*.md",
   --   "BufNewFile path/to/my-vault/*.md",
   -- },
-  dependencies = {
-    -- Required.
-    "nvim-lua/plenary.nvim",
-
-    -- see above for full list of optional dependencies ☝️
-  },
   ---@module 'obsidian'
   ---@type obsidian.config
   opts = {
@@ -242,43 +236,6 @@ return {
 
 ```vim
 :Rocks install obsidian
-```
-
-</details>
-
-### Using [`packer.nvim`](https://github.com/wbthomason/packer.nvim)
-
-It is not recommended because packer.nvim is currently unmaintained
-
-<details><summary>Click for install snippet</summary>
-
-```lua
-use {
-  "obsidian-nvim/obsidian.nvim",
-  tag = "*", -- recommended, use latest release instead of latest commit
-  requires = {
-    -- Required.
-    "nvim-lua/plenary.nvim",
-
-    -- see above for full list of optional dependencies ☝️
-  },
-  config = function()
-    require("obsidian").setup {
-      workspaces = {
-        {
-          name = "personal",
-          path = "~/vaults/personal",
-        },
-        {
-          name = "work",
-          path = "~/vaults/work",
-        },
-      },
-
-      -- see below for full list of options 👇
-    }
-  end,
-}
 ```
 
 </details>
@@ -437,6 +394,10 @@ require("obsidian").setup {
     -- Functions are called with obsidian.TemplateContext objects as their sole parameter.
     -- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
     substitutions = {},
+
+    -- A map for configuring unique directories and paths for specific templates
+    --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#customizations
+    customizations = {},
   },
 
   -- Sets how you follow URLs
@@ -602,10 +563,30 @@ require("obsidian").setup {
     confirm_img_paste = true,
   },
 
-  -- See https://github.com/obsidian-nvim/obsidian.nvim/wiki/Notes-on-configuration#statusline-component
+  ---@deprecated in favor of the footer option below
   statusline = {
     enabled = true,
     format = "{{properties}} properties {{backlinks}} backlinks {{words}} words {{chars}} chars",
+  },
+
+  ---@class obsidian.config.FooterOpts
+  ---
+  ---@field enabled? boolean
+  ---@field format? string
+  ---@field hl_group? string
+  ---@field separator? string|false Set false to disable separator; set an empty string to insert a blank line separator.
+  footer = {
+    enabled = true,
+    format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+    hl_group = "Comment",
+    separator = string.rep("-", 80),
+  },
+  ---@class obsidian.config.CheckboxOpts
+  ---
+  ---Order of checkbox state chars, e.g. { " ", "x" }
+  ---@field order? string[]
+  checkbox = {
+    order = { " ", "~", "!", ">", "x" },
   },
 }
 ```
@@ -667,6 +648,11 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/srackham"><img src="https://avatars.githubusercontent.com/u/674468?v=4?s=100" width="100px;" alt="Stuart Rackham"/><br /><sub><b>Stuart Rackham</b></sub></a><br /><a href="#code-srackham" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://redoxahmii.vercel.app"><img src="https://avatars.githubusercontent.com/u/13983258?v=4?s=100" width="100px;" alt="Ahmed Mughal"/><br /><sub><b>Ahmed Mughal</b></sub></a><br /><a href="#code-redoxahmii" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/trash-panda-v91-beta"><img src="https://avatars.githubusercontent.com/u/42897550?v=4?s=100" width="100px;" alt="trash-panda-v91-beta"/><br /><sub><b>trash-panda-v91-beta</b></sub></a><br /><a href="#code-trash-panda-v91-beta" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://westhoffswelt.de"><img src="https://avatars.githubusercontent.com/u/160529?v=4?s=100" width="100px;" alt="Jakob Westhoff"/><br /><sub><b>Jakob Westhoff</b></sub></a><br /><a href="#code-jakobwesthoff" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/chrhjoh"><img src="https://avatars.githubusercontent.com/u/80620482?v=4?s=100" width="100px;" alt="Christian Johansen"/><br /><sub><b>Christian Johansen</b></sub></a><br /><a href="#code-chrhjoh" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/VVKot"><img src="https://avatars.githubusercontent.com/u/24480985?v=4?s=100" width="100px;" alt="Volodymyr Kot"/><br /><sub><b>Volodymyr Kot</b></sub></a><br /><a href="#code-VVKot" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

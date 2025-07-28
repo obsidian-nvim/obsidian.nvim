@@ -1,9 +1,36 @@
+---@diagnostic disable: invisible, duplicate-set-field
 local M = require "obsidian.note"
+local T = dofile("tests/helpers.lua").temp_vault
 local util = require "obsidian.util"
+local api = require "obsidian.api"
+local Path = require "obsidian.path"
+local config = require "obsidian.config"
 
 local new_set, eq, not_eq = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.no_equality
 
-local T = new_set()
+local default_note_creation_opts = {
+  notes_subdir = config.notes_subdir,
+  note_id_func = function(title)
+    local id = ""
+    if title ~= nil then
+      id = title:gsub(" ", "-"):gsub("[^A-Za-z0-9-]", ""):lower()
+    else
+      for _ = 1, 4 do
+        id = id .. string.char(math.random(65, 90))
+      end
+    end
+    return id
+  end,
+  new_notes_location = config.new_notes_location,
+}
+
+--- @type obsidian.config.CustomTemplateOpts
+local zettelConfig = {
+  notes_subdir = "/custom/path/to/zettels",
+  note_id_func = function()
+    return "hummus"
+  end,
+}
 
 T["new"] = new_set()
 
@@ -170,6 +197,7 @@ end
 T["from_file"]["should collect additional frontmatter metadata"] = function()
   local note = M.from_file "tests/fixtures/notes/note_with_additional_metadata.md"
   eq(note.id, "note_with_additional_metadata")
+  eq(note.title, "Note (has additional metadata)")
   not_eq(note.metadata, nil)
   eq(note.metadata.foo, "bar")
   eq(
@@ -210,6 +238,143 @@ end
 T["_is_frontmatter_boundary()"] = function()
   eq(true, M._is_frontmatter_boundary "---")
   eq(true, M._is_frontmatter_boundary "----")
+end
+
+T["_get_note_creation_opts"] = new_set {
+  hooks = {
+    pre_case = function()
+      Obsidian.opts.templates.customizations = {
+        Zettel = zettelConfig,
+      }
+    end,
+  },
+}
+
+T["_get_note_creation_opts"]["should not load customizations for non-existent templates"] = function()
+  local spec = M._get_creation_opts { template = "zettel" }
+
+  eq(spec.notes_subdir, Obsidian.opts.notes_subdir)
+  eq(spec.note_id_func, Obsidian.opts.note_id_func)
+  eq(spec.new_notes_location, Obsidian.opts.new_notes_location)
+end
+
+T["_get_note_creation_opts"]["should load customizations for existing template"] = function()
+  local note = M.create { dir = api.templates_dir(), id = "zettel" }
+  note:write()
+
+  local spec = assert(M._get_creation_opts { template = "zettel" })
+
+  eq(spec.notes_subdir, zettelConfig.notes_subdir)
+  eq(spec.note_id_func, zettelConfig.note_id_func)
+end
+
+T["new_note_path"] = new_set()
+
+T["new_note_path"]['should only append one ".md" at the end of the path'] = function()
+  Obsidian.opts.note_path_func = function(spec)
+    return (spec.dir / "foo-bar-123"):with_suffix ".md.md.md"
+  end
+
+  -- Okay to set `id` and `dir` to default values because `note_path_func` is set
+  local path = M._generate_path(nil, "", Path:new())
+  eq(Path:new() / "foo-bar-123.md", path)
+end
+
+T["resolve_title_id_path"] = new_set()
+T["resolve_title_id_path"]["should parse a title that's a partial path and generate new ID"] = function()
+  local title, id, path = M._resolve_title_id_path("notes/Foo", nil, nil, default_note_creation_opts)
+  eq("Foo", title)
+  eq("foo", id)
+  eq(Path:new(Obsidian.dir) / "notes" / "foo.md", path)
+
+  title, id, path = M._resolve_title_id_path("notes/New Title", nil, nil, default_note_creation_opts)
+  eq("New Title", title)
+  eq("new-title", id)
+  eq(Path:new(Obsidian.dir) / "notes" / "new-title.md", path)
+end
+
+T["resolve_title_id_path"]["should interpret relative directories relative to vault root."] = function()
+  local title, id, path = M._resolve_title_id_path("Foo", nil, "new-notes", default_note_creation_opts)
+  eq(title, "Foo")
+  eq(id, "foo")
+  eq(path, Path:new(Obsidian.dir) / "new-notes" / "foo.md")
+end
+
+T["resolve_title_id_path"]["should parse an ID that's a path"] = function()
+  local title, id, path = M._resolve_title_id_path("Foo", "notes/1234-foo", nil, default_note_creation_opts)
+  eq(title, "Foo")
+  eq(id, "1234-foo")
+  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "1234-foo.md"))
+end
+
+T["resolve_title_id_path"]["should parse a title that's an exact path"] = function()
+  local title, id, path = M._resolve_title_id_path("notes/foo.md", nil, nil, default_note_creation_opts)
+  eq(title, "foo")
+  eq(id, "foo")
+  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "foo.md"))
+end
+
+T["resolve_title_id_path"]["should ignore boundary whitespace when parsing a title"] = function()
+  local title, id, path = M._resolve_title_id_path("notes/Foo  ", nil, nil, default_note_creation_opts)
+  eq(title, "Foo")
+  eq(id, "foo")
+  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "foo.md"))
+end
+
+T["resolve_title_id_path"]["should keep whitespace within a path when parsing a title"] = function()
+  local title, id, path = M._resolve_title_id_path("notes/Foo Bar.md", nil, nil, default_note_creation_opts)
+  eq(title, "Foo Bar")
+  eq(id, "Foo Bar")
+  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "Foo Bar.md"))
+end
+
+T["resolve_title_id_path"]["should keep allow decimals in ID"] = function()
+  local title, id, path = M._resolve_title_id_path("Title", "johnny.decimal", "notes", default_note_creation_opts)
+  eq(title, "Title")
+  eq(id, "johnny.decimal")
+  eq(tostring(Path.new(Obsidian.dir) / "notes" / "johnny.decimal.md"), tostring(path))
+end
+
+T["resolve_title_id_path"]["should generate a new id when the title is just a folder"] = function()
+  local title, id, path = M._resolve_title_id_path("notes/", nil, nil, default_note_creation_opts)
+  eq(title, nil)
+  eq(#id, 4)
+  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / (id .. ".md")))
+end
+
+T["resolve_title_id_path"]["should respect configured 'note_path_func'"] = function()
+  Obsidian.opts.note_path_func = function(spec)
+    return (spec.dir / "foo-bar-123"):with_suffix ".md"
+  end
+
+  local title, id, path = M._resolve_title_id_path("New Note", nil, nil, default_note_creation_opts)
+  eq("New Note", title)
+  eq("new-note", id)
+  eq(Path:new(Obsidian.dir) / "foo-bar-123.md", path)
+end
+
+T["resolve_title_id_path"]["should ensure result of 'note_path_func' always has '.md' suffix"] = function()
+  Obsidian.opts.note_path_func = function(spec)
+    return spec.dir / "foo-bar-123"
+  end
+
+  local title, id, path = M._resolve_title_id_path("New Note", nil, nil, default_note_creation_opts)
+  eq("New Note", title)
+  eq("new-note", id)
+  eq(Path:new(Obsidian.dir) / "foo-bar-123.md", path)
+end
+
+T["resolve_title_id_path"]["should ensure result of 'note_path_func' is always an absolute path and within provided directory"] = function()
+  Obsidian.opts.note_path_func = function(_)
+    return "foo-bar-123.md"
+  end
+
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+
+  local title, id, path = M._resolve_title_id_path("New Note", nil, Obsidian.dir / "notes", default_note_creation_opts)
+  eq("New Note", title)
+  eq("new-note", id)
+  eq(Path:new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
 end
 
 return T

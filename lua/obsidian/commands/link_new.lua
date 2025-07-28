@@ -1,9 +1,9 @@
 local log = require "obsidian.log"
 local api = require "obsidian.api"
+local Note = require "obsidian.note"
 
----@param client obsidian.Client
 ---@param data CommandArgs
-return function(client, data)
+return function(_, data)
   local viz = api.get_visual_selection()
   if not viz then
     log.err "ObsidianLink must be called with visual selection"
@@ -22,7 +22,7 @@ return function(client, data)
     title = viz.selection
   end
 
-  local note = client:create_note { title = title }
+  local note = Note.create { title = title }
 
   local new_line = string.sub(line, 1, viz.cscol - 1)
     .. api.format_link(note, { label = title })

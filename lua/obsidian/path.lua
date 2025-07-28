@@ -349,7 +349,6 @@ end
 ---@private
 Path.abspath = function(self)
   local path = vim.loop.fs_realpath(vim.fn.resolve(self.filename))
-  ---@cast path string|?
   return path
 end
 
@@ -436,17 +435,9 @@ Path.mkdir = function(self, opts)
   opts = opts or {}
 
   local mode = opts.mode or 448 -- 0700 -> decimal
-  ---@diagnostic disable-next-line: undefined-field
-  if opts.exists_ok then -- for compat with the plenary.path API.
-    opts.exist_ok = true
-  end
 
   if self:is_dir() then
-    if not opts.exist_ok then
-      error("FileExistsError: " .. self.filename)
-    else
-      return
-    end
+    return
   end
 
   if vim.uv.fs_mkdir(self.filename, mode) then

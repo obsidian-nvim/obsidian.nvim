@@ -51,47 +51,43 @@ end
 
 obsidian.register_command = require("obsidian.commands").register
 
----Create a new Obsidian client without additional setup.
----
----@param opts obsidian.config.ClientOpts
----@return obsidian.Client
-obsidian.new = function(opts)
-  return obsidian.Client.new(opts)
-end
-
----Create a new Obsidian client in a given vault directory.
----
----@param dir string
----@return obsidian.Client
-obsidian.new_from_dir = function(dir)
-  local opts = obsidian.config.default
-  opts.workspaces = { { path = dir } }
-  return obsidian.new(opts)
-end
-
 --- Setup a new Obsidian client. This should only be called once from an Nvim session.
 ---
 ---@param opts obsidian.config.ClientOpts | table<string, any>
 ---
 ---@return obsidian.Client
 obsidian.setup = function(opts)
+  ---@class obsidian.state
+  ---@field picker obsidian.Picker Picker to use.
+  ---@field workspace obsidian.Workspace Current workspace.
+  ---@field workspaces obsidian.Workspace[] All workspaces.
+  ---@field dir obsidian.Path Root of the vault for the current workspace.
+  ---@field buf_dir obsidian.Path|? Parent directory of the current buffer.
+  ---@field opts obsidian.config.ClientOpts Current options.
+  ---@field _opts obsidian.config.ClientOpts User input options.
+  _G.Obsidian = {}
+
   opts = obsidian.config.normalize(opts)
 
-  ---@class obsidian.state
-  ---@field picker obsidian.Picker The picker instance to use.
-  ---@field workspace obsidian.Workspace The current workspace.
-  ---@field dir obsidian.Path The root of the vault for the current workspace.
-  ---@field buf_dir obsidian.Path|? The parent directory of the current buffer.
-  ---@field opts obsidian.config.ClientOpts current options
-  ---@field _opts obsidian.config.ClientOpts default options
-  _G.Obsidian = {} -- init a state table
+  local client = obsidian.Client.new(opts)
 
-  local client = obsidian.new(opts)
+  Obsidian._opts = opts
+
+  obsidian.Workspace.set(Obsidian.workspaces[1])
+
   log.set_level(Obsidian.opts.log_level)
 
-  -- Install commands.
-  -- These will be available across all buffers, not just note buffers in the vault.
   obsidian.commands.install(client)
+
+  -- Setup UI add-ons.
+  local has_no_renderer = not (
+    obsidian.api.get_plugin_info "render-markdown.nvim" or obsidian.api.get_plugin_info "markview.nvim"
+  )
+  if has_no_renderer and Obsidian.opts.ui.enable then
+    require("obsidian.ui").setup(Obsidian.workspace, Obsidian.opts.ui)
+  end
+
+  Obsidian.picker = require("obsidian.pickers").get(Obsidian.opts.picker.name)
 
   if opts.legacy_commands then
     obsidian.commands.install_legacy(client)
@@ -99,6 +95,10 @@ obsidian.setup = function(opts)
 
   if opts.statusline.enabled then
     require("obsidian.statusline").start(client)
+  end
+
+  if opts.footer.enabled then
+    require("obsidian.footer").start(client)
   end
 
   -- Register completion sources, providers
@@ -139,6 +139,10 @@ obsidian.setup = function(opts)
         return
       end
 
+      if opts.comment.enabled then
+        vim.o.commentstring = "%%%s%%"
+      end
+
       -- Switch to the workspace and complete the workspace setup.
       if not Obsidian.workspace.locked and workspace ~= Obsidian.workspace then
         log.debug("Switching to workspace '%s' @ '%s'", workspace.name, workspace.path)
@@ -147,11 +151,20 @@ obsidian.setup = function(opts)
       end
 
       -- Register keymap.
-      vim.keymap.set("n", "<CR>", require("obsidian.builtin").smart_action, {
-        expr = true,
-        buffer = true,
-        desc = "Obsidian Smart Action",
-      })
+      vim.keymap.set(
+        "n",
+        "<CR>",
+        obsidian.api.smart_action,
+        { expr = true, buffer = true, desc = "Obsidian Smart Action" }
+      )
+
+      vim.keymap.set("n", "]o", function()
+        obsidian.api.nav_link "next"
+      end, { buffer = true, desc = "Obsidian Next Link" })
+
+      vim.keymap.set("n", "[o", function()
+        obsidian.api.nav_link "prev"
+      end, { buffer = true, desc = "Obsidian Previous Link" })
 
       -- Inject completion sources, providers to their plugin configurations
       if opts.completion.nvim_cmp then
@@ -159,6 +172,8 @@ obsidian.setup = function(opts)
       elseif opts.completion.blink then
         require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
       end
+
+      require("obsidian.lsp").start(ev.buf)
 
       -- Run enter-note callback.
       local note = obsidian.Note.from_buffer(ev.buf)
@@ -219,7 +234,7 @@ obsidian.setup = function(opts)
       exec_autocmds("ObsidianNoteWritePre", ev.buf)
 
       -- Update buffer with new frontmatter.
-      if client:update_frontmatter(note, bufnr) then
+      if note:update_frontmatter(bufnr) then
         log.info "Updated frontmatter"
       end
     end,
@@ -248,9 +263,6 @@ obsidian.setup = function(opts)
 
   -- Set global client.
   obsidian._client = client
-
-  -- Call post-setup callback.
-  -- client.callback_manager:post_setup()
 
   obsidian.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup, client)
 

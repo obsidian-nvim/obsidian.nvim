@@ -1,9 +1,7 @@
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 
----@param client obsidian.Client
----@param _ CommandArgs
-return function(client, _)
+return function()
   local note = assert(api.current_note(0, { collect_anchor_links = true }))
 
   ---@type obsidian.PickerEntry[]

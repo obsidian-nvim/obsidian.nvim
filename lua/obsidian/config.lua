@@ -8,7 +8,7 @@ local config = {}
 ---@field notes_subdir? string
 ---@field templates? obsidian.config.TemplateOpts
 ---@field new_notes_location? obsidian.config.NewNotesLocation
----@field note_id_func? fun(title: string|?): string
+---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
 ---@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
@@ -31,8 +31,10 @@ local config = {}
 ---@field callbacks? obsidian.config.CallbackConfig
 ---@field legacy_commands? boolean
 ---@field statusline? obsidian.config.StatuslineOpts
+---@field footer? obsidian.config.FooterOpts
 ---@field open? obsidian.config.OpenOpts
 ---@field checkbox? obsidian.config.CheckboxOpts
+---@field comment? obsidian.config.CommentOpts
 
 ---@class obsidian.config.ClientOpts
 ---@field dir string|?
@@ -41,7 +43,7 @@ local config = {}
 ---@field notes_subdir string|?
 ---@field templates obsidian.config.TemplateOpts
 ---@field new_notes_location obsidian.config.NewNotesLocation
----@field note_id_func (fun(title: string|?): string)|?
+---@field note_id_func (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path)|?
 ---@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
@@ -64,8 +66,10 @@ local config = {}
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
+---@field footer obsidian.config.FooterOpts
 ---@field open obsidian.config.OpenOpts
 ---@field checkbox obsidian.config.CheckboxOpts
+---@field comment obsidian.config.CommentOpts
 
 ---@enum obsidian.config.OpenStrategy
 config.OpenStrategy = {
@@ -136,11 +140,18 @@ config.default = {
   --- Functions are called with obsidian.TemplateContext objects as their sole parameter.
   --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
   ---@field substitutions table<string, (fun(ctx: obsidian.TemplateContext):string)|(fun(): string)|string>|?
+  ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
   templates = {
     folder = nil,
     date_format = nil,
     time_format = nil,
     substitutions = {},
+
+    ---@class obsidian.config.CustomTemplateOpts
+    ---
+    ---@field notes_subdir? string
+    ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)
+    customizations = {},
   },
 
   ---@class obsidian.config.BacklinkOpts
@@ -270,7 +281,7 @@ config.default = {
 
   ---@class obsidian.config.AttachmentsOpts
   ---
-  ---Default folder to save images to, relative to the vault root.
+  ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
   ---@field img_folder? string
   ---
   ---Default name for pasted images
@@ -317,6 +328,19 @@ config.default = {
     enabled = true,
   },
 
+  ---@class obsidian.config.FooterOpts
+  ---
+  ---@field enabled? boolean
+  ---@field format? string
+  ---@field hl_group? string
+  ---@field separator? string|false Set false to disable separator; set an empty string to insert a blank line separator.
+  footer = {
+    enabled = true,
+    format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+    hl_group = "Comment",
+    separator = string.rep("-", 80),
+  },
+
   ---@class obsidian.config.OpenOpts
   ---
   ---Opens the file with current line number
@@ -335,9 +359,19 @@ config.default = {
   ---
   ---Order of checkbox state chars, e.g. { " ", "x" }
   ---@field order? string[]
+  ---
+  ---Whether to create new checkbox on paragraphs
+  ---@field create_new? boolean
   checkbox = {
     enabled = true,
+    create_new = true,
     order = { " ", "~", "!", ">", "x" },
+  },
+
+  ---@class obsidian.config.CommentOpts
+  ---@field enabled boolean
+  comment = {
+    enabled = false,
   },
 }
 
@@ -364,6 +398,8 @@ end
 config.normalize = function(opts, defaults)
   local builtin = require "obsidian.builtin"
   local util = require "obsidian.util"
+
+  opts = opts or {}
 
   if not defaults then
     defaults = config.default
@@ -499,12 +535,20 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.templates.subdir = nil
   end
 
+  if opts.ui and opts.ui.checkboxes then
+    log.warn_once [[The 'ui.checkboxes' no longer effect the way checkboxes are ordered, use `checkbox.order`. See: https://github.com/obsidian-nvim/obsidian.nvim/issues/262]]
+  end
+
   if opts.image_name_func then
     if opts.attachments == nil then
       opts.attachments = {}
     end
     opts.attachments.img_name_func = opts.image_name_func
     opts.image_name_func = nil
+  end
+
+  if opts.statusline and opts.statusline.enabled then
+    deprecate("statusline.{enabled,format} and vim.g.obsidian", "footer.{enabled,format}", "4.0")
   end
 
   --------------------------
@@ -522,7 +566,10 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
   opts.statusline = tbl_override(defaults.statusline, opts.statusline)
+  opts.footer = tbl_override(defaults.footer, opts.footer)
   opts.open = tbl_override(defaults.open, opts.open)
+  opts.checkbox = tbl_override(defaults.checkbox, opts.checkbox)
+  opts.comment = tbl_override(defaults.comment, opts.comment)
 
   ---------------
   -- Validate. --
@@ -549,10 +596,10 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error "At least one workspace is required!\nPlease specify a workspace "
   end
 
-  for i, workspace in ipairs(opts.workspaces) do
-    local path = type(workspace.path) == "function" and workspace.path() or workspace.path
-    ---@cast path -function
-    opts.workspaces[i].path = vim.fn.resolve(vim.fs.normalize(path))
+  Obsidian.workspaces = {}
+
+  for i, spec in ipairs(opts.workspaces) do
+    Obsidian.workspaces[i] = require("obsidian.workspace").new(spec)
   end
 
   -- Convert dir to workspace format.
