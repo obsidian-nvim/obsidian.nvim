@@ -174,20 +174,23 @@ end
 return function(params, _, _)
   local new_name = params.newName
 
-  if not validate_new_name(new_name) then
-    return log.warn "Invalid rename id, note with the same id/filename already exists"
-  end
-
-  local cur_link = api.cursor_link()
-
   local ok, err = pcall(vim.cmd.wall)
 
   if not ok then
     return log.err(err and err or "failed writing all buffers before renaming, abort")
   end
 
+  if not validate_new_name(new_name) then
+    return log.warn "Invalid rename id, note with the same id/filename already exists"
+  end
+
+  local cur_link = api.cursor_link()
+
   if cur_link then
     local loc = util.parse_link(cur_link)
+    assert(loc, "wrong link format")
+    loc = util.strip_anchor_links(loc)
+    loc = util.strip_block_links(loc)
     local note = search.resolve_note(loc)
     if not note then
       return

@@ -6,8 +6,11 @@ return function(_, handler)
   local link = api.cursor_link()
   local placeholder
   if link then
-    local _, link_name = util.parse_link(link)
-    placeholder = link_name
+    local loc = util.parse_link(link)
+    assert(loc, "wrong link format")
+    loc = util.strip_anchor_links(loc)
+    loc = util.strip_block_links(loc)
+    placeholder = loc
   else
     local note = api.current_note(0)
     assert(note, "not in a obsidian note")
