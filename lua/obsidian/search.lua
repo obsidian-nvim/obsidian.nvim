@@ -139,11 +139,6 @@ M.find_highlight = function(s)
   return matches
 end
 
----@class UrlPatternSpec
----
----@field name string
----@field pattern string
-
 ---@class obsidian.search.FindRefsOpts
 ---
 ---@field include_naked_urls boolean|?
