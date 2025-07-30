@@ -153,27 +153,36 @@ M.set_checkbox = function(state, line_num)
   end
 
   -- there should be a vim.on_key() to get the state var if none was given but first testing out substitution
+
   if state == nil then
     return
   end
 
+  local found = false
   for _, value in ipairs(Obsidian.opts.checkbox.order) do
-    if value ~= state then
-      return
+    if value == state then
+      found = true
     end
+  end
+
+  if not found then
+    log.err("state passed \"" .. state .. "\" is not part of the available states: " .. vim.inspect(Obsidian.opts.checkbox.order))
+    return
   end
 
   line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
 
   if util.is_checkbox(line) then
-    line = string.gsub(line, vim.pesc("[%s]"), "[" .. state .. "]", 1)
+    if string.match(line, "^.* %[.%].*") then
+      line = string.gsub(line, "%[.%]", "[" .. state .. "]", 1)
+    end
   elseif Obsidian.opts.checkbox.create_new then
     local unordered_list_pattern = "^(%s*)[-*+] (.*)"
     if string.match(line, unordered_list_pattern) then
-      line = string.gsub(line, unordered_list_pattern, "%1- [" .. state .. "] %2")
+      line = string.gsub(line, unordered_list_pattern, "%1- [".. state .. "] %2")
     else
-      line = string.gsub(line, "^(%s*)", "%1- [" .. state .. "] ")
+      line = string.gsub(line, "^(%s*)", "%1- [".. state .. "] ")
     end
   else
     goto out
