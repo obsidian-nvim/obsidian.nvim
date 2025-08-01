@@ -112,14 +112,15 @@ There’s one entry point user command for this plugin: `Obsidian`
 - `:Obsidian paste_img [IMGNAME]` to paste an image from the clipboard into the
     note at the cursor position by saving it to the vault and adding a markdown
     image link. You can configure the default folder to save images to with the
-    `attachments.img_folder` option.
+    `attachments.img_folder` option. See Images
+    <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location>.
 - `:Obsidian quick_switch` to quickly switch to another note in your vault,
     searching by its name with a picker.
-- `:Obsidian rename [NEWNAME] [--dry-run]` to rename the note of the current
-    buffer or reference under the cursor, updating all backlinks across the vault.
-    It is highly recommended to commit the current state of your vault (if you’re
-    using version control) before running it, or doing a dry-run first by
-    `:Obsidian rename new-id --dry-run`.
+- `:Obsidian rename [NEWNAME]` to rename the note of the current buffer or
+    reference under the cursor, updating all backlinks across the vault. It will
+    run `:wa` before renaming, and load every note with backlinks into your
+    buffer-list, then you need to do `:wa` after for changes to take effect.
+    Alternatively, call `vim.lsp.buf.rename` or use `grn`.
 - `:Obsidian search [QUERY]` to search for (or create) notes in your vault using
     `ripgrep` with your preferred picker.
 - `:Obsidian tags [TAG ...]` for getting a picker list of all occurrences of the
@@ -164,8 +165,7 @@ SYSTEM REQUIREMENTS                             *obsidian-system-requirements*
 
 PLUGIN DEPENDENCIES                             *obsidian-plugin-dependencies*
 
-The only **required** plugin dependency is plenary.nvim
-<https://github.com/nvim-lua/plenary.nvim>, but there are a number of optional
+There’s no required dependency, but there are a number of optional
 dependencies that enhance the obsidian.nvim experience.
 
 **Completion:**
@@ -237,12 +237,6 @@ Click for install snippet ~
       --   "BufReadPre path/to/my-vault/*.md",
       --   "BufNewFile path/to/my-vault/*.md",
       -- },
-      dependencies = {
-        -- Required.
-        "nvim-lua/plenary.nvim",
-    
-        -- see above for full list of optional dependencies ☝️
-      },
       ---@module 'obsidian'
       ---@type obsidian.config
       opts = {
@@ -269,42 +263,6 @@ Click for install snippet ~
 
 >vim
     :Rocks install obsidian
-<
-
-
-USING PACKER.NVIM                                 *obsidian-using-packer.nvim*
-
-It is not recommended because packer.nvim is currently unmaintained
-
-Click for install snippet ~
-
->lua
-    use {
-      "obsidian-nvim/obsidian.nvim",
-      tag = "*", -- recommended, use latest release instead of latest commit
-      requires = {
-        -- Required.
-        "nvim-lua/plenary.nvim",
-    
-        -- see above for full list of optional dependencies ☝️
-      },
-      config = function()
-        require("obsidian").setup {
-          workspaces = {
-            {
-              name = "personal",
-              path = "~/vaults/personal",
-            },
-            {
-              name = "work",
-              path = "~/vaults/work",
-            },
-          },
-    
-          -- see below for full list of options 👇
-        }
-      end,
-    }
 <
 
 
@@ -563,9 +521,8 @@ Click to see configuration options ~
         pre_write_note = function(client, note) end,
     
         -- Runs anytime the workspace is set/changed.
-        ---@param client obsidian.Client
         ---@param workspace obsidian.Workspace
-        post_set_workspace = function(client, workspace) end,
+        post_set_workspace = function(workspace) end,
       },
     
       -- Optional, configure additional syntax highlighting / extmarks.
@@ -653,6 +610,13 @@ Click to see configuration options ~
         hl_group = "Comment",
         separator = string.rep("-", 80),
       },
+      ---@class obsidian.config.CheckboxOpts
+      ---
+      ---Order of checkbox state chars, e.g. { " ", "x" }
+      ---@field order? string[]
+      checkbox = {
+        order = { " ", "~", "!", ">", "x" },
+      },
     }
 <
 
@@ -671,7 +635,7 @@ Please read the CONTRIBUTING
 <https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md>
 guide before submitting a pull request.
 
-neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻Anaritus💻Michael Davis💻Brian Rodriguez💻carschandler📖Aki Sasaki💻Reinaldo Molina💻Stuart Rackham💻Ahmed Mughal💻trash-panda-v91-beta💻Jakob Westhoff💻Christian Johansen💻
+neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻Anaritus💻Michael Davis💻Brian Rodriguez💻carschandler📖Aki Sasaki💻Reinaldo Molina💻Stuart Rackham💻Ahmed Mughal💻trash-panda-v91-beta💻Jakob Westhoff💻Christian Johansen💻Volodymyr Kot💻Jorge Villalobos💻
 ==============================================================================
 8. ❤️ Acknowledgement                    *obsidian-❤️-acknowledgement*
 

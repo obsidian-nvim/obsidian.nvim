@@ -27,7 +27,6 @@ local function open_in_app(path)
   else
     uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
   end
-  print(uri)
 
   Obsidian.opts.open.func(uri)
 end
@@ -35,29 +34,25 @@ end
 ---@param data CommandArgs
 return function(_, data)
   ---@type string|?
-  local search_term
+  local search_term, path
 
   if data.args and data.args:len() > 0 then
     search_term = data.args
   else
-    -- Check for a note reference under the cursor.
     local link_string, _ = api.cursor_link()
     search_term = link_string
   end
 
   if search_term then
-    search.resolve_link_async(search_term, function(results)
-      if vim.tbl_isempty(results) then
-        return log.err "Note under cusros is not resolved"
-      end
-      vim.schedule(function()
-        open_in_app(results[1].path)
-      end)
-    end)
+    local note = search.resolve_note(search_term)
+    if not note then
+      return log.err "Note under cusror is not resolved"
+    end
+    path = note.path
   else
     -- Otherwise use the path of the current buffer.
     local bufname = vim.api.nvim_buf_get_name(0)
-    local path = Path.new(bufname):vault_relative_path()
-    open_in_app(path)
+    path = Path.new(bufname):vault_relative_path()
   end
+  open_in_app(path)
 end

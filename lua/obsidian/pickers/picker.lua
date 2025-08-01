@@ -1,7 +1,7 @@
 local abc = require "obsidian.abc"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
-local strings = require "plenary.strings"
+local util = require "obsidian.util"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 
@@ -453,53 +453,48 @@ end
 ---@return string, { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
 ---@diagnostic disable-next-line: unused-local
 Picker._make_display = function(self, entry)
-  ---@type string
-  local display = ""
+  local buf = {}
   ---@type { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
   local highlights = {}
 
-  if entry.filename ~= nil then
-    local icon, icon_hl
-    if entry.icon then
-      icon = entry.icon
-      icon_hl = entry.icon_hl
-    else
-      icon, icon_hl = api.get_icon(entry.filename)
-    end
+  local icon, icon_hl
 
-    if icon ~= nil then
-      display = display .. icon .. " "
-      if icon_hl ~= nil then
-        highlights[#highlights + 1] = { { 0, strings.strdisplaywidth(icon) }, icon_hl }
-      end
-    end
-
-    display = display .. Path.new(entry.filename):vault_relative_path { strict = true }
-
-    if entry.lnum ~= nil then
-      display = display .. ":" .. entry.lnum
-
-      if entry.col ~= nil then
-        display = display .. ":" .. entry.col
-      end
-    end
-
-    if entry.display ~= nil then
-      display = display .. ":" .. entry.display
-    end
-  elseif entry.display ~= nil then
-    if entry.icon ~= nil then
-      display = entry.icon .. " "
-    end
-    display = display .. entry.display
+  if entry.icon then
+    icon = entry.icon
+    icon_hl = entry.icon_hl
   else
-    if entry.icon ~= nil then
-      display = entry.icon .. " "
-    end
-    display = display .. tostring(entry.value)
+    icon, icon_hl = api.get_icon(entry.filename)
   end
 
-  return assert(display), highlights
+  if icon then
+    buf[#buf + 1] = icon
+    buf[#buf + 1] = " "
+    if icon_hl then
+      highlights[#highlights + 1] = { { 0, util.strdisplaywidth(icon) }, icon_hl }
+    end
+  end
+
+  if entry.filename then
+    buf[#buf + 1] = Path.new(entry.filename):vault_relative_path()
+
+    if entry.lnum ~= nil then
+      buf[#buf + 1] = ":"
+      buf[#buf + 1] = entry.lnum
+
+      if entry.col ~= nil then
+        buf[#buf + 1] = ":"
+        buf[#buf + 1] = entry.col
+      end
+    end
+  end
+
+  if entry.display then
+    buf[#buf + 1] = entry.display
+  elseif entry.value then
+    buf[#buf + 1] = tostring(entry.value)
+  end
+
+  return table.concat(buf, ""), highlights
 end
 
 ---@return string[]

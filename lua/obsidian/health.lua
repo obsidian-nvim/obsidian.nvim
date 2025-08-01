@@ -121,7 +121,6 @@ function M.check()
 
   start "Dependencies"
   has_executable("rg", false)
-  has_plugin("plenary.nvim", false)
 
   if os == api.OSType.Wsl then
     has_executable("wsl-open", true)

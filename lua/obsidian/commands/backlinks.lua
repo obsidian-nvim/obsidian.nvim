@@ -52,7 +52,7 @@ local function collect_backlinks(client, picker, note, opts)
         end,
       })
     end)
-  end, { search = { sort = true }, anchor = opts.anchor, block = opts.block })
+  end)
 end
 
 ---@param client obsidian.Client
@@ -92,24 +92,11 @@ return function(client)
 
     local opts = { anchor = anchor_link, block = block_link }
 
-    search.resolve_note_async(location, function(...)
-      ---@type obsidian.Note[]
-      local notes = { ... }
-
-      if #notes == 0 then
-        log.err("No notes matching '%s'", location)
-        return
-      elseif #notes == 1 then
-        return collect_backlinks(client, picker, notes[1], opts)
+    search.resolve_note_async(location, function(note)
+      if not note then
+        return log.err("No notes matching '%s'", location)
       else
-        return vim.schedule(function()
-          picker:pick_note(notes, {
-            prompt_title = "Select note",
-            callback = function(note)
-              collect_backlinks(client, picker, note, opts)
-            end,
-          })
-        end)
+        return collect_backlinks(client, picker, note, opts)
       end
     end)
   else

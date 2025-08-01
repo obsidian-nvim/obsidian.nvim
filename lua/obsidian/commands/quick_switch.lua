@@ -13,6 +13,9 @@ return function(_, data)
     picker:find_notes { use_cache = Obsidian.opts.cache.enabled }
   else
     search.resolve_note_async(data.args, function(note)
+      if not note then
+        return log.err("No notes matching '%s'", data.args)
+      end
       note:open()
     end)
   end

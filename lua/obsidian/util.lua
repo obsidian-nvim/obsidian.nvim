@@ -42,25 +42,6 @@ util.enumerate = function(iterable)
   end
 end
 
----Zip two iterables together.
----@param iterable1 table|string|function
----@param iterable2 table|string|function
----@return function
-util.zip = function(iterable1, iterable2)
-  local iterator1 = vim.iter(iterable1)
-  local iterator2 = vim.iter(iterable2)
-
-  return function()
-    local next1 = iterator1()
-    local next2 = iterator2()
-    if next1 == nil or next2 == nil then
-      return nil
-    else
-      return next1, next2
-    end
-  end
-end
-
 -------------------
 --- Table tools ---
 -------------------
@@ -749,5 +730,55 @@ util.in_node = function(node_type)
   end
   return false
 end
+
+--- from plenary.nvim
+util.strdisplaywidth = (function()
+  local fallback = function(str, col)
+    str = tostring(str)
+
+    if vim.in_fast_event() then
+      return #str - (col or 0)
+    end
+
+    return vim.fn.strdisplaywidth(str, col)
+  end
+
+  if jit and vim.fn.has "win32" ~= 1 then
+    local ffi = require "ffi"
+
+    ffi.cdef [[
+
+
+      typedef unsigned char char_u;
+
+
+      int linetabsize_col(int startcol, char_u *s);
+
+
+    ]]
+
+    local ffi_func = function(str, col)
+      str = tostring(str)
+
+      local startcol = col or 0
+
+      local s = ffi.new("char[?]", #str + 1)
+
+      ffi.copy(s, str)
+
+      return ffi.C.linetabsize_col(startcol, s) - startcol
+    end
+
+    local ok = pcall(ffi_func, "hello")
+
+    if ok then
+      return ffi_func
+    else
+      return fallback
+    end
+  else
+    return fallback
+  end
+end)()
 
 return util

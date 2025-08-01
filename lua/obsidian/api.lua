@@ -4,6 +4,7 @@ local util = require "obsidian.util"
 local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
+local config = require "obsidian.config"
 
 ---@param dir string | obsidian.Path
 ---@return Iter
@@ -14,7 +15,6 @@ M.dir = function(dir)
     skip = function(p)
       return not vim.startswith(p, ".") and p ~= vim.fs.basename(tostring(M.templates_dir()))
     end,
-    follow = true,
   }
 
   return vim
@@ -29,14 +29,13 @@ end
 
 --- Get the templates folder.
 ---
+---@param workspace obsidian.Workspace?
 ---@return obsidian.Path|?
 M.templates_dir = function(workspace)
   local opts = Obsidian.opts
 
-  local Workspace = require "obsidian.workspace"
-
   if workspace and workspace ~= Obsidian.workspace then
-    opts = Workspace.normalize_opts(workspace)
+    opts = config.normalize(workspace.overrides, Obsidian._opts)
   end
 
   if opts.templates == nil or opts.templates.folder == nil then
@@ -160,7 +159,6 @@ end
 ---
 ---@return string
 M.format_link = function(note, opts)
-  local config = require "obsidian.config"
   opts = opts or {}
 
   ---@type string, string, string|integer|?
@@ -295,26 +293,6 @@ M.open_buffer = function(path, opts)
   end
 
   return result_bufnr
-end
-
----Get an iterator of (bufnr, bufname) over all named buffers. The buffer names will be absolute paths.
----
----@return function () -> (integer, string)|?
-M.get_named_buffers = function()
-  local idx = 0
-  local buffers = vim.api.nvim_list_bufs()
-
-  ---@return integer|?
-  ---@return string|?
-  return function()
-    while idx < #buffers do
-      idx = idx + 1
-      local bufnr = buffers[idx]
-      if vim.api.nvim_buf_is_loaded(bufnr) then
-        return bufnr, vim.api.nvim_buf_get_name(bufnr)
-      end
-    end
-  end
 end
 
 ----------------
@@ -593,6 +571,8 @@ M.get_icon = function(path)
     local icon = ""
     local _, hl_group = M.get_icon "blah.html"
     return icon, hl_group
+  elseif Path.new(path):is_dir() then
+    return "󰉋"
   else
     local ok, res = pcall(function()
       local icon, hl_group = require("nvim-web-devicons").get_icon(path, nil, { default = true })
@@ -759,7 +739,15 @@ end
 ---@param src string
 ---@return string
 M.resolve_image_path = function(src)
-  return vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.img_folder, src)
+  local img_folder = Obsidian.opts.attachments.img_folder
+
+  ---@cast img_folder -nil
+  if vim.startswith(img_folder, ".") then
+    local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
+    return tostring(dirname / img_folder / src)
+  else
+    return tostring(Obsidian.dir / img_folder / src)
+  end
 end
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
@@ -770,96 +758,56 @@ M.follow_link = function(link, opts)
   opts = opts and opts or {}
   local Note = require "obsidian.note"
 
-  search.resolve_link_async(link, function(results)
-    if #results == 0 then
+  ---@param res obsidian.ResolveLinkResult
+  local function follow_link(res)
+    if res.url ~= nil then
+      Obsidian.opts.follow_url_func(res.url)
       return
     end
 
-    ---@param res obsidian.ResolveLinkResult
-    local function follow_link(res)
-      if res.url ~= nil then
-        Obsidian.opts.follow_url_func(res.url)
-        return
-      end
+    if util.is_img(res.location) then
+      local path = Obsidian.dir / res.location
+      Obsidian.opts.follow_img_func(tostring(path))
+      return
+    end
 
-      if util.is_img(res.location) then
-        local path = Obsidian.dir / res.location
-        Obsidian.opts.follow_img_func(tostring(path))
-        return
-      end
+    if res.note ~= nil then
+      -- Go to resolved note.
+      return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
+    end
 
-      if res.note ~= nil then
-        -- Go to resolved note.
-        return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
-      end
-
-      if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
-        -- Prompt to create a new note.
-        if M.confirm("Create new note '" .. res.location .. "'?") then
-          -- Create a new note.
-          ---@type string|?, string[]
-          local id, aliases
-          if res.name == res.location then
-            aliases = {}
-          else
-            aliases = { res.name }
-            id = res.location
-          end
-
-          local note = Note.create { title = res.name, id = id, aliases = aliases }
-          return note:open {
-            open_strategy = opts.open_strategy,
-            callback = function(bufnr)
-              note:write_to_buffer { bufnr = bufnr }
-            end,
-          }
+    if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
+      -- Prompt to create a new note.
+      if M.confirm("Create new note '" .. res.location .. "'?") then
+        -- Create a new note.
+        ---@type string|?, string[]
+        local id, aliases
+        if res.name == res.location then
+          aliases = {}
         else
-          log.warn "Aborted"
-          return
-        end
-      end
-
-      return log.err("Failed to resolve file '" .. res.location .. "'")
-    end
-
-    if #results == 1 then
-      return vim.schedule(function()
-        follow_link(results[1])
-      end)
-    else
-      return vim.schedule(function()
-        local picker = Obsidian.picker
-        if not picker then
-          log.err("Found multiple matches to '%s', but no picker is configured", link)
-          return
+          aliases = { res.name }
+          id = res.location
         end
 
-        ---@type obsidian.PickerEntry[]
-        local entries = {}
-        for _, res in ipairs(results) do
-          local icon, icon_hl
-          if res.url ~= nil then
-            icon, icon_hl = M.get_icon(res.url)
-          end
-          table.insert(entries, {
-            value = res,
-            display = res.name,
-            filename = res.path and tostring(res.path) or nil,
-            icon = icon,
-            icon_hl = icon_hl,
-          })
-        end
-
-        picker:pick(entries, {
-          prompt_title = "Follow link",
-          callback = function(res)
-            follow_link(res)
+        local note = Note.create { title = res.name, id = id, aliases = aliases }
+        return note:open {
+          open_strategy = opts.open_strategy,
+          callback = function(bufnr)
+            note:write_to_buffer { bufnr = bufnr }
           end,
-        })
-      end)
+        }
+      else
+        log.warn "Aborted"
+        return
+      end
     end
-  end)
+
+    return log.err("Failed to resolve file '" .. res.location .. "'")
+  end
+
+  search.resolve_link_async(link, vim.schedule_wrap(follow_link), { pick = true })
 end
+
 --------------------------
 ---- Mapping functions ---
 --------------------------

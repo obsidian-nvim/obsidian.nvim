@@ -32,7 +32,7 @@ end
 --- Check if clipboard contains image data.
 ---
 ---@return boolean
-local function clipboard_is_img()
+function M.clipboard_is_img()
   local check_cmd = get_clip_check_command()
   local result_string = vim.fn.system(check_cmd)
   local content = vim.split(result_string, "\n")
@@ -95,77 +95,27 @@ local function save_clipboard_image(path)
   end
 end
 
----@param opts { fname: string|?, default_dir: obsidian.Path|string|?, default_name: string|?, should_confirm: boolean|? }|? Options.
----
---- Options:
----  - `fname`: The filename.
----  - `default_dir`: The default directory to put the image file in.
----  - `default_name`: The default name to assign the image.
----  - `should_confirm`: Prompt to confirm before proceeding.
----
---- @return obsidian.Path|? image_path The absolute path to the image file.
-M.paste_img = function(opts)
-  opts = opts or {}
-
-  local fname = opts.fname and vim.trim(opts.fname) or nil
-
-  if not clipboard_is_img() then
-    log.err "There is no image data in the clipboard"
-    return
-  end
-
-  -- Get filename to save to.
-  if fname == nil or fname == "" then
-    if opts.default_name ~= nil and not opts.should_confirm then
-      fname = opts.default_name
-    else
-      fname = api.input("Enter file name: ", { default = opts.default_name, completion = "file" })
-      if fname == "" then
-        fname = opts.default_name
-      elseif not fname then
-        log.warn "Paste aborted"
-        return
-      end
-    end
-  end
-
-  assert(fname)
-  fname = vim.trim(fname)
-
-  -- Verify filename
-  if util.contains_invalid_characters(fname) then
+--- @param path string image_path The absolute path to the image file.
+M.paste = function(path)
+  if util.contains_invalid_characters(path) then
     log.warn "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |"
-  elseif fname == "" then
-    log.err "Invalid file name"
-    return
   end
 
-  local path = Path.new(fname)
+  ---@diagnostic disable-next-line: cast-local-type
+  path = Path.new(path)
 
   -- Make sure fname ends with ".png"
   if not path.suffix then
+    ---@diagnostic disable-next-line: cast-local-type
     path = path:with_suffix ".png"
   elseif path.suffix ~= ".png" then
-    log.err("invalid suffix for image name '%s', must be '.png'", path.suffix)
-    return
+    return log.err("invalid suffix for image name '%s', must be '.png'", path.suffix)
   end
 
-  -- Resolve absolute path to write image to.
-  if path.name ~= path.filename then
-    -- fname is a full path
-    path = path:resolve()
-  elseif opts.default_dir ~= nil then
-    path = (Path.new(opts.default_dir) / path):resolve()
-  else
-    log.err "'default_dir' must be provided"
-    return
-  end
-
-  if opts.should_confirm then
+  if Obsidian.opts.attachments.confirm_img_paste then
     -- Get confirmation from user.
     if not api.confirm("Saving image to '" .. tostring(path) .. "'. Do you want to continue?") then
-      log.warn "Paste aborted"
-      return
+      return log.warn "Paste aborted"
     end
   end
 
@@ -179,7 +129,8 @@ M.paste_img = function(opts)
     return
   end
 
-  return path
+  local img_text = Obsidian.opts.attachments.img_text_func(path)
+  vim.api.nvim_put({ img_text }, "c", true, false)
 end
 
 return M

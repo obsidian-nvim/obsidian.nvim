@@ -33,6 +33,7 @@ local config = {}
 ---@field footer? obsidian.config.FooterOpts
 ---@field open? obsidian.config.OpenOpts
 ---@field checkbox? obsidian.config.CheckboxOpts
+---@field comment? obsidian.config.CommentOpts
 
 ---@class obsidian.config.ClientOpts
 ---@field dir string|?
@@ -67,6 +68,7 @@ local config = {}
 ---@field footer obsidian.config.FooterOpts
 ---@field open obsidian.config.OpenOpts
 ---@field checkbox obsidian.config.CheckboxOpts
+---@field comment obsidian.config.CommentOpts
 
 ---@enum obsidian.config.OpenStrategy
 config.OpenStrategy = {
@@ -277,7 +279,7 @@ config.default = {
 
   ---@class obsidian.config.AttachmentsOpts
   ---
-  ---Default folder to save images to, relative to the vault root.
+  ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
   ---@field img_folder? string
   ---
   ---Default name for pasted images
@@ -312,7 +314,7 @@ config.default = {
   ---@field pre_write_note? fun(client: obsidian.Client, note: obsidian.Note)
   ---
   ---Runs anytime the workspace is set/changed.
-  ---@field post_set_workspace? fun(client: obsidian.Client, workspace: obsidian.Workspace)
+  ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
   callbacks = {},
 
   ---@class obsidian.config.CacheOpts
@@ -374,6 +376,12 @@ config.default = {
     create_new = true,
     order = { " ", "~", "!", ">", "x" },
   },
+
+  ---@class obsidian.config.CommentOpts
+  ---@field enabled boolean
+  comment = {
+    enabled = false,
+  },
 }
 
 local tbl_override = function(defaults, overrides)
@@ -399,6 +407,8 @@ end
 config.normalize = function(opts, defaults)
   local builtin = require "obsidian.builtin"
   local util = require "obsidian.util"
+
+  opts = opts or {}
 
   if not defaults then
     defaults = config.default
@@ -534,6 +544,10 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.templates.subdir = nil
   end
 
+  if opts.ui and opts.ui.checkboxes then
+    log.warn_once [[The 'ui.checkboxes' no longer effect the way checkboxes are ordered, use `checkbox.order`. See: https://github.com/obsidian-nvim/obsidian.nvim/issues/262]]
+  end
+
   if opts.image_name_func then
     if opts.attachments == nil then
       opts.attachments = {}
@@ -564,6 +578,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.footer = tbl_override(defaults.footer, opts.footer)
   opts.open = tbl_override(defaults.open, opts.open)
   opts.checkbox = tbl_override(defaults.checkbox, opts.checkbox)
+  opts.comment = tbl_override(defaults.comment, opts.comment)
 
   ---------------
   -- Validate. --
@@ -590,10 +605,10 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error "At least one workspace is required!\nPlease specify a workspace "
   end
 
-  for i, workspace in ipairs(opts.workspaces) do
-    local path = type(workspace.path) == "function" and workspace.path() or workspace.path
-    ---@cast path -function
-    opts.workspaces[i].path = vim.fn.resolve(vim.fs.normalize(path))
+  Obsidian.workspaces = {}
+
+  for i, spec in ipairs(opts.workspaces) do
+    Obsidian.workspaces[i] = require("obsidian.workspace").new(spec)
   end
 
   -- Convert dir to workspace format.

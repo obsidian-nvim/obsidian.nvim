@@ -769,11 +769,6 @@ Note.from_lines = function(lines, path, opts)
     end
   end
 
-  if title ~= nil then
-    -- Remove references and links from title
-    title = search.replace_refs(title)
-  end
-
   -- Parse the frontmatter YAML.
   local metadata = nil
   if #frontmatter_lines > 0 then
@@ -790,6 +785,12 @@ Note.from_lines = function(lines, path, opts)
             id = v
           else
             log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
+          end
+        elseif k == "title" then
+          if type(v) == "string" then
+            title = v
+          else
+            log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
           end
         elseif k == "aliases" then
           if type(v) == "table" then
@@ -839,6 +840,11 @@ Note.from_lines = function(lines, path, opts)
         end
       end
     end
+  end
+
+  if title ~= nil then
+    -- Remove references and links from title
+    title = search.replace_refs(title)
   end
 
   -- ID should default to the filename without the extension.
@@ -1230,11 +1236,27 @@ Note.resolve_block = function(self, block_id)
 end
 
 --- Open a note in a buffer.
+---
+---@param note_or_path string|obsidian.Path|obsidian.Note
 ---@param opts { line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|?
-Note.open = function(self, opts)
+Note.open = function(note_or_path, opts)
   opts = opts or {}
 
-  local path = self.path
+  ---@type obsidian.Path
+  local path
+  if type(note_or_path) == "string" then
+    path = Path.new(note_or_path)
+  elseif type(note_or_path) == "table" and note_or_path.path ~= nil then
+    -- this is a Note
+    ---@cast note_or_path obsidian.Note
+    path = note_or_path.path
+  elseif type(note_or_path) == "table" and note_or_path.filename ~= nil then
+    -- this is a Path
+    ---@cast note_or_path obsidian.Path
+    path = note_or_path
+  else
+    error "invalid 'note_or_path' argument"
+  end
 
   local function open_it()
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)

@@ -6,7 +6,7 @@ local log = require "obsidian.log"
 return function(_, data)
   local viz = api.get_visual_selection()
   if not viz then
-    log.err "ObsidianLink must be called with visual selection"
+    log.err "`Obsidian link` must be called with visual selection"
     return
   elseif #viz.lines ~= 1 then
     log.err "Only in-line visual selections allowed"
@@ -16,11 +16,11 @@ return function(_, data)
   local line = assert(viz.lines[1])
 
   ---@type string
-  local search_term
+  local query
   if data.args ~= nil and string.len(data.args) > 0 then
-    search_term = data.args
+    query = data.args
   else
-    search_term = viz.selection
+    query = viz.selection
   end
 
   ---@param note obsidian.Note
@@ -32,7 +32,10 @@ return function(_, data)
     require("obsidian.ui").update(0)
   end
 
-  search.resolve_note_async(search_term, function(note)
+  search.resolve_note_async(query, function(note)
+    if not note then
+      return log.err("No notes matching '%s'", query)
+    end
     vim.schedule(function()
       insert_ref(note)
     end)

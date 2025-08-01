@@ -41,13 +41,17 @@ local function show_menu(data)
   local is_visual, is_note = data.range ~= 0, in_note()
   local choices = get_commands_by_context(M.commands, is_visual, is_note)
 
-  vim.ui.select(choices, { prompt = "Obsidian Commands" }, function(item)
-    if item then
-      return vim.cmd.Obsidian(item)
-    else
-      vim.notify("Aborted", 3)
-    end
-  end)
+  vim.ui.select(
+    choices,
+    { prompt = "Obsidian Commands" },
+    vim.schedule_wrap(function(item)
+      if item then
+        return vim.cmd.Obsidian(item)
+      else
+        vim.notify("Aborted", 3)
+      end
+    end)
+  )
 end
 
 ---@class obsidian.CommandConfig

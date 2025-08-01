@@ -584,9 +584,11 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                           *obsidian.Note.open()*
-                          `Note.open`({self}, {opts})
+                      `Note.open`({note_or_path}, {opts})
 Open a note in a buffer.
+
 Parameters ~
+{note_or_path} `(string|obsidian.Path|obsidian.Note)`
 {opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
 
 ------------------------------------------------------------------------------
@@ -594,19 +596,10 @@ Class ~
 {obsidian.workspace.WorkspaceSpec}
 
 Fields ~
-{path} `(string|(fun(): string))`
+{path} `(string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path))`
 {name} `(string|)`?
 {strict} `(boolean|? If)` true, the workspace root will be fixed to 'path' instead of the vault root (if different).
-{overrides} `(table|obsidian.config.ClientOpts|)`?
-
-------------------------------------------------------------------------------
-Class ~
-{obsidian.workspace.WorkspaceOpts}
-
-Fields ~
-{name} `(string|)`?
-{strict} `(boolean|? If)` true, the workspace root will be fixed to 'path' instead of the vault root (if different).
-{overrides} `(table|obsidian.config.ClientOpts|)`?
+{overrides} `(table|obsidian.config.ClientOpts?)`
 
 ------------------------------------------------------------------------------
                                                             *obsidian.Workspace*
@@ -643,23 +636,11 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                       *obsidian.Workspace.new()*
-                        `Workspace.new`({path}, {opts})
+                            `Workspace.new`({spec})
 Create a new 'Workspace' object. This assumes the workspace already exists on the filesystem.
 
 Parameters ~
-{path} `(string|obsidian.Path)` Workspace path.
-{opts} `(obsidian.workspace.WorkspaceOpts|)`?
-
-Return ~
-`(obsidian.Workspace)`
-
-------------------------------------------------------------------------------
-                                            *obsidian.Workspace.new_from_spec()*
-                       `Workspace.new_from_spec`({spec})
-Initialize a new 'Workspace' object from a workspace spec.
-
-Parameters ~
-{spec} `(obsidian.workspace.WorkspaceSpec)`
+{spec} `(obsidian.workspace.WorkspaceSpec|)`?
 
 Return ~
 `(obsidian.Workspace)`
@@ -688,53 +669,12 @@ Return ~
 `(obsidian.Workspace| `(optional))``
 
 ------------------------------------------------------------------------------
-                                    *obsidian.Workspace.get_workspace_for_cwd()*
-                `Workspace.get_workspace_for_cwd`({workspaces})
-Get the workspace corresponding to the current working directory (or a parent of), if there
-is one.
-
-Parameters ~
-{workspaces} `(obsidian.workspace.WorkspaceSpec[])`
-
-Return ~
-`(obsidian.Workspace| `(optional))``
-
-------------------------------------------------------------------------------
-                                    *obsidian.Workspace.get_default_workspace()*
-                `Workspace.get_default_workspace`({workspaces})
-Returns the default workspace.
-
-Parameters ~
-{workspaces} `(obsidian.workspace.WorkspaceSpec[])`
-
-Return ~
-`(obsidian.Workspace|nil)`
-
-------------------------------------------------------------------------------
-                                            *obsidian.Workspace.get_from_opts()*
-                       `Workspace.get_from_opts`({opts})
-Resolves current workspace from the client config.
-
-Parameters ~
-{opts} `(obsidian.config.ClientOpts)`
-
-Return ~
-`(obsidian.Workspace| `(optional))``
-
-------------------------------------------------------------------------------
-                                           *obsidian.Workspace.normalize_opts()*
-                    `Workspace.normalize_opts`({workspace})
-Get the normalize opts for a given workspace.
-
-Parameters ~
-{workspace} `(obsidian.Workspace|)`?
-
-Return ~
-`(obsidian.config.ClientOpts)`
-
-------------------------------------------------------------------------------
                                                       *obsidian.Workspace.set()*
                       `Workspace.set`({workspace}, {opts})
+1. Set Obsidian.workspace, Obsidian.dir, and opts
+2. Make sure all the directories exists
+3. fire callbacks and exec autocmd event
+
 Parameters ~
 {workspace} `(obsidian.Workspace)`
 {opts} `({ lock: boolean|? }|)`?
@@ -743,7 +683,7 @@ Parameters ~
                                                    *obsidian.Workspace.switch()*
                     `Workspace.switch`({workspace}, {opts})
 Parameters ~
-{workspace} `(obsidian.Workspace|string)` The workspace object or the name of an existing workspace.
+{workspace} `(string)` name of workspace
 {opts} `({ lock: boolean|? }|)`?
 
 ------------------------------------------------------------------------------
@@ -752,7 +692,7 @@ Parameters ~
 Parameters ~
 {path} `(table)`
 {k} `(string)`
-{factory} `(fun(obsidian.Path): any)`
+{factory} `(fun(path: obsidian.Path): any)`
 
 ------------------------------------------------------------------------------
                                                                  *obsidian.Path*

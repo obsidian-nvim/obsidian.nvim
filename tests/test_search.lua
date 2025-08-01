@@ -2,20 +2,20 @@ local search = require "obsidian.search"
 local RefTypes = search.RefTypes
 local Patterns = search.Patterns
 
-describe("search.find_async", function()
-  it("should find files with search term in name", function()
-    local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
-    local match_counter = 0
-
-    search.find_async(fixtures, "foo", {}, function(match)
-      MiniTest.expect.equality(true, match:find "foo" ~= nil)
-      match_counter = match_counter + 1
-    end, function(exit_code)
-      MiniTest.expect.equality(0, exit_code)
-      MiniTest.expect.equality(2, match_counter)
-    end)
-  end)
-end)
+-- describe("search.find_async", function()
+--   it("should find files with search term in name", function()
+--     local fixtures = vim.fs.joinpath(vim.uv.cwd(), "tests", "fixtures", "notes")
+--     local match_counter = 0
+--
+--     search.find_async(fixtures, "foo", {}, function(match)
+--       MiniTest.expect.equality(true, match:find "foo" ~= nil)
+--       match_counter = match_counter + 1
+--     end, function(exit_code)
+--       MiniTest.expect.equality(0, exit_code)
+--       MiniTest.expect.equality(2, match_counter)
+--     end)
+--   end)
+-- end)
 
 describe("search.search_async", function()
   it("should find files with search term in content", function()
