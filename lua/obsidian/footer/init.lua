@@ -1,10 +1,11 @@
 local M = {}
 local api = require "obsidian.api"
+local search = require "obsidian.search"
 
 local ns_id = vim.api.nvim_create_namespace "ObsidianFooter"
 
 --- Register buffer-specific variables
-M.start = function(client)
+M.start = function()
   local refresh_info = function(buf)
     local note = api.current_note(buf)
     if not note then
@@ -15,7 +16,7 @@ M.start = function(client)
     info.words = wc.words
     info.chars = wc.chars
     info.properties = vim.tbl_count(note:frontmatter())
-    info.backlinks = #client:find_backlinks(note)
+    info.backlinks = #search.find_backlinks(note)
     return info
   end
 

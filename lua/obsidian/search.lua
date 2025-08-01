@@ -954,7 +954,7 @@ local function build_backlink_search_term(note, anchor, block)
       tostring(note.id),
       note_path.name,
       note_path.stem,
-      note.path.vault_relative_path(),
+      note.path:vault_relative_path(),
     }
 
   do
@@ -1078,6 +1078,14 @@ M.find_backlinks_async = function(note, callback, opts)
       callback(results)
     end
   )
+end
+
+M.find_backlinks = function(term, opts)
+  opts = opts or {}
+  opts.timeout = opts.timeout or 1000
+  return async.block_on(function(cb)
+    return M.find_backlinks_async(term, cb, { search = opts.search })
+  end, opts.timeout)
 end
 
 return M
