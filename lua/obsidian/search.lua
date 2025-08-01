@@ -1,10 +1,9 @@
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
 local iter = vim.iter
-local run_job_async = require("obsidian.async").run_job_async
 local compat = require "obsidian.compat"
 local log = require "obsidian.log"
-local block_on = require("obsidian.async").block_on
+local async = require "obsidian.async"
 
 local M = {}
 
@@ -465,7 +464,7 @@ end
 ---@param on_exit fun(exit_code: integer)|?
 M.search_async = function(dir, term, opts, on_match, on_exit)
   local cmd = M.build_search_cmd(dir, term, opts)
-  run_job_async(cmd, function(line)
+  async.run_job_async(cmd, function(line)
     local data = vim.json.decode(line)
     if data["type"] == "match" then
       local match_data = data.data
@@ -488,7 +487,7 @@ end
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
   local cmd = M.build_find_cmd(tostring(norm_dir), term, opts)
-  run_job_async(cmd, on_match, function(code)
+  async.run_job_async(cmd, on_match, function(code)
     if on_exit ~= nil then
       on_exit(code)
     end
@@ -579,52 +578,66 @@ local _search_async = function(term, search_opts, find_opts, callback, exit_call
   M.find_async(Obsidian.dir, term, _prepare_search_opts(find_opts, { ignore_case = true }), on_find_match, on_exit)
 end
 
---- An async version of `find_notes()` that runs the callback with an array of all matching notes.
+--- An async version of `find_notes()` using coroutines.
 ---
 ---@param term string The term to search for
 ---@param callback fun(notes: obsidian.Note[])
 ---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|? }|?
 M.find_notes_async = function(term, callback, opts)
-  opts = opts or {}
-  opts.notes = opts.notes or {}
-  if not opts.notes.max_lines then
-    opts.notes.max_lines = Obsidian.opts.search_max_lines
-  end
+  async.run(function()
+    opts = opts or {}
+    opts.notes = opts.notes or {}
+    if not opts.notes.max_lines then
+      opts.notes.max_lines = Obsidian.opts.search_max_lines
+    end
 
-  ---@type table<string, integer>
-  local paths = {}
-  local num_results = 0
-  local err_count = 0
-  local first_err
-  local first_err_path
-  local notes = {}
-  local Note = require "obsidian.note"
+    local Note = require "obsidian.note"
 
-  ---@param path obsidian.Path
-  local function on_path(path)
-    local ok, res = pcall(Note.from_file, path, opts.notes)
+    ---@type table<string, integer>
+    local paths = {}
+    local num_results = 0
+    local err_count = 0
+    local first_err, first_err_path
+    local notes = {}
 
-    if ok then
-      num_results = num_results + 1
-      paths[tostring(path)] = num_results
-      notes[#notes + 1] = res
-    else
-      err_count = err_count + 1
-      if first_err == nil then
-        first_err = res
-        first_err_path = path
+    -- Awaitable wrapper for loading a single note from path
+    ---@param path string
+    local function load_note_async(path)
+      local ok, res = pcall(Note.from_file, path, opts.notes)
+      if ok then
+        num_results = num_results + 1
+        paths[tostring(path)] = num_results
+        notes[#notes + 1] = res
+      else
+        err_count = err_count + 1
+        if not first_err then
+          first_err = res
+          first_err_path = path
+        end
       end
     end
-  end
 
-  local on_exit = function()
-    -- Then sort by original order.
+    local paths_found = {} ---@type string[]
+    async.await(5, _search_async, term, opts.search, nil, function(path)
+      paths_found[#paths_found + 1] = path
+    end)
+
+    async.join(
+      10,
+      vim.tbl_map(function(path)
+        return function()
+          load_note_async(path)
+        end
+      end, paths_found)
+    )
+
+    -- Sort notes by search order
     table.sort(notes, function(a, b)
       return paths[tostring(a.path)] < paths[tostring(b.path)]
     end)
 
-    -- Check for errors.
-    if first_err ~= nil and first_err_path ~= nil then
+    -- Report any errors
+    if first_err and first_err_path then
       log.err(
         "%d error(s) occurred during search. First error from note at '%s':\n%s",
         err_count,
@@ -634,15 +647,13 @@ M.find_notes_async = function(term, callback, opts)
     end
 
     callback(notes)
-  end
-
-  _search_async(term, opts.search, nil, on_path, on_exit)
+  end)
 end
 
 M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
-  return block_on(function(cb)
+  return async.block_on(function(cb)
     return M.find_notes_async(term, cb, { search = opts.search })
   end, opts.timeout)
 end
@@ -773,7 +784,7 @@ end
 M.resolve_note = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
-  return block_on(function(cb)
+  return async.block_on(function(cb)
     return M.resolve_note_async(term, cb, { search = opts.search })
   end, opts.timeout)
 end
@@ -831,9 +842,13 @@ M.resolve_link_async = function(link, callback, opts)
 
   --- Finalize the `obsidian.ResolveLinkResult` for a note while resolving block or anchor link to line.
   ---
-  ---@param note obsidian.Note
-  ---@return obsidian.ResolveLinkResult
+  ---@param note obsidian.Note|nil
+  ---@return obsidian.ResolveLinkResult?
   local function finalize_result(note)
+    if not note then
+      return log.err "No note found"
+    end
+
     ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
     local line, block_match, anchor_match
     if block_link ~= nil then
@@ -925,6 +940,144 @@ M.find_links = function(note, opts, callback)
   end
 
   callback(matches)
+end
+
+---@param note obsidian.Note
+---@param anchor string
+---@param block string
+local function build_backlink_search_term(note, anchor, block)
+  -- Prepare search terms.
+  local search_terms = {}
+  local note_path = Path.new(note.path)
+  for raw_ref in
+    vim.iter {
+      tostring(note.id),
+      note_path.name,
+      note_path.stem,
+      note.path.vault_relative_path(),
+    }
+
+  do
+    for ref in
+      vim.iter(util.tbl_unique {
+        raw_ref,
+        util.urlencode(tostring(raw_ref)),
+        util.urlencode(tostring(raw_ref), { keep_path_sep = true }),
+      })
+
+    do
+      if ref ~= nil then
+        if anchor == nil and block == nil then
+          -- Wiki links without anchor/block.
+          search_terms[#search_terms + 1] = string.format("[[%s]]", ref)
+          search_terms[#search_terms + 1] = string.format("[[%s|", ref)
+          -- Markdown link without anchor/block.
+          search_terms[#search_terms + 1] = string.format("(%s)", ref)
+          -- Markdown link without anchor/block and is relative to root.
+          search_terms[#search_terms + 1] = string.format("(/%s)", ref)
+          -- Wiki links with anchor/block.
+          search_terms[#search_terms + 1] = string.format("[[%s#", ref)
+          -- Markdown link with anchor/block.
+          search_terms[#search_terms + 1] = string.format("(%s#", ref)
+          -- Markdown link with anchor/block and is relative to root.
+          search_terms[#search_terms + 1] = string.format("(/%s#", ref)
+        elseif anchor then
+          -- Note: Obsidian allow a lot of different forms of anchor links, so we can't assume
+          -- it's the standardized form here.
+          -- Wiki links with anchor.
+          search_terms[#search_terms + 1] = string.format("[[%s#", ref)
+          -- Markdown link with anchor.
+          search_terms[#search_terms + 1] = string.format("(%s#", ref)
+          -- Markdown link with anchor and is relative to root.
+          search_terms[#search_terms + 1] = string.format("(/%s#", ref)
+        elseif block then
+          -- Wiki links with block.
+          search_terms[#search_terms + 1] = string.format("[[%s#%s", ref, block)
+          -- Markdown link with block.
+          search_terms[#search_terms + 1] = string.format("(%s#%s", ref, block)
+          -- Markdown link with block and is relative to root.
+          search_terms[#search_terms + 1] = string.format("(/%s#%s", ref, block)
+        end
+      end
+    end
+  end
+  for alias in vim.iter(note.aliases) do
+    if anchor == nil and block == nil then
+      -- Wiki link without anchor/block.
+      search_terms[#search_terms + 1] = string.format("[[%s]]", alias)
+      -- Wiki link with anchor/block.
+      search_terms[#search_terms + 1] = string.format("[[%s#", alias)
+    elseif anchor then
+      -- Wiki link with anchor.
+      search_terms[#search_terms + 1] = string.format("[[%s#", alias)
+    elseif block then
+      -- Wiki link with block.
+      search_terms[#search_terms + 1] = string.format("[[%s#%s", alias, block)
+    end
+  end
+  return search_terms
+end
+
+---@class obsidian._BacklinkMatch
+---
+---@field path string|obsidian.Path The path to the note where the backlinks were found.
+---@field line integer The line number (1-indexed) where the backlink was found.
+---@field text string The text of the line where the backlink was found.
+
+---@param note obsidian.Note
+---@param callback fun(matches: obsidian._BacklinkMatch[])
+---@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian._BacklinkMatch), anchor: string, block: string }
+M.find_backlinks_async = function(note, callback, opts)
+  vim.validate("note", note, "table")
+  vim.validate("callback", callback, "function")
+  opts = opts or {}
+  opts = vim.tbl_extend("keep", opts, { dir = Obsidian.dir })
+  local block = opts.block and util.standardize_block(opts.block) or nil
+  local anchor = opts.anchor and util.standardize_anchor(opts.anchor) or nil
+  local anchor_obj
+  if anchor then
+    anchor_obj = note:resolve_anchor_link(anchor)
+  end
+  ---@type obsidian._BacklinkMatch[]
+  local results = {}
+  ---@param match MatchData
+  local _on_match = function(match)
+    local path = Path.new(match.path.text):resolve { strict = true }
+    if anchor then
+      -- Check for a match with the anchor.
+      -- NOTE: no need to do this with blocks, since blocks are standardized.
+      local match_text = string.sub(match.lines.text, match.submatches[1].start)
+      local link_location = util.parse_link(match_text)
+      if not link_location then
+        log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
+        return
+      end
+      local anchor_link = select(2, vim.trim(link_location))
+      if not anchor_link then
+        return
+      end
+      if anchor_link ~= anchor and anchor_obj ~= nil then
+        local resolved_anchor = note:resolve_anchor_link(anchor_link)
+        if resolved_anchor == nil or resolved_anchor.header ~= anchor_obj.header then
+          return
+        end
+      end
+    end
+    results[#results + 1] = {
+      path = path,
+      line = match.line_number,
+      text = util.rstrip_whitespace(match.lines.text),
+    }
+  end
+  M.search_async(
+    opts.dir,
+    build_backlink_search_term(note, anchor, block),
+    { fixed_strings = true, ignore_case = true },
+    _on_match,
+    function()
+      callback(results)
+    end
+  )
 end
 
 return M
