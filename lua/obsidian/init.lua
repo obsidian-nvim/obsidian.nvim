@@ -94,11 +94,11 @@ obsidian.setup = function(opts)
   end
 
   if opts.statusline.enabled then
-    require("obsidian.statusline").start(client)
+    require("obsidian.statusline").start()
   end
 
   if opts.footer.enabled then
-    require("obsidian.footer").start(client)
+    require("obsidian.footer").start()
   end
 
   -- Register completion sources, providers

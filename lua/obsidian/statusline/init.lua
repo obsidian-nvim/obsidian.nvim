@@ -1,9 +1,10 @@
 local M = {}
 local uv = vim.uv
 local api = require "obsidian.api"
+local search = require "obsidian.search"
 
 --- Register the global variable that updates itself
-M.start = function(client)
+M.start = function()
   local current_note
 
   local refresh = function()
@@ -16,7 +17,7 @@ M.start = function(client)
       current_note = note
     end
 
-    client:find_backlinks_async(
+    search.find_backlinks_async(
       note,
       vim.schedule_wrap(function(backlinks)
         local format = assert(Obsidian.opts.statusline.format)
@@ -31,7 +32,8 @@ M.start = function(client)
           format = format:gsub("{{" .. k .. "}}", v)
         end
         vim.g.obsidian = format
-      end)
+      end),
+      {}
     )
   end
 
