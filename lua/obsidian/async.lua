@@ -143,6 +143,8 @@ M.block_on = function(async_fn_with_callback, timeout)
   return unpack(result)
 end
 
+--- async functions copied from vim._async
+
 local max_timeout = 30000
 
 --- @param thread thread
