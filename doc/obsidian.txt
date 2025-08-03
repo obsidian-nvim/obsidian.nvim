@@ -432,7 +432,6 @@ Click to see configuration options ~
       -- Optional, URL patterns that can be handled by function `follow_img_func`
       url_patterns = {
 	-- an arbitrary number of patterns can be provided
-        url_patterns = {
           {
 	    -- example for an UUID like patttern, allows to open links like
 	    --   [UUID markdown](uuid://abcdef-1234-5678-90af-abcdef)
