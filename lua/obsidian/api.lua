@@ -5,6 +5,7 @@ local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
+local ns_id = vim.api.nvim_create_namespace "ObsidianApi"
 
 ---@param dir string | obsidian.Path
 ---@return Iter
@@ -152,10 +153,10 @@ M.set_checkbox = function(state, line_num)
     return
   end
 
-  -- there should be a vim.on_key() to get the state var if none was given but first testing out substitution
-
-  if state == nil then
-    return
+  if state == "" then
+    local ok, key = pcall(vim.fn.getchar)
+    if not ok then return end
+    state = string.char(key)
   end
 
   local found = false
