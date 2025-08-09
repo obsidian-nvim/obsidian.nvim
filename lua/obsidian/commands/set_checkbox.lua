@@ -16,7 +16,7 @@ return function(_, data)
       log.err "set_checkbox: unable to get state input"
       return
     end
-    state = string.char(key)
+    state = string.char(key + 0)
   end
 
   for line_nb = start_line, end_line do
