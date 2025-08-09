@@ -10,7 +10,7 @@ return function(_, data)
       return
     end
 
-    picker:find_notes()
+    picker:find_notes { use_cache = Obsidian.opts.cache.enabled }
   else
     search.resolve_note_async(data.args, function(note)
       if not note then

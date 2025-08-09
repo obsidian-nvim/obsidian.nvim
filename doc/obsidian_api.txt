@@ -353,10 +353,11 @@ Return ~
 Class ~
 {obsidian.note.LoadOpts}
 Fields ~
-{max_lines} `(integer|)`?
-{load_contents} `(boolean|)`?
-{collect_anchor_links} `(boolean|)`?
-{collect_blocks} `(boolean|)`?
+{max_lines} `(integer|? Stops)` reading file if reached max lines.
+{read_only_frontmatter} `(boolean|? Stops)` reading file if reached end of frontmatter.
+{load_contents} `(boolean|?  Save)` contents of the file if not frontmatter or block to obsidian.Note.contents. Still reads whole file if other options are true.
+{collect_anchor_links} `(boolean|? Save)` anchor_links of the file if not in frontmatter or block to obsidian.Note.anchor_links. Still reads whole file if other options are true.
+{collect_blocks} `(boolean|? Save)` code blocks to obsidian.Note.blocks. Still reads whole file if other options are true.
 
 ------------------------------------------------------------------------------
                                                      *obsidian.Note.from_file()*
