@@ -5,7 +5,6 @@ local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
-local ns_id = vim.api.nvim_create_namespace "ObsidianApi"
 
 ---@param dir string | obsidian.Path
 ---@return Iter
@@ -155,7 +154,10 @@ M.set_checkbox = function(state, line_num)
 
   if state == "" then
     local ok, key = pcall(vim.fn.getchar)
-    if not ok then return end
+    if not ok then
+      log.err "set_checkbox: unable to get state input"
+      return
+    end
     state = string.char(key)
   end
 
@@ -167,7 +169,12 @@ M.set_checkbox = function(state, line_num)
   end
 
   if not found then
-    log.err("state passed \"" .. state .. "\" is not part of the available states: " .. vim.inspect(Obsidian.opts.checkbox.order))
+    log.err(
+      "state passed '"
+        .. state
+        .. "' is not part of the available states: "
+        .. vim.inspect(Obsidian.opts.checkbox.order)
+    )
     return
   end
 
@@ -181,9 +188,9 @@ M.set_checkbox = function(state, line_num)
   elseif Obsidian.opts.checkbox.create_new then
     local unordered_list_pattern = "^(%s*)[-*+] (.*)"
     if string.match(line, unordered_list_pattern) then
-      line = string.gsub(line, unordered_list_pattern, "%1- [".. state .. "] %2")
+      line = string.gsub(line, unordered_list_pattern, "%1- [" .. state .. "] %2")
     else
-      line = string.gsub(line, "^(%s*)", "%1- [".. state .. "] ")
+      line = string.gsub(line, "^(%s*)", "%1- [" .. state .. "] ")
     end
   else
     goto out
