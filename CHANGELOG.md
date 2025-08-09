@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `obsidian.api.set_checkbox` and command `:Obsidian set_checkbox [state]`
+  - command `set_checkbox [state]` has an optional state param, if no param is
+    passed then it takes the next char input as the state and validates that
 - Allow custom directory and ID logic for templates
 - When filling out a template with user-provided substitution functions, pass a "context" object to each invocation so that users can respond accordingly.
   - Added `obsidian.InsertTemplateContext` and `obsidian.CloneTemplateContext` as these new "context" objects.
