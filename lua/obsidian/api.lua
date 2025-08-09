@@ -152,15 +152,6 @@ M.set_checkbox = function(state, line_num)
     return
   end
 
-  if state == "" then
-    local ok, key = pcall(vim.fn.getchar)
-    if not ok then
-      log.err "set_checkbox: unable to get state input"
-      return
-    end
-    state = string.char(key)
-  end
-
   local found = false
   for _, value in ipairs(Obsidian.opts.checkbox.order) do
     if value == state then
