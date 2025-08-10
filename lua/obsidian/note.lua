@@ -112,20 +112,16 @@ end
 ---
 --- @param title? string
 --- @param path? obsidian.Path
---- @param alt_id_func? (fun(title: string|?, path: obsidian.Path|?): string)
+--- @param id_func (fun(title: string|?, path: obsidian.Path|?): string)
 ---@return string
-local function generate_id(title, path, alt_id_func)
-  if alt_id_func ~= nil then
-    local new_id = alt_id_func(title, path)
-    if new_id == nil or string.len(new_id) == 0 then
-      error(string.format("Your 'note_id_func' must return a non-empty string, got '%s'!", tostring(new_id)))
-    end
-    -- Remote '.md' suffix if it's there (we add that later).
-    new_id = new_id:gsub("%.md$", "", 1)
-    return new_id
-  else
-    return require("obsidian.builtin").zettel_id()
+local function generate_id(title, path, id_func)
+  local new_id = id_func(title, path)
+  if new_id == nil or string.len(new_id) == 0 then
+    error(string.format("Your 'note_id_func' must return a non-empty string, got '%s'!", tostring(new_id)))
   end
+  -- Remote '.md' suffix if it's there (we add that later).
+  new_id = new_id:gsub("%.md$", "", 1)
+  return new_id
 end
 
 --- Generate the file path for a new note given its ID, parent directory, and title.
@@ -1242,7 +1238,6 @@ Note.open = function(note, opts)
   local function open_it()
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
     local bufnr = api.open_buffer(note.path, { line = opts.line, col = opts.col, cmd = open_cmd })
-    note:update_frontmatter(bufnr)
     if opts.callback then
       opts.callback(bufnr)
     end
