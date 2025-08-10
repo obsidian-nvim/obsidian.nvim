@@ -201,6 +201,6 @@ return function(params, _, _)
     local uri = params.textDocument.uri
     local note = assert(api.current_note(0))
     local new_note = rename_note(uri, new_name, note)
-    Note.open(new_note)
+    new_note:open()
   end
 end

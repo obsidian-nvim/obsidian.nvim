@@ -1234,31 +1234,15 @@ end
 
 --- Open a note in a buffer.
 ---
----@param note_or_path string|obsidian.Path|obsidian.Note
+---@param note obsidian.Note
 ---@param opts { line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|?
-Note.open = function(note_or_path, opts)
+Note.open = function(note, opts)
   opts = opts or {}
-
-  ---@type obsidian.Path
-  local path
-  if type(note_or_path) == "string" then
-    path = Path.new(note_or_path)
-  elseif type(note_or_path) == "table" and note_or_path.path ~= nil then
-    -- this is a Note
-    ---@cast note_or_path obsidian.Note
-    path = note_or_path.path
-  elseif type(note_or_path) == "table" and note_or_path.filename ~= nil then
-    -- this is a Path
-    ---@cast note_or_path obsidian.Path
-    path = note_or_path
-  else
-    error "invalid 'note_or_path' argument"
-  end
 
   local function open_it()
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
-    ---@cast path obsidian.Path
-    local bufnr = api.open_buffer(path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    local bufnr = api.open_buffer(note.path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    note:update_frontmatter(bufnr)
     if opts.callback then
       opts.callback(bufnr)
     end
