@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added an option to have the 'ObsidianToggleCheckbox' command to work on blank lines
+
 ### Fixed
 
 - Fixed incorrect call signature for `options.callbacks.post_set_workspace`

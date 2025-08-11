@@ -582,10 +582,21 @@ require("obsidian").setup {
   },
   ---@class obsidian.config.CheckboxOpts
   ---
+  ---@field enabled? boolean
+  ---
   ---Order of checkbox state chars, e.g. { " ", "x" }
   ---@field order? string[]
+  ---
+  ---Whether to create new checkbox on paragraphs
+  ---@field create_new? boolean
+  ---
+  ---Whether to create new checkbox on empty lines
+  ---@field create_on_empty? boolean
   checkbox = {
+    enabled = true,
     order = { " ", "~", "!", ">", "x" },
+    create_new = true,
+    create_on_empty = false,
   },
 }
 ```
