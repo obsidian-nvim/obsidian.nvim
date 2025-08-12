@@ -91,45 +91,6 @@ Parameters ~
 {opts} `({ search: obsidian.SearchOpts }|)`?
 
 ------------------------------------------------------------------------------
-Class ~
-{obsidian.BacklinkMatches}
-
-Fields ~
-{note} `(obsidian.Note)` The note instance where the backlinks were found.
-{path} `(string|obsidian.Path)` The path to the note where the backlinks were found.
-{matches} `(obsidian.BacklinkMatch[])` The backlinks within the note.
-
-------------------------------------------------------------------------------
-Class ~
-{obsidian.BacklinkMatch}
-
-Fields ~
-{line} `(integer)` The line number (1-indexed) where the backlink was found.
-{text} `(string)` The text of the line where the backlink was found.
-
-------------------------------------------------------------------------------
-                                              *obsidian.Client.find_backlinks()*
-                `Client.find_backlinks`({self}, {note}, {opts})
-Find all backlinks to a note.
-
-Parameters ~
-{note} `(obsidian.Note)` The note to find backlinks for.
-{opts} `({ search: obsidian.SearchOpts|?, timeout: integer|?, anchor: string|?, block: string|? }|)`?
-
-Return ~
-`(obsidian.BacklinkMatches[])`
-
-------------------------------------------------------------------------------
-                                        *obsidian.Client.find_backlinks_async()*
-       `Client.find_backlinks_async`({self}, {note}, {callback}, {opts})
-An async version of 'find_backlinks()'.
-
-Parameters ~
-{note} `(obsidian.Note)` The note to find backlinks for.
-{callback} `(fun(backlinks: obsidian.BacklinkMatches[]))`
-{opts} `({ search: obsidian.SearchOpts, anchor: string|?, block: string|? }|)`?
-
-------------------------------------------------------------------------------
                                                    *obsidian.Client.list_tags()*
                  `Client.list_tags`({self}, {term}, {timeout})
 Gather a list of all tags in the vault. If 'term' is provided, only tags that partially match the search
@@ -248,13 +209,13 @@ Fields ~
 
 ------------------------------------------------------------------------------
                                                         *obsidian.generate_id()*
-                 `generate_id`({title}, {path}, {alt_id_func})
+                   `generate_id`({title}, {path}, {id_func})
 Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
 otherwise falls back to generated a Zettelkasten style ID.
 
 @param title? string
 @param path? obsidian.Path
-@param alt_id_func? (fun(title: string|?, path: obsidian.Path|?): string)
+@param id_func (fun(title: string|?, path: obsidian.Path|?): string)
 Return ~
 `(string)`
 
@@ -584,11 +545,11 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                           *obsidian.Note.open()*
-                      `Note.open`({note_or_path}, {opts})
+                          `Note.open`({note}, {opts})
 Open a note in a buffer.
 
 Parameters ~
-{note_or_path} `(string|obsidian.Path|obsidian.Note)`
+{note} `(obsidian.Note)`
 {opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
 
 ------------------------------------------------------------------------------

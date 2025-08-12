@@ -112,20 +112,16 @@ end
 ---
 --- @param title? string
 --- @param path? obsidian.Path
---- @param alt_id_func? (fun(title: string|?, path: obsidian.Path|?): string)
+--- @param id_func (fun(title: string|?, path: obsidian.Path|?): string)
 ---@return string
-local function generate_id(title, path, alt_id_func)
-  if alt_id_func ~= nil then
-    local new_id = alt_id_func(title, path)
-    if new_id == nil or string.len(new_id) == 0 then
-      error(string.format("Your 'note_id_func' must return a non-empty string, got '%s'!", tostring(new_id)))
-    end
-    -- Remote '.md' suffix if it's there (we add that later).
-    new_id = new_id:gsub("%.md$", "", 1)
-    return new_id
-  else
-    return require("obsidian.builtin").zettel_id()
+local function generate_id(title, path, id_func)
+  local new_id = id_func(title, path)
+  if new_id == nil or string.len(new_id) == 0 then
+    error(string.format("Your 'note_id_func' must return a non-empty string, got '%s'!", tostring(new_id)))
   end
+  -- Remote '.md' suffix if it's there (we add that later).
+  new_id = new_id:gsub("%.md$", "", 1)
+  return new_id
 end
 
 --- Generate the file path for a new note given its ID, parent directory, and title.
@@ -1237,34 +1233,18 @@ end
 
 --- Open a note in a buffer.
 ---
----@param note_or_path string|obsidian.Path|obsidian.Note
+---@param note obsidian.Note
 ---@param opts { line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|?
-Note.open = function(note_or_path, opts)
+Note.open = function(note, opts)
   opts = opts or {}
-
-  ---@type obsidian.Path
-  local path
-  if type(note_or_path) == "string" then
-    path = Path.new(note_or_path)
-  elseif type(note_or_path) == "table" and note_or_path.path ~= nil then
-    -- this is a Note
-    ---@cast note_or_path obsidian.Note
-    path = note_or_path.path
-  elseif type(note_or_path) == "table" and note_or_path.filename ~= nil then
-    -- this is a Path
-    ---@cast note_or_path obsidian.Path
-    path = note_or_path
-  else
-    error "invalid 'note_or_path' argument"
-  end
 
   local function open_it()
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
-    ---@cast path obsidian.Path
-    local bufnr = api.open_buffer(path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    local bufnr = api.open_buffer(note.path, { line = opts.line, col = opts.col, cmd = open_cmd })
     if opts.callback then
       opts.callback(bufnr)
     end
+    note:update_frontmatter(bufnr)
   end
 
   if opts.sync then

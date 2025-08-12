@@ -43,10 +43,15 @@ SnacksPicker.find_files = function(self, opts)
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
+  local args = self:_build_find_cmd()
+  local cmd = table.remove(args, 1)
+
   local pick_opts = vim.tbl_extend("force", map or {}, {
     source = "files",
     title = opts.prompt_title,
     cwd = tostring(dir),
+    cmd = cmd,
+    args = args,
     confirm = function(picker, item, action)
       picker:close()
       if item then
@@ -70,10 +75,15 @@ SnacksPicker.grep = function(self, opts)
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
+  local args = self:_build_grep_cmd()
+  local cmd = table.remove(args, 1)
+
   local pick_opts = vim.tbl_extend("force", map or {}, {
     source = "grep",
     title = opts.prompt_title,
     cwd = tostring(dir),
+    cmd = cmd,
+    args = args,
     confirm = function(picker, item, action)
       picker:close()
       if item then

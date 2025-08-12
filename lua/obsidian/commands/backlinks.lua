@@ -4,14 +4,13 @@ local RefTypes = require("obsidian.search").RefTypes
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 
----@param client obsidian.Client
 ---@param picker obsidian.Picker
 ---@param note obsidian.Note
 ---@param opts { anchor: string|?, block: string|? }|?
-local function collect_backlinks(client, picker, note, opts)
+local function collect_backlinks(picker, note, opts)
   opts = opts or {}
 
-  client:find_backlinks_async(note, function(backlinks)
+  search.find_backlinks_async(note, function(backlinks)
     if vim.tbl_isempty(backlinks) then
       if opts.anchor then
         log.info("No backlinks found for anchor '%s' in note '%s'", opts.anchor, note.id)
@@ -24,14 +23,13 @@ local function collect_backlinks(client, picker, note, opts)
     end
 
     local entries = {}
-    for _, matches in ipairs(backlinks) do
-      for _, match in ipairs(matches.matches) do
-        entries[#entries + 1] = {
-          value = { path = matches.path, line = match.line },
-          filename = tostring(matches.path),
-          lnum = match.line,
-        }
-      end
+
+    for _, backlink in ipairs(backlinks) do
+      entries[#entries + 1] = {
+        value = { path = backlink.path, line = backlink.line },
+        filename = tostring(backlink.path),
+        lnum = backlink.line,
+      }
     end
 
     ---@type string
@@ -52,11 +50,10 @@ local function collect_backlinks(client, picker, note, opts)
         end,
       })
     end)
-  end)
+  end, { search = { sort = true, anchor = opts.anchor, block = opts.block } })
 end
 
----@param client obsidian.Client
-return function(client)
+return function()
   local picker = assert(Obsidian.picker)
   if not picker then
     log.err "No picker configured"
@@ -96,7 +93,7 @@ return function(client)
       if not note then
         return log.err("No notes matching '%s'", location)
       else
-        return collect_backlinks(client, picker, note, opts)
+        return collect_backlinks(picker, note, opts)
       end
     end)
   else
@@ -124,7 +121,7 @@ return function(client)
     if note == nil then
       log.err "Current buffer does not appear to be a note inside the vault"
     else
-      collect_backlinks(client, picker, note, opts)
+      collect_backlinks(picker, note, opts)
     end
   end
 end

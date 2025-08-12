@@ -95,11 +95,11 @@ obsidian.setup = function(opts)
   end
 
   if opts.statusline.enabled then
-    require("obsidian.statusline").start(client)
+    require("obsidian.statusline").start()
   end
 
   if opts.footer.enabled then
-    require("obsidian.footer").start(client)
+    require("obsidian.footer").start()
   end
 
   -- Register completion sources, providers
@@ -139,6 +139,10 @@ obsidian.setup = function(opts)
       if not workspace then
         return
       end
+
+      vim.wo.foldmethod = "expr"
+      vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+      vim.wo.foldlevel = 99
 
       if opts.comment.enabled then
         vim.o.commentstring = "%%%s%%"
@@ -235,9 +239,7 @@ obsidian.setup = function(opts)
       exec_autocmds("ObsidianNoteWritePre", ev.buf)
 
       -- Update buffer with new frontmatter.
-      if note:update_frontmatter(bufnr) then
-        log.info "Updated frontmatter"
-      end
+      note:update_frontmatter(bufnr)
     end,
   })
 
