@@ -585,6 +585,14 @@ end
 ---@return obsidian.Note
 Note.from_buffer = function(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  ---@type obsidian.Note
+  local cache_note = vim.b[bufnr].note
+  if cache_note ~= nil then
+    local new_note = vim.deepcopy(cache_note)
+    setmetatable(new_note.path, { __index = require "obsidian.path" })
+    setmetatable(new_note, { __index = Note })
+    return new_note
+  end
   local path = vim.api.nvim_buf_get_name(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local note = Note.from_lines(iter(lines), path, opts)
@@ -1241,10 +1249,10 @@ Note.open = function(note, opts)
   local function open_it()
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
     local bufnr = api.open_buffer(note.path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    vim.b[bufnr].note = note
     if opts.callback then
       opts.callback(bufnr)
     end
-    note:update_frontmatter(bufnr)
   end
 
   if opts.sync then
