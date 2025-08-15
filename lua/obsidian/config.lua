@@ -359,9 +359,13 @@ config.default = {
   ---
   ---Whether to create new checkbox on paragraphs
   ---@field create_new? boolean
+  ---
+  ---Whether to create new checkbox on empty lines
+  ---@field create_on_empty? boolean
   checkbox = {
     enabled = true,
     create_new = true,
+    create_on_empty = false,
     order = { " ", "~", "!", ">", "x" },
   },
 

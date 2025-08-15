@@ -4,6 +4,7 @@ local toggle_checkbox = require("obsidian.api").toggle_checkbox
 return function(_, data)
   local start_line, end_line
   local checkboxes = Obsidian.opts.checkbox.order
+  local create_on_empty = Obsidian.opts.checkbox.create_on_empty
   start_line = data.line1
   end_line = data.line2
 
@@ -11,7 +12,7 @@ return function(_, data)
 
   for line_nb = start_line, end_line do
     local current_line = vim.api.nvim_buf_get_lines(buf, line_nb - 1, line_nb, false)[1]
-    if current_line and current_line:match "%S" then
+    if (current_line and current_line:match "%S") or create_on_empty then
       toggle_checkbox(checkboxes, line_nb)
     end
   end
