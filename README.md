@@ -121,6 +121,11 @@ There's one entry point user command for this plugin: `Obsidian`
 
 - `:Obsidian toggle_checkbox` to cycle through checkbox options.
 
+- `:Obsidian set_checkbox [STATE]` to set one or multiple checkboxes to the passed
+    state. If no state is given the next char input will be used as the argument.
+    The state will be validated to make sure it is one of the allowed states
+    (has to be part of `Obsidian.opts.checkboxes.order`).
+
 - `:Obsidian workspace [NAME]` to switch to another workspace.
 
 - `:Obsidian yesterday` to open/create the daily note for the previous working day.
