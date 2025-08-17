@@ -1,6 +1,7 @@
 local api = require "obsidian.api"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
+local util = require "obsidian.util"
 local log = require "obsidian.log"
 
 ---@param path? string|obsidian.Path
@@ -40,17 +41,22 @@ return function(_, data)
     search_term = data.args
   else
     local link_string, _ = api.cursor_link()
-    search_term = link_string
+    if link_string then
+      -- TODO: abstract logic in parse_link
+      search_term = util.parse_link(link_string)
+      search_term = search_term and util.strip_anchor_links(search_term)
+      search_term = search_term and util.strip_block_links(search_term)
+    end
   end
 
-  if search_term then
-    local note = search.resolve_note(search_term)
+  if search_term and vim.trim(search_term) ~= "" then
+    local note = search.resolve_note(search_term, { timeout = 5000 })
     if not note then
       return log.err "Note under cusror is not resolved"
     end
-    path = note.path
+    path = note.path:vault_relative_path()
   else
-    -- Otherwise use the path of the current buffer.
+    -- Otherwise use the pathk of the current buffer.
     local bufname = vim.api.nvim_buf_get_name(0)
     path = Path.new(bufname):vault_relative_path()
   end

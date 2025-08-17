@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Snacks.picker` now follow `sort_by` and `sort_reversed` settings.
 - `Note.open` refactor, so that API works as expected.
 - Cache note as buffer-local variable, to avoid loss of info.
+- Fix duplicate frontmatter.
 
 ## [v3.13.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.0) - 2025-07-28
 
