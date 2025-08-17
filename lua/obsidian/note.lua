@@ -789,6 +789,10 @@ Note.from_lines = function(lines, path, opts)
         elseif k == "title" then
           if type(v) == "string" then
             title = v
+            if metadata == nil then
+              metadata = {}
+            end
+            metadata.title = v
           else
             log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
           end

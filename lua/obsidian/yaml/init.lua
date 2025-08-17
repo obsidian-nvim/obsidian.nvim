@@ -24,6 +24,8 @@ local should_quote = function(s)
   -- Check if it's an empty string.
   elseif s == "" or string.match(s, "^[%s]+$") then
     return true
+  elseif util.is_hex_color(s) then
+    return true
   else
     return false
   end
