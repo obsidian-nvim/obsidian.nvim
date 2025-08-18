@@ -782,7 +782,7 @@ M.resolve_note_async = function(query, callback, opts)
 end
 
 ---@param term string
----@param opts table
+---@param opts? table
 ---@return obsidian.Note
 M.resolve_note = function(term, opts)
   opts = opts or {}
