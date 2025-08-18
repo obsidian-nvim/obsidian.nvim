@@ -13,7 +13,7 @@ return function(params, handler)
   local note
 
   if
-    cur_link ~= nil
+    cur_link
     and link_type ~= RefTypes.NakedUrl
     and link_type ~= RefTypes.FileUrl
     and link_type ~= RefTypes.BlockID
@@ -40,32 +40,11 @@ return function(params, handler)
     local opts = { anchor = anchor_link, block = block_link }
 
     note = search.resolve_note(location)
-  else
-    ---@type { anchor: string|?, block: string|? }
-    local opts = {}
-    ---@type obsidian.note.LoadOpts
-    local load_opts = {}
-
-    if cur_link and link_type == RefTypes.BlockID then
-      opts.block = util.parse_link(cur_link, { include_block_ids = true })
-    else
-      load_opts.collect_anchor_links = true
-    end
-
-    note = api.current_note(0, load_opts)
-
-    -- Check if cursor is on a header, if so and header parsing is enabled, use that anchor.
-    if Obsidian.opts.backlinks.parse_headers then
-      local header_match = util.parse_header(vim.api.nvim_get_current_line())
-      if header_match then
-        opts.anchor = header_match.anchor
-      end
-    end
   end
 
   handler(nil, {
     uri = note and vim.uri_from_fname(tostring(note.path)) or nil,
-    range = {
+    range = note and {
       start = { line = 0, character = 0 },
       ["end"] = { line = 0, character = 0 },
     },
