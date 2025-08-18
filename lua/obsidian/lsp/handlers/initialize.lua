@@ -7,6 +7,7 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    hoverProvider = true,
   },
   serverInfo = {
     name = "obsidian-ls",
