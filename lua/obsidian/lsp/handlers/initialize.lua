@@ -18,6 +18,7 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    hoverProvider = true,
     workspaceSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {
