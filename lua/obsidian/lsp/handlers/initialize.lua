@@ -3,6 +3,7 @@ local initializeResult = {
     renameProvider = {
       prepareProvider = true,
     },
+    hoverProvider = true,
   },
   serverInfo = {
     name = "obsidian-ls",
