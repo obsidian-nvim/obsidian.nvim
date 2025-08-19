@@ -15,11 +15,10 @@ local list_tags = function(tag_locations)
   return vim.tbl_keys(tags)
 end
 
----@param client obsidian.Client
 ---@param picker obsidian.Picker
 ---@param tag_locations obsidian.TagLocation[]
 ---@param tags string[]
-local function gather_tag_picker_list(client, picker, tag_locations, tags)
+local function gather_tag_picker_list(picker, tag_locations, tags)
   ---@type obsidian.PickerEntry[]
   local entries = {}
   for _, tag_loc in ipairs(tag_locations) do
@@ -77,7 +76,7 @@ return function(client, data)
 
   if not vim.tbl_isempty(tags) then
     client:find_tags_async(tags, function(tag_locations)
-      return gather_tag_picker_list(client, picker, tag_locations, util.tbl_unique(tags))
+      return gather_tag_picker_list(picker, tag_locations, util.tbl_unique(tags))
     end)
   else
     client:find_tags_async("", function(tag_locations)
@@ -85,7 +84,7 @@ return function(client, data)
       vim.schedule(function()
         picker:pick(tags, {
           callback = function(...)
-            gather_tag_picker_list(client, picker, tag_locations, { ... })
+            gather_tag_picker_list(picker, tag_locations, { ... })
           end,
           allow_multiple = true,
         })
