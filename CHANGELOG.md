@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Snacks.picker` now follow `sort_by` and `sort_reversed` settings.
 - `Note.open` refactor, so that API works as expected.
 - Cache note as buffer-local variable, to avoid loss of info.
+- Fix duplicate frontmatter.
 - Fixed case sensitive front matter tags query.
 - Refactor tags command duplicate queries. 
 

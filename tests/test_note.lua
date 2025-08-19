@@ -208,6 +208,7 @@ T["from_file"]["should collect additional frontmatter metadata"] = function()
       "aliases: []",
       "tags: []",
       "foo: bar",
+      "title: Note (has additional metadata)",
       "---",
     }, "\n")
   )

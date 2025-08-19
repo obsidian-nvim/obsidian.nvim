@@ -584,18 +584,17 @@ end
 ---@return obsidian.Note
 Note.from_buffer = function(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  ---@type obsidian.Note
-  local cache_note = vim.b[bufnr].note
-  if cache_note ~= nil then
-    local new_note = vim.deepcopy(cache_note)
-    setmetatable(new_note.path, { __index = require "obsidian.path" })
-    setmetatable(new_note, { __index = Note })
-    return new_note
-  end
   local path = vim.api.nvim_buf_get_name(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local note = Note.from_lines(iter(lines), path, opts)
   note.bufnr = bufnr
+
+  ---@type obsidian.Note
+  local cache_note = vim.b[bufnr].note
+  if cache_note ~= nil then
+    note = vim.tbl_extend("keep", note, cache_note)
+    setmetatable(note, { __index = Note }) -- removes metatable for some reason ...
+  end
   return note
 end
 
@@ -790,6 +789,10 @@ Note.from_lines = function(lines, path, opts)
         elseif k == "title" then
           if type(v) == "string" then
             title = v
+            if metadata == nil then
+              metadata = {}
+            end
+            metadata.title = v
           else
             log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
           end
