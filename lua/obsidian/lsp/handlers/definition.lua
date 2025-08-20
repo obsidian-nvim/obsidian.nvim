@@ -5,12 +5,31 @@ local search = require "obsidian.search"
 
 -- TODO: jump to block and anchor
 
+local query2pos = function(contents, query)
+  local pos = {}
+  for idx, content in ipairs(contents) do
+    local st, ed = string.find(content, query)
+    if st and ed then
+      pos[#pos + 1] = {
+        start = { line = idx - 1, character = st - 1 },
+        ["end"] = { line = idx - 1, character = ed - 1 },
+      }
+    end
+  end
+  return pos
+end
+
 ---@param params lsp.ReferenceParams
 ---@param handler fun(_:any, loactions: lsp.Location[])
 return function(params, handler)
   local cur_link, link_type = api.cursor_link()
 
-  local note
+  local uri
+
+  local range = {
+    start = { line = 0, character = 0 },
+    ["end"] = { line = 0, character = 0 },
+  }
 
   if
     cur_link
@@ -37,16 +56,19 @@ return function(params, handler)
       location = vim.api.nvim_buf_get_name(0)
     end
 
-    local opts = { anchor = anchor_link, block = block_link }
-
-    note = search.resolve_note(location)
+    local note = search.resolve_note(location)
+    uri = vim.uri_from_fname(tostring(note.path)) or nil
+    note:load_content()
+    for _, q in ipairs { anchor_link, block_link } do
+      local r = query2pos(note.contents, q)
+      if r then
+        range = r
+      end
+    end
   end
 
   handler(nil, {
-    uri = note and vim.uri_from_fname(tostring(note.path)) or nil,
-    range = note and {
-      start = { line = 0, character = 0 },
-      ["end"] = { line = 0, character = 0 },
-    },
+    uri = uri,
+    range = range,
   })
 end
