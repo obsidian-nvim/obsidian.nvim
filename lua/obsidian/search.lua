@@ -904,6 +904,17 @@ M.resolve_link_async = function(link, callback, opts)
   end, { notes = load_opts, pick = opts.pick })
 end
 
+---@param term string
+---@param opts { timeout: integer, search: obsidian.SearchOpts }
+---@return obsidian.ResolveLinkResult?
+M.resolve_link = function(term, opts)
+  opts = opts or {}
+  opts.timeout = opts.timeout or 1000
+  return async.block_on(function(cb)
+    return M.resolve_link_async(term, cb, { search = opts.search })
+  end, opts.timeout)
+end
+
 ---@class obsidian.LinkMatch
 ---@field link string
 ---@field line integer
