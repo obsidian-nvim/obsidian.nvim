@@ -1247,4 +1247,14 @@ Note.links = function(note)
   return search.find_links(note)
 end
 
+function Note:load_contents()
+  if self.contents and not vim.tbl_isempty(self.contents) then
+    return
+  end
+  self.contents = {}
+  for line in io.lines(self.path.filename) do
+    table.insert(self.contents, line)
+  end
+end
+
 return Note
