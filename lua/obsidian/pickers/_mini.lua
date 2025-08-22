@@ -3,6 +3,7 @@ local mini_pick = require "mini.pick"
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
 local Picker = require "obsidian.pickers.picker"
+local api = require "obsidian.api"
 
 ---@param entry string
 ---@return string, integer?, integer?

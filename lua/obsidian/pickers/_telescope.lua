@@ -209,7 +209,6 @@ TelescopePicker.pick = function(self, values, opts)
   local picker_opts = {
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
-        entry_key = "value",
         callback = opts.callback,
         allow_multiple = opts.allow_multiple,
         query_mappings = opts.query_mappings,
@@ -284,43 +283,6 @@ TelescopePicker.pick = function(self, values, opts)
       previewer = previewer,
     })
     :find()
-end
-
-TelescopePicker.qf_on_list = function(self, title)
-  ---@param t vim.lsp.LocationOpts.OnList
-  return function(t)
-    ---@type vim.quickfix.entry[]
-    local qf_items = t.items
-
-    local pickers = require "telescope.pickers"
-    local finders = require "telescope.finders"
-    local conf = require "telescope.config"
-
-    local picker_opts = {}
-
-    pickers
-      .new(picker_opts, {
-        prompt_title = title,
-        finder = finders.new_table {
-          results = qf_items,
-          entry_maker = function(v)
-            return {
-              filename = v.filename,
-              ordinal = v.lnum,
-              display = function(entry)
-                return self:_make_display(entry)
-              end,
-
-              lnum = v.lnum,
-              col = v.col,
-            }
-          end,
-        },
-        sorter = conf.values.generic_sorter(picker_opts),
-        previewer = conf.values.grep_previewer(picker_opts),
-      })
-      :find()
-  end
 end
 
 return TelescopePicker
