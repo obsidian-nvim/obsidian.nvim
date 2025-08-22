@@ -486,7 +486,7 @@ Picker._make_display = function(self, entry)
     end
   end
 
-  if entry.display then
+  if entry.display and type(entry.display) == "string" then
     buf[#buf + 1] = entry.display
   elseif entry.value then
     buf[#buf + 1] = tostring(entry.value)
