@@ -99,7 +99,7 @@ end
 ---@class obsidian.PickerPickOpts
 ---
 ---@field prompt_title string|?
----@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
+---@field callback fun(value: obsidian.PickerEntry|string, ...: obsidian.PickerEntry|string)|?
 ---@field allow_multiple boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
@@ -258,35 +258,6 @@ Picker.pick_note = function(self, notes, opts)
     allow_multiple = opts.allow_multiple,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
-    selection_mappings = selection_mappings,
-  })
-end
-
---- Open picker with a list of tags.
----
----@param tags string[]
----@param opts { prompt_title: string|?, callback: fun(tag: string, ...: string), allow_multiple: boolean|?, no_default_mappings: boolean|? }|? Options.
----
---- Options:
----  `prompt_title`: Title for the prompt window.
----  `callback`: Callback to run with the selected tag(s).
----  `allow_multiple`: Allow multiple selections to pass to the callback.
----  `no_default_mappings`: Don't apply picker's default mappings.
-Picker.pick_tag = function(self, tags, opts)
-  self.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts or {}
-
-  local selection_mappings
-  if not opts.no_default_mappings then
-    selection_mappings = self:_tag_selection_mappings()
-  end
-
-  self:pick(tags, {
-    prompt_title = opts.prompt_title or "Tags",
-    callback = opts.callback,
-    allow_multiple = opts.allow_multiple,
-    no_default_mappings = opts.no_default_mappings,
     selection_mappings = selection_mappings,
   })
 end
