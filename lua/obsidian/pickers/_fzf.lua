@@ -186,11 +186,14 @@ FzfPicker.pick = function(self, values, opts)
   ---@type string[]
   local entries = {}
   for _, value in ipairs(values) do
+    local display
     if type(value) == "string" then
-      display_to_value_map[value] = value
-      entries[#entries + 1] = value
-    elseif value.valid ~= false then
-      local display = self:_make_display(value)
+      display = value
+      value = { value = value }
+    else
+      display = self:_make_display(value)
+    end
+    if value.valid ~= false then
       display_to_value_map[display] = value
       entries[#entries + 1] = display
     end

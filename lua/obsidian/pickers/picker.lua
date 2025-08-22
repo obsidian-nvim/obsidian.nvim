@@ -99,7 +99,7 @@ end
 ---@class obsidian.PickerPickOpts
 ---
 ---@field prompt_title string|?
----@field callback fun(value: obsidian.PickerEntry|string, ...: obsidian.PickerEntry|string)|?
+---@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
 ---@field allow_multiple boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?

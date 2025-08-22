@@ -149,7 +149,9 @@ SnacksPicker.pick = function(self, values, opts)
               value = item.value,
             }
           else
-            opts.callback(item.value)
+            opts.callback {
+              value = item.value,
+            }
           end
         else
           snacks_picker.actions.jump(picker, item, action)

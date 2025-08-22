@@ -110,16 +110,12 @@ MiniPicker.pick = function(self, values, opts)
   }
 
   if entry and opts.callback then
-    if type(entry) == "string" then
-      opts.callback(entry)
-    else
-      opts.callback {
-        filename = entry.path,
-        col = entry.col,
-        lnum = entry.lnum,
-        value = entry.value,
-      }
-    end
+    opts.callback {
+      filename = entry.path,
+      col = entry.col,
+      lnum = entry.lnum,
+      value = entry.value,
+    }
   end
 end
 
