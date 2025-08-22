@@ -141,7 +141,15 @@ SnacksPicker.pick = function(self, values, opts)
       picker:close()
       if item then
         if opts.callback then
-          opts.callback(item.value)
+          if item.file then
+            opts.callback {
+              filename = item.file,
+              col = item.pos and item.pos[2],
+              lnum = item.pos and item.pos[1],
+            }
+          else
+            opts.callback(item.value)
+          end
         else
           snacks_picker.actions.jump(picker, item, action)
         end
@@ -150,34 +158,6 @@ SnacksPicker.pick = function(self, values, opts)
   })
 
   snacks_picker.pick(pick_opts)
-end
-
----@param title string
-SnacksPicker.qf_on_list = function(_, title)
-  ---@param t vim.lsp.LocationOpts.OnList
-  return function(t)
-    ---@type vim.quickfix.entry[]
-    local qf_items = t.items
-
-    local items = vim.tbl_map(function(value)
-      return {
-        file = value.filename,
-        pos = {
-          value.lnum or 1,
-          value.col - 1 or 0,
-        },
-        end_pos = {
-          value.lnum or 1,
-          value.end_col - 1 or 0,
-        },
-      }
-    end, qf_items)
-
-    snacks_picker.pick {
-      title = title,
-      items = items,
-    }
-  end
 end
 
 return SnacksPicker

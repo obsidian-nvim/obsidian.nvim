@@ -1,6 +1,7 @@
 local fzf = require "fzf-lua"
 local fzf_actions = require "fzf-lua.actions"
 local entry_to_file = require("fzf-lua.path").entry_to_file
+local api = require "obsidian.api"
 
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
@@ -191,7 +192,8 @@ FzfPicker.pick = function(self, values, opts)
       entries[#entries + 1] = value
     elseif value.valid ~= false then
       local display = self:_make_display(value)
-      display_to_value_map[display] = value.value
+      -- display_to_value_map[display] = value.value
+      display_to_value_map[display] = value
       entries[#entries + 1] = display
     end
   end

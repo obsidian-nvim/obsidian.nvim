@@ -72,18 +72,10 @@ local function get_query(prompt_bufnr, keep_open, initial_query)
   end
 end
 
----@param opts { entry_key: string|?, callback: fun(path: string)|?, allow_multiple: boolean|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, initial_query: string|? }
+---@param opts { callback: fun(path: string)|?, allow_multiple: boolean|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, initial_query: string|? }
 local function attach_picker_mappings(map, opts)
   -- Docs for telescope actions:
   -- https://github.com/nvim-telescope/telescope.nvim/blob/master/lua/telescope/actions/init.lua
-
-  local function entry_to_value(entry)
-    if opts.entry_key then
-      return entry[opts.entry_key]
-    else
-      return entry
-    end
-  end
 
   if opts.query_mappings then
     for key, mapping in pairs(opts.query_mappings) do
@@ -101,8 +93,7 @@ local function attach_picker_mappings(map, opts)
       map({ "i", "n" }, key, function(prompt_bufnr)
         local entries = get_selected(prompt_bufnr, mapping.keep_open, mapping.allow_multiple)
         if entries then
-          local values = vim.tbl_map(entry_to_value, entries)
-          mapping.callback(unpack(values))
+          mapping.callback(unpack(entries))
         elseif mapping.fallback_to_query then
           local query = get_query(prompt_bufnr, mapping.keep_open)
           if query then
@@ -117,8 +108,7 @@ local function attach_picker_mappings(map, opts)
     map({ "i", "n" }, "<CR>", function(prompt_bufnr)
       local entries = get_selected(prompt_bufnr, false, opts.allow_multiple)
       if entries then
-        local values = vim.tbl_map(entry_to_value, entries)
-        opts.callback(unpack(values))
+        opts.callback(unpack(entries))
       end
     end)
   end
@@ -140,8 +130,9 @@ TelescopePicker.find_files = function(self, opts)
     find_command = self:_build_find_cmd(),
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
-        entry_key = "path",
-        callback = opts.callback,
+        callback = function(entry)
+          opts.callback(entry.path)
+        end,
         query_mappings = opts.query_mappings,
         selection_mappings = opts.selection_mappings,
       })
@@ -164,8 +155,11 @@ TelescopePicker.grep = function(self, opts)
 
   local attach_mappings = function(_, map)
     attach_picker_mappings(map, {
-      entry_key = "path",
-      callback = opts.callback,
+      callback = function(entry)
+        if opts.callback then
+          return opts.callback(entry.path)
+        end
+      end,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
       initial_query = opts.query,
@@ -206,7 +200,6 @@ TelescopePicker.pick = function(self, values, opts)
   local picker_opts = {
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
-        entry_key = "value",
         callback = opts.callback,
         allow_multiple = opts.allow_multiple,
         query_mappings = opts.query_mappings,
@@ -281,43 +274,6 @@ TelescopePicker.pick = function(self, values, opts)
       previewer = previewer,
     })
     :find()
-end
-
-TelescopePicker.qf_on_list = function(self, title)
-  ---@param t vim.lsp.LocationOpts.OnList
-  return function(t)
-    ---@type vim.quickfix.entry[]
-    local qf_items = t.items
-
-    local pickers = require "telescope.pickers"
-    local finders = require "telescope.finders"
-    local conf = require "telescope.config"
-
-    local picker_opts = {}
-
-    pickers
-      .new(picker_opts, {
-        prompt_title = title,
-        finder = finders.new_table {
-          results = qf_items,
-          entry_maker = function(v)
-            return {
-              filename = v.filename,
-              ordinal = v.lnum,
-              display = function(entry)
-                return self:_make_display(entry)
-              end,
-
-              lnum = v.lnum,
-              col = v.col,
-            }
-          end,
-        },
-        sorter = conf.values.generic_sorter(picker_opts),
-        previewer = conf.values.grep_previewer(picker_opts),
-      })
-      :find()
-  end
 end
 
 return TelescopePicker
