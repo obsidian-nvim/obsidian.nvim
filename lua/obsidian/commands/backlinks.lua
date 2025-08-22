@@ -26,7 +26,6 @@ local function collect_backlinks(picker, note, opts)
 
     for _, backlink in ipairs(backlinks) do
       entries[#entries + 1] = {
-        value = { path = backlink.path, line = backlink.line },
         filename = tostring(backlink.path),
         lnum = backlink.line,
       }
@@ -46,7 +45,7 @@ local function collect_backlinks(picker, note, opts)
       picker:pick(entries, {
         prompt_title = prompt_title,
         callback = function(value)
-          api.open_buffer(value.path, { line = value.line })
+          api.open_buffer(value.filename, { line = value.lnum })
         end,
       })
     end)

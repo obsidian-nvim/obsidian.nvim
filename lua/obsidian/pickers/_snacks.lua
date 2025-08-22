@@ -141,7 +141,16 @@ SnacksPicker.pick = function(self, values, opts)
       picker:close()
       if item then
         if opts.callback then
-          opts.callback(item.value)
+          if item.file then
+            opts.callback {
+              filename = item.file,
+              col = item.pos and item.pos[2],
+              lnum = item.pos and item.pos[1],
+              value = item.value,
+            }
+          else
+            opts.callback(item.value)
+          end
         else
           snacks_picker.actions.jump(picker, item, action)
         end

@@ -99,7 +99,7 @@ end
 ---@class obsidian.PickerPickOpts
 ---
 ---@field prompt_title string|?
----@field callback fun(value: any, ...: any)|?
+---@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
 ---@field allow_multiple boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
@@ -148,7 +148,7 @@ Picker.find_notes = function(self, opts)
   return self:find_files {
     prompt_title = opts.prompt_title or "Notes",
     dir = Obsidian.dir,
-    callback = opts.callback,
+    callback = opts.callback or api.open_buffer,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
@@ -206,7 +206,9 @@ Picker.grep_notes = function(self, opts)
     prompt_title = opts.prompt_title or "Grep notes",
     dir = Obsidian.dir,
     query = opts.query,
-    callback = opts.callback,
+    callback = opts.callback or function(v)
+      return api.open_buffer(v.filename, { line = v.lnum, col = v.col })
+    end,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,

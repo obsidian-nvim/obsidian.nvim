@@ -7,8 +7,8 @@ local Picker = require "obsidian.pickers.picker"
 ---@param entry string
 ---@return string
 local function clean_path(entry)
-  local path_end = assert(string.find(entry, ":", 1, true))
-  return string.sub(entry, 1, path_end - 1)
+  local path_end = assert(string.find(entry, ".md", 1, true))
+  return string.sub(entry, 1, path_end + 2)
 end
 
 ---@class obsidian.pickers.MiniPicker : obsidian.Picker
@@ -113,7 +113,12 @@ MiniPicker.pick = function(self, values, opts)
     if type(entry) == "string" then
       opts.callback(entry)
     else
-      opts.callback(entry.value)
+      opts.callback {
+        filename = entry.path,
+        col = entry.col,
+        lnum = entry.lnum,
+        value = entry.value,
+      }
     end
   end
 end

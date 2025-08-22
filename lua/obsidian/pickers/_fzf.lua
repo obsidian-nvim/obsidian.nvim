@@ -149,7 +149,7 @@ FzfPicker.grep = function(self, opts)
   local dir = opts.dir and Path:new(opts.dir) or Obsidian.dir
   local cmd = table.concat(self:_build_grep_cmd(), " ")
   local actions = get_path_actions {
-    callback = opts.callback,
+    -- TODO: callback for the full object
     no_default_mappings = opts.no_default_mappings,
     selection_mappings = opts.selection_mappings,
   }
@@ -191,7 +191,7 @@ FzfPicker.pick = function(self, values, opts)
       entries[#entries + 1] = value
     elseif value.valid ~= false then
       local display = self:_make_display(value)
-      display_to_value_map[display] = value.value
+      display_to_value_map[display] = value
       entries[#entries + 1] = display
     end
   end
