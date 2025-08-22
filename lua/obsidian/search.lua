@@ -808,9 +808,8 @@ end
 --- Resolve a link.
 ---
 ---@param link string
----@param callback fun(results: obsidian.ResolveLinkResult?)
 ---@param opts? { pick: boolean }
-M.resolve_link_async = function(link, callback, opts)
+M.resolve_link = function(link, opts)
   opts = opts or { pick = false }
   local Note = require "obsidian.note"
 
@@ -818,7 +817,7 @@ M.resolve_link_async = function(link, callback, opts)
   location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
 
   if location == nil or name == nil or link_type == nil then
-    return callback()
+    return
   end
 
   ---@type obsidian.ResolveLinkResult
@@ -826,7 +825,7 @@ M.resolve_link_async = function(link, callback, opts)
 
   if util.is_url(location) then
     res.url = location
-    return callback(res)
+    return res
   end
 
   -- The Obsidian app will follow URL-encoded links, so we should to.
@@ -884,24 +883,24 @@ M.resolve_link_async = function(link, callback, opts)
   if string.len(location) == 0 then
     res.location = vim.api.nvim_buf_get_name(0)
     local note = Note.from_buffer(0, load_opts)
-    return callback(finalize_result(note))
+    return finalize_result(note)
   end
 
   res.location = location
 
-  M.resolve_note_async(location, function(note)
-    if not note then
-      local path = Path.new(location)
-      if path:exists() then
-        res.path = path
-        return callback(res)
-      else
-        return callback(res)
-      end
-    end
+  local note = M.resolve_note(location, { notes = load_opts, pick = opts.pick })
 
-    return callback(finalize_result(note))
-  end, { notes = load_opts, pick = opts.pick })
+  if not note then
+    local path = Path.new(location)
+    if path:exists() then
+      res.path = path
+      return res
+    else
+      return res
+    end
+  end
+
+  return finalize_result(note)
 end
 
 ---@class obsidian.LinkMatch
@@ -1021,15 +1020,17 @@ local function build_backlink_search_term(note, anchor, block)
   return search_terms
 end
 
----@class obsidian._BacklinkMatch
+---@class obsidian.BacklinkMatch
 ---
 ---@field path string|obsidian.Path The path to the note where the backlinks were found.
 ---@field line integer The line number (1-indexed) where the backlink was found.
 ---@field text string The text of the line where the backlink was found.
+---@field start integer The start of match (0-indexed)
+---@field end integer The end of match (0-indexed)
 
 ---@param note obsidian.Note
----@param callback fun(matches: obsidian._BacklinkMatch[])
----@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian._BacklinkMatch), anchor: string, block: string }
+---@param callback fun(matches: obsidian.BacklinkMatch[])
+---@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string }
 M.find_backlinks_async = function(note, callback, opts)
   vim.validate("note", note, "table")
   vim.validate("callback", callback, "function")
@@ -1041,7 +1042,7 @@ M.find_backlinks_async = function(note, callback, opts)
   if anchor then
     anchor_obj = note:resolve_anchor_link(anchor)
   end
-  ---@type obsidian._BacklinkMatch[]
+  ---@type obsidian.BacklinkMatch[]
   local results = {}
   ---@param match MatchData
   local _on_match = function(match)
@@ -1070,6 +1071,8 @@ M.find_backlinks_async = function(note, callback, opts)
       path = path,
       line = match.line_number,
       text = util.rstrip_whitespace(match.lines.text),
+      start = match.submatches[1].start,
+      ["end"] = match.submatches[1]["end"],
     }
   end
   M.search_async(
@@ -1083,6 +1086,9 @@ M.find_backlinks_async = function(note, callback, opts)
   )
 end
 
+---@param term obsidian.Note
+---@param opts { timeout: integer, search: obsidian.SearchOpts }
+---@return obsidian.BacklinkMatch[])
 M.find_backlinks = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
