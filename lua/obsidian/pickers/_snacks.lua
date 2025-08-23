@@ -88,7 +88,12 @@ SnacksPicker.grep = function(self, opts)
       picker:close()
       if item then
         if opts.callback then
-          opts.callback(item._path or item.filename)
+          opts.callback {
+            filename = item._path or item.filename,
+            col = item.pos and item.pos[2],
+            lnum = item.pos and item.pos[1],
+            value = item.value,
+          }
         else
           snacks_picker.actions.jump(picker, item, action)
         end

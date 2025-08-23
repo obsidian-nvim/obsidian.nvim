@@ -61,7 +61,7 @@ end
 ---@field prompt_title string|?
 ---@field dir string|obsidian.Path|?
 ---@field query string|?
----@field callback fun(path: string)|?
+---@field callback fun(entry: obsidian.PickerEntry)|?
 ---@field no_default_mappings boolean|?
 ---@field query_mappings obsidian.PickerMappingTable
 ---@field selection_mappings obsidian.PickerMappingTable
@@ -183,7 +183,7 @@ end
 
 --- Grep search in notes.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(entry: obsidian.PickerEntry)|?, no_default_mappings: boolean|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
