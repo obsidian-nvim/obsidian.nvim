@@ -160,6 +160,7 @@ config.default = {
 
   ---@class obsidian.config.CompletionOpts
   ---
+  ---@field name "nvim_cmp" | "blink"
   ---@field nvim_cmp? boolean
   ---@field blink? boolean
   ---@field min_chars? integer
