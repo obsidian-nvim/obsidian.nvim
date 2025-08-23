@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `require"obsidian".module` now can be LSP completed for better api usage.
+- remove custom enumerate function to use vim.iter.
 
 ### Fixed
 

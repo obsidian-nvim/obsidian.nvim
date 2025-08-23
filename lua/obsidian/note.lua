@@ -5,7 +5,6 @@ local log = require "obsidian.log"
 local util = require "obsidian.util"
 local search = require "obsidian.search"
 local iter = vim.iter
-local enumerate = util.enumerate
 local compat = require "obsidian.compat"
 local api = require "obsidian.api"
 local config = require "obsidian.config"
@@ -689,7 +688,7 @@ Note.from_lines = function(lines, path, opts)
   local has_frontmatter, in_frontmatter, at_boundary = false, false, false -- luacheck: ignore (false positive)
   local frontmatter_end_line = nil
   local in_code_block = false
-  for line_idx, line in enumerate(lines) do
+  for line_idx, line in vim.iter(lines):enumerate() do
     line = util.rstrip_whitespace(line)
 
     if line_idx == 1 and Note._is_frontmatter_boundary(line) then
@@ -1071,7 +1070,7 @@ Note.save = function(self, opts)
   if self.path ~= nil and self.path:is_file() then
     -- with(open(tostring(self.path)), function(reader)
     local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
-    for idx, line in enumerate(io.lines(tostring(self.path))) do
+    for idx, line in vim.iter(io.lines(tostring(self.path))):enumerate() do
       if idx == 1 and Note._is_frontmatter_boundary(line) then
         at_boundary = true
         in_frontmatter = true
