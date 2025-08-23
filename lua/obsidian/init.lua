@@ -87,12 +87,18 @@ obsidian.setup = function(opts)
     require("obsidian.footer").start()
   end
 
-  -- Register completion sources, providers
-  if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources(opts)
-  elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").register_providers(opts)
+  local cmp_name = opts.completion.name
+
+  if not cmp_name then
+    if opts.completion.nvim_cmp or pcall(require, "cmp") then
+      cmp_name = "nvim_cmp"
+    elseif opts.completion.blink or pcall(require, "blink.cmp") then
+      cmp_name = "blink"
+    end
   end
+
+  -- Register completion sources, providers
+  require("obsidian.completion.plugin_initializers." .. cmp_name).register_sources(opts)
 
   local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
@@ -163,11 +169,7 @@ obsidian.setup = function(opts)
       end, { buffer = true, desc = "Obsidian Previous Link" })
 
       -- Inject completion sources, providers to their plugin configurations
-      if opts.completion.nvim_cmp then
-        require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
-      elseif opts.completion.blink then
-        require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
-      end
+      require("obsidian.completion.plugin_initializers." .. cmp_name).inject_sources(opts)
 
       require("obsidian.lsp").start(ev.buf)
 

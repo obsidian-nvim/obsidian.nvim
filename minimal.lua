@@ -5,18 +5,18 @@ vim.fn.mkdir(".repro/vault", "p")
 
 vim.o.conceallevel = 2
 
+local cwd = vim.uv.cwd()
+
 local plugins = {
   {
     "obsidian-nvim/obsidian.nvim",
+    dir = cwd,
     opts = {
-      completion = {
-        blink = true,
-        nvim_cmp = false,
-      },
+      legacy_commands = false,
       workspaces = {
         {
           name = "test",
-          path = vim.fs.joinpath(vim.uv.cwd(), ".repro", "vault"),
+          path = vim.fs.joinpath(cwd, ".repro", "vault"),
         },
       },
     },
@@ -28,7 +28,7 @@ local plugins = {
 
   -- **Choose your picker**
   -- "nvim-telescope/telescope.nvim",
-  -- "folke/snacks.nvim",
+  -- { "folke/snacks.nvim", opts = { picker = { enabled = true } } },
   -- "ibhagwan/fzf-lua",
   -- "echasnovski/mini.pick",
 
@@ -49,9 +49,6 @@ local plugins = {
   --   "saghen/blink.cmp",
   --   opts = {
   --     fuzzy = { implementation = "lua" }, -- no need to build binary
-  --     keymap = {
-  --       preset = "default",
-  --     },
   --   },
   -- },
 }

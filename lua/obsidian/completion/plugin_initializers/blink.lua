@@ -28,7 +28,7 @@ end
 
 -- Ran once on the plugin startup
 ---@param opts obsidian.config.ClientOpts
-function M.register_providers(opts)
+function M.register_sources(opts)
   local blink = require "blink.cmp"
 
   if opts.completion.create_new then
