@@ -6,6 +6,8 @@ local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
 
+--- Return a iter like `vim.fs.dir` but on a dir of notes.
+---
 ---@param dir string | obsidian.Path
 ---@return Iter
 M.dir = function(dir)

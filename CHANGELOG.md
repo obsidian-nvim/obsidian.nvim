@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- `require"obsidian".module` now can be LSP completed for better api usage.
+
 ### Fixed
 
 - Fixed incorrect call signature for `options.callbacks.post_set_workspace`

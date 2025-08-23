@@ -1,40 +1,26 @@
 local log = require "obsidian.log"
 
-local module_lookups = {
-  abc = "obsidian.abc",
-  api = "obsidian.api",
-  async = "obsidian.async",
-  Client = "obsidian.client",
-  commands = "obsidian.commands",
-  completion = "obsidian.completion",
-  config = "obsidian.config",
-  log = "obsidian.log",
-  img_paste = "obsidian.img_paste",
-  Note = "obsidian.note",
-  Path = "obsidian.path",
-  pickers = "obsidian.pickers",
-  search = "obsidian.search",
-  templates = "obsidian.templates",
-  ui = "obsidian.ui",
-  util = "obsidian.util",
-  VERSION = "obsidian.version",
-  Workspace = "obsidian.workspace",
-  yaml = "obsidian.yaml",
-}
+local obsidian = {}
 
-local obsidian = setmetatable({}, {
-  __index = function(t, k)
-    local require_path = module_lookups[k]
-    if not require_path then
-      return
-    end
-
-    local mod = require(require_path)
-    t[k] = mod
-
-    return mod
-  end,
-})
+obsidian.abc = require "obsidian.abc"
+obsidian.api = require "obsidian.api"
+obsidian.async = require "obsidian.async"
+obsidian.Client = require "obsidian.client"
+obsidian.commands = require "obsidian.commands"
+obsidian.completion = require "obsidian.completion"
+obsidian.config = require "obsidian.config"
+obsidian.log = require "obsidian.log"
+obsidian.img_paste = require "obsidian.img_paste"
+obsidian.Note = require "obsidian.note"
+obsidian.Path = require "obsidian.path"
+obsidian.pickers = require "obsidian.pickers"
+obsidian.search = require "obsidian.search"
+obsidian.templates = require "obsidian.templates"
+obsidian.ui = require "obsidian.ui"
+obsidian.util = require "obsidian.util"
+obsidian.VERSION = require "obsidian.version"
+obsidian.Workspace = require "obsidian.workspace"
+obsidian.yaml = require "obsidian.yaml"
 
 ---@type obsidian.Client|?
 obsidian._client = nil
@@ -69,7 +55,7 @@ obsidian.setup = function(opts)
 
   opts = obsidian.config.normalize(opts)
 
-  local client = obsidian.Client.new(opts)
+  local client = obsidian.Client.new()
 
   Obsidian._opts = opts
 
