@@ -84,7 +84,10 @@ return function(client, data)
       vim.schedule(function()
         picker:pick(tags, {
           callback = function(...)
-            gather_tag_picker_list(picker, tag_locations, { ... })
+            tags = vim.tbl_map(function(v)
+              return v.value
+            end, { ... })
+            gather_tag_picker_list(picker, tag_locations, tags)
           end,
           allow_multiple = true,
         })

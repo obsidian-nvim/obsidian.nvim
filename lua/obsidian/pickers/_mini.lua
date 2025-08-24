@@ -5,10 +5,10 @@ local abc = require "obsidian.abc"
 local Picker = require "obsidian.pickers.picker"
 
 ---@param entry string
----@return string
+---@return string, integer?, integer?
 local function clean_path(entry)
-  local path_end = assert(string.find(entry, ".md", 1, true))
-  return string.sub(entry, 1, path_end + 2)
+  local parts = vim.split(entry, "\0", { plain = true })
+  return parts[1], tonumber(parts[2]), tonumber(parts[3]) - 1
 end
 
 ---@class obsidian.pickers.MiniPicker : obsidian.Picker
@@ -73,8 +73,12 @@ MiniPicker.grep = function(self, opts)
   end
 
   if result and opts.callback then
-    local path = clean_path(result)
-    opts.callback(tostring(dir / path))
+    local path, lnum, col = clean_path(result)
+    opts.callback {
+      filename = tostring(dir / path),
+      lnum = lnum,
+      col = col,
+    }
   end
 end
 
@@ -88,12 +92,17 @@ MiniPicker.pick = function(self, values, opts)
 
   local entries = {}
   for _, value in ipairs(values) do
+    local display
     if type(value) == "string" then
-      entries[#entries + 1] = value
-    elseif value.valid ~= false then
+      display = value
+      value = { value = value }
+    else
+      display = self:_make_display(value)
+    end
+    if value.valid ~= false then
       entries[#entries + 1] = {
         value = value.value,
-        text = self:_make_display(value),
+        text = display,
         path = value.filename,
         lnum = value.lnum,
         col = value.col,

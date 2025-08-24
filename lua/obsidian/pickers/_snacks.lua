@@ -116,21 +116,20 @@ SnacksPicker.pick = function(self, values, opts)
 
   local entries = {}
   for _, value in ipairs(values) do
+    local display
     if type(value) == "string" then
-      table.insert(entries, {
-        text = value,
-        value = value,
-      })
-    elseif type(value) == "table" then
-      local name = self:_make_display(value)
-      table.insert(entries, {
-        text = name,
-        file = value.filename,
-        value = value.value,
-        pos = value.lnum and { value.lnum, value.col or 0 },
-        dir = Path.new(value.filename):is_dir(),
-      })
+      display = value
+      value = { value = value }
+    else
+      display = self:_make_display(value)
     end
+    table.insert(entries, {
+      text = display,
+      file = value.filename,
+      value = value.value,
+      pos = value.lnum and { value.lnum, value.col or 0 },
+      dir = value.filename and Path.new(value.filename):is_dir() or false,
+    })
   end
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
@@ -141,7 +140,7 @@ SnacksPicker.pick = function(self, values, opts)
     layout = {
       preview = preview,
     },
-    format = preview and "file" or "text",
+    format = "text",
     confirm = function(picker, item, action)
       picker:close()
       if item then

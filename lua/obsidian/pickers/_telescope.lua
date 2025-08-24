@@ -34,7 +34,7 @@ local function get_selected(prompt_bufnr, keep_open, allow_multiple)
   ---@return obsidian.PickerEntry
   local function selection_to_entry(selection)
     return {
-      filename = selection.path,
+      filename = selection.path or selection.filename or selection.value.path,
       lnum = selection.lnum,
       col = selection.col,
       value = selection.value,
