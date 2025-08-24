@@ -50,7 +50,7 @@ local function gather_tag_picker_list(picker, tag_locations, tags)
     picker:pick(entries, {
       prompt_title = "#" .. table.concat(tags, ", #"),
       callback = function(value)
-        api.open_buffer(value.path, { line = value.line, col = value.col })
+        api.open_buffer(value.filename, { line = value.lnum, col = value.col })
       end,
     })
   end)
@@ -84,7 +84,10 @@ return function(client, data)
       vim.schedule(function()
         picker:pick(tags, {
           callback = function(...)
-            gather_tag_picker_list(picker, tag_locations, { ... })
+            tags = vim.tbl_map(function(v)
+              return v.value
+            end, { ... })
+            gather_tag_picker_list(picker, tag_locations, tags)
           end,
           allow_multiple = true,
         })

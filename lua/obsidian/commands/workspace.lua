@@ -15,8 +15,8 @@ return function(_, data)
       end, Obsidian.workspaces)
       picker:pick(options, {
         prompt_title = "Obsidian Workspace",
-        callback = function(ws)
-          Workspace.switch(ws.name, { lock = true })
+        callback = function(entry)
+          Workspace.switch(entry.value.name, { lock = true })
         end,
       })
     else
