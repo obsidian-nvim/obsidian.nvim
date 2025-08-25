@@ -782,7 +782,7 @@ M.resolve_note_async = function(query, callback, opts)
 end
 
 ---@param term string
----@param opts table
+---@param opts? table
 ---@return obsidian.Note
 M.resolve_note = function(term, opts)
   opts = opts or {}
@@ -922,7 +922,7 @@ M.find_links = function(note, opts, callback)
   local found = {}
   local lines = io.lines(tostring(note.path))
 
-  for lnum, line in util.enumerate(lines) do
+  for lnum, line in vim.iter(lines):enumerate() do
     for ref_match in vim.iter(M.find_refs(line, { include_naked_urls = true, include_file_urls = true })) do
       local m_start, m_end = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)

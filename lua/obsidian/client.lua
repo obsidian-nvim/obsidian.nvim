@@ -413,36 +413,4 @@ Client.find_tags_async = function(self, term, callback, opts)
   )
 end
 
---- Gather a list of all tags in the vault. If 'term' is provided, only tags that partially match the search
---- term will be included.
----
----@param term string|? An optional search term to match tags
----@param timeout integer|? Timeout in milliseconds
----
----@return string[]
-Client.list_tags = function(self, term, timeout)
-  local tags = {}
-  for _, tag_loc in ipairs(self:find_tags(term and term or "", { timeout = timeout })) do
-    tags[tag_loc.tag] = true
-  end
-  return vim.tbl_keys(tags)
-end
-
---- An async version of 'list_tags()'.
----
----@param term string|?
----@param callback fun(tags: string[])
-Client.list_tags_async = function(self, term, callback)
-  self:find_tags_async(term and term or "", function(tag_locations)
-    local tags = {}
-    for _, tag_loc in ipairs(tag_locations) do
-      local tag = tag_loc.tag:lower()
-      if not tags[tag] then
-        tags[tag] = true
-      end
-    end
-    callback(vim.tbl_keys(tags))
-  end)
-end
-
 return Client

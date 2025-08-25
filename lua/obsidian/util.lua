@@ -21,28 +21,6 @@ util.write_file = function(file, contents)
 end
 
 -------------------
---- Iter tools ----
--------------------
-
----Create an enumeration iterator over an iterable.
----@param iterable table|string|function
----@return function
-util.enumerate = function(iterable)
-  local iterator = vim.iter(iterable)
-  local i = 0
-
-  return function()
-    local next = iterator()
-    if next == nil then
-      return nil, nil
-    else
-      i = i + 1
-      return i, next
-    end
-  end
-end
-
--------------------
 --- Table tools ---
 -------------------
 

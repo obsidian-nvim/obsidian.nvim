@@ -137,7 +137,6 @@ There's one entry point user command for this plugin: `Obsidian`
 
 - Neovim >= 0.10.0
 - For completion and search features:
-
   - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep)
   - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
 
@@ -201,7 +200,6 @@ Here are some examples using different plugin managers. The full set of [plugin 
 return {
   "obsidian-nvim/obsidian.nvim",
   version = "*", -- recommended, use latest release instead of latest commit
-  lazy = true,
   ft = "markdown",
   -- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
   -- event = {
@@ -237,7 +235,7 @@ return {
 <details><summary>Click for install snippet</summary>
 
 ```vim
-:Rocks install obsidian
+:Rocks install obsidian.nvim
 ```
 
 </details>
@@ -662,6 +660,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/VVKot"><img src="https://avatars.githubusercontent.com/u/24480985?v=4?s=100" width="100px;" alt="Volodymyr Kot"/><br /><sub><b>Volodymyr Kot</b></sub></a><br /><a href="#code-VVKot" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://minusfive.com"><img src="https://avatars.githubusercontent.com/u/33695?v=4?s=100" width="100px;" alt="Jorge Villalobos"/><br /><sub><b>Jorge Villalobos</b></sub></a><br /><a href="#code-minusfive" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/TakahiroW4047"><img src="https://avatars.githubusercontent.com/u/33548194?v=4?s=100" width="100px;" alt="Tak"/><br /><sub><b>Tak</b></sub></a><br /><a href="#code-TakahiroW4047" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

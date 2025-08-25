@@ -1,40 +1,26 @@
 local log = require "obsidian.log"
 
-local module_lookups = {
-  abc = "obsidian.abc",
-  api = "obsidian.api",
-  async = "obsidian.async",
-  Client = "obsidian.client",
-  commands = "obsidian.commands",
-  completion = "obsidian.completion",
-  config = "obsidian.config",
-  log = "obsidian.log",
-  img_paste = "obsidian.img_paste",
-  Note = "obsidian.note",
-  Path = "obsidian.path",
-  pickers = "obsidian.pickers",
-  search = "obsidian.search",
-  templates = "obsidian.templates",
-  ui = "obsidian.ui",
-  util = "obsidian.util",
-  VERSION = "obsidian.version",
-  Workspace = "obsidian.workspace",
-  yaml = "obsidian.yaml",
-}
+local obsidian = {}
 
-local obsidian = setmetatable({}, {
-  __index = function(t, k)
-    local require_path = module_lookups[k]
-    if not require_path then
-      return
-    end
-
-    local mod = require(require_path)
-    t[k] = mod
-
-    return mod
-  end,
-})
+obsidian.abc = require "obsidian.abc"
+obsidian.api = require "obsidian.api"
+obsidian.async = require "obsidian.async"
+obsidian.Client = require "obsidian.client"
+obsidian.commands = require "obsidian.commands"
+obsidian.completion = require "obsidian.completion"
+obsidian.config = require "obsidian.config"
+obsidian.log = require "obsidian.log"
+obsidian.img_paste = require "obsidian.img_paste"
+obsidian.Note = require "obsidian.note"
+obsidian.Path = require "obsidian.path"
+obsidian.pickers = require "obsidian.pickers"
+obsidian.search = require "obsidian.search"
+obsidian.templates = require "obsidian.templates"
+obsidian.ui = require "obsidian.ui"
+obsidian.util = require "obsidian.util"
+obsidian.VERSION = require "obsidian.version"
+obsidian.Workspace = require "obsidian.workspace"
+obsidian.yaml = require "obsidian.yaml"
 
 ---@type obsidian.Client|?
 obsidian._client = nil
@@ -70,7 +56,7 @@ obsidian.setup = function(opts)
 
   opts = obsidian.config.normalize(opts)
 
-  local client = obsidian.Client.new(opts)
+  local client = obsidian.Client.new()
 
   Obsidian._opts = opts
 
@@ -123,6 +109,8 @@ obsidian.setup = function(opts)
     })
   end
 
+  local og_options = {}
+
   -- Complete setup and update workspace (if needed) when entering a markdown buffer.
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     group = group,
@@ -138,6 +126,10 @@ obsidian.setup = function(opts)
       local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
       if not workspace then
         return
+      end
+
+      for _, name in ipairs { "foldmethod", "foldexpr", "foldlevel" } do
+        og_options[name] = vim.wo[name]
       end
 
       vim.wo.foldmethod = "expr"
@@ -201,6 +193,10 @@ obsidian.setup = function(opts)
       -- Check if current buffer is actually a note within the workspace.
       if not obsidian.api.path_is_note(ev.match) then
         return
+      end
+
+      for _, name in ipairs { "foldmethod", "foldexpr", "foldlevel" } do
+        vim.wo[name] = og_options[name]
       end
 
       -- Run leave-note callback.

@@ -91,28 +91,6 @@ Parameters ~
 {opts} `({ search: obsidian.SearchOpts }|)`?
 
 ------------------------------------------------------------------------------
-                                                   *obsidian.Client.list_tags()*
-                 `Client.list_tags`({self}, {term}, {timeout})
-Gather a list of all tags in the vault. If 'term' is provided, only tags that partially match the search
-term will be included.
-
-Parameters ~
-{term} `(string|? An)` optional search term to match tags
-{timeout} `(integer|? Timeout)` in milliseconds
-
-Return ~
-`(string[])`
-
-------------------------------------------------------------------------------
-                                             *obsidian.Client.list_tags_async()*
-              `Client.list_tags_async`({self}, {term}, {callback})
-An async version of 'list_tags()'.
-
-Parameters ~
-{term} `(string|)`?
-{callback} `(fun(tags: string[]))`
-
-------------------------------------------------------------------------------
 @class obsidian.note.NoteCreationOpts
 @field notes_subdir string
 @field note_id_func fun()

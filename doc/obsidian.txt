@@ -227,7 +227,6 @@ Click for install snippet ~
     return {
       "obsidian-nvim/obsidian.nvim",
       version = "*", -- recommended, use latest release instead of latest commit
-      lazy = true,
       ft = "markdown",
       -- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
       -- event = {
@@ -262,7 +261,7 @@ USING ROCKS.NVIM                                   *obsidian-using-rocks.nvim*
 Click for install snippet ~
 
 >vim
-    :Rocks install obsidian
+    :Rocks install obsidian.nvim
 <
 
 
@@ -635,7 +634,7 @@ Please read the CONTRIBUTING
 <https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md>
 guide before submitting a pull request.
 
-neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻Anaritus💻Michael Davis💻Brian Rodriguez💻carschandler📖Aki Sasaki💻Reinaldo Molina💻Stuart Rackham💻Ahmed Mughal💻trash-panda-v91-beta💻Jakob Westhoff💻Christian Johansen💻Volodymyr Kot💻Jorge Villalobos💻
+neo451💻Stefan Otte💻guspix💻ffricken💻Erlan Rangel💻bosvik💻Jost Alemann📖Luis Garcia💻Joe💻Horia Gug💻Aquiles Gomez💻Alvaro Sevilla💻Sebastian Stark💻Jumpei Yamakawa💻marcocofano💻Jaehaks💻Magnus💻Noam Stolero💻aileot💻Rico Sta. Cruz📖KIM Hyunjae💻Ben Burgess💻Sebastian Szyller💻nobe4💻Anaritus💻Michael Davis💻Brian Rodriguez💻carschandler📖Aki Sasaki💻Reinaldo Molina💻Stuart Rackham💻Ahmed Mughal💻trash-panda-v91-beta💻Jakob Westhoff💻Christian Johansen💻Volodymyr Kot💻Jorge Villalobos💻Tak💻
 ==============================================================================
 8. ❤️ Acknowledgement                    *obsidian-❤️-acknowledgement*
 
