@@ -64,6 +64,7 @@ local config = {}
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
+---@field cache obsidian.config.CacheOpts
 ---@field footer obsidian.config.FooterOpts
 ---@field open obsidian.config.OpenOpts
 ---@field checkbox obsidian.config.CheckboxOpts
@@ -315,6 +316,17 @@ config.default = {
   ---Runs anytime the workspace is set/changed.
   ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
   callbacks = {},
+
+  ---@class obsidian.config.CacheOpts
+  ---
+  ---@field enabled boolean|? Use cache when searching for notes
+  ---@field path string The file where the cache will be saved
+  ---@field show_tags boolean|? Show tags in the picker
+  cache = {
+    enabled = false,
+    path = "./.cache.json",
+    show_tags = false,
+  },
 
   ---@class obsidian.config.StatuslineOpts
   ---
@@ -603,6 +615,8 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
   if opts.dir ~= nil then
     table.insert(opts.workspaces, 1, { path = opts.dir })
   end
+
+  opts.cache = tbl_override(defaults.cache, opts.cache)
 
   return opts
 end

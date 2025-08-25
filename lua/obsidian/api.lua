@@ -590,6 +590,152 @@ M.get_icon = function(path)
   return nil
 end
 
+---Gets all notes from the vault.
+---@param path string The path to the vault.
+---@return string[]|? The path to the notes.
+M.get_all_notes_from_vault = function(path)
+  local files = {}
+
+  local cmd
+  local find_command
+
+  -- checking for executable which support .ignore or .gitignore
+  if 1 == vim.fn.executable "rg" then
+    find_command = { "rg", "--files", "--color", "never", "--glob", "'*.md'", path }
+    cmd = "rg"
+  elseif 1 == vim.fn.executable "fd" then
+    find_command = { "fd", "--type", "f", "--color", "never", "--extension", "md", "--base-directory", path }
+    cmd = "fd"
+  elseif 1 == vim.fn.executable "fdfind" then
+    find_command = { "fdfind", "--type", "f", "--color", "never", "--extension", "md", "--base-directory", path }
+    cmd = "fdfind"
+  end
+
+  if cmd then
+    local handle = io.popen(table.concat(find_command, " "))
+
+    if not handle then
+      log.error("couldn't execute cmd " .. cmd)
+      return {}
+    end
+
+    for file in handle:lines() do
+      files[#files + 1] = file
+    end
+  else
+    -- If we couldn't find one of the executable, fallback to default implemendation
+    -- which doesn't respect .ignore or .gitignore.
+    for name, t in vim.fs.dir(path, { depth = 10 }) do
+      if t == "file" and vim.endswith(name, ".md") then
+        local full_path = vim.fs.joinpath(path, name)
+        files[#files + 1] = full_path
+      end
+    end
+  end
+
+  return files
+end
+
+---Use greedy search to get the folder of the file.
+---@param file_path string
+---@param sep string
+---@return string
+local get_directory_path = function(file_path, sep)
+  return file_path:match("(.*" .. sep .. ")")
+end
+
+---Gets all subfolders from the vault.
+---@param path string The path to the vault.
+---@return string[]|? The path to the subfolders
+M.get_sub_dirs_from_vault = function(path)
+  local subdirs = {}
+
+  local cmd
+  local find_command
+
+  -- checking for executable which support .ignore or .gitignore
+  if 1 == vim.fn.executable "fd" then
+    find_command = { "fd", "--type", "d", "--color", "never", "--base-directory", path }
+    cmd = "fd"
+  elseif 1 == vim.fn.executable "fdfind" then
+    find_command = { "fdfind", "--type", "f", "--color", "never", "--base-directory", path }
+    cmd = "fdfind"
+  elseif 1 == vim.fn.executable "rg" then
+    -- rg doesn't support searching folders, so we will filter output manually.
+    -- Unfortunatly, this won't return folders which are empty.
+    find_command = { "rg", "--files", "--color", "never", "--glob", "'*.md'", path }
+    cmd = "rg"
+  end
+
+  if cmd then
+    local handle = io.popen(table.concat(find_command, " "))
+
+    if not handle then
+      log.error("couldn't execute cmd " .. cmd)
+      return {}
+    end
+
+    if cmd == "rg" then
+      local path_separator = "/"
+
+      local sysname = M.get_os()
+
+      if sysname == M.OSType.Windows then
+        path_separator = "\\"
+      end
+
+      for file in handle:lines() do
+        local subdir = get_directory_path(file, path_separator)
+
+        if not vim.tbl_contains(subdirs, subdir) then
+          subdirs[#subdirs + 1] = subdir
+        end
+      end
+    else
+      for subdir in handle:lines() do
+        subdirs[#subdirs + 1] = subdir
+      end
+    end
+  else
+    -- the user doesn't have tools which support .gitignore or .ignore,
+    -- fallback to getting all folders
+    for name, t in vim.fs.dir(path, { depth = 10 }) do
+      if t == "directory" then
+        local full_path = vim.fs.joinpath(path, name)
+        subdirs[#subdirs + 1] = full_path
+      end
+    end
+  end
+
+  return subdirs
+end
+
+---Cross-platform check if the pid exists.
+---@param pid string
+---@return boolean
+M.check_pid_exists = function(pid)
+  local system = M.get_os()
+
+  if system == M.OSType.Windows then
+    local cmd = string.format('tasklist /FI "PID eq %d" /NH', pid)
+    local pipe = io.popen(cmd)
+    assert(pipe)
+    local output = pipe:read()
+    pipe:close()
+
+    return output:match(pid) ~= nil
+  else
+    local cmd = "kill -0 " .. pid
+    local ok = os.execute(cmd)
+
+    if ok then
+      return true
+    else
+      return false
+    end
+  end
+end
+
 --- Resolve a basename to full path inside the vault.
 ---
 ---@param src string
