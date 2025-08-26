@@ -248,9 +248,7 @@ T["find_links"]["should find all links in a file"] = function()
   child.lua [[
 local search = require"obsidian.search"
 local note = require"obsidian.note".from_file(tostring(Obsidian.dir / "test.md"))
-search.find_links(note, {}, function(res)
-  _G.res = res
-end)
+_G.res = search.find_links(note, {})
   ]]
   vim.uv.sleep(100)
   local res = child.lua_get [[res]]

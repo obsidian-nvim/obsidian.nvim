@@ -913,9 +913,7 @@ end
 -- Gather all unique links from the a note.
 --
 ---@param note obsidian.Note
----@param opts { on_match: fun(link: obsidian.LinkMatch) }
----@param callback fun(links: obsidian.LinkMatch[])
-M.find_links = function(note, opts, callback)
+M.find_links = function(note)
   ---@type obsidian.LinkMatch[]
   local matches = {}
   ---@type table<string, boolean>
@@ -935,14 +933,11 @@ M.find_links = function(note, opts, callback)
         }
         matches[#matches + 1] = match
         found[link] = true
-        if opts.on_match then
-          opts.on_match(match)
-        end
       end
     end
   end
 
-  callback(matches)
+  return matches
 end
 
 ---@param note obsidian.Note
@@ -1083,11 +1078,13 @@ M.find_backlinks_async = function(note, callback, opts)
   )
 end
 
-M.find_backlinks = function(term, opts)
+---@param note obsidian.Note
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer }?
+M.find_backlinks = function(note, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   return async.block_on(function(cb)
-    return M.find_backlinks_async(term, cb, { search = opts.search })
+    return M.find_backlinks_async(note, cb, { search = opts.search, anchor = opts.anchor, block = opts.block })
   end, opts.timeout)
 end
 
