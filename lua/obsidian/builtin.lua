@@ -115,4 +115,14 @@ M.img_text_func = function(path)
   return string.format(format_string[style], name)
 end
 
+M.frontmatter = function(self)
+  local out = { id = self.id, aliases = self.aliases, tags = self.tags }
+  if self.metadata ~= nil and not vim.tbl_isempty(self.metadata) then
+    for k, v in pairs(self.metadata) do
+      out[k] = v
+    end
+  end
+  return out
+end
+
 return M
