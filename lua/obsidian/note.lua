@@ -610,7 +610,11 @@ Note.display_name = function(self)
 end
 
 ---@param frontmatter string
----@return string?, string?, string[], string[], table<string, any>?
+---@return string? id
+---@return string? title
+---@return string[] aliases
+---@return string[] tags
+---@return table<string, any>? metadata
 Note.parse_frontmatter = function(frontmatter, path)
   local id, title, metadata
   local aliases, tags = {}, {}
