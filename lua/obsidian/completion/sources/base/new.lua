@@ -99,8 +99,8 @@ function NewNoteSourceBase:process_completion(cc)
   ---@type { label: string, note: obsidian.Note, template: string|? }[]
   local new_notes_opts = {}
 
-  local note = Note.create { title = cc.search }
-  if note.title and string.len(note.title) > 0 then
+  local note = Note.create { id = cc.search }
+  if note.id and string.len(note.id) > 0 then
     new_notes_opts[#new_notes_opts + 1] = { label = cc.search, note = note }
   end
 

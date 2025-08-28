@@ -75,7 +75,6 @@ local _daily = function(datetime, opts)
 
     if alias then
       note:add_alias(alias)
-      note.title = alias
     end
 
     if not opts.no_write then
