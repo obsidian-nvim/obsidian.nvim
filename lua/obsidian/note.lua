@@ -12,7 +12,6 @@ local Path = require "obsidian.path"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local search = require "obsidian.search"
 local iter = vim.iter
 local compat = require "obsidian.compat"
 local api = require "obsidian.api"
@@ -25,7 +24,7 @@ local DEFAULT_MAX_LINES = 500
 
 local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 
----A class that represents a note within a vault.
+--- A class that represents a note within a vault.
 ---
 ---@toc_entry obsidian.Note
 ---
@@ -33,7 +32,6 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---
 ---@field id string
 ---@field aliases string[]
----@field title string|?
 ---@field tags string[]
 ---@field path obsidian.Path|?
 ---@field metadata table
@@ -191,7 +189,8 @@ end
 ---@param id string|?
 ---@param dir string|obsidian.Path|? The directory for the note
 ---@param strategy obsidian.note.NoteCreationOpts Strategy for resolving note path and title
----@return string|?,string,obsidian.Path
+---@return string id
+---@return obsidian.Path path
 ---@private
 Note._resolve_id_path = function(id, dir, strategy)
   if id then
@@ -277,15 +276,13 @@ Note._resolve_id_path = function(id, dir, strategy)
   if not id then
     id = generate_id(id, base_dir, strategy.note_id_func)
   end
-  --
-  -- id = id:lower()
 
   dir = base_dir
 
   -- Generate path.
   local path = Note._generate_path(id, dir)
 
-  return nil, id, path
+  return id, path
 end
 
 --- Creates a new note
@@ -293,21 +290,13 @@ end
 --- @param opts obsidian.note.NoteOpts Options
 --- @return obsidian.Note
 Note.create = function(opts)
-  local new_title, new_id, path = Note._resolve_id_path(opts.id, opts.dir, Note._get_creation_opts(opts))
+  local new_id, path = Note._resolve_id_path(opts.id, opts.dir, Note._get_creation_opts(opts))
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
   -- Add the title as an alias.
   --- @type string[]
   local aliases = opts.aliases
-  if new_title ~= nil and new_title:len() > 0 and not vim.list_contains(aliases, new_title) then
-    aliases[#aliases + 1] = new_title
-  end
-
   local note = Note.new(new_id, aliases, opts.tags, path)
-
-  if new_title then
-    note.title = new_title
-  end
 
   -- Ensure the parent directory exists.
   local parent = path:parent()
@@ -637,9 +626,9 @@ end
 ---
 ---@return string
 Note.display_name = function(self)
-  if self.title then
-    return self.title
-  elseif #self.aliases > 0 then
+  -- if self.title then
+  --   return self.title
+  if #self.aliases > 0 then
     return self.aliases[#self.aliases]
   end
   return tostring(self.id)
@@ -658,7 +647,10 @@ Note.from_lines = function(lines, path, opts)
 
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
-  local title = nil
+  local id = nil
+  local title
+  local aliases = {}
+  local tags = {}
 
   ---@type string[]|?
   local contents
@@ -745,10 +737,6 @@ Note.from_lines = function(lines, path, opts)
       -- Check for title/header and collect anchor link.
       local header_match = util.parse_header(line)
       if header_match then
-        if not title and header_match.level == 1 then
-          title = header_match.header
-        end
-
         -- Collect anchor link.
         if opts.collect_anchor_links then
           assert(anchor_links and anchor_stack, "failed to collect anchor")
@@ -817,6 +805,69 @@ Note.from_lines = function(lines, path, opts)
 
   local id, aliases, tags = info.id, info.aliases, info.tags
 
+  local frontmatter = table.concat(frontmatter_lines, "\n")
+  local ok, data = pcall(yaml.loads, frontmatter)
+  if type(data) ~= "table" then
+    data = {}
+  end
+  if ok then
+    ---@diagnostic disable-next-line: param-type-mismatch
+    for k, v in pairs(data) do
+      if k == "id" then
+        if type(v) == "string" or type(v) == "number" then
+          id = v
+        else
+          log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
+        end
+      elseif k == "aliases" then
+        if type(v) == "table" then
+          for alias in iter(v) do
+            if type(alias) == "string" then
+              table.insert(aliases, alias)
+            else
+              log.warn(
+                "Invalid alias value found in frontmatter for "
+                  .. tostring(path)
+                  .. ". Expected string, found "
+                  .. type(alias)
+                  .. "."
+              )
+            end
+          end
+        elseif type(v) == "string" then
+          table.insert(aliases, v)
+        else
+          log.warn("Invalid 'aliases' in frontmatter for " .. tostring(path))
+        end
+      elseif k == "tags" then
+        if type(v) == "table" then
+          for tag in iter(v) do
+            if type(tag) == "string" then
+              table.insert(tags, tag)
+            else
+              log.warn(
+                "Invalid tag value found in frontmatter for "
+                  .. tostring(path)
+                  .. ". Expected string, found "
+                  .. type(tag)
+                  .. "."
+              )
+            end
+          end
+        elseif type(v) == "string" then
+          tags = vim.split(v, " ")
+        else
+          log.warn("Invalid 'tags' in frontmatter for '%s'", path)
+        end
+      else
+        if metadata == nil then
+          metadata = {}
+        end
+        metadata[k] = v
+      end
+    end
+  end
+
   -- ID should default to the filename without the extension.
   if id == nil or id == path.name then
     id = path.stem
@@ -824,7 +875,6 @@ Note.from_lines = function(lines, path, opts)
   assert(id, "failed to find a valid id for note")
 
   local n = Note.new(id, aliases, tags, path)
-  n.title = title
   n.metadata = metadata
   n.has_frontmatter = has_frontmatter
   n.frontmatter_end_line = frontmatter_end_line
@@ -1016,9 +1066,10 @@ Note.save = function(self, opts)
         table.insert(existing_frontmatter, line)
       end
     end
-  elseif self.title ~= nil then
-    -- Add a header.
-    table.insert(content, "# " .. self.title)
+    -- end)
+    -- elseif self.title ~= nil then
+    --   -- Add a header.
+    --   table.insert(content, "# " .. self.title)
   end
 
   -- Pass content through callback.
@@ -1105,9 +1156,9 @@ Note.save_to_buffer = function(self, opts)
     new_lines = {}
   end
 
-  if api.buffer_is_empty(bufnr) and self.title ~= nil then
-    table.insert(new_lines, "# " .. self.title)
-  end
+  -- if api.buffer_is_empty(bufnr) and self.title ~= nil then
+  --   table.insert(new_lines, "# " .. self.title)
+  -- end
 
   if not vim.deep_equal(current_lines, new_lines) then
     vim.api.nvim_buf_set_lines(bufnr, 0, frontmatter_end_line and frontmatter_end_line or 0, false, new_lines)
