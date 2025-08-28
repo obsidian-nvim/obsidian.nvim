@@ -3,7 +3,6 @@ local abc = require "obsidian.abc"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local search = require "obsidian.search"
 local iter = vim.iter
 local compat = require "obsidian.compat"
 local api = require "obsidian.api"
@@ -21,7 +20,6 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 --- @field new_notes_location string
 
 --- @class obsidian.note.NoteOpts
---- @field title string|? The note's title
 --- @field id string|? An ID to assign the note. If not specified one will be generated.
 --- @field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
 --- relative to the workspace / vault root. If the directory doesn't exist it will
@@ -81,7 +79,6 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---
 ---@field id string
 ---@field aliases string[]
----@field title string|?
 ---@field tags string[]
 ---@field path obsidian.Path|?
 ---@field metadata table|?
@@ -195,7 +192,8 @@ end
 ---@param id string|?
 ---@param dir string|obsidian.Path|? The directory for the note
 ---@param strategy obsidian.note.NoteCreationOpts Strategy for resolving note path and title
----@return string|?,string,obsidian.Path
+---@return string id
+---@return obsidian.Path path
 ---@private
 Note._resolve_id_path = function(id, dir, strategy)
   if id then
@@ -281,15 +279,13 @@ Note._resolve_id_path = function(id, dir, strategy)
   if not id then
     id = generate_id(id, base_dir, strategy.note_id_func)
   end
-  --
-  -- id = id:lower()
 
   dir = base_dir
 
   -- Generate path.
   local path = Note._generate_path(id, dir)
 
-  return nil, id, path
+  return id, path
 end
 
 --- Creates a new note
@@ -297,21 +293,13 @@ end
 --- @param opts obsidian.note.NoteOpts Options
 --- @return obsidian.Note
 Note.create = function(opts)
-  local new_title, new_id, path = Note._resolve_id_path(opts.id, opts.dir, Note._get_creation_opts(opts))
+  local new_id, path = Note._resolve_id_path(opts.id, opts.dir, Note._get_creation_opts(opts))
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
   -- Add the title as an alias.
   --- @type string[]
   local aliases = opts.aliases
-  if new_title ~= nil and new_title:len() > 0 and not vim.list_contains(aliases, new_title) then
-    aliases[#aliases + 1] = new_title
-  end
-
   local note = Note.new(new_id, aliases, opts.tags, path)
-
-  if new_title then
-    note.title = new_title
-  end
 
   -- Ensure the parent directory exists.
   local parent = path:parent()
@@ -588,9 +576,9 @@ end
 ---
 ---@return string
 Note.display_name = function(self)
-  if self.title then
-    return self.title
-  elseif #self.aliases > 0 then
+  -- if self.title then
+  --   return self.title
+  if #self.aliases > 0 then
     return self.aliases[#self.aliases]
   end
   return tostring(self.id)
@@ -610,7 +598,7 @@ Note.from_lines = function(lines, path, opts)
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
   local id = nil
-  local title = nil
+  local title
   local aliases = {}
   local tags = {}
 
@@ -700,10 +688,6 @@ Note.from_lines = function(lines, path, opts)
       -- Check for title/header and collect anchor link.
       local header_match = util.parse_header(line)
       if header_match then
-        if not title and header_match.level == 1 then
-          title = header_match.header
-        end
-
         -- Collect anchor link.
         if opts.collect_anchor_links then
           assert(anchor_links)
@@ -772,16 +756,6 @@ Note.from_lines = function(lines, path, opts)
           else
             log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
           end
-        elseif k == "title" then
-          if type(v) == "string" then
-            title = v
-            if metadata == nil then
-              metadata = {}
-            end
-            metadata.title = v
-          else
-            log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
-          end
         elseif k == "aliases" then
           if type(v) == "table" then
             for alias in iter(v) do
@@ -832,11 +806,6 @@ Note.from_lines = function(lines, path, opts)
     end
   end
 
-  if title ~= nil then
-    -- Remove references and links from title
-    title = search.replace_refs(title)
-  end
-
   -- ID should default to the filename without the extension.
   if id == nil or id == path.name then
     id = path.stem
@@ -844,7 +813,6 @@ Note.from_lines = function(lines, path, opts)
   assert(id)
 
   local n = Note.new(id, aliases, tags, path)
-  n.title = title
   n.metadata = metadata
   n.has_frontmatter = has_frontmatter
   n.frontmatter_end_line = frontmatter_end_line
@@ -1075,9 +1043,9 @@ Note.save = function(self, opts)
       end
     end
     -- end)
-  elseif self.title ~= nil then
-    -- Add a header.
-    table.insert(content, "# " .. self.title)
+    -- elseif self.title ~= nil then
+    --   -- Add a header.
+    --   table.insert(content, "# " .. self.title)
   end
 
   -- Pass content through callback.
@@ -1166,9 +1134,9 @@ Note.save_to_buffer = function(self, opts)
     new_lines = {}
   end
 
-  if api.buffer_is_empty(bufnr) and self.title ~= nil then
-    table.insert(new_lines, "# " .. self.title)
-  end
+  -- if api.buffer_is_empty(bufnr) and self.title ~= nil then
+  --   table.insert(new_lines, "# " .. self.title)
+  -- end
 
   ---@type string[]
   local cur_lines = {}
