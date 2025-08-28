@@ -105,13 +105,12 @@ end
 --- Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
 --- otherwise falls back to generated a Zettelkasten style ID.
 ---
----@param title? string
----@param path? obsidian.Path
----@param id_func (fun(title: string|?, path: obsidian.Path|?): string)
+--- @param base_id? string
+--- @param path? obsidian.Path
+--- @param id_func (fun(title: string|?, path: obsidian.Path|?): string)
 ---@return string
----@private
-local function generate_id(title, path, id_func)
-  local new_id = id_func(title, path)
+local function generate_id(base_id, path, id_func)
+  local new_id = id_func(base_id, path)
   if new_id == nil or string.len(new_id) == 0 then
     error(string.format("Your 'note_id_func' must return a non-empty string, got '%s'!", tostring(new_id)))
   end
@@ -124,17 +123,16 @@ end
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 --- `note_opts.dir / (note_opts.id .. ".md")`.
 ---
----@param title string|? The title for the note
----@param id string The note ID
----@param dir obsidian.Path The note path
+--- @param id string The note ID
+--- @param dir obsidian.Path The note path
 ---@return obsidian.Path
 ---@private
-Note._generate_path = function(title, id, dir)
+Note._generate_path = function(id, dir)
   ---@type obsidian.Path
   local path
 
   if Obsidian.opts.note_path_func ~= nil then
-    path = Path.new(Obsidian.opts.note_path_func { id = id, dir = dir, title = title })
+    path = Path.new(Obsidian.opts.note_path_func { id = id, dir = dir, title = nil })
     -- Ensure path is either absolute or inside `opts.dir`.
     -- NOTE: `opts.dir` should always be absolute, but for extra safety we handle the case where
     -- it's not.
@@ -190,20 +188,12 @@ end
 
 --- Resolves the title, ID, and path for a new note.
 ---
----@param title string|?
 ---@param id string|?
 ---@param dir string|obsidian.Path|? The directory for the note
 ---@param strategy obsidian.note.NoteCreationOpts Strategy for resolving note path and title
 ---@return string|?,string,obsidian.Path
 ---@private
-Note._resolve_title_id_path = function(title, id, dir, strategy)
-  if title then
-    title = vim.trim(title)
-    if title == "" then
-      title = nil
-    end
-  end
-
+Note._resolve_id_path = function(id, dir, strategy)
   if id then
     id = vim.trim(id)
     if id == "" then
@@ -242,14 +232,9 @@ Note._resolve_title_id_path = function(title, id, dir, strategy)
     end
   end
 
-  local parent, _, title_is_path
+  local parent, _
   if id then
     id, _, parent = parse_as_path(id, false)
-  elseif title then
-    title, title_is_path, parent = parse_as_path(title, true)
-    if title_is_path then
-      id = title
-    end
   end
 
   -- Resolve base directory.
@@ -290,15 +275,17 @@ Note._resolve_title_id_path = function(title, id, dir, strategy)
 
   -- Generate new ID if needed.
   if not id then
-    id = generate_id(title, base_dir, strategy.note_id_func)
+    id = generate_id(id, base_dir, strategy.note_id_func)
   end
+  --
+  -- id = id:lower()
 
   dir = base_dir
 
   -- Generate path.
-  local path = Note._generate_path(title, id, dir)
+  local path = Note._generate_path(id, dir)
 
-  return title, id, path
+  return nil, id, path
 end
 
 --- Creates a new note
@@ -306,8 +293,7 @@ end
 --- @param opts obsidian.note.NoteOpts Options
 --- @return obsidian.Note
 Note.create = function(opts)
-  local new_title, new_id, path =
-    Note._resolve_title_id_path(opts.title, opts.id, opts.dir, Note._get_creation_opts(opts))
+  local new_title, new_id, path = Note._resolve_id_path(opts.id, opts.dir, Note._get_creation_opts(opts))
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
   -- Add the title as an alias.
