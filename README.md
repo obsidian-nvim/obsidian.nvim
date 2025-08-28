@@ -365,11 +365,6 @@ require("obsidian").setup {
   -- Optional, alternatively you can customize the frontmatter data.
   ---@return table
   note_frontmatter_func = function(note)
-    -- Add the title of the note as an alias.
-    if note.title then
-      note:add_alias(note.title)
-    end
-
     local out = { id = note.id, aliases = note.aliases, tags = note.tags }
 
     -- `note.metadata` contains any manually added fields in the frontmatter.

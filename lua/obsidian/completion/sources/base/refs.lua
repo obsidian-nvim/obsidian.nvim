@@ -206,9 +206,6 @@ function RefsSourceBase:process_search_results(cc, results)
       local aliases
       if not cc.in_buffer_only then
         aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
-        if note.title ~= nil then
-          table.insert(aliases, note.title)
-        end
       end
 
       for alias in iter(aliases) do
