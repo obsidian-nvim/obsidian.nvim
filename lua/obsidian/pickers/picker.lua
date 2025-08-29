@@ -434,8 +434,10 @@ Picker._make_display = function(self, entry)
   end
 
   if entry.display then
+    buf[#buf + 1] = " "
     buf[#buf + 1] = entry.display
   elseif entry.value then
+    buf[#buf + 1] = " "
     buf[#buf + 1] = tostring(entry.value)
   end
 
