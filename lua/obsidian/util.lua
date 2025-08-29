@@ -159,7 +159,14 @@ util.is_url = function(s)
   then
     return true
   else
-    return false
+    local found = false
+    for _, url in ipairs(Obsidian.opts.url_patterns) do
+      -- @type url obsidian.config.UrlPatternSpec
+      if string.match(vim.trim(s), "^" .. url.pattern .. "$") then
+        found = true
+      end
+    end
+    return found
   end
 end
 
