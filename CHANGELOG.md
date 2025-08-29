@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed case sensitive front matter tags query.
 - Refactor tags command duplicate queries.
 - Make sure fold options are remove on `BufLeave`
+- Unified picker interface.
 
 ## [v3.13.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.0) - 2025-07-28
 

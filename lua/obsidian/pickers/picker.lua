@@ -61,7 +61,7 @@ end
 ---@field prompt_title string|?
 ---@field dir string|obsidian.Path|?
 ---@field query string|?
----@field callback fun(path: string)|?
+---@field callback fun(entry: obsidian.PickerEntry)|?
 ---@field no_default_mappings boolean|?
 ---@field query_mappings obsidian.PickerMappingTable
 ---@field selection_mappings obsidian.PickerMappingTable
@@ -99,7 +99,7 @@ end
 ---@class obsidian.PickerPickOpts
 ---
 ---@field prompt_title string|?
----@field callback fun(value: any, ...: any)|?
+---@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
 ---@field allow_multiple boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
@@ -148,42 +148,16 @@ Picker.find_notes = function(self, opts)
   return self:find_files {
     prompt_title = opts.prompt_title or "Notes",
     dir = Obsidian.dir,
-    callback = opts.callback,
+    callback = opts.callback or api.open_buffer,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
   }
 end
 
---- Find templates by filename.
----
----@param opts { prompt_title: string|?, callback: fun(path: string) }|? Options.
----
---- Options:
----  `callback`: Callback to run with the selected template path.
-Picker.find_templates = function(self, opts)
-  self.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts or {}
-
-  local templates_dir = api.templates_dir()
-
-  if templates_dir == nil then
-    log.err "Templates folder is not defined or does not exist"
-    return
-  end
-
-  return self:find_files {
-    prompt_title = opts.prompt_title or "Templates",
-    callback = opts.callback,
-    dir = templates_dir,
-    no_default_mappings = true,
-  }
-end
-
 --- Grep search in notes.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(entry: obsidian.PickerEntry)|?, no_default_mappings: boolean|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -206,7 +180,9 @@ Picker.grep_notes = function(self, opts)
     prompt_title = opts.prompt_title or "Grep notes",
     dir = Obsidian.dir,
     query = opts.query,
-    callback = opts.callback,
+    callback = opts.callback or function(v)
+      return api.open_buffer(v.filename, { line = v.lnum, col = v.col })
+    end,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
@@ -256,35 +232,6 @@ Picker.pick_note = function(self, notes, opts)
     allow_multiple = opts.allow_multiple,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
-    selection_mappings = selection_mappings,
-  })
-end
-
---- Open picker with a list of tags.
----
----@param tags string[]
----@param opts { prompt_title: string|?, callback: fun(tag: string, ...: string), allow_multiple: boolean|?, no_default_mappings: boolean|? }|? Options.
----
---- Options:
----  `prompt_title`: Title for the prompt window.
----  `callback`: Callback to run with the selected tag(s).
----  `allow_multiple`: Allow multiple selections to pass to the callback.
----  `no_default_mappings`: Don't apply picker's default mappings.
-Picker.pick_tag = function(self, tags, opts)
-  self.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts or {}
-
-  local selection_mappings
-  if not opts.no_default_mappings then
-    selection_mappings = self:_tag_selection_mappings()
-  end
-
-  self:pick(tags, {
-    prompt_title = opts.prompt_title or "Tags",
-    callback = opts.callback,
-    allow_multiple = opts.allow_multiple,
-    no_default_mappings = opts.no_default_mappings,
     selection_mappings = selection_mappings,
   })
 end
@@ -487,8 +434,10 @@ Picker._make_display = function(self, entry)
   end
 
   if entry.display then
+    buf[#buf + 1] = " "
     buf[#buf + 1] = entry.display
   elseif entry.value then
+    buf[#buf + 1] = " "
     buf[#buf + 1] = tostring(entry.value)
   end
 
