@@ -1,5 +1,6 @@
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 local Note = require "obsidian.note"
 
 ---@param data CommandArgs
@@ -8,6 +9,11 @@ return function(_, data)
   if not picker then
     log.err "No picker configured"
     return
+  end
+
+  local templates_dir = api.templates_dir()
+  if not templates_dir then
+    return log.err "Templates folder is not defined or does not exist"
   end
 
   ---@type string?
@@ -20,7 +26,10 @@ return function(_, data)
     return
   end
 
-  picker:find_templates {
+  picker:find_files {
+    prompt_title = "Templates",
+    dir = templates_dir,
+    no_default_mappings = true,
     callback = function(template_name)
       if title == nil or title == "" then
         -- Must use pcall in case of KeyboardInterrupt

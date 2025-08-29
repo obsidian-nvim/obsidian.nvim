@@ -155,32 +155,6 @@ Picker.find_notes = function(self, opts)
   }
 end
 
---- Find templates by filename.
----
----@param opts { prompt_title: string|?, callback: fun(path: string) }|? Options.
----
---- Options:
----  `callback`: Callback to run with the selected template path.
-Picker.find_templates = function(self, opts)
-  self.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts or {}
-
-  local templates_dir = api.templates_dir()
-
-  if templates_dir == nil then
-    log.err "Templates folder is not defined or does not exist"
-    return
-  end
-
-  return self:find_files {
-    prompt_title = opts.prompt_title or "Templates",
-    callback = opts.callback,
-    dir = templates_dir,
-    no_default_mappings = true,
-  }
-end
-
 --- Grep search in notes.
 ---
 ---@param opts { prompt_title: string|?, query: string|?, callback: fun(entry: obsidian.PickerEntry)|?, no_default_mappings: boolean|? }|? Options.
