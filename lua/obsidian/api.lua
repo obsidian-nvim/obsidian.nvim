@@ -146,10 +146,18 @@ end
 ---Set the checkbox on the current line to a specific state.
 ---
 ---@param state string|nil Optional string of state to set the checkbox to (e.g., " ", "x").
----@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
-M.set_checkbox = function(state, line_num)
+M.set_checkbox = function(state)
   if not util.in_node { "list", "paragraph" } or util.in_node "block_quote" then
     return
+  end
+
+  if state == nil then
+    local ok, key = pcall(vim.fn.getchar)
+    if not ok then
+      log.err "set_checkbox: unable to get state input"
+      return
+    end
+    state = string.char(key + 0)
   end
 
   local found = false
@@ -169,25 +177,25 @@ M.set_checkbox = function(state, line_num)
     return
   end
 
-  line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
-  local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
+  local cur_line = vim.api.nvim_get_current_line()
 
-  if util.is_checkbox(line) then
-    if string.match(line, "^.* %[.%].*") then
-      line = string.gsub(line, "%[.%]", "[" .. state .. "]", 1)
+  if util.is_checkbox(cur_line) then
+    if string.match(cur_line, "^.* %[.%].*") then
+      cur_line = string.gsub(cur_line, "%[.%]", "[" .. state .. "]", 1)
     end
   elseif Obsidian.opts.checkbox.create_new then
     local unordered_list_pattern = "^(%s*)[-*+] (.*)"
-    if string.match(line, unordered_list_pattern) then
-      line = string.gsub(line, unordered_list_pattern, "%1- [" .. state .. "] %2")
+    if string.match(cur_line, unordered_list_pattern) then
+      cur_line = string.gsub(cur_line, unordered_list_pattern, "%1- [" .. state .. "] %2")
     else
-      line = string.gsub(line, "^(%s*)", "%1- [" .. state .. "] ")
+      cur_line = string.gsub(cur_line, "^(%s*)", "%1- [" .. state .. "] ")
     end
   else
     goto out
   end
 
-  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { line })
+  local line_num = vim.fn.getpos(".")[2]
+  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
   ::out::
 end
 
