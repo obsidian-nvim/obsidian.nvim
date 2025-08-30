@@ -143,62 +143,6 @@ M.toggle_checkbox = function(states, line_num)
   ::out::
 end
 
----Set the checkbox on the current line to a specific state.
----
----@param state string|nil Optional string of state to set the checkbox to (e.g., " ", "x").
-M.set_checkbox = function(state)
-  if not util.in_node { "list", "paragraph" } or util.in_node "block_quote" then
-    return
-  end
-
-  if state == nil then
-    local ok, key = pcall(vim.fn.getchar)
-    if not ok then
-      log.err "set_checkbox: unable to get state input"
-      return
-    end
-    state = string.char(key + 0)
-  end
-
-  local found = false
-  for _, value in ipairs(Obsidian.opts.checkbox.order) do
-    if value == state then
-      found = true
-    end
-  end
-
-  if not found then
-    log.err(
-      "state passed '"
-        .. state
-        .. "' is not part of the available states: "
-        .. vim.inspect(Obsidian.opts.checkbox.order)
-    )
-    return
-  end
-
-  local cur_line = vim.api.nvim_get_current_line()
-
-  if util.is_checkbox(cur_line) then
-    if string.match(cur_line, "^.* %[.%].*") then
-      cur_line = string.gsub(cur_line, "%[.%]", "[" .. state .. "]", 1)
-    end
-  elseif Obsidian.opts.checkbox.create_new then
-    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
-    if string.match(cur_line, unordered_list_pattern) then
-      cur_line = string.gsub(cur_line, unordered_list_pattern, "%1- [" .. state .. "] %2")
-    else
-      cur_line = string.gsub(cur_line, "^(%s*)", "%1- [" .. state .. "] ")
-    end
-  else
-    goto out
-  end
-
-  local line_num = vim.fn.getpos(".")[2]
-  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
-  ::out::
-end
-
 ---@return [number, number, number, number] tuple containing { buf, win, row, col }
 M.get_active_window_cursor_location = function()
   local buf = vim.api.nvim_win_get_buf(0)
@@ -776,6 +720,62 @@ M.smart_action = function()
   -- toggle task if possible
   -- cycles through your custom UI checkboxes, default: [ ] [~] [>] [x]
   return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
+end
+
+---Set the checkbox on the current line to a specific state.
+---
+---@param state string|nil Optional string of state to set the checkbox to (e.g., " ", "x").
+M.set_checkbox = function(state)
+  if not util.in_node { "list", "paragraph" } or util.in_node "block_quote" then
+    return
+  end
+
+  if state == nil then
+    local ok, key = pcall(vim.fn.getchar)
+    if not ok then
+      log.err "set_checkbox: unable to get state input"
+      return
+    end
+    state = string.char(key + 0)
+  end
+
+  local found = false
+  for _, value in ipairs(Obsidian.opts.checkbox.order) do
+    if value == state then
+      found = true
+    end
+  end
+
+  if not found then
+    log.err(
+      "state passed '"
+        .. state
+        .. "' is not part of the available states: "
+        .. vim.inspect(Obsidian.opts.checkbox.order)
+    )
+    return
+  end
+
+  local cur_line = vim.api.nvim_get_current_line()
+
+  if util.is_checkbox(cur_line) then
+    if string.match(cur_line, "^.* %[.%].*") then
+      cur_line = string.gsub(cur_line, "%[.%]", "[" .. state .. "]", 1)
+    end
+  elseif Obsidian.opts.checkbox.create_new then
+    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
+    if string.match(cur_line, unordered_list_pattern) then
+      cur_line = string.gsub(cur_line, unordered_list_pattern, "%1- [" .. state .. "] %2")
+    else
+      cur_line = string.gsub(cur_line, "^(%s*)", "%1- [" .. state .. "] ")
+    end
+  else
+    goto out
+  end
+
+  local line_num = vim.fn.getpos(".")[2]
+  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
+  ::out::
 end
 
 return M
