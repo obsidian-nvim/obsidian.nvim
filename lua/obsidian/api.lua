@@ -632,7 +632,11 @@ M.follow_link = function(link, opts)
       return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
     end
 
-    if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
+    if
+      res.link_type == search.RefTypes.Wiki
+      or res.link_type == search.RefTypes.WikiWithAlias
+      or res.link_type == search.RefTypes.Markdown
+    then
       -- Prompt to create a new note.
       if M.confirm("Create new note '" .. res.location .. "'?") then
         -- Create a new note.
