@@ -1,4 +1,4 @@
-local async = require "plenary.async"
+local async = require "obsidian.async"
 local Note = require "obsidian.note"
 local log = require "obsidian.log"
 local EventTypes = require("obsidian.filewatch").EventTypes
@@ -72,17 +72,21 @@ local create_on_file_change_callback = function()
         local relative_path = file.absolute_path:gsub(workspace_path .. "/", "")
 
         ---@param note obsidian.Note|?
-        local update_cache_dictionary = function(note)
-          if note then
-            ---@type obsidian.cache.CacheNote
-            local founded_cache = {
-              absolute_path = file.absolute_path,
-              aliases = note.aliases,
-              last_updated = file.stat.mtime.sec,
-              tags = note.tags,
-            }
+        local update_cache_dictionary = function(err, note)
+          if err then
+            log.err("an error occured when reading from a note. " .. err)
+          else
+            if note then -- check, because a note can be deleted. If deleted, the note variable is empty.
+              ---@type obsidian.cache.CacheNote
+              local founded_cache = {
+                absolute_path = file.absolute_path,
+                aliases = note.aliases,
+                last_updated = file.stat.mtime.sec,
+                tags = note.tags,
+              }
 
-            cache_notes[relative_path] = founded_cache
+              cache_notes[relative_path] = founded_cache
+            end
           end
 
           left = left - 1
@@ -274,7 +278,12 @@ local get_cache_notes_from_vault = function(callback)
     callback(created_note_caches)
   end
 
-  local on_note_parsed = function(note)
+  local on_note_parsed = function(err, note)
+    if err then
+      log.err("an error occured when reading from a note. " .. err)
+      return
+    end
+
     local absolute_path = note.path.filename
     local relative_path = absolute_path:gsub(workspace_path .. "/", "")
 
