@@ -50,6 +50,7 @@ obsidian.setup = function(opts)
   ---@field dir obsidian.Path Root of the vault for the current workspace.
   ---@field buf_dir obsidian.Path|? Parent directory of the current buffer.
   ---@field opts obsidian.config.ClientOpts Current options.
+  ---@field cache { [string]: obsidian.cache.CacheNote } The cached notes to use
   ---@field _opts obsidian.config.ClientOpts User input options.
   _G.Obsidian = {}
 
@@ -59,7 +60,20 @@ obsidian.setup = function(opts)
 
   Obsidian._opts = opts
 
-  obsidian.Workspace.set(Obsidian.workspaces[1])
+  local cwd_path = vim.uv.cwd()
+
+  assert(cwd_path)
+
+  local selected_workspace = Obsidian.workspaces[1]
+
+  for _, value in ipairs(Obsidian.workspaces) do
+    if value.path.filename == cwd_path then
+      selected_workspace = value
+      break
+    end
+  end
+
+  obsidian.Workspace.set(selected_workspace)
 
   log.set_level(Obsidian.opts.log_level)
 
