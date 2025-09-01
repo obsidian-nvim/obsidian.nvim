@@ -209,7 +209,9 @@ local enable_filewatch = function()
   local stat_of_state_folder = uv.fs_stat(obsidian_state_path)
 
   if not stat_of_state_folder then
-    local ok = uv.fs_mkdir(obsidian_state_path, assert(tonumber(755, 8)))
+    ---@diagnostic disable-next-line: param-type-mismatch
+    local mode = assert(tonumber(755, 8))
+    local ok = uv.fs_mkdir(obsidian_state_path, mode)
 
     if not ok then
       log.err("Couldn't create folder at " .. obsidian_state_path)
