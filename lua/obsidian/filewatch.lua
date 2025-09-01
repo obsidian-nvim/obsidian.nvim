@@ -137,10 +137,10 @@ local function watch_path(path, on_event, on_error, opts)
     end)
   end
 
-  local success, err, err_name = uv.fs_event_start(handle, path, flags, event_cb)
+  local success, err = uv.fs_event_start(handle, path, flags, event_cb)
 
   if not success then
-    error("couldn't create fs event! error - " .. err .. " err_name: " .. err_name)
+    error("couldn't create fs event! error - " .. err .. ". Path - " .. path)
   end
 
   return handle
@@ -150,11 +150,11 @@ end
 ---Calls the callback function only after CALLBACK_AFTER_INTERVAL.
 ---If an error occured, called on_error function.
 ---TODO if a new folder will be created, it won't be tracked.
----@param path string The path to the watch folder.
+---@param folder_path string The path to the watch folder.
 ---@param callback fun (changed_files: obsidian.filewatch.CallbackArgs[])
 ---@param on_error fun (err: string)|?
-M.watch = function(path, callback, on_error)
-  if not path or path == "" then
+M.watch = function(folder_path, callback, on_error)
+  if not folder_path or folder_path == "" then
     error "Path cannot be empty."
   end
 
@@ -163,14 +163,14 @@ M.watch = function(path, callback, on_error)
   for _, handler in ipairs(watch_handlers) do
     local handlerPath = handler:getpath()
 
-    if handlerPath and path == handlerPath then
-      error("a file watch handler is already created for the given path - " .. path)
+    if handlerPath and folder_path == handlerPath then
+      error("a file watch handler is already created for the given path - " .. folder_path)
       return
     end
   end
 
   if on_error == nil then
-    on_error = make_default_error_cb(path)
+    on_error = make_default_error_cb(folder_path)
   end
 
   local new_timer = uv.new_timer()
@@ -183,17 +183,17 @@ M.watch = function(path, callback, on_error)
 
   -- uv doesn't support recursive flag on Linux
   if sysname == api.OSType.Linux then
-    table.insert(watch_handlers, watch_path(path, callback, on_error, { recursive = false }))
+    table.insert(watch_handlers, watch_path(folder_path, callback, on_error, { recursive = false }))
 
-    local subfolders = api.get_sub_dirs_from_vault(path)
+    local subfolders = api.get_sub_dirs_from_vault(folder_path)
 
     assert(subfolders)
 
-    for _, dir in ipairs(subfolders) do
-      table.insert(watch_handlers, watch_path(dir, callback, on_error, { recursive = false }))
+    for _, subfolder in ipairs(subfolders) do
+      table.insert(watch_handlers, watch_path(subfolder, callback, on_error, { recursive = false }))
     end
   else
-    watch_handlers = { watch_path(path, callback, on_error, { recursive = true }) }
+    watch_handlers = { watch_path(folder_path, callback, on_error, { recursive = true }) }
   end
 end
 

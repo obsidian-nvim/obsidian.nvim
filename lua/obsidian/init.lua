@@ -60,7 +60,20 @@ obsidian.setup = function(opts)
 
   Obsidian._opts = opts
 
-  obsidian.Workspace.set(Obsidian.workspaces[1])
+  local cwd_path = vim.uv.cwd()
+
+  assert(cwd_path)
+
+  local selected_workspace = Obsidian.workspaces[1]
+
+  for _, value in ipairs(Obsidian.workspaces) do
+    if value.path.filename == cwd_path then
+      selected_workspace = value
+      break
+    end
+  end
+
+  obsidian.Workspace.set(selected_workspace)
 
   log.set_level(Obsidian.opts.log_level)
 
