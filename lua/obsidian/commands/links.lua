@@ -19,8 +19,8 @@ return function()
     -- Launch picker.
     picker:pick(entries, {
       prompt_title = "Links",
-      callback = function(link)
-        api.follow_link(link)
+      callback = function(entry)
+        api.follow_link(entry.value)
       end,
     })
   end)

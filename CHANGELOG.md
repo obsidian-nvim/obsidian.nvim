@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `require"obsidian".module` now can be LSP completed for better api usage.
 - remove custom enumerate function to use vim.iter.
+- `blink` is checked before `nvim_cmp`.
 
 ### Fixed
 
@@ -25,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed case sensitive front matter tags query.
 - Refactor tags command duplicate queries.
 - Make sure fold options are remove on `BufLeave`
+- Unified picker interface.
+- `follow_link` will prompt to create on markdown paths that don't exist.
 
 ## [v3.13.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.0) - 2025-07-28
 
