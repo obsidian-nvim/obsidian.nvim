@@ -4,6 +4,7 @@ local log = require "obsidian.log"
 local EventTypes = require("obsidian.filewatch").EventTypes
 local uv = vim.uv
 local api = require "obsidian.api"
+local util = require "obsidian.util"
 
 ---This table allows you to find the notes in your vault more quickly.
 ---It scans your vault and saves the founded metadata to the file specified in your CacheOpts (by default it's ".cache.json").
@@ -199,7 +200,20 @@ local enable_filewatch = function()
   -- We need a lock file to check if a neovim instance is open in the workspace.
   -- This prevents creating more filewatches in the same workspace which can lead to bugs and can decrease performaance.
   local lock_name = table.concat { Obsidian.dir.stem, ".lock" }
-  local lock_file_path = vim.fs.joinpath(vim.fn.stdpath "state", lock_name)
+  local obsidian_state_path = vim.fs.joinpath(vim.fn.stdpath "state", "obsidian/")
+
+  local stat_of_state_folder = uv.fs_stat(obsidian_state_path)
+
+  if not stat_of_state_folder then
+    local ok = uv.fs_mkdir(obsidian_state_path, assert(tonumber(755, 8)))
+
+    if not ok then
+      log.err("Couldn't create folder at " .. obsidian_state_path)
+      return
+    end
+  end
+
+  local lock_file_path = vim.fs.joinpath(obsidian_state_path, lock_name)
 
   if uv.fs_stat(lock_file_path) then
     local lock_file = io.open(lock_file_path, "r")
@@ -214,13 +228,8 @@ local enable_filewatch = function()
     end
   end
 
-  local lock_file_handler = io.open(lock_file_path, "w")
-
-  assert(lock_file_handler)
-
   local current_nvim_pid = uv.os_getpid()
-  lock_file_handler:write(current_nvim_pid)
-  lock_file_handler:close()
+  util.write_file(lock_file_path, tostring(current_nvim_pid))
 
   local filewatch = require "obsidian.filewatch"
   filewatch.watch(workspace_path, create_on_file_change_callback())
