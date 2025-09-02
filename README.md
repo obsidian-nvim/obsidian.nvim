@@ -125,10 +125,6 @@ There's one entry point user command for this plugin: `Obsidian`
 
 - `:Obsidian yesterday` to open/create the daily note for the previous working day.
 
-### Demo
-
-[![2024-01-31 14 22 52](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)](https://github.com/epwalsh/obsidian.nvim/assets/8812459/2986e1d2-13e8-40e2-9c9e-75691a3b662e)
-
 ## 📝 Requirements
 
 ### System requirements
@@ -150,7 +146,7 @@ There's no required dependency, but there are a number of optional dependencies 
 **Completion:**
 
 - **[recommended]** [nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
-- [blink.cmp](https://github.com/Saghen/blink.cmp) (new)
+- [blink.cmp](https://github.com/Saghen/blink.cmp)
 
 **Pickers:**
 
@@ -175,12 +171,10 @@ See [syntax highlighting](#syntax-highlighting) for more details.
   - [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)
   - [markview.nvim](https://github.com/OXY2DEV/markview.nvim)
 
-If you choose to use any of these you should include them in the "dependencies" or "requires" field of the obsidian.nvim plugin spec for your package manager.
-
 ## 📥 Installation
 
 To configure obsidian.nvim you just need to call `require("obsidian").setup({ ... })` with the desired options.
-Here are some examples using different plugin managers. The full set of [plugin dependencies](#plugin-dependencies) and [configuration options](#configuration-options) are listed below.
+Here are some examples using different plugin managers. The full set of [plugin dependencies](#plugin-dependencies) and [configuration options](#configuration) are listed below.
 
 > [!WARNING]
 > If you install from the latest release (recommended for stability) instead of `main`, be aware that the README on `main` may reference features that haven't been released yet. For that reason I recommend viewing the README on the tag for the [latest release](https://github.com/obsidian-nvim/obsidian.nvim/releases) instead of `main`.
@@ -240,7 +234,7 @@ return {
 
 ## ⚙️ Configuration
 
-This is a complete list of all the options that can be passed to `require("obsidian").setup()`. The settings below are _not necessarily the defaults, but represent reasonable default settings_. Please read each option carefully and customize it to your needs.
+This is a complete list of all the options that can be passed to `require("obsidian").setup()`. The settings below are **not necessarily the defaults, but represent reasonable default settings**. Please read each option carefully and customize it to your needs.
 
 <details><summary><bold>Click to see configuration options</bold></summary>
 
