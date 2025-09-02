@@ -174,7 +174,7 @@ See [syntax highlighting](#syntax-highlighting) for more details.
 ## 📥 Installation
 
 To configure obsidian.nvim you just need to call `require("obsidian").setup({ ... })` with the desired options.
-Here are some examples using different plugin managers. The full set of [plugin dependencies](#plugin-dependencies) and [configuration options](#configuration) are listed below.
+Here are some examples using different plugin managers. The full set of [plugin dependencies](#plugin-dependencies) and [configuration options](https://github.com/obsidian-nvim/obsidian.nvim?tab=readme-ov-file#%EF%B8%8F-configuration) are listed below.
 
 > [!WARNING]
 > If you install from the latest release (recommended for stability) instead of `main`, be aware that the README on `main` may reference features that haven't been released yet. For that reason I recommend viewing the README on the tag for the [latest release](https://github.com/obsidian-nvim/obsidian.nvim/releases) instead of `main`.
