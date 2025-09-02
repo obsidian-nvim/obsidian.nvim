@@ -1,3 +1,5 @@
+local M = {}
+
 ---@enum obsidian.attachment.ft
 local filetypes = {
   -- markdown
@@ -31,6 +33,22 @@ local filetypes = {
   "pdf",
 }
 
-return {
-  filetypes = filetypes,
+local image_filetypes = {
+  "avif",
+  "bmp",
+  "gif",
+  "jpg",
+  "jpeg",
+  "png",
+  "svg",
+  "webp",
 }
+
+M.filetypes = filetypes
+M.is_supported_image_format = function(path)
+  return vim.iter(image_filetypes):any(function(ft)
+    return vim.endswith(path, "." .. ft)
+  end)
+end
+
+return M

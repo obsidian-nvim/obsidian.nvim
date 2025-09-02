@@ -635,7 +635,12 @@ M.resolve_attachment_path = function(src)
   end
 end
 
-M.resolve_image_path = M.resolve_attachment_path
+M.resolve_image_path = function(src)
+  if not require("obsidian.attachments").is_supported_image_format(src) then
+    return
+  end
+  return M.resolve_attachment_path(src)
+end
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
