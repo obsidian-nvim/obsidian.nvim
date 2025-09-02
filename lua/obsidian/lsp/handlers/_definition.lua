@@ -70,9 +70,22 @@ local path_is_img = function(s)
   return false
 end
 
+local function is_attachment_path(location)
+  local attachment_allowed = false
+  for _, ext in ipairs(require("obsidian.attachments").filetypes) do
+    if vim.endswith(location, "." .. ext) then
+      attachment_allowed = true
+      break
+    end
+  end
+
+  return attachment_allowed and not vim.endswith(location, ".md")
+end
+
 handlers.Wiki = function(location, name, callback)
   local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
-  if path_is_img(location) then -- TODO: include in parse_link
+  -- if path_is_img(location) then -- TODO: include in parse_link
+  if is_attachment_path(location) then
     local path = api.resolve_image_path(location)
     -- TODO: Obsidian.opts.open.func
     Obsidian.opts.follow_img_func(tostring(path))
