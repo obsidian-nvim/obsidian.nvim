@@ -7,7 +7,6 @@ obsidian.api = require "obsidian.api"
 obsidian.async = require "obsidian.async"
 obsidian.Client = require "obsidian.client"
 obsidian.commands = require "obsidian.commands"
-obsidian.completion = require "obsidian.completion"
 obsidian.config = require "obsidian.config"
 obsidian.log = require "obsidian.log"
 obsidian.img_paste = require "obsidian.img_paste"
@@ -87,13 +86,6 @@ obsidian.setup = function(opts)
     require("obsidian.footer").start()
   end
 
-  -- Register completion sources, providers
-  if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources(opts)
-  elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").register_providers(opts)
-  end
-
   local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
   -- wrapper for creating autocmd events
@@ -161,13 +153,6 @@ obsidian.setup = function(opts)
       vim.keymap.set("n", "[o", function()
         obsidian.api.nav_link "prev"
       end, { buffer = true, desc = "Obsidian Previous Link" })
-
-      -- Inject completion sources, providers to their plugin configurations
-      if opts.completion.nvim_cmp then
-        require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
-      elseif opts.completion.blink then
-        require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
-      end
 
       require("obsidian.lsp").start(ev.buf)
 
