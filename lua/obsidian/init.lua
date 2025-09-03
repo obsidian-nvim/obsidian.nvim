@@ -6,7 +6,6 @@ obsidian.api = require "obsidian.api"
 obsidian.async = require "obsidian.async"
 obsidian.Client = require "obsidian.client"
 obsidian.commands = require "obsidian.commands"
-obsidian.completion = require "obsidian.completion"
 obsidian.config = require "obsidian.config"
 obsidian.log = require "obsidian.log"
 obsidian.img_paste = require "obsidian.img_paste"
@@ -87,13 +86,6 @@ obsidian.setup = function(user_opts)
 
   if opts.footer.enabled then
     require("obsidian.footer").start()
-  end
-
-  -- Register completion sources, providers
-  if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()
-  elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").register_providers()
   end
 
   -- Register autocmds for keymaps, options and custom callbacks
