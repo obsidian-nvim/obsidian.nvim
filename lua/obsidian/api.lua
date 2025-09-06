@@ -622,7 +622,7 @@ M.follow_link = function(link, opts)
     end
 
     if util.is_img(res.location) then
-      local path = Obsidian.dir / res.location
+      local path = Obsidian.dir / Obsidian.opts.attachments.img_folder / res.location
       Obsidian.opts.follow_img_func(tostring(path))
       return
     end
