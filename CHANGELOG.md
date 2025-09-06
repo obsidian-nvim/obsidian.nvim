@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make sure fold options are remove on `BufLeave`
 - Unified picker interface.
 - `follow_link` will prompt to create on markdown paths that don't exist.
+- `follow_link` will use `opt.attachments.img_folder` for opening images.
 
 ## [v3.13.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.0) - 2025-07-28
 
