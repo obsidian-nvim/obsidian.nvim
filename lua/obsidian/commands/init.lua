@@ -260,8 +260,6 @@ M.register("follow_link", { nargs = "?", note_action = true })
 
 M.register("toggle_checkbox", { nargs = 0, range = true, note_action = true })
 
-M.register("set_checkbox", { nargs = "?", range = true, note_action = true })
-
 M.register("rename", { nargs = "?", note_action = true })
 
 M.register("paste_img", { nargs = "?", note_action = true })
