@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make sure fold options are remove on `BufLeave`
 - Unified picker interface.
 - `follow_link` will prompt to create on markdown paths that don't exist.
+- `fold` related options are properly set on `BufEnter` and restored on `BufHidden`.
 
 ## [v3.13.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.1) - 2025-08-01
 
