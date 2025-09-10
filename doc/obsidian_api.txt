@@ -406,8 +406,8 @@ Return ~
 `(obsidian.Note)`
 
 ------------------------------------------------------------------------------
-                                                   *obsidian.Note.frontmatter()*
-                           `Note.frontmatter`({self})
+                                                     *obsidian.Note.frontmatter*
+                               `Note.frontmatter`
 Get the frontmatter table to save.
 
 Return ~
@@ -415,12 +415,11 @@ Return ~
 
 ------------------------------------------------------------------------------
                                              *obsidian.Note.frontmatter_lines()*
-             `Note.frontmatter_lines`({self}, {eol}, {frontmatter})
+                    `Note.frontmatter_lines`({self}, {eol})
 Get frontmatter lines that can be written to a buffer.
 
 Parameters ~
 {eol} `(boolean|)`?
-{frontmatter} `(table|)`?
 
 Return ~
 `(string[])`
@@ -494,7 +493,7 @@ Return ~
 Save the note to the buffer
 
 Parameters ~
-{opts} `({ bufnr: integer|?, insert_frontmatter: boolean|?, frontmatter: table|? }|? Options.)`
+{opts} `({ bufnr: integer|?, insert_frontmatter: boolean|? }|? Options.)`
 
 Return ~
 `(boolean)` updated True if the buffer lines were updated, false otherwise.
