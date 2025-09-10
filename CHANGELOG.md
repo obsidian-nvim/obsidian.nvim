@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- added an optional `opts` table parameter for api.toggle_checkbox to enable it to insert checkboxes on empty lines with `opts.create_on_empty = true`
+
 ### Changed
 
 - `require"obsidian".module` now can be LSP completed for better api usage.

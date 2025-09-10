@@ -113,8 +113,11 @@ end
 ---
 ---@param states table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
 ---@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
-M.toggle_checkbox = function(states, line_num)
-  if not util.in_node { "list", "paragraph" } or util.in_node "block_quote" then
+---@param opts table|nil Optional table of options that alter function behaviour
+M.toggle_checkbox = function(states, line_num, opts)
+  opts = opts or {}
+
+  if not opts.create_on_empty and (not util.in_node { "list", "paragraph" } or util.in_node "block_quote") then
     return
   end
   line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
@@ -130,7 +133,7 @@ M.toggle_checkbox = function(states, line_num)
         break
       end
     end
-  elseif Obsidian.opts.checkbox.create_new then
+  elseif opts.create_on_empty or Obsidian.opts.checkbox.create_new then
     local unordered_list_pattern = "^(%s*)[-*+] (.*)"
     if string.match(line, unordered_list_pattern) then
       line = string.gsub(line, unordered_list_pattern, "%1- [ ] %2")
