@@ -127,14 +127,6 @@ obsidian.setup = function(opts)
         return
       end
 
-      for _, name in ipairs { "foldmethod", "foldexpr", "foldlevel" } do
-        og_options[name] = og_options[name] or vim.wo[name]
-      end
-
-      vim.wo.foldmethod = "expr"
-      vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
-      vim.wo.foldlevel = 99
-
       if opts.comment.enabled then
         vim.o.commentstring = "%%%s%%"
       end
@@ -199,22 +191,6 @@ obsidian.setup = function(opts)
       obsidian.util.fire_callback("leave_note", Obsidian.opts.callbacks.leave_note, client, note)
 
       exec_autocmds("ObsidianNoteLeave", ev.buf)
-    end,
-  })
-
-  vim.api.nvim_create_autocmd("BufHidden", {
-    group = group,
-    pattern = "*.md",
-    callback = function(ev)
-      -- Check if we're in *any* workspace.
-      local workspace = obsidian.Workspace.get_workspace_for_dir(vim.fs.dirname(ev.match), Obsidian.opts.workspaces)
-      if not workspace then
-        return
-      end
-      for _, name in ipairs { "foldmethod", "foldexpr", "foldlevel" } do
-        vim.wo[name] = og_options[name]
-      end
-      og_options = {}
     end,
   })
 
