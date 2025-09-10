@@ -881,32 +881,18 @@ end
 --- Get the frontmatter table to save.
 ---
 ---@return table
-Note.frontmatter = function(self)
-  local out = { id = self.id, aliases = self.aliases, tags = self.tags }
-  if self.metadata ~= nil and not vim.tbl_isempty(self.metadata) then
-    for k, v in pairs(self.metadata) do
-      out[k] = v
-    end
-  end
-  return out
-end
+Note.frontmatter = require("obsidian.builtin").frontmatter
 
 --- Get frontmatter lines that can be written to a buffer.
 ---
 ---@param eol boolean|?
----@param frontmatter table|?
 ---
 ---@return string[]
-Note.frontmatter_lines = function(self, eol, frontmatter)
+Note.frontmatter_lines = function(self, eol)
   local new_lines = { "---" }
 
-  local frontmatter_ = frontmatter and frontmatter or self:frontmatter()
-  if vim.tbl_isempty(frontmatter_) then
-    return {}
-  end
-
   for line in
-    iter(yaml.dumps_lines(frontmatter_, function(a, b)
+    iter(yaml.dumps_lines(Obsidian.opts.note_frontmatter_func(self), function(a, b)
       local a_idx = nil
       local b_idx = nil
       for i, k in ipairs { "id", "aliases", "tags" } do
@@ -956,11 +942,7 @@ Note.update_frontmatter = function(self, bufnr)
     return false
   end
 
-  local frontmatter = nil
-  if Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(self)
-  end
-  return self:save_to_buffer { bufnr = bufnr, frontmatter = frontmatter }
+  return self:save_to_buffer { bufnr = bufnr }
 end
 
 --- Checks if the parameter note is in the blacklist of files which shouldn't have
@@ -1102,7 +1084,7 @@ Note.save = function(self, opts)
   local new_lines
   if opts.insert_frontmatter ~= false then
     -- Replace frontmatter.
-    new_lines = compat.flatten { self:frontmatter_lines(false, opts.frontmatter), content }
+    new_lines = compat.flatten { self:frontmatter_lines(false), content }
   else
     -- Use existing frontmatter.
     new_lines = compat.flatten { existing_frontmatter, content }
@@ -1143,22 +1125,14 @@ Note.write_to_buffer = function(self, opts)
     }
   end
 
-  local frontmatter = nil
   local should_save_frontmatter = self:should_save_frontmatter()
-  if should_save_frontmatter and Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(self)
-  end
 
-  return self:save_to_buffer {
-    bufnr = opts.bufnr,
-    insert_frontmatter = should_save_frontmatter,
-    frontmatter = frontmatter,
-  }
+  return self:save_to_buffer { bufnr = opts.bufnr, insert_frontmatter = should_save_frontmatter }
 end
 
 --- Save the note to the buffer
 ---
----@param opts { bufnr: integer|?, insert_frontmatter: boolean|?, frontmatter: table|? }|? Options.
+---@param opts { bufnr: integer|?, insert_frontmatter: boolean|? }|? Options.
 ---
 ---@return boolean updated True if the buffer lines were updated, false otherwise.
 Note.save_to_buffer = function(self, opts)
@@ -1174,7 +1148,7 @@ Note.save_to_buffer = function(self, opts)
   ---@type string[]
   local new_lines
   if opts.insert_frontmatter ~= false then
-    new_lines = self:frontmatter_lines(nil, opts.frontmatter)
+    new_lines = self:frontmatter_lines()
   else
     new_lines = {}
   end
