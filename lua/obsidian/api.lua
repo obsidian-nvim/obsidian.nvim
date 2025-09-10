@@ -699,6 +699,17 @@ M.nav_link = function(direction)
   end)
 end
 
+local function has_markdown_folding()
+  if vim.wo.foldmethod == "expr" and vim.wo.foldexpr == "v:lua.vim.treesitter.foldexpr()" then
+    return true
+  elseif vim.g.markdown_folding == 1 then
+    return true
+  elseif vim.wo.foldmethod == "expr" and vim.wo.foldexpr == "MarkdownFold()" then
+    return true
+  end
+  return false
+end
+
 M.smart_action = function()
   local legacy = Obsidian.opts.legacy_commands
   -- follow link if possible
@@ -712,7 +723,11 @@ M.smart_action = function()
   end
 
   if M.cursor_heading() then
-    return "za"
+    if has_markdown_folding() then
+      return "za"
+    else
+      return "<CR>"
+    end
   end
 
   -- toggle task if possible

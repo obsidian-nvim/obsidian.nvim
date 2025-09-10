@@ -108,8 +108,6 @@ obsidian.setup = function(opts)
     })
   end
 
-  local og_options = {}
-
   -- Complete setup and update workspace (if needed) when entering a markdown buffer.
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     group = group,
@@ -126,14 +124,6 @@ obsidian.setup = function(opts)
       if not workspace then
         return
       end
-
-      for _, name in ipairs { "foldmethod", "foldexpr", "foldlevel" } do
-        og_options[name] = vim.wo[name]
-      end
-
-      vim.wo.foldmethod = "expr"
-      vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
-      vim.wo.foldlevel = 99
 
       if opts.comment.enabled then
         vim.o.commentstring = "%%%s%%"
@@ -192,10 +182,6 @@ obsidian.setup = function(opts)
       -- Check if current buffer is actually a note within the workspace.
       if not obsidian.api.path_is_note(ev.match) then
         return
-      end
-
-      for _, name in ipairs { "foldmethod", "foldexpr", "foldlevel" } do
-        vim.wo[name] = og_options[name]
       end
 
       -- Run leave-note callback.
