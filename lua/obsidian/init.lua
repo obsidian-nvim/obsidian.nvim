@@ -108,8 +108,6 @@ obsidian.setup = function(opts)
     })
   end
 
-  local og_options = {}
-
   -- Complete setup and update workspace (if needed) when entering a markdown buffer.
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     group = group,
