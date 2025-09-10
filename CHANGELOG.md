@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `require"obsidian".module` now can be LSP completed for better api usage.
 - remove custom enumerate function to use vim.iter.
 - `blink` is checked before `nvim_cmp`.
+- `opts.note_frontmatter_func` defaults to `require"builtin".frontmatter`.
 
 ### Fixed
 
