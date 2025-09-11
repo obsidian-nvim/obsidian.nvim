@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `Note:link` and `Note:backlinks` as convenience method.
+
 ### Changed
 
 - `require"obsidian".module` now can be LSP completed for better api usage.
