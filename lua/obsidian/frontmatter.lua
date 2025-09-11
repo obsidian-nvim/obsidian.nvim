@@ -33,89 +33,86 @@ M.dump = function(t, order)
   return new_lines
 end
 
+local handlder = {}
+
+handlder.id = function(v, path)
+  if type(v) == "string" or type(v) == "number" then
+    return tostring(v)
+  else
+    log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
+  end
+end
+
+handlder.aliases = function(v, path)
+  local aliases = {}
+  if type(v) == "table" then
+    for _, alias in ipairs(v) do
+      if type(alias) == "string" then
+        table.insert(aliases, alias)
+      else
+        log.warn(
+          "Invalid alias value found in frontmatter for "
+            .. tostring(path)
+            .. ". Expected string, found "
+            .. type(alias)
+            .. "."
+        )
+      end
+    end
+  elseif type(v) == "string" then
+    table.insert(aliases, v)
+  else
+    log.warn("Invalid 'aliases' in frontmatter for " .. tostring(path))
+  end
+
+  return aliases
+end
+
+handlder.tags = function(v, path)
+  local tags = {}
+  if type(v) == "table" then
+    for _, tag in ipairs(v) do
+      if type(tag) == "string" then
+        table.insert(tags, tag)
+      else
+        log.warn(
+          "Invalid tag value found in frontmatter for "
+            .. tostring(path)
+            .. ". Expected string, found "
+            .. type(tag)
+            .. "."
+        )
+      end
+    end
+  elseif type(v) == "string" then --- TODO: why not in aliases?
+    tags = vim.split(v, " ")
+  else
+    log.warn("Invalid 'tags' in frontmatter for '%s'", path)
+  end
+end
+
 ---@param frontmatter string
----@return string? id
----@return string? title
----@return string[] aliases
----@return string[] tags
----@return table<string, any>? metadata
+---@return table
+---@return table
 M.parse = function(frontmatter, path)
-  local id, title, metadata
-  local aliases, tags = {}, {}
   local ok, data = pcall(yaml.loads, frontmatter)
   if type(data) ~= "table" then
     data = {}
   end
   if not ok then
-    return nil, nil, {}, {}, nil
+    return {}, {}
   end
-  ---@diagnostic disable-next-line: param-type-mismatch
+  local metadata, ret = {}, {}
   for k, v in pairs(data) do
-    if k == "id" then
-      if type(v) == "string" or type(v) == "number" then
-        id = tostring(v)
-      else
-        log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
-      end
-    elseif k == "title" then
-      if type(v) == "string" then
-        title = v
-        if metadata == nil then
-          metadata = {}
-        end
-        metadata.title = v
-      else
-        log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
-      end
-    elseif k == "aliases" then
-      if type(v) == "table" then
-        for _, alias in ipairs(v) do
-          if type(alias) == "string" then
-            table.insert(aliases, alias)
-          else
-            log.warn(
-              "Invalid alias value found in frontmatter for "
-                .. tostring(path)
-                .. ". Expected string, found "
-                .. type(alias)
-                .. "."
-            )
-          end
-        end
-      elseif type(v) == "string" then
-        table.insert(aliases, v)
-      else
-        log.warn("Invalid 'aliases' in frontmatter for " .. tostring(path))
-      end
-    elseif k == "tags" then
-      if type(v) == "table" then
-        for _, tag in ipairs(v) do
-          if type(tag) == "string" then
-            table.insert(tags, tag)
-          else
-            log.warn(
-              "Invalid tag value found in frontmatter for "
-                .. tostring(path)
-                .. ". Expected string, found "
-                .. type(tag)
-                .. "."
-            )
-          end
-        end
-      elseif type(v) == "string" then
-        tags = vim.split(v, " ")
-      else
-        log.warn("Invalid 'tags' in frontmatter for '%s'", path)
-      end
+    if handlder[k] then
+      ret[k] = handlder[k](v, path)
     else
-      if metadata == nil then
-        metadata = {}
-      end
       metadata[k] = v
+      ret[k] = v
     end
   end
 
-  return id, title, aliases, tags, metadata
+  return ret, metadata
 end
 
 return M

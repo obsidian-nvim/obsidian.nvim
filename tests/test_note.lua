@@ -221,7 +221,7 @@ end
 T["from_file"]["should be able to be read frontmatter that's formatted differently"] = function()
   local note = M.from_file "tests/fixtures/notes/note_with_different_frontmatter_format.md"
   eq(note.id, "note_with_different_frontmatter_format")
-  eq(note.metadata, nil)
+  eq(note.metadata, {})
   eq(#note.aliases, 3)
   eq(note.aliases[1], "Amanda Green")
   eq(note.aliases[2], "Detective Green")
