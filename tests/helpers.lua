@@ -55,6 +55,7 @@ M.temp_vault = MiniTest.new_set {
       local dir = Path.temp { suffix = "-obsidian" }
       dir:mkdir { parents = true }
       require("obsidian").setup {
+        legacy_commands = false,
         workspaces = { {
           path = tostring(dir),
         } },
