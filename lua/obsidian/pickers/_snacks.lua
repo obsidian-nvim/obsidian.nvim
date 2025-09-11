@@ -167,4 +167,32 @@ SnacksPicker.pick = function(self, values, opts)
   snacks_picker.pick(pick_opts)
 end
 
+---@param title string
+SnacksPicker.qf_on_list = function(_, title)
+  ---@param t vim.lsp.LocationOpts.OnList
+  return function(t)
+    ---@type vim.quickfix.entry[]
+    local qf_items = t.items
+
+    local items = vim.tbl_map(function(value)
+      return {
+        file = value.filename,
+        pos = {
+          value.lnum or 1,
+          value.col - 1 or 0,
+        },
+        end_pos = {
+          value.lnum or 1,
+          value.end_col - 1 or 0,
+        },
+      }
+    end, qf_items)
+
+    snacks_picker.pick {
+      title = title,
+      items = items,
+    }
+  end
+end
+
 return SnacksPicker
