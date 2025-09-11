@@ -529,6 +529,21 @@ Parameters ~
 {opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
 
 ------------------------------------------------------------------------------
+                                                     *obsidian.Note.backlinks()*
+                        `Note.backlinks`({note}, {opts})
+Parameters ~
+{note} `(obsidian.Note)`
+{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer })`
+Return ~
+`(obsidian.BacklinkMatch)`
+
+------------------------------------------------------------------------------
+                                                         *obsidian.Note.links()*
+                              `Note.links`({note})
+Return ~
+`(obsidian.LinkMatch)`
+
+------------------------------------------------------------------------------
 Class ~
 {obsidian.workspace.WorkspaceSpec}
 
