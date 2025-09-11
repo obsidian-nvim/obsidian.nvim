@@ -8,6 +8,7 @@ local iter = vim.iter
 local compat = require "obsidian.compat"
 local api = require "obsidian.api"
 local config = require "obsidian.config"
+local Frontmatter = require "obsidian.frontmatter"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
@@ -851,51 +852,10 @@ Note.frontmatter = require("obsidian.builtin").frontmatter
 
 --- Get frontmatter lines that can be written to a buffer.
 ---
----@param eol boolean|?
----
 ---@return string[]
-Note.frontmatter_lines = function(self, eol)
-  local new_lines = { "---" }
-
-  for line in
-    iter(yaml.dumps_lines(Obsidian.opts.note_frontmatter_func(self), function(a, b)
-      local a_idx = nil
-      local b_idx = nil
-      for i, k in ipairs { "id", "aliases", "tags" } do
-        if a == k then
-          a_idx = i
-        end
-        if b == k then
-          b_idx = i
-        end
-      end
-      if a_idx ~= nil and b_idx ~= nil then
-        return a_idx < b_idx
-      elseif a_idx ~= nil then
-        return true
-      elseif b_idx ~= nil then
-        return false
-      else
-        return a < b
-      end
-    end))
-  do
-    table.insert(new_lines, line)
-  end
-
-  table.insert(new_lines, "---")
-  if not self.has_frontmatter then
-    -- Make sure there's an empty line between end of the frontmatter and the contents.
-    table.insert(new_lines, "")
-  end
-
-  if eol then
-    return vim.tbl_map(function(l)
-      return l .. "\n"
-    end, new_lines)
-  else
-    return new_lines
-  end
+Note.frontmatter_lines = function(self, current_lines)
+  local _, _, order = pcall(yaml.loads, table.concat(current_lines, "\n"))
+  return Frontmatter.dump(Obsidian.opts.note_frontmatter_func(self), order)
 end
 
 --- Update the frontmatter in a buffer for the note.
@@ -1049,7 +1009,7 @@ Note.save = function(self, opts)
   local new_lines
   if opts.insert_frontmatter ~= false then
     -- Replace frontmatter.
-    new_lines = compat.flatten { self:frontmatter_lines(false), content }
+    new_lines = compat.flatten { self:frontmatter_lines(), content }
   else
     -- Use existing frontmatter.
     new_lines = compat.flatten { existing_frontmatter, content }
@@ -1113,7 +1073,8 @@ Note.save_to_buffer = function(self, opts)
   ---@type string[]
   local new_lines
   if opts.insert_frontmatter ~= false then
-    new_lines = self:frontmatter_lines()
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 1, self.frontmatter_end_line - 1, false)
+    new_lines = self:frontmatter_lines(lines)
   else
     new_lines = {}
   end

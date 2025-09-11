@@ -95,7 +95,7 @@ end
 
 ---Dump an object to YAML lines.
 ---@param x any
----@param order function
+---@param order function?
 ---@return string[]
 yaml.dumps_lines = function(x, order)
   return dumps(x, 0, order)
