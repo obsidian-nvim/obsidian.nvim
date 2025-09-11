@@ -1,7 +1,6 @@
 local fzf = require "fzf-lua"
 local fzf_actions = require "fzf-lua.actions"
 local entry_to_file = require("fzf-lua.path").entry_to_file
-local api = require "obsidian.api"
 
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
