@@ -609,6 +609,87 @@ Note.display_name = function(self)
   return tostring(self.id)
 end
 
+---@param frontmatter string
+---@return string?, string?, string[], string[], table<string, any>?
+Note.parse_frontmatter = function(frontmatter, path)
+  local id, title, metadata
+  local aliases, tags = {}, {}
+  local ok, data = pcall(yaml.loads, frontmatter)
+  if type(data) ~= "table" then
+    data = {}
+  end
+  if not ok then
+    return nil, nil, {}, {}, nil
+  end
+  ---@diagnostic disable-next-line: param-type-mismatch
+  for k, v in pairs(data) do
+    if k == "id" then
+      if type(v) == "string" or type(v) == "number" then
+        id = tostring(v)
+      else
+        log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
+      end
+    elseif k == "title" then
+      if type(v) == "string" then
+        title = v
+        if metadata == nil then
+          metadata = {}
+        end
+        metadata.title = v
+      else
+        log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
+      end
+    elseif k == "aliases" then
+      if type(v) == "table" then
+        for alias in iter(v) do
+          if type(alias) == "string" then
+            table.insert(aliases, alias)
+          else
+            log.warn(
+              "Invalid alias value found in frontmatter for "
+                .. tostring(path)
+                .. ". Expected string, found "
+                .. type(alias)
+                .. "."
+            )
+          end
+        end
+      elseif type(v) == "string" then
+        table.insert(aliases, v)
+      else
+        log.warn("Invalid 'aliases' in frontmatter for " .. tostring(path))
+      end
+    elseif k == "tags" then
+      if type(v) == "table" then
+        for tag in iter(v) do
+          if type(tag) == "string" then
+            table.insert(tags, tag)
+          else
+            log.warn(
+              "Invalid tag value found in frontmatter for "
+                .. tostring(path)
+                .. ". Expected string, found "
+                .. type(tag)
+                .. "."
+            )
+          end
+        end
+      elseif type(v) == "string" then
+        tags = vim.split(v, " ")
+      else
+        log.warn("Invalid 'tags' in frontmatter for '%s'", path)
+      end
+    else
+      if metadata == nil then
+        metadata = {}
+      end
+      metadata[k] = v
+    end
+  end
+
+  return id, title, aliases, tags, metadata
+end
+
 --- Initialize a note from an iterator of lines.
 ---
 ---@param lines fun(): string|? | Iter
@@ -772,77 +853,9 @@ Note.from_lines = function(lines, path, opts)
   local metadata = nil
   if #frontmatter_lines > 0 then
     local frontmatter = table.concat(frontmatter_lines, "\n")
-    local ok, data = pcall(yaml.loads, frontmatter)
-    if type(data) ~= "table" then
-      data = {}
-    end
-    if ok then
-      ---@diagnostic disable-next-line: param-type-mismatch
-      for k, v in pairs(data) do
-        if k == "id" then
-          if type(v) == "string" or type(v) == "number" then
-            id = v
-          else
-            log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
-          end
-        elseif k == "title" then
-          if type(v) == "string" then
-            title = v
-            if metadata == nil then
-              metadata = {}
-            end
-            metadata.title = v
-          else
-            log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
-          end
-        elseif k == "aliases" then
-          if type(v) == "table" then
-            for alias in iter(v) do
-              if type(alias) == "string" then
-                table.insert(aliases, alias)
-              else
-                log.warn(
-                  "Invalid alias value found in frontmatter for "
-                    .. tostring(path)
-                    .. ". Expected string, found "
-                    .. type(alias)
-                    .. "."
-                )
-              end
-            end
-          elseif type(v) == "string" then
-            table.insert(aliases, v)
-          else
-            log.warn("Invalid 'aliases' in frontmatter for " .. tostring(path))
-          end
-        elseif k == "tags" then
-          if type(v) == "table" then
-            for tag in iter(v) do
-              if type(tag) == "string" then
-                table.insert(tags, tag)
-              else
-                log.warn(
-                  "Invalid tag value found in frontmatter for "
-                    .. tostring(path)
-                    .. ". Expected string, found "
-                    .. type(tag)
-                    .. "."
-                )
-              end
-            end
-          elseif type(v) == "string" then
-            tags = vim.split(v, " ")
-          else
-            log.warn("Invalid 'tags' in frontmatter for '%s'", path)
-          end
-        else
-          if metadata == nil then
-            metadata = {}
-          end
-          metadata[k] = v
-        end
-      end
-    end
+    local f_title
+    id, f_title, aliases, tags, metadata = Note.parse_frontmatter(frontmatter, path)
+    title = f_title or title
   end
 
   if title ~= nil then
@@ -1233,6 +1246,16 @@ Note.open = function(note, opts)
   else
     vim.schedule(open_it)
   end
+end
+
+---@param note obsidian.Note
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer }
+Note.backlinks = function(note, opts)
+  return search.find_backlinks(note, opts)
+end
+
+Note.links = function(note)
+  return search.find_links(note)
 end
 
 return Note

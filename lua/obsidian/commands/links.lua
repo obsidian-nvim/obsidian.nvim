@@ -1,5 +1,4 @@
 local log = require "obsidian.log"
-local search = require "obsidian.search"
 local api = require "obsidian.api"
 
 return function()
@@ -11,17 +10,15 @@ return function()
   local note = api.current_note(0)
   assert(note, "not in a note")
 
-  search.find_links(note, {}, function(entries)
-    entries = vim.tbl_map(function(match)
-      return match.link
-    end, entries)
+  local entries = vim.tbl_map(function(match)
+    return match.link
+  end, note:links {})
 
-    -- Launch picker.
-    picker:pick(entries, {
-      prompt_title = "Links",
-      callback = function(entry)
-        api.follow_link(entry.value)
-      end,
-    })
-  end)
+  -- Launch picker.
+  picker:pick(entries, {
+    prompt_title = "Links",
+    callback = function(entry)
+      api.follow_link(entry.value)
+    end,
+  })
 end
