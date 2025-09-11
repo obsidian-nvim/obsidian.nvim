@@ -796,7 +796,6 @@ Note.frontmatter_lines = function(self, current_lines)
     current_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
     end, current_lines)
-    vim.print(current_lines)
     _, _, order = pcall(yaml.loads, table.concat(current_lines, "\n"))
   end
   return Frontmatter.dump(Obsidian.opts.note_frontmatter_func(self), order)
