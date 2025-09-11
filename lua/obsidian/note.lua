@@ -888,7 +888,14 @@ Note.frontmatter = require("obsidian.builtin").frontmatter
 ---
 ---@return string[]
 Note.frontmatter_lines = function(self, current_lines)
-  local _, _, order = pcall(yaml.loads, table.concat(current_lines, "\n"))
+  local order
+  if current_lines then
+    current_lines = vim.tbl_filter(function(line)
+      return not Note._is_frontmatter_boundary(line)
+    end, current_lines)
+    vim.print(current_lines)
+    _, _, order = pcall(yaml.loads, table.concat(current_lines, "\n"))
+  end
   return Frontmatter.dump(Obsidian.opts.note_frontmatter_func(self), order)
 end
 
@@ -996,9 +1003,7 @@ end
 Note.save = function(self, opts)
   opts = vim.tbl_extend("keep", opts or {}, { check_buffers = true })
 
-  if self.path == nil then
-    error "a path is required"
-  end
+  assert(self.path, "a path is required")
 
   local save_path = Path.new(assert(opts.path or self.path)):resolve()
   assert(save_path:parent()):mkdir { parents = true, exist_ok = true }
@@ -1008,9 +1013,10 @@ Note.save = function(self, opts)
   ---@type string[]
   local content = {}
   ---@type string[]
-  local existing_frontmatter = {}
-  if self.path ~= nil and self.path:is_file() then
-    -- with(open(tostring(self.path)), function(reader)
+  local existing_frontmatter
+
+  if self.path:is_file() then
+    existing_frontmatter = {}
     local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
     for idx, line in vim.iter(io.lines(tostring(self.path))):enumerate() do
       if idx == 1 and Note._is_frontmatter_boundary(line) then
@@ -1029,7 +1035,6 @@ Note.save = function(self, opts)
         table.insert(existing_frontmatter, line)
       end
     end
-    -- end)
   elseif self.title ~= nil then
     -- Add a header.
     table.insert(content, "# " .. self.title)
@@ -1042,9 +1047,9 @@ Note.save = function(self, opts)
 
   ---@type string[]
   local new_lines
-  if opts.insert_frontmatter ~= false then
+  if opts.insert_frontmatter then
     -- Replace frontmatter.
-    new_lines = compat.flatten { self:frontmatter_lines(), content }
+    new_lines = compat.flatten { self:frontmatter_lines(existing_frontmatter), content }
   else
     -- Use existing frontmatter.
     new_lines = compat.flatten { existing_frontmatter, content }

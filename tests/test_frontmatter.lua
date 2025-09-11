@@ -44,4 +44,43 @@ T["dump"]["dump random attributes"] = function()
   eq(expected, lines)
 end
 
+T["dump"]["dump with custom order function"] = function()
+  local lines = M.dump(
+    { random = "stuff", id = "id", aliases = { "id", "alias" }, tags = { "tag1", "tag2" } },
+    function(a, b)
+      local a_idx, b_idx = nil, nil
+      for i, k in ipairs { "id", "aliases", "tags" } do
+        if a == k then
+          a_idx = i
+        end
+        if b == k then
+          b_idx = i
+        end
+      end
+      if a_idx and b_idx then
+        return a_idx < b_idx
+      elseif a_idx then
+        return true
+      elseif b_idx then
+        return false
+      else
+        return a < b
+      end
+    end
+  )
+  local expected = {
+    "---",
+    "id: id",
+    "aliases:",
+    "  - id",
+    "  - alias",
+    "tags:",
+    "  - tag1",
+    "  - tag2",
+    "random: stuff",
+    "---",
+  }
+  eq(expected, lines)
+end
+
 return T
