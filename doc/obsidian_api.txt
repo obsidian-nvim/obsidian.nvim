@@ -521,25 +521,23 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                           *obsidian.Note.open()*
-                          `Note.open`({note}, {opts})
+                          `Note.open`({self}, {opts})
 Open a note in a buffer.
 
 Parameters ~
-{note} `(obsidian.Note)`
 {opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
 
 ------------------------------------------------------------------------------
                                                      *obsidian.Note.backlinks()*
-                        `Note.backlinks`({note}, {opts})
+                        `Note.backlinks`({self}, {opts})
 Parameters ~
-{note} `(obsidian.Note)`
 {opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer })`
 Return ~
 `(obsidian.BacklinkMatch)`
 
 ------------------------------------------------------------------------------
                                                          *obsidian.Note.links()*
-                              `Note.links`({note})
+                              `Note.links`({self})
 Return ~
 `(obsidian.LinkMatch)`
 
