@@ -95,9 +95,11 @@ Parser.parse = function(self, str)
       local value
       local value_type
       i, value, value_type = self:_parse_next(lines, i)
-      local k, v = next(value)
-      if k and v then
-        order[#order + 1] = k
+      if type(value) == "table" then
+        local k, v = next(value)
+        if k and v then
+          order[#order + 1] = k
+        end
       end
       assert(value_type ~= YamlType.EmptyLine)
       if root_value == nil and line.indent == 0 then
