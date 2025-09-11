@@ -12,7 +12,7 @@ return function()
 
   local entries = vim.tbl_map(function(match)
     return match.link
-  end, note:links {})
+  end, note:links())
 
   -- Launch picker.
   picker:pick(entries, {

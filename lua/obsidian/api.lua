@@ -678,7 +678,7 @@ M.nav_link = function(direction)
   local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
   local Note = require "obsidian.note"
 
-  local matches = Note.from_buffer(0):links {}
+  local matches = Note.from_buffer(0):links()
 
   if direction == "next" then
     for i = 1, #matches do
