@@ -3,6 +3,8 @@ local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Note = require "obsidian.note"
 
+-- TODO:merge first and iterate, eventually replace `api.follow_link`
+
 local IsNote = {
   [RefTypes.WikiWithAlias] = true,
   [RefTypes.Wiki] = true,
