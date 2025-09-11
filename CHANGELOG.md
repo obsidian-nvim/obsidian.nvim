@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Note:link` and `Note:backlinks` as convenience method.
+- LSP `references` and `definition`.
 
 ### Changed
 

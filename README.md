@@ -76,7 +76,7 @@ There's one entry point user command for this plugin: `Obsidian`
 
 **List of available commands:**
 
-- `:Obsidian backlinks` for getting a picker list of references to the current buffer.
+- `:Obsidian backlinks` for getting a picker list of references to the current buffer, alternatively use `grr`/`vim.lsp.buf.references` to see references in quickfix list.
 
 - `:Obsidian dailies [OFFSET ...]` to open a picker list of daily notes. For example, `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow.
 

@@ -614,58 +614,51 @@ M.follow_link = function(link, opts)
   opts = opts and opts or {}
   local Note = require "obsidian.note"
 
-  ---@param res obsidian.ResolveLinkResult
-  local function follow_link(res)
-    if res.url ~= nil then
-      Obsidian.opts.follow_url_func(res.url)
-      return
-    end
-
-    if util.is_img(res.location) then
-      local path = Obsidian.dir / res.location
-      Obsidian.opts.follow_img_func(tostring(path))
-      return
-    end
-
-    if res.note ~= nil then
-      -- Go to resolved note.
-      return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
-    end
-
-    if
-      res.link_type == search.RefTypes.Wiki
-      or res.link_type == search.RefTypes.WikiWithAlias
-      or res.link_type == search.RefTypes.Markdown
-    then
-      -- Prompt to create a new note.
-      if M.confirm("Create new note '" .. res.location .. "'?") then
-        -- Create a new note.
-        ---@type string|?, string[]
-        local id, aliases
-        if res.name == res.location then
-          aliases = {}
-        else
-          aliases = { res.name }
-          id = res.location
-        end
-
-        local note = Note.create { title = res.name, id = id, aliases = aliases }
-        return note:open {
-          open_strategy = opts.open_strategy,
-          callback = function(bufnr)
-            note:write_to_buffer { bufnr = bufnr }
-          end,
-        }
-      else
-        log.warn "Aborted"
-        return
-      end
-    end
-
-    return log.err("Failed to resolve file '" .. res.location .. "'")
+  local res = search.resolve_link(link, { pick = true })
+  if not res then
+    return
   end
 
-  search.resolve_link_async(link, vim.schedule_wrap(follow_link), { pick = true })
+  if res.url ~= nil then
+    return Obsidian.opts.follow_url_func(res.url)
+  end
+
+  if util.is_img(res.location) then
+    local path = Obsidian.dir / res.location
+    return Obsidian.opts.follow_img_func(tostring(path))
+  end
+
+  if res.note ~= nil then
+    -- Go to resolved note.
+    return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
+  end
+
+  if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
+    -- Prompt to create a new note.
+    if M.confirm("Create new note '" .. res.location .. "'?") then
+      -- Create a new note.
+      ---@type string|?, string[]
+      local id, aliases
+      if res.name == res.location then
+        aliases = {}
+      else
+        aliases = { res.name }
+        id = res.location
+      end
+
+      local note = Note.create { title = res.name, id = id, aliases = aliases }
+      return note:open {
+        open_strategy = opts.open_strategy,
+        callback = function(bufnr)
+          note:write_to_buffer { bufnr = bufnr }
+        end,
+      }
+    else
+      return log.warn "Aborted"
+    end
+  end
+
+  return log.err("Failed to resolve file '" .. res.location .. "'")
 end
 
 --------------------------

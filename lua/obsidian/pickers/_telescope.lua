@@ -209,7 +209,6 @@ TelescopePicker.pick = function(self, values, opts)
   local picker_opts = {
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
-        entry_key = "value",
         callback = opts.callback,
         allow_multiple = opts.allow_multiple,
         query_mappings = opts.query_mappings,

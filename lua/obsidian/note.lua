@@ -1214,15 +1214,14 @@ end
 
 --- Open a note in a buffer.
 ---
----@param note obsidian.Note
 ---@param opts { line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|?
-Note.open = function(note, opts)
+Note.open = function(self, opts)
   opts = opts or {}
 
   local function open_it()
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
-    local bufnr = api.open_buffer(note.path, { line = opts.line, col = opts.col, cmd = open_cmd })
-    vim.b[bufnr].note = note
+    local bufnr = api.open_buffer(self.path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    vim.b[bufnr].note = self
     if opts.callback then
       opts.callback(bufnr)
     end
@@ -1235,16 +1234,25 @@ Note.open = function(note, opts)
   end
 end
 
----@param note obsidian.Note
 ---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer }
 ---@return obsidian.BacklinkMatch
-Note.backlinks = function(note, opts)
-  return search.find_backlinks(note, opts)
+Note.backlinks = function(self, opts)
+  return search.find_backlinks(self, opts)
 end
 
 ---@return obsidian.LinkMatch
-Note.links = function(note)
-  return search.find_links(note)
+Note.links = function(self)
+  return search.find_links(self)
+end
+
+Note.load_contents = function(self)
+  if self.contents and not vim.tbl_isempty(self.contents) then
+    return
+  end
+  self.contents = {}
+  for line in io.lines(self.path.filename) do
+    table.insert(self.contents, line)
+  end
 end
 
 return Note
