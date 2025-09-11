@@ -89,6 +89,8 @@ handlder.tags = function(v, path)
   else
     log.warn("Invalid 'tags' in frontmatter for '%s'", path)
   end
+
+  return tags
 end
 
 ---@param frontmatter string
