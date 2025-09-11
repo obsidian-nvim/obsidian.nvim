@@ -808,9 +808,8 @@ end
 --- Resolve a link.
 ---
 ---@param link string
----@param callback fun(results: obsidian.ResolveLinkResult?)
 ---@param opts? { pick: boolean }
-M.resolve_link_async = function(link, callback, opts)
+M.resolve_link = function(link, opts)
   opts = opts or { pick = false }
   local Note = require "obsidian.note"
 
@@ -818,7 +817,7 @@ M.resolve_link_async = function(link, callback, opts)
   location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
 
   if location == nil or name == nil or link_type == nil then
-    return callback()
+    return
   end
 
   ---@type obsidian.ResolveLinkResult
@@ -826,7 +825,7 @@ M.resolve_link_async = function(link, callback, opts)
 
   if util.is_url(location) then
     res.url = location
-    return callback(res)
+    return res
   end
 
   -- The Obsidian app will follow URL-encoded links, so we should to.
@@ -884,35 +883,24 @@ M.resolve_link_async = function(link, callback, opts)
   if string.len(location) == 0 then
     res.location = vim.api.nvim_buf_get_name(0)
     local note = Note.from_buffer(0, load_opts)
-    return callback(finalize_result(note))
+    return finalize_result(note)
   end
 
   res.location = location
 
-  M.resolve_note_async(location, function(note)
-    if not note then
-      local path = Path.new(location)
-      if path:exists() then
-        res.path = path
-        return callback(res)
-      else
-        return callback(res)
-      end
+  local note = M.resolve_note(location, { notes = load_opts, pick = opts.pick })
+
+  if not note then
+    local path = Path.new(location)
+    if path:exists() then
+      res.path = path
+      return res
+    else
+      return res
     end
+  end
 
-    return callback(finalize_result(note))
-  end, { notes = load_opts, pick = opts.pick })
-end
-
----@param term string
----@param opts { timeout: integer, search: obsidian.SearchOpts }
----@return obsidian.ResolveLinkResult?
-M.resolve_link = function(term, opts)
-  opts = opts or {}
-  opts.timeout = opts.timeout or 1000
-  return async.block_on(function(cb)
-    return M.resolve_link_async(term, cb, { search = opts.search })
-  end, opts.timeout)
+  return finalize_result(note)
 end
 
 ---@class obsidian.LinkMatch
