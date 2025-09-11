@@ -678,25 +678,25 @@ M.nav_link = function(direction)
   local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
   local Note = require "obsidian.note"
 
-  search.find_links(Note.from_buffer(0), {}, function(matches)
-    if direction == "next" then
-      for i = 1, #matches do
-        local match = matches[i]
-        if (match.line > cursor_line) or (cursor_line == match.line and cursor_col < match.start) then
-          return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
-        end
-      end
-    end
+  local matches = Note.from_buffer(0):links()
 
-    if direction == "prev" then
-      for i = #matches, 1, -1 do
-        local match = matches[i]
-        if (match.line < cursor_line) or (cursor_line == match.line and cursor_col > match.start) then
-          return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
-        end
+  if direction == "next" then
+    for i = 1, #matches do
+      local match = matches[i]
+      if (match.line > cursor_line) or (cursor_line == match.line and cursor_col < match.start) then
+        return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
       end
     end
-  end)
+  end
+
+  if direction == "prev" then
+    for i = #matches, 1, -1 do
+      local match = matches[i]
+      if (match.line < cursor_line) or (cursor_line == match.line and cursor_col > match.start) then
+        return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
+      end
+    end
+  end
 end
 
 local function has_markdown_folding()

@@ -913,10 +913,8 @@ end
 -- Gather all unique links from the a note.
 --
 ---@param note obsidian.Note
----@param opts { on_match: fun(link: obsidian.LinkMatch) }
----@param callback fun(links: obsidian.LinkMatch[])
-M.find_links = function(note, opts, callback)
-  ---@type obsidian.LinkMatch[]
+---@return obsidian.LinkMatch[]
+M.find_links = function(note)
   local matches = {}
   ---@type table<string, boolean>
   local found = {}
@@ -935,14 +933,11 @@ M.find_links = function(note, opts, callback)
         }
         matches[#matches + 1] = match
         found[link] = true
-        if opts.on_match then
-          opts.on_match(match)
-        end
       end
     end
   end
 
-  callback(matches)
+  return matches
 end
 
 ---@param note obsidian.Note
@@ -1021,15 +1016,15 @@ local function build_backlink_search_term(note, anchor, block)
   return search_terms
 end
 
----@class obsidian._BacklinkMatch
+---@class obsidian.BacklinkMatch
 ---
 ---@field path string|obsidian.Path The path to the note where the backlinks were found.
 ---@field line integer The line number (1-indexed) where the backlink was found.
 ---@field text string The text of the line where the backlink was found.
 
 ---@param note obsidian.Note
----@param callback fun(matches: obsidian._BacklinkMatch[])
----@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian._BacklinkMatch), anchor: string, block: string }
+---@param callback fun(matches: obsidian.BacklinkMatch[])
+---@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string }
 M.find_backlinks_async = function(note, callback, opts)
   vim.validate("note", note, "table")
   vim.validate("callback", callback, "function")
@@ -1041,7 +1036,7 @@ M.find_backlinks_async = function(note, callback, opts)
   if anchor then
     anchor_obj = note:resolve_anchor_link(anchor)
   end
-  ---@type obsidian._BacklinkMatch[]
+  ---@type obsidian.BacklinkMatch[]
   local results = {}
   ---@param match MatchData
   local _on_match = function(match)
@@ -1083,11 +1078,14 @@ M.find_backlinks_async = function(note, callback, opts)
   )
 end
 
-M.find_backlinks = function(term, opts)
+---@param note obsidian.Note
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer }?
+---@return obsidian.BacklinkMatch
+M.find_backlinks = function(note, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   return async.block_on(function(cb)
-    return M.find_backlinks_async(term, cb, { search = opts.search })
+    return M.find_backlinks_async(note, cb, { search = opts.search, anchor = opts.anchor, block = opts.block })
   end, opts.timeout)
 end
 

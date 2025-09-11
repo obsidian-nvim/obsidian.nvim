@@ -1,6 +1,5 @@
 local M = {}
 local api = require "obsidian.api"
-local search = require "obsidian.search"
 
 local ns_id = vim.api.nvim_create_namespace "ObsidianFooter"
 
@@ -16,7 +15,7 @@ M.start = function()
     info.words = wc.words
     info.chars = wc.chars
     info.properties = vim.tbl_count(note:frontmatter())
-    info.backlinks = #search.find_backlinks(note)
+    info.backlinks = #note:backlinks {}
     return info
   end
 
