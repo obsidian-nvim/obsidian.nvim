@@ -192,9 +192,9 @@ Workspace.switch = function(workspace, opts)
     return
   end
 
-  for _, ws in ipairs(Obsidian.opts.workspaces) do
+  for _, ws in ipairs(Obsidian.workspaces) do
     if ws.name == workspace then
-      return Workspace.set(Workspace.new(ws), opts)
+      return Workspace.set(ws, opts)
     end
   end
 
