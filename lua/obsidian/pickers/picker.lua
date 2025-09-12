@@ -103,7 +103,7 @@ end
 ---@field allow_multiple boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
----@field format_item fun(value: obsidian.PickerEntry): string
+---@field format_item (fun(value: obsidian.PickerEntry): string)|?
 
 --- Pick from a list of items.
 ---
