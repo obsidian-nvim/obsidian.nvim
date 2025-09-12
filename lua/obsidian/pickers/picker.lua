@@ -261,7 +261,7 @@ Picker._note_query_mappings = function(self)
       desc = "new",
       callback = function(query)
         ---@diagnostic disable-next-line: missing-fields
-        require "obsidian.commands.new"(require("obsidian").get_client(), { args = query })
+        require "obsidian.commands.new" { args = query }
       end,
     }
   end

@@ -3,7 +3,7 @@ local log = require "obsidian.log"
 local img = require "obsidian.img_paste"
 
 ---@param data CommandArgs
-return function(_, data)
+return function(data)
   if not img.clipboard_is_img() then
     return log.err "There is no image data in the clipboard"
   end

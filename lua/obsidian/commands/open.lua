@@ -33,7 +33,7 @@ local function open_in_app(path)
 end
 
 ---@param data CommandArgs
-return function(_, data)
+return function(data)
   ---@type string|?
   local search_term, path
 

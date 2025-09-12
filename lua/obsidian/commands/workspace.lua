@@ -1,7 +1,7 @@
 local Workspace = require "obsidian.workspace"
 
 ---@param data CommandArgs
-return function(_, data)
+return function(data)
   if not data.args or string.len(data.args) == 0 then
     local picker = Obsidian.picker
     if picker then

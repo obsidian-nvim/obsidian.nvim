@@ -174,7 +174,7 @@ end
 ---@param s string the string to search
 ---
 ---@return {[1]: integer, [2]: integer, [3]: obsidian.search.RefTypes}[]
-M.find_tags = function(s)
+M.find_tags_in_string = function(s)
   local matches = {}
   for match in iter(M.find_matches(s, { M.RefTypes.Tag })) do
     local st, ed, m_type = unpack(match)
@@ -263,6 +263,15 @@ M.find_code_blocks = function(lines)
   end
   return blocks
 end
+
+--- TODO: a bit weird to have these two...
+
+---@class obsidian.SearchOpts
+---
+---@field sort boolean|?
+---@field include_templates boolean|?
+---@field ignore_case boolean|?
+---@field default function?
 
 ---@class obsidian.search.SearchOpts
 ---
@@ -499,6 +508,8 @@ local search_defualts = {
   include_templates = false,
   ignore_case = false,
 }
+
+M._defaults = search_defualts
 
 ---@param opts obsidian.SearchOpts|boolean|?
 ---@param additional_opts obsidian.search.SearchOpts|?
@@ -1093,6 +1104,240 @@ M.find_backlinks = function(note, opts)
   return async.block_on(function(cb)
     return M.find_backlinks_async(note, cb, { search = opts.search, anchor = opts.anchor, block = opts.block })
   end, opts.timeout)
+end
+
+---@class obsidian.TagLocation
+---
+---@field tag string The tag found.
+---@field note obsidian.Note The note instance where the tag was found.
+---@field path string|obsidian.Path The path to the note where the tag was found.
+---@field line integer The line number (1-indexed) where the tag was found.
+---@field text string The text (with whitespace stripped) of the line where the tag was found.
+---@field tag_start integer|? The index within 'text' where the tag starts.
+---@field tag_end integer|? The index within 'text' where the tag ends.
+
+--- Find all tags starting with the given search term(s).
+---
+---@param term string|string[] The search term.
+---@param opts { search: obsidian.SearchOpts|?, timeout: integer|? }|?
+---
+---@return obsidian.TagLocation[]
+M.find_tags = function(term, opts)
+  opts = opts or {}
+  return async.block_on(function(cb)
+    return M.find_tags_async(term, cb, { search = opts.search })
+  end, opts.timeout)
+end
+
+--- An async version of 'find_tags()'.
+---
+---@param term string|string[] The search term.
+---@param callback fun(tags: obsidian.TagLocation[])
+---@param opts { search: obsidian.SearchOpts }|?
+M.find_tags_async = function(term, callback, opts)
+  opts = opts or {}
+
+  local Note = require "obsidian.note"
+
+  ---@type string[]
+  local terms
+  if type(term) == "string" then
+    terms = { term }
+  else
+    terms = term
+  end
+
+  for i, t in ipairs(terms) do
+    if vim.startswith(t, "#") then
+      terms[i] = string.sub(t, 2)
+    end
+  end
+
+  terms = util.tbl_unique(terms)
+
+  -- Maps paths to tag locations.
+  ---@type table<obsidian.Path, obsidian.TagLocation[]>
+  local path_to_tag_loc = {}
+  -- Caches note objects.
+  ---@type table<obsidian.Path, obsidian.Note>
+  local path_to_note = {}
+  -- Caches code block locations.
+  ---@type table<obsidian.Path, { [1]: integer, [2]: integer []}>
+  local path_to_code_blocks = {}
+  -- Keeps track of the order of the paths.
+  ---@type table<string, integer>
+  local path_order = {}
+
+  local num_paths = 0
+  local err_count = 0
+  local first_err = nil
+  local first_err_path = nil
+
+  ---@param tag string
+  ---@param path string|obsidian.Path
+  ---@param note obsidian.Note
+  ---@param lnum integer
+  ---@param text string
+  ---@param col_start integer|?
+  ---@param col_end integer|?
+  local add_match = function(tag, path, note, lnum, text, col_start, col_end)
+    if vim.startswith(tag, "#") then
+      tag = string.sub(tag, 2)
+    end
+    if not path_to_tag_loc[path] then
+      path_to_tag_loc[path] = {}
+    end
+    path_to_tag_loc[path][#path_to_tag_loc[path] + 1] = {
+      tag = tag,
+      path = path,
+      note = note,
+      line = lnum,
+      text = text,
+      tag_start = col_start,
+      tag_end = col_end,
+    }
+  end
+
+  -- Wraps `Note.from_file_with_contents_async()` to return a table instead of a tuple and
+  -- find the code blocks.
+  ---@param path obsidian.Path
+  ---@return { [1]: obsidian.Note, [2]: {[1]: integer, [2]: integer}[] }
+  local load_note = function(path)
+    local note = Note.from_file(path, {
+      load_contents = true,
+      max_lines = Obsidian.opts.search_max_lines,
+    })
+    return { note, M.find_code_blocks(note.contents) }
+  end
+
+  ---@param match_data MatchData
+  local on_match = function(match_data)
+    local path = Path.new(match_data.path.text):resolve { strict = true }
+
+    if path_order[path] == nil then
+      num_paths = num_paths + 1
+      path_order[path] = num_paths
+    end
+
+    -- Load note.
+    local note = path_to_note[path]
+    local code_blocks = path_to_code_blocks[path]
+    if not note or not code_blocks then
+      local ok, res = pcall(load_note, path)
+      if ok then
+        note, code_blocks = unpack(res)
+        path_to_note[path] = note
+        path_to_code_blocks[path] = code_blocks
+      else
+        err_count = err_count + 1
+        if first_err == nil then
+          first_err = res
+          first_err_path = path
+        end
+        return
+      end
+    end
+
+    -- check if the match was inside a code block.
+    for block in iter(code_blocks) do
+      if block[1] <= match_data.line_number and match_data.line_number <= block[2] then
+        return
+      end
+    end
+
+    local line = vim.trim(match_data.lines.text)
+    local n_matches = 0
+
+    -- check for tag in the wild of the form '#{tag}'
+    for match in iter(M.find_tags_in_string(line)) do
+      local m_start, m_end, _ = unpack(match)
+      local tag = string.sub(line, m_start + 1, m_end)
+      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
+        add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
+      end
+    end
+
+    -- check for tags in frontmatter
+    if n_matches == 0 and note.tags ~= nil and (vim.startswith(line, "tags:") or string.match(line, "%s*- ")) then
+      for tag in iter(note.tags) do
+        tag = tostring(tag)
+        for _, t in ipairs(terms) do
+          if string.len(t) == 0 or util.string_contains(tag, t) then
+            add_match(tag, path, note, match_data.line_number, line)
+          end
+        end
+      end
+    end
+    -- end)
+  end
+
+  local search_terms = {}
+  for t in iter(terms) do
+    if string.len(t) > 0 then
+      -- tag in the wild
+      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsOptional .. t .. M.Patterns.TagCharsOptional
+      -- frontmatter tag in multiline list
+      search_terms[#search_terms + 1] = "\\s*- "
+        .. M.Patterns.TagCharsOptional
+        .. t
+        .. M.Patterns.TagCharsOptional
+        .. "$"
+      -- frontmatter tag in inline list
+      search_terms[#search_terms + 1] = "tags: .*" .. M.Patterns.TagCharsOptional .. t .. M.Patterns.TagCharsOptional
+    else
+      -- tag in the wild
+      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsRequired
+      -- frontmatter tag in multiline list
+      search_terms[#search_terms + 1] = "\\s*- " .. M.Patterns.TagCharsRequired .. "$"
+      -- frontmatter tag in inline list
+      search_terms[#search_terms + 1] = "tags: .*" .. M.Patterns.TagCharsRequired
+    end
+  end
+
+  M.search_async(
+    Obsidian.dir,
+    search_terms,
+    _prepare_search_opts(opts.search, { ignore_case = true }),
+    on_match,
+    function(code)
+      if code ~= 0 then
+        callback {}
+      end
+      ---@type obsidian.TagLocation[]
+      local tags_list = {}
+
+      -- Order by path.
+      local paths = {}
+      for path, idx in pairs(path_order) do
+        paths[idx] = path
+      end
+
+      -- Gather results in path order.
+      for _, path in ipairs(paths) do
+        local tag_locs = path_to_tag_loc[path]
+        if tag_locs ~= nil then
+          table.sort(tag_locs, function(a, b)
+            return a.line < b.line
+          end)
+          for _, tag_loc in ipairs(tag_locs) do
+            tags_list[#tags_list + 1] = tag_loc
+          end
+        end
+      end
+
+      -- Log any errors.
+      if first_err ~= nil and first_err_path ~= nil then
+        log.err(
+          "%d error(s) occurred during search. First error from note at '%s':\n%s",
+          err_count,
+          first_err_path,
+          first_err
+        )
+      end
+
+      callback(tags_list)
+    end
+  )
 end
 
 return M

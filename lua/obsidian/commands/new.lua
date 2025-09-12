@@ -3,7 +3,7 @@ local log = require "obsidian.log"
 local Note = require "obsidian.note"
 
 ---@param data CommandArgs
-return function(_, data)
+return function(data)
   ---@type obsidian.Note
   local note
   if data.args:len() > 0 then

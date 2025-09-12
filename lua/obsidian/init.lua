@@ -25,6 +25,8 @@ obsidian.yaml = require "obsidian.yaml"
 ---@type obsidian.Client|?
 obsidian._client = nil
 
+--- TODO: remove in 4.0.0
+
 ---Get the current obsidian client.
 ---@return obsidian.Client
 obsidian.get_client = function()
@@ -63,7 +65,7 @@ obsidian.setup = function(opts)
 
   log.set_level(Obsidian.opts.log_level)
 
-  obsidian.commands.install(client)
+  obsidian.commands.install()
 
   -- Setup UI add-ons.
   local has_no_renderer = not (
@@ -163,7 +165,7 @@ obsidian.setup = function(opts)
 
       -- Run enter-note callback.
       local note = obsidian.Note.from_buffer(ev.buf)
-      obsidian.util.fire_callback("enter_note", Obsidian.opts.callbacks.enter_note, client, note)
+      obsidian.util.fire_callback("enter_note", Obsidian.opts.callbacks.enter_note, note)
 
       exec_autocmds("ObsidianNoteEnter", ev.buf)
     end,
@@ -186,7 +188,7 @@ obsidian.setup = function(opts)
 
       -- Run leave-note callback.
       local note = obsidian.Note.from_buffer(ev.buf)
-      obsidian.util.fire_callback("leave_note", Obsidian.opts.callbacks.leave_note, client, note)
+      obsidian.util.fire_callback("leave_note", Obsidian.opts.callbacks.leave_note, note)
 
       exec_autocmds("ObsidianNoteLeave", ev.buf)
     end,
@@ -215,7 +217,7 @@ obsidian.setup = function(opts)
       local note = obsidian.Note.from_buffer(bufnr)
 
       -- Run pre-write-note callback.
-      obsidian.util.fire_callback("pre_write_note", Obsidian.opts.callbacks.pre_write_note, client, note)
+      obsidian.util.fire_callback("pre_write_note", Obsidian.opts.callbacks.pre_write_note, note)
 
       exec_autocmds("ObsidianNoteWritePre", ev.buf)
 
@@ -248,7 +250,7 @@ obsidian.setup = function(opts)
   -- Set global client.
   obsidian._client = client
 
-  obsidian.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup, client)
+  obsidian.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup)
 
   return client
 end

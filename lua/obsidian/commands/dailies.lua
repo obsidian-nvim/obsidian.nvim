@@ -14,7 +14,7 @@ local function parse_offset(arg)
 end
 
 ---@param data CommandArgs
-return function(_, data)
+return function(data)
   local offset_start = -5
   local offset_end = 0
 

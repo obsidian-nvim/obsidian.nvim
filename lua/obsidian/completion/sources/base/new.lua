@@ -1,6 +1,5 @@
 local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
-local obsidian = require "obsidian"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local LinkStyle = require("obsidian.config").LinkStyle
@@ -10,7 +9,6 @@ local Path = require "obsidian.path"
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
 ---@class obsidian.completion.sources.base.NewNoteSourceCompletionContext : obsidian.ABC
----@field client obsidian.Client
 ---@field completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
 ---@field request obsidian.completion.sources.base.Request
 ---@field search string|?
@@ -47,8 +45,6 @@ function NewNoteSourceBase:new_completion_context(completion_resolve_callback, r
 
   -- This request object will be used to determine the current cursor location and the text around it
   completion_context.request = request
-
-  completion_context.client = assert(obsidian.get_client())
 
   return completion_context
 end

@@ -8,7 +8,6 @@ local T = new_set {
       child.restart { "-u", "scripts/minimal_init_with_setup.lua" }
       child.lua [[
 Note = require"obsidian.note"
-client = require"obsidian".get_client()
       ]]
     end,
     post_once = function()

@@ -3,7 +3,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 
 ---@param data CommandArgs
-return function(_, data)
+return function(data)
   local viz = api.get_visual_selection()
   if not viz then
     log.err "`Obsidian link` must be called with visual selection"
