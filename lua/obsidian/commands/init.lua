@@ -58,7 +58,7 @@ end
 ---@field complete function|string|?
 ---@field nargs string|integer|?
 ---@field range boolean|?
----@field func function|? (obsidian.Client, table) -> nil
+---@field func fun(data: CommandArgs)|?
 ---@field name string?
 ---@field note_action boolean?
 
@@ -67,9 +67,9 @@ end
 ---@param config obsidian.CommandConfig
 M.register = function(name, config)
   if not config.func then
-    config.func = function(client, data)
+    config.func = function(data)
       local mod = require("obsidian.commands." .. name)
-      return mod(client, data)
+      return mod(data)
     end
   end
   config.name = name
@@ -78,18 +78,17 @@ end
 
 ---Install all commands.
 ---
----@param client obsidian.Client
-M.install = function(client)
+M.install = function()
   vim.api.nvim_create_user_command("Obsidian", function(data)
     if #data.fargs == 0 then
       show_menu(data)
       return
     end
-    M.handle_command(client, data)
+    M.handle_command(data)
   end, {
     nargs = "*",
     complete = function(_, cmdline, _)
-      return M.get_completions(client, cmdline)
+      return M.get_completions(cmdline)
     end,
     range = 2,
   })
@@ -97,8 +96,7 @@ end
 
 M.install_legacy = legacycommands.install
 
----@param client obsidian.Client
-M.handle_command = function(client, data)
+M.handle_command = function(data)
   local cmd = data.fargs[1]
   table.remove(data.fargs, 1)
   data.args = table.concat(data.fargs, " ")
@@ -133,12 +131,11 @@ M.handle_command = function(client, data)
     return
   end
 
-  cmdconfig.func(client, data)
+  cmdconfig.func(data)
 end
 
----@param client obsidian.Client
 ---@param cmdline string
-M.get_completions = function(client, cmdline)
+M.get_completions = function(cmdline)
   local obspat = "^['<,'>]*Obsidian[!]?"
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
   local obsidiancmd = splitcmd[2]

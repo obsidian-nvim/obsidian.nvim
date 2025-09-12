@@ -1,7 +1,6 @@
 local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
 local LinkStyle = require("obsidian.config").LinkStyle
-local obsidian = require "obsidian"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
@@ -10,7 +9,6 @@ local iter = vim.iter
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
 ---@class obsidian.completion.sources.base.RefsSourceCompletionContext : obsidian.ABC
----@field client obsidian.Client
 ---@field completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
 ---@field request obsidian.completion.sources.base.Request
 ---@field in_buffer_only boolean
@@ -52,8 +50,6 @@ function RefsSourceBase:new_completion_context(completion_resolve_callback, requ
   -- This request object will be used to determine the current cursor location and the text around it
   completion_context.request = request
 
-  completion_context.client = assert(obsidian.get_client())
-
   completion_context.in_buffer_only = false
 
   return completion_context
@@ -77,13 +73,13 @@ function RefsSourceBase:process_completion(cc)
       cc.completion_resolve_callback(self.incomplete_response)
     end
   else
-    local search_ops = cc.client.search_defaults()
-    search_ops.ignore_case = true
+    local search_opts = search._defaults
+    search_opts.ignore_case = true
 
     search.find_notes_async(cc.search, function(results)
       self:process_search_results(cc, results)
     end, {
-      search = search_ops,
+      search = search_opts,
       notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
     })
   end

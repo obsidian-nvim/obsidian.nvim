@@ -46,74 +46,74 @@ T["find_matches"] = function()
   eq(2, #matches)
 end
 
-T["find_tags"] = new_set()
+T["find_tags_in_string"] = new_set()
 
-T["find_tags"]["should find positions of all tags"] = function()
+T["find_tags_in_string"]["should find positions of all tags"] = function()
   local s = "#TODO I have a #meeting at noon"
-  eq({ { 1, 5, "Tag" }, { 16, 23, "Tag" } }, M.find_tags(s))
+  eq({ { 1, 5, "Tag" }, { 16, 23, "Tag" } }, M.find_tags_in_string(s))
 end
 
-T["find_tags"]["should find four cases"] = function()
-  eq(1, #M.find_tags "#camelCase")
-  eq(1, #M.find_tags "#PascalCase")
-  eq(1, #M.find_tags "#snake_case")
-  eq(1, #M.find_tags "#kebab-case")
+T["find_tags_in_string"]["should find four cases"] = function()
+  eq(1, #M.find_tags_in_string "#camelCase")
+  eq(1, #M.find_tags_in_string "#PascalCase")
+  eq(1, #M.find_tags_in_string "#snake_case")
+  eq(1, #M.find_tags_in_string "#kebab-case")
 end
 
-T["find_tags"]["should find nested tags"] = function()
-  eq(1, #M.find_tags " #inbox/processing")
-  eq(1, #M.find_tags " #inbox/to-read")
+T["find_tags_in_string"]["should find nested tags"] = function()
+  eq(1, #M.find_tags_in_string " #inbox/processing")
+  eq(1, #M.find_tags_in_string " #inbox/to-read")
 end
 
-T["find_tags"]["should ignore escaped tags"] = function()
+T["find_tags_in_string"]["should ignore escaped tags"] = function()
   local s = "I have a #meeting at noon \\#not-a-tag"
-  eq({ { 10, 17, RefTypes.Tag } }, M.find_tags(s))
+  eq({ { 10, 17, RefTypes.Tag } }, M.find_tags_in_string(s))
   s = [[\#notatag]]
-  eq({}, M.find_tags(s))
+  eq({}, M.find_tags_in_string(s))
 end
 
-T["find_tags"]["should ignore issue numbers"] = function()
+T["find_tags_in_string"]["should ignore issue numbers"] = function()
   local s = "Issue: #100"
-  eq({}, M.find_tags(s))
+  eq({}, M.find_tags_in_string(s))
 end
 
-T["find_tags"]["should ignore hexcolors"] = function()
+T["find_tags_in_string"]["should ignore hexcolors"] = function()
   local s = "backgroud: #f0f0f0"
-  eq({}, M.find_tags(s))
+  eq({}, M.find_tags_in_string(s))
 end
 
--- T["find_tags"]["should ignore anchor links that look like tags"] = function()
+-- T["find_tags_in_string"]["should ignore anchor links that look like tags"] = function()
 --   local s = "[readme](README#installation)"
---   eq({}, M.find_tags(s))
+--   eq({}, M.find_tags_in_string(s))
 -- end
 --
--- T["find_tags"]["should ignore section in urls"] = function()
+-- T["find_tags_in_string"]["should ignore section in urls"] = function()
 --   local s = "https://example.com/page#section"
---   eq({}, M.find_tags(s))
+--   eq({}, M.find_tags_in_string(s))
 -- end
 --
--- T["find_tags"]["should ignore tags in HTML entities"] = function()
---   eq({}, M.find_tags "Here is an entity: &#NOT_A_TAG;")
+-- T["find_tags_in_string"]["should ignore tags in HTML entities"] = function()
+--   eq({}, M.find_tags_in_string "Here is an entity: &#NOT_A_TAG;")
 -- end
 --
 --
--- T["find_tags"]["should ignore tags not on word boundaries"] = function()
---   eq({}, M.find_tags "foobar#notatag")
---   eq({ { 9, 12, RefTypes.Tag } }, M.find_tags "foo bar #tag")
+-- T["find_tags_in_string"]["should ignore tags not on word boundaries"] = function()
+--   eq({}, M.find_tags_in_string "foobar#notatag")
+--   eq({ { 9, 12, RefTypes.Tag } }, M.find_tags_in_string "foo bar #tag")
 -- end
 --
--- T["find_tags"]["should ignore tags in markdown links with parentheses"] = function()
+-- T["find_tags_in_string"]["should ignore tags in markdown links with parentheses"] = function()
 --   local s = "[autobox](https://en.wikipedia.org/wiki/Object_type_(object-oriented_programming)#NOT_A_TAG)"
---   eq({}, M.find_tags(s))
+--   eq({}, M.find_tags_in_string(s))
 -- end
 
 --
--- T["find_tags"]["should find non-English tags"] = function()
---   eq(1, M.find_tags " #你好")
---   eq(1, M.find_tags " #タグ")
---   eq(1, M.find_tags " #mañana")
---   eq(1, M.find_tags " #день")
---   eq(1, M.find_tags " #项目_计划")
+-- T["find_tags_in_string"]["should find non-English tags"] = function()
+--   eq(1, M.find_tags_in_string " #你好")
+--   eq(1, M.find_tags_in_string " #タグ")
+--   eq(1, M.find_tags_in_string " #mañana")
+--   eq(1, M.find_tags_in_string " #день")
+--   eq(1, M.find_tags_in_string " #项目_计划")
 -- end
 
 T["find_code_blocks"] = new_set()

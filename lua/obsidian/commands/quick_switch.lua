@@ -2,7 +2,7 @@ local log = require "obsidian.log"
 local search = require "obsidian.search"
 
 ---@param data CommandArgs
-return function(_, data)
+return function(data)
   if not data.args or string.len(data.args) == 0 then
     local picker = Obsidian.picker
     if not picker then

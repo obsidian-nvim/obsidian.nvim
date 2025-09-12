@@ -6,7 +6,7 @@ local Note = require "obsidian.note"
 ---and replace the selection with a link to the new note.
 ---
 ---@param data CommandArgs
-return function(_, data)
+return function(data)
   local viz = api.get_visual_selection()
   if not viz then
     log.err "Obsidian extract_note must be called with visual selection"

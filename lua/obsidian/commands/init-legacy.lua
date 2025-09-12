@@ -55,7 +55,7 @@ local M = setmetatable({
 M.register = function(name, config)
   if not config.func then
     config.func = function(client, data)
-      return M[name](client, data)
+      return M[name](data)
     end
   end
   M.commands[name] = config
