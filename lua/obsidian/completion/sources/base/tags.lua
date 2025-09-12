@@ -1,7 +1,6 @@
 local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.tags"
 local iter = vim.iter
-local obsidian = require "obsidian"
 local search = require "obsidian.search"
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
@@ -41,8 +40,6 @@ function TagsSourceBase:new_completion_context(completion_resolve_callback, requ
 
   -- This request object will be used to determine the current cursor location and the text around it
   completion_context.request = request
-
-  completion_context.client = assert(obsidian.get_client())
 
   return completion_context
 end

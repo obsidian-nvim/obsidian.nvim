@@ -1,6 +1,5 @@
 local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
-local obsidian = require "obsidian"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local LinkStyle = require("obsidian.config").LinkStyle
