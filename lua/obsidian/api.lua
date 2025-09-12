@@ -204,7 +204,7 @@ M.cursor_link = function()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
   cur_col = cur_col + 1 -- 0-indexed column to 1-indexed lua string position
 
-  local refs = search.find_refs(line, { include_naked_urls = true, include_file_urls = true, include_block_ids = true })
+  local refs = search.find_refs(line, { exclude = { "Tag" } })
 
   local match = iter(refs):find(function(match)
     local open, close = unpack(match)

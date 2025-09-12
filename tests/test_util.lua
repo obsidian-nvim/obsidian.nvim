@@ -215,6 +215,17 @@ T["parse"]["header"]["should strip white space at the end"] = function()
   eq({ header = "Hello World", level = 2, anchor = "#hello-world" }, M.parse_header "## Hello World ")
 end
 
+T["parse"]["link"] = new_set()
+
+-- TODO: test for all link types
+
+T["parse"]["link"]["parse footnote link"] = function()
+  local location, name, link_type = M.parse_link("[^1]", {})
+  eq("1", location)
+  eq("1", name)
+  eq(require("obsidian.search").RefTypes.Footnote, link_type)
+end
+
 T["strip"] = new_set()
 
 T["strip"]["block_links"] = new_set()

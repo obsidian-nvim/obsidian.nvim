@@ -227,7 +227,7 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
-  local matches = search.find_refs(line, { include_naked_urls = true, include_tags = true, include_block_ids = true })
+  local matches = search.find_refs(line, { exclude = { "FileUrl" } })
   for match in iter(matches) do
     local m_start, m_end, m_type = unpack(match)
     if m_type == search.RefTypes.WikiWithAlias then

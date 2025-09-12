@@ -22,6 +22,7 @@ M.RefTypes = {
   Tag = "Tag",
   BlockID = "BlockID",
   Highlight = "Highlight",
+  Footnote = "Footnote",
 }
 
 ---@enum obsidian.search.Patterns
@@ -42,6 +43,7 @@ M.Patterns = {
   FileUrl = "file:/[/{2}]?.*", -- file:///
   MailtoUrl = "mailto:.*", -- mailto:emailaddress
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
+  Footnote = "%[%^%d%]",
 }
 
 ---@type table<obsidian.search.RefTypes, { ignore_if_escape_prefix: boolean|? }>
@@ -138,33 +140,24 @@ M.find_highlight = function(s)
   return matches
 end
 
----@class obsidian.search.FindRefsOpts
----
----@field include_naked_urls boolean|?
----@field include_tags boolean|?
----@field include_file_urls boolean|?
----@field include_block_ids boolean|?
-
 --- Find refs and URLs.
 ---@param s string the string to search
----@param opts obsidian.search.FindRefsOpts|?
+---@param opts { exclude: obsidian.search.RefTypes[] }?
 ---
 ---@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes }[]
 M.find_refs = function(s, opts)
   opts = opts and opts or {}
 
-  local pattern_names = { M.RefTypes.WikiWithAlias, M.RefTypes.Wiki, M.RefTypes.Markdown }
-  if opts.include_naked_urls then
-    pattern_names[#pattern_names + 1] = M.RefTypes.NakedUrl
+  local exclude_lookup, pattern_names = { Highlight = true }, {}
+
+  for _, ref_type in ipairs(opts.exclude or {}) do
+    exclude_lookup[ref_type] = true
   end
-  if opts.include_tags then
-    pattern_names[#pattern_names + 1] = M.RefTypes.Tag
-  end
-  if opts.include_file_urls then
-    pattern_names[#pattern_names + 1] = M.RefTypes.FileUrl
-  end
-  if opts.include_block_ids then
-    pattern_names[#pattern_names + 1] = M.RefTypes.BlockID
+
+  for _, ref_type in pairs(M.RefTypes) do
+    if not exclude_lookup[ref_type] then
+      pattern_names[#pattern_names + 1] = ref_type
+    end
   end
 
   return M.find_matches(s, pattern_names)
@@ -809,6 +802,7 @@ end
 ---
 ---@param link string
 ---@param opts? { pick: boolean }
+---@return obsidian.ResolveLinkResult?
 M.resolve_link = function(link, opts)
   opts = opts or { pick = false }
   local Note = require "obsidian.note"
@@ -826,6 +820,25 @@ M.resolve_link = function(link, opts)
   if util.is_url(location) then
     res.url = location
     return res
+  end
+
+  if link_type == M.RefTypes.Footnote then
+    local count = vim.api.nvim_buf_line_count(0)
+    for line = count, 1, -1 do
+      local line_str = vim.api.nvim_buf_get_lines(0, line - 1, line, false)[1]
+      local pattern = "%[%^" .. location .. "%]"
+      local row = unpack(vim.api.nvim_win_get_cursor(0))
+      local start = line_str:find(pattern)
+      if line ~= row and start then
+        local note = assert(require("obsidian.api").current_note(0))
+        res.note = note
+        res.path = note.path
+        res.line = line
+        res.col = start - 1
+        return res
+      end
+    end
+    return
   end
 
   -- The Obsidian app will follow URL-encoded links, so we should to.
@@ -920,7 +933,7 @@ M.find_links = function(note)
   local lines = io.lines(tostring(note.path))
 
   for lnum, line in vim.iter(lines):enumerate() do
-    for ref_match in vim.iter(M.find_refs(line, { include_naked_urls = true, include_file_urls = true })) do
+    for ref_match in vim.iter(M.find_refs(line, { exclude = { "BlockID", "Tag" } })) do
       local m_start, m_end = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)
       if not found[link] then
