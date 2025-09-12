@@ -191,7 +191,7 @@ FzfPicker.pick = function(self, values, opts)
       display = value
       value = { value = value }
     else
-      display = self:_make_display(value)
+      display = opts.format_item and opts.format_item(value) or self:_make_display(value)
     end
     if value.valid ~= false then
       display_to_value_map[display] = value

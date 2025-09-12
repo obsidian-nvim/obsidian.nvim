@@ -219,7 +219,7 @@ TelescopePicker.pick = function(self, values, opts)
   }
 
   local displayer = function(entry)
-    return self:_make_display(entry.raw)
+    return opts.format_item and opts.format_item(entry.raw) or self:_make_display(entry.raw)
   end
 
   local prompt_title = self:_build_prompt {
