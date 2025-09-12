@@ -6,8 +6,6 @@ The Obsidian.nvim Lua API.
 
 Table of contents
 
-  obsidian.Client .......................................... |obsidian.Client|
-  
   obsidian.Note .............................................. |obsidian.Note|
   
   obsidian.Workspace .................................... |obsidian.Workspace|
@@ -15,80 +13,16 @@ Table of contents
   obsidian.Path .............................................. |obsidian.Path|
   
 ------------------------------------------------------------------------------
-Class ~
-{obsidian.SearchOpts}
-
-Fields ~
-{sort} `(boolean|)`?
-{include_templates} `(boolean|)`?
-{ignore_case} `(boolean|)`?
-{default} `(function?)`
-
-------------------------------------------------------------------------------
                                                                *obsidian.Client*
                                     `Client`
-The Obsidian client is the main API for programmatically interacting with obsidian.nvim's features
-in Lua. To get the client instance, run:
-
-`local client = require("obsidian").get_client()`
-
 Class ~
 {obsidian.Client} : obsidian.ABC
 
 ------------------------------------------------------------------------------
                                                          *obsidian.Client.new()*
                                  `Client.new`()
-Create a new Obsidian client without additional setup.
-This is mostly used for testing. In practice you usually want to obtain the existing
-client through:
-
-`require("obsidian").get_client()`
-
 Return ~
 `(obsidian.Client)`
-
-------------------------------------------------------------------------------
-                                             *obsidian.Client.search_defaults()*
-                           `Client.search_defaults`()
-Get the default search options.
-
-Return ~
-`(obsidian.SearchOpts)`
-
-------------------------------------------------------------------------------
-Class ~
-{obsidian.TagLocation}
-
-Fields ~
-{tag} `(string)` The tag found.
-{note} `(obsidian.Note)` The note instance where the tag was found.
-{path} `(string|obsidian.Path)` The path to the note where the tag was found.
-{line} `(integer)` The line number (1-indexed) where the tag was found.
-{text} `(string)` The text (with whitespace stripped) of the line where the tag was found.
-{tag_start} `(integer|? The)` index within 'text' where the tag starts.
-{tag_end} `(integer|? The)` index within 'text' where the tag ends.
-
-------------------------------------------------------------------------------
-                                                   *obsidian.Client.find_tags()*
-                   `Client.find_tags`({self}, {term}, {opts})
-Find all tags starting with the given search term(s).
-
-Parameters ~
-{term} `(string|string[])` The search term.
-{opts} `({ search: obsidian.SearchOpts|?, timeout: integer|? }|)`?
-
-Return ~
-`(obsidian.TagLocation[])`
-
-------------------------------------------------------------------------------
-                                             *obsidian.Client.find_tags_async()*
-          `Client.find_tags_async`({self}, {term}, {callback}, {opts})
-An async version of 'find_tags()'.
-
-Parameters ~
-{term} `(string|string[])` The search term.
-{callback} `(fun(tags: obsidian.TagLocation[]))`
-{opts} `({ search: obsidian.SearchOpts }|)`?
 
 ------------------------------------------------------------------------------
 @class obsidian.note.NoteCreationOpts
