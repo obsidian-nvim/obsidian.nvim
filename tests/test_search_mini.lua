@@ -82,38 +82,37 @@ T["find_tags_in_string"]["should ignore hexcolors"] = function()
   eq({}, M.find_tags_in_string(s))
 end
 
--- T["find_tags_in_string"]["should ignore anchor links that look like tags"] = function()
---   local s = "[readme](README#installation)"
---   eq({}, M.find_tags_in_string(s))
--- end
---
--- T["find_tags_in_string"]["should ignore section in urls"] = function()
---   local s = "https://example.com/page#section"
---   eq({}, M.find_tags_in_string(s))
--- end
---
--- T["find_tags_in_string"]["should ignore tags in HTML entities"] = function()
---   eq({}, M.find_tags_in_string "Here is an entity: &#NOT_A_TAG;")
--- end
---
---
--- T["find_tags_in_string"]["should ignore tags not on word boundaries"] = function()
---   eq({}, M.find_tags_in_string "foobar#notatag")
---   eq({ { 9, 12, RefTypes.Tag } }, M.find_tags_in_string "foo bar #tag")
--- end
---
--- T["find_tags_in_string"]["should ignore tags in markdown links with parentheses"] = function()
---   local s = "[autobox](https://en.wikipedia.org/wiki/Object_type_(object-oriented_programming)#NOT_A_TAG)"
---   eq({}, M.find_tags_in_string(s))
--- end
+T["find_tags_in_string"]["should ignore anchor links that look like tags"] = function()
+  local s = "[readme](README#installation)"
+  eq({}, M.find_tags_in_string(s))
+end
 
---
+T["find_tags_in_string"]["should ignore section in urls"] = function()
+  local s = "https://example.com/page#section"
+  eq({}, M.find_tags_in_string(s))
+end
+
+T["find_tags_in_string"]["should ignore tags in HTML entities"] = function()
+  eq({}, M.find_tags_in_string "Here is an entity: &#NOT_A_TAG;")
+end
+
+T["find_tags_in_string"]["should ignore tags not on word boundaries"] = function()
+  eq({}, M.find_tags_in_string "foobar#notatag")
+  eq({ { 9, 12, RefTypes.Tag } }, M.find_tags_in_string "foo bar #tag")
+end
+
+T["find_tags_in_string"]["should ignore tags in markdown links with parentheses"] = function()
+  local s = "[autobox](https://en.wikipedia.org/wiki/Object_type_(object-oriented_programming)#NOT_A_TAG)"
+  eq({}, M.find_tags_in_string(s))
+end
+
+-- TODO: unicode tags
 -- T["find_tags_in_string"]["should find non-English tags"] = function()
---   eq(1, M.find_tags_in_string " #你好")
---   eq(1, M.find_tags_in_string " #タグ")
---   eq(1, M.find_tags_in_string " #mañana")
---   eq(1, M.find_tags_in_string " #день")
---   eq(1, M.find_tags_in_string " #项目_计划")
+-- eq(1, M.find_tags_in_string "#你好")
+-- eq(1, M.find_tags_in_string "#タグ")
+-- eq(1, M.find_tags_in_string "#mañana")
+-- eq(1, M.find_tags_in_string "#день")
+-- eq(1, M.find_tags_in_string "#项目_计划")
 -- end
 
 T["find_code_blocks"] = new_set()

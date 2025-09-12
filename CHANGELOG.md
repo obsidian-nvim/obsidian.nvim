@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `follow_link` will prompt to create on markdown paths that don't exist.
 - remove any fold option overriding, only do fold when fold is setup by the user.
 - support `[](./path)` pattern when finding backlinks.
+- Remove tag false positives that are not on word boundary.
 
 ## [v3.13.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.1) - 2025-08-01
 

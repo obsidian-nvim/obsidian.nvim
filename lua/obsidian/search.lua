@@ -178,9 +178,12 @@ M.find_tags_in_string = function(s)
   local matches = {}
   for match in iter(M.find_matches(s, { M.RefTypes.Tag })) do
     local st, ed, m_type = unpack(match)
-    local match_string = s:sub(st, ed)
-    if m_type == M.RefTypes.Tag and not util.is_hex_color(match_string) then
-      matches[#matches + 1] = match
+    local look_ahead = s:sub(st - 1, st - 1)
+    if st == 1 or look_ahead == " " then
+      local match_string = s:sub(st, ed)
+      if m_type == M.RefTypes.Tag and not util.is_hex_color(match_string) then
+        matches[#matches + 1] = match
+      end
     end
   end
   return matches
