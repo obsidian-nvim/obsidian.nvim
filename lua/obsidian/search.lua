@@ -972,6 +972,7 @@ local function build_backlink_search_term(note, anchor, block)
           search_terms[#search_terms + 1] = string.format("(%s)", ref)
           -- Markdown link without anchor/block and is relative to root.
           search_terms[#search_terms + 1] = string.format("(/%s)", ref)
+          search_terms[#search_terms + 1] = string.format("(./%s)", ref)
           -- Wiki links with anchor/block.
           search_terms[#search_terms + 1] = string.format("[[%s#", ref)
           -- Markdown link with anchor/block.
@@ -987,6 +988,7 @@ local function build_backlink_search_term(note, anchor, block)
           search_terms[#search_terms + 1] = string.format("(%s#", ref)
           -- Markdown link with anchor and is relative to root.
           search_terms[#search_terms + 1] = string.format("(/%s#", ref)
+          search_terms[#search_terms + 1] = string.format("(./%s#", ref)
         elseif block then
           -- Wiki links with block.
           search_terms[#search_terms + 1] = string.format("[[%s#%s", ref, block)
@@ -994,6 +996,7 @@ local function build_backlink_search_term(note, anchor, block)
           search_terms[#search_terms + 1] = string.format("(%s#%s", ref, block)
           -- Markdown link with block and is relative to root.
           search_terms[#search_terms + 1] = string.format("(/%s#%s", ref, block)
+          search_terms[#search_terms + 1] = string.format("(./%s#%s", ref, block)
         end
       end
     end

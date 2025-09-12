@@ -8,21 +8,18 @@ local search = require "obsidian.search"
 ---@param opts { anchor: string|?, block: string|? }
 ---@return lsp.Location[]
 local function collect_backlinks(note, opts)
-  local matches = search.find_backlinks(note, { search = { sort = true, anchor = opts.anchor, block = opts.block } })
-
-  local locations = {}
-
-  for _, match in ipairs(matches) do
-    locations[#locations + 1] = {
-      uri = vim.uri_from_fname(tostring(match.path)),
-      range = {
-        start = { line = match.line - 1, character = match.start },
-        ["end"] = { line = match.line - 1, character = match["end"] },
-      },
-    }
-  end
-
-  return locations
+  return vim
+    .iter(note:backlinks { search = { sort = true, anchor = opts.anchor, block = opts.block } })
+    :map(function(match)
+      return {
+        uri = vim.uri_from_fname(tostring(match.path)),
+        range = {
+          start = { line = match.line - 1, character = match.start },
+          ["end"] = { line = match.line - 1, character = match["end"] },
+        },
+      }
+    end)
+    :totable()
 end
 
 ---@param params lsp.ReferenceParams
