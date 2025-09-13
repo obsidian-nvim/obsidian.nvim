@@ -543,23 +543,19 @@ Click to see configuration options ~
       -- Optional, define your own callbacks to further customize behavior.
       callbacks = {
         -- Runs at the end of `require("obsidian").setup()`.
-        ---@param client obsidian.Client
-        post_setup = function(client) end,
+        post_setup = function() end,
     
         -- Runs anytime you enter the buffer for a note.
-        ---@param client obsidian.Client
         ---@param note obsidian.Note
-        enter_note = function(client, note) end,
+        enter_note = function(note) end,
     
         -- Runs anytime you leave the buffer for a note.
-        ---@param client obsidian.Client
         ---@param note obsidian.Note
-        leave_note = function(client, note) end,
+        leave_note = function(note) end,
     
         -- Runs right before writing the buffer for a note.
-        ---@param client obsidian.Client
         ---@param note obsidian.Note
-        pre_write_note = function(client, note) end,
+        pre_write_note = function(note) end,
     
         -- Runs anytime the workspace is set/changed.
         ---@param workspace obsidian.Workspace
