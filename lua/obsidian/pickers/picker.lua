@@ -103,6 +103,7 @@ end
 ---@field allow_multiple boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
+---@field format_item (fun(value: obsidian.PickerEntry): string)|?
 
 --- Pick from a list of items.
 ---
@@ -396,8 +397,7 @@ end
 ---@param entry obsidian.PickerEntry
 ---
 ---@return string, { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
----@diagnostic disable-next-line: unused-local
-Picker._make_display = function(self, entry)
+Picker._make_display = function(_, entry)
   local buf = {}
   ---@type { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
   local highlights = {}
