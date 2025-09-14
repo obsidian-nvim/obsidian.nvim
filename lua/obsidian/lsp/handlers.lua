@@ -7,6 +7,7 @@ return setmetatable({
   [ms.initialized] = require "obsidian.lsp.handlers.initialized",
   [ms.textDocument_references] = require "obsidian.lsp.handlers.references",
   [ms.textDocument_definition] = require "obsidian.lsp.handlers.definition",
+  [ms.textDocument_documentColor] = require "obsidian.lsp.handlers.document_color",
 }, {
   __index = function(_, k)
     return function() end

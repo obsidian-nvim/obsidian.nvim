@@ -18,7 +18,17 @@ lsp.start = function(buf)
           handlers[method](params, handler, _)
         end,
         notify = function(method, params, handler, _)
-          handlers[method](params, handler, _)
+          local self = vim.lsp.get_clients({ name = "obsidian-ls" })[1]
+          -- handlers[method](params, handler, _)
+          -- HACK: don't know why this needs to be here
+          vim.api.nvim_exec_autocmds("LspNotify", {
+            modeline = false,
+            data = {
+              client_id = self and self.id,
+              method = method,
+              params = params,
+            },
+          })
         end,
         is_closing = function() end,
         terminate = function() end,
