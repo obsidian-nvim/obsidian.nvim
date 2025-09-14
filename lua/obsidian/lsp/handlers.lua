@@ -1,14 +1,21 @@
+local ms = vim.lsp.protocol.Methods
+
 ---@type table<vim.lsp.protocol.Method, function>
-return {
-  ["initialize"] = require "obsidian.lsp.handlers.initialize",
-  ["workspace/didRenameFiles"] = require "obsidian.lsp.handlers.did_rename_files",
-  ["workspace/symbol"] = require "obsidian.lsp.handlers.workspace_symbol",
-  ["workspace/executeCommand"] = require "obsidian.lsp.handlers.workspace_execute_command",
-  ["textDocument/rename"] = require "obsidian.lsp.handlers.rename",
-  ["textDocument/prepareRename"] = require "obsidian.lsp.handlers.prepare_rename",
-  ["textDocument/references"] = require "obsidian.lsp.handlers.references",
-  ["textDocument/definition"] = require "obsidian.lsp.handlers.definition",
-  ["textDocument/documentSymbol"] = require "obsidian.lsp.handlers.document_symbol",
-  ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
-  ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",
-}
+return setmetatable({
+  [ms.initialize] = require "obsidian.lsp.handlers.initialize",
+  [ms.workspace_didRenameFiles] = require "obsidian.lsp.handlers.did_rename_files",
+  [ms.workspace_symbol] = require "obsidian.lsp.handlers.workspace_symbol",
+  [ms.workspace_executeCommand] = require "obsidian.lsp.handlers.workspace_execute_command",
+  [ms.textDocument_rename] = require "obsidian.lsp.handlers.rename",
+  [ms.textDocument_prepareRename] = require "obsidian.lsp.handlers.prepare_rename",
+  [ms.textDocument_references] = require "obsidian.lsp.handlers.references",
+  [ms.textDocument_definition] = require "obsidian.lsp.handlers.definition",
+  [ms.textDocument_documentSymbol] = require "obsidian.lsp.handlers.document_symbol",
+  [ms.textDocument_codeAction] = require "obsidian.lsp.handlers.code_action",
+  [ms.textDocument_completion] = require "obsidian.lsp.handlers.completion",
+  [ms.textDocument_documentColor] = require "obsidian.lsp.handlers.document_color",
+}, {
+  __index = function(_, k)
+    return function() end
+  end,
+})

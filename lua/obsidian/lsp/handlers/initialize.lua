@@ -26,6 +26,7 @@ local initializeResult = {
     completionProvider = {
       resolveProvider = false,
     },
+    colorProvider = true,
     workspace = {
       fileOperations = {
         didRename = {
