@@ -52,7 +52,7 @@ return function(data)
   if search_term and vim.trim(search_term) ~= "" then
     local note = search.resolve_note(search_term, { timeout = 5000 })
     if not note then
-      return log.err "Note under cusror is not resolved"
+      return log.err "Note under cursor is not resolved"
     end
     path = note.path:vault_relative_path()
   else
