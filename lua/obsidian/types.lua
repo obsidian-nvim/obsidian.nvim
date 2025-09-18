@@ -47,3 +47,70 @@
 ---@field name string|?
 ---@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
 ---@field overrides table|obsidian.config.ClientOpts?
+
+---@class obsidian.config
+---@field workspaces obsidian.workspace.WorkspaceSpec[]
+---@field log_level? integer
+---@field notes_subdir? string
+---@field templates? obsidian.config.TemplateOpts
+---@field new_notes_location? obsidian.config.NewNotesLocation
+---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
+---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
+---@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
+---@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
+---@field preferred_link_style? obsidian.config.LinkStyle
+---@field follow_url_func? fun(url: string)
+---@field follow_img_func? fun(img: string)
+---@field note_frontmatter_func? (fun(note: obsidian.Note): table)
+---@field disable_frontmatter? (fun(fname: string?): boolean)|boolean
+---@field backlinks? obsidian.config.BacklinkOpts
+---@field completion? obsidian.config.CompletionOpts
+---@field picker? obsidian.config.PickerOpts
+---@field daily_notes? obsidian.config.DailyNotesOpts
+---@field sort_by? obsidian.config.SortBy
+---@field sort_reversed? boolean
+---@field search_max_lines? integer
+---@field open_notes_in? obsidian.config.OpenStrategy
+---@field ui? obsidian.config.UIOpts | table<string, any>
+---@field attachments? obsidian.config.AttachmentsOpts
+---@field callbacks? obsidian.config.CallbackConfig
+---@field legacy_commands? boolean
+---@field statusline? obsidian.config.StatuslineOpts
+---@field footer? obsidian.config.FooterOpts
+---@field open? obsidian.config.OpenOpts
+---@field checkbox? obsidian.config.CheckboxOpts
+---@field comment? obsidian.config.CommentOpts
+
+---@class obsidian.config.ClientOpts
+---@field dir string|?
+---@field workspaces obsidian.workspace.WorkspaceSpec[]|?
+---@field log_level integer
+---@field notes_subdir string|?
+---@field templates obsidian.config.TemplateOpts
+---@field new_notes_location obsidian.config.NewNotesLocation
+---@field note_id_func (fun(title: string|?, path: obsidian.Path|?): string)|?
+---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path)|?
+---@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
+---@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
+---@field preferred_link_style obsidian.config.LinkStyle
+---@field follow_url_func fun(url: string)|?
+---@field follow_img_func fun(img: string)|?
+---@field note_frontmatter_func (fun(note: obsidian.Note): table)|?
+---@field disable_frontmatter (fun(fname: string?): boolean)|boolean|?
+---@field backlinks obsidian.config.BacklinkOpts
+---@field completion obsidian.config.CompletionOpts
+---@field picker obsidian.config.PickerOpts
+---@field daily_notes obsidian.config.DailyNotesOpts
+---@field sort_by obsidian.config.SortBy|?
+---@field sort_reversed boolean|?
+---@field search_max_lines integer
+---@field open_notes_in obsidian.config.OpenStrategy
+---@field ui obsidian.config.UIOpts | table<string, any>
+---@field attachments obsidian.config.AttachmentsOpts
+---@field callbacks obsidian.config.CallbackConfig
+---@field legacy_commands boolean
+---@field statusline obsidian.config.StatuslineOpts
+---@field footer obsidian.config.FooterOpts
+---@field open obsidian.config.OpenOpts
+---@field checkbox obsidian.config.CheckboxOpts
+---@field comment obsidian.config.CommentOpts
