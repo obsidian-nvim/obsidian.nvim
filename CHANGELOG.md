@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - remove any fold option overriding, only do fold when fold is setup by the user.
 - support `[](./path)` pattern when finding backlinks.
 - Remove tag false positives that are not on word boundary.
+- Allow nil return in dynamic workspace paths.
 - Fix typo in `open` command.
 
 ## [v3.13.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.1) - 2025-08-01
