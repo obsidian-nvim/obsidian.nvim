@@ -527,7 +527,7 @@ Parameters ~
 {spec} `(obsidian.workspace.WorkspaceSpec|)`?
 
 Return ~
-`(obsidian.Workspace)`
+`(obsidian.Workspace)` `(optional)`
 
 ------------------------------------------------------------------------------
                                                      *obsidian.Workspace.lock()*
