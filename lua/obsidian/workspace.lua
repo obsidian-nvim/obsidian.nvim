@@ -70,7 +70,7 @@ end
 ---
 ---@param spec obsidian.workspace.WorkspaceSpec|?
 ---
----@return obsidian.Workspace
+---@return obsidian.Workspace?
 Workspace.new = function(spec)
   spec = spec and spec or {}
 
@@ -78,6 +78,9 @@ Workspace.new = function(spec)
 
   if type(spec.path) == "function" then
     path = spec.path()
+    if not path then
+      return
+    end
   else
     path = spec.path
   end
@@ -133,8 +136,10 @@ Workspace.get_workspace_for_dir = function(cur_dir, workspaces)
 
   for _, spec in ipairs(workspaces) do
     local w = Workspace.new(spec)
-    if w.path == cur_dir or w.path:is_parent_of(cur_dir) then
-      return w
+    if w then
+      if w.path == cur_dir or w.path:is_parent_of(cur_dir) then
+        return w
+      end
     end
   end
 end

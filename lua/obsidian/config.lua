@@ -597,8 +597,11 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
 
   Obsidian.workspaces = {}
 
-  for i, spec in ipairs(opts.workspaces) do
-    Obsidian.workspaces[i] = require("obsidian.workspace").new(spec)
+  for _, spec in ipairs(opts.workspaces) do
+    local ws = require("obsidian.workspace").new(spec)
+    if ws then
+      table.insert(Obsidian.workspaces, ws)
+    end
   end
 
   -- Convert dir to workspace format.
