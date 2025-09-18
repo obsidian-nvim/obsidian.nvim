@@ -87,9 +87,14 @@ Workspace.new = function(spec)
 
   ---@cast path -function
   path = vim.fs.normalize(tostring(path))
+  path = Path.new(path)
+
+  if not path:exists() then
+    return
+  end
 
   local self = Workspace.init()
-  self.path = Path.new(path):resolve { strict = true }
+  self.path = path:resolve { strict = true }
   self.name = assert(spec.name or self.path.name)
   self.overrides = spec.overrides
 
