@@ -124,6 +124,15 @@ obsidian.setup = function(opts)
     })
   end
 
+  -- find workspaces of a path
+  ---@param path string
+  ---@return obsidian.Workspace
+  local function find_workspace(path)
+    return vim.iter(Obsidian.workspaces):find(function(ws)
+      return obsidian.api.path_is_note(path, ws)
+    end)
+  end
+
   -- Complete setup and update workspace (if needed) when entering a markdown buffer.
   vim.api.nvim_create_autocmd({ "BufEnter" }, {
     group = group,
@@ -136,20 +145,15 @@ obsidian.setup = function(opts)
       end
 
       -- Check if we're in *any* workspace.
-      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
+      local workspace = find_workspace(ev.match)
       if not workspace then
         return
       end
 
+      vim.b[ev.buf].obsidian_buffer = true
+
       if opts.comment.enabled then
         vim.o.commentstring = "%%%s%%"
-      end
-
-      -- Switch to the workspace and complete the workspace setup.
-      if not Obsidian.workspace.locked and workspace ~= Obsidian.workspace then
-        log.debug("Switching to workspace '%s' @ '%s'", workspace.name, workspace.path)
-        obsidian.Workspace.set(workspace)
-        require("obsidian.ui").update(ev.buf)
       end
 
       -- Register keymap.
@@ -189,14 +193,7 @@ obsidian.setup = function(opts)
     group = group,
     pattern = "*.md",
     callback = function(ev)
-      -- Check if we're in *any* workspace.
-      local workspace = obsidian.Workspace.get_workspace_for_dir(vim.fs.dirname(ev.match), Obsidian.opts.workspaces)
-      if not workspace then
-        return
-      end
-
-      -- Check if current buffer is actually a note within the workspace.
-      if not obsidian.api.path_is_note(ev.match) then
+      if not vim.b[ev.buf].obsidian_buffer then
         return
       end
 
@@ -213,16 +210,7 @@ obsidian.setup = function(opts)
     group = group,
     pattern = "*.md",
     callback = function(ev)
-      local buf_dir = vim.fs.dirname(ev.match)
-
-      -- Check if we're in a workspace.
-      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
-      if not workspace then
-        return
-      end
-
-      -- Check if current buffer is actually a note within the workspace.
-      if not obsidian.api.path_is_note(ev.match) then
+      if not vim.b[ev.buf].obsidian_buffer then
         return
       end
 
@@ -244,11 +232,7 @@ obsidian.setup = function(opts)
     group = group,
     pattern = "*.md",
     callback = function(ev)
-      local buf_dir = vim.fs.dirname(ev.match)
-
-      -- Check if we're in a workspace.
-      local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
-      if not workspace then
+      if not vim.b[ev.buf].obsidian_buffer then
         return
       end
 
