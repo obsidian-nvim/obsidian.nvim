@@ -106,6 +106,11 @@ T["find_tags_in_string"]["should ignore tags in markdown links with parentheses"
   eq({}, M.find_tags_in_string(s))
 end
 
+T["find_tags_in_string"]["should ignore tags in html comments"] = function()
+  local s = "<!-- #region -->"
+  eq({}, M.find_tags_in_string(s))
+end
+
 -- TODO: unicode tags
 -- T["find_tags_in_string"]["should find non-English tags"] = function()
 -- eq(1, M.find_tags_in_string "#你好")

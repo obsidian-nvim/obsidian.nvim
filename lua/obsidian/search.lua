@@ -176,6 +176,9 @@ end
 ---@return {[1]: integer, [2]: integer, [3]: obsidian.search.RefTypes}[]
 M.find_tags_in_string = function(s)
   local matches = {}
+  if string.find(s, "<!--.*-->") ~= nil then
+    return matches
+  end
   for match in iter(M.find_matches(s, { M.RefTypes.Tag })) do
     local st, ed, m_type = unpack(match)
     local look_ahead = s:sub(st - 1, st - 1)
