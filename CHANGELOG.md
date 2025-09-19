@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `opts.note_frontmatter_func` defaults to `require"builtin".frontmatter`.
 - `Client.find_tags` -> `search.find_tags`.
 - all commands and callbacks now don't have client as callback.
+- Workspace module only export one method `set`.
 
 ### Fixed
 
