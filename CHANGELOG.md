@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Client.find_tags` -> `search.find_tags`.
 - all commands and callbacks now don't have client as callback.
 - Workspace module only export one method `set`.
+- `config` is now its own module.
 
 ### Fixed
 
