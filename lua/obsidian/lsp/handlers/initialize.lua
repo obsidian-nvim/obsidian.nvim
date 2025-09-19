@@ -1,3 +1,4 @@
+---@type lsp.InitializeResult
 local initializeResult = {
   capabilities = {
     renameProvider = {
@@ -6,6 +7,7 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    workspaceSymbolProvider = true,
   },
   serverInfo = {
     name = "obsidian-ls",

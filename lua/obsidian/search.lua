@@ -548,25 +548,31 @@ end
 ---@param term string
 ---@param search_opts obsidian.SearchOpts|boolean|?
 ---@param find_opts obsidian.SearchOpts|boolean|?
----@param callback fun(path: obsidian.Path)
+---@param callback fun(path: obsidian.Path, range: lsp.Range?)
 ---@param exit_callback fun(paths: obsidian.Path[])
 local _search_async = function(term, search_opts, find_opts, callback, exit_callback)
   local found = {}
   local result = {}
   local cmds_done = 0
 
-  local function dedup_send(path)
+  local function dedup_send(path, range)
     local key = tostring(path:resolve { strict = true })
     if not found[key] then
       found[key] = true
       result[#result + 1] = path
-      callback(path)
+      callback(path, range)
     end
   end
 
+  ---@param content_match MatchData
   local function on_search_match(content_match)
+    ---@type lsp.Range
+    local range = {
+      start = { line = content_match.line_number, character = content_match.submatches[1].start },
+      ["end"] = { line = content_match.line_number, character = content_match.submatches[1]["end"] },
+    }
     local path = Path.new(content_match.path.text)
-    dedup_send(path)
+    dedup_send(path, range)
   end
 
   local function on_find_match(path_match)
@@ -632,7 +638,7 @@ M.find_notes_async = function(term, callback, opts)
     end
 
     local paths_found = {} ---@type string[]
-    async.await(5, _search_async, term, opts.search, nil, function(path)
+    async.await(5, _search_async, term, opts.search, nil, function(path, range)
       paths_found[#paths_found + 1] = path
     end)
 
@@ -664,6 +670,9 @@ M.find_notes_async = function(term, callback, opts)
   end)
 end
 
+---@param term string
+---@param opts { search: obsidian.SearchOpts|?, timeout: integer }|?
+---@return obsidian.Note[]
 M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
