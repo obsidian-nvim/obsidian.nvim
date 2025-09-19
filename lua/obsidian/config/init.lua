@@ -259,14 +259,6 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
 
   if not util.islist(opts.workspaces) then
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
-  elseif vim.tbl_isempty(opts.workspaces) then
-    error "At least one workspace is required!\nPlease specify a workspace "
-  end
-
-  Obsidian.workspaces = {}
-
-  for i, spec in ipairs(opts.workspaces) do
-    Obsidian.workspaces[i] = require("obsidian.workspace").new(spec)
   end
 
   -- Convert dir to workspace format.
