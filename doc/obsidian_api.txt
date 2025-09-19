@@ -491,7 +491,7 @@ Fields ~
 {name} `(string)` An arbitrary name for the workspace.
 {path} `(obsidian.Path)` The normalized path to the workspace.
 {root} `(obsidian.Path)` The normalized path to the vault root of the workspace. This usually matches 'path'.
-{overrides} `(table|obsidian.config.ClientOpts|)`?
+{overrides} `(obsidian.config|)`?
 
 ------------------------------------------------------------------------------
                                                     *obsidian.find_vault_root()*
