@@ -112,51 +112,27 @@ Workspace.new = function(spec)
   return self
 end
 
---- Lock the workspace.
-Workspace.lock = function(self)
-  self.locked = true
-end
-
---- Unlock the workspace.
-Workspace._unlock = function(self)
-  self.locked = false
-end
-
---- Get the workspace corresponding to the directory (or a parent of), if there
---- is one.
----
----@param cur_dir string|obsidian.Path
----@param workspaces obsidian.workspace.WorkspaceSpec[]
----
----@return obsidian.Workspace|?
-Workspace.get_workspace_for_dir = function(cur_dir, workspaces)
-  local ok
-  ok, cur_dir = pcall(function()
-    return Path.new(cur_dir):resolve { strict = true }
-  end)
-
-  if not ok then
-    return
-  end
-
-  for _, spec in ipairs(workspaces) do
-    local w = Workspace.new(spec)
-    if w then
-      if w.path == cur_dir or w.path:is_parent_of(cur_dir) then
-        return w
-      end
-    end
-  end
-end
-
+--- Set the current workspace
 --- 1. Set Obsidian.workspace, Obsidian.dir, and opts
 --- 2. Make sure all the directories exists
 --- 3. fire callbacks and exec autocmd event
 ---
----@param workspace obsidian.Workspace
----@param opts { lock: boolean|? }|?
-Workspace.set = function(workspace, opts)
-  opts = opts and opts or {}
+---@param workspace obsidian.Workspace | string
+Workspace.set = function(workspace)
+  if type(workspace) == "string" then
+    if workspace == Obsidian.workspace.name then
+      log.info("Already in workspace '%s' @ '%s'", workspace, Obsidian.workspace.path)
+      return
+    end
+
+    for _, ws in ipairs(Obsidian.workspaces) do
+      if ws.name == workspace then
+        return Workspace.set(ws)
+      end
+    end
+
+    error(string.format("Workspace '%s' not found", workspace))
+  end
 
   local dir = workspace.root
   local options = config.normalize(workspace.overrides, Obsidian._opts)
@@ -180,35 +156,12 @@ Workspace.set = function(workspace, opts)
     (dir / options.daily_notes.folder):mkdir { parents = true }
   end
 
-  if opts.lock then
-    Obsidian.workspace:lock()
-  end
-
   util.fire_callback("post_set_workspace", options.callbacks.post_set_workspace, workspace)
 
   vim.api.nvim_exec_autocmds("User", {
     pattern = "ObsidianWorkpspaceSet",
     data = { workspace = workspace },
   })
-end
-
----@param workspace string name of workspace
----@param opts { lock: boolean|? }|?
-Workspace.switch = function(workspace, opts)
-  opts = opts and opts or {}
-
-  if workspace == Obsidian.workspace.name then
-    log.info("Already in workspace '%s' @ '%s'", workspace, Obsidian.workspace.path)
-    return
-  end
-
-  for _, ws in ipairs(Obsidian.workspaces) do
-    if ws.name == workspace then
-      return Workspace.set(ws, opts)
-    end
-  end
-
-  error(string.format("Workspace '%s' not found", workspace))
 end
 
 return Workspace
