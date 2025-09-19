@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - all commands and callbacks now don't have client as callback.
 - Workspace module only export one method `set`.
 - `config` is now its own module.
+- `smart_action` now properly falls back to `<CR>` unless `Obsidian.opts.checkbox.create_new`.
 
 ### Fixed
 

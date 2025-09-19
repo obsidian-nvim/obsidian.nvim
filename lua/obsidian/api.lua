@@ -238,6 +238,12 @@ M.cursor_heading = function()
   return util.parse_header(vim.api.nvim_get_current_line())
 end
 
+--- Whether there is a checkbox under the cursor
+---@return boolean
+M.cursor_checkbox = function()
+  return util.is_checkbox(vim.api.nvim_get_current_line())
+end
+
 ------------------
 --- buffer api ---
 ------------------
@@ -703,29 +709,23 @@ local function has_markdown_folding()
   return false
 end
 
+-- If cursor is on a link, follow the link
+-- If cursor is on a tag, show all notes with that tag in a picker
+-- If cursor is on a checkbox, toggle the checkbox
+-- If cursor is on a heading, cycle the fold of that heading
 M.smart_action = function()
   local legacy = Obsidian.opts.legacy_commands
-  -- follow link if possible
   if M.cursor_link() then
     return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
-  end
-
-  -- show notes with tag if possible
-  if M.cursor_tag() then
+  elseif M.cursor_tag() then
     return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
+  elseif M.cursor_heading() and has_markdown_folding() then
+    return "za"
+  elseif M.cursor_checkbox() or Obsidian.opts.checkbox.create_new then
+    return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
+  else
+    return "<CR>"
   end
-
-  if M.cursor_heading() then
-    if has_markdown_folding() then
-      return "za"
-    else
-      return "<CR>"
-    end
-  end
-
-  -- toggle task if possible
-  -- cycles through your custom UI checkboxes, default: [ ] [~] [>] [x]
-  return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
 end
 
 ---Set the checkbox on the current line to a specific state.
