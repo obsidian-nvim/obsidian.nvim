@@ -41,21 +41,21 @@ obsidian.register_command = require("obsidian.commands").register
 
 --- Setup a new Obsidian client. This should only be called once from an Nvim session.
 ---
----@param opts obsidian.config.ClientOpts | table<string, any>
+---@param user_opts obsidian.config
 ---
 ---@return obsidian.Client
-obsidian.setup = function(opts)
+obsidian.setup = function(user_opts)
   ---@class obsidian.state
   ---@field picker obsidian.Picker Picker to use.
   ---@field workspace obsidian.Workspace Current workspace.
   ---@field workspaces obsidian.Workspace[] All workspaces.
   ---@field dir obsidian.Path Root of the vault for the current workspace.
   ---@field buf_dir obsidian.Path|? Parent directory of the current buffer.
-  ---@field opts obsidian.config.ClientOpts Current options.
-  ---@field _opts obsidian.config.ClientOpts User input options.
+  ---@field opts obsidian.config.Internal Current options.
+  ---@field _opts obsidian.config.Internal User input options.
   _G.Obsidian = {}
 
-  opts = obsidian.config.normalize(opts)
+  local opts = obsidian.config.normalize(user_opts)
 
   local client = obsidian.Client.new() -- TODO: remove in 4.0.0
   local workspaces = {}
