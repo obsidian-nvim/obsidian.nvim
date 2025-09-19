@@ -1,3 +1,4 @@
+---@diagnostic disable: inject-field
 local log = require "obsidian.log"
 
 local config = {}
@@ -39,7 +40,6 @@ config.Picker = {
   snacks = "snacks.pick",
 }
 
----@return obsidian.config.ClientOpts
 config.default = require "obsidian.config.default"
 
 local tbl_override = function(defaults, overrides)
@@ -58,10 +58,10 @@ end
 
 --- Normalize options.
 ---
----@param opts table<string, any>
----@param defaults obsidian.config.ClientOpts|?
+---@param opts obsidian.config
+---@param defaults obsidian.config.Internal|?
 ---
----@return obsidian.config.ClientOpts
+---@return obsidian.config.Internal
 config.normalize = function(opts, defaults)
   local builtin = require "obsidian.builtin"
   local util = require "obsidian.util"
@@ -186,6 +186,7 @@ config.normalize = function(opts, defaults)
     opts.overwrite_mappings = nil
   end
 
+  ---@diagnostic disable-next-line: undefined-field
   if opts.mappings ~= nil then
     log.warn_once [[The 'mappings' config option is deprecated and no longer has any affect.
 See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
@@ -222,7 +223,6 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   -- Merge with defaults. --
   --------------------------
 
-  ---@type obsidian.config.ClientOpts
   opts = tbl_override(defaults, opts)
 
   opts.backlinks = tbl_override(defaults.backlinks, opts.backlinks)

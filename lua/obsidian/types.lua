@@ -46,7 +46,7 @@
 ---@field path string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path)
 ---@field name string|?
 ---@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
----@field overrides table|obsidian.config.ClientOpts?
+---@field overrides obsidian.config?
 
 ---@class obsidian.config
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
@@ -81,7 +81,7 @@
 ---@field checkbox? obsidian.config.CheckboxOpts
 ---@field comment? obsidian.config.CommentOpts
 
----@class obsidian.config.ClientOpts
+---@class obsidian.config.Internal
 ---@field dir string|?
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]|?
 ---@field log_level integer

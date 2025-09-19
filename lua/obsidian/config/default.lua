@@ -1,6 +1,6 @@
----@type obsidian.config.ClientOpts
+---@type obsidian.config.Internal
 return {
-  legacy_commands = true,
+  legacy_commands = true, -- TODO: remove in 4.0.0
   workspaces = {},
   log_level = vim.log.levels.INFO,
   notes_subdir = nil,

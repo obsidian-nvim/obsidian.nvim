@@ -7,7 +7,7 @@ local M = {}
 ---Create a new Obsidian client in a given vault directory.
 ---
 ---@param dir string
----@param opts obsidian.config.ClientOpts|?
+---@param opts obsidian.config.Internal|?
 ---@return obsidian.Client
 local new_from_dir = function(dir, opts)
   opts = vim.tbl_deep_extend("keep", opts or {}, obsidian.config.default)
@@ -18,7 +18,7 @@ end
 ---Get a client in a temporary directory.
 ---
 ---@param f fun(client: obsidian.Client)
----@param opts obsidian.config.ClientOpts
+---@param opts obsidian.config.Internal
 M.with_tmp_client = function(f, dir, opts)
   local tmp
   local templates_dir

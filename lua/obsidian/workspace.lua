@@ -16,7 +16,7 @@ local log = require "obsidian.log"
 ---@field name string An arbitrary name for the workspace.
 ---@field path obsidian.Path The normalized path to the workspace.
 ---@field root obsidian.Path The normalized path to the vault root of the workspace. This usually matches 'path'.
----@field overrides table|obsidian.config.ClientOpts|?
+---@field overrides obsidian.config|?
 local Workspace = {}
 Workspace.__index = Workspace
 
