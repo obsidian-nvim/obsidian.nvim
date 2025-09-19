@@ -1,15 +1,7 @@
 local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
 local log = require "obsidian.log"
-
----@class obsidian.workspace.WorkspaceSpec
----
----@field path string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path)
----@field name string|?
----@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
----@field overrides table|obsidian.config.ClientOpts?
 
 --- Each workspace represents a working directory (usually an Obsidian vault) along with
 --- a set of configuration options specific to the workspace.
@@ -25,22 +17,15 @@ local log = require "obsidian.log"
 ---@field path obsidian.Path The normalized path to the workspace.
 ---@field root obsidian.Path The normalized path to the vault root of the workspace. This usually matches 'path'.
 ---@field overrides table|obsidian.config.ClientOpts|?
----@field locked boolean|?
-local Workspace = abc.new_class {
-  __tostring = function(self)
-    if self.name == Obsidian.workspace.name then
-      return string.format("*[%s] @ '%s'", self.name, self.path)
-    end
-    return string.format("[%s] @ '%s'", self.name, self.path)
-  end,
-  __eq = function(a, b)
-    local a_fields = a:as_tbl()
-    a_fields.locked = nil
-    local b_fields = b:as_tbl()
-    b_fields.locked = nil
-    return vim.deep_equal(a_fields, b_fields)
-  end,
-}
+local Workspace = {}
+Workspace.__index = Workspace
+
+Workspace.__tostring = function(self)
+  if self.name == Obsidian.workspace.name then
+    return string.format("*[%s] @ '%s'", self.name, self.path)
+  end
+  return string.format("[%s] @ '%s'", self.name, self.path)
+end
 
 --- Find the vault root from a given directory.
 ---
@@ -93,7 +78,7 @@ Workspace.new = function(spec)
     return
   end
 
-  local self = Workspace.init()
+  local self = {}
   self.path = path:resolve { strict = true }
   self.name = assert(spec.name or self.path.name)
   self.overrides = spec.overrides
@@ -109,7 +94,7 @@ Workspace.new = function(spec)
     end
   end
 
-  return self
+  return setmetatable(self, Workspace)
 end
 
 --- Set the current workspace
