@@ -200,6 +200,7 @@ return function(params, _, _)
   else
     local uri = params.textDocument.uri
     local note = assert(api.current_note(0))
+    vim.print(note)
     local new_note = rename_note(uri, new_name, note)
     new_note:open()
   end

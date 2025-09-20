@@ -93,10 +93,11 @@ handlder.tags = function(v, path)
   return tags
 end
 
----@param frontmatter string
+---@param frontmatter_lines string[]
 ---@return table
 ---@return table
-M.parse = function(frontmatter, path)
+M.parse = function(frontmatter_lines, path)
+  local frontmatter = table.concat(frontmatter_lines, "\n")
   local ok, data = pcall(yaml.loads, frontmatter)
   if type(data) ~= "table" then
     data = {}
@@ -110,7 +111,6 @@ M.parse = function(frontmatter, path)
       ret[k] = handlder[k](v, path)
     else
       metadata[k] = v
-      ret[k] = v
     end
   end
 

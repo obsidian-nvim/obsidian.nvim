@@ -1,12 +1,9 @@
 ---
-id: foo
 aliases:
   - foo
   - Foo
   - Foo Bar
+id: foo
 tags: []
 ---
-
 # foo
-
-This is some content.
