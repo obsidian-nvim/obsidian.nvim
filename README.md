@@ -278,6 +278,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="http://minusfive.com"><img src="https://avatars.githubusercontent.com/u/33695?v=4?s=100" width="100px;" alt="Jorge Villalobos"/><br /><sub><b>Jorge Villalobos</b></sub></a><br /><a href="#code-minusfive" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/TakahiroW4047"><img src="https://avatars.githubusercontent.com/u/33548194?v=4?s=100" width="100px;" alt="Tak"/><br /><sub><b>Tak</b></sub></a><br /><a href="#code-TakahiroW4047" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://eportfolio.dev"><img src="https://avatars.githubusercontent.com/u/98435584?v=4?s=100" width="100px;" alt="Emilio Marin"/><br /><sub><b>Emilio Marin</b></sub></a><br /><a href="#code-e-mar404" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/antigluten"><img src="https://avatars.githubusercontent.com/u/53124465?v=4?s=100" width="100px;" alt="Vladimir Gusev"/><br /><sub><b>Vladimir Gusev</b></sub></a><br /><a href="#code-antigluten" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
