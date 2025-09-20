@@ -25,14 +25,14 @@ local function sort_by_list(list)
   end
 end
 
---- Get frontmatter lines that can be written to a buffer.
+--- Get frontmatter lines to be written
 ---
 ---@param t table<string, any>
 ---@param order string[] | fun(a: any, b: any): boolean
 ---
 ---@return string[]
 M.dump = function(t, order)
-  local new_lines = { "---" }
+  local lines = { "---" }
   local order_f
 
   if order and type(order) == "table" and not vim.tbl_isempty(order) then
@@ -42,12 +42,12 @@ M.dump = function(t, order)
   end
 
   for _, line in ipairs(yaml.dumps_lines(t, order_f)) do
-    table.insert(new_lines, line)
+    table.insert(lines, line)
   end
 
-  table.insert(new_lines, "---")
+  table.insert(lines, "---")
 
-  return new_lines
+  return lines
 end
 
 ---@type table<string, fun(v: any, path: string): any, string?>
@@ -118,9 +118,11 @@ validater.tags = function(v, path)
   return tags
 end
 
+--- Parse and validate info from frontmatter.
+---
 ---@param frontmatter_lines string[]
----@return table
----@return table
+---@return { id: string, tags: string[], aliases: string[] }
+---@return table<string, any>
 M.parse = function(frontmatter_lines, path)
   local frontmatter = table.concat(frontmatter_lines, "\n")
   local ok, data = pcall(yaml.loads, frontmatter)
