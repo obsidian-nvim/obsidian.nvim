@@ -2,6 +2,29 @@ local M = {}
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 
+local function sort_by_list(list)
+  return function(a, b)
+    local a_idx, b_idx = nil, nil
+    for i, k in ipairs(list) do
+      if a == k then
+        a_idx = i
+      end
+      if b == k then
+        b_idx = i
+      end
+    end
+    if a_idx and b_idx then
+      return a_idx < b_idx
+    elseif a_idx then
+      return true
+    elseif b_idx then
+      return false
+    else
+      return a < b
+    end
+  end
+end
+
 --- Get frontmatter lines that can be written to a buffer.
 ---
 ---@param t table<string, any>
@@ -12,14 +35,8 @@ M.dump = function(t, order)
   local new_lines = { "---" }
   local order_f
 
-  if order and type(order) == "table" then
-    local value2order = {}
-    for i, v in ipairs(order) do
-      value2order[v] = i
-    end
-    order_f = function(a, b)
-      return value2order[a] < value2order[b]
-    end
+  if order and type(order) == "table" and not vim.tbl_isempty(order) then
+    order_f = sort_by_list(order)
   elseif order and type(order) == "function" then
     order_f = order
   end

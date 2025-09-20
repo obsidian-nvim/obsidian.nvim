@@ -742,7 +742,7 @@ Note.from_lines = function(lines, path, opts)
   if #frontmatter_lines > 0 then
     info, metadata = Frontmatter.parse(frontmatter_lines, path)
     if metadata and metadata.title and type(metadata.title) == "string" then
-      title = info.title
+      title = metadata.title
     end
   end
 
