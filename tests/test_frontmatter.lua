@@ -83,4 +83,22 @@ T["dump"]["dump with custom order function"] = function()
   eq(expected, lines)
 end
 
+T["parse"] = function()
+  local lines = {
+    "id: id",
+    "aliases:",
+    "  - id",
+    "  - alias",
+    "tags:",
+    "  - tag1",
+    "  - tag2",
+    "random: stuff",
+  }
+  local t, metadata = M.parse(lines, "")
+  eq(t.id, "id")
+  eq(t.aliases, { "id", "alias" })
+  eq(t.tags, { "tag1", "tag2" })
+  eq(metadata, { random = "stuff" })
+end
+
 return T

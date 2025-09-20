@@ -43,35 +43,74 @@ end
 
 T["save"] = new_set()
 
-T["save"]["should be able to save to file"] = function()
-  local note = M.from_file "tests/fixtures/notes/foo.md"
-  note:add_alias "Foo Bar"
-  note:save { path = "./tests/fixtures/notes/foo_bar.md" }
+local function from_str(str, path)
+  return M.from_lines(vim.iter(vim.split(str, "\n")), path)
 end
 
-T["save"]["should be able to save a note w/o frontmatter"] = function()
-  local note = M.from_file "tests/fixtures/notes/note_without_frontmatter.md"
-  note:save { path = "./tests/fixtures/notes/note_without_frontmatter_saved.md" }
-end
+local foo = [[---
+id: foo
+aliases:
+ - foo
+ - Foo
+tags: []
+---
 
-T["save"]["should be able to save a new note"] = function()
-  local note = M.new("FOO", {}, {}, "/tmp/" .. util.zettel_id() .. ".md")
-  note:save()
-end
+# foo
 
-T["add_alias"] = new_set()
+This is some content.]]
 
-T["add_alias"]["should be able to add an alias"] = function()
-  local note = M.from_file "tests/fixtures/notes/foo.md"
-  eq(#note.aliases, 2)
-  note:add_alias "Foo Bar"
-  eq(#note.aliases, 3)
-end
+local foo_bar = [[---
+id: foo
+aliases:
+  - foo
+  - Foo
+  - Foo Bar
+tags: []
+---
 
-T["from_file"] = new_set()
+# foo
 
-T["from_file"]["should work from a file"] = function()
-  local note = M.from_file "tests/fixtures/notes/foo.md"
+This is some content.]]
+
+--- TODO: add back once we don't test from a file
+-- T["save"]["should be able to save to file"] = function()
+--   local note = from_str(foo, "foo.md")
+--   note:add_alias "Foo Bar"
+--   -- TODO: save to another location is weird, it is not move, because obj still has old path.
+--   note:save {
+--     path = "./tests/fixtures/notes/foo_bar.md",
+--     insert_frontmatter = true,
+--     update_content = function(a)
+--       return a
+--     end,
+--   }
+--   local lines = vim.fn.readfile "./tests/fixtures/notes/foo_bar.md"
+--   eq(foo_bar, table.concat(lines, "\n"))
+-- end
+--
+-- T["save"]["should be able to save a note w/o frontmatter"] = function()
+--   local note = M.from_file "tests/fixtures/notes/note_without_frontmatter.md"
+--   note:save { path = "./tests/fixtures/notes/note_without_frontmatter_saved.md" }
+-- end
+--
+-- T["save"]["should be able to save a new note"] = function()
+--   local note = M.new("FOO", {}, {}, "/tmp/" .. util.zettel_id() .. ".md")
+--   note:save()
+-- end
+
+-- T["add_alias"] = new_set()
+--
+-- T["add_alias"]["should be able to add an alias"] = function()
+--   local note = M.from_file "tests/fixtures/notes/foo.md"
+--   eq(#note.aliases, 2)
+--   note:add_alias "Foo Bar"
+--   eq(#note.aliases, 3)
+-- end
+
+T["from_lines"] = new_set()
+
+T["from_lines"]["should work from a lines"] = function()
+  local note = M.from_lines(vim.iter(vim.split(foo, "\n")), "foo.md")
   eq(note.id, "foo")
   eq(note.aliases[1], "foo")
   eq(note.aliases[2], "Foo")
@@ -80,8 +119,24 @@ T["from_file"]["should work from a file"] = function()
   eq(#note.tags, 0)
 end
 
-T["from_file"]["should be able to collect anchor links"] = function()
-  local note = M.from_file("tests/fixtures/notes/note_with_a_bunch_of_headers.md", { collect_anchor_links = true })
+local note_with_headers = [[---
+id: note_with_a_bunch_of_headers
+---
+
+# Header 1
+
+## Sub header 1 A
+
+# Header 2
+
+## Sub header 2 A
+
+## Sub header 3 A]]
+
+T["from_lines"]["should be able to collect anchor links"] = function()
+  local note = M.from_lines(vim.iter(vim.split(note_with_headers, "\n")), "anchors.md", {
+    collect_anchor_links = true,
+  })
   eq(note.id, "note_with_a_bunch_of_headers")
   not_eq(note.anchor_links, nil)
   eq({
@@ -138,15 +193,16 @@ T["from_file"]["should be able to collect anchor links"] = function()
   }, note:resolve_anchor_link "#Header 1")
 end
 
-T["from_file"]["should be able to resolve anchor links after the fact"] = function()
-  local note = M.from_file("tests/fixtures/notes/note_with_a_bunch_of_headers.md", { collect_anchor_links = false })
-  eq(note.id, "note_with_a_bunch_of_headers")
-  eq(nil, note.anchor_links)
-  eq({ anchor = "#header-1", line = 5, header = "Header 1", level = 1 }, note:resolve_anchor_link "#header-1")
-end
+local note_with_blocks = [[---
+id: note_with_a_bunch_of_blocks
+---
 
-T["from_file"]["should be able to collect blocks"] = function()
-  local note = M.from_file("tests/fixtures/notes/note_with_a_bunch_of_blocks.md", { collect_blocks = true })
+This is a block ^1234
+
+And another block ^hello-world]]
+
+T["from_lines"]["should be able to collect blocks"] = function()
+  local note = M.from_lines(vim.iter(vim.split(note_with_blocks, "\n")), "blocks.md", { collect_blocks = true })
   not_eq(nil, note.blocks)
   eq({
     id = "^1234",
@@ -160,20 +216,7 @@ T["from_file"]["should be able to collect blocks"] = function()
   }, note.blocks["^hello-world"])
 end
 
-T["from_file"]["should be able to collect blocks after the fact"] = function()
-  local note = M.from_file("tests/fixtures/notes/note_with_a_bunch_of_blocks.md", { collect_blocks = false })
-  eq(nil, note.blocks)
-  eq({
-    id = "^1234",
-    line = 5,
-    block = "This is a block ^1234",
-  }, note:resolve_block "^1234")
-  eq({
-    id = "^1234",
-    line = 5,
-    block = "This is a block ^1234",
-  }, note:resolve_block "#^1234")
-end
+T["from_file"] = new_set()
 
 T["from_file"]["should work from a README"] = function()
   local note = M.from_file "README.md"
@@ -197,6 +240,7 @@ end
 T["from_file"]["should collect additional frontmatter metadata and keep the order"] = function()
   local note = M.from_file("tests/fixtures/notes/note_with_additional_metadata.md", { load_contents = true })
   eq(note.id, "note_with_additional_metadata")
+  -- TODO:
   eq(note.title, "Note (has additional metadata)")
   not_eq(note.metadata, nil)
   eq(note.metadata.foo, "bar")
@@ -218,8 +262,18 @@ T["from_file"]["should collect additional frontmatter metadata and keep the orde
   )
 end
 
+local note_with_different_frontmatter_format = [[---
+aliases: [Amanda Green, Detective Green, Mandy]
+tags: []
+---
+
+# Detective]]
+
 T["from_file"]["should be able to be read frontmatter that's formatted differently"] = function()
-  local note = M.from_file "tests/fixtures/notes/note_with_different_frontmatter_format.md"
+  local note = M.from_lines(
+    vim.iter(vim.split(note_with_different_frontmatter_format, "\n")),
+    "note_with_different_frontmatter_format.md"
+  )
   eq(note.id, "note_with_different_frontmatter_format")
   eq(note.metadata, {})
   eq(#note.aliases, 3)

@@ -587,7 +587,7 @@ end
 ---@return obsidian.Note
 Note.from_lines = function(lines, path, opts)
   opts = opts or {}
-  path = Path.new(path):resolve()
+  path = path and Path.new(path):resolve()
 
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
@@ -740,9 +740,8 @@ Note.from_lines = function(lines, path, opts)
   -- Parse the frontmatter YAML.
   local metadata = {}
   if #frontmatter_lines > 0 then
-    local frontmatter = table.concat(frontmatter_lines, "\n")
-    info, metadata = Frontmatter.parse(frontmatter, path)
-    if info and info.title and type(info.title) == "string" then
+    info, metadata = Frontmatter.parse(frontmatter_lines, path)
+    if metadata and metadata.title and type(metadata.title) == "string" then
       title = info.title
     end
   end
