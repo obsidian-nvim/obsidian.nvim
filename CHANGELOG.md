@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Replace non existing function `get_workspace_for_dir` with `find_workspace`
 - Fixed async with minimal functions copied from `vim._async`.
 - No longer notify user `Updated Frontmatter`.
 - `Snacks.picker` now follow `sort_by` and `sort_reversed` settings.
