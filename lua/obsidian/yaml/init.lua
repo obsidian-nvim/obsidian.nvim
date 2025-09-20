@@ -6,6 +6,7 @@ local yaml = {}
 ---Deserialize a YAML string.
 ---@param str string
 ---@return any
+---@return string[]
 yaml.loads = function(str)
   return parser.loads(str)
 end

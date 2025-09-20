@@ -797,7 +797,7 @@ Note.frontmatter_lines = function(self, current_lines)
     end, current_lines)
     _, _, order = pcall(yaml.loads, table.concat(current_lines, "\n"))
   end
-  return Frontmatter.dump(Obsidian.opts.note_frontmatter_func(self), order)
+  return Frontmatter.dump(Obsidian.opts.frontmatter.func(self), order)
 end
 
 --- Update the frontmatter in a buffer for the note.
@@ -838,12 +838,14 @@ Note.should_save_frontmatter = function(self)
     end
   end
 
+  local enabled = Obsidian.opts.frontmatter.enabled
+
   if is_in_frontmatter_blacklist(self) then
     return false
-  elseif type(Obsidian.opts.disable_frontmatter) == "boolean" then
-    return not Obsidian.opts.disable_frontmatter
-  elseif type(Obsidian.opts.disable_frontmatter) == "function" then
-    return not Obsidian.opts.disable_frontmatter(self.path:vault_relative_path { strict = true })
+  elseif type(enabled) == "boolean" then
+    return enabled
+  elseif type(enabled) == "function" then
+    return enabled(self.path:vault_relative_path { strict = true })
   else
     return true
   end
@@ -879,8 +881,8 @@ Note.write = function(self, opts)
   end
 
   local frontmatter = nil
-  if Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(self)
+  if Obsidian.opts.frontmatter.func ~= nil then
+    frontmatter = Obsidian.opts.frontmatter.func(self)
   end
 
   self:save {

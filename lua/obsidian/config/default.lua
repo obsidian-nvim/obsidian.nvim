@@ -11,12 +11,27 @@ return {
   preferred_link_style = "wiki",
   follow_url_func = vim.ui.open,
   follow_img_func = vim.ui.open,
-  note_frontmatter_func = require("obsidian.builtin").frontmatter,
-  disable_frontmatter = false,
   sort_by = "modified",
   sort_reversed = true,
   search_max_lines = 1000,
   open_notes_in = "current",
+
+  note_frontmatter_func = require("obsidian.builtin").frontmatter, -- TODO: deprecate
+  disable_frontmatter = false, -- TODO: deprecate
+
+  ---@class obsidian.config.FrontmatterOpts
+  ---
+  --- Whether to enable frontmatter, boolean for global on/off, or a function that takes filename and returns boolean.
+  ---@field enabled (fun(fname: string?): boolean)|boolean
+  ---
+  --- Function to turn Note attributes into frontmatter.
+  ---@field func fun(note: obsidian.Note): table<string, any>
+  --- Function that is passed to table.sort to sort the properties, or a fixed order of properties.
+  frontmatter = {
+    enabled = true,
+    func = require("obsidian.builtin").frontmatter,
+    order = { "id", "aliases", "tags" }, -- TODO: ?
+  },
 
   ---@class obsidian.config.TemplateOpts
   ---
