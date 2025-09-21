@@ -95,6 +95,7 @@ obsidian.setup = function(user_opts)
     obsidian.commands.install_legacy(client)
   end
 
+  --- TODO: remove in 4.0.0
   if opts.statusline.enabled then
     require("obsidian.statusline").start()
   end
@@ -110,140 +111,8 @@ obsidian.setup = function(user_opts)
     require("obsidian.completion.plugin_initializers.blink").register_providers(opts)
   end
 
-  local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
-
-  -- wrapper for creating autocmd events
-  ---@param pattern string
-  ---@param buf integer
-  local function exec_autocmds(pattern, buf)
-    vim.api.nvim_exec_autocmds("User", {
-      pattern = pattern,
-      data = {
-        note = require("obsidian.note").from_buffer(buf),
-      },
-    })
-  end
-
-  -- find workspaces of a path
-  ---@param path string
-  ---@return obsidian.Workspace
-  local function find_workspace(path)
-    return vim.iter(Obsidian.workspaces):find(function(ws)
-      return obsidian.api.path_is_note(path, ws)
-    end)
-  end
-
-  -- Complete setup and update workspace (if needed) when entering a markdown buffer.
-  vim.api.nvim_create_autocmd({ "BufEnter" }, {
-    group = group,
-    pattern = "*.md",
-    callback = function(ev)
-      -- Set the current directory of the buffer.
-      local buf_dir = vim.fs.dirname(ev.match)
-      if buf_dir then
-        Obsidian.buf_dir = obsidian.Path.new(buf_dir)
-      end
-
-      -- Check if we're in *any* workspace.
-      local workspace = find_workspace(ev.match)
-      if not workspace then
-        return
-      end
-
-      vim.b[ev.buf].obsidian_buffer = true
-
-      if opts.comment.enabled then
-        vim.o.commentstring = "%%%s%%"
-      end
-
-      -- Register keymap.
-      vim.keymap.set(
-        "n",
-        "<CR>",
-        obsidian.api.smart_action,
-        { expr = true, buffer = true, desc = "Obsidian Smart Action" }
-      )
-
-      vim.keymap.set("n", "]o", function()
-        obsidian.api.nav_link "next"
-      end, { buffer = true, desc = "Obsidian Next Link" })
-
-      vim.keymap.set("n", "[o", function()
-        obsidian.api.nav_link "prev"
-      end, { buffer = true, desc = "Obsidian Previous Link" })
-
-      -- Inject completion sources, providers to their plugin configurations
-      if opts.completion.nvim_cmp then
-        require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
-      elseif opts.completion.blink then
-        require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
-      end
-
-      require("obsidian.lsp").start(ev.buf)
-
-      -- Run enter-note callback.
-      local note = obsidian.Note.from_buffer(ev.buf)
-      obsidian.util.fire_callback("enter_note", Obsidian.opts.callbacks.enter_note, note)
-
-      exec_autocmds("ObsidianNoteEnter", ev.buf)
-    end,
-  })
-
-  vim.api.nvim_create_autocmd({ "BufLeave" }, {
-    group = group,
-    pattern = "*.md",
-    callback = function(ev)
-      if not vim.b[ev.buf].obsidian_buffer then
-        return
-      end
-
-      -- Run leave-note callback.
-      local note = obsidian.Note.from_buffer(ev.buf)
-      obsidian.util.fire_callback("leave_note", Obsidian.opts.callbacks.leave_note, note)
-
-      exec_autocmds("ObsidianNoteLeave", ev.buf)
-    end,
-  })
-
-  -- Add/update frontmatter for notes before writing.
-  vim.api.nvim_create_autocmd({ "BufWritePre" }, {
-    group = group,
-    pattern = "*.md",
-    callback = function(ev)
-      if not vim.b[ev.buf].obsidian_buffer then
-        return
-      end
-
-      -- Initialize note.
-      local bufnr = ev.buf
-      local note = obsidian.Note.from_buffer(bufnr)
-
-      -- Run pre-write-note callback.
-      obsidian.util.fire_callback("pre_write_note", Obsidian.opts.callbacks.pre_write_note, note)
-
-      exec_autocmds("ObsidianNoteWritePre", ev.buf)
-
-      -- Update buffer with new frontmatter.
-      note:update_frontmatter(bufnr)
-    end,
-  })
-
-  vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-    group = group,
-    pattern = "*.md",
-    callback = function(ev)
-      if not vim.b[ev.buf].obsidian_buffer then
-        return
-      end
-
-      -- Check if current buffer is actually a note within the workspace.
-      if not obsidian.api.path_is_note(ev.match) then
-        return
-      end
-
-      exec_autocmds("ObsidianNoteWritePost", ev.buf)
-    end,
-  })
+  -- Register autocmds for keymaps, options and custom callbacks
+  require "obsidian.autocmds"
 
   -- Set global client.
   obsidian._client = client
