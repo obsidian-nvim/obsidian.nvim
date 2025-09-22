@@ -6,9 +6,6 @@ local api = require "obsidian.api"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 
---- TODO: should move to other dirs, with new name like ../newname
---- TODO: note id func?
-
 ---@param old_path string
 ---@param new_name string
 ---@param target obsidian.Note
@@ -46,7 +43,7 @@ local function rename_note(old_path, new_name, target)
       },
     }
     count = count + 1
-    buf_list[#buf_list + 1] = vim.fn.bufnr(match_path)
+    buf_list[#buf_list + 1] = vim.fn.bufnr(match_path, true)
     path_lookup[match_path] = true
   end
 
