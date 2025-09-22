@@ -2,7 +2,7 @@ local log = require "obsidian.log"
 local api = require "obsidian.api"
 local Note = require "obsidian.note"
 
----@param data CommandArgs
+---@param data obsidian.CommandArgs
 return function(data)
   local viz = api.get_visual_selection()
   if not viz then

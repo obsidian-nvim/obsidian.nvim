@@ -1,6 +1,6 @@
 local log = require "obsidian.log"
 
----@param data CommandArgs
+---@param data obsidian.CommandArgs
 return function(data)
   local offset_days = 0
   local arg = string.gsub(data.args, " ", "")

@@ -58,7 +58,7 @@ end
 ---@field complete function|string|?
 ---@field nargs string|integer|?
 ---@field range boolean|?
----@field func fun(data: CommandArgs)|?
+---@field func fun(data: obsidian.CommandArgs)?
 ---@field name string?
 ---@field note_action boolean?
 

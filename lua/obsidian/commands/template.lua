@@ -2,7 +2,7 @@ local templates = require "obsidian.templates"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 
----@param data CommandArgs
+---@param data obsidian.CommandArgs
 return function(data)
   local templates_dir = api.templates_dir()
   if not templates_dir then

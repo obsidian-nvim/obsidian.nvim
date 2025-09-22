@@ -2,7 +2,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local Note = require "obsidian.note"
 
----@param data CommandArgs
+---@param data obsidian.CommandArgs
 return function(data)
   ---@type obsidian.Note
   local note

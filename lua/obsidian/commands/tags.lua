@@ -57,7 +57,7 @@ local function gather_tag_picker_list(picker, tag_locations, tags)
   end)
 end
 
----@param data CommandArgs
+---@param data obsidian.CommandArgs
 return function(data)
   local picker = Obsidian.picker
   if not picker then

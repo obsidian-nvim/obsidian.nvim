@@ -1,6 +1,6 @@
 local api = require "obsidian.api"
 
----@param data CommandArgs
+---@param data obsidian.CommandArgs
 return function(data)
   local opts = {}
   if data.args and string.len(data.args) > 0 then

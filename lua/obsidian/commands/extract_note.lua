@@ -5,7 +5,7 @@ local Note = require "obsidian.note"
 ---Extract the selected text into a new note
 ---and replace the selection with a link to the new note.
 ---
----@param data CommandArgs
+---@param data obsidian.CommandArgs
 return function(data)
   local viz = api.get_visual_selection()
   if not viz then

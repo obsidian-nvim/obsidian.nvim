@@ -32,7 +32,7 @@ local function open_in_app(path)
   Obsidian.opts.open.func(uri)
 end
 
----@param data CommandArgs
+---@param data obsidian.CommandArgs
 return function(data)
   ---@type string|?
   local search_term, path

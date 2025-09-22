@@ -1,4 +1,4 @@
----@param data CommandArgs
+---@param data obsidian.CommandArgs
 return function(data)
   local new_name = vim.trim(data.args)
   if #new_name == 0 then
