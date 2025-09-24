@@ -8,6 +8,7 @@ local iter = vim.iter
 local compat = require "obsidian.compat"
 local api = require "obsidian.api"
 local config = require "obsidian.config"
+local Frontmatter = require "obsidian.frontmatter"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
@@ -84,7 +85,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field title string|?
 ---@field tags string[]
 ---@field path obsidian.Path|?
----@field metadata table|?
+---@field metadata table
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
 ---@field contents string[]|?
@@ -618,14 +619,14 @@ end
 ---@return obsidian.Note
 Note.from_lines = function(lines, path, opts)
   opts = opts or {}
-  path = Path.new(path):resolve()
+  path = path and Path.new(path):resolve()
 
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
-  local id = nil
+  -- local id = nil
   local title = nil
-  local aliases = {}
-  local tags = {}
+  -- local aliases = {}
+  -- local tags = {}
 
   ---@type string[]|?
   local contents
@@ -768,80 +769,14 @@ Note.from_lines = function(lines, path, opts)
     end
   end
 
+  local info = {}
+
   -- Parse the frontmatter YAML.
-  local metadata = nil
+  local metadata = {}
   if #frontmatter_lines > 0 then
-    local frontmatter = table.concat(frontmatter_lines, "\n")
-    local ok, data = pcall(yaml.loads, frontmatter)
-    if type(data) ~= "table" then
-      data = {}
-    end
-    if ok then
-      ---@diagnostic disable-next-line: param-type-mismatch
-      for k, v in pairs(data) do
-        if k == "id" then
-          if type(v) == "string" or type(v) == "number" then
-            id = v
-          else
-            log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
-          end
-        elseif k == "title" then
-          if type(v) == "string" then
-            title = v
-            if metadata == nil then
-              metadata = {}
-            end
-            metadata.title = v
-          else
-            log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
-          end
-        elseif k == "aliases" then
-          if type(v) == "table" then
-            for alias in iter(v) do
-              if type(alias) == "string" then
-                table.insert(aliases, alias)
-              else
-                log.warn(
-                  "Invalid alias value found in frontmatter for "
-                    .. tostring(path)
-                    .. ". Expected string, found "
-                    .. type(alias)
-                    .. "."
-                )
-              end
-            end
-          elseif type(v) == "string" then
-            table.insert(aliases, v)
-          else
-            log.warn("Invalid 'aliases' in frontmatter for " .. tostring(path))
-          end
-        elseif k == "tags" then
-          if type(v) == "table" then
-            for tag in iter(v) do
-              if type(tag) == "string" then
-                table.insert(tags, tag)
-              else
-                log.warn(
-                  "Invalid tag value found in frontmatter for "
-                    .. tostring(path)
-                    .. ". Expected string, found "
-                    .. type(tag)
-                    .. "."
-                )
-              end
-            end
-          elseif type(v) == "string" then
-            tags = vim.split(v, " ")
-          else
-            log.warn("Invalid 'tags' in frontmatter for '%s'", path)
-          end
-        else
-          if metadata == nil then
-            metadata = {}
-          end
-          metadata[k] = v
-        end
-      end
+    info, metadata = Frontmatter.parse(frontmatter_lines, path)
+    if metadata and metadata.title and type(metadata.title) == "string" then
+      title = metadata.title
     end
   end
 
@@ -849,6 +784,8 @@ Note.from_lines = function(lines, path, opts)
     -- Remove references and links from title
     title = search.replace_refs(title)
   end
+
+  local id, aliases, tags = info.id, info.aliases, info.tags
 
   -- ID should default to the filename without the extension.
   if id == nil or id == path.name then
@@ -885,51 +822,16 @@ Note.frontmatter = require("obsidian.builtin").frontmatter
 
 --- Get frontmatter lines that can be written to a buffer.
 ---
----@param eol boolean|?
----
 ---@return string[]
-Note.frontmatter_lines = function(self, eol)
-  local new_lines = { "---" }
-
-  for line in
-    iter(yaml.dumps_lines(Obsidian.opts.note_frontmatter_func(self), function(a, b)
-      local a_idx = nil
-      local b_idx = nil
-      for i, k in ipairs { "id", "aliases", "tags" } do
-        if a == k then
-          a_idx = i
-        end
-        if b == k then
-          b_idx = i
-        end
-      end
-      if a_idx ~= nil and b_idx ~= nil then
-        return a_idx < b_idx
-      elseif a_idx ~= nil then
-        return true
-      elseif b_idx ~= nil then
-        return false
-      else
-        return a < b
-      end
-    end))
-  do
-    table.insert(new_lines, line)
+Note.frontmatter_lines = function(self, current_lines)
+  local order
+  if current_lines then
+    current_lines = vim.tbl_filter(function(line)
+      return not Note._is_frontmatter_boundary(line)
+    end, current_lines)
+    _, _, order = pcall(yaml.loads, table.concat(current_lines, "\n"))
   end
-
-  table.insert(new_lines, "---")
-  if not self.has_frontmatter then
-    -- Make sure there's an empty line between end of the frontmatter and the contents.
-    table.insert(new_lines, "")
-  end
-
-  if eol then
-    return vim.tbl_map(function(l)
-      return l .. "\n"
-    end, new_lines)
-  else
-    return new_lines
-  end
+  return Frontmatter.dump(Obsidian.opts.frontmatter.func(self), order)
 end
 
 --- Update the frontmatter in a buffer for the note.
@@ -970,12 +872,14 @@ Note.should_save_frontmatter = function(self)
     end
   end
 
+  local enabled = Obsidian.opts.frontmatter.enabled
+
   if is_in_frontmatter_blacklist(self) then
     return false
-  elseif type(Obsidian.opts.disable_frontmatter) == "boolean" then
-    return not Obsidian.opts.disable_frontmatter
-  elseif type(Obsidian.opts.disable_frontmatter) == "function" then
-    return not Obsidian.opts.disable_frontmatter(self.path:vault_relative_path { strict = true })
+  elseif type(enabled) == "boolean" then
+    return enabled
+  elseif type(enabled) == "function" then
+    return enabled(self.path:vault_relative_path { strict = true })
   else
     return true
   end
@@ -1011,8 +915,8 @@ Note.write = function(self, opts)
   end
 
   local frontmatter = nil
-  if Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(self)
+  if Obsidian.opts.frontmatter.func ~= nil then
+    frontmatter = Obsidian.opts.frontmatter.func(self)
   end
 
   self:save {
@@ -1036,9 +940,7 @@ end
 Note.save = function(self, opts)
   opts = vim.tbl_extend("keep", opts or {}, { check_buffers = true })
 
-  if self.path == nil then
-    error "a path is required"
-  end
+  assert(self.path, "a path is required")
 
   local save_path = Path.new(assert(opts.path or self.path)):resolve()
   assert(save_path:parent()):mkdir { parents = true, exist_ok = true }
@@ -1048,9 +950,10 @@ Note.save = function(self, opts)
   ---@type string[]
   local content = {}
   ---@type string[]
-  local existing_frontmatter = {}
-  if self.path ~= nil and self.path:is_file() then
-    -- with(open(tostring(self.path)), function(reader)
+  local existing_frontmatter
+
+  if self.path:is_file() then
+    existing_frontmatter = {}
     local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
     for idx, line in vim.iter(io.lines(tostring(self.path))):enumerate() do
       if idx == 1 and Note._is_frontmatter_boundary(line) then
@@ -1069,7 +972,6 @@ Note.save = function(self, opts)
         table.insert(existing_frontmatter, line)
       end
     end
-    -- end)
   elseif self.title ~= nil then
     -- Add a header.
     table.insert(content, "# " .. self.title)
@@ -1082,9 +984,9 @@ Note.save = function(self, opts)
 
   ---@type string[]
   local new_lines
-  if opts.insert_frontmatter ~= false then
+  if opts.insert_frontmatter then
     -- Replace frontmatter.
-    new_lines = compat.flatten { self:frontmatter_lines(false), content }
+    new_lines = compat.flatten { self:frontmatter_lines(existing_frontmatter), content }
   else
     -- Use existing frontmatter.
     new_lines = compat.flatten { existing_frontmatter, content }
@@ -1148,7 +1050,8 @@ Note.save_to_buffer = function(self, opts)
   ---@type string[]
   local new_lines
   if opts.insert_frontmatter ~= false then
-    new_lines = self:frontmatter_lines()
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 1, self.frontmatter_end_line - 1, false)
+    new_lines = self:frontmatter_lines(lines)
   else
     new_lines = {}
   end
