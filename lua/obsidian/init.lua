@@ -53,7 +53,7 @@ obsidian.setup = function(user_opts)
   ---@field buf_dir obsidian.Path|? Parent directory of the current buffer.
   ---@field opts obsidian.config.Internal Current options.
   ---@field _opts obsidian.config.Internal User input options.
-  _G.Obsidian = {}
+  Obsidian = {}
 
   local opts = obsidian.config.normalize(user_opts)
 
@@ -92,7 +92,7 @@ obsidian.setup = function(user_opts)
   Obsidian.picker = require("obsidian.pickers").get(Obsidian.opts.picker.name)
 
   if opts.legacy_commands then
-    obsidian.commands.install_legacy(client)
+    obsidian.commands.install_legacy()
   end
 
   --- TODO: remove in 4.0.0

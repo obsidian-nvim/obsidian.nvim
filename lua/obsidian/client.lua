@@ -13,7 +13,7 @@ local log = require "obsidian.log"
 ---@class obsidian.Client : obsidian.ABC
 local Client = {}
 
-local depreacted_lookup = {
+local deprecated_lookup = {
   dir = "dir",
   buf_dir = "buf_dir",
   current_workspace = "workspace",
@@ -21,15 +21,15 @@ local depreacted_lookup = {
 }
 
 Client.__index = function(_, k)
-  if depreacted_lookup[k] then
+  if deprecated_lookup[k] then
     local msg = string.format(
-      [[client.%s is depreacted, use Obsidian.%s instead.
+      [[client.%s is deprecated, use Obsidian.%s instead.
 client is going to be removed in the future as well.]],
       k,
-      depreacted_lookup[k]
+      deprecated_lookup[k]
     )
     log.warn(msg)
-    return Obsidian[depreacted_lookup[k]]
+    return Obsidian[deprecated_lookup[k]]
   elseif rawget(Client, k) then
     return rawget(Client, k)
   end

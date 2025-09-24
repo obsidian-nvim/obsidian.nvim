@@ -93,7 +93,7 @@ Parser.parse = function(self, str)
       local value
       local value_type
       i, value, value_type = self:_parse_next(lines, i)
-      assert(value_type ~= YamlType.EmptyLine)
+      assert(value_type ~= YamlType.EmptyLine, "")
       if root_value == nil and line.indent == 0 then
         -- Set the root value.
         if value_type == YamlType.ArrayItem then
@@ -111,7 +111,7 @@ Parser.parse = function(self, str)
         -- Add value to parent array.
         parent[#parent + 1] = value
       elseif type(parent) == "table" and value_type == YamlType.Mapping then
-        assert(parent ~= nil) -- for type checking
+        assert(parent, "invalid parent")
         -- Add value to parent mapping.
         for key, item in pairs(value) do
           -- Check for duplicate keys.
@@ -194,13 +194,12 @@ Parser._new_null = function(self)
   end
 end
 
----@param self obsidian.yaml.Parser
 ---@param msg string
 ---@param line_num integer
 ---@param line_text string|?
 ---@return string
 ---@diagnostic disable-next-line: unused-local
-Parser._error_msg = function(self, msg, line_num, line_text)
+Parser._error_msg = function(_, msg, line_num, line_text)
   local full_msg = "[line=" .. tostring(line_num) .. "] " .. msg
   if line_text ~= nil then
     full_msg = full_msg .. " (text='" .. line_text .. "')"
@@ -349,7 +348,7 @@ Parser._parse_array = function(self, lines, i)
     if line.indent == item_indent and vim.startswith(line.content, "- ") then
       local is_array_item, value
       is_array_item, i, value = self:_try_parse_array_item(lines, i)
-      assert(is_array_item)
+      assert(is_array_item, "not an array item")
       out[#out + 1] = value
     elseif line:is_empty() then
       i = i + 1
@@ -526,12 +525,9 @@ Parser._parse_inline_mapping = function(self, i, text)
   return true, nil, out
 end
 
----@param self obsidian.yaml.Parser
----@param i integer
 ---@param text string
 ---@return boolean, string|?, string
----@diagnostic disable-next-line: unused-local
-Parser._parse_string = function(self, i, text)
+Parser._parse_string = function(_, _, text)
   if vim.startswith(text, [["]]) and vim.endswith(text, [["]]) then
     -- when the text is enclosed with double-quotes we need to un-escape certain characters.
     text = string.gsub(text, vim.pesc [[\"]], [["]])
@@ -548,12 +544,9 @@ Parser.parse_string = function(self, text)
   return str
 end
 
----@param self obsidian.yaml.Parser
----@param i integer
 ---@param text string
 ---@return boolean, string|?, number|?
----@diagnostic disable-next-line: unused-local
-Parser._parse_number = function(self, i, text)
+Parser._parse_number = function(_, _, text)
   local out = tonumber(text)
   if out == nil or util.isNan(out) then
     return false, nil, nil
@@ -572,17 +565,14 @@ Parser.parse_number = function(self, text)
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a number", 1, text)
     error(errmsg)
   else
-    assert(res ~= nil)
+    assert(res ~= nil, "nil return in parse number")
     return res
   end
 end
 
----@param self obsidian.yaml.Parser
----@param i integer
 ---@param text string
 ---@return boolean, string|?, boolean|?
----@diagnostic disable-next-line: unused-local
-Parser._parse_boolean = function(self, i, text)
+Parser._parse_boolean = function(_, _, text)
   if text == "true" then
     return true, nil, true
   elseif text == "false" then
@@ -602,16 +592,14 @@ Parser.parse_boolean = function(self, text)
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a boolean", 1, text)
     error(errmsg)
   else
-    assert(res ~= nil)
+    assert(res ~= nil, "nil return in parse boolean")
     return res
   end
 end
 
----@param self obsidian.yaml.Parser
 ---@param text string
 ---@return boolean, string|?, vim.NIL|nil
----@diagnostic disable-next-line: unused-local
-Parser._parse_null = function(self, i, text)
+Parser._parse_null = function(self, _, text)
   if text == "null" or text == "" then
     return true, nil, self:_new_null()
   else

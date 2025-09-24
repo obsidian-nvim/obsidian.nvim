@@ -51,8 +51,8 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
----@diagnostic disable-next-line: unused-local
-Picker.find_files = function(self, opts)
+Picker.find_files = function(_, opts)
+  _ = opts
   error "not implemented"
 end
 
@@ -79,8 +79,8 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
----@diagnostic disable-next-line: unused-local
-Picker.grep = function(self, opts)
+Picker.grep = function(_, opts)
+  _ = opts
   error "not implemented"
 end
 
@@ -117,8 +117,8 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
----@diagnostic disable-next-line: unused-local
-Picker.pick = function(self, values, opts)
+Picker.pick = function(_, values, opts)
+  _, _ = values, opts
   error "not implemented"
 end
 
@@ -216,7 +216,7 @@ Picker.pick_note = function(self, notes, opts)
   ---@type obsidian.PickerEntry[]
   local entries = {}
   for _, note in ipairs(notes) do
-    assert(note.path)
+    assert(note.path, "note has no path")
     local rel_path = assert(note.path:vault_relative_path { strict = true })
     local display_name = note:display_name()
     entries[#entries + 1] = {
@@ -253,7 +253,7 @@ end
 
 --- Get query mappings to use for `find_notes()` or `grep_notes()`.
 ---@return obsidian.PickerMappingTable
-Picker._note_query_mappings = function(self)
+Picker._note_query_mappings = function()
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
@@ -272,7 +272,7 @@ end
 
 --- Get selection mappings to use for `find_notes()` or `grep_notes()`.
 ---@return obsidian.PickerMappingTable
-Picker._note_selection_mappings = function(self)
+Picker._note_selection_mappings = function()
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
@@ -361,8 +361,7 @@ end
 
 ---@param opts { prompt_title: string, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
 ---@return string
----@diagnostic disable-next-line: unused-local
-Picker._build_prompt = function(self, opts)
+Picker._build_prompt = function(_, opts)
   opts = opts or {}
 
   ---@type string
@@ -445,13 +444,13 @@ Picker._make_display = function(_, entry)
 end
 
 ---@return string[]
-Picker._build_find_cmd = function(self)
+Picker._build_find_cmd = function()
   local search = require "obsidian.search"
   local search_opts = { sort_by = Obsidian.opts.sort_by, sort_reversed = Obsidian.opts.sort_reversed }
   return search.build_find_cmd(".", nil, search_opts)
 end
 
-Picker._build_grep_cmd = function(self)
+Picker._build_grep_cmd = function()
   local search = require "obsidian.search"
   local search_opts = {
     sort_by = Obsidian.opts.sort_by,

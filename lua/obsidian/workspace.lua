@@ -80,7 +80,8 @@ Workspace.new = function(spec)
 
   local self = {}
   self.path = path:resolve { strict = true }
-  self.name = assert(spec.name or self.path.name)
+  self.name =
+    assert(spec.name or self.path.name, ("failed to find a valid name for workspace %s"):format(tostring(self.path)))
   self.overrides = spec.overrides
 
   if spec.strict then

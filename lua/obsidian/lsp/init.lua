@@ -31,7 +31,7 @@ lsp.start = function(buf)
   local ok, client_id = pcall(vim.lsp.start, lsp_config, { bufnr = buf, silent = false })
 
   if not ok then
-    log.err("[obsidian-ls]: faied to start: " .. client_id)
+    log.err("[obsidian-ls]: failed to start: " .. client_id)
   end
 
   return client_id

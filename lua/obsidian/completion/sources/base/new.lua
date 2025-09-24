@@ -121,7 +121,7 @@ function NewNoteSourceBase:process_completion(cc)
   for _, new_note_opts in ipairs(new_notes_opts) do
     local new_note = new_note_opts.note
 
-    assert(new_note.path)
+    assert(new_note.path, "note without path")
 
     ---@type obsidian.config.LinkStyle, string
     local link_style, label

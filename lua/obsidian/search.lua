@@ -219,7 +219,6 @@ M.find_and_replace_refs = function(s)
   local last_end = 1
   for _, match in pairs(matches) do
     local m_start, m_end, _ = unpack(match)
-    assert(type(m_start) == "number")
     if last_end < m_start then
       table.insert(pieces, string.sub(s, last_end, m_start - 1))
       table.insert(is_ref, false)
@@ -323,6 +322,8 @@ end
 ---@param opts obsidian.search.SearchOpts
 ---@return string[]
 SearchOpts.to_ripgrep_opts = function(opts)
+  vim.validate("opts.exclude", opts.exclude, "table", true)
+
   local ret = {}
 
   if opts.sort_by ~= nil then
@@ -346,7 +347,6 @@ SearchOpts.to_ripgrep_opts = function(opts)
   end
 
   if opts.exclude ~= nil then
-    assert(type(opts.exclude) == "table")
     for path in iter(opts.exclude) do
       ret[#ret + 1] = "-g!" .. path
     end
@@ -509,13 +509,13 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
   end)
 end
 
-local search_defualts = {
+local search_defaults = {
   sort = false,
   include_templates = false,
   ignore_case = false,
 }
 
-M._defaults = search_defualts
+M._defaults = search_defaults
 
 ---@param opts obsidian.SearchOpts|boolean|?
 ---@param additional_opts obsidian.search.SearchOpts|?
@@ -524,7 +524,7 @@ M._defaults = search_defualts
 ---
 ---@private
 local _prepare_search_opts = function(opts, additional_opts)
-  opts = opts or search_defualts
+  opts = opts or search_defaults
 
   local search_opts = {}
 

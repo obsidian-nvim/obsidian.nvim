@@ -28,8 +28,7 @@ end
 
 ---@class obsidian.pickers.SnacksPicker : obsidian.Picker
 local SnacksPicker = abc.new_class({
-  ---@diagnostic disable-next-line: unused-local
-  __tostring = function(self)
+  __tostring = function()
     return "SnacksPicker()"
   end,
 }, Picker)

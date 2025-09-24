@@ -474,7 +474,7 @@ end
 
 -- TODO: not implemented and not used, after we get to 0.11 we can simply use vim.fs.rm
 --- Recursively remove an entire directory and its contents.
-Path.rmtree = function(self) end
+Path.rmtree = function() end
 
 --- Create a file at this given path.
 ---

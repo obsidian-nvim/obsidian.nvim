@@ -108,7 +108,7 @@ function RefsSourceBase:collect_matching_blocks(note, block_link)
   ---@type obsidian.note.Block[]|?
   local matching_blocks
   if block_link then
-    assert(note.blocks)
+    assert(note.blocks, "no block")
     matching_blocks = {}
     for block_id, block_data in pairs(note.blocks) do
       if vim.startswith("#" .. block_id, block_link) then
@@ -133,7 +133,7 @@ function RefsSourceBase:collect_matching_anchors(note, anchor_link)
   ---@type obsidian.note.HeaderAnchor[]|?
   local matching_anchors
   if anchor_link then
-    assert(note.anchor_links)
+    assert(note.anchor_links, "no anchor link")
     matching_anchors = {}
     for anchor, anchor_data in pairs(note.anchor_links) do
       if vim.startswith(anchor, anchor_link) then
@@ -181,8 +181,8 @@ end
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
 ---@param results obsidian.Note[]
 function RefsSourceBase:process_search_results(cc, results)
-  assert(cc)
-  assert(results)
+  assert(cc, "no cc")
+  assert(results, "no results")
 
   local completion_items = {}
 
@@ -312,7 +312,7 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
         { label = option.label, link_style = link_style, anchor = option.anchor, block = option.block }
       )
 
-      final_label = assert(option.alt_label or option.label)
+      final_label = assert(option.alt_label or option.label, "no valid label")
       if option.anchor then
         final_label = final_label .. option.anchor.anchor
       elseif option.block then

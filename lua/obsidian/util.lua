@@ -441,10 +441,7 @@ util.parse_link = function(link, opts)
   if link_type == search.RefTypes.Markdown then
     link_location = link:gsub("^%[(.-)%]%((.*)%)$", "%2")
     link_name = link:gsub("^%[(.-)%]%((.*)%)$", "%1")
-  elseif link_type == search.RefTypes.NakedUrl then
-    link_location = link
-    link_name = link
-  elseif link_type == search.RefTypes.FileUrl then
+  elseif link_type == search.RefTypes.NakedUrl or link_type == search.RefTypes.FileUrl then
     link_location = link
     link_name = link
   elseif link_type == search.RefTypes.WikiWithAlias then

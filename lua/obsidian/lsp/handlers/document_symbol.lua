@@ -1,7 +1,7 @@
 local api = require "obsidian.api"
 
----@param params lsp.DocumentSymbolParams
-return function(params, handler)
+---@param _ lsp.DocumentSymbolParams
+return function(_, handler)
   local note = assert(api.current_note(0, { collect_anchor_links = true }))
 
   ---@type lsp.DocumentSymbol[]

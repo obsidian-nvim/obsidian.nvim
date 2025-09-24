@@ -328,7 +328,7 @@ Note.create = function(opts)
 
   -- Ensure the parent directory exists.
   local parent = path:parent()
-  assert(parent)
+  assert(parent, "failed to get parent in note creation")
   parent:mkdir { parents = true, exist_ok = true }
 
   -- Write to disk.
@@ -543,38 +543,6 @@ Note.from_file = function(path, opts)
   return Note.from_lines(io.lines(path), path, opts)
 end
 
---- An async version of `.from_file()`, i.e. it needs to be called in an async context.
----
----@param path string|obsidian.Path
----@param opts obsidian.note.LoadOpts|?
----
----@return obsidian.Note
-Note.from_file_async = function(path, opts)
-  path = Path.new(path):resolve { strict = true }
-  local f = io.open(tostring(path), "r")
-  assert(f)
-  local ok, res = pcall(Note.from_lines, f:lines "*l", path, opts)
-  f:close()
-  if ok then
-    return res
-  else
-    error(res)
-  end
-end
-
---- Like `.from_file_async()` but also returns the contents of the file as a list of lines.
----
----@param path string|obsidian.Path
----@param opts obsidian.note.LoadOpts|?
----
----@return obsidian.Note,string[]
-Note.from_file_with_contents_async = function(path, opts)
-  opts = vim.tbl_extend("force", opts or {}, { load_contents = true })
-  local note = Note.from_file_async(path, opts)
-  assert(note.contents ~= nil)
-  return note, note.contents
-end
-
 --- Initialize a note from a buffer.
 ---
 ---@param bufnr integer|?
@@ -651,8 +619,7 @@ Note.from_lines = function(lines, path, opts)
   ---@param anchor_data obsidian.note.HeaderAnchor
   ---@return obsidian.note.HeaderAnchor|?
   local function get_parent_anchor(anchor_data)
-    assert(anchor_links)
-    assert(anchor_stack)
+    assert(anchor_links and anchor_stack, "failed to collect anchor")
     for i = #anchor_stack, 1, -1 do
       local parent = anchor_stack[i]
       if parent.level < anchor_data.level then
@@ -719,8 +686,7 @@ Note.from_lines = function(lines, path, opts)
 
         -- Collect anchor link.
         if opts.collect_anchor_links then
-          assert(anchor_links)
-          assert(anchor_stack)
+          assert(anchor_links and anchor_stack, "failed to collect anchor")
           -- We collect up to two anchor for each header. One standalone, e.g. '#header1', and
           -- one with the parents, e.g. '#header1#header2'.
           -- This is our standalone one:
@@ -854,7 +820,7 @@ Note.from_lines = function(lines, path, opts)
   if id == nil or id == path.name then
     id = path.stem
   end
-  assert(id)
+  assert(id, "failed to find a valid id for note")
 
   local n = Note.new(id, aliases, tags, path)
   n.title = title
@@ -1040,7 +1006,8 @@ Note.save = function(self, opts)
     error "a path is required"
   end
 
-  local save_path = Path.new(assert(opts.path or self.path)):resolve()
+  local path = assert(opts.path or self.path, "no valid path for save")
+  local save_path = Path.new(path):resolve()
   assert(save_path:parent()):mkdir { parents = true, exist_ok = true }
 
   -- Read contents from existing file or buffer, if there is one.

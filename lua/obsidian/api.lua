@@ -1,3 +1,5 @@
+---builtin functions that are impure, interacts with editor state, like vim.api
+
 local M = {}
 local log = require "obsidian.log"
 local util = require "obsidian.util"
@@ -107,8 +109,6 @@ M.current_note = function(bufnr, opts)
   return Note.from_buffer(bufnr, opts)
 end
 
----builtin functions that are impure, interacts with editor state, like vim.api
-
 ---Toggle the checkbox on the current line.
 ---
 ---@param states table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
@@ -138,11 +138,10 @@ M.toggle_checkbox = function(states, line_num)
       line = string.gsub(line, "^(%s*)", "%1- [ ] ")
     end
   else
-    goto out
+    return
   end
 
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { line })
-  ::out::
 end
 
 ---@return [number, number, number, number] tuple containing { buf, win, row, col }
@@ -195,7 +194,7 @@ M.format_link = function(note, opts)
   end
 end
 
----Return the full link under cursror
+---Return the full link under cursor
 ---
 ---@return string? link
 ---@return obsidian.search.RefTypes? link_type
@@ -206,8 +205,8 @@ M.cursor_link = function()
 
   local refs = search.find_refs(line, { include_naked_urls = true, include_file_urls = true, include_block_ids = true })
 
-  local match = iter(refs):find(function(match)
-    local open, close = unpack(match)
+  local match = iter(refs):find(function(m)
+    local open, close = unpack(m)
     return cur_col >= open and cur_col <= close
   end)
   if match then
@@ -349,7 +348,7 @@ M.get_visual_selection = function(opts)
   end
 
   local lines = vim.fn.getline(csrow, cerow)
-  assert(type(lines) == "table")
+  assert(type(lines) == "table", "lines is not a table")
   if vim.tbl_isempty(lines) then
     return
   end
@@ -564,7 +563,7 @@ M.get_os = function()
     end
   end
 
-  assert(this_os)
+  assert(this_os, "failed to get your os")
   M._current_os = this_os
   return this_os
 end
@@ -776,12 +775,11 @@ M.set_checkbox = function(state)
       cur_line = string.gsub(cur_line, "^(%s*)", "%1- [" .. state .. "] ")
     end
   else
-    goto out
+    return
   end
 
   local line_num = vim.fn.getpos(".")[2]
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
-  ::out::
 end
 
 return M

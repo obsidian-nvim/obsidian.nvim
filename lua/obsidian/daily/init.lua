@@ -1,13 +1,14 @@
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
+local M = {}
 
 --- Get the path to a daily note.
 ---
 ---@param datetime integer|?
 ---
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
-local daily_note_path = function(datetime)
+M.daily_note_path = function(datetime)
   datetime = datetime and datetime or os.time()
 
   ---@type obsidian.Path
@@ -50,7 +51,7 @@ end
 local _daily = function(datetime, opts)
   opts = opts or {}
 
-  local path, id = daily_note_path(datetime)
+  local path, id = M.daily_note_path(datetime)
 
   local options = Obsidian.opts
 
@@ -88,14 +89,14 @@ end
 --- Open (or create) the daily note for today.
 ---
 ---@return obsidian.Note
-local today = function()
+M.today = function()
   return _daily(os.time(), {})
 end
 
 --- Open (or create) the daily note from the last day.
 ---
 ---@return obsidian.Note
-local yesterday = function()
+M.yesterday = function()
   local now = os.time()
   local yesterday
 
@@ -111,7 +112,7 @@ end
 --- Open (or create) the daily note for the next day.
 ---
 ---@return obsidian.Note
-local tomorrow = function()
+M.tomorrow = function()
   local now = os.time()
   local tomorrow
 
@@ -130,14 +131,8 @@ end
 ---@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
 ---
 ---@return obsidian.Note
-local daily = function(offset_days, opts)
+M.daily = function(offset_days, opts)
   return _daily(os.time() + (offset_days * 3600 * 24), opts)
 end
 
-return {
-  daily_note_path = daily_note_path,
-  daily = daily,
-  tomorrow = tomorrow,
-  yesterday = yesterday,
-  today = today,
-}
+return M

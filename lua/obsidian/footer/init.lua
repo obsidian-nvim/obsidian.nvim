@@ -24,7 +24,7 @@ M.start = function()
     if info == nil then
       return
     end
-    local footer_text = assert(Obsidian.opts.footer.format)
+    local footer_text = assert(Obsidian.opts.footer.format, "no valid footer format")
     for k, v in pairs(info) do
       footer_text = footer_text:gsub("{{" .. k .. "}}", v)
     end
