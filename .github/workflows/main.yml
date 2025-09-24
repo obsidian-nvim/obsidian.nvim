@@ -50,10 +50,6 @@ jobs:
               make test
 
           - name: Lint
-            prepare: |
-              curl -s https://api.mise.jdx.dev/install.sh | sh
-              ~/.local/bin/mise install selene
-              ~/.local/bin/mise install typo
             run: |
               make lint
 
@@ -116,6 +112,13 @@ jobs:
         with:
           tool_versions: |
             lua-language-server 3.15.0
+
+      - name: Install selene
+        if: matrix.task.name == 'Lint'
+        uses: jdx/mise-action@v2
+        with:
+          tool_versions: |
+            selene 2.0.0
 
       - name: Prepare
         if: ${{ matrix.task.prepare }}
