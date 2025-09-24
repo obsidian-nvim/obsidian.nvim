@@ -6,10 +6,8 @@ return function(_, handler)
   local link = api.cursor_link()
   local placeholder
   if link then
-    local loc = util.parse_link(link)
+    local loc = util.parse_link(link, { strip = true })
     assert(loc, "wrong link format")
-    loc = util.strip_anchor_links(loc)
-    loc = util.strip_block_links(loc)
     placeholder = loc
   else
     local note = api.current_note(0)

@@ -215,6 +215,18 @@ T["parse"]["header"]["should strip white space at the end"] = function()
   eq({ header = "Hello World", level = 2, anchor = "#hello-world" }, M.parse_header "## Hello World ")
 end
 
+T["parse"]["link"] = new_set()
+
+T["parse"]["link"]["should parse link"] = function()
+  local location = M.parse_link "[[hi#^block]]"
+  eq(location, "hi#^block")
+end
+
+T["parse"]["link"]["should strip if specified"] = function()
+  local location = M.parse_link("[[hi#^block]]", { strip = true })
+  eq(location, "hi")
+end
+
 T["strip"] = new_set()
 
 T["strip"]["block_links"] = new_set()

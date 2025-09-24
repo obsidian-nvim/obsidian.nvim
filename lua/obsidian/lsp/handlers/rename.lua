@@ -104,10 +104,8 @@ return function(params, _, _)
   local cur_link = api.cursor_link()
 
   if cur_link then
-    local loc = util.parse_link(cur_link)
+    local loc = util.parse_link(cur_link, { strip = true })
     assert(loc, "wrong link format")
-    loc = util.strip_anchor_links(loc)
-    loc = util.strip_block_links(loc)
     local note = search.resolve_note(loc)
     if not note then
       return

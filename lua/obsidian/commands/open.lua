@@ -42,10 +42,7 @@ return function(data)
   else
     local link_string, _ = api.cursor_link()
     if link_string then
-      -- TODO: abstract logic in parse_link
-      search_term = util.parse_link(link_string)
-      search_term = search_term and util.strip_anchor_links(search_term)
-      search_term = search_term and util.strip_block_links(search_term)
+      search_term = util.parse_link(link_string, { strip = true }) -- TODO: jump to exact anchor/block
     end
   end
 
