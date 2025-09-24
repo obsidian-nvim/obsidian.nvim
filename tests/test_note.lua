@@ -1,7 +1,6 @@
 ---@diagnostic disable: invisible, duplicate-set-field
 local M = require "obsidian.note"
 local T = dofile("tests/helpers.lua").temp_vault
-local util = require "obsidian.util"
 local api = require "obsidian.api"
 local Path = require "obsidian.path"
 local config = require "obsidian.config"
@@ -43,10 +42,6 @@ end
 
 T["save"] = new_set()
 
-local function from_str(str, path)
-  return M.from_lines(vim.iter(vim.split(str, "\n")), path)
-end
-
 local foo = [[---
 id: foo
 aliases:
@@ -59,20 +54,25 @@ tags: []
 
 This is some content.]]
 
-local foo_bar = [[---
-id: foo
-aliases:
-  - foo
-  - Foo
-  - Foo Bar
-tags: []
----
-
-# foo
-
-This is some content.]]
+-- local foo_bar = [[---
+-- id: foo
+-- aliases:
+--   - foo
+--   - Foo
+--   - Foo Bar
+-- tags: []
+-- ---
+--
+-- # foo
+--
+-- This is some content.]]
 
 --- TODO: add back once we don't test from a file
+---
+-- local function from_str(str, path)
+--   return M.from_lines(vim.iter(vim.split(str, "\n")), path)
+-- end
+
 -- T["save"]["should be able to save to file"] = function()
 --   local note = from_str(foo, "foo.md")
 --   note:add_alias "Foo Bar"
