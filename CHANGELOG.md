@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Note:link` and `Note:backlinks` as convenience method.
 - LSP `references` and `definition`.
 - LSP `documentSymbol` -> `Obsidian toc`.
+- Uses `selene` and `typos-cli` to check code quality.
 
 ### Changed
 
