@@ -113,12 +113,12 @@ jobs:
           tool_versions: |
             lua-language-server 3.15.0
 
-      - name: Install selene
+      - name: Install selene and typos
         if: matrix.task.name == 'Lint'
-        uses: jdx/mise-action@v2
+        uses: Swatinem/rust-cache@v2
+        uses: taiki-e/install-action@v2
         with:
-          tool_versions: |
-            selene 0.29.0
+          tool: selene,typos-cli
 
       - name: Prepare
         if: ${{ matrix.task.prepare }}
