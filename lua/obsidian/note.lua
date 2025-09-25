@@ -652,7 +652,7 @@ Note.from_lines = function(lines, path, opts)
 
   -- Iterate over lines in the file, collecting frontmatter and parsing the title.
   local frontmatter_lines = {}
-  local has_frontmatter, in_frontmatter, at_boundary = false, false, false -- luacheck: ignore (false positive)
+  local has_frontmatter, in_frontmatter, at_boundary = false, false, false
   local frontmatter_end_line = nil
   local in_code_block = false
   for line_idx, line in vim.iter(lines):enumerate() do
@@ -1017,8 +1017,7 @@ Note.save = function(self, opts)
   ---@type string[]
   local existing_frontmatter = {}
   if self.path ~= nil and self.path:is_file() then
-    -- with(open(tostring(self.path)), function(reader)
-    local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
+    local in_frontmatter, at_boundary = false, false
     for idx, line in vim.iter(io.lines(tostring(self.path))):enumerate() do
       if idx == 1 and Note._is_frontmatter_boundary(line) then
         at_boundary = true
@@ -1036,7 +1035,6 @@ Note.save = function(self, opts)
         table.insert(existing_frontmatter, line)
       end
     end
-    -- end)
   elseif self.title ~= nil then
     -- Add a header.
     table.insert(content, "# " .. self.title)
