@@ -1,0 +1,4 @@
+std = "selene/globals"
+
+[lints]
+mixed_table = "allow"
