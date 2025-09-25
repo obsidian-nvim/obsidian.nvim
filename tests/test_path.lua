@@ -66,7 +66,7 @@ end
 T["__div"] = new_set()
 
 T["__div"]["should join paths"] = function()
-  assert(Path:new "/foo/" / "bar" == Path:new "/foo/bar")
+  eq(Path:new "/foo/" / "bar", Path:new "/foo/bar")
 end
 
 T["name"] = new_set()
@@ -307,14 +307,14 @@ end
 T["vault_relative_path"] = new_set()
 
 T["vault_relative_path"]["should resolve relative paths"] = function()
-  h.with_tmp_client(function(client)
+  h.with_tmp_client(function()
     eq(Path.new("foo.md"):vault_relative_path(), "foo.md")
     eq(Path.new(Obsidian.dir / "foo.md"):vault_relative_path(), "foo.md")
   end)
 end
 
 T["vault_relative_path"]["should error when strict=true and the relative path can't be resolved"] = function()
-  h.with_tmp_client(function(client)
+  h.with_tmp_client(function()
     has_error(function()
       Path.new("/Users/petew/foo.md"):vault_relative_path { strict = true }
     end)
@@ -322,7 +322,7 @@ T["vault_relative_path"]["should error when strict=true and the relative path ca
 end
 
 T["vault_relative_path"]["should not error when strict=false and the relative path can't be resolved"] = function()
-  h.with_tmp_client(function(client)
+  h.with_tmp_client(function()
     eq(nil, Path.new("/Users/petew/foo.md"):vault_relative_path())
   end)
 end

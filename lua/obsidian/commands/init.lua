@@ -178,7 +178,7 @@ M.note_complete = function(cmd_arg)
     local _, csrow, cscol, _ = unpack(assert(vim.fn.getpos "'<"))
     local _, cerow, cecol, _ = unpack(assert(vim.fn.getpos "'>"))
     local lines = vim.fn.getline(csrow, cerow)
-    assert(type(lines) == "table")
+    assert(type(lines) == "table", "")
 
     if #lines > 1 then
       lines[1] = string.sub(lines[1], cscol)

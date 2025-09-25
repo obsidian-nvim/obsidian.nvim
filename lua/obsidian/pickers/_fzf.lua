@@ -28,8 +28,7 @@ end
 
 ---@class obsidian.pickers.FzfPicker : obsidian.Picker
 local FzfPicker = abc.new_class({
-  ---@diagnostic disable-next-line: unused-local
-  __tostring = function(self)
+  __tostring = function()
     return "FzfPicker()"
   end,
 }, Picker)

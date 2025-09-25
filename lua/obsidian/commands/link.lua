@@ -13,7 +13,7 @@ return function(data)
     return
   end
 
-  local line = assert(viz.lines[1])
+  local line = assert(viz.lines[1], "invalid visual selection")
 
   ---@type string
   local query

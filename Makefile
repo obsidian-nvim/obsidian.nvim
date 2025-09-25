@@ -14,13 +14,14 @@ PANVIMDOC_PATH = ../panvimdoc/panvimdoc.sh
 ################################################################################
 ##@ Start here
 .PHONY: chores
-chores: style lint types test ## Run develoment tasks (lint, style, types, test); PRs must pass this.
+chores: style lint types test ## Run development tasks (lint, style, types, test); PRs must pass this.
 
 ################################################################################
 ##@ Developmment
 .PHONY: lint
-lint: ## Lint the code with luacheck
-	luacheck .
+lint: ## Lint the code with selene and typos
+	selene --config selene/config.toml lua/ tests/
+	typos lua
 
 .PHONY: style
 style:  ## Format the code with stylua

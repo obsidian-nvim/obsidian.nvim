@@ -10,11 +10,11 @@ M.providers = {
   { name = "obsidian_tags", module = "obsidian.completion.sources.blink.tags" },
 }
 
-local function add_provider(blink, provider_name, proivder_module)
+local function add_provider(blink, provider_name, provider_module)
   local add_source_provider = blink.add_source_provider or blink.add_provider
   add_source_provider(provider_name, {
     name = provider_name,
-    module = proivder_module,
+    module = provider_module,
     async = true,
     opts = {},
     enabled = function()
@@ -172,8 +172,7 @@ end
 --
 -- In-case the user used functions to configure their sources, the completion will properly work just for the markdown
 -- files that are in a workspace. Otherwise, the completion will work for all markdown files.
----@param opts obsidian.config.ClientOpts
-function M.inject_sources(opts)
+function M.inject_sources()
   if M.injected_once then
     return
   end

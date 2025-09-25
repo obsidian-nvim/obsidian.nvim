@@ -16,9 +16,9 @@ local IsWiki = {
   [RefTypes.Wiki] = true,
 }
 
----@param params lsp.ReferenceParams
----@param handler fun(_:any, loactions: lsp.Location[])
-return function(params, handler)
+---@param _ lsp.ReferenceParams
+---@param handler fun(_:any, locations: lsp.Location[])
+return function(_, handler)
   local cur_link, link_type = api.cursor_link()
   if not cur_link then
     return

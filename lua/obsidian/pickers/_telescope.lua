@@ -9,8 +9,7 @@ local log = require "obsidian.log"
 
 ---@class obsidian.pickers.TelescopePicker : obsidian.Picker
 local TelescopePicker = abc.new_class({
-  ---@diagnostic disable-next-line: unused-local
-  __tostring = function(self)
+  __tostring = function()
     return "TelescopePicker()"
   end,
 }, Picker)

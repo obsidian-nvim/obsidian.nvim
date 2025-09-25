@@ -22,12 +22,12 @@ local function collect_backlinks(note, opts)
     :totable()
 end
 
----@param params lsp.ReferenceParams
----@param handler fun(_:any, loactions: lsp.Location[])
-return function(params, handler)
+---@param _ lsp.ReferenceParams
+---@param handler fun(_:any, locations: lsp.Location[])
+return function(_, handler)
   local cur_link, link_type = api.cursor_link()
 
-  local loactions = {} ---@type lsp.Location[]
+  local locations = {} ---@type lsp.Location[]
 
   if
     cur_link ~= nil
@@ -61,7 +61,7 @@ return function(params, handler)
     if not note then
       return log.err("No notes matching '%s'", location)
     else
-      loactions = collect_backlinks(note, opts)
+      locations = collect_backlinks(note, opts)
     end
   else
     ---@type { anchor: string|?, block: string|? }
@@ -88,9 +88,9 @@ return function(params, handler)
     if note == nil then
       log.err "Current buffer does not appear to be a note inside the vault"
     else
-      loactions = collect_backlinks(note, opts)
+      locations = collect_backlinks(note, opts)
     end
   end
 
-  handler(nil, loactions)
+  handler(nil, locations)
 end
