@@ -8,6 +8,7 @@ local T = new_set {
       local path = Path.temp()
       path:mkdir()
       require("obsidian").setup {
+        legacy_commands = false,
         workspaces = {
           {
             path = tostring(path),
