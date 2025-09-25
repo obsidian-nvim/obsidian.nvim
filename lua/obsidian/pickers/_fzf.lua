@@ -145,7 +145,7 @@ FzfPicker.grep = function(self, opts)
   opts = opts and opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path:new(opts.dir) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local cmd = table.concat(self:_build_grep_cmd(), " ")
   local actions = get_path_actions {
     -- TODO: callback for the full object

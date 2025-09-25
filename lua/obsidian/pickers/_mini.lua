@@ -23,7 +23,7 @@ MiniPicker.find_files = function(self, opts)
   opts = opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path:new(opts.dir) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   local path = mini_pick.builtin.cli({
     command = self:_build_find_cmd(),
@@ -49,7 +49,7 @@ MiniPicker.grep = function(_, opts)
   opts = opts and opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path:new(opts.dir) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   local pick_opts = {
     source = {

@@ -110,7 +110,7 @@ Path.mt = {
     return a.filename == b.filename
   end,
   __div = function(self, other)
-    return self:joinpath(other)
+    return Path.new(vim.fs.joinpath(self.filename, tostring(other)))
   end,
   __index = function(self, k)
     local raw = rawget(Path, k)
@@ -154,28 +154,18 @@ end
 
 --- Create a new path from a string.
 ---
----@param ... string|obsidian.Path
+---@param p string|obsidian.Path
 ---
 ---@return obsidian.Path
-Path.new = function(...)
+Path.new = function(p)
   local self = Path.init()
 
-  local args = { ... }
-  local arg
-  if #args == 1 then
-    arg = tostring(args[1])
-  elseif #args == 2 and args[1] == Path then
-    arg = tostring(args[2])
-  else
-    error "expected one argument"
+  if Path.is_path_obj(p) then
+    ---@cast p -string
+    return p
   end
 
-  if Path.is_path_obj(arg) then
-    ---@cast arg obsidian.Path
-    return arg
-  end
-
-  self.filename = vim.fs.normalize(tostring(arg))
+  self.filename = vim.fs.normalize(tostring(p))
 
   return self
 end
@@ -194,13 +184,6 @@ Path.temp = function(opts)
   return Path.new(tmpname)
 end
 
---- Get a path corresponding to the current working directory as given by `vim.uv.cwd()`.
----
----@return obsidian.Path
-Path.cwd = function()
-  return assert(Path.new(vim.uv.cwd()))
-end
-
 --- Get a path corresponding to a buffer.
 ---
 ---@param bufnr integer|? The buffer number or `0` / `nil` for the current buffer.
@@ -208,15 +191,6 @@ end
 ---@return obsidian.Path
 Path.buffer = function(bufnr)
   return Path.new(vim.api.nvim_buf_get_name(bufnr or 0))
-end
-
---- Get a path corresponding to the parent of a buffer.
----
----@param bufnr integer|? The buffer number or `0` / `nil` for the current buffer.
----
----@return obsidian.Path
-Path.buf_dir = function(bufnr)
-  return assert(Path.buffer(bufnr):parent())
 end
 
 -------------------------------------------------------------------------------
@@ -267,13 +241,6 @@ Path.is_absolute = function(self)
   else
     return false
   end
-end
-
----@param ... obsidian.Path|string
----@return obsidian.Path
-Path.joinpath = function(self, ...)
-  local args = vim.iter({ ... }):map(tostring):totable()
-  return Path.new(vim.fs.joinpath(self.filename, unpack(args)))
 end
 
 --- Try to resolve a version of the path relative to the other.
@@ -458,87 +425,9 @@ Path.mkdir = function(self, opts)
   self:mkdir { mode = mode }
 end
 
---- Remove the corresponding directory. This directory must be empty.
-Path.rmdir = function(self)
-  local resolved = self:resolve { strict = false }
-
-  if not resolved:is_dir() then
-    return
-  end
-
-  local ok, err_name, err_msg = vim.uv.fs_rmdir(resolved.filename)
-  if not ok then
-    error(err_name .. ": " .. err_msg)
-  end
-end
-
 -- TODO: not implemented and not used, after we get to 0.11 we can simply use vim.fs.rm
 --- Recursively remove an entire directory and its contents.
 Path.rmtree = function() end
-
---- Create a file at this given path.
----
----@param opts { mode: integer|?, exist_ok: boolean|? }|?
-Path.touch = function(self, opts)
-  opts = opts or {}
-  local mode = opts.mode or 420
-
-  local resolved = self:resolve { strict = false }
-  if resolved:exists() then
-    local new_time = os.time()
-    vim.uv.fs_utime(resolved.filename, new_time, new_time)
-    return
-  end
-
-  local parent = resolved:parent()
-  if parent and not parent:exists() then
-    error("FileNotFoundError: " .. parent.filename)
-  end
-
-  local fd, err_name, err_msg = vim.uv.fs_open(resolved.filename, "w", mode)
-  if not fd then
-    error(err_name .. ": " .. err_msg)
-  end
-  vim.uv.fs_close(fd)
-end
-
---- Rename this file or directory to the given target.
----
----@param target obsidian.Path|string
----
----@return obsidian.Path
-Path.rename = function(self, target)
-  local resolved = self:resolve { strict = false }
-  target = Path.new(target)
-
-  local ok, err_name, err_msg = vim.uv.fs_rename(resolved.filename, target.filename)
-  if not ok then
-    error(err_name .. ": " .. err_msg)
-  end
-
-  return target
-end
-
---- Remove the file.
----
----@param opts { missing_ok: boolean|? }|?
-Path.unlink = function(self, opts)
-  opts = opts or {}
-
-  local resolved = self:resolve { strict = false }
-
-  if not resolved:exists() then
-    if not opts.missing_ok then
-      error("FileNotFoundError: " .. resolved.filename)
-    end
-    return
-  end
-
-  local ok, err_name, err_msg = vim.uv.fs_unlink(resolved.filename)
-  if not ok then
-    error(err_name .. ": " .. err_msg)
-  end
-end
 
 --- Make a path relative to the vault root, if possible, return a string
 ---

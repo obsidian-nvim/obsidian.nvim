@@ -267,8 +267,8 @@ T["new_note_path"]['should only append one ".md" at the end of the path'] = func
   end
 
   -- Okay to set `id` and `dir` to default values because `note_path_func` is set
-  local path = M._generate_path(nil, "", Path:new())
-  eq(Path:new() / "foo-bar-123.md", path)
+  local path = M._generate_path(nil, "", Path.new())
+  eq(Path.new() / "foo-bar-123.md", path)
 end
 
 T["resolve_title_id_path"] = new_set()
@@ -276,47 +276,47 @@ T["resolve_title_id_path"]["should parse a title that's a partial path and gener
   local title, id, path = M._resolve_title_id_path("notes/Foo", nil, nil, default_note_creation_opts)
   eq("Foo", title)
   eq("foo", id)
-  eq(Path:new(Obsidian.dir) / "notes" / "foo.md", path)
+  eq(Path.new(Obsidian.dir) / "notes" / "foo.md", path)
 
   title, id, path = M._resolve_title_id_path("notes/New Title", nil, nil, default_note_creation_opts)
   eq("New Title", title)
   eq("new-title", id)
-  eq(Path:new(Obsidian.dir) / "notes" / "new-title.md", path)
+  eq(Path.new(Obsidian.dir) / "notes" / "new-title.md", path)
 end
 
 T["resolve_title_id_path"]["should interpret relative directories relative to vault root."] = function()
   local title, id, path = M._resolve_title_id_path("Foo", nil, "new-notes", default_note_creation_opts)
   eq(title, "Foo")
   eq(id, "foo")
-  eq(path, Path:new(Obsidian.dir) / "new-notes" / "foo.md")
+  eq(path, Path.new(Obsidian.dir) / "new-notes" / "foo.md")
 end
 
 T["resolve_title_id_path"]["should parse an ID that's a path"] = function()
   local title, id, path = M._resolve_title_id_path("Foo", "notes/1234-foo", nil, default_note_creation_opts)
   eq(title, "Foo")
   eq(id, "1234-foo")
-  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "1234-foo.md"))
+  eq(tostring(path), tostring(Path.new(Obsidian.dir) / "notes" / "1234-foo.md"))
 end
 
 T["resolve_title_id_path"]["should parse a title that's an exact path"] = function()
   local title, id, path = M._resolve_title_id_path("notes/foo.md", nil, nil, default_note_creation_opts)
   eq(title, "foo")
   eq(id, "foo")
-  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "foo.md"))
+  eq(tostring(path), tostring(Path.new(Obsidian.dir) / "notes" / "foo.md"))
 end
 
 T["resolve_title_id_path"]["should ignore boundary whitespace when parsing a title"] = function()
   local title, id, path = M._resolve_title_id_path("notes/Foo  ", nil, nil, default_note_creation_opts)
   eq(title, "Foo")
   eq(id, "foo")
-  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "foo.md"))
+  eq(tostring(path), tostring(Path.new(Obsidian.dir) / "notes" / "foo.md"))
 end
 
 T["resolve_title_id_path"]["should keep whitespace within a path when parsing a title"] = function()
   local title, id, path = M._resolve_title_id_path("notes/Foo Bar.md", nil, nil, default_note_creation_opts)
   eq(title, "Foo Bar")
   eq(id, "Foo Bar")
-  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / "Foo Bar.md"))
+  eq(tostring(path), tostring(Path.new(Obsidian.dir) / "notes" / "Foo Bar.md"))
 end
 
 T["resolve_title_id_path"]["should keep allow decimals in ID"] = function()
@@ -330,7 +330,7 @@ T["resolve_title_id_path"]["should generate a new id when the title is just a fo
   local title, id, path = M._resolve_title_id_path("notes/", nil, nil, default_note_creation_opts)
   eq(title, nil)
   eq(#id, 4)
-  eq(tostring(path), tostring(Path:new(Obsidian.dir) / "notes" / (id .. ".md")))
+  eq(tostring(path), tostring(Path.new(Obsidian.dir) / "notes" / (id .. ".md")))
 end
 
 T["resolve_title_id_path"]["should respect configured 'note_path_func'"] = function()
@@ -341,7 +341,7 @@ T["resolve_title_id_path"]["should respect configured 'note_path_func'"] = funct
   local title, id, path = M._resolve_title_id_path("New Note", nil, nil, default_note_creation_opts)
   eq("New Note", title)
   eq("new-note", id)
-  eq(Path:new(Obsidian.dir) / "foo-bar-123.md", path)
+  eq(Path.new(Obsidian.dir) / "foo-bar-123.md", path)
 end
 
 T["resolve_title_id_path"]["should ensure result of 'note_path_func' always has '.md' suffix"] = function()
@@ -352,7 +352,7 @@ T["resolve_title_id_path"]["should ensure result of 'note_path_func' always has 
   local title, id, path = M._resolve_title_id_path("New Note", nil, nil, default_note_creation_opts)
   eq("New Note", title)
   eq("new-note", id)
-  eq(Path:new(Obsidian.dir) / "foo-bar-123.md", path)
+  eq(Path.new(Obsidian.dir) / "foo-bar-123.md", path)
 end
 
 T["resolve_title_id_path"]["should ensure result of 'note_path_func' is always an absolute path and within provided directory"] = function()
@@ -365,7 +365,7 @@ T["resolve_title_id_path"]["should ensure result of 'note_path_func' is always a
   local title, id, path = M._resolve_title_id_path("New Note", nil, Obsidian.dir / "notes", default_note_creation_opts)
   eq("New Note", title)
   eq("new-note", id)
-  eq(Path:new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
+  eq(Path.new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
 end
 
 return T

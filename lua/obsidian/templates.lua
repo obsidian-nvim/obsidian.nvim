@@ -14,13 +14,13 @@ local M = {}
 M.resolve_template = function(template_name, templates_dir)
   ---@type obsidian.Path|?
   local template_path
-  local paths_to_check = { templates_dir / tostring(template_name), Path:new(template_name) }
+  local paths_to_check = { templates_dir / tostring(template_name), Path.new(template_name) }
   for _, path in ipairs(paths_to_check) do
     if path:is_file() then
       template_path = path
       break
     elseif not vim.endswith(tostring(path), ".md") then
-      local path_with_suffix = Path:new(tostring(path) .. ".md")
+      local path_with_suffix = Path.new(tostring(path) .. ".md")
       if path_with_suffix:is_file() then
         template_path = path_with_suffix
         break
