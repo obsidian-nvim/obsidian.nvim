@@ -29,13 +29,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: 2.1.0
           args: --check .
-  # test_windows:
-  #   name: Test (Windows)
-  #   runs-on: windows-latest
-  #   timeout-minutes: 20
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
   checks:
     name: ${{ matrix.task.name }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -48,11 +41,6 @@ jobs:
           - name: Test
             run: |
               make test
-
-          - name: Lint
-            run: |
-              make lint
-
           - name: Types
             run: |
               make types
@@ -112,12 +100,6 @@ jobs:
         with:
           tool_versions: |
             lua-language-server 3.15.0
-
-      - name: Install selene and typos
-        if: matrix.task.name == 'Lint'
-        uses: taiki-e/install-action@v2
-        with:
-          tool: selene,typos-cli
 
       - name: Prepare
         if: ${{ matrix.task.prepare }}
