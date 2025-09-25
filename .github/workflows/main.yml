@@ -115,7 +115,6 @@ jobs:
 
       - name: Install selene and typos
         if: matrix.task.name == 'Lint'
-        uses: Swatinem/rust-cache@v2
         uses: taiki-e/install-action@v2
         with:
           tool: selene,typos-cli
