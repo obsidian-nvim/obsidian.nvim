@@ -283,30 +283,6 @@ Return ~
 `(obsidian.Note)`
 
 ------------------------------------------------------------------------------
-                                               *obsidian.Note.from_file_async()*
-                     `Note.from_file_async`({path}, {opts})
-An async version of `.from_file()`, i.e. it needs to be called in an async context.
-
-Parameters ~
-{path} `(string|obsidian.Path)`
-{opts} `(obsidian.note.LoadOpts|)`?
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                 *obsidian.Note.from_file_with_contents_async()*
-              `Note.from_file_with_contents_async`({path}, {opts})
-Like `.from_file_async()` but also returns the contents of the file as a list of lines.
-
-Parameters ~
-{path} `(string|obsidian.Path)`
-{opts} `(obsidian.note.LoadOpts|)`?
-
-Return ~
-`(obsidian.Note)`,string[]
-
-------------------------------------------------------------------------------
                                                    *obsidian.Note.from_buffer()*
                       `Note.from_buffer`({bufnr}, {opts})
 Initialize a note from a buffer.
@@ -756,7 +732,7 @@ Remove the corresponding directory. This directory must be empty.
 
 ------------------------------------------------------------------------------
                                                         *obsidian.Path.rmtree()*
-                             `Path.rmtree`({self})
+                                `Path.rmtree`()
 Recursively remove an entire directory and its contents.
 
 ------------------------------------------------------------------------------
