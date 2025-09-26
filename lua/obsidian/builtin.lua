@@ -4,13 +4,15 @@ local util = require "obsidian.util"
 
 ---Create a new unique Zettel ID.
 ---
+---@param title string|? The title for the note
 ---@return string
-M.zettel_id = function()
+M.zettel_id = function(title)
+  local timestamp = os.date("%Y%m%d%H%M")
   local suffix = ""
-  for _ = 1, 4 do
-    suffix = suffix .. string.char(math.random(65, 90))
+  if title ~= nil and title ~= "" then
+    suffix = "-" .. title:gsub(" ", "-"):gsub("[^A-Za-z0-9-]", ""):lower()
   end
-  return tostring(os.time()) .. "-" .. suffix
+  return timestamp .. suffix
 end
 
 ---@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
