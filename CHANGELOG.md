@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed default `note_id_func` to use title parameter and readable timestamps instead of random letters
 - Replace non existing function `get_workspace_for_dir` with `find_workspace`
 - Fixed async with minimal functions copied from `vim._async`.
 - No longer notify user `Updated Frontmatter`.
