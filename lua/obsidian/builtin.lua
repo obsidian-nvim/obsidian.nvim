@@ -7,7 +7,7 @@ local util = require "obsidian.util"
 ---@param title string|? The title for the note
 ---@return string
 M.zettel_id = function(title)
-  local timestamp = os.date("%Y%m%d%H%M")
+  local timestamp = os.date "%Y%m%d%H%M"
   local suffix = ""
   if title ~= nil and title ~= "" then
     suffix = "-" .. title:gsub(" ", "-"):gsub("[^A-Za-z0-9-]", ""):lower()
