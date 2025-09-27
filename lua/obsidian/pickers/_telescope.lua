@@ -157,7 +157,7 @@ end
 TelescopePicker.grep = function(self, opts)
   opts = opts or {}
 
-  local cwd = opts.dir and Path:new(opts.dir) or Obsidian.dir
+  local cwd = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   local prompt_title = self:_build_prompt {
     prompt_title = opts.prompt_title,
