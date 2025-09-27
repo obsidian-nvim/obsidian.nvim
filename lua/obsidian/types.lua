@@ -144,6 +144,7 @@ M.SyncConfigCategory = {
 ---@field sync? obsidian.config.SyncOpts
 ---@field slides? obsidian.config.SlidesOpts
 ---@field cache? obsidian.config.CacheOpts
+---@field lsp? obsidian.config.LSPOpts
 
 ---@class obsidian.config.Internal
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
@@ -177,5 +178,6 @@ M.SyncConfigCategory = {
 ---@field sync obsidian.config.SyncOpts
 ---@field slides obsidian.config.SlidesOpts
 ---@field cache obsidian.config.CacheOpts
+---@field lsp obsidian.config.LSPOpts
 
 return M

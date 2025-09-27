@@ -3,15 +3,13 @@ local search = require "obsidian.search"
 
 --- TODO: tag hover should also work on frontmatter
 
----@param params lsp.HoverParams
+---@param _ lsp.HoverParams
 ---@param handler function
-return function(params, handler, _)
+return function(_, handler, _)
   local cursor_ref = util.cursor_link()
   local cursor_tag = util.cursor_tag()
   if cursor_ref then
-    local title = util.parse_link(cursor_ref)
-    title = title and util.strip_anchor_links(title)
-    title = title and util.strip_block_links(title)
+    local title = util.parse_link(cursor_ref, { strip = true })
     if not title then
       return
     end
@@ -19,9 +17,9 @@ return function(params, handler, _)
     if not note then
       return
     end
-    note:load_contents()
+    local contents = Obsidian.opts.lsp.hover.note_preview_callback(note)
     handler(nil, {
-      contents = note.contents,
+      contents = contents,
     })
   elseif cursor_tag then
     -- lsp_util.preview_tag(client, params, cursor_tag, function(content)
