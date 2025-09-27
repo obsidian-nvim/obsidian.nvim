@@ -89,6 +89,7 @@ return function(data)
             end, { ... })
             gather_tag_picker_list(picker, tag_locations, tags)
           end,
+          selection_mappings = picker:_tag_selection_mappings(),
           allow_multiple = true,
         })
       end)

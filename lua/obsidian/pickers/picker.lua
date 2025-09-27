@@ -308,7 +308,9 @@ Picker._tag_selection_mappings = function(self)
       mappings[Obsidian.opts.picker.tag_mappings.tag_note] = {
         desc = "tag note",
         callback = function(...)
-          local tags = { ... }
+          local tags = vim.tbl_map(function(value)
+            return value.value
+          end, { ... })
 
           local note = api.current_note(self.calling_bufnr)
           if not note then
@@ -348,7 +350,8 @@ Picker._tag_selection_mappings = function(self)
     if key_is_set(Obsidian.opts.picker.tag_mappings.insert_tag) then
       mappings[Obsidian.opts.picker.tag_mappings.insert_tag] = {
         desc = "insert tag",
-        callback = function(tag)
+        callback = function(item)
+          local tag = item.value
           vim.api.nvim_put({ "#" .. tag }, "", false, true)
         end,
         fallback_to_query = true,
