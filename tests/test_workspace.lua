@@ -11,7 +11,7 @@ T["should be able to initialize a workspace"] = function()
     path = tmpdir,
     name = "test_workspace",
   }
-  assert(ws)
+  assert(ws, "")
   eq("test_workspace", ws.name)
   eq(true, tmpdir:resolve() == ws.path)
 end
