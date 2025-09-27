@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `config` is now its own module.
 - `smart_action` now properly falls back to `<CR>` unless `Obsidian.opts.checkbox.create_new`.
 - `rename` reimplemented with backlinks.
+- Removed unused path methods.
 
 ### Fixed
 
