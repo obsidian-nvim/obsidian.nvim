@@ -65,6 +65,7 @@
 ---@field open? obsidian.config.OpenOpts
 ---@field checkbox? obsidian.config.CheckboxOpts
 ---@field comment? obsidian.config.CommentOpts
+---@field lsp? obsidian.config.LSPOpts
 
 ---@class obsidian.config.Internal
 ---@field dir string|?
@@ -98,3 +99,4 @@
 ---@field open obsidian.config.OpenOpts
 ---@field checkbox obsidian.config.CheckboxOpts
 ---@field comment obsidian.config.CommentOpts
+---@field lsp obsidian.config.LSPOpts

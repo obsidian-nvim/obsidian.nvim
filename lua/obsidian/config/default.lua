@@ -48,6 +48,16 @@ return {
     func = require("obsidian.builtin").frontmatter,
     sort = { "id", "aliases", "tags" },
   },
+  ---@class obsidian.config.LSPOpts
+  lsp = {
+    hover = {
+      ---@param note obsidian.Note
+      note_preview_callback = function(note)
+        note:load_contents()
+        return note.contents
+      end,
+    },
+  },
 
   ---@class obsidian.config.TemplateOpts
   ---
