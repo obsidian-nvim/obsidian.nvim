@@ -546,11 +546,11 @@ Constructors.
 
 ------------------------------------------------------------------------------
                                                            *obsidian.Path.new()*
-                               `Path.new`({...})
+                                `Path.new`({p})
 Create a new path from a string.
 
 Parameters ~
-{...} `(string|obsidian.Path)`
+{p} `(string|obsidian.Path)`
 
 Return ~
 `(obsidian.Path)`
@@ -567,28 +567,9 @@ Return ~
 `(obsidian.Path)`
 
 ------------------------------------------------------------------------------
-                                                           *obsidian.Path.cwd()*
-                                  `Path.cwd`()
-Get a path corresponding to the current working directory as given by `vim.uv.cwd()`.
-
-Return ~
-`(obsidian.Path)`
-
-------------------------------------------------------------------------------
                                                         *obsidian.Path.buffer()*
                              `Path.buffer`({bufnr})
 Get a path corresponding to a buffer.
-
-Parameters ~
-{bufnr} `(integer|? The)` buffer number or `0` / `nil` for the current buffer.
-
-Return ~
-`(obsidian.Path)`
-
-------------------------------------------------------------------------------
-                                                       *obsidian.Path.buf_dir()*
-                            `Path.buf_dir`({bufnr})
-Get a path corresponding to the parent of a buffer.
 
 Parameters ~
 {bufnr} `(integer|? The)` buffer number or `0` / `nil` for the current buffer.
@@ -619,14 +600,6 @@ Returns true if the path is already in absolute form.
 
 Return ~
 `(boolean)`
-
-------------------------------------------------------------------------------
-                                                      *obsidian.Path.joinpath()*
-                         `Path.joinpath`({self}, {...})
-Parameters ~
-{...} `(obsidian.Path|string)`
-Return ~
-`(obsidian.Path)`
 
 ------------------------------------------------------------------------------
                                                    *obsidian.Path.relative_to()*
@@ -726,41 +699,9 @@ Parameters ~
 {opts} `({ mode: integer|?, parents: boolean|?, exist_ok: boolean|? }|)`?
 
 ------------------------------------------------------------------------------
-                                                         *obsidian.Path.rmdir()*
-                              `Path.rmdir`({self})
-Remove the corresponding directory. This directory must be empty.
-
-------------------------------------------------------------------------------
                                                         *obsidian.Path.rmtree()*
                                 `Path.rmtree`()
 Recursively remove an entire directory and its contents.
-
-------------------------------------------------------------------------------
-                                                         *obsidian.Path.touch()*
-                          `Path.touch`({self}, {opts})
-Create a file at this given path.
-
-Parameters ~
-{opts} `({ mode: integer|?, exist_ok: boolean|? }|)`?
-
-------------------------------------------------------------------------------
-                                                        *obsidian.Path.rename()*
-                        `Path.rename`({self}, {target})
-Rename this file or directory to the given target.
-
-Parameters ~
-{target} `(obsidian.Path|string)`
-
-Return ~
-`(obsidian.Path)`
-
-------------------------------------------------------------------------------
-                                                        *obsidian.Path.unlink()*
-                         `Path.unlink`({self}, {opts})
-Remove the file.
-
-Parameters ~
-{opts} `({ missing_ok: boolean|? }|)`?
 
 ------------------------------------------------------------------------------
                                            *obsidian.Path.vault_relative_path()*
