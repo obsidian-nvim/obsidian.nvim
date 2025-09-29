@@ -22,7 +22,8 @@ require("obsidian").setup {
   },
   footer = {
     enabled = false,
-  }
+  },
+  log_level = vim.log.levels.WARN,
 }
         ]]
       end,
@@ -52,6 +53,7 @@ M.temp_vault = MiniTest.new_set {
           blink = false,
           nvim_cmp = false,
         },
+        log_level = vim.log.levels.WARN,
       }
 
       Path.new(dir / "templates"):mkdir()
