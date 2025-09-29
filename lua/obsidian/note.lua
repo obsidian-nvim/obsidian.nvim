@@ -788,10 +788,13 @@ Note.frontmatter = require("obsidian.builtin").frontmatter
 
 --- Get frontmatter lines that can be written to a buffer.
 ---
+---@param current_lines string[]
 ---@return string[]
 Note.frontmatter_lines = function(self, current_lines)
   local order
-  if current_lines then
+  if Obsidian.opts.frontmatter.order then
+    order = Obsidian.opts.frontmatter.order
+  elseif not vim.tbl_isempty(current_lines) then
     current_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
     end, current_lines)
@@ -1012,13 +1015,18 @@ Note.save_to_buffer = function(self, opts)
     bufnr = self.bufnr or 0
   end
 
-  local cur_buf_note = Note.from_buffer(bufnr)
+  local frontmatter_end_line = self.frontmatter_end_line
+
+  ---@type string[]
+  local current_lines = {}
+  if self.has_frontmatter then
+    current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, frontmatter_end_line or 0, false)
+  end
 
   ---@type string[]
   local new_lines
   if opts.insert_frontmatter ~= false then
-    local lines = vim.api.nvim_buf_get_lines(bufnr, 1, self.frontmatter_end_line - 1, false)
-    new_lines = self:frontmatter_lines(lines)
+    new_lines = self:frontmatter_lines(current_lines)
   else
     new_lines = {}
   end
@@ -1027,20 +1035,8 @@ Note.save_to_buffer = function(self, opts)
     table.insert(new_lines, "# " .. self.title)
   end
 
-  ---@type string[]
-  local cur_lines = {}
-  if cur_buf_note.frontmatter_end_line ~= nil then
-    cur_lines = vim.api.nvim_buf_get_lines(bufnr, 0, cur_buf_note.frontmatter_end_line, false)
-  end
-
-  if not vim.deep_equal(cur_lines, new_lines) then
-    vim.api.nvim_buf_set_lines(
-      bufnr,
-      0,
-      cur_buf_note.frontmatter_end_line and cur_buf_note.frontmatter_end_line or 0,
-      false,
-      new_lines
-    )
+  if not vim.deep_equal(current_lines, new_lines) then
+    vim.api.nvim_buf_set_lines(bufnr, 0, frontmatter_end_line and frontmatter_end_line or 0, false, new_lines)
     return true
   else
     return false

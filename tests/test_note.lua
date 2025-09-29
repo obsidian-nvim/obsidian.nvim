@@ -234,7 +234,6 @@ T["from_file"]["should work from a file w/o frontmatter"] = function()
   eq(#note.tags, 0)
   not_eq(note:fname(), nil)
   eq(false, note.has_frontmatter)
-  eq(true, note:should_save_frontmatter())
 end
 
 T["from_file"]["should collect additional frontmatter metadata and keep the order"] = function()

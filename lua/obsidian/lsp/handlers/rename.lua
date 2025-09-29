@@ -115,7 +115,6 @@ return function(params, _, _)
     local uri = params.textDocument.uri
     local note = assert(api.current_note(0))
     local path = vim.uri_to_fname(uri)
-    local new_note = rename_note(path, new_name, note)
-    new_note:open()
+    rename_note(path, new_name, note)
   end
 end
