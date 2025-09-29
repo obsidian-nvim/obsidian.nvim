@@ -16,8 +16,8 @@ return {
   search_max_lines = 1000,
   open_notes_in = "current",
 
-  note_frontmatter_func = require("obsidian.builtin").frontmatter, -- TODO: deprecate
-  disable_frontmatter = false, -- TODO: deprecate
+  note_frontmatter_func = require("obsidian.builtin").frontmatter,
+  disable_frontmatter = false,
 
   ---@class obsidian.config.FrontmatterOpts
   ---
