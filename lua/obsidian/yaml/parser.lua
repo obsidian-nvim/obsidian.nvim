@@ -207,6 +207,10 @@ Parser._error_msg = function(_, msg, line_num, line_text)
   return full_msg
 end
 
+local YAML_KEY_REGEX = "([a-zA-Z0-9_-()/]+[a-zA-Z0-9_()/ -]*)"
+local YAML_MAPPING_START_REGEX = string.format("%s:$", YAML_KEY_REGEX)
+local YAML_MAPPING_INLINE_REGEX = string.format("%s: (.*)", YAML_KEY_REGEX)
+
 ---@param self obsidian.yaml.Parser
 ---@param i integer
 ---@param lines obsidian.yaml.Line[]
@@ -219,10 +223,10 @@ Parser._try_parse_field = function(self, lines, i, text)
   local _, key, value
 
   -- First look for start of mapping, array, block, etc, e.g. 'foo:'
-  _, _, key = string.find(text, "([a-zA-Z0-9_-]+[a-zA-Z0-9_ -]*):$")
+  _, _, key = string.find(text, YAML_MAPPING_START_REGEX)
   if not key then
     -- Then try inline field, e.g. 'foo: bar'
-    _, _, key, value = string.find(text, "([a-zA-Z0-9_-]+[a-zA-Z0-9_ -]*): (.*)")
+    _, _, key, value = string.find(text, YAML_MAPPING_INLINE_REGEX)
   end
 
   value = value and vim.trim(value) or nil

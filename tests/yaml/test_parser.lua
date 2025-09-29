@@ -120,6 +120,22 @@ T["should parse mappings with spaces for keys"] = function()
   }, result)
 end
 
+T["should parse mappings with parens for keys"] = function()
+  local result = parser:parse(table.concat({
+    "bar: 5",
+    "weight (Kg): 24",
+    "Top speeds (m/s):",
+    "- 5",
+    "- 4.5",
+    "- 2",
+  }, "\n"))
+  eq({
+    bar = 5,
+    ["weight (Kg)"] = 24,
+    ["Top speeds (m/s)"] = { 5, 4.5, 2 },
+  }, result)
+end
+
 T["should ignore comments"] = function()
   local result = parser:parse(table.concat({
     "foo: 1  # this is a comment",

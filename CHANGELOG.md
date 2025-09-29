@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix typo in `open` command.
 - Check if a user specified workspace exists before listing it as valid.
 - Tags in html comments will be properly ignored.
+- Allow for parent (`()`) and `/` char in frontmatter keys.
 
 ## [v3.13.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.1) - 2025-08-01
 
