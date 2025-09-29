@@ -587,14 +587,11 @@ end
 ---@return obsidian.Note
 Note.from_lines = function(lines, path, opts)
   opts = opts or {}
-  path = path and Path.new(path):resolve()
+  path = Path.new(path):resolve()
 
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
-  -- local id = nil
   local title = nil
-  -- local aliases = {}
-  -- local tags = {}
 
   ---@type string[]|?
   local contents

@@ -48,6 +48,10 @@ M.temp_vault = MiniTest.new_set {
         templates = {
           folder = "templates",
         },
+        completion = {
+          blink = false,
+          nvim_cmp = false,
+        },
       }
 
       Path.new(dir / "templates"):mkdir()
