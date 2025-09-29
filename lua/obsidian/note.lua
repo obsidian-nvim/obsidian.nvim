@@ -792,14 +792,15 @@ Note.frontmatter = require("obsidian.builtin").frontmatter
 ---@return string[]
 Note.frontmatter_lines = function(self, current_lines)
   local order
-  if Obsidian.opts.frontmatter.order then
-    order = Obsidian.opts.frontmatter.order
+  if Obsidian.opts.frontmatter.sort then
+    order = Obsidian.opts.frontmatter.sort
   elseif not vim.tbl_isempty(current_lines) then
     current_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
     end, current_lines)
     _, _, order = pcall(yaml.loads, table.concat(current_lines, "\n"))
   end
+  ---@diagnostic disable-next-line: param-type-mismatch
   return Frontmatter.dump(Obsidian.opts.frontmatter.func(self), order)
 end
 

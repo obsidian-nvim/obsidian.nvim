@@ -45,9 +45,9 @@
 ---@field preferred_link_style? obsidian.config.LinkStyle
 ---@field follow_url_func? fun(url: string)
 ---@field follow_img_func? fun(img: string)
-----@field note_frontmatter_func? (fun(note: obsidian.Note): table)
-----@field disable_frontmatter? (fun(fname: string?): boolean)|boolean
----@field frontmatter obsidian.config.FrontmatterOpts
+---@field note_frontmatter_func? (fun(note: obsidian.Note): table)
+---@field disable_frontmatter? (fun(fname: string?): boolean)|boolean
+---@field frontmatter? obsidian.config.FrontmatterOpts
 ---@field backlinks? obsidian.config.BacklinkOpts
 ---@field completion? obsidian.config.CompletionOpts
 ---@field picker? obsidian.config.PickerOpts
@@ -80,8 +80,6 @@
 ---@field preferred_link_style obsidian.config.LinkStyle
 ---@field follow_url_func fun(url: string)|?
 ---@field follow_img_func fun(img: string)|?
-----@field note_frontmatter_func (fun(note: obsidian.Note): table)|?
-----@field disable_frontmatter (fun(fname: string?): boolean)|boolean|?
 ---@field frontmatter obsidian.config.FrontmatterOpts
 ---@field backlinks obsidian.config.BacklinkOpts
 ---@field completion obsidian.config.CompletionOpts

@@ -219,6 +219,27 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     deprecate("statusline.{enabled,format} and vim.g.obsidian", "footer.{enabled,format}", "4.0")
   end
 
+  if opts.note_frontmatter_func then
+    opts.frontmatter = opts.frontmatter or {}
+    opts.frontmatter.func = opts.note_frontmatter_func
+    opts.note_frontmatter_func = nil
+    deprecate("note_frontmatter_func", "frontmatter.func", "4.0")
+  end
+
+  if opts.disable_frontmatter then
+    opts.frontmatter = opts.frontmatter or {}
+    local disable_frontmatter = opts.disable_frontmatter
+    if type(disable_frontmatter) == "boolean" then
+      opts.frontmatter.enabled = not disable_frontmatter
+    elseif type(disable_frontmatter) == "function" then
+      opts.frontmatter.enabled = function(fname)
+        return not disable_frontmatter(fname)
+      end
+    end
+    opts.disable_frontmatter = nil
+    deprecate("disable_frontmatter", "frontmatter.enabled", "4.0")
+  end
+
   --------------------------
   -- Merge with defaults. --
   --------------------------
@@ -237,6 +258,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.open = tbl_override(defaults.open, opts.open)
   opts.checkbox = tbl_override(defaults.checkbox, opts.checkbox)
   opts.comment = tbl_override(defaults.comment, opts.comment)
+  opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
 
   ---------------
   -- Validate. --
