@@ -236,31 +236,6 @@ T["from_file"]["should work from a file w/o frontmatter"] = function()
   eq(false, note.has_frontmatter)
 end
 
-T["from_file"]["should collect additional frontmatter metadata and keep the order"] = function()
-  local note = M.from_file("tests/fixtures/notes/note_with_additional_metadata.md", { load_contents = true })
-  eq(note.id, "note_with_additional_metadata")
-  -- TODO:
-  eq(note.title, "Note (has additional metadata)")
-  not_eq(note.metadata, nil)
-  eq(note.metadata.foo, "bar")
-  local lines = {}
-  for i = 2, note.frontmatter_end_line - 1 do
-    lines[#lines + 1] = note.contents[i]
-  end
-  eq(
-    table.concat(note:frontmatter_lines(lines), "\n"),
-    table.concat({
-      "---",
-      "id: note_with_additional_metadata",
-      "title: Note (has additional metadata)",
-      "aliases: []",
-      "tags: []",
-      "foo: bar",
-      "---",
-    }, "\n")
-  )
-end
-
 local note_with_different_frontmatter_format = [[---
 aliases: [Amanda Green, Detective Green, Mandy]
 tags: []

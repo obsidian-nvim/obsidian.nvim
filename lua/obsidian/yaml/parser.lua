@@ -101,7 +101,7 @@ Parser.parse = function(self, str)
           order[#order + 1] = k
         end
       end
-      assert(value_type ~= YamlType.EmptyLine)
+      assert(value_type ~= YamlType.EmptyLine, "")
       if root_value == nil and line.indent == 0 then
         -- Set the root value.
         if value_type == YamlType.ArrayItem then
