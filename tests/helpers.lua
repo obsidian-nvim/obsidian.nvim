@@ -3,7 +3,8 @@ local child = MiniTest.new_child_neovim()
 
 local M = {}
 
-M.test_vault = function()
+---Return test set and child instance
+M.child_vault = function()
   return MiniTest.new_set {
     hooks = {
       pre_case = function()

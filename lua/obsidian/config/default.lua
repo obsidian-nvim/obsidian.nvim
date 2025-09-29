@@ -1,6 +1,14 @@
 ---@type obsidian.config.Internal
 return {
-  legacy_commands = true, -- TODO: remove in 4.0.0
+  -- TODO: remove these in 4.0.0
+  legacy_commands = true,
+  note_frontmatter_func = require("obsidian.builtin").frontmatter,
+  disable_frontmatter = false,
+
+  -- TODO:: replace with more general options before 4.0.0
+  follow_url_func = vim.ui.open,
+  follow_img_func = vim.ui.open,
+
   workspaces = {},
   log_level = vim.log.levels.INFO,
   notes_subdir = nil,
@@ -9,15 +17,10 @@ return {
   wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
   markdown_link_func = require("obsidian.builtin").markdown_link,
   preferred_link_style = "wiki",
-  follow_url_func = vim.ui.open,
-  follow_img_func = vim.ui.open,
   sort_by = "modified",
   sort_reversed = true,
   search_max_lines = 1000,
   open_notes_in = "current",
-
-  note_frontmatter_func = require("obsidian.builtin").frontmatter,
-  disable_frontmatter = false,
 
   ---@class obsidian.config.FrontmatterOpts
   ---

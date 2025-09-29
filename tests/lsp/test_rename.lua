@@ -2,7 +2,7 @@ local eq = MiniTest.expect.equality
 local Path = require "obsidian.path"
 local h = dofile "tests/helpers.lua"
 
-local T, child = h.test_vault()
+local T, child = h.child_vault()
 
 local target = [[---
 id: target
