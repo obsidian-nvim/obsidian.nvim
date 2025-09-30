@@ -58,7 +58,7 @@ T["is_checkbox"]["should return false for non-checkbox list items"] = function()
   eq(false, M.is_checkbox "-- Task 1")
   eq(true, M.is_checkbox "-- [ ] Task 1") -- TODO: bit shaky for now, but allows toggling in block quotes.
   eq(false, M.is_checkbox "* Task 2")
-  eq(false, M.is_checkbox "++ [ ] Task 2")
+  eq(true, M.is_checkbox "++ [ ] Task 2")
   eq(false, M.is_checkbox "1. Task 3")
   eq(false, M.is_checkbox "1.1 Task 3")
   eq(false, M.is_checkbox "1.1 [ ] Task 3")
