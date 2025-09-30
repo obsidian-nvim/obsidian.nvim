@@ -4,22 +4,32 @@ return {
   legacy_commands = true,
   note_frontmatter_func = require("obsidian.builtin").frontmatter,
   disable_frontmatter = false,
+  ---@class obsidian.config.StatuslineOpts
+  ---
+  ---@field format? string
+  ---@field enabled? boolean
+  statusline = {
+    format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+    enabled = true,
+  },
 
   -- TODO:: replace with more general options before 4.0.0
   follow_url_func = vim.ui.open,
   follow_img_func = vim.ui.open,
+  notes_subdir = nil,
+  new_notes_location = "current_dir",
+
+  -- TODO: group into a search module
+  sort_by = "modified",
+  sort_reversed = true,
+  search_max_lines = 1000,
 
   workspaces = {},
   log_level = vim.log.levels.INFO,
-  notes_subdir = nil,
-  new_notes_location = "current_dir",
   note_id_func = require("obsidian.builtin").zettel_id,
   wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
   markdown_link_func = require("obsidian.builtin").markdown_link,
   preferred_link_style = "wiki",
-  sort_by = "modified",
-  sort_reversed = true,
-  search_max_lines = 1000,
   open_notes_in = "current",
 
   ---@class obsidian.config.FrontmatterOpts
@@ -228,15 +238,6 @@ return {
   ---Runs anytime the workspace is set/changed.
   ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
   callbacks = {},
-
-  ---@class obsidian.config.StatuslineOpts
-  ---
-  ---@field format? string
-  ---@field enabled? boolean
-  statusline = {
-    format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
-    enabled = true,
-  },
 
   ---@class obsidian.config.FooterOpts
   ---
