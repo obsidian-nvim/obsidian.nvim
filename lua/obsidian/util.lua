@@ -136,11 +136,11 @@ end
 ---@return boolean
 util.is_checkbox = function(s)
   -- - [ ] and * [ ] and + [ ]
-  if string.match(s, "^%s*[-+*]%s+%[.%]") ~= nil then
+  if string.match(s, "%s*[-+*]%s+%[.%]") ~= nil then
     return true
   end
   -- 1. [ ] and 1) [ ]
-  if string.match(s, "^%s*%d+[%.%)]%s+%[.%]") ~= nil then
+  if string.match(s, "%s*%d+[%.%)]%s+%[.%]") ~= nil then
     return true
   end
   return false
