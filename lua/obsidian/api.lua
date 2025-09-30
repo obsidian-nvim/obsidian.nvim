@@ -109,41 +109,6 @@ M.current_note = function(bufnr, opts)
   return Note.from_buffer(bufnr, opts)
 end
 
----Toggle the checkbox on the current line.
----
----@param states table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
----@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
-M.toggle_checkbox = function(states, line_num)
-  if not util.in_node { "list", "paragraph" } or util.in_node "block_quote" then
-    return
-  end
-  line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
-  local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
-
-  local checkboxes = states or { " ", "x" }
-
-  if util.is_checkbox(line) then
-    for i, check_char in ipairs(checkboxes) do
-      if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
-        i = i % #checkboxes
-        line = string.gsub(line, vim.pesc("[" .. check_char .. "]"), "[" .. checkboxes[i + 1] .. "]", 1)
-        break
-      end
-    end
-  elseif Obsidian.opts.checkbox.create_new then
-    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
-    if string.match(line, unordered_list_pattern) then
-      line = string.gsub(line, unordered_list_pattern, "%1- [ ] %2")
-    else
-      line = string.gsub(line, "^(%s*)", "%1- [ ] ")
-    end
-  else
-    return
-  end
-
-  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { line })
-end
-
 ---@return [number, number, number, number] tuple containing { buf, win, row, col }
 M.get_active_window_cursor_location = function()
   local buf = vim.api.nvim_win_get_buf(0)
@@ -727,14 +692,59 @@ M.smart_action = function()
   end
 end
 
+---Check if we are in node that should not do checkbox operations.
+---
+---@return boolean
+local function no_checkbox()
+  return util.in_node {
+    "fenced_code_block",
+    "minus_metadata",
+    --- what other types?
+  }
+end
+
+---Toggle the checkbox on the current line.
+---
+---@param states table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
+---@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
+M.toggle_checkbox = function(states, line_num)
+  if no_checkbox() then
+    return
+  end
+  line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
+  local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
+
+  local checkboxes = states or { " ", "x" }
+
+  if util.is_checkbox(line) then
+    for i, check_char in ipairs(checkboxes) do
+      if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
+        i = i % #checkboxes
+        line = string.gsub(line, vim.pesc("[" .. check_char .. "]"), "[" .. checkboxes[i + 1] .. "]", 1)
+        break
+      end
+    end
+  elseif Obsidian.opts.checkbox.create_new then
+    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
+    if string.match(line, unordered_list_pattern) then
+      line = string.gsub(line, unordered_list_pattern, "%1- [ ] %2")
+    else
+      line = string.gsub(line, "^(%s*)", "%1- [ ] ")
+    end
+  else
+    return
+  end
+
+  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { line })
+end
+
 ---Set the checkbox on the current line to a specific state.
 ---
 ---@param state string|nil Optional string of state to set the checkbox to (e.g., " ", "x").
 M.set_checkbox = function(state)
-  if not util.in_node { "list", "paragraph" } or util.in_node "block_quote" then
+  if no_checkbox() then
     return
   end
-
   if state == nil then
     local ok, key = pcall(vim.fn.getchar)
     if not ok then
