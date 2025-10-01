@@ -110,7 +110,7 @@ Fields ~
 {title} `(string|)`?
 {tags} `(string[])`
 {path} `(obsidian.Path|)`?
-{metadata} `(table|)`?
+{metadata} `(table)`
 {has_frontmatter} `(boolean|)`?
 {frontmatter_end_line} `(integer|)`?
 {contents} `(string[]|)`?
@@ -325,12 +325,11 @@ Return ~
 
 ------------------------------------------------------------------------------
                                              *obsidian.Note.frontmatter_lines()*
-                    `Note.frontmatter_lines`({self}, {eol})
+               `Note.frontmatter_lines`({self}, {current_lines})
 Get frontmatter lines that can be written to a buffer.
 
 Parameters ~
-{eol} `(boolean|)`?
-
+{current_lines} `(string[])`
 Return ~
 `(string[])`
 
