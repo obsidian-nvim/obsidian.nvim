@@ -138,6 +138,7 @@ SnacksPicker.pick = function(self, values, opts)
     items = entries,
     layout = {
       preview = preview,
+      preset = "default",
     },
     format = "text",
     confirm = function(picker, item, action)
