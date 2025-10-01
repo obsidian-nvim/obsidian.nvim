@@ -3,6 +3,40 @@ local child = MiniTest.new_child_neovim()
 
 local M = {}
 
+---Return test set and child instance
+M.child_vault = function()
+  return MiniTest.new_set {
+    hooks = {
+      pre_case = function()
+        child.restart { "-u", "scripts/minimal_init.lua" }
+        child.lua [[
+local Path = require "obsidian.path"
+local dir = Path.temp { suffix = "-obsidian" }
+dir:mkdir { parents = true }
+require("obsidian").setup {
+  legacy_commands = false,
+  workspaces = { {
+    path = tostring(dir),
+  } },
+  templates = {
+    folder = "templates",
+  },
+  footer = {
+    enabled = false,
+  },
+  log_level = vim.log.levels.WARN,
+}
+        ]]
+      end,
+      post_case = function()
+        child.lua [[vim.fn.delete(tostring(Obsidian.dir), "rf")]]
+        child.stop()
+      end,
+    },
+  },
+    child
+end
+
 M.temp_vault = MiniTest.new_set {
   hooks = {
     pre_case = function()
@@ -16,6 +50,11 @@ M.temp_vault = MiniTest.new_set {
         templates = {
           folder = "templates",
         },
+        completion = {
+          blink = false,
+          nvim_cmp = false,
+        },
+        log_level = vim.log.levels.WARN,
       }
 
       Path.new(dir / "templates"):mkdir()

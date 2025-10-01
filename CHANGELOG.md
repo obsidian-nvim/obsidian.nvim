@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSP `references` and `definition`.
 - LSP `documentSymbol` -> `Obsidian toc`.
 - Uses `selene` and `typos-cli` to check code quality.
+- Add `opts.frontmatter.sort` to sort properties.
 
 ### Changed
 
@@ -27,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `smart_action` now properly falls back to `<CR>` unless `Obsidian.opts.checkbox.create_new`.
 - `rename` reimplemented with backlinks.
 - Removed unused path methods.
+- `opts.note_frontmatter_func` moved to `opts.frontmatter.func`.
+- `opts.disable_frontmatter` moved to `opts.frontmatter.enabled`.
 
 ### Fixed
 

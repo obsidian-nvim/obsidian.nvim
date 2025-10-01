@@ -115,10 +115,12 @@ M.img_text_func = function(path)
   return string.format(format_string[style], name)
 end
 
-M.frontmatter = function(self)
-  local out = { id = self.id, aliases = self.aliases, tags = self.tags }
-  if self.metadata ~= nil and not vim.tbl_isempty(self.metadata) then
-    for k, v in pairs(self.metadata) do
+---@param note obsidian.Note
+---@return table<string, any>
+M.frontmatter = function(note)
+  local out = { id = note.id, aliases = note.aliases, tags = note.tags }
+  if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
+    for k, v in pairs(note.metadata) do
       out[k] = v
     end
   end

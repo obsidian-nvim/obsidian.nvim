@@ -57,6 +57,7 @@ end
 ---Parse a YAML string.
 ---@param str string
 ---@return any
+---@return string[] -- TODO: does this have to be here?
 Parser.parse = function(self, str)
   -- Collect and pre-process lines.
   local lines = {}
@@ -83,6 +84,7 @@ Parser.parse = function(self, str)
   local parent = nil
   local current_indent = 0
   local i = 1
+  local order = {} ---@type string[]
   while i <= #lines do
     local line = lines[i]
 
@@ -93,6 +95,12 @@ Parser.parse = function(self, str)
       local value
       local value_type
       i, value, value_type = self:_parse_next(lines, i)
+      if type(value) == "table" then
+        local k, v = next(value)
+        if k and v then
+          order[#order + 1] = k
+        end
+      end
       assert(value_type ~= YamlType.EmptyLine, "")
       if root_value == nil and line.indent == 0 then
         -- Set the root value.
@@ -130,7 +138,7 @@ Parser.parse = function(self, str)
     current_indent = line.indent
   end
 
-  return root_value
+  return root_value, order
 end
 
 ---Parse the next single item, recursing to child blocks if necessary.
