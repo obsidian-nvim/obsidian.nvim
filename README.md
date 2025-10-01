@@ -280,6 +280,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://eportfolio.dev"><img src="https://avatars.githubusercontent.com/u/98435584?v=4?s=100" width="100px;" alt="Emilio Marin"/><br /><sub><b>Emilio Marin</b></sub></a><br /><a href="#code-e-mar404" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/antigluten"><img src="https://avatars.githubusercontent.com/u/53124465?v=4?s=100" width="100px;" alt="Vladimir Gusev"/><br /><sub><b>Vladimir Gusev</b></sub></a><br /><a href="#code-antigluten" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/FirelightFlagboy"><img src="https://avatars.githubusercontent.com/u/30697622?v=4?s=100" width="100px;" alt="FirelightFlagboy"/><br /><sub><b>FirelightFlagboy</b></sub></a><br /><a href="#code-FirelightFlagboy" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/cameronr"><img src="https://avatars.githubusercontent.com/u/38429?v=4?s=100" width="100px;" alt="Cameron Ring"/><br /><sub><b>Cameron Ring</b></sub></a><br /><a href="#code-cameronr" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
