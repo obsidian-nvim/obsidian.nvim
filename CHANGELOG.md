@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tags in html comments will be properly ignored.
 - Allow for parent (`()`) and `/` char in frontmatter keys.
 - Checkbox can be toggled in block quotes and create new works on blank line.
+- Backlinks will find vault relative path without `.md` extension.
 
 ## [v3.13.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.1) - 2025-08-01
 

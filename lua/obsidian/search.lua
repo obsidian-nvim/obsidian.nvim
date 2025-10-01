@@ -963,23 +963,21 @@ local function build_backlink_search_term(note, anchor, block)
   -- Prepare search terms.
   local search_terms = {}
   local note_path = Path.new(note.path)
-  for raw_ref in
-    vim.iter {
-      tostring(note.id),
-      note_path.name,
-      note_path.stem,
-      note.path:vault_relative_path(),
+  local rel_path = note.path:vault_relative_path()
+  local raw_refs = {
+    tostring(note.id),
+    note_path.name,
+    note_path.stem,
+    rel_path,
+    rel_path and rel_path:gsub(".md", "") or nil,
+  }
+  for _, raw_ref in ipairs(raw_refs) do
+    local refs = util.tbl_unique {
+      raw_ref,
+      util.urlencode(tostring(raw_ref)),
+      util.urlencode(tostring(raw_ref), { keep_path_sep = true }),
     }
-
-  do
-    for ref in
-      vim.iter(util.tbl_unique {
-        raw_ref,
-        util.urlencode(tostring(raw_ref)),
-        util.urlencode(tostring(raw_ref), { keep_path_sep = true }),
-      })
-
-    do
+    for _, ref in ipairs(refs) do
       if ref ~= nil then
         if anchor == nil and block == nil then
           -- Wiki links without anchor/block.
