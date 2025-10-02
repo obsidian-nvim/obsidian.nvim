@@ -1,43 +1,43 @@
 local M = require "obsidian.frontmatter"
-local validater = require "obsidian.frontmatter.validater"
+local validator = require "obsidian.frontmatter.validator"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
-T["validater"] = new_set()
+T["validator"] = new_set()
 
-T["validater"]["id"] = function()
-  local v, err = validater.id("id", "path.md")
+T["validator"]["id"] = function()
+  local v, err = validator.id("id", "path.md")
   eq(v, "id")
   eq(err, nil)
-  v, err = validater.id(123, "path.md")
+  v, err = validator.id(123, "path.md")
   eq(v, "123")
   eq(err, nil)
-  v, err = validater.id({}, "path.md")
+  v, err = validator.id({}, "path.md")
   eq(v, nil)
   eq(err, "Invalid id '{}' in frontmatter for path.md, Expected string or number found table")
 end
 
-T["validater"]["aliases"] = function()
-  local v, err = validater.aliases({ "alias" }, "path.md")
+T["validator"]["aliases"] = function()
+  local v, err = validator.aliases({ "alias" }, "path.md")
   eq(v, { "alias" })
   eq(err, nil)
-  v, err = validater.aliases("alias", "path.md")
+  v, err = validator.aliases("alias", "path.md")
   eq(v, { "alias" })
   eq(err, nil)
-  v, err = validater.aliases({ {} }, "path.md")
+  v, err = validator.aliases({ {} }, "path.md")
   eq(v, nil)
   eq(err, "Invalid alias '{}' in frontmatter for path.md. Expected string, found table")
 end
 
-T["validater"]["tags"] = function()
-  local v, err = validater.tags({ "alias" }, "path.md")
+T["validator"]["tags"] = function()
+  local v, err = validator.tags({ "alias" }, "path.md")
   eq(v, { "alias" })
   eq(err, nil)
-  v, err = validater.tags("alias", "path.md")
+  v, err = validator.tags("alias", "path.md")
   eq(v, { "alias" })
   eq(err, nil)
-  v, err = validater.tags({ {} }, "path.md")
+  v, err = validator.tags({ {} }, "path.md")
   eq(v, nil)
   eq(err, "Invalid tag '{}' found in frontmatter for path.md. Expected string, found table")
 end

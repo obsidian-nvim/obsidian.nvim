@@ -1,7 +1,7 @@
 ---@type table<string, fun(v: any, path: string): any, string?>
-local validater = {}
+local validator = {}
 
-validater.id = function(v, path)
+validator.id = function(v, path)
   if type(v) == "string" or type(v) == "number" then
     return tostring(v)
   else
@@ -15,7 +15,7 @@ validater.id = function(v, path)
   end
 end
 
-validater.aliases = function(v, path)
+validator.aliases = function(v, path)
   local aliases = {}
   if type(v) == "table" then
     for _, alias in ipairs(v) do
@@ -40,7 +40,7 @@ validater.aliases = function(v, path)
   return aliases
 end
 
-validater.tags = function(v, path)
+validator.tags = function(v, path)
   local tags = {}
   if type(v) == "table" then
     for _, tag in ipairs(v) do
@@ -65,4 +65,4 @@ validater.tags = function(v, path)
   return tags
 end
 
-return validater
+return validator
