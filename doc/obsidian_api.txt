@@ -451,6 +451,16 @@ Return ~
 `(obsidian.LinkMatch)`
 
 ------------------------------------------------------------------------------
+                                                   *obsidian.Note.format_link()*
+                       `Note.format_link`({self}, {opts})
+Create a formatted markdown / wiki link for a note.
+
+Parameters ~
+{opts} `({ label: string|?, link_style: obsidian.config.LinkStyle|?, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|? Options.)`
+Return ~
+`(string)`
+
+------------------------------------------------------------------------------
                                                             *obsidian.Workspace*
                                   `Workspace`
 Each workspace represents a working directory (usually an Obsidian vault) along with
