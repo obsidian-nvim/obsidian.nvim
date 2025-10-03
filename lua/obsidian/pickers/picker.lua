@@ -287,7 +287,7 @@ Picker._note_selection_mappings = function()
         else
           note = Note.from_file(note_or_path)
         end
-        local link = api.format_link(note, {})
+        local link = note:format_link()
         vim.api.nvim_put({ link }, "", false, true)
         require("obsidian.ui").update(0)
       end,

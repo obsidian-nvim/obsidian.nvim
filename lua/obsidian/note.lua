@@ -1119,4 +1119,32 @@ Note.load_contents = function(self)
   end
 end
 
+--- Create a formatted markdown / wiki link for a note.
+---
+---@param opts { label: string|?, link_style: obsidian.config.LinkStyle|?, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|? Options.
+---@return string
+Note.format_link = function(self, opts)
+  opts = opts or {}
+  local rel_path = assert(self.path:vault_relative_path { strict = true }, "note with no path")
+  local label = opts.label or self:display_name()
+  local note_id = opts.id or self.id
+  local link_style = opts.link_style or Obsidian.opts.preferred_link_style
+
+  local new_opts = {
+    path = rel_path,
+    label = label,
+    id = note_id,
+    anchor = opts.anchor,
+    block = opts.block,
+  }
+
+  if link_style == config.LinkStyle.markdown then
+    return Obsidian.opts.markdown_link_func(new_opts)
+  elseif link_style == config.LinkStyle.wiki or link_style == nil then
+    return Obsidian.opts.wiki_link_func(new_opts)
+  else
+    error(string.format("Invalid link style '%s'", link_style))
+  end
+end
+
 return Note

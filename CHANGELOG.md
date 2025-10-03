@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed unused path methods.
 - `opts.note_frontmatter_func` moved to `opts.frontmatter.func`.
 - `opts.disable_frontmatter` moved to `opts.frontmatter.enabled`.
+- `api.format_link` moved to `Note:format_link`.
 
 ### Fixed
 

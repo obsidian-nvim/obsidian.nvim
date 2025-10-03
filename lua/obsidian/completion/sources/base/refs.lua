@@ -307,10 +307,8 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
     ---@type string, string, string, table|?
     local final_label, sort_text, new_text, documentation
     if option.label then
-      new_text = api.format_link(
-        note,
-        { label = option.label, link_style = link_style, anchor = option.anchor, block = option.block }
-      )
+      new_text =
+        note:format_link { label = option.label, link_style = link_style, anchor = option.anchor, block = option.block }
 
       final_label = assert(option.alt_label or option.label, "no valid label")
       if option.anchor then
