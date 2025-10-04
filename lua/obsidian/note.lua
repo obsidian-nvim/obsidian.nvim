@@ -537,11 +537,12 @@ end
 ---
 ---@return obsidian.Note
 Note.from_file = function(path, opts)
-  if path == nil then
-    error "note path cannot be nil"
-  end
+  assert(path, "note path cannot be nil")
   path = tostring(Path.new(path):resolve { strict = true })
-  return Note.from_lines(io.lines(path), path, opts)
+  local file = assert(io.open(path, "r"), "failed to open file")
+  local note = Note.from_lines(file:lines(), path, opts)
+  file:close()
+  return note
 end
 
 --- Initialize a note from a buffer.
