@@ -36,7 +36,8 @@ The original project has not been actively maintained for quite a while and with
 
 With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
 
-Discussions are happening in [GitHub discussions](https://github.com/obsidian-nvim/obsidian.nvim/discussions/6).
+- Discussions are happening in [GitHub Discussions](https://github.com/obsidian-nvim/obsidian.nvim/discussions/6)
+- Sponsor the project at [Open Collective](https://opencollective.com/nvim-obsidian)
 
 ## ⭐ Features
 
