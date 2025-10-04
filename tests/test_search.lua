@@ -290,7 +290,7 @@ T["find_code_blocks"]["should find lang-specific inline code blocks"] = function
   eq(results, M.find_code_blocks(lines))
 end
 
-T["find_links"], child = h.new_set_with_setup()
+T["find_links"], child = h.child_vault()
 
 T["find_links"]["should find all links in a file"] = function()
   local root = child.lua_get [[tostring(Obsidian.dir)]]

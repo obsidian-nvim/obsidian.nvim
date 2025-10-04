@@ -2,9 +2,10 @@ local h = dofile "tests/helpers.lua"
 local Note = require "obsidian.note"
 local M = require "obsidian.daily"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
-local T = h.temp_vault
 
-T["daily_note_path"] = new_set()
+local T = new_set()
+
+T["daily_note_path"] = h.temp_vault
 
 T["daily_note_path"]["should use the path stem as the ID"] = function()
   Obsidian.opts.daily_notes.date_format = "%Y/%b/%Y-%m-%d"

@@ -65,19 +65,4 @@ M.temp_vault = MiniTest.new_set {
   },
 }
 
-M.new_set_with_setup = function()
-  return MiniTest.new_set {
-    hooks = {
-      pre_case = function()
-        child.restart { "-u", "scripts/minimal_init_with_setup.lua" }
-      end,
-      post_once = function()
-        child.lua [[vim.fn.delete(tostring(Obsidian.dir), "rf")]]
-        child.stop()
-      end,
-    },
-  },
-    child
-end
-
 return M
