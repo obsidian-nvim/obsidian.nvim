@@ -461,6 +461,14 @@ Return ~
 `(string)`
 
 ------------------------------------------------------------------------------
+                                                        *obsidian.Note.status()*
+                             `Note.status`({self})
+note status counts, like obsidian's status bar
+
+Return ~
+`({ words: integer, chars: integer, properties: integer, backlinks: integer }?)`
+
+------------------------------------------------------------------------------
                                                             *obsidian.Workspace*
                                   `Workspace`
 Each workspace represents a working directory (usually an Obsidian vault) along with
