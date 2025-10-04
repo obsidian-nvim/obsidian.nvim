@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSP `documentSymbol` -> `Obsidian toc`.
 - Uses `selene` and `typos-cli` to check code quality.
 - Add `opts.frontmatter.sort` to sort properties.
+- `footer` and `Note.status` now show visual mode word/char counts.
 
 ### Changed
 

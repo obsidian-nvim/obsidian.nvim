@@ -1,7 +1,7 @@
 local M = {}
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
-local validater = require "obsidian.frontmatter.validator"
+local validator = require "obsidian.frontmatter.validator"
 
 local function sort_by_list(list)
   return function(a, b)
@@ -67,8 +67,8 @@ M.parse = function(frontmatter_lines, path)
   end
   local metadata, ret = {}, {}
   for k, v in pairs(data) do
-    if validater[k] then
-      local value, err = validater[k](v, path)
+    if validator[k] then
+      local value, err = validator[k](v, path)
       if err ~= nil then
         log.warn(err)
       else
