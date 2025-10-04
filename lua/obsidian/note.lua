@@ -1148,4 +1148,17 @@ Note.format_link = function(self, opts)
   end
 end
 
+---Return note status counts, like obsidian's status bar
+---
+---@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
+Note.status = function(self)
+  local status = {}
+  local wc = vim.fn.wordcount()
+  status.words = wc.visual_words or wc.words
+  status.chars = wc.visual_chars or wc.chars
+  status.properties = vim.tbl_count(self:frontmatter())
+  status.backlinks = #self:backlinks {}
+  return status
+end
+
 return Note

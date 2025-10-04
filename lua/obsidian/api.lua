@@ -31,25 +31,6 @@ M.dir = function(dir)
     end)
 end
 
----Return info from a note, like obsidian's status bar
----
----@param visual boolean? is in visual mode
----@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
-M.note_info = function(visual)
-  visual = vim.F.if_nil(visual, false)
-  local note = M.current_note()
-  if not note then
-    return
-  end
-  local info = {}
-  local wc = vim.fn.wordcount()
-  info.words = visual and wc.visual_words or wc.words
-  info.chars = visual and wc.visual_chars or wc.chars
-  info.properties = vim.tbl_count(note:frontmatter())
-  info.backlinks = #search.find_backlinks(note)
-  return info
-end
-
 --- Get the templates folder.
 ---
 ---@param workspace obsidian.Workspace?
