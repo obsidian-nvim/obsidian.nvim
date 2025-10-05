@@ -542,51 +542,52 @@ M.follow_link = function(link, opts)
   opts = opts and opts or {}
   local Note = require "obsidian.note"
 
-  local res = search.resolve_link(link, { pick = true })
-  if not res then
-    return
-  end
-
-  if res.url ~= nil then
-    return Obsidian.opts.follow_url_func(res.url)
-  end
-
-  if util.is_img(res.location) then
-    local path = Obsidian.dir / res.location
-    return Obsidian.opts.follow_img_func(tostring(path))
-  end
-
-  if res.note ~= nil then
-    -- Go to resolved note.
-    return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
-  end
-
-  if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
-    -- Prompt to create a new note.
-    if M.confirm("Create new note '" .. res.location .. "'?") then
-      -- Create a new note.
-      ---@type string|?, string[]
-      local id, aliases
-      if res.name == res.location then
-        aliases = {}
-      else
-        aliases = { res.name }
-        id = res.location
-      end
-
-      local note = Note.create { title = res.name, id = id, aliases = aliases }
-      return note:open {
-        open_strategy = opts.open_strategy,
-        callback = function(bufnr)
-          note:write_to_buffer { bufnr = bufnr }
-        end,
-      }
-    else
-      return log.warn "Aborted"
+  search.resolve_link_async(link, function(res)
+    if not res then
+      return log.err "no link resolved"
     end
-  end
 
-  return log.err("Failed to resolve file '" .. res.location .. "'")
+    if res.url ~= nil then
+      return Obsidian.opts.follow_url_func(res.url)
+    end
+
+    if util.is_img(res.location) then
+      local path = Obsidian.dir / res.location
+      return Obsidian.opts.follow_img_func(tostring(path))
+    end
+
+    if res.note then
+      -- Go to resolved note.
+      return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
+    end
+
+    if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
+      -- Prompt to create a new note.
+      if M.confirm("Create new note '" .. res.location .. "'?") then
+        -- Create a new note.
+        ---@type string|?, string[]
+        local id, aliases
+        if res.name == res.location then
+          aliases = {}
+        else
+          aliases = { res.name }
+          id = res.location
+        end
+
+        local note = Note.create { title = res.name, id = id, aliases = aliases }
+        return note:open {
+          open_strategy = opts.open_strategy,
+          callback = function(bufnr)
+            note:write_to_buffer { bufnr = bufnr }
+          end,
+        }
+      else
+        return log.warn "Aborted"
+      end
+    end
+
+    return log.err("Failed to resolve file '" .. res.location .. "'")
+  end, { pick = true })
 end
 
 --------------------------
