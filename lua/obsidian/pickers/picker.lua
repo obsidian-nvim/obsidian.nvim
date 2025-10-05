@@ -190,6 +190,8 @@ Picker.grep_notes = function(self, opts)
   }
 end
 
+-- TODO: cb return note
+
 --- Open picker with a list of notes.
 ---
 ---@param notes obsidian.Note[]

@@ -56,11 +56,12 @@ return function(_, handler)
 
     local opts = { anchor = anchor_link, block = block_link }
 
-    local note = search.resolve_note(location)
+    local notes = search.resolve_note(location)
 
-    if not note then
+    if vim.tbl_isempty(notes) then
       return log.err("No notes matching '%s'", location)
     else
+      local note = notes[1]
       locations = collect_backlinks(note, opts)
     end
   else

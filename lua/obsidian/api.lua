@@ -542,7 +542,7 @@ M.follow_link = function(link, opts)
   opts = opts and opts or {}
   local Note = require "obsidian.note"
 
-  search.resolve_link_async(link, function(res)
+  search.resolve_link(link, { pick = true }, function(res)
     if not res then
       return log.err "no link resolved"
     end
@@ -587,7 +587,7 @@ M.follow_link = function(link, opts)
     end
 
     return log.err("Failed to resolve file '" .. res.location .. "'")
-  end, { pick = true })
+  end)
 end
 
 --------------------------

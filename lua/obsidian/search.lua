@@ -679,7 +679,7 @@ end
 ---@param opts { notes: obsidian.note.LoadOpts|? }|?
 ---
 ---@return obsidian.Note[]
-local _resolve_note = function(query, opts)
+M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.notes = opts.notes or {}
   if not opts.notes.max_lines then
@@ -767,56 +767,6 @@ local _resolve_note = function(query, opts)
   end
 end
 
---- Resolve a note, opens a picker to choose a single note when there are multiple matches.
----
----@param query string
----@param callback fun(note: obsidian.Note|nil)
----@param opts { notes: obsidian.note.LoadOpts|?, prompt_title: string|?, pick: boolean }|?
----
----@return obsidian.Note|?
-M.resolve_note_async = function(query, callback, opts)
-  local Note = require "obsidian.note"
-  opts = opts or {}
-  opts.pick = vim.F.if_nil(opts.pick, true)
-
-  local notes = _resolve_note(query, { notes = opts.notes })
-  if #notes == 0 then
-    return callback()
-  elseif #notes == 1 then
-    return callback(notes[1])
-  end
-  if opts.pick then
-    -- Fall back to picker.
-    vim.schedule(function()
-      -- Otherwise run the preferred picker to search for notes.
-      local picker = Obsidian.picker
-      if not picker then
-        return log.err("Found multiple notes matching '%s', but no picker is configured", query)
-      end
-
-      picker:pick_note(notes, {
-        prompt_title = opts.prompt_title,
-        callback = function(v) -- TODO: no multi-select
-          callback(Note.from_file(v.filename))
-        end,
-      })
-    end)
-  else
-    return log.err("Failed to resolve '%s' to a single note, found %d matches", query, #notes)
-  end
-end
-
----@param term string
----@param opts? table
----@return obsidian.Note
-M.resolve_note = function(term, opts)
-  opts = opts or {}
-  opts.timeout = opts.timeout or 1000
-  return async.block_on(function(cb)
-    return M.resolve_note_async(term, cb, { search = opts.search })
-  end, opts.timeout)
-end
-
 ---@class obsidian.ResolveLinkResult
 ---
 ---@field location string
@@ -833,11 +783,15 @@ end
 --- Resolve a link.
 ---
 ---@param link string
----@param callback fun(result: obsidian.ResolveLinkResult?)
----@param opts? { pick: boolean }
-M.resolve_link_async = function(link, callback, opts)
-  opts = opts or { pick = false }
+---@param opts { pick?: boolean }
+---@param callback? fun(result: obsidian.ResolveLinkResult?)
+M.resolve_link = function(link, opts, callback)
+  opts = opts or {}
   local Note = require "obsidian.note"
+
+  callback = callback or function(v)
+    return v
+  end
 
   local location, name, link_type
   location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
@@ -851,7 +805,7 @@ M.resolve_link_async = function(link, callback, opts)
 
   if util.is_url(location) then
     res.url = location
-    callback(res)
+    return callback(res)
   end
 
   -- The Obsidian app will follow URL-encoded links, so we should to.
@@ -892,7 +846,7 @@ M.resolve_link_async = function(link, callback, opts)
       end
     end
 
-    callback(
+    return callback(
       vim.tbl_extend(
         "force",
         res,
@@ -917,18 +871,27 @@ M.resolve_link_async = function(link, callback, opts)
 
   res.location = location
 
-  M.resolve_note_async(location, function(note)
-    if not note then
-      local path = Path.new(location)
-      if path:exists() then
-        res.path = path
-        callback(res)
-      else
-        callback(res)
-      end
+  local notes = M.resolve_note(location, { notes = load_opts, pick = opts.pick })
+
+  if vim.tbl_isempty(notes) then
+    local path = Path.new(location)
+    if path:exists() then
+      res.path = path
     end
-    callback(finalize_result(note))
-  end, { notes = load_opts, pick = opts.pick })
+    return callback(res)
+  elseif #notes == 1 then
+    return finalize_result(notes[1])
+  elseif #notes > 1 then
+    if opts.pick then
+      Obsidian.picker:pick_note(notes, {
+        callback = function(v)
+          finalize_result(v.value)
+        end,
+      })
+    else
+      error "failed to resolve to one note"
+    end
+  end
 end
 
 ---@class obsidian.LinkMatch
