@@ -190,8 +190,6 @@ Picker.grep_notes = function(self, opts)
   }
 end
 
--- TODO: cb return note
-
 --- Open picker with a list of notes.
 ---
 ---@param notes obsidian.Note[]
@@ -231,7 +229,9 @@ Picker.pick_note = function(self, notes, opts)
 
   self:pick(entries, {
     prompt_title = opts.prompt_title or "Notes",
-    callback = opts.callback,
+    callback = function(v)
+      opts.callback(v.value)
+    end,
     allow_multiple = opts.allow_multiple,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,

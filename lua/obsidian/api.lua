@@ -547,6 +547,26 @@ M.follow_link = function(link, opts)
     include_file_urls = true,
   })
 
+  local function jump_to_note(note, block_link, anchor_link)
+    ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
+    local line, block_match, anchor_match
+    if block_link then
+      block_match = note:resolve_block(block_link)
+      if block_match then
+        line = block_match.line
+      end
+    elseif anchor_link then
+      anchor_match = note:resolve_anchor_link(anchor_link)
+      if anchor_match then
+        line = anchor_match.line
+      end
+    end
+    note:open {
+      line = line,
+      open_strategy = opts.open_strategy,
+    }
+  end
+
   if link_type == RefTypes.NakedUrl and location then
     return Obsidian.opts.follow_url_func(location)
   elseif
@@ -556,37 +576,26 @@ M.follow_link = function(link, opts)
       local path = Obsidian.dir / location
       return Obsidian.opts.follow_img_func(tostring(path))
     else
-      local block_link
+      local block_link, anchor_link
       location, block_link = util.strip_block_links(location)
-
-      -- Remove anchor links from the end if there are any.
-      ---@type string|?
-      local anchor_link
       location, anchor_link = util.strip_anchor_links(location)
+
       local notes = search.resolve_note(location, {})
       if vim.tbl_isempty(notes) then
-        return log.err "failed to resolve note"
-      else
-        local note = notes[1] -- TODO: pick
-        ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
-        local line, block_match, anchor_match
-        if block_link ~= nil then
-          block_match = note:resolve_block(block_link)
-          if block_match then
-            line = block_match.line
-          end
-        elseif anchor_link ~= nil then
-          anchor_match = note:resolve_anchor_link(anchor_link)
-          if anchor_match then
-            line = anchor_match.line
-          end
-        end
-        note:open {
-          line = line,
-          open_strategy = opts.open_strategy,
-        }
+        log.err "failed to resolve note"
+      elseif #notes == 1 then
+        local note = notes[1]
+        jump_to_note(note, block_link, anchor_link)
+      elseif #notes > 1 then
+        Obsidian.picker:pick_note(notes, {
+          callback = function(note)
+            jump_to_note(note, block_link, anchor_link)
+          end,
+        })
       end
     end
+  else
+    log.err "link type not supported"
   end
 end
 
