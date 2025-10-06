@@ -1,3 +1,13 @@
+--- *obsidian-api*
+---
+--- The Obsidian.nvim Lua API.
+---
+--- ==============================================================================
+---
+--- Table of contents
+---
+---@toc
+
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
 local yaml = require "obsidian.yaml"
@@ -16,65 +26,7 @@ local DEFAULT_MAX_LINES = 500
 
 local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 
---- @class obsidian.note.NoteCreationOpts
---- @field notes_subdir string
---- @field note_id_func fun()
---- @field new_notes_location string
-
---- @class obsidian.note.NoteOpts
---- @field title string|? The note's title
---- @field id string|? An ID to assign the note. If not specified one will be generated.
---- @field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
---- relative to the workspace / vault root. If the directory doesn't exist it will
---- be created, regardless of the value of the `should_write` option.
---- @field aliases string[]|? Aliases for the note
---- @field tags string[]|?  Tags for this note
---- @field should_write boolean|? Don't write the note to disk
---- @field template string|? The name of the template
-
----@class obsidian.note.NoteSaveOpts
---- Specify a path to save to. Defaults to `self.path`.
----@field path? string|obsidian.Path
---- Whether to insert/update frontmatter. Defaults to `true`.
----@field insert_frontmatter? boolean
---- Override the frontmatter. Defaults to the result of `self:frontmatter()`.
----@field frontmatter? table
---- A function to update the contents of the note. This takes a list of lines representing the text to be written
---- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
----@field update_content? fun(lines: string[]): string[]
---- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
---- When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
---- See `:help checktime` to learn more.
----@field check_buffers? boolean
-
----@class obsidian.note.NoteWriteOpts
---- Specify a path to save to. Defaults to `self.path`.
----@field path? string|obsidian.Path
---- The name of a template to use if the note file doesn't already exist.
----@field template? string
---- A function to update the contents of the note. This takes a list of lines representing the text to be written
---- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
----@field update_content? fun(lines: string[]): string[]
---- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
---- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
---- See `:help checktime` to learn more.
----@field check_buffers? boolean
-
----@class obsidian.note.HeaderAnchor
----
----@field anchor string
----@field header string
----@field level integer
----@field line integer
----@field parent obsidian.note.HeaderAnchor|?
-
----@class obsidian.note.Block
----
----@field id string
----@field line integer
----@field block string
-
---- A class that represents a note within a vault.
+---A class that represents a note within a vault.
 ---
 ---@toc_entry obsidian.Note
 ---
@@ -110,10 +62,11 @@ end
 --- Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
 --- otherwise falls back to generated a Zettelkasten style ID.
 ---
---- @param title? string
---- @param path? obsidian.Path
---- @param id_func (fun(title: string|?, path: obsidian.Path|?): string)
+---@param title? string
+---@param path? obsidian.Path
+---@param id_func (fun(title: string|?, path: obsidian.Path|?): string)
 ---@return string
+---@private
 local function generate_id(title, path, id_func)
   local new_id = id_func(title, path)
   if new_id == nil or string.len(new_id) == 0 then
@@ -128,9 +81,9 @@ end
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 --- `note_opts.dir / (note_opts.id .. ".md")`.
 ---
---- @param title string|? The title for the note
---- @param id string The note ID
---- @param dir obsidian.Path The note path
+---@param title string|? The title for the note
+---@param id string The note ID
+---@param dir obsidian.Path The note path
 ---@return obsidian.Path
 ---@private
 Note._generate_path = function(title, id, dir)
@@ -159,9 +112,9 @@ Note._generate_path = function(title, id, dir)
 end
 
 --- Selects the strategy to use when resolving the note title, id, and path
---- @param opts obsidian.note.NoteOpts The note creation options
---- @return obsidian.note.NoteCreationOpts The strategy to use for creating the note
---- @private
+---@param opts obsidian.note.NoteOpts The note creation options
+---@return obsidian.note.NoteCreationOpts The strategy to use for creating the note
+---@private
 Note._get_creation_opts = function(opts)
   --- @type obsidian.note.NoteCreationOpts
   local default = {
@@ -523,12 +476,6 @@ Note.get_field = function(self, key)
 
   return self.metadata[key]
 end
-
----@class obsidian.note.LoadOpts
----@field max_lines integer|?
----@field load_contents boolean|?
----@field collect_anchor_links boolean|?
----@field collect_blocks boolean|?
 
 --- Initialize a note from a file.
 ---
@@ -1148,7 +1095,7 @@ Note.format_link = function(self, opts)
   end
 end
 
----Return note status counts, like obsidian's status bar
+--- Return note status counts, like obsidian's status bar
 ---
 ---@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
 Note.status = function(self)
@@ -1160,5 +1107,69 @@ Note.status = function(self)
   status.backlinks = #self:backlinks {}
   return status
 end
+
+---@class obsidian.note.LoadOpts
+---@field max_lines integer|?
+---@field load_contents boolean|?
+---@field collect_anchor_links boolean|?
+---@field collect_blocks boolean|?
+
+---@class obsidian.note.NoteCreationOpts
+---@field notes_subdir string
+---@field note_id_func fun()
+---@field new_notes_location string
+
+---@class obsidian.note.NoteOpts
+---@field title string|? The note's title
+---@field id string|? An ID to assign the note. If not specified one will be generated.
+---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
+---relative to the workspace / vault root. If the directory doesn't exist it will
+---be created, regardless of the value of the `should_write` option.
+---@field aliases string[]|? Aliases for the note
+---@field tags string[]|?  Tags for this note
+---@field should_write boolean|? Don't write the note to disk
+---@field template string|? The name of the template
+
+---@class obsidian.note.NoteSaveOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- Whether to insert/update frontmatter. Defaults to `true`.
+---@field insert_frontmatter? boolean
+--- Override the frontmatter. Defaults to the result of `self:frontmatter()`.
+---@field frontmatter? table
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
+
+---@class obsidian.note.NoteWriteOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- The name of a template to use if the note file doesn't already exist.
+---@field template? string
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
+
+---@class obsidian.note.HeaderAnchor
+---
+---@field anchor string
+---@field header string
+---@field level integer
+---@field line integer
+---@field parent obsidian.note.HeaderAnchor|?
+
+---@class obsidian.note.Block
+---
+---@field id string
+---@field line integer
+---@field block string
 
 return Note

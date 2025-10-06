@@ -8,7 +8,7 @@ LUARC = $(shell readlink -f .luarc.json)
 # Depending on your setup you have to override the locations at runtime. E.g.:
 #   make user-docs PANVIMDOC_PATH=~/path/to/panvimdoc/panvimdoc.sh
 MINITEST = deps/mini.test
-MINIDOC = ~/.local/share/nvim/lazy/mini.doc/
+MINIDOC = deps/mini.doc
 PANVIMDOC_PATH = ../panvimdoc/panvimdoc.sh
 
 ################################################################################
@@ -60,7 +60,6 @@ api-docs: $(MINIDOC) ## Generate API documentation with mini.doc
 	MINIDOC=$(MINIDOC) nvim \
 		--headless \
 		--noplugin \
-		-u scripts/minimal_init.vim \
 		-c "luafile scripts/generate_api_docs.lua" \
 		-c "qa!"
 

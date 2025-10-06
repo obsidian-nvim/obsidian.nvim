@@ -11,6 +11,7 @@ end
 ---@param path table
 ---@param k string
 ---@param factory fun(path: obsidian.Path): any
+---@private
 local function cached_get(path, k, factory)
   local cache_key = "__" .. k
   local v = rawget(path, cache_key)

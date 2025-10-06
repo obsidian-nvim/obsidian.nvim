@@ -1,13 +1,3 @@
---- *obsidian-api*
----
---- The Obsidian.nvim Lua API.
----
---- ==============================================================================
----
---- Table of contents
----
----@toc
-
 local log = require "obsidian.log"
 
 ---@class obsidian.Client : obsidian.ABC
