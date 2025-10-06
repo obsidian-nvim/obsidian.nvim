@@ -7,6 +7,7 @@ local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
+local RefTypes = search.RefTypes
 
 --- Return a iter like `vim.fs.dir` but on a dir of notes.
 ---
@@ -540,54 +541,53 @@ end
 ---@param opts { open_strategy: obsidian.config.OpenStrategy|? }|?
 M.follow_link = function(link, opts)
   opts = opts and opts or {}
-  local Note = require "obsidian.note"
 
-  search.resolve_link(link, { pick = true }, function(res)
-    if not res then
-      return log.err "no link resolved"
-    end
+  local location, _, link_type = util.parse_link(link, {
+    include_naked_urls = true,
+    include_file_urls = true,
+  })
 
-    if res.url ~= nil then
-      return Obsidian.opts.follow_url_func(res.url)
-    end
-
-    if util.is_img(res.location) then
-      local path = Obsidian.dir / res.location
+  if link_type == RefTypes.NakedUrl and location then
+    return Obsidian.opts.follow_url_func(location)
+  elseif
+    (link_type == RefTypes.Wiki or link_type == RefTypes.WikiWithAlias or link_type == RefTypes.Markdown) and location
+  then
+    if util.is_img(location) then
+      local path = Obsidian.dir / location
       return Obsidian.opts.follow_img_func(tostring(path))
-    end
+    else
+      local block_link
+      location, block_link = util.strip_block_links(location)
 
-    if res.note then
-      -- Go to resolved note.
-      return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
-    end
-
-    if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
-      -- Prompt to create a new note.
-      if M.confirm("Create new note '" .. res.location .. "'?") then
-        -- Create a new note.
-        ---@type string|?, string[]
-        local id, aliases
-        if res.name == res.location then
-          aliases = {}
-        else
-          aliases = { res.name }
-          id = res.location
-        end
-
-        local note = Note.create { title = res.name, id = id, aliases = aliases }
-        return note:open {
-          open_strategy = opts.open_strategy,
-          callback = function(bufnr)
-            note:write_to_buffer { bufnr = bufnr }
-          end,
-        }
+      -- Remove anchor links from the end if there are any.
+      ---@type string|?
+      local anchor_link
+      location, anchor_link = util.strip_anchor_links(location)
+      local notes = search.resolve_note(location, {})
+      if vim.tbl_isempty(notes) then
+        return log.err "failed to resolve note"
       else
-        return log.warn "Aborted"
+        local note = notes[1] -- TODO: pick
+        ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
+        local line, block_match, anchor_match
+        if block_link ~= nil then
+          block_match = note:resolve_block(block_link)
+          if block_match then
+            line = block_match.line
+          end
+        elseif anchor_link ~= nil then
+          anchor_match = note:resolve_anchor_link(anchor_link)
+          if anchor_match then
+            line = anchor_match.line
+          end
+        end
+        note:open {
+          line = line,
+          open_strategy = opts.open_strategy,
+        }
       end
     end
-
-    return log.err("Failed to resolve file '" .. res.location .. "'")
-  end)
+  end
 end
 
 --------------------------
