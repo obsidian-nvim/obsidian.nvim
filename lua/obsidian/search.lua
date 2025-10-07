@@ -702,26 +702,30 @@ M.resolve_note = function(query, opts)
     fname = fname .. ".md"
   end
 
-  local paths_to_check = {}
+  local paths_lookup = setmetatable({}, {
+    __newindex = function(t, k, v)
+      rawset(t, tostring(k), v) -- avoid duplicate
+    end,
+  })
   local paths_found = {}
 
   if Obsidian.buf_dir ~= nil then
-    paths_to_check[#paths_to_check + 1] = Obsidian.buf_dir / fname
+    paths_lookup[Obsidian.buf_dir / fname] = true
   end
 
   if Obsidian.opts.notes_subdir ~= nil then
-    paths_to_check[#paths_to_check + 1] = Obsidian.dir / Obsidian.opts.notes_subdir / fname
+    paths_lookup[Obsidian.dir / Obsidian.opts.notes_subdir / fname] = true
   end
 
   if Obsidian.opts.daily_notes.folder ~= nil then
-    paths_to_check[#paths_to_check + 1] = Obsidian.dir / Obsidian.opts.daily_notes.folder / fname
+    paths_lookup[Obsidian.dir / Obsidian.opts.daily_notes.folder / fname] = true
   end
 
-  paths_to_check[#paths_to_check + 1] = Path.new(fname)
-  paths_to_check[#paths_to_check + 1] = Obsidian.dir / fname
+  paths_lookup[Path.new(fname)] = true
+  paths_lookup[Obsidian.dir / fname] = true
 
-  for _, path in pairs(paths_to_check) do
-    if path:is_file() then
+  for path in pairs(paths_lookup) do
+    if Path.new(path):is_file() then
       paths_found[#paths_found + 1] = Note.from_file(path, opts.notes)
     end
   end
@@ -750,6 +754,7 @@ M.resolve_note = function(query, opts)
     if vim.list_contains(reference_ids, query_lwr) then
       table.insert(exact_matches, note)
     else
+      -- TODO: use vim.fn.fuzzymatch
       -- Fall back to fuzzy match.
       for ref_id in iter(reference_ids) do
         if util.string_contains(ref_id, query_lwr) then
