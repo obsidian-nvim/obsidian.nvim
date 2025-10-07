@@ -4,7 +4,8 @@ local child = MiniTest.new_child_neovim()
 local M = {}
 
 ---Return test set and child instance
-M.child_vault = function()
+M.child_vault = function(hooks)
+  hooks = hooks or {}
   return MiniTest.new_set {
     hooks = {
       pre_case = function()
@@ -27,6 +28,9 @@ require("obsidian").setup {
   log_level = vim.log.levels.WARN,
 }
         ]]
+        if hooks.pre_case then
+          child.lua(hooks.pre_case)
+        end
       end,
       post_case = function()
         child.lua [[vim.fn.delete(tostring(Obsidian.dir), "rf")]]

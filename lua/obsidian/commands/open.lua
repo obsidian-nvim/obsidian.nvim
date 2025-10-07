@@ -47,10 +47,11 @@ return function(data)
   end
 
   if search_term and vim.trim(search_term) ~= "" then
-    local note = search.resolve_note(search_term, { timeout = 5000 })
-    if not note then
+    local notes = search.resolve_note(search_term)
+    if vim.tbl_isempty(notes) then
       return log.err "Note under cursor is not resolved"
     end
+    local note = notes[1]
     path = note.path:vault_relative_path()
   else
     -- Otherwise use the pathk of the current buffer.

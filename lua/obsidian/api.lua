@@ -7,6 +7,7 @@ local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
+local RefTypes = search.RefTypes
 
 --- Return a iter like `vim.fs.dir` but on a dir of notes.
 ---
@@ -540,53 +541,62 @@ end
 ---@param opts { open_strategy: obsidian.config.OpenStrategy|? }|?
 M.follow_link = function(link, opts)
   opts = opts and opts or {}
-  local Note = require "obsidian.note"
 
-  local res = search.resolve_link(link, { pick = true })
-  if not res then
-    return
-  end
+  local location, _, link_type = util.parse_link(link, {
+    include_naked_urls = true,
+    include_file_urls = true,
+  })
 
-  if res.url ~= nil then
-    return Obsidian.opts.follow_url_func(res.url)
-  end
-
-  if util.is_img(res.location) then
-    local path = Obsidian.dir / res.location
-    return Obsidian.opts.follow_img_func(tostring(path))
-  end
-
-  if res.note ~= nil then
-    -- Go to resolved note.
-    return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
-  end
-
-  if res.link_type == search.RefTypes.Wiki or res.link_type == search.RefTypes.WikiWithAlias then
-    -- Prompt to create a new note.
-    if M.confirm("Create new note '" .. res.location .. "'?") then
-      -- Create a new note.
-      ---@type string|?, string[]
-      local id, aliases
-      if res.name == res.location then
-        aliases = {}
-      else
-        aliases = { res.name }
-        id = res.location
+  local function jump_to_note(note, block_link, anchor_link)
+    ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
+    local line, block_match, anchor_match
+    if block_link then
+      block_match = note:resolve_block(block_link)
+      if block_match then
+        line = block_match.line
       end
-
-      local note = Note.create { title = res.name, id = id, aliases = aliases }
-      return note:open {
-        open_strategy = opts.open_strategy,
-        callback = function(bufnr)
-          note:write_to_buffer { bufnr = bufnr }
-        end,
-      }
-    else
-      return log.warn "Aborted"
+    elseif anchor_link then
+      anchor_match = note:resolve_anchor_link(anchor_link)
+      if anchor_match then
+        line = anchor_match.line
+      end
     end
+    note:open {
+      line = line,
+      open_strategy = opts.open_strategy,
+    }
   end
 
-  return log.err("Failed to resolve file '" .. res.location .. "'")
+  if link_type == RefTypes.NakedUrl and location then
+    return Obsidian.opts.follow_url_func(location)
+  elseif
+    (link_type == RefTypes.Wiki or link_type == RefTypes.WikiWithAlias or link_type == RefTypes.Markdown) and location
+  then
+    if util.is_img(location) then
+      local path = Obsidian.dir / location
+      return Obsidian.opts.follow_img_func(tostring(path))
+    else
+      local block_link, anchor_link
+      location, block_link = util.strip_block_links(location)
+      location, anchor_link = util.strip_anchor_links(location)
+
+      local notes = search.resolve_note(location, {})
+      if vim.tbl_isempty(notes) then
+        log.err "failed to resolve note"
+      elseif #notes == 1 then
+        local note = notes[1]
+        jump_to_note(note, block_link, anchor_link)
+      elseif #notes > 1 then
+        Obsidian.picker:pick_note(notes, {
+          callback = function(note)
+            jump_to_note(note, block_link, anchor_link)
+          end,
+        })
+      end
+    end
+  else
+    log.err "link type not supported"
+  end
 end
 
 --------------------------

@@ -106,10 +106,11 @@ return function(params, _, _)
   if cur_link then
     local loc = util.parse_link(cur_link, { strip = true })
     assert(loc, "wrong link format")
-    local note = search.resolve_note(loc)
-    if not note then
+    local notes = search.resolve_note(loc)
+    if vim.tbl_isempty(notes) then
       return
     end
+    local note = notes[1]
     rename_note(tostring(note.path), new_name, note)
   else
     local uri = params.textDocument.uri

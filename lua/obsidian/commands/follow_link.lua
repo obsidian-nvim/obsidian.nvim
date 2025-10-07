@@ -1,4 +1,5 @@
 local api = require "obsidian.api"
+local log = require "obsidian.log"
 
 ---@param data obsidian.CommandArgs
 return function(data)
@@ -11,5 +12,7 @@ return function(data)
 
   if link then
     api.follow_link(link, opts)
+  else
+    log.info "no valid link to follow"
   end
 end

@@ -676,11 +676,10 @@ M.find_notes = function(term, opts)
 end
 
 ---@param query string
----@param callback fun(results: obsidian.Note[])
 ---@param opts { notes: obsidian.note.LoadOpts|? }|?
 ---
----@return obsidian.Note|?
-local _resolve_note_async = function(query, callback, opts)
+---@return obsidian.Note[]
+M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.notes = opts.notes or {}
   if not opts.notes.max_lines then
@@ -694,7 +693,7 @@ local _resolve_note_async = function(query, callback, opts)
     ---@type obsidian.Path
     ---@diagnostic disable-next-line: assign-type-mismatch
     local full_path = Obsidian.dir / note_path
-    callback { Note.from_file(full_path, opts.notes) }
+    return { Note.from_file(full_path, opts.notes) }
   end
 
   -- Query might be a path.
@@ -703,221 +702,74 @@ local _resolve_note_async = function(query, callback, opts)
     fname = fname .. ".md"
   end
 
-  local paths_to_check = { Path.new(fname), Obsidian.dir / fname }
+  local paths_lookup = setmetatable({}, {
+    __newindex = function(t, k, v)
+      rawset(t, tostring(k), v) -- avoid duplicate
+    end,
+  })
+  local paths_found = {}
+
+  if Obsidian.buf_dir ~= nil then
+    paths_lookup[Obsidian.buf_dir / fname] = true
+  end
 
   if Obsidian.opts.notes_subdir ~= nil then
-    paths_to_check[#paths_to_check + 1] = Obsidian.dir / Obsidian.opts.notes_subdir / fname
+    paths_lookup[Obsidian.dir / Obsidian.opts.notes_subdir / fname] = true
   end
 
   if Obsidian.opts.daily_notes.folder ~= nil then
-    paths_to_check[#paths_to_check + 1] = Obsidian.dir / Obsidian.opts.daily_notes.folder / fname
+    paths_lookup[Obsidian.dir / Obsidian.opts.daily_notes.folder / fname] = true
   end
 
-  if Obsidian.buf_dir ~= nil then
-    paths_to_check[#paths_to_check + 1] = Obsidian.buf_dir / fname
-  end
+  paths_lookup[Path.new(fname)] = true
+  paths_lookup[Obsidian.dir / fname] = true
 
-  for _, path in pairs(paths_to_check) do
-    if path:is_file() then
-      return callback { Note.from_file(path, opts.notes) }
+  for path in pairs(paths_lookup) do
+    if Path.new(path):is_file() then
+      paths_found[#paths_found + 1] = Note.from_file(path, opts.notes)
     end
   end
 
-  M.find_notes_async(query, function(results)
-    local query_lwr = string.lower(query)
+  if not vim.tbl_isempty(paths_found) then
+    return paths_found
+  end
 
-    -- We'll gather both exact matches (of ID, filename, and aliases) and fuzzy matches.
-    -- If we end up with any exact matches, we'll return those. Otherwise we fall back to fuzzy
-    -- matches.
-    ---@type obsidian.Note[]
-    local exact_matches = {}
-    ---@type obsidian.Note[]
-    local fuzzy_matches = {}
+  local results = M.find_notes(query, { search = { sort = true, ignore_case = true }, notes = opts.notes })
+  local query_lwr = string.lower(query)
 
-    for note in iter(results) do
-      ---@cast note obsidian.Note
+  -- We'll gather both exact matches (of ID, filename, and aliases) and fuzzy matches.
+  -- If we end up with any exact matches, we'll return those. Otherwise we fall back to fuzzy
+  -- matches.
+  ---@type obsidian.Note[]
+  local exact_matches = {}
+  ---@type obsidian.Note[]
+  local fuzzy_matches = {}
 
-      local reference_ids = note:reference_ids { lowercase = true }
+  for note in iter(results) do
+    ---@cast note obsidian.Note
 
-      -- Check for exact match.
-      if vim.list_contains(reference_ids, query_lwr) then
-        table.insert(exact_matches, note)
-      else
-        -- Fall back to fuzzy match.
-        for ref_id in iter(reference_ids) do
-          if util.string_contains(ref_id, query_lwr) then
-            table.insert(fuzzy_matches, note)
-            break
-          end
+    local reference_ids = note:reference_ids { lowercase = true }
+
+    -- Check for exact match.
+    if vim.list_contains(reference_ids, query_lwr) then
+      table.insert(exact_matches, note)
+    else
+      -- TODO: use vim.fn.fuzzymatch
+      -- Fall back to fuzzy match.
+      for ref_id in iter(reference_ids) do
+        if util.string_contains(ref_id, query_lwr) then
+          table.insert(fuzzy_matches, note)
+          break
         end
       end
     end
-
-    if #exact_matches > 0 then
-      return callback(exact_matches)
-    else
-      return callback(fuzzy_matches)
-    end
-  end, { search = { sort = true, ignore_case = true }, notes = opts.notes })
-end
-
---- Resolve a note, opens a picker to choose a single note when there are multiple matches.
----
----@param query string
----@param callback fun(note: obsidian.Note|nil)
----@param opts { notes: obsidian.note.LoadOpts|?, prompt_title: string|?, pick: boolean }|?
----
----@return obsidian.Note|?
-M.resolve_note_async = function(query, callback, opts)
-  opts = opts or {}
-  opts.pick = vim.F.if_nil(opts.pick, true)
-
-  _resolve_note_async(query, function(notes)
-    if #notes == 0 then
-      return callback()
-    elseif #notes == 1 then
-      return callback(notes[1])
-    end
-    if opts.pick then
-      -- Fall back to picker.
-      vim.schedule(function()
-        -- Otherwise run the preferred picker to search for notes.
-        local picker = Obsidian.picker
-        if not picker then
-          return log.err("Found multiple notes matching '%s', but no picker is configured", query)
-        end
-
-        picker:pick_note(notes, {
-          prompt_title = opts.prompt_title,
-          callback = callback,
-        })
-      end)
-    else
-      return log.err("Failed to resolve '%s' to a single note, found %d matches", query, #notes)
-    end
-  end, { notes = opts.notes })
-end
-
----@param term string
----@param opts? table
----@return obsidian.Note
-M.resolve_note = function(term, opts)
-  opts = opts or {}
-  opts.timeout = opts.timeout or 1000
-  return async.block_on(function(cb)
-    return M.resolve_note_async(term, cb, { search = opts.search })
-  end, opts.timeout)
-end
-
----@class obsidian.ResolveLinkResult
----
----@field location string
----@field name string
----@field link_type obsidian.search.RefTypes
----@field path obsidian.Path|?
----@field note obsidian.Note|?
----@field url string|?
----@field line integer|?
----@field col integer|?
----@field anchor obsidian.note.HeaderAnchor|?
----@field block obsidian.note.Block|?
-
---- Resolve a link.
----
----@param link string
----@param opts? { pick: boolean }
-M.resolve_link = function(link, opts)
-  opts = opts or { pick = false }
-  local Note = require "obsidian.note"
-
-  local location, name, link_type
-  location, name, link_type = util.parse_link(link, { include_naked_urls = true, include_file_urls = true })
-
-  if location == nil or name == nil or link_type == nil then
-    return
   end
 
-  ---@type obsidian.ResolveLinkResult
-  local res = { location = location, name = name, link_type = link_type }
-
-  if util.is_url(location) then
-    res.url = location
-    return res
+  if #exact_matches > 0 then
+    return exact_matches
+  else
+    return fuzzy_matches
   end
-
-  -- The Obsidian app will follow URL-encoded links, so we should to.
-  location = vim.uri_decode(location)
-
-  -- Remove block links from the end if there are any.
-  -- TODO: handle block links.
-  ---@type string|?
-  local block_link
-  location, block_link = util.strip_block_links(location)
-
-  -- Remove anchor links from the end if there are any.
-  ---@type string|?
-  local anchor_link
-  location, anchor_link = util.strip_anchor_links(location)
-
-  --- Finalize the `obsidian.ResolveLinkResult` for a note while resolving block or anchor link to line.
-  ---
-  ---@param note obsidian.Note|nil
-  ---@return obsidian.ResolveLinkResult?
-  local function finalize_result(note)
-    if not note then
-      return log.err "No note found"
-    end
-
-    ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
-    local line, block_match, anchor_match
-    if block_link ~= nil then
-      block_match = note:resolve_block(block_link)
-      if block_match then
-        line = block_match.line
-      end
-    elseif anchor_link ~= nil then
-      anchor_match = note:resolve_anchor_link(anchor_link)
-      if anchor_match then
-        line = anchor_match.line
-      end
-    end
-
-    return vim.tbl_extend(
-      "force",
-      res,
-      { path = note.path, note = note, line = line, block = block_match, anchor = anchor_match }
-    )
-  end
-
-  ---@type obsidian.note.LoadOpts
-  local load_opts = {
-    collect_anchor_links = anchor_link and true or false,
-    collect_blocks = block_link and true or false,
-    max_lines = Obsidian.opts.search_max_lines,
-  }
-
-  -- Assume 'location' is current buffer path if empty, like for TOCs.
-  if string.len(location) == 0 then
-    res.location = vim.api.nvim_buf_get_name(0)
-    local note = Note.from_buffer(0, load_opts)
-    return finalize_result(note)
-  end
-
-  res.location = location
-
-  local note = M.resolve_note(location, { notes = load_opts, pick = opts.pick })
-
-  if not note then
-    local path = Path.new(location)
-    if path:exists() then
-      res.path = path
-      return res
-    else
-      return res
-    end
-  end
-
-  return finalize_result(note)
 end
 
 ---@class obsidian.LinkMatch
