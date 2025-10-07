@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow for parent (`()`) and `/` char in frontmatter keys.
 - Checkbox can be toggled in block quotes and create new works on blank line.
 - Backlinks will find vault relative path without `.md` extension.
+- Notes with same filename in different folders will be resolved by user picking.
 
 ## [v3.13.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.1) - 2025-08-01
 
