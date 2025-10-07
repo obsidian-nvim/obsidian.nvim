@@ -541,8 +541,9 @@ end
 ---@param opts { open_strategy: obsidian.config.OpenStrategy|? }|?
 M.follow_link = function(link, opts)
   opts = opts and opts or {}
+  local Note = require "obsidian.note"
 
-  local location, _, link_type = util.parse_link(link, {
+  local location, name, link_type = util.parse_link(link, {
     include_naked_urls = true,
     include_file_urls = true,
   })
@@ -582,7 +583,26 @@ M.follow_link = function(link, opts)
 
       local notes = search.resolve_note(location, {})
       if vim.tbl_isempty(notes) then
-        log.err "failed to resolve note"
+        if M.confirm("Create new note '" .. location .. "'?") then
+          ---@type string|?, string[]
+          local id, aliases
+          if name == location then
+            aliases = {}
+          else
+            aliases = { name }
+            id = location
+          end
+
+          local note = Note.create { title = name, id = id, aliases = aliases }
+          return note:open {
+            open_strategy = opts.open_strategy,
+            callback = function(bufnr)
+              note:write_to_buffer { bufnr = bufnr }
+            end,
+          }
+        else
+          return log.warn "Aborted"
+        end
       elseif #notes == 1 then
         local note = notes[1]
         jump_to_note(note, block_link, anchor_link)
