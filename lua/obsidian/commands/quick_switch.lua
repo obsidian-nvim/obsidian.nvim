@@ -15,7 +15,7 @@ return function(data)
     callback = function(entry)
       local resolved_notes = search.resolve_note(entry)
       if #resolved_notes == 0 then
-        return log.err("No notes matching '%s'", data.args)
+        return log.err("No notes matching '%s'", entry)
       end
       local note = resolved_notes[1]
       note:open()

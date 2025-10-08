@@ -98,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `makefile types` target to check types via lua-ls.
 - New `obsidian.config` type for user config type check.
 - More informative healthcheck.
-- A guide to embed images for both viewing in neovim and obsidian app: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images>
+- A guide to embed images for both viewing in neovim and obsidian app: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images
 - Added `check_buffers` option to `Note.write` and `Note.save` for automatically reloading buffers with `checktime` after writing them to disk
 - Added footer options.
 - Added default mappings: `]o` and `[o`, for navigating links in note.
