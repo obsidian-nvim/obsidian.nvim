@@ -43,10 +43,11 @@ return function(data)
     prompt_title = "Select note to link",
     query = query,
     callback = function(entry)
-      local note = search.resolve_note(entry)[1]
-      if not note then
+      local resolved_notes = search.resolve_note(entry)
+      if #resolved_notes == 0 then
         return log.err("No notes matching '%s'", query)
       end
+      local note = resolved_notes[1]
       vim.schedule(function()
         insert_ref(note)
       end)

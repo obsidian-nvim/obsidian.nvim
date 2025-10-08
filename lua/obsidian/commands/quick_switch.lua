@@ -13,10 +13,11 @@ return function(data)
     prompt_title = "Quick Switch",
     query = data.args,
     callback = function(entry)
-      local note = search.resolve_note(entry)[1]
-      if not note then
+      local resolved_notes = search.resolve_note(entry)
+      if #resolved_notes == 0 then
         return log.err("No notes matching '%s'", data.args)
       end
+      local note = resolved_notes[1]
       note:open()
     end,
   }
