@@ -32,12 +32,24 @@ return function(data)
     require("obsidian.ui").update(0)
   end
 
-  search.resolve_note_async(query, function(note)
-    if not note then
-      return log.err("No notes matching '%s'", query)
-    end
-    vim.schedule(function()
-      insert_ref(note)
-    end)
-  end, { prompt_title = "Select note to link" })
+  local picker = Obsidian.picker
+
+  if not picker then
+    log.err "No picker configured"
+    return
+  end
+
+  picker:find_notes {
+    prompt_title = "Select note to link",
+    query = query,
+    callback = function(entry)
+      local note = search.resolve_note(entry)[1]
+      if not note then
+        return log.err("No notes matching '%s'", query)
+      end
+      vim.schedule(function()
+        insert_ref(note)
+      end)
+    end,
+  }
 end
