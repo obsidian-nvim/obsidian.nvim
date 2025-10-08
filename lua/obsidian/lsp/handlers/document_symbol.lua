@@ -1,8 +1,8 @@
-local api = require "obsidian.api"
+local obsidian = require "obsidian"
 
 ---@param _ lsp.DocumentSymbolParams
 return function(_, handler)
-  local note = assert(api.current_note(0, { collect_anchor_links = true }))
+  local note = assert(obsidian.Note.from_buffer(0, { collect_anchor_links = true }))
 
   ---@type lsp.DocumentSymbol[]
   local symbols = {}
