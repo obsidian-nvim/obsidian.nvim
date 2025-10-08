@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- Fixed link and quick_switch commands by replacing deprecated `resolve_note_async` with picker interface
+- Added query parameter support to `picker.find_notes` method
+- Added query parameter support to snacks picker implementation
+- Improved search command building with `ignore_case` option
+
 ## [v3.14.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.1) - 2025-10-07
 
 ### Fixed
@@ -91,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `makefile types` target to check types via lua-ls.
 - New `obsidian.config` type for user config type check.
 - More informative healthcheck.
-- A guide to embed images for both viewing in neovim and obsidian app: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images
+- A guide to embed images for both viewing in neovim and obsidian app: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images>
 - Added `check_buffers` option to `Note.write` and `Note.save` for automatically reloading buffers with `checktime` after writing them to disk
 - Added footer options.
 - Added default mappings: `]o` and `[o`, for navigating links in note.
