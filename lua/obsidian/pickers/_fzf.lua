@@ -129,6 +129,7 @@ FzfPicker.find_files = function(self, opts)
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   fzf.files {
+    query = opts.query,
     cwd = tostring(dir),
     cmd = table.concat(self:_build_find_cmd(), " "),
     actions = get_path_actions {
