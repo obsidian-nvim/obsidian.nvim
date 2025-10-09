@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- `follow_link` will properly follow file url
+
 ## [v3.14.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.1) - 2025-10-07
 
 ### Fixed

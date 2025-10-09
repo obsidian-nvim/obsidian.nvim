@@ -548,6 +548,10 @@ M.follow_link = function(link, opts)
     include_file_urls = true,
   })
 
+  if not location then
+    return
+  end
+
   local function jump_to_note(note, block_link, anchor_link)
     ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
     local line, block_match, anchor_match
@@ -568,11 +572,11 @@ M.follow_link = function(link, opts)
     }
   end
 
-  if link_type == RefTypes.NakedUrl and location then
+  if link_type == RefTypes.NakedUrl then
     return Obsidian.opts.follow_url_func(location)
-  elseif
-    (link_type == RefTypes.Wiki or link_type == RefTypes.WikiWithAlias or link_type == RefTypes.Markdown) and location
-  then
+  elseif link_type == RefTypes.FileUrl then
+    return vim.cmd("edit " .. vim.uri_to_fname(location))
+  elseif link_type == RefTypes.Wiki or link_type == RefTypes.WikiWithAlias or link_type == RefTypes.Markdown then
     if util.is_img(location) then
       local path = Obsidian.dir / location
       return Obsidian.opts.follow_img_func(tostring(path))
