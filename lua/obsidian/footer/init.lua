@@ -1,10 +1,10 @@
 local M = {}
-local api = require "obsidian.api"
+local obsidian = require "obsidian"
 local ns_id = vim.api.nvim_create_namespace "ObsidianFooter"
 
 ---@param buf integer
 local function update_footer(buf)
-  local info = api.current_note(buf):status()
+  local info = obsidian.Note.from_buffer(buf):status()
   if info == nil then
     return
   end
