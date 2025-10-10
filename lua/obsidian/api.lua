@@ -577,11 +577,17 @@ M.follow_link = function(link, opts)
   elseif link_type == RefTypes.FileUrl then
     return vim.cmd("edit " .. vim.uri_to_fname(location))
   elseif link_type == RefTypes.Wiki or link_type == RefTypes.WikiWithAlias or link_type == RefTypes.Markdown then
-    if util.is_img(location) then
+    local _, _, location_type = util.parse_link(location, {
+      include_naked_urls = true,
+      include_file_urls = true,
+    })
+    if util.is_img(location) then -- TODO: include in parse_link
       local path = Obsidian.dir / location
       return Obsidian.opts.follow_img_func(tostring(path))
-    elseif util.is_url(location) then
+    elseif location_type == RefTypes.NakedUrl then
       return Obsidian.opts.follow_url_func(location)
+    elseif location_type == RefTypes.FileUrl then
+      return vim.cmd("edit " .. vim.uri_to_fname(location))
     else
       local block_link, anchor_link
       location, block_link = util.strip_block_links(location)

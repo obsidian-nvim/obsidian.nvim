@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved search command building with `ignore_case` option.
 - `follow_link` will properly follow file url.
 - `follow_link` will properly follow url.
+- `follow_link` will properly follow links base on location type.
 
 ## [v3.14.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.1) - 2025-10-07
 
