@@ -135,6 +135,7 @@ TelescopePicker.find_files = function(self, opts)
   }
 
   telescope.find_files {
+    default_text = opts.query,
     prompt_title = prompt_title,
     cwd = opts.dir and tostring(opts.dir) or tostring(Obsidian.dir),
     find_command = self:_build_find_cmd(),

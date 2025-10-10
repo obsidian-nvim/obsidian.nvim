@@ -36,6 +36,7 @@ end
 ---@field dir string|obsidian.Path|?
 ---@field callback fun(path: string)|?
 ---@field no_default_mappings boolean|?
+---@field query string|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 
@@ -128,7 +129,7 @@ end
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -147,6 +148,7 @@ Picker.find_notes = function(self, opts)
   end
 
   return self:find_files {
+    query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
     dir = Obsidian.dir,
     callback = opts.callback or api.open_buffer,
@@ -451,8 +453,12 @@ end
 ---@return string[]
 Picker._build_find_cmd = function()
   local search = require "obsidian.search"
-  local search_opts = { sort_by = Obsidian.opts.sort_by, sort_reversed = Obsidian.opts.sort_reversed }
-  return search.build_find_cmd(".", nil, search_opts)
+
+  return search.build_find_cmd(".", nil, {
+    sort_by = Obsidian.opts.sort_by,
+    sort_reversed = Obsidian.opts.sort_reversed,
+    ignore_case = true,
+  })
 end
 
 Picker._build_grep_cmd = function()

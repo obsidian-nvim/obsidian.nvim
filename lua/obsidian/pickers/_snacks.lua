@@ -46,6 +46,7 @@ SnacksPicker.find_files = function(self, opts)
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
+    pattern = opts.query,
     source = "files",
     title = opts.prompt_title,
     cwd = tostring(dir),
@@ -78,6 +79,7 @@ SnacksPicker.grep = function(self, opts)
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
+    search = opts.query,
     source = "grep",
     title = opts.prompt_title,
     cwd = tostring(dir),
