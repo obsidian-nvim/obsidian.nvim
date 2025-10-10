@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed link and quick_switch commands by replacing deprecated `resolve_note_async` with picker interface
-- Added query parameter support to `picker.find_notes` method
-- Added query parameter support to snacks, telescope and fzf pickers
-- Improved search command building with `ignore_case` option
-- `follow_link` will properly follow file url
+- Fixed link and quick_switch commands by replacing deprecated `resolve_note_async` with picker interface.
+- Added query parameter support to `picker.find_notes` method.
+- Added query parameter support to snacks, telescope and fzf pickers.
+- Improved search command building with `ignore_case` option.
+- `follow_link` will properly follow file url.
+- `follow_link` will properly follow url.
 
 ## [v3.14.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.1) - 2025-10-07
 

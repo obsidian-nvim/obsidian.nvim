@@ -580,6 +580,8 @@ M.follow_link = function(link, opts)
     if util.is_img(location) then
       local path = Obsidian.dir / location
       return Obsidian.opts.follow_img_func(tostring(path))
+    elseif util.is_url(location) then
+      return Obsidian.opts.follow_url_func(location)
     else
       local block_link, anchor_link
       location, block_link = util.strip_block_links(location)
