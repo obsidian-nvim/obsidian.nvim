@@ -376,6 +376,17 @@ Note.fname = function(self)
   end
 end
 
+--- Get file uri
+---
+---@return string?
+Note.uri = function(self)
+  if self.path == nil then
+    return nil
+  else
+    return vim.uri_from_fname(tostring(self.path))
+  end
+end
+
 --- Get a list of all of the different string that can identify this note via references,
 --- including the ID, aliases, and filename.
 ---@param opts { lowercase: boolean|? }|?
