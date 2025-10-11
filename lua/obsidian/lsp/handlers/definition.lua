@@ -5,6 +5,37 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local RefTypes = search.RefTypes
 
+---@param note obsidian.Note
+---@param block_link string?
+---@param anchor_link string?
+---@return lsp.Location
+local function note_to_loaction(note, block_link, anchor_link)
+  ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
+  local line, block_match, anchor_match
+  if block_link then
+    block_match = note:resolve_block(block_link)
+    if block_match then
+      line = block_match.line
+    end
+  elseif anchor_link then
+    anchor_match = note:resolve_anchor_link(anchor_link)
+    if anchor_match then
+      line = anchor_match.line
+    end
+  end
+
+  line = line and line - 1 or 0
+  -- TODO: open a window before jumping?
+
+  return {
+    uri = note:uri(),
+    range = {
+      start = { line = line, character = 0 },
+      ["end"] = { line = line, character = 0 },
+    },
+  }
+end
+
 --- TODO: open_strategy
 
 ---@param _ lsp.DefinitionParams
@@ -14,35 +45,6 @@ return function(_, handler)
 
   if not link then
     return -- TODO: ?
-  end
-
-  local function jump_to_note(note, block_link, anchor_link)
-    ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
-    local line, block_match, anchor_match
-    if block_link then
-      block_match = note:resolve_block(block_link)
-      if block_match then
-        line = block_match.line
-      end
-    elseif anchor_link then
-      anchor_match = note:resolve_anchor_link(anchor_link)
-      if anchor_match then
-        line = anchor_match.line
-      end
-    end
-
-    line = line and line - 1 or 0
-    -- TODO: open a window before jumping?
-
-    handler(nil, {
-      {
-        uri = note:uri(),
-        range = {
-          start = { line = line, character = 0 },
-          ["end"] = { line = line, character = 0 },
-        },
-      },
-    })
   end
 
   local function create_new_note(location, name)
@@ -58,7 +60,7 @@ return function(_, handler)
 
       local note = Note.create { title = name, id = id, aliases = aliases }
 
-      jump_to_note(note)
+      return note_to_loaction(note)
     else
       return log.warn "Aborted"
     end
@@ -93,15 +95,19 @@ return function(_, handler)
 
       local notes = search.resolve_note(location, {})
       if vim.tbl_isempty(notes) then
-        create_new_note(location, name)
+        local loc = create_new_note(location, name)
+        handler(nil, { loc })
       elseif #notes == 1 then
-        jump_to_note(notes[1], block_link, anchor_link)
+        handler(nil, { note_to_loaction(notes[1], block_link, anchor_link) })
       elseif #notes > 1 then
-        Obsidian.picker:pick_note(notes, {
-          callback = function(note)
-            jump_to_note(note, block_link, anchor_link)
-          end,
-        })
+        local locations = vim
+          .iter(notes)
+          :map(function(note)
+            return note_to_loaction(note, block_link, anchor_link)
+          end)
+          :totable()
+
+        handler(nil, locations)
       end
     end
   else
