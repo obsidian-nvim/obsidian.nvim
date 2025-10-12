@@ -25,7 +25,6 @@ local function note_to_loaction(note, block_link, anchor_link)
   end
 
   line = line and line - 1 or 0
-  -- TODO: open a window before jumping?
 
   return {
     uri = note:uri(),
@@ -35,6 +34,81 @@ local function note_to_loaction(note, block_link, anchor_link)
     },
   }
 end
+
+local function create_new_note(location, name)
+  if api.confirm("Create new note '" .. location .. "'?") then
+    ---@type string|?, string[]
+    local id, aliases
+    if name == location then
+      aliases = {}
+    else
+      aliases = { name }
+      id = location
+    end
+
+    local note = Note.create { title = name, id = id, aliases = aliases }
+
+    return note_to_loaction(note)
+  else
+    return log.warn "Aborted"
+  end
+end
+
+---@type table<string, function>
+local handlers = {}
+
+handlers.NakedUrl = function(location)
+  return Obsidian.opts.follow_url_func(location)
+end
+
+handlers.FileUrl = function(location)
+  local line = 0 -- TODO: :lnum?
+  return {
+    {
+      uri = location,
+      range = {
+        start = { line = line, character = 0 },
+        ["end"] = { line = line, character = 0 },
+      },
+    },
+  }
+end
+
+handlers.Wiki = function(location, name)
+  local _, _, location_type = util.parse_link(location, { include_naked_urls = true, include_file_urls = true })
+  if util.is_img(location) then -- TODO: include in parse_link
+    local path = Obsidian.dir / location
+    Obsidian.opts.follow_img_func(tostring(path))
+    return
+  elseif location_type == RefTypes.NakedUrl then
+    return handlers.NakedUrl(location)
+  elseif location_type == RefTypes.FileUrl then
+    return handlers.FileUrl(location)
+  else
+    local block_link, anchor_link
+    location, block_link = util.strip_block_links(location)
+    location, anchor_link = util.strip_anchor_links(location)
+
+    local notes = search.resolve_note(location, {})
+    if vim.tbl_isempty(notes) then
+      local loc = create_new_note(location, name)
+      return { loc }
+    elseif #notes == 1 then
+      return { note_to_loaction(notes[1], block_link, anchor_link) }
+    elseif #notes > 1 then
+      local locations = vim
+        .iter(notes)
+        :map(function(note)
+          return note_to_loaction(note, block_link, anchor_link)
+        end)
+        :totable()
+      return locations
+    end
+  end
+end
+
+handlers.WikiWithAlias = handlers.Wiki
+handlers.Markdown = handlers.Wiki
 
 --- TODO: open_strategy
 
@@ -47,25 +121,6 @@ return function(_, handler)
     return -- TODO: ?
   end
 
-  local function create_new_note(location, name)
-    if api.confirm("Create new note '" .. location .. "'?") then
-      ---@type string|?, string[]
-      local id, aliases
-      if name == location then
-        aliases = {}
-      else
-        aliases = { name }
-        id = location
-      end
-
-      local note = Note.create { title = name, id = id, aliases = aliases }
-
-      return note_to_loaction(note)
-    else
-      return log.warn "Aborted"
-    end
-  end
-
   local location, name, link_type = util.parse_link(link, {
     include_naked_urls = true,
     include_file_urls = true,
@@ -75,42 +130,10 @@ return function(_, handler)
     return
   end
 
-  if link_type == RefTypes.NakedUrl then
-    return Obsidian.opts.follow_url_func(location)
-  elseif link_type == RefTypes.FileUrl then
-    return vim.cmd("edit " .. vim.uri_to_fname(location))
-  elseif link_type == RefTypes.Wiki or link_type == RefTypes.WikiWithAlias or link_type == RefTypes.Markdown then
-    local _, _, location_type = util.parse_link(location, { include_naked_urls = true, include_file_urls = true })
-    if util.is_img(location) then -- TODO: include in parse_link
-      local path = Obsidian.dir / location
-      return Obsidian.opts.follow_img_func(tostring(path))
-    elseif location_type == RefTypes.NakedUrl then
-      return Obsidian.opts.follow_url_func(location)
-    elseif location_type == RefTypes.FileUrl then
-      return vim.cmd("edit " .. vim.uri_to_fname(location))
-    else
-      local block_link, anchor_link
-      location, block_link = util.strip_block_links(location)
-      location, anchor_link = util.strip_anchor_links(location)
+  local locations = handlers[link_type](location, name)
 
-      local notes = search.resolve_note(location, {})
-      if vim.tbl_isempty(notes) then
-        local loc = create_new_note(location, name)
-        handler(nil, { loc })
-      elseif #notes == 1 then
-        handler(nil, { note_to_loaction(notes[1], block_link, anchor_link) })
-      elseif #notes > 1 then
-        local locations = vim
-          .iter(notes)
-          :map(function(note)
-            return note_to_loaction(note, block_link, anchor_link)
-          end)
-          :totable()
-
-        handler(nil, locations)
-      end
-    end
-  else
-    log.err "link type not supported"
+  if locations then
+    -- TODO: open a window before jumping?
+    handler(nil, locations)
   end
 end
