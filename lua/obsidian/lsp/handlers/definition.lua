@@ -35,6 +35,9 @@ local function note_to_loaction(note, block_link, anchor_link)
   }
 end
 
+---@param location string
+---@param name string
+---@return lsp.Location?
 local function create_new_note(location, name)
   if api.confirm("Create new note '" .. location .. "'?") then
     ---@type string|?, string[]
@@ -47,7 +50,6 @@ local function create_new_note(location, name)
     end
 
     local note = Note.create { title = name, id = id, aliases = aliases }
-
     return note_to_loaction(note)
   else
     return log.warn "Aborted"
@@ -57,11 +59,11 @@ end
 ---@type table<string, function>
 local handlers = {}
 
-handlers.NakedUrl = function(location)
+handlers[RefTypes.NakedUrl] = function(location)
   return Obsidian.opts.follow_url_func(location)
 end
 
-handlers.FileUrl = function(location)
+handlers[RefTypes.FileUrl] = function(location)
   local line = 0 -- TODO: :lnum?
   return {
     {
@@ -74,16 +76,13 @@ handlers.FileUrl = function(location)
   }
 end
 
-handlers.Wiki = function(location, name)
+handlers[RefTypes.Wiki] = function(location, name)
   local _, _, location_type = util.parse_link(location, { include_naked_urls = true, include_file_urls = true })
   if util.is_img(location) then -- TODO: include in parse_link
     local path = Obsidian.dir / location
-    Obsidian.opts.follow_img_func(tostring(path))
-    return
-  elseif location_type == RefTypes.NakedUrl then
-    return handlers.NakedUrl(location)
-  elseif location_type == RefTypes.FileUrl then
-    return handlers.FileUrl(location)
+    return Obsidian.opts.follow_img_func(tostring(path))
+  elseif handlers[location_type] then
+    return handlers[location_type](location, name)
   else
     local block_link, anchor_link
     location, block_link = util.strip_block_links(location)
@@ -107,10 +106,44 @@ handlers.Wiki = function(location, name)
   end
 end
 
-handlers.WikiWithAlias = handlers.Wiki
-handlers.Markdown = handlers.Wiki
+handlers[RefTypes.WikiWithAlias] = handlers.Wiki
+handlers[RefTypes.Markdown] = handlers.Wiki
 
 --- TODO: open_strategy
+
+---Get the strategy for opening notes
+---
+---@param opt obsidian.config.OpenStrategy
+---@return string
+local get_open_strategy = function(opt)
+  local OpenStrategy = require("obsidian.config").OpenStrategy
+
+  -- either 'leaf', 'row' for vertically split windows, or 'col' for horizontally split windows
+  local cur_layout = vim.fn.winlayout()[1]
+
+  if vim.startswith(OpenStrategy.hsplit, opt) then
+    if cur_layout ~= "col" then
+      return "split "
+    else
+      return "e "
+    end
+  elseif vim.startswith(OpenStrategy.vsplit, opt) then
+    if cur_layout ~= "row" then
+      return "vsplit "
+    else
+      return "e "
+    end
+  elseif vim.startswith(OpenStrategy.vsplit_force, opt) then
+    return "vsplit "
+  elseif vim.startswith(OpenStrategy.hsplit_force, opt) then
+    return "hsplit "
+  elseif vim.startswith(OpenStrategy.current, opt) then
+    return "e "
+  else
+    log.err("undefined open strategy '%s'", opt)
+    return "e "
+  end
+end
 
 ---@param _ lsp.DefinitionParams
 ---@param handler fun(_:any, locations: lsp.Location[])
@@ -118,7 +151,7 @@ return function(_, handler)
   local link = api.cursor_link()
 
   if not link then
-    return -- TODO: ?
+    return handler(nil, {})
   end
 
   local location, name, link_type = util.parse_link(link, {
@@ -127,13 +160,13 @@ return function(_, handler)
   })
 
   if not location then
-    return
+    return handler(nil, {})
   end
 
-  local locations = handlers[link_type](location, name)
+  local lsp_locations = handlers[link_type](location, name)
 
-  if locations then
-    -- TODO: open a window before jumping?
-    handler(nil, locations)
+  if lsp_locations then
+    -- vim.cmd "split"
+    handler(nil, lsp_locations)
   end
 end
