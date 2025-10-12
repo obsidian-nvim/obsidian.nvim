@@ -8,11 +8,15 @@ return function(data)
     opts.open_strategy = data.args
   end
 
-  local link = api.cursor_link()
-
-  if link then
-    api.follow_link(link, opts)
-  else
-    log.info "no valid link to follow"
-  end
+  vim.lsp.buf.definition {
+    on_list = Obsidian.picker and function(t)
+      Obsidian.picker:pick(t.items, {
+        prompt_title = "Resolve link",
+        callback = function(v)
+          -- TODO: open strat here?
+          api.open_buffer(v.filename, { col = v.col, line = v.lnum })
+        end,
+      })
+    end,
+  }
 end
