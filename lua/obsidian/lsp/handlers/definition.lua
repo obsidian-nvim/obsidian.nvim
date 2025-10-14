@@ -165,7 +165,7 @@ return function(_, handler)
 
   local lsp_locations = handlers[link_type](location, name)
 
-  if lsp_locations then
+  if lsp_locations and util.islist(lsp_locations) then
     -- vim.cmd "split"
     handler(nil, lsp_locations)
   end
