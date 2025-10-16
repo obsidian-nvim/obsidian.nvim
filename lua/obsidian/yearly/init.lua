@@ -6,8 +6,6 @@ local yearly_functions = periodic.create_period_functions(periodic.PERIODS.yearl
 
 --- Get the path to a yearly note.
 ---
----@param datetime integer|?
----
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
 M.yearly_note_path = yearly_functions.period_note_path
 
@@ -27,9 +25,6 @@ M.last_year = yearly_functions.last_period
 M.next_year = yearly_functions.next_period
 
 --- Open (or create) the yearly note for the current year + `offset_years`.
----
----@param offset_years integer|?
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
 ---
 ---@return obsidian.Note
 M.yearly = yearly_functions.period

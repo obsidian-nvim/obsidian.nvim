@@ -6,8 +6,6 @@ local quarterly_functions = periodic.create_period_functions(periodic.PERIODS.qu
 
 --- Get the path to a quarterly note.
 ---
----@param datetime integer|?
----
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
 M.quarterly_note_path = quarterly_functions.period_note_path
 
@@ -27,9 +25,6 @@ M.last_quarter = quarterly_functions.last_period
 M.next_quarter = quarterly_functions.next_period
 
 --- Open (or create) the quarterly note for the current quarter + `offset_quarters`.
----
----@param offset_quarters integer|?
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
 ---
 ---@return obsidian.Note
 M.quarterly = quarterly_functions.period

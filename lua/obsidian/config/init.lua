@@ -293,6 +293,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.completion = tbl_override(defaults.completion, opts.completion)
   opts.picker = tbl_override(defaults.picker, opts.picker)
   opts.daily_notes = tbl_override(defaults.daily_notes, opts.daily_notes)
+  opts.weekly_notes = tbl_override(defaults.weekly_notes, opts.weekly_notes)
   opts.templates = tbl_override(defaults.templates, opts.templates)
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)

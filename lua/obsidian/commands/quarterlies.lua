@@ -46,7 +46,7 @@ return function(data)
   local quarterlies = {}
   for offset = offset_end, offset_start, -1 do
     local now = os.time()
-    local year = tonumber(os.date("%Y", now))
+    local year = tonumber(os.date("%Y", now)) or 0
     local month = tonumber(os.date("%m", now))
 
     -- Calculate target quarter
@@ -68,7 +68,7 @@ return function(data)
     local quarter = math.floor((target_month - 1) / 3) + 1
     local alias_format = Obsidian.opts.quarterly_notes.alias_format or "Q%q %Y"
     local quarterly_note_alias = alias_format:gsub("%%q", tostring(quarter))
-    quarterly_note_alias = os.date(quarterly_note_alias, datetime)
+    quarterly_note_alias = tostring(os.date(quarterly_note_alias, datetime))
 
     if offset == 0 then
       quarterly_note_alias = quarterly_note_alias .. " @this-quarter"
