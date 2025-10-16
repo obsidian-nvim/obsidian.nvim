@@ -181,6 +181,34 @@ return {
     default_tags = { "monthly-notes" },
   },
 
+  ---@class obsidian.config.QuarterlyNotesOpts
+  ---
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  quarterly_notes = {
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "quarterly-notes" },
+  },
+
+  ---@class obsidian.config.YearlyNotesOpts
+  ---
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  yearly_notes = {
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "yearly-notes" },
+  },
+
   ---@class obsidian.config.UICharSpec
   ---@field char string
   ---@field hl_group string
