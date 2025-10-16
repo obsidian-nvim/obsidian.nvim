@@ -6,8 +6,6 @@ local monthly_functions = periodic.create_period_functions(periodic.PERIODS.mont
 
 --- Get the path to a monthly note.
 ---
----@param datetime integer|?
----
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
 M.monthly_note_path = monthly_functions.period_note_path
 
@@ -27,9 +25,6 @@ M.last_month = monthly_functions.last_period
 M.next_month = monthly_functions.next_period
 
 --- Open (or create) the monthly note for the current month + `offset_months`.
----
----@param offset_months integer|?
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
 ---
 ---@return obsidian.Note
 M.monthly = monthly_functions.period

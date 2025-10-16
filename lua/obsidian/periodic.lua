@@ -58,13 +58,13 @@ M.PERIODS = {
     period_type = "monthly",
     config_key = "monthly_notes",
     get_period_start = function(datetime)
-      local year = tonumber(os.date("%Y", datetime))
-      local month = tonumber(os.date("%m", datetime))
+      local year = tonumber(os.date("%Y", datetime)) or 0
+      local month = tonumber(os.date("%m", datetime)) or 0
       return os.time { year = year, month = month, day = 1, hour = 0, min = 0, sec = 0 }
     end,
     offset_period = function(datetime, offset)
-      local year = tonumber(os.date("%Y", datetime))
-      local month = tonumber(os.date("%m", datetime))
+      local year = tonumber(os.date("%Y", datetime)) or 0
+      local month = tonumber(os.date("%m", datetime)) or 0
 
       month = month + offset
       while month > 12 do
@@ -86,15 +86,15 @@ M.PERIODS = {
     period_type = "quarterly",
     config_key = "quarterly_notes",
     get_period_start = function(datetime)
-      local year = tonumber(os.date("%Y", datetime))
+      local year = tonumber(os.date("%Y", datetime)) or 0
       local month = tonumber(os.date("%m", datetime))
       -- Get the first month of the quarter
       local quarter_start_month = math.floor((month - 1) / 3) * 3 + 1
       return os.time { year = year, month = quarter_start_month, day = 1, hour = 0, min = 0, sec = 0 }
     end,
     offset_period = function(datetime, offset)
-      local year = tonumber(os.date("%Y", datetime))
-      local month = tonumber(os.date("%m", datetime))
+      local year = tonumber(os.date("%Y", datetime)) or 0
+      local month = tonumber(os.date("%m", datetime)) or 0
 
       -- Move by quarters (3 months)
       month = month + (offset * 3)
@@ -117,7 +117,7 @@ M.PERIODS = {
     period_type = "yearly",
     config_key = "yearly_notes",
     get_period_start = function(datetime)
-      local year = tonumber(os.date("%Y", datetime))
+      local year = tonumber(os.date("%Y", datetime)) or 0
       return os.time { year = year, month = 1, day = 1, hour = 0, min = 0, sec = 0 }
     end,
     offset_period = function(datetime, offset)

@@ -6,8 +6,6 @@ local daily_functions = periodic.create_period_functions(periodic.PERIODS.daily)
 
 --- Get the path to a daily note.
 ---
----@param datetime integer|?
----
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
 M.daily_note_path = daily_functions.period_note_path
 
@@ -27,9 +25,6 @@ M.yesterday = daily_functions.last_period
 M.tomorrow = daily_functions.next_period
 
 --- Open (or create) the daily note for today + `offset_days`.
----
----@param offset_days integer|?
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
 ---
 ---@return obsidian.Note
 M.daily = daily_functions.period

@@ -46,7 +46,7 @@ return function(data)
   local monthlies = {}
   for offset = offset_end, offset_start, -1 do
     local now = os.time()
-    local year = tonumber(os.date("%Y", now))
+    local year = tonumber(os.date("%Y", now)) or 0
     local month = tonumber(os.date("%m", now))
 
     -- Calculate target month
