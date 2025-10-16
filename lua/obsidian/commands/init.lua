@@ -225,6 +225,14 @@ M.register("tomorrow", { nargs = 0 })
 
 M.register("dailies", { nargs = "*" })
 
+M.register("weekly", { nargs = "?" })
+
+M.register("last_week", { nargs = 0 })
+
+M.register("next_week", { nargs = 0 })
+
+M.register("weeklies", { nargs = "*" })
+
 M.register("new", { nargs = "*" })
 
 M.register("open", { nargs = "?", complete = M.note_complete })

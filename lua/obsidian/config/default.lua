@@ -151,6 +151,22 @@ return {
     workdays_only = true,
   },
 
+  ---@class obsidian.config.WeeklyNotesOpts
+  ---
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  ---@field start_of_week? integer
+  weekly_notes = {
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "weekly-notes" },
+    start_of_week = 1, -- Monday
+  },
+
   ---@class obsidian.config.UICharSpec
   ---@field char string
   ---@field hl_group string
