@@ -225,6 +225,38 @@ M.register("tomorrow", { nargs = 0 })
 
 M.register("dailies", { nargs = "*" })
 
+M.register("weekly", { nargs = "?" })
+
+M.register("last_week", { nargs = 0 })
+
+M.register("next_week", { nargs = 0 })
+
+M.register("weeklies", { nargs = "*" })
+
+M.register("monthly", { nargs = "?" })
+
+M.register("last_month", { nargs = 0 })
+
+M.register("next_month", { nargs = 0 })
+
+M.register("monthlies", { nargs = "*" })
+
+M.register("quarterly", { nargs = "?" })
+
+M.register("last_quarter", { nargs = 0 })
+
+M.register("next_quarter", { nargs = 0 })
+
+M.register("quarterlies", { nargs = "*" })
+
+M.register("yearly", { nargs = "?" })
+
+M.register("last_year", { nargs = 0 })
+
+M.register("next_year", { nargs = 0 })
+
+M.register("yearlies", { nargs = "*" })
+
 M.register("new", { nargs = "?" })
 
 M.register("open", { nargs = "?", complete = M.note_complete })

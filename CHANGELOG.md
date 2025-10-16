@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added periodic notes commands for weekly, monthly, quarterly, and yearly notes.
+- Added `weekly_notes`, `monthly_notes`, `quarterly_notes`, and `yearly_notes` configuration options.
+
+### Changed
+
+- Refactored daily notes to use generalized periodic notes system.
+
 ## [v3.14.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.2) - 2025-10-11
 
 ### Fixed

@@ -141,6 +141,64 @@ return {
     workdays_only = true,
   },
 
+  ---@class obsidian.config.WeeklyNotesOpts
+  ---
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  ---@field start_of_week? integer
+  weekly_notes = {
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "weekly-notes" },
+    start_of_week = 1, -- Monday
+  },
+
+  ---@class obsidian.config.MonthlyNotesOpts
+  ---
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  monthly_notes = {
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "monthly-notes" },
+  },
+
+  ---@class obsidian.config.QuarterlyNotesOpts
+  ---
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  quarterly_notes = {
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "quarterly-notes" },
+  },
+
+  ---@class obsidian.config.YearlyNotesOpts
+  ---
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  yearly_notes = {
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "yearly-notes" },
+  },
+
   ---@class obsidian.config.UICharSpec
   ---@field char string
   ---@field hl_group string
