@@ -66,7 +66,6 @@ return function(data)
     -- Calculate quarter number
     local target_month = tonumber(os.date("%m", datetime))
     local quarter = math.floor((target_month - 1) / 3) + 1
-    local target_year = os.date("%Y", datetime)
     local alias_format = Obsidian.opts.quarterly_notes.alias_format or "Q%q %Y"
     local quarterly_note_alias = alias_format:gsub("%%q", tostring(quarter))
     quarterly_note_alias = os.date(quarterly_note_alias, datetime)
