@@ -233,6 +233,14 @@ M.register("next_week", { nargs = 0 })
 
 M.register("weeklies", { nargs = "*" })
 
+M.register("monthly", { nargs = "?" })
+
+M.register("last_month", { nargs = 0 })
+
+M.register("next_month", { nargs = 0 })
+
+M.register("monthlies", { nargs = "*" })
+
 M.register("new", { nargs = "*" })
 
 M.register("open", { nargs = "?", complete = M.note_complete })

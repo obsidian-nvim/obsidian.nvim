@@ -167,6 +167,20 @@ return {
     start_of_week = 1, -- Monday
   },
 
+  ---@class obsidian.config.MonthlyNotesOpts
+  ---
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  monthly_notes = {
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "monthly-notes" },
+  },
+
   ---@class obsidian.config.UICharSpec
   ---@field char string
   ---@field hl_group string
