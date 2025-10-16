@@ -17,7 +17,7 @@ M.PERIODS = {
   daily = {
     period_type = "daily",
     config_key = "daily_notes",
-    get_period_start = function(datetime, opts)
+    get_period_start = function(datetime)
       -- For daily notes, we want the start of the day
       local date = os.date("*t", datetime)
       return os.time { year = date.year, month = date.month, day = date.day, hour = 0, min = 0, sec = 0 }
@@ -47,7 +47,7 @@ M.PERIODS = {
       local days_to_subtract = (current_day - start_of_week + 7) % 7
       return datetime - (days_to_subtract * 24 * 60 * 60)
     end,
-    offset_period = function(datetime, offset, opts)
+    offset_period = function(datetime, offset)
       return datetime + (offset * 7 * 24 * 60 * 60)
     end,
     default_date_format = "%Y-W%V",
@@ -57,12 +57,12 @@ M.PERIODS = {
   monthly = {
     period_type = "monthly",
     config_key = "monthly_notes",
-    get_period_start = function(datetime, opts)
+    get_period_start = function(datetime)
       local year = tonumber(os.date("%Y", datetime))
       local month = tonumber(os.date("%m", datetime))
       return os.time { year = year, month = month, day = 1, hour = 0, min = 0, sec = 0 }
     end,
-    offset_period = function(datetime, offset, opts)
+    offset_period = function(datetime, offset)
       local year = tonumber(os.date("%Y", datetime))
       local month = tonumber(os.date("%m", datetime))
 
@@ -85,14 +85,14 @@ M.PERIODS = {
   quarterly = {
     period_type = "quarterly",
     config_key = "quarterly_notes",
-    get_period_start = function(datetime, opts)
+    get_period_start = function(datetime)
       local year = tonumber(os.date("%Y", datetime))
       local month = tonumber(os.date("%m", datetime))
       -- Get the first month of the quarter
       local quarter_start_month = math.floor((month - 1) / 3) * 3 + 1
       return os.time { year = year, month = quarter_start_month, day = 1, hour = 0, min = 0, sec = 0 }
     end,
-    offset_period = function(datetime, offset, opts)
+    offset_period = function(datetime, offset)
       local year = tonumber(os.date("%Y", datetime))
       local month = tonumber(os.date("%m", datetime))
 
@@ -116,11 +116,11 @@ M.PERIODS = {
   yearly = {
     period_type = "yearly",
     config_key = "yearly_notes",
-    get_period_start = function(datetime, opts)
+    get_period_start = function(datetime)
       local year = tonumber(os.date("%Y", datetime))
       return os.time { year = year, month = 1, day = 1, hour = 0, min = 0, sec = 0 }
     end,
-    offset_period = function(datetime, offset, opts)
+    offset_period = function(datetime, offset)
       local year = tonumber(os.date("%Y", datetime))
       year = year + offset
       return os.time { year = year, month = 1, day = 1, hour = 0, min = 0, sec = 0 }
