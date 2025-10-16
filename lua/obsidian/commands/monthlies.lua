@@ -60,7 +60,7 @@ return function(data)
       year = year - 1
     end
 
-    local datetime = os.time({ year = year, month = month, day = 1, hour = 0, min = 0, sec = 0 })
+    local datetime = os.time { year = year, month = month, day = 1, hour = 0, min = 0, sec = 0 }
     local monthly_note_path = monthly.monthly_note_path(datetime)
     local monthly_note_alias = tostring(os.date(Obsidian.opts.monthly_notes.alias_format or "%B %Y", datetime))
     if offset == 0 then

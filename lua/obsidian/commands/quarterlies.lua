@@ -60,7 +60,7 @@ return function(data)
       year = year - 1
     end
 
-    local datetime = os.time({ year = year, month = month, day = 1, hour = 0, min = 0, sec = 0 })
+    local datetime = os.time { year = year, month = month, day = 1, hour = 0, min = 0, sec = 0 }
     local quarterly_note_path = quarterly.quarterly_note_path(datetime)
 
     -- Calculate quarter number
