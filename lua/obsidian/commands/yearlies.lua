@@ -47,7 +47,7 @@ return function(data)
   for offset = offset_end, offset_start, -1 do
     local now = os.time()
     local year = tonumber(os.date("%Y", now)) + offset
-    local datetime = os.time({ year = year, month = 1, day = 1, hour = 0, min = 0, sec = 0 })
+    local datetime = os.time { year = year, month = 1, day = 1, hour = 0, min = 0, sec = 0 }
     local yearly_note_path = yearly.yearly_note_path(datetime)
     local yearly_note_alias = tostring(os.date(Obsidian.opts.yearly_notes.alias_format or "%Y", datetime))
     if offset == 0 then
