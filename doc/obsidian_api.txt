@@ -496,6 +496,28 @@ Set the current workspace
 Parameters ~
 {workspace} `(obsidian.Workspace | string)`
 
+------------------------------------------------------------------------------
+                                                              *Workspace.find()*
+                     `Workspace.find`({dir}, {workspaces})
+a directory to a workspace that it belongs to.
+
+Parameters ~
+{dir} `(string|obsidian.Path)`
+{workspaces} `(obsidian.Workspace[])`
+
+Return ~
+`(obsidian.Workspace| `(optional))``
+
+------------------------------------------------------------------------------
+                                                             *Workspace.setup()*
+                           `Workspace.setup`({specs})
+1. Resolve and return all the workspaces from user input specs
+2. Set current workspace based on cwd, or the order of specs
+Parameters ~
+{specs} `(obsidian.workspace.WorkspaceSpec[])`
+Return ~
+`(obsidian.Workspace[])`
+
 
 ==============================================================================
 ------------------------------------------------------------------------------
