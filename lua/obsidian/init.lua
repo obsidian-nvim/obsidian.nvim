@@ -57,25 +57,11 @@ obsidian.setup = function(user_opts)
 
   local opts = obsidian.config.normalize(user_opts)
 
-  local client = obsidian.Client.new() -- TODO: remove in 4.0.0
-  local workspaces = {}
-
-  for _, spec in ipairs(opts.workspaces) do
-    local ws = obsidian.Workspace.new(spec)
-    if ws then
-      table.insert(workspaces, ws)
-    end
-  end
-
-  if vim.tbl_isempty(workspaces) then
-    error "At least one workspace is required!\nPlease specify a valid workspace"
-  end
-
-  Obsidian.workspaces = workspaces
-
   Obsidian._opts = opts
 
-  obsidian.Workspace.set(Obsidian.workspaces[1])
+  obsidian.Workspace.setup(opts.workspaces)
+
+  local client = obsidian.Client.new() -- TODO: remove in 4.0.0
 
   log.set_level(Obsidian.opts.log_level)
 
