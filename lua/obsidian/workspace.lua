@@ -150,4 +150,58 @@ Workspace.set = function(workspace)
   })
 end
 
+---Resolve a directory to a workspace that it belongs to.
+---
+---@param dir string|obsidian.Path
+---@param workspaces obsidian.Workspace[]
+---
+---@return obsidian.Workspace|?
+Workspace.find = function(dir, workspaces)
+  local ok
+  ok, dir = pcall(function()
+    return Path.new(dir):resolve { strict = true }
+  end)
+
+  if not ok then
+    return
+  end
+
+  for _, ws in ipairs(workspaces) do
+    if ws.path == dir or ws.path:is_parent_of(dir) then
+      return ws
+    end
+  end
+end
+
+--- 1. Resolve and return all the workspaces from user input specs
+--- 2. Set current workspace based on cwd, or the order of specs
+---@param specs obsidian.workspace.WorkspaceSpec[]
+---@return obsidian.Workspace[]
+Workspace.setup = function(specs)
+  local workspaces = {}
+
+  for _, spec in ipairs(specs) do
+    local ws = Workspace.new(spec)
+    if ws then
+      table.insert(workspaces, ws)
+    end
+  end
+
+  if vim.tbl_isempty(workspaces) then
+    error "At least one workspace is required!\nPlease specify a valid workspace"
+  end
+
+  local current_workspace = Workspace.find(assert(vim.uv.cwd()), workspaces)
+
+  if current_workspace then
+    Workspace.set(current_workspace)
+  else
+    Workspace.set(workspaces[1])
+  end
+
+  Obsidian.workspaces = workspaces
+
+  return workspaces
+end
+
 return Workspace
