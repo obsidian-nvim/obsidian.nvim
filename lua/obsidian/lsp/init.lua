@@ -14,11 +14,11 @@ lsp.start = function(buf)
     capabilities = capabilities,
     cmd = function()
       return {
-        request = function(method, params, handler, _)
-          handlers[method](params, handler, _)
+        request = function(method, ...)
+          handlers[method](...)
         end,
-        notify = function(method, params, handler, _)
-          handlers[method](params, handler, _)
+        notify = function(method, ...)
+          handlers[method](...)
         end,
         is_closing = function() end,
         terminate = function() end,
