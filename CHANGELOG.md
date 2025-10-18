@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Properly switch to workspace on setup based on cwd.
+- Properly resolve path to de-duplicate when resolving notes.
 
 ## [v3.14.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.2) - 2025-10-11
 

@@ -704,25 +704,32 @@ M.resolve_note = function(query, opts)
 
   local paths_lookup = setmetatable({}, {
     __newindex = function(t, k, v)
+      k = k:resolve()
       rawset(t, tostring(k), v) -- avoid duplicate
     end,
   })
   local paths_found = {}
 
   if Obsidian.buf_dir ~= nil then
-    paths_lookup[Obsidian.buf_dir / fname] = true
+    local note_in_current_buf_dir = Obsidian.buf_dir / fname
+    paths_lookup[note_in_current_buf_dir] = true
   end
 
   if Obsidian.opts.notes_subdir ~= nil then
-    paths_lookup[Obsidian.dir / Obsidian.opts.notes_subdir / fname] = true
+    local note_in_notes_subdir = Obsidian.dir / Obsidian.opts.notes_subdir / fname
+    paths_lookup[note_in_notes_subdir] = true
   end
 
   if Obsidian.opts.daily_notes.folder ~= nil then
-    paths_lookup[Obsidian.dir / Obsidian.opts.daily_notes.folder / fname] = true
+    local notes_in_daily_notes_dir = Obsidian.dir / Obsidian.opts.daily_notes.folder / fname
+    paths_lookup[notes_in_daily_notes_dir] = true
   end
 
-  paths_lookup[Path.new(fname)] = true
-  paths_lookup[Obsidian.dir / fname] = true
+  local note_with_absolute_path = Path.new(fname)
+  local note_in_vault_root = Obsidian.dir / fname
+
+  paths_lookup[note_with_absolute_path] = true
+  paths_lookup[note_in_vault_root] = true
 
   for path in pairs(paths_lookup) do
     if Path.new(path):is_file() then
