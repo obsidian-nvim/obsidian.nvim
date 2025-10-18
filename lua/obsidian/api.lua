@@ -541,94 +541,29 @@ end
 ---@param opts { open_strategy: obsidian.config.OpenStrategy|? }|?
 M.follow_link = function(link, opts)
   opts = opts and opts or {}
-  local Note = require "obsidian.note"
-
-  local location, name, link_type = util.parse_link(link, {
-    include_naked_urls = true,
-    include_file_urls = true,
-  })
-
-  if not location then
-    return
-  end
-
-  local function jump_to_note(note, block_link, anchor_link)
-    ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
-    local line, block_match, anchor_match
-    if block_link then
-      block_match = note:resolve_block(block_link)
-      if block_match then
-        line = block_match.line
-      end
-    elseif anchor_link then
-      anchor_match = note:resolve_anchor_link(anchor_link)
-      if anchor_match then
-        line = anchor_match.line
-      end
-    end
-    note:open {
-      line = line,
-      open_strategy = opts.open_strategy,
-    }
-  end
-
-  if link_type == RefTypes.NakedUrl then
-    return Obsidian.opts.follow_url_func(location)
-  elseif link_type == RefTypes.FileUrl then
-    return vim.cmd("edit " .. vim.uri_to_fname(location))
-  elseif link_type == RefTypes.Wiki or link_type == RefTypes.WikiWithAlias or link_type == RefTypes.Markdown then
-    local _, _, location_type = util.parse_link(location, {
-      include_naked_urls = true,
-      include_file_urls = true,
-    })
-    if util.is_img(location) then -- TODO: include in parse_link
-      local path = Obsidian.dir / location
-      return Obsidian.opts.follow_img_func(tostring(path))
-    elseif location_type == RefTypes.NakedUrl then
-      return Obsidian.opts.follow_url_func(location)
-    elseif location_type == RefTypes.FileUrl then
-      return vim.cmd("edit " .. vim.uri_to_fname(location))
+  require("obsidian.lsp.handlers._definition").follow_link(link, function(_, locations)
+    local items = vim.lsp.util.locations_to_items(locations, "utf-8") -- TODO: encoding?
+    -- TODO: abstract with follow links handler: default link(s) opener for qflist items
+    if #items == 1 then
+      local item = items[1]
+      M.open_buffer(item.filename, {
+        col = item.col,
+        line = item.lnum,
+        cmd = opts.open_strategy or Obsidian.opts.open_notes_in,
+      })
     else
-      local block_link, anchor_link
-      location, block_link = util.strip_block_links(location)
-      location, anchor_link = util.strip_anchor_links(location)
-
-      local notes = search.resolve_note(location, {})
-      if vim.tbl_isempty(notes) then
-        if M.confirm("Create new note '" .. location .. "'?") then
-          ---@type string|?, string[]
-          local id, aliases
-          if name == location then
-            aliases = {}
-          else
-            aliases = { name }
-            id = location
-          end
-
-          local note = Note.create { title = name, id = id, aliases = aliases }
-          return note:open {
-            open_strategy = opts.open_strategy,
-            callback = function(bufnr)
-              note:write_to_buffer { bufnr = bufnr }
-            end,
-          }
-        else
-          return log.warn "Aborted"
-        end
-      elseif #notes == 1 then
-        local note = notes[1]
-        jump_to_note(note, block_link, anchor_link)
-      elseif #notes > 1 then
-        Obsidian.picker.pick_note(notes, {
-          callback = function(note)
-            jump_to_note(note, block_link, anchor_link)
-          end,
-        })
-      end
+      Obsidian.picker.pick(items, {
+        prompt_title = "Resolve link",
+        callback = function(v)
+          M.open_buffer(v.filename, {
+            col = v.col,
+            line = v.lnum,
+            cmd = opts.open_strategy or Obsidian.opts.open_notes_in,
+          })
+        end,
+      })
     end
-  else
-    log.err "link type not supported"
-  end
+  end)
 end
 
 --------------------------
