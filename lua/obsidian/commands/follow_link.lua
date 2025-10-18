@@ -10,13 +10,20 @@ return function(data)
 
   vim.lsp.buf.definition {
     on_list = Obsidian.picker and function(t)
-      Obsidian.picker:pick(t.items, {
-        prompt_title = "Resolve link",
-        callback = function(v)
-          -- TODO: open strat here?
-          api.open_buffer(v.filename, { col = v.col, line = v.lnum })
-        end,
-      })
+      if #t.items == 1 then
+        vim.print(t.items[1])
+        -- TODO: proper lnum
+        -- TODO: open_strategy here!
+        vim.cmd("e " .. t.items[1].filename)
+      else
+        Obsidian.picker:pick(t.items, {
+          prompt_title = "Resolve link",
+          callback = function(v)
+            -- TODO: open strat here?
+            api.open_buffer(v.filename, { col = v.col, line = v.lnum })
+          end,
+        })
+      end
     end,
   }
 end
