@@ -109,42 +109,6 @@ end
 handlers[RefTypes.WikiWithAlias] = handlers.Wiki
 handlers[RefTypes.Markdown] = handlers.Wiki
 
---- TODO: open_strategy
-
----Get the strategy for opening notes
----
----@param opt obsidian.config.OpenStrategy
----@return string
-local get_open_strategy = function(opt)
-  local OpenStrategy = require("obsidian.config").OpenStrategy
-
-  -- either 'leaf', 'row' for vertically split windows, or 'col' for horizontally split windows
-  local cur_layout = vim.fn.winlayout()[1]
-
-  if vim.startswith(OpenStrategy.hsplit, opt) then
-    if cur_layout ~= "col" then
-      return "split "
-    else
-      return "e "
-    end
-  elseif vim.startswith(OpenStrategy.vsplit, opt) then
-    if cur_layout ~= "row" then
-      return "vsplit "
-    else
-      return "e "
-    end
-  elseif vim.startswith(OpenStrategy.vsplit_force, opt) then
-    return "vsplit "
-  elseif vim.startswith(OpenStrategy.hsplit_force, opt) then
-    return "hsplit "
-  elseif vim.startswith(OpenStrategy.current, opt) then
-    return "e "
-  else
-    log.err("undefined open strategy '%s'", opt)
-    return "e "
-  end
-end
-
 ---@param _ lsp.DefinitionParams
 ---@param handler fun(_:any, locations: lsp.Location[])
 return function(_, handler)
