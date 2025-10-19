@@ -31,6 +31,10 @@ require("obsidian").setup {
         if hooks.pre_case then
           child.lua(hooks.pre_case)
         end
+        child.Obsidian = {}
+
+        -- TODO: reconstruct the Obsidian vars
+        child.Obsidian.dir = Path.new(child.lua_get("Obsidian.dir").filename)
       end,
       post_case = function()
         child.lua [[vim.fn.delete(tostring(Obsidian.dir), "rf")]]
@@ -68,5 +72,23 @@ M.temp_vault = MiniTest.new_set {
     end,
   },
 }
+
+M.write = function(str, path)
+  vim.fn.writefile(vim.split(str, "\n"), tostring(path))
+end
+
+M.read = function(path)
+  return vim.fn.readfile(tostring(path))
+end
+
+M.mock_vault_contents = function(dir, contents)
+  local files = {}
+  for rel_path, content in pairs(contents) do
+    local path = dir / rel_path
+    files[rel_path] = tostring(path)
+    M.write(content, path)
+  end
+  return files
+end
 
 return M
