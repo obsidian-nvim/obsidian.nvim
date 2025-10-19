@@ -1,24 +1,29 @@
 local log = require "obsidian.log"
+local api = require "obsidian.api"
 local search = require "obsidian.search"
 
 ---@param data obsidian.CommandArgs
 return function(data)
-  local picker = Obsidian.picker
-  if not picker then
-    log.err "No picker configured"
-    return
+  local query
+
+  if data.args and data.args ~= "" then
+    query = data.args
   end
 
-  picker:find_notes {
-    prompt_title = "Quick Switch",
-    query = data.args,
-    callback = function(entry)
-      local resolved_notes = search.resolve_note(entry)
-      if #resolved_notes == 0 then
-        return log.err("No notes matching '%s'", entry)
-      end
-      local note = resolved_notes[1]
-      note:open()
-    end,
-  }
+  -- TODO: clean logic
+  if query then
+    local notes = search.resolve_note(query)
+
+    if vim.tbl_isempty(notes) then
+      return log.info "Failed to Switch" -- TODO:
+    elseif #notes == 1 then
+      local note = notes[1]
+      return api.open_buffer(note.path)
+    end
+  else
+    Obsidian.picker:find_notes {
+      prompt_title = "Quick Switch",
+      query = query,
+    }
+  end
 end
