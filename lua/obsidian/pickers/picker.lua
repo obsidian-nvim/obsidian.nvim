@@ -4,6 +4,7 @@ local api = require "obsidian.api"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
+local search = require "obsidian.search"
 
 ---@class obsidian.Picker : obsidian.ABC
 ---
@@ -52,9 +53,52 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
-Picker.find_files = function(_, opts)
-  _ = opts
-  error "not implemented"
+Picker.find_files = function(self, opts)
+  opts = opts or {}
+
+  local query
+  if opts.query and vim.trim(opts.query) ~= "" then
+    query = opts.query
+  else
+    query = api.input(opts.prompt_title .. ": ") -- TODO:
+  end
+
+  if not query then
+    return
+  end
+
+  local paths = {}
+
+  search.find_async(
+    opts.dir,
+    query,
+    {},
+    function(path)
+      paths[#paths + 1] = path
+    end,
+    vim.schedule_wrap(function(code)
+      if vim.tbl_isempty(paths) then
+        return log.info "Failed to Switch" -- TODO:
+      elseif #paths == 1 then
+        return api.open_buffer(paths[1])
+      elseif #paths > 1 then
+        ---@type vim.quickfix.entry
+        local items = {}
+        for _, path in ipairs(paths) do
+          items[#items + 1] = {
+            filename = path,
+            lnum = 1,
+            col = 0,
+            text = self:_make_display {
+              filename = path,
+            },
+          }
+        end
+        vim.fn.setqflist(items)
+        vim.cmd "copen"
+      end
+    end)
+  )
 end
 
 ---@class obsidian.PickerGrepOpts
@@ -81,8 +125,57 @@ end
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
 Picker.grep = function(_, opts)
-  _ = opts
-  error "not implemented"
+  opts = opts or {}
+
+  ---@param match MatchData
+  ---@return vim.quickfix.entry
+  local function match_data_to_qfitem(match)
+    local filename = match.path.text
+    return {
+      filename = filename,
+      lnum = match.line_number,
+      col = match.submatches[1].start + 1,
+      text = match.lines.text,
+    }
+  end
+
+  local query
+  if opts.query and vim.trim(opts.query) ~= "" then
+    query = opts.query
+  else
+    query = api.input(opts.prompt_title .. ": ") -- TODO:
+  end
+
+  if not query then
+    return
+  end
+
+  local items = {}
+
+  search.search_async(
+    opts.dir,
+    query,
+    {},
+    function(match)
+      items[#items + 1] = match_data_to_qfitem(match)
+    end,
+    vim.schedule_wrap(function(code)
+      assert(code == 0, "failed to run ripgrep")
+
+      if vim.tbl_isempty(items) then
+        return log.info "Failed to Grep"
+      elseif #items == 1 then
+        local item = items[1]
+        return api.open_buffer(item.filename, {
+          line = item.lnum,
+          col = item.col,
+        })
+      else
+        vim.fn.setqflist(items)
+        vim.cmd "copen"
+      end
+    end)
+  )
 end
 
 ---@class obsidian.PickerEntry
@@ -118,9 +211,18 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
-Picker.pick = function(_, values, opts)
-  _, _ = values, opts
-  error "not implemented"
+Picker.pick = function(self, values, opts)
+  opts = opts or {}
+  vim.ui.select(values, {
+    prompt = opts.prompt_title,
+    format_item = opts.format_item or function(value)
+      return self:_make_display(value)
+    end,
+  }, function(item, idx)
+    if opts.callback then
+      opts.callback(item)
+    end
+  end)
 end
 
 ------------------------------------------------------------------
@@ -452,8 +554,6 @@ end
 
 ---@return string[]
 Picker._build_find_cmd = function()
-  local search = require "obsidian.search"
-
   return search.build_find_cmd(".", nil, {
     sort_by = Obsidian.opts.sort_by,
     sort_reversed = Obsidian.opts.sort_reversed,
@@ -462,7 +562,6 @@ Picker._build_find_cmd = function()
 end
 
 Picker._build_grep_cmd = function()
-  local search = require "obsidian.search"
   local search_opts = {
     sort_by = Obsidian.opts.sort_by,
     sort_reversed = Obsidian.opts.sort_reversed,
