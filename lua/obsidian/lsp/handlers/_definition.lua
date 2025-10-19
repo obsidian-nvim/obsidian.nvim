@@ -7,7 +7,7 @@ local util = obsidian.util
 ---@param block_link string?
 ---@param anchor_link string?
 ---@return lsp.Location
-local function note_to_loaction(note, block_link, anchor_link)
+local function note_to_location(note, block_link, anchor_link)
   ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
   local line, block_match, anchor_match
   if block_link then
@@ -49,7 +49,7 @@ local function create_new_note(location, name)
     end
 
     local note = Note.create { title = name, id = id, aliases = aliases }
-    return note_to_loaction(note)
+    return note_to_location(note)
   else
     return obsidian.log.warn "Aborted"
   end
@@ -92,12 +92,12 @@ handlers[RefTypes.Wiki] = function(location, name)
       local loc = create_new_note(location, name)
       return { loc }
     elseif #notes == 1 then
-      return { note_to_loaction(notes[1], block_link, anchor_link) }
+      return { note_to_location(notes[1], block_link, anchor_link) }
     elseif #notes > 1 then
       local locations = vim
         .iter(notes)
         :map(function(note)
-          return note_to_loaction(note, block_link, anchor_link)
+          return note_to_location(note, block_link, anchor_link)
         end)
         :totable()
       return locations

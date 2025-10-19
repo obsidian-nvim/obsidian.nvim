@@ -7,7 +7,6 @@ local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
-local RefTypes = search.RefTypes
 
 --- Return a iter like `vim.fs.dir` but on a dir of notes.
 ---
