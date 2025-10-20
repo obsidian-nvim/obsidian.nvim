@@ -1,8 +1,9 @@
 local mini_pick = require "mini.pick"
-
-local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
-local Picker = require "obsidian.pickers.picker"
+local obsidian = require "obsidian"
+local search = obsidian.search
+local Path = obsidian.path
+local abc = obsidian.abc
+local Picker = obsidian.Picker
 
 ---@param entry string
 ---@return string, integer?, integer?
@@ -26,7 +27,7 @@ MiniPicker.find_files = function(self, opts)
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   local path = mini_pick.builtin.cli({
-    command = self:_build_find_cmd(),
+    command = search.build_find_cmd(),
   }, {
     source = {
       name = opts.prompt_title,

@@ -2,10 +2,12 @@ local fzf = require "fzf-lua"
 local fzf_actions = require "fzf-lua.actions"
 local entry_to_file = require("fzf-lua.path").entry_to_file
 
-local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
-local Picker = require "obsidian.pickers.picker"
-local log = require "obsidian.log"
+local obsidian = require "obsidian"
+local search = obsidian.search
+local Path = obsidian.path
+local abc = obsidian.abc
+local log = obsidian.log
+local Picker = obsidian.Picker
 
 ---@param prompt_title string|?
 ---@return string|?
@@ -131,7 +133,7 @@ FzfPicker.find_files = function(self, opts)
   fzf.files {
     query = opts.query,
     cwd = tostring(dir),
-    cmd = table.concat(self:_build_find_cmd(), " "),
+    cmd = table.concat(search.build_find_cmd(), " "),
     actions = get_path_actions {
       callback = opts.callback,
       no_default_mappings = opts.no_default_mappings,
@@ -147,7 +149,7 @@ FzfPicker.grep = function(self, opts)
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
-  local cmd = table.concat(self:_build_grep_cmd(), " ")
+  local cmd = table.concat(search.build_grep_cmd(), " ")
   local actions = get_path_actions {
     -- TODO: callback for the full object
     no_default_mappings = opts.no_default_mappings,
