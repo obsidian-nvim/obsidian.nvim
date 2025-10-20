@@ -34,12 +34,21 @@ return function(data)
     return
   end
 
-  picker:find_files {
+  local paths = vim
+    .iter(vim.fs.dir(tostring(templates_dir)))
+    :map(function(fname)
+      return {
+        filename = tostring(templates_dir / fname),
+        value = templates_dir / fname,
+        display = fname,
+      }
+    end)
+    :totable()
+
+  picker:pick(paths, {
     prompt_title = "Templates",
-    callback = function(path)
-      insert_template(path)
+    callback = function(entry)
+      insert_template(entry.filename)
     end,
-    dir = templates_dir,
-    no_default_mappings = true,
-  }
+  })
 end
