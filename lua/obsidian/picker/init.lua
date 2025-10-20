@@ -76,7 +76,7 @@ Picker.find_files = function(self, opts)
     function(path)
       paths[#paths + 1] = path
     end,
-    vim.schedule_wrap(function(code)
+    vim.schedule_wrap(function()
       if vim.tbl_isempty(paths) then
         return log.info "Failed to Switch" -- TODO:
       elseif #paths == 1 then
@@ -218,7 +218,7 @@ Picker.pick = function(self, values, opts)
     format_item = opts.format_item or function(value)
       return self:_make_display(value)
     end,
-  }, function(item, idx)
+  }, function(item)
     if opts.callback then
       opts.callback(item)
     end
@@ -552,23 +552,40 @@ Picker._make_display = function(_, entry)
   return table.concat(buf, ""), highlights
 end
 
----@return string[]
-Picker._build_find_cmd = function()
-  return search.build_find_cmd(".", nil, {
-    sort_by = Obsidian.opts.sort_by,
-    sort_reversed = Obsidian.opts.sort_reversed,
-    ignore_case = true,
-  })
-end
+local PickerName = require("obsidian.config").Picker
 
-Picker._build_grep_cmd = function()
-  local search_opts = {
-    sort_by = Obsidian.opts.sort_by,
-    sort_reversed = Obsidian.opts.sort_reversed,
-    smart_case = true,
-    fixed_strings = true,
-  }
-  return search.build_grep_cmd(search_opts)
+--- Get the default Picker.
+---
+---@param picker_name obsidian.config.Picker|?
+---
+---@return obsidian.Picker|?
+Picker.get = function(picker_name)
+  picker_name = picker_name and picker_name or Obsidian.opts.picker.name
+  if picker_name then
+    picker_name = string.lower(picker_name)
+  elseif picker_name == false then
+    return require("obsidian.pickers.picker").new()
+  else
+    for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do
+      local ok, res = pcall(Picker.get, name)
+      if ok then
+        return res
+      end
+    end
+    return require("obsidian.pickers.picker").new()
+  end
+
+  if picker_name == string.lower(PickerName.telescope) then
+    return require("obsidian.picker._telescope").new()
+  elseif picker_name == string.lower(PickerName.mini) then
+    return require("obsidian.picker._mini").new()
+  elseif picker_name == string.lower(PickerName.fzf_lua) then
+    return require("obsidian.picker._fzf").new()
+  elseif picker_name == string.lower(PickerName.snacks) then
+    return require("obsidian.picker._snacks").new()
+  elseif picker_name then
+    error("not implemented for " .. picker_name)
+  end
 end
 
 return Picker

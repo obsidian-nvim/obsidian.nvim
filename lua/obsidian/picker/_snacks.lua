@@ -1,8 +1,11 @@
 local snacks_picker = require "snacks.picker"
 
-local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
-local Picker = require "obsidian.pickers.picker"
+local obsidian = require "obsidian"
+
+local search = obsidian.search
+local Path = obsidian.path
+local abc = obsidian.abc
+local Picker = obsidian.Picker
 
 ---@param mapping table
 ---@return table
@@ -42,7 +45,7 @@ SnacksPicker.find_files = function(self, opts)
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
-  local args = self:_build_find_cmd()
+  local args = search.build_find_cmd()
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
@@ -75,7 +78,7 @@ SnacksPicker.grep = function(self, opts)
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
-  local args = self:_build_grep_cmd()
+  local args = search.build_grep_cmd()
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {

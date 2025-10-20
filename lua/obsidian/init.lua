@@ -1,50 +1,50 @@
 local log = require "obsidian.log"
 
-local obsidian = {}
+local M = {}
 
-obsidian.abc = require "obsidian.abc"
-obsidian.api = require "obsidian.api"
-obsidian.async = require "obsidian.async"
-obsidian.Client = require "obsidian.client"
-obsidian.commands = require "obsidian.commands"
-obsidian.completion = require "obsidian.completion"
-obsidian.config = require "obsidian.config"
-obsidian.log = require "obsidian.log"
-obsidian.img_paste = require "obsidian.img_paste"
-obsidian.Note = require "obsidian.note"
-obsidian.Path = require "obsidian.path"
-obsidian.pickers = require "obsidian.pickers"
-obsidian.search = require "obsidian.search"
-obsidian.templates = require "obsidian.templates"
-obsidian.ui = require "obsidian.ui"
-obsidian.util = require "obsidian.util"
-obsidian.VERSION = require "obsidian.version"
-obsidian.Workspace = require "obsidian.workspace"
-obsidian.yaml = require "obsidian.yaml"
+M.abc = require "obsidian.abc"
+M.api = require "obsidian.api"
+M.async = require "obsidian.async"
+M.Client = require "obsidian.client"
+M.commands = require "obsidian.commands"
+M.completion = require "obsidian.completion"
+M.config = require "obsidian.config"
+M.log = require "obsidian.log"
+M.img_paste = require "obsidian.img_paste"
+M.Note = require "obsidian.note"
+M.Path = require "obsidian.path"
+M.Picker = require "obsidian.picker"
+M.search = require "obsidian.search"
+M.templates = require "obsidian.templates"
+M.ui = require "obsidian.ui"
+M.util = require "obsidian.util"
+M.VERSION = require "obsidian.version"
+M.Workspace = require "obsidian.workspace"
+M.yaml = require "obsidian.yaml"
 
 ---@type obsidian.Client|?
-obsidian._client = nil
+M._client = nil
 
 --- TODO: remove in 4.0.0
 
 ---Get the current obsidian client.
 ---@return obsidian.Client
-obsidian.get_client = function()
-  if obsidian._client == nil then
+M.get_client = function()
+  if M._client == nil then
     error "Obsidian client has not been set! Did you forget to call 'setup()'?"
   else
-    return obsidian._client
+    return M._client
   end
 end
 
-obsidian.register_command = require("obsidian.commands").register
+M.register_command = require("obsidian.commands").register
 
 --- Setup a new Obsidian client. This should only be called once from an Nvim session.
 ---
 ---@param user_opts obsidian.config
 ---
 ---@return obsidian.Client
-obsidian.setup = function(user_opts)
+M.setup = function(user_opts)
   ---@class obsidian.state
   ---@field picker obsidian.Picker Picker to use.
   ---@field workspace obsidian.Workspace Current workspace.
@@ -55,30 +55,28 @@ obsidian.setup = function(user_opts)
   ---@field _opts obsidian.config.Internal User input options.
   Obsidian = {}
 
-  local opts = obsidian.config.normalize(user_opts)
+  local opts = M.config.normalize(user_opts)
 
   Obsidian._opts = opts
 
-  obsidian.Workspace.setup(opts.workspaces)
+  M.Workspace.setup(opts.workspaces)
 
-  local client = obsidian.Client.new() -- TODO: remove in 4.0.0
+  local client = M.Client.new() -- TODO: remove in 4.0.0
 
   log.set_level(Obsidian.opts.log_level)
 
-  obsidian.commands.install()
+  M.commands.install()
 
   -- Setup UI add-ons.
-  local has_no_renderer = not (
-    obsidian.api.get_plugin_info "render-markdown.nvim" or obsidian.api.get_plugin_info "markview.nvim"
-  )
+  local has_no_renderer = not (M.api.get_plugin_info "render-markdown.nvim" or M.api.get_plugin_info "markview.nvim")
   if has_no_renderer and Obsidian.opts.ui.enable then
     require("obsidian.ui").setup(Obsidian.workspace, Obsidian.opts.ui)
   end
 
-  Obsidian.picker = require("obsidian.pickers").get(Obsidian.opts.picker.name)
+  Obsidian.picker = M.Picker.get(Obsidian.opts.picker.name)
 
   if opts.legacy_commands then
-    obsidian.commands.install_legacy()
+    M.commands.install_legacy()
   end
 
   --- TODO: remove in 4.0.0
@@ -101,11 +99,11 @@ obsidian.setup = function(user_opts)
   require "obsidian.autocmds"
 
   -- Set global client.
-  obsidian._client = client
+  M._client = client
 
-  obsidian.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup)
+  M.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup)
 
   return client
 end
 
-return obsidian
+return M

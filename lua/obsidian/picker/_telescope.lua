@@ -2,10 +2,12 @@ local telescope = require "telescope.builtin"
 local telescope_actions = require "telescope.actions"
 local actions_state = require "telescope.actions.state"
 
-local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
-local Picker = require "obsidian.pickers.picker"
-local log = require "obsidian.log"
+local obsidian = require "obsidian"
+local search = obsidian.search
+local Path = obsidian.path
+local abc = obsidian.abc
+local log = obsidian.log
+local Picker = obsidian.Picker
 
 ---@class obsidian.pickers.TelescopePicker : obsidian.Picker
 local TelescopePicker = abc.new_class({
@@ -138,7 +140,7 @@ TelescopePicker.find_files = function(self, opts)
     default_text = opts.query,
     prompt_title = prompt_title,
     cwd = opts.dir and tostring(opts.dir) or tostring(Obsidian.dir),
-    find_command = self:_build_find_cmd(),
+    find_command = search.build_find_cmd(),
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
         callback = function(entry)
@@ -180,7 +182,7 @@ TelescopePicker.grep = function(self, opts)
     telescope.grep_string {
       prompt_title = prompt_title,
       cwd = tostring(cwd),
-      vimgrep_arguments = self:_build_grep_cmd(),
+      vimgrep_arguments = search.build_grep_cmd(),
       search = opts.query,
       attach_mappings = attach_mappings,
     }
@@ -188,7 +190,7 @@ TelescopePicker.grep = function(self, opts)
     telescope.live_grep {
       prompt_title = prompt_title,
       cwd = tostring(cwd),
-      vimgrep_arguments = self:_build_grep_cmd(),
+      vimgrep_arguments = search.build_grep_cmd(),
       attach_mappings = attach_mappings,
     }
   end
