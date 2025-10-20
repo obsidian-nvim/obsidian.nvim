@@ -4,6 +4,7 @@ local api = require "obsidian.api"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
+local search = require "obsidian.search"
 
 ---@class obsidian.Picker : obsidian.ABC
 ---
@@ -52,9 +53,62 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
-Picker.find_files = function(_, opts)
-  _ = opts
-  error "not implemented"
+Picker.find_files = function(self, opts)
+  opts = opts or {}
+
+  local query
+  if opts.query and vim.trim(opts.query) ~= "" then
+    query = opts.query
+  else
+    query = api.input(opts.prompt_title .. ": ") -- TODO:
+  end
+
+  if not query then
+    return
+  end
+
+  local paths = {}
+
+  search.find_async(
+    opts.dir,
+    query,
+    {},
+    function(path)
+      paths[#paths + 1] = path
+    end,
+    vim.schedule_wrap(function()
+      if vim.tbl_isempty(paths) then
+        return log.info "Failed to Switch" -- TODO:
+      elseif #paths == 1 then
+        return api.open_buffer(paths[1])
+      elseif #paths > 1 then
+        ---@type vim.quickfix.entry
+        local items = {}
+        for _, path in ipairs(paths) do
+          items[#items + 1] = {
+            filename = path,
+            lnum = 1,
+            col = 0,
+            text = self:_make_display {
+              filename = path,
+            },
+          }
+        end
+        if opts.callback then
+          vim.ui.select(items, {
+            format_item = function(item)
+              return item.text
+            end,
+          }, function(item)
+            opts.callback(item.filename)
+          end)
+        else
+          vim.fn.setqflist(items)
+          vim.cmd "copen"
+        end
+      end
+    end)
+  )
 end
 
 ---@class obsidian.PickerGrepOpts
@@ -81,8 +135,57 @@ end
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
 Picker.grep = function(_, opts)
-  _ = opts
-  error "not implemented"
+  opts = opts or {}
+
+  ---@param match MatchData
+  ---@return vim.quickfix.entry
+  local function match_data_to_qfitem(match)
+    local filename = match.path.text
+    return {
+      filename = filename,
+      lnum = match.line_number,
+      col = match.submatches[1].start + 1,
+      text = match.lines.text,
+    }
+  end
+
+  local query
+  if opts.query and vim.trim(opts.query) ~= "" then
+    query = opts.query
+  else
+    query = api.input(opts.prompt_title .. ": ") -- TODO:
+  end
+
+  if not query then
+    return
+  end
+
+  local items = {}
+
+  search.search_async(
+    opts.dir,
+    query,
+    {},
+    function(match)
+      items[#items + 1] = match_data_to_qfitem(match)
+    end,
+    vim.schedule_wrap(function(code)
+      assert(code == 0, "failed to run ripgrep")
+
+      if vim.tbl_isempty(items) then
+        return log.info "Failed to Grep"
+      elseif #items == 1 then
+        local item = items[1]
+        return api.open_buffer(item.filename, {
+          line = item.lnum,
+          col = item.col,
+        })
+      else
+        vim.fn.setqflist(items)
+        vim.cmd "copen"
+      end
+    end)
+  )
 end
 
 ---@class obsidian.PickerEntry
@@ -118,9 +221,18 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
-Picker.pick = function(_, values, opts)
-  _, _ = values, opts
-  error "not implemented"
+Picker.pick = function(self, values, opts)
+  opts = opts or {}
+  vim.ui.select(values, {
+    prompt = opts.prompt_title,
+    format_item = opts.format_item or function(value)
+      return self:_make_display(value)
+    end,
+  }, function(item)
+    if opts.callback then
+      opts.callback(item)
+    end
+  end)
 end
 
 ------------------------------------------------------------------
@@ -151,7 +263,7 @@ Picker.find_notes = function(self, opts)
     query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
     dir = Obsidian.dir,
-    callback = opts.callback or api.open_buffer,
+    callback = opts.callback, -- TODO: breaks picker plugin integration?
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
@@ -450,26 +562,40 @@ Picker._make_display = function(_, entry)
   return table.concat(buf, ""), highlights
 end
 
----@return string[]
-Picker._build_find_cmd = function()
-  local search = require "obsidian.search"
+local PickerName = require("obsidian.config").Picker
 
-  return search.build_find_cmd(".", nil, {
-    sort_by = Obsidian.opts.sort_by,
-    sort_reversed = Obsidian.opts.sort_reversed,
-    ignore_case = true,
-  })
-end
+--- Get the default Picker.
+---
+---@param picker_name obsidian.config.Picker|?
+---
+---@return obsidian.Picker|?
+Picker.get = function(picker_name)
+  picker_name = picker_name and picker_name or Obsidian.opts.picker.name
+  if picker_name then
+    picker_name = string.lower(picker_name)
+  elseif picker_name == false then
+    return Picker.new()
+  else
+    for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do
+      local ok, res = pcall(Picker.get, name)
+      if ok then
+        return res
+      end
+    end
+    return Picker.new()
+  end
 
-Picker._build_grep_cmd = function()
-  local search = require "obsidian.search"
-  local search_opts = {
-    sort_by = Obsidian.opts.sort_by,
-    sort_reversed = Obsidian.opts.sort_reversed,
-    smart_case = true,
-    fixed_strings = true,
-  }
-  return search.build_grep_cmd(search_opts)
+  if picker_name == string.lower(PickerName.telescope) then
+    return require("obsidian.picker._telescope").new()
+  elseif picker_name == string.lower(PickerName.mini) then
+    return require("obsidian.picker._mini").new()
+  elseif picker_name == string.lower(PickerName.fzf_lua) then
+    return require("obsidian.picker._fzf").new()
+  elseif picker_name == string.lower(PickerName.snacks) then
+    return require("obsidian.picker._snacks").new()
+  elseif picker_name then
+    error("not implemented for " .. picker_name)
+  end
 end
 
 return Picker

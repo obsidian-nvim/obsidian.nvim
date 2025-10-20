@@ -400,6 +400,11 @@ end
 ---@return string[]
 M.build_find_cmd = function(path, term, opts)
   opts = opts and opts or {}
+  opts = vim.tbl_extend("keep", opts, {
+    sort_by = Obsidian.opts.sort_by,
+    sort_reversed = Obsidian.opts.sort_reversed,
+    ignore_case = true,
+  })
 
   local additional_opts = {}
 
@@ -436,6 +441,13 @@ end
 ---@return string[]
 M.build_grep_cmd = function(opts)
   opts = opts and opts or {}
+
+  opts = vim.tbl_extend("keep", opts, {
+    sort_by = Obsidian.opts.sort_by,
+    sort_reversed = Obsidian.opts.sort_reversed,
+    smart_case = true,
+    fixed_strings = true,
+  })
 
   return compat.flatten {
     M._BASE_CMD,

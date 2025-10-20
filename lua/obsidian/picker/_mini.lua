@@ -1,8 +1,9 @@
 local mini_pick = require "mini.pick"
-
-local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
-local Picker = require "obsidian.pickers.picker"
+local obsidian = require "obsidian"
+local search = obsidian.search
+local Path = obsidian.path
+local abc = obsidian.abc
+local Picker = obsidian.Picker
 
 ---@param entry string
 ---@return string, integer?, integer?
@@ -19,19 +20,21 @@ local MiniPicker = abc.new_class({
 }, Picker)
 
 ---@param opts obsidian.PickerFindOpts|? Options.
-MiniPicker.find_files = function(self, opts)
+MiniPicker.find_files = function(_, opts)
   opts = opts or {}
+  opts.callback = opts.callback or obsidian.api.open_buffer
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   local path = mini_pick.builtin.cli({
-    command = self:_build_find_cmd(),
+    command = search.build_find_cmd(),
   }, {
     source = {
       name = opts.prompt_title,
       cwd = tostring(dir),
       choose = function(chosen_path)
+        -- TODO: use opts.callback
         if not opts.no_default_mappings then
           mini_pick.default_choose(chosen_path)
         end
