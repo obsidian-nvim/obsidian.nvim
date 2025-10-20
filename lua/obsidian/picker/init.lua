@@ -94,8 +94,20 @@ Picker.find_files = function(self, opts)
             },
           }
         end
-        vim.fn.setqflist(items)
-        vim.cmd "copen"
+        if opts.select then
+          vim.ui.select(items, {
+            format_item = function(item)
+              return item.text
+            end,
+          }, function(item, idx)
+            if opts.callback then
+              opts.callback(item.filename)
+            end
+          end)
+        else
+          vim.fn.setqflist(items)
+          vim.cmd "copen"
+        end
       end
     end)
   )
@@ -250,6 +262,7 @@ Picker.find_notes = function(self, opts)
   end
 
   return self:find_files {
+    select = opts.select, -- TODO:
     query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
     dir = Obsidian.dir,
