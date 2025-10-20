@@ -124,8 +124,9 @@ local function get_value_actions(display_to_value_map, opts)
 end
 
 ---@param opts obsidian.PickerFindOpts|? Options.
-FzfPicker.find_files = function(self, opts)
+FzfPicker.find_files = function(_, opts)
   opts = opts or {}
+  opts.callback = opts.callback or obsidian.api.open_buffer
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -144,7 +145,7 @@ FzfPicker.find_files = function(self, opts)
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
-FzfPicker.grep = function(self, opts)
+FzfPicker.grep = function(_, opts)
   opts = opts and opts or {}
 
   ---@type obsidian.Path

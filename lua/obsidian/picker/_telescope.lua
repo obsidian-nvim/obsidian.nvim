@@ -129,6 +129,7 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 TelescopePicker.find_files = function(self, opts)
   opts = opts or {}
+  opts.callback = opts.callback or obsidian.api.open_buffer
 
   local prompt_title = self:_build_prompt {
     prompt_title = opts.prompt_title,
@@ -144,9 +145,7 @@ TelescopePicker.find_files = function(self, opts)
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
         callback = function(entry)
-          if opts.callback then
-            opts.callback(entry.filename)
-          end
+          opts.callback(entry.filename)
         end,
         query_mappings = opts.query_mappings,
         selection_mappings = opts.selection_mappings,
