@@ -43,7 +43,6 @@ return function(data)
   picker:find_notes {
     prompt_title = "Select note to link",
     query = query,
-    select = true, -- HACK:
     callback = function(path)
       local note = Note.from_file(path)
       vim.schedule(function()

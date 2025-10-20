@@ -37,8 +37,9 @@ local SnacksPicker = abc.new_class({
 }, Picker)
 
 ---@param opts obsidian.PickerFindOpts|? Options.
-SnacksPicker.find_files = function(self, opts)
+SnacksPicker.find_files = function(_, opts)
   opts = opts or {}
+  opts.callback = opts.callback or obsidian.api.open_buffer
 
   ---@type obsidian.Path
   local dir = opts.dir.filename and Path.new(opts.dir.filename) or Obsidian.dir
@@ -55,14 +56,10 @@ SnacksPicker.find_files = function(self, opts)
     cwd = tostring(dir),
     cmd = cmd,
     args = args,
-    confirm = function(picker, item, action)
+    confirm = function(picker, item)
       picker:close()
       if item then
-        if opts.callback then
-          opts.callback(item._path)
-        else
-          snacks_picker.actions.jump(picker, item, action)
-        end
+        opts.callback(item._path)
       end
     end,
   })
@@ -70,7 +67,7 @@ SnacksPicker.find_files = function(self, opts)
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
-SnacksPicker.grep = function(self, opts)
+SnacksPicker.grep = function(_, opts)
   opts = opts or {}
 
   ---@type obsidian.Path

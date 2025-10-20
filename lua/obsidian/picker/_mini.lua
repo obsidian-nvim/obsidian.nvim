@@ -20,8 +20,9 @@ local MiniPicker = abc.new_class({
 }, Picker)
 
 ---@param opts obsidian.PickerFindOpts|? Options.
-MiniPicker.find_files = function(self, opts)
+MiniPicker.find_files = function(_, opts)
   opts = opts or {}
+  opts.callback = opts.callback or obsidian.api.open_buffer
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -33,6 +34,7 @@ MiniPicker.find_files = function(self, opts)
       name = opts.prompt_title,
       cwd = tostring(dir),
       choose = function(chosen_path)
+        -- TODO: use opts.callback
         if not opts.no_default_mappings then
           mini_pick.default_choose(chosen_path)
         end
