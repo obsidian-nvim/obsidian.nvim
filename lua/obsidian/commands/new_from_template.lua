@@ -26,11 +26,23 @@ return function(data)
     return
   end
 
-  picker:find_files {
+  local paths = vim
+    .iter(vim.fs.dir(tostring(templates_dir)))
+    :map(function(fname)
+      -- return tostring(templates_dir / fname)
+      return {
+        filename = tostring(templates_dir / fname),
+        value = templates_dir / fname,
+        display = fname,
+      }
+    end)
+    :totable()
+
+  picker:pick(paths, {
     prompt_title = "Templates",
-    dir = templates_dir,
-    no_default_mappings = true,
-    callback = function(template_name)
+    callback = function(entry)
+      local template_name = entry.filename
+
       if title == nil or title == "" then
         -- Must use pcall in case of KeyboardInterrupt
         -- We cannot place `title` where `safe_title` is because it would be redeclaring it
@@ -53,5 +65,5 @@ return function(data)
       local note = Note.create { title = title, template = template_name, should_write = true }
       note:open { sync = false }
     end,
-  }
+  })
 end
