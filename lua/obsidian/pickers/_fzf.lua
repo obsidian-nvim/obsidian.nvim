@@ -28,8 +28,7 @@ end
 
 ---@class obsidian.pickers.FzfPicker : obsidian.Picker
 local FzfPicker = abc.new_class({
-  ---@diagnostic disable-next-line: unused-local
-  __tostring = function(self)
+  __tostring = function()
     return "FzfPicker()"
   end,
 }, Picker)
@@ -130,6 +129,7 @@ FzfPicker.find_files = function(self, opts)
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   fzf.files {
+    query = opts.query,
     cwd = tostring(dir),
     cmd = table.concat(self:_build_find_cmd(), " "),
     actions = get_path_actions {
@@ -146,7 +146,7 @@ FzfPicker.grep = function(self, opts)
   opts = opts and opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path:new(opts.dir) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local cmd = table.concat(self:_build_grep_cmd(), " ")
   local actions = get_path_actions {
     -- TODO: callback for the full object
@@ -191,7 +191,7 @@ FzfPicker.pick = function(self, values, opts)
       display = value
       value = { value = value }
     else
-      display = self:_make_display(value)
+      display = opts.format_item and opts.format_item(value) or self:_make_display(value)
     end
     if value.valid ~= false then
       display_to_value_map[display] = value

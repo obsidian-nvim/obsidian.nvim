@@ -56,9 +56,9 @@ end
 T["is_checkbox"]["should return false for non-checkbox list items"] = function()
   eq(false, M.is_checkbox "- Task 1")
   eq(false, M.is_checkbox "-- Task 1")
-  eq(false, M.is_checkbox "-- [ ] Task 1")
+  eq(true, M.is_checkbox "-- [ ] Task 1") -- TODO: bit shaky for now, but allows toggling in block quotes.
   eq(false, M.is_checkbox "* Task 2")
-  eq(false, M.is_checkbox "++ [ ] Task 2")
+  eq(true, M.is_checkbox "++ [ ] Task 2")
   eq(false, M.is_checkbox "1. Task 3")
   eq(false, M.is_checkbox "1.1 Task 3")
   eq(false, M.is_checkbox "1.1 [ ] Task 3")
@@ -213,6 +213,18 @@ end
 
 T["parse"]["header"]["should strip white space at the end"] = function()
   eq({ header = "Hello World", level = 2, anchor = "#hello-world" }, M.parse_header "## Hello World ")
+end
+
+T["parse"]["link"] = new_set()
+
+T["parse"]["link"]["should parse link"] = function()
+  local location = M.parse_link "[[hi#^block]]"
+  eq(location, "hi#^block")
+end
+
+T["parse"]["link"]["should strip if specified"] = function()
+  local location = M.parse_link("[[hi#^block]]", { strip = true })
+  eq(location, "hi")
 end
 
 T["strip"] = new_set()

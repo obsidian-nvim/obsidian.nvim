@@ -30,9 +30,6 @@ You can do this by adding a `.luarc.json` configuration file that looks like thi
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
-  "workspace.library": [
-    "~/.local/share/nvim/lazy/plenary.nvim/"
-  ],
   "runtime.version": "Lua 5.1"
 }
 ```
@@ -60,8 +57,8 @@ Once you have StyLua installed, you can run `make style` to automatically apply 
 
 TL;DR: `make lint`
 
-We use [luacheck](https://github.com/mpeterv/luacheck) to lint the Lua code.
-Once you have `luacheck` installed, you can run `make lint` to get a report.
+We use [selene](https://github.com/Kampfkarren/selene) to lint the Lua code and [typos](https://github.com/crate-ci/typos) to catch typos.
+Once you have `selene` and `typos` installed, you can run `make lint` to get a report.
 
 ### Checking types
 

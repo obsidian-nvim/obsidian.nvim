@@ -349,6 +349,42 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "e-mar404",
+      "name": "Emilio Marin",
+      "avatar_url": "https://avatars.githubusercontent.com/u/98435584?v=4",
+      "profile": "https://eportfolio.dev",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "antigluten",
+      "name": "Vladimir Gusev",
+      "avatar_url": "https://avatars.githubusercontent.com/u/53124465?v=4",
+      "profile": "https://github.com/antigluten",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "FirelightFlagboy",
+      "name": "FirelightFlagboy",
+      "avatar_url": "https://avatars.githubusercontent.com/u/30697622?v=4",
+      "profile": "https://github.com/FirelightFlagboy",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "cameronr",
+      "name": "Cameron Ring",
+      "avatar_url": "https://avatars.githubusercontent.com/u/38429?v=4",
+      "profile": "https://github.com/cameronr",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }

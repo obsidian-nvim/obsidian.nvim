@@ -10,11 +10,11 @@ M.providers = {
   { name = "obsidian_tags", module = "obsidian.completion.sources.blink.tags" },
 }
 
-local function add_provider(blink, provider_name, proivder_module)
+local function add_provider(blink, provider_name, provider_module)
   local add_source_provider = blink.add_source_provider or blink.add_provider
   add_source_provider(provider_name, {
     name = provider_name,
-    module = proivder_module,
+    module = provider_module,
     async = true,
     opts = {},
     enabled = function()
@@ -46,16 +46,21 @@ local function add_element_to_list_if_not_exists(list, element)
   end
 end
 
+-- find workspaces of a path
+---@param path string
+---@return obsidian.Workspace
+local function find_workspace(path)
+  return vim.iter(Obsidian.workspaces):find(function(ws)
+    return obsidian.api.path_is_note(path, ws)
+  end)
+end
+
 local function should_return_if_not_in_workspace()
   local current_file_path = vim.api.nvim_buf_get_name(0)
   local buf_dir = vim.fs.dirname(current_file_path)
 
-  local workspace = obsidian.Workspace.get_workspace_for_dir(buf_dir, Obsidian.opts.workspaces)
-  if not workspace then
-    return true
-  else
-    return false
-  end
+  local workspace = find_workspace(buf_dir)
+  return workspace ~= nil
 end
 
 local function log_unexpected_type(config_path, unexpected_type, expected_type)
@@ -167,8 +172,7 @@ end
 --
 -- In-case the user used functions to configure their sources, the completion will properly work just for the markdown
 -- files that are in a workspace. Otherwise, the completion will work for all markdown files.
----@param opts obsidian.config.ClientOpts
-function M.inject_sources(opts)
+function M.inject_sources()
   if M.injected_once then
     return
   end

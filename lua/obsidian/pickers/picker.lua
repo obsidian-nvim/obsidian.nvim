@@ -36,6 +36,7 @@ end
 ---@field dir string|obsidian.Path|?
 ---@field callback fun(path: string)|?
 ---@field no_default_mappings boolean|?
+---@field query string|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field use_cache boolean|?
@@ -52,8 +53,8 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
----@diagnostic disable-next-line: unused-local
-Picker.find_files = function(self, opts)
+Picker.find_files = function(_, opts)
+  _ = opts
   error "not implemented"
 end
 
@@ -80,8 +81,8 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
----@diagnostic disable-next-line: unused-local
-Picker.grep = function(self, opts)
+Picker.grep = function(_, opts)
+  _ = opts
   error "not implemented"
 end
 
@@ -104,6 +105,7 @@ end
 ---@field allow_multiple boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
+---@field format_item (fun(value: obsidian.PickerEntry): string)|?
 
 --- Pick from a list of items.
 ---
@@ -117,8 +119,8 @@ end
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
----@diagnostic disable-next-line: unused-local
-Picker.pick = function(self, values, opts)
+Picker.pick = function(_, values, opts)
+  _, _ = values, opts
   error "not implemented"
 end
 
@@ -128,7 +130,7 @@ end
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|?, use_cache :boolean|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|?, use_cache :boolean|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -147,6 +149,7 @@ Picker.find_notes = function(self, opts)
   end
 
   return self:find_files {
+    query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
     dir = Obsidian.dir,
     callback = opts.callback or api.open_buffer,
@@ -217,7 +220,7 @@ Picker.pick_note = function(self, notes, opts)
   ---@type obsidian.PickerEntry[]
   local entries = {}
   for _, note in ipairs(notes) do
-    assert(note.path)
+    assert(note.path, "note has no path")
     local rel_path = assert(note.path:vault_relative_path { strict = true })
     local display_name = note:display_name()
     entries[#entries + 1] = {
@@ -230,7 +233,9 @@ Picker.pick_note = function(self, notes, opts)
 
   self:pick(entries, {
     prompt_title = opts.prompt_title or "Notes",
-    callback = opts.callback,
+    callback = function(v)
+      opts.callback(v.value)
+    end,
     allow_multiple = opts.allow_multiple,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
@@ -254,7 +259,7 @@ end
 
 --- Get query mappings to use for `find_notes()` or `grep_notes()`.
 ---@return obsidian.PickerMappingTable
-Picker._note_query_mappings = function(self)
+Picker._note_query_mappings = function()
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
@@ -263,7 +268,7 @@ Picker._note_query_mappings = function(self)
       desc = "new",
       callback = function(query)
         ---@diagnostic disable-next-line: missing-fields
-        require "obsidian.commands.new"(require("obsidian").get_client(), { args = query })
+        require "obsidian.commands.new" { args = query }
       end,
     }
   end
@@ -273,7 +278,7 @@ end
 
 --- Get selection mappings to use for `find_notes()` or `grep_notes()`.
 ---@return obsidian.PickerMappingTable
-Picker._note_selection_mappings = function(self)
+Picker._note_selection_mappings = function()
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
@@ -288,7 +293,7 @@ Picker._note_selection_mappings = function(self)
         else
           note = Note.from_file(note_or_path)
         end
-        local link = api.format_link(note, {})
+        local link = note:format_link()
         vim.api.nvim_put({ link }, "", false, true)
         require("obsidian.ui").update(0)
       end,
@@ -309,7 +314,9 @@ Picker._tag_selection_mappings = function(self)
       mappings[Obsidian.opts.picker.tag_mappings.tag_note] = {
         desc = "tag note",
         callback = function(...)
-          local tags = { ... }
+          local tags = vim.tbl_map(function(value)
+            return value.value
+          end, { ... })
 
           local note = api.current_note(self.calling_bufnr)
           if not note then
@@ -349,7 +356,8 @@ Picker._tag_selection_mappings = function(self)
     if key_is_set(Obsidian.opts.picker.tag_mappings.insert_tag) then
       mappings[Obsidian.opts.picker.tag_mappings.insert_tag] = {
         desc = "insert tag",
-        callback = function(tag)
+        callback = function(item)
+          local tag = item.value
           vim.api.nvim_put({ "#" .. tag }, "", false, true)
         end,
         fallback_to_query = true,
@@ -362,8 +370,7 @@ end
 
 ---@param opts { prompt_title: string, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
 ---@return string
----@diagnostic disable-next-line: unused-local
-Picker._build_prompt = function(self, opts)
+Picker._build_prompt = function(_, opts)
   opts = opts or {}
 
   ---@type string
@@ -398,8 +405,7 @@ end
 ---@param entry obsidian.PickerEntry
 ---
 ---@return string, { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
----@diagnostic disable-next-line: unused-local
-Picker._make_display = function(self, entry)
+Picker._make_display = function(_, entry)
   local buf = {}
   ---@type { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
   local highlights = {}
@@ -447,13 +453,17 @@ Picker._make_display = function(self, entry)
 end
 
 ---@return string[]
-Picker._build_find_cmd = function(self)
+Picker._build_find_cmd = function()
   local search = require "obsidian.search"
-  local search_opts = { sort_by = Obsidian.opts.sort_by, sort_reversed = Obsidian.opts.sort_reversed }
-  return search.build_find_cmd(".", nil, search_opts)
+
+  return search.build_find_cmd(".", nil, {
+    sort_by = Obsidian.opts.sort_by,
+    sort_reversed = Obsidian.opts.sort_reversed,
+    ignore_case = true,
+  })
 end
 
-Picker._build_grep_cmd = function(self)
+Picker._build_grep_cmd = function()
   local search = require "obsidian.search"
   local search_opts = {
     sort_by = Obsidian.opts.sort_by,

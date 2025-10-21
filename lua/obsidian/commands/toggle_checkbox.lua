@@ -1,7 +1,7 @@
 local toggle_checkbox = require("obsidian.api").toggle_checkbox
 
----@param data CommandArgs
-return function(_, data)
+---@param data obsidian.CommandArgs
+return function(data)
   local start_line, end_line
   local checkboxes = Obsidian.opts.checkbox.order
   start_line = data.line1

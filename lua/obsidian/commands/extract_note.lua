@@ -5,8 +5,8 @@ local Note = require "obsidian.note"
 ---Extract the selected text into a new note
 ---and replace the selection with a link to the new note.
 ---
----@param data CommandArgs
-return function(_, data)
+---@param data obsidian.CommandArgs
+return function(data)
   local viz = api.get_visual_selection()
   if not viz then
     log.err "Obsidian extract_note must be called with visual selection"
@@ -33,7 +33,7 @@ return function(_, data)
   local note = Note.create { title = title }
 
   -- replace selection with link to new note
-  local link = api.format_link(note)
+  local link = note:format_link()
   vim.api.nvim_buf_set_text(0, viz.csrow - 1, viz.cscol - 1, viz.cerow - 1, viz.cecol, { link })
 
   require("obsidian.ui").update(0)

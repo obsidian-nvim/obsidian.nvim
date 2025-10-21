@@ -47,15 +47,15 @@ local M = setmetatable({
 ---@class obsidian.CommandConfigLegacy
 ---@field opts table
 ---@field complete function|?
----@field func function|? (obsidian.Client, table) -> nil
+---@field func function|? (table) -> nil
 
 ---Register a new command.
 ---@param name string
 ---@param config obsidian.CommandConfigLegacy
 M.register = function(name, config)
   if not config.func then
-    config.func = function(client, data)
-      return M[name](client, data)
+    config.func = function(data)
+      return M[name](data)
     end
   end
   M.commands[name] = config
@@ -63,16 +63,15 @@ end
 
 ---Install all commands.
 ---
----@param client obsidian.Client
-M.install = function(client)
+M.install = function()
   for command_name, command_config in pairs(M.commands) do
     local func = function(data)
-      command_config.func(client, data)
+      command_config.func(data)
     end
 
     if command_config.complete ~= nil then
       command_config.opts.complete = function(arg_lead, cmd_line, cursor_pos)
-        return command_config.complete(client, arg_lead, cmd_line, cursor_pos)
+        return command_config.complete(arg_lead, cmd_line, cursor_pos)
       end
     end
 
@@ -80,9 +79,8 @@ M.install = function(client)
   end
 end
 
----@param client obsidian.Client
 ---@return string[]
-M.complete_args_search = function(client, _, cmd_line, _)
+M.complete_args_search = function(_, cmd_line, _)
   local query
   local cmd_arg, _ = util.lstrip_whitespace(string.gsub(cmd_line, "^.*Obsidian[A-Za-z0-9]+", ""))
   if string.len(cmd_arg) > 0 then
@@ -95,7 +93,7 @@ M.complete_args_search = function(client, _, cmd_line, _)
     local _, csrow, cscol, _ = unpack(assert(vim.fn.getpos "'<"))
     local _, cerow, cecol, _ = unpack(assert(vim.fn.getpos "'>"))
     local lines = vim.fn.getline(csrow, cerow)
-    assert(type(lines) == "table")
+    assert(type(lines) == "table", "")
 
     if #lines > 1 then
       lines[1] = string.sub(lines[1], cscol)

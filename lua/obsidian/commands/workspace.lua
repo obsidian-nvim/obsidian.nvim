@@ -1,7 +1,7 @@
 local Workspace = require "obsidian.workspace"
 
----@param data CommandArgs
-return function(_, data)
+---@param data obsidian.CommandArgs
+return function(data)
   if not data.args or string.len(data.args) == 0 then
     local picker = Obsidian.picker
     if picker then
@@ -16,7 +16,7 @@ return function(_, data)
       picker:pick(options, {
         prompt_title = "Obsidian Workspace",
         callback = function(entry)
-          Workspace.switch(entry.value.name, { lock = true })
+          Workspace.set(entry.value.name)
         end,
       })
     else
@@ -27,10 +27,10 @@ return function(_, data)
         if not ws then
           return
         end
-        Workspace.switch(ws.name, { lock = true })
+        Workspace.set(ws.name)
       end)
     end
   else
-    Workspace.switch(data.args, { lock = true })
+    Workspace.set(data.args)
   end
 end

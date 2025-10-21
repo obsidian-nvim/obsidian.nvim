@@ -29,13 +29,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: 2.1.0
           args: --check .
-  # test_windows:
-  #   name: Test (Windows)
-  #   runs-on: windows-latest
-  #   timeout-minutes: 20
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
   checks:
     name: ${{ matrix.task.name }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -48,13 +41,6 @@ jobs:
           - name: Test
             run: |
               make test
-
-          - name: Lint
-            prepare: |
-              sudo luarocks install luacheck
-            run: |
-              make lint
-
           - name: Types
             run: |
               make types
@@ -62,7 +48,7 @@ jobs:
         include:
           - os: ubuntu-latest
             nvim_url: https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz
-            packages: luarocks ripgrep
+            packages: ripgrep
             manager: sudo apt-get
 
           - os: windows-latest

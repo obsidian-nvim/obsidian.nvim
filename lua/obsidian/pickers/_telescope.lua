@@ -10,8 +10,7 @@ local log = require "obsidian.log"
 
 ---@class obsidian.pickers.TelescopePicker : obsidian.Picker
 local TelescopePicker = abc.new_class({
-  ---@diagnostic disable-next-line: unused-local
-  __tostring = function(self)
+  __tostring = function()
     return "TelescopePicker()"
   end,
 }, Picker)
@@ -217,10 +216,10 @@ TelescopePicker.find_files = function(self, opts)
   }
 
   if opts.use_cache then
-    ---@diagnostic disable-next-line: undefined-field
     create_cache_picker(self, prompt_title, opts):find()
   else
     telescope.find_files {
+      default_text = opts.query,
       prompt_title = prompt_title,
       cwd = opts.dir and tostring(opts.dir) or tostring(Obsidian.dir),
       find_command = self:_build_find_cmd(),
@@ -244,7 +243,7 @@ end
 TelescopePicker.grep = function(self, opts)
   opts = opts or {}
 
-  local cwd = opts.dir and Path:new(opts.dir) or Obsidian.dir
+  local cwd = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   local prompt_title = self:_build_prompt {
     prompt_title = opts.prompt_title,
@@ -295,7 +294,6 @@ TelescopePicker.pick = function(self, values, opts)
   local picker_opts = {
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
-        entry_key = "value",
         callback = opts.callback,
         allow_multiple = opts.allow_multiple,
         query_mappings = opts.query_mappings,
@@ -306,7 +304,7 @@ TelescopePicker.pick = function(self, values, opts)
   }
 
   local displayer = function(entry)
-    return self:_make_display(entry.raw)
+    return opts.format_item and opts.format_item(entry.raw) or self:_make_display(entry.raw)
   end
 
   local prompt_title = self:_build_prompt {

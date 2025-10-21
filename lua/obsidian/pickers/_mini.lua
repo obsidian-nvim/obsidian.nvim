@@ -13,8 +13,7 @@ end
 
 ---@class obsidian.pickers.MiniPicker : obsidian.Picker
 local MiniPicker = abc.new_class({
-  ---@diagnostic disable-next-line: unused-local
-  __tostring = function(self)
+  __tostring = function()
     return "MiniPicker()"
   end,
 }, Picker)
@@ -24,7 +23,7 @@ MiniPicker.find_files = function(self, opts)
   opts = opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path:new(opts.dir) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   local path = mini_pick.builtin.cli({
     command = self:_build_find_cmd(),
@@ -32,9 +31,9 @@ MiniPicker.find_files = function(self, opts)
     source = {
       name = opts.prompt_title,
       cwd = tostring(dir),
-      choose = function(path)
+      choose = function(chosen_path)
         if not opts.no_default_mappings then
-          mini_pick.default_choose(path)
+          mini_pick.default_choose(chosen_path)
         end
       end,
     },
@@ -46,11 +45,11 @@ MiniPicker.find_files = function(self, opts)
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
-MiniPicker.grep = function(self, opts)
+MiniPicker.grep = function(_, opts)
   opts = opts and opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path:new(opts.dir) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   local pick_opts = {
     source = {
@@ -97,7 +96,7 @@ MiniPicker.pick = function(self, values, opts)
       display = value
       value = { value = value }
     else
-      display = self:_make_display(value)
+      display = opts.format_item and opts.format_item(value) or self:_make_display(value)
     end
     if value.valid ~= false then
       entries[#entries + 1] = {

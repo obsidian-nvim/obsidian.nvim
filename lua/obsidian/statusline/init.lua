@@ -20,7 +20,7 @@ M.start = function()
     search.find_backlinks_async(
       note,
       vim.schedule_wrap(function(backlinks)
-        local format = assert(Obsidian.opts.statusline.format)
+        local format = assert(Obsidian.opts.statusline.format, "")
         local wc = vim.fn.wordcount()
         local info = {
           words = wc.words,

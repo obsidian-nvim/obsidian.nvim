@@ -13,8 +13,8 @@ local function parse_offset(arg)
   end
 end
 
----@param data CommandArgs
-return function(_, data)
+---@param data obsidian.CommandArgs
+return function(data)
   local offset_start = -5
   local offset_end = 0
 

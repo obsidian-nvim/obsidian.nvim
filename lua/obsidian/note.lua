@@ -1,3 +1,13 @@
+--- *obsidian-api*
+---
+--- The Obsidian.nvim Lua API.
+---
+--- ==============================================================================
+---
+--- Table of contents
+---
+---@toc
+
 local Path = require "obsidian.path"
 local abc = require "obsidian.abc"
 local yaml = require "obsidian.yaml"
@@ -8,6 +18,7 @@ local iter = vim.iter
 local compat = require "obsidian.compat"
 local api = require "obsidian.api"
 local config = require "obsidian.config"
+local Frontmatter = require "obsidian.frontmatter"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
@@ -15,65 +26,7 @@ local DEFAULT_MAX_LINES = 500
 
 local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 
---- @class obsidian.note.NoteCreationOpts
---- @field notes_subdir string
---- @field note_id_func fun()
---- @field new_notes_location string
-
---- @class obsidian.note.NoteOpts
---- @field title string|? The note's title
---- @field id string|? An ID to assign the note. If not specified one will be generated.
---- @field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
---- relative to the workspace / vault root. If the directory doesn't exist it will
---- be created, regardless of the value of the `should_write` option.
---- @field aliases string[]|? Aliases for the note
---- @field tags string[]|?  Tags for this note
---- @field should_write boolean|? Don't write the note to disk
---- @field template string|? The name of the template
-
----@class obsidian.note.NoteSaveOpts
---- Specify a path to save to. Defaults to `self.path`.
----@field path? string|obsidian.Path
---- Whether to insert/update frontmatter. Defaults to `true`.
----@field insert_frontmatter? boolean
---- Override the frontmatter. Defaults to the result of `self:frontmatter()`.
----@field frontmatter? table
---- A function to update the contents of the note. This takes a list of lines representing the text to be written
---- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
----@field update_content? fun(lines: string[]): string[]
---- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
---- When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
---- See `:help checktime` to learn more.
----@field check_buffers? boolean
-
----@class obsidian.note.NoteWriteOpts
---- Specify a path to save to. Defaults to `self.path`.
----@field path? string|obsidian.Path
---- The name of a template to use if the note file doesn't already exist.
----@field template? string
---- A function to update the contents of the note. This takes a list of lines representing the text to be written
---- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
----@field update_content? fun(lines: string[]): string[]
---- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
---- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
---- See `:help checktime` to learn more.
----@field check_buffers? boolean
-
----@class obsidian.note.HeaderAnchor
----
----@field anchor string
----@field header string
----@field level integer
----@field line integer
----@field parent obsidian.note.HeaderAnchor|?
-
----@class obsidian.note.Block
----
----@field id string
----@field line integer
----@field block string
-
---- A class that represents a note within a vault.
+---A class that represents a note within a vault.
 ---
 ---@toc_entry obsidian.Note
 ---
@@ -84,7 +37,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field title string|?
 ---@field tags string[]
 ---@field path obsidian.Path|?
----@field metadata table|?
+---@field metadata table
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
 ---@field contents string[]|?
@@ -109,10 +62,11 @@ end
 --- Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
 --- otherwise falls back to generated a Zettelkasten style ID.
 ---
---- @param title? string
---- @param path? obsidian.Path
---- @param id_func (fun(title: string|?, path: obsidian.Path|?): string)
+---@param title? string
+---@param path? obsidian.Path
+---@param id_func (fun(title: string|?, path: obsidian.Path|?): string)
 ---@return string
+---@private
 local function generate_id(title, path, id_func)
   local new_id = id_func(title, path)
   if new_id == nil or string.len(new_id) == 0 then
@@ -127,9 +81,9 @@ end
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 --- `note_opts.dir / (note_opts.id .. ".md")`.
 ---
---- @param title string|? The title for the note
---- @param id string The note ID
---- @param dir obsidian.Path The note path
+---@param title string|? The title for the note
+---@param id string The note ID
+---@param dir obsidian.Path The note path
 ---@return obsidian.Path
 ---@private
 Note._generate_path = function(title, id, dir)
@@ -158,9 +112,9 @@ Note._generate_path = function(title, id, dir)
 end
 
 --- Selects the strategy to use when resolving the note title, id, and path
---- @param opts obsidian.note.NoteOpts The note creation options
---- @return obsidian.note.NoteCreationOpts The strategy to use for creating the note
---- @private
+---@param opts obsidian.note.NoteOpts The note creation options
+---@return obsidian.note.NoteCreationOpts The strategy to use for creating the note
+---@private
 Note._get_creation_opts = function(opts)
   --- @type obsidian.note.NoteCreationOpts
   local default = {
@@ -328,7 +282,7 @@ Note.create = function(opts)
 
   -- Ensure the parent directory exists.
   local parent = path:parent()
-  assert(parent)
+  assert(parent, "failed to get parent in note creation")
   parent:mkdir { parents = true, exist_ok = true }
 
   -- Write to disk.
@@ -523,13 +477,6 @@ Note.get_field = function(self, key)
   return self.metadata[key]
 end
 
----@class obsidian.note.LoadOpts
----@field max_lines integer|? Stops reading file if reached max lines.
----@field read_only_frontmatter boolean|? Stops reading file if reached end of frontmatter.
----@field load_contents boolean|?  Save contents of the file if not frontmatter or block to obsidian.Note.contents. Still reads whole file if other options are true.
----@field collect_anchor_links boolean|? Save anchor_links of the file if not in frontmatter or block to obsidian.Note.anchor_links. Still reads whole file if other options are true.
----@field collect_blocks boolean|? Save code blocks to obsidian.Note.blocks. Still reads whole file if other options are true.
-
 --- Initialize a note from a file.
 ---
 ---@param path string|obsidian.Path
@@ -537,43 +484,12 @@ end
 ---
 ---@return obsidian.Note
 Note.from_file = function(path, opts)
-  if path == nil then
-    error "note path cannot be nil"
-  end
+  assert(path, "note path cannot be nil")
   path = tostring(Path.new(path):resolve { strict = true })
-  return Note.from_lines(io.lines(path), path, opts)
-end
-
---- An async version of `.from_file()`, i.e. it needs to be called in an async context.
----
----@param path string|obsidian.Path
----@param opts obsidian.note.LoadOpts|?
----
----@return obsidian.Note
-Note.from_file_async = function(path, opts)
-  path = Path.new(path):resolve { strict = true }
-  local f = io.open(tostring(path), "r")
-  assert(f)
-  local ok, res = pcall(Note.from_lines, f:lines "*l", path, opts)
-  f:close()
-  if ok then
-    return res
-  else
-    error(res)
-  end
-end
-
---- Like `.from_file_async()` but also returns the contents of the file as a list of lines.
----
----@param path string|obsidian.Path
----@param opts obsidian.note.LoadOpts|?
----
----@return obsidian.Note,string[]
-Note.from_file_with_contents_async = function(path, opts)
-  opts = vim.tbl_extend("force", opts or {}, { load_contents = true })
-  local note = Note.from_file_async(path, opts)
-  assert(note.contents ~= nil)
-  return note, note.contents
+  local file = assert(io.open(path, "r"), "failed to open file")
+  local note = Note.from_lines(file:lines(), path, opts)
+  file:close()
+  return note
 end
 
 --- Initialize a note from a buffer.
@@ -623,10 +539,7 @@ Note.from_lines = function(lines, path, opts)
 
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
-  local id = nil
   local title = nil
-  local aliases = {}
-  local tags = {}
 
   ---@type string[]|?
   local contents
@@ -652,8 +565,7 @@ Note.from_lines = function(lines, path, opts)
   ---@param anchor_data obsidian.note.HeaderAnchor
   ---@return obsidian.note.HeaderAnchor|?
   local function get_parent_anchor(anchor_data)
-    assert(anchor_links)
-    assert(anchor_stack)
+    assert(anchor_links and anchor_stack, "failed to collect anchor")
     for i = #anchor_stack, 1, -1 do
       local parent = anchor_stack[i]
       if parent.level < anchor_data.level then
@@ -686,7 +598,7 @@ Note.from_lines = function(lines, path, opts)
 
   -- Iterate over lines in the file, collecting frontmatter and parsing the title.
   local frontmatter_lines = {}
-  local has_frontmatter, in_frontmatter, at_boundary = false, false, false -- luacheck: ignore (false positive)
+  local has_frontmatter, in_frontmatter, at_boundary = false, false, false
   local frontmatter_end_line = nil
   local in_code_block = false
   for line_idx, line in vim.iter(lines):enumerate() do
@@ -720,8 +632,7 @@ Note.from_lines = function(lines, path, opts)
 
         -- Collect anchor link.
         if opts.collect_anchor_links then
-          assert(anchor_links)
-          assert(anchor_stack)
+          assert(anchor_links and anchor_stack, "failed to collect anchor")
           -- We collect up to two anchor for each header. One standalone, e.g. '#header1', and
           -- one with the parents, e.g. '#header1#header2'.
           -- This is our standalone one:
@@ -771,80 +682,14 @@ Note.from_lines = function(lines, path, opts)
     end
   end
 
+  local info = {}
+
   -- Parse the frontmatter YAML.
-  local metadata = nil
+  local metadata = {}
   if #frontmatter_lines > 0 then
-    local frontmatter = table.concat(frontmatter_lines, "\n")
-    local ok, data = pcall(yaml.loads, frontmatter)
-    if type(data) ~= "table" then
-      data = {}
-    end
-    if ok then
-      ---@diagnostic disable-next-line: param-type-mismatch
-      for k, v in pairs(data) do
-        if k == "id" then
-          if type(v) == "string" or type(v) == "number" then
-            id = v
-          else
-            log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
-          end
-        elseif k == "title" then
-          if type(v) == "string" then
-            title = v
-            if metadata == nil then
-              metadata = {}
-            end
-            metadata.title = v
-          else
-            log.warn("Invalid 'title' in frontmatter for " .. tostring(path))
-          end
-        elseif k == "aliases" then
-          if type(v) == "table" then
-            for alias in iter(v) do
-              if type(alias) == "string" then
-                table.insert(aliases, alias)
-              else
-                log.warn(
-                  "Invalid alias value found in frontmatter for "
-                    .. tostring(path)
-                    .. ". Expected string, found "
-                    .. type(alias)
-                    .. "."
-                )
-              end
-            end
-          elseif type(v) == "string" then
-            table.insert(aliases, v)
-          else
-            log.warn("Invalid 'aliases' in frontmatter for " .. tostring(path))
-          end
-        elseif k == "tags" then
-          if type(v) == "table" then
-            for tag in iter(v) do
-              if type(tag) == "string" then
-                table.insert(tags, tag)
-              else
-                log.warn(
-                  "Invalid tag value found in frontmatter for "
-                    .. tostring(path)
-                    .. ". Expected string, found "
-                    .. type(tag)
-                    .. "."
-                )
-              end
-            end
-          elseif type(v) == "string" then
-            tags = vim.split(v, " ")
-          else
-            log.warn("Invalid 'tags' in frontmatter for '%s'", path)
-          end
-        else
-          if metadata == nil then
-            metadata = {}
-          end
-          metadata[k] = v
-        end
-      end
+    info, metadata = Frontmatter.parse(frontmatter_lines, path)
+    if metadata and metadata.title and type(metadata.title) == "string" then
+      title = metadata.title
     end
   end
 
@@ -853,11 +698,13 @@ Note.from_lines = function(lines, path, opts)
     title = search.replace_refs(title)
   end
 
+  local id, aliases, tags = info.id, info.aliases, info.tags
+
   -- ID should default to the filename without the extension.
   if id == nil or id == path.name then
     id = path.stem
   end
-  assert(id)
+  assert(id, "failed to find a valid id for note")
 
   local n = Note.new(id, aliases, tags, path)
   n.title = title
@@ -884,69 +731,24 @@ end
 --- Get the frontmatter table to save.
 ---
 ---@return table
-Note.frontmatter = function(self)
-  local out = { id = self.id, aliases = self.aliases, tags = self.tags }
-  if self.metadata ~= nil and not vim.tbl_isempty(self.metadata) then
-    for k, v in pairs(self.metadata) do
-      out[k] = v
-    end
-  end
-  return out
-end
+Note.frontmatter = require("obsidian.builtin").frontmatter
 
 --- Get frontmatter lines that can be written to a buffer.
 ---
----@param eol boolean|?
----@param frontmatter table|?
----
+---@param current_lines string[]
 ---@return string[]
-Note.frontmatter_lines = function(self, eol, frontmatter)
-  local new_lines = { "---" }
-
-  local frontmatter_ = frontmatter and frontmatter or self:frontmatter()
-  if vim.tbl_isempty(frontmatter_) then
-    return {}
+Note.frontmatter_lines = function(self, current_lines)
+  local order
+  if Obsidian.opts.frontmatter.sort then
+    order = Obsidian.opts.frontmatter.sort
+  elseif not vim.tbl_isempty(current_lines) then
+    current_lines = vim.tbl_filter(function(line)
+      return not Note._is_frontmatter_boundary(line)
+    end, current_lines)
+    _, _, order = pcall(yaml.loads, table.concat(current_lines, "\n"))
   end
-
-  for line in
-    iter(yaml.dumps_lines(frontmatter_, function(a, b)
-      local a_idx = nil
-      local b_idx = nil
-      for i, k in ipairs { "id", "aliases", "tags" } do
-        if a == k then
-          a_idx = i
-        end
-        if b == k then
-          b_idx = i
-        end
-      end
-      if a_idx ~= nil and b_idx ~= nil then
-        return a_idx < b_idx
-      elseif a_idx ~= nil then
-        return true
-      elseif b_idx ~= nil then
-        return false
-      else
-        return a < b
-      end
-    end))
-  do
-    table.insert(new_lines, line)
-  end
-
-  table.insert(new_lines, "---")
-  if not self.has_frontmatter then
-    -- Make sure there's an empty line between end of the frontmatter and the contents.
-    table.insert(new_lines, "")
-  end
-
-  if eol then
-    return vim.tbl_map(function(l)
-      return l .. "\n"
-    end, new_lines)
-  else
-    return new_lines
-  end
+  ---@diagnostic disable-next-line: param-type-mismatch
+  return Frontmatter.dump(Obsidian.opts.frontmatter.func(self), order)
 end
 
 --- Update the frontmatter in a buffer for the note.
@@ -959,11 +761,7 @@ Note.update_frontmatter = function(self, bufnr)
     return false
   end
 
-  local frontmatter = nil
-  if Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(self)
-  end
-  return self:save_to_buffer { bufnr = bufnr, frontmatter = frontmatter }
+  return self:save_to_buffer { bufnr = bufnr }
 end
 
 --- Checks if the parameter note is in the blacklist of files which shouldn't have
@@ -991,12 +789,14 @@ Note.should_save_frontmatter = function(self)
     end
   end
 
+  local enabled = Obsidian.opts.frontmatter.enabled
+
   if is_in_frontmatter_blacklist(self) then
     return false
-  elseif type(Obsidian.opts.disable_frontmatter) == "boolean" then
-    return not Obsidian.opts.disable_frontmatter
-  elseif type(Obsidian.opts.disable_frontmatter) == "function" then
-    return not Obsidian.opts.disable_frontmatter(self.path:vault_relative_path { strict = true })
+  elseif type(enabled) == "boolean" then
+    return enabled
+  elseif type(enabled) == "function" then
+    return enabled(self.path:vault_relative_path { strict = true })
   else
     return true
   end
@@ -1032,8 +832,8 @@ Note.write = function(self, opts)
   end
 
   local frontmatter = nil
-  if Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(self)
+  if Obsidian.opts.frontmatter.func ~= nil then
+    frontmatter = Obsidian.opts.frontmatter.func(self)
   end
 
   self:save {
@@ -1057,11 +857,10 @@ end
 Note.save = function(self, opts)
   opts = vim.tbl_extend("keep", opts or {}, { check_buffers = true })
 
-  if self.path == nil then
-    error "a path is required"
-  end
+  assert(self.path, "a path is required")
 
-  local save_path = Path.new(assert(opts.path or self.path)):resolve()
+  local path = assert(opts.path or self.path, "no valid path for save")
+  local save_path = Path.new(path):resolve()
   assert(save_path:parent()):mkdir { parents = true, exist_ok = true }
 
   -- Read contents from existing file or buffer, if there is one.
@@ -1069,9 +868,10 @@ Note.save = function(self, opts)
   ---@type string[]
   local content = {}
   ---@type string[]
-  local existing_frontmatter = {}
-  if self.path ~= nil and self.path:is_file() then
-    -- with(open(tostring(self.path)), function(reader)
+  local existing_frontmatter
+
+  if self.path:is_file() then
+    existing_frontmatter = {}
     local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
     for idx, line in vim.iter(io.lines(tostring(self.path))):enumerate() do
       if idx == 1 and Note._is_frontmatter_boundary(line) then
@@ -1090,7 +890,6 @@ Note.save = function(self, opts)
         table.insert(existing_frontmatter, line)
       end
     end
-    -- end)
   elseif self.title ~= nil then
     -- Add a header.
     table.insert(content, "# " .. self.title)
@@ -1103,9 +902,9 @@ Note.save = function(self, opts)
 
   ---@type string[]
   local new_lines
-  if opts.insert_frontmatter ~= false then
+  if opts.insert_frontmatter then
     -- Replace frontmatter.
-    new_lines = compat.flatten { self:frontmatter_lines(false, opts.frontmatter), content }
+    new_lines = compat.flatten { self:frontmatter_lines(existing_frontmatter), content }
   else
     -- Use existing frontmatter.
     new_lines = compat.flatten { existing_frontmatter, content }
@@ -1146,22 +945,14 @@ Note.write_to_buffer = function(self, opts)
     }
   end
 
-  local frontmatter = nil
   local should_save_frontmatter = self:should_save_frontmatter()
-  if should_save_frontmatter and Obsidian.opts.note_frontmatter_func ~= nil then
-    frontmatter = Obsidian.opts.note_frontmatter_func(self)
-  end
 
-  return self:save_to_buffer {
-    bufnr = opts.bufnr,
-    insert_frontmatter = should_save_frontmatter,
-    frontmatter = frontmatter,
-  }
+  return self:save_to_buffer { bufnr = opts.bufnr, insert_frontmatter = should_save_frontmatter }
 end
 
 --- Save the note to the buffer
 ---
----@param opts { bufnr: integer|?, insert_frontmatter: boolean|?, frontmatter: table|? }|? Options.
+---@param opts { bufnr: integer|?, insert_frontmatter: boolean|? }|? Options.
 ---
 ---@return boolean updated True if the buffer lines were updated, false otherwise.
 Note.save_to_buffer = function(self, opts)
@@ -1172,12 +963,18 @@ Note.save_to_buffer = function(self, opts)
     bufnr = self.bufnr or 0
   end
 
-  local cur_buf_note = Note.from_buffer(bufnr)
+  local frontmatter_end_line = self.frontmatter_end_line
+
+  ---@type string[]
+  local current_lines = {}
+  if self.has_frontmatter then
+    current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, frontmatter_end_line or 0, false)
+  end
 
   ---@type string[]
   local new_lines
   if opts.insert_frontmatter ~= false then
-    new_lines = self:frontmatter_lines(nil, opts.frontmatter)
+    new_lines = self:frontmatter_lines(current_lines)
   else
     new_lines = {}
   end
@@ -1186,20 +983,8 @@ Note.save_to_buffer = function(self, opts)
     table.insert(new_lines, "# " .. self.title)
   end
 
-  ---@type string[]
-  local cur_lines = {}
-  if cur_buf_note.frontmatter_end_line ~= nil then
-    cur_lines = vim.api.nvim_buf_get_lines(bufnr, 0, cur_buf_note.frontmatter_end_line, false)
-  end
-
-  if not vim.deep_equal(cur_lines, new_lines) then
-    vim.api.nvim_buf_set_lines(
-      bufnr,
-      0,
-      cur_buf_note.frontmatter_end_line and cur_buf_note.frontmatter_end_line or 0,
-      false,
-      new_lines
-    )
+  if not vim.deep_equal(current_lines, new_lines) then
+    vim.api.nvim_buf_set_lines(bufnr, 0, frontmatter_end_line and frontmatter_end_line or 0, false, new_lines)
     return true
   else
     return false
@@ -1243,15 +1028,14 @@ end
 
 --- Open a note in a buffer.
 ---
----@param note obsidian.Note
 ---@param opts { line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|?
-Note.open = function(note, opts)
+Note.open = function(self, opts)
   opts = opts or {}
 
   local function open_it()
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
-    local bufnr = api.open_buffer(note.path, { line = opts.line, col = opts.col, cmd = open_cmd })
-    vim.b[bufnr].note = note
+    local bufnr = api.open_buffer(self.path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    vim.b[bufnr].note = self
     if opts.callback then
       opts.callback(bufnr)
     end
@@ -1263,5 +1047,132 @@ Note.open = function(note, opts)
     vim.schedule(open_it)
   end
 end
+
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer }
+---@return obsidian.BacklinkMatch
+Note.backlinks = function(self, opts)
+  return search.find_backlinks(self, opts)
+end
+
+---@return obsidian.LinkMatch
+Note.links = function(self)
+  return search.find_links(self)
+end
+
+Note.load_contents = function(self)
+  if self.contents and not vim.tbl_isempty(self.contents) then
+    return
+  end
+  self.contents = {}
+  for line in io.lines(self.path.filename) do
+    table.insert(self.contents, line)
+  end
+end
+
+--- Create a formatted markdown / wiki link for a note.
+---
+---@param opts { label: string|?, link_style: obsidian.config.LinkStyle|?, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|? Options.
+---@return string
+Note.format_link = function(self, opts)
+  opts = opts or {}
+  local rel_path = assert(self.path:vault_relative_path { strict = true }, "note with no path")
+  local label = opts.label or self:display_name()
+  local note_id = opts.id or self.id
+  local link_style = opts.link_style or Obsidian.opts.preferred_link_style
+
+  local new_opts = {
+    path = rel_path,
+    label = label,
+    id = note_id,
+    anchor = opts.anchor,
+    block = opts.block,
+  }
+
+  if link_style == config.LinkStyle.markdown then
+    return Obsidian.opts.markdown_link_func(new_opts)
+  elseif link_style == config.LinkStyle.wiki or link_style == nil then
+    return Obsidian.opts.wiki_link_func(new_opts)
+  else
+    error(string.format("Invalid link style '%s'", link_style))
+  end
+end
+
+--- Return note status counts, like obsidian's status bar
+---
+---@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
+Note.status = function(self)
+  local status = {}
+  local wc = vim.fn.wordcount()
+  status.words = wc.visual_words or wc.words
+  status.chars = wc.visual_chars or wc.chars
+  status.properties = vim.tbl_count(self:frontmatter())
+  status.backlinks = #self:backlinks {}
+  return status
+end
+
+---@class obsidian.note.LoadOpts
+---@field max_lines integer|?
+---@field load_contents boolean|?
+---@field collect_anchor_links boolean|?
+---@field read_only_frontmatter boolean|? Stops reading file if reached end of frontmatter.
+---@field collect_blocks boolean|?
+
+---@class obsidian.note.NoteCreationOpts
+---@field notes_subdir string
+---@field note_id_func fun()
+---@field new_notes_location string
+
+---@class obsidian.note.NoteOpts
+---@field title string|? The note's title
+---@field id string|? An ID to assign the note. If not specified one will be generated.
+---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
+---relative to the workspace / vault root. If the directory doesn't exist it will
+---be created, regardless of the value of the `should_write` option.
+---@field aliases string[]|? Aliases for the note
+---@field tags string[]|?  Tags for this note
+---@field should_write boolean|? Don't write the note to disk
+---@field template string|? The name of the template
+
+---@class obsidian.note.NoteSaveOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- Whether to insert/update frontmatter. Defaults to `true`.
+---@field insert_frontmatter? boolean
+--- Override the frontmatter. Defaults to the result of `self:frontmatter()`.
+---@field frontmatter? table
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
+
+---@class obsidian.note.NoteWriteOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- The name of a template to use if the note file doesn't already exist.
+---@field template? string
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
+
+---@class obsidian.note.HeaderAnchor
+---
+---@field anchor string
+---@field header string
+---@field level integer
+---@field line integer
+---@field parent obsidian.note.HeaderAnchor|?
+
+---@class obsidian.note.Block
+---
+---@field id string
+---@field line integer
+---@field block string
 
 return Note

@@ -12,13 +12,13 @@ M.get = function(picker_name)
   if picker_name then
     picker_name = string.lower(picker_name)
   else
-    for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do
+    for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do --- HACK:
       local ok, res = pcall(M.get, name)
       if ok then
         return res
       end
     end
-    return nil
+    return require("obsidian.pickers.default").new()
   end
 
   if picker_name == string.lower(PickerName.telescope) then

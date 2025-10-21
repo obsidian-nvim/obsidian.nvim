@@ -1,5 +1,5 @@
----@param data CommandArgs
-return function(_, data)
+---@param data obsidian.CommandArgs
+return function(data)
   local new_name = vim.trim(data.args)
   if #new_name == 0 then
     vim.lsp.buf.rename()

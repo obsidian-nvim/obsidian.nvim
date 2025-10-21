@@ -32,8 +32,8 @@ local function open_in_app(path)
   Obsidian.opts.open.func(uri)
 end
 
----@param data CommandArgs
-return function(_, data)
+---@param data obsidian.CommandArgs
+return function(data)
   ---@type string|?
   local search_term, path
 
@@ -42,18 +42,16 @@ return function(_, data)
   else
     local link_string, _ = api.cursor_link()
     if link_string then
-      -- TODO: abstract logic in parse_link
-      search_term = util.parse_link(link_string)
-      search_term = search_term and util.strip_anchor_links(search_term)
-      search_term = search_term and util.strip_block_links(search_term)
+      search_term = util.parse_link(link_string, { strip = true }) -- TODO: jump to exact anchor/block
     end
   end
 
   if search_term and vim.trim(search_term) ~= "" then
-    local note = search.resolve_note(search_term, { timeout = 5000 })
-    if not note then
-      return log.err "Note under cusror is not resolved"
+    local notes = search.resolve_note(search_term)
+    if vim.tbl_isempty(notes) then
+      return log.err "Note under cursor is not resolved"
     end
+    local note = notes[1]
     path = note.path:vault_relative_path()
   else
     -- Otherwise use the pathk of the current buffer.

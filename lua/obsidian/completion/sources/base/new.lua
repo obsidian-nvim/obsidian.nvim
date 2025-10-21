@@ -1,8 +1,6 @@
 local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
-local obsidian = require "obsidian"
 local util = require "obsidian.util"
-local api = require "obsidian.api"
 local LinkStyle = require("obsidian.config").LinkStyle
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
@@ -10,7 +8,6 @@ local Path = require "obsidian.path"
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
 ---@class obsidian.completion.sources.base.NewNoteSourceCompletionContext : obsidian.ABC
----@field client obsidian.Client
 ---@field completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
 ---@field request obsidian.completion.sources.base.Request
 ---@field search string|?
@@ -47,8 +44,6 @@ function NewNoteSourceBase:new_completion_context(completion_resolve_callback, r
 
   -- This request object will be used to determine the current cursor location and the text around it
   completion_context.request = request
-
-  completion_context.client = assert(obsidian.get_client())
 
   return completion_context
 end
@@ -125,7 +120,7 @@ function NewNoteSourceBase:process_completion(cc)
   for _, new_note_opts in ipairs(new_notes_opts) do
     local new_note = new_note_opts.note
 
-    assert(new_note.path)
+    assert(new_note.path, "note without path")
 
     ---@type obsidian.config.LinkStyle, string
     local link_style, label
@@ -139,7 +134,7 @@ function NewNoteSourceBase:process_completion(cc)
       error "not implemented"
     end
 
-    local new_text = api.format_link(new_note, { link_style = link_style, anchor = anchor, block = block })
+    local new_text = new_note:format_link { link_style = link_style, anchor = anchor, block = block }
     local documentation = {
       kind = "markdown",
       value = new_note:display_info {

@@ -6,107 +6,385 @@ The Obsidian.nvim Lua API.
 
 Table of contents
 
-  obsidian.Client .......................................... |obsidian.Client|
+  obsidian.Note ....................................................... |Note|
   
-  obsidian.Note .............................................. |obsidian.Note|
+  obsidian.Workspace ............................................. |Workspace|
   
-  obsidian.Workspace .................................... |obsidian.Workspace|
-  
-  obsidian.Path .............................................. |obsidian.Path|
+  obsidian.Path ....................................................... |Path|
   
 ------------------------------------------------------------------------------
+                                                                          *Note*
+                                     `Note`
+class that represents a note within a vault.
+
 Class ~
-{obsidian.SearchOpts}
+{obsidian.Note} : obsidian.ABC
 
 Fields ~
-{sort} `(boolean|)`?
-{include_templates} `(boolean|)`?
-{ignore_case} `(boolean|)`?
-{default} `(function?)`
+{id} `(string)`
+{aliases} `(string[])`
+{title} `(string|)`?
+{tags} `(string[])`
+{path} `(obsidian.Path|)`?
+{metadata} `(table)`
+{has_frontmatter} `(boolean|)`?
+{frontmatter_end_line} `(integer|)`?
+{contents} `(string[]|)`?
+{anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
+{blocks} `(table<string, obsidian.note.Block>?)`
+{alt_alias} `(string|)`?
+{bufnr} `(integer|)`?
 
 ------------------------------------------------------------------------------
-                                                               *obsidian.Client*
-                                    `Client`
-The Obsidian client is the main API for programmatically interacting with obsidian.nvim's features
-in Lua. To get the client instance, run:
+                                                                 *Note.create()*
+                             `Note.create`({opts})
+Creates a new note
 
-`local client = require("obsidian").get_client()`
-
-Class ~
-{obsidian.Client} : obsidian.ABC
+@param opts obsidian.note.NoteOpts Options
+@return obsidian.Note
 
 ------------------------------------------------------------------------------
-                                                         *obsidian.Client.new()*
-                                 `Client.new`()
-Create a new Obsidian client without additional setup.
-This is mostly used for testing. In practice you usually want to obtain the existing
-client through:
+                                                                    *Note.new()*
+                  `Note.new`({id}, {aliases}, {tags}, {path})
+Instantiates a new Note object
 
-`require("obsidian").get_client()`
+Keep in mind that you have to call `note:save(...)` to create/update the note on disk.
+
+@param id string|number
+@param aliases string[]
+@param tags string[]
+@param path string|obsidian.Path|?
+@return obsidian.Note
+
+------------------------------------------------------------------------------
+                                                           *Note.display_info()*
+                      `Note.display_info`({self}, {opts})
+Get markdown display info about the note.
+
+Parameters ~
+{opts} `({ label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|)`?
 
 Return ~
-`(obsidian.Client)`
+`(string)`
 
 ------------------------------------------------------------------------------
-                                             *obsidian.Client.search_defaults()*
-                           `Client.search_defaults`()
-Get the default search options.
+                                                                 *Note.exists()*
+                             `Note.exists`({self})
+Check if the note exists on the file system.
 
 Return ~
-`(obsidian.SearchOpts)`
+`(boolean)`
+
+------------------------------------------------------------------------------
+                                                                  *Note.fname()*
+                              `Note.fname`({self})
+Get the filename associated with the note.
+
+Return ~
+`(string| `(optional))``
+
+------------------------------------------------------------------------------
+                                                          *Note.reference_ids()*
+                      `Note.reference_ids`({self}, {opts})
+Get a list of all of the different string that can identify this note via references,
+including the ID, aliases, and filename.
+Parameters ~
+{opts} `({ lowercase: boolean|? }|)`?
+Return ~
+`(string[])`
+
+------------------------------------------------------------------------------
+                                                              *Note.has_alias()*
+                       `Note.has_alias`({self}, {alias})
+Check if a note has a given alias.
+
+Parameters ~
+{alias} `(string)`
+
+Return ~
+`(boolean)`
+
+------------------------------------------------------------------------------
+                                                                *Note.has_tag()*
+                         `Note.has_tag`({self}, {tag})
+Check if a note has a given tag.
+
+Parameters ~
+{tag} `(string)`
+
+Return ~
+`(boolean)`
+
+------------------------------------------------------------------------------
+                                                              *Note.add_alias()*
+                       `Note.add_alias`({self}, {alias})
+Add an alias to the note.
+
+Parameters ~
+{alias} `(string)`
+
+Return ~
+`(boolean)` added True if the alias was added, false if it was already present.
+
+------------------------------------------------------------------------------
+                                                                *Note.add_tag()*
+                         `Note.add_tag`({self}, {tag})
+Add a tag to the note.
+
+Parameters ~
+{tag} `(string)`
+
+Return ~
+`(boolean)` added True if the tag was added, false if it was already present.
+
+------------------------------------------------------------------------------
+                                                              *Note.add_field()*
+                    `Note.add_field`({self}, {key}, {value})
+Add or update a field in the frontmatter.
+
+Parameters ~
+{key} `(string)`
+{value} `(any)`
+
+------------------------------------------------------------------------------
+                                                              *Note.get_field()*
+                        `Note.get_field`({self}, {key})
+Get a field in the frontmatter.
+
+Parameters ~
+{key} `(string)`
+
+Return ~
+`(any)` result
+
+------------------------------------------------------------------------------
+                                                              *Note.from_file()*
+                        `Note.from_file`({path}, {opts})
+Initialize a note from a file.
+
+Parameters ~
+{path} `(string|obsidian.Path)`
+{opts} `(obsidian.note.LoadOpts|)`?
+
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
+                                                            *Note.from_buffer()*
+                      `Note.from_buffer`({bufnr}, {opts})
+Initialize a note from a buffer.
+
+Parameters ~
+{bufnr} `(integer|)`?
+{opts} `(obsidian.note.LoadOpts|)`?
+
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
+                                                           *Note.display_name()*
+                          `Note.display_name`({self})
+Get the display name for note.
+
+Return ~
+`(string)`
+
+------------------------------------------------------------------------------
+                                                             *Note.from_lines()*
+                   `Note.from_lines`({lines}, {path}, {opts})
+Initialize a note from an iterator of lines.
+
+Parameters ~
+{lines} `(fun(): string|? | Iter)`
+{path} `(string|obsidian.Path)`
+{opts} `(obsidian.note.LoadOpts|)`?
+
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
+                                                              *Note.frontmatter*
+                               `Note.frontmatter`
+Get the frontmatter table to save.
+
+Return ~
+`(table)`
+
+------------------------------------------------------------------------------
+                                                      *Note.frontmatter_lines()*
+               `Note.frontmatter_lines`({self}, {current_lines})
+Get frontmatter lines that can be written to a buffer.
+
+Parameters ~
+{current_lines} `(string[])`
+Return ~
+`(string[])`
+
+------------------------------------------------------------------------------
+                                                     *Note.update_frontmatter()*
+                   `Note.update_frontmatter`({self}, {bufnr})
+Update the frontmatter in a buffer for the note.
+
+Parameters ~
+{bufnr} `(integer|)`?
+
+Return ~
+`(boolean)` updated If the the frontmatter was updated.
+
+------------------------------------------------------------------------------
+                                                 *is_in_frontmatter_blacklist()*
+                     `is_in_frontmatter_blacklist`({note})
+Checks if the parameter note is in the blacklist of files which shouldn't have
+frontmatter applied
+
+@param note obsidian.Note The note
+@return boolean true if so
+
+------------------------------------------------------------------------------
+                                                *Note.should_save_frontmatter()*
+                     `Note.should_save_frontmatter`({self})
+Determines whether a note's frontmatter is managed by obsidian.nvim.
+
+Return ~
+`(boolean)`
+
+------------------------------------------------------------------------------
+                                                                  *Note.write()*
+                          `Note.write`({self}, {opts})
+Write the note to disk.
+
+Parameters ~
+{opts} `(optional)` `(obsidian.note.NoteWriteOpts)`
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
+                                                                   *Note.save()*
+                          `Note.save`({self}, {opts})
+Save the note to a file.
+In general this only updates the frontmatter and header, leaving the rest of the contents unchanged
+unless you use the `update_content()` callback.
+
+Parameters ~
+{opts} `(optional)` `(obsidian.note.NoteSaveOpts)`
+
+------------------------------------------------------------------------------
+                                                        *Note.write_to_buffer()*
+                     `Note.write_to_buffer`({self}, {opts})
+Write the note to a buffer.
+
+Parameters ~
+{opts} `({ bufnr: integer|?, template: string|? }|? Options.)`
+
+Options:
+ - `bufnr`: Override the buffer to write to. Defaults to current buffer.
+ - `template`: The name of a template to use if the buffer is empty.
+
+Return ~
+`(boolean)` updated If the buffer was updated.
+
+------------------------------------------------------------------------------
+                                                         *Note.save_to_buffer()*
+                     `Note.save_to_buffer`({self}, {opts})
+Save the note to the buffer
+
+Parameters ~
+{opts} `({ bufnr: integer|?, insert_frontmatter: boolean|? }|? Options.)`
+
+Return ~
+`(boolean)` updated True if the buffer lines were updated, false otherwise.
+
+------------------------------------------------------------------------------
+                                                    *Note.resolve_anchor_link()*
+               `Note.resolve_anchor_link`({self}, {anchor_link})
+Try to resolve an anchor link to a line number in the note's file.
+
+Parameters ~
+{anchor_link} `(string)`
+Return ~
+`(obsidian.note.HeaderAnchor| `(optional))``
+
+------------------------------------------------------------------------------
+                                                          *Note.resolve_block()*
+                    `Note.resolve_block`({self}, {block_id})
+Try to resolve a block identifier.
+
+Parameters ~
+{block_id} `(string)`
+
+Return ~
+`(obsidian.note.Block| `(optional))``
+
+------------------------------------------------------------------------------
+                                                                   *Note.open()*
+                          `Note.open`({self}, {opts})
+Open a note in a buffer.
+
+Parameters ~
+{opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
+
+------------------------------------------------------------------------------
+                                                              *Note.backlinks()*
+                        `Note.backlinks`({self}, {opts})
+Parameters ~
+{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer })`
+Return ~
+`(obsidian.BacklinkMatch)`
+
+------------------------------------------------------------------------------
+                                                                  *Note.links()*
+                              `Note.links`({self})
+Return ~
+`(obsidian.LinkMatch)`
+
+------------------------------------------------------------------------------
+                                                            *Note.format_link()*
+                       `Note.format_link`({self}, {opts})
+Create a formatted markdown / wiki link for a note.
+
+Parameters ~
+{opts} `({ label: string|?, link_style: obsidian.config.LinkStyle|?, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|? Options.)`
+Return ~
+`(string)`
+
+------------------------------------------------------------------------------
+                                                                 *Note.status()*
+                             `Note.status`({self})
+Return note status counts, like obsidian's status bar
+
+Return ~
+`({ words: integer, chars: integer, properties: integer, backlinks: integer }?)`
 
 ------------------------------------------------------------------------------
 Class ~
-{obsidian.TagLocation}
-
+{obsidian.note.LoadOpts}
 Fields ~
-{tag} `(string)` The tag found.
-{note} `(obsidian.Note)` The note instance where the tag was found.
-{path} `(string|obsidian.Path)` The path to the note where the tag was found.
-{line} `(integer)` The line number (1-indexed) where the tag was found.
-{text} `(string)` The text (with whitespace stripped) of the line where the tag was found.
-{tag_start} `(integer|? The)` index within 'text' where the tag starts.
-{tag_end} `(integer|? The)` index within 'text' where the tag ends.
+{max_lines} `(integer|)`?
+{load_contents} `(boolean|)`?
+{collect_anchor_links} `(boolean|)`?
+{collect_blocks} `(boolean|)`?
 
 ------------------------------------------------------------------------------
-                                                   *obsidian.Client.find_tags()*
-                   `Client.find_tags`({self}, {term}, {opts})
-Find all tags starting with the given search term(s).
-
-Parameters ~
-{term} `(string|string[])` The search term.
-{opts} `({ search: obsidian.SearchOpts|?, timeout: integer|? }|)`?
-
-Return ~
-`(obsidian.TagLocation[])`
+Class ~
+{obsidian.note.NoteCreationOpts}
+Fields ~
+{notes_subdir} `(string)`
+{note_id_func} `(fun())`
+{new_notes_location} `(string)`
 
 ------------------------------------------------------------------------------
-                                             *obsidian.Client.find_tags_async()*
-          `Client.find_tags_async`({self}, {term}, {callback}, {opts})
-An async version of 'find_tags()'.
-
-Parameters ~
-{term} `(string|string[])` The search term.
-{callback} `(fun(tags: obsidian.TagLocation[]))`
-{opts} `({ search: obsidian.SearchOpts }|)`?
-
-------------------------------------------------------------------------------
-@class obsidian.note.NoteCreationOpts
-@field notes_subdir string
-@field note_id_func fun()
-@field new_notes_location string
-
-------------------------------------------------------------------------------
-@class obsidian.note.NoteOpts
-@field title string|? The note's title
-@field id string|? An ID to assign the note. If not specified one will be generated.
-@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
-relative to the workspace / vault root. If the directory doesn't exist it will
-be created, regardless of the value of the `should_write` option.
-@field aliases string[]|? Aliases for the note
-@field tags string[]|?  Tags for this note
-@field should_write boolean|? Don't write the note to disk
-@field template string|? The name of the template
+Class ~
+{obsidian.note.NoteOpts}
+Fields ~
+{title} `(string|? The)` note's title
+{id} `(string|? An)` ID to assign the note. If not specified one will be generated.
+{dir} `(string|obsidian.Path|? An)` optional directory to place the note in. Relative paths will be interpreted
+to the workspace / vault root. If the directory doesn't exist it will
+created, regardless of the value of the `should_write` option.
+{aliases} `(string[]|? Aliases)` for the note
+{tags} `(string[]|?  Tags)` for this note
+{should_write} `(boolean|? Don)`'t write the note to disk
+{template} `(string|? The)` name of the template
 
 ------------------------------------------------------------------------------
 Class ~
@@ -162,386 +440,10 @@ Fields ~
 {line} `(integer)`
 {block} `(string)`
 
+
+==============================================================================
 ------------------------------------------------------------------------------
-                                                                 *obsidian.Note*
-                                     `Note`
-A class that represents a note within a vault.
-
-Class ~
-{obsidian.Note} : obsidian.ABC
-
-Fields ~
-{id} `(string)`
-{aliases} `(string[])`
-{title} `(string|)`?
-{tags} `(string[])`
-{path} `(obsidian.Path|)`?
-{metadata} `(table|)`?
-{has_frontmatter} `(boolean|)`?
-{frontmatter_end_line} `(integer|)`?
-{contents} `(string[]|)`?
-{anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
-{blocks} `(table<string, obsidian.note.Block>?)`
-{alt_alias} `(string|)`?
-{bufnr} `(integer|)`?
-
-------------------------------------------------------------------------------
-                                                        *obsidian.generate_id()*
-                   `generate_id`({title}, {path}, {id_func})
-Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
-otherwise falls back to generated a Zettelkasten style ID.
-
-@param title? string
-@param path? obsidian.Path
-@param id_func (fun(title: string|?, path: obsidian.Path|?): string)
-Return ~
-`(string)`
-
-------------------------------------------------------------------------------
-                                            *obsidian.Note._get_creation_opts()*
-                       `Note._get_creation_opts`({opts})
-Selects the strategy to use when resolving the note title, id, and path
-@param opts obsidian.note.NoteOpts The note creation options
-@return obsidian.note.NoteCreationOpts The strategy to use for creating the note
-@private
-
-------------------------------------------------------------------------------
-                                                        *obsidian.Note.create()*
-                             `Note.create`({opts})
-Creates a new note
-
-@param opts obsidian.note.NoteOpts Options
-@return obsidian.Note
-
-------------------------------------------------------------------------------
-                                                           *obsidian.Note.new()*
-                  `Note.new`({id}, {aliases}, {tags}, {path})
-Instantiates a new Note object
-
-Keep in mind that you have to call `note:save(...)` to create/update the note on disk.
-
-@param id string|number
-@param aliases string[]
-@param tags string[]
-@param path string|obsidian.Path|?
-@return obsidian.Note
-
-------------------------------------------------------------------------------
-                                                  *obsidian.Note.display_info()*
-                      `Note.display_info`({self}, {opts})
-Get markdown display info about the note.
-
-Parameters ~
-{opts} `({ label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|)`?
-
-Return ~
-`(string)`
-
-------------------------------------------------------------------------------
-                                                        *obsidian.Note.exists()*
-                             `Note.exists`({self})
-Check if the note exists on the file system.
-
-Return ~
-`(boolean)`
-
-------------------------------------------------------------------------------
-                                                         *obsidian.Note.fname()*
-                              `Note.fname`({self})
-Get the filename associated with the note.
-
-Return ~
-`(string| `(optional))``
-
-------------------------------------------------------------------------------
-                                                 *obsidian.Note.reference_ids()*
-                      `Note.reference_ids`({self}, {opts})
-Get a list of all of the different string that can identify this note via references,
-including the ID, aliases, and filename.
-Parameters ~
-{opts} `({ lowercase: boolean|? }|)`?
-Return ~
-`(string[])`
-
-------------------------------------------------------------------------------
-                                                     *obsidian.Note.has_alias()*
-                       `Note.has_alias`({self}, {alias})
-Check if a note has a given alias.
-
-Parameters ~
-{alias} `(string)`
-
-Return ~
-`(boolean)`
-
-------------------------------------------------------------------------------
-                                                       *obsidian.Note.has_tag()*
-                         `Note.has_tag`({self}, {tag})
-Check if a note has a given tag.
-
-Parameters ~
-{tag} `(string)`
-
-Return ~
-`(boolean)`
-
-------------------------------------------------------------------------------
-                                                     *obsidian.Note.add_alias()*
-                       `Note.add_alias`({self}, {alias})
-Add an alias to the note.
-
-Parameters ~
-{alias} `(string)`
-
-Return ~
-`(boolean)` added True if the alias was added, false if it was already present.
-
-------------------------------------------------------------------------------
-                                                       *obsidian.Note.add_tag()*
-                         `Note.add_tag`({self}, {tag})
-Add a tag to the note.
-
-Parameters ~
-{tag} `(string)`
-
-Return ~
-`(boolean)` added True if the tag was added, false if it was already present.
-
-------------------------------------------------------------------------------
-                                                     *obsidian.Note.add_field()*
-                    `Note.add_field`({self}, {key}, {value})
-Add or update a field in the frontmatter.
-
-Parameters ~
-{key} `(string)`
-{value} `(any)`
-
-------------------------------------------------------------------------------
-                                                     *obsidian.Note.get_field()*
-                        `Note.get_field`({self}, {key})
-Get a field in the frontmatter.
-
-Parameters ~
-{key} `(string)`
-
-Return ~
-`(any)` result
-
-------------------------------------------------------------------------------
-Class ~
-{obsidian.note.LoadOpts}
-Fields ~
-{max_lines} `(integer|? Stops)` reading file if reached max lines.
-{read_only_frontmatter} `(boolean|? Stops)` reading file if reached end of frontmatter.
-{load_contents} `(boolean|?  Save)` contents of the file if not frontmatter or block to obsidian.Note.contents. Still reads whole file if other options are true.
-{collect_anchor_links} `(boolean|? Save)` anchor_links of the file if not in frontmatter or block to obsidian.Note.anchor_links. Still reads whole file if other options are true.
-{collect_blocks} `(boolean|? Save)` code blocks to obsidian.Note.blocks. Still reads whole file if other options are true.
-
-------------------------------------------------------------------------------
-                                                     *obsidian.Note.from_file()*
-                        `Note.from_file`({path}, {opts})
-Initialize a note from a file.
-
-Parameters ~
-{path} `(string|obsidian.Path)`
-{opts} `(obsidian.note.LoadOpts|)`?
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                               *obsidian.Note.from_file_async()*
-                     `Note.from_file_async`({path}, {opts})
-An async version of `.from_file()`, i.e. it needs to be called in an async context.
-
-Parameters ~
-{path} `(string|obsidian.Path)`
-{opts} `(obsidian.note.LoadOpts|)`?
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                 *obsidian.Note.from_file_with_contents_async()*
-              `Note.from_file_with_contents_async`({path}, {opts})
-Like `.from_file_async()` but also returns the contents of the file as a list of lines.
-
-Parameters ~
-{path} `(string|obsidian.Path)`
-{opts} `(obsidian.note.LoadOpts|)`?
-
-Return ~
-`(obsidian.Note)`,string[]
-
-------------------------------------------------------------------------------
-                                                   *obsidian.Note.from_buffer()*
-                      `Note.from_buffer`({bufnr}, {opts})
-Initialize a note from a buffer.
-
-Parameters ~
-{bufnr} `(integer|)`?
-{opts} `(obsidian.note.LoadOpts|)`?
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                                  *obsidian.Note.display_name()*
-                          `Note.display_name`({self})
-Get the display name for note.
-
-Return ~
-`(string)`
-
-------------------------------------------------------------------------------
-                                                    *obsidian.Note.from_lines()*
-                   `Note.from_lines`({lines}, {path}, {opts})
-Initialize a note from an iterator of lines.
-
-Parameters ~
-{lines} `(fun(): string|? | Iter)`
-{path} `(string|obsidian.Path)`
-{opts} `(obsidian.note.LoadOpts|)`?
-
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                                   *obsidian.Note.frontmatter()*
-                           `Note.frontmatter`({self})
-Get the frontmatter table to save.
-
-Return ~
-`(table)`
-
-------------------------------------------------------------------------------
-                                             *obsidian.Note.frontmatter_lines()*
-             `Note.frontmatter_lines`({self}, {eol}, {frontmatter})
-Get frontmatter lines that can be written to a buffer.
-
-Parameters ~
-{eol} `(boolean|)`?
-{frontmatter} `(table|)`?
-
-Return ~
-`(string[])`
-
-------------------------------------------------------------------------------
-                                            *obsidian.Note.update_frontmatter()*
-                   `Note.update_frontmatter`({self}, {bufnr})
-Update the frontmatter in a buffer for the note.
-
-Parameters ~
-{bufnr} `(integer|)`?
-
-Return ~
-`(boolean)` updated If the the frontmatter was updated.
-
-------------------------------------------------------------------------------
-                                        *obsidian.is_in_frontmatter_blacklist()*
-                     `is_in_frontmatter_blacklist`({note})
-Checks if the parameter note is in the blacklist of files which shouldn't have
-frontmatter applied
-
-@param note obsidian.Note The note
-@return boolean true if so
-
-------------------------------------------------------------------------------
-                                       *obsidian.Note.should_save_frontmatter()*
-                     `Note.should_save_frontmatter`({self})
-Determines whether a note's frontmatter is managed by obsidian.nvim.
-
-Return ~
-`(boolean)`
-
-------------------------------------------------------------------------------
-                                                         *obsidian.Note.write()*
-                          `Note.write`({self}, {opts})
-Write the note to disk.
-
-Parameters ~
-{opts} `(optional)` `(obsidian.note.NoteWriteOpts)`
-Return ~
-`(obsidian.Note)`
-
-------------------------------------------------------------------------------
-                                                          *obsidian.Note.save()*
-                          `Note.save`({self}, {opts})
-Save the note to a file.
-In general this only updates the frontmatter and header, leaving the rest of the contents unchanged
-unless you use the `update_content()` callback.
-
-Parameters ~
-{opts} `(optional)` `(obsidian.note.NoteSaveOpts)`
-
-------------------------------------------------------------------------------
-                                               *obsidian.Note.write_to_buffer()*
-                     `Note.write_to_buffer`({self}, {opts})
-Write the note to a buffer.
-
-Parameters ~
-{opts} `({ bufnr: integer|?, template: string|? }|? Options.)`
-
-Options:
- - `bufnr`: Override the buffer to write to. Defaults to current buffer.
- - `template`: The name of a template to use if the buffer is empty.
-
-Return ~
-`(boolean)` updated If the buffer was updated.
-
-------------------------------------------------------------------------------
-                                                *obsidian.Note.save_to_buffer()*
-                     `Note.save_to_buffer`({self}, {opts})
-Save the note to the buffer
-
-Parameters ~
-{opts} `({ bufnr: integer|?, insert_frontmatter: boolean|?, frontmatter: table|? }|? Options.)`
-
-Return ~
-`(boolean)` updated True if the buffer lines were updated, false otherwise.
-
-------------------------------------------------------------------------------
-                                           *obsidian.Note.resolve_anchor_link()*
-               `Note.resolve_anchor_link`({self}, {anchor_link})
-Try to resolve an anchor link to a line number in the note's file.
-
-Parameters ~
-{anchor_link} `(string)`
-Return ~
-`(obsidian.note.HeaderAnchor| `(optional))``
-
-------------------------------------------------------------------------------
-                                                 *obsidian.Note.resolve_block()*
-                    `Note.resolve_block`({self}, {block_id})
-Try to resolve a block identifier.
-
-Parameters ~
-{block_id} `(string)`
-
-Return ~
-`(obsidian.note.Block| `(optional))``
-
-------------------------------------------------------------------------------
-                                                          *obsidian.Note.open()*
-                          `Note.open`({note}, {opts})
-Open a note in a buffer.
-
-Parameters ~
-{note} `(obsidian.Note)`
-{opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
-
-------------------------------------------------------------------------------
-Class ~
-{obsidian.workspace.WorkspaceSpec}
-
-Fields ~
-{path} `(string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path))`
-{name} `(string|)`?
-{strict} `(boolean|? If)` true, the workspace root will be fixed to 'path' instead of the vault root (if different).
-{overrides} `(table|obsidian.config.ClientOpts?)`
-
-------------------------------------------------------------------------------
-                                                            *obsidian.Workspace*
+                                                                     *Workspace*
                                   `Workspace`
 Each workspace represents a working directory (usually an Obsidian vault) along with
 a set of configuration options specific to the workspace.
@@ -556,11 +458,10 @@ Fields ~
 {name} `(string)` An arbitrary name for the workspace.
 {path} `(obsidian.Path)` The normalized path to the workspace.
 {root} `(obsidian.Path)` The normalized path to the vault root of the workspace. This usually matches 'path'.
-{overrides} `(table|obsidian.config.ClientOpts|)`?
-{locked} `(boolean|)`?
+{overrides} `(obsidian.config|)`?
 
 ------------------------------------------------------------------------------
-                                                    *obsidian.find_vault_root()*
+                                                             *find_vault_root()*
                          `find_vault_root`({base_dir})
 Find the vault root from a given directory.
 
@@ -574,7 +475,7 @@ Return ~
 `(obsidian.Path| `(optional))``
 
 ------------------------------------------------------------------------------
-                                                      *obsidian.Workspace.new()*
+                                                               *Workspace.new()*
                             `Workspace.new`({spec})
 Create a new 'Workspace' object. This assumes the workspace already exists on the filesystem.
 
@@ -582,59 +483,45 @@ Parameters ~
 {spec} `(obsidian.workspace.WorkspaceSpec|)`?
 
 Return ~
-`(obsidian.Workspace)`
+`(obsidian.Workspace)` `(optional)`
 
 ------------------------------------------------------------------------------
-                                                     *obsidian.Workspace.lock()*
-                            `Workspace.lock`({self})
-Lock the workspace.
-
-------------------------------------------------------------------------------
-                                                  *obsidian.Workspace._unlock()*
-                          `Workspace._unlock`({self})
-Unlock the workspace.
-
-------------------------------------------------------------------------------
-                                    *obsidian.Workspace.get_workspace_for_dir()*
-           `Workspace.get_workspace_for_dir`({cur_dir}, {workspaces})
-Get the workspace corresponding to the directory (or a parent of), if there
-is one.
-
-Parameters ~
-{cur_dir} `(string|obsidian.Path)`
-{workspaces} `(obsidian.workspace.WorkspaceSpec[])`
-
-Return ~
-`(obsidian.Workspace| `(optional))``
-
-------------------------------------------------------------------------------
-                                                      *obsidian.Workspace.set()*
-                      `Workspace.set`({workspace}, {opts})
+                                                               *Workspace.set()*
+                          `Workspace.set`({workspace})
+Set the current workspace
 1. Set Obsidian.workspace, Obsidian.dir, and opts
 2. Make sure all the directories exists
 3. fire callbacks and exec autocmd event
 
 Parameters ~
-{workspace} `(obsidian.Workspace)`
-{opts} `({ lock: boolean|? }|)`?
+{workspace} `(obsidian.Workspace | string)`
 
 ------------------------------------------------------------------------------
-                                                   *obsidian.Workspace.switch()*
-                    `Workspace.switch`({workspace}, {opts})
+                                                              *Workspace.find()*
+                     `Workspace.find`({dir}, {workspaces})
+a directory to a workspace that it belongs to.
+
 Parameters ~
-{workspace} `(string)` name of workspace
-{opts} `({ lock: boolean|? }|)`?
+{dir} `(string|obsidian.Path)`
+{workspaces} `(obsidian.Workspace[])`
+
+Return ~
+`(obsidian.Workspace| `(optional))``
 
 ------------------------------------------------------------------------------
-                                                         *obsidian.cached_get()*
-                      `cached_get`({path}, {k}, {factory})
+                                                             *Workspace.setup()*
+                           `Workspace.setup`({specs})
+1. Resolve and return all the workspaces from user input specs
+2. Set current workspace based on cwd, or the order of specs
 Parameters ~
-{path} `(table)`
-{k} `(string)`
-{factory} `(fun(path: obsidian.Path): any)`
+{specs} `(obsidian.workspace.WorkspaceSpec[])`
+Return ~
+`(obsidian.Workspace[])`
 
+
+==============================================================================
 ------------------------------------------------------------------------------
-                                                                 *obsidian.Path*
+                                                                          *Path*
                                      `Path`
 A `Path` class that provides a subset of the functionality of the Python `pathlib` library while
 staying true to its API. It improves on a number of bugs in `plenary.path`.
@@ -650,7 +537,7 @@ Fields ~
 {stem} `(string|? The)` final path component, without its suffix.
 
 ------------------------------------------------------------------------------
-                                                   *obsidian.Path.is_path_obj()*
+                                                            *Path.is_path_obj()*
                            `Path.is_path_obj`({path})
 Check if an object is an `obsidian.Path` object.
 
@@ -665,18 +552,18 @@ Return ~
 Constructors.
 
 ------------------------------------------------------------------------------
-                                                           *obsidian.Path.new()*
-                               `Path.new`({...})
+                                                                    *Path.new()*
+                                `Path.new`({p})
 Create a new path from a string.
 
 Parameters ~
-{...} `(string|obsidian.Path)`
+{p} `(string|obsidian.Path)`
 
 Return ~
 `(obsidian.Path)`
 
 ------------------------------------------------------------------------------
-                                                          *obsidian.Path.temp()*
+                                                                   *Path.temp()*
                               `Path.temp`({opts})
 Get a temporary path with a unique name.
 
@@ -687,28 +574,9 @@ Return ~
 `(obsidian.Path)`
 
 ------------------------------------------------------------------------------
-                                                           *obsidian.Path.cwd()*
-                                  `Path.cwd`()
-Get a path corresponding to the current working directory as given by `vim.uv.cwd()`.
-
-Return ~
-`(obsidian.Path)`
-
-------------------------------------------------------------------------------
-                                                        *obsidian.Path.buffer()*
+                                                                 *Path.buffer()*
                              `Path.buffer`({bufnr})
 Get a path corresponding to a buffer.
-
-Parameters ~
-{bufnr} `(integer|? The)` buffer number or `0` / `nil` for the current buffer.
-
-Return ~
-`(obsidian.Path)`
-
-------------------------------------------------------------------------------
-                                                       *obsidian.Path.buf_dir()*
-                            `Path.buf_dir`({bufnr})
-Get a path corresponding to the parent of a buffer.
 
 Parameters ~
 {bufnr} `(integer|? The)` buffer number or `0` / `nil` for the current buffer.
@@ -721,7 +589,7 @@ Return ~
 Pure path methods.
 
 ------------------------------------------------------------------------------
-                                                   *obsidian.Path.with_suffix()*
+                                                            *Path.with_suffix()*
              `Path.with_suffix`({self}, {suffix}, {should_append})
 Return a new path with the suffix changed.
 
@@ -733,7 +601,7 @@ Return ~
 `(obsidian.Path)`
 
 ------------------------------------------------------------------------------
-                                                   *obsidian.Path.is_absolute()*
+                                                            *Path.is_absolute()*
                            `Path.is_absolute`({self})
 Returns true if the path is already in absolute form.
 
@@ -741,15 +609,7 @@ Return ~
 `(boolean)`
 
 ------------------------------------------------------------------------------
-                                                      *obsidian.Path.joinpath()*
-                         `Path.joinpath`({self}, {...})
-Parameters ~
-{...} `(obsidian.Path|string)`
-Return ~
-`(obsidian.Path)`
-
-------------------------------------------------------------------------------
-                                                   *obsidian.Path.relative_to()*
+                                                            *Path.relative_to()*
                       `Path.relative_to`({self}, {other})
 Try to resolve a version of the path relative to the other.
 An error is raised when it's not possible.
@@ -761,7 +621,7 @@ Return ~
 `(obsidian.Path)`
 
 ------------------------------------------------------------------------------
-                                                        *obsidian.Path.parent()*
+                                                                 *Path.parent()*
                              `Path.parent`({self})
 The logical parent of the path.
 
@@ -769,7 +629,7 @@ Return ~
 `(obsidian.Path| `(optional))``
 
 ------------------------------------------------------------------------------
-                                                       *obsidian.Path.parents()*
+                                                                *Path.parents()*
                              `Path.parents`({self})
 Get a list of the parent directories.
 
@@ -777,7 +637,7 @@ Return ~
 `(obsidian.Path[])`
 
 ------------------------------------------------------------------------------
-                                                  *obsidian.Path.is_parent_of()*
+                                                           *Path.is_parent_of()*
                       `Path.is_parent_of`({self}, {other})
 Check if the path is a parent of other. This is a pure path method, so it only checks by
 comparing strings. Therefore in practice you probably want to `:resolve()` each path before
@@ -794,7 +654,7 @@ Return ~
 Concrete path methods.
 
 ------------------------------------------------------------------------------
-                                                       *obsidian.Path.resolve()*
+                                                                *Path.resolve()*
                          `Path.resolve`({self}, {opts})
 Make the path absolute, resolving any symlinks.
 If `strict` is true and the path doesn't exist, an error is raised.
@@ -806,7 +666,7 @@ Return ~
 `(obsidian.Path)`
 
 ------------------------------------------------------------------------------
-                                                          *obsidian.Path.stat()*
+                                                                   *Path.stat()*
                               `Path.stat`({self})
 Get OS stat results.
 
@@ -814,7 +674,7 @@ Return ~
 `(table| `(optional))``
 
 ------------------------------------------------------------------------------
-                                                        *obsidian.Path.exists()*
+                                                                 *Path.exists()*
                              `Path.exists`({self})
 Check if the path points to an existing file or directory.
 
@@ -822,7 +682,7 @@ Return ~
 `(boolean)`
 
 ------------------------------------------------------------------------------
-                                                       *obsidian.Path.is_file()*
+                                                                *Path.is_file()*
                              `Path.is_file`({self})
 Check if the path points to an existing file.
 
@@ -830,7 +690,7 @@ Return ~
 `(boolean)`
 
 ------------------------------------------------------------------------------
-                                                        *obsidian.Path.is_dir()*
+                                                                 *Path.is_dir()*
                              `Path.is_dir`({self})
 Check if the path points to an existing directory.
 
@@ -838,7 +698,7 @@ Return ~
 `(boolean)`
 
 ------------------------------------------------------------------------------
-                                                         *obsidian.Path.mkdir()*
+                                                                  *Path.mkdir()*
                           `Path.mkdir`({self}, {opts})
 Create a new directory at the given path.
 
@@ -846,44 +706,12 @@ Parameters ~
 {opts} `({ mode: integer|?, parents: boolean|?, exist_ok: boolean|? }|)`?
 
 ------------------------------------------------------------------------------
-                                                         *obsidian.Path.rmdir()*
-                              `Path.rmdir`({self})
-Remove the corresponding directory. This directory must be empty.
-
-------------------------------------------------------------------------------
-                                                        *obsidian.Path.rmtree()*
-                             `Path.rmtree`({self})
+                                                                 *Path.rmtree()*
+                                `Path.rmtree`()
 Recursively remove an entire directory and its contents.
 
 ------------------------------------------------------------------------------
-                                                         *obsidian.Path.touch()*
-                          `Path.touch`({self}, {opts})
-Create a file at this given path.
-
-Parameters ~
-{opts} `({ mode: integer|?, exist_ok: boolean|? }|)`?
-
-------------------------------------------------------------------------------
-                                                        *obsidian.Path.rename()*
-                        `Path.rename`({self}, {target})
-Rename this file or directory to the given target.
-
-Parameters ~
-{target} `(obsidian.Path|string)`
-
-Return ~
-`(obsidian.Path)`
-
-------------------------------------------------------------------------------
-                                                        *obsidian.Path.unlink()*
-                         `Path.unlink`({self}, {opts})
-Remove the file.
-
-Parameters ~
-{opts} `({ missing_ok: boolean|? }|)`?
-
-------------------------------------------------------------------------------
-                                           *obsidian.Path.vault_relative_path()*
+                                                    *Path.vault_relative_path()*
                    `Path.vault_relative_path`({self}, {opts})
 Make a path relative to the vault root, if possible, return a string
 

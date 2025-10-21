@@ -1,3 +1,5 @@
+---builtin functions that are impure, interacts with editor state, like vim.api
+
 local M = {}
 local log = require "obsidian.log"
 local util = require "obsidian.util"
@@ -5,6 +7,7 @@ local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
+local RefTypes = search.RefTypes
 
 --- Return a iter like `vim.fs.dir` but on a dir of notes.
 ---
@@ -92,7 +95,6 @@ end
 ---@param opts obsidian.note.LoadOpts|?
 ---
 ---@return obsidian.Note|?
----@diagnostic disable-next-line: unused-local
 M.current_note = function(bufnr, opts)
   bufnr = bufnr or 0
   local Note = require "obsidian.note"
@@ -107,44 +109,6 @@ M.current_note = function(bufnr, opts)
   return Note.from_buffer(bufnr, opts)
 end
 
----builtin functions that are impure, interacts with editor state, like vim.api
-
----Toggle the checkbox on the current line.
----
----@param states table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
----@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
-M.toggle_checkbox = function(states, line_num)
-  if not util.in_node { "list", "paragraph" } or util.in_node "block_quote" then
-    return
-  end
-  line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
-  local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
-
-  local checkboxes = states or { " ", "x" }
-
-  if util.is_checkbox(line) then
-    for i, check_char in ipairs(checkboxes) do
-      if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
-        i = i % #checkboxes
-        line = string.gsub(line, vim.pesc("[" .. check_char .. "]"), "[" .. checkboxes[i + 1] .. "]", 1)
-        break
-      end
-    end
-  elseif Obsidian.opts.checkbox.create_new then
-    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
-    if string.match(line, unordered_list_pattern) then
-      line = string.gsub(line, unordered_list_pattern, "%1- [ ] %2")
-    else
-      line = string.gsub(line, "^(%s*)", "%1- [ ] ")
-    end
-  else
-    goto out
-  end
-
-  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { line })
-  ::out::
-end
-
 ---@return [number, number, number, number] tuple containing { buf, win, row, col }
 M.get_active_window_cursor_location = function()
   local buf = vim.api.nvim_win_get_buf(0)
@@ -154,48 +118,7 @@ M.get_active_window_cursor_location = function()
   return location
 end
 
---- Create a formatted markdown / wiki link for a note.
----
----@param note obsidian.Note|obsidian.Path|string The note/path to link to.
----@param opts { label: string|?, link_style: obsidian.config.LinkStyle|?, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|? Options.
----
----@return string
-M.format_link = function(note, opts)
-  opts = opts or {}
-
-  ---@type string, string, string|integer|?
-  local rel_path, label, note_id
-  if type(note) == "string" or Path.is_path_obj(note) then
-    ---@cast note string|obsidian.Path
-    -- rel_path = tostring(self:vault_relative_path(note, { strict = true }))
-    rel_path = assert(Path.new(note):vault_relative_path { strict = true })
-    label = opts.label or tostring(note)
-    note_id = opts.id
-  else
-    ---@cast note obsidian.Note
-    -- rel_path = tostring(self:vault_relative_path(note.path, { strict = true }))
-    rel_path = assert(note.path:vault_relative_path { strict = true })
-    label = opts.label or note:display_name()
-    note_id = opts.id or note.id
-  end
-
-  local link_style = opts.link_style
-  if link_style == nil then
-    link_style = Obsidian.opts.preferred_link_style
-  end
-
-  local new_opts = { path = rel_path, label = label, id = note_id, anchor = opts.anchor, block = opts.block }
-
-  if link_style == config.LinkStyle.markdown then
-    return Obsidian.opts.markdown_link_func(new_opts)
-  elseif link_style == config.LinkStyle.wiki or link_style == nil then
-    return Obsidian.opts.wiki_link_func(new_opts)
-  else
-    error(string.format("Invalid link style '%s'", link_style))
-  end
-end
-
----Return the full link under cursror
+---Return the full link under cursor
 ---
 ---@return string? link
 ---@return obsidian.search.RefTypes? link_type
@@ -206,8 +129,8 @@ M.cursor_link = function()
 
   local refs = search.find_refs(line, { include_naked_urls = true, include_file_urls = true, include_block_ids = true })
 
-  local match = iter(refs):find(function(match)
-    local open, close = unpack(match)
+  local match = iter(refs):find(function(m)
+    local open, close = unpack(m)
     return cur_col >= open and cur_col <= close
   end)
   if match then
@@ -222,7 +145,7 @@ M.cursor_tag = function()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
   cur_col = cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
 
-  for match in iter(search.find_tags(current_line)) do
+  for match in iter(search.find_tags_in_string(current_line)) do
     local open, close, _ = unpack(match)
     if open <= cur_col and cur_col <= close then
       return string.sub(current_line, open + 1, close)
@@ -236,6 +159,12 @@ end
 ---@return { header: string, level: integer, anchor: string }|?
 M.cursor_heading = function()
   return util.parse_header(vim.api.nvim_get_current_line())
+end
+
+--- Whether there is a checkbox under the cursor
+---@return boolean
+M.cursor_checkbox = function()
+  return util.is_checkbox(vim.api.nvim_get_current_line())
 end
 
 ------------------
@@ -343,7 +272,7 @@ M.get_visual_selection = function(opts)
   end
 
   local lines = vim.fn.getline(csrow, cerow)
-  assert(type(lines) == "table")
+  assert(type(lines) == "table", "lines is not a table")
   if vim.tbl_isempty(lines) then
     return
   end
@@ -558,7 +487,7 @@ M.get_os = function()
     end
   end
 
-  assert(this_os)
+  assert(this_os, "failed to get your os")
   M._current_os = this_os
   return this_os
 end
@@ -760,58 +689,92 @@ M.follow_link = function(link, opts)
   opts = opts and opts or {}
   local Note = require "obsidian.note"
 
-  ---@param res obsidian.ResolveLinkResult
-  local function follow_link(res)
-    if res.url ~= nil then
-      Obsidian.opts.follow_url_func(res.url)
-      return
-    end
+  local location, name, link_type = util.parse_link(link, {
+    include_naked_urls = true,
+    include_file_urls = true,
+  })
 
-    if util.is_img(res.location) then
-      local path = Obsidian.dir / res.location
-      Obsidian.opts.follow_img_func(tostring(path))
-      return
-    end
-
-    if res.note ~= nil then
-      -- Go to resolved note.
-      return res.note:open { line = res.line, col = res.col, open_strategy = opts.open_strategy }
-    end
-
-    if
-      res.link_type == search.RefTypes.Wiki
-      or res.link_type == search.RefTypes.WikiWithAlias
-      or res.link_type == search.RefTypes.Markdown
-    then
-      -- Prompt to create a new note.
-      if M.confirm("Create new note '" .. res.location .. "'?") then
-        -- Create a new note.
-        ---@type string|?, string[]
-        local id, aliases
-        if res.name == res.location then
-          aliases = {}
-        else
-          aliases = { res.name }
-          id = res.location
-        end
-
-        local note = Note.create { title = res.name, id = id, aliases = aliases }
-        return note:open {
-          open_strategy = opts.open_strategy,
-          callback = function(bufnr)
-            note:write_to_buffer { bufnr = bufnr }
-          end,
-        }
-      else
-        log.warn "Aborted"
-        return
-      end
-    end
-
-    return log.err("Failed to resolve file '" .. res.location .. "'")
+  if not location then
+    return
   end
 
-  search.resolve_link_async(link, vim.schedule_wrap(follow_link), { pick = true })
+  local function jump_to_note(note, block_link, anchor_link)
+    ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
+    local line, block_match, anchor_match
+    if block_link then
+      block_match = note:resolve_block(block_link)
+      if block_match then
+        line = block_match.line
+      end
+    elseif anchor_link then
+      anchor_match = note:resolve_anchor_link(anchor_link)
+      if anchor_match then
+        line = anchor_match.line
+      end
+    end
+    note:open {
+      line = line,
+      open_strategy = opts.open_strategy,
+    }
+  end
+
+  if link_type == RefTypes.NakedUrl then
+    return Obsidian.opts.follow_url_func(location)
+  elseif link_type == RefTypes.FileUrl then
+    return vim.cmd("edit " .. vim.uri_to_fname(location))
+  elseif link_type == RefTypes.Wiki or link_type == RefTypes.WikiWithAlias or link_type == RefTypes.Markdown then
+    local _, _, location_type = util.parse_link(location, {
+      include_naked_urls = true,
+      include_file_urls = true,
+    })
+    if util.is_img(location) then -- TODO: include in parse_link
+      local path = Obsidian.dir / location
+      return Obsidian.opts.follow_img_func(tostring(path))
+    elseif location_type == RefTypes.NakedUrl then
+      return Obsidian.opts.follow_url_func(location)
+    elseif location_type == RefTypes.FileUrl then
+      return vim.cmd("edit " .. vim.uri_to_fname(location))
+    else
+      local block_link, anchor_link
+      location, block_link = util.strip_block_links(location)
+      location, anchor_link = util.strip_anchor_links(location)
+
+      local notes = search.resolve_note(location, {})
+      if vim.tbl_isempty(notes) then
+        if M.confirm("Create new note '" .. location .. "'?") then
+          ---@type string|?, string[]
+          local id, aliases
+          if name == location then
+            aliases = {}
+          else
+            aliases = { name }
+            id = location
+          end
+
+          local note = Note.create { title = name, id = id, aliases = aliases }
+          return note:open {
+            open_strategy = opts.open_strategy,
+            callback = function(bufnr)
+              note:write_to_buffer { bufnr = bufnr }
+            end,
+          }
+        else
+          return log.warn "Aborted"
+        end
+      elseif #notes == 1 then
+        local note = notes[1]
+        jump_to_note(note, block_link, anchor_link)
+      elseif #notes > 1 then
+        Obsidian.picker:pick_note(notes, {
+          callback = function(note)
+            jump_to_note(note, block_link, anchor_link)
+          end,
+        })
+      end
+    end
+  else
+    log.err "link type not supported"
+  end
 end
 
 --------------------------
@@ -824,46 +787,155 @@ M.nav_link = function(direction)
   local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
   local Note = require "obsidian.note"
 
-  search.find_links(Note.from_buffer(0), {}, function(matches)
-    if direction == "next" then
-      for i = 1, #matches do
-        local match = matches[i]
-        if (match.line > cursor_line) or (cursor_line == match.line and cursor_col < match.start) then
-          return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
-        end
-      end
-    end
+  local matches = Note.from_buffer(0):links()
 
-    if direction == "prev" then
-      for i = #matches, 1, -1 do
-        local match = matches[i]
-        if (match.line < cursor_line) or (cursor_line == match.line and cursor_col > match.start) then
-          return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
-        end
+  if direction == "next" then
+    for i = 1, #matches do
+      local match = matches[i]
+      if (match.line > cursor_line) or (cursor_line == match.line and cursor_col < match.start) then
+        return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
       end
     end
-  end)
+  end
+
+  if direction == "prev" then
+    for i = #matches, 1, -1 do
+      local match = matches[i]
+      if (match.line < cursor_line) or (cursor_line == match.line and cursor_col > match.start) then
+        return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
+      end
+    end
+  end
 end
 
+local function has_markdown_folding()
+  if vim.wo.foldmethod == "expr" and vim.wo.foldexpr == "v:lua.vim.treesitter.foldexpr()" then
+    return true
+  elseif vim.g.markdown_folding == 1 then
+    return true
+  elseif vim.wo.foldmethod == "expr" and vim.wo.foldexpr == "MarkdownFold()" then
+    return true
+  end
+  return false
+end
+
+-- If cursor is on a link, follow the link
+-- If cursor is on a tag, show all notes with that tag in a picker
+-- If cursor is on a checkbox, toggle the checkbox
+-- If cursor is on a heading, cycle the fold of that heading
 M.smart_action = function()
   local legacy = Obsidian.opts.legacy_commands
-  -- follow link if possible
   if M.cursor_link() then
     return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
-  end
-
-  -- show notes with tag if possible
-  if M.cursor_tag() then
+  elseif M.cursor_tag() then
     return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
-  end
-
-  if M.cursor_heading() then
+  elseif M.cursor_heading() and has_markdown_folding() then
     return "za"
+  elseif M.cursor_checkbox() or Obsidian.opts.checkbox.create_new then
+    return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
+  else
+    return "<CR>"
+  end
+end
+
+---Check if we are in node that should not do checkbox operations.
+---
+---@return boolean
+local function no_checkbox()
+  return util.in_node {
+    "fenced_code_block",
+    "minus_metadata",
+    --- what other types?
+  }
+end
+
+---Toggle the checkbox on the current line.
+---
+---@param states table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
+---@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
+M.toggle_checkbox = function(states, line_num)
+  if no_checkbox() then
+    return
+  end
+  line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
+  local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
+
+  local checkboxes = states or { " ", "x" }
+
+  if util.is_checkbox(line) then
+    for i, check_char in ipairs(checkboxes) do
+      if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
+        i = i % #checkboxes
+        line = string.gsub(line, vim.pesc("[" .. check_char .. "]"), "[" .. checkboxes[i + 1] .. "]", 1)
+        break
+      end
+    end
+  elseif Obsidian.opts.checkbox.create_new then
+    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
+    if string.match(line, unordered_list_pattern) then
+      line = string.gsub(line, unordered_list_pattern, "%1- [ ] %2")
+    else
+      line = string.gsub(line, "^(%s*)", "%1- [ ] ")
+    end
+  else
+    return
   end
 
-  -- toggle task if possible
-  -- cycles through your custom UI checkboxes, default: [ ] [~] [>] [x]
-  return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
+  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { line })
+end
+
+---Set the checkbox on the current line to a specific state.
+---
+---@param state string|nil Optional string of state to set the checkbox to (e.g., " ", "x").
+M.set_checkbox = function(state)
+  if no_checkbox() then
+    return
+  end
+  if state == nil then
+    local ok, key = pcall(vim.fn.getchar)
+    if not ok then
+      log.err "set_checkbox: unable to get state input"
+      return
+    end
+    state = string.char(key + 0)
+  end
+
+  local found = false
+  for _, value in ipairs(Obsidian.opts.checkbox.order) do
+    if value == state then
+      found = true
+    end
+  end
+
+  if not found then
+    log.err(
+      "state passed '"
+        .. state
+        .. "' is not part of the available states: "
+        .. vim.inspect(Obsidian.opts.checkbox.order)
+    )
+    return
+  end
+
+  local cur_line = vim.api.nvim_get_current_line()
+
+  if util.is_checkbox(cur_line) then
+    if string.match(cur_line, "^.* %[.%].*") then
+      cur_line = string.gsub(cur_line, "%[.%]", "[" .. state .. "]", 1)
+    end
+  elseif Obsidian.opts.checkbox.create_new then
+    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
+    if string.match(cur_line, unordered_list_pattern) then
+      cur_line = string.gsub(cur_line, unordered_list_pattern, "%1- [" .. state .. "] %2")
+    else
+      cur_line = string.gsub(cur_line, "^(%s*)", "%1- [" .. state .. "] ")
+    end
+  else
+    return
+  end
+
+  local line_num = vim.fn.getpos(".")[2]
+  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
 return M

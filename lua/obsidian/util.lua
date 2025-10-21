@@ -136,11 +136,11 @@ end
 ---@return boolean
 util.is_checkbox = function(s)
   -- - [ ] and * [ ] and + [ ]
-  if string.match(s, "^%s*[-+*]%s+%[.%]") ~= nil then
+  if string.match(s, "%s*[-+*]%s+%[.%]") ~= nil then
     return true
   end
   -- 1. [ ] and 1) [ ]
-  if string.match(s, "^%s*%d+[%.%)]%s+%[.%]") ~= nil then
+  if string.match(s, "%s*%d+[%.%)]%s+%[.%]") ~= nil then
     return true
   end
   return false
@@ -408,13 +408,14 @@ util.working_day_after = function(time)
 end
 
 ---@param link string
----@param opts { include_naked_urls: boolean|?, include_file_urls: boolean|?, include_block_ids: boolean|?, link_type: obsidian.search.RefTypes|? }|?
+---@param opts { strip: boolean|?, include_naked_urls: boolean|?, include_file_urls: boolean|?, include_block_ids: boolean|?, link_type: obsidian.search.RefTypes|? }|?
 ---
 ---@return string|?, string|?, obsidian.search.RefTypes|?
 util.parse_link = function(link, opts)
   local search = require "obsidian.search"
 
   opts = opts and opts or {}
+  vim.validate("opts.strip", opts.strip, "boolean", true)
 
   local link_type = opts.link_type
   if link_type == nil then
@@ -441,10 +442,7 @@ util.parse_link = function(link, opts)
   if link_type == search.RefTypes.Markdown then
     link_location = link:gsub("^%[(.-)%]%((.*)%)$", "%2")
     link_name = link:gsub("^%[(.-)%]%((.*)%)$", "%1")
-  elseif link_type == search.RefTypes.NakedUrl then
-    link_location = link
-    link_name = link
-  elseif link_type == search.RefTypes.FileUrl then
+  elseif link_type == search.RefTypes.NakedUrl or link_type == search.RefTypes.FileUrl then
     link_location = link
     link_name = link
   elseif link_type == search.RefTypes.WikiWithAlias then
@@ -465,6 +463,11 @@ util.parse_link = function(link, opts)
     link_name = link
   else
     error("not implemented for " .. link_type)
+  end
+
+  if opts.strip then
+    link_location = util.strip_anchor_links(link_location)
+    link_location = util.strip_block_links(link_location)
   end
 
   return link_location, link_name, link_type

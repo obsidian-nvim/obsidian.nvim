@@ -28,8 +28,7 @@ end
 
 ---@class obsidian.pickers.SnacksPicker : obsidian.Picker
 local SnacksPicker = abc.new_class({
-  ---@diagnostic disable-next-line: unused-local
-  __tostring = function(self)
+  __tostring = function()
     return "SnacksPicker()"
   end,
 }, Picker)
@@ -39,7 +38,7 @@ SnacksPicker.find_files = function(self, opts)
   opts = opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir.filename and Path:new(opts.dir.filename) or Obsidian.dir
+  local dir = opts.dir.filename and Path.new(opts.dir.filename) or Obsidian.dir
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
@@ -47,6 +46,7 @@ SnacksPicker.find_files = function(self, opts)
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
+    pattern = opts.query,
     source = "files",
     title = opts.prompt_title,
     cwd = tostring(dir),
@@ -71,7 +71,7 @@ SnacksPicker.grep = function(self, opts)
   opts = opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir.filename and Path:new(opts.dir.filename) or Obsidian.dir
+  local dir = opts.dir.filename and Path.new(opts.dir.filename) or Obsidian.dir
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
@@ -79,6 +79,7 @@ SnacksPicker.grep = function(self, opts)
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
+    search = opts.query,
     source = "grep",
     title = opts.prompt_title,
     cwd = tostring(dir),
@@ -121,7 +122,7 @@ SnacksPicker.pick = function(self, values, opts)
       display = value
       value = { value = value }
     else
-      display = self:_make_display(value)
+      display = opts.format_item and opts.format_item(value) or self:_make_display(value)
     end
     table.insert(entries, {
       text = display,
@@ -139,6 +140,7 @@ SnacksPicker.pick = function(self, values, opts)
     items = entries,
     layout = {
       preview = preview,
+      preset = "default",
     },
     format = "text",
     confirm = function(picker, item, action)

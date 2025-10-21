@@ -1,7 +1,7 @@
 local log = require "obsidian.log"
 
----@param data CommandArgs
-return function(_, data)
+---@param data obsidian.CommandArgs
+return function(data)
   local picker = Obsidian.picker
   if not picker then
     log.err "No picker configured"

@@ -36,7 +36,7 @@ end
 ---@param mark ExtMark
 ---@return ExtMark|?
 local function cache_set(bufnr, ns_id, mark)
-  assert(mark.id ~= nil)
+  assert(mark.id ~= nil, "")
   M._buf_mark_cache[bufnr][ns_id][mark.id] = mark
 end
 
@@ -233,7 +233,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
     if m_type == search.RefTypes.WikiWithAlias then
       -- Reference of the form [[xxx|yyy]]
       local pipe_loc = string.find(line, "|", m_start, true)
-      assert(pipe_loc)
+      assert(pipe_loc, "")
       -- Conceal everything from '[[' up to '|'
       marks[#marks + 1] = ExtMark.new(
         nil,
@@ -307,7 +307,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
     elseif m_type == search.RefTypes.Markdown then
       -- Reference of the form [yyy](xxx)
       local closing_bracket_loc = string.find(line, "]", m_start, true)
-      assert(closing_bracket_loc)
+      assert(closing_bracket_loc, "")
       local is_url = util.is_url(string.sub(line, closing_bracket_loc + 2, m_end - 1))
       -- Conceal the opening '['
       marks[#marks + 1] = ExtMark.new(
@@ -369,7 +369,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
     elseif m_type == search.RefTypes.NakedUrl then
       -- A "naked" URL is just a URL by itself, like 'https://github.com/'
       local domain_start_loc = string.find(line, "://", m_start, true)
-      assert(domain_start_loc)
+      assert(domain_start_loc, "")
       domain_start_loc = domain_start_loc + 3
       -- Conceal the "https?://" part
       marks[#marks + 1] = ExtMark.new(

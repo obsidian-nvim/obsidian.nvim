@@ -2,9 +2,10 @@ local h = dofile "tests/helpers.lua"
 local Note = require "obsidian.note"
 local M = require "obsidian.daily"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
-local T = h.temp_vault
 
-T["daily_note_path"] = new_set()
+local T = new_set()
+
+T["daily_note_path"] = h.temp_vault
 
 T["daily_note_path"]["should use the path stem as the ID"] = function()
   Obsidian.opts.daily_notes.date_format = "%Y/%b/%Y-%m-%d"
@@ -20,7 +21,7 @@ T["daily_note_path"]["should be able to initialize a daily note"] = function()
 end
 
 T["daily_note_path"]["should not add frontmatter for today when disabled"] = function()
-  Obsidian.opts.disable_frontmatter = true
+  Obsidian.opts.frontmatter.enabled = false
   local new_note = M.today()
 
   local saved_note = Note.from_file(new_note.path)
@@ -28,7 +29,7 @@ T["daily_note_path"]["should not add frontmatter for today when disabled"] = fun
 end
 
 T["daily_note_path"]["should not add frontmatter for yesterday when disabled"] = function()
-  Obsidian.opts.disable_frontmatter = true
+  Obsidian.opts.frontmatter.enabled = false
   local new_note = M.yesterday()
   local saved_note = Note.from_file(new_note.path)
   eq(false, saved_note.has_frontmatter)

@@ -6,17 +6,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with respect to the public API, which currently includes the installation steps, dependencies, configuration, keymappings, commands, and other plugin functionality. At the moment this does _not_ include the Lua `Client` API, although in the future it will once that API stabilizes.
 
 ## Unreleased
+- Added file-watch: code that tracks changed notes in the vault.
+- Added cache: a JSON file, which stores aliases, last update date and path to the note. Updated using file-watch.
+- Added a new configuration option - `cache`, which is disabled by default.
+
+## [v3.14.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.3) - 2025-10-19
+
+### Fixed
+
+- Properly switch to workspace on setup based on cwd.
+- Properly resolve path to de-duplicate when resolving notes.
+
+## [v3.14.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.2) - 2025-10-11
+
+### Fixed
+
+- Fixed link and quick_switch commands by replacing deprecated `resolve_note_async` with picker interface.
+- Added query parameter support to `picker.find_notes` method.
+- Added query parameter support to snacks, telescope and fzf pickers.
+- Improved search command building with `ignore_case` option.
+- `follow_link` will properly follow file url.
+- `follow_link` will properly follow url.
+- `follow_link` will properly follow links base on location type.
+
+## [v3.14.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.1) - 2025-10-07
+
+### Fixed
+
+- `follow_link` properly prompt to create new note.
+
+## [v3.14.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.0) - 2025-10-07
+
+### Added
+
+- `Note:link` and `Note:backlinks` as convenience method.
+- LSP `references` and `definition`.
+- LSP `documentSymbol` -> `Obsidian toc`.
+- Uses `selene` and `typos-cli` to check code quality.
+- Add `opts.frontmatter.sort` to sort properties.
+- `footer` and `Note.status` now show visual mode word/char counts.
 
 ### Changed
 
 - `require"obsidian".module` now can be LSP completed for better api usage.
 - remove custom enumerate function to use vim.iter.
 - `blink` is checked before `nvim_cmp`.
+- `opts.note_frontmatter_func` defaults to `require"builtin".frontmatter`.
+- `Client.find_tags` -> `search.find_tags`.
+- all commands and callbacks now don't have client as callback.
+- Workspace module only export one method `set`.
+- `config` is now its own module.
+- `smart_action` now properly falls back to `<CR>` unless `Obsidian.opts.checkbox.create_new`.
+- `rename` reimplemented with backlinks.
+- Removed unused path methods.
+- `opts.note_frontmatter_func` moved to `opts.frontmatter.func`.
+- `opts.disable_frontmatter` moved to `opts.frontmatter.enabled`.
+- `api.format_link` moved to `Note:format_link`.
 
 ### Fixed
 
-- Fixed incorrect call signature for `options.callbacks.post_set_workspace`
-- Fixed incorrect fallback for `resolve_note`.
+- Use the default layout for `Snack.picker` to handle all configurations
+- Replace non existing function `get_workspace_for_dir` with `find_workspace`
 - Fixed async with minimal functions copied from `vim._async`.
 - No longer notify user `Updated Frontmatter`.
 - `Snacks.picker` now follow `sort_by` and `sort_reversed` settings.
@@ -28,14 +78,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make sure fold options are remove on `BufLeave`
 - Unified picker interface.
 - `follow_link` will prompt to create on markdown paths that don't exist.
+- remove any fold option overriding, only do fold when fold is setup by the user.
+- support `[](./path)` pattern when finding backlinks.
+- Remove tag false positives that are not on word boundary.
+- Allow nil return in dynamic workspace paths.
+- Fix typo in `open` command.
+- Check if a user specified workspace exists before listing it as valid.
+- Tags in html comments will be properly ignored.
+- Allow for parent (`()`) and `/` char in frontmatter keys.
+- Checkbox can be toggled in block quotes and create new works on blank line.
+- Backlinks will find vault relative path without `.md` extension.
+- Notes with same filename in different folders will be resolved by user picking.
+
+## [v3.13.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.1) - 2025-08-01
+
+### Fixed
+
+- Fixed incorrect call signature for `options.callbacks.post_set_workspace`
+- Fixed incorrect fallback for `resolve_note`.
 
 ## [v3.13.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.13.0) - 2025-07-28
 
 ### Added
 
-- Added file-watch: code that tracks changed notes in the vault.
-- Added cache: a JSON file, which stores aliases, last update date and path to the note. Updated using file-watch.
-- Added a new configuration option - `cache`, which is disabled by default.
+- Added function `obsidian.api.set_checkbox`
+  - api function `set_checkbox [state]` takes an optional state param, if no param is
+    passed then it takes the next char input as the state and validates that
+    against `Obsidian.opts.checkbox.order`
 - Allow custom directory and ID logic for templates
 - When filling out a template with user-provided substitution functions, pass a "context" object to each invocation so that users can respond accordingly.
   - Added `obsidian.InsertTemplateContext` and `obsidian.CloneTemplateContext` as these new "context" objects.
