@@ -55,13 +55,6 @@ vim.api.nvim_create_autocmd({ "BufEnter" }, {
       api.nav_link "prev"
     end, { buffer = true, desc = "Obsidian Previous Link" })
 
-    -- Inject completion sources, providers to their plugin configurations
-    if opts.completion.nvim_cmp then
-      require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
-    elseif opts.completion.blink then
-      require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
-    end
-
     require("obsidian.lsp").start(ev.buf)
 
     exec_autocmds "ObsidianNoteEnter"
