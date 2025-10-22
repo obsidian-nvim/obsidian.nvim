@@ -140,11 +140,6 @@ There's one entry point user command for this plugin: `Obsidian`
 
 There's no required dependency, but there are a number of optional dependencies that enhance the obsidian.nvim experience.
 
-**Completion:**
-
-- [blink.cmp](https://github.com/Saghen/blink.cmp)
-- [nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
-
 **Pickers:**
 
 - [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
