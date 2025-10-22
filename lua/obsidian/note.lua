@@ -533,14 +533,10 @@ end
 Note.from_file = function(path, opts)
   assert(path, "note path cannot be nil")
   path = tostring(Path.new(path):resolve { strict = true })
-<<<<<<< HEAD
   local file = assert(io.open(path, "r"), "failed to open file")
   local note = Note.from_lines(file:lines(), path, opts)
   file:close()
   return note
-=======
-  return Note.from_lines(io.lines(path), path, opts)
->>>>>>> 3b5ee25 (feat: fuzzy match with vim.fn.matchfuzzy, remove completion module!)
 end
 
 --- Initialize a note from a buffer.
