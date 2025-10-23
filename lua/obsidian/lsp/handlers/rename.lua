@@ -1,16 +1,32 @@
+local obsidian = require "obisidian"
+local Note = obsidian.note
+local search = obsidian.search
+local log = obsidian.log
+local api = obsidian.api
+local util = obsidian.util
+local Path = obsidian.path
 local lsp = vim.lsp
-local Note = require "obsidian.note"
-local search = require "obsidian.search"
-local log = require "obsidian.log"
-local api = require "obsidian.api"
-local util = require "obsidian.util"
-local Path = require "obsidian.path"
 
----@param old_path string
+-- TODO: all the backlinks patterns checked
+-- local raw_refs = {
+--   tostring(note.id),
+--   note_path.name,
+--   note_path.stem,
+--   rel_path,
+--   rel_path and rel_path:gsub(".md", "") or nil,
+-- }
+
+-- TODO: use hanlder, to have LSP rename plugin integration
+
+-- TODO: note:rename(self, new_name, callback)
+
+----@param old_path string
+---@param note obsidian.Note
 ---@param new_name string
----@param target obsidian.Note
-local function rename_note(old_path, new_name, target)
-  local old_id = Note.from_file(old_path).id
+local function rename_note(note, new_name)
+  local old_path = tostring(note.path)
+  local old_id = note.id
+
   local new_id = new_name
   local new_path = vim.fs.joinpath(vim.fs.dirname(old_path), new_id) .. ".md" -- TODO: resolve relative paths like ../new_name.md
 
@@ -18,7 +34,7 @@ local function rename_note(old_path, new_name, target)
   local path_lookup = {}
   local buf_list = {}
 
-  local matches = target:backlinks {}
+  local matches = note:backlinks {}
 
   local documentChanges = {}
 
@@ -55,8 +71,8 @@ local function rename_note(old_path, new_name, target)
 
   lsp.util.rename(old_path, new_path)
 
-  if not target.bufnr then
-    target.bufnr = vim.fn.bufnr(new_path, true)
+  if not note.bufnr then
+    note.bufnr = vim.fn.bufnr(new_path, true)
   end
 
   -- so that file with renamed refs are displaying correctly
@@ -64,13 +80,13 @@ local function rename_note(old_path, new_name, target)
     vim.bo[buf].filetype = "markdown"
   end
 
-  target.id = new_id
-  target.path = Path.new(new_path)
-  target:save_to_buffer { bufnr = target.bufnr }
+  note.id = new_id
+  note.path = Path.new(new_path)
+  note:save_to_buffer { bufnr = note.bufnr }
 
   log.info("renamed " .. count .. " reference(s) across " .. vim.tbl_count(path_lookup) .. " file(s)")
 
-  return target
+  return note
 end
 
 local function validate_new_name(name)
@@ -113,11 +129,11 @@ return function(params, _, _)
       return
     end
     local note = notes[1]
-    rename_note(tostring(note.path), new_name, note)
+    rename_note(note, new_name)
   else
     local uri = params.textDocument.uri
     local note = assert(api.current_note(0))
     local path = vim.uri_to_fname(uri)
-    rename_note(path, new_name, note)
+    rename_note(note, new_name)
   end
 end
