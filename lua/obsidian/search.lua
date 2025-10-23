@@ -821,15 +821,8 @@ end
 local function build_backlink_search_term(note, anchor, block)
   -- Prepare search terms.
   local search_terms = {}
-  local note_path = Path.new(note.path)
-  local rel_path = note.path:vault_relative_path()
-  local raw_refs = {
-    tostring(note.id),
-    note_path.name,
-    note_path.stem,
-    rel_path,
-    rel_path and rel_path:gsub(".md", "") or nil,
-  }
+  local raw_refs = note:_reference_paths()
+
   for _, raw_ref in ipairs(raw_refs) do
     local refs = util.tbl_unique {
       raw_ref,
