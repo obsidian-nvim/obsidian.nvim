@@ -836,34 +836,34 @@ local function build_backlink_search_term(note, anchor, block)
           search_terms[#search_terms + 1] = string.format("[[%s]]", ref)
           search_terms[#search_terms + 1] = string.format("[[%s|", ref)
           -- Markdown link without anchor/block.
-          search_terms[#search_terms + 1] = string.format("(%s)", ref)
+          search_terms[#search_terms + 1] = string.format("](%s)", ref)
           -- Markdown link without anchor/block and is relative to root.
-          search_terms[#search_terms + 1] = string.format("(/%s)", ref)
-          search_terms[#search_terms + 1] = string.format("(./%s)", ref)
+          search_terms[#search_terms + 1] = string.format("](/%s)", ref)
+          search_terms[#search_terms + 1] = string.format("](./%s)", ref)
           -- Wiki links with anchor/block.
           search_terms[#search_terms + 1] = string.format("[[%s#", ref)
           -- Markdown link with anchor/block.
-          search_terms[#search_terms + 1] = string.format("(%s#", ref)
+          search_terms[#search_terms + 1] = string.format("](%s#", ref)
           -- Markdown link with anchor/block and is relative to root.
-          search_terms[#search_terms + 1] = string.format("(/%s#", ref)
+          search_terms[#search_terms + 1] = string.format("](/%s#", ref)
         elseif anchor then
           -- Note: Obsidian allow a lot of different forms of anchor links, so we can't assume
           -- it's the standardized form here.
           -- Wiki links with anchor.
           search_terms[#search_terms + 1] = string.format("[[%s#", ref)
           -- Markdown link with anchor.
-          search_terms[#search_terms + 1] = string.format("(%s#", ref)
+          search_terms[#search_terms + 1] = string.format("](%s#", ref)
           -- Markdown link with anchor and is relative to root.
-          search_terms[#search_terms + 1] = string.format("(/%s#", ref)
-          search_terms[#search_terms + 1] = string.format("(./%s#", ref)
+          search_terms[#search_terms + 1] = string.format("](/%s#", ref)
+          search_terms[#search_terms + 1] = string.format("](./%s#", ref)
         elseif block then
           -- Wiki links with block.
           search_terms[#search_terms + 1] = string.format("[[%s#%s", ref, block)
           -- Markdown link with block.
-          search_terms[#search_terms + 1] = string.format("(%s#%s", ref, block)
+          search_terms[#search_terms + 1] = string.format("](%s#%s", ref, block)
           -- Markdown link with block and is relative to root.
-          search_terms[#search_terms + 1] = string.format("(/%s#%s", ref, block)
-          search_terms[#search_terms + 1] = string.format("(./%s#%s", ref, block)
+          search_terms[#search_terms + 1] = string.format("](/%s#%s", ref, block)
+          search_terms[#search_terms + 1] = string.format("](./%s#%s", ref, block)
         end
       end
     end
