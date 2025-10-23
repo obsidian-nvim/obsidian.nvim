@@ -821,60 +821,45 @@ end
 local function build_backlink_search_term(note, anchor, block)
   -- Prepare search terms.
   local search_terms = {}
-  local note_path = Path.new(note.path)
-  local rel_path = note.path:vault_relative_path()
-  local raw_refs = {
-    tostring(note.id),
-    note_path.name,
-    note_path.stem,
-    rel_path,
-    rel_path and rel_path:gsub(".md", "") or nil,
-  }
-  for _, raw_ref in ipairs(raw_refs) do
-    local refs = util.tbl_unique {
-      raw_ref,
-      util.urlencode(tostring(raw_ref)),
-      util.urlencode(tostring(raw_ref), { keep_path_sep = true }),
-    }
-    for _, ref in ipairs(refs) do
-      if ref ~= nil then
-        if anchor == nil and block == nil then
-          -- Wiki links without anchor/block.
-          search_terms[#search_terms + 1] = string.format("[[%s]]", ref)
-          search_terms[#search_terms + 1] = string.format("[[%s|", ref)
-          -- Markdown link without anchor/block.
-          search_terms[#search_terms + 1] = string.format("(%s)", ref)
-          -- Markdown link without anchor/block and is relative to root.
-          search_terms[#search_terms + 1] = string.format("(/%s)", ref)
-          search_terms[#search_terms + 1] = string.format("(./%s)", ref)
-          -- Wiki links with anchor/block.
-          search_terms[#search_terms + 1] = string.format("[[%s#", ref)
-          -- Markdown link with anchor/block.
-          search_terms[#search_terms + 1] = string.format("(%s#", ref)
-          -- Markdown link with anchor/block and is relative to root.
-          search_terms[#search_terms + 1] = string.format("(/%s#", ref)
-        elseif anchor then
-          -- Note: Obsidian allow a lot of different forms of anchor links, so we can't assume
-          -- it's the standardized form here.
-          -- Wiki links with anchor.
-          search_terms[#search_terms + 1] = string.format("[[%s#", ref)
-          -- Markdown link with anchor.
-          search_terms[#search_terms + 1] = string.format("(%s#", ref)
-          -- Markdown link with anchor and is relative to root.
-          search_terms[#search_terms + 1] = string.format("(/%s#", ref)
-          search_terms[#search_terms + 1] = string.format("(./%s#", ref)
-        elseif block then
-          -- Wiki links with block.
-          search_terms[#search_terms + 1] = string.format("[[%s#%s", ref, block)
-          -- Markdown link with block.
-          search_terms[#search_terms + 1] = string.format("(%s#%s", ref, block)
-          -- Markdown link with block and is relative to root.
-          search_terms[#search_terms + 1] = string.format("(/%s#%s", ref, block)
-          search_terms[#search_terms + 1] = string.format("(./%s#%s", ref, block)
-        end
-      end
+  local raw_refs = note:get_reference_paths { urlencode = true }
+
+  for _, ref in ipairs(raw_refs) do
+    if anchor == nil and block == nil then
+      -- Wiki links without anchor/block.
+      search_terms[#search_terms + 1] = string.format("[[%s]]", ref)
+      search_terms[#search_terms + 1] = string.format("[[%s|", ref)
+      -- Markdown link without anchor/block.
+      search_terms[#search_terms + 1] = string.format("](%s)", ref)
+      -- Markdown link without anchor/block and is relative to root.
+      search_terms[#search_terms + 1] = string.format("](/%s)", ref)
+      search_terms[#search_terms + 1] = string.format("](./%s)", ref)
+      -- Wiki links with anchor/block.
+      search_terms[#search_terms + 1] = string.format("[[%s#", ref)
+      -- Markdown link with anchor/block.
+      search_terms[#search_terms + 1] = string.format("](%s#", ref)
+      -- Markdown link with anchor/block and is relative to root.
+      search_terms[#search_terms + 1] = string.format("](/%s#", ref)
+    elseif anchor then
+      -- Note: Obsidian allow a lot of different forms of anchor links, so we can't assume
+      -- it's the standardized form here.
+      -- Wiki links with anchor.
+      search_terms[#search_terms + 1] = string.format("[[%s#", ref)
+      -- Markdown link with anchor.
+      search_terms[#search_terms + 1] = string.format("](%s#", ref)
+      -- Markdown link with anchor and is relative to root.
+      search_terms[#search_terms + 1] = string.format("](/%s#", ref)
+      search_terms[#search_terms + 1] = string.format("](./%s#", ref)
+    elseif block then
+      -- Wiki links with block.
+      search_terms[#search_terms + 1] = string.format("[[%s#%s", ref, block)
+      -- Markdown link with block.
+      search_terms[#search_terms + 1] = string.format("](%s#%s", ref, block)
+      -- Markdown link with block and is relative to root.
+      search_terms[#search_terms + 1] = string.format("](/%s#%s", ref, block)
+      search_terms[#search_terms + 1] = string.format("](./%s#%s", ref, block)
     end
   end
+
   for alias in vim.iter(note.aliases) do
     if anchor == nil and block == nil then
       -- Wiki link without anchor/block.
@@ -891,6 +876,8 @@ local function build_backlink_search_term(note, anchor, block)
   end
   return search_terms
 end
+
+M._build_backlink_search_term = build_backlink_search_term
 
 ---@class obsidian.BacklinkMatch
 ---
