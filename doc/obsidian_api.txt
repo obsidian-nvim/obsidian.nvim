@@ -94,6 +94,15 @@ Return ~
 `(string[])`
 
 ------------------------------------------------------------------------------
+                                                    *Note.get_reference_paths()*
+                   `Note.get_reference_paths`({self}, {opts})
+Get a list of all of the different paths that can identify this note
+Parameters ~
+{opts} `(optional)` `({ urlencode: boolean|? })`
+Return ~
+`(string[])`
+
+------------------------------------------------------------------------------
                                                               *Note.has_alias()*
                        `Note.has_alias`({self}, {alias})
 Check if a note has a given alias.
