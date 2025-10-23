@@ -821,7 +821,7 @@ end
 local function build_backlink_search_term(note, anchor, block)
   -- Prepare search terms.
   local search_terms = {}
-  local raw_refs = note:get_reference_paths()
+  local raw_refs = note:get_reference_paths { urlencode = true }
 
   for _, ref in ipairs(raw_refs) do
     if anchor == nil and block == nil then
