@@ -395,4 +395,20 @@ T["resolve_title_id_path"]["should ensure result of 'note_path_func' is always a
   eq(Path.new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
 end
 
+-- T["reference_paths"] = new_set()
+--
+-- T["reference_paths"]["do four basic paths"] = function()
+--   local path = Obsidian.dir / "hi.md"
+--   vim.fn.writefile({ "" }, tostring(path))
+--   local note = M.from_file(path)
+--   eq({ "hi", "hi.md" }, note:get_reference_paths())
+--
+--   local sub = Obsidian.dir / "sub"
+--   path = sub / "hi.md"
+--   sub:mkdir()
+--   vim.fn.writefile({ "" }, tostring(path))
+--   note = M.from_file(path)
+--   eq({ "hi", "sub/hi", "sub%2Fhi", "sub%2Fhi.md", "sub/hi.md", "hi.md" }, note:get_reference_paths())
+-- end
+
 return T

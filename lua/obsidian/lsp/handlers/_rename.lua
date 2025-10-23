@@ -26,19 +26,18 @@ end
 
 -- TODO: note:rename(self, new_name, callback)
 
-----@param old_path string
 ---@param note obsidian.Note
 ---@param new_name string
 ---@param callback function -- TODO:
 M.rename = function(note, new_name, callback)
+  local old_refs = note:get_reference_paths()
   local old_path = tostring(note.path)
 
-  local old_refs = note:_reference_paths()
+  local new_path = vim.fs.joinpath(vim.fs.dirname(old_path), new_name) .. ".md" -- TODO: resolve relative paths like ../new_name.md
 
-  local new_id = new_name
-  local new_path = vim.fs.joinpath(vim.fs.dirname(old_path), new_id) .. ".md" -- TODO: resolve relative paths like ../new_name.md
-
-  -- TODO: return nil if old_path == new_path
+  if old_path == new_path then
+    return callback(nil, nil)
+  end
 
   local count = 0
   local path_lookup = {}
@@ -67,7 +66,7 @@ M.rename = function(note, new_name, callback)
                 start = { line = match.line - 1, character = replace_st },
                 ["end"] = { line = match.line - 1, character = replace_ed },
               },
-              newText = new_id,
+              newText = new_name,
             },
           },
         }
@@ -101,7 +100,7 @@ M.rename = function(note, new_name, callback)
     vim.bo[buf].filetype = "markdown"
   end
 
-  note.id = new_id
+  note.id = new_name
   note.path = Path.new(new_path)
   note:save_to_buffer { bufnr = note.bufnr }
 

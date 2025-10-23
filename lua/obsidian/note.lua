@@ -402,28 +402,46 @@ Note.reference_ids = function(self, opts)
   return util.tbl_unique(ref_ids)
 end
 
---- Get a list of all of the different string that can identify this note via references,
---- including the ID, aliases, and filename.
+--- Get a list of all of the different paths that can identify this note
+---@param opts? { urlencode: boolean|? }
 ---@return string[]
----@private
-Note._reference_paths = function(self)
+Note.get_reference_paths = function(self, opts)
+  opts = opts or {}
   ---@type string[]
-  local refs = {}
+  local raw_refs = {}
 
   if self.path then
-    table.insert(refs, self.path.name)
-    table.insert(refs, self.path.stem)
+    table.insert(raw_refs, self.path.name)
+    table.insert(raw_refs, self.path.stem)
   else
-    return refs
+    return raw_refs
   end
 
   local relpath = self.path:vault_relative_path()
   assert(relpath, "failed to resolve vault relative path")
-  table.insert(refs, relpath)
+  table.insert(raw_refs, relpath)
   local no_suffix_relpath = relpath:gsub(".md", "")
-  table.insert(refs, no_suffix_relpath)
+  table.insert(raw_refs, no_suffix_relpath)
 
-  return util.tbl_unique(refs)
+  raw_refs = util.tbl_unique(raw_refs)
+
+  if opts.urlencode == true then
+    local refs = {}
+
+    for _, raw_ref in ipairs(raw_refs) do
+      vim.list_extend(
+        refs,
+        util.tbl_unique {
+          raw_ref,
+          util.urlencode(raw_ref),
+          util.urlencode(raw_ref, { keep_path_sep = true }),
+        }
+      )
+    end
+    return refs
+  else
+    return raw_refs
+  end
 end
 
 --- Check if a note has a given alias.
