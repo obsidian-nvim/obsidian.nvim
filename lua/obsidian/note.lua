@@ -383,35 +383,20 @@ end
 Note.reference_ids = function(self, opts)
   opts = opts or {}
   ---@type string[]
-  local ref_ids = {}
+  local ref_ids = {
+    tostring(self.id),
+    self:display_name(), -- TODO: remove in the future
+  }
 
   if self.path then
     table.insert(ref_ids, self.path.name)
     table.insert(ref_ids, self.path.stem)
   end
 
-  if opts.id ~= false then
-    table.insert(ref_ids, tostring(self.id))
-  end
-
-  if opts.title ~= false then -- TODO: remove in the future
-    table.insert(ref_ids, self:display_name())
-  end
-
-  if opts.aliases ~= false then
-    vim.list_extend(ref_ids, self.aliases)
-  end
+  vim.list_extend(ref_ids, self.aliases)
 
   if opts.lowercase then
     ref_ids = vim.tbl_map(string.lower, ref_ids)
-  end
-
-  if opts.rel_path then
-    local relpath = self.path:vault_relative_path()
-    assert(relpath, "failed to resolve vault relative path")
-    table.insert(ref_ids, relpath)
-    local no_suffix_relpath = relpath:gsub(".md", "")
-    table.insert(ref_ids, no_suffix_relpath)
   end
 
   return util.tbl_unique(ref_ids)
