@@ -25,26 +25,28 @@ local function rename_note(old_path, new_name, target)
   for _, match in ipairs(matches) do
     local match_path = tostring(match.path)
     local offset_st, offset_ed = string.find(match.text, old_id)
-    local replace_st, replace_ed = offset_st + match.start - 1, offset_ed + match.start
+    if offset_st and offset_ed then
+      local replace_st, replace_ed = offset_st + match.start - 1, offset_ed + match.start
 
-    documentChanges[#documentChanges + 1] = {
-      textDocument = {
-        uri = vim.uri_from_fname(match_path),
-        version = vim.NIL,
-      },
-      edits = {
-        {
-          range = {
-            start = { line = match.line - 1, character = replace_st },
-            ["end"] = { line = match.line - 1, character = replace_ed },
-          },
-          newText = new_id,
+      documentChanges[#documentChanges + 1] = {
+        textDocument = {
+          uri = vim.uri_from_fname(match_path),
+          version = vim.NIL,
         },
-      },
-    }
-    count = count + 1
-    buf_list[#buf_list + 1] = vim.fn.bufnr(match_path, true)
-    path_lookup[match_path] = true
+        edits = {
+          {
+            range = {
+              start = { line = match.line - 1, character = replace_st },
+              ["end"] = { line = match.line - 1, character = replace_ed },
+            },
+            newText = new_id,
+          },
+        },
+      }
+      count = count + 1
+      buf_list[#buf_list + 1] = vim.fn.bufnr(match_path, true)
+      path_lookup[match_path] = true
+    end
   end
 
   ---@type lsp.WorkspaceEdit
