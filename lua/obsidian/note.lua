@@ -378,7 +378,7 @@ end
 
 --- Get a list of all of the different string that can identify this note via references,
 --- including the ID, aliases, and filename.
----@param opts { lowercase: boolean|?, rel_path: boolean|?, title: boolean|?, aliases: boolean|?, id: boolean|? }|?
+---@param opts { lowercase: boolean|? }|?
 ---@return string[]
 Note.reference_ids = function(self, opts)
   opts = opts or {}
@@ -405,6 +405,7 @@ end
 --- Get a list of all of the different string that can identify this note via references,
 --- including the ID, aliases, and filename.
 ---@return string[]
+---@private
 Note._reference_paths = function(self)
   ---@type string[]
   local refs = {}
