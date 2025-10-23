@@ -1,5 +1,4 @@
 local eq = MiniTest.expect.equality
-local Path = require "obsidian.path"
 local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
@@ -10,7 +9,7 @@ T["find wiki references"] = function()
 [[target]]
 ]==]
 
-  local root = Path.new(child.lua_get [[tostring(Obsidian.dir)]])
+  local root = child.Obsidian.dir
   local referencer_path = root / "referencer.md"
   h.write(referencer, referencer_path)
 
@@ -30,7 +29,7 @@ T["find markdown references"] = function()
 [target](target.md)
 ]==]
 
-  local root = Path.new(child.lua_get [[tostring(Obsidian.dir)]])
+  local root = child.Obsidian.dir
   local referencer_path = root / "referencer.md"
   h.write(referencer, referencer_path)
 
@@ -62,7 +61,7 @@ T["resolve header links"] = function()
 # Header
 ]==]
 
-  local root = Path.new(child.lua_get [[tostring(Obsidian.dir)]])
+  local root = child.Obsidian.dir
   local referencer_path = root / "referencer.md"
   h.write(referencer, referencer_path)
 
@@ -89,7 +88,7 @@ T["avoid invalid patterns"] = function()
 (target.md)
 ]==]
 
-  local root = Path.new(child.lua_get [[tostring(Obsidian.dir)]])
+  local root = child.Obsidian.dir
   local referencer_path = root / "referencer.md"
   h.write(referencer, referencer_path)
 
@@ -108,7 +107,7 @@ T["not find id links, here for historical reasons"] = function()
 [[id]]
 ]==]
 
-  local root = Path.new(child.lua_get [[tostring(Obsidian.dir)]])
+  local root = child.Obsidian.dir
   local referencer_path = root / "referencer.md"
   h.write(referencer, referencer_path)
 
