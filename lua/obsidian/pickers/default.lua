@@ -1,11 +1,10 @@
 local Picker = require "obsidian.pickers.picker"
 local abc = require "obsidian.abc"
-local Path = require "obsidian.path"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local log = require "obsidian.log"
 
----@class obsidian.pickers.MiniPicker : obsidian.Picker
+---@class obsidian.pickers.DefaultPicker : obsidian.Picker
 local DefaultPicker = abc.new_class({
   __tostring = function()
     return "MiniPicker()"
@@ -32,9 +31,7 @@ DefaultPicker.find_files = function(self, opts)
     function(path)
       paths[#paths + 1] = path
     end,
-    vim.schedule_wrap(function(code)
-      assert(code == 0)
-
+    vim.schedule_wrap(function()
       if vim.tbl_isempty(paths) then
         return log.info "Failed to Switch" -- TODO:
       elseif #paths == 1 then
