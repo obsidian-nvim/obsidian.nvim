@@ -17,6 +17,7 @@ local compat = require "obsidian.compat"
 local api = require "obsidian.api"
 local config = require "obsidian.config"
 local Frontmatter = require "obsidian.frontmatter"
+local search = require "obsidian.search"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
@@ -647,10 +648,10 @@ Note.from_lines = function(lines, path, opts)
 
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
-  local id = nil
-  local title
-  local aliases = {}
-  local tags = {}
+  -- local id = nil
+  -- local title
+  -- local aliases = {}
+  -- local tags = {}
 
   ---@type string[]|?
   local contents
@@ -781,7 +782,7 @@ Note.from_lines = function(lines, path, opts)
     -- Check if we can stop reading lines now.
     if
       line_idx > max_lines
-      or (title and not opts.load_contents and not opts.collect_anchor_links and not opts.collect_blocks)
+      -- or (title and not opts.load_contents and not opts.collect_anchor_links and not opts.collect_blocks) -- TODO: always false
     then
       break
     end
@@ -793,80 +794,9 @@ Note.from_lines = function(lines, path, opts)
   local metadata = {}
   if #frontmatter_lines > 0 then
     info, metadata = Frontmatter.parse(frontmatter_lines, path)
-    if metadata and metadata.title and type(metadata.title) == "string" then
-      title = metadata.title
-    end
-  end
-
-  if title ~= nil then
-    -- Remove references and links from title
-    title = util.replace_refs(title)
   end
 
   local id, aliases, tags = info.id, info.aliases, info.tags
-
-  local frontmatter = table.concat(frontmatter_lines, "\n")
-  local ok, data = pcall(yaml.loads, frontmatter)
-  if type(data) ~= "table" then
-    data = {}
-  end
-  if ok then
-    ---@diagnostic disable-next-line: param-type-mismatch
-    for k, v in pairs(data) do
-      if k == "id" then
-        if type(v) == "string" or type(v) == "number" then
-          id = v
-        else
-          log.warn("Invalid 'id' in frontmatter for " .. tostring(path))
-        end
-      elseif k == "aliases" then
-        if type(v) == "table" then
-          for alias in iter(v) do
-            if type(alias) == "string" then
-              table.insert(aliases, alias)
-            else
-              log.warn(
-                "Invalid alias value found in frontmatter for "
-                  .. tostring(path)
-                  .. ". Expected string, found "
-                  .. type(alias)
-                  .. "."
-              )
-            end
-          end
-        elseif type(v) == "string" then
-          table.insert(aliases, v)
-        else
-          log.warn("Invalid 'aliases' in frontmatter for " .. tostring(path))
-        end
-      elseif k == "tags" then
-        if type(v) == "table" then
-          for tag in iter(v) do
-            if type(tag) == "string" then
-              table.insert(tags, tag)
-            else
-              log.warn(
-                "Invalid tag value found in frontmatter for "
-                  .. tostring(path)
-                  .. ". Expected string, found "
-                  .. type(tag)
-                  .. "."
-              )
-            end
-          end
-        elseif type(v) == "string" then
-          tags = vim.split(v, " ")
-        else
-          log.warn("Invalid 'tags' in frontmatter for '%s'", path)
-        end
-      else
-        if metadata == nil then
-          metadata = {}
-        end
-        metadata[k] = v
-      end
-    end
-  end
 
   -- ID should default to the filename without the extension.
   if id == nil or id == path.name then
