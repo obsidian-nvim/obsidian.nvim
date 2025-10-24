@@ -216,15 +216,6 @@ T["from_lines"]["should be able to collect blocks"] = function()
   }, note.blocks["^hello-world"])
 end
 
-T["from_lines"]["should be able to be read frontmatter that's formatted differently"] = function()
-  local note_with_different_frontmatter_format = [[---
-aliases: [Amanda Green, Detective Green, Mandy]
-tags: []
----
-
-# Detective]]
-end
-
 T["from_lines"]["should work from a file w/o frontmatter"] = function()
   local note = from_str("# Hey there", "note_without_frontmatter.md")
   eq(note.id, "note_without_frontmatter")
