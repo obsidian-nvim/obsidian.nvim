@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with respect to the public API, which currently includes the installation steps, dependencies, configuration, keymappings, commands, and other plugin functionality. At the moment this does _not_ include the Lua `Client` API, although in the future it will once that API stabilizes.
 
 ## Unreleased
+- Added file-watch: code that tracks changed notes in the vault.
+- Added cache: a JSON file, which stores aliases, last update date and path to the note. Updated using file-watch.
+- Added a new configuration option - `cache`, which is disabled by default.
 
 ### Changed
 
@@ -180,6 +183,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed not make sure template folder exists.
 - Refactored workspace module for a better api.
 - Fixed types in `opts.workspaces[*].overrides` to all be optional.
+
+### Changed
+- In telescope an option was added to search notes by aliases.
 
 ## [v3.12.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.12.0) - 2025-06-05
 

@@ -148,6 +148,10 @@ Workspace.set = function(workspace)
     pattern = "ObsidianWorkpspaceSet",
     data = { workspace = workspace },
   })
+
+  if options.cache.enabled then
+    require("obsidian.cache").activate_cache()
+  end
 end
 
 ---Resolve a directory to a workspace that it belongs to.

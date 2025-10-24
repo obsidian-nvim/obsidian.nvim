@@ -284,4 +284,11 @@ return {
   comment = {
     enabled = false,
   },
+
+  -- Experimental feature, disabled by default.
+  cache = {
+    enabled = false,
+    path = "./.cache.json",
+    show_tags = false, -- will show tags after a note name and after aliases.
+  },
 }

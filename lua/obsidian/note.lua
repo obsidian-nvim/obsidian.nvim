@@ -722,6 +722,8 @@ Note.from_lines = function(lines, path, opts)
     if
       line_idx > max_lines
       or (title and not opts.load_contents and not opts.collect_anchor_links and not opts.collect_blocks)
+      or (opts.read_only_frontmatter and not has_frontmatter)
+      or (opts.read_only_frontmatter and has_frontmatter and not in_frontmatter)
     then
       break
     end
@@ -1159,6 +1161,7 @@ end
 ---@field max_lines integer|?
 ---@field load_contents boolean|?
 ---@field collect_anchor_links boolean|?
+---@field read_only_frontmatter boolean|? Stops reading file if reached end of frontmatter.
 ---@field collect_blocks boolean|?
 
 ---@class obsidian.note.NoteCreationOpts

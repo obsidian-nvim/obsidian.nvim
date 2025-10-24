@@ -86,6 +86,7 @@ There's one entry point user command for this plugin: `Obsidian`
 | `:Obsidian search [QUERY]`                       | search for (or create) notes in your vault using `ripgrep` with your preferred picker |                                                                                                                                                                                                     |
 | `:Obsidian tags [TAG ...]`                       | for getting a picker list of all occurrences of the given tags                        |                                                                                                                                                                                                     |
 | `:Obsidian workspace [NAME]`                     | switch to another workspace                                                           |                                                                                                                                                                                                     |
+| `:Obsidian rebuild_cache`                        | manually update the cache of the workspace.                                           |                                                                                                                                                                                                     |
 
 #### Note commands
 
@@ -98,7 +99,8 @@ There's one entry point user command for this plugin: `Obsidian`
 | `:Obsidian links`                  | get a picker list of all links in current note                                                                                    |                                                                                                                                                                                                                   |
 | `:Obsidian paste_img [IMGNAME]`    | paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link | [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location)                                                                                                                   |
 | `:Obsidian rename [NEWNAME]`       | rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault                      | runs `:wa` before renaming, and load every note with backlinks into your buffer-list, after renaming you need to do `:wa` after for changes to take effect. Alternatively, call `vim.lsp.buf.rename` or use `grn` |
-| `:Obsidian toggle_checkbox`        | to cycle through checkbox options                                                                                                 |
+| `:Obsidian toggle_checkbox`        | to cycle through checkbox options                                                                                                 |                                                                                                                                                                                                                   |
+
 
 #### Visual mode commands
 

@@ -24,6 +24,7 @@ return function(data)
     Obsidian.picker:find_notes {
       prompt_title = "Quick Switch",
       query = query,
+      use_cache = Obsidian.opts.cache.enabled,
     }
   end
 end

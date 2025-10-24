@@ -237,6 +237,8 @@ M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
+M.register("rebuild_cache", { nargs = "?" })
+
 M.register("workspace", { nargs = "?" })
 
 ---------------------
