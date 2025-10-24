@@ -22,6 +22,7 @@ M.RefTypes = {
   Tag = "Tag",
   BlockID = "BlockID",
   Highlight = "Highlight",
+  Footnote = "Footnote",
 }
 
 ---@enum obsidian.search.Patterns
@@ -42,6 +43,7 @@ M.Patterns = {
   FileUrl = "file:/[/{2}]?.*", -- file:///
   MailtoUrl = "mailto:.*", -- mailto:emailaddress
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
+  Footnote = "%[%^%d%]",
 }
 
 ---@type table<obsidian.search.RefTypes, { ignore_if_escape_prefix: boolean|? }>
@@ -147,24 +149,23 @@ end
 
 --- Find refs and URLs.
 ---@param s string the string to search
----@param opts obsidian.search.FindRefsOpts|?
+---@param opts? { exclude: obsidian.search.RefTypes[] }
 ---
 ---@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes }[]
 M.find_refs = function(s, opts)
   opts = opts and opts or {}
 
-  local pattern_names = { M.RefTypes.WikiWithAlias, M.RefTypes.Wiki, M.RefTypes.Markdown }
-  if opts.include_naked_urls then
-    pattern_names[#pattern_names + 1] = M.RefTypes.NakedUrl
+  local exclude_lookup = { [M.RefTypes.Highlight] = true }
+  local pattern_names = {}
+
+  for _, ref_type in ipairs(opts.exclude or {}) do
+    exclude_lookup[ref_type] = true
   end
-  if opts.include_tags then
-    pattern_names[#pattern_names + 1] = M.RefTypes.Tag
-  end
-  if opts.include_file_urls then
-    pattern_names[#pattern_names + 1] = M.RefTypes.FileUrl
-  end
-  if opts.include_block_ids then
-    pattern_names[#pattern_names + 1] = M.RefTypes.BlockID
+
+  for ref_type in pairs(M.RefTypes) do
+    if not exclude_lookup[ref_type] then
+      pattern_names[#pattern_names + 1] = ref_type
+    end
   end
 
   return M.find_matches(s, pattern_names)
@@ -808,7 +809,7 @@ M.find_links = function(note)
   local lines = io.lines(tostring(note.path))
 
   for lnum, line in vim.iter(lines):enumerate() do
-    for ref_match in vim.iter(M.find_refs(line, { include_naked_urls = true, include_file_urls = true })) do
+    for _, ref_match in ipairs(M.find_refs(line, { exclude = { M.RefTypes.BlockID, M.RefTypes.Tag } })) do
       local m_start, m_end = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)
       if not found[link] then

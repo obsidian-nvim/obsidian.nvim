@@ -50,7 +50,12 @@ T["find_refs"]["should ignore refs within an inline code block"] = function()
 
   s = "[nvim-cmp](https://github.com/hrsh7th/nvim-cmp) (triggered by typing `[[` for wiki links or "
     .. "just `[` for markdown links), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep)"
-  MiniTest.expect.equality({ { 1, 47, RefTypes.Markdown }, { 134, 183, RefTypes.Markdown } }, M.find_refs(s))
+  MiniTest.expect.equality(
+    { { 1, 47, RefTypes.Markdown }, { 134, 183, RefTypes.Markdown } },
+    M.find_refs(s, {
+      exclude = { M.RefTypes.NakedUrl },
+    })
+  )
 end
 
 T["find_refs"]["should find block IDs at the end of a line"] = function()

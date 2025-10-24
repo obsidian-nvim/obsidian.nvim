@@ -126,7 +126,7 @@ M.cursor_link = function()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
   cur_col = cur_col + 1 -- 0-indexed column to 1-indexed lua string position
 
-  local refs = search.find_refs(line, { include_naked_urls = true, include_file_urls = true, include_block_ids = true })
+  local refs = search.find_refs(line, { exclude = { search.RefTypes.Tag } })
 
   local match = iter(refs):find(function(m)
     local open, close = unpack(m)
@@ -548,7 +548,7 @@ M.follow_link = function(link, opts)
       M.open_buffer(item.filename, {
         col = item.col,
         line = item.lnum,
-        cmd = opts.open_strategy or Obsidian.opts.open_notes_in,
+        cmd = opts.open_strategy or M.get_open_strategy(Obsidian.opts.open_notes_in),
       })
     else
       Obsidian.picker.pick(items, {

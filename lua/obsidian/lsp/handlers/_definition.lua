@@ -2,6 +2,7 @@ local obsidian = require "obsidian"
 local search = obsidian.search
 local RefTypes = obsidian.search.RefTypes
 local util = obsidian.util
+local log = obsidian.log
 
 ---@param note obsidian.Note
 ---@param block_link string?
@@ -105,6 +106,79 @@ handlers[RefTypes.Wiki] = function(location, name)
   end
 end
 
+handlers[RefTypes.Footnote] = function(location, name)
+  local count = vim.api.nvim_buf_line_count(0)
+  local note = assert(require("obsidian.api").current_note(0))
+  local current_line = vim.api.nvim_get_current_line()
+
+  local link_pattern = "%[%^" .. location .. "%]"
+  local definition_pattern = link_pattern .. ":"
+  local row = unpack(vim.api.nvim_win_get_cursor(0))
+
+  if current_line:match(search.Patterns.Footnote .. ":") then
+    return vim
+      .iter(vim.api.nvim_buf_get_lines(0, 0, -1, false))
+      :enumerate()
+      :map(function(idx, str)
+        local st, ed = str:find(link_pattern)
+        if st and ed and idx ~= row then
+          local line = idx - 1
+          local col = st - 1
+          local col_end = ed - 1
+          return {
+            uri = note:uri(),
+            range = {
+              start = { line = line, character = col },
+              ["end"] = { line = line, character = col_end },
+            },
+          }
+        end
+      end)
+      :totable()
+  else
+    return {
+      vim.iter(vim.api.nvim_buf_get_lines(0, 0, -1, false)):enumerate():find(function(idx, str)
+        local st, ed = str:find(definition_pattern)
+        if st and ed and idx ~= row then
+          local line = idx - 1
+          local col = st - 1
+          local col_end = ed - 1
+          return {
+            uri = note:uri(),
+            range = {
+              start = { line = line, character = col },
+              ["end"] = { line = line, character = col_end },
+            },
+          }
+        end
+      end),
+    }
+  end
+
+  local locations = {}
+
+  local row = unpack(vim.api.nvim_win_get_cursor(0))
+
+  for i = count, 1, -1 do
+    local line_str = vim.api.nvim_buf_get_lines(0, i - 1, i, false)[1]
+    local start = line_str:find(link_pattern)
+    if start and i ~= row then
+      local line = i - 1
+      local col = start - 1
+
+      return {
+        {
+          uri = note:uri(),
+          range = {
+            start = { line = line, character = col },
+            ["end"] = { line = line, character = col },
+          },
+        },
+      }
+    end
+  end
+end
+
 handlers[RefTypes.WikiWithAlias] = handlers.Wiki
 handlers[RefTypes.Markdown] = handlers.Wiki
 
@@ -119,7 +193,13 @@ return {
       return callback(nil, {})
     end
 
-    local lsp_locations = handlers[link_type](location, name)
+    local handler = handlers[link_type]
+
+    if not handler then
+      return log.err("unsupported link format", link_type)
+    end
+
+    local lsp_locations = handler(location, name)
 
     if lsp_locations and util.islist(lsp_locations) then
       callback(nil, lsp_locations)
