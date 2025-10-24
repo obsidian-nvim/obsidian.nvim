@@ -418,10 +418,11 @@ Note.get_reference_paths = function(self, opts)
   end
 
   local relpath = self.path:vault_relative_path()
-  assert(relpath, "failed to resolve vault relative path")
-  table.insert(raw_refs, relpath)
-  local no_suffix_relpath = relpath:gsub(".md", "")
-  table.insert(raw_refs, no_suffix_relpath)
+  if relpath then
+    table.insert(raw_refs, relpath)
+    local no_suffix_relpath = relpath:gsub(".md", "")
+    table.insert(raw_refs, no_suffix_relpath)
+  end
 
   raw_refs = util.tbl_unique(raw_refs)
 
