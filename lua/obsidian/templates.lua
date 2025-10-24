@@ -2,6 +2,7 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
+local log = require "obsidian.log"
 
 local M = {}
 
@@ -44,6 +45,10 @@ end
 M.substitute_template_variables = function(text, ctx)
   local methods = vim.deepcopy(ctx.template_opts.substitutions or {})
 
+  if methods.title then
+    log.warn "{{title}} substitution will no longer work"
+  end
+
   if not methods["date"] then
     methods["date"] = function()
       local date_format = ctx.template_opts.date_format or "%Y-%m-%d"
@@ -56,10 +61,6 @@ M.substitute_template_variables = function(text, ctx)
       local time_format = ctx.template_opts.time_format or "%H:%M"
       return tostring(os.date(time_format))
     end
-  end
-
-  if not methods["title"] and ctx.partial_note then
-    methods["title"] = ctx.partial_note.title or ctx.partial_note:display_name()
   end
 
   if not methods["id"] and ctx.partial_note then
@@ -136,9 +137,6 @@ M.clone_template = function(ctx)
   if ctx.partial_note then
     -- Transfer fields from `ctx.partial_note`.
     new_note.id = ctx.partial_note.id
-    if new_note.title == nil then
-      new_note.title = ctx.partial_note.title
-    end
     for _, alias in ipairs(ctx.partial_note.aliases) do
       new_note:add_alias(alias)
     end
