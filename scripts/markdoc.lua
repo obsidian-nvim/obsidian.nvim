@@ -1,3 +1,12 @@
 vim.opt.rtp:append "deps/markdoc.nvim"
-require("markdoc").setup {}
-vim.cmd "Doc README.md"
+
+require("markdoc").convert_file("README.md", {
+  generic = {
+    filename = "doc/obsidian.nvim.txt",
+    force_write = true,
+    header = {
+      desc = "a plugin for writing and navigating an Obsidian vault",
+      tag = "obsidian.nvim",
+    },
+  },
+})
