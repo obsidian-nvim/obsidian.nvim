@@ -7,27 +7,6 @@ local Search = obsidian.search
 local find, sub, lower = string.find, string.sub, string.lower
 
 -- TODO:
-local CmpType = {
-  ref = 1,
-  tag = 2,
-  anchor = 3,
-}
-
----@return function
-local function get_format_func()
-  local format_func
-  local style = Obsidian.opts.preferred_link_style
-  if style == "markdown" then
-    format_func = Obsidian.opts.markdown_link_func
-  elseif style == "wiki" then
-    format_func = Obsidian.opts.wiki_link_func
-  else
-    error "unimplemented"
-  end
-  return format_func
-end
-
--- TODO:
 local function insert_snippet_marker(text, style)
   if style == "markdown" then
     local pos = text:find "]"
@@ -61,10 +40,34 @@ local function collect_matching_anchors(note, anchor_link)
   return matching_anchors
 end
 
+---@return function
+local function get_format_func()
+  local format_func
+  local style = Obsidian.opts.preferred_link_style
+  if style == "markdown" then
+    format_func = Obsidian.opts.markdown_link_func
+  elseif style == "wiki" then
+    format_func = Obsidian.opts.wiki_link_func
+  else
+    error "unimplemented"
+  end
+  return format_func
+end
+
 -- A more generic pure function, don't require label to exist
-local function format_link(label, format_func)
+local function format_link(label)
   local path = util.urlencode(label) .. ".md"
   local opts = { label = label, path = path }
+
+  local format_func
+  local style = Obsidian.opts.preferred_link_style
+  if style == "markdown" then
+    format_func = Obsidian.opts.markdown_link_func
+  elseif style == "wiki" then
+    format_func = Obsidian.opts.wiki_link_func
+  else
+    error "unimplemented link style"
+  end
   return format_func(opts)
 end
 
@@ -104,19 +107,18 @@ end
 
 ---@param label string
 ---@param range lsp.Range
----@param format_func function
 ---@return lsp.CompletionItem
-local function gen_create_item(label, range, format_func)
+local function gen_create_item(label, range)
   return {
     kind = 17,
     label = label .. " (create)",
     filterText = label,
     textEdit = {
       range = range,
-      newText = format_link(label, format_func),
+      newText = format_link(label),
     },
     labelDetails = { description = "Obsidian" },
-    command = { -- runs after accept
+    command = {
       command = "create_note",
       arguments = { label },
     },
@@ -128,7 +130,7 @@ end
 
 local handle_bare_links = function(partial, range, handler)
   local items = {}
-  items[#items + 1] = gen_create_item(partial, range, get_format_func())
+  items[#items + 1] = gen_create_item(partial, range)
 
   local pattern = vim.pesc(lower(partial))
   local notes = Search.find_notes(pattern)
@@ -159,9 +161,7 @@ local handle_bare_links = function(partial, range, handler)
     end
   end
 
-  handler(nil, {
-    items = items,
-  })
+  handler(nil, { items = items })
 end
 
 local function handle_anchor_links(partial, anchor_link, handler)
@@ -211,19 +211,9 @@ local function handle_anchor_links(partial, anchor_link, handler)
   end)
 end
 
-local function handle_ref(partial, range, handler)
-  ---@type string|?
-  local anchor_link
-  partial, anchor_link = util.strip_anchor_links(partial)
+local handlers = {}
 
-  if not anchor_link then
-    handle_bare_links(partial, range, handler)
-  else
-    handle_anchor_links(partial, anchor_link, handler)
-  end
-end
-
-local function handle_tag(partial, handler)
+handlers.tag = function(partial, handler)
   local items = {}
   local tags = vim
     .iter(Search.find_tags("", {}))
@@ -240,9 +230,21 @@ local function handle_tag(partial, handler)
   handler(nil, { items = items })
 end
 
-local function handle_heading(client)
-  -- TODO: search.find_heading
+-- local function handle_ref(partial, range, handler)
+handlers.ref = function(partial, range, handler)
+  ---@type string|?
+  local anchor_link
+  partial, anchor_link = util.strip_anchor_links(partial)
+
+  if not anchor_link then
+    handle_bare_links(partial, range, handler)
+  else
+    handle_anchor_links(partial, anchor_link, handler)
+  end
 end
+
+-- TODO: search.find_heading
+local function handle_heading(client) end
 
 -- util.BLOCK_PATTERN = "%^[%w%d][%w%d-]*"
 local anchor_trigger_pattern = {
@@ -251,38 +253,39 @@ local anchor_trigger_pattern = {
 
 local heading_trigger_pattern = "[##"
 
----@param text string
----@param style obsidian.config.LinkStyle
----@param min_char integer
----@return integer?
----@return string?
----@return integer?
-local function get_type(text, min_char)
-  local ref_start = find(text, "[[", 1, true)
-  local tag_start = find(text, "#", 1, true)
-  -- local heading_start = find(text, heading_trigger_pattern, 1, true)
+-- TODO:
+local CmpType = {
+  ref = 1,
+  tag = 2,
+  anchor = 3,
+}
 
-  if ref_start then
-    local partial = sub(text, ref_start + 2)
-    if #partial >= min_char then
-      return CmpType.ref, partial, ref_start
+local RefPatterns = {
+  [CmpType.ref] = "[[",
+  [CmpType.tag] = "#",
+  -- heading = "[[## "
+}
+
+---@param text string
+---@param min_char integer
+---@return integer? cmp_type
+---@return string? prefix
+---@return integer? boundary 0-indexed
+local function get_cmp_type(text, min_char)
+  for t, pattern in pairs(RefPatterns) do
+    local st, ed = find(text, pattern, 1, true)
+    if st and ed then
+      local prefix = sub(text, ed + 1)
+      if #prefix >= min_char then -- TODO: unicode
+        return t, prefix, st - 1
+      end
     end
-  elseif tag_start then
-    local partial = sub(text, tag_start + 1)
-    if #partial >= min_char then
-      return CmpType.tag, partial, tag_start
-    end
-    -- elseif heading_start then
-    --   local partial = sub(text, heading_start + #heading_trigger_pattern)
-    --   if #partial >= min_char then
-    --     return CmpType.anchor, partial, heading_start
-    --   end
   end
 end
 
 ---@param params lsp.CompletionParams
----@param handler function
-return function(params, handler, _)
+---@param callback function
+return function(params, callback, _)
   local min_chars = Obsidian.opts.completion.min_chars
   ---@cast min_chars -nil
 
@@ -291,21 +294,12 @@ return function(params, handler, _)
 
   local line_text = vim.api.nvim_buf_get_lines(0, line_num, line_num + 1, false)[1]
   local text_before = sub(line_text, 1, cursor_col)
-  local t, partial, start = get_type(text_before, min_chars)
-
-  local ref_start = start and start - 1
+  local t, prefix, ref_start = get_cmp_type(text_before, min_chars)
 
   local range = {
     start = { line = line_num, character = ref_start },
     ["end"] = { line = line_num, character = cursor_col }, -- if auto parired
   }
 
-  handler = vim.schedule_wrap(handler)
-
-  if t == CmpType.ref then
-    handle_ref(partial, range, handler)
-  elseif t == CmpType.tag then
-    handle_tag(partial, handler)
-  elseif t == CmpType.anchor then
-  end
+  handlers[t](prefix, range, vim.schedule_wrap(callback))
 end
