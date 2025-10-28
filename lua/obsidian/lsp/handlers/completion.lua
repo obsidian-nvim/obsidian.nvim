@@ -1,16 +1,12 @@
 -- TODO: completion for anchor, blocks
 -- TODO: memoize?
 
-local util = require "obsidian.util"
-local api = require "obsidian.api"
-local Search = require "obsidian.search"
+local obsidian = require "obsidian"
+local util = obsidian.util
+local Search = obsidian.search
 local find, sub, lower = string.find, string.sub, string.lower
 
-local ref_trigger_pattern = {
-  wiki = "[[",
-  markdown = "[",
-}
-
+-- TODO:
 local CmpType = {
   ref = 1,
   tag = 2,
@@ -81,8 +77,6 @@ local function gen_ref_item(label, path, new_text, range, is_snippet)
   return {
     kind = 17,
     label = label,
-    filterText = label,
-    insertTextFormat = 2, -- is snippet TODO: extract to config option
     textEdit = {
       range = range,
       newText = new_text,
@@ -93,6 +87,18 @@ local function gen_ref_item(label, path, new_text, range, is_snippet)
       file = path,
       kind = "ref",
     },
+    -- insertTextFormat = 1, -- is snippet TODO: extract to config option
+  }
+end
+
+local function gen_tag_item(tag)
+  return {
+    kind = 1,
+    label = tag,
+    filterText = tag,
+    insertText = tag,
+    labelDetails = { description = "ObsidianTag" },
+    data = { kind = "tag" },
   }
 end
 
@@ -128,9 +134,7 @@ local handle_bare_links = function(partial, range, handler)
   local notes = Search.find_notes(pattern)
 
   if #notes == 0 then
-    print "here"
-    handler(nil, { items = items })
-    return
+    return handler(nil, { items = items })
   end
 
   local note_lookup = {}
@@ -138,13 +142,9 @@ local handle_bare_links = function(partial, range, handler)
   local res_lookup = {}
 
   for _, note in ipairs(notes) do
-    if note.id then
+    if note.id then -- TODO: match case
       note_lookup[note.id] = note
       queries[#queries + 1] = note.id
-    end
-    if note.title then
-      note_lookup[note.title] = note -- TODO: reference completion impl
-      queries[#queries + 1] = note.title
     end
   end
 
@@ -153,12 +153,15 @@ local handle_bare_links = function(partial, range, handler)
   for _, match in ipairs(matches) do
     local note = note_lookup[match]
     if not res_lookup[note] then
-      local link_text = api.format_link(note)
-      items[#items + 1] = gen_ref_item(note.title, note.path.filename, link_text, range)
+      local link_text = note:format_link()
+      items[#items + 1] = gen_ref_item(note.id, note.path.filename, link_text, range) -- TODO: label -> id title fname?
       res_lookup[note] = true
     end
   end
-  handler(nil, { items = items })
+
+  handler(nil, {
+    items = items,
+  })
 end
 
 local function handle_anchor_links(partial, anchor_link, handler)
@@ -220,35 +223,25 @@ local function handle_ref(partial, range, handler)
   end
 end
 
-local function calc_tag_item(tag)
-  return {
-    kind = "File",
-    label = tag,
-    filterText = tag,
-    insertText = tag,
-    labelDetails = { description = "ObsidianTag" },
-    data = { kind = "tag" },
-  }
-end
-
 local function handle_tag(partial, handler)
   local items = {}
-  -- client:list_tags_async(
-  --   partial,
-  --   vim.schedule_wrap(function(tags)
-  --     for _, tag in ipairs(tags) do
-  --       if tag and tag:lower():find(vim.pesc(partial:lower())) then
-  --         items[#items + 1] = calc_tag_item(tag)
-  --       end
-  --     end
-  --     handler(nil, { items = items })
-  --   end)
-  -- )
+  local tags = vim
+    .iter(Search.find_tags("", {}))
+    :map(function(match)
+      return match.tag
+    end)
+    :totable()
+  tags = util.tbl_unique(tags)
+  for _, tag in ipairs(tags) do
+    if tag and tag:lower():find(vim.pesc(partial:lower())) then
+      items[#items + 1] = gen_tag_item(tag)
+    end
+  end
+  handler(nil, { items = items })
 end
 
 local function handle_heading(client)
-  -- TODO: client:find_headings_async
-  -- client:find_
+  -- TODO: search.find_heading
 end
 
 -- util.BLOCK_PATTERN = "%^[%w%d][%w%d-]*"
@@ -264,13 +257,13 @@ local heading_trigger_pattern = "[##"
 ---@return integer?
 ---@return string?
 ---@return integer?
-local function get_type(text, style, min_char)
-  local ref_start = find(text, ref_trigger_pattern[style], 1, true)
+local function get_type(text, min_char)
+  local ref_start = find(text, "[[", 1, true)
   local tag_start = find(text, "#", 1, true)
   -- local heading_start = find(text, heading_trigger_pattern, 1, true)
 
   if ref_start then
-    local partial = sub(text, ref_start + #ref_trigger_pattern[style])
+    local partial = sub(text, ref_start + 2)
     if #partial >= min_char then
       return CmpType.ref, partial, ref_start
     end
@@ -290,7 +283,6 @@ end
 ---@param params lsp.CompletionParams
 ---@param handler function
 return function(params, handler, _)
-  local link_style = Obsidian.opts.preferred_link_style
   local min_chars = Obsidian.opts.completion.min_chars
   ---@cast min_chars -nil
 
@@ -299,7 +291,7 @@ return function(params, handler, _)
 
   local line_text = vim.api.nvim_buf_get_lines(0, line_num, line_num + 1, false)[1]
   local text_before = sub(line_text, 1, cursor_col)
-  local t, partial, start = get_type(text_before, link_style, min_chars)
+  local t, partial, start = get_type(text_before, min_chars)
 
   local ref_start = start and start - 1
 
@@ -307,6 +299,8 @@ return function(params, handler, _)
     start = { line = line_num, character = ref_start },
     ["end"] = { line = line_num, character = cursor_col }, -- if auto parired
   }
+
+  handler = vim.schedule_wrap(handler)
 
   if t == CmpType.ref then
     handle_ref(partial, range, handler)
