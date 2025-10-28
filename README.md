@@ -1,3 +1,5 @@
+<!--markdoc_ignore_start-->
+
 <h1 align="center">obsidian.nvim</h1>
 
 <div align="center">
@@ -23,6 +25,8 @@
 </a>
 </div>
 <hr>
+
+<!--markdoc_ignore_end-->
 
 A **community fork** of the Neovim plugin for writing and navigating [Obsidian](https://obsidian.md) vaults, written in Lua, created by [epwalsh](https://github.com/epwalsh).
 
