@@ -5,9 +5,9 @@ local entry_to_file = require("fzf-lua.path").entry_to_file
 local obsidian = require "obsidian"
 local search = obsidian.search
 local Path = obsidian.Path
-local abc = obsidian.abc
 local log = obsidian.log
 local Picker = obsidian.Picker
+local ut = require "obsidian.picker.util"
 
 ---@param prompt_title string|?
 ---@return string|?
@@ -28,12 +28,7 @@ local function format_keymap(keymap)
   return keymap
 end
 
----@class obsidian.pickers.FzfPicker : obsidian.Picker
-local FzfPicker = abc.new_class({
-  __tostring = function()
-    return "FzfPicker()"
-  end,
-}, Picker)
+local M = {}
 
 ---@param opts { callback: fun(path: string)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
 local function get_path_actions(opts)
@@ -124,7 +119,7 @@ local function get_value_actions(display_to_value_map, opts)
 end
 
 ---@param opts obsidian.PickerFindOpts|? Options.
-FzfPicker.find_files = function(_, opts)
+M.find_files = function(opts)
   opts = opts or {}
   opts.callback = opts.callback or obsidian.api.open_buffer
 
@@ -145,7 +140,7 @@ FzfPicker.find_files = function(_, opts)
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
-FzfPicker.grep = function(_, opts)
+M.grep = function(opts)
   opts = opts and opts or {}
 
   ---@type obsidian.Path
@@ -177,9 +172,8 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
----@diagnostic disable-next-line: unused-local
-FzfPicker.pick = function(self, values, opts)
-  self.calling_bufnr = vim.api.nvim_get_current_buf()
+M.pick = function(values, opts)
+  Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
 
@@ -194,7 +188,7 @@ FzfPicker.pick = function(self, values, opts)
       display = value
       value = { value = value }
     else
-      display = opts.format_item and opts.format_item(value) or self:_make_display(value)
+      display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
     if value.valid ~= false then
       display_to_value_map[display] = value
@@ -204,7 +198,7 @@ FzfPicker.pick = function(self, values, opts)
 
   fzf.fzf_exec(entries, {
     prompt = format_prompt(
-      self:_build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
+      ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
     ),
     actions = get_value_actions(display_to_value_map, {
       callback = opts.callback,
@@ -214,4 +208,4 @@ FzfPicker.pick = function(self, values, opts)
   })
 end
 
-return FzfPicker
+return M

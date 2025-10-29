@@ -1,11 +1,10 @@
 local snacks_picker = require "snacks.picker"
 
 local obsidian = require "obsidian"
-
 local search = obsidian.search
-local abc = obsidian.abc
 local Picker = obsidian.Picker
 local Path = obsidian.Path
+local ut = require "obsidian.picker.util"
 
 ---@param mapping table
 ---@return table
@@ -29,15 +28,10 @@ local function notes_mappings(mapping)
   return {}
 end
 
----@class obsidian.pickers.SnacksPicker : obsidian.Picker
-local SnacksPicker = abc.new_class({
-  __tostring = function()
-    return "SnacksPicker()"
-  end,
-}, Picker)
+local M = {}
 
 ---@param opts obsidian.PickerFindOpts|? Options.
-SnacksPicker.find_files = function(_, opts)
+M.find_files = function(opts)
   opts = opts or {}
   opts.callback = opts.callback or obsidian.api.open_buffer
 
@@ -67,7 +61,7 @@ SnacksPicker.find_files = function(_, opts)
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
-SnacksPicker.grep = function(_, opts)
+M.grep = function(opts)
   opts = opts or {}
 
   ---@type obsidian.Path
@@ -106,8 +100,8 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
-SnacksPicker.pick = function(self, values, opts)
-  self.calling_bufnr = vim.api.nvim_get_current_buf()
+M.pick = function(values, opts)
+  Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
 
@@ -122,7 +116,7 @@ SnacksPicker.pick = function(self, values, opts)
       display = value
       value = { value = value }
     else
-      display = opts.format_item and opts.format_item(value) or self:_make_display(value)
+      display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
     table.insert(entries, {
       text = display,
@@ -169,4 +163,4 @@ SnacksPicker.pick = function(self, values, opts)
   snacks_picker.pick(pick_opts)
 end
 
-return SnacksPicker
+return M

@@ -11,7 +11,7 @@ return function(data)
         filename = tostring(ws.path),
       }
     end, Obsidian.workspaces)
-    Obsidian.picker:pick(options, {
+    Obsidian.picker.pick(options, {
       prompt_title = "Obsidian Workspace",
       callback = function(entry)
         Workspace.set(entry.value)

@@ -38,7 +38,7 @@ return function(data)
     end)
     :totable()
 
-  picker:pick(paths, {
+  picker.pick(paths, {
     prompt_title = "Templates",
     callback = function(entry)
       local template_name = entry.filename

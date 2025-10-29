@@ -2,8 +2,8 @@ local mini_pick = require "mini.pick"
 local obsidian = require "obsidian"
 local search = obsidian.search
 local Path = obsidian.Path
-local abc = obsidian.abc
 local Picker = obsidian.Picker
+local ut = require "obsidian.picker.util"
 
 ---@param entry string
 ---@return string, integer?, integer?
@@ -12,15 +12,10 @@ local function clean_path(entry)
   return parts[1], tonumber(parts[2]), tonumber(parts[3]) - 1
 end
 
----@class obsidian.pickers.MiniPicker : obsidian.Picker
-local MiniPicker = abc.new_class({
-  __tostring = function()
-    return "MiniPicker()"
-  end,
-}, Picker)
+local M = {}
 
 ---@param opts obsidian.PickerFindOpts|? Options.
-MiniPicker.find_files = function(_, opts)
+M.find_files = function(opts)
   opts = opts or {}
   opts.callback = opts.callback or obsidian.api.open_buffer
 
@@ -48,7 +43,7 @@ MiniPicker.find_files = function(_, opts)
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
-MiniPicker.grep = function(_, opts)
+M.grep = function(opts)
   opts = opts and opts or {}
 
   ---@type obsidian.Path
@@ -86,9 +81,8 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
----@diagnostic disable-next-line: unused-local
-MiniPicker.pick = function(self, values, opts)
-  self.calling_bufnr = vim.api.nvim_get_current_buf()
+M.pick = function(values, opts)
+  Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
 
@@ -99,7 +93,7 @@ MiniPicker.pick = function(self, values, opts)
       display = value
       value = { value = value }
     else
-      display = opts.format_item and opts.format_item(value) or self:_make_display(value)
+      display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
     if value.valid ~= false then
       entries[#entries + 1] = {
@@ -130,4 +124,4 @@ MiniPicker.pick = function(self, values, opts)
   end
 end
 
-return MiniPicker
+return M

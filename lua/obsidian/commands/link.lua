@@ -40,7 +40,7 @@ return function(data)
     return
   end
 
-  picker:find_notes {
+  picker.find_notes {
     prompt_title = "Select note to link",
     query = query,
     callback = function(path)

@@ -66,7 +66,7 @@ return function(data)
     }
   end
 
-  picker:pick(dailies, {
+  picker.pick(dailies, {
     prompt_title = "Dailies",
     callback = function(entry)
       local note = daily.daily(entry.value, {})

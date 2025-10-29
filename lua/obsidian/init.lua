@@ -73,7 +73,7 @@ M.setup = function(user_opts)
     require("obsidian.ui").setup(Obsidian.workspace, Obsidian.opts.ui)
   end
 
-  Obsidian.picker = M.Picker.get(Obsidian.opts.picker.name)
+  Obsidian.picker = M.Picker.get()
 
   if opts.legacy_commands then
     M.commands.install_legacy()

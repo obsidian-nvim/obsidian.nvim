@@ -5,7 +5,7 @@ return function()
         value.display = value.text:sub(7)
         return value
       end, t.items)
-      Obsidian.picker:pick(items, {
+      Obsidian.picker.pick(items, {
         prompt_title = "Table of Contents",
         format_item = function(v)
           return v.display
