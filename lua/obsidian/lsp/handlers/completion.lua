@@ -3,27 +3,18 @@
 local obsidian = require "obsidian"
 local util = obsidian.util
 local Search = obsidian.search
-local Note = obsidian.Note
 local find, sub, lower = string.find, string.sub, string.lower
 
--- util.BLOCK_PATTERN = "%^[%w%d][%w%d-]*"
-local anchor_trigger_pattern = {
-  markdown = "%[%S+#(%w*)",
-}
-
-local heading_trigger_pattern = "[##"
-
--- TODO:
 local CmpType = {
   ref = 1,
   tag = 2,
-  anchor = 3,
+  -- heading = 3,
 }
 
 local RefPatterns = {
   [CmpType.ref] = "[[",
   [CmpType.tag] = "#",
-  -- heading = "[[## "
+  -- [CmpType.heading] = "[[## ",
 }
 
 ---Collect matching anchor links.
@@ -121,11 +112,44 @@ local function gen_create_item(label, range)
   }
 end
 
-local handle_bare_links = function(partial, notes, range, handler)
-  local items = {}
-  items[#items + 1] = gen_create_item(partial, range)
+local function auto_accept(note, range)
+  local edit = {
+    documentChanges = {
+      {
+        textDocument = {
+          uri = vim.uri_from_fname(tostring(note.path)),
+          version = vim.NIL,
+        },
+        edits = {
+          {
+            range = range,
+            newText = "[[" .. note.id .. "#",
+          },
+        },
+      },
+    },
+  }
+  vim.schedule(function()
+    vim.lsp.util.apply_workspace_edit(edit, "utf-8")
+    vim.api.nvim_win_set_cursor(0, {
+      range.start.line + 1, -- 0 index to 1 index
+      range["end"].character + 1, -- one char after
+    })
+  end)
+end
 
-  local pattern = vim.pesc(lower(partial))
+local handle_bare_links = function(prefix, notes, range, handler)
+  local items = {}
+
+  local auto = false
+  if vim.endswith(prefix, "#") then
+    prefix = sub(prefix, 0, -2)
+    auto = true
+  else
+    items[#items + 1] = gen_create_item(prefix, range) -- TODO: ?
+  end
+
+  local pattern = vim.pesc(lower(prefix))
 
   local note_lookup = {}
   local queries = {}
@@ -140,16 +164,22 @@ local handle_bare_links = function(partial, notes, range, handler)
 
   local matches = vim.fn.matchfuzzy(queries, pattern, { limit = 10 }) -- TOOD: config? lower?
 
-  for _, match in ipairs(matches) do
-    local note = note_lookup[match]
-    if not res_lookup[note] then
-      local link_text = note:format_link()
-      items[#items + 1] = gen_ref_item(note.id, note.path.filename, link_text, range) -- TODO: label -> id title fname?
-      res_lookup[note] = true
+  if auto then
+    local note = note_lookup[matches[1]]
+    if note then
+      auto_accept(note, range)
     end
+  else
+    for _, match in ipairs(matches) do
+      local note = note_lookup[match]
+      if not res_lookup[note] then
+        local link_text = note:format_link()
+        items[#items + 1] = gen_ref_item(note.id, note.path.filename, link_text, range) -- TODO: label -> id title fname?
+        res_lookup[note] = true
+      end
+    end
+    handler(nil, { items = items })
   end
-
-  handler(nil, { items = items })
 end
 
 ---@param partial string
@@ -164,9 +194,10 @@ local function handle_anchor_links(partial, notes, anchor_link, callback)
   -- TODO: need to do more textEdit to insert additional #title to path so that app supports?
   local items = {}
 
+  local pattern = vim.pesc(lower(partial))
+
   for _, note in ipairs(notes) do
     local id = note.id
-    local pattern = vim.pesc(lower(partial))
     if id and find(lower(id), pattern) then
       local note_anchors = collect_matching_anchors(note, anchor_link)
       if not note_anchors then
@@ -202,7 +233,6 @@ local function handle_block_links() end
 local handlers = {}
 
 handlers[CmpType.tag] = function(partial, range, handler)
-  vim.print(handler)
   local items = {}
   local tags = vim
     .iter(Search.find_tags("", {}))
