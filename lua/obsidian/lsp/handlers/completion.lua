@@ -1,4 +1,3 @@
--- TODO: completion for anchor, blocks
 -- TODO: memoize?
 
 local obsidian = require "obsidian"
@@ -27,15 +26,6 @@ local RefPatterns = {
   -- heading = "[[## "
 }
 
--- TODO:
-local function insert_snippet_marker(text, style)
-  if style == "markdown" then
-    local pos = text:find "]"
-    local a, b = sub(text, 1, pos - 1), sub(text, pos)
-    return a .. "$1" .. b
-  end
-end
-
 ---Collect matching anchor links.
 ---@param note obsidian.Note
 ---@param anchor_link string?
@@ -61,22 +51,8 @@ local function collect_matching_anchors(note, anchor_link)
   return matching_anchors
 end
 
----@return function
-local function get_format_func()
-  local format_func
-  local style = Obsidian.opts.preferred_link_style
-  if style == "markdown" then
-    format_func = Obsidian.opts.markdown_link_func
-  elseif style == "wiki" then
-    format_func = Obsidian.opts.wiki_link_func
-  else
-    error "unimplemented"
-  end
-  return format_func
-end
-
 -- A more generic pure function, don't require label to exist
-local function format_link(label)
+local function label_to_new_text(label)
   local path = util.urlencode(label) .. ".md"
   local opts = { label = label, path = path }
 
@@ -97,21 +73,19 @@ end
 ---@param new_text string
 ---@param range lsp.Range
 ---@return lsp.CompletionItem
-local function gen_ref_item(label, path, new_text, range, is_snippet)
+local function gen_ref_item(label, path, new_text, range)
   return {
     kind = 17,
     label = label,
     textEdit = {
       range = range,
       newText = new_text,
-      -- insert_snippet_marker(new_text, style),
     },
     labelDetails = { description = "Obsidian" },
     data = {
       file = path,
       kind = "ref",
     },
-    -- insertTextFormat = 1, -- is snippet TODO: extract to config option
   }
 end
 
@@ -134,7 +108,7 @@ local function gen_create_item(label, range)
     label = label .. " (create)",
     textEdit = {
       range = range,
-      newText = format_link(label),
+      newText = label_to_new_text(label),
     },
     labelDetails = { description = "Obsidian" },
     command = {
@@ -147,16 +121,11 @@ local function gen_create_item(label, range)
   }
 end
 
-local handle_bare_links = function(partial, range, handler)
+local handle_bare_links = function(partial, notes, range, handler)
   local items = {}
   items[#items + 1] = gen_create_item(partial, range)
 
   local pattern = vim.pesc(lower(partial))
-  local notes = Search.find_notes(pattern)
-
-  if #notes == 0 then
-    return handler(nil, { items = items })
-  end
 
   local note_lookup = {}
   local queries = {}
@@ -183,22 +152,22 @@ local handle_bare_links = function(partial, range, handler)
   handler(nil, { items = items })
 end
 
-local function handle_anchor_links(partial, anchor_link, handler)
-  -- state.current_note = state.current_note or client:find_notes(partial)[2]
+---@param partial string
+---@param notes obsidian.Note[]
+---@param anchor_link string
+---@param callback function
+local function handle_anchor_links(partial, notes, anchor_link, callback)
   -- TODO: calc current_note once
   -- TODO: handle two cases:
   -- 1. typing partial note name, no completeed text after cursor, insert the full link
   -- 2. jumped to heading, only insert anchor
   -- TODO: need to do more textEdit to insert additional #title to path so that app supports?
   local items = {}
-  local notes = Search.resolve_note(partial)
 
   for _, note in ipairs(notes) do
     local id = note.id
     local pattern = vim.pesc(lower(partial))
     if id and find(lower(id), pattern) then
-      note = Note.from_file(note.path.filename, { collect_anchor_links = true })
-
       local note_anchors = collect_matching_anchors(note, anchor_link)
       if not note_anchors then
         return
@@ -224,7 +193,7 @@ local function handle_anchor_links(partial, anchor_link, handler)
         }
       end
     end
-    handler(nil, { items = items })
+    callback(nil, { items = items })
   end
 end
 
@@ -254,12 +223,28 @@ handlers[CmpType.ref] = function(prefix, range, handler)
   local anchor_link, block_link
   prefix, anchor_link = util.strip_anchor_links(prefix)
   prefix, block_link = util.strip_block_links(prefix)
+
+  local search_opts = Search._defaults
+  search_opts.ignore_case = true
+
+  local notes = Search.find_notes(prefix, {
+    search = search_opts,
+    notes = {
+      collect_anchor_links = anchor_link ~= nil,
+      collect_blocks = block_link ~= nil,
+    },
+  })
+
+  if #notes == 0 then
+    return handler(nil, { items = {} })
+  end
+
   if anchor_link then
-    handle_anchor_links(prefix, anchor_link, handler)
+    handle_anchor_links(prefix, notes, anchor_link, handler)
   elseif block_link then
-    handle_block_links(prefix, block_link, handler)
+    -- handle_block_links(prefix, block_link, handler)
   else
-    handle_bare_links(prefix, range, handler)
+    handle_bare_links(prefix, notes, range, handler)
   end
 end
 
