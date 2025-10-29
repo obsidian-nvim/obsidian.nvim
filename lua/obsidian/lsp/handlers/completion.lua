@@ -9,12 +9,18 @@ local CmpType = {
   ref = 1,
   tag = 2,
   -- heading = 3,
+  -- heading_all = 4,
+  -- block = 5,
+  -- block_all = 6,
 }
 
 local RefPatterns = {
   [CmpType.ref] = "[[",
   [CmpType.tag] = "#",
-  -- [CmpType.heading] = "[[## ",
+  -- [CmpType.heading] = "[[# ",
+  -- [CmpType.heading_all] = "[[## ",
+  -- [CmpType.block] = "[[^ ",
+  -- [CmpType.block_all] = "[[^^ ",
 }
 
 ---Collect matching anchor links.
