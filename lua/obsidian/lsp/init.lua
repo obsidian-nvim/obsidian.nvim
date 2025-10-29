@@ -37,6 +37,16 @@ lsp.start = function(buf)
     log.err("[obsidian-ls]: failed to start: " .. client_id)
   end
 
+  local has_blink = pcall(require, "blink.cmp")
+  local has_cmp = pcall(require, "cmp")
+
+  if not (has_blink or has_cmp) and client_id then
+    vim.lsp.completion.enable(true, client_id, buf, { autotrigger = true })
+    vim.bo[buf].omnifunc = "v:lua.vim.lsp.omnifunc"
+    vim.bo[buf].completeopt = "menu,menuone,noselect"
+    vim.bo[buf].iskeyword = "@,48-57,192-255" -- HACK: so that completion for note names with `-` in it works in native completion
+  end
+
   return client_id
 end
 
