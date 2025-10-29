@@ -1,7 +1,7 @@
 local mini_pick = require "mini.pick"
 local obsidian = require "obsidian"
 local search = obsidian.search
-local Path = obsidian.path
+local Path = obsidian.Path
 local abc = obsidian.abc
 local Picker = obsidian.Picker
 

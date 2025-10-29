@@ -3,9 +3,9 @@ local snacks_picker = require "snacks.picker"
 local obsidian = require "obsidian"
 
 local search = obsidian.search
-local Path = obsidian.path
 local abc = obsidian.abc
 local Picker = obsidian.Picker
+local Path = obsidian.Path
 
 ---@param mapping table
 ---@return table

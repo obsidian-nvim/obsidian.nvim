@@ -4,7 +4,7 @@ local entry_to_file = require("fzf-lua.path").entry_to_file
 
 local obsidian = require "obsidian"
 local search = obsidian.search
-local Path = obsidian.path
+local Path = obsidian.Path
 local abc = obsidian.abc
 local log = obsidian.log
 local Picker = obsidian.Picker

@@ -4,7 +4,7 @@ local actions_state = require "telescope.actions.state"
 
 local obsidian = require "obsidian"
 local search = obsidian.search
-local Path = obsidian.path
+local Path = obsidian.Path
 local abc = obsidian.abc
 local log = obsidian.log
 local Picker = obsidian.Picker
