@@ -119,7 +119,6 @@ local function gen_tag_item(tag)
   return {
     kind = 1,
     label = tag,
-    filterText = tag,
     insertText = tag,
     labelDetails = { description = "ObsidianTag" },
     data = { kind = "tag" },
@@ -133,7 +132,6 @@ local function gen_create_item(label, range)
   return {
     kind = 17,
     label = label .. " (create)",
-    filterText = label,
     textEdit = {
       range = range,
       newText = format_link(label),
@@ -298,10 +296,16 @@ return function(params, callback, _)
   local text_before = sub(line_text, 1, cursor_col)
   local t, prefix, ref_start = get_cmp_type(text_before, min_chars)
 
+  callback = vim.schedule_wrap(callback)
+
+  if not t then
+    return callback(nil, {})
+  end
+
   local range = {
     start = { line = line_num, character = ref_start },
     ["end"] = { line = line_num, character = cursor_col }, -- if auto parired
   }
 
-  handlers[t](prefix, range, vim.schedule_wrap(callback))
+  handlers[t](prefix, range, callback)
 end
