@@ -4,7 +4,28 @@
 local obsidian = require "obsidian"
 local util = obsidian.util
 local Search = obsidian.search
+local Note = obsidian.Note
 local find, sub, lower = string.find, string.sub, string.lower
+
+-- util.BLOCK_PATTERN = "%^[%w%d][%w%d-]*"
+local anchor_trigger_pattern = {
+  markdown = "%[%S+#(%w*)",
+}
+
+local heading_trigger_pattern = "[##"
+
+-- TODO:
+local CmpType = {
+  ref = 1,
+  tag = 2,
+  anchor = 3,
+}
+
+local RefPatterns = {
+  [CmpType.ref] = "[[",
+  [CmpType.tag] = "#",
+  -- heading = "[[## "
+}
 
 -- TODO:
 local function insert_snippet_marker(text, style)
@@ -165,7 +186,6 @@ local handle_bare_links = function(partial, range, handler)
 end
 
 local function handle_anchor_links(partial, anchor_link, handler)
-  local Note = require "obsidian.note"
   -- state.current_note = state.current_note or client:find_notes(partial)[2]
   -- TODO: calc current_note once
   -- TODO: handle two cases:
@@ -173,47 +193,49 @@ local function handle_anchor_links(partial, anchor_link, handler)
   -- 2. jumped to heading, only insert anchor
   -- TODO: need to do more textEdit to insert additional #title to path so that app supports?
   local items = {}
-  Search.find_notes(partial, function(notes)
-    for _, note in ipairs(notes) do
-      local title = note.title
-      local pattern = vim.pesc(lower(partial))
-      if title and find(lower(title), pattern) then
-        local note2 = Note.from_file(note.path.filename, { collect_anchor_links = true })
+  local notes = Search.resolve_note(partial)
 
-        local note_anchors = collect_matching_anchors(note2, anchor_link)
-        if not note_anchors then
-          return
-        end
-        for _, anchor in ipairs(note_anchors) do
-          items[#items + 1] = {
-            kind = 17,
-            label = anchor.header,
-            filterText = anchor.header,
-            insertText = anchor.header,
-            -- insertTextFormat = 2, -- is snippet
-            -- textEdit = {
-            --   range = {
-            --     start = { line = line_num, character = insert_start },
-            --     ["end"] = { line = line_num, character = insert_end },
-            --   },
-            --   newText = insert_snippet_marker(insert_text, style),
-            -- },
-            labelDetails = { description = "ObsidianAnchor" },
-            data = {
-              file = note.path.filename,
-              kind = "anchor",
-            },
-          }
-        end
+  for _, note in ipairs(notes) do
+    local id = note.id
+    local pattern = vim.pesc(lower(partial))
+    if id and find(lower(id), pattern) then
+      note = Note.from_file(note.path.filename, { collect_anchor_links = true })
+
+      local note_anchors = collect_matching_anchors(note, anchor_link)
+      if not note_anchors then
+        return
       end
-      handler(nil, { items = items })
+      for _, anchor in ipairs(note_anchors) do
+        items[#items + 1] = {
+          kind = 17,
+          label = anchor.header,
+          filterText = anchor.header,
+          insertText = anchor.header,
+          -- textEdit = {
+          --   range = {
+          --     start = { line = line_num, character = insert_start },
+          --     ["end"] = { line = line_num, character = insert_end },
+          --   },
+          --   newText = insert_snippet_marker(insert_text, style),
+          -- },
+          labelDetails = { description = "ObsidianAnchor" }, -- TODO: attach H1, H2
+          data = {
+            file = note.path.filename,
+            kind = "anchor",
+          },
+        }
+      end
     end
-  end)
+    handler(nil, { items = items })
+  end
 end
+
+local function handle_block_links() end
 
 local handlers = {}
 
-handlers.tag = function(partial, handler)
+handlers[CmpType.tag] = function(partial, range, handler)
+  vim.print(handler)
   local items = {}
   local tags = vim
     .iter(Search.find_tags("", {}))
@@ -230,41 +252,21 @@ handlers.tag = function(partial, handler)
   handler(nil, { items = items })
 end
 
--- local function handle_ref(partial, range, handler)
-handlers.ref = function(partial, range, handler)
-  ---@type string|?
-  local anchor_link
-  partial, anchor_link = util.strip_anchor_links(partial)
-
-  if not anchor_link then
-    handle_bare_links(partial, range, handler)
+handlers[CmpType.ref] = function(prefix, range, handler)
+  local anchor_link, block_link
+  prefix, anchor_link = util.strip_anchor_links(prefix)
+  prefix, block_link = util.strip_block_links(prefix)
+  if anchor_link then
+    handle_anchor_links(prefix, anchor_link, handler)
+  elseif block_link then
+    handle_block_links(prefix, block_link, handler)
   else
-    handle_anchor_links(partial, anchor_link, handler)
+    handle_bare_links(prefix, range, handler)
   end
 end
 
 -- TODO: search.find_heading
 local function handle_heading(client) end
-
--- util.BLOCK_PATTERN = "%^[%w%d][%w%d-]*"
-local anchor_trigger_pattern = {
-  markdown = "%[%S+#(%w*)",
-}
-
-local heading_trigger_pattern = "[##"
-
--- TODO:
-local CmpType = {
-  ref = 1,
-  tag = 2,
-  anchor = 3,
-}
-
-local RefPatterns = {
-  [CmpType.ref] = "[[",
-  [CmpType.tag] = "#",
-  -- heading = "[[## "
-}
 
 ---@param text string
 ---@param min_char integer
@@ -272,7 +274,7 @@ local RefPatterns = {
 ---@return string? prefix
 ---@return integer? boundary 0-indexed
 local function get_cmp_type(text, min_char)
-  for t, pattern in pairs(RefPatterns) do
+  for t, pattern in vim.spairs(RefPatterns) do -- spairs make sure ref is first
     local st, ed = find(text, pattern, 1, true)
     if st and ed then
       local prefix = sub(text, ed + 1)
