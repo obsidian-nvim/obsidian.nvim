@@ -10,9 +10,6 @@ return function()
         format_item = function(v)
           return v.display
         end,
-        callback = function(v)
-          vim.api.nvim_win_set_cursor(0, { v.lnum, 0 })
-        end,
       })
     end,
   }

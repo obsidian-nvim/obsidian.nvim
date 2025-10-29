@@ -19,19 +19,30 @@ local ut = require "obsidian.picker.util"
 ---
 M.pick = function(values, opts)
   opts = opts or {}
-  vim.ui.select(values, {
-    prompt = opts.prompt_title,
-    format_item = opts.format_item or function(value)
-      return ut.make_display(value)
-    end,
-  }, function(item)
-    if opts.callback and item then
-      if type(item) == "string" then
-        item = { value = item }
+
+  if opts.callback then
+    vim.ui.select(values, {
+      prompt = opts.prompt_title,
+      format_item = opts.format_item or function(value)
+        return ut.make_display(value)
+      end,
+    }, function(item)
+      if item then
+        if type(item) == "string" then
+          item = { value = item }
+        end
+        opts.callback(item)
       end
-      opts.callback(item)
-    end
-  end)
+    end)
+  else
+    -- HACK: all text
+    values = vim.tbl_map(function(value)
+      value.text = value.display
+      return value
+    end, values)
+    vim.fn.setqflist(values)
+    vim.cmd "copen"
+  end
 end
 
 --- Grep for a string.
