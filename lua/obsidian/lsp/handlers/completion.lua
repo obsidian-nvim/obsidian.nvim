@@ -171,8 +171,8 @@ local handle_bare_links = function(prefix, notes, range, handler)
   local matches = vim.fn.matchfuzzy(queries, pattern, { limit = 10 }) -- TOOD: config? lower?
 
   if auto then
-    local note = note_lookup[matches[1]]
-    if note then
+    if not vim.tbl_isempty(matches) then
+      local note = note_lookup[matches[1]]
       auto_accept(note, range)
     end
   else
@@ -265,10 +265,7 @@ handlers[CmpType.ref] = function(prefix, range, handler)
 
   local notes = Search.find_notes(prefix, {
     search = search_opts,
-    notes = {
-      collect_anchor_links = anchor_link ~= nil,
-      collect_blocks = block_link ~= nil,
-    },
+    notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
   })
 
   if #notes == 0 then
