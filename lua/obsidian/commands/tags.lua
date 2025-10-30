@@ -58,13 +58,6 @@ end
 
 ---@param data obsidian.CommandArgs
 return function(data)
-  local picker = Obsidian.picker
-  -- TODO:
-  -- if not picker then
-  --   log.err "No picker configured"
-  --   return
-  -- end
-
   local tags = data.fargs or {}
 
   if vim.tbl_isempty(tags) then
@@ -82,14 +75,14 @@ return function(data)
     search.find_tags_async("", function(tag_locations)
       tags = list_tags(tag_locations)
       vim.schedule(function()
-        picker.pick(tags, {
+        Obsidian.picker.pick(tags, {
           callback = function(...)
             tags = vim.tbl_map(function(v)
               return v.value
             end, { ... })
             gather_tag_picker_list(tag_locations, tags)
           end,
-          selection_mappings = picker:_tag_selection_mappings(),
+          selection_mappings = Obsidian.picker._tag_selection_mappings(),
           allow_multiple = true,
         })
       end)
