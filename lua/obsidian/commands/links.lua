@@ -14,8 +14,7 @@ return function()
     return match.link
   end, note:links())
 
-  -- Launch picker.
-  picker:pick(entries, {
+  picker.pick(entries, {
     prompt_title = "Links",
     callback = function(entry)
       api.follow_link(entry.value)

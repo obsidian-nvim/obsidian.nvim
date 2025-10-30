@@ -26,7 +26,7 @@ return function(data)
     return
   end
 
-  picker:find_files {
+  picker.find_files {
     prompt_title = "Templates",
     dir = templates_dir,
     no_default_mappings = true,

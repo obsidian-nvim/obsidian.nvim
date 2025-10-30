@@ -13,7 +13,7 @@ obsidian.log = require "obsidian.log"
 obsidian.img_paste = require "obsidian.img_paste"
 obsidian.Note = require "obsidian.note"
 obsidian.Path = require "obsidian.path"
-obsidian.pickers = require "obsidian.pickers"
+obsidian.Picker = require "obsidian.picker"
 obsidian.search = require "obsidian.search"
 obsidian.templates = require "obsidian.templates"
 obsidian.ui = require "obsidian.ui"
@@ -75,7 +75,7 @@ obsidian.setup = function(user_opts)
     require("obsidian.ui").setup(Obsidian.workspace, Obsidian.opts.ui)
   end
 
-  Obsidian.picker = require("obsidian.pickers").get(Obsidian.opts.picker.name)
+  Obsidian.picker = obsidian.Picker.get()
 
   if opts.legacy_commands then
     obsidian.commands.install_legacy()

@@ -619,7 +619,7 @@ M.follow_link = function(link, opts)
         local note = notes[1]
         jump_to_note(note, block_link, anchor_link)
       elseif #notes > 1 then
-        Obsidian.picker:pick_note(notes, {
+        Obsidian.picker.pick_note(notes, {
           callback = function(note)
             jump_to_note(note, block_link, anchor_link)
           end,
