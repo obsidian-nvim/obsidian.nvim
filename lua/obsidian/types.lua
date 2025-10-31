@@ -56,6 +56,7 @@
 ---@field sort_reversed? boolean
 ---@field search_max_lines? integer
 ---@field open_notes_in? obsidian.config.OpenStrategy
+---@field smart_action_key? string
 ---@field ui? obsidian.config.UIOpts | table<string, any>
 ---@field attachments? obsidian.config.AttachmentsOpts
 ---@field callbacks? obsidian.config.CallbackConfig
@@ -89,6 +90,7 @@
 ---@field sort_reversed boolean|?
 ---@field search_max_lines integer
 ---@field open_notes_in obsidian.config.OpenStrategy
+---@field smart_action_key string
 ---@field ui obsidian.config.UIOpts | table<string, any>
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig

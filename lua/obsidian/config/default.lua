@@ -31,6 +31,7 @@ return {
   markdown_link_func = require("obsidian.builtin").markdown_link,
   preferred_link_style = "wiki",
   open_notes_in = "current",
+  smart_action_key = "<CR>",
 
   ---@class obsidian.config.FrontmatterOpts
   ---

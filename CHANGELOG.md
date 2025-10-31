@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `opts.smart_action_key` to change the keymap for smart actions.
+
 ### Changed
 
 - Rename and Backlinks no longer use id and aliases to identify notes, to stay consistent with obsidian app.

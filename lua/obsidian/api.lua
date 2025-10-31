@@ -677,18 +677,21 @@ end
 -- If cursor is on a tag, show all notes with that tag in a picker
 -- If cursor is on a checkbox, toggle the checkbox
 -- If cursor is on a heading, cycle the fold of that heading
-M.smart_action = function()
-  local legacy = Obsidian.opts.legacy_commands
-  if M.cursor_link() then
-    return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
-  elseif M.cursor_tag() then
-    return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
-  elseif M.cursor_heading() and has_markdown_folding() then
-    return "za"
-  elseif M.cursor_checkbox() or Obsidian.opts.checkbox.create_new then
-    return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
-  else
-    return "<CR>"
+---@param key string
+M.smart_action = function(key)
+  return function()
+    local legacy = Obsidian.opts.legacy_commands
+    if M.cursor_link() then
+      return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
+    elseif M.cursor_tag() then
+      return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
+    elseif M.cursor_heading() and has_markdown_folding() then
+      return "za"
+    elseif M.cursor_checkbox() or Obsidian.opts.checkbox.create_new then
+      return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
+    else
+      return key
+    end
   end
 end
 

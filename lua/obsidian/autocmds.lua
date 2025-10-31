@@ -45,7 +45,12 @@ vim.api.nvim_create_autocmd({ "BufEnter" }, {
     end
 
     -- Register keymap.
-    vim.keymap.set("n", "<CR>", api.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
+    vim.keymap.set(
+      "n",
+      opts.smart_action_key,
+      api.smart_action(opts.smart_action_key),
+      { expr = true, buffer = true, desc = "Obsidian Smart Action" }
+    )
 
     vim.keymap.set("n", "]o", function()
       api.nav_link "next"
