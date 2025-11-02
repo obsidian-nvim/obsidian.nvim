@@ -1,4 +1,3 @@
-local log = require "obsidian.log"
 local daily = require "obsidian.daily"
 
 ---@param arg string
@@ -36,12 +35,6 @@ return function(data)
     end
   end
 
-  local picker = Obsidian.picker
-  if not picker then
-    log.err "No picker configured"
-    return
-  end
-
   ---@type obsidian.PickerEntry[]
   local dailies = {}
   for offset = offset_end, offset_start, -1 do
@@ -59,14 +52,13 @@ return function(data)
       daily_note_alias = daily_note_alias .. " ➡️ create"
     end
     dailies[#dailies + 1] = {
-      value = offset,
-      display = daily_note_alias,
-      ordinal = daily_note_alias,
+      user_data = offset,
+      text = daily_note_alias,
       filename = tostring(daily_note_path),
     }
   end
 
-  picker.pick(dailies, {
+  Obsidian.picker.pick(dailies, {
     prompt_title = "Dailies",
     callback = function(entry)
       local note = daily.daily(entry.user_data, {})

@@ -2,7 +2,6 @@ local log = require "obsidian.log"
 local api = require "obsidian.api"
 
 return function()
-  local picker = Obsidian.picker
   local note = api.current_note(0)
   if not note then
     return log.info "not in a note"
@@ -12,7 +11,7 @@ return function()
     return match.link
   end, note:links())
 
-  picker.pick(entries, {
+  Obsidian.picker.pick(entries, {
     prompt_title = "Links",
     callback = function(entry)
       api.follow_link(entry.user_data)
