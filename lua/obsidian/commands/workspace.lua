@@ -6,15 +6,15 @@ return function(data)
     ---@type obsidian.PickerEntry
     local options = vim.tbl_map(function(ws)
       return {
-        value = ws,
-        display = tostring(ws),
+        user_data = ws,
+        text = tostring(ws),
         filename = tostring(ws.path),
       }
     end, Obsidian.workspaces)
     Obsidian.picker.pick(options, {
       prompt_title = "Obsidian Workspace",
       callback = function(entry)
-        Workspace.set(entry.value)
+        Workspace.set(entry.user_data)
       end,
     })
   else

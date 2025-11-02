@@ -88,21 +88,16 @@ M.pick = function(values, opts)
 
   local entries = {}
   for _, value in ipairs(values) do
-    local display
     if type(value) == "string" then
-      display = value
-      value = { value = value }
+      value = {
+        user_data = value,
+        text = value,
+      }
     else
-      display = opts.format_item and opts.format_item(value) or ut.make_display(value)
+      value.text = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
     if value.valid ~= false then
-      entries[#entries + 1] = {
-        value = value.value,
-        text = display,
-        path = value.filename,
-        lnum = value.lnum,
-        col = value.col,
-      }
+      entries[#entries + 1] = value
     end
   end
 
@@ -115,12 +110,7 @@ M.pick = function(values, opts)
   }
 
   if entry and opts.callback then
-    opts.callback {
-      filename = entry.path,
-      col = entry.col,
-      lnum = entry.lnum,
-      value = entry.value,
-    }
+    opts.callback(entry)
   end
 end
 

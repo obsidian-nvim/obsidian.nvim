@@ -186,7 +186,7 @@ M.pick = function(values, opts)
     local display
     if type(value) == "string" then
       display = value
-      value = { value = value }
+      value = { user_data = value }
     else
       display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end

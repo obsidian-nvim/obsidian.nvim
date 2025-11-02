@@ -69,7 +69,7 @@ return function(data)
   picker.pick(dailies, {
     prompt_title = "Dailies",
     callback = function(entry)
-      local note = daily.daily(entry.value, {})
+      local note = daily.daily(entry.user_data, {})
       note:open()
     end,
   })

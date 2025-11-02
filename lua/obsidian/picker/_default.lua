@@ -39,11 +39,6 @@ M.pick = function(values, opts)
       end
     end)
   else
-    -- HACK: all text
-    values = vim.tbl_map(function(value)
-      value.text = value.display
-      return value
-    end, values)
     vim.fn.setqflist(values)
     vim.cmd "copen"
   end

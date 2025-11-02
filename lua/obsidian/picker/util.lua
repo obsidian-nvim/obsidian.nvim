@@ -48,10 +48,7 @@ M.make_display = function(entry)
 
   local icon, icon_hl
 
-  if entry.icon then
-    icon = entry.icon
-    icon_hl = entry.icon_hl
-  elseif entry.filename then
+  if entry.filename then
     icon, icon_hl = api.get_icon(entry.filename)
   end
 
@@ -77,12 +74,12 @@ M.make_display = function(entry)
     end
   end
 
-  if entry.display then
+  if entry.text then
     buf[#buf + 1] = " "
-    buf[#buf + 1] = entry.display
-  elseif entry.value then
+    buf[#buf + 1] = entry.text
+  elseif entry.user_data then
     buf[#buf + 1] = " "
-    buf[#buf + 1] = tostring(entry.value)
+    buf[#buf + 1] = tostring(entry.user_data)
   end
 
   return table.concat(buf, ""), highlights

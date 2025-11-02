@@ -19,7 +19,7 @@ local function notes_mappings(mapping)
       opts.actions[name] = function(picker, item)
         picker:close()
         vim.schedule(function()
-          v.callback(item.value or item._path)
+          v.callback(item.user_data or item._path)
         end)
       end
     end
@@ -87,7 +87,7 @@ M.grep = function(opts)
             filename = item._path or item.filename,
             col = item.pos and item.pos[2],
             lnum = item.pos and item.pos[1],
-            value = item.value,
+            value = item.user_data,
           }
         else
           snacks_picker.actions.jump(picker, item, action)
@@ -121,7 +121,7 @@ M.pick = function(values, opts)
     table.insert(entries, {
       text = display,
       file = value.filename,
-      value = value.value,
+      value = value.user_data,
       pos = value.lnum and { value.lnum, value.col or 0 },
       dir = value.filename and Path.new(value.filename):is_dir() or false,
     })
@@ -146,11 +146,12 @@ M.pick = function(values, opts)
               filename = item.file,
               col = item.pos and item.pos[2],
               lnum = item.pos and item.pos[1],
-              value = item.value,
+              user_data = item.value,
             }
           else
             opts.callback {
-              value = item.value,
+              text = item.text,
+              user_data = item.text,
             }
           end
         else

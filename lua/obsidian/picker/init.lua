@@ -46,17 +46,7 @@ M.state = state
 ---@field query_mappings obsidian.PickerMappingTable
 ---@field selection_mappings obsidian.PickerMappingTable
 
----@class obsidian.PickerEntry
----
----@field value any
----@field ordinal string|?
----@field display string|?
----@field filename string|?
----@field valid boolean|?
----@field lnum integer|?
----@field col integer|?
----@field icon string|?
----@field icon_hl string|?
+---@class obsidian.PickerEntry: vim.quickfix.entry
 
 ---@class obsidian.PickerPickOpts
 ---
@@ -176,7 +166,7 @@ M.pick_note = function(notes, opts)
   M.pick(entries, {
     prompt_title = opts.prompt_title or "Notes",
     callback = function(v)
-      opts.callback(v.value)
+      opts.callback(v.user_data)
     end,
     allow_multiple = opts.allow_multiple,
     no_default_mappings = opts.no_default_mappings,
@@ -256,7 +246,7 @@ M._tag_selection_mappings = function()
       desc = "tag note",
       callback = function(...)
         local tags = vim.tbl_map(function(value)
-          return value.value
+          return value.user_data
         end, { ... })
 
         local note = api.current_note(state.calling_bufnr)
@@ -298,7 +288,7 @@ M._tag_selection_mappings = function()
     mappings[Obsidian.opts.picker.tag_mappings.insert_tag] = {
       desc = "insert tag",
       callback = function(item)
-        local tag = item.value
+        local tag = item.user_data
         vim.api.nvim_put({ "#" .. tag }, "", false, true)
       end,
       fallback_to_query = true,

@@ -25,15 +25,16 @@ end
 ---@param prompt_bufnr integer
 ---@param keep_open boolean|?
 ---@param allow_multiple boolean|?
----@return table[]|?
+---@return obsidian.PickerEntry[]?
 local function get_selected(prompt_bufnr, keep_open, allow_multiple)
+  ---
   ---@return obsidian.PickerEntry
   local function selection_to_entry(selection)
     return {
       filename = selection.path or selection.filename or selection.value.path,
       lnum = selection.lnum,
       col = selection.col,
-      value = selection.value,
+      user_data = selection.value,
     }
   end
 
@@ -263,7 +264,7 @@ M.pick = function(values, opts)
             end
 
             return {
-              value = v.value,
+              value = v.user_data,
               display = displayer,
               ordinal = ordinal,
               filename = v.filename,

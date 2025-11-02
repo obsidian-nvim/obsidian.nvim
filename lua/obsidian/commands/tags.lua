@@ -78,7 +78,7 @@ return function(data)
         Obsidian.picker.pick(tags, {
           callback = function(...)
             tags = vim.tbl_map(function(v)
-              return v.value
+              return v.user_data
             end, { ... })
             gather_tag_picker_list(tag_locations, tags)
           end,
