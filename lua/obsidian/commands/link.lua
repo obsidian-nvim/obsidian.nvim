@@ -1,7 +1,7 @@
 local obsidian = require "obsidian"
 local api = obsidian.api
 local log = obsidian.log
-local Note = obsidian.note
+local Note = obsidian.Note
 
 ---@param data obsidian.CommandArgs
 return function(data)

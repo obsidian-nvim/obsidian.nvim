@@ -51,7 +51,7 @@ M.make_display = function(entry)
   if entry.icon then
     icon = entry.icon
     icon_hl = entry.icon_hl
-  else
+  elseif entry.filename then
     icon, icon_hl = api.get_icon(entry.filename)
   end
 

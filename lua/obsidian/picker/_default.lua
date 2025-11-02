@@ -24,7 +24,11 @@ M.pick = function(values, opts)
     vim.ui.select(values, {
       prompt = opts.prompt_title,
       format_item = opts.format_item or function(value)
-        return ut.make_display(value)
+        if type(value) == "string" then
+          return value
+        elseif type(value) == "table" then
+          return ut.make_display(value)
+        end
       end,
     }, function(item)
       if item then

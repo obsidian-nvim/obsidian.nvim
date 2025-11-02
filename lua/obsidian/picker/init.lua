@@ -324,6 +324,7 @@ M.get = function(picker_name)
     picker_name = string.lower(picker_name)
   elseif picker_name == false then
     patch "obsidian.picker._default"
+    M.state._native = true
     return M
   else
     for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do
