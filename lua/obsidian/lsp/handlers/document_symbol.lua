@@ -10,19 +10,25 @@ return function(_, handler)
 
   ---@type lsp.DocumentSymbol[]
   local symbols = {}
+  local lookup = {}
+
   for _, anchor in pairs(note.anchor_links) do
     local display = string.rep("#", anchor.level) .. " " .. anchor.header
     local rge = {
       start = { line = anchor.line - 1, character = 0 },
       ["end"] = { line = anchor.line - 1, character = 0 },
     }
-    symbols[#symbols + 1] = {
-      name = display,
-      kind = 1,
-      filename = note.path.filename,
-      range = rge,
-      selectionRange = rge,
-    }
+    if not lookup[anchor.line] then
+      local symbol = {
+        name = display,
+        kind = 1,
+        filename = note.path.filename,
+        range = rge,
+        selectionRange = rge,
+      }
+      symbols[#symbols + 1] = symbol
+      lookup[anchor.line] = true
+    end
   end
 
   table.sort(symbols, function(a, b)
