@@ -31,4 +31,27 @@ T["follow markdown links"] = function()
   eq(files["target.md"], child.api.nvim_buf_get_name(0))
 end
 
+-- TODO: expand to all filetypes
+T["open attachment"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = [==[
+
+[target](./target.png)
+]==],
+    -- ["target.png"] = "",
+  })
+
+  -- TODO: Obsidian.opt.open.func
+  child.lua [[
+  Obsidian.opts.follow_img_func = function(uri)
+    _G.uri = uri
+  end
+  ]]
+
+  child.cmd("edit " .. files["referencer.md"])
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  child.lua "vim.lsp.buf.definition()"
+  eq(tostring(child.Obsidian.dir / "target.png"), child.lua_get "uri")
+end
+
 return T

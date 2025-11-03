@@ -3,6 +3,7 @@ local search = obsidian.search
 local RefTypes = obsidian.search.RefTypes
 local util = obsidian.util
 local log = obsidian.log
+local api = obsidian.api
 
 ---@param note obsidian.Note
 ---@param block_link string?
@@ -79,7 +80,8 @@ end
 handlers[RefTypes.Wiki] = function(location, name)
   local _, _, location_type = util.parse_link(location, { include_naked_urls = true, include_file_urls = true })
   if util.is_img(location) then -- TODO: include in parse_link
-    local path = Obsidian.dir / location
+    local path = api.resolve_image_path(location)
+    -- TODO: Obsidian.opts.open.func
     return Obsidian.opts.follow_img_func(tostring(path))
   elseif handlers[location_type] then
     return handlers[location_type](location, name)
