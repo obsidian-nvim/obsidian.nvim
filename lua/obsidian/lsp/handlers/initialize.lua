@@ -7,6 +7,12 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    codeActionProvider = true,
+    executeCommandProvider = {
+      commands = {
+        "add_file_property",
+      },
+    },
   },
   serverInfo = {
     name = "obsidian-ls",
