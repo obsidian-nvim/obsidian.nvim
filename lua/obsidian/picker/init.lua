@@ -19,7 +19,7 @@ M.state = state
 ---@class obsidian.PickerMappingOpts
 ---
 ---@field desc string
----@field callback fun(...)
+---@field callback fun(...: obsidian.PickerEntry)
 ---@field fallback_to_query boolean|?
 ---@field keep_open boolean|?
 ---@field allow_multiple boolean|?
@@ -217,14 +217,8 @@ M._note_selection_mappings = function()
   if key_is_set(Obsidian.opts.picker.note_mappings.insert_link) then
     mappings[Obsidian.opts.picker.note_mappings.insert_link] = {
       desc = "insert link",
-      callback = function(note_or_path)
-        ---@type obsidian.Note
-        local note
-        if Note.is_note_obj(note_or_path) then
-          note = note_or_path
-        else
-          note = Note.from_file(note_or_path)
-        end
+      callback = function(item)
+        local note = Note.from_file(item.filename)
         local link = note:format_link()
         vim.api.nvim_put({ link }, "", false, true)
         require("obsidian.ui").update(0)
