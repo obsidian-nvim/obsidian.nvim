@@ -19,7 +19,7 @@ M.state = state
 ---@class obsidian.PickerMappingOpts
 ---
 ---@field desc string
----@field callback fun(...: obsidian.PickerEntry)
+---@field callback fun(...: obsidian.PickerEntry|string)
 ---@field fallback_to_query boolean|?
 ---@field keep_open boolean|?
 ---@field allow_multiple boolean|?
