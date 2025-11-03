@@ -34,6 +34,12 @@ local initializeResult = {
         },
       },
     },
+    codeActionProvider = true,
+    executeCommandProvider = {
+      commands = {
+        "add_file_property",
+      },
+    },
   },
   serverInfo = {
     name = "obsidian-ls",
