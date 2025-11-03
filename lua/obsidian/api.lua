@@ -637,7 +637,7 @@ end
 
 ---@param direction "next" | "prev"
 M.nav_link = function(direction)
-  vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")
+  -- vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")
   local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
   local Note = require "obsidian.note"
 

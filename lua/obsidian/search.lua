@@ -322,7 +322,7 @@ end
 ---@param opts obsidian.search.SearchOpts
 ---@return string[]
 SearchOpts.to_ripgrep_opts = function(opts)
-  vim.validate("opts.exclude", opts.exclude, "table", true)
+  -- vim.validate("opts.exclude", opts.exclude, "table", true)
 
   local ret = {}
 
@@ -891,8 +891,8 @@ M._build_backlink_search_term = build_backlink_search_term
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
 ---@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string }
 M.find_backlinks_async = function(note, callback, opts)
-  vim.validate("note", note, "table")
-  vim.validate("callback", callback, "function")
+  -- vim.validate("note", note, "table")
+  -- vim.validate("callback", callback, "function")
   opts = opts or {}
   opts = vim.tbl_extend("keep", opts, { dir = Obsidian.dir })
   local block = opts.block and util.standardize_block(opts.block) or nil

@@ -415,7 +415,7 @@ util.parse_link = function(link, opts)
   local search = require "obsidian.search"
 
   opts = opts and opts or {}
-  vim.validate("opts.strip", opts.strip, "boolean", true)
+  -- vim.validate("opts.strip", opts.strip, "boolean", true)
 
   local link_type = opts.link_type
   if link_type == nil then
