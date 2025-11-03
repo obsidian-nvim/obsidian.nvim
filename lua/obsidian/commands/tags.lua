@@ -16,10 +16,9 @@ local list_tags = function(tag_locations)
   return vim.tbl_keys(tags)
 end
 
----@param picker obsidian.Picker
 ---@param tag_locations obsidian.TagLocation[]
 ---@param tags string[]
-local function gather_tag_picker_list(picker, tag_locations, tags)
+local function gather_tag_picker_list(tag_locations, tags)
   ---@type obsidian.PickerEntry[]
   local entries = {}
   for _, tag_loc in ipairs(tag_locations) do
@@ -48,7 +47,7 @@ local function gather_tag_picker_list(picker, tag_locations, tags)
   end
 
   vim.schedule(function()
-    picker:pick(entries, {
+    Obsidian.picker.pick(entries, {
       prompt_title = "#" .. table.concat(tags, ", #"),
       callback = function(value)
         api.open_buffer(value.filename, { line = value.lnum, col = value.col })
@@ -59,12 +58,6 @@ end
 
 ---@param data obsidian.CommandArgs
 return function(data)
-  local picker = Obsidian.picker
-  if not picker then
-    log.err "No picker configured"
-    return
-  end
-
   local tags = data.fargs or {}
 
   if vim.tbl_isempty(tags) then
@@ -76,20 +69,20 @@ return function(data)
 
   if not vim.tbl_isempty(tags) then
     search.find_tags_async(tags, function(tag_locations)
-      return gather_tag_picker_list(picker, tag_locations, util.tbl_unique(tags))
+      return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
     end)
   else
     search.find_tags_async("", function(tag_locations)
       tags = list_tags(tag_locations)
       vim.schedule(function()
-        picker:pick(tags, {
+        Obsidian.picker.pick(tags, {
           callback = function(...)
             tags = vim.tbl_map(function(v)
-              return v.value
+              return v.user_data
             end, { ... })
-            gather_tag_picker_list(picker, tag_locations, tags)
+            gather_tag_picker_list(tag_locations, tags)
           end,
-          selection_mappings = picker:_tag_selection_mappings(),
+          selection_mappings = Obsidian.picker._tag_selection_mappings(),
           allow_multiple = true,
         })
       end)

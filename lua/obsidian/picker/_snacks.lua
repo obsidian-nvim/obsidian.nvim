@@ -1,8 +1,10 @@
 local snacks_picker = require "snacks.picker"
 
-local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
-local Picker = require "obsidian.pickers.picker"
+local obsidian = require "obsidian"
+local search = obsidian.search
+local Picker = obsidian.Picker
+local Path = obsidian.Path
+local ut = require "obsidian.picker.util"
 
 ---@param mapping table
 ---@return table
@@ -17,7 +19,7 @@ local function notes_mappings(mapping)
       opts.actions[name] = function(picker, item)
         picker:close()
         vim.schedule(function()
-          v.callback(item.value or item._path)
+          v.callback(item.user_data or item._path)
         end)
       end
     end
@@ -26,23 +28,19 @@ local function notes_mappings(mapping)
   return {}
 end
 
----@class obsidian.pickers.SnacksPicker : obsidian.Picker
-local SnacksPicker = abc.new_class({
-  __tostring = function()
-    return "SnacksPicker()"
-  end,
-}, Picker)
+local M = {}
 
 ---@param opts obsidian.PickerFindOpts|? Options.
-SnacksPicker.find_files = function(self, opts)
+M.find_files = function(opts)
   opts = opts or {}
+  opts.callback = opts.callback or obsidian.api.open_buffer
 
   ---@type obsidian.Path
   local dir = opts.dir.filename and Path.new(opts.dir.filename) or Obsidian.dir
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
-  local args = self:_build_find_cmd()
+  local args = search.build_find_cmd()
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
@@ -52,14 +50,10 @@ SnacksPicker.find_files = function(self, opts)
     cwd = tostring(dir),
     cmd = cmd,
     args = args,
-    confirm = function(picker, item, action)
+    confirm = function(picker, item)
       picker:close()
       if item then
-        if opts.callback then
-          opts.callback(item._path)
-        else
-          snacks_picker.actions.jump(picker, item, action)
-        end
+        opts.callback(item._path)
       end
     end,
   })
@@ -67,7 +61,7 @@ SnacksPicker.find_files = function(self, opts)
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
-SnacksPicker.grep = function(self, opts)
+M.grep = function(opts)
   opts = opts or {}
 
   ---@type obsidian.Path
@@ -75,7 +69,7 @@ SnacksPicker.grep = function(self, opts)
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
-  local args = self:_build_grep_cmd()
+  local args = search.build_grep_cmd()
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
@@ -93,7 +87,7 @@ SnacksPicker.grep = function(self, opts)
             filename = item._path or item.filename,
             col = item.pos and item.pos[2],
             lnum = item.pos and item.pos[1],
-            value = item.value,
+            value = item.user_data,
           }
         else
           snacks_picker.actions.jump(picker, item, action)
@@ -106,8 +100,8 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
-SnacksPicker.pick = function(self, values, opts)
-  self.calling_bufnr = vim.api.nvim_get_current_buf()
+M.pick = function(values, opts)
+  Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
 
@@ -122,12 +116,12 @@ SnacksPicker.pick = function(self, values, opts)
       display = value
       value = { value = value }
     else
-      display = opts.format_item and opts.format_item(value) or self:_make_display(value)
+      display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
     table.insert(entries, {
       text = display,
       file = value.filename,
-      value = value.value,
+      value = value.user_data,
       pos = value.lnum and { value.lnum, value.col or 0 },
       dir = value.filename and Path.new(value.filename):is_dir() or false,
     })
@@ -152,11 +146,12 @@ SnacksPicker.pick = function(self, values, opts)
               filename = item.file,
               col = item.pos and item.pos[2],
               lnum = item.pos and item.pos[1],
-              value = item.value,
+              user_data = item.value,
             }
           else
             opts.callback {
-              value = item.value,
+              text = item.text,
+              user_data = item.text,
             }
           end
         else
@@ -169,4 +164,4 @@ SnacksPicker.pick = function(self, values, opts)
   snacks_picker.pick(pick_opts)
 end
 
-return SnacksPicker
+return M

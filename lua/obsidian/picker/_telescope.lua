@@ -2,17 +2,14 @@ local telescope = require "telescope.builtin"
 local telescope_actions = require "telescope.actions"
 local actions_state = require "telescope.actions.state"
 
-local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
-local Picker = require "obsidian.pickers.picker"
-local log = require "obsidian.log"
+local obsidian = require "obsidian"
+local search = obsidian.search
+local Path = obsidian.Path
+local log = obsidian.log
+local Picker = obsidian.Picker
+local ut = require "obsidian.picker.util"
 
----@class obsidian.pickers.TelescopePicker : obsidian.Picker
-local TelescopePicker = abc.new_class({
-  __tostring = function()
-    return "TelescopePicker()"
-  end,
-}, Picker)
+local M = {}
 
 ---@param prompt_bufnr integer
 ---@param keep_open boolean|?
@@ -28,15 +25,16 @@ end
 ---@param prompt_bufnr integer
 ---@param keep_open boolean|?
 ---@param allow_multiple boolean|?
----@return table[]|?
+---@return obsidian.PickerEntry[]?
 local function get_selected(prompt_bufnr, keep_open, allow_multiple)
+  ---
   ---@return obsidian.PickerEntry
   local function selection_to_entry(selection)
     return {
       filename = selection.path or selection.filename or selection.value.path,
       lnum = selection.lnum,
       col = selection.col,
-      value = selection.value,
+      user_data = selection.value,
     }
   end
 
@@ -125,10 +123,11 @@ local function attach_picker_mappings(map, opts)
 end
 
 ---@param opts obsidian.PickerFindOpts|? Options.
-TelescopePicker.find_files = function(self, opts)
+M.find_files = function(opts)
   opts = opts or {}
+  opts.callback = opts.callback or obsidian.api.open_buffer
 
-  local prompt_title = self:_build_prompt {
+  local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
     query_mappings = opts.query_mappings,
     selection_mappings = opts.selection_mappings,
@@ -138,13 +137,11 @@ TelescopePicker.find_files = function(self, opts)
     default_text = opts.query,
     prompt_title = prompt_title,
     cwd = opts.dir and tostring(opts.dir) or tostring(Obsidian.dir),
-    find_command = self:_build_find_cmd(),
+    find_command = search.build_find_cmd(),
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
         callback = function(entry)
-          if opts.callback then
-            opts.callback(entry.filename)
-          end
+          opts.callback(entry.filename)
         end,
         query_mappings = opts.query_mappings,
         selection_mappings = opts.selection_mappings,
@@ -155,12 +152,12 @@ TelescopePicker.find_files = function(self, opts)
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
-TelescopePicker.grep = function(self, opts)
+M.grep = function(opts)
   opts = opts or {}
 
   local cwd = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
-  local prompt_title = self:_build_prompt {
+  local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
     query_mappings = opts.query_mappings,
     selection_mappings = opts.selection_mappings,
@@ -180,7 +177,7 @@ TelescopePicker.grep = function(self, opts)
     telescope.grep_string {
       prompt_title = prompt_title,
       cwd = tostring(cwd),
-      vimgrep_arguments = self:_build_grep_cmd(),
+      vimgrep_arguments = search.build_grep_cmd(),
       search = opts.query,
       attach_mappings = attach_mappings,
     }
@@ -188,7 +185,7 @@ TelescopePicker.grep = function(self, opts)
     telescope.live_grep {
       prompt_title = prompt_title,
       cwd = tostring(cwd),
-      vimgrep_arguments = self:_build_grep_cmd(),
+      vimgrep_arguments = search.build_grep_cmd(),
       attach_mappings = attach_mappings,
     }
   end
@@ -196,13 +193,13 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
-TelescopePicker.pick = function(self, values, opts)
+M.pick = function(values, opts)
   local pickers = require "telescope.pickers"
   local finders = require "telescope.finders"
   local conf = require "telescope.config"
   local make_entry = require "telescope.make_entry"
 
-  self.calling_bufnr = vim.api.nvim_get_current_buf()
+  Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
 
@@ -219,10 +216,10 @@ TelescopePicker.pick = function(self, values, opts)
   }
 
   local displayer = function(entry)
-    return opts.format_item and opts.format_item(entry.raw) or self:_make_display(entry.raw)
+    return opts.format_item and opts.format_item(entry.raw) or ut.make_display(entry.raw)
   end
 
-  local prompt_title = self:_build_prompt {
+  local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
     query_mappings = opts.query_mappings,
     selection_mappings = opts.selection_mappings,
@@ -267,7 +264,7 @@ TelescopePicker.pick = function(self, values, opts)
             end
 
             return {
-              value = v.value,
+              value = v.user_data,
               display = displayer,
               ordinal = ordinal,
               filename = v.filename,
@@ -285,4 +282,4 @@ TelescopePicker.pick = function(self, values, opts)
     :find()
 end
 
-return TelescopePicker
+return M

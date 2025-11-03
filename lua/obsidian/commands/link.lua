@@ -1,6 +1,7 @@
-local search = require "obsidian.search"
-local api = require "obsidian.api"
-local log = require "obsidian.log"
+local obsidian = require "obsidian"
+local api = obsidian.api
+local log = obsidian.log
+local Note = obsidian.Note
 
 ---@param data obsidian.CommandArgs
 return function(data)
@@ -29,7 +30,7 @@ return function(data)
       .. note:format_link { label = viz.selection }
       .. string.sub(line, viz.cecol + 1)
     vim.api.nvim_buf_set_lines(0, viz.csrow - 1, viz.csrow, false, { new_line })
-    require("obsidian.ui").update(0)
+    obsidian.ui.update(0)
   end
 
   local picker = Obsidian.picker
@@ -39,15 +40,11 @@ return function(data)
     return
   end
 
-  picker:find_notes {
+  picker.find_notes {
     prompt_title = "Select note to link",
     query = query,
-    callback = function(entry)
-      local resolved_notes = search.resolve_note(entry)
-      if #resolved_notes == 0 then
-        return log.err("No notes matching '%s'", entry)
-      end
-      local note = resolved_notes[1]
+    callback = function(path)
+      local note = Note.from_file(path)
       vim.schedule(function()
         insert_ref(note)
       end)
