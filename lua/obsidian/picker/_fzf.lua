@@ -121,7 +121,7 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_buffer
+  opts.callback = opts.callback or obsidian.api.open_note
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -176,6 +176,7 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
+  opts.callback = opts.callback or obsidian.api.open_note
 
   ---@type table<string, any>
   local display_to_value_map = {}

@@ -125,7 +125,7 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_buffer
+  opts.callback = opts.callback or obsidian.api.open_note
 
   local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
@@ -202,6 +202,7 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
+  opts.callback = opts.callback or obsidian.api.open_note
 
   local picker_opts = {
     attach_mappings = function(_, map)

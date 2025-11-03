@@ -12,23 +12,9 @@ return function(data)
   vim.lsp.buf.definition {
     on_list = Obsidian.picker and function(t)
       if #t.items == 1 then
-        local item = t.items[1]
-        api.open_buffer(item.filename, {
-          col = item.col,
-          line = item.lnum,
-          cmd = open_strategy,
-        })
+        api.open_note(t.items[1], open_strategy)
       else
-        Obsidian.picker.pick(t.items, {
-          prompt_title = "Resolve link",
-          callback = function(v)
-            api.open_buffer(v.filename, {
-              col = v.col,
-              line = v.lnum,
-              cmd = open_strategy,
-            })
-          end,
-        })
+        Obsidian.picker.pick(t.items, { prompt_title = "Resolve link" })
       end
     end,
   }

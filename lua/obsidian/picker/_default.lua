@@ -1,8 +1,9 @@
 local M = {}
 
-local log = require "obsidian.log"
-local api = require "obsidian.api"
-local search = require "obsidian.search"
+local obsidian = require "obsidian"
+local log = obsidian.log
+local api = obsidian.api
+local search = obsidian.search
 local ut = require "obsidian.picker.util"
 
 --- Pick from a list of items.
@@ -19,6 +20,7 @@ local ut = require "obsidian.picker.util"
 ---
 M.pick = function(values, opts)
   opts = opts or {}
+  opts.callback = opts.callback or obsidian.api.open_note
 
   if opts.callback then
     vim.ui.select(values, {
@@ -98,11 +100,7 @@ M.grep = function(opts)
       if vim.tbl_isempty(items) then
         return log.info "Failed to Grep"
       elseif #items == 1 then
-        local item = items[1]
-        return api.open_buffer(item.filename, {
-          line = item.lnum,
-          col = item.col,
-        })
+        return api.open_note(items[1])
       else
         vim.fn.setqflist(items)
         vim.cmd "copen"
@@ -150,7 +148,7 @@ M.find_files = function(opts)
       if vim.tbl_isempty(paths) then
         return log.info "Failed to Switch" -- TODO:
       elseif #paths == 1 then
-        return api.open_buffer(paths[1])
+        return api.open_note { filename = paths[1] }
       elseif #paths > 1 then
         ---@type vim.quickfix.entry
         local items = {}

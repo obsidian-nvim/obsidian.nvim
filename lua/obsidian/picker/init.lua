@@ -85,7 +85,7 @@ M.find_notes = function(opts)
     query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
     dir = Obsidian.dir,
-    callback = opts.callback, -- TODO: breaks picker plugin integration?
+    callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
@@ -117,9 +117,7 @@ M.grep_notes = function(opts)
     prompt_title = opts.prompt_title or "Grep notes",
     dir = Obsidian.dir,
     query = opts.query,
-    callback = opts.callback or function(v)
-      return api.open_buffer(v.filename, { line = v.lnum, col = v.col })
-    end,
+    callback = opts.callback or api.open_note,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,

@@ -194,10 +194,29 @@ end
 ---@param path string|obsidian.Path
 ---@param opts { line: integer|?, col: integer|?, cmd: string|? }|?
 ---@return integer bufnr
+---@deprecated
 M.open_buffer = function(path, opts)
-  path = Path.new(path):resolve()
-  opts = opts and opts or {}
-  local cmd = vim.trim(opts.cmd and opts.cmd or "e")
+  vim.deprecate("api.open_buffer", "api.open_note", "4.0.0", "obsidian.nvim")
+  opts = opts or {}
+  return M.open_note({
+    filename = tostring(path),
+    lnum = opts.line,
+    col = opts.col,
+  }, opts.cmd)
+end
+
+--- Open a quickfix entry in buffer, with open strategy
+---@param entry obsidian.PickerEntry|vim.quickfix.entry|string
+---@param cmd string?
+---@return integer
+M.open_note = function(entry, cmd)
+  local path
+  if type(entry) == "string" then
+    path = entry
+  else
+    path = entry.filename
+  end
+  cmd = vim.trim(cmd and cmd or "e")
 
   ---@type integer|?
   local result_bufnr
@@ -214,8 +233,8 @@ M.open_buffer = function(path, opts)
   end
 
   vim.cmd(string.format("%s %s", cmd, vim.fn.fnameescape(tostring(path))))
-  if opts.line then
-    vim.api.nvim_win_set_cursor(0, { tonumber(opts.line), opts.col and opts.col or 0 })
+  if type(entry) == "table" and entry.lnum then
+    vim.api.nvim_win_set_cursor(0, { tonumber(entry.lnum), entry.col and entry.col or 0 })
   end
 
   if not result_bufnr then
@@ -541,26 +560,12 @@ end
 M.follow_link = function(link, opts)
   opts = opts and opts or {}
   require("obsidian.lsp.handlers._definition").follow_link(link, function(_, locations)
-    local items = vim.lsp.util.locations_to_items(locations, "utf-8") -- TODO: encoding?
-    -- TODO: abstract with follow links handler: default link(s) opener for qflist items
+    local items = vim.lsp.util.locations_to_items(locations, "utf-8")
+    local cmd = opts.open_strategy or M.get_open_strategy(Obsidian.opts.open_notes_in)
     if #items == 1 then
-      local item = items[1]
-      M.open_buffer(item.filename, {
-        col = item.col,
-        line = item.lnum,
-        cmd = opts.open_strategy or M.get_open_strategy(Obsidian.opts.open_notes_in),
-      })
+      M.open_note(items[1], cmd)
     else
-      Obsidian.picker.pick(items, {
-        prompt_title = "Resolve link",
-        callback = function(v)
-          M.open_buffer(v.filename, {
-            col = v.col,
-            line = v.lnum,
-            cmd = opts.open_strategy or Obsidian.opts.open_notes_in,
-          })
-        end,
-      })
+      Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
     end
   end)
 end
