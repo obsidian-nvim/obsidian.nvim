@@ -19,7 +19,7 @@ return function(data)
           cmd = open_strategy,
         })
       else
-        Obsidian.picker:pick(t.items, {
+        Obsidian.picker.pick(t.items, {
           prompt_title = "Resolve link",
           callback = function(v)
             api.open_buffer(v.filename, {

@@ -22,7 +22,6 @@ M.RefTypes = {
   Tag = "Tag",
   BlockID = "BlockID",
   Highlight = "Highlight",
-  Footnote = "Footnote",
 }
 
 ---@enum obsidian.search.Patterns
@@ -43,7 +42,6 @@ M.Patterns = {
   FileUrl = "file:/[/{2}]?.*", -- file:///
   MailtoUrl = "mailto:.*", -- mailto:emailaddress
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
-  Footnote = "%[%^%d%]",
 }
 
 ---@type table<obsidian.search.RefTypes, { ignore_if_escape_prefix: boolean|? }>
