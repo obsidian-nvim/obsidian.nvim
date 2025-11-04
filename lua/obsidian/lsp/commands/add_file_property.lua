@@ -6,9 +6,12 @@ return function()
   local key = obsidian.api.input "key: "
   local value = obsidian.api.input "value: "
 
-  ---@diagnostic disable-next-line: param-type-mismatch
-  if (not key or not value) and (vim.trim(key) ~= "" and vim.trim(value) ~= "") then
+  if not (key and value) then
     return obsidian.log "Aborted"
+  end
+
+  if vim.trim(key) ~= "" and vim.trim(value) ~= "" then
+    return obsidian.log "Empty Input"
   end
 
   note:add_field(key, value)
