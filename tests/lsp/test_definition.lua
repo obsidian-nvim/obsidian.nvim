@@ -18,7 +18,7 @@ T["follow wiki links"] = function()
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
-  eq(files["target.md"], child.api.nvim_buf_get_name(0))
+  fs_eq(files["target.md"], child.api.nvim_buf_get_name(0))
 end
 
 T["follow markdown links"] = function()
@@ -33,7 +33,7 @@ T["follow markdown links"] = function()
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
-  eq(files["target.md"], child.api.nvim_buf_get_name(0))
+  fs_eq(files["target.md"], child.api.nvim_buf_get_name(0))
 end
 
 T["follow file url"] = function()
