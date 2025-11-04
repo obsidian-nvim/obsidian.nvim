@@ -2,6 +2,11 @@ local h = dofile "tests/helpers.lua"
 local T, child = h.child_vault()
 local eq = MiniTest.expect.equality
 
+local fs_eq = function(a, b)
+  local normalize = vim.fs.normalize
+  eq(normalize(a), normalize(b))
+end
+
 T["follow wiki links"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = [==[
@@ -43,7 +48,7 @@ file://%s/test.lua
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
-  eq(files["test.lua"], child.api.nvim_buf_get_name(0))
+  fs_eq(files["test.lua"], child.api.nvim_buf_get_name(0))
 end
 
 -- TODO: expand to all filetypes
@@ -66,7 +71,7 @@ T["open attachment"] = function()
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
-  eq(tostring(child.Obsidian.dir / "target.png"), child.lua_get "uri")
+  fs_eq(tostring(child.Obsidian.dir / "target.png"), child.lua_get "uri")
 end
 
 return T

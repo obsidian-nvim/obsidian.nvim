@@ -1,4 +1,3 @@
-local follow_link = require("obsidian.lsp.handlers._definition").follow_link
 local api = require("obsidian").api
 
 ---@param _ lsp.DefinitionParams
@@ -9,5 +8,5 @@ return function(_, handler)
   if not link then
     return handler(nil, {})
   end
-  follow_link(link, handler)
+  require("obsidian.lsp.handlers._definition").follow_link(link, handler)
 end
