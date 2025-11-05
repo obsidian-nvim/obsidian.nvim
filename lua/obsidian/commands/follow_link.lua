@@ -6,7 +6,7 @@ return function(data)
   if data.args and string.len(data.args) > 0 then
     open_strategy = api.get_open_strategy(data.args)
   else
-    open_strategy = Obsidian.opts.open_notes_in
+    open_strategy = api.get_open_strategy(Obsidian.opts.open_notes_in)
   end
 
   vim.lsp.buf.definition {
