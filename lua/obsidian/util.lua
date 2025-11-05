@@ -408,9 +408,10 @@ util.working_day_after = function(time)
 end
 
 ---@param link string
----@param opts { strip: boolean|?, include_naked_urls: boolean|?, include_file_urls: boolean|?, include_block_ids: boolean|?, link_type: obsidian.search.RefTypes|? }|?
----
----@return string|?, string|?, obsidian.search.RefTypes|?
+---@param opts { strip: boolean|?, exclude: obsidian.search.RefTypes[], link_type: obsidian.search.RefTypes|? }|?
+---@return string|? link_location
+---@return string|? link_name
+---@return obsidian.search.RefTypes|? link_type
 util.parse_link = function(link, opts)
   local search = require "obsidian.search"
 
@@ -419,13 +420,7 @@ util.parse_link = function(link, opts)
 
   local link_type = opts.link_type
   if link_type == nil then
-    for match in
-      vim.iter(search.find_refs(link, {
-        include_naked_urls = opts.include_naked_urls,
-        include_file_urls = opts.include_file_urls,
-        include_block_ids = opts.include_block_ids,
-      }))
-    do
+    for _, match in ipairs(search.find_refs(link, { exclude = { search.RefTypes.Tag } })) do
       local _, _, m_type = unpack(match)
       if m_type then
         link_type = m_type
@@ -442,7 +437,11 @@ util.parse_link = function(link, opts)
   if link_type == search.RefTypes.Markdown then
     link_location = link:gsub("^%[(.-)%]%((.*)%)$", "%2")
     link_name = link:gsub("^%[(.-)%]%((.*)%)$", "%1")
-  elseif link_type == search.RefTypes.NakedUrl or link_type == search.RefTypes.FileUrl then
+  elseif
+    link_type == search.RefTypes.NakedUrl
+    or link_type == search.RefTypes.FileUrl
+    or link_type == search.RefTypes.MailtoUrl
+  then
     link_location = link
     link_name = link
   elseif link_type == search.RefTypes.WikiWithAlias then

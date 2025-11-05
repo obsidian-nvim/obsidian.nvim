@@ -376,6 +376,17 @@ Note.fname = function(self)
   end
 end
 
+--- Get file uri
+---
+---@return string?
+Note.uri = function(self)
+  if self.path == nil then
+    return nil
+  else
+    return vim.uri_from_fname(tostring(self.path))
+  end
+end
+
 --- Get a list of all of the different string that can identify this note via references,
 --- including the ID, aliases, and filename.
 ---@param opts { lowercase: boolean|? }|?
@@ -1079,7 +1090,11 @@ Note.open = function(self, opts)
 
   local function open_it()
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
-    local bufnr = api.open_buffer(self.path, { line = opts.line, col = opts.col, cmd = open_cmd })
+    local bufnr = api.open_note({
+      filename = tostring(self.path),
+      lnum = opts.line,
+      col = opts.col,
+    }, open_cmd)
     vim.b[bufnr].note = self
     if opts.callback then
       opts.callback(bufnr)

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Rename and Backlinks no longer use id and aliases to identify notes, to stay consistent with obsidian app.
+- `api.open_buffer(path, opts)` -> `api.open_note(quickfix_entry, open_strategy)`
 
 ### Fixed
 
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - A default picker implementation, no longer require any picker plugin.
+- Properly implement definition through LSP API.
 
 ## [v3.14.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.3) - 2025-10-19
 

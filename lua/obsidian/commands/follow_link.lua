@@ -1,18 +1,21 @@
 local api = require "obsidian.api"
-local log = require "obsidian.log"
 
 ---@param data obsidian.CommandArgs
 return function(data)
-  local opts = {}
+  local open_strategy
   if data.args and string.len(data.args) > 0 then
-    opts.open_strategy = data.args
-  end
-
-  local link = api.cursor_link()
-
-  if link then
-    api.follow_link(link, opts)
+    open_strategy = api.get_open_strategy(data.args)
   else
-    log.info "no valid link to follow"
+    open_strategy = api.get_open_strategy(Obsidian.opts.open_notes_in)
   end
+
+  vim.lsp.buf.definition {
+    on_list = Obsidian.picker and function(t)
+      if #t.items == 1 then
+        api.open_note(t.items[1], open_strategy)
+      else
+        Obsidian.picker.pick(t.items, { prompt_title = "Resolve link" })
+      end
+    end,
+  }
 end

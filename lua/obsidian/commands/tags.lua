@@ -47,12 +47,7 @@ local function gather_tag_picker_list(tag_locations, tags)
   end
 
   vim.schedule(function()
-    Obsidian.picker.pick(entries, {
-      prompt_title = "#" .. table.concat(tags, ", #"),
-      callback = function(value)
-        api.open_buffer(value.filename, { line = value.lnum, col = value.col })
-      end,
-    })
+    Obsidian.picker.pick(entries, { prompt_title = "#" .. table.concat(tags, ", #") })
   end)
 end
 
