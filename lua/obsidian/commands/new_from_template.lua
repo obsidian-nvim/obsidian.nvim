@@ -17,11 +17,11 @@ return function(data)
   end
 
   ---@type string?
-  local title = table.concat(data.fargs, " ", 1, #data.fargs - 1)
+  local id = table.concat(data.fargs, " ", 1, #data.fargs - 1)
   local template = data.fargs[#data.fargs]
 
-  if title ~= nil and template ~= nil then
-    local note = Note.create { title = title, template = template, should_write = true }
+  if id ~= nil and template ~= nil then
+    local note = Note.create { id = id, template = template, should_write = true }
     note:open { sync = true }
     return
   end
@@ -31,16 +31,16 @@ return function(data)
     dir = templates_dir,
     no_default_mappings = true,
     callback = function(template_name)
-      if title == nil or title == "" then
+      if id == nil or id == "" then
         -- Must use pcall in case of KeyboardInterrupt
         -- We cannot place `title` where `safe_title` is because it would be redeclaring it
         local success, safe_title = pcall(util.input, "Enter title or path (optional): ", { completion = "file" })
-        title = safe_title
+        id = safe_title
         if not success or not safe_title then
           log.warn "Aborted"
           return
         elseif safe_title == "" then
-          title = nil
+          id = nil
         end
       end
 
@@ -50,7 +50,7 @@ return function(data)
       end
 
       ---@type obsidian.Note
-      local note = Note.create { title = title, template = template_name, should_write = true }
+      local note = Note.create { id = id, template = template_name, should_write = true }
       note:open { sync = false }
     end,
   }

@@ -1149,7 +1149,6 @@ end
 ---@field new_notes_location string
 
 ---@class obsidian.note.NoteOpts
----@field title string|? The note's title
 ---@field id string|? An ID to assign the note. If not specified one will be generated.
 ---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
 ---relative to the workspace / vault root. If the directory doesn't exist it will
