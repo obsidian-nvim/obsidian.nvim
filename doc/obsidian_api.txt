@@ -84,6 +84,14 @@ Return ~
 `(string| `(optional))``
 
 ------------------------------------------------------------------------------
+                                                                    *Note.uri()*
+                               `Note.uri`({self})
+Get file uri
+
+Return ~
+`(string)` `(optional)`
+
+------------------------------------------------------------------------------
                                                           *Note.reference_ids()*
                       `Note.reference_ids`({self}, {opts})
 Get a list of all of the different string that can identify this note via references,
