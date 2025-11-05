@@ -408,7 +408,7 @@ util.working_day_after = function(time)
 end
 
 ---@param link string
----@param opts { strip: boolean|?, include_naked_urls: boolean|?, include_file_urls: boolean|?, include_block_ids: boolean|?, link_type: obsidian.search.RefTypes|? }|?
+---@param opts { strip: boolean|?, exclude: obsidian.search.RefTypes[], link_type: obsidian.search.RefTypes|? }|?
 ---@return string|? link_location
 ---@return string|? link_name
 ---@return obsidian.search.RefTypes|? link_type
@@ -456,9 +456,9 @@ util.parse_link = function(link, opts)
   elseif link_type == search.RefTypes.BlockID then
     link_location = util.standardize_block(link)
     link_name = link
-  -- elseif link_type == search.RefTypes.Footnote then
-  --   link_location = link:sub(3, -2)
-  --   link_name = link:sub(3, -2)
+  elseif link_type == search.RefTypes.MailtoUrl then
+    link_location = link
+    link_name = link
   else
     error("not implemented for " .. link_type)
   end

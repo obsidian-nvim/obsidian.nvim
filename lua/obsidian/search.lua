@@ -138,13 +138,6 @@ M.find_highlight = function(s)
   return matches
 end
 
----@class obsidian.search.FindRefsOpts
----
----@field include_naked_urls boolean|?
----@field include_tags boolean|?
----@field include_file_urls boolean|?
----@field include_block_ids boolean|?
-
 --- Find refs and URLs.
 ---@param s string the string to search
 ---@param opts? { exclude: obsidian.search.RefTypes[] }

@@ -61,7 +61,9 @@ end
 local handlers = {}
 
 handlers[RefTypes.NakedUrl] = function(location)
-  return Obsidian.opts.follow_url_func(location)
+  -- TODO: Obsidian.opts.open.func
+  Obsidian.opts.follow_url_func(location)
+  return nil
 end
 
 handlers[RefTypes.FileUrl] = function(location)
@@ -78,11 +80,12 @@ handlers[RefTypes.FileUrl] = function(location)
 end
 
 handlers[RefTypes.Wiki] = function(location, name)
-  local _, _, location_type = util.parse_link(location, { include_naked_urls = true, include_file_urls = true })
+  local _, _, location_type = util.parse_link(location, { exclude = { RefTypes.Tag, RefTypes.BlockID } })
   if util.is_img(location) then -- TODO: include in parse_link
     local path = api.resolve_image_path(location)
     -- TODO: Obsidian.opts.open.func
-    return Obsidian.opts.follow_img_func(tostring(path))
+    Obsidian.opts.follow_img_func(tostring(path))
+    return nil
   elseif handlers[location_type] then
     return handlers[location_type](location, name)
   else
@@ -113,12 +116,15 @@ end
 handlers[RefTypes.WikiWithAlias] = handlers.Wiki
 handlers[RefTypes.Markdown] = handlers.Wiki
 
+handlers[RefTypes.MailtoUrl] = function(location)
+  -- TODO: Obsidian.opts.open.func
+  vim.ui.open(location)
+  return nil
+end
+
 return {
   follow_link = function(link, callback)
-    local location, name, link_type = util.parse_link(link, {
-      include_naked_urls = true,
-      include_file_urls = true,
-    })
+    local location, name, link_type = util.parse_link(link, { exclude = { RefTypes.Tag, RefTypes.BlockID } })
 
     if not location then
       return callback(nil, {})
