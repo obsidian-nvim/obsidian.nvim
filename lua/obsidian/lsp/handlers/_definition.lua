@@ -4,6 +4,7 @@ local RefTypes = obsidian.search.RefTypes
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
+local Note = obsidian.Note
 
 ---@param note obsidian.Note
 ---@param block_link string?
@@ -39,7 +40,6 @@ end
 ---@param name string
 ---@return lsp.Location?
 local function create_new_note(location, name)
-  local Note = require "obsidian.note"
   if obsidian.api.confirm("Create new note '" .. location .. "'?") then
     ---@type string|?, string[]
     local id, aliases
@@ -90,7 +90,9 @@ handlers[RefTypes.Wiki] = function(location, name)
     location, block_link = util.strip_block_links(location)
     location, anchor_link = util.strip_anchor_links(location)
 
-    local notes = search.resolve_note(location, {})
+    local notes = search.resolve_note(location, {
+      notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
+    })
     if vim.tbl_isempty(notes) then
       local loc = create_new_note(location, name)
       return { loc }
