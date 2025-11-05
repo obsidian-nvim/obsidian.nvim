@@ -288,7 +288,7 @@ end
 
 --- Creates a new note
 ---
---- @param opts obsidian.note.NoteOpts Options
+--- @param opts obsidian.note.NoteOpts
 --- @return obsidian.Note
 Note.create = function(opts)
   local new_id, path = Note._resolve_id_path(opts.id, opts.dir, Note._get_creation_opts(opts))
@@ -1211,19 +1211,18 @@ Note.status = function(self)
   return status
 end
 
----@class obsidian.note.LoadOpts
+---@class (exact) obsidian.note.LoadOpts
 ---@field max_lines integer|?
 ---@field load_contents boolean|?
 ---@field collect_anchor_links boolean|?
 ---@field collect_blocks boolean|?
 
----@class obsidian.note.NoteCreationOpts
+---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string
 ---@field note_id_func fun()
 ---@field new_notes_location string
 
----@class obsidian.note.NoteOpts
----@field title string|? The note's title
+---@class (exact) obsidian.note.NoteOpts
 ---@field id string|? An ID to assign the note. If not specified one will be generated.
 ---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
 ---relative to the workspace / vault root. If the directory doesn't exist it will
@@ -1233,7 +1232,7 @@ end
 ---@field should_write boolean|? Don't write the note to disk
 ---@field template string|? The name of the template
 
----@class obsidian.note.NoteSaveOpts
+---@class (exact) obsidian.note.NoteSaveOpts
 --- Specify a path to save to. Defaults to `self.path`.
 ---@field path? string|obsidian.Path
 --- Whether to insert/update frontmatter. Defaults to `true`.
@@ -1248,7 +1247,7 @@ end
 --- See `:help checktime` to learn more.
 ---@field check_buffers? boolean
 
----@class obsidian.note.NoteWriteOpts
+---@class (exact) obsidian.note.NoteWriteOpts
 --- Specify a path to save to. Defaults to `self.path`.
 ---@field path? string|obsidian.Path
 --- The name of a template to use if the note file doesn't already exist.
