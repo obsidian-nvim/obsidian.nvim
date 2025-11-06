@@ -74,8 +74,11 @@ function RefsSourceBase:process_completion(cc)
       cc.completion_resolve_callback(self.incomplete_response)
     end
   else
-    local search_opts = search._defaults
-    search_opts.ignore_case = true
+    local search_opts = {
+      sort = false,
+      include_templates = false,
+      ignore_case = true,
+    }
 
     search.find_notes_async(cc.search, function(results)
       self:process_search_results(cc, results)

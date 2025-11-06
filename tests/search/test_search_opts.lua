@@ -24,7 +24,7 @@ end
 T["should merge with another SearchOpts instance"] = function()
   local opts1 = { fixed_strings = true, max_count_per_file = 1 }
   local opts2 = { fixed_strings = false, ignore_case = true }
-  local opt = M.merge(opts1, opts2)
+  local opt = M._merge(opts1, opts2)
   eq(M.to_ripgrep_opts(opt), { "--ignore-case", "-m=1" })
 end
 

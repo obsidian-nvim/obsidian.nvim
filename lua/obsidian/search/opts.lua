@@ -1,3 +1,6 @@
+local Path = require "obsidian.path"
+local compat = require "obsidian.compat"
+
 --- TODO: a bit weird to have these two...
 
 ---@class obsidian.SearchOpts
@@ -21,7 +24,11 @@
 
 local M = {}
 
-M.as_tbl = function(self)
+M._BASE_CMD = { "rg", "--no-config", "--type=md" }
+M._SEARCH_CMD = compat.flatten { M._BASE_CMD, "--json" }
+M._FIND_CMD = compat.flatten { M._BASE_CMD, "--files" }
+
+local as_tbl = function(self)
   local fields = {}
   for k, v in pairs(self) do
     if not vim.startswith(k, "__") then
@@ -34,13 +41,15 @@ end
 ---@param one obsidian.search.SearchOpts|table
 ---@param other obsidian.search.SearchOpts|table
 ---@return obsidian.search.SearchOpts
-M.merge = function(one, other)
-  return vim.tbl_extend("force", M.as_tbl(one), M.as_tbl(other))
+local merge = function(one, other)
+  return vim.tbl_extend("force", as_tbl(one), as_tbl(other))
 end
+
+M._merge = merge
 
 ---@param opts obsidian.search.SearchOpts
 ---@param path string
-M.add_exclude = function(opts, path)
+local add_exclude = function(opts, path)
   if opts.exclude == nil then
     opts.exclude = {}
   end
@@ -109,7 +118,7 @@ M._prepare = function(opts, additional_opts)
   end
 
   if not opts.include_templates and Obsidian.opts.templates ~= nil and Obsidian.opts.templates.folder ~= nil then
-    M.SearchOpts.add_exclude(search_opts, tostring(Obsidian.opts.templates.folder))
+    add_exclude(search_opts, tostring(Obsidian.opts.templates.folder))
   end
 
   if opts.ignore_case then
@@ -117,10 +126,111 @@ M._prepare = function(opts, additional_opts)
   end
 
   if additional_opts ~= nil then
-    search_opts = M.SearchOpts.merge(search_opts, additional_opts)
+    search_opts = merge(search_opts, additional_opts)
   end
 
   return search_opts
+end
+
+---@param dir string|obsidian.Path
+---@param term string|string[]
+---@param opts obsidian.search.SearchOpts|?
+---
+---@return string[]
+M.build_search_cmd = function(dir, term, opts)
+  opts = opts and opts or {}
+
+  local search_terms
+  if type(term) == "string" then
+    search_terms = { "-e", term }
+  else
+    search_terms = {}
+    for _, t in ipairs(term) do
+      search_terms[#search_terms + 1] = "-e"
+      search_terms[#search_terms + 1] = t
+    end
+  end
+
+  local path = tostring(Path.new(dir):resolve { strict = true })
+  if opts.escape_path then
+    path = assert(vim.fn.fnameescape(path))
+  end
+
+  return compat.flatten {
+    M._SEARCH_CMD,
+    M.to_ripgrep_opts(opts),
+    search_terms,
+    path,
+  }
+end
+
+--- Build the 'rg' command for finding files.
+---
+---@param path string|?
+---@param term string|?
+---@param opts obsidian.search.SearchOpts|?
+---
+---@return string[]
+M.build_find_cmd = function(path, term, opts)
+  opts = opts and opts or {}
+  opts = vim.tbl_extend("keep", opts, {
+    sort_by = Obsidian.opts.search.sort_by,
+    sort_reversed = Obsidian.opts.search.sort_reversed,
+    ignore_case = true,
+  })
+
+  local additional_opts = {}
+
+  if term ~= nil then
+    if opts.include_non_markdown then
+      term = "*" .. term .. "*"
+    elseif not vim.endswith(term, ".md") then
+      term = "*" .. term .. "*.md"
+    else
+      term = "*" .. term
+    end
+    additional_opts[#additional_opts + 1] = "-g"
+    additional_opts[#additional_opts + 1] = term
+  end
+
+  if opts.ignore_case then
+    additional_opts[#additional_opts + 1] = "--glob-case-insensitive"
+  end
+
+  if path ~= nil and path ~= "." then
+    if opts.escape_path then
+      path = assert(vim.fn.fnameescape(tostring(path)))
+    end
+    additional_opts[#additional_opts + 1] = path
+  end
+
+  return compat.flatten { M._FIND_CMD, M.to_ripgrep_opts(opts), additional_opts }
+end
+
+--- Build the 'rg' grep command for pickers.
+---
+---@param opts obsidian.search.SearchOpts|?
+---
+---@return string[]
+M.build_grep_cmd = function(opts)
+  opts = opts and opts or {}
+
+  opts = vim.tbl_extend("keep", opts, {
+    sort_by = Obsidian.opts.search.sort_by,
+    sort_reversed = Obsidian.opts.search.sort_reversed,
+    smart_case = true,
+    fixed_strings = true,
+  })
+
+  return compat.flatten {
+    M._BASE_CMD,
+    M.to_ripgrep_opts(opts),
+    "--column",
+    "--line-number",
+    "--no-heading",
+    "--with-filename",
+    "--color=never",
+  }
 end
 
 return M

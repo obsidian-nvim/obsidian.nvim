@@ -1,16 +1,16 @@
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
-local compat = require "obsidian.compat"
 local log = require "obsidian.log"
 local async = require "obsidian.async"
 
 local M = {}
 
-M.SearchOpts = require "obsidian.search.opts"
+local Opts = require "obsidian.search.opts"
 
-M._BASE_CMD = { "rg", "--no-config", "--type=md" }
-M._SEARCH_CMD = compat.flatten { M._BASE_CMD, "--json" }
-M._FIND_CMD = compat.flatten { M._BASE_CMD, "--files" }
+M.SearchOpts = Opts
+M.build_find_cmd = Opts.build_find_cmd
+M.build_search_cmd = Opts.build_search_cmd
+M.build_grep_cmd = Opts.build_grep_cmd
 
 ---@alias obsidian.search.RefTypes
 ---| "Wiki"
@@ -222,107 +222,6 @@ M.find_code_blocks = function(lines)
   return blocks
 end
 
----@param dir string|obsidian.Path
----@param term string|string[]
----@param opts obsidian.search.SearchOpts|?
----
----@return string[]
-M.build_search_cmd = function(dir, term, opts)
-  opts = opts and opts or {}
-
-  local search_terms
-  if type(term) == "string" then
-    search_terms = { "-e", term }
-  else
-    search_terms = {}
-    for _, t in ipairs(term) do
-      search_terms[#search_terms + 1] = "-e"
-      search_terms[#search_terms + 1] = t
-    end
-  end
-
-  local path = tostring(Path.new(dir):resolve { strict = true })
-  if opts.escape_path then
-    path = assert(vim.fn.fnameescape(path))
-  end
-
-  return compat.flatten {
-    M._SEARCH_CMD,
-    M.SearchOpts.to_ripgrep_opts(opts),
-    search_terms,
-    path,
-  }
-end
-
---- Build the 'rg' command for finding files.
----
----@param path string|?
----@param term string|?
----@param opts obsidian.search.SearchOpts|?
----
----@return string[]
-M.build_find_cmd = function(path, term, opts)
-  opts = opts and opts or {}
-  opts = vim.tbl_extend("keep", opts, {
-    sort_by = Obsidian.opts.search.sort_by,
-    sort_reversed = Obsidian.opts.search.sort_reversed,
-    ignore_case = true,
-  })
-
-  local additional_opts = {}
-
-  if term ~= nil then
-    if opts.include_non_markdown then
-      term = "*" .. term .. "*"
-    elseif not vim.endswith(term, ".md") then
-      term = "*" .. term .. "*.md"
-    else
-      term = "*" .. term
-    end
-    additional_opts[#additional_opts + 1] = "-g"
-    additional_opts[#additional_opts + 1] = term
-  end
-
-  if opts.ignore_case then
-    additional_opts[#additional_opts + 1] = "--glob-case-insensitive"
-  end
-
-  if path ~= nil and path ~= "." then
-    if opts.escape_path then
-      path = assert(vim.fn.fnameescape(tostring(path)))
-    end
-    additional_opts[#additional_opts + 1] = path
-  end
-
-  return compat.flatten { M._FIND_CMD, M.SearchOpts.to_ripgrep_opts(opts), additional_opts }
-end
-
---- Build the 'rg' grep command for pickers.
----
----@param opts obsidian.search.SearchOpts|?
----
----@return string[]
-M.build_grep_cmd = function(opts)
-  opts = opts and opts or {}
-
-  opts = vim.tbl_extend("keep", opts, {
-    sort_by = Obsidian.opts.search.sort_by,
-    sort_reversed = Obsidian.opts.search.sort_reversed,
-    smart_case = true,
-    fixed_strings = true,
-  })
-
-  return compat.flatten {
-    M._BASE_CMD,
-    M.SearchOpts.to_ripgrep_opts(opts),
-    "--column",
-    "--line-number",
-    "--no-heading",
-    "--with-filename",
-    "--color=never",
-  }
-end
-
 ---@class MatchPath
 ---
 ---@field text string
@@ -353,7 +252,7 @@ end
 ---@param on_match fun(match: MatchData)
 ---@param on_exit fun(exit_code: integer)|?
 M.search_async = function(dir, term, opts, on_match, on_exit)
-  local cmd = M.build_search_cmd(dir, term, opts)
+  local cmd = Opts.build_search_cmd(dir, term, opts)
   async.run_job_async(cmd, function(line)
     local data = vim.json.decode(line)
     if data["type"] == "match" then
@@ -376,21 +275,13 @@ end
 ---@param on_exit fun(exit_code: integer)|?
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
-  local cmd = M.build_find_cmd(tostring(norm_dir), term, opts)
+  local cmd = Opts.build_find_cmd(tostring(norm_dir), term, opts)
   async.run_job_async(cmd, on_match, function(code)
     if on_exit ~= nil then
       on_exit(code)
     end
   end)
 end
-
-local search_defaults = {
-  sort = false,
-  include_templates = false,
-  ignore_case = false,
-}
-
-M._defaults = search_defaults
 
 ---@param term string
 ---@param search_opts obsidian.SearchOpts|boolean|?
@@ -431,12 +322,12 @@ local _search_async = function(term, search_opts, find_opts, callback, exit_call
   M.search_async(
     Obsidian.dir,
     term,
-    M.SearchOpts._prepare(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
+    Opts._prepare(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
     on_search_match,
     on_exit
   )
 
-  M.find_async(Obsidian.dir, term, M.SearchOpts._prepare(find_opts, { ignore_case = true }), on_find_match, on_exit)
+  M.find_async(Obsidian.dir, term, Opts._prepare(find_opts, { ignore_case = true }), on_find_match, on_exit)
 end
 
 --- An async version of `find_notes()` using coroutines.
@@ -991,7 +882,7 @@ M.find_tags_async = function(term, callback, opts)
   M.search_async(
     Obsidian.dir,
     search_terms,
-    M.SearchOpts._prepare(opts.search, { ignore_case = true }),
+    Opts._prepare(opts.search, { ignore_case = true }),
     on_match,
     function(code)
       if code ~= 0 then
