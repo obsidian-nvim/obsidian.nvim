@@ -1,4 +1,3 @@
-local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
 local LinkStyle = require("obsidian.config").LinkStyle
 local util = require "obsidian.util"
@@ -8,7 +7,7 @@ local iter = vim.iter
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
----@class obsidian.completion.sources.base.RefsSourceCompletionContext : obsidian.ABC
+---@class obsidian.completion.sources.base.RefsSourceCompletionContext
 ---@field completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
 ---@field request obsidian.completion.sources.base.Request
 ---@field in_buffer_only boolean
@@ -19,20 +18,22 @@ local iter = vim.iter
 ---@field block_link string|?
 ---@field anchor_link string|?
 ---@field new_text_to_option table<string, obsidian.completion.sources.blink.CompletionItem>
-local RefsSourceCompletionContext = abc.new_class()
+local RefsSourceCompletionContext = {}
+RefsSourceCompletionContext.__index = RefsSourceCompletionContext
 
 RefsSourceCompletionContext.new = function()
-  return RefsSourceCompletionContext.init()
+  return setmetatable({}, RefsSourceCompletionContext)
 end
 
----@class obsidian.completion.sources.base.RefsSourceBase : obsidian.ABC
+---@class obsidian.completion.sources.base.RefsSourceBase
 ---@field incomplete_response table
 ---@field complete_response table
-local RefsSourceBase = abc.new_class()
+local RefsSourceBase = {}
+RefsSourceBase.__index = RefsSourceBase
 
 ---@return obsidian.completion.sources.base.RefsSourceBase
 RefsSourceBase.new = function()
-  return RefsSourceBase.init()
+  return setmetatable({}, RefsSourceBase)
 end
 
 RefsSourceBase.get_trigger_characters = completion.get_trigger_characters

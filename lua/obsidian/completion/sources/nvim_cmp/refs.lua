@@ -1,5 +1,4 @@
 local RefsSourceBase = require "obsidian.completion.sources.base.refs"
-local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
 local nvim_cmp_util = require "obsidian.completion.sources.nvim_cmp.util"
 
@@ -10,10 +9,11 @@ local nvim_cmp_util = require "obsidian.completion.sources.nvim_cmp.util"
 ---@field documentation table|?
 
 ---@class obsidian.completion.sources.nvim_cmp.RefsSource : obsidian.completion.sources.base.RefsSourceBase
-local RefsSource = abc.new_class()
+local RefsSource = {}
+RefsSource.__index = RefsSource
 
 RefsSource.new = function()
-  return RefsSource.init(RefsSourceBase)
+  return setmetatable(RefsSourceBase, RefsSource)
 end
 
 RefsSource.get_keyword_pattern = completion.get_keyword_pattern

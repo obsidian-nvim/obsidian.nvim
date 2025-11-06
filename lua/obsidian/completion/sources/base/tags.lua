@@ -1,29 +1,30 @@
-local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.tags"
 local iter = vim.iter
 local search = require "obsidian.search"
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
----@class obsidian.completion.sources.base.TagsSourceCompletionContext : obsidian.ABC
+---@class obsidian.completion.sources.base.TagsSourceCompletionContext
 ---@field completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
 ---@field request obsidian.completion.sources.base.Request
 ---@field search string|?
 ---@field in_frontmatter boolean|?
-local TagsSourceCompletionContext = abc.new_class()
+local TagsSourceCompletionContext = {}
+TagsSourceCompletionContext.__index = TagsSourceCompletionContext
 
 TagsSourceCompletionContext.new = function()
-  return TagsSourceCompletionContext.init()
+  return setmetatable({}, TagsSourceCompletionContext)
 end
 
----@class obsidian.completion.sources.base.TagsSourceBase : obsidian.ABC
+---@class obsidian.completion.sources.base.TagsSourceBase
 ---@field incomplete_response table
 ---@field complete_response table
-local TagsSourceBase = abc.new_class()
+local TagsSourceBase = {}
+TagsSourceBase.__index = TagsSourceBase
 
 ---@return obsidian.completion.sources.base.TagsSourceBase
 TagsSourceBase.new = function()
-  return TagsSourceBase.init()
+  return setmetatable({}, TagsSourceBase)
 end
 
 TagsSourceBase.get_trigger_characters = completion.get_trigger_characters

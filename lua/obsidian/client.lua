@@ -1,6 +1,6 @@
 local log = require "obsidian.log"
 
----@class obsidian.Client : obsidian.ABC
+---@class obsidian.Client
 local Client = {}
 
 local deprecated_lookup = {

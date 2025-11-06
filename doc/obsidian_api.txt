@@ -18,7 +18,7 @@ Table of contents
 class that represents a note within a vault.
 
 Class ~
-{obsidian.Note} : obsidian.ABC
+{obsidian.Note}
 
 Fields ~
 {id} `(string)`
@@ -469,7 +469,7 @@ Workspaces are a little more general than Obsidian vaults as you can have a work
 outside of a vault or as a subdirectory of a vault.
 
 Class ~
-{obsidian.Workspace} : obsidian.ABC
+{obsidian.Workspace}
 
 Fields ~
 {name} `(string)` An arbitrary name for the workspace.
@@ -544,7 +544,7 @@ A `Path` class that provides a subset of the functionality of the Python `pathli
 staying true to its API. It improves on a number of bugs in `plenary.path`.
 
 Class ~
-{obsidian.Path} : obsidian.ABC
+{obsidian.Path}
 
 Fields ~
 {filename} `(string)` The underlying filename as a string.

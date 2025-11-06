@@ -9,7 +9,6 @@
 ---@toc
 
 local Path = require "obsidian.path"
-local abc = require "obsidian.abc"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
@@ -30,7 +29,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---
 ---@toc_entry obsidian.Note
 ---
----@class obsidian.Note : obsidian.ABC
+---@class obsidian.Note
 ---
 ---@field id string
 ---@field aliases string[]
@@ -45,14 +44,15 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field alt_alias string|?
 ---@field bufnr integer|?
-local Note = abc.new_class {
-  __tostring = function(self)
-    return string.format("Note('%s')", self.id)
-  end,
-}
+local Note = {}
+Note.__index = Note
+
+Note.__tostring = function(self)
+  return string.format("Note('%s')", self.id)
+end
 
 Note.is_note_obj = function(note)
-  if getmetatable(note) == Note.mt then
+  if getmetatable(note) == Note then
     return true
   else
     return false
@@ -303,7 +303,7 @@ end
 --- @param path string|obsidian.Path|?
 --- @return obsidian.Note
 Note.new = function(id, aliases, tags, path)
-  local self = Note.init()
+  local self = {}
   self.id = id
   self.aliases = aliases and aliases or {}
   self.tags = tags and tags or {}
@@ -311,7 +311,7 @@ Note.new = function(id, aliases, tags, path)
   self.metadata = nil
   self.has_frontmatter = nil
   self.frontmatter_end_line = nil
-  return self
+  return setmetatable(self, Note)
 end
 
 --- Get markdown display info about the note.

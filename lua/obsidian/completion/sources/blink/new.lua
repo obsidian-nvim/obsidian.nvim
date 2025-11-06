@@ -1,15 +1,15 @@
 local NewNoteSourceBase = require "obsidian.completion.sources.base.new"
-local abc = require "obsidian.abc"
 local blink_util = require "obsidian.completion.sources.blink.util"
 
 ---@class obsidian.completion.sources.blink.NewNoteSource : obsidian.completion.sources.base.NewNoteSourceBase
-local NewNoteSource = abc.new_class()
+local NewNoteSource = {}
+NewNoteSource.__index = NewNoteSource
 
 NewNoteSource.incomplete_response = blink_util.incomplete_response
 NewNoteSource.complete_response = blink_util.complete_response
 
 function NewNoteSource.new()
-  return NewNoteSource.init(NewNoteSourceBase)
+  return setmetatable(NewNoteSourceBase, NewNoteSource)
 end
 
 ---Implement the get_completions method of the completion provider

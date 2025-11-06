@@ -11,7 +11,7 @@ local log = require "obsidian.log"
 ---
 ---@toc_entry obsidian.Workspace
 ---
----@class obsidian.Workspace : obsidian.ABC
+---@class obsidian.Workspace
 ---
 ---@field name string An arbitrary name for the workspace.
 ---@field path obsidian.Path The normalized path to the workspace.

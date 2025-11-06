@@ -1,13 +1,13 @@
 local NewNoteSourceBase = require "obsidian.completion.sources.base.new"
-local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
 local nvim_cmp_util = require "obsidian.completion.sources.nvim_cmp.util"
 
 ---@class obsidian.completion.sources.nvim_cmp.NewNoteSource : obsidian.completion.sources.base.NewNoteSourceBase
-local NewNoteSource = abc.new_class()
+local NewNoteSource = {}
+NewNoteSource.__index = NewNoteSource
 
 NewNoteSource.new = function()
-  return NewNoteSource.init(NewNoteSourceBase)
+  return setmetatable(NewNoteSourceBase, NewNoteSource)
 end
 
 NewNoteSource.get_keyword_pattern = completion.get_keyword_pattern

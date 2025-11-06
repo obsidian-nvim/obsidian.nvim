@@ -1,15 +1,15 @@
 local TagsSourceBase = require "obsidian.completion.sources.base.tags"
-local abc = require "obsidian.abc"
 local blink_util = require "obsidian.completion.sources.blink.util"
 
 ---@class obsidian.completion.sources.blink.TagsSource : obsidian.completion.sources.base.TagsSourceBase
-local TagsSource = abc.new_class()
+local TagsSource = {}
+TagsSource.__index = TagsSource
 
 TagsSource.incomplete_response = blink_util.incomplete_response
 TagsSource.complete_response = blink_util.complete_response
 
 function TagsSource.new()
-  return TagsSource.init(TagsSourceBase)
+  return setmetatable(TagsSourceBase, TagsSource)
 end
 
 ---Implements the get_completions method of the completion provider
