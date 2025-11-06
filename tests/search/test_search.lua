@@ -8,18 +8,6 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
-T["find_and_replace_refs"] = function()
-  local s, indices = M.find_and_replace_refs "[[Foo]] [[foo|Bar]]"
-  local expected_s = "Foo Bar"
-  local expected_indices = { { 1, 3 }, { 5, 7 } }
-  MiniTest.expect.equality(s, expected_s)
-  MiniTest.expect.equality(#indices, #expected_indices)
-  for i = 1, #indices do
-    MiniTest.expect.equality(indices[i][1], expected_indices[i][1])
-    MiniTest.expect.equality(indices[i][2], expected_indices[i][2])
-  end
-end
-
 T["search.replace_refs()"] = function()
   MiniTest.expect.equality(M.replace_refs "Hi there [[foo|Bar]]", "Hi there Bar")
   MiniTest.expect.equality(M.replace_refs "Hi there [[Bar]]", "Hi there Bar")

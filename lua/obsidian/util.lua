@@ -471,6 +471,18 @@ util.parse_link = function(link, opts)
   return link_location, link_name, link_type
 end
 
+--- Replace references of the form '[[xxx|xxx]]', '[[xxx]]', or '[xxx](xxx)' with their title.
+---
+---@param s string
+---
+---@return string
+util.replace_refs = function(s)
+  local out, _ = string.gsub(s, "%[%[[^%|%]]+%|([^%]]+)%]%]", "%1")
+  out, _ = out:gsub("%[%[([^%]]+)%]%]", "%1")
+  out, _ = out:gsub("%[([^%]]+)%]%([^%)]+%)", "%1")
+  return out
+end
+
 ------------------------------------
 -- Miscellaneous helper functions --
 ------------------------------------

@@ -1,6 +1,5 @@
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
-local iter = vim.iter
 local compat = require "obsidian.compat"
 local log = require "obsidian.log"
 local async = require "obsidian.async"
@@ -72,7 +71,7 @@ M.find_matches = function(s, pattern_names)
       if m_start ~= nil and m_end ~= nil then
         -- Check if we're inside a code block.
         local inside_code_block = false
-        for code_block_boundary in iter(inline_code_blocks) do
+        for _, code_block_boundary in ipairs(inline_code_blocks) do
           if code_block_boundary[1] < m_start and m_end < code_block_boundary[2] then
             inside_code_block = true
             break
@@ -83,7 +82,7 @@ M.find_matches = function(s, pattern_names)
           -- Check if this match overlaps with any others (e.g. a naked URL match would be contained in
           -- a markdown URL).
           local overlap = false
-          for match in iter(matches) do
+          for _, match in ipairs(matches) do
             if (match[1] <= m_start and m_start <= match[2]) or (match[1] <= m_end and m_end <= match[2]) then
               overlap = true
               break
@@ -127,7 +126,7 @@ end
 ---@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes }[]
 M.find_highlight = function(s)
   local matches = {}
-  for match in iter(M.find_matches(s, { "Highlight" })) do
+  for _, match in ipairs(M.find_matches(s, { "Highlight" })) do
     -- Remove highlights that begin/end with whitespace
     local match_start, match_end, _ = unpack(match)
     local text = string.sub(s, match_start + 2, match_end - 2)
@@ -197,57 +196,6 @@ M.find_tags_in_string = function(s)
   return matches
 end
 
---- Replace references of the form '[[xxx|xxx]]', '[[xxx]]', or '[xxx](xxx)' with their title.
----
----@param s string
----
----@return string
-M.replace_refs = function(s)
-  local out, _ = string.gsub(s, "%[%[[^%|%]]+%|([^%]]+)%]%]", "%1")
-  out, _ = out:gsub("%[%[([^%]]+)%]%]", "%1")
-  out, _ = out:gsub("%[([^%]]+)%]%([^%)]+%)", "%1")
-  return out
-end
-
---- Find all refs in a string and replace with their titles.
----
----@param s string
---
----@return string
----@return table
----@return string[]
-M.find_and_replace_refs = function(s)
-  local pieces = {}
-  local refs = {}
-  local is_ref = {}
-  local matches = M.find_refs(s)
-  local last_end = 1
-  for _, match in pairs(matches) do
-    local m_start, m_end, _ = unpack(match)
-    if last_end < m_start then
-      table.insert(pieces, string.sub(s, last_end, m_start - 1))
-      table.insert(is_ref, false)
-    end
-    local ref_str = string.sub(s, m_start, m_end)
-    table.insert(pieces, M.replace_refs(ref_str))
-    table.insert(refs, ref_str)
-    table.insert(is_ref, true)
-    last_end = m_end + 1
-  end
-
-  local indices = {}
-  local length = 0
-  for i, piece in ipairs(pieces) do
-    local i_end = length + string.len(piece)
-    if is_ref[i] then
-      table.insert(indices, { length + 1, i_end })
-    end
-    length = i_end
-  end
-
-  return table.concat(pieces, ""), indices, refs
-end
-
 --- Find all code block boundaries in a list of lines.
 ---
 ---@param lines string[]
@@ -287,7 +235,7 @@ M.build_search_cmd = function(dir, term, opts)
     search_terms = { "-e", term }
   else
     search_terms = {}
-    for t in iter(term) do
+    for _, t in ipairs(term) do
       search_terms[#search_terms + 1] = "-e"
       search_terms[#search_terms + 1] = t
     end
@@ -648,7 +596,7 @@ M.resolve_note = function(query, opts)
   ---@type obsidian.Note[]
   local fuzzy_matches = {}
 
-  for note in iter(results) do
+  for _, note in ipairs(results) do
     ---@cast note obsidian.Note
 
     local reference_ids = note:reference_ids { lowercase = true }
@@ -659,7 +607,7 @@ M.resolve_note = function(query, opts)
     else
       -- TODO: use vim.fn.fuzzymatch
       -- Fall back to fuzzy match.
-      for ref_id in iter(reference_ids) do
+      for _, ref_id in ipairs(reference_ids) do
         if util.string_contains(ref_id, query_lwr) then
           table.insert(fuzzy_matches, note)
           break
@@ -985,7 +933,7 @@ M.find_tags_async = function(term, callback, opts)
     end
 
     -- check if the match was inside a code block.
-    for block in iter(code_blocks) do
+    for _, block in ipairs(code_blocks) do
       if block[1] <= match_data.line_number and match_data.line_number <= block[2] then
         return
       end
@@ -995,7 +943,7 @@ M.find_tags_async = function(term, callback, opts)
     local n_matches = 0
 
     -- check for tag in the wild of the form '#{tag}'
-    for match in iter(M.find_tags_in_string(line)) do
+    for _, match in ipairs(M.find_tags_in_string(line)) do
       local m_start, m_end, _ = unpack(match)
       local tag = string.sub(line, m_start + 1, m_end)
       if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
@@ -1005,7 +953,7 @@ M.find_tags_async = function(term, callback, opts)
 
     -- check for tags in frontmatter
     if n_matches == 0 and note.tags ~= nil and (vim.startswith(line, "tags:") or string.match(line, "%s*- ")) then
-      for tag in iter(note.tags) do
+      for _, tag in ipairs(note.tags) do
         tag = tostring(tag)
         for _, t in ipairs(terms) do
           if string.len(t) == 0 or util.string_contains(tag, t) then
@@ -1018,7 +966,7 @@ M.find_tags_async = function(term, callback, opts)
   end
 
   local search_terms = {}
-  for t in iter(terms) do
+  for _, t in ipairs(terms) do
     if string.len(t) > 0 then
       -- tag in the wild
       search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsOptional .. t .. M.Patterns.TagCharsOptional
