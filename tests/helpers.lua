@@ -58,10 +58,6 @@ M.temp_vault = MiniTest.new_set {
         templates = {
           folder = "templates",
         },
-        completion = {
-          blink = false,
-          nvim_cmp = false,
-        },
         log_level = vim.log.levels.WARN,
       }
 
