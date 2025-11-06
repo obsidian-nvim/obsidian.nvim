@@ -9,7 +9,7 @@ local search = require "obsidian.search"
 ---@return lsp.Location[]
 local function collect_backlinks(note, opts)
   return vim
-    .iter(note:backlinks { search = { sort = true, anchor = opts.anchor, block = opts.block } })
+    .iter(note:backlinks { search = { sort = true }, anchor = opts.anchor, block = opts.block })
     :map(function(match)
       return {
         uri = vim.uri_from_fname(tostring(match.path)),
