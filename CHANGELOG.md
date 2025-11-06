@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- Internally no longer use `abc` for building class.
+
 ## [v3.14.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.4) - 2025-11-06
 
 ### Changed
