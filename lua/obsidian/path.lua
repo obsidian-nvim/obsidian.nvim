@@ -101,7 +101,6 @@ end
 ---@field stem string|? The final path component, without its suffix.
 local Path = {}
 
--- Path = {
 Path.__tostring = function(self)
   return self.filename
 end
