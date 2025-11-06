@@ -7,6 +7,8 @@ local async = require "obsidian.async"
 
 local M = {}
 
+M.SearchOpts = require "obsidian.search.opts"
+
 M._BASE_CMD = { "rg", "--no-config", "--type=md" }
 M._SEARCH_CMD = compat.flatten { M._BASE_CMD, "--json" }
 M._FIND_CMD = compat.flatten { M._BASE_CMD, "--files" }
@@ -272,96 +274,6 @@ M.find_code_blocks = function(lines)
   return blocks
 end
 
---- TODO: a bit weird to have these two...
-
----@class obsidian.SearchOpts
----
----@field sort boolean|?
----@field include_templates boolean|?
----@field ignore_case boolean|?
----@field default function?
-
----@class obsidian.search.SearchOpts
----
----@field sort_by obsidian.config.SortBy|?
----@field sort_reversed boolean|?
----@field fixed_strings boolean|?
----@field ignore_case boolean|?
----@field smart_case boolean|?
----@field exclude string[]|? paths to exclude
----@field max_count_per_file integer|?
----@field escape_path boolean|?
----@field include_non_markdown boolean|?
-
-local SearchOpts = {}
-M.SearchOpts = SearchOpts
-
-SearchOpts.as_tbl = function(self)
-  local fields = {}
-  for k, v in pairs(self) do
-    if not vim.startswith(k, "__") then
-      fields[k] = v
-    end
-  end
-  return fields
-end
-
----@param one obsidian.search.SearchOpts|table
----@param other obsidian.search.SearchOpts|table
----@return obsidian.search.SearchOpts
-SearchOpts.merge = function(one, other)
-  return vim.tbl_extend("force", SearchOpts.as_tbl(one), SearchOpts.as_tbl(other))
-end
-
----@param opts obsidian.search.SearchOpts
----@param path string
-SearchOpts.add_exclude = function(opts, path)
-  if opts.exclude == nil then
-    opts.exclude = {}
-  end
-  opts.exclude[#opts.exclude + 1] = path
-end
-
----@param opts obsidian.search.SearchOpts
----@return string[]
-SearchOpts.to_ripgrep_opts = function(opts)
-  -- vim.validate("opts.exclude", opts.exclude, "table", true)
-
-  local ret = {}
-
-  if opts.sort_by ~= nil then
-    local sort = "sortr" -- default sort is reverse
-    if opts.sort_reversed == false then
-      sort = "sort"
-    end
-    ret[#ret + 1] = "--" .. sort .. "=" .. opts.sort_by
-  end
-
-  if opts.fixed_strings then
-    ret[#ret + 1] = "--fixed-strings"
-  end
-
-  if opts.ignore_case then
-    ret[#ret + 1] = "--ignore-case"
-  end
-
-  if opts.smart_case then
-    ret[#ret + 1] = "--smart-case"
-  end
-
-  if opts.exclude ~= nil then
-    for path in iter(opts.exclude) do
-      ret[#ret + 1] = "-g!" .. path
-    end
-  end
-
-  if opts.max_count_per_file ~= nil then
-    ret[#ret + 1] = "-m=" .. opts.max_count_per_file
-  end
-
-  return ret
-end
-
 ---@param dir string|obsidian.Path
 ---@param term string|string[]
 ---@param opts obsidian.search.SearchOpts|?
@@ -388,7 +300,7 @@ M.build_search_cmd = function(dir, term, opts)
 
   return compat.flatten {
     M._SEARCH_CMD,
-    SearchOpts.to_ripgrep_opts(opts),
+    M.SearchOpts.to_ripgrep_opts(opts),
     search_terms,
     path,
   }
@@ -434,7 +346,7 @@ M.build_find_cmd = function(path, term, opts)
     additional_opts[#additional_opts + 1] = path
   end
 
-  return compat.flatten { M._FIND_CMD, SearchOpts.to_ripgrep_opts(opts), additional_opts }
+  return compat.flatten { M._FIND_CMD, M.SearchOpts.to_ripgrep_opts(opts), additional_opts }
 end
 
 --- Build the 'rg' grep command for pickers.
@@ -454,7 +366,7 @@ M.build_grep_cmd = function(opts)
 
   return compat.flatten {
     M._BASE_CMD,
-    SearchOpts.to_ripgrep_opts(opts),
+    M.SearchOpts.to_ripgrep_opts(opts),
     "--column",
     "--line-number",
     "--no-heading",
@@ -532,37 +444,6 @@ local search_defaults = {
 
 M._defaults = search_defaults
 
----@param opts obsidian.SearchOpts|boolean|?
----@param additional_opts obsidian.search.SearchOpts|?
----
----@return obsidian.search.SearchOpts
----
----@private
-local _prepare_search_opts = function(opts, additional_opts)
-  opts = opts or search_defaults
-
-  local search_opts = {}
-
-  if opts.sort then
-    search_opts.sort_by = Obsidian.opts.sort_by
-    search_opts.sort_reversed = Obsidian.opts.sort_reversed
-  end
-
-  if not opts.include_templates and Obsidian.opts.templates ~= nil and Obsidian.opts.templates.folder ~= nil then
-    M.SearchOpts.add_exclude(search_opts, tostring(Obsidian.opts.templates.folder))
-  end
-
-  if opts.ignore_case then
-    search_opts.ignore_case = true
-  end
-
-  if additional_opts ~= nil then
-    search_opts = M.SearchOpts.merge(search_opts, additional_opts)
-  end
-
-  return search_opts
-end
-
 ---@param term string
 ---@param search_opts obsidian.SearchOpts|boolean|?
 ---@param find_opts obsidian.SearchOpts|boolean|?
@@ -602,12 +483,12 @@ local _search_async = function(term, search_opts, find_opts, callback, exit_call
   M.search_async(
     Obsidian.dir,
     term,
-    _prepare_search_opts(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
+    M.SearchOpts._prepare(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
     on_search_match,
     on_exit
   )
 
-  M.find_async(Obsidian.dir, term, _prepare_search_opts(find_opts, { ignore_case = true }), on_find_match, on_exit)
+  M.find_async(Obsidian.dir, term, M.SearchOpts._prepare(find_opts, { ignore_case = true }), on_find_match, on_exit)
 end
 
 --- An async version of `find_notes()` using coroutines.
@@ -1162,7 +1043,7 @@ M.find_tags_async = function(term, callback, opts)
   M.search_async(
     Obsidian.dir,
     search_terms,
-    _prepare_search_opts(opts.search, { ignore_case = true }),
+    M.SearchOpts._prepare(opts.search, { ignore_case = true }),
     on_match,
     function(code)
       if code ~= 0 then
