@@ -1,5 +1,4 @@
 local RefsSourceBase = require "obsidian.completion.sources.base.refs"
-local abc = require "obsidian.abc"
 local blink_util = require "obsidian.completion.sources.blink.util"
 
 ---@class obsidian.completion.sources.blink.CompletionItem
@@ -9,13 +8,14 @@ local blink_util = require "obsidian.completion.sources.blink.util"
 ---@field documentation table|?
 
 ---@class obsidian.completion.sources.blink.RefsSource : obsidian.completion.sources.base.RefsSourceBase
-local RefsSource = abc.new_class()
+local RefsSource = {}
+RefsSource.__index = RefsSource
 
 RefsSource.incomplete_response = blink_util.incomplete_response
 RefsSource.complete_response = blink_util.complete_response
 
 function RefsSource.new()
-  return RefsSource.init(RefsSourceBase)
+  return setmetatable(RefsSourceBase, RefsSource)
 end
 
 ---Implement the get_completions method of the completion provider

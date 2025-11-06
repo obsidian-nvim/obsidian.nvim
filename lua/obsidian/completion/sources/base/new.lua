@@ -1,4 +1,3 @@
-local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
 local LinkStyle = require("obsidian.config").LinkStyle
@@ -7,27 +6,29 @@ local Path = require "obsidian.path"
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
----@class obsidian.completion.sources.base.NewNoteSourceCompletionContext : obsidian.ABC
+---@class obsidian.completion.sources.base.NewNoteSourceCompletionContext
 ---@field completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
 ---@field request obsidian.completion.sources.base.Request
 ---@field search string|?
 ---@field insert_start integer|?
 ---@field insert_end integer|?
 ---@field ref_type obsidian.completion.RefType|?
-local NewNoteSourceCompletionContext = abc.new_class()
+local NewNoteSourceCompletionContext = {}
+NewNoteSourceCompletionContext.__index = NewNoteSourceCompletionContext
 
 NewNoteSourceCompletionContext.new = function()
-  return NewNoteSourceCompletionContext.init()
+  return setmetatable({}, NewNoteSourceCompletionContext)
 end
 
----@class obsidian.completion.sources.base.NewNoteSourceBase : obsidian.ABC
+---@class obsidian.completion.sources.base.NewNoteSourceBase
 ---@field incomplete_response table
 ---@field complete_response table
-local NewNoteSourceBase = abc.new_class()
+local NewNoteSourceBase = {}
+NewNoteSourceBase.__index = NewNoteSourceBase
 
 ---@return obsidian.completion.sources.base.NewNoteSourceBase
 NewNoteSourceBase.new = function()
-  return NewNoteSourceBase.init()
+  return setmetatable({}, NewNoteSourceBase)
 end
 
 NewNoteSourceBase.get_trigger_characters = completion.get_trigger_characters
@@ -201,8 +202,8 @@ function NewNoteSourceBase:process_execute(item)
   -- Make sure `data.note` is actually an `obsidian.Note` object. If it gets serialized at some
   -- point (seems to happen on Linux), it will lose its metatable.
   if not Note.is_note_obj(data.note) then
-    data.note = setmetatable(data.note, Note.mt)
-    data.note.path = setmetatable(data.note.path, Path.mt)
+    data.note = setmetatable(data.note, Note)
+    data.note.path = setmetatable(data.note.path, Path)
   end
 
   data.note:write { template = data.template }

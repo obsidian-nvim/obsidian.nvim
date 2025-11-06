@@ -1,5 +1,4 @@
 local Line = require "obsidian.yaml.line"
-local abc = require "obsidian.abc"
 local util = require "obsidian.util"
 local iter = vim.iter
 
@@ -26,9 +25,10 @@ ParserOpts.normalize = function(opts)
   return opts
 end
 
----@class obsidian.yaml.Parser : obsidian.ABC
+---@class obsidian.yaml.Parser
 ---@field opts obsidian.yaml.ParserOpts
-local Parser = abc.new_class()
+local Parser = {}
+Parser.__index = Parser
 
 m.Parser = Parser
 
@@ -49,9 +49,9 @@ m.YamlType = YamlType
 ---@param opts obsidian.yaml.ParserOpts|?
 ---@return obsidian.yaml.Parser
 m.new = function(opts)
-  local self = Parser.init()
+  local self = {}
   self.opts = ParserOpts.normalize(opts and opts or {})
-  return self
+  return setmetatable(self, Parser)
 end
 
 ---Parse a YAML string.

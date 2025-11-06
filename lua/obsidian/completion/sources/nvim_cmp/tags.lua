@@ -1,13 +1,13 @@
 local TagsSourceBase = require "obsidian.completion.sources.base.tags"
-local abc = require "obsidian.abc"
 local completion = require "obsidian.completion.tags"
 local nvim_cmp_util = require "obsidian.completion.sources.nvim_cmp.util"
 
 ---@class obsidian.completion.sources.nvim_cmp.TagsSource : obsidian.completion.sources.base.TagsSourceBase
-local TagsSource = abc.new_class()
+local TagsSource = {}
+TagsSource.__index = TagsSource
 
 TagsSource.new = function()
-  return TagsSource.init(TagsSourceBase)
+  return setmetatable(TagsSourceBase, TagsSource)
 end
 
 TagsSource.get_keyword_pattern = completion.get_keyword_pattern

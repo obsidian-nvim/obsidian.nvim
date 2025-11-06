@@ -2,7 +2,6 @@ local log = require "obsidian.log"
 
 local obsidian = {}
 
-obsidian.abc = require "obsidian.abc"
 obsidian.api = require "obsidian.api"
 obsidian.async = require "obsidian.async"
 obsidian.Client = require "obsidian.client"

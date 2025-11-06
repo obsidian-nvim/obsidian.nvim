@@ -1,4 +1,3 @@
-local abc = require "obsidian.abc"
 local util = require "obsidian.util"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
@@ -53,39 +52,47 @@ local function cache_clear(bufnr, ns_id)
   M._buf_mark_cache[bufnr][ns_id] = {}
 end
 
----@class ExtMark : obsidian.ABC
+---@class ExtMark
 ---@field id integer|? ID of the mark, only set for marks that are actually materialized in the buffer.
 ---@field row integer 0-based row index to place the mark.
 ---@field col integer 0-based col index to place the mark.
 ---@field opts ExtMarkOpts Optional parameters passed directly to `nvim_buf_set_extmark()`.
-local ExtMark = abc.new_class {
-  __eq = function(a, b)
-    return a.row == b.row and a.col == b.col and a.opts == b.opts
-  end,
-}
+local ExtMark = {}
+ExtMark.__index = ExtMark
+
+ExtMark.__eq = function(a, b)
+  return a.row == b.row and a.col == b.col and a.opts == b.opts
+end
 
 M.ExtMark = ExtMark
 
----@class ExtMarkOpts : obsidian.ABC
+---@class ExtMarkOpts
 ---@field end_row integer
 ---@field end_col integer
 ---@field conceal string|?
 ---@field hl_group string|?
 ---@field spell boolean|?
-local ExtMarkOpts = abc.new_class()
+local ExtMarkOpts = {}
+ExtMarkOpts.__index = ExtMarkOpts
+
+ExtMarkOpts.__eq = function(a, b)
+  local a_fields = a:to_tbl()
+  local b_fields = b:to_tbl()
+  return vim.deep_equal(a_fields, b_fields)
+end
 
 M.ExtMarkOpts = ExtMarkOpts
 
 ---@param data table
 ---@return ExtMarkOpts
 ExtMarkOpts.from_tbl = function(data)
-  local self = ExtMarkOpts.init()
+  local self = {}
   self.end_row = data.end_row
   self.end_col = data.end_col
   self.conceal = data.conceal
   self.hl_group = data.hl_group
   self.spell = data.spell
-  return self
+  return setmetatable(self, ExtMarkOpts)
 end
 
 ---@param self ExtMarkOpts
@@ -106,12 +113,12 @@ end
 ---@param opts ExtMarkOpts
 ---@return ExtMark
 ExtMark.new = function(id, row, col, opts)
-  local self = ExtMark.init()
+  local self = {}
   self.id = id
   self.row = row
   self.col = col
   self.opts = opts
-  return self
+  return setmetatable(self, ExtMark)
 end
 
 ---Materialize the ExtMark if needed. After calling this the 'id' will be set if it wasn't already.
