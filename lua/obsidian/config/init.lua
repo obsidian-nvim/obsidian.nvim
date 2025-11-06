@@ -244,7 +244,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.search = opts.search or {}
     opts.search.max_lines = opts.search_max_lines
     opts.search_max_lines = nil
-    deprecate("top-level 'search_max_lines'", "seach.max_lines", "3.16")
+    deprecate("top-level 'search_max_lines'", "search.max_lines", "3.16")
   end
 
   if opts.sort_by ~= nil then

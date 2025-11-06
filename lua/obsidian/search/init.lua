@@ -7,7 +7,6 @@ local M = {}
 
 local Opts = require "obsidian.search.opts"
 
-M.SearchOpts = Opts
 M.build_find_cmd = Opts.build_find_cmd
 M.build_search_cmd = Opts.build_search_cmd
 M.build_grep_cmd = Opts.build_grep_cmd
