@@ -37,7 +37,7 @@ _This plugin is not meant to replace Obsidian, but to complement it._ The Obsidi
 
 ## 🍴 About the fork
 
-The original project has not been actively maintained for quite a while and with the ever-changing Neovim ecosystem, new widely used tools such as [blink.cmp](https://github.com/Saghen/blink.cmp) or [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) were not supported.
+The original project has not been actively maintained for quite a while and with the ever-changing Neovim ecosystem, new widely used tools such as [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) were not supported.
 
 With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
 
