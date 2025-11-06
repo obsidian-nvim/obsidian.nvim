@@ -316,8 +316,8 @@ end
 M.build_find_cmd = function(path, term, opts)
   opts = opts and opts or {}
   opts = vim.tbl_extend("keep", opts, {
-    sort_by = Obsidian.opts.sort_by,
-    sort_reversed = Obsidian.opts.sort_reversed,
+    sort_by = Obsidian.opts.search.sort_by,
+    sort_reversed = Obsidian.opts.search.sort_reversed,
     ignore_case = true,
   })
 
@@ -358,8 +358,8 @@ M.build_grep_cmd = function(opts)
   opts = opts and opts or {}
 
   opts = vim.tbl_extend("keep", opts, {
-    sort_by = Obsidian.opts.sort_by,
-    sort_reversed = Obsidian.opts.sort_reversed,
+    sort_by = Obsidian.opts.search.sort_by,
+    sort_reversed = Obsidian.opts.search.sort_reversed,
     smart_case = true,
     fixed_strings = true,
   })
@@ -501,7 +501,7 @@ M.find_notes_async = function(term, callback, opts)
     opts = opts or {}
     opts.notes = opts.notes or {}
     if not opts.notes.max_lines then
-      opts.notes.max_lines = Obsidian.opts.search_max_lines
+      opts.notes.max_lines = Obsidian.opts.search.max_lines
     end
 
     local Note = require "obsidian.note"
@@ -579,7 +579,7 @@ M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.notes = opts.notes or {}
   if not opts.notes.max_lines then
-    opts.notes.max_lines = Obsidian.opts.search_max_lines
+    opts.notes.max_lines = Obsidian.opts.search.max_lines
   end
   local Note = require "obsidian.note"
 
@@ -951,7 +951,7 @@ M.find_tags_async = function(term, callback, opts)
   local load_note = function(path)
     local note = Note.from_file(path, {
       load_contents = true,
-      max_lines = Obsidian.opts.search_max_lines,
+      max_lines = Obsidian.opts.search.max_lines,
     })
     return { note, M.find_code_blocks(note.contents) }
   end

@@ -104,8 +104,8 @@ M._prepare = function(opts, additional_opts)
   local search_opts = {}
 
   if opts.sort then
-    search_opts.sort_by = Obsidian.opts.sort_by
-    search_opts.sort_reversed = Obsidian.opts.sort_reversed
+    search_opts.sort_by = Obsidian.opts.search.sort_by
+    search_opts.sort_reversed = Obsidian.opts.search.sort_reversed
   end
 
   if not opts.include_templates and Obsidian.opts.templates ~= nil and Obsidian.opts.templates.folder ~= nil then
