@@ -226,7 +226,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     deprecate("note_frontmatter_func", "frontmatter.func", "4.0")
   end
 
-  if opts.disable_frontmatter then
+  if opts.disable_frontmatter ~= nil then
     opts.frontmatter = opts.frontmatter or {}
     local disable_frontmatter = opts.disable_frontmatter
     if type(disable_frontmatter) == "boolean" then
@@ -238,6 +238,27 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     end
     opts.disable_frontmatter = nil
     deprecate("disable_frontmatter", "frontmatter.enabled", "4.0")
+  end
+
+  if opts.search_max_lines ~= nil then
+    opts.search = opts.search or {}
+    opts.search.max_lines = opts.search_max_lines
+    opts.search_max_lines = nil
+    deprecate("top-level 'search_max_lines'", "seach.max_lines", "3.16")
+  end
+
+  if opts.sort_by ~= nil then
+    opts.search = opts.search or {}
+    opts.search.sort_by = opts.sort_by
+    opts.sort_by = nil
+    deprecate("top-level 'sort_by'", "search.sort_by", "3.16")
+  end
+
+  if opts.sort_reversed ~= nil then
+    opts.search = opts.search or {}
+    opts.search.sort_reversed = opts.sort_reversed
+    opts.sort_reversed = nil
+    deprecate("top-level 'sort_reversed'", "search.sort_reversed", "3.16")
   end
 
   --------------------------

@@ -19,11 +19,6 @@ return {
   notes_subdir = nil,
   new_notes_location = "current_dir",
 
-  -- TODO: group into a search module
-  sort_by = "modified",
-  sort_reversed = true,
-  search_max_lines = 1000,
-
   workspaces = {},
   log_level = vim.log.levels.INFO,
   note_id_func = require("obsidian.builtin").zettel_id,
@@ -123,6 +118,17 @@ return {
       tag_note = "<C-x>",
       insert_tag = "<C-l>",
     },
+  },
+
+  ---@class obsidian.config.SearchOpts
+  ---
+  ---@field sort_by string
+  ---@field sort_reversed boolean
+  ---@field max_lines integer
+  search = {
+    sort_by = "modified",
+    sort_reversed = true,
+    max_lines = 1000,
   },
 
   ---@class obsidian.config.DailyNotesOpts

@@ -52,9 +52,6 @@
 ---@field completion? obsidian.config.CompletionOpts
 ---@field picker? obsidian.config.PickerOpts
 ---@field daily_notes? obsidian.config.DailyNotesOpts
----@field sort_by? obsidian.config.SortBy
----@field sort_reversed? boolean
----@field search_max_lines? integer
 ---@field open_notes_in? obsidian.config.OpenStrategy
 ---@field ui? obsidian.config.UIOpts | table<string, any>
 ---@field attachments? obsidian.config.AttachmentsOpts
@@ -65,6 +62,7 @@
 ---@field open? obsidian.config.OpenOpts
 ---@field checkbox? obsidian.config.CheckboxOpts
 ---@field comment? obsidian.config.CommentOpts
+---@field search? obsidian.config.SearchOpts
 
 ---@class obsidian.config.Internal
 ---@field dir string|?
@@ -85,9 +83,6 @@
 ---@field completion obsidian.config.CompletionOpts
 ---@field picker obsidian.config.PickerOpts
 ---@field daily_notes obsidian.config.DailyNotesOpts
----@field sort_by obsidian.config.SortBy|?
----@field sort_reversed boolean|?
----@field search_max_lines integer
 ---@field open_notes_in obsidian.config.OpenStrategy
 ---@field ui obsidian.config.UIOpts | table<string, any>
 ---@field attachments obsidian.config.AttachmentsOpts
@@ -98,3 +93,4 @@
 ---@field open obsidian.config.OpenOpts
 ---@field checkbox obsidian.config.CheckboxOpts
 ---@field comment obsidian.config.CommentOpts
+---@field search obsidian.config.SearchOpts
