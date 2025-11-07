@@ -1,5 +1,4 @@
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
-local h = dofile "tests/helpers.lua"
 
 local T = new_set()
 
