@@ -8,7 +8,7 @@ T["completion"] = new_set()
 T["completion"]["refs"] = new_set()
 
 T["completion"]["refs"]["can_complete should handle wiki links with text"] = function()
-  local completion = require("obsidian.completion.refs")
+  local completion = require "obsidian.completion.refs"
 
   local before = "simple text [[foo"
   local request = {
@@ -16,9 +16,9 @@ T["completion"]["refs"]["can_complete should handle wiki links with text"] = fun
       cursor_before_line = before,
       cursor_after_line = "",
       cursor = {
-          character = vim.fn.strchars(before)
-      }
-    }
+        character = vim.fn.strchars(before),
+      },
+    },
   }
 
   local can_complete, search, insert_start, insert_end, ref_type = completion.can_complete(request)
@@ -28,9 +28,8 @@ T["completion"]["refs"]["can_complete should handle wiki links with text"] = fun
   eq(17, insert_end)
 end
 
-
 T["completion"]["refs"]["can_complete should handle wiki links with preceding Unicode text"] = function()
-  local completion = require("obsidian.completion.refs")
+  local completion = require "obsidian.completion.refs"
 
   local before = "Unicode text ű [[foo"
   local request = {
@@ -38,9 +37,9 @@ T["completion"]["refs"]["can_complete should handle wiki links with preceding Un
       cursor_before_line = before,
       cursor_after_line = "",
       cursor = {
-          character = vim.fn.strchars(before)
-      }
-    }
+        character = vim.fn.strchars(before),
+      },
+    },
   }
 
   local can_complete, search, insert_start, insert_end, ref_type = completion.can_complete(request)
