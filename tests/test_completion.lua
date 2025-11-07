@@ -21,7 +21,7 @@ T["completion"]["refs"]["can_complete should handle wiki links with text"] = fun
     },
   }
 
-  local can_complete, search, insert_start, insert_end, ref_type = completion.can_complete(request)
+  local can_complete, search, insert_start, insert_end, _ = completion.can_complete(request)
   eq(true, can_complete)
   eq("foo", search)
   eq(12, insert_start)
@@ -42,7 +42,7 @@ T["completion"]["refs"]["can_complete should handle wiki links with preceding Un
     },
   }
 
-  local can_complete, search, insert_start, insert_end, ref_type = completion.can_complete(request)
+  local can_complete, search, insert_start, insert_end, _ = completion.can_complete(request)
   eq(true, can_complete)
   eq("foo", search)
   eq(15, insert_start)
