@@ -1,6 +1,6 @@
-local api = require "obsidian.api"
+local obsidian = require "obsidian"
 
 ---@param data obsidian.CommandArgs
 return function(data)
-  api.link_new(data.args)
+  obsidian.api.link_new(data.args)
 end

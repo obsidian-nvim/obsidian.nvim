@@ -1,7 +1,5 @@
 local obsidian = require "obsidian"
-local api = obsidian.api
 
-return function(data)
-  vim.print(data)
-  api.link()
+return function()
+  obsidian.api.link()
 end
