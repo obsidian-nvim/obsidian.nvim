@@ -805,7 +805,7 @@ M.link_new = function(label)
     label = viz.selection
   end
 
-  local note = require("obsidian.note").create { title = label }
+  local note = require("obsidian.note").create { id = label }
   replace_selection(viz, note:format_link { label = label })
 end
 
@@ -835,7 +835,7 @@ M.extract_note = function(label)
   end
 
   -- create the new note.
-  local note = require("obsidian.note").create { title = label }
+  local note = require("obsidian.note").create { id = label }
 
   -- replace selection with link to new note
   local link = note:format_link()
