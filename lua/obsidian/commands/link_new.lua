@@ -1,32 +1,6 @@
-local log = require "obsidian.log"
-local api = require "obsidian.api"
-local Note = require "obsidian.note"
+local obsidian = require "obsidian"
 
 ---@param data obsidian.CommandArgs
 return function(data)
-  local viz = api.get_visual_selection()
-  if not viz then
-    log.err "ObsidianLink must be called with visual selection"
-    return
-  elseif #viz.lines ~= 1 then
-    log.err "Only in-line visual selections allowed"
-    return
-  end
-
-  local line = assert(viz.lines[1], "invalid visual selection")
-
-  local title
-  if string.len(data.args) > 0 then
-    title = data.args
-  else
-    title = viz.selection
-  end
-
-  local note = Note.create { title = title }
-
-  local new_line = string.sub(line, 1, viz.cscol - 1)
-    .. note:format_link { label = title }
-    .. string.sub(line, viz.cecol + 1)
-
-  vim.api.nvim_buf_set_lines(0, viz.csrow - 1, viz.csrow, false, { new_line })
+  obsidian.api.link_new(data.args)
 end

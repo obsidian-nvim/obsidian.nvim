@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Internally no longer use `abc` for building class.
+- Added `link` `link_new` and `extract_note` in `api.lua`.
 
 ### Fixed
 
