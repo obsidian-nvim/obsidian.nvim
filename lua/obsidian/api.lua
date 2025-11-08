@@ -731,4 +731,105 @@ M.set_checkbox = function(state)
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
+--- TODO: if not in visual mode, do cword?
+M.link = function()
+  local viz = M.get_visual_selection()
+  if not viz then
+    log.err "`Obsidian link` must be called with visual selection"
+    return
+  elseif #viz.lines ~= 1 then
+    log.err "Only in-line visual selections allowed"
+    return
+  end
+  local query = viz.selection
+
+  local line = assert(viz.lines[1], "invalid visual selection")
+
+  ---@param note obsidian.Note
+  local function insert_ref(note)
+    local new_line = string.sub(line, 1, viz.cscol - 1)
+      .. note:format_link { label = viz.selection }
+      .. string.sub(line, viz.cecol + 1)
+    vim.api.nvim_buf_set_lines(0, viz.csrow - 1, viz.csrow, false, { new_line })
+    require("obsidian.ui").update(0)
+  end
+
+  local picker = Obsidian.picker
+
+  picker.find_notes {
+    prompt_title = "Select note to link",
+    query = query,
+    callback = function(path)
+      local note = require("obsidian.note").from_file(path)
+      vim.schedule(function()
+        insert_ref(note)
+      end)
+    end,
+  }
+end
+
+M.link_new = function(title)
+  local viz = M.get_visual_selection()
+  if not viz then
+    log.err "ObsidianLink must be called with visual selection"
+    return
+  elseif #viz.lines ~= 1 then
+    log.err "Only in-line visual selections allowed"
+    return
+  end
+
+  local line = assert(viz.lines[1], "invalid visual selection")
+
+  if not title or string.len(title) <= 0 then
+    title = viz.selection
+  end
+
+  local note = require("obsidian.note").create { title = title }
+
+  local new_line = string.sub(line, 1, viz.cscol - 1)
+    .. note:format_link { label = title }
+    .. string.sub(line, viz.cecol + 1)
+
+  vim.api.nvim_buf_set_lines(0, viz.csrow - 1, viz.csrow, false, { new_line })
+end
+
+---Extract the selected text into a new note
+---and replace the selection with a link to the new note.
+---@param title string?
+M.extract_note = function(title)
+  local viz = M.get_visual_selection()
+  if not viz then
+    log.err "Obsidian extract_note must be called with visual selection"
+    return
+  end
+
+  local content = vim.split(viz.selection, "\n", { plain = true })
+
+  ---@type string|?
+  if title ~= nil and string.len(title) > 0 then
+    title = vim.trim(title)
+  else
+    title = M.input "Enter title (optional): "
+    if not title then
+      log.warn "Aborted"
+      return
+    elseif title == "" then
+      title = nil
+    end
+  end
+
+  -- create the new note.
+  local note = require("obsidian.note").create { title = title }
+
+  -- replace selection with link to new note
+  local link = note:format_link()
+  vim.api.nvim_buf_set_text(0, viz.csrow - 1, viz.cscol - 1, viz.cerow - 1, viz.cecol, { link })
+
+  require("obsidian.ui").update(0)
+
+  -- add the selected text to the end of the new note
+  note:open { sync = true }
+  vim.api.nvim_buf_set_lines(0, -1, -1, false, content)
+end
+
 return M
