@@ -77,7 +77,7 @@ T["resolve header links"] = function()
 
   child.lua "vim.lsp.buf.references()"
   local qflist = child.fn.getqflist()
-  eq(2, #qflist) -- FIX: should be just 1
+  eq(1, #qflist)
   eq("[[target#header]]", qflist[1].text)
   eq(3, qflist[1].lnum)
 end

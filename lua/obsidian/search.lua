@@ -919,12 +919,12 @@ M.find_backlinks_async = function(note, callback, opts)
         log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
         return
       end
-      local anchor_link = select(2, vim.trim(link_location))
-      if not anchor_link then
+      local _, matched_anchor = util.strip_anchor_links(link_location)
+      if not matched_anchor then
         return
       end
-      if anchor_link ~= anchor and anchor_obj ~= nil then
-        local resolved_anchor = note:resolve_anchor_link(anchor_link)
+      if matched_anchor ~= anchor and anchor_obj ~= nil then
+        local resolved_anchor = note:resolve_anchor_link(matched_anchor)
         if resolved_anchor == nil or resolved_anchor.header ~= anchor_obj.header then
           return
         end
