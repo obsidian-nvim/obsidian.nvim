@@ -283,6 +283,9 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/FirelightFlagboy"><img src="https://avatars.githubusercontent.com/u/30697622?v=4?s=100" width="100px;" alt="FirelightFlagboy"/><br /><sub><b>FirelightFlagboy</b></sub></a><br /><a href="#code-FirelightFlagboy" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/cameronr"><img src="https://avatars.githubusercontent.com/u/38429?v=4?s=100" width="100px;" alt="Cameron Ring"/><br /><sub><b>Cameron Ring</b></sub></a><br /><a href="#code-cameronr" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/balazsmiklos85"><img src="https://avatars.githubusercontent.com/u/46478889?v=4?s=100" width="100px;" alt="Miklós Balázs"/><br /><sub><b>Miklós Balázs</b></sub></a><br /><a href="#code-balazsmiklos85" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
