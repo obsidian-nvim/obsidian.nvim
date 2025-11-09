@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `definition` will resolve and follow `[[#header]]` links.
 - A new `search` module to contain search related options.
+- LSP based completion instead of source per plugin.
 
 ### Changed
 
