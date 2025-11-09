@@ -31,7 +31,7 @@ local function collect_matching_anchors(note, anchor_link)
   ---@type obsidian.note.HeaderAnchor[]|?
   local matching_anchors
   if anchor_link then
-    assert(note.anchor_links)
+    assert(note.anchor_links, "")
     matching_anchors = {}
     for anchor, anchor_data in pairs(note.anchor_links) do
       if vim.startswith(anchor, anchor_link) then
@@ -168,7 +168,7 @@ local handle_bare_links = function(prefix, notes, range, handler)
     end
   end
 
-  local matches = vim.fn.matchfuzzy(queries, pattern, { limit = 10 }) -- TOOD: config? lower?
+  local matches = vim.fn.matchfuzzy(queries, pattern, { limit = 10 }) -- TODO: config? lower?
 
   if auto then
     if not vim.tbl_isempty(matches) then
@@ -195,7 +195,7 @@ end
 local function handle_anchor_links(partial, notes, anchor_link, callback)
   -- TODO: calc current_note once
   -- TODO: handle two cases:
-  -- 1. typing partial note name, no completeed text after cursor, insert the full link
+  -- 1. typing partial note name, no completed text after cursor, insert the full link
   -- 2. jumped to heading, only insert anchor
   -- TODO: need to do more textEdit to insert additional #title to path so that app supports?
   local items = {}
@@ -234,11 +234,11 @@ local function handle_anchor_links(partial, notes, anchor_link, callback)
   end
 end
 
-local function handle_block_links() end
+-- local function handle_block_links() end
 
 local handlers = {}
 
-handlers[CmpType.tag] = function(partial, range, handler)
+handlers[CmpType.tag] = function(partial, _, handler)
   local items = {}
   local tags = vim
     .iter(Search.find_tags("", {}))
@@ -274,7 +274,7 @@ handlers[CmpType.ref] = function(prefix, range, handler)
 
   if anchor_link then
     handle_anchor_links(prefix, notes, anchor_link, handler)
-  elseif block_link then
+    -- elseif block_link then
     -- handle_block_links(prefix, block_link, handler)
   else
     handle_bare_links(prefix, notes, range, handler)
@@ -282,7 +282,7 @@ handlers[CmpType.ref] = function(prefix, range, handler)
 end
 
 -- TODO: search.find_heading
-local function handle_heading(client) end
+-- local function handle_heading() end
 
 ---@param text string
 ---@param min_char integer
