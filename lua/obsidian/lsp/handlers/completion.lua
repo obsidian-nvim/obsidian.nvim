@@ -5,6 +5,8 @@ local util = obsidian.util
 local Search = obsidian.search
 local find, sub, lower = string.find, string.sub, string.lower
 
+local M = require "obsidian.lsp.handlers._completion"
+
 local CmpType = {
   ref = 1,
   tag = 2,
@@ -283,36 +285,15 @@ end
 
 -- TODO: search.find_heading
 -- local function handle_heading() end
-
----@param text string
----@param min_char integer
----@return integer? cmp_type
----@return string? prefix
----@return integer? boundary 0-indexed
-local function get_cmp_type(text, min_char)
-  for t, pattern in vim.spairs(RefPatterns) do -- spairs make sure ref is first
-    local st, ed = find(text, pattern, 1, true)
-    if st and ed then
-      local prefix = sub(text, ed + 1)
-      if #prefix >= min_char then -- TODO: unicode
-        return t, prefix, st - 1
-      end
-    end
-  end
-end
-
 ---@param params lsp.CompletionParams
 ---@param callback function
 return function(params, callback, _)
-  local min_chars = Obsidian.opts.completion.min_chars
-  ---@cast min_chars -nil
-
   local line_num = params.position.line -- 0-indexed
   local cursor_col = params.position.character -- 0-indexed
 
   local line_text = vim.api.nvim_buf_get_lines(0, line_num, line_num + 1, false)[1]
-  local text_before = sub(line_text, 1, cursor_col)
-  local t, prefix, ref_start = get_cmp_type(text_before, min_chars)
+  local t, prefix, ref_start = M.get_cmp_type(line_text)
+  print(prefix, ref_start)
 
   callback = vim.schedule_wrap(callback)
 
