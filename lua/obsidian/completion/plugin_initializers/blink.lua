@@ -27,11 +27,10 @@ local function add_provider(blink, provider_name, provider_module)
 end
 
 -- Ran once on the plugin startup
----@param opts obsidian.config.ClientOpts
-function M.register_providers(opts)
+function M.register_providers()
   local blink = require "blink.cmp"
 
-  if opts.completion.create_new then
+  if Obsidian.opts.completion.create_new then
     table.insert(M.providers, { name = "obsidian_new", module = "obsidian.completion.sources.blink.new" })
   end
 

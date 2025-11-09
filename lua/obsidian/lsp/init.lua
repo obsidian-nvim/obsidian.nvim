@@ -12,6 +12,7 @@ lsp.start = function(buf)
   local lsp_config = {
     name = "obsidian-ls",
     capabilities = capabilities,
+    offset_encoding = "utf-8",
     cmd = function()
       return {
         request = function(method, ...)

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reference creation in case the line has Unicode characters does the replacing correctly by depending on the character count instead of byte count.
 - Backlinks will properly resolve header.
+- Properly set server offset_encoding for blink.cmp to properly handle completion offsets.
 
 ## [v3.14.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.4) - 2025-11-06
 

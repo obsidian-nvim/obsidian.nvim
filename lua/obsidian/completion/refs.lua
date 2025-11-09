@@ -11,7 +11,8 @@ M.RefType = {
 ---Backtrack through a string to find the first occurrence of '[['.
 ---
 ---@param input string
----@return string|?, string|?, obsidian.completion.RefType|?
+---@return string|? input
+---@return string|? search
 local find_search_start = function(input)
   for i = string.len(input), 1, -1 do
     local substr = string.sub(input, i)
@@ -30,7 +31,12 @@ end
 ---and, if true, the search string and the column indices of where the completion
 ---items should be inserted.
 ---
----@return boolean, string|?, integer|?, integer|?, obsidian.completion.RefType|?
+---@param request obsidian.completion.sources.base.Request
+---@return boolean can_complete
+---@return string|? search_string
+---@return integer|? insert_start
+---@return integer|? insert_end
+---@return obsidian.completion.RefType|? ref_type
 M.can_complete = function(request)
   local input, search = find_search_start(request.context.cursor_before_line)
   if input == nil or search == nil then
@@ -43,12 +49,14 @@ M.can_complete = function(request)
     local suffix = string.sub(request.context.cursor_after_line, 1, 2)
     local cursor_char = request.context.cursor.character
     local insert_end_offset = suffix == "]]" and 1 or -1
-    return true, search, cursor_char - #input, cursor_char + 1 + insert_end_offset, M.RefType.Wiki
+    -- print("#input", #input, vim.fn.strchars(input))
+    return true, search, cursor_char - vim.fn.strchars(input), cursor_char + 1 + insert_end_offset, M.RefType.Wiki
   elseif vim.startswith(input, "[") then
     local suffix = string.sub(request.context.cursor_after_line, 1, 1)
     local cursor_char = request.context.cursor.character
     local insert_end_offset = suffix == "]" and 0 or -1
-    return true, search, cursor_char - #input, cursor_char + 1 + insert_end_offset, M.RefType.Markdown
+    -- print("#input", #input, vim.fn.strchars(input))
+    return true, search, cursor_char - vim.fn.strchars(input), cursor_char + 1 + insert_end_offset, M.RefType.Markdown
   else
     return false
   end
