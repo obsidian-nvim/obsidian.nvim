@@ -21,6 +21,7 @@ RefsSource.get_keyword_pattern = completion.get_keyword_pattern
 RefsSource.incomplete_response = nvim_cmp_util.incomplete_response
 RefsSource.complete_response = nvim_cmp_util.complete_response
 
+---@param request obsidian.completion.sources.base.Request
 function RefsSource:complete(request, callback)
   local cc = self:new_completion_context(callback, request)
   self:process_completion(cc)

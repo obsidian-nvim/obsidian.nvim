@@ -91,9 +91,9 @@ obsidian.setup = function(user_opts)
 
   -- Register completion sources, providers
   if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources(opts)
+    require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()
   elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").register_providers(opts)
+    require("obsidian.completion.plugin_initializers.blink").register_providers()
   end
 
   -- Register autocmds for keymaps, options and custom callbacks
