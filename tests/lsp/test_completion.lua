@@ -3,6 +3,14 @@ local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
 
+local function request_completion()
+  return child.lsp.buf_request_sync(
+    0,
+    "textDocument/completion",
+    child.lua_get "vim.lsp.util.make_position_params(0, 'utf-8')"
+  )
+end
+
 T["trigger with [["] = function()
   local referencer = [==[
 
@@ -20,11 +28,7 @@ T["trigger with [["] = function()
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.type_keys "A"
 
-  local res = child.lsp.buf_request_sync(
-    0,
-    "textDocument/completion",
-    child.lua_get "vim.lsp.util.make_position_params(0, 'utf-8')"
-  )
+  local res = request_completion()
   eq(1, #res)
   local response = res[1]
   local result = response.result
@@ -41,32 +45,24 @@ tags:
   - this/is/a/tag
 ---
 
-#thi
 ]==]
 
   local root = child.Obsidian.dir
   local referencer_path = root / "referencer.md"
   h.write(referencer, referencer_path)
 
-  local target_path = root / "target.md"
-  h.write("", target_path)
-
   child.cmd(string.format("edit %s", referencer_path))
   child.api.nvim_win_set_cursor(0, { 6, 0 })
-  child.type_keys "A"
+  child.type_keys "I#thi" -- partial tag
 
-  local res = child.lsp.buf_request_sync(
-    0,
-    "textDocument/completion",
-    child.lua_get "vim.lsp.util.make_position_params(0, 'utf-8')"
-  )
+  local res = request_completion()
+
   eq(1, #res)
   local response = res[1]
   local result = response.result
 
-  eq(2, #result.items)
+  eq(1, #result.items)
   eq("this/is/a/tag", result.items[1].label)
-  eq("thi", result.items[2].label) -- NOTE: here because in test it is written to disk, in real case it will not duplicate
 end
 
 return T
