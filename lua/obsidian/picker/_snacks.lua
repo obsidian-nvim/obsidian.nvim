@@ -100,11 +100,12 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
+M.pick = function(values, opts, callback)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  callback = callback or obsidian.api.open_note
 
   local preview = vim.iter(values):any(function(value)
     return type(value) == "table" and value.filename ~= nil
@@ -131,33 +132,27 @@ M.pick = function(values, opts)
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
-    title = opts.prompt_title,
+    title = opts.prompt,
     items = entries,
     layout = {
       preview = preview,
       preset = "default",
     },
     format = "text",
-    confirm = function(picker, item, action)
+    confirm = function(picker, item)
       picker:close()
-      if item then
-        if opts.callback then
-          if item.file then
-            opts.callback {
-              filename = item.file,
-              col = item.pos and item.pos[2],
-              lnum = item.pos and item.pos[1],
-              user_data = item.value,
-            }
-          else
-            opts.callback {
-              text = item.text,
-              user_data = item.text,
-            }
-          end
-        else
-          snacks_picker.actions.jump(picker, item, action)
-        end
+      if item.file then
+        callback {
+          filename = item.file,
+          col = item.pos and item.pos[2],
+          lnum = item.pos and item.pos[1],
+          user_data = item.value,
+        }
+      else
+        callback {
+          text = item.text,
+          user_data = item.text,
+        }
       end
     end,
   })

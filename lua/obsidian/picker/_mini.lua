@@ -81,37 +81,46 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
+M.pick = function(values, opts, callback)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  callback = callback or obsidian.api.open_note
 
   local entries = {}
   for _, value in ipairs(values) do
+    local entry
     if type(value) == "string" then
-      value = {
+      entry = {
         user_data = value,
         text = value,
       }
     else
-      value.text = opts.format_item and opts.format_item(value) or ut.make_display(value)
+      entry = {
+        text = opts.format_item and opts.format_item(value) or ut.make_display(value),
+        path = value.filename,
+        filename = value.filename,
+        lnum = value.lnum,
+        col = value.col,
+        user_data = value.user_data,
+      }
     end
     if value.valid ~= false then
-      entries[#entries + 1] = value
+      entries[#entries + 1] = entry
     end
   end
 
   local entry = mini_pick.start {
     source = {
-      name = opts.prompt_title,
+      name = opts.prompt,
       items = entries,
       choose = function() end,
     },
   }
 
-  if entry and opts.callback then
-    opts.callback(entry)
+  if entry then
+    callback(entry)
   end
 end
 

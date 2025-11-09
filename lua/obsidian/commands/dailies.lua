@@ -59,10 +59,9 @@ return function(data)
   end
 
   Obsidian.picker.pick(dailies, {
-    prompt_title = "Dailies",
-    callback = function(entry)
-      local note = daily.daily(entry.user_data, {})
-      note:open()
-    end,
-  })
+    prompt = "Dailies",
+  }, function(entry)
+    local note = daily.daily(entry.user_data, {})
+    note:open()
+  end)
 end

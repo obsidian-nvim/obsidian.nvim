@@ -172,11 +172,12 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
+M.pick = function(values, opts, callback)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  callback = callback or obsidian.api.open_note
 
   ---@type table<string, any>
   local display_to_value_map = {}
@@ -198,11 +199,9 @@ M.pick = function(values, opts)
   end
 
   fzf.fzf_exec(entries, {
-    prompt = format_prompt(
-      ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
-    ),
+    prompt = format_prompt(ut.build_prompt { prompt = opts.prompt, selection_mappings = opts.selection_mappings }),
     actions = get_value_actions(display_to_value_map, {
-      callback = opts.callback,
+      callback = callback,
       allow_multiple = opts.allow_multiple,
       selection_mappings = opts.selection_mappings,
     }),

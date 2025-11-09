@@ -27,7 +27,7 @@ return function(data)
   end
 
   picker.find_files {
-    prompt_title = "Templates",
+    prompt = "Templates",
     dir = templates_dir,
     no_default_mappings = true,
     callback = function(template_name)

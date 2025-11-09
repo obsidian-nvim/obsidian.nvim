@@ -6,7 +6,7 @@ local PickerName = require("obsidian.config").Picker
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
----@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
+---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?, callback: fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?)
 local M = {}
 
 local state = {}
@@ -50,8 +50,7 @@ M.state = state
 
 ---@class obsidian.PickerPickOpts
 ---
----@field prompt_title string|?
----@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
+---@field prompt string|?
 ---@field allow_multiple boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
@@ -162,7 +161,7 @@ M.pick_note = function(notes, opts)
   end
 
   M.pick(entries, {
-    prompt_title = opts.prompt_title or "Notes",
+    prompt = opts.prompt_title or "Notes",
     callback = function(v)
       opts.callback(v.user_data)
     end,

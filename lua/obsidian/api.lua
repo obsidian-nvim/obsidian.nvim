@@ -573,9 +573,61 @@ M.follow_link = function(link, opts)
     if #items == 1 then
       M.open_note(items[1], cmd)
     else
-      Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
+      if not Obsidian.picker.state._native then
+        Obsidian.picker.pick(items, { prompt = "Resolve link" }) -- calls open_qf_entry by default
+      else
+        vim.fn.setqflist(items)
+        vim.cmd "copen"
+      end
     end
   end)
+end
+
+---@param list { title: string, items: vim.quickfix.entry[] }
+---@param opts vim.lsp.LocationOpts
+M.lsp_on_list = function(list, opts)
+  local items, title = list.items, list.title
+
+  -- TODO:?
+  local bufnr = vim.api.nvim_get_current_buf()
+  local win = vim.api.nvim_get_current_win()
+  local from = vim.fn.getpos "."
+  from[1] = bufnr
+  local tagname = vim.fn.expand "<cword>"
+
+  if #items == 1 then
+    local item = items[1]
+    local b = item.bufnr or vim.fn.bufadd(item.filename)
+
+    -- Save position in jumplist
+    vim.cmd "normal! m'"
+    -- Push a new item into tagstack
+    local tagstack = { { tagname = tagname, from = from } }
+    vim.fn.settagstack(vim.fn.win_getid(win), { items = tagstack }, "t")
+
+    vim.bo[b].buflisted = true
+    local w = win
+    if opts.reuse_win then
+      w = vim.fn.win_findbuf(b)[1] or w
+      if w ~= win then
+        vim.api.nvim_set_current_win(w)
+      end
+    end
+    vim.api.nvim_win_set_buf(w, b)
+    vim.api.nvim_win_set_cursor(w, { item.lnum, item.col - 1 })
+    vim._with({ win = w }, function()
+      -- Open folds under the cursor
+      vim.cmd "normal! zv"
+    end)
+    return
+  end
+  if opts.loclist then
+    vim.fn.setloclist(0, {}, " ", { title = title, items = items })
+    vim.cmd.lopen()
+  else
+    vim.fn.setqflist({}, " ", { title = title, items = items })
+    vim.cmd "botright copen"
+  end
 end
 
 --------------------------
@@ -779,7 +831,7 @@ M.link = function()
   local query = viz.selection
 
   Obsidian.picker.find_notes {
-    prompt_title = "Select note to link",
+    prompt = "Select note to link",
     query = query,
     callback = function(path)
       local note = require("obsidian.note").from_file(path)

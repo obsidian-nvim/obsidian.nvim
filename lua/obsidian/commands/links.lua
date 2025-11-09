@@ -12,9 +12,8 @@ return function()
   end, note:links())
 
   Obsidian.picker.pick(entries, {
-    prompt_title = "Links",
-    callback = function(entry)
-      api.follow_link(entry.user_data)
-    end,
-  })
+    prompt = "Links",
+  }, function(entry)
+    api.follow_link(entry.user_data)
+  end)
 end

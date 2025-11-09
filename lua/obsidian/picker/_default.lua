@@ -6,10 +6,19 @@ local api = obsidian.api
 local search = obsidian.search
 local ut = require "obsidian.picker.util"
 
+local default_format_item = function(value)
+  if type(value) == "string" then
+    return value
+  elseif type(value) == "table" then
+    return ut.make_display(value)
+  end
+end
+
 --- Pick from a list of items.
 ---
 ---@param values string[]|obsidian.PickerEntry[] Items to pick from.
 ---@param opts obsidian.PickerPickOpts|? Options.
+---@param callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -18,32 +27,20 @@ local ut = require "obsidian.picker.util"
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
-M.pick = function(values, opts)
+M.pick = function(values, opts, callback)
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  -- callback = callback or obsidian.api.open_note
+  local format_item = opts.format_item or default_format_item
 
-  if opts.callback then
-    vim.ui.select(values, {
-      prompt = opts.prompt_title,
-      format_item = opts.format_item or function(value)
-        if type(value) == "string" then
-          return value
-        elseif type(value) == "table" then
-          return ut.make_display(value)
-        end
-      end,
-    }, function(item)
-      if item then
-        if type(item) == "string" then
-          item = { value = item }
-        end
-        opts.callback(item)
-      end
-    end)
-  else
-    vim.fn.setqflist(values)
-    vim.cmd "copen"
-  end
+  vim.ui.select(values, { prompt = opts.prompt, format_item = format_item }, function(item)
+    if not item then
+      return
+    end
+    if type(item) == "string" then
+      item = { user_data = item }
+    end
+    callback(item)
+  end)
 end
 
 --- Grep for a string.

@@ -17,37 +17,41 @@ local list_tags = function(tag_locations)
 end
 
 ---@param tag_locations obsidian.TagLocation[]
----@param tags string[]
-local function gather_tag_picker_list(tag_locations, tags)
-  ---@type obsidian.PickerEntry[]
-  local entries = {}
+---@return table<string, obsidian.TagLocation[]>
+local function build_tag_lookup(tag_locations)
+  local ret = {}
   for _, tag_loc in ipairs(tag_locations) do
-    for _, tag in ipairs(tags) do
-      if tag_loc.tag:lower() == tag:lower() or vim.startswith(tag_loc.tag:lower(), tag:lower() .. "/") then
-        local display = string.format("%s [%s] %s", tag_loc.note:display_name(), tag_loc.line, tag_loc.text)
-        entries[#entries + 1] = {
-          value = { path = tag_loc.path, line = tag_loc.line, col = tag_loc.tag_start },
-          display = display,
-          ordinal = display,
-          filename = tostring(tag_loc.path),
-          lnum = tag_loc.line,
-          col = tag_loc.tag_start,
-        }
-        break
-      end
+    if not ret[tag_loc.tag] then
+      ret[tag_loc.tag] = {}
+    end
+    table.insert(ret[tag_loc.tag], tag_loc)
+  end
+  return ret
+end
+
+---@param tag_lookup table<string, obsidian.TagLocation[]>
+---@param tags string[]
+local function pick_tag(tag_lookup, tags)
+  local entries = {}
+  for _, tag in ipairs(tags) do
+    local tag_locs = tag_lookup[tag]
+    for _, tag_loc in ipairs(tag_locs) do
+      entries[#entries + 1] = {
+        text = tag_loc.text,
+        filename = tostring(tag_loc.path),
+        lnum = tag_loc.line,
+        col = tag_loc.tag_start,
+      }
     end
   end
+
   if vim.tbl_isempty(entries) then
-    if #tags == 1 then
-      log.warn "Tag not found"
-    else
-      log.warn "Tags not found"
-    end
+    log.warn((#tags == 1 and "Tag" or "Tags") .. " not found")
     return
   end
 
   vim.schedule(function()
-    Obsidian.picker.pick(entries, { prompt_title = "#" .. table.concat(tags, ", #") })
+    Obsidian.picker.pick(entries, { prompt = "#" .. table.concat(tags, ", #") }, api.open_note)
   end)
 end
 
@@ -64,22 +68,24 @@ return function(data)
 
   if not vim.tbl_isempty(tags) then
     search.find_tags_async(tags, function(tag_locations)
-      return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
+      return pick_tag(build_tag_lookup(tag_locations), util.tbl_unique(tags))
     end)
   else
     search.find_tags_async("", function(tag_locations)
       tags = list_tags(tag_locations)
+
+      local tag_lookup = build_tag_lookup(tag_locations)
+
       vim.schedule(function()
         Obsidian.picker.pick(tags, {
-          callback = function(...)
-            tags = vim.tbl_map(function(v)
-              return v.user_data
-            end, { ... })
-            gather_tag_picker_list(tag_locations, tags)
-          end,
           selection_mappings = Obsidian.picker._tag_selection_mappings(),
           allow_multiple = true,
-        })
+        }, function(...)
+          local tgs = vim.tbl_map(function(v)
+            return v.user_data
+          end, { ... })
+          pick_tag(tag_lookup, tgs)
+        end)
       end)
     end)
   end

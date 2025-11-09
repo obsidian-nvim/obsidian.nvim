@@ -3,7 +3,7 @@ return function()
 
   vim.lsp.buf.references(nil, {
     on_list = not picker.state._native and function(t)
-      picker.pick(t.items, { prompt_title = "Backlinks" })
+      picker.pick(t.items, { prompt = "Backlinks" })
     end or nil,
   })
 end

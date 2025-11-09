@@ -12,11 +12,10 @@ return function(data)
       }
     end, Obsidian.workspaces)
     Obsidian.picker.pick(items, {
-      prompt_title = "Obsidian Workspace",
-      callback = function(entry)
-        Workspace.set(entry.user_data)
-      end,
-    })
+      prompt = "Obsidian Workspace",
+    }, function(entry)
+      Workspace.set(entry.user_data)
+    end)
   else
     Workspace.set(data.args)
   end

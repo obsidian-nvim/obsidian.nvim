@@ -9,13 +9,17 @@ return function(data)
     open_strategy = api.get_open_strategy(Obsidian.opts.open_notes_in)
   end
 
-  vim.lsp.buf.definition {
-    on_list = Obsidian.picker and function(t)
+  local on_list
+
+  if not Obsidian.picker.state._native then
+    on_list = function(t)
       if #t.items == 1 then
         api.open_note(t.items[1], open_strategy)
       else
-        Obsidian.picker.pick(t.items, { prompt_title = "Resolve link" })
+        Obsidian.picker.pick(t.items, { prompt = "Resolve link" }) -- calls open_qf_entry by default
       end
-    end,
-  }
+    end
+  end
+
+  vim.lsp.buf.definition { on_list = on_list }
 end

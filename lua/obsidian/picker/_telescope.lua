@@ -193,7 +193,8 @@ end
 
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
+M.pick = function(values, opts, callback)
   local pickers = require "telescope.pickers"
   local finders = require "telescope.finders"
   local conf = require "telescope.config"
@@ -202,12 +203,12 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  callback = callback or obsidian.api.open_note
 
   local picker_opts = {
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
-        callback = opts.callback,
+        callback = callback,
         allow_multiple = opts.allow_multiple,
         query_mappings = opts.query_mappings,
         selection_mappings = opts.selection_mappings,
@@ -221,7 +222,7 @@ M.pick = function(values, opts)
   end
 
   local prompt_title = ut.build_prompt {
-    prompt_title = opts.prompt_title,
+    prompt_title = opts.prompt,
     query_mappings = opts.query_mappings,
     selection_mappings = opts.selection_mappings,
   }
