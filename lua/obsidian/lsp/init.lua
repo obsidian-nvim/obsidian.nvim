@@ -35,6 +35,8 @@ lsp.start = function(buf)
     log.err("[obsidian-ls]: failed to start: " .. client_id)
   end
 
+  require("obsidian.lsp.diagnostics").setup()
+
   return client_id
 end
 

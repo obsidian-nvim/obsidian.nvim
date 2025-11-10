@@ -1109,12 +1109,12 @@ Note.open = function(self, opts)
 end
 
 ---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer }
----@return obsidian.BacklinkMatch
+---@return obsidian.BacklinkMatch[]
 Note.backlinks = function(self, opts)
   return search.find_backlinks(self, opts)
 end
 
----@return obsidian.LinkMatch
+---@return obsidian.LinkMatch[]
 Note.links = function(self)
   return search.find_links(self)
 end
