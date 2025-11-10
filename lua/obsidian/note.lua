@@ -344,6 +344,12 @@ Note.display_info = function(self, opts)
     info[#info + 1] = ("**tags:** `#%s`"):format(table.concat(self.tags, "`, `#"))
   end
 
+  if not vim.tbl_isempty(self.metadata) then
+    for k, v in vim.spairs(self.metadata) do
+      info[#info + 1] = ("**%s:** `%s`"):format(k, v)
+    end
+  end
+
   if opts.anchor or opts.block then
     info[#info + 1] = "--------"
 
