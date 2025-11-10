@@ -4,22 +4,24 @@ local RefTypes = require("obsidian.search").RefTypes
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 
+---@param match obsidian.BacklinkMatch
+---@return lsp.Location
+local function backlink_to_location(match)
+  return {
+    uri = vim.uri_from_fname(tostring(match.path)),
+    range = {
+      start = { line = match.line - 1, character = match.start },
+      ["end"] = { line = match.line - 1, character = match["end"] },
+    },
+  }
+end
+
 ---@param note obsidian.Note
 ---@param opts { anchor: string|?, block: string|? }
 ---@return lsp.Location[]
 local function collect_backlinks(note, opts)
-  return vim
-    .iter(note:backlinks { search = { sort = true }, anchor = opts.anchor, block = opts.block })
-    :map(function(match)
-      return {
-        uri = vim.uri_from_fname(tostring(match.path)),
-        range = {
-          start = { line = match.line - 1, character = match.start },
-          ["end"] = { line = match.line - 1, character = match["end"] },
-        },
-      }
-    end)
-    :totable()
+  local backlink_matches = note:backlinks { search = { sort = true }, anchor = opts.anchor, block = opts.block }
+  return vim.iter(backlink_matches):map(backlink_to_location):totable()
 end
 
 ---@param _ lsp.ReferenceParams
@@ -35,11 +37,10 @@ return function(_, handler)
     and link_type ~= RefTypes.FileUrl
     and link_type ~= RefTypes.BlockID
   then
-    local location = util.parse_link(cur_link, { include_block_ids = true })
-    assert(location, "cursor on a link but failed to parse, please report to repo")
+    local location = util.parse_link(cur_link)
+    assert(location, "failed to parse link")
 
     -- Remove block links from the end if there are any.
-    -- TODO: handle block links.
     ---@type string|?
     local block_link
     location, block_link = util.strip_block_links(location)
@@ -49,17 +50,13 @@ return function(_, handler)
     local anchor_link
     location, anchor_link = util.strip_anchor_links(location)
 
-    -- Assume 'location' is current buffer path if empty, like for TOCs.
-    if string.len(location) == 0 then
-      location = vim.api.nvim_buf_get_name(0)
-    end
-
     local opts = { anchor = anchor_link, block = block_link }
 
     local notes = search.resolve_note(location)
 
     if vim.tbl_isempty(notes) then
-      return log.err("No notes matching '%s'", location)
+      log.err("No notes matching '%s'", location)
+      return
     else
       local note = notes[1]
       locations = collect_backlinks(note, opts)
