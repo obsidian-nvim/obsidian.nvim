@@ -13,12 +13,12 @@ return function(_, handler, _)
     if not title then
       return
     end
-    local note = search.resolve_note(title, {})
-    if not note then
+    local notes = search.resolve_note(title, {})
+    if vim.tbl_isempty(notes) then
       return
     end
     -- local contents = Obsidian.opts.lsp.hover.note_preview_callback(note)
-    local contents = note:display_info()
+    local contents = notes[1]:display_info()
     handler(nil, { contents = contents })
   elseif cursor_tag then
     local tag_locs = search.find_tags(cursor_tag, {})
