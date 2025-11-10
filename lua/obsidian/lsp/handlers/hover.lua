@@ -4,7 +4,7 @@ local search = require "obsidian.search"
 --- TODO: tag hover should also work on frontmatter
 
 ---@param _ lsp.HoverParams
----@param handler function
+---@param handler fun(_: any, result: lsp.Hover)
 return function(_, handler, _)
   local cursor_ref = util.cursor_link()
   local cursor_tag = util.cursor_tag()
@@ -17,20 +17,21 @@ return function(_, handler, _)
     if not note then
       return
     end
-    local contents = Obsidian.opts.lsp.hover.note_preview_callback(note)
-    handler(nil, {
-      contents = contents,
-    })
+    -- local contents = Obsidian.opts.lsp.hover.note_preview_callback(note)
+    local contents = note:display_info()
+    handler(nil, { contents = contents })
   elseif cursor_tag then
-    -- lsp_util.preview_tag(client, params, cursor_tag, function(content)
-    --   if content then
-    --     handler(nil, {
-    --       contents = content,
-    --     })
-    --   else
-    --     vim.notify("No tag found", 3)
-    --   end
-    -- end)
+    local tag_locs = search.find_tags(cursor_tag, {})
+
+    local notes_lookup = {}
+    for _, tag_loc in ipairs(tag_locs) do
+      notes_lookup[tostring(tag_loc.note.path)] = true
+    end
+
+    local note_count = vim.tbl_count(notes_lookup)
+    local contents = string.format("**found in %s notes**", note_count)
+
+    handler(nil, { contents = contents })
   else
     vim.notify("No note or tag found", 3)
   end
