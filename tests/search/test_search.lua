@@ -2,8 +2,6 @@ local M = require "obsidian.search"
 local h = dofile "tests/helpers.lua"
 local child
 
-local SearchOpts = M.SearchOpts
-
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
