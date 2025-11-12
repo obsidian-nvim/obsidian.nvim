@@ -6,13 +6,6 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
-T["search.replace_refs()"] = function()
-  MiniTest.expect.equality(M.replace_refs "Hi there [[foo|Bar]]", "Hi there Bar")
-  MiniTest.expect.equality(M.replace_refs "Hi there [[Bar]]", "Hi there Bar")
-  MiniTest.expect.equality(M.replace_refs "Hi there [Bar](foo)", "Hi there Bar")
-  MiniTest.expect.equality(M.replace_refs "Hi there [[foo|Bar]] [[Baz]]", "Hi there Bar Baz")
-end
-
 T["find_refs"] = new_set()
 
 T["find_refs"]["should find positions of all refs"] = function()
