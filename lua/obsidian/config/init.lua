@@ -280,6 +280,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.checkbox = tbl_override(defaults.checkbox, opts.checkbox)
   opts.comment = tbl_override(defaults.comment, opts.comment)
   opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
+  opts.link = tbl_override(defaults.link, opts.link)
 
   ---------------
   -- Validate. --
