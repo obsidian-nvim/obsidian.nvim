@@ -299,21 +299,10 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
 
   -- De-duplicate options relative to their `new_text`.
   for _, option in ipairs(new_options) do
-    ---@type obsidian.config.LinkStyle
-    local link_style
-    if cc.ref_type == completion.RefType.Wiki then
-      link_style = LinkStyle.wiki
-    elseif cc.ref_type == completion.RefType.Markdown then
-      link_style = LinkStyle.markdown
-    else
-      error "not implemented"
-    end
-
     ---@type string, string, string, table|?
     local final_label, sort_text, new_text, documentation
     if option.label then
-      new_text =
-        note:format_link { label = option.label, link_style = link_style, anchor = option.anchor, block = option.block }
+      new_text = note:format_link { label = option.label, anchor = option.anchor, block = option.block }
 
       final_label = assert(option.alt_label or option.label, "no valid label")
       if option.anchor then

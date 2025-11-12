@@ -2,6 +2,14 @@
 local M = {}
 local util = require "obsidian.util"
 
+---@class obsidian.link.LinkCreationOpts
+---@field path obsidian.Path
+---@field label string
+---@field id string|integer|?
+---@field anchor obsidian.note.HeaderAnchor|?
+---@field block obsidian.note.Block|?
+---@field style "wiki" | "markdown"
+
 ---Create a new unique Zettel ID.
 ---
 ---@return string
@@ -13,7 +21,7 @@ M.zettel_id = function()
   return tostring(os.time()) .. "-" .. suffix
 end
 
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
+---@param opts obsidian.link.LinkCreationOpts
 ---@return string
 M.wiki_link_alias_only = function(opts)
   ---@type string
@@ -26,7 +34,7 @@ M.wiki_link_alias_only = function(opts)
   return string.format("[[%s%s]]", opts.label, header_or_block)
 end
 
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
+---@param opts obsidian.link.LinkCreationOpts
 ---@return string
 M.wiki_link_path_only = function(opts)
   ---@type string
@@ -39,7 +47,7 @@ M.wiki_link_path_only = function(opts)
   return string.format("[[%s%s]]", opts.path, header_or_block)
 end
 
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
+---@param opts obsidian.link.LinkCreationOpts
 ---@return string
 M.wiki_link_path_prefix = function(opts)
   local anchor = ""
@@ -59,7 +67,7 @@ M.wiki_link_path_prefix = function(opts)
   end
 end
 
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
+---@param opts obsidian.link.LinkCreationOpts
 ---@return string
 M.wiki_link_id_prefix = function(opts)
   local anchor = ""
@@ -81,7 +89,20 @@ M.wiki_link_id_prefix = function(opts)
   end
 end
 
----@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
+---@param path obsidian.Path vault-relative-path
+---@param style "shortest" | "relative" | "absolute"
+---@return string foramted_path
+local function format_path(path, style)
+  if style == "absolute" then
+    return assert(path:vault_relative_path {})
+  elseif style == "relative" then
+    return assert(tostring(path:relative_to(Obsidian.buf_dir)), "failed to resolve link path against current note")
+  else
+    return vim.fs.basename(tostring(path))
+  end
+end
+
+---@param opts obsidian.link.LinkCreationOpts
 ---@return string
 M.markdown_link = function(opts)
   local anchor = ""
@@ -94,7 +115,9 @@ M.markdown_link = function(opts)
     header = "#" .. opts.block.id
   end
 
-  local path = util.urlencode(opts.path, { keep_path_sep = true })
+  local path = format_path(opts.path, Obsidian.opts.link.format)
+  path = util.urlencode(path, { keep_path_sep = true })
+
   return string.format("[%s%s](%s%s)", opts.label, header, path, anchor)
 end
 
@@ -105,7 +128,7 @@ M.img_text_func = function(path)
     markdown = "![](%s)",
     wiki = "![[%s]]",
   }
-  local style = Obsidian.opts.preferred_link_style
+  local style = Obsidian.opts.link.style
   local name = vim.fs.basename(tostring(path))
 
   if style == "markdown" then

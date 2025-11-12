@@ -124,12 +124,10 @@ function NewNoteSourceBase:process_completion(cc)
     assert(new_note.path, "note without path")
 
     ---@type obsidian.config.LinkStyle, string
-    local link_style, label
-    if cc.ref_type == completion.RefType.Wiki then
-      link_style = LinkStyle.wiki
+    local label
+    if Obsidian.opts.link.style == "wiki" then
       label = string.format("[[%s]] (create)", new_note_opts.label)
-    elseif cc.ref_type == completion.RefType.Markdown then
-      link_style = LinkStyle.markdown
+    elseif Obsidian.opts.link.style == "markdown" then
       label = string.format("[%s](…) (create)", new_note_opts.label)
     else
       error "not implemented"
@@ -137,7 +135,6 @@ function NewNoteSourceBase:process_completion(cc)
 
     local new_text = new_note:format_link {
       label = new_note_opts.label,
-      link_style = link_style,
       anchor = anchor,
       block = block,
     }

@@ -329,6 +329,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
   opts.search = tbl_override(defaults.search, opts.search)
   opts.note = tbl_override(defaults.note, opts.note)
+  opts.link = tbl_override(defaults.link, opts.link)
 
   ---------------
   -- Validate. --

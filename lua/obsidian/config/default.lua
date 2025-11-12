@@ -15,16 +15,23 @@ return {
   notes_subdir = nil,
   new_notes_location = "current_dir",
 
+  -- wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
+  -- markdown_link_func = require("obsidian.builtin").markdown_link,
+  -- preferred_link_style = "wiki",
+
+  ---@class obsidian.config.LinkOpts
+  ---@field style? "wiki" | "markdown"
+  ---@field format? "shortest" | "relative" | "absolute"
+  link = {
+    style = "wiki",
+    markdown = require("obsidian.builtin").markdown_link,
+    wiki = require("obsidian.builtin").wiki_link_id_prefix,
+    fromat = "shortest",
+  },
+
   workspaces = {},
   log_level = vim.log.levels.INFO,
   note_id_func = require("obsidian.builtin").zettel_id,
-  note_path_func = function(spec)
-    local path = spec.dir / tostring(spec.id)
-    return path
-  end,
-  wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
-  markdown_link_func = require("obsidian.builtin").markdown_link,
-  preferred_link_style = "wiki",
   open_notes_in = "current",
 
   ---@class obsidian.config.NoteOpts
