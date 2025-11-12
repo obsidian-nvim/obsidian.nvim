@@ -5,11 +5,12 @@ local async = require "obsidian.async"
 
 local M = {}
 
-local Opts = require "obsidian.search.opts"
+local Opts = require "obsidian.search.opts" -- general class to handle options
+local Ripgrep = require "obsidian.search.ripgrep" -- could have other backends in the future...
 
-M.build_find_cmd = Opts.build_find_cmd
-M.build_search_cmd = Opts.build_search_cmd
-M.build_grep_cmd = Opts.build_grep_cmd
+M.build_find_cmd = Ripgrep.build_find_cmd
+M.build_search_cmd = Ripgrep.build_search_cmd
+M.build_grep_cmd = Ripgrep.build_grep_cmd
 
 ---@alias obsidian.search.RefTypes
 ---| "Wiki"
@@ -251,7 +252,7 @@ end
 ---@param on_match fun(match: MatchData)
 ---@param on_exit fun(exit_code: integer)|?
 M.search_async = function(dir, term, opts, on_match, on_exit)
-  local cmd = Opts.build_search_cmd(dir, term, opts)
+  local cmd = M.build_search_cmd(dir, term, opts)
   async.run_job_async(cmd, function(line)
     local data = vim.json.decode(line)
     if data["type"] == "match" then
@@ -274,7 +275,7 @@ end
 ---@param on_exit fun(exit_code: integer)|?
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
-  local cmd = Opts.build_find_cmd(tostring(norm_dir), term, opts)
+  local cmd = M.build_find_cmd(tostring(norm_dir), term, opts)
   async.run_job_async(cmd, on_match, function(code)
     if on_exit ~= nil then
       on_exit(code)
