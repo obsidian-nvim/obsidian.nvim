@@ -1,15 +1,16 @@
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
-local iter = vim.iter
-local compat = require "obsidian.compat"
 local log = require "obsidian.log"
 local async = require "obsidian.async"
 
 local M = {}
 
-M._BASE_CMD = { "rg", "--no-config", "--type=md" }
-M._SEARCH_CMD = compat.flatten { M._BASE_CMD, "--json" }
-M._FIND_CMD = compat.flatten { M._BASE_CMD, "--files" }
+local Opts = require "obsidian.search.opts" -- general class to handle options
+local Ripgrep = require "obsidian.search.ripgrep" -- could have other backends in the future...
+
+M.build_find_cmd = Ripgrep.build_find_cmd
+M.build_search_cmd = Ripgrep.build_search_cmd
+M.build_grep_cmd = Ripgrep.build_grep_cmd
 
 ---@alias obsidian.search.RefTypes
 ---| "Wiki"
@@ -70,7 +71,7 @@ M.find_matches = function(s, pattern_names)
       if m_start ~= nil and m_end ~= nil then
         -- Check if we're inside a code block.
         local inside_code_block = false
-        for code_block_boundary in iter(inline_code_blocks) do
+        for _, code_block_boundary in ipairs(inline_code_blocks) do
           if code_block_boundary[1] < m_start and m_end < code_block_boundary[2] then
             inside_code_block = true
             break
@@ -81,7 +82,7 @@ M.find_matches = function(s, pattern_names)
           -- Check if this match overlaps with any others (e.g. a naked URL match would be contained in
           -- a markdown URL).
           local overlap = false
-          for match in iter(matches) do
+          for _, match in ipairs(matches) do
             if (match[1] <= m_start and m_start <= match[2]) or (match[1] <= m_end and m_end <= match[2]) then
               overlap = true
               break
@@ -125,7 +126,7 @@ end
 ---@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes }[]
 M.find_highlight = function(s)
   local matches = {}
-  for match in iter(M.find_matches(s, { "Highlight" })) do
+  for _, match in ipairs(M.find_matches(s, { "Highlight" })) do
     -- Remove highlights that begin/end with whitespace
     local match_start, match_end, _ = unpack(match)
     local text = string.sub(s, match_start + 2, match_end - 2)
@@ -195,57 +196,6 @@ M.find_tags_in_string = function(s)
   return matches
 end
 
---- Replace references of the form '[[xxx|xxx]]', '[[xxx]]', or '[xxx](xxx)' with their title.
----
----@param s string
----
----@return string
-M.replace_refs = function(s)
-  local out, _ = string.gsub(s, "%[%[[^%|%]]+%|([^%]]+)%]%]", "%1")
-  out, _ = out:gsub("%[%[([^%]]+)%]%]", "%1")
-  out, _ = out:gsub("%[([^%]]+)%]%([^%)]+%)", "%1")
-  return out
-end
-
---- Find all refs in a string and replace with their titles.
----
----@param s string
---
----@return string
----@return table
----@return string[]
-M.find_and_replace_refs = function(s)
-  local pieces = {}
-  local refs = {}
-  local is_ref = {}
-  local matches = M.find_refs(s)
-  local last_end = 1
-  for _, match in pairs(matches) do
-    local m_start, m_end, _ = unpack(match)
-    if last_end < m_start then
-      table.insert(pieces, string.sub(s, last_end, m_start - 1))
-      table.insert(is_ref, false)
-    end
-    local ref_str = string.sub(s, m_start, m_end)
-    table.insert(pieces, M.replace_refs(ref_str))
-    table.insert(refs, ref_str)
-    table.insert(is_ref, true)
-    last_end = m_end + 1
-  end
-
-  local indices = {}
-  local length = 0
-  for i, piece in ipairs(pieces) do
-    local i_end = length + string.len(piece)
-    if is_ref[i] then
-      table.insert(indices, { length + 1, i_end })
-    end
-    length = i_end
-  end
-
-  return table.concat(pieces, ""), indices, refs
-end
-
 --- Find all code block boundaries in a list of lines.
 ---
 ---@param lines string[]
@@ -270,197 +220,6 @@ M.find_code_blocks = function(lines)
     end
   end
   return blocks
-end
-
---- TODO: a bit weird to have these two...
-
----@class obsidian.SearchOpts
----
----@field sort boolean|?
----@field include_templates boolean|?
----@field ignore_case boolean|?
----@field default function?
-
----@class obsidian.search.SearchOpts
----
----@field sort_by obsidian.config.SortBy|?
----@field sort_reversed boolean|?
----@field fixed_strings boolean|?
----@field ignore_case boolean|?
----@field smart_case boolean|?
----@field exclude string[]|? paths to exclude
----@field max_count_per_file integer|?
----@field escape_path boolean|?
----@field include_non_markdown boolean|?
-
-local SearchOpts = {}
-M.SearchOpts = SearchOpts
-
-SearchOpts.as_tbl = function(self)
-  local fields = {}
-  for k, v in pairs(self) do
-    if not vim.startswith(k, "__") then
-      fields[k] = v
-    end
-  end
-  return fields
-end
-
----@param one obsidian.search.SearchOpts|table
----@param other obsidian.search.SearchOpts|table
----@return obsidian.search.SearchOpts
-SearchOpts.merge = function(one, other)
-  return vim.tbl_extend("force", SearchOpts.as_tbl(one), SearchOpts.as_tbl(other))
-end
-
----@param opts obsidian.search.SearchOpts
----@param path string
-SearchOpts.add_exclude = function(opts, path)
-  if opts.exclude == nil then
-    opts.exclude = {}
-  end
-  opts.exclude[#opts.exclude + 1] = path
-end
-
----@param opts obsidian.search.SearchOpts
----@return string[]
-SearchOpts.to_ripgrep_opts = function(opts)
-  -- vim.validate("opts.exclude", opts.exclude, "table", true)
-
-  local ret = {}
-
-  if opts.sort_by ~= nil then
-    local sort = "sortr" -- default sort is reverse
-    if opts.sort_reversed == false then
-      sort = "sort"
-    end
-    ret[#ret + 1] = "--" .. sort .. "=" .. opts.sort_by
-  end
-
-  if opts.fixed_strings then
-    ret[#ret + 1] = "--fixed-strings"
-  end
-
-  if opts.ignore_case then
-    ret[#ret + 1] = "--ignore-case"
-  end
-
-  if opts.smart_case then
-    ret[#ret + 1] = "--smart-case"
-  end
-
-  if opts.exclude ~= nil then
-    for path in iter(opts.exclude) do
-      ret[#ret + 1] = "-g!" .. path
-    end
-  end
-
-  if opts.max_count_per_file ~= nil then
-    ret[#ret + 1] = "-m=" .. opts.max_count_per_file
-  end
-
-  return ret
-end
-
----@param dir string|obsidian.Path
----@param term string|string[]
----@param opts obsidian.search.SearchOpts|?
----
----@return string[]
-M.build_search_cmd = function(dir, term, opts)
-  opts = opts and opts or {}
-
-  local search_terms
-  if type(term) == "string" then
-    search_terms = { "-e", term }
-  else
-    search_terms = {}
-    for t in iter(term) do
-      search_terms[#search_terms + 1] = "-e"
-      search_terms[#search_terms + 1] = t
-    end
-  end
-
-  local path = tostring(Path.new(dir):resolve { strict = true })
-  if opts.escape_path then
-    path = assert(vim.fn.fnameescape(path))
-  end
-
-  return compat.flatten {
-    M._SEARCH_CMD,
-    SearchOpts.to_ripgrep_opts(opts),
-    search_terms,
-    path,
-  }
-end
-
---- Build the 'rg' command for finding files.
----
----@param path string|?
----@param term string|?
----@param opts obsidian.search.SearchOpts|?
----
----@return string[]
-M.build_find_cmd = function(path, term, opts)
-  opts = opts and opts or {}
-  opts = vim.tbl_extend("keep", opts, {
-    sort_by = Obsidian.opts.sort_by,
-    sort_reversed = Obsidian.opts.sort_reversed,
-    ignore_case = true,
-  })
-
-  local additional_opts = {}
-
-  if term ~= nil then
-    if opts.include_non_markdown then
-      term = "*" .. term .. "*"
-    elseif not vim.endswith(term, ".md") then
-      term = "*" .. term .. "*.md"
-    else
-      term = "*" .. term
-    end
-    additional_opts[#additional_opts + 1] = "-g"
-    additional_opts[#additional_opts + 1] = term
-  end
-
-  if opts.ignore_case then
-    additional_opts[#additional_opts + 1] = "--glob-case-insensitive"
-  end
-
-  if path ~= nil and path ~= "." then
-    if opts.escape_path then
-      path = assert(vim.fn.fnameescape(tostring(path)))
-    end
-    additional_opts[#additional_opts + 1] = path
-  end
-
-  return compat.flatten { M._FIND_CMD, SearchOpts.to_ripgrep_opts(opts), additional_opts }
-end
-
---- Build the 'rg' grep command for pickers.
----
----@param opts obsidian.search.SearchOpts|?
----
----@return string[]
-M.build_grep_cmd = function(opts)
-  opts = opts and opts or {}
-
-  opts = vim.tbl_extend("keep", opts, {
-    sort_by = Obsidian.opts.sort_by,
-    sort_reversed = Obsidian.opts.sort_reversed,
-    smart_case = true,
-    fixed_strings = true,
-  })
-
-  return compat.flatten {
-    M._BASE_CMD,
-    SearchOpts.to_ripgrep_opts(opts),
-    "--column",
-    "--line-number",
-    "--no-heading",
-    "--with-filename",
-    "--color=never",
-  }
 end
 
 ---@class MatchPath
@@ -524,45 +283,6 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
   end)
 end
 
-local search_defaults = {
-  sort = false,
-  include_templates = false,
-  ignore_case = false,
-}
-
-M._defaults = search_defaults
-
----@param opts obsidian.SearchOpts|boolean|?
----@param additional_opts obsidian.search.SearchOpts|?
----
----@return obsidian.search.SearchOpts
----
----@private
-local _prepare_search_opts = function(opts, additional_opts)
-  opts = opts or search_defaults
-
-  local search_opts = {}
-
-  if opts.sort then
-    search_opts.sort_by = Obsidian.opts.sort_by
-    search_opts.sort_reversed = Obsidian.opts.sort_reversed
-  end
-
-  if not opts.include_templates and Obsidian.opts.templates ~= nil and Obsidian.opts.templates.folder ~= nil then
-    M.SearchOpts.add_exclude(search_opts, tostring(Obsidian.opts.templates.folder))
-  end
-
-  if opts.ignore_case then
-    search_opts.ignore_case = true
-  end
-
-  if additional_opts ~= nil then
-    search_opts = M.SearchOpts.merge(search_opts, additional_opts)
-  end
-
-  return search_opts
-end
-
 ---@param term string
 ---@param search_opts obsidian.SearchOpts|boolean|?
 ---@param find_opts obsidian.SearchOpts|boolean|?
@@ -602,12 +322,12 @@ local _search_async = function(term, search_opts, find_opts, callback, exit_call
   M.search_async(
     Obsidian.dir,
     term,
-    _prepare_search_opts(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
+    Opts._prepare(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
     on_search_match,
     on_exit
   )
 
-  M.find_async(Obsidian.dir, term, _prepare_search_opts(find_opts, { ignore_case = true }), on_find_match, on_exit)
+  M.find_async(Obsidian.dir, term, Opts._prepare(find_opts, { ignore_case = true }), on_find_match, on_exit)
 end
 
 --- An async version of `find_notes()` using coroutines.
@@ -620,7 +340,7 @@ M.find_notes_async = function(term, callback, opts)
     opts = opts or {}
     opts.notes = opts.notes or {}
     if not opts.notes.max_lines then
-      opts.notes.max_lines = Obsidian.opts.search_max_lines
+      opts.notes.max_lines = Obsidian.opts.search.max_lines
     end
 
     local Note = require "obsidian.note"
@@ -698,7 +418,7 @@ M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.notes = opts.notes or {}
   if not opts.notes.max_lines then
-    opts.notes.max_lines = Obsidian.opts.search_max_lines
+    opts.notes.max_lines = Obsidian.opts.search.max_lines
   end
   local Note = require "obsidian.note"
 
@@ -767,7 +487,7 @@ M.resolve_note = function(query, opts)
   ---@type obsidian.Note[]
   local fuzzy_matches = {}
 
-  for note in iter(results) do
+  for _, note in ipairs(results) do
     ---@cast note obsidian.Note
 
     local reference_ids = note:reference_ids { lowercase = true }
@@ -778,7 +498,7 @@ M.resolve_note = function(query, opts)
     else
       -- TODO: use vim.fn.fuzzymatch
       -- Fall back to fuzzy match.
-      for ref_id in iter(reference_ids) do
+      for _, ref_id in ipairs(reference_ids) do
         if util.string_contains(ref_id, query_lwr) then
           table.insert(fuzzy_matches, note)
           break
@@ -1070,7 +790,7 @@ M.find_tags_async = function(term, callback, opts)
   local load_note = function(path)
     local note = Note.from_file(path, {
       load_contents = true,
-      max_lines = Obsidian.opts.search_max_lines,
+      max_lines = Obsidian.opts.search.max_lines,
     })
     return { note, M.find_code_blocks(note.contents) }
   end
@@ -1104,7 +824,7 @@ M.find_tags_async = function(term, callback, opts)
     end
 
     -- check if the match was inside a code block.
-    for block in iter(code_blocks) do
+    for _, block in ipairs(code_blocks) do
       if block[1] <= match_data.line_number and match_data.line_number <= block[2] then
         return
       end
@@ -1114,7 +834,7 @@ M.find_tags_async = function(term, callback, opts)
     local n_matches = 0
 
     -- check for tag in the wild of the form '#{tag}'
-    for match in iter(M.find_tags_in_string(line)) do
+    for _, match in ipairs(M.find_tags_in_string(line)) do
       local m_start, m_end, _ = unpack(match)
       local tag = string.sub(line, m_start + 1, m_end)
       if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
@@ -1124,7 +844,7 @@ M.find_tags_async = function(term, callback, opts)
 
     -- check for tags in frontmatter
     if n_matches == 0 and note.tags ~= nil and (vim.startswith(line, "tags:") or string.match(line, "%s*- ")) then
-      for tag in iter(note.tags) do
+      for _, tag in ipairs(note.tags) do
         tag = tostring(tag)
         for _, t in ipairs(terms) do
           if string.len(t) == 0 or util.string_contains(tag, t) then
@@ -1137,7 +857,7 @@ M.find_tags_async = function(term, callback, opts)
   end
 
   local search_terms = {}
-  for t in iter(terms) do
+  for _, t in ipairs(terms) do
     if string.len(t) > 0 then
       -- tag in the wild
       search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsOptional .. t .. M.Patterns.TagCharsOptional
@@ -1162,7 +882,7 @@ M.find_tags_async = function(term, callback, opts)
   M.search_async(
     Obsidian.dir,
     search_terms,
-    _prepare_search_opts(opts.search, { ignore_case = true }),
+    Opts._prepare(opts.search, { ignore_case = true }),
     on_match,
     function(code)
       if code ~= 0 then

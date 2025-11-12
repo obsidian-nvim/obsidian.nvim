@@ -103,7 +103,7 @@ M.current_note = function(bufnr, opts)
 
   opts = opts or {}
   if not opts.max_lines then
-    opts.max_lines = Obsidian.opts.search_max_lines
+    opts.max_lines = Obsidian.opts.search.max_lines
   end
   return Note.from_buffer(bufnr, opts)
 end
