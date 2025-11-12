@@ -23,21 +23,6 @@ M._FIND_CMD = compat.flatten { M._BASE_CMD, "--files" }
 ---| "Highlight"
 ---| "HeaderLink"
 
----@type obsidian.search.RefTypes[]
-M.RefTypesList = {
-  "WikiWithAlias",
-  "Wiki",
-  "Markdown",
-  "NakedUrl",
-  "FileUrl",
-  "MailtoUrl",
-  "Tag",
-  "BlockID",
-  "Highlight",
-  -- "HeaderLink",
-}
-
----@enum obsidian.search.Patterns
 M.Patterns = {
   -- Tags
   TagCharsOptional = "[A-Za-z0-9_/-]*",
@@ -166,7 +151,20 @@ M.find_refs = function(s, opts)
     exclude_lookup[ref_type] = true
   end
 
-  for _, ref_type in ipairs(M.RefTypesList) do
+  ---@type obsidian.search.RefTypes[]
+  local parse_patterns = {
+    "WikiWithAlias",
+    "Wiki",
+    "Markdown",
+    "NakedUrl",
+    "FileUrl",
+    "MailtoUrl",
+    "Tag",
+    "BlockID",
+    "Highlight",
+  }
+
+  for _, ref_type in ipairs(parse_patterns) do
     if not exclude_lookup[ref_type] then
       pattern_names[#pattern_names + 1] = ref_type
     end
