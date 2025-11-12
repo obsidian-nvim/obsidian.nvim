@@ -10,11 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `definition` will resolve and follow `[[#header]]` links.
+- A new `search` module to contain search related options.
 
 ### Changed
 
 - Internally no longer use `abc` for building class.
 - Added `link` `link_new` and `extract_note` in `api.lua`.
+- `opts.search_max_links` -> `opts.search.max_links`.
+- `opts.sort_by` -> `opts.search.sort_by`.
+- `opts.sort_reversed` -> `opts.search.sort_reversed`.
 
 ### Fixed
 
