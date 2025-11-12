@@ -40,9 +40,9 @@
 ---@field new_notes_location? obsidian.config.NewNotesLocation
 ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
----@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
----@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
----@field preferred_link_style? obsidian.config.LinkStyle
+----@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
+----@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
+----@field preferred_link_style? obsidian.config.LinkStyle
 ---@field follow_url_func? fun(url: string)
 ---@field follow_img_func? fun(img: string)
 ---@field note_frontmatter_func? (fun(note: obsidian.Note): table)
@@ -64,6 +64,7 @@
 ---@field comment? obsidian.config.CommentOpts
 ---@field search? obsidian.config.SearchOpts
 ---@field note? obsidian.config.NoteOpts
+---@field link? obsidian.config.LinkOpts
 
 ---@class obsidian.config.Internal
 ---@field dir string|?
@@ -72,11 +73,11 @@
 ---@field notes_subdir string|?
 ---@field templates obsidian.config.TemplateOpts
 ---@field new_notes_location obsidian.config.NewNotesLocation
----@field note_id_func (fun(id: string|?, path: obsidian.Path|?): string)|?
----@field note_path_func (fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)|?
----@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
----@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
----@field preferred_link_style obsidian.config.LinkStyle
+---@field note_id_func (fun(title: string|?, path: obsidian.Path|?): string)|?
+---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path)|?
+----@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
+----@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
+----@field preferred_link_style obsidian.config.LinkStyle
 ---@field follow_url_func fun(url: string)|?
 ---@field follow_img_func fun(img: string)|?
 ---@field frontmatter obsidian.config.FrontmatterOpts
@@ -96,3 +97,4 @@
 ---@field comment obsidian.config.CommentOpts
 ---@field search obsidian.config.SearchOpts
 ---@field note obsidian.config.NoteOpts
+---@field link obsidian.config.LinkOpts
