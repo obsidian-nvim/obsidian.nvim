@@ -2,21 +2,11 @@ local M = require "obsidian.search"
 local h = dofile "tests/helpers.lua"
 local child
 
-local RefTypes, SearchOpts = M.RefTypes, M.SearchOpts
+local SearchOpts = M.SearchOpts
 
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
-
-T["types"] = function()
-  for k, v in pairs(RefTypes) do
-    eq(k, v)
-  end
-
-  for _, ref_type in pairs(RefTypes) do
-    eq(type(M.Patterns[ref_type]), "string")
-  end
-end
 
 T["find_and_replace_refs"] = function()
   local s, indices = M.find_and_replace_refs "[[Foo]] [[foo|Bar]]"
@@ -41,26 +31,26 @@ T["find_refs"] = new_set()
 
 T["find_refs"]["should find positions of all refs"] = function()
   local s = "[[Foo]] [[foo|Bar]]"
-  MiniTest.expect.equality({ { 1, 7, RefTypes.Wiki }, { 9, 19, RefTypes.WikiWithAlias } }, M.find_refs(s))
+  MiniTest.expect.equality({ { 1, 7, "Wiki" }, { 9, 19, "WikiWithAlias" } }, M.find_refs(s))
 end
 
 T["find_refs"]["should ignore refs within an inline code block"] = function()
   local s = "`[[Foo]]` [[foo|Bar]]"
-  MiniTest.expect.equality({ { 11, 21, RefTypes.WikiWithAlias } }, M.find_refs(s))
+  MiniTest.expect.equality({ { 11, 21, "WikiWithAlias" } }, M.find_refs(s))
 
   s = "[nvim-cmp](https://github.com/hrsh7th/nvim-cmp) (triggered by typing `[[` for wiki links or "
     .. "just `[` for markdown links), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep)"
   MiniTest.expect.equality(
-    { { 1, 47, RefTypes.Markdown }, { 134, 183, RefTypes.Markdown } },
+    { { 1, 47, "Markdown" }, { 134, 183, "Markdown" } },
     M.find_refs(s, {
-      exclude = { M.RefTypes.NakedUrl },
+      exclude = { "NakedUrl" },
     })
   )
 end
 
 T["find_refs"]["should find block IDs at the end of a line"] = function()
   MiniTest.expect.equality(
-    { { 14, 25, RefTypes.BlockID } },
+    { { 14, 25, "BlockID" } },
     M.find_refs("Hello World! ^hello-world", { include_block_ids = true })
   )
 end
@@ -98,7 +88,7 @@ T["find_matches"] = function()
 - <https://youtube.com@Fireship>
 - [Fireship](https://youtube.com@Fireship)
   ]],
-    { RefTypes.NakedUrl }
+    { "NakedUrl" }
   )
   eq(2, #matches)
 end
@@ -124,7 +114,7 @@ end
 
 T["find_tags_in_string"]["should ignore escaped tags"] = function()
   local s = "I have a #meeting at noon \\#not-a-tag"
-  eq({ { 10, 17, RefTypes.Tag } }, M.find_tags_in_string(s))
+  eq({ { 10, 17, "Tag" } }, M.find_tags_in_string(s))
   s = [[\#notatag]]
   eq({}, M.find_tags_in_string(s))
 end
@@ -155,7 +145,7 @@ end
 
 T["find_tags_in_string"]["should ignore tags not on word boundaries"] = function()
   eq({}, M.find_tags_in_string "foobar#notatag")
-  eq({ { 9, 12, RefTypes.Tag } }, M.find_tags_in_string "foo bar #tag")
+  eq({ { 9, 12, "Tag" } }, M.find_tags_in_string "foo bar #tag")
 end
 
 T["find_tags_in_string"]["should ignore tags in markdown links with parentheses"] = function()
