@@ -1,6 +1,5 @@
 local obsidian = require "obsidian"
 local search = obsidian.search
-local RefTypes = obsidian.search.RefTypes
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
@@ -57,16 +56,16 @@ local function create_new_note(location, name)
   end
 end
 
----@type table<string, function>
+---@type table<obsidian.search.RefTypes, function>
 local handlers = {}
 
-handlers[RefTypes.NakedUrl] = function(location)
+handlers.NakedUrl = function(location)
   -- TODO: Obsidian.opts.open.func
   Obsidian.opts.follow_url_func(location)
   return nil
 end
 
-handlers[RefTypes.FileUrl] = function(location)
+handlers.FileUrl = function(location)
   local line = 0 -- TODO: :lnum?
   return {
     {
@@ -79,8 +78,8 @@ handlers[RefTypes.FileUrl] = function(location)
   }
 end
 
-handlers[RefTypes.Wiki] = function(location, name)
-  local _, _, location_type = util.parse_link(location, { exclude = { RefTypes.Tag, RefTypes.BlockID } })
+handlers.Wiki = function(location, name)
+  local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
   if util.is_img(location) then -- TODO: include in parse_link
     local path = api.resolve_image_path(location)
     -- TODO: Obsidian.opts.open.func
@@ -113,10 +112,31 @@ handlers[RefTypes.Wiki] = function(location, name)
   end
 end
 
-handlers[RefTypes.WikiWithAlias] = handlers.Wiki
-handlers[RefTypes.Markdown] = handlers.Wiki
+handlers.WikiWithAlias = handlers.Wiki
+handlers.Markdown = handlers.Wiki
 
-handlers[RefTypes.MailtoUrl] = function(location)
+handlers.HeaderLink = function(location)
+  local note = api.current_note(0, { collect_anchor_links = true })
+  if not note or vim.tbl_isempty(note.anchor_links) then
+    return
+  end
+  local anchor_obj = note:resolve_anchor_link(location)
+  if not anchor_obj then
+    return
+  end
+  local line = anchor_obj.line - 1
+  return {
+    {
+      uri = vim.uri_from_fname(tostring(note.path)),
+      range = {
+        start = { line = line, character = 0 },
+        ["end"] = { line = line, character = 0 },
+      },
+    },
+  }
+end
+
+handlers.MailtoUrl = function(location)
   -- TODO: Obsidian.opts.open.func
   vim.ui.open(location)
   return nil
@@ -124,7 +144,7 @@ end
 
 return {
   follow_link = function(link, callback)
-    local location, name, link_type = util.parse_link(link, { exclude = { RefTypes.Tag, RefTypes.BlockID } })
+    local location, name, link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
 
     if not location then
       return callback(nil, {})

@@ -234,10 +234,10 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
-  local matches = search.find_refs(line, { exclude = { search.RefTypes.FileUrl } })
-  for match in iter(matches) do
+  local matches = search.find_refs(line, { exclude = { "FileUrl" } })
+  for _, match in ipairs(matches) do
     local m_start, m_end, m_type = unpack(match)
-    if m_type == search.RefTypes.WikiWithAlias then
+    if m_type == "WikiWithAlias" then
       -- Reference of the form [[xxx|yyy]]
       local pipe_loc = string.find(line, "|", m_start, true)
       assert(pipe_loc, "")
@@ -275,7 +275,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           conceal = "",
         }
       )
-    elseif m_type == search.RefTypes.Wiki then
+    elseif m_type == "Wiki" then
       -- Reference of the form [[xxx]]
       -- Conceal the opening '[['
       marks[#marks + 1] = ExtMark.new(
@@ -311,7 +311,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           conceal = "",
         }
       )
-    elseif m_type == search.RefTypes.Markdown then
+    elseif m_type == "Markdown" then
       -- Reference of the form [yyy](xxx)
       local closing_bracket_loc = string.find(line, "]", m_start, true)
       assert(closing_bracket_loc, "")
@@ -373,7 +373,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           conceal = is_url and " " or "",
         }
       )
-    elseif m_type == search.RefTypes.NakedUrl then
+    elseif m_type == "NakedUrl" then
       -- A "naked" URL is just a URL by itself, like 'https://github.com/'
       local domain_start_loc = string.find(line, "://", m_start, true)
       assert(domain_start_loc, "")
@@ -401,7 +401,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           spell = false,
         }
       )
-    elseif m_type == search.RefTypes.Tag then
+    elseif m_type == "Tag" then
       -- A tag is like '#tag'
       marks[#marks + 1] = ExtMark.new(
         nil,
@@ -414,7 +414,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           spell = false,
         }
       )
-    elseif m_type == search.RefTypes.BlockID then
+    elseif m_type == "BlockID" then
       -- A block ID, like '^hello-world'
       marks[#marks + 1] = ExtMark.new(
         nil,

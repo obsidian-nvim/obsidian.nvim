@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `definition` will resolve and follow `[[#header]]` links.
+
 ### Changed
 
 - Internally no longer use `abc` for building class.

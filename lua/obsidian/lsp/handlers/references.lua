@@ -1,6 +1,5 @@
 local util = require "obsidian.util"
 local log = require "obsidian.log"
-local RefTypes = require("obsidian.search").RefTypes
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 
@@ -31,12 +30,7 @@ return function(_, handler)
 
   local locations = {} ---@type lsp.Location[]
 
-  if
-    cur_link ~= nil
-    and link_type ~= RefTypes.NakedUrl
-    and link_type ~= RefTypes.FileUrl
-    and link_type ~= RefTypes.BlockID
-  then
+  if cur_link ~= nil and link_type ~= "NakedUrl" and link_type ~= "FileUrl" and link_type ~= "BlockID" then
     local location = util.parse_link(cur_link)
     assert(location, "failed to parse link")
 
@@ -67,7 +61,7 @@ return function(_, handler)
     ---@type obsidian.note.LoadOpts
     local load_opts = {}
 
-    if cur_link and link_type == RefTypes.BlockID then
+    if cur_link and link_type == "BlockID" then
       opts.block = util.parse_link(cur_link, { include_block_ids = true })
     else
       load_opts.collect_anchor_links = true

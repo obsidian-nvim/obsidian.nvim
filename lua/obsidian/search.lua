@@ -11,20 +11,18 @@ M._BASE_CMD = { "rg", "--no-config", "--type=md" }
 M._SEARCH_CMD = compat.flatten { M._BASE_CMD, "--json" }
 M._FIND_CMD = compat.flatten { M._BASE_CMD, "--files" }
 
----@enum obsidian.search.RefTypes
-M.RefTypes = {
-  WikiWithAlias = "WikiWithAlias",
-  Wiki = "Wiki",
-  Markdown = "Markdown",
-  NakedUrl = "NakedUrl",
-  FileUrl = "FileUrl",
-  MailtoUrl = "MailtoUrl",
-  Tag = "Tag",
-  BlockID = "BlockID",
-  Highlight = "Highlight",
-}
+---@alias obsidian.search.RefTypes
+---| "Wiki"
+---| "WikiWithAlias"
+---| "Markdown"
+---| "NakedUrl"
+---| "FileUrl"
+---| "MailtoUrl"
+---| "Tag"
+---| "BlockID"
+---| "Highlight"
+---| "HeaderLink"
 
----@enum obsidian.search.Patterns
 M.Patterns = {
   -- Tags
   TagCharsOptional = "[A-Za-z0-9_/-]*",
@@ -46,7 +44,7 @@ M.Patterns = {
 
 ---@type table<obsidian.search.RefTypes, { ignore_if_escape_prefix: boolean|? }>
 M.PatternConfig = {
-  [M.RefTypes.Tag] = { ignore_if_escape_prefix = true },
+  Tag = { ignore_if_escape_prefix = true },
 }
 
 --- Find all matches of a pattern
@@ -63,7 +61,7 @@ M.find_matches = function(s, pattern_names)
   end
 
   local matches = {}
-  for pattern_name in iter(pattern_names) do
+  for _, pattern_name in ipairs(pattern_names) do
     local pattern = M.Patterns[pattern_name]
     local pattern_cfg = M.PatternConfig[pattern_name]
     local search_start = 1
@@ -127,7 +125,7 @@ end
 ---@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes }[]
 M.find_highlight = function(s)
   local matches = {}
-  for match in iter(M.find_matches(s, { M.RefTypes.Highlight })) do
+  for match in iter(M.find_matches(s, { "Highlight" })) do
     -- Remove highlights that begin/end with whitespace
     local match_start, match_end, _ = unpack(match)
     local text = string.sub(s, match_start + 2, match_end - 2)
@@ -146,14 +144,27 @@ end
 M.find_refs = function(s, opts)
   opts = opts and opts or {}
 
-  local exclude_lookup = { [M.RefTypes.Highlight] = true }
+  local exclude_lookup = { ["Highlight"] = true }
   local pattern_names = {}
 
   for _, ref_type in ipairs(opts.exclude or {}) do
     exclude_lookup[ref_type] = true
   end
 
-  for ref_type in pairs(M.RefTypes) do
+  ---@type obsidian.search.RefTypes[]
+  local parse_patterns = {
+    "WikiWithAlias",
+    "Wiki",
+    "Markdown",
+    "NakedUrl",
+    "FileUrl",
+    "MailtoUrl",
+    "Tag",
+    "BlockID",
+    "Highlight",
+  }
+
+  for _, ref_type in ipairs(parse_patterns) do
     if not exclude_lookup[ref_type] then
       pattern_names[#pattern_names + 1] = ref_type
     end
@@ -171,12 +182,12 @@ M.find_tags_in_string = function(s)
   if string.find(s, "<!--.*-->") ~= nil then
     return matches
   end
-  for match in iter(M.find_matches(s, { M.RefTypes.Tag })) do
+  for _, match in ipairs(M.find_matches(s, { "Tag" })) do
     local st, ed, m_type = unpack(match)
     local look_ahead = s:sub(st - 1, st - 1)
     if st == 1 or look_ahead == " " then
       local match_string = s:sub(st, ed)
-      if m_type == M.RefTypes.Tag and not util.is_hex_color(match_string) then
+      if m_type == "Tag" and not util.is_hex_color(match_string) then
         matches[#matches + 1] = match
       end
     end
@@ -800,7 +811,7 @@ M.find_links = function(note)
   local lines = io.lines(tostring(note.path))
 
   for lnum, line in vim.iter(lines):enumerate() do
-    for _, ref_match in ipairs(M.find_refs(line, { exclude = { M.RefTypes.BlockID, M.RefTypes.Tag } })) do
+    for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID", "Tag" } })) do
       local m_start, m_end = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)
       if not found[link] then

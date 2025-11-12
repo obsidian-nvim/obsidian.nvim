@@ -153,9 +153,9 @@ util.is_url = function(s)
   local search = require "obsidian.search"
 
   if
-    string.match(vim.trim(s), "^" .. search.Patterns[search.RefTypes.NakedUrl] .. "$")
-    or string.match(vim.trim(s), "^" .. search.Patterns[search.RefTypes.FileUrl] .. "$")
-    or string.match(vim.trim(s), "^" .. search.Patterns[search.RefTypes.MailtoUrl] .. "$")
+    string.match(vim.trim(s), "^" .. search.Patterns["NakedUrl"] .. "$")
+    or string.match(vim.trim(s), "^" .. search.Patterns["FileUrl"] .. "$")
+    or string.match(vim.trim(s), "^" .. search.Patterns["MailtoUrl"] .. "$")
   then
     return true
   else
@@ -420,7 +420,7 @@ util.parse_link = function(link, opts)
 
   local link_type = opts.link_type
   if link_type == nil then
-    for _, match in ipairs(search.find_refs(link, { exclude = { search.RefTypes.Tag } })) do
+    for _, match in ipairs(search.find_refs(link, { exclude = { "Tag" } })) do
       local _, _, m_type = unpack(match)
       if m_type then
         link_type = m_type
@@ -434,17 +434,13 @@ util.parse_link = function(link, opts)
   end
 
   local link_location, link_name
-  if link_type == search.RefTypes.Markdown then
+  if link_type == "Markdown" then
     link_location = link:gsub("^%[(.-)%]%((.*)%)$", "%2")
     link_name = link:gsub("^%[(.-)%]%((.*)%)$", "%1")
-  elseif
-    link_type == search.RefTypes.NakedUrl
-    or link_type == search.RefTypes.FileUrl
-    or link_type == search.RefTypes.MailtoUrl
-  then
+  elseif link_type == "NakedUrl" or link_type == "FileUrl" or link_type == "MailtoUrl" then
     link_location = link
     link_name = link
-  elseif link_type == search.RefTypes.WikiWithAlias then
+  elseif link_type == "WikiWithAlias" then
     link = util.unescape_single_backslash(link)
     -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'
     link = link:sub(3, #link - 2)
@@ -452,12 +448,15 @@ util.parse_link = function(link, opts)
     local split_idx = link:find "|"
     link_location = link:sub(1, split_idx - 1)
     link_name = link:sub(split_idx + 1)
-  elseif link_type == search.RefTypes.Wiki then
+  elseif link_type == "Wiki" then
     -- remove boundary brackets, e.g. '[[YYY]]' -> 'YYY'
     link = link:sub(3, #link - 2)
     link_location = link
     link_name = link
-  elseif link_type == search.RefTypes.BlockID then
+    if vim.startswith(link, "#") then
+      return link:lower(), link, "HeaderLink" -- location is lower for lookup, name is preserved the original case
+    end
+  elseif link_type == "BlockID" then
     link_location = util.standardize_block(link)
     link_name = link
   else

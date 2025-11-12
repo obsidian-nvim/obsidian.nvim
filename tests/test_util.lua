@@ -228,6 +228,11 @@ T["parse"]["link"]["should strip if specified"] = function()
   eq(location, "hi")
 end
 
+T["parse"]["link"]["should find header links"] = function()
+  local location = M.parse_link("[[#header]]", { strip = true })
+  eq(location, "#header")
+end
+
 T["strip"] = new_set()
 
 T["strip"]["block_links"] = new_set()
