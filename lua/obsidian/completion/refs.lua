@@ -14,8 +14,6 @@ local find_search_start = function(input)
       return nil
     elseif vim.startswith(substr, "[[") then
       return substr, string.sub(substr, 3)
-    elseif vim.startswith(substr, "[") and string.sub(input, i - 1, i - 1) ~= "[" then
-      return substr, string.sub(substr, 2)
     end
   end
   return nil
