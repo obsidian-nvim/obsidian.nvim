@@ -3,7 +3,7 @@ local M = {}
 local util = require "obsidian.util"
 
 ---@class obsidian.link.LinkCreationOpts
----@field label string
+---@field label? string
 ---@field path? obsidian.Path|string|?
 ---@field id? string|integer|?
 ---@field anchor? obsidian.note.HeaderAnchor|?
