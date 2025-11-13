@@ -25,8 +25,8 @@ return {
   link = {
     style = "wiki",
     markdown = require("obsidian.builtin").markdown_link,
-    wiki = require("obsidian.builtin").wiki_link_id_prefix,
-    fromat = "shortest",
+    wiki = require("obsidian.builtin").wiki_link_path_only,
+    format = "shortest",
   },
 
   workspaces = {},
