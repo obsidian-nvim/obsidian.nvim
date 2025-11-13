@@ -136,6 +136,27 @@ handlers.HeaderLink = function(location)
   }
 end
 
+handlers.BlockLink = function(location)
+  local note = api.current_note(0, { collect_blocks = true })
+  if not note or vim.tbl_isempty(note.blocks) then
+    return
+  end
+  local block_obj = note:resolve_block(location)
+  if not block_obj then
+    return
+  end
+  local line = block_obj.line - 1
+  return {
+    {
+      uri = vim.uri_from_fname(tostring(note.path)),
+      range = {
+        start = { line = line, character = 0 },
+        ["end"] = { line = line, character = 0 },
+      },
+    },
+  }
+end
+
 handlers.MailtoUrl = function(location)
   -- TODO: Obsidian.opts.open.func
   vim.ui.open(location)

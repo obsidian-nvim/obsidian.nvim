@@ -37,4 +37,27 @@ T["header link"]["should find in markdown link"] = function()
   eq(t, "HeaderLink")
 end
 
+T["block link"] = new_set()
+
+T["block link"]["should find in wiki link"] = function()
+  local location, name, t = M.parse_link "[[#^block]]"
+  eq(location, "#^block")
+  eq(name, "block")
+  eq(t, "BlockLink")
+end
+
+T["block link"]["should find in wiki link"] = function()
+  local location, name, t = M.parse_link "[[#^block|Block]]"
+  eq(location, "#^block")
+  eq(name, "Block")
+  eq(t, "BlockLink")
+end
+
+T["block link"]["should find in markdown link"] = function()
+  local location, name, t = M.parse_link "[Block](#^block)"
+  eq(location, "#^block")
+  eq(name, "Block")
+  eq(t, "BlockLink")
+end
+
 return T
