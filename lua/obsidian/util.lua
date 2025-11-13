@@ -2,6 +2,8 @@ local compat = require "obsidian.compat"
 local ts, string, table = vim.treesitter, string, table
 local util = {}
 
+util.relpath = require("obsidian.util.fs").relpath
+
 setmetatable(util, {
   __index = function(_, k)
     return require("obsidian.api")[k] or require("obsidian.builtin")[k]
