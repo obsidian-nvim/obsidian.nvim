@@ -20,14 +20,6 @@ config.SortBy = {
   created = "created",
 }
 
----@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"
-
----@enum obsidian.config.LinkStyle
-config.LinkStyle = {
-  wiki = "wiki",
-  markdown = "markdown",
-}
-
 ---@enum obsidian.config.Picker
 config.Picker = {
   telescope = "telescope.nvim",
