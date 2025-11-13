@@ -3,12 +3,12 @@ local M = {}
 local util = require "obsidian.util"
 
 ---@class obsidian.link.LinkCreationOpts
----@field path obsidian.Path
 ---@field label string
----@field id string|integer|?
----@field anchor obsidian.note.HeaderAnchor|?
----@field block obsidian.note.Block|?
----@field style "wiki" | "markdown"
+---@field path? obsidian.Path|string|?
+---@field id? string|integer|?
+---@field anchor? obsidian.note.HeaderAnchor|?
+---@field block? obsidian.note.Block|?
+---@field style? "wiki" | "markdown"
 
 ---Create a new unique Zettel ID.
 ---
@@ -34,6 +34,7 @@ M.wiki_link_alias_only = function(opts)
   return string.format("[[%s%s]]", opts.label, header_or_block)
 end
 
+---NOTE: more close to what should be default
 ---@param opts obsidian.link.LinkCreationOpts
 ---@return string
 M.wiki_link_path_only = function(opts)
@@ -89,19 +90,6 @@ M.wiki_link_id_prefix = function(opts)
   end
 end
 
----@param path obsidian.Path vault-relative-path
----@param style "shortest" | "relative" | "absolute"
----@return string foramted_path
-local function format_path(path, style)
-  if style == "absolute" then
-    return assert(path:vault_relative_path {})
-  elseif style == "relative" then
-    return assert(tostring(path:relative_to(Obsidian.buf_dir)), "failed to resolve link path against current note")
-  else
-    return vim.fs.basename(tostring(path))
-  end
-end
-
 ---@param opts obsidian.link.LinkCreationOpts
 ---@return string
 M.markdown_link = function(opts)
@@ -115,10 +103,7 @@ M.markdown_link = function(opts)
     header = "#" .. opts.block.id
   end
 
-  local path = format_path(opts.path, Obsidian.opts.link.format)
-  path = util.urlencode(path, { keep_path_sep = true })
-
-  return string.format("[%s%s](%s%s)", opts.label, header, path, anchor)
+  return string.format("[%s%s](%s%s)", opts.label, header, opts.path, anchor)
 end
 
 ---@param path string
