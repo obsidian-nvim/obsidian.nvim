@@ -453,14 +453,18 @@ util.parse_link = function(link, opts)
     link = link:sub(3, #link - 2)
     link_location = link
     link_name = link
-    if vim.startswith(link, "#") then
-      return link:lower(), link, "HeaderLink" -- location is lower for lookup, name is preserved the original case
-    end
   elseif link_type == "BlockID" then
     link_location = util.standardize_block(link)
     link_name = link
   else
     error("not implemented for " .. link_type)
+  end
+
+  if vim.startswith(link_location, "#") then
+    if vim.startswith(link_name, "#") then
+      link_name = link_name:sub(2)
+    end
+    return link_location:lower(), link_name, "HeaderLink" -- location is lower for lookup, name is preserved the original case
   end
 
   if opts.strip then
