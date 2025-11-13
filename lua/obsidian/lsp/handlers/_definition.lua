@@ -91,6 +91,7 @@ handlers.Wiki = function(location, name)
     local block_link, anchor_link
     location, block_link = util.strip_block_links(location)
     location, anchor_link = util.strip_anchor_links(location)
+    location = vim.uri_decode(location)
 
     local notes = search.resolve_note(location, {
       notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
