@@ -11,7 +11,6 @@ local Path = require "obsidian.path"
 ---@field search string|?
 ---@field insert_start integer|?
 ---@field insert_end integer|?
----@field ref_type obsidian.completion.RefType|?
 local NewNoteSourceCompletionContext = {}
 NewNoteSourceCompletionContext.__index = NewNoteSourceCompletionContext
 
@@ -122,7 +121,6 @@ function NewNoteSourceBase:process_completion(cc)
 
     assert(new_note.path, "note without path")
 
-    ---@type obsidian.config.LinkStyle, string
     local label
     if Obsidian.opts.link.style == "wiki" then
       label = string.format("[[%s]] (create)", new_note_opts.label)
@@ -177,7 +175,7 @@ end
 ---@return boolean success provides a chance to return early if the request didn't meet the requirements
 function NewNoteSourceBase:can_complete_request(cc)
   local can_complete
-  can_complete, cc.search, cc.insert_start, cc.insert_end, cc.ref_type = completion.can_complete(cc.request)
+  can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
 
   if cc.search ~= nil then
     cc.search = util.lstrip_whitespace(cc.search)
