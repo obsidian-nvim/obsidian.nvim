@@ -438,8 +438,18 @@ T["format_link"]["wiki should respect link.format"] = function()
   eq("[[foo]]", note:format_link())
   Obsidian.opts.link.format = "absolute"
   eq("[[notes/foo]]", note:format_link())
-  -- Obsidian.opts.link.format = "relative"
-  -- eq("[[foo]]", note:format_link())
+
+  Obsidian.opts.link.format = "relative"
+
+  local subfolder = Obsidian.dir / "notes" / "sub"
+  subfolder:mkdir { exist_ok = true }
+
+  Obsidian.buf_dir = subfolder
+  eq("[[../foo]]", note:format_link())
+
+  Obsidian.buf_dir = Obsidian.dir / "notes"
+  local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
+  eq("[[sub/bar]]", bar_note:format_link())
 end
 
 T["format_link"]["markdown should respect link.format"] = function()
@@ -450,8 +460,18 @@ T["format_link"]["markdown should respect link.format"] = function()
   eq("[foo](foo.md)", note:format_link())
   Obsidian.opts.link.format = "absolute"
   eq("[foo](notes/foo.md)", note:format_link())
-  -- Obsidian.opts.link.format = "relative"
-  -- eq("[[foo]]", note:format_link())
+
+  Obsidian.opts.link.format = "relative"
+
+  local subfolder = Obsidian.dir / "notes" / "sub"
+  subfolder:mkdir { exist_ok = true }
+
+  Obsidian.buf_dir = subfolder
+  eq("[foo](../foo.md)", note:format_link())
+
+  Obsidian.buf_dir = Obsidian.dir / "notes"
+  local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
+  eq("[bar](sub/bar.md)", bar_note:format_link())
 end
 
 -- T["reference_paths"] = new_set()
