@@ -14,8 +14,6 @@ local find_search_start = function(input)
       return nil
     elseif vim.startswith(substr, "[[") then
       return substr, string.sub(substr, 3)
-    elseif vim.startswith(substr, "[") and string.sub(input, i - 1, i - 1) ~= "[" then
-      return substr, string.sub(substr, 2)
     end
   end
   return nil
@@ -42,11 +40,6 @@ M.can_complete = function(request)
     local suffix = string.sub(request.context.cursor_after_line, 1, 2)
     local cursor_char = request.context.cursor.character
     local insert_end_offset = suffix == "]]" and 1 or -1
-    return true, search, cursor_char - vim.fn.strchars(input), cursor_char + 1 + insert_end_offset
-  elseif vim.startswith(input, "[") then
-    local suffix = string.sub(request.context.cursor_after_line, 1, 1)
-    local cursor_char = request.context.cursor.character
-    local insert_end_offset = suffix == "]" and 0 or -1
     return true, search, cursor_char - vim.fn.strchars(input), cursor_char + 1 + insert_end_offset
   else
     return false
