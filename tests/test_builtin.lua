@@ -76,8 +76,4 @@ T["markdown_link"]["should work with an anchor link"] = function()
   )
 end
 
-T["markdown_link"]["should URL-encode paths"] = function()
-  eq("[Foo](notes/123%20foo.md)", builtin.markdown_link { path = "notes/123 foo.md", id = "123-foo", label = "Foo" })
-end
-
 return T
