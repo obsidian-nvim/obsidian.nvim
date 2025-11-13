@@ -23,6 +23,7 @@ M.build_grep_cmd = Ripgrep.build_grep_cmd
 ---| "BlockID"
 ---| "Highlight"
 ---| "HeaderLink"
+---| "BlockLink"
 
 M.Patterns = {
   -- Tags

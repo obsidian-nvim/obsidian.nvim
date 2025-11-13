@@ -460,11 +460,16 @@ util.parse_link = function(link, opts)
     error("not implemented for " .. link_type)
   end
 
-  if vim.startswith(link_location, "#") then
+  if vim.startswith(link_location, "#^") then
+    if vim.startswith(link_name, "#^") then
+      link_name = link_name:sub(3)
+    end
+    return link_location:lower(), link_name, "BlockLink" -- location is lower for lookup, name is preserved with the original case
+  elseif vim.startswith(link_location, "#") then
     if vim.startswith(link_name, "#") then
       link_name = link_name:sub(2)
     end
-    return link_location:lower(), link_name, "HeaderLink" -- location is lower for lookup, name is preserved the original case
+    return link_location:lower(), link_name, "HeaderLink" -- location is lower for lookup, name is preserved with the original case
   end
 
   if opts.strip then
