@@ -15,7 +15,6 @@ local util = require "obsidian.util"
 local iter = vim.iter
 local compat = require "obsidian.compat"
 local api = require "obsidian.api"
-local config = require "obsidian.config"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
 
@@ -179,6 +178,7 @@ Note._get_creation_opts = function(opts)
         note_id_func = cfg.note_id_func or ret.note_id_func,
         new_notes_location = "notes_subdir",
       }
+      break
     end
   end
   return ret
@@ -248,7 +248,7 @@ Note._resolve_id_path = function(opts)
   else
     local bufpath = Path.buffer(0):resolve()
     if
-      creation_opts.new_notes_location == "current_dir"
+      strategy.new_notes_location == "current_dir"
       -- note is actually in the workspace.
       and Obsidian.dir:is_parent_of(bufpath)
       -- note is not in dailies folder
@@ -1183,9 +1183,22 @@ Note.links = function(self)
   return search.find_links(self)
 end
 
+---@param path obsidian.Path vault-relative-path
+---@param style obsidian.link.LinkFormat
+---@return string foramted_path
+local function format_path(path, style)
+  if style == "absolute" then
+    return assert(path:vault_relative_path {})
+  elseif style == "relative" then
+    return assert(tostring(path:relative_to(Obsidian.buf_dir)), "failed to resolve link path against current note")
+  else
+    return vim.fs.basename(tostring(path))
+  end
+end
+
 --- Create a formatted markdown / wiki link for a note.
 ---
----@param opts obsidian.link.LinkCreationOpts
+---@param opts obsidian.link.LinkCreationOpts?
 ---@return string
 Note.format_link = function(self, opts)
   opts = opts or {}
@@ -1193,17 +1206,23 @@ Note.format_link = function(self, opts)
   local note_id = opts.id or self.id
   local link_style = opts.style or Obsidian.opts.link.style
 
+  local formatted_path = format_path(self.path, Obsidian.opts.link.format)
+  formatted_path = util.urlencode(formatted_path, { keep_path_sep = true })
+  if link_style == "wiki" then
+    formatted_path = formatted_path:gsub(".md", "")
+  end
+
   local new_opts = {
-    path = self.path,
+    path = formatted_path,
     label = label,
     id = note_id,
     anchor = opts.anchor,
     block = opts.block,
   }
 
-  if link_style == config.LinkStyle.markdown then
+  if link_style == "markdown" then
     return Obsidian.opts.link.markdown(new_opts)
-  elseif link_style == config.LinkStyle.wiki or link_style == nil then
+  elseif link_style == "wiki" or link_style == nil then
     return Obsidian.opts.link.wiki(new_opts)
   else
     error(string.format("Invalid link style '%s'", link_style))
@@ -1243,7 +1262,7 @@ end
 ---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string
 ---@field note_id_func fun()
----@field new_notes_location obsidian.config.NewNotesLocation
+---@field new_notes_location "current_dir" | "notes_subdir"
 
 ---@class (exact) obsidian.note.NoteOpts
 ---@field id string|? An ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true

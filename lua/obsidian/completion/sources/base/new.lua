@@ -1,6 +1,5 @@
 local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
-local LinkStyle = require("obsidian.config").LinkStyle
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 
