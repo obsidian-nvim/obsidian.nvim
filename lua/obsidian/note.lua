@@ -1190,7 +1190,8 @@ local function format_path(path, style)
   if style == "absolute" then
     return assert(path:vault_relative_path {})
   elseif style == "relative" then
-    return assert(tostring(path:relative_to(Obsidian.buf_dir)), "failed to resolve link path against current note")
+    local relpath = util.relpath(tostring(Obsidian.buf_dir), tostring(path))
+    return assert(relpath, "failed to resolve link path against current note")
   else
     return vim.fs.basename(tostring(path))
   end
