@@ -44,11 +44,11 @@ jobs:
           export VIM="${PWD}/_neovim/share/nvim/runtime"
           make api-docs
 
-      - name: Generate plugin docs
-        run: |
-          export PATH="${PWD}/_neovim/bin:${PATH}"
-          export VIM="${PWD}/_neovim/share/nvim/runtime"
-          make user-docs
+      # - name: Generate plugin docs
+      #   run: |
+      #     export PATH="${PWD}/_neovim/bin:${PATH}"
+      #     export VIM="${PWD}/_neovim/share/nvim/runtime"
+      #     make user-docs
 
       - name: Clean up
         run: |
