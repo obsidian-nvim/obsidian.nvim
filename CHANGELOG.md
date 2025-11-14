@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## Fixed
+### Added
+
+- `fzf` when pick files will give proper previews.
+
+### Fixed
 
 - `definition` will properly follow encoded paths.
 

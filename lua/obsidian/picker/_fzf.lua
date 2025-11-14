@@ -180,6 +180,9 @@ M.pick = function(values, opts)
 
   ---@type table<string, any>
   local display_to_value_map = {}
+  local file_preview = vim.iter(values):any(function(v)
+    return type(v) == "table" and v.filename ~= nil
+  end)
 
   ---@type string[]
   local entries = {}
@@ -197,7 +200,27 @@ M.pick = function(values, opts)
     end
   end
 
+  local builtin = require "fzf-lua.previewer.builtin"
+
+  local MyPreviewer = builtin.buffer_or_file:extend()
+
+  function MyPreviewer:new(o, _opts, fzf_win)
+    MyPreviewer.super.new(self, o, _opts, fzf_win)
+    setmetatable(self, MyPreviewer)
+    return self
+  end
+
+  function MyPreviewer:parse_entry(entry_str)
+    local entry = display_to_value_map[entry_str]
+    return {
+      path = entry.filename,
+      line = entry.lnum,
+      col = entry.col,
+    }
+  end
+
   fzf.fzf_exec(entries, {
+    previewer = file_preview and MyPreviewer or nil,
     prompt = format_prompt(
       ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
     ),
