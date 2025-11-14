@@ -20,11 +20,22 @@ end
 
 require("markdoc").convert_file("README.md", {
   generic = {
-    filename = "doc/obsidian.nvim.txt", -- TODO: obsidian.txt
+    filename = "doc/obsidian.txt", -- TODO: obsidian.txt
     force_write = true,
     header = {
       desc = "a plugin for writing and navigating an Obsidian vault",
-      tag = "obsidian.nvim",
+      tag = "obsidian",
+    },
+  },
+  markdown = {
+    tables = {
+      borders = {
+        row = {},
+        header = {},
+        top = {},
+        bottom = {},
+        row_separator = {},
+      },
     },
   },
 })
