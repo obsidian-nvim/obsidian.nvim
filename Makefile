@@ -6,10 +6,12 @@ TEST = test/obsidian
 LUARC = $(shell readlink -f .luarc.json)
 
 # Depending on your setup you have to override the locations at runtime. E.g.:
-#   make user-docs PANVIMDOC_PATH=~/path/to/panvimdoc/panvimdoc.sh
+#   make user-docs
 MINITEST = deps/mini.test
 MINIDOC = deps/mini.doc
-PANVIMDOC_PATH = ../panvimdoc/panvimdoc.sh
+# PANVIMDOC_PATH = ../panvimdoc/panvimdoc.sh
+MARKDOC = deps/markdoc.nvim
+NVIM_TREESITTER = deps/nvim-treesitter
 
 ################################################################################
 ##@ Start here
@@ -38,22 +40,21 @@ $(MINITEST):
 	mkdir -p deps
 	git clone --filter=blob:none https://github.com/echasnovski/mini.test $(MINITEST)
 
+$(MARKDOC):
+	mkdir -p deps
+	git clone --filter=blob:none https://github.com/OXY2DEV/markdoc.nvim $(MARKDOC)
+
+$(NVIM_TREESITTER):
+	mkdir -p deps
+	git clone --filter=blob:none https://github.com/nvim-treesitter/nvim-treesitter $(NVIM_TREESITTER) --branch main
+
 .PHONY: user-docs
-user-docs: ## Generate user documentation with panvimdoc
-	@if [ ! -f "$(PANVIMDOC_PATH)" ]; then \
-		echo "panvimdoc.sh not found at '$(PANVIMDOC_PATH)'. Make sure it is installed and check the path."; \
-		exit 1; \
-	fi
-	$(PANVIMDOC_PATH) \
-		--project-name obsidian \
-		--input-file README.md \
-		--toc false \
-		--description 'a plugin for writing and navigating an Obsidian vault' \
-		--vim-version 'NVIM v0.10.0' \
-		--demojify false \
-		--dedup-subheadings false \
-		--shift-heading-level-by -1 \
-		--ignore-rawblocks true \
+user-docs: $(MARKDOC) $(NVIM_TREESITTER) ## Generate user documentation with markdoc
+	nvim \
+		--headless \
+		--clean \
+		-u "scripts/markdoc.lua" \
+		-c "qa!"
 
 .PHONY: api-docs
 api-docs: $(MINIDOC) ## Generate API documentation with mini.doc
