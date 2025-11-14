@@ -1,5 +1,4 @@
 <!--markdoc_ignore_start-->
-
 <h1 align="center">obsidian.nvim</h1>
 
 <div align="center">
@@ -25,7 +24,6 @@
 </a>
 </div>
 <hr>
-
 <!--markdoc_ignore_end-->
 
 A **community fork** of the Neovim plugin for writing and navigating [Obsidian](https://obsidian.md) vaults, written in Lua, created by [epwalsh](https://github.com/epwalsh).
@@ -228,6 +226,7 @@ See the [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki
 
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.
 
+<!--markdoc_ignore_start-->
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable -->
@@ -297,6 +296,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
+<!--markdoc_ignore_end-->
 
 ## ❤️ Acknowledgement
 

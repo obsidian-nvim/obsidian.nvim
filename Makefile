@@ -11,6 +11,7 @@ MINITEST = deps/mini.test
 MINIDOC = deps/mini.doc
 # PANVIMDOC_PATH = ../panvimdoc/panvimdoc.sh
 MARKDOC = deps/markdoc.nvim
+NVIM_TREESITTER = deps/nvim-treesitter
 
 ################################################################################
 ##@ Start here
@@ -43,8 +44,12 @@ $(MARKDOC):
 	mkdir -p deps
 	git clone --filter=blob:none https://github.com/OXY2DEV/markdoc.nvim $(MARKDOC)
 
+$(NVIM_TREESITTER):
+	mkdir -p deps
+	git clone --filter=blob:none https://github.com/nvim-treesitter/nvim-treesitter $(NVIM_TREESITTER) --branch main
+
 .PHONY: user-docs
-user-docs: $(MARKDOC) ## Generate user documentation with markdoc
+user-docs: $(MARKDOC) $(NVIM_TREESITTER) ## Generate user documentation with markdoc
 	nvim \
 		--headless \
 		--clean \
