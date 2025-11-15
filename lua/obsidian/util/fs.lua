@@ -49,11 +49,6 @@ local function relpath(base, target)
   return #rel_parts > 0 and join_path(rel_parts) or "."
 end
 
--- print(relpath("/dir", "/dir/sub")) --> sub
--- print(relpath("/dir/sub/file", "/dir/")) --> sub/file
--- print(relpath("/dir/sub1/file1", "/dir/sub2/file2")) --> ../sub2/file2
--- print(relpath("/dir/sub1/", "/dir/sub2/file2")) --> ../sub2/file2
--- print(relpath("/a/b/c", "/a/d/e")) --> ../../d/e
 return {
   relpath = relpath,
 }
