@@ -2,8 +2,6 @@ local mini_pick = require "mini.pick"
 local obsidian = require "obsidian"
 local search = obsidian.search
 local Path = obsidian.Path
-local Picker = obsidian.Picker
-local ut = require "obsidian.picker.util"
 
 ---@param entry string
 ---@return string, integer?, integer?
@@ -76,42 +74,6 @@ M.grep = function(opts)
       lnum = lnum,
       col = col,
     }
-  end
-end
-
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
-  Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts and opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
-
-  local entries = {}
-  for _, value in ipairs(values) do
-    if type(value) == "string" then
-      value = {
-        user_data = value,
-        text = value,
-      }
-    else
-      value.text = opts.format_item and opts.format_item(value) or ut.make_display(value)
-    end
-    if value.valid ~= false then
-      entries[#entries + 1] = value
-    end
-  end
-
-  local entry = mini_pick.start {
-    source = {
-      name = opts.prompt_title,
-      items = entries,
-      choose = function() end,
-    },
-  }
-
-  if entry and opts.callback then
-    opts.callback(entry)
   end
 end
 

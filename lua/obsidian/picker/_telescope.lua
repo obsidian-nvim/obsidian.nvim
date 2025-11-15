@@ -6,7 +6,6 @@ local obsidian = require "obsidian"
 local search = obsidian.search
 local Path = obsidian.Path
 local log = obsidian.log
-local Picker = obsidian.Picker
 local ut = require "obsidian.picker.util"
 
 local M = {}
@@ -189,98 +188,6 @@ M.grep = function(opts)
       attach_mappings = attach_mappings,
     }
   end
-end
-
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
-  local pickers = require "telescope.pickers"
-  local finders = require "telescope.finders"
-  local conf = require "telescope.config"
-  local make_entry = require "telescope.make_entry"
-
-  Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts and opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
-
-  local picker_opts = {
-    attach_mappings = function(_, map)
-      attach_picker_mappings(map, {
-        callback = opts.callback,
-        allow_multiple = opts.allow_multiple,
-        query_mappings = opts.query_mappings,
-        selection_mappings = opts.selection_mappings,
-      })
-      return true
-    end,
-  }
-
-  local displayer = function(entry)
-    return opts.format_item and opts.format_item(entry.raw) or ut.make_display(entry.raw)
-  end
-
-  local prompt_title = ut.build_prompt {
-    prompt_title = opts.prompt_title,
-    query_mappings = opts.query_mappings,
-    selection_mappings = opts.selection_mappings,
-  }
-
-  local previewer
-  if type(values[1]) == "table" then
-    previewer = conf.values.grep_previewer(picker_opts)
-    -- Get theme to use.
-    if conf.pickers then
-      for _, picker_name in ipairs { "grep_string", "live_grep", "find_files" } do
-        local picker_conf = conf.pickers[picker_name]
-        if picker_conf and picker_conf.theme then
-          picker_opts =
-            vim.tbl_extend("force", picker_opts, require("telescope.themes")["get_" .. picker_conf.theme] {})
-          break
-        end
-      end
-    end
-  end
-
-  local make_entry_from_string = make_entry.gen_from_string(picker_opts)
-
-  pickers
-    .new(picker_opts, {
-      prompt_title = prompt_title,
-      finder = finders.new_table {
-        results = values,
-        entry_maker = function(v)
-          if type(v) == "string" then
-            return make_entry_from_string(v)
-          else
-            local ordinal = v.ordinal
-            if ordinal == nil then
-              ordinal = ""
-              if type(v.display) == "string" then
-                ordinal = ordinal .. v.display
-              end
-              if v.filename ~= nil then
-                ordinal = ordinal .. " " .. v.filename
-              end
-            end
-
-            return {
-              value = v.user_data,
-              display = displayer,
-              ordinal = ordinal,
-              filename = v.filename,
-              valid = v.valid,
-              lnum = v.lnum,
-              col = v.col,
-              raw = v,
-            }
-          end
-        end,
-      },
-      sorter = conf.values.generic_sorter(picker_opts),
-      previewer = previewer,
-    })
-    :find()
 end
 
 return M

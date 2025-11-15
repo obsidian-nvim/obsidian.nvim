@@ -2,9 +2,7 @@ local snacks_picker = require "snacks.picker"
 
 local obsidian = require "obsidian"
 local search = obsidian.search
-local Picker = obsidian.Picker
 local Path = obsidian.Path
-local ut = require "obsidian.picker.util"
 
 ---@param mapping table
 ---@return table
@@ -95,73 +93,6 @@ M.grep = function(opts)
       end
     end,
   })
-  snacks_picker.pick(pick_opts)
-end
-
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
-  Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
-
-  local preview = vim.iter(values):any(function(value)
-    return type(value) == "table" and value.filename ~= nil
-  end)
-
-  local entries = {}
-  for _, value in ipairs(values) do
-    local display
-    if type(value) == "string" then
-      display = value
-      value = { value = value }
-    else
-      display = opts.format_item and opts.format_item(value) or ut.make_display(value)
-    end
-    table.insert(entries, {
-      text = display,
-      file = value.filename,
-      value = value.user_data,
-      pos = value.lnum and { value.lnum, value.col or 0 },
-      dir = value.filename and Path.new(value.filename):is_dir() or false,
-    })
-  end
-
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
-
-  local pick_opts = vim.tbl_extend("force", map or {}, {
-    title = opts.prompt_title,
-    items = entries,
-    layout = {
-      preview = preview,
-      preset = "default",
-    },
-    format = "text",
-    confirm = function(picker, item, action)
-      picker:close()
-      if item then
-        if opts.callback then
-          if item.file then
-            opts.callback {
-              filename = item.file,
-              col = item.pos and item.pos[2],
-              lnum = item.pos and item.pos[1],
-              user_data = item.value,
-            }
-          else
-            opts.callback {
-              text = item.text,
-              user_data = item.text,
-            }
-          end
-        else
-          snacks_picker.actions.jump(picker, item, action)
-        end
-      end
-    end,
-  })
-
   snacks_picker.pick(pick_opts)
 end
 
