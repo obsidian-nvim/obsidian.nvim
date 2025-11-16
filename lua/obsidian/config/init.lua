@@ -117,7 +117,7 @@ config.normalize = function(opts, defaults)
       opts.completion.prepend_note_path = nil
       warn = true
     elseif opts.completion.use_path_only then
-      opts.wiki_link_func = builtin.wiki_link_path_only
+      opts.wiki_link_func = builtin.wiki_link
       opts.completion.use_path_only = nil
       warn = true
     end
@@ -136,7 +136,7 @@ config.normalize = function(opts, defaults)
   elseif opts.wiki_link_func == "prepend_note_path" then
     opts.wiki_link_func = builtin.wiki_link_path_prefix
   elseif opts.wiki_link_func == "use_path_only" then
-    opts.wiki_link_func = builtin.wiki_link_path_only
+    opts.wiki_link_func = builtin.wiki_link
   elseif opts.wiki_link_func == "use_alias_only" then
     opts.wiki_link_func = builtin.wiki_link_alias_only
   elseif type(opts.wiki_link_func) == "string" then
