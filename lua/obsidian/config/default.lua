@@ -25,7 +25,7 @@ return {
   link = {
     style = "wiki",
     markdown = require("obsidian.builtin").markdown_link,
-    wiki = require("obsidian.builtin").wiki_link_path_only,
+    wiki = require("obsidian.builtin").wiki_link,
     format = "shortest",
   },
 
