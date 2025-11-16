@@ -497,11 +497,6 @@ end
 ------------------------------------
 -- Miscellaneous helper functions --
 ------------------------------------
----@param anchor obsidian.note.HeaderAnchor
----@return string
-util.format_anchor_label = function(anchor)
-  return string.format(" ❯ %s", anchor.header)
-end
 
 -- We are very loose here because obsidian allows pretty much anything
 util.ANCHOR_LINK_PATTERN = "#[%w%d\128-\255][^#]*"
