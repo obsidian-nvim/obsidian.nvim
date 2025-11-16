@@ -5,7 +5,6 @@ local util = require "obsidian.util"
 ---@class obsidian.link.LinkCreationOpts
 ---@field label? string
 ---@field path? obsidian.Path|string|?
----@field id? string|integer|?
 ---@field anchor? obsidian.note.HeaderAnchor|?
 ---@field block? obsidian.note.Block|?
 ---@field style? "wiki" | "markdown"
@@ -21,73 +20,80 @@ M.zettel_id = function()
   return tostring(os.time()) .. "-" .. suffix
 end
 
----@param opts obsidian.link.LinkCreationOpts
----@return string
-M.wiki_link_alias_only = function(opts)
-  ---@type string
-  local header_or_block = ""
-  if opts.anchor then
-    header_or_block = string.format("#%s", opts.anchor.header)
-  elseif opts.block then
-    header_or_block = string.format("#%s", opts.block.id)
-  end
-  return string.format("[[%s%s]]", opts.label, header_or_block)
-end
+-- ---@param opts obsidian.link.LinkCreationOpts
+-- ---@return string
+-- M.wiki_link_alias_only = function(opts)
+--   ---@type string
+--   local header_or_block = ""
+--   if opts.anchor then
+--     header_or_block = string.format("#%s", opts.anchor.header)
+--   elseif opts.block then
+--     header_or_block = string.format("#%s", opts.block.id)
+--   end
+--   return string.format("[[%s%s]]", opts.label, header_or_block)
+-- end
 
 ---NOTE: more close to what should be default
----@param opts obsidian.link.LinkCreationOpts
+-- ---@param opts obsidian.link.LinkCreationOpts
+-- ---@return string
+-- M.wiki_link = function(opts)
+--   ---@type string
+--   local header_or_block = ""
+--   if opts.anchor then
+--     header_or_block = opts.anchor.anchor
+--   elseif opts.block then
+--     header_or_block = string.format("#%s", opts.block.id)
+--   end
+--   return string.format("[[%s%s]]", opts.path, header_or_block)
+-- end
+
+-- ---@param opts obsidian.link.LinkCreationOpts
+-- ---@return string
+-- M.wiki_link_path_prefix = function(opts)
+--   local anchor = ""
+--   local header = ""
+--   if opts.anchor then
+--     anchor = opts.anchor.anchor
+--     header = util.format_anchor_label(opts.anchor)
+--   elseif opts.block then
+--     anchor = "#" .. opts.block.id
+--     header = "#" .. opts.block.id
+--   end
+--
+--   if opts.label ~= opts.path then
+--     return string.format("[[%s%s|%s%s]]", opts.path, anchor, opts.label, header)
+--   else
+--     return string.format("[[%s%s]]", opts.path, anchor)
+--   end
+-- end
+
+---@param anchor obsidian.note.HeaderAnchor
 ---@return string
-M.wiki_link_path_only = function(opts)
-  ---@type string
-  local header_or_block = ""
-  if opts.anchor then
-    header_or_block = opts.anchor.anchor
-  elseif opts.block then
-    header_or_block = string.format("#%s", opts.block.id)
-  end
-  return string.format("[[%s%s]]", opts.path, header_or_block)
+local format_anchor_label = function(anchor)
+  return string.format(" ❯ %s", anchor.header)
 end
 
 ---@param opts obsidian.link.LinkCreationOpts
 ---@return string
-M.wiki_link_path_prefix = function(opts)
+M.wiki_link = function(opts)
   local anchor = ""
   local header = ""
   if opts.anchor then
     anchor = opts.anchor.anchor
-    header = util.format_anchor_label(opts.anchor)
+    header = format_anchor_label(opts.anchor)
   elseif opts.block then
     anchor = "#" .. opts.block.id
     header = "#" .. opts.block.id
   end
+
+  local format
 
   if opts.label ~= opts.path then
-    return string.format("[[%s%s|%s%s]]", opts.path, anchor, opts.label, header)
+    format = "[[%s%s|%s%s]]"
   else
-    return string.format("[[%s%s]]", opts.path, anchor)
+    format = "[[%s%s]]"
   end
-end
-
----@param opts obsidian.link.LinkCreationOpts
----@return string
-M.wiki_link_id_prefix = function(opts)
-  local anchor = ""
-  local header = ""
-  if opts.anchor then
-    anchor = opts.anchor.anchor
-    header = util.format_anchor_label(opts.anchor)
-  elseif opts.block then
-    anchor = "#" .. opts.block.id
-    header = "#" .. opts.block.id
-  end
-
-  if opts.id == nil then
-    return string.format("[[%s%s]]", opts.label, anchor)
-  elseif opts.label ~= opts.id then
-    return string.format("[[%s%s|%s%s]]", opts.id, anchor, opts.label, header)
-  else
-    return string.format("[[%s%s]]", opts.id, anchor)
-  end
+  return string.format(format, opts.path, anchor, opts.label, header)
 end
 
 ---@param opts obsidian.link.LinkCreationOpts
@@ -97,7 +103,7 @@ M.markdown_link = function(opts)
   local header = ""
   if opts.anchor then
     anchor = opts.anchor.anchor
-    header = util.format_anchor_label(opts.anchor)
+    header = format_anchor_label(opts.anchor)
   elseif opts.block then
     anchor = "#" .. opts.block.id
     header = "#" .. opts.block.id
