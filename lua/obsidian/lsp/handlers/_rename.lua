@@ -24,6 +24,8 @@ M.validate = function(name)
   return true
 end
 
+local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
+
 -- TODO: note:rename(self, new_name, callback)
 
 ---@param note obsidian.Note
@@ -58,7 +60,7 @@ M.rename = function(note, new_name, callback)
         documentChanges[#documentChanges + 1] = {
           textDocument = {
             uri = vim.uri_from_fname(match_path),
-            version = vim.NIL,
+            version = has_nvim_0_12 and vim.NIL or nil,
           },
           edits = {
             {
