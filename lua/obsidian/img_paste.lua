@@ -6,6 +6,15 @@ local util = require "obsidian.util"
 
 local M = {}
 
+local img_types = {
+  ["image/jpeg"] = "jpeg",
+  ["image/png"] = "png",
+  ["image/avif"] = "avif",
+  ["image/webp"] = "webp",
+  ["image/bmp"] = "bmp",
+  ["image/gif"] = "gif",
+}
+
 -- Image pasting adapted from https://github.com/ekickx/clipboard-image.nvim
 
 ---@return string
@@ -29,6 +38,14 @@ local function get_clip_check_command()
   return check_cmd
 end
 
+local function get_image_type(content)
+  for _, line in ipairs(content) do
+    if img_types[line] then
+      return img_types[line]
+    end
+  end
+  return nil 
+end
 
 --- Get the type of image on the clipboard.
 ---
@@ -42,25 +59,17 @@ function M.get_clipboard_img_type()
   -- See: [Data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme)
   local this_os = api.get_os()
   if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
-    if vim.tbl_contains(content, "image/png") then
-        return "png"
-    elseif vim.tbl_contains(content, "image/jpeg") then
-        return "jpeg"
-
-    -- not sure how to test this
-    elseif vim.tbl_contains(content, "text/uri-list") then
+    if vim.tbl_contains(content, "text/uri-list") then
       local success =
         os.execute "wl-paste --type text/uri-list | sed 's|file://||' | head -n1 | tr -d '[:space:]' | xargs -I{} sh -c 'wl-copy < \"$1\"' _ {}"
         if success == 0 then
           -- Re-check for image type after potential conversion
           result_string = vim.fn.system(check_cmd)
           content = vim.split(result_string, "\n")
-          if vim.tbl_contains(content, "image/png") then
-            return "png"
-          elseif vim.tbl_contains(content, "image/jpeg") then
-            return "jpeg"
-          end
+          return get_image_type(content)
         end
+    else
+      return get_image_type(content)
     end
 
   -- Code for non-Linux Operating systems (only supports png)
