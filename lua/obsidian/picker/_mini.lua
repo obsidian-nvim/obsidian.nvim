@@ -14,6 +14,20 @@ end
 
 local M = {}
 
+local build_selection_mappings = function(mappings)
+  local actions = {}
+  for key, mapping in pairs(mappings) do
+    actions[mapping.desc:gsub(" ", "_")] = {
+      char = key,
+      func = function(...)
+        vim.print(...)
+        -- mapping.callback({ filename = path })
+      end,
+    }
+  end
+  return actions
+end
+
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
@@ -22,8 +36,15 @@ M.find_files = function(opts)
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
+  local mappings
+
+  if not opts.no_default_mappings then
+    mappings = build_selection_mappings(opts.selection_mappings)
+  end
+
   local path = mini_pick.builtin.cli({
     command = search.build_find_cmd(),
+    mappings = mappings,
   }, {
     source = {
       name = opts.prompt_title,

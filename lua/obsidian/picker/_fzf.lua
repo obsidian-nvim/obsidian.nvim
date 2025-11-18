@@ -40,7 +40,7 @@ local function get_selection_actions(opts)
 
       if opts.callback then
         local path = entry_to_file(selected[1], fzf_opts).path
-        opts.callback({ filename = path })
+        opts.callback { filename = path }
       end
     end,
   }
@@ -49,14 +49,14 @@ local function get_selection_actions(opts)
     for key, mapping in pairs(opts.selection_mappings) do
       actions[format_keymap(key)] = function(selected, fzf_opts)
         local path = entry_to_file(selected[1], fzf_opts).path
-        mapping.callback({ filename = path })
+        mapping.callback { filename = path }
       end
     end
 
     for key, mapping in pairs(opts.query_mappings) do
       actions[format_keymap(key)] = function(selected, fzf_opts)
-         local query = fzf_opts.query
-         mapping.callback(query)
+        local query = fzf_opts.query
+        mapping.callback(query)
       end
     end
   end
