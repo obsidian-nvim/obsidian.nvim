@@ -238,7 +238,7 @@ M._tag_selection_mappings = function()
       desc = "tag note",
       callback = function(...)
         local tags = vim.tbl_map(function(value)
-          return value.user_data
+          return value.user_data ~= nil and value.user_data or value
         end, { ... })
 
         local note = api.current_note(state.calling_bufnr)

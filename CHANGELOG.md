@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `definition` will properly follow encoded paths.
 - `rename` bug due do neovim API version difference.
+- `tag note` bug which ignored picker buffer entry when there is no selection
 
 ## [v3.14.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.5) - 2025-11-13
 
