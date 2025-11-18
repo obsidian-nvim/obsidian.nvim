@@ -30,8 +30,8 @@ end
 
 local M = {}
 
----@param opts { callback: fun(path: string)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
-local function get_path_actions(opts)
+---@param opts { callback: fun(selcetion: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+local function get_selection_actions(opts)
   local actions = {
     default = function(selected, fzf_opts)
       if not opts.no_default_mappings then
@@ -40,7 +40,7 @@ local function get_path_actions(opts)
 
       if opts.callback then
         local path = entry_to_file(selected[1], fzf_opts).path
-        opts.callback(path)
+        opts.callback({ filename = path })
       end
     end,
   }
@@ -49,7 +49,14 @@ local function get_path_actions(opts)
     for key, mapping in pairs(opts.selection_mappings) do
       actions[format_keymap(key)] = function(selected, fzf_opts)
         local path = entry_to_file(selected[1], fzf_opts).path
-        mapping.callback(path)
+        mapping.callback({ filename = path })
+      end
+    end
+
+    for key, mapping in pairs(opts.query_mappings) do
+      actions[format_keymap(key)] = function(selected, fzf_opts)
+         local query = fzf_opts.query
+         mapping.callback(query)
       end
     end
   end
@@ -130,12 +137,15 @@ M.find_files = function(opts)
     query = opts.query,
     cwd = tostring(dir),
     cmd = table.concat(search.build_find_cmd(), " "),
-    actions = get_path_actions {
+    cwd_prompt = false,
+    prompt = format_prompt(opts.prompt_title),
+    show_details = true,
+    actions = get_selection_actions {
       callback = opts.callback,
       no_default_mappings = opts.no_default_mappings,
       selection_mappings = opts.selection_mappings,
+      query_mappings = opts.query_mappings,
     },
-    prompt = format_prompt(opts.prompt_title),
   }
 end
 
@@ -146,10 +156,10 @@ M.grep = function(opts)
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local cmd = table.concat(search.build_grep_cmd(), " ")
-  local actions = get_path_actions {
-    -- TODO: callback for the full object
+  local actions = get_selection_actions {
     no_default_mappings = opts.no_default_mappings,
     selection_mappings = opts.selection_mappings,
+    query_mappings = opts.query_mappings,
   }
 
   if opts.query and string.len(opts.query) > 0 then
