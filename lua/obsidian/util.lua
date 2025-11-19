@@ -122,30 +122,6 @@ util.match_case = function(prefix, key)
   return table.concat(out_chars, "")
 end
 
----Check if a string is a checkbox list item
----
----Supported checboox lists:
---- - [ ] foo
---- - [x] foo
---- + [x] foo
---- * [ ] foo
---- 1. [ ] foo
---- 1) [ ] foo
----
----@param s string
----@return boolean
-util.is_checkbox = function(s)
-  -- - [ ] and * [ ] and + [ ]
-  if string.match(s, "%s*[-+*]%s+%[.%]") ~= nil then
-    return true
-  end
-  -- 1. [ ] and 1) [ ]
-  if string.match(s, "%s*%d+[%.%)]%s+%[.%]") ~= nil then
-    return true
-  end
-  return false
-end
-
 ---Check if a string is a valid URL.
 ---@param s string
 ---@return boolean
@@ -161,19 +137,6 @@ util.is_url = function(s)
   else
     return false
   end
-end
-
----Checks if a given string represents an image file based on its suffix.
----
----@param s string: The input string to check.
----@return boolean: Returns true if the string ends with a supported image suffix, false otherwise.
-util.is_img = function(s)
-  for _, suffix in ipairs { ".png", ".jpg", ".jpeg", ".heic", ".gif", ".svg", ".ico" } do
-    if vim.endswith(s, suffix) then
-      return true
-    end
-  end
-  return false
 end
 
 -- This function removes a single backslash within double square brackets
@@ -328,19 +291,9 @@ util.has_enclosing_chars = function(str)
   return false
 end
 
----Strip YAML comments from a string.
----@param str string
----@return string
-util.strip_comments = function(str)
-  if vim.startswith(str, "# ") then
-    return ""
-  elseif not util.has_enclosing_chars(str) then
-    return select(1, string.gsub(str, [[%s+#%s.*$]], ""))
-  else
-    return str
-  end
-end
 
+--- TODO: remove
+---
 ---Check if a string contains a substring.
 ---@param str string
 ---@param substr string

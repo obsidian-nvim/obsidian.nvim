@@ -78,9 +78,23 @@ handlers.FileUrl = function(location)
   }
 end
 
+---Checks if a given string represents an image file based on its suffix.
+---
+---@param s string: The input string to check.
+---@return boolean: Returns true if the string ends with a supported image suffix, false otherwise.
+local is_img = function(s)
+  for _, suffix in ipairs { ".png", ".jpg", ".jpeg", ".heic", ".gif", ".svg", ".ico" } do
+    if vim.endswith(s, suffix) then
+      return true
+    end
+  end
+  return false
+end
+
+
 handlers.Wiki = function(location, name)
   local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
-  if util.is_img(location) then -- TODO: include in parse_link
+  if is_img(location) then -- TODO: include in parse_link
     local path = api.resolve_image_path(location)
     -- TODO: Obsidian.opts.open.func
     Obsidian.opts.follow_img_func(tostring(path))

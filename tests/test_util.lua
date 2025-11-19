@@ -263,24 +263,6 @@ T["strip"]["anchor_links"]["should leave line alone when there are no anchor lin
   eq(nil, anchor)
 end
 
-T["strip"]["comments"] = new_set()
-
-T["strip"]["comments"]["should strip comments from a string"] = function()
-  eq("foo: 1", M.strip_comments "foo: 1  # this is a comment")
-end
-
-T["strip"]["comments"]["should strip comments even when they start at the beginning of the string"] = function()
-  eq("", M.strip_comments "# foo: 1")
-end
-
-T["strip"]["comments"]["should ignore '#' when enclosed in quotes"] = function()
-  eq([["hashtags start with '#'"]], M.strip_comments [["hashtags start with '#'"]])
-end
-
-T["strip"]["comments"]["should ignore an escaped '#'"] = function()
-  eq([[hashtags start with \# right?]], M.strip_comments [[hashtags start with \# right?]])
-end
-
 T["strip"]["left whitespace"] = new_set()
 
 T["strip"]["left whitespace"]["should strip tabs and spaces from left end only"] = function()

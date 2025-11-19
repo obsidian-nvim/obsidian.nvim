@@ -1,6 +1,7 @@
 local Line = require "obsidian.yaml.line"
 local util = require "obsidian.util"
 local iter = vim.iter
+local ut = require"obsidian.yaml.util"
 
 local m = {}
 
@@ -158,7 +159,7 @@ Parser._parse_next = function(self, lines, i, text)
     if line:is_empty() then
       return i, nil, YamlType.EmptyLine
     end
-    text = util.strip_comments(line.content)
+    text = ut.strip_comments(line.content)
   end
 
   local _, ok, value
@@ -226,7 +227,7 @@ local YAML_MAPPING_INLINE_REGEX = string.format("%s: (.*)", YAML_KEY_REGEX)
 ---@return boolean, integer, any
 Parser._try_parse_field = function(self, lines, i, text)
   local line = lines[i]
-  text = text and text or util.strip_comments(line.content)
+  text = text and text or ut.strip_comments(line.content)
 
   local _, key, value
 
@@ -252,7 +253,7 @@ Parser._try_parse_field = function(self, lines, i, text)
     if type(value) == "string" and next_line ~= nil and next_line.indent > line.indent then
       local next_indent = next_line.indent
       while next_line ~= nil and next_line.indent == next_indent do
-        local next_value_str = util.strip_comments(next_line.content)
+        local next_value_str = ut.strip_comments(next_line.content)
         if string.len(next_value_str) > 0 then
           local next_value = self:_parse_inline_value(j, next_line.content)
           if type(next_value) ~= "string" then
@@ -297,7 +298,7 @@ end
 ---@return boolean, integer, any
 Parser._try_parse_block_string = function(self, lines, i, text)
   local line = lines[i]
-  text = text and text or util.strip_comments(line.content)
+  text = text and text or ut.strip_comments(line.content)
   local _, _, block_key = string.find(text, "([a-zA-Z0-9_-]+):%s?|")
   if block_key ~= nil then
     local block_lines = {}
@@ -331,7 +332,7 @@ end
 ---@return boolean, integer, any
 Parser._try_parse_array_item = function(self, lines, i, text)
   local line = lines[i]
-  text = text and text or util.strip_comments(line.content)
+  text = text and text or ut.strip_comments(line.content)
   if vim.startswith(text, "- ") then
     local _, _, array_item_str = string.find(text, "- (.*)")
     local value
@@ -552,7 +553,7 @@ end
 ---@param text string
 ---@return string
 Parser.parse_string = function(self, text)
-  local _, _, str = self:_parse_string(1, util.strip_comments(text))
+  local _, _, str = self:_parse_string(1, ut.strip_comments(text))
   return str
 end
 
@@ -572,7 +573,7 @@ end
 ---@param text string
 ---@return number
 Parser.parse_number = function(self, text)
-  local ok, errmsg, res = self:_parse_number(1, vim.trim(util.strip_comments(text)))
+  local ok, errmsg, res = self:_parse_number(1, vim.trim(ut.strip_comments(text)))
   if not ok then
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a number", 1, text)
     error(errmsg)
@@ -599,7 +600,7 @@ end
 ---@param text string
 ---@return boolean
 Parser.parse_boolean = function(self, text)
-  local ok, errmsg, res = self:_parse_boolean(1, vim.trim(util.strip_comments(text)))
+  local ok, errmsg, res = self:_parse_boolean(1, vim.trim(ut.strip_comments(text)))
   if not ok then
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a boolean", 1, text)
     error(errmsg)
@@ -624,7 +625,7 @@ end
 ---@param text string
 ---@return vim.NIL|nil
 Parser.parse_null = function(self, text)
-  local ok, errmsg, res = self:_parse_null(1, vim.trim(util.strip_comments(text)))
+  local ok, errmsg, res = self:_parse_null(1, vim.trim(ut.strip_comments(text)))
   if not ok then
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a null value", 1, text)
     error(errmsg)

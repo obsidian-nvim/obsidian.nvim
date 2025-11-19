@@ -81,7 +81,7 @@ T["should error when for invalid indentation"] = function()
     return parser:parse(str)
   end, " foo: 1\nbar: 2")
   eq(false, ok)
-  assert(util.string_contains(err, "indentation"), err)
+  assert(string.find(err, "indentation") ~= nil, err)
 end
 
 T["should parse root-level scalars"] = function()
