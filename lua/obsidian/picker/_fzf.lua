@@ -54,7 +54,7 @@ local function get_selection_actions(opts)
     end
 
     for key, mapping in pairs(opts.query_mappings) do
-      actions[format_keymap(key)] = function(selected, fzf_opts)
+      actions[format_keymap(key)] = function(_, fzf_opts)
         local query = fzf_opts.query
         mapping.callback(query)
       end
