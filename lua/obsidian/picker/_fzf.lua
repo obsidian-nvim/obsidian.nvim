@@ -30,7 +30,7 @@ end
 
 local M = {}
 
----@param opts { callback: fun(selcetion: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+---@param opts { callback: fun(selection: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
 local function get_selection_actions(opts)
   local actions = {
     default = function(selected, fzf_opts)
