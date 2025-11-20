@@ -3,7 +3,7 @@
 /lua/*.so
 tmp.*
 *.sqlite
-doc/tags
+doc/
 _neovim
 _runtime
 deps/

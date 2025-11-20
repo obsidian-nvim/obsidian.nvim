@@ -22,19 +22,11 @@ Note: we automate tedious tasks using a `Makefile` in the root of the repository
 Just call `make` to see what you can do, or `make chores` to run the most important tasks on your code.
 You can override some parts of the `Makefile` by setting env variables.
 
-### Local development with LuaLS and `plenary.nvim`
+### Local development with LuaLS
 
-If you're using the [Lua Language Server](https://luals.github.io) (LuaLS) you'll probably want to add `plenary.nvim` as a workspace library since we rely heavily on plenary throughout the codebase.
-You can do this by adding a `.luarc.json` configuration file that looks like this:
+TL;
 
-```json
-{
-  "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
-  "runtime.version": "Lua 5.1"
-}
-```
-
-Make sure that the path there to plenary is correct for you.
+It is recommend to use [Lua Language Server](https://luals.github.io) to catch common type issues.
 
 ### Keeping the `CHANGELOG.md` up-to-date
 
@@ -82,12 +74,10 @@ We are currently in the process of migrating from busted style tests to mini's s
 
 TL;DR: `make user-docs`
 
-The Vim documentation lives at `doc/obsidian.txt`, which is automatically generated from the `README.md` using [panvimdoc](https://github.com/kdheepak/panvimdoc).
+The Vim documentation lives at `doc/obsidian.txt`, which is automatically generated from the `README.md` using [markdoc](https://github.com/OXY2DEV/markdoc.nvim)
 **Please only commit documentation changes to the `README.md`, not `doc/obsidian.txt`.**
 
 However you can test how changes to the README will affect the Vim doc by running `panvimdoc` locally.
-To do this you'll need install `pandoc` (e.g. `brew install pandoc` on Mac)
-and clone [panvimdoc](https://github.com/kdheepak/panvimdoc) (e.g. `git clone git@github.com:kdheepak/panvimdoc.git ../panvimdoc`).
 
 This will build the Vim documentation to `/tmp/obsidian.txt`.
 
