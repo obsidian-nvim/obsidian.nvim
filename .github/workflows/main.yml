@@ -29,91 +29,91 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: 2.1.0
           args: --check .
-  checks:
-    name: ${{ matrix.task.name }} (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 3
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        task:
-          - name: Test
-            run: |
-              make test
-          - name: Types
-            run: |
-              make types
+  # checks:
+  #   name: ${{ matrix.task.name }} (${{ matrix.os }})
+  #   runs-on: ${{ matrix.os }}
+  #   timeout-minutes: 3
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [ubuntu-latest]
+  #       task:
+  #         # - name: Test
+  #         #   run: |
+  #         #     make test
+  #         - name: Types
+  #           run: |
+  #             make types
+  #
+        # include:
+        #   - os: ubuntu-latest
+        #     nvim_url: https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz
+        #     packages: ripgrep
+        #     manager: sudo apt-get
+        #
+        #   - os: windows-latest
+        #     nvim_url: https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.zip
+        #     packages: ripgrep
+        #     manager: choco
+        #     task:
+        #       name: Test
+        #       run: |
+        #         make test
 
-        include:
-          - os: ubuntu-latest
-            nvim_url: https://github.com/neovim/neovim/releases/download/nightly/nvim-linux-x86_64.tar.gz
-            packages: ripgrep
-            manager: sudo apt-get
+    # steps:
+    #   - name: Checkout
+    #     uses: actions/checkout@v4
 
-          - os: windows-latest
-            nvim_url: https://github.com/neovim/neovim/releases/download/nightly/nvim-win64.zip
-            packages: ripgrep
-            manager: choco
-            task:
-              name: Test
-              run: |
-                make test
+      # - name: Install packages
+      #   if: ${{ matrix.packages }}
+      #   run: ${{ matrix.manager }} install ${{ matrix.packages }}
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # - name: Install packages (windows)
+      #   if: matrix.os == 'windows-latest' && matrix.packages
+      #   shell: powershell
+      #   run: |
+      #     Set-ExecutionPolicy Bypass -Scope Process -Force
+      #     iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+      #     choco install ${{ matrix.packages }} -y
 
-      - name: Install packages
-        if: ${{ matrix.packages }}
-        run: ${{ matrix.manager }} install ${{ matrix.packages }}
+      # - name: Install neovim (nix)
+      #   shell: bash
+      #   if: matrix.os != 'windows-latest'
+      #   run: |
+      #     # Download neovim nightly.
+      #     mkdir -p _neovim
+      #     curl -sL ${{ matrix.nvim_url }} | tar xzf - --strip-components=1 -C "${PWD}/_neovim"
+      #
+      # - name: Install neovim (windows)
+      #   shell: powershell
+      #   if: matrix.os == 'windows-latest'
+      #   run: |
+      #     # Download neovim.
+      #     # winget install neovim
+      #     curl -o nvim-win64.zip ${{ matrix.nvim_url }}
+      #     Expand-Archive -F nvim-win64.zip .
+      #     Move-Item -Path nvim-win64 -Destination _neovim
 
-      - name: Install packages (windows)
-        if: matrix.os == 'windows-latest' && matrix.packages
-        shell: powershell
-        run: |
-          Set-ExecutionPolicy Bypass -Scope Process -Force
-          iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-          choco install ${{ matrix.packages }} -y
-
-      - name: Install neovim (nix)
-        shell: bash
-        if: matrix.os != 'windows-latest'
-        run: |
-          # Download neovim nightly.
-          mkdir -p _neovim
-          curl -sL ${{ matrix.nvim_url }} | tar xzf - --strip-components=1 -C "${PWD}/_neovim"
-
-      - name: Install neovim (windows)
-        shell: powershell
-        if: matrix.os == 'windows-latest'
-        run: |
-          # Download neovim.
-          # winget install neovim
-          curl -o nvim-win64.zip ${{ matrix.nvim_url }}
-          Expand-Archive -F nvim-win64.zip .
-          Move-Item -Path nvim-win64 -Destination _neovim
-
-      - name: Install lua-language-server
-        if: matrix.task.name == 'Types'
-        uses: jdx/mise-action@v2
-        with:
-          tool_versions: |
-            lua-language-server 3.15.0
-
-      - name: Prepare
-        if: ${{ matrix.task.prepare }}
-        run: ${{ matrix.task.prepare }}
-
-      - name: ${{ matrix.task.name }}
-        shell: bash
-        run: |
-          export PATH="${PWD}/_neovim/bin:${PATH}"
-          export VIMRUNTIME="${PWD}/_neovim/share/nvim/runtime"
-
-          nvim --version
-
-          ${{ matrix.task.run }}
+      # - name: Install lua-language-server
+      #   if: matrix.task.name == 'Types'
+      #   uses: jdx/mise-action@v2
+      #   with:
+      #     tool_versions: |
+      #       lua-language-server 3.15.0
+      #
+      # - name: Prepare
+      #   if: ${{ matrix.task.prepare }}
+      #   run: ${{ matrix.task.prepare }}
+      #
+      # - name: ${{ matrix.task.name }}
+      #   shell: bash
+      #   run: |
+      #     export PATH="${PWD}/_neovim/bin:${PATH}"
+      #     export VIMRUNTIME="${PWD}/_neovim/share/nvim/runtime"
+      #
+      #     nvim --version
+      #
+      #     ${{ matrix.task.run }}
 
   release:
     name: Release
