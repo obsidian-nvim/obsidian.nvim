@@ -709,7 +709,10 @@ end
 ---@return boolean
 util.in_node = function(node_type)
   local function in_node(t)
-    local node = ts.get_node()
+    local has_parser, node = pcall(ts.get_node)
+    if not has_parser then
+      return false -- silent fail for 1) a older neovim version 2) don't have markdown parser 3) ci tests
+    end
     while node do
       if node:type() == t then
         return true
