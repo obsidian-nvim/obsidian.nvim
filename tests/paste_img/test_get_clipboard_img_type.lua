@@ -44,25 +44,28 @@ local test_cases = {
   },
 }
 
-
-local parametrize_data = vim.tbl_map(function(case) return { case } end, test_cases)
+local parametrize_data = vim.tbl_map(function(case)
+  return { case }
+end, test_cases)
 
 -- call test across all test cases
 T["get_clipboard_img_type"] = new_set { parametrize = parametrize_data }
 
 T["get_clipboard_img_type"]["should return correct image type for OS: {1}"] = function(case)
+  -- Store original functions to be restored later
 
   -- Mock API to test against several different OS types
   api.get_os = function()
     return case.os_type
   end
-  
+
   -- Mock display server
+  -- selene: allow(incorrect_standard_library_use)
   os.getenv = function(var)
     if var == "XDG_SESSION_TYPE" then
       return case.display_server
     end
-    return original_os_getenv(var)
+    return api.get_os()
   end
 
   -- Mock command needed to output data

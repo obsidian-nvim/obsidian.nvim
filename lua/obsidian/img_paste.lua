@@ -44,7 +44,7 @@ local function get_image_type(content)
       return img_types[line]
     end
   end
-  return nil 
+  return nil
 end
 
 --- Get the type of image on the clipboard.
@@ -62,12 +62,12 @@ function M.get_clipboard_img_type()
     if vim.tbl_contains(content, "text/uri-list") then
       local success =
         os.execute "wl-paste --type text/uri-list | sed 's|file://||' | head -n1 | tr -d '[:space:]' | xargs -I{} sh -c 'wl-copy < \"$1\"' _ {}"
-        if success == 0 then
-          -- Re-check for image type after potential conversion
-          result_string = vim.fn.system(check_cmd)
-          content = vim.split(result_string, "\n")
-          return get_image_type(content)
-        end
+      if success == 0 then
+        -- Re-check for image type after potential conversion
+        result_string = vim.fn.system(check_cmd)
+        content = vim.split(result_string, "\n")
+        return get_image_type(content)
+      end
     else
       return get_image_type(content)
     end
@@ -75,7 +75,7 @@ function M.get_clipboard_img_type()
   -- Code for non-Linux Operating systems (only supports png)
   elseif this_os == api.OSType.Darwin then
     is_img = string.sub(content[1], 1, 9) == "iVBORw0KG" -- Magic png number in base64
-    if is_img then 
+    if is_img then
       return "png"
     end
   elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
