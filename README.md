@@ -57,7 +57,7 @@ With bugs, issues and pull requests piling up, people from the community decided
 - `smart_action`, bind to `<CR>` will:
   - If cursor is on a link, follow the link.
   - If cursor is on a tag, show all notes with that tag in a picker.
-  - If cursor is on a checkbox, toggle the checkbox.
+  - If cursor is on a checkbox, toggle the checkbox, see [Checkbox.create_new](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Checkbox#create-new).
   - If cursor is on a heading, cycle the fold of that heading, see [Folding](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Folding) to set this up.
 - `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in the buffer.
 
