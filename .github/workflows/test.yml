@@ -36,6 +36,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install ripgrep
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y ripgrep
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            brew update
+            brew install ripgrep
+          else
+            choco install ripgrep -y
+          fi
+        shell: bash
+
       - name: Setup neovim
         uses: rhysd/action-setup-vim@v1
         with:
