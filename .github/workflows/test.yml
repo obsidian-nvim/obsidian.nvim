@@ -1,0 +1,45 @@
+name: Run tests
+
+on:
+  # push:
+  #   paths: [ 'lua/**', 'tests/**' ]
+  # pull_request:
+  #   paths: [ 'lua/**', 'tests/**' ]
+  pull_request:
+    branches:
+      - '*'
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Run tests
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        neovim_version: [ 'v0.10.4', 'v0.11.4', 'nightly']
+        include:
+        - os: macos-latest
+          neovim_version: v0.11.4
+        - os: windows-latest
+          neovim_version: v0.11.4
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim_version }}
+      - name: Run tests
+        run: make test
