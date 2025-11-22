@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `fzf` when pick files will give proper previews.
+- Github workflow will run tests in multiple neovim versions to ensure compatibility.
 
 ### Fixed
 

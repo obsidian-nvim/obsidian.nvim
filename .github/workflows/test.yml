@@ -1,18 +1,10 @@
-name: Run tests
+name: Tests
 
 on:
-  # push:
-  #   paths: [ 'lua/**', 'tests/**' ]
-  # pull_request:
-  #   paths: [ 'lua/**', 'tests/**' ]
-  pull_request:
-    branches:
-      - '*'
   push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
+    paths: [ 'lua/**', 'tests/**' ]
+  pull_request:
+    paths: [ 'lua/**', 'tests/**' ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
@@ -36,7 +28,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+      # TODO: can be removed once we have fallback native search backend
       - name: Install ripgrep
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
