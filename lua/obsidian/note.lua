@@ -185,15 +185,42 @@ Note._get_creation_opts = function(opts)
   return default
 end
 
+---@param s string
+---@return string|?
+---@return string|?
+local parse_as_path = function(s)
+  ---@type string|?
+  local parent
+
+  if s:match "%.md" then
+    -- Remove suffix.
+    s = s:sub(1, s:len() - 3)
+  end
+
+  -- Pull out any parent dirs from title.
+  local parts = vim.split(s, "/")
+  if #parts > 1 then
+    s = parts[#parts]
+    parent = table.concat(parts, "/", 1, #parts - 1)
+  end
+
+  if s == "" then
+    return nil, parent
+  else
+    return s, parent
+  end
+end
+
 --- Resolves the title, ID, and path for a new note.
 ---
----@param id string|?
----@param dir string|obsidian.Path|? The directory for the note
----@param strategy obsidian.note.NoteCreationOpts Strategy for resolving note path and title
+---@param opts obsidian.note.NoteOpts Strategy for resolving note path and title
 ---@return string id
 ---@return obsidian.Path path
 ---@private
-Note._resolve_id_path = function(id, dir, strategy)
+Note._resolve_id_path = function(opts)
+  local id, dir = opts.id, opts.dir
+  local creation_opts = Note._get_creation_opts(opts or {})
+
   if id then
     id = vim.trim(id)
     if id == "" then
@@ -201,40 +228,9 @@ Note._resolve_id_path = function(id, dir, strategy)
     end
   end
 
-  ---@param s string
-  ---@param strict_paths_only boolean
-  ---@return string|?, boolean, string|?
-  local parse_as_path = function(s, strict_paths_only)
-    local is_path = false
-    ---@type string|?
-    local parent
-
-    if s:match "%.md" then
-      -- Remove suffix.
-      s = s:sub(1, s:len() - 3)
-      is_path = true
-    end
-
-    -- Pull out any parent dirs from title.
-    local parts = vim.split(s, "/")
-    if #parts > 1 then
-      s = parts[#parts]
-      if not strict_paths_only then
-        is_path = true
-      end
-      parent = table.concat(parts, "/", 1, #parts - 1)
-    end
-
-    if s == "" then
-      return nil, is_path, parent
-    else
-      return s, is_path, parent
-    end
-  end
-
   local parent, _
   if id then
-    id, _, parent = parse_as_path(id, false)
+    id, parent = parse_as_path(id)
   end
 
   -- Resolve base directory.
@@ -252,7 +248,7 @@ Note._resolve_id_path = function(id, dir, strategy)
   else
     local bufpath = Path.buffer(0):resolve()
     if
-      strategy.new_notes_location == config.NewNotesLocation.current_dir
+      creation_opts.new_notes_location == config.NewNotesLocation.current_dir
       -- note is actually in the workspace.
       and Obsidian.dir:is_parent_of(bufpath)
       -- note is not in dailies folder
@@ -264,8 +260,8 @@ Note._resolve_id_path = function(id, dir, strategy)
       base_dir = Obsidian.buf_dir or assert(bufpath:parent())
     else
       base_dir = Obsidian.dir
-      if strategy.notes_subdir then
-        base_dir = base_dir / strategy.notes_subdir
+      if creation_opts.notes_subdir then
+        base_dir = base_dir / creation_opts.notes_subdir
       end
     end
   end
@@ -274,7 +270,7 @@ Note._resolve_id_path = function(id, dir, strategy)
   assert(base_dir:is_absolute(), ("failed to resolve note directory '%s'"):format(base_dir))
 
   -- Apply id transform
-  id = generate_id(id, base_dir, strategy.note_id_func)
+  id = generate_id(id, base_dir, creation_opts.note_id_func)
 
   dir = base_dir
 
@@ -289,7 +285,7 @@ end
 --- @param opts obsidian.note.NoteOpts
 --- @return obsidian.Note
 Note.create = function(opts)
-  local new_id, path = Note._resolve_id_path(opts.id, opts.dir, Note._get_creation_opts(opts))
+  local new_id, path = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
   -- Add the title as an alias.
@@ -1083,10 +1079,6 @@ Note.save_to_buffer = function(self, opts)
   else
     new_lines = {}
   end
-
-  -- if api.buffer_is_empty(bufnr) and self.title ~= nil then
-  --   table.insert(new_lines, "# " .. self.title)
-  -- end
 
   if not vim.deep_equal(current_lines, new_lines) then
     vim.api.nvim_buf_set_lines(bufnr, 0, frontmatter_end_line and frontmatter_end_line or 0, false, new_lines)
