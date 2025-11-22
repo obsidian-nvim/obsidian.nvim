@@ -273,10 +273,8 @@ Note._resolve_id_path = function(id, dir, strategy)
   -- Make sure `base_dir` is absolute at this point.
   assert(base_dir:is_absolute(), ("failed to resolve note directory '%s'"):format(base_dir))
 
-  -- Generate new ID if needed.
-  if not id then
-    id = generate_id(id, base_dir, strategy.note_id_func)
-  end
+  -- Apply id transform
+  id = generate_id(id, base_dir, strategy.note_id_func)
 
   dir = base_dir
 
