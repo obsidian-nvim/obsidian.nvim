@@ -105,16 +105,10 @@ local function save_clipboard_image(path, img_type)
     local display_server = os.getenv "XDG_SESSION_TYPE"
     if display_server == "x11" or display_server == "tty" then
       cmd = string.format("xclip -selection clipboard -t %s -o > '%s'", mime_type, path)
+      return run_job { "bash", "-c", cmd }
     elseif display_server == "wayland" then
       cmd = string.format("wl-paste --no-newline --type %s > %s", mime_type, vim.fn.shellescape(path))
       return run_job { "bash", "-c", cmd }
-    end
-
-    local result = os.execute(cmd)
-    if type(result) == "number" and result > 0 then
-      return false
-    else
-      return result
     end
   elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
     local cmd = 'powershell.exe -c "'

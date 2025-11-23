@@ -6,7 +6,7 @@ local img = require "obsidian.img_paste"
 return function(data)
   local img_type = img.get_clipboard_img_type()
   if not img_type then
-    return log.err "There is no image data in the clipboard"
+    return log.err "There is no image in the clipboard"
   end
 
   ---@type string|?
