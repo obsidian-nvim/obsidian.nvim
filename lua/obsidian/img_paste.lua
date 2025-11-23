@@ -89,7 +89,7 @@ function M.get_clipboard_img_type()
   return nil
 end
 
---- TODO: refactor with run_job?
+--- TODO: refactor Windows with run_job?
 
 --- Save image from clipboard to `path`.
 ---@param path string

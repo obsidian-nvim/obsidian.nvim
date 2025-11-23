@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with respect to the public API, which currently includes the installation steps, dependencies, configuration, keymappings, commands, and other plugin functionality. At the moment this does _not_ include the Lua `Client` API, although in the future it will once that API stabilizes.
 
+## Pull Request
+
+### Added
+
+- Tests for components of associated with `paste_img` command
+
+### Changed
+
+- Refactor `save_clipboard_image` for x11/tty display server to use `run_job` instead of `os.execute`
+- Refactor `paste_img` and `img_paste` functions to return and handle img type as a string instead of boolean
+- Expand `paste_img` functionality to support the following formats for Linux systems:
+  - image/jpeg
+  - image/png
+  - image/avif
+  - image/webp
+  - image/bmp
+  - image/gif
+
 ## Unreleased
 
 ### Added
@@ -468,6 +486,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 There's a lot of new features and improvements here that I'm really excited about 🥳 They've improved my workflow a ton and I hope they do for you too. To highlight the 3 biggest additions:
 
 1. 🔗 Full support for header anchor links and block links! That means both for following links and completion of links. Various forms of anchor/block links are support. Here are a few examples:
+
    - Typical Obsidian-style wiki links, e.g. `[[My note#Heading 1]]`, `[[My note#Heading 1#Sub heading]]`, `[[My note#^block-123]]`.
    - Wiki links with a label, e.g. `[[my-note#heading-1|Heading 1 in My Note]]`.
    - Markdown links, e.g. `[Heading 1 in My Note](my-note.md#heading-1)`.
