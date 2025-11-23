@@ -1,8 +1,10 @@
-local M = require "obsidian.img_paste"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
+local h = dofile "tests/helpers.lua"
 local api = require "obsidian.api"
 
-local T = new_set()
+local T, child = h.child_vault {
+  pre_case = [[api = require"obsidian.api"]],
+}
 
 local test_cases = {
   {
@@ -48,36 +50,36 @@ local parametrize_data = vim.tbl_map(function(case)
   return { case }
 end, test_cases)
 
--- call test across all test cases
 T["get_clipboard_img_type"] = new_set { parametrize = parametrize_data }
 
-T["get_clipboard_img_type"]["should return correct image type for OS: {1}"] = function(case)
-  -- Store original functions to be restored later
+T["get_clipboard_img_type"]["should return correct image type for OS"] = function(case)
+  -- Set up mocked functions to test get_clipboard_img_type
+  child.lua(
+    [[
+      local case = ...  
+      api.get_os = function()
+        return case.os_type
+      end
 
-  -- Mock API to test against several different OS types
-  api.get_os = function()
-    return case.os_type
-  end
+      os.getenv = function(var)
+        if var == "XDG_SESSION_TYPE" then
+          return case.display_server
+        end
+        return api.get_os()
+      end
 
-  -- Mock display server
-  -- selene: allow(incorrect_standard_library_use)
-  os.getenv = function(var)
-    if var == "XDG_SESSION_TYPE" then
-      return case.display_server
-    end
-    return api.get_os()
-  end
+      vim.fn.system = function(cmd)
+        assert(case.expected_cmd, cmd, "The wrong system command was called.")
+        return case.mock_output
+      end
+  ]],
+    { case }
+  )
 
-  -- Mock command needed to output data
-  vim.fn.system = function(cmd)
-    eq(case.expected_cmd, cmd, "The wrong system command was called.")
-    return case.mock_output
-  end
+  -- Run get_clipboard_img_type
+  local result = child.lua_get [[require('obsidian.img_paste').get_clipboard_img_type()]]
 
-  -- Run get_clipbaord_img_type with mocked functions
-  local img_type = M.get_clipboard_img_type()
-
-  eq(case.expected_img_type, img_type)
+  eq(case.expected_img_type, result)
 end
 
 return T
