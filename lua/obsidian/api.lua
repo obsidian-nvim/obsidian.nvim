@@ -846,4 +846,62 @@ M.extract_note = function(label)
   vim.api.nvim_buf_set_lines(0, -1, -1, false, content)
 end
 
+M.quick_switch = function(query, opts)
+  local paths = {}
+
+  search.find_async(
+    opts.dir,
+    query,
+    {},
+    function(path)
+      paths[#paths + 1] = path
+    end,
+    vim.schedule_wrap(function()
+      if vim.tbl_isempty(paths) then
+        return log.info "Failed to Switch" -- TODO:
+      elseif #paths == 1 then
+        return M.open_note { filename = paths[1] }
+      elseif #paths > 1 then
+        ---@type vim.quickfix.entry
+        local items = {}
+        for _, path in ipairs(paths) do
+          items[#items + 1] = {
+            filename = path,
+            lnum = 1,
+            col = 0,
+            text = require("obsidian.picker.util").make_display {
+              filename = path,
+            },
+          }
+        end
+        if opts.callback then
+          vim.ui.select(items, {
+            format_item = function(item)
+              return item.text
+            end,
+          }, function(item)
+            if item then
+              opts.callback(item.filename)
+            end
+          end)
+        else
+          vim.fn.setqflist(items)
+          vim.cmd "copen"
+        end
+      end
+    end)
+  )
+end
+
+---@return string[]
+M.path_completion = function(arglead, cmdline, pos)
+  print(arglead, cmdline, pos)
+  print(type(arglead), type(cmdline), type(pos))
+  local notes = search.find_notes(arglead)
+  local list = vim.tbl_map(function(note)
+    return note.path:vault_relative_path()
+  end, notes)
+  return list
+end
+
 return M

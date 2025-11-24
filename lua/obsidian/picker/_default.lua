@@ -124,61 +124,26 @@ end
 M.find_files = function(opts)
   opts = opts or {}
 
+  _G.ob_api = require "obsidian.api"
+
   local query
   if opts.query and vim.trim(opts.query) ~= "" then
     query = opts.query
   else
-    query = api.input(opts.prompt_title .. ": ") -- TODO:
+    vim.cmd [[
+    function! ObsidianPathComplete(A, L, P)
+      return v:lua.ob_api.path_completion(a:A,a:L,a:P)
+    endfunction
+       ]]
+    query = api.input(opts.prompt_title .. ": ", {
+      completion = "customlist,ObsidianPathComplete",
+    })
   end
 
   if not query then
     return
   end
-
-  local paths = {}
-
-  search.find_async(
-    opts.dir,
-    query,
-    {},
-    function(path)
-      paths[#paths + 1] = path
-    end,
-    vim.schedule_wrap(function()
-      if vim.tbl_isempty(paths) then
-        return log.info "Failed to Switch" -- TODO:
-      elseif #paths == 1 then
-        return api.open_note { filename = paths[1] }
-      elseif #paths > 1 then
-        ---@type vim.quickfix.entry
-        local items = {}
-        for _, path in ipairs(paths) do
-          items[#items + 1] = {
-            filename = path,
-            lnum = 1,
-            col = 0,
-            text = ut.make_display {
-              filename = path,
-            },
-          }
-        end
-        if opts.callback then
-          vim.ui.select(items, {
-            format_item = function(item)
-              return item.text
-            end,
-          }, function(item)
-            if item then
-              opts.callback(item.filename)
-            end
-          end)
-        else
-          vim.fn.setqflist(items)
-          vim.cmd "copen"
-        end
-      end
-    end)
-  )
+  api.quick_switch(query, opts)
 end
 
 return M

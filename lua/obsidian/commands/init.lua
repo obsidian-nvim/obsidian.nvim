@@ -87,10 +87,11 @@ M.install = function()
     M.handle_command(data)
   end, {
     nargs = "*",
-    complete = function(_, cmdline, _)
+    complete = function(arglead, cmdline, _)
+      print(cmdline)
       return M.get_completions(cmdline)
     end,
-    range = 2,
+    -- range = 2,
   })
 end
 
@@ -138,21 +139,16 @@ end
 M.get_completions = function(cmdline)
   local obspat = "^['<,'>]*Obsidian[!]?"
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
-  local obsidiancmd = splitcmd[2]
+  local subcmd = splitcmd[2]
   if cmdline:match(obspat .. "%s$") then
     local is_visual = vim.startswith(cmdline, "'<,'>")
     return get_commands_by_context(M.commands, is_visual, in_note())
   end
-  if cmdline:match(obspat .. "%s%S+$") then
-    return vim.tbl_filter(function(s)
-      return s:sub(1, #obsidiancmd) == obsidiancmd
-    end, vim.tbl_keys(M.commands))
-  end
-  local cmdconfig = M.commands[obsidiancmd]
+  local cmdconfig = M.commands[subcmd]
   if cmdconfig == nil then
     return
   end
-  if cmdline:match(obspat .. "%s%S*%s%S*$") then
+  if cmdline:match(obspat .. "%s%S*%s$") then
     local cmd_arg = table.concat(vim.list_slice(splitcmd, 3), " ")
     local complete_type = type(cmdconfig.complete)
     if complete_type == "function" then
@@ -235,7 +231,7 @@ M.register("search", { nargs = "?" })
 
 M.register("new_from_template", { nargs = "*" })
 
-M.register("quick_switch", { nargs = "?" })
+M.register("quick_switch", { nargs = "*", complete = M.note_complete })
 
 M.register("workspace", { nargs = "?" })
 
