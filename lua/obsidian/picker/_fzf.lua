@@ -31,7 +31,8 @@ end
 local M = {}
 
 ---@param opts { callback: fun(selection: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
-local function get_selection_actions(opts)
+---@param path_only? boolean HACK:
+local function get_selection_actions(opts, path_only)
   local actions = {
     default = function(selected, fzf_opts)
       if not opts.no_default_mappings then
@@ -40,7 +41,11 @@ local function get_selection_actions(opts)
 
       if opts.callback then
         local path = entry_to_file(selected[1], fzf_opts).path
-        opts.callback { filename = path }
+        if path_only then
+          opts.callback(path)
+        else
+          opts.callback { filename = path }
+        end
       end
     end,
   }
@@ -140,12 +145,12 @@ M.find_files = function(opts)
     cwd_prompt = false,
     prompt = format_prompt(opts.prompt_title),
     show_details = true,
-    actions = get_selection_actions {
+    actions = get_selection_actions({
       callback = opts.callback,
       no_default_mappings = opts.no_default_mappings,
       selection_mappings = opts.selection_mappings,
       query_mappings = opts.query_mappings,
-    },
+    }, true),
   }
 end
 
