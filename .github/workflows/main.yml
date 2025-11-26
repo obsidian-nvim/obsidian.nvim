@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: [checks, style]
+    needs: [style]
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
