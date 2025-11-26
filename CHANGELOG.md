@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- `fzf` template picker fix.
+
 ## [v3.14.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.6) - 2025-11-23
 
 ### Added
