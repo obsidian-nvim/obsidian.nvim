@@ -5,6 +5,8 @@ local Note = obsidian.Note
 local Path = obsidian.Path
 local log = obsidian.log
 local api = obsidian.api
+local util = obsidian.util
+local search = obsidian.search
 
 ---@param name string
 ---@return boolean
@@ -25,6 +27,63 @@ M.validate = function(name)
 end
 
 local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
+
+---@param match obsidian.BacklinkMatch
+local function gen_text_edit_from_match(note, match, ref, new_name)
+  local location, label, link_type = util.parse_link(match.text)
+
+  local block_link, anchor_link
+  location, block_link = util.strip_block_links(location)
+  location, anchor_link = util.strip_anchor_links(location)
+  -- location = vim.uri_decode(location)
+
+  local ref_start, ref_end
+
+  for _, ref_match in ipairs(search.find_refs(match.line_content, { exclude = { "BlockID", "Tag" } })) do
+    local m_start, m_end = unpack(ref_match)
+    local link = string.sub(match.line_content, m_start, m_end)
+    if string.find(link, match.text) ~= nil then
+      ref_start, ref_end = m_start - 1, m_end
+    end
+  end
+
+  assert(label, "failed to retrive name for ref")
+
+  local link_opts = {
+    id = new_name,
+    block = { id = block_link and block_link:sub(2) or nil }, -- TODO: pass in plain block text
+    anchor = anchor_link,
+  }
+  if location ~= label then
+    link_opts.label = label
+  else
+    link_opts.label = new_name
+  end
+
+  local new_text = note:format_link(link_opts)
+
+  -- local offset_st, offset_ed = string.find(match.text, ref)
+  -- local replace_st, replace_ed = offset_st + match.start - 1, offset_ed + match.start
+
+  return {
+    textDocument = {
+      uri = vim.uri_from_fname(tostring(match.path)),
+      version = has_nvim_0_12 and vim.NIL or nil,
+    },
+    edits = {
+      {
+        range = {
+          start = { line = match.line - 1, character = ref_start },
+          ["end"] = { line = match.line - 1, character = ref_end },
+        },
+        newText = new_text,
+      },
+    },
+  }
+  -- count = count + 1
+  -- buf_list[#buf_list + 1] = vim.fn.bufnr(match_path, true)
+  -- path_lookup[match_path] = true
+end
 
 -- TODO: note:rename(self, new_name, callback)
 
@@ -55,23 +114,9 @@ M.rename = function(note, new_name, callback)
     for _, ref in ipairs(old_refs) do
       local offset_st, offset_ed = string.find(match.text, ref)
       if offset_st and offset_ed then
-        local replace_st, replace_ed = offset_st + match.start - 1, offset_ed + match.start
-
-        documentChanges[#documentChanges + 1] = {
-          textDocument = {
-            uri = vim.uri_from_fname(match_path),
-            version = has_nvim_0_12 and vim.NIL or nil,
-          },
-          edits = {
-            {
-              range = {
-                start = { line = match.line - 1, character = replace_st },
-                ["end"] = { line = match.line - 1, character = replace_ed },
-              },
-              newText = new_name,
-            },
-          },
-        }
+        vim.print(match, ref, new_name)
+        local edit = gen_text_edit_from_match(note, match, ref, new_name)
+        documentChanges[#documentChanges + 1] = edit
         count = count + 1
         buf_list[#buf_list + 1] = vim.fn.bufnr(match_path, true)
         path_lookup[match_path] = true

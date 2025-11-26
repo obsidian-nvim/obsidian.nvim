@@ -22,9 +22,14 @@ tags: []
 hello
 world]]
 
-local ref_content = [==[
+local ref_wiki = [==[
 
-[[target]]
+a link: [[target]] some text after
+]==]
+
+local ref_markdown = [==[
+
+[target](target.md)
 ]==]
 
 T["rename current note"] = function()
@@ -42,17 +47,17 @@ T["rename current note"] = function()
   eq(target_expected, table.concat(lines, "\n"))
 end
 
-T["rename note under cursor"] = function()
+T["rename wiki link under cursor"] = function()
   local root = child.Obsidian.dir
 
   local files = h.mock_vault_contents(root, {
     [target] = target_content,
-    [ref] = ref_content,
+    [ref] = ref_wiki,
   })
   local new_target_path = (root / "new_target.md")
 
   child.cmd("edit " .. files[ref])
-  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  child.api.nvim_win_set_cursor(0, { 2, 9 })
 
   child.lua [[vim.lsp.buf.rename("new_target", {})]]
   child.cmd "wa"
@@ -60,7 +65,32 @@ T["rename note under cursor"] = function()
   local lines = vim.fn.readfile(tostring(new_target_path))
 
   eq(target_expected, table.concat(lines, "\n"))
+
+  local current_ref_line = child.api.nvim_get_current_line()
+  eq("a link: [[new_target]] some text after", current_ref_line)
 end
+
+-- T["rename markdown link under cursor"] = function()
+--   local root = child.Obsidian.dir
+--
+--   local files = h.mock_vault_contents(root, {
+--     [target] = target_content,
+--     [ref] = ref_markdown,
+--   })
+--   local new_target_path = (root / "new_target.md")
+--
+--   child.cmd("edit " .. files[ref])
+--   child.api.nvim_win_set_cursor(0, { 2, 0 })
+--
+--   child.lua [[vim.lsp.buf.rename("new_target", {})]]
+--   child.cmd "wa"
+--   eq(true, new_target_path:exists())
+--   local lines = vim.fn.readfile(tostring(new_target_path))
+--   eq(target_expected, table.concat(lines, "\n"))
+--
+--   local current_ref_line = child.api.nvim_get_current_line()
+--   eq("[new_target](new_target.md)", current_ref_line)
+-- end
 
 local referencer2_expected = [==[
 ---
