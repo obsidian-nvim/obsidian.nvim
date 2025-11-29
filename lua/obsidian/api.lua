@@ -31,6 +31,15 @@ M.dir = function(dir)
     end)
 end
 
+-- find workspaces of a path
+---@param path string
+---@return obsidian.Workspace
+M.find_workspace = function(path)
+  return vim.iter(Obsidian.workspaces):find(function(ws)
+    return M.path_is_note(path, ws)
+  end)
+end
+
 --- Get the templates folder.
 ---
 ---@param workspace obsidian.Workspace?
@@ -72,8 +81,9 @@ M.path_is_note = function(path, workspace)
     return false
   end
 
-  -- Notes have to be markdown file.
-  if path.suffix ~= ".md" then
+  local ft = vim.filetype.match { filename = tostring(path) }
+
+  if not vim.list_contains(Obsidian.opts.filetypes, ft) then
     return false
   end
 

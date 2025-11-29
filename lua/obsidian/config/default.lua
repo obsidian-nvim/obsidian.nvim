@@ -19,6 +19,7 @@ return {
   notes_subdir = nil,
   new_notes_location = "current_dir",
 
+  filetypes = { "markdown" },
   workspaces = {},
   log_level = vim.log.levels.INFO,
   note_id_func = require("obsidian.builtin").zettel_id,

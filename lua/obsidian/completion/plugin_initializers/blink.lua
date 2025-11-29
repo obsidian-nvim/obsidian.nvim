@@ -45,20 +45,11 @@ local function add_element_to_list_if_not_exists(list, element)
   end
 end
 
--- find workspaces of a path
----@param path string
----@return obsidian.Workspace
-local function find_workspace(path)
-  return vim.iter(Obsidian.workspaces):find(function(ws)
-    return obsidian.api.path_is_note(path, ws)
-  end)
-end
-
 local function should_return_if_not_in_workspace()
   local current_file_path = vim.api.nvim_buf_get_name(0)
   local buf_dir = vim.fs.dirname(current_file_path)
 
-  local workspace = find_workspace(buf_dir)
+  local workspace = obsidian.api.find_workspace(buf_dir)
   return workspace ~= nil
 end
 
