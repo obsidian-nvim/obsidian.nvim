@@ -46,10 +46,10 @@ local function create_new_note(location, name)
       aliases = {}
     else
       aliases = { name }
-      id = location
     end
+    id = location
 
-    local note = Note.create { title = name, id = id, aliases = aliases }
+    local note = Note.create { id = id, aliases = aliases }
     return note_to_location(note)
   else
     return obsidian.log.warn "Aborted"
