@@ -29,7 +29,7 @@ local test_cases = {
     expected_msg = "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |",
     os_type = api.OSType.Linux,
     display_server = "wayland",
-    expected_cmd = "wl-paste --no-newline --type image/png > 'me^ow.png'",
+    expected_cmd = { "bash", "-c", "wl-paste --no-newline --type image/png > 'me^ow.png'" },
     confirm_img_paste = false,
   },
   {
@@ -38,7 +38,34 @@ local test_cases = {
     expected_msg = nil,
     os_type = api.OSType.Linux,
     display_server = "x11",
-    expected_cmd = "xclip -selection clipboard -t image/jpeg -o > 'meow.jpeg'",
+    expected_cmd = { "bash", "-c", "xclip -selection clipboard -t image/jpeg -o > 'meow.jpeg'" },
+    confirm_img_paste = false,
+  },
+  {
+    img_type = "png",
+    file_name = "meow.png",
+    expected_msg = nil,
+    os_type = api.OSType.Darwin,
+    display_server = nil,
+    expected_cmd = { "pngpaste", "meow.png" },
+    confirm_img_paste = false,
+  },
+  {
+    img_type = "png",
+    file_name = "meow.png",
+    expected_msg = nil,
+    os_type = api.OSType.Windows,
+    display_server = nil,
+    expected_cmd = "powershell.exe -c \"(get-clipboard -format image).save('meow.png', 'png')\"",
+    confirm_img_paste = false,
+  },
+  {
+    img_type = "png",
+    file_name = "meow.jpeg",
+    expected_msg = "invalid suffix for image name '%s', must be '%s'",
+    os_type = api.OSType.Darwin,
+    display_server = nil,
+    expected_cmd = nil,
     confirm_img_paste = false,
   },
 }
@@ -94,13 +121,15 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
       return case.mock_output
     end
 
-    os.execute = function()
+    -- Used by Windows to run save clipboard image command
+    os.execute = function(cmds)
         _G.captured_cmd = cmds
         return 0
     end
 
+    -- Used by Linux & MacOS to run save clipboard image command
     async.run_job = function(cmds)
-        _G.captured_cmd = cmds[3]
+        _G.captured_cmd = cmds
         return 0
     end
 
@@ -126,11 +155,11 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
   -- Check for warning or error messages if expected
   if case.expected_msg then
     local actual_msg = results.err or results.warn
-    eq(actual_msg, case.expected_msg)
+    eq(case.expected_msg, actual_msg)
   -- Otherwise assume there was no warning or error
   else
-    eq(results.err, nil)
-    eq(results.warn, nil)
+    eq(nil, results.err)
+    eq(nil, results.warn)
   end
 
   eq(case.expected_cmd, results.captured_cmd)

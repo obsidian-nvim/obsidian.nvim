@@ -100,11 +100,11 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
   -- Check for warning or error messages if expected
   if case.expected_msg then
     local actual_msg = results.err or results.warn
-    eq(actual_msg, case.expected_msg)
+    eq(case.expected_msg, actual_msg)
   -- Otherwise assume there was no warning or error
   else
-    eq(results.err, nil)
-    eq(results.warn, nil)
+    eq(nil, results.err)
+    eq(nil, results.warn)
   end
 
   -- Check for path name if expected
@@ -113,11 +113,11 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
     local vault_root = child.lua_get "Obsidian.dir.filename"
     local expected_path = string.format("%s/assets/imgs/%s", vault_root, case.expected_name)
 
-    eq(results.paste_path, expected_path)
-    eq(results.img_type, case.img_type)
+    eq(expected_path, results.paste_path)
+    eq(case.img_type, results.img_type)
   -- Otherwise assume no path will be set
   else
-    eq(results.paste_path, nil)
+    eq(nil, results.paste_path)
   end
 end
 
