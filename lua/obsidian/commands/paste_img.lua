@@ -4,7 +4,8 @@ local img = require "obsidian.img_paste"
 
 ---@param data obsidian.CommandArgs
 return function(data)
-  if not img.clipboard_is_img() then
+  local img_type = img.get_clipboard_img_type()
+  if not img_type then
     return log.err "There is no image data in the clipboard"
   end
 
@@ -31,5 +32,5 @@ return function(data)
 
   local path = api.resolve_image_path(fname)
 
-  img.paste(path)
+  img.paste(path, img_type)
 end
