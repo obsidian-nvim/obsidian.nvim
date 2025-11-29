@@ -5,14 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with respect to the public API, which currently includes the installation steps, dependencies, configuration, keymappings, commands, and other plugin functionality. At the moment this does _not_ include the Lua `Client` API, although in the future it will once that API stabilizes.
 
-## Pull Request
+## Unreleased
 
 ### Added
 
+- `definition` will resolve and follow `[[#header]]` links.
 - Tests for components of associated with `paste_img` command
 
 ### Changed
 
+- Internally no longer use `abc` for building class.
+- Added `link` `link_new` and `extract_note` in `api.lua`.
 - Refactor `save_clipboard_image` for x11/tty display server to use `run_job` instead of `os.execute`
 - Refactor `paste_img` and `img_paste` functions to return and handle img type as a string instead of boolean
 - Expand `paste_img` functionality to support the following formats for Linux systems:
@@ -22,17 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - image/webp
   - image/bmp
   - image/gif
-
-## Unreleased
-
-### Added
-
-- `definition` will resolve and follow `[[#header]]` links.
-
-### Changed
-
-- Internally no longer use `abc` for building class.
-- Added `link` `link_new` and `extract_note` in `api.lua`.
 
 ### Fixed
 
