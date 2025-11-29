@@ -30,8 +30,9 @@ end
 
 local M = {}
 
----@param opts { callback: fun(path: string)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
-local function get_path_actions(opts)
+---@param opts { callback: fun(selection: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+---@param path_only? boolean HACK:
+local function get_selection_actions(opts, path_only)
   local actions = {
     default = function(selected, fzf_opts)
       if not opts.no_default_mappings then
@@ -40,7 +41,11 @@ local function get_path_actions(opts)
 
       if opts.callback then
         local path = entry_to_file(selected[1], fzf_opts).path
-        opts.callback(path)
+        if path_only then
+          opts.callback(path)
+        else
+          opts.callback { filename = path }
+        end
       end
     end,
   }
@@ -49,7 +54,14 @@ local function get_path_actions(opts)
     for key, mapping in pairs(opts.selection_mappings) do
       actions[format_keymap(key)] = function(selected, fzf_opts)
         local path = entry_to_file(selected[1], fzf_opts).path
-        mapping.callback(path)
+        mapping.callback { filename = path }
+      end
+    end
+
+    for key, mapping in pairs(opts.query_mappings) do
+      actions[format_keymap(key)] = function(_, fzf_opts)
+        local query = fzf_opts.query
+        mapping.callback(query)
       end
     end
   end
@@ -130,12 +142,15 @@ M.find_files = function(opts)
     query = opts.query,
     cwd = tostring(dir),
     cmd = table.concat(search.build_find_cmd(), " "),
-    actions = get_path_actions {
+    cwd_prompt = false,
+    prompt = format_prompt(opts.prompt_title),
+    show_details = true,
+    actions = get_selection_actions({
       callback = opts.callback,
       no_default_mappings = opts.no_default_mappings,
       selection_mappings = opts.selection_mappings,
-    },
-    prompt = format_prompt(opts.prompt_title),
+      query_mappings = opts.query_mappings,
+    }, true),
   }
 end
 
@@ -146,10 +161,10 @@ M.grep = function(opts)
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local cmd = table.concat(search.build_grep_cmd(), " ")
-  local actions = get_path_actions {
-    -- TODO: callback for the full object
+  local actions = get_selection_actions {
     no_default_mappings = opts.no_default_mappings,
     selection_mappings = opts.selection_mappings,
+    query_mappings = opts.query_mappings,
   }
 
   if opts.query and string.len(opts.query) > 0 then
@@ -180,6 +195,9 @@ M.pick = function(values, opts)
 
   ---@type table<string, any>
   local display_to_value_map = {}
+  local file_preview = vim.iter(values):any(function(v)
+    return type(v) == "table" and v.filename ~= nil
+  end)
 
   ---@type string[]
   local entries = {}
@@ -197,7 +215,27 @@ M.pick = function(values, opts)
     end
   end
 
+  local builtin = require "fzf-lua.previewer.builtin"
+
+  local MyPreviewer = builtin.buffer_or_file:extend()
+
+  function MyPreviewer:new(o, _opts, fzf_win)
+    MyPreviewer.super.new(self, o, _opts, fzf_win)
+    setmetatable(self, MyPreviewer)
+    return self
+  end
+
+  function MyPreviewer:parse_entry(entry_str)
+    local entry = display_to_value_map[entry_str]
+    return {
+      path = entry.filename,
+      line = entry.lnum,
+      col = entry.col,
+    }
+  end
+
   fzf.fzf_exec(entries, {
+    previewer = file_preview and MyPreviewer or nil,
     prompt = format_prompt(
       ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
     ),

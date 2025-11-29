@@ -103,7 +103,7 @@ M.current_note = function(bufnr, opts)
 
   opts = opts or {}
   if not opts.max_lines then
-    opts.max_lines = Obsidian.opts.search_max_lines
+    opts.max_lines = Obsidian.opts.search.max_lines
   end
   return Note.from_buffer(bufnr, opts)
 end
@@ -739,6 +739,8 @@ M.set_checkbox = function(state)
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
+local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
+
 ---@param viz obsidian.selection
 ---@param new_text string
 local function replace_selection(viz, new_text)
@@ -747,7 +749,7 @@ local function replace_selection(viz, new_text)
       {
         textDocument = {
           uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(0)),
-          version = vim.NIL,
+          version = has_nvim_0_12 and vim.NIL or nil,
         },
         edits = {
           {

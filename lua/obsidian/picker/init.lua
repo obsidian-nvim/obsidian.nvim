@@ -1,7 +1,6 @@
-local log = require "obsidian.log"
 local api = require "obsidian.api"
-local Note = require "obsidian.note"
 local PickerName = require("obsidian.config").Picker
+local Mappings = require "obsidian.picker.mappings"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
@@ -196,10 +195,7 @@ M._note_query_mappings = function()
   if key_is_set(Obsidian.opts.picker.note_mappings.new) then
     mappings[Obsidian.opts.picker.note_mappings.new] = {
       desc = "new",
-      callback = function(query)
-        ---@diagnostic disable-next-line: missing-fields
-        require "obsidian.commands.new" { args = query }
-      end,
+      callback = Mappings.new_note,
     }
   end
 
@@ -215,12 +211,7 @@ M._note_selection_mappings = function()
   if key_is_set(Obsidian.opts.picker.note_mappings.insert_link) then
     mappings[Obsidian.opts.picker.note_mappings.insert_link] = {
       desc = "insert link",
-      callback = function(item)
-        local note = Note.from_file(item.filename)
-        local link = note:format_link()
-        vim.api.nvim_put({ link }, "", false, true)
-        require("obsidian.ui").update(0)
-      end,
+      callback = Mappings.insert_link,
     }
   end
 
@@ -236,40 +227,7 @@ M._tag_selection_mappings = function()
   if key_is_set(Obsidian.opts.picker.tag_mappings.tag_note) then
     mappings[Obsidian.opts.picker.tag_mappings.tag_note] = {
       desc = "tag note",
-      callback = function(...)
-        local tags = vim.tbl_map(function(value)
-          return value.user_data
-        end, { ... })
-
-        local note = api.current_note(state.calling_bufnr)
-        if not note then
-          log.warn("'%s' is not a note in your workspace", vim.api.nvim_buf_get_name(M.state.calling_bufnr))
-          return
-        end
-
-        -- Add the tag and save the new frontmatter to the buffer.
-        local tags_added = {}
-        local tags_not_added = {}
-        for _, tag in ipairs(tags) do
-          if note:add_tag(tag) then
-            table.insert(tags_added, tag)
-          else
-            table.insert(tags_not_added, tag)
-          end
-        end
-
-        if #tags_added > 0 then
-          if note:update_frontmatter(M.state.calling_bufnr) then
-            log.info("Added tags %s to frontmatter", tags_added)
-          else
-            log.warn "Frontmatter unchanged"
-          end
-        end
-
-        if #tags_not_added > 0 then
-          log.warn("Note already has tags %s", tags_not_added)
-        end
-      end,
+      callback = Mappings.tag_note,
       fallback_to_query = true,
       keep_open = true,
       allow_multiple = true,
@@ -279,10 +237,7 @@ M._tag_selection_mappings = function()
   if key_is_set(Obsidian.opts.picker.tag_mappings.insert_tag) then
     mappings[Obsidian.opts.picker.tag_mappings.insert_tag] = {
       desc = "insert tag",
-      callback = function(item)
-        local tag = item.user_data
-        vim.api.nvim_put({ "#" .. tag }, "", false, true)
-      end,
+      callback = Mappings.insert_tag,
       fallback_to_query = true,
     }
   end

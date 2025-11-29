@@ -453,14 +453,23 @@ util.parse_link = function(link, opts)
     link = link:sub(3, #link - 2)
     link_location = link
     link_name = link
-    if vim.startswith(link, "#") then
-      return link:lower(), link, "HeaderLink" -- location is lower for lookup, name is preserved the original case
-    end
   elseif link_type == "BlockID" then
     link_location = util.standardize_block(link)
     link_name = link
   else
     error("not implemented for " .. link_type)
+  end
+
+  if vim.startswith(link_location, "#^") then
+    if vim.startswith(link_name, "#^") then
+      link_name = link_name:sub(3)
+    end
+    return link_location:lower(), link_name, "BlockLink" -- location is lower for lookup, name is preserved with the original case
+  elseif vim.startswith(link_location, "#") then
+    if vim.startswith(link_name, "#") then
+      link_name = link_name:sub(2)
+    end
+    return link_location:lower(), link_name, "HeaderLink" -- location is lower for lookup, name is preserved with the original case
   end
 
   if opts.strip then
@@ -469,6 +478,18 @@ util.parse_link = function(link, opts)
   end
 
   return link_location, link_name, link_type
+end
+
+--- Replace references of the form '[[xxx|xxx]]', '[[xxx]]', or '[xxx](xxx)' with their title.
+---
+---@param s string
+---
+---@return string
+util.replace_refs = function(s)
+  local out, _ = string.gsub(s, "%[%[[^%|%]]+%|([^%]]+)%]%]", "%1")
+  out, _ = out:gsub("%[%[([^%]]+)%]%]", "%1")
+  out, _ = out:gsub("%[([^%]]+)%]%([^%)]+%)", "%1")
+  return out
 end
 
 ------------------------------------
@@ -688,7 +709,10 @@ end
 ---@return boolean
 util.in_node = function(node_type)
   local function in_node(t)
-    local node = ts.get_node()
+    local has_parser, node = pcall(ts.get_node)
+    if not has_parser then
+      return false -- silent fail for 1) a older neovim version 2) don't have markdown parser 3) ci tests
+    end
     while node do
       if node:type() == t then
         return true

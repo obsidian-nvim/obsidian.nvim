@@ -751,7 +751,7 @@ Note.from_lines = function(lines, path, opts)
 
   if title ~= nil then
     -- Remove references and links from title
-    title = search.replace_refs(title)
+    title = util.replace_refs(title)
   end
 
   local id, aliases, tags = info.id, info.aliases, info.tags

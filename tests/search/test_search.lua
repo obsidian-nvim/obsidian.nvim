@@ -2,30 +2,9 @@ local M = require "obsidian.search"
 local h = dofile "tests/helpers.lua"
 local child
 
-local SearchOpts = M.SearchOpts
-
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
-
-T["find_and_replace_refs"] = function()
-  local s, indices = M.find_and_replace_refs "[[Foo]] [[foo|Bar]]"
-  local expected_s = "Foo Bar"
-  local expected_indices = { { 1, 3 }, { 5, 7 } }
-  MiniTest.expect.equality(s, expected_s)
-  MiniTest.expect.equality(#indices, #expected_indices)
-  for i = 1, #indices do
-    MiniTest.expect.equality(indices[i][1], expected_indices[i][1])
-    MiniTest.expect.equality(indices[i][2], expected_indices[i][2])
-  end
-end
-
-T["search.replace_refs()"] = function()
-  MiniTest.expect.equality(M.replace_refs "Hi there [[foo|Bar]]", "Hi there Bar")
-  MiniTest.expect.equality(M.replace_refs "Hi there [[Bar]]", "Hi there Bar")
-  MiniTest.expect.equality(M.replace_refs "Hi there [Bar](foo)", "Hi there Bar")
-  MiniTest.expect.equality(M.replace_refs "Hi there [[foo|Bar]] [[Baz]]", "Hi there Bar Baz")
-end
 
 T["find_refs"] = new_set()
 
@@ -53,33 +32,6 @@ T["find_refs"]["should find block IDs at the end of a line"] = function()
     { { 14, 25, "BlockID" } },
     M.find_refs("Hello World! ^hello-world", { include_block_ids = true })
   )
-end
-
-T["SearchOpts"] = new_set()
-
-T["SearchOpts"]["should initialize from a raw table and resolve to ripgrep options"] = function()
-  local opts = {
-    sort_by = "modified",
-    fixed_strings = true,
-    ignore_case = true,
-    exclude = { "templates" },
-    max_count_per_file = 1,
-  }
-  eq(
-    SearchOpts.to_ripgrep_opts(opts),
-    { "--sortr=modified", "--fixed-strings", "--ignore-case", "-g!templates", "-m=1" }
-  )
-end
-
-T["SearchOpts"]["should not include any options with defaults"] = function()
-  eq(SearchOpts.to_ripgrep_opts {}, {})
-end
-
-T["SearchOpts"]["should merge with another SearchOpts instance"] = function()
-  local opts1 = { fixed_strings = true, max_count_per_file = 1 }
-  local opts2 = { fixed_strings = false, ignore_case = true }
-  local opt = SearchOpts.merge(opts1, opts2)
-  eq(SearchOpts.to_ripgrep_opts(opt), { "--ignore-case", "-m=1" })
 end
 
 T["find_matches"] = function()
