@@ -948,7 +948,7 @@ end
 
 ---@param title string|?
 ---@param template string|?
-M.new_from_template = function(title, template)
+M.new_from_template = function(title, template, callback)
   local Note = require "obsidian.note"
 
   local templates_dir = M.templates_dir()
