@@ -484,7 +484,7 @@ end
 ---@param prompt string
 ---
 ---@return boolean
-M.confirm = function(prompt)
+M._confirm = function(prompt)
   if not vim.endswith(util.rstrip_whitespace(prompt), "[Y/n]") then
     prompt = util.rstrip_whitespace(prompt) .. " [Y/n] "
   end
@@ -500,6 +500,27 @@ M.confirm = function(prompt)
     return true
   else
     return false
+  end
+end
+
+M.confirm = function(prompt, choices)
+  choices = choices or "&Yes\n&No"
+  local choices_tbl = vim.split(choices, "\n")
+  choices_tbl = vim.tbl_map(function(choice)
+    return choice:gsub("&", "")
+  end, choices_tbl)
+
+  local choice_idx = vim.fn.confirm(prompt, choices)
+  local user_choice = choices_tbl[choice_idx]
+  if not user_choice then
+    return nil
+  end
+  if user_choice == "Yes" then
+    return true
+  elseif user_choice == "No" then
+    return false
+  else
+    return user_choice
   end
 end
 
