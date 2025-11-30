@@ -958,7 +958,11 @@ M.new_from_template = function(title, template, callback)
 
   if title ~= nil and template ~= nil then
     local note = Note.create { title = title, template = template, should_write = true }
-    note:open { sync = true }
+    if callback then
+      callback { note:_location() }
+    else
+      note:open { sync = true }
+    end
     return
   end
 
@@ -987,7 +991,13 @@ M.new_from_template = function(title, template, callback)
 
       ---@type obsidian.Note
       local note = Note.create { title = title, template = template_name, should_write = true }
-      note:open { sync = false }
+      -- note:open { sync = false }
+
+      if callback then
+        callback { note:_location() }
+      else
+        note:open { sync = false } -- TODO:??
+      end
     end,
   }
 end

@@ -50,8 +50,9 @@ local function create_new_note(location, name, callback)
       aliases = { name }
       id = location
     end
+    print(confirm)
 
-    if type(confirm) == "string" and confirm == "Template" then
+    if type(confirm) == "string" and confirm == "Yes With Template" then
       api.new_from_template(name, nil, callback)
       return
     else

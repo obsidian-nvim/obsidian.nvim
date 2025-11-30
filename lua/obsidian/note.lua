@@ -423,11 +423,21 @@ end
 ---
 ---@return string?
 Note.uri = function(self)
-  if self.path == nil then
-    return nil
-  else
-    return vim.uri_from_fname(tostring(self.path))
-  end
+  assert(self.path, "getting uri for note without path")
+  return vim.uri_from_fname(tostring(self.path))
+end
+
+---@param range lsp.Range|?
+---@return lsp.Location
+Note._location = function(self, range)
+  range = range or {
+    start = { line = 0, character = 0 },
+    ["end"] = { line = 0, character = 0 },
+  }
+  return {
+    uri = self:uri(),
+    range = range,
+  }
 end
 
 --- Get a list of all of the different string that can identify this note via references,
