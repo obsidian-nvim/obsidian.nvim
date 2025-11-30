@@ -39,7 +39,8 @@ end
 ---@param name string
 ---@return lsp.Location?
 local function create_new_note(location, name)
-  if obsidian.api.confirm("Create new note '" .. location .. "'?") then
+  local confirm = obsidian.api.confirm("Create new note '" .. location .. "'?", "&Yes\nYes With &Template\n&No")
+  if confirm then
     ---@type string|?, string[]
     local id, aliases
     if name == location then
@@ -49,8 +50,12 @@ local function create_new_note(location, name)
       id = location
     end
 
-    local note = Note.create { title = name, id = id, aliases = aliases }
-    return note_to_location(note)
+    if type(confirm) == "string" and confirm == "Template" then
+      api.new_from_template(name)
+    else
+      local note = Note.create { title = name, id = id, aliases = aliases }
+      return note_to_location(note)
+    end
   else
     return obsidian.log.warn "Aborted"
   end
