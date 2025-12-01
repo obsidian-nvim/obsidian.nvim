@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `references` can find tag references.
+- `references` will resolve and follow `[[#^block]]` and `[block](#^block)` links.
+- `references` will resolve and follow `[[#header]]` and `[header](#header)` links.
 
 ### Fixed
 
