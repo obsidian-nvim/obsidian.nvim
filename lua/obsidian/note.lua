@@ -45,7 +45,50 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field alt_alias string|?
 ---@field bufnr integer|?
 local Note = {}
-Note.__index = Note
+
+local load_contents = function(note)
+  local contents = {}
+  local path = tostring(rawget(note, "path"))
+  for line in io.lines(path) do
+    table.insert(contents, line)
+  end
+  return contents
+end
+
+local function coerce(v)
+  if v == vim.NIL then
+    return nil
+  else
+    return v
+  end
+end
+
+---@param path table
+---@param k string
+---@param factory fun(path: obsidian.Note): any
+---@private
+local function cached_get(path, k, factory)
+  local cache_key = "__" .. k
+  local v = rawget(path, cache_key)
+  if v == nil then
+    v = factory(path)
+    if v == nil then
+      v = vim.NIL
+    end
+    path[cache_key] = v
+  end
+  return coerce(v)
+end
+
+Note.__index = function(self, k)
+  local raw = rawget(Note, k)
+  if raw then
+    return raw
+  end
+  if k == "contents" then
+    return cached_get(self, "contents", load_contents)
+  end
+end
 
 Note.__tostring = function(self)
   return string.format("Note('%s')", self.id)
@@ -1117,16 +1160,6 @@ end
 ---@return obsidian.LinkMatch
 Note.links = function(self)
   return search.find_links(self)
-end
-
-Note.load_contents = function(self)
-  if self.contents and not vim.tbl_isempty(self.contents) then
-    return
-  end
-  self.contents = {}
-  for line in io.lines(self.path.filename) do
-    table.insert(self.contents, line)
-  end
 end
 
 --- Create a formatted markdown / wiki link for a note.

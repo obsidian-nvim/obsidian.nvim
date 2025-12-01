@@ -1,9 +1,12 @@
-return function()
-  local picker = Obsidian.picker
+local obsidian = require "obsidian"
 
-  vim.lsp.buf.references(nil, {
-    on_list = not picker.state._native and function(t)
-      picker.pick(t.items, { prompt_title = "Backlinks" })
-    end or nil,
-  })
+return function()
+  require "obsidian.lsp.handlers._references"(nil, { tag = false }, function(_, locations)
+    local items = vim.lsp.util.locations_to_items(locations, "utf-8")
+    if #items == 1 then
+      obsidian.api.open_note(items[1])
+    else
+      Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
+    end
+  end)
 end
