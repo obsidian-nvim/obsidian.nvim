@@ -164,26 +164,45 @@ block ^123
   eq("[[file#^123]]", qflist[1].text)
 end
 
--- TODO:
--- T["find block references under cursor"] = function()
---   local file = [==[
---
--- [[#^123]]
---
--- block ^123
--- ]==]
---
---   local root = child.Obsidian.dir
---   local file_path = root / "file.md"
---   h.write(file, file_path)
---
---   child.cmd(string.format("edit %s", file_path))
---   child.api.nvim_win_set_cursor(0, { 2, 0 })
---   child.lua "vim.lsp.buf.references()"
---   local qflist = child.fn.getqflist()
---   eq(1, #qflist)
---   eq("[[file#^123]]", qflist[1].text)
--- end
+T["find block references under cursor"] = function()
+  local file = [==[
+
+[[#^123]]
+
+block ^123
+]==]
+
+  local root = child.Obsidian.dir
+  local file_path = root / "file.md"
+  h.write(file, file_path)
+
+  child.cmd(string.format("edit %s", file_path))
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  child.lua "vim.lsp.buf.references()"
+  local qflist = child.fn.getqflist()
+  eq(1, #qflist)
+  eq("[[#^123]]", qflist[1].text)
+end
+
+T["find anchor references under cursor"] = function()
+  local file = [==[
+
+[[#header]]
+
+# header
+]==]
+
+  local root = child.Obsidian.dir
+  local file_path = root / "file.md"
+  h.write(file, file_path)
+
+  child.cmd(string.format("edit %s", file_path))
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  child.lua "vim.lsp.buf.references()"
+  local qflist = child.fn.getqflist()
+  eq(1, #qflist)
+  eq("[[#header]]", qflist[1].text)
+end
 
 T["avoid invalid patterns"] = function()
   local referencer = [==[
