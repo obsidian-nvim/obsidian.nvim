@@ -1,6 +1,5 @@
 ---builtin functions that are default values for config options
 local M = {}
-local util = require "obsidian.util"
 
 ---@class obsidian.link.LinkCreationOpts
 ---@field label? string
@@ -88,7 +87,8 @@ M.wiki_link = function(opts)
 
   local format
 
-  if opts.label ~= opts.path then
+  ---@diagnostic disable-next-line: param-type-mismatch
+  if opts.label ~= vim.fs.basename(opts.path) then -- HACK: right???
     format = "[[%s%s|%s%s]]"
   else
     format = "[[%s%s]]"
