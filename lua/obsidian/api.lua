@@ -610,11 +610,9 @@ M.nav_link = function(direction)
 end
 
 local function has_markdown_folding()
-  if vim.wo.foldmethod == "expr" and vim.wo.foldexpr == "v:lua.vim.treesitter.foldexpr()" then
+  if vim.g.markdown_folding == 1 then
     return true
-  elseif vim.g.markdown_folding == 1 then
-    return true
-  elseif vim.wo.foldmethod == "expr" and vim.wo.foldexpr == "MarkdownFold()" then
+  elseif vim.wo.foldmethod == "expr" then
     return true
   end
   return false
@@ -630,7 +628,7 @@ M.smart_action = function()
     return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
   elseif M.cursor_tag() then
     return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
-  elseif M.cursor_heading() and has_markdown_folding() then
+  elseif has_markdown_folding() and M.cursor_heading() then
     return "za"
   elseif M.cursor_checkbox() or Obsidian.opts.checkbox.create_new then
     return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"

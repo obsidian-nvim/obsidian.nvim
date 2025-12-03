@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `fzf` template picker fix.
+- relaxed the condition to trigger folds in `smart_action`.
 
 ## [v3.14.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.6) - 2025-11-23
 
