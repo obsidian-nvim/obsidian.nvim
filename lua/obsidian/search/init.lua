@@ -615,6 +615,51 @@ end
 
 M._build_backlink_search_term = build_backlink_search_term
 
+---@param term string
+local function build_in_note_search_term(term)
+  local terms = {}
+
+  if vim.startswith(term, "#") then
+    term = term:sub(2) -- NOTE: should be done in standardize_anchor
+  end
+
+  -- Wiki links with block.
+  terms[#terms + 1] = string.format("[[#%s", term)
+  -- Markdown link with block.
+  terms[#terms + 1] = string.format("](#%s", term)
+  -- Markdown link with block and is relative to root.
+  terms[#terms + 1] = string.format("](/#%s", term)
+  terms[#terms + 1] = string.format("](./#%s", term)
+
+  return terms
+end
+
+---@param note obsidian.Note
+---@return obsidian.BacklinkMatch[]
+local function get_in_note_backlink(note, term)
+  local matches = {}
+
+  if not term then
+    return matches
+  end
+
+  local patterns = build_in_note_search_term(term)
+
+  for lnum, line in ipairs(note.contents) do
+    for _, pat in ipairs(patterns) do
+      if string.find(line, pat, 1, true) ~= nil then
+        matches[#matches + 1] = {
+          path = tostring(note.path),
+          line = lnum,
+          start = 0,
+          ["end"] = 0,
+        }
+      end
+    end
+  end
+  return matches
+end
+
 ---@class obsidian.BacklinkMatch
 ---
 ---@field path string|obsidian.Path The path to the note where the backlinks were found.
@@ -639,6 +684,9 @@ M.find_backlinks_async = function(note, callback, opts)
   end
   ---@type obsidian.BacklinkMatch[]
   local results = {}
+
+  vim.list_extend(results, get_in_note_backlink(note, block or anchor))
+
   ---@param match MatchData
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }

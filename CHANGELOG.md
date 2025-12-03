@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Tests for components of associated with `paste_img` command
-
 ### Changed
 
+- `references` can find tag references.
+- `references` will resolve and follow `[[#^block]]` and `[block](#^block)` links.
+- `references` will resolve and follow `[[#header]]` and `[header](#header)` links.
 - Refactor `save_clipboard_image` for x11/tty display server to use `run_job` instead of `os.execute`
 - Refactor `paste_img` and `img_paste` functions to return and handle img type as a string instead of boolean
 - Expand `paste_img` functionality to support the following formats for Linux systems:
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `fzf` template picker fix.
+- relaxed the condition to trigger folds in `smart_action`.
 
 ## [v3.14.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.6) - 2025-11-23
 
