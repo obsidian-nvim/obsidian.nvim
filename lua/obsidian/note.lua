@@ -1197,12 +1197,6 @@ local function format_path(path, style)
   end
 end
 
----@param anchor obsidian.note.HeaderAnchor
----@return string
-local format_anchor_label = function(anchor)
-  return string.format(" ❯ %s", anchor.header)
-end
-
 --- Create a formatted markdown / wiki link for a note.
 ---
 ---@param opts obsidian.link.LinkCreationOpts?
@@ -1216,16 +1210,6 @@ Note.format_link = function(self, opts)
   formatted_path = util.urlencode(formatted_path, { keep_path_sep = true })
   if link_style == "wiki" then
     formatted_path = formatted_path:gsub(".md", "")
-  end
-
-  local anchor = ""
-  local header = ""
-  if opts.anchor then
-    anchor = opts.anchor.anchor
-    header = format_anchor_label(opts.anchor)
-  elseif opts.block then
-    anchor = "#" .. opts.block.id
-    header = "#" .. opts.block.id
   end
 
   local new_opts = {

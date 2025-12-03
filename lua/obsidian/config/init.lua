@@ -71,7 +71,6 @@ end
 ---
 ---@return obsidian.config.Internal
 config.normalize = function(opts, defaults)
-  local builtin = require "obsidian.builtin"
   local util = require "obsidian.util"
 
   opts = opts or {}
