@@ -51,7 +51,6 @@ end
 ---
 ---@return obsidian.config.Internal
 config.normalize = function(opts, defaults)
-  local builtin = require "obsidian.builtin"
   local util = require "obsidian.util"
 
   opts = opts or {}
@@ -212,20 +211,20 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   end
 
   if opts.wiki_link_func then
-     opts.link = opts.link or {}
-     opts.link.wiki = opts.wiki_link_func
-     opts.wiki_link_func = nil
-     deprecate("wiki_link_func", "link.wiki", "3.16")
-     if type(opts.link.wiki) == "string" then
-        log.warn("Wiki link can no longer be a string")
-     end
+    opts.link = opts.link or {}
+    opts.link.wiki = opts.wiki_link_func
+    opts.wiki_link_func = nil
+    deprecate("wiki_link_func", "link.wiki", "3.16")
+    if type(opts.link.wiki) == "string" then
+      log.warn "Wiki link can no longer be a string"
+    end
   end
 
   if opts.markdown_link_func then
-     opts.link = opts.link or {}
-     opts.link.markdown = opts.markdown_link_func
-     opts.markdown_link_func = nil
-     deprecate("markdown_link_func", "link.markdown", "3.16")
+    opts.link = opts.link or {}
+    opts.link.markdown = opts.markdown_link_func
+    opts.markdown_link_func = nil
+    deprecate("markdown_link_func", "link.markdown", "3.16")
   end
 
   --------------------------
