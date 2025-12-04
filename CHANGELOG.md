@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `fzf` template picker fix.
 - relaxed the condition to trigger folds in `smart_action`.
+- Fixed visual selection corrupting multibyte UTF-8 characters (Cyrillic, CJK, emoji, etc.) in commands like `:Obsidian link_new` and `:Obsidian extract_note`.
 
 ## [v3.14.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.6) - 2025-11-23
 

@@ -307,28 +307,50 @@ M.get_visual_selection = function(opts)
   -- for some odd reason. So change that to what they should be here. See ':h getpos' for more info.
   local maxcol = vim.api.nvim_get_vvar "maxcol"
   if cscol == maxcol then
-    cscol = string.len(lines[1])
+    cscol = vim.fn.strlen(lines[1])
   end
   if cecol == maxcol then
-    cecol = string.len(lines[#lines])
+    cecol = vim.fn.strlen(lines[#lines])
   end
 
-  ---@type string
-  local selection
-  local n = #lines
-  if n <= 0 then
-    selection = ""
-  elseif n == 1 then
-    selection = string.sub(lines[1], cscol, cecol)
-  elseif n == 2 then
-    selection = string.sub(lines[1], cscol) .. "\n" .. string.sub(lines[n], 1, cecol)
-  else
-    selection = string.sub(lines[1], cscol)
-      .. "\n"
-      .. table.concat(lines, "\n", 2, n - 1)
-      .. "\n"
-      .. string.sub(lines[n], 1, cecol)
+  -- Use nvim_buf_get_text which properly handles UTF-8 byte positions
+  -- getpos() returns byte-indexed positions (1-indexed)
+  -- Visual selection is inclusive, so cecol points to the last selected byte
+  -- But if that byte is the start of a multi-byte UTF-8 character, we need all its bytes
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  local line = vim.api.nvim_buf_get_lines(bufnr, cerow - 1, cerow, false)[1]
+
+  -- Calculate the end position for text extraction (needs to account for UTF-8)
+  local end_col_for_extraction = cecol
+  if line and cecol <= #line then
+    local byte = line:byte(cecol)
+    if byte then
+      -- Determine UTF-8 character byte length
+      local char_bytes = 1
+      if byte >= 240 then -- 11110xxx: 4-byte char
+        char_bytes = 4
+      elseif byte >= 224 then -- 1110xxxx: 3-byte char
+        char_bytes = 3
+      elseif byte >= 192 then -- 110xxxxx: 2-byte char
+        char_bytes = 2
+        -- else: 0xxxxxxx (1-byte) or 10xxxxxx (continuation byte, shouldn't happen)
+      end
+      -- Move end position to point AFTER the last byte of this character (exclusive end)
+      end_col_for_extraction = cecol + char_bytes
+    end
   end
+
+  local selection_lines = vim.api.nvim_buf_get_text(
+    bufnr,
+    csrow - 1, -- start row (convert to 0-indexed)
+    cscol - 1, -- start col in bytes (convert to 0-indexed)
+    cerow - 1, -- end row (convert to 0-indexed)
+    end_col_for_extraction - 1, -- end col: exclusive, convert to 0-indexed
+    {}
+  )
+
+  local selection = table.concat(selection_lines, "\n")
 
   return {
     lines = lines,
@@ -737,32 +759,44 @@ M.set_checkbox = function(state)
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
-local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
-
 ---@param viz obsidian.selection
 ---@param new_text string
 local function replace_selection(viz, new_text)
-  local edit = {
-    documentChanges = {
-      {
-        textDocument = {
-          uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(0)),
-          version = has_nvim_0_12 and vim.NIL or nil,
-        },
-        edits = {
-          {
-            range = {
-              start = { line = viz.csrow - 1, character = viz.cscol - 1 },
-              ["end"] = { line = viz.cerow - 1, character = viz.cecol },
-            },
-            newText = new_text,
-          },
-        },
-      },
-    },
-  }
+  -- Use nvim_buf_set_text directly for proper UTF-8 handling
+  -- This is more reliable than LSP workspace edits which may use UTF-16 offsets
+  local bufnr = vim.api.nvim_get_current_buf()
+  local line = vim.api.nvim_buf_get_lines(bufnr, viz.cerow - 1, viz.cerow, false)[1]
+  local end_col = viz.cecol
 
-  vim.lsp.util.apply_workspace_edit(edit, "utf-8")
+  -- Account for multibyte UTF-8 characters at the end position
+  if line and viz.cecol <= #line then
+    local byte = line:byte(viz.cecol)
+    if byte then
+      local char_bytes = 1
+      if byte >= 240 then
+        char_bytes = 4
+      elseif byte >= 224 then
+        char_bytes = 3
+      elseif byte >= 192 then
+        char_bytes = 2
+      end
+      -- Adjust end position to point after the full UTF-8 character
+      end_col = viz.cecol + char_bytes
+    end
+  end
+
+  -- Split new_text into lines for nvim_buf_set_text
+  local new_lines = vim.split(new_text, "\n", { plain = true })
+
+  vim.api.nvim_buf_set_text(
+    bufnr,
+    viz.csrow - 1, -- start row (0-indexed)
+    viz.cscol - 1, -- start col (0-indexed)
+    viz.cerow - 1, -- end row (0-indexed)
+    end_col - 1, -- end col (0-indexed, exclusive)
+    new_lines
+  )
+
   require("obsidian.ui").update(0)
 end
 
