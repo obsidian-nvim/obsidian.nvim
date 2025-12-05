@@ -115,8 +115,12 @@ local function attach_picker_mappings(map, opts)
     map({ "i", "n" }, "<CR>", function(prompt_bufnr)
       local entries = get_selected(prompt_bufnr, false, opts.allow_multiple)
       if entries then
-        ---@diagnostic disable-next-line: param-type-mismatch
-        opts.callback(unpack(entries))
+        if not opts.allow_multiple and type(entries[1].user_data) == "function" then
+          entries[1].user_data()
+        elseif opts.callback then
+          opts.callback(unpack(entries))
+          return
+        end
       end
     end)
   end
@@ -287,7 +291,7 @@ M.pick = function(values, opts)
             return make_entry_from_string(v)
           else
             return {
-              value = v.user_data,
+              value = v.text,
               display = displayer,
               ordinal = v.text or v.filename,
               filename = v.filename,
