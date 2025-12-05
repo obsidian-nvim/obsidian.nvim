@@ -30,12 +30,7 @@ local function get_selected(prompt_bufnr, keep_open, allow_multiple)
   ---
   ---@return obsidian.PickerEntry
   local function selection_to_entry(selection)
-    return {
-      filename = selection.path or selection.filename or selection.value.path,
-      lnum = selection.lnum,
-      col = selection.col,
-      user_data = selection.value,
-    }
+    return selection.raw
   end
 
   local picker = actions_state.get_current_picker(prompt_bufnr)
@@ -115,8 +110,12 @@ local function attach_picker_mappings(map, opts)
     map({ "i", "n" }, "<CR>", function(prompt_bufnr)
       local entries = get_selected(prompt_bufnr, false, opts.allow_multiple)
       if entries then
-        ---@diagnostic disable-next-line: param-type-mismatch
-        opts.callback(unpack(entries))
+        if not opts.allow_multiple and type(entries[1].user_data) == "function" then
+          entries[1].user_data()
+        elseif opts.callback then
+          opts.callback(unpack(entries))
+          return
+        end
       end
     end)
   end
@@ -253,21 +252,10 @@ M.pick = function(values, opts)
           if type(v) == "string" then
             return make_entry_from_string(v)
           else
-            local ordinal = v.ordinal
-            if ordinal == nil then
-              ordinal = ""
-              if type(v.display) == "string" then
-                ordinal = ordinal .. v.display
-              end
-              if v.filename ~= nil then
-                ordinal = ordinal .. " " .. v.filename
-              end
-            end
-
             return {
-              value = v.user_data,
+              value = v.text,
               display = displayer,
-              ordinal = ordinal,
+              ordinal = v.text,
               filename = v.filename,
               valid = v.valid,
               lnum = v.lnum,
