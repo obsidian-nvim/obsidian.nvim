@@ -30,8 +30,7 @@ local function bookmark_to_picker_entry(bookmark)
     vim.api.nvim_buf_set_lines(preview_tmp_buf, 0, 1, true, { bookmark.query })
 
     entry.user_data = function()
-      Obsidian.picker.find_notes {
-        prompt_title = "Quick Switch",
+      Obsidian.picker.grep_notes {
         query = bookmark.query,
       }
     end
