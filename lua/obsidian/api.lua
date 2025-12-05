@@ -759,45 +759,86 @@ M.set_checkbox = function(state)
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
+--- Calculate the byte position after a UTF-8 character at the given byte position.
+--- This is needed because visual selection cecol points to the start byte of the last
+--- selected character, but we need the position after the full character.
+---
+---@param line string The line content
+---@param byte_pos integer The 1-indexed byte position of the character start
+---@return integer The 1-indexed byte position after the character (exclusive end)
+local function get_utf8_char_end(line, byte_pos)
+  if not line or byte_pos > #line then
+    return byte_pos
+  end
+  local byte = line:byte(byte_pos)
+  if not byte then
+    return byte_pos
+  end
+  -- Determine UTF-8 character byte length from lead byte
+  local char_bytes = 1
+  if byte >= 240 then -- 11110xxx: 4-byte char
+    char_bytes = 4
+  elseif byte >= 224 then -- 1110xxxx: 3-byte char
+    char_bytes = 3
+  elseif byte >= 192 then -- 110xxxxx: 2-byte char
+    char_bytes = 2
+  end
+  return byte_pos + char_bytes
+end
+
+local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
+
+--- Create an LSP TextEdit from a visual selection.
+--- The edit uses UTF-8 byte offsets (matching our LSP server's offset_encoding).
+---
+---@param viz obsidian.selection The visual selection
+---@param new_text string The replacement text
+---@param bufnr integer? Buffer number (defaults to current buffer)
+---@return lsp.TextDocumentEdit
+local function make_text_edit(viz, new_text, bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local line = vim.api.nvim_buf_get_lines(bufnr, viz.cerow - 1, viz.cerow, false)[1]
+
+  -- Calculate the exclusive end position (byte after the last selected character)
+  local end_col = get_utf8_char_end(line, viz.cecol)
+
+  return {
+    textDocument = {
+      uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(bufnr)),
+      version = has_nvim_0_12 and vim.NIL or nil,
+    },
+    edits = {
+      {
+        range = {
+          -- LSP positions are 0-indexed
+          start = { line = viz.csrow - 1, character = viz.cscol - 1 },
+          ["end"] = { line = viz.cerow - 1, character = end_col - 1 },
+        },
+        newText = new_text,
+      },
+    },
+  }
+end
+
+--- Replace the visual selection with new text.
+--- Returns the text edit that was (or would be) applied.
+---
 ---@param viz obsidian.selection
 ---@param new_text string
-local function replace_selection(viz, new_text)
-  -- Use nvim_buf_set_text directly for proper UTF-8 handling
-  -- This is more reliable than LSP workspace edits which may use UTF-16 offsets
-  local bufnr = vim.api.nvim_get_current_buf()
-  local line = vim.api.nvim_buf_get_lines(bufnr, viz.cerow - 1, viz.cerow, false)[1]
-  local end_col = viz.cecol
+---@param opts { apply: boolean? }? Options. apply defaults to true.
+---@return lsp.TextDocumentEdit
+local function replace_selection(viz, new_text, opts)
+  opts = opts or {}
+  local apply = opts.apply ~= false -- default to true
 
-  -- Account for multibyte UTF-8 characters at the end position
-  if line and viz.cecol <= #line then
-    local byte = line:byte(viz.cecol)
-    if byte then
-      local char_bytes = 1
-      if byte >= 240 then
-        char_bytes = 4
-      elseif byte >= 224 then
-        char_bytes = 3
-      elseif byte >= 192 then
-        char_bytes = 2
-      end
-      -- Adjust end position to point after the full UTF-8 character
-      end_col = viz.cecol + char_bytes
-    end
+  local text_edit = make_text_edit(viz, new_text)
+
+  if apply then
+    vim.lsp.util.apply_workspace_edit({ documentChanges = { text_edit } }, "utf-8")
+    require("obsidian.ui").update(0)
   end
 
-  -- Split new_text into lines for nvim_buf_set_text
-  local new_lines = vim.split(new_text, "\n", { plain = true })
-
-  vim.api.nvim_buf_set_text(
-    bufnr,
-    viz.csrow - 1, -- start row (0-indexed)
-    viz.cscol - 1, -- start col (0-indexed)
-    viz.cerow - 1, -- end row (0-indexed)
-    end_col - 1, -- end col (0-indexed, exclusive)
-    new_lines
-  )
-
-  require("obsidian.ui").update(0)
+  return text_edit
 end
 
 M.link = function()
