@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `fzf` template picker fix.
 - relaxed the condition to trigger folds in `smart_action`.
 - Fixed visual selection corrupting multibyte UTF-8 characters (Cyrillic, CJK, emoji, etc.) in commands like `:Obsidian link_new` and `:Obsidian extract_note`. The fix uses LSP TextEdit with proper UTF-8 byte offsets, enabling future code actions preview support.
+- `rename` now correctly updates all backlinks across files (#476):
+  - Fixed pattern matching for filenames with special characters (`.`, `-`, etc.)
+  - Fixed handling of multiple links on the same line
+  - Preserves `.md` suffix in markdown links, omits in wiki links
+- `follow_link` no longer shows duplicate entries when multiple LSP clients return the same file.
 
 ## [v3.14.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.6) - 2025-11-23
 
