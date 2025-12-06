@@ -2,6 +2,32 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
 local api = require "obsidian.api"
 
+local qeq = MiniTest.new_expectation(
+  -- Expectation subject
+  "quote_insensitive_eq",
+  -- Predicate
+  function(lhs, rhs)
+    local og_eq = vim.deep_equal(lhs, rhs)
+    if og_eq then
+      return true
+    else
+      local new_rhs
+      if type(rhs) == "string" then
+        new_rhs = new_rhs:gsub("'", '"')
+      elseif type(rhs) == "table" then
+        new_rhs = vim.tbl_map(function(value)
+          return value:gsub("'", '"')
+        end, rhs)
+      end
+      return vim.deep_equal(lhs, new_rhs)
+    end
+  end,
+  -- Fail context
+  function(lhs, rhs)
+    return string.format("Left: %s\nRight: %s", vim.inspect(rhs), vim.inspect(lhs))
+  end
+)
+
 local T, child = h.child_vault {
   pre_case = [[
     api = require "obsidian.api"
@@ -29,7 +55,7 @@ local test_cases = {
     expected_msg = "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |",
     os_type = api.OSType.Linux,
     display_server = "wayland",
-    expected_cmd = { "bash", "-c", "wl-paste --no-newline --type image/png > 'me^ow.png'" },
+    expected_cmd = { "bash", "-c", [[wl-paste --no-newline --type image/png > "me^ow.png"]] },
     confirm_img_paste = false,
   },
   {
@@ -38,7 +64,7 @@ local test_cases = {
     expected_msg = nil,
     os_type = api.OSType.Linux,
     display_server = "x11",
-    expected_cmd = { "bash", "-c", "xclip -selection clipboard -t image/jpeg -o > 'meow.jpeg'" },
+    expected_cmd = { "bash", "-c", [[xclip -selection clipboard -t image/jpeg -o > "meow.jpeg"]] },
     confirm_img_paste = false,
   },
   {
@@ -162,7 +188,7 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
     eq(nil, results.warn)
   end
 
-  eq(case.expected_cmd, results.captured_cmd)
+  qeq(case.expected_cmd, results.captured_cmd)
 end
 
 return T
