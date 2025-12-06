@@ -239,6 +239,8 @@ M.register("quick_switch", { nargs = "?" })
 
 M.register("workspace", { nargs = "?" })
 
+M.register("bookmarks", { nargs = 0 })
+
 ---------------------
 ---- note action ----
 ---------------------

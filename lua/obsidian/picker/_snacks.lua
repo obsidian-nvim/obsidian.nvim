@@ -87,7 +87,7 @@ M.grep = function(opts)
             filename = item._path or item.filename,
             col = item.pos and item.pos[2],
             lnum = item.pos and item.pos[1],
-            value = item.user_data,
+            user_data = item.value,
           }
         else
           snacks_picker.actions.jump(picker, item, action)
@@ -124,7 +124,8 @@ M.pick = function(values, opts)
       file = value.filename,
       value = value.user_data,
       pos = value.lnum and { value.lnum, value.col or 0 },
-      dir = value.filename and Path.new(value.filename):is_dir() or false,
+      dir = value.filename and Path.new(value.filename):is_dir() or nil,
+      buf = value.bufnr,
     })
   end
 
@@ -142,7 +143,9 @@ M.pick = function(values, opts)
       picker:close()
       if item then
         if opts.callback then
-          if item.file then
+          if type(item.value) == "function" then
+            item.value()
+          elseif item.file then
             opts.callback {
               filename = item.file,
               col = item.pos and item.pos[2],
