@@ -29,7 +29,7 @@ local test_cases = {
     expected_msg = "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |",
     os_type = api.OSType.Linux,
     display_server = "wayland",
-    expected_cmd = { "bash", "-c", "wl-paste --no-newline --type image/png > 'me^ow.png'" },
+    expected_cmd = { "bash", "-c", [[wl-paste --no-newline --type image/png > "me^ow.png"]] },
     confirm_img_paste = false,
   },
   {
@@ -38,7 +38,7 @@ local test_cases = {
     expected_msg = nil,
     os_type = api.OSType.Linux,
     display_server = "x11",
-    expected_cmd = { "bash", "-c", "xclip -selection clipboard -t image/jpeg -o > 'meow.jpeg'" },
+    expected_cmd = { "bash", "-c", [[xclip -selection clipboard -t image/jpeg -o > "meow.jpeg"]] },
     confirm_img_paste = false,
   },
   {
