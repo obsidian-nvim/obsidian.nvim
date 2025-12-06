@@ -307,28 +307,50 @@ M.get_visual_selection = function(opts)
   -- for some odd reason. So change that to what they should be here. See ':h getpos' for more info.
   local maxcol = vim.api.nvim_get_vvar "maxcol"
   if cscol == maxcol then
-    cscol = string.len(lines[1])
+    cscol = vim.fn.strlen(lines[1])
   end
   if cecol == maxcol then
-    cecol = string.len(lines[#lines])
+    cecol = vim.fn.strlen(lines[#lines])
   end
 
-  ---@type string
-  local selection
-  local n = #lines
-  if n <= 0 then
-    selection = ""
-  elseif n == 1 then
-    selection = string.sub(lines[1], cscol, cecol)
-  elseif n == 2 then
-    selection = string.sub(lines[1], cscol) .. "\n" .. string.sub(lines[n], 1, cecol)
-  else
-    selection = string.sub(lines[1], cscol)
-      .. "\n"
-      .. table.concat(lines, "\n", 2, n - 1)
-      .. "\n"
-      .. string.sub(lines[n], 1, cecol)
+  -- Use nvim_buf_get_text which properly handles UTF-8 byte positions
+  -- getpos() returns byte-indexed positions (1-indexed)
+  -- Visual selection is inclusive, so cecol points to the last selected byte
+  -- But if that byte is the start of a multi-byte UTF-8 character, we need all its bytes
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  local line = vim.api.nvim_buf_get_lines(bufnr, cerow - 1, cerow, false)[1]
+
+  -- Calculate the end position for text extraction (needs to account for UTF-8)
+  local end_col_for_extraction = cecol
+  if line and cecol <= #line then
+    local byte = line:byte(cecol)
+    if byte then
+      -- Determine UTF-8 character byte length
+      local char_bytes = 1
+      if byte >= 240 then -- 11110xxx: 4-byte char
+        char_bytes = 4
+      elseif byte >= 224 then -- 1110xxxx: 3-byte char
+        char_bytes = 3
+      elseif byte >= 192 then -- 110xxxxx: 2-byte char
+        char_bytes = 2
+        -- else: 0xxxxxxx (1-byte) or 10xxxxxx (continuation byte, shouldn't happen)
+      end
+      -- Move end position to point AFTER the last byte of this character (exclusive end)
+      end_col_for_extraction = cecol + char_bytes
+    end
   end
+
+  local selection_lines = vim.api.nvim_buf_get_text(
+    bufnr,
+    csrow - 1, -- start row (convert to 0-indexed)
+    cscol - 1, -- start col in bytes (convert to 0-indexed)
+    cerow - 1, -- end row (convert to 0-indexed)
+    end_col_for_extraction - 1, -- end col: exclusive, convert to 0-indexed
+    {}
+  )
+
+  local selection = table.concat(selection_lines, "\n")
 
   return {
     lines = lines,
@@ -737,33 +759,86 @@ M.set_checkbox = function(state)
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
-local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
+--- Calculate the byte position after a UTF-8 character at the given byte position.
+--- This is needed because visual selection cecol points to the start byte of the last
+--- selected character, but we need the position after the full character.
+---
+---@param line string The line content
+---@param byte_pos integer The 1-indexed byte position of the character start
+---@return integer The 1-indexed byte position after the character (exclusive end)
+local function get_utf8_char_end(line, byte_pos)
+  if not line or byte_pos > #line then
+    return byte_pos
+  end
+  local byte = line:byte(byte_pos)
+  if not byte then
+    return byte_pos
+  end
+  -- Determine UTF-8 character byte length from lead byte
+  local char_bytes = 1
+  if byte >= 240 then -- 11110xxx: 4-byte char
+    char_bytes = 4
+  elseif byte >= 224 then -- 1110xxxx: 3-byte char
+    char_bytes = 3
+  elseif byte >= 192 then -- 110xxxxx: 2-byte char
+    char_bytes = 2
+  end
+  return byte_pos + char_bytes
+end
 
----@param viz obsidian.selection
----@param new_text string
-local function replace_selection(viz, new_text)
-  local edit = {
-    documentChanges = {
+local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
+
+--- Create an LSP TextEdit from a visual selection.
+--- The edit uses UTF-8 byte offsets (matching our LSP server's offset_encoding).
+---
+---@param viz obsidian.selection The visual selection
+---@param new_text string The replacement text
+---@param bufnr integer? Buffer number (defaults to current buffer)
+---@return lsp.TextDocumentEdit
+local function make_text_edit(viz, new_text, bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local line = vim.api.nvim_buf_get_lines(bufnr, viz.cerow - 1, viz.cerow, false)[1]
+
+  -- Calculate the exclusive end position (byte after the last selected character)
+  local end_col = get_utf8_char_end(line, viz.cecol)
+
+  return {
+    textDocument = {
+      uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(bufnr)),
+      version = has_nvim_0_12 and vim.NIL or nil,
+    },
+    edits = {
       {
-        textDocument = {
-          uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(0)),
-          version = has_nvim_0_12 and vim.NIL or nil,
+        range = {
+          -- LSP positions are 0-indexed
+          start = { line = viz.csrow - 1, character = viz.cscol - 1 },
+          ["end"] = { line = viz.cerow - 1, character = end_col - 1 },
         },
-        edits = {
-          {
-            range = {
-              start = { line = viz.csrow - 1, character = viz.cscol - 1 },
-              ["end"] = { line = viz.cerow - 1, character = viz.cecol },
-            },
-            newText = new_text,
-          },
-        },
+        newText = new_text,
       },
     },
   }
+end
 
-  vim.lsp.util.apply_workspace_edit(edit, "utf-8")
-  require("obsidian.ui").update(0)
+--- Replace the visual selection with new text.
+--- Returns the text edit that was (or would be) applied.
+---
+---@param viz obsidian.selection
+---@param new_text string
+---@param opts { apply: boolean? }? Options. apply defaults to true.
+---@return lsp.TextDocumentEdit
+local function replace_selection(viz, new_text, opts)
+  opts = opts or {}
+  local apply = opts.apply ~= false -- default to true
+
+  local text_edit = make_text_edit(viz, new_text)
+
+  if apply then
+    vim.lsp.util.apply_workspace_edit({ documentChanges = { text_edit } }, "utf-8")
+    require("obsidian.ui").update(0)
+  end
+
+  return text_edit
 end
 
 M.link = function()
