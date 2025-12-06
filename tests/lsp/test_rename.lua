@@ -97,4 +97,104 @@ T["rename note without changing blocks and headers"] = function()
   eq(target_expected, table.concat(lines, "\n"))
 end
 
+-- Test for issue #476: filenames with special Lua pattern characters
+local special_target = "my-note.test.md"
+local special_target_content = [[---
+id: my-note.test
+aliases: []
+tags: []
+---
+hello
+world]]
+
+local special_target_expected = [[---
+id: new-note
+aliases: []
+tags: []
+---
+hello
+world]]
+
+local special_ref_content = [==[
+
+[[my-note.test]]
+]==]
+
+local special_ref_expected = [==[
+---
+id: ref
+aliases: []
+tags: []
+---
+
+[[new-note]]
+]==]
+
+T["rename note with special characters in filename"] = function()
+  local root = child.Obsidian.dir
+
+  local files = h.mock_vault_contents(root, {
+    [special_target] = special_target_content,
+    [ref] = special_ref_content,
+  })
+  local new_target_path = root / "new-note.md"
+
+  child.cmd("edit " .. files[ref])
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+
+  child.lua [[vim.lsp.buf.rename("new-note", {})]]
+  child.cmd "wa"
+  eq(true, new_target_path:exists())
+
+  local lines = h.read(new_target_path)
+  local ref_lines = h.read(files[ref])
+  eq(special_ref_expected, table.concat(ref_lines, "\n"))
+  eq(special_target_expected, table.concat(lines, "\n"))
+end
+
+-- Test for issue #476: markdown links
+local md_target_content = [[---
+id: noteb
+aliases: []
+tags: []
+---
+# Note B
+
+This is note B]]
+
+local md_ref_content = [==[
+---
+id: notea
+aliases: []
+tags: []
+---
+# Note A
+
+This is note A with a link to [Note B](noteb.md)
+]==]
+
+T["rename note with markdown link reference"] = function()
+  local root = child.Obsidian.dir
+
+  local files = h.mock_vault_contents(root, {
+    ["noteb.md"] = md_target_content,
+    ["notea.md"] = md_ref_content,
+  })
+  local new_target_path = root / "renamed-note.md"
+
+  child.lua("vim.cmd.edit('" .. files["notea.md"]:gsub("'", "\\'") .. "')")
+  child.api.nvim_win_set_cursor(0, { 8, 40 }) -- cursor on noteb.md in the link (line 8, col 40)
+
+  child.lua [[vim.lsp.buf.rename("renamed-note", {})]]
+  child.cmd "wa"
+
+  -- Check that file was renamed
+  eq(true, new_target_path:exists())
+
+  -- Check that link in referencing file was updated correctly
+  local ref_lines = h.read(files["notea.md"])
+  local md_ref_result = table.concat(ref_lines, "\n")
+  eq(true, md_ref_result:find "%[Note B%]%(renamed%-note%.md%)" ~= nil, "Link should be updated to renamed-note.md")
+end
+
 return T
