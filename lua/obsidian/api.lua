@@ -880,6 +880,9 @@ M.link_new = function(label)
 
   local note = require("obsidian.note").create { title = label }
   replace_selection(viz, note:format_link { label = label })
+
+  -- Save file so backlinks search (ripgrep) can find the new link
+  vim.cmd "silent! write"
 end
 
 ---Extract the selected text into a new note
@@ -913,6 +916,9 @@ M.extract_note = function(label)
   -- replace selection with link to new note
   local link = note:format_link()
   replace_selection(viz, link)
+
+  -- Save file so backlinks search (ripgrep) can find the new link
+  vim.cmd "silent! write"
 
   -- add the selected text to the end of the new note
   note:open { sync = true }
