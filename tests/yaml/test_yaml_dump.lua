@@ -2,8 +2,11 @@ local yaml = require "obsidian.yaml"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
-
 T["dump"] = new_set()
+
+T["dump"]["should dump vim.NIL as null"] = function()
+  eq(yaml.dumps(vim.NIL), "null")
+end
 
 T["dump"]["should dump numbers"] = function()
   eq(yaml.dumps(1), "1")

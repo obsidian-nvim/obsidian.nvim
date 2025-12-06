@@ -1,4 +1,5 @@
-local yaml = require "obsidian.yaml.parser"
+local yaml = require "obsidian.yaml.lua.parser"
+local util = require "obsidian.util"
 
 local parser = yaml.new { luanil = false }
 
