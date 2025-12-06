@@ -1,4 +1,4 @@
-local Line = require "obsidian.yaml.line"
+local Line = require "obsidian.yaml.lua.line"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()

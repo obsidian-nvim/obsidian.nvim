@@ -1,4 +1,4 @@
-local Line = require "obsidian.yaml.line"
+local Line = require "obsidian.yaml.lua.line"
 local util = require "obsidian.util"
 local yaml_util = require "obsidian.yaml.util"
 
