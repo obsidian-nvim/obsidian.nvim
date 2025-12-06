@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rename` now correctly updates all backlinks across files (#476):
   - Fixed pattern matching for filenames with special characters (`.`, `-`, etc.)
   - Fixed handling of multiple links on the same line
+  - Fixed renaming notes with non-ASCII characters (Cyrillic, CJK, etc.) corrupting links
   - Preserves `.md` suffix in markdown links, omits in wiki links
 - `follow_link` no longer shows duplicate entries when multiple LSP clients return the same file.
 
