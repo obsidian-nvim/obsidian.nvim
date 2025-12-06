@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed renaming notes with non-ASCII characters (Cyrillic, CJK, etc.) corrupting links
   - Preserves `.md` suffix in markdown links, omits in wiki links
 - `follow_link` no longer shows duplicate entries when multiple LSP clients return the same file.
+- `link_new` and `extract_note` now auto-save the parent file so backlinks are immediately discoverable.
 
 ## [v3.14.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.6) - 2025-11-23
 
