@@ -1,14 +1,18 @@
 local util = require "obsidian.util"
-local parser = require "obsidian.yaml.parser"
 
-local yaml = {}
+local M = {}
 
----Deserialize a YAML string.
----@param str string
----@return any
----@return string[]
-yaml.loads = function(str)
-  return parser.loads(str)
+local function has_treesitter_parser(name)
+  local res, _ = pcall(vim.treesitter.language.inspect, name)
+  return res
+end
+
+if vim.fn.executable "yq" == 1 then
+  M.loads = require("obsidian.yaml.yq").loads
+elseif has_treesitter_parser "yaml" then
+  M.loads = require("obsidian.yaml.treesitter").loads
+else
+  M.loads = require("obsidian.yaml.lua").loads
 end
 
 ---@param s string
@@ -95,6 +99,10 @@ dumps = function(x, indent, order)
     return out
   end
 
+  if type(x) == "userdata" and x == vim.NIL then
+    return { "null" }
+  end
+
   error("Can't convert object with type " .. type(x) .. " to YAML")
 end
 
@@ -102,7 +110,7 @@ end
 ---@param x any
 ---@param order function?
 ---@return string[]
-yaml.dumps_lines = function(x, order)
+M.dumps_lines = function(x, order)
   return dumps(x, 0, order)
 end
 
@@ -110,8 +118,8 @@ end
 ---@param x any
 ---@param order function|?
 ---@return string
-yaml.dumps = function(x, order)
+M.dumps = function(x, order)
   return table.concat(dumps(x, 0, order), "\n")
 end
 
-return yaml
+return M
