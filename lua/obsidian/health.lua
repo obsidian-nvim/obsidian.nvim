@@ -6,7 +6,21 @@ local error = vim.health.error
 local warn = vim.health.warn
 local ok = vim.health.ok
 
-local function info(...)
+local function error_f(...)
+  local t = { ... }
+  local format = table.remove(t, 1)
+  local str = #t == 0 and format or string.format(format, unpack(t))
+  return error(str)
+end
+
+local function warn_f(...)
+  local t = { ... }
+  local format = table.remove(t, 1)
+  local str = #t == 0 and format or string.format(format, unpack(t))
+  return warn(str)
+end
+
+local function ok_f(...)
   local t = { ... }
   local format = table.remove(t, 1)
   local str = #t == 0 and format or string.format(format, unpack(t))
@@ -25,7 +39,7 @@ end
 local function has_plugin(plugin, optional)
   local plugin_info = api.get_plugin_info(plugin)
   if plugin_info then
-    info("%s: %s", plugin, plugin_info.commit or "unknown")
+    ok_f("%s: %s", plugin, plugin_info.commit or "unknown")
     return true
   else
     if not optional then
@@ -39,9 +53,9 @@ local function has_executable(name, optional)
   if vim.fn.executable(name) == 1 then
     local version = api.get_external_dependency_info(name)
     if version then
-      info("%s: %s", name, version)
+      ok_f("%s: %s", name, version)
     else
-      info("%s: found", name)
+      ok_f("%s: found", name)
     end
     return true
   else
@@ -81,12 +95,13 @@ end
 ---@param minimum string
 ---@param recommended string
 local function neovim(minimum, recommended)
+  local version = tostring(vim.version())
   if vim.fn.has("nvim-" .. minimum) == 0 then
-    error("neovim < " .. minimum)
+    error_f("neovim < %s (%s)", minimum, version)
   elseif vim.fn.has("nvim-" .. recommended) == 0 then
-    warn("neovim < " .. recommended .. " some features will not work")
+    warn_f("neovim < %s some features will not work (%s)", recommended, version)
   else
-    ok("neovim >= " .. recommended)
+    ok_f("neovim >= %s (%s)", recommended, version)
   end
 end
 
@@ -94,13 +109,13 @@ function M.check()
   local os = api.get_os()
   neovim("0.10", "0.11")
   start "Version"
-  info("obsidian.nvim v%s (%s)", VERSION, api.get_plugin_info("obsidian.nvim").commit)
+  ok_f("obsidian.nvim v%s (%s)", VERSION, api.get_plugin_info("obsidian.nvim").commit)
 
   start "Environment"
-  info("operating system: %s", os)
+  ok_f("operating system: %s", os)
 
   start "Config"
-  info("  • dir: %s", Obsidian.dir)
+  ok_f("  • dir: %s", Obsidian.dir)
 
   start "Pickers"
 
