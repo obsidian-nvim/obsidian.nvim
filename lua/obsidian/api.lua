@@ -861,6 +861,8 @@ local function make_text_edit(viz, new_text, bufnr)
   }
 end
 
+M.make_text_edit = make_text_edit
+
 --- Replace the visual selection with new text.
 --- Returns the text edit that was (or would be) applied.
 ---

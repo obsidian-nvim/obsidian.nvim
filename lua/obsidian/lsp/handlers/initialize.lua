@@ -1,3 +1,5 @@
+local commands = require("obsidian.lsp.handlers._code_action").commands
+
 ---@type lsp.InitializeResult
 local initializeResult = {
   capabilities = {
@@ -9,9 +11,7 @@ local initializeResult = {
     documentSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {
-      commands = {
-        "add_file_property",
-      },
+      commands = commands,
     },
   },
   serverInfo = {
