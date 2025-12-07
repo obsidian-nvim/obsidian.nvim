@@ -4,7 +4,11 @@ return function(params)
 
   local ok, fn = pcall(require, "obsidian.lsp.commands." .. cmd)
   if ok and fn then
-    fn()
+    if type(fn) == "table" then
+      pcall(fn.command)
+    else
+      pcall(fn)
+    end
   end
   -- return require("obsidian.lsp.handlers.commands." .. cmd)(client, params)
   -- return require "obsidian.lsp.handlers.commands.createNote"(client, params)
