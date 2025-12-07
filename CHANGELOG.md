@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Preserves `.md` suffix in markdown links, omits in wiki links
 - `follow_link` no longer shows duplicate entries when multiple LSP clients return the same file.
 - `link_new` and `extract_note` now auto-save the parent file so backlinks are immediately discoverable.
-- LSP server's hanlders will properly return boolean for other plugin to check if request is successful
+- LSP server's handlers will properly return boolean for other plugin to check if request is successful
 
 ## [v3.14.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.6) - 2025-11-23
 
