@@ -123,6 +123,7 @@ local function save_clipboard_image(path, img_type)
 end
 
 --- @param path string image_path The absolute path to the image file.
+--- @return string
 M.paste = function(path, img_type)
   if util.contains_invalid_characters(path) then
     log.warn "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |"
@@ -160,7 +161,7 @@ M.paste = function(path, img_type)
   end
 
   local img_text = Obsidian.opts.attachments.img_text_func(path)
-  vim.api.nvim_put({ img_text }, "c", true, false)
+  return img_text
 end
 
 return M
