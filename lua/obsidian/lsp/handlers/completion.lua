@@ -283,6 +283,19 @@ handlers[CmpType.ref] = function(prefix, range, handler)
   end
 end
 
+---Adpated from none-ls
+---gets word to complete for use in completion sources
+---@param params lsp.CompletionParams
+---@return string word_to_complete
+local get_word_to_complete = function(params)
+  local col = params.position.character + 1
+  local line = vim.api.nvim_get_current_line()
+  local line_to_cursor = line:sub(1, col)
+  local regex = vim.regex "\\k*$"
+
+  return line:sub(regex:match_str(line_to_cursor) + 1, col)
+end
+
 -- TODO: search.find_heading
 -- local function handle_heading() end
 ---@param params lsp.CompletionParams
