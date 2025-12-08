@@ -7,14 +7,6 @@ local util = require "obsidian.util"
 
 local new_set, eq, not_eq = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.no_equality
 
---- @type obsidian.config.CustomTemplateOpts
-local zettelConfig = {
-  notes_subdir = "/custom/path/to/zettels",
-  note_id_func = function()
-    return "hummus"
-  end,
-}
-
 T["new"] = new_set()
 T["new"]["should be able to be initialize directly"] = function()
   local note = M.new("FOO", { "foo", "foos" }, { "bar" })
@@ -221,6 +213,14 @@ T["_is_frontmatter_boundary()"] = function()
   eq(true, M._is_frontmatter_boundary "----")
 end
 
+--- @type obsidian.config.CustomTemplateOpts
+local zettelConfig = {
+  notes_subdir = "/custom/path/to/zettels",
+  note_id_func = function()
+    return "hummus"
+  end,
+}
+
 T["_get_note_creation_opts"] = new_set {
   hooks = {
     pre_case = function()
@@ -240,8 +240,8 @@ T["_get_note_creation_opts"]["should not load customizations for non-existent te
 end
 
 T["_get_note_creation_opts"]["should load customizations for existing template"] = function()
-  local note = M.create { dir = api.templates_dir(), id = "zettel" }
-  note:write()
+  local temp_template = api.templates_dir() / "zettel"
+  vim.fn.writefile({}, tostring(temp_template))
 
   local spec = assert(M._get_creation_opts { template = "zettel" })
 

@@ -157,7 +157,7 @@ end
 ---@private
 Note._get_creation_opts = function(opts)
   --- @type obsidian.note.NoteCreationOpts
-  local default = {
+  local ret = {
     notes_subdir = Obsidian.opts.notes_subdir,
     note_id_func = Obsidian.opts.note_id_func,
     new_notes_location = Obsidian.opts.new_notes_location,
@@ -167,7 +167,7 @@ Note._get_creation_opts = function(opts)
   local success, template_path = pcall(resolve_template, opts.template, api.templates_dir())
 
   if not success then
-    return default
+    return ret
   end
 
   local stem = template_path.stem:lower()
@@ -175,14 +175,14 @@ Note._get_creation_opts = function(opts)
   -- Check if the configuration has a custom key for this template
   for key, cfg in pairs(Obsidian.opts.templates.customizations) do
     if key:lower() == stem then
-      return {
+      ret = {
         notes_subdir = cfg.notes_subdir,
         note_id_func = cfg.note_id_func,
-        new_notes_location = config.NewNotesLocation.notes_subdir,
+        new_notes_location = "notes_subdir",
       }
     end
   end
-  return default
+  return ret
 end
 
 ---@param s string
@@ -211,7 +211,7 @@ local parse_as_path = function(s)
   end
 end
 
---- Resolves the title, ID, and path for a new note.
+--- Resolves the ID, and path for a new note.
 ---
 ---@param opts obsidian.note.NoteOpts Strategy for resolving note path and title
 ---@return string id
@@ -228,7 +228,7 @@ Note._resolve_id_path = function(opts)
     end
   end
 
-  local parent, _
+  local parent
   if id then
     id, parent = parse_as_path(id)
   end
@@ -248,7 +248,7 @@ Note._resolve_id_path = function(opts)
   else
     local bufpath = Path.buffer(0):resolve()
     if
-      creation_opts.new_notes_location == config.NewNotesLocation.current_dir
+      creation_opts.new_notes_location == "current_dir"
       -- note is actually in the workspace.
       and Obsidian.dir:is_parent_of(bufpath)
       -- note is not in dailies folder
@@ -1210,7 +1210,7 @@ end
 ---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string
 ---@field note_id_func fun()
----@field new_notes_location string
+---@field new_notes_location obsidian.config.NewNotesLocation
 
 ---@class (exact) obsidian.note.NoteOpts
 ---@field id string|? An ID to assign the note. If not specified one will be generated.
