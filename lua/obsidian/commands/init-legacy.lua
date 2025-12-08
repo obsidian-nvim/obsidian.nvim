@@ -172,7 +172,7 @@ M.register("ObsidianWorkspace", { opts = { nargs = "?", desc = "Check or switch 
 
 M.register("ObsidianRename", { opts = { nargs = "?", desc = "Rename note and update all references to it" } })
 
-M.register("ObsidianPasteImg", { opts = { nargs = "?", desc = "Paste an image from the clipboard" } })
+M.register("ObsidianPaste", { opts = { nargs = "?", desc = "Paste an attachment or html from clipboard" } })
 
 M.register(
   "ObsidianExtractNote",
