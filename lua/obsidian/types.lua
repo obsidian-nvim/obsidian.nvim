@@ -63,7 +63,11 @@
 ---@field checkbox? obsidian.config.CheckboxOpts
 ---@field comment? obsidian.config.CommentOpts
 ---@field search? obsidian.config.SearchOpts
+<<<<<<< HEAD
 ---@field note? obsidian.config.NoteOpts
+=======
+---@field bookmarks? obsidian.config.BookmarksOpts
+>>>>>>> dda00e96 (feat: handle grouping items)
 
 ---@class obsidian.config.Internal
 ---@field dir string|?
@@ -95,4 +99,8 @@
 ---@field checkbox obsidian.config.CheckboxOpts
 ---@field comment obsidian.config.CommentOpts
 ---@field search obsidian.config.SearchOpts
+<<<<<<< HEAD
 ---@field note obsidian.config.NoteOpts
+=======
+---@field bookmarks obsidian.config.BookmarksOpts
+>>>>>>> dda00e96 (feat: handle grouping items)

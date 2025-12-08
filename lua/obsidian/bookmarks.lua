@@ -9,6 +9,16 @@ local Note = require "obsidian.note"
 ---@field subpath string
 ---@field title string
 ---@field query string
+---@field items obsidian.bookmark[]
+
+---@param items obsidian.bookmark[]
+M.pick = function(items)
+  local entries = M._parse(items)
+
+  Obsidian.picker.pick(entries, {
+    prompt_title = "Bookmarks",
+  })
+end
 
 ---@param bookmark obsidian.bookmark
 ---@return obsidian.PickerEntry entry
@@ -23,6 +33,12 @@ local function bookmark_to_picker_entry(bookmark)
     entry.text = bookmark.query
   elseif bookmark.path then
     entry.text = bookmark.path .. (bookmark.subpath and bookmark.subpath or "")
+  end
+
+  if bookmark.type == "group" then
+    entry.user_data = function()
+      M.pick(bookmark.items)
+    end
   end
 
   if bookmark.query then
@@ -55,40 +71,34 @@ local function bookmark_to_picker_entry(bookmark)
   return entry
 end
 
---- TODO: if false, list group just as an entry
-vim.g.obsidian_bookmark_group = false
-
----@param path string
+---@param items obsidian.bookmark[]
 ---@return obsidian.PickerEntry[]
-M.parse = function(path)
-  local f = io.open(path, "r")
-  assert(f, "failed to open workspace file")
-  local src = f:read "*a"
-  f:close()
+M._parse = function(items)
+  local entries = {}
+
+  for _, bookmark in ipairs(items) do
+    if bookmark.type == "group" and not Obsidian.opts.bookmarks.group then
+      for _, bm in ipairs(bookmark.items) do
+        entries[#entries + 1] = bookmark_to_picker_entry(bm)
+      end
+    else
+      entries[#entries + 1] = bookmark_to_picker_entry(bookmark)
+    end
+  end
+
+  return entries
+end
+
+---@param src string
+---@return obsidian.PickerEntry[]
+M.parse = function(src)
   local ok, obj = pcall(vim.json.decode, src)
 
   if not ok then
     ---@diagnostic disable-next-line: return-type-mismatch
     return log.error(obj)
   end
-
-  local bookmarks = obj.items
-
-  local entries = {}
-
-  if not vim.g.obsidian_bookmark_group then
-    for _, bookmark in ipairs(bookmarks) do
-      if bookmark.type == "group" then
-        for _, bm in ipairs(bookmark.items) do
-          entries[#entries + 1] = bookmark_to_picker_entry(bm)
-        end
-      else
-        entries[#entries + 1] = bookmark_to_picker_entry(bookmark)
-      end
-    end
-  end
-
-  return entries
+  return M._parse(obj.items)
 end
 
 ---@return string?

@@ -1,12 +1,17 @@
 local Bookmarks = require "obsidian.bookmarks"
 
 return function()
-  local f = Bookmarks.resolve_bookmark_file()
-  if not f then
+  local fp = Bookmarks.resolve_bookmark_file()
+  if not fp then
     return
   end
 
-  local entries = Bookmarks.parse(f)
+  local f = io.open(fp, "r")
+  assert(f, "Failed to open bookmarks file")
+  local src = f:read "*a"
+  f:close()
+
+  local entries = Bookmarks.parse(src)
 
   Obsidian.picker.pick(entries, {
     prompt_title = "Bookmarks",
