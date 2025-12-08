@@ -2,7 +2,7 @@ local eq = MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
 local M = require "obsidian.lsp.handlers._completion"
 
-local T, child = h.child_vault()
+local T, _ = h.child_vault()
 
 T["get_cmp_type"] = function()
   --                                          012345678

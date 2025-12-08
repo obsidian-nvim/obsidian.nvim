@@ -1,5 +1,3 @@
-local find, sub, lower = string.find, string.sub, string.lower
-
 local CmpType = {
   ref = 1,
   tag = 2,
