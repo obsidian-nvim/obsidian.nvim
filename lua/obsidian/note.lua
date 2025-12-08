@@ -122,24 +122,19 @@ end
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 --- `note_opts.dir / (note_opts.id .. ".md")`.
 ---
---- @param id string The note ID
---- @param dir obsidian.Path The note path
+---@param id string The note ID
+---@param dir obsidian.Path The note path
 ---@return obsidian.Path
 ---@private
 Note._generate_path = function(id, dir)
   ---@type obsidian.Path
   local path
 
-  if Obsidian.opts.note_path_func ~= nil then
-    path = Path.new(Obsidian.opts.note_path_func { id = id, dir = dir, title = nil })
-    -- Ensure path is either absolute or inside `opts.dir`.
-    -- NOTE: `opts.dir` should always be absolute, but for extra safety we handle the case where
-    -- it's not.
-    if not path:is_absolute() and (dir:is_absolute() or not dir:is_parent_of(path)) then
-      path = dir / path
-    end
-  else
-    path = dir / tostring(id)
+  path = Path.new(Obsidian.opts.note_path_func { id = id, dir = dir })
+
+  -- NOTE: `opts.dir` should always be absolute, but for extra safety we handle the case where
+  if not path:is_absolute() and (dir:is_absolute() or not dir:is_parent_of(path)) then
+    path = dir / path
   end
 
   -- Ensure there is only one ".md" suffix. This might arise if `note_path_func`
