@@ -58,13 +58,17 @@ local function bookmark_to_picker_entry(bookmark)
   end
 
   if bookmark.subpath then
-    local note = Note.from_file(entry.filename)
-    if vim.startswith(bookmark.subpath, "#^") then
-      local block = note:resolve_block(bookmark.subpath:sub(2))
-      entry.lnum = block and block.line or nil
-    elseif vim.startswith(bookmark.subpath, "#") then
-      local anchor = note:resolve_anchor_link(bookmark.subpath)
-      entry.lnum = anchor and anchor.line or nil
+    local ok, note = pcall(Note.from_file, entry.filename)
+    if ok and note then
+      if vim.startswith(bookmark.subpath, "#^") then
+        local block = note:resolve_block(bookmark.subpath:sub(2))
+        entry.lnum = block and block.line or nil
+      elseif vim.startswith(bookmark.subpath, "#") then
+        local anchor = note:resolve_anchor_link(bookmark.subpath)
+        entry.lnum = anchor and anchor.line or nil
+      end
+    else
+      log.err("Failed to resolve bookmark path to note: %s", note)
     end
   end
 
