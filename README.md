@@ -10,6 +10,9 @@
 <a href="https://github.com/neovim/neovim/releases/latest">
   <img alt="Latest Neovim" src="https://img.shields.io/github/v/release/neovim/neovim?style=for-the-badge&logo=neovim&logoColor=D9E0EE&label=Neovim&labelColor=302D41&color=99d6ff&sort=semver" />
 </a>
+<a href="https://github.com/obsidian-nvim/obsidian.nvim/releases.atom">
+  <img src="https://img.shields.io/badge/rss-F88900?style=for-the-badge&logo=rss&logoColor=white">
+</a>
 <a href="http://www.lua.org/">
   <img alt="Made with Lua" src="https://img.shields.io/badge/Built%20with%20Lua-grey?style=for-the-badge&logo=lua&logoColor=D9E0EE&label=Lua&labelColor=302D41&color=b3b3ff">
 </a>
@@ -124,10 +127,7 @@ There's one entry point user command for this plugin: `Obsidian`
 ### System requirements
 
 - Neovim >= 0.10.0
-- For completion and search features:
-  - Backend: [ripgrep](https://github.com/BurntSushi/ripgrep), see [ripgrep#installation](https://github.com/BurntSushi/ripgrep)
-  - Frontend: a picker, see [Plugin dependencies](#plugin-dependencies)
-
+- For completion and search features: [`ripgrep`](https://github.com/BurntSushi/ripgrep?tab=readme-ov-file#installation)
 - Additional system dependencies:
   - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:Obsidian open`.
   - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:Obsidian paste_img`.
@@ -168,30 +168,22 @@ See [syntax highlighting](#syntax-highlighting) for more details.
 ## 📥 Installation
 
 > [!WARNING]
-> If you install from the latest release (recommended for stability) instead of `main`, be aware that the README on `main` may reference features that haven't been released yet. For that reason I recommend viewing the README on the tag for the [latest release](https://github.com/obsidian-nvim/obsidian.nvim/releases) instead of `main`.
+> For stability you may want to use latest release, be aware that the README on `main` may reference features that haven't been released yet.
+>
+> So view the README on the tag for the [latest release](https://github.com/obsidian-nvim/obsidian.nvim/releases) instead of `main`.
 
 > [!TIP]
 > To see your installation status, run `:checkhealth obsidian`
 >
-> To try out or debug this plugin, use `minimal.lua` in the repo to run a clean instance of obsidian.nvim
+> To try out or debug this plugin, run `nvim -u minimal.lua` to try in a clean environment
 
 ### Using [`lazy.nvim`](https://github.com/folke/lazy.nvim)
-
-<details><summary>Click for install snippet</summary>
 
 ```lua
 return {
   "obsidian-nvim/obsidian.nvim",
   version = "*", -- recommended, use latest release instead of latest commit
   ft = "markdown",
-  -- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
-  -- event = {
-  --   -- If you want to use the home shortcut '~' here you need to call 'vim.fn.expand'.
-  --   -- E.g. "BufReadPre " .. vim.fn.expand "~" .. "/my-vault/*.md"
-  --   -- refer to `:h file-pattern` for more examples
-  --   "BufReadPre path/to/my-vault/*.md",
-  --   "BufNewFile path/to/my-vault/*.md",
-  -- },
   ---@module 'obsidian'
   ---@type obsidian.config
   opts = {
@@ -206,23 +198,21 @@ return {
         path = "~/vaults/work",
       },
     },
-
-    -- see below for full list of options 👇
   },
 }
 ```
 
-</details>
-
 ### Using [`rocks.nvim`](https://github.com/nvim-neorocks/rocks.nvim)
-
-<details><summary>Click for install snippet</summary>
 
 ```vim
 :Rocks install obsidian.nvim
 ```
 
-</details>
+### Using `vim.pack` (nvim-0.12+)
+
+```lua
+vim.pack.add { "obsidian-nvim/obsidian.nvim" }
+```
 
 ## ⚙️ Configuration
 
