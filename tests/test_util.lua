@@ -39,41 +39,41 @@ end
 T["is_checkbox"] = new_set()
 
 T["is_checkbox"]["should return true for valid checkbox list items"] = function()
-  eq(true, M.is_checkbox "- [ ] Task 1")
-  eq(true, M.is_checkbox "- [x] Task 1")
-  eq(true, M.is_checkbox "+ [ ] Task 1")
-  eq(true, M.is_checkbox "+ [x] Task 1")
-  eq(true, M.is_checkbox "* [ ] Task 2")
-  eq(true, M.is_checkbox "* [x] Task 2")
-  eq(true, M.is_checkbox "1. [ ] Task 3")
-  eq(true, M.is_checkbox "1. [x] Task 3")
-  eq(true, M.is_checkbox "2. [ ] Task 3")
-  eq(true, M.is_checkbox "10. [ ] Task 3")
-  eq(true, M.is_checkbox "1) [ ] Task")
-  eq(true, M.is_checkbox "10) [ ] Task")
+  eq(true, M._is_checkbox "- [ ] Task 1")
+  eq(true, M._is_checkbox "- [x] Task 1")
+  eq(true, M._is_checkbox "+ [ ] Task 1")
+  eq(true, M._is_checkbox "+ [x] Task 1")
+  eq(true, M._is_checkbox "* [ ] Task 2")
+  eq(true, M._is_checkbox "* [x] Task 2")
+  eq(true, M._is_checkbox "1. [ ] Task 3")
+  eq(true, M._is_checkbox "1. [x] Task 3")
+  eq(true, M._is_checkbox "2. [ ] Task 3")
+  eq(true, M._is_checkbox "10. [ ] Task 3")
+  eq(true, M._is_checkbox "1) [ ] Task")
+  eq(true, M._is_checkbox "10) [ ] Task")
 end
 
 T["is_checkbox"]["should return false for non-checkbox list items"] = function()
-  eq(false, M.is_checkbox "- Task 1")
-  eq(false, M.is_checkbox "-- Task 1")
-  eq(true, M.is_checkbox "-- [ ] Task 1") -- TODO: bit shaky for now, but allows toggling in block quotes.
-  eq(false, M.is_checkbox "* Task 2")
-  eq(true, M.is_checkbox "++ [ ] Task 2")
-  eq(false, M.is_checkbox "1. Task 3")
-  eq(false, M.is_checkbox "1.1 Task 3")
-  eq(false, M.is_checkbox "1.1 [ ] Task 3")
-  eq(false, M.is_checkbox "1)1 Task 3")
-  eq(false, M.is_checkbox "Random text")
+  eq(false, M._is_checkbox "- Task 1")
+  eq(false, M._is_checkbox "-- Task 1")
+  eq(true, M._is_checkbox "-- [ ] Task 1") -- TODO: bit shaky for now, but allows toggling in block quotes.
+  eq(false, M._is_checkbox "* Task 2")
+  eq(true, M._is_checkbox "++ [ ] Task 2")
+  eq(false, M._is_checkbox "1. Task 3")
+  eq(false, M._is_checkbox "1.1 Task 3")
+  eq(false, M._is_checkbox "1.1 [ ] Task 3")
+  eq(false, M._is_checkbox "1)1 Task 3")
+  eq(false, M._is_checkbox "Random text")
 end
 
 T["is_checkbox"]["should handle leading spaces correctly"] = function()
-  eq(true, M.is_checkbox "  - [ ] Task 1")
-  eq(true, M.is_checkbox "    * [ ] Task 2")
-  eq(true, M.is_checkbox "     5. [ ] Task 2")
+  eq(true, M._is_checkbox "  - [ ] Task 1")
+  eq(true, M._is_checkbox "    * [ ] Task 2")
+  eq(true, M._is_checkbox "     5. [ ] Task 2")
 
-  eq(false, M.is_checkbox "    - Task 1")
-  eq(false, M.is_checkbox "    * Task 1")
-  eq(false, M.is_checkbox "    1. Task 1")
+  eq(false, M._is_checkbox "    - Task 1")
+  eq(false, M._is_checkbox "    * Task 1")
+  eq(false, M._is_checkbox "    1. Task 1")
 end
 
 T["is_whitespace"] = function()
@@ -148,49 +148,6 @@ T["working_day_after"] = function()
   eq(M.working_day_after(now), os.time { year = 2025, month = 4, day = 28 })
 end
 
-T["next_item"] = new_set()
-
-T["next_item"]["should pull out next list item with enclosing quotes"] = function()
-  eq('"foo"', M.next_item([=["foo", "bar"]=], { "," }))
-end
-
-T["next_item"]["should pull out the last list item with enclosing quotes"] = function()
-  eq('"foo"', M.next_item([=["foo"]=], { "," }))
-end
-
-T["next_item"]["should pull out the last list item with enclosing quotes and stop char"] = function()
-  eq('"foo"', M.next_item([=["foo",]=], { "," }))
-end
-
-T["next_item"]["should pull out next list item without enclosing quotes"] = function()
-  eq("foo", M.next_item([=[foo, "bar"]=], { "," }))
-end
-
-T["next_item"]["should pull out next list item even when the item contains the stop char"] = function()
-  eq('"foo, baz"', M.next_item([=["foo, baz", "bar"]=], { "," }))
-end
-
-T["next_item"]["should pull out the last list item without enclosing quotes"] = function()
-  eq("foo", M.next_item([=[foo]=], { "," }))
-end
-
-T["next_item"]["should pull out the last list item without enclosing quotes and stop char"] = function()
-  eq("foo", M.next_item([=[foo,]=], { "," }))
-end
-
-T["next_item"]["should pull nested array"] = function()
-  eq("[foo, bar]", M.next_item("[foo, bar],", { "]" }, true))
-end
-
-T["next_item"]["should pull out the key in an array"] = function()
-  local next_item, str = M.next_item("foo: bar", { ":" }, false)
-  eq("foo", next_item)
-  eq(" bar", str)
-  next_item, str = M.next_item("bar: 1, baz: 'Baz'", { ":" }, false)
-  eq("bar", next_item)
-  eq(" 1, baz: 'Baz'", str)
-end
-
 T["parse"] = new_set()
 
 T["parse"]["block"] = new_set()
@@ -261,24 +218,6 @@ T["strip"]["anchor_links"]["should leave line alone when there are no anchor lin
   local line, anchor = M.strip_anchor_links "Foo Bar"
   eq("Foo Bar", line)
   eq(nil, anchor)
-end
-
-T["strip"]["comments"] = new_set()
-
-T["strip"]["comments"]["should strip comments from a string"] = function()
-  eq("foo: 1", M.strip_comments "foo: 1  # this is a comment")
-end
-
-T["strip"]["comments"]["should strip comments even when they start at the beginning of the string"] = function()
-  eq("", M.strip_comments "# foo: 1")
-end
-
-T["strip"]["comments"]["should ignore '#' when enclosed in quotes"] = function()
-  eq([["hashtags start with '#'"]], M.strip_comments [["hashtags start with '#'"]])
-end
-
-T["strip"]["comments"]["should ignore an escaped '#'"] = function()
-  eq([[hashtags start with \# right?]], M.strip_comments [[hashtags start with \# right?]])
 end
 
 T["strip"]["left whitespace"] = new_set()

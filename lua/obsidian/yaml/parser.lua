@@ -1,6 +1,6 @@
 local Line = require "obsidian.yaml.line"
 local util = require "obsidian.util"
-local iter = vim.iter
+local yaml_util = require "obsidian.yaml.util"
 
 local m = {}
 
@@ -158,13 +158,13 @@ Parser._parse_next = function(self, lines, i, text)
     if line:is_empty() then
       return i, nil, YamlType.EmptyLine
     end
-    text = util.strip_comments(line.content)
+    text = yaml_util.strip_comments(line.content)
   end
 
   local _, ok, value
 
   -- First just check for a string enclosed in quotes.
-  if util.has_enclosing_chars(text) then
+  if yaml_util.has_enclosing_chars(text) then
     _, _, value = self:_parse_string(i, text)
     return i + 1, value, YamlType.Scalar
   end
@@ -226,7 +226,7 @@ local YAML_MAPPING_INLINE_REGEX = string.format("%s: (.*)", YAML_KEY_REGEX)
 ---@return boolean, integer, any
 Parser._try_parse_field = function(self, lines, i, text)
   local line = lines[i]
-  text = text and text or util.strip_comments(line.content)
+  text = text and text or yaml_util.strip_comments(line.content)
 
   local _, key, value
 
@@ -252,7 +252,7 @@ Parser._try_parse_field = function(self, lines, i, text)
     if type(value) == "string" and next_line ~= nil and next_line.indent > line.indent then
       local next_indent = next_line.indent
       while next_line ~= nil and next_line.indent == next_indent do
-        local next_value_str = util.strip_comments(next_line.content)
+        local next_value_str = yaml_util.strip_comments(next_line.content)
         if string.len(next_value_str) > 0 then
           local next_value = self:_parse_inline_value(j, next_line.content)
           if type(next_value) ~= "string" then
@@ -297,7 +297,7 @@ end
 ---@return boolean, integer, any
 Parser._try_parse_block_string = function(self, lines, i, text)
   local line = lines[i]
-  text = text and text or util.strip_comments(line.content)
+  text = text and text or yaml_util.strip_comments(line.content)
   local _, _, block_key = string.find(text, "([a-zA-Z0-9_-]+):%s?|")
   if block_key ~= nil then
     local block_lines = {}
@@ -331,7 +331,7 @@ end
 ---@return boolean, integer, any
 Parser._try_parse_array_item = function(self, lines, i, text)
   local line = lines[i]
-  text = text and text or util.strip_comments(line.content)
+  text = text and text or yaml_util.strip_comments(line.content)
   if vim.startswith(text, "- ") then
     local _, _, array_item_str = string.find(text, "- (.*)")
     local value
@@ -413,14 +413,16 @@ end
 ---@param text string
 ---@return any, string
 Parser._parse_inline_value = function(self, i, text)
-  for parse_func_and_type in iter {
-    { self._parse_number, YamlType.Scalar },
-    { self._parse_null, YamlType.Scalar },
-    { self._parse_boolean, YamlType.Scalar },
-    { self._parse_inline_array, YamlType.Array },
-    { self._parse_inline_mapping, YamlType.Mapping },
-    { self._parse_string, YamlType.Scalar },
-  } do
+  for parse_func_and_type in
+    vim.iter {
+      { self._parse_number, YamlType.Scalar },
+      { self._parse_null, YamlType.Scalar },
+      { self._parse_boolean, YamlType.Scalar },
+      { self._parse_inline_array, YamlType.Array },
+      { self._parse_inline_mapping, YamlType.Mapping },
+      { self._parse_string, YamlType.Scalar },
+    }
+  do
     local parse_func, parse_type = unpack(parse_func_and_type)
     local ok, errmsg, res = parse_func(self, i, text)
     if ok then
@@ -456,13 +458,13 @@ Parser._parse_inline_array = function(self, i, text)
     local item_str
     if vim.startswith(str, "[") then
       -- Nested inline array.
-      item_str, str = util.next_item(str, { "]" }, true)
+      item_str, str = yaml_util.next_item(str, { "]" }, true)
     elseif vim.startswith(str, "{") then
       -- Nested inline mapping.
-      item_str, str = util.next_item(str, { "}" }, true)
+      item_str, str = yaml_util.next_item(str, { "}" }, true)
     else
       -- Regular item.
-      item_str, str = util.next_item(str, { "," }, false)
+      item_str, str = yaml_util.next_item(str, { "," }, false)
     end
     if item_str == nil then
       return false, self:_error_msg("invalid inline array", i, text), nil
@@ -500,7 +502,7 @@ Parser._parse_inline_mapping = function(self, i, text)
   while string.len(str) > 0 do
     -- Parse the key.
     local key_str
-    key_str, str = util.next_item(str, { ":" }, false)
+    key_str, str = yaml_util.next_item(str, { ":" }, false)
     if key_str == nil then
       return false, self:_error_msg("invalid inline mapping", i, text), nil
     end
@@ -511,13 +513,13 @@ Parser._parse_inline_mapping = function(self, i, text)
     local value_str
     if vim.startswith(str, "[") then
       -- Nested inline array.
-      value_str, str = util.next_item(str, { "]" }, true)
+      value_str, str = yaml_util.next_item(str, { "]" }, true)
     elseif vim.startswith(str, "{") then
       -- Nested inline mapping.
-      value_str, str = util.next_item(str, { "}" }, true)
+      value_str, str = yaml_util.next_item(str, { "}" }, true)
     else
       -- Regular item.
-      value_str, str = util.next_item(str, { "," }, false)
+      value_str, str = yaml_util.next_item(str, { "," }, false)
     end
     if value_str == nil then
       return false, self:_error_msg("invalid inline mapping", i, text), nil
@@ -544,7 +546,7 @@ Parser._parse_string = function(_, _, text)
     -- when the text is enclosed with double-quotes we need to un-escape certain characters.
     text = string.gsub(text, vim.pesc [[\"]], [["]])
   end
-  return true, nil, util.strip_enclosing_chars(vim.trim(text))
+  return true, nil, yaml_util.strip_enclosing_chars(vim.trim(text))
 end
 
 ---Parse a string value.
@@ -552,15 +554,23 @@ end
 ---@param text string
 ---@return string
 Parser.parse_string = function(self, text)
-  local _, _, str = self:_parse_string(1, util.strip_comments(text))
+  local _, _, str = self:_parse_string(1, yaml_util.strip_comments(text))
   return str
+end
+
+---Check if a string is NaN
+---
+---@param v any
+---@return boolean
+local is_nan = function(v)
+  return tostring(v) == tostring(0 / 0)
 end
 
 ---@param text string
 ---@return boolean, string|?, number|?
 Parser._parse_number = function(_, _, text)
   local out = tonumber(text)
-  if out == nil or util.isNan(out) then
+  if out == nil or is_nan(out) then
     return false, nil, nil
   else
     return true, nil, out
@@ -572,7 +582,7 @@ end
 ---@param text string
 ---@return number
 Parser.parse_number = function(self, text)
-  local ok, errmsg, res = self:_parse_number(1, vim.trim(util.strip_comments(text)))
+  local ok, errmsg, res = self:_parse_number(1, vim.trim(yaml_util.strip_comments(text)))
   if not ok then
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a number", 1, text)
     error(errmsg)
@@ -599,7 +609,7 @@ end
 ---@param text string
 ---@return boolean
 Parser.parse_boolean = function(self, text)
-  local ok, errmsg, res = self:_parse_boolean(1, vim.trim(util.strip_comments(text)))
+  local ok, errmsg, res = self:_parse_boolean(1, vim.trim(yaml_util.strip_comments(text)))
   if not ok then
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a boolean", 1, text)
     error(errmsg)
@@ -624,7 +634,7 @@ end
 ---@param text string
 ---@return vim.NIL|nil
 Parser.parse_null = function(self, text)
-  local ok, errmsg, res = self:_parse_null(1, vim.trim(util.strip_comments(text)))
+  local ok, errmsg, res = self:_parse_null(1, vim.trim(yaml_util.strip_comments(text)))
   if not ok then
     errmsg = errmsg and errmsg or self:_error_msg("failed to parse a null value", 1, text)
     error(errmsg)

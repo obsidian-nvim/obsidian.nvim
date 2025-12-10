@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- further refactored util module to keep it clean.
+
 ### Added
 
 - A new confirm option to choose template when creating note from link.

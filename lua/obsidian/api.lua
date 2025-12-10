@@ -160,10 +160,36 @@ M.cursor_heading = function()
   return util.parse_header(vim.api.nvim_get_current_line())
 end
 
+---Check if a string is a checkbox list item
+---
+---Supported checboox lists:
+--- - [ ] foo
+--- - [x] foo
+--- + [x] foo
+--- * [ ] foo
+--- 1. [ ] foo
+--- 1) [ ] foo
+---
+---@param s string
+---@return boolean
+local is_checkbox = function(s)
+  -- - [ ] and * [ ] and + [ ]
+  if string.match(s, "%s*[-+*]%s+%[.%]") ~= nil then
+    return true
+  end
+  -- 1. [ ] and 1) [ ]
+  if string.match(s, "%s*%d+[%.%)]%s+%[.%]") ~= nil then
+    return true
+  end
+  return false
+end
+
+M._is_checkbox = is_checkbox
+
 --- Whether there is a checkbox under the cursor
 ---@return boolean
 M.cursor_checkbox = function()
-  return util.is_checkbox(vim.api.nvim_get_current_line())
+  return is_checkbox(vim.api.nvim_get_current_line())
 end
 
 ------------------
@@ -704,7 +730,7 @@ M.toggle_checkbox = function(states, line_num)
 
   local checkboxes = states or { " ", "x" }
 
-  if util.is_checkbox(line) then
+  if is_checkbox(line) then
     for i, check_char in ipairs(checkboxes) do
       if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
         i = i % #checkboxes
@@ -761,7 +787,7 @@ M.set_checkbox = function(state)
 
   local cur_line = vim.api.nvim_get_current_line()
 
-  if util.is_checkbox(cur_line) then
+  if is_checkbox(cur_line) then
     if string.match(cur_line, "^.* %[.%].*") then
       cur_line = string.gsub(cur_line, "%[.%]", "[" .. state .. "]", 1)
     end

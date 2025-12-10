@@ -500,7 +500,7 @@ M.resolve_note = function(query, opts)
       -- TODO: use vim.fn.fuzzymatch
       -- Fall back to fuzzy match.
       for _, ref_id in ipairs(reference_ids) do
-        if util.string_contains(ref_id, query_lwr) then
+        if string.find(ref_id, query_lwr, 1, true) ~= nil then
           table.insert(fuzzy_matches, note)
           break
         end
@@ -896,7 +896,7 @@ M.find_tags_async = function(term, callback, opts)
       for _, tag in ipairs(note.tags) do
         tag = tostring(tag)
         for _, t in ipairs(terms) do
-          if string.len(t) == 0 or util.string_contains(tag, t) then
+          if string.len(t) == 0 or string.find(tag, t, 1, true) ~= nil then
             add_match(tag, path, note, match_data.line_number, line)
           end
         end
