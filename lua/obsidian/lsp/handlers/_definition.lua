@@ -5,41 +5,13 @@ local log = obsidian.log
 local api = obsidian.api
 local Note = obsidian.Note
 
----@param note obsidian.Note
----@param block_link string?
----@param anchor_link string?
----@return lsp.Location
-local function note_to_location(note, block_link, anchor_link)
-  ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
-  local line, block_match, anchor_match
-  if block_link then
-    block_match = note:resolve_block(block_link)
-    if block_match then
-      line = block_match.line
-    end
-  elseif anchor_link then
-    anchor_match = note:resolve_anchor_link(anchor_link)
-    if anchor_match then
-      line = anchor_match.line
-    end
-  end
-
-  line = line and line - 1 or 0
-
-  return {
-    uri = note:uri(),
-    range = {
-      start = { line = line, character = 0 },
-      ["end"] = { line = line, character = 0 },
-    },
-  }
-end
-
 ---@param location string
 ---@param name string
+---@param callback function
 ---@return lsp.Location?
-local function create_new_note(location, name)
-  if obsidian.api.confirm("Create new note '" .. location .. "'?") then
+local function create_new_note(location, name, callback)
+  local confirm = obsidian.api.confirm(("Create new note '%s'?"):format(location), "&Yes\nYes With &Template\n&No")
+  if confirm then
     ---@type string|?, string[]
     local id, aliases
     if name == location then
@@ -49,8 +21,15 @@ local function create_new_note(location, name)
       id = location
     end
 
-    local note = Note.create { title = name, id = id, aliases = aliases }
-    return note_to_location(note)
+    if type(confirm) == "string" and confirm == "Yes With Template" then
+      api.new_from_template(name, nil, function(note)
+        callback { note:_location() }
+      end)
+      return
+    else
+      local note = Note.create { title = name, id = id, aliases = aliases }
+      callback { note:_location() }
+    end
   else
     return obsidian.log.warn "Aborted"
   end
@@ -65,9 +44,9 @@ handlers.NakedUrl = function(location)
   return nil
 end
 
-handlers.FileUrl = function(location)
+handlers.FileUrl = function(location, _, callback)
   local line = 0 -- TODO: :lnum?
-  return {
+  callback {
     {
       uri = location,
       range = {
@@ -78,15 +57,16 @@ handlers.FileUrl = function(location)
   }
 end
 
-handlers.Wiki = function(location, name)
+handlers.Wiki = function(location, name, callback)
   local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
   if util.is_img(location) then -- TODO: include in parse_link
     local path = api.resolve_image_path(location)
     -- TODO: Obsidian.opts.open.func
     Obsidian.opts.follow_img_func(tostring(path))
-    return nil
+    return
   elseif handlers[location_type] then
-    return handlers[location_type](location, name)
+    handlers[location_type](location, name, callback)
+    return
   else
     local block_link, anchor_link
     location, block_link = util.strip_block_links(location)
@@ -97,18 +77,17 @@ handlers.Wiki = function(location, name)
       notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
     })
     if vim.tbl_isempty(notes) then
-      local loc = create_new_note(location, name)
-      return { loc }
+      create_new_note(location, name, callback)
     elseif #notes == 1 then
-      return { note_to_location(notes[1], block_link, anchor_link) }
+      callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
     elseif #notes > 1 then
       local locations = vim
         .iter(notes)
         :map(function(note)
-          return note_to_location(note, block_link, anchor_link)
+          return note:_location { block = block_link, anchor = anchor_link }
         end)
         :totable()
-      return locations
+      callback(locations)
     end
   end
 end
@@ -116,7 +95,7 @@ end
 handlers.WikiWithAlias = handlers.Wiki
 handlers.Markdown = handlers.Wiki
 
-handlers.HeaderLink = function(location)
+handlers.HeaderLink = function(location, _, callback)
   local note = api.current_note(0, { collect_anchor_links = true })
   if not note or vim.tbl_isempty(note.anchor_links) then
     return
@@ -126,7 +105,7 @@ handlers.HeaderLink = function(location)
     return
   end
   local line = anchor_obj.line - 1
-  return {
+  callback {
     {
       uri = vim.uri_from_fname(tostring(note.path)),
       range = {
@@ -137,7 +116,7 @@ handlers.HeaderLink = function(location)
   }
 end
 
-handlers.BlockLink = function(location)
+handlers.BlockLink = function(location, _, callback)
   local note = api.current_note(0, { collect_blocks = true })
   if not note or vim.tbl_isempty(note.blocks) then
     return
@@ -147,7 +126,7 @@ handlers.BlockLink = function(location)
     return
   end
   local line = block_obj.line - 1
-  return {
+  callback {
     {
       uri = vim.uri_from_fname(tostring(note.path)),
       range = {
@@ -178,10 +157,16 @@ return {
       return log.err("unsupported link format", link_type)
     end
 
-    local lsp_locations = handler(location, name)
-
-    if lsp_locations and util.islist(lsp_locations) then
-      callback(nil, lsp_locations)
+    local wrapped_callback = function(lsp_locations)
+      if lsp_locations and util.islist(lsp_locations) then
+        callback(nil, lsp_locations)
+      end
     end
+
+    handler(location, name, wrapped_callback)
+
+    -- if lsp_locations and util.islist(lsp_locations) then
+    --   callback(nil, lsp_locations)
+    -- end
   end,
 }
