@@ -873,14 +873,16 @@ Note.frontmatter_lines = function(self, current_lines)
   if Obsidian.opts.frontmatter.sort then
     order = Obsidian.opts.frontmatter.sort
   end
-  local parse_ok
-  if not vim.tbl_isempty(current_lines) then
+  local syntax_ok
+  local has_frontmatter = current_lines and not vim.tbl_isempty(current_lines)
+
+  if has_frontmatter then
     local yaml_body_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
     end, current_lines)
-    parse_ok, _, order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
+    syntax_ok, _, order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
   end
-  if parse_ok then
+  if syntax_ok or not has_frontmatter then -- if parse success or there's no frontmatter (and should insert)
     ---@diagnostic disable-next-line: param-type-mismatch
     return Frontmatter.dump(Obsidian.opts.frontmatter.func(self), order)
   else
