@@ -427,13 +427,35 @@ Note.uri = function(self)
   return vim.uri_from_fname(tostring(self.path))
 end
 
----@param range lsp.Range|?
+---@param opts { block: string|?, anchor: string|?, range: lsp.Range|? }|?-- TODO: vim.Range in the future
 ---@return lsp.Location
-Note._location = function(self, range)
-  range = range or {
-    start = { line = 0, character = 0 },
-    ["end"] = { line = 0, character = 0 },
-  }
+Note._location = function(self, opts)
+  opts = opts or {}
+
+  if (opts.range and opts.block) or (opts.range and opts.anchor) then
+    error "can not pass both range and an block/anhor link to Note:_location()"
+  end
+
+  ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
+  local line = 0
+  if opts.block then
+    local block_match = self:resolve_block(opts.block)
+    if block_match then
+      line = block_match.line - 1
+    end
+  elseif opts.anchor then
+    local anchor_match = self:resolve_anchor_link(opts.anchor)
+    if anchor_match then
+      line = anchor_match.line - 1
+    end
+  end
+
+  local range = opts.range
+    or {
+      start = { line = line, character = 0 },
+      ["end"] = { line = line, character = 0 },
+    }
+
   return {
     uri = self:uri(),
     range = range,

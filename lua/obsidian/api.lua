@@ -948,6 +948,7 @@ end
 
 ---@param title string|?
 ---@param template string|?
+---@param callback fun(note: obsidian.Note)
 M.new_from_template = function(title, template, callback)
   local Note = require "obsidian.note"
 
@@ -959,7 +960,7 @@ M.new_from_template = function(title, template, callback)
   if title ~= nil and template ~= nil then
     local note = Note.create { title = title, template = template, should_write = true }
     if callback then
-      callback { note:_location() }
+      callback(note)
     else
       note:open { sync = true }
     end
@@ -991,10 +992,9 @@ M.new_from_template = function(title, template, callback)
 
       ---@type obsidian.Note
       local note = Note.create { title = title, template = template_name, should_write = true }
-      -- note:open { sync = false }
 
       if callback then
-        callback { note:_location() }
+        callback(note)
       else
         note:open { sync = false } -- TODO:??
       end

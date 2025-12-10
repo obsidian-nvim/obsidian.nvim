@@ -5,42 +5,12 @@ local log = obsidian.log
 local api = obsidian.api
 local Note = obsidian.Note
 
----@param note obsidian.Note
----@param block_link string?
----@param anchor_link string?
----@return lsp.Location
-local function note_to_location(note, block_link, anchor_link)
-  ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
-  local line, block_match, anchor_match
-  if block_link then
-    block_match = note:resolve_block(block_link)
-    if block_match then
-      line = block_match.line
-    end
-  elseif anchor_link then
-    anchor_match = note:resolve_anchor_link(anchor_link)
-    if anchor_match then
-      line = anchor_match.line
-    end
-  end
-
-  line = line and line - 1 or 0
-
-  return {
-    uri = note:uri(),
-    range = {
-      start = { line = line, character = 0 },
-      ["end"] = { line = line, character = 0 },
-    },
-  }
-end
-
 ---@param location string
 ---@param name string
 ---@param callback function
 ---@return lsp.Location?
 local function create_new_note(location, name, callback)
-  local confirm = obsidian.api.confirm("Create new note '" .. location .. "'?", "&Yes\nYes With &Template\n&No")
+  local confirm = obsidian.api.confirm(("Create new note '%s'?"):format(location), "&Yes\nYes With &Template\n&No")
   if confirm then
     ---@type string|?, string[]
     local id, aliases
@@ -50,14 +20,15 @@ local function create_new_note(location, name, callback)
       aliases = { name }
       id = location
     end
-    print(confirm)
 
     if type(confirm) == "string" and confirm == "Yes With Template" then
-      api.new_from_template(name, nil, callback)
+      api.new_from_template(name, nil, function(note)
+        callback { note:_location() }
+      end)
       return
     else
       local note = Note.create { title = name, id = id, aliases = aliases }
-      callback(note_to_location(note))
+      callback { note:_location() }
     end
   else
     return obsidian.log.warn "Aborted"
@@ -108,12 +79,12 @@ handlers.Wiki = function(location, name, callback)
     if vim.tbl_isempty(notes) then
       create_new_note(location, name, callback)
     elseif #notes == 1 then
-      callback { note_to_location(notes[1], block_link, anchor_link) }
+      callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
     elseif #notes > 1 then
       local locations = vim
         .iter(notes)
         :map(function(note)
-          return note_to_location(note, block_link, anchor_link)
+          return note:_location { block = block_link, anchor = anchor_link }
         end)
         :totable()
       callback(locations)
