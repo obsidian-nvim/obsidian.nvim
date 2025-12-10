@@ -1,7 +1,6 @@
 local Line = require "obsidian.yaml.line"
 local util = require "obsidian.util"
-local iter = vim.iter
-local ut = require"obsidian.yaml.util"
+local ut = require "obsidian.yaml.util"
 
 local m = {}
 
@@ -414,14 +413,16 @@ end
 ---@param text string
 ---@return any, string
 Parser._parse_inline_value = function(self, i, text)
-  for parse_func_and_type in iter {
-    { self._parse_number, YamlType.Scalar },
-    { self._parse_null, YamlType.Scalar },
-    { self._parse_boolean, YamlType.Scalar },
-    { self._parse_inline_array, YamlType.Array },
-    { self._parse_inline_mapping, YamlType.Mapping },
-    { self._parse_string, YamlType.Scalar },
-  } do
+  for parse_func_and_type in
+    vim.iter {
+      { self._parse_number, YamlType.Scalar },
+      { self._parse_null, YamlType.Scalar },
+      { self._parse_boolean, YamlType.Scalar },
+      { self._parse_inline_array, YamlType.Array },
+      { self._parse_inline_mapping, YamlType.Mapping },
+      { self._parse_string, YamlType.Scalar },
+    }
+  do
     local parse_func, parse_type = unpack(parse_func_and_type)
     local ok, errmsg, res = parse_func(self, i, text)
     if ok then
@@ -457,13 +458,13 @@ Parser._parse_inline_array = function(self, i, text)
     local item_str
     if vim.startswith(str, "[") then
       -- Nested inline array.
-      item_str, str = util.next_item(str, { "]" }, true)
+      item_str, str = ut.next_item(str, { "]" }, true)
     elseif vim.startswith(str, "{") then
       -- Nested inline mapping.
-      item_str, str = util.next_item(str, { "}" }, true)
+      item_str, str = ut.next_item(str, { "}" }, true)
     else
       -- Regular item.
-      item_str, str = util.next_item(str, { "," }, false)
+      item_str, str = ut.next_item(str, { "," }, false)
     end
     if item_str == nil then
       return false, self:_error_msg("invalid inline array", i, text), nil
@@ -501,7 +502,7 @@ Parser._parse_inline_mapping = function(self, i, text)
   while string.len(str) > 0 do
     -- Parse the key.
     local key_str
-    key_str, str = util.next_item(str, { ":" }, false)
+    key_str, str = ut.next_item(str, { ":" }, false)
     if key_str == nil then
       return false, self:_error_msg("invalid inline mapping", i, text), nil
     end
@@ -512,13 +513,13 @@ Parser._parse_inline_mapping = function(self, i, text)
     local value_str
     if vim.startswith(str, "[") then
       -- Nested inline array.
-      value_str, str = util.next_item(str, { "]" }, true)
+      value_str, str = ut.next_item(str, { "]" }, true)
     elseif vim.startswith(str, "{") then
       -- Nested inline mapping.
-      value_str, str = util.next_item(str, { "}" }, true)
+      value_str, str = ut.next_item(str, { "}" }, true)
     else
       -- Regular item.
-      value_str, str = util.next_item(str, { "," }, false)
+      value_str, str = ut.next_item(str, { "," }, false)
     end
     if value_str == nil then
       return false, self:_error_msg("invalid inline mapping", i, text), nil
@@ -557,11 +558,19 @@ Parser.parse_string = function(self, text)
   return str
 end
 
+---Check if a string is NaN
+---
+---@param v any
+---@return boolean
+local is_nan = function(v)
+  return tostring(v) == tostring(0 / 0)
+end
+
 ---@param text string
 ---@return boolean, string|?, number|?
 Parser._parse_number = function(_, _, text)
   local out = tonumber(text)
-  if out == nil or util.isNan(out) then
+  if out == nil or is_nan(out) then
     return false, nil, nil
   else
     return true, nil, out
