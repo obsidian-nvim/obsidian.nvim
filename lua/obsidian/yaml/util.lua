@@ -1,5 +1,3 @@
-local util = require "obsidian.util"
-
 local STRING_ENCLOSING_CHARS = { [["]], [[']] }
 local M = {}
 
