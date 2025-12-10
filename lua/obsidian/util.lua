@@ -144,8 +144,6 @@ util.unescape_single_backslash = function(text)
   return text:gsub("(%[%[[^\\]+)\\(%|[^\\]+]])", "%1%2")
 end
 
-local STRING_ENCLOSING_CHARS = { [["]], [[']] }
-
 ---Count the indentation of a line.
 ---@param str string
 ---@return integer
