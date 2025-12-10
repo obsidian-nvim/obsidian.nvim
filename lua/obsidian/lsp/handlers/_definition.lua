@@ -157,13 +157,13 @@ return {
       return log.err("unsupported link format", link_type)
     end
 
-    local warpped_callback = function(lsp_locations)
+    local wrapped_callback = function(lsp_locations)
       if lsp_locations and util.islist(lsp_locations) then
         callback(nil, lsp_locations)
       end
     end
 
-    handler(location, name, warpped_callback)
+    handler(location, name, wrapped_callback)
 
     -- if lsp_locations and util.islist(lsp_locations) then
     --   callback(nil, lsp_locations)
