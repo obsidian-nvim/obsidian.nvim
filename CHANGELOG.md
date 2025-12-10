@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Changed
-
-- further refactored util module to keep it clean.
-
 ### Added
 
 - A new confirm option to choose template when creating note from link.
+
+### Changed
+
+- Further refactored util module to keep it clean.
+
+### Fixed
+
+- Frontmatter will not be updated on save if there's a yaml syntax error.
 
 ## [v3.14.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.7) - 2025-12-07
 

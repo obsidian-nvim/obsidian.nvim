@@ -872,14 +872,21 @@ Note.frontmatter_lines = function(self, current_lines)
   local order
   if Obsidian.opts.frontmatter.sort then
     order = Obsidian.opts.frontmatter.sort
-  elseif not vim.tbl_isempty(current_lines) then
-    current_lines = vim.tbl_filter(function(line)
+  end
+  local parse_ok
+  if not vim.tbl_isempty(current_lines) then
+    local yaml_body_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
     end, current_lines)
-    _, _, order = pcall(yaml.loads, table.concat(current_lines, "\n"))
+    parse_ok, _, order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
   end
-  ---@diagnostic disable-next-line: param-type-mismatch
-  return Frontmatter.dump(Obsidian.opts.frontmatter.func(self), order)
+  if parse_ok then
+    ---@diagnostic disable-next-line: param-type-mismatch
+    return Frontmatter.dump(Obsidian.opts.frontmatter.func(self), order)
+  else
+    log.info "invalid yaml syntax in frontmatter"
+    return current_lines
+  end
 end
 
 --- Update the frontmatter in a buffer for the note.
