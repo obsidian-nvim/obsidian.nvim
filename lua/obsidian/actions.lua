@@ -274,6 +274,8 @@ M.toggle_checkbox = function(states, line_num)
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { line })
 end
 
+--- TODO: move logic from command to here
+--- TODO: support visual map
 ---Set the checkbox on the current line to a specific state.
 ---
 ---@param state string|nil Optional string of state to set the checkbox to (e.g., " ", "x").
