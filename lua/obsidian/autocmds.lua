@@ -1,4 +1,5 @@
 local api = require "obsidian.api"
+local actions = require "obsidian.actions"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
@@ -45,21 +46,21 @@ vim.api.nvim_create_autocmd({ "BufEnter" }, {
     end
 
     -- Register keymap.
-    vim.keymap.set("n", "<CR>", api.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
+    vim.keymap.set("n", "<CR>", actions.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
 
     vim.keymap.set("n", "]o", function()
-      api.nav_link "next"
+      actions.nav_link "next"
     end, { buffer = true, desc = "Obsidian Next Link" })
 
     vim.keymap.set("n", "[o", function()
-      api.nav_link "prev"
+      actions.nav_link "prev"
     end, { buffer = true, desc = "Obsidian Previous Link" })
 
     -- Inject completion sources, providers to their plugin configurations
     if opts.completion.nvim_cmp then
-      require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources(opts)
+      require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources()
     elseif opts.completion.blink then
-      require("obsidian.completion.plugin_initializers.blink").inject_sources(opts)
+      require("obsidian.completion.plugin_initializers.blink").inject_sources()
     end
 
     require("obsidian.lsp").start(ev.buf)
