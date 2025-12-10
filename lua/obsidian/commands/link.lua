@@ -1,5 +1,4 @@
 local obsidian = require "obsidian"
 
-return function()
-  obsidian.api.link()
-end
+-- TODO: deprecate once is code action
+return obsidian.actions.link
