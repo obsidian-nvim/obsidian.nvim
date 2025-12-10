@@ -92,6 +92,14 @@ Return ~
 `(string)` `(optional)`
 
 ------------------------------------------------------------------------------
+                                                              *Note._location()*
+                        `Note._location`({self}, {opts})
+Parameters ~
+{opts} `({ block: string|?, anchor: string|?, range: lsp.Range|? }|?-- TODO)`: vim.Range in the future
+Return ~
+`(lsp.Location)`
+
+------------------------------------------------------------------------------
                                                           *Note.reference_ids()*
                       `Note.reference_ids`({self}, {opts})
 Get a list of all of the different string that can identify this note via references,

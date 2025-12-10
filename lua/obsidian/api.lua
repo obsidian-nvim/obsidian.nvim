@@ -510,7 +510,7 @@ end
 ---@param prompt string
 ---
 ---@return boolean
-M.confirm = function(prompt)
+M._confirm = function(prompt)
   if not vim.endswith(util.rstrip_whitespace(prompt), "[Y/n]") then
     prompt = util.rstrip_whitespace(prompt) .. " [Y/n] "
   end
@@ -526,6 +526,27 @@ M.confirm = function(prompt)
     return true
   else
     return false
+  end
+end
+
+M.confirm = function(prompt, choices)
+  choices = choices or "&Yes\n&No"
+  local choices_tbl = vim.split(choices, "\n")
+  choices_tbl = vim.tbl_map(function(choice)
+    return choice:gsub("&", "")
+  end, choices_tbl)
+
+  local choice_idx = vim.fn.confirm(prompt, choices)
+  local user_choice = choices_tbl[choice_idx]
+  if not user_choice then
+    return nil
+  end
+  if user_choice == "Yes" then
+    return true
+  elseif user_choice == "No" then
+    return false
+  else
+    return user_choice
   end
 end
 
@@ -949,6 +970,62 @@ M.extract_note = function(label)
   -- add the selected text to the end of the new note
   note:open { sync = true }
   vim.api.nvim_buf_set_lines(0, -1, -1, false, content)
+end
+
+---@param title string|?
+---@param template string|?
+---@param callback fun(note: obsidian.Note)
+M.new_from_template = function(title, template, callback)
+  local Note = require "obsidian.note"
+
+  local templates_dir = M.templates_dir()
+  if not templates_dir then
+    return log.err "Templates folder is not defined or does not exist"
+  end
+
+  if title ~= nil and template ~= nil then
+    local note = Note.create { title = title, template = template, should_write = true }
+    if callback then
+      callback(note)
+    else
+      note:open { sync = true }
+    end
+    return
+  end
+
+  Obsidian.picker.find_files {
+    prompt_title = "Templates",
+    dir = templates_dir,
+    no_default_mappings = true,
+    callback = function(template_name)
+      if title == nil or title == "" then
+        -- Must use pcall in case of KeyboardInterrupt
+        -- We cannot place `title` where `safe_title` is because it would be redeclaring it
+        local success, safe_title = pcall(util.input, "Enter title or path (optional): ", { completion = "file" })
+        title = safe_title
+        if not success or not safe_title then
+          log.warn "Aborted"
+          return
+        elseif safe_title == "" then
+          title = nil
+        end
+      end
+
+      if template_name == nil or template_name == "" then
+        log.warn "Aborted"
+        return
+      end
+
+      ---@type obsidian.Note
+      local note = Note.create { title = title, template = template_name, should_write = true }
+
+      if callback then
+        callback(note)
+      else
+        note:open { sync = false } -- TODO:??
+      end
+    end,
+  }
 end
 
 return M
