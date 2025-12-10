@@ -1,5 +1,5 @@
 local util = require "obsidian.util"
-local ut = require"obsidian.yaml.util"
+local yaml_util = require "obsidian.yaml.util"
 
 ---@class obsidian.yaml.Line
 ---@field content string
@@ -34,7 +34,7 @@ end
 ---@param self obsidian.yaml.Line
 ---@return boolean
 Line.is_empty = function(self)
-  if ut.strip_comments(self.content) == "" then
+  if yaml_util.strip_comments(self.content) == "" then
     return true
   else
     return false
