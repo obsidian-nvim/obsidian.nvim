@@ -10,6 +10,9 @@
 <a href="https://github.com/neovim/neovim/releases/latest">
   <img alt="Latest Neovim" src="https://img.shields.io/github/v/release/neovim/neovim?style=for-the-badge&logo=neovim&logoColor=D9E0EE&label=Neovim&labelColor=302D41&color=99d6ff&sort=semver" />
 </a>
+<a href="https://github.com/obsidian-nvim/obsidian.nvim/releases.atom">
+  <img src="https://img.shields.io/badge/rss-F88900?style=for-the-badge&logo=rss&logoColor=white">
+</a>
 <a href="http://www.lua.org/">
   <img alt="Made with Lua" src="https://img.shields.io/badge/Built%20with%20Lua-grey?style=for-the-badge&logo=lua&logoColor=D9E0EE&label=Lua&labelColor=302D41&color=b3b3ff">
 </a>
@@ -195,8 +198,6 @@ return {
         path = "~/vaults/work",
       },
     },
-
-    -- see below for full list of options 👇
   },
 }
 ```
