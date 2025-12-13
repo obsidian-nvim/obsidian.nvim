@@ -7,19 +7,29 @@ local LEFT_SEP = "▏"
 -- <buf, <line_num, markid>>
 local id_cache = vim.defaulttable()
 
----@param note obsidian.Note
-local function compute_virt_lines(note)
-  local res = {}
+local function temp_buf(note)
   local contents = note.contents
 
   local start_line = note.frontmatter_end_line and note.frontmatter_end_line + 1 or 0
+  local lines = {}
 
   for lnum = start_line, #contents do
     local line = contents[lnum]
-    res[#res + 1] = { { LEFT_SEP, "NonText" }, { line, "@CursorLine" } }
+    lines[#lines + 1] = line
   end
 
-  return res
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+  vim.bo[buf].filetype = "markdown"
+  vim.treesitter.start(buf, "markdown")
+  return buf, lines
+end
+
+---@param note obsidian.Note
+local function compute_virt_lines(note)
+  local buf = temp_buf(note)
+  return require "obsidian.ts"(buf)
 end
 
 ---@param bnr integer
@@ -50,6 +60,7 @@ M.start = function(buf)
       local notes = search.resolve_note(note_id, {})
       if not vim.tbl_isempty(notes) then
         local virt_lines = compute_virt_lines(notes[1])
+        vim.print(virt_lines)
         local markid = display_result(buf, line_num - 1, 0, virt_lines, id_counter)
         id_cache[buf][line_num] = markid
       end
