@@ -39,7 +39,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field metadata table
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
----@field contents string[]|?
+---@field contents string[] -- lazily computed and always gets a table back
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field alt_alias string|?

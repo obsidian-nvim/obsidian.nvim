@@ -63,6 +63,7 @@ vim.api.nvim_create_autocmd({ "BufEnter" }, {
     end
 
     require("obsidian.lsp").start(ev.buf)
+    require("obsidian.embed").start(ev.buf)
 
     exec_autocmds "ObsidianNoteEnter"
   end,
