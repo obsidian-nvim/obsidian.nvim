@@ -72,6 +72,7 @@ local function bufenter_callback(ev)
   end
 
   require("obsidian.lsp").start(ev.buf)
+  require("obsidian.embed").start(ev.buf)
 
   if opts.footer.enabled then
     require("obsidian.footer").start(ev.buf)
