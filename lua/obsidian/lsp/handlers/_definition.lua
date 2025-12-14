@@ -84,7 +84,6 @@ handlers.Wiki = function(location, name, callback)
     local block_link, anchor_link
     location, block_link = util.strip_block_links(location)
     location, anchor_link = util.strip_anchor_links(location)
-    location = vim.uri_decode(location)
 
     local notes = search.resolve_note(location, {
       notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
@@ -159,6 +158,7 @@ end
 return {
   follow_link = function(link, callback)
     local location, name, link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
+    location = vim.uri_decode(location)
 
     if not location then
       return callback(nil, {})

@@ -51,6 +51,26 @@ file://%s/test.lua
   fs_eq(files["test.lua"], child.api.nvim_buf_get_name(0))
 end
 
+T["follow encoded headerlinks"] = function()
+  local src = [==[
+## This is a heading with spaces
+
+[`some code`](#This%20is%20a%20heading%20with%20spaces)
+
+[[#This is a heading with spaces|`some code`]]
+]==]
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = src,
+  })
+  child.cmd("edit " .. files["test.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 0 })
+  child.lua "vim.lsp.buf.definition()"
+  eq(child.api.nvim_win_get_cursor(0), { 1, 0 })
+  child.api.nvim_win_set_cursor(0, { 5, 0 })
+  child.lua "vim.lsp.buf.definition()"
+  eq(child.api.nvim_win_get_cursor(0), { 1, 0 })
+end
+
 -- TODO: expand to all filetypes
 T["open attachment"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
