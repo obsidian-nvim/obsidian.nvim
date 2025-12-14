@@ -31,13 +31,23 @@ M.dir = function(dir)
     end)
 end
 
--- find workspaces of a path
----@param path string
----@return obsidian.Workspace
-M.find_workspace = function(path)
-  return vim.iter(Obsidian.workspaces):find(function(ws)
-    return M.path_is_note(path, ws)
-  end)
+--- TODO: will not work if plugin is managed by nix
+---
+---@return obsidian.Path|?
+M.help_wiki_dir = function()
+  local info = M.get_plugin_info "obsidian.nvim"
+  if not info then
+    log.err "Failed to locate plugin installation directory"
+    return
+  end
+
+  ---@type obsidian.Path
+  local dir = Path.new(info.path) / "obsidian.nvim.wiki"
+  if not dir:is_dir() then
+    log.err "Failed to sync help wiki as a submodule of this plugin"
+  end
+
+  return dir
 end
 
 --- Get the templates folder.
