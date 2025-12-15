@@ -65,7 +65,7 @@ end
 
 vim.api.nvim_create_autocmd("FileType", {
   group = group,
-  pattern = Obsidian.opts.filetypes,
+  pattern = { "markdown", "quarto" },
   callback = function(args)
     create_autocmd("BufEnter", args.buf, bufenter_callback)
     create_autocmd("BufLeave", args.buf, function(ev)

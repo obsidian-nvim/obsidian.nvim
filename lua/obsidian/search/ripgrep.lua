@@ -3,7 +3,14 @@ local compat = require "obsidian.compat"
 
 local M = {}
 
-local BASE_CMD = { "rg", "--no-config", "--type=md" }
+local BASE_CMD = {
+  "rg",
+  "--no-config",
+  "--type-add",
+  "md:*.qmd",
+  "--type=md",
+}
+
 local SEARCH_CMD = compat.flatten { BASE_CMD, "--json" }
 local FIND_CMD = compat.flatten { BASE_CMD, "--files" }
 

@@ -83,7 +83,7 @@ M.path_is_note = function(path, workspace)
 
   local ft = vim.filetype.match { filename = tostring(path) }
 
-  if not vim.list_contains(Obsidian.opts.filetypes, ft) then
+  if not vim.list_contains({ "markdown", "quarto" }, ft) then
     return false
   end
 
