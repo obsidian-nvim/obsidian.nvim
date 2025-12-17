@@ -22,6 +22,10 @@ return {
   workspaces = {},
   log_level = vim.log.levels.INFO,
   note_id_func = require("obsidian.builtin").zettel_id,
+  note_path_func = function(spec)
+    local path = spec.dir / tostring(spec.id)
+    return path
+  end,
   wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
   markdown_link_func = require("obsidian.builtin").markdown_link,
   preferred_link_style = "wiki",

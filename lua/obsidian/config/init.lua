@@ -20,11 +20,7 @@ config.SortBy = {
   created = "created",
 }
 
----@enum obsidian.config.NewNotesLocation
-config.NewNotesLocation = {
-  current_dir = "current_dir",
-  notes_subdir = "notes_subdir",
-}
+---@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"
 
 ---@enum obsidian.config.LinkStyle
 config.LinkStyle = {

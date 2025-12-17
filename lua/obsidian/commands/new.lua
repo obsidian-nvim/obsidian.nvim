@@ -7,16 +7,15 @@ return function(data)
   ---@type obsidian.Note
   local note
   if data.args:len() > 0 then
-    note = Note.create { title = data.args }
+    note = Note.create { id = data.args }
   else
-    local title = api.input("Enter title or path (optional): ", { completion = "file" })
-    if not title then
-      log.warn "Aborted"
-      return
-    elseif title == "" then
-      title = nil
+    local id = api.input("Enter id or path (optional): ", { completion = "file" })
+    if not id then
+      return log.warn "Aborted"
+    elseif id == "" then
+      id = nil
     end
-    note = Note.create { title = title }
+    note = Note.create { id = id }
   end
 
   -- Open the note in a new buffer.
