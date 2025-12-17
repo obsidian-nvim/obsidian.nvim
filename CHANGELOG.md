@@ -15,11 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Further refactored util module to keep it clean.
+- New notes will default to `eol`.
 
 ### Fixed
 
 - Frontmatter will not be updated on save if there's a yaml syntax error.
 - Always decode link locations for goto definition so encoded header and block will work.
+- `eol` status of existing notes will be preserved when running `Note.save`.
 
 ## [v3.14.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.7) - 2025-12-07
 
