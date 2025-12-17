@@ -15,7 +15,7 @@ Table of contents
 ------------------------------------------------------------------------------
                                                                           *Note*
                                      `Note`
-class that represents a note within a vault.
+A class that represents a note within a vault.
 
 Class ~
 {obsidian.Note}
@@ -23,7 +23,6 @@ Class ~
 Fields ~
 {id} `(string)`
 {aliases} `(string[])`
-{title} `(string|)`?
 {tags} `(string[])`
 {path} `(obsidian.Path|)`?
 {metadata} `(table)`
@@ -36,11 +35,33 @@ Fields ~
 {bufnr} `(integer|)`?
 
 ------------------------------------------------------------------------------
+                                                                 *generate_id()*
+                  `generate_id`({base_id}, {path}, {id_func})
+Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
+otherwise falls back to generated a Zettelkasten style ID.
+
+@param base_id? string
+@param path? obsidian.Path
+@param id_func (fun(title: string|?, path: obsidian.Path|?): string)
+Return ~
+`(string)`
+
+------------------------------------------------------------------------------
+                                                               *parse_as_path()*
+                              `parse_as_path`({s})
+Parameters ~
+{s} `(string)`
+Return ~
+`(string| `(optional))``
+Return ~
+`(string| `(optional))``
+
+------------------------------------------------------------------------------
                                                                  *Note.create()*
                              `Note.create`({opts})
 Creates a new note
 
-@param opts obsidian.note.NoteOpts Options
+@param opts obsidian.note.NoteOpts
 @return obsidian.Note
 
 ------------------------------------------------------------------------------
@@ -382,7 +403,7 @@ Return ~
 
 ------------------------------------------------------------------------------
 Class ~
-{obsidian.note.LoadOpts}
+{(exact)} obsidian.note.LoadOpts
 Fields ~
 {max_lines} `(integer|)`?
 {load_contents} `(boolean|)`?
@@ -391,17 +412,16 @@ Fields ~
 
 ------------------------------------------------------------------------------
 Class ~
-{obsidian.note.NoteCreationOpts}
+{(exact)} obsidian.note.NoteCreationOpts
 Fields ~
 {notes_subdir} `(string)`
 {note_id_func} `(fun())`
-{new_notes_location} `(string)`
+{new_notes_location} `(obsidian.config.NewNotesLocation)`
 
 ------------------------------------------------------------------------------
 Class ~
-{obsidian.note.NoteOpts}
+{(exact)} obsidian.note.NoteOpts
 Fields ~
-{title} `(string|? The)` note's title
 {id} `(string|? An)` ID to assign the note. If not specified one will be generated.
 {dir} `(string|obsidian.Path|? An)` optional directory to place the note in. Relative paths will be interpreted
 to the workspace / vault root. If the directory doesn't exist it will
@@ -413,7 +433,7 @@ created, regardless of the value of the `should_write` option.
 
 ------------------------------------------------------------------------------
 Class ~
-{obsidian.note.NoteSaveOpts}
+{(exact)} obsidian.note.NoteSaveOpts
 Specify a path to save to. Defaults to `self.path`.
 Fields ~
 {path} `(optional)` `(string|obsidian.Path)`
@@ -431,7 +451,7 @@ See `:help checktime` to learn more.
 
 ------------------------------------------------------------------------------
 Class ~
-{obsidian.note.NoteWriteOpts}
+{(exact)} obsidian.note.NoteWriteOpts
 Specify a path to save to. Defaults to `self.path`.
 Fields ~
 {path} `(optional)` `(string|obsidian.Path)`
