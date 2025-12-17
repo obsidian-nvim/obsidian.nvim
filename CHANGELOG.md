@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v) - 2025-12-17
+
 ### Added
 
 - A new confirm option to choose template when creating note from link.
