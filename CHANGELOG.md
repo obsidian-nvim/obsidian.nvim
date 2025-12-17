@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## [v](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v) - 2025-12-17
+## [v3.14.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.8) - 2025-12-17
 
 ### Added
 
