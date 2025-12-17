@@ -97,6 +97,53 @@ T["save"]["should be able to save a new note"] = function()
   eq(false, note.path:exists())
 end
 
+T["save"]["should create new files with trailing newline"] = function()
+  local note = M.new("FOO", { "foo" }, {}, "/tmp/" .. util.zettel_id() .. ".md")
+  note.title = "Foo"
+  note:save()
+
+  local file = io.open(tostring(note.path), "rb")
+  local content = file:read "*all"
+  file:close()
+
+  -- Verify the file ends with a newline character.
+  eq("\n", content:sub(-1))
+
+  vim.fn.delete(note.path.filename)
+end
+
+T["save"]["should preserve eol status"] = function()
+  local temp_path = "/tmp/" .. util.zettel_id() .. ".md"
+  util.write_file(temp_path, "# Test\n\nContent here\n")
+
+  local note = M.from_file(temp_path)
+  note:save()
+
+  -- Verify the trailing newline is still present.
+  local file = io.open(temp_path, "rb")
+  file:seek("end", -1)
+  eq("\n", file:read(1))
+  file:close()
+
+  vim.fn.delete(temp_path)
+end
+
+T["save"]["should preserve noeol status"] = function()
+  local temp_path = "/tmp/" .. util.zettel_id() .. ".md"
+  util.write_file(temp_path, "# Test\n\nContent here")
+
+  local note = M.from_file(temp_path)
+  note:save()
+
+  -- Verify the trailing newline is still absent.
+  local file = io.open(temp_path, "rb")
+  file:seek("end", -1)
+  not_eq("\n", file:read(1))
+  file:close()
+
+  vim.fn.delete(temp_path)
+end
+
 T["add_alias"] = new_set()
 
 T["add_alias"]["should be able to add an alias"] = function()
