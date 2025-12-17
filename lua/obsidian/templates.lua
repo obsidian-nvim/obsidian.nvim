@@ -2,7 +2,6 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
-local log = require "obsidian.log"
 
 local M = {}
 
