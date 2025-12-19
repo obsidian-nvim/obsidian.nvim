@@ -81,16 +81,11 @@ M.path_is_note = function(path, workspace)
     return false
   end
 
-  local ok, ft = pcall(vim.filetype.match, { filename = tostring(path) })
-  vim.schedule(function()
-    if ok then
-      vim.notify("After vim.filetype.match - SUCCESS: ft = " .. vim.inspect(ft))
-    else
-      vim.notify("After vim.filetype.match - ERROR: " .. vim.inspect(ft))
-    end
-  end)
-
-  if not ok or not vim.list_contains({ "markdown", "quarto" }, ft) then
+  -- Check file extension instead of vim.filetype.match to avoid fast event
+  -- context issues. vim.filetype.match calls getenv() which is not allowed in
+  -- completion context.
+  local extension = tostring(path):match "%.([^%.]+)$"
+  if not vim.list_contains({ "md", "markdown", "qmd" }, extension) then
     return false
   end
 
