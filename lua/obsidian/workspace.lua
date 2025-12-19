@@ -134,11 +134,11 @@ Workspace.set = function(workspace)
     (dir / options.notes_subdir):mkdir { parents = true }
   end
 
-  if options.templates.folder then
+  if options.templates.enabled and options.templates.folder then
     (dir / options.templates.folder):mkdir { parents = true }
   end
 
-  if options.daily_notes.folder then
+  if options.daily_notes.enabled and options.daily_notes.folder then
     (dir / options.daily_notes.folder):mkdir { parents = true }
   end
 
