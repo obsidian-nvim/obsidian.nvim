@@ -81,9 +81,16 @@ M.path_is_note = function(path, workspace)
     return false
   end
 
-  local ft = vim.filetype.match { filename = tostring(path) }
+  local ok, ft = pcall(vim.filetype.match, { filename = tostring(path) })
+  vim.schedule(function()
+    if ok then
+      vim.notify("After vim.filetype.match - SUCCESS: ft = " .. vim.inspect(ft))
+    else
+      vim.notify("After vim.filetype.match - ERROR: " .. vim.inspect(ft))
+    end
+  end)
 
-  if not vim.list_contains({ "markdown", "quarto" }, ft) then
+  if not ok or not vim.list_contains({ "markdown", "quarto" }, ft) then
     return false
   end
 
