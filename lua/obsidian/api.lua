@@ -36,7 +36,7 @@ M.templates_dir = function(workspace)
     opts = config.normalize(workspace.overrides, Obsidian._opts)
   end
 
-  if opts.templates == nil or opts.templates.folder == nil then
+  if (not opts.templates.enabled) or opts.templates == nil or opts.templates.folder == nil then
     return nil
   end
 

@@ -76,6 +76,7 @@ return {
 
   ---@class obsidian.config.TemplateOpts
   ---
+  ---@field enabled boolean|?
   ---@field folder string|obsidian.Path|?
   ---@field date_format string|?
   ---@field time_format string|?
@@ -85,6 +86,7 @@ return {
   ---@field substitutions table<string, (fun(ctx: obsidian.TemplateContext):string)|(fun(): string)|string>|?
   ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
   templates = {
+    enabled = true,
     folder = nil,
     date_format = nil,
     time_format = nil,
@@ -163,6 +165,7 @@ return {
 
   ---@class obsidian.config.DailyNotesOpts
   ---
+  ---@field enabled? boolean
   ---@field folder? string
   ---@field date_format? string
   ---@field alias_format? string
@@ -170,6 +173,7 @@ return {
   ---@field default_tags? string[]
   ---@field workdays_only? boolean
   daily_notes = {
+    enabled = true,
     folder = nil,
     date_format = "%Y-%m-%d",
     alias_format = nil,

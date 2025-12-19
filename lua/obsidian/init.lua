@@ -75,7 +75,7 @@ obsidian.setup = function(user_opts)
 
   log.set_level(Obsidian.opts.log_level)
 
-  obsidian.commands.install()
+  obsidian.commands.install(opts)
 
   -- Setup UI add-ons.
   local has_no_renderer = not (
