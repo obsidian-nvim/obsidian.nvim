@@ -81,9 +81,11 @@ M.path_is_note = function(path, workspace)
     return false
   end
 
-  local ft = vim.filetype.match { filename = tostring(path) }
-
-  if not vim.list_contains({ "markdown", "quarto" }, ft) then
+  -- Check file extension instead of vim.filetype.match to avoid fast event
+  -- context issues. vim.filetype.match calls getenv() which is not allowed in
+  -- completion context.
+  local extension = tostring(path):match "%.([^%.]+)$"
+  if not vim.list_contains({ "md", "markdown", "qmd" }, extension) then
     return false
   end
 
