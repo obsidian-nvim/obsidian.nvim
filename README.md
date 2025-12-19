@@ -291,6 +291,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://shortcuts.codes/"><img src="https://avatars.githubusercontent.com/u/20689156?v=4?s=100" width="100px;" alt="Clément Vannicatte"/><br /><sub><b>Clément Vannicatte</b></sub></a><br /><a href="#doc-shortcuts" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Meowtomata"><img src="https://avatars.githubusercontent.com/u/95190660?v=4?s=100" width="100px;" alt="Anatoliy"/><br /><sub><b>Anatoliy</b></sub></a><br /><a href="#code-Meowtomata" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/acidsugarx"><img src="https://avatars.githubusercontent.com/u/58903233?v=4?s=100" width="100px;" alt="acidsugarx"/><br /><sub><b>acidsugarx</b></sub></a><br /><a href="#code-acidsugarx" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://jpmelos.com"><img src="https://avatars.githubusercontent.com/u/407407?v=4?s=100" width="100px;" alt="João Sampaio"/><br /><sub><b>João Sampaio</b></sub></a><br /><a href="#code-jpmelos" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
