@@ -140,6 +140,8 @@ Note._generate_path = function(id, dir)
     path = dir / path
   end
 
+  -- TODO: automatically cleanup instead of call with_suffix in defualt and in cleanup
+
   -- Ensure there is only one ".md" suffix. This might arise if `note_path_func`
   -- supplies an unusual implementation returning something like /bad/note/id.md.md.md
   while path.filename:match "%.md$" do
@@ -248,7 +250,7 @@ Note._resolve_id_path = function(opts)
   else
     local bufpath = Path.buffer(0):resolve()
     if
-      strategy.new_notes_location == "current_dir"
+      creation_opts.new_notes_location == "current_dir"
       -- note is actually in the workspace.
       and Obsidian.dir:is_parent_of(bufpath)
       -- note is not in dailies folder

@@ -139,6 +139,8 @@ local format_anchor_label = function(anchor)
   return string.format(" ❯ %s", anchor.header)
 end
 
+-- TODO: resolve this before release this, path should be vault relative string, and then compared against label, if different, use label
+
 ---@param opts obsidian.link.LinkCreationOpts
 ---@return string
 M.wiki_link = function(opts)
@@ -152,14 +154,7 @@ M.wiki_link = function(opts)
     header = "#" .. opts.block.id
   end
 
-  local format
-
-  ---@diagnostic disable-next-line: param-type-mismatch
-  if opts.label ~= vim.fs.basename(opts.path) then -- HACK: right???
-    format = "[[%s%s|%s%s]]"
-  else
-    format = "[[%s%s]]"
-  end
+  local format = "[[%s%s]]"
   return string.format(format, opts.path, anchor, opts.label, header)
 end
 

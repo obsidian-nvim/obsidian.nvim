@@ -34,6 +34,11 @@ return {
   -- Default random zettel IDs. To use readable UTF-8 slug IDs, set:
   -- note_id_func = require("obsidian.builtin").title_id
   note_id_func = require("obsidian.builtin").zettel_id,
+  note_path_func = function(spec)
+    -- This is equivalent to the default behavior.
+    local path = spec.dir / tostring(spec.id)
+    return path:with_suffix(".md", true)
+  end,
   open_notes_in = "current",
 
   ---@class obsidian.config.NoteOpts
