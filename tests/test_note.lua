@@ -434,7 +434,7 @@ T["format_link"]["should respect link.style"] = function() end
 T["format_link"]["wiki should respect link.format"] = function()
   -- default to link.style = "shortest"
   (Obsidian.dir / "notes"):mkdir { exist_ok = true }
-  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+  local note = from_str("", Obsidian.dir / "notes/foo.md")
   eq("[[foo]]", note:format_link())
   Obsidian.opts.link.format = "absolute"
   eq("[[notes/foo]]", note:format_link())
@@ -456,7 +456,7 @@ T["format_link"]["markdown should respect link.format"] = function()
   -- default to link.style = "shortest"
   Obsidian.opts.link.style = "markdown"
   (Obsidian.dir / "notes"):mkdir { exist_ok = true }
-  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+  local note = from_str("", Obsidian.dir / "notes/foo.md")
   eq("[foo](foo.md)", note:format_link())
   Obsidian.opts.link.format = "absolute"
   eq("[foo](notes/foo.md)", note:format_link())
