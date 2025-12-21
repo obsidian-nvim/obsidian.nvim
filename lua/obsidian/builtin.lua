@@ -19,58 +19,13 @@ M.zettel_id = function()
   return tostring(os.time()) .. "-" .. suffix
 end
 
--- ---@param opts obsidian.link.LinkCreationOpts
--- ---@return string
--- M.wiki_link_alias_only = function(opts)
---   ---@type string
---   local header_or_block = ""
---   if opts.anchor then
---     header_or_block = string.format("#%s", opts.anchor.header)
---   elseif opts.block then
---     header_or_block = string.format("#%s", opts.block.id)
---   end
---   return string.format("[[%s%s]]", opts.label, header_or_block)
--- end
-
----NOTE: more close to what should be default
--- ---@param opts obsidian.link.LinkCreationOpts
--- ---@return string
--- M.wiki_link = function(opts)
---   ---@type string
---   local header_or_block = ""
---   if opts.anchor then
---     header_or_block = opts.anchor.anchor
---   elseif opts.block then
---     header_or_block = string.format("#%s", opts.block.id)
---   end
---   return string.format("[[%s%s]]", opts.path, header_or_block)
--- end
-
--- ---@param opts obsidian.link.LinkCreationOpts
--- ---@return string
--- M.wiki_link_path_prefix = function(opts)
---   local anchor = ""
---   local header = ""
---   if opts.anchor then
---     anchor = opts.anchor.anchor
---     header = util.format_anchor_label(opts.anchor)
---   elseif opts.block then
---     anchor = "#" .. opts.block.id
---     header = "#" .. opts.block.id
---   end
---
---   if opts.label ~= opts.path then
---     return string.format("[[%s%s|%s%s]]", opts.path, anchor, opts.label, header)
---   else
---     return string.format("[[%s%s]]", opts.path, anchor)
---   end
--- end
-
 ---@param anchor obsidian.note.HeaderAnchor
 ---@return string
 local format_anchor_label = function(anchor)
   return string.format(" ❯ %s", anchor.header)
 end
+
+-- TODO: resolve this before release this, path should be vault relative string, and then compared against label, if different, use label
 
 ---@param opts obsidian.link.LinkCreationOpts
 ---@return string
@@ -85,14 +40,7 @@ M.wiki_link = function(opts)
     header = "#" .. opts.block.id
   end
 
-  local format
-
-  ---@diagnostic disable-next-line: param-type-mismatch
-  if opts.label ~= vim.fs.basename(opts.path) then -- HACK: right???
-    format = "[[%s%s|%s%s]]"
-  else
-    format = "[[%s%s]]"
-  end
+  local format = "[[%s%s]]"
   return string.format(format, opts.path, anchor, opts.label, header)
 end
 
