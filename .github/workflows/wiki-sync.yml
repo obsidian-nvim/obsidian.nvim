@@ -25,6 +25,16 @@ jobs:
       - name: Commit and push changes
         run: |
           cd wiki
+          REMOTE=$(git remote get-url origin)
+
+          case "$REMOTE" in
+            *".wiki.git") ;;
+            *)
+              echo "❌ Not a wiki repo: $REMOTE"
+              exit 1
+              ;;
+          esac
+
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add .

@@ -1,12 +1,12 @@
 ## Contribute to this wiki
 
-- Fork the plugin repo
-- Make changes in the `docs` folder
-- Make a PR
+- Fork the plugin repo.
+- Make changes in the `docs` folder.
+- Make a PR.
 
 ## Modifying the content in this repo
 
-- use `w!` to save the content
+- use `w!` to save the content.
 - or use the following snippet:
 
 ```lua
@@ -23,5 +23,5 @@ require("obsidian").setup {
 
 ## To make this wiki work in both Github Wiki and Obsidian:
 
-- To link files in this wiki, use media wiki links `[[file]]`
-- To link anchors, use markdown links `[heading](#acnhor)`
+- To link files in this wiki, use media wiki links `[[file]]`.
+- To link anchors, use markdown links `[heading](#acnhor)`.
