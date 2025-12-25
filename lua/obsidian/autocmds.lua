@@ -32,6 +32,11 @@ local function bufenter_callback(ev)
     return
   end
 
+  if workspace.name == ".obsidian.wiki" then
+    vim.bo[ev.buf].readonly = true
+    vim.b[ev.buf].obsidian_help = true
+  end
+
   local opts = Obsidian.opts
 
   vim.b[ev.buf].obsidian_buffer = true
@@ -81,7 +86,9 @@ vim.api.nvim_create_autocmd("FileType", {
 
       exec_autocmds "ObsidianNoteWritePre"
       local note = Note.from_buffer(ev.buf)
-      note:update_frontmatter(ev.buf) -- Update buffer with new frontmatter.
+      if not vim.b[ev.buf].obsidian_help then
+        note:update_frontmatter(ev.buf) -- Update buffer with new frontmatter.
+      end
     end)
     create_autocmd("BufWritePost", args.buf, function(ev)
       if not vim.b[ev.buf].obsidian_buffer then

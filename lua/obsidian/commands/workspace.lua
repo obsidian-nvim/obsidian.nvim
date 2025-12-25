@@ -5,6 +5,9 @@ return function(data)
   if not data.args or string.len(data.args) == 0 then
     ---@type obsidian.PickerEntry[]
     local items = vim.tbl_map(function(ws)
+      if ws.name == ".obsidian.wiki" then
+        return
+      end
       return {
         user_data = ws,
         text = tostring(ws),

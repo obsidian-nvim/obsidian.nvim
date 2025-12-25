@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `:Obsidian help` and `:Obsidian helpgrep` to browse help docs.
+- `Backlinks` will work for buffers outside of current workspace, but in a configured workspace.
+
 ### Fixed
 
-- Completions now work.
+- Completions bug introduced by supporting quarto.
 
 ## [v3.14.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.8) - 2025-12-17
 
