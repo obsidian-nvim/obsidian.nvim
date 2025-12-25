@@ -18,10 +18,6 @@ local function create_autocmd(events, buffer, callback)
   })
 end
 
-local function is_help(buf_dir)
-  return tostring(api.help_wiki_dir()) == buf_dir
-end
-
 -- Complete setup and update workspace (if needed) when entering a markdown buffer.
 local function bufenter_callback(ev)
   -- Set the current directory of the buffer.
@@ -34,6 +30,11 @@ local function bufenter_callback(ev)
   local workspace = api.find_workspace(ev.file)
   if not workspace then
     return
+  end
+
+  if workspace.name == ".obsidian.wiki" then
+    vim.bo[ev.buf].readonly = true
+    vim.b[ev.buf].obsidian_help = true
   end
 
   local opts = Obsidian.opts
@@ -123,8 +124,8 @@ vim.api.nvim_create_autocmd({ "BufWritePre" }, {
 
     exec_autocmds "ObsidianNoteWritePre"
 
-    if not is_help(vim.fs.dirname(ev.match)) then
-      -- Update buffer with new frontmatter.
+    -- Update buffer with new frontmatter.
+    if not vim.b[ev.buf].obsidian_help then
       note:update_frontmatter(bufnr)
     end
   end,

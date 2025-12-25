@@ -34,19 +34,14 @@ end
 --- TODO: will not work if plugin is managed by nix
 ---
 ---@return obsidian.Path|?
-M.help_wiki_dir = function()
+M.docs_dir = function()
   local info = M.get_plugin_info "obsidian.nvim"
   if not info then
-    log.err "Failed to locate plugin installation directory"
     return
   end
 
   ---@type obsidian.Path
-  local dir = Path.new(info.path) / "obsidian.nvim.wiki"
-  if not dir:is_dir() then
-    log.err "Failed to sync help wiki as a submodule of this plugin"
-  end
-
+  local dir = Path.new(info.path) / "docs"
   return dir
 end
 
@@ -110,6 +105,15 @@ M.path_is_note = function(path, workspace)
   return true
 end
 
+-- find workspaces of a path
+---@param path string|obsidian.Path
+---@return obsidian.Workspace
+M.find_workspace = function(path)
+  return vim.iter(Obsidian.workspaces):find(function(ws)
+    return M.path_is_note(path, ws)
+  end)
+end
+
 --- Get the current note from a buffer.
 ---
 ---@param bufnr integer|?
@@ -119,7 +123,7 @@ end
 M.current_note = function(bufnr, opts)
   bufnr = bufnr or 0
   local Note = require "obsidian.note"
-  if not M.path_is_note(vim.api.nvim_buf_get_name(bufnr)) then
+  if not M.find_workspace(vim.api.nvim_buf_get_name(bufnr)) then
     return nil
   end
 

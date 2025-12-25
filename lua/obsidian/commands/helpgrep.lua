@@ -1,10 +1,11 @@
-local api = require "obsidian.api"
+local log = require "obsidian.log"
 
 return function(data)
   local query = data.args
-  local dir = api.help_wiki_dir()
+  local dir = Obsidian.workspaces[#Obsidian.workspaces].path
 
   if not dir then
+    log.err "Failed to locate docs dir"
     return
   end
 

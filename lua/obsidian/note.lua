@@ -1144,9 +1144,10 @@ Note.open = function(self, opts)
   end
 end
 
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer }
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path }
 ---@return obsidian.BacklinkMatch
 Note.backlinks = function(self, opts)
+  opts.dir = opts.dir or api.find_workspace(self.path).path
   return search.find_backlinks(self, opts)
 end
 
@@ -1191,7 +1192,7 @@ Note.status = function(self)
   local wc = vim.fn.wordcount()
   status.words = wc.visual_words or wc.words
   status.chars = wc.visual_chars or wc.chars
-  status.properties = vim.tbl_count(self:frontmatter())
+  status.properties = vim.tbl_count(self:frontmatter()) -- TODO: should be zero if no frontmatter
   status.backlinks = #self:backlinks {}
   return status
 end
