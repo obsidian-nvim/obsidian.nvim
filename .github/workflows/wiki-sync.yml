@@ -1,4 +1,4 @@
-name: Sync docs to GitHub Wiki
+name: Sync Docs to Wiki
 
 on:
   push:
@@ -6,39 +6,52 @@ on:
     paths:
       - "docs/**"
 
+permissions:
+  contents: write   # Needed to push wiki
+
 jobs:
   sync-wiki:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout main repo
+      # Checkout the main repo (docs source)
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Checkout wiki repo
+      # Clone wiki separately
+      - name: Clone wiki
         run: |
-          git clone \
-            https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git \
-            wiki
+          set -euo pipefail
 
-      - name: Sync docs to wiki
-        run: |
-          rsync -av --delete docs/ wiki/
+          # Clone wiki repo
+          git clone https://github.com/${GITHUB_REPOSITORY}.wiki.git wiki
 
-      - name: Commit and push changes
-        run: |
           cd wiki
-          REMOTE=$(git remote get-url origin)
 
+          # Force the correct remote (CI-safe)
+          git remote remove origin || true
+          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.wiki.git
+
+          # Guard: only wiki allowed
+          REMOTE=$(git remote get-url origin)
           case "$REMOTE" in
             *".wiki.git") ;;
             *)
-              echo "❌ Not a wiki repo: $REMOTE"
+              echo "❌ Refusing to push to non-wiki remote: $REMOTE"
               exit 1
               ;;
           esac
 
+          # Set CI user
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add .
+
+          # Sync docs
+          rsync -av --delete --exclude '.*' ../docs/ .
+
+          # Commit only if changes exist
+          git add -A
           git diff --cached --quiet || git commit -m "Sync docs from main repo"
-          git push
+
+          # Push changes
+          git push origin HEAD:master
