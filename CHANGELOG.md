@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `:Obsidian help` and `:Obsidian helpgrep` to browse help docs.
+- `Backlinks` will work for buffers outside of current workspace, but in a configured workspace.
 
 ### Fixed
 
