@@ -84,10 +84,11 @@ vim.api.nvim_create_autocmd("FileType", {
         return
       end
 
-      -- <<<<<<< HEAD
       exec_autocmds "ObsidianNoteWritePre"
       local note = Note.from_buffer(ev.buf)
-      note:update_frontmatter(ev.buf) -- Update buffer with new frontmatter.
+      if not vim.b[ev.buf].obsidian_help then
+        note:update_frontmatter(ev.buf) -- Update buffer with new frontmatter.
+      end
     end)
     create_autocmd("BufWritePost", args.buf, function(ev)
       if not vim.b[ev.buf].obsidian_buffer then
@@ -95,50 +96,6 @@ vim.api.nvim_create_autocmd("FileType", {
       end
       exec_autocmds "ObsidianNoteWritePost"
     end)
-  end,
-})
-
-vim.api.nvim_create_autocmd({ "BufLeave" }, {
-  group = group,
-  pattern = "*.md",
-  callback = function(ev)
-    if not vim.b[ev.buf].obsidian_buffer then
-      return
-    end
-    exec_autocmds "ObsidianNoteLeave"
-  end,
-})
-
--- Add/update frontmatter for notes before writing.
-vim.api.nvim_create_autocmd({ "BufWritePre" }, {
-  group = group,
-  pattern = "*.md",
-  callback = function(ev)
-    if not vim.b[ev.buf].obsidian_buffer then
-      return
-    end
-
-    -- Initialize note.
-    local bufnr = ev.buf
-    local note = Note.from_buffer(bufnr)
-
-    exec_autocmds "ObsidianNoteWritePre"
-
-    -- Update buffer with new frontmatter.
-    if not vim.b[ev.buf].obsidian_help then
-      note:update_frontmatter(bufnr)
-    end
-  end,
-})
-
-vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-  group = group,
-  pattern = "*.md",
-  callback = function(ev)
-    if not vim.b[ev.buf].obsidian_buffer then
-      return
-    end
-    exec_autocmds "ObsidianNoteWritePost"
   end,
 })
 
