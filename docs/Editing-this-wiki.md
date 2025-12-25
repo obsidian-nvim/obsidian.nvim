@@ -21,7 +21,7 @@ require("obsidian").setup {
 }
 ```
 
-## To make this wiki work in both Github Wiki and Obsidian:
+## To make this wiki work in both Github Wiki and Obsidian
 
 - To link files in this wiki, use media wiki links `[[file]]`.
 - To link anchors, use markdown links `[heading](#acnhor)`.
