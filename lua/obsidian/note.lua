@@ -264,8 +264,13 @@ Note._resolve_id_path = function(opts)
   -- Make sure `base_dir` is absolute at this point.
   assert(base_dir:is_absolute(), ("failed to resolve note directory '%s'"):format(base_dir))
 
-  -- Apply id transform
-  id = generate_id(id, base_dir, creation_opts.note_id_func)
+  -- Apply id transform only if id is nil (needs to be generated)
+  if id == nil then
+    id = generate_id(id, base_dir, creation_opts.note_id_func)
+  else
+    -- ID is already provided (e.g., by daily notes), just clean it up
+    id = id:gsub("%.md$", "", 1)
+  end
 
   dir = base_dir
 

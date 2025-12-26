@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- Daily notes now respect `daily_notes.date_format` configuration. Previously, the global `note_id_func` was being applied to all notes, causing daily notes to use timestamp-based IDs (e.g., `1766746081-VVDT.md`) instead of the configured date format (e.g., `2025-12-26.md`).
+
 ## [v3.15.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.0) - 2025-12-25
 
 ### Added
