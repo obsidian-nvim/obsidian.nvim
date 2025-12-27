@@ -257,6 +257,24 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     deprecate("top-level 'sort_reversed'", "search.sort_reversed", "3.16")
   end
 
+  ---@diagnostic disable-next-line: undefined-field
+  if opts.attachments and opts.attachments.img_folder then
+    ---@diagnostic disable-next-line: undefined-field
+    opts.attachments.folder = opts.attachments.img_folder
+    opts.attachments.img_folder = nil
+    deprecate("attachments.img_folder", "attachments.folder", "3.16")
+  end
+
+  if opts.follow_url_func then
+    opts.attachments.follow_url_func = nil
+    deprecate("top-level 'follow_url_func'", "open.func", "3.16")
+  end
+
+  if opts.follow_img_func then
+    opts.attachments.follow_img_func = nil
+    deprecate("top-level 'follow_img_func'", "open.func", "3.16")
+  end
+
   --------------------------
   -- Merge with defaults. --
   --------------------------

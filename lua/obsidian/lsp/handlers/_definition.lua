@@ -39,8 +39,7 @@ end
 local handlers = {}
 
 handlers.NakedUrl = function(location)
-  -- TODO: Obsidian.opts.open.func
-  Obsidian.opts.follow_url_func(location)
+  Obsidian.opts.open.func(location)
   return nil
 end
 
@@ -57,38 +56,27 @@ handlers.FileUrl = function(location, _, callback)
   }
 end
 
----Checks if a given string represents an image file based on its suffix.
+---Checks if a given string represents a valid attachment based on its suffix.
 ---
----@param s string: The input string to check.
----@return boolean: Returns true if the string ends with a supported image suffix, false otherwise.
-local path_is_img = function(s)
-  for _, suffix in ipairs { ".png", ".jpg", ".jpeg", ".heic", ".gif", ".svg", ".ico" } do
-    if vim.endswith(s, suffix) then
+---@param location string
+---@return boolean
+local function is_attachment_path(location)
+  if vim.endswith(location, ".md") then
+    return false
+  end
+  for _, ext in ipairs(require("obsidian.attachments").filetypes) do
+    if vim.endswith(location, "." .. ext) then
       return true
     end
   end
   return false
 end
 
-local function is_attachment_path(location)
-  local attachment_allowed = false
-  for _, ext in ipairs(require("obsidian.attachments").filetypes) do
-    if vim.endswith(location, "." .. ext) then
-      attachment_allowed = true
-      break
-    end
-  end
-
-  return attachment_allowed and not vim.endswith(location, ".md")
-end
-
 handlers.Wiki = function(location, name, callback)
   local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
-  -- if path_is_img(location) then -- TODO: include in parse_link
   if is_attachment_path(location) then
-    local path = api.resolve_image_path(location)
-    -- TODO: Obsidian.opts.open.func
-    Obsidian.opts.follow_img_func(tostring(path))
+    local path = api.resolve_attachment_path(location)
+    Obsidian.opts.open.func(tostring(path))
     return
   elseif handlers[location_type] then
     handlers[location_type](location, name, callback)
@@ -190,9 +178,5 @@ return {
     end
 
     handler(location, name, wrapped_callback)
-
-    -- if lsp_locations and util.islist(lsp_locations) then
-    --   callback(nil, lsp_locations)
-    -- end
   end,
 }
