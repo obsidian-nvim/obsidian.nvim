@@ -230,7 +230,7 @@ M.pick = function(values, opts)
     return {
       path = entry.filename,
       line = entry.lnum,
-      col = entry.col,
+      col = entry.col + 1,
     }
   end
 

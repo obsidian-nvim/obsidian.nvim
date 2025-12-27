@@ -20,7 +20,7 @@ local ut = require "obsidian.picker.util"
 ---
 M.pick = function(values, opts)
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  local callback = opts.callback or obsidian.api.open_note
 
   if opts.callback then
     vim.ui.select(values, {
@@ -37,7 +37,7 @@ M.pick = function(values, opts)
         if type(item) == "string" then
           item = { value = item }
         end
-        opts.callback(item)
+        callback(item)
       end
     end)
   else
