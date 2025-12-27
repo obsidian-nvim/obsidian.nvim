@@ -1047,7 +1047,7 @@ M.new_from_template = function(id, template, callback)
       end
 
       ---@type obsidian.Note
-      local note = Note.create { title = id, template = template_name, should_write = true }
+      local note = Note.create { id = id, template = template_name, should_write = true }
 
       if callback then
         callback(note)

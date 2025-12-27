@@ -27,7 +27,7 @@ local function create_new_note(location, name, callback)
       end)
       return
     else
-      local note = Note.create { title = name, id = id, aliases = aliases }
+      local note = Note.create { id = id, aliases = aliases }
       callback { note:_location() }
     end
   else
