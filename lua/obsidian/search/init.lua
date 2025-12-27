@@ -892,21 +892,17 @@ M.find_tags_async = function(term, callback, opts)
       local tag = string.sub(line, m_start + 1, m_end)
       if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
         add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
+        n_matches = n_matches + 1
       end
     end
 
     -- check for tags in frontmatter
     if n_matches == 0 and note.tags ~= nil and (vim.startswith(line, "tags:") or string.match(line, "%s*- ")) then
-      for _, tag in ipairs(note.tags) do
-        tag = tostring(tag)
-        for _, t in ipairs(terms) do
-          if string.len(t) == 0 or string.find(tag, t, 1, true) ~= nil then
-            add_match(tag, path, note, match_data.line_number, line)
-          end
-        end
+      local tag = vim.trim(string.sub(line, 3)) -- HACK: works because we force '  - tag'
+      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
+        add_match(tag, path, note, match_data.line_number, line)
       end
     end
-    -- end)
   end
 
   local search_terms = {}
