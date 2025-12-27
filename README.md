@@ -185,7 +185,7 @@ See [syntax highlighting](#syntax-highlighting) for more details.
 ```lua
 return {
   "obsidian-nvim/obsidian.nvim",
-  version = "*", -- recommended, use latest release instead of latest commit
+  version = "*", -- use latest release, remove to use latest commit
   ft = "markdown",
   ---@module 'obsidian'
   ---@type obsidian.config
@@ -214,7 +214,12 @@ return {
 ### Using `vim.pack` (nvim-0.12+)
 
 ```lua
-vim.pack.add { "obsidian-nvim/obsidian.nvim" }
+vim.pack.add {
+  {
+    src = "obsidian-nvim/obsidian.nvim",
+    version = vim.version.range "*", -- use latest release, remove to use latest commit
+  },
+}
 ```
 
 ## ⚙️ Configuration
