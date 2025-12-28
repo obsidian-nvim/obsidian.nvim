@@ -17,6 +17,8 @@ tags:
 ---
 
 #Book
+
+- Book
 ]==]
   vim.fn.writefile(vim.split(file, "\n"), filepath)
 end
