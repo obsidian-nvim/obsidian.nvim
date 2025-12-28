@@ -225,7 +225,7 @@ M.register("tomorrow", { nargs = 0 })
 
 M.register("dailies", { nargs = "*" })
 
-M.register("new", { nargs = "?" })
+M.register("new", { nargs = "*" })
 
 M.register("open", { nargs = "?", complete = M.note_complete })
 
