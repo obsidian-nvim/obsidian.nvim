@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Completion will work for resolve workspace based on current buffer.
+- Ability to read `gitignore` and ignore blobs in `:Obsidian check` and other incoming features.
 
 ### Changed
 
