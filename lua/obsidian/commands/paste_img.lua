@@ -30,7 +30,7 @@ return function(data)
     end
   end
 
-  local path = api.resolve_image_path(fname)
+  local path = api.resolve_attachment_path(fname)
 
   img.paste(path, img_type)
 end

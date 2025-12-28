@@ -82,7 +82,7 @@ T["open attachment"] = function()
 
   -- TODO: Obsidian.opt.open.func
   child.lua [[
-  Obsidian.opts.follow_img_func = function(uri)
+  Obsidian.opts.open.func = function(uri)
     _G.uri = uri
   end
   Obsidian.opts.attachments.img_folder = "."
@@ -91,7 +91,7 @@ T["open attachment"] = function()
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
-  fs_eq(tostring(child.Obsidian.dir / "target.png"), child.lua_get "uri")
+  fs_eq(tostring(child.Obsidian.dir / "attachments" / "target.png"), child.lua_get "uri")
 end
 
 return T

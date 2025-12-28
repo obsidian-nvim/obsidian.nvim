@@ -636,9 +636,7 @@ M.resolve_attachment_path = function(src)
 end
 
 M.resolve_image_path = function(src)
-  if not require("obsidian.attachments").is_supported_image_format(src) then
-    return
-  end
+  vim.deprecate("resolve_image_path", "resolve_attachment_path", "3.16.0", "obsidian.nvim", true)
   return M.resolve_attachment_path(src)
 end
 
