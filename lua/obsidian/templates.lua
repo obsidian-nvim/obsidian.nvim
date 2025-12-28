@@ -59,7 +59,7 @@ M.substitute_template_variables = function(text, ctx)
   end
 
   if not methods["title"] and ctx.partial_note then
-    methods["title"] = ctx.partial_note.title or ctx.partial_note:display_name()
+    methods["title"] = ctx.partial_note:display_name()
   end
 
   if not methods["id"] and ctx.partial_note then
@@ -136,9 +136,6 @@ M.clone_template = function(ctx)
   if ctx.partial_note then
     -- Transfer fields from `ctx.partial_note`.
     new_note.id = ctx.partial_note.id
-    if new_note.title == nil then
-      new_note.title = ctx.partial_note.title
-    end
     for _, alias in ipairs(ctx.partial_note.aliases) do
       new_note:add_alias(alias)
     end

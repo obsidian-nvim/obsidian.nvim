@@ -117,6 +117,8 @@ M.pick = function(values, opts)
       }
     else
       value.text = opts.format_item and opts.format_item(value) or ut.make_display(value)
+      ---@diagnostic disable-next-line: inject-field
+      value.path = value.filename -- HACK:
     end
     if value.valid ~= false then
       entries[#entries + 1] = value

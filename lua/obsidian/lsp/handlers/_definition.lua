@@ -18,8 +18,8 @@ local function create_new_note(location, name, callback)
       aliases = {}
     else
       aliases = { name }
-      id = location
     end
+    id = location
 
     if type(confirm) == "string" and confirm == "Yes With Template" then
       api.new_from_template(name, nil, function(note)
@@ -27,7 +27,7 @@ local function create_new_note(location, name, callback)
       end)
       return
     else
-      local note = Note.create { title = name, id = id, aliases = aliases }
+      local note = Note.create { id = id, aliases = aliases }
       callback { note:_location() }
     end
   else

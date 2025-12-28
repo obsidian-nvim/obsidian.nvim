@@ -31,13 +31,18 @@ M.dir = function(dir)
     end)
 end
 
--- find workspaces of a path
----@param path string
----@return obsidian.Workspace
-M.find_workspace = function(path)
-  return vim.iter(Obsidian.workspaces):find(function(ws)
-    return M.path_is_note(path, ws)
-  end)
+--- TODO: will not work if plugin is managed by nix
+---
+---@return obsidian.Path|?
+M.docs_dir = function()
+  local info = M.get_plugin_info "obsidian.nvim"
+  if not info then
+    return
+  end
+
+  ---@type obsidian.Path
+  local dir = Path.new(info.path) / "docs"
+  return dir
 end
 
 --- Get the templates folder.
@@ -81,9 +86,11 @@ M.path_is_note = function(path, workspace)
     return false
   end
 
-  local ft = vim.filetype.match { filename = tostring(path) }
-
-  if not vim.list_contains({ "markdown", "quarto" }, ft) then
+  -- Check file extension instead of vim.filetype.match to avoid fast event
+  -- context issues. vim.filetype.match calls getenv() which is not allowed in
+  -- completion context.
+  local extension = tostring(path):match "%.([^%.]+)$"
+  if not vim.list_contains({ "md", "markdown", "qmd" }, extension) then
     return false
   end
 
@@ -98,6 +105,15 @@ M.path_is_note = function(path, workspace)
   return true
 end
 
+-- find workspaces of a path
+---@param path string|obsidian.Path
+---@return obsidian.Workspace
+M.find_workspace = function(path)
+  return vim.iter(Obsidian.workspaces):find(function(ws)
+    return M.path_is_note(path, ws)
+  end)
+end
+
 --- Get the current note from a buffer.
 ---
 ---@param bufnr integer|?
@@ -107,7 +123,7 @@ end
 M.current_note = function(bufnr, opts)
   bufnr = bufnr or 0
   local Note = require "obsidian.note"
-  if not M.path_is_note(vim.api.nvim_buf_get_name(bufnr)) then
+  if not M.find_workspace(vim.api.nvim_buf_get_name(bufnr)) then
     return nil
   end
 
@@ -935,7 +951,7 @@ M.link_new = function(label)
     label = viz.selection
   end
 
-  local note = require("obsidian.note").create { title = label }
+  local note = require("obsidian.note").create { id = label }
   replace_selection(viz, note:format_link { label = label })
 
   -- Save file so backlinks search (ripgrep) can find the new link
@@ -968,7 +984,7 @@ M.extract_note = function(label)
   end
 
   -- create the new note.
-  local note = require("obsidian.note").create { title = label }
+  local note = require("obsidian.note").create { id = label }
 
   -- replace selection with link to new note
   local link = note:format_link()
@@ -982,10 +998,10 @@ M.extract_note = function(label)
   vim.api.nvim_buf_set_lines(0, -1, -1, false, content)
 end
 
----@param title string|?
+---@param id string|?
 ---@param template string|?
----@param callback fun(note: obsidian.Note)
-M.new_from_template = function(title, template, callback)
+---@param callback fun(note: obsidian.Note)|?
+M.new_from_template = function(id, template, callback)
   local Note = require "obsidian.note"
 
   local templates_dir = M.templates_dir()
@@ -993,8 +1009,12 @@ M.new_from_template = function(title, template, callback)
     return log.err "Templates folder is not defined or does not exist"
   end
 
-  if title ~= nil and template ~= nil then
-    local note = Note.create { title = title, template = template, should_write = true }
+  if id ~= nil and template ~= nil then
+    local note = Note.create {
+      id = id,
+      template = template,
+      should_write = true,
+    }
     if callback then
       callback(note)
     else
@@ -1008,16 +1028,16 @@ M.new_from_template = function(title, template, callback)
     dir = templates_dir,
     no_default_mappings = true,
     callback = function(template_name)
-      if title == nil or title == "" then
+      if id == nil or id == "" then
         -- Must use pcall in case of KeyboardInterrupt
         -- We cannot place `title` where `safe_title` is because it would be redeclaring it
         local success, safe_title = pcall(util.input, "Enter title or path (optional): ", { completion = "file" })
-        title = safe_title
+        id = safe_title
         if not success or not safe_title then
           log.warn "Aborted"
           return
         elseif safe_title == "" then
-          title = nil
+          id = nil
         end
       end
 
@@ -1027,7 +1047,7 @@ M.new_from_template = function(title, template, callback)
       end
 
       ---@type obsidian.Note
-      local note = Note.create { title = title, template = template_name, should_write = true }
+      local note = Note.create { id = id, template = template_name, should_write = true }
 
       if callback then
         callback(note)

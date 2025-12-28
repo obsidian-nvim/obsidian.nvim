@@ -72,7 +72,7 @@ $(MINIDOC):
 ##@ Helpers
 .PHONY: version
 version:  ## Print the obsidian.nvim version
-	@nvim --headless -c 'lua print("v" .. require("obsidian").VERSION)' -c q 2>&1
+	@nvim --headless -c 'lua io.write("v" .. require("obsidian").VERSION)' -c q 2>&1
 
 .PHONY: help
 help:  ## Display this help

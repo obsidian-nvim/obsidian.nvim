@@ -670,12 +670,12 @@ end
 
 ---@param note obsidian.Note
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
----@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string }
+---@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string, dir: string|obsidian.Path }
 M.find_backlinks_async = function(note, callback, opts)
   -- vim.validate("note", note, "table")
   -- vim.validate("callback", callback, "function")
   opts = opts or {}
-  opts = vim.tbl_extend("keep", opts, { dir = Obsidian.dir })
+  local dir = opts.dir or Obsidian.dir
   local block = opts.block and util.standardize_block(opts.block) or nil
   local anchor = opts.anchor and util.standardize_anchor(opts.anchor) or nil
   local anchor_obj
@@ -719,7 +719,7 @@ M.find_backlinks_async = function(note, callback, opts)
     }
   end
   M.search_async(
-    opts.dir,
+    dir,
     build_backlink_search_term(note, anchor, block),
     { fixed_strings = true, ignore_case = true },
     _on_match,
@@ -730,13 +730,17 @@ M.find_backlinks_async = function(note, callback, opts)
 end
 
 ---@param note obsidian.Note
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer }?
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path }?
 ---@return obsidian.BacklinkMatch
 M.find_backlinks = function(note, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   return async.block_on(function(cb)
-    return M.find_backlinks_async(note, cb, { search = opts.search, anchor = opts.anchor, block = opts.block })
+    return M.find_backlinks_async(
+      note,
+      cb,
+      { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir }
+    )
   end, opts.timeout)
 end
 
@@ -888,21 +892,17 @@ M.find_tags_async = function(term, callback, opts)
       local tag = string.sub(line, m_start + 1, m_end)
       if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
         add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
+        n_matches = n_matches + 1
       end
     end
 
     -- check for tags in frontmatter
     if n_matches == 0 and note.tags ~= nil and (vim.startswith(line, "tags:") or string.match(line, "%s*- ")) then
-      for _, tag in ipairs(note.tags) do
-        tag = tostring(tag)
-        for _, t in ipairs(terms) do
-          if string.len(t) == 0 or string.find(tag, t, 1, true) ~= nil then
-            add_match(tag, path, note, match_data.line_number, line)
-          end
-        end
+      local tag = vim.trim(string.sub(line, 3)) -- HACK: works because we force '  - tag'
+      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
+        add_match(tag, path, note, match_data.line_number, line)
       end
     end
-    -- end)
   end
 
   local search_terms = {}

@@ -4,7 +4,11 @@ local ns_id = vim.api.nvim_create_namespace "ObsidianFooter"
 
 ---@param buf integer
 local function update_footer(buf)
-  local info = obsidian.Note.from_buffer(buf):status()
+  local note = obsidian.Note.from_buffer(buf)
+  if note == nil then
+    return
+  end
+  local info = note:status()
   if info == nil then
     return
   end

@@ -42,8 +42,8 @@ M.state = state
 ---@field query string|?
 ---@field callback fun(entry: obsidian.PickerEntry)|?
 ---@field no_default_mappings boolean|?
----@field query_mappings obsidian.PickerMappingTable
----@field selection_mappings obsidian.PickerMappingTable
+---@field query_mappings obsidian.PickerMappingTable|?
+---@field selection_mappings obsidian.PickerMappingTable|?
 
 ---@class obsidian.PickerEntry: vim.quickfix.entry
 
@@ -62,7 +62,7 @@ M.state = state
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -83,7 +83,7 @@ M.find_notes = function(opts)
   return M.find_files {
     query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
-    dir = Obsidian.dir,
+    dir = opts.dir or Obsidian.dir,
     callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
@@ -93,7 +93,7 @@ end
 
 --- Grep search in notes.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(entry: obsidian.PickerEntry)|?, no_default_mappings: boolean|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(entry: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -114,7 +114,7 @@ M.grep_notes = function(opts)
 
   M.grep {
     prompt_title = opts.prompt_title or "Grep notes",
-    dir = Obsidian.dir,
+    dir = opts.dir or Obsidian.dir,
     query = opts.query,
     callback = opts.callback or api.open_note,
     no_default_mappings = opts.no_default_mappings,

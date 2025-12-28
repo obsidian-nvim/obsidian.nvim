@@ -44,6 +44,7 @@ With bugs, issues and pull requests piling up, people from the community decided
 - Discussions are happening in [GitHub Discussions](https://github.com/obsidian-nvim/obsidian.nvim/discussions/6)
 - Sponsor the project at [Open Collective](https://opencollective.com/nvim-obsidian)
 - See [Breaking changes](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Breaking-Changes) to migrate from original repo or older releases
+- See the latest documentation in [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki), or navigate the wiki in neovim with `:Obsidian help` or `:Obsidian helpgrep`, which is the most accurate and versioned documentation of your local install.
 
 ## ⭐ Features
 
@@ -81,6 +82,8 @@ There's one entry point user command for this plugin: `Obsidian`
 
 - `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
+- `:Obsidian help` - find files in the help wiki
+- `:Obsidian helpgrep` - grep files in the help wiki
 - `:Obsidian new [TITLE]` - create a new note
 - `:Obsidian open [QUERY]` - open a note in the Obsidian app
   - query is used to resolve the note to open by ID, path, or alias, else use current note
@@ -182,7 +185,7 @@ See [syntax highlighting](#syntax-highlighting) for more details.
 ```lua
 return {
   "obsidian-nvim/obsidian.nvim",
-  version = "*", -- recommended, use latest release instead of latest commit
+  version = "*", -- use latest release, remove to use latest commit
   ft = "markdown",
   ---@module 'obsidian'
   ---@type obsidian.config
@@ -211,16 +214,17 @@ return {
 ### Using `vim.pack` (nvim-0.12+)
 
 ```lua
-vim.pack.add { "obsidian-nvim/obsidian.nvim" }
+vim.pack.add {
+  {
+    src = "obsidian-nvim/obsidian.nvim",
+    version = vim.version.range "*", -- use latest release, remove to use latest commit
+  },
+}
 ```
 
 ## ⚙️ Configuration
 
 To configure obsidian.nvim, pass your custom options that are different from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
-
-## 📖 Documentation
-
-See the [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki)
 
 ## 🤝 Contributing
 
@@ -291,6 +295,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://shortcuts.codes/"><img src="https://avatars.githubusercontent.com/u/20689156?v=4?s=100" width="100px;" alt="Clément Vannicatte"/><br /><sub><b>Clément Vannicatte</b></sub></a><br /><a href="#doc-shortcuts" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Meowtomata"><img src="https://avatars.githubusercontent.com/u/95190660?v=4?s=100" width="100px;" alt="Anatoliy"/><br /><sub><b>Anatoliy</b></sub></a><br /><a href="#code-Meowtomata" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/acidsugarx"><img src="https://avatars.githubusercontent.com/u/58903233?v=4?s=100" width="100px;" alt="acidsugarx"/><br /><sub><b>acidsugarx</b></sub></a><br /><a href="#code-acidsugarx" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://jpmelos.com"><img src="https://avatars.githubusercontent.com/u/407407?v=4?s=100" width="100px;" alt="João Sampaio"/><br /><sub><b>João Sampaio</b></sub></a><br /><a href="#code-jpmelos" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

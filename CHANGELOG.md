@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- `Note.save` will preserve eol status.
+
+### Fixed
+
+- Remove incorrect `Note.crete`'s `tilte` field usage.
+- Remove duplicates in note with multiple tags, when selecting tags with `:Obsidian tags`.
+- Picker will highlight search results as best as the backend supports.
+
+## [v3.15.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.0) - 2025-12-25
+
+### Added
+
+- `:Obsidian help` and `:Obsidian helpgrep` to browse help docs.
+- `Backlinks` will work for buffers outside of current workspace, but in a configured workspace.
+
+### Fixed
+
+- Completions bug introduced by supporting quarto.
+
+## [v3.14.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.8) - 2025-12-17
+
 ### Added
 
 - A new confirm option to choose template when creating note from link.
@@ -15,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Further refactored util module to keep it clean.
-- New notes will default to `eol`.
+- `Note` class no longer carry `title` field.
 
 ### Fixed
 

@@ -123,7 +123,8 @@ M.pick = function(values, opts)
       text = display,
       file = value.filename,
       value = value.user_data,
-      pos = value.lnum and { value.lnum, value.col or 0 },
+      pos = value.lnum and { value.lnum, value.col and value.col - 1 or 0 }, -- from (1, 1) to (1, 0)
+      end_pos = value.end_lnum and { value.end_lnum, value.end_col and value.end_col - 1 or 0 },
       dir = value.filename and Path.new(value.filename):is_dir() or false,
     })
   end

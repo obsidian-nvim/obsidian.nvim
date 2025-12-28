@@ -239,6 +239,10 @@ M.register("quick_switch", { nargs = "?" })
 
 M.register("workspace", { nargs = "?" })
 
+M.register("help", { nargs = "?" })
+
+M.register("helpgrep", { nargs = "?" })
+
 ---------------------
 ---- note action ----
 ---------------------

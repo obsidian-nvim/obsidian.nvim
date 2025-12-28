@@ -60,6 +60,17 @@ obsidian.setup = function(user_opts)
 
   obsidian.Workspace.setup(opts.workspaces)
 
+  local docs_dir = obsidian.api.docs_dir()
+
+  if docs_dir then
+    Obsidian.workspaces[#Obsidian.workspaces + 1] = {
+      path = docs_dir,
+      root = docs_dir,
+      name = ".obsidian.wiki",
+      -- TODO: override no daily and template dir once those two module get `.enabled` option
+    }
+  end
+
   local client = obsidian.Client.new() -- TODO: remove in 4.0.0
 
   log.set_level(Obsidian.opts.log_level)
