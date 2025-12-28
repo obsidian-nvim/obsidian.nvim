@@ -11,10 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Completion will work for resolve workspace based on current buffer.
 
+### Changed
+
+- `Note.save` will preserve eol status.
+
 ### Fixed
 
 - Remove incorrect `Note.crete`'s `tilte` field usage.
-- Remove duplicates in note with multiple tags, when selecting tags with `:Obsidian tags`.
+- Remove duplicates in note with multiple tags in `:Obsidian tags`.
 - Picker will highlight search results as best as the backend supports.
 
 ## [v3.15.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.0) - 2025-12-25
@@ -44,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Frontmatter will not be updated on save if there's a yaml syntax error.
 - Always decode link locations for goto definition so encoded header and block will work.
+- `eol` status of existing notes will be preserved when running `Note.save`.
 
 ## [v3.14.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.14.7) - 2025-12-07
 

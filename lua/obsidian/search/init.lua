@@ -899,7 +899,13 @@ M.find_tags_async = function(term, callback, opts)
     end
 
     -- check for tags in frontmatter
-    if n_matches == 0 and note.tags ~= nil and (vim.startswith(line, "tags:") or string.match(line, "%s*- ")) then
+    if
+      n_matches == 0
+      and note.has_frontmatter
+      and match_data.line_number < note.frontmatter_end_line
+      and note.tags ~= nil
+      and (vim.startswith(line, "tags:") or string.match(line, "%s*- "))
+    then
       local tag = vim.trim(string.sub(line, 3)) -- HACK: works because we force '  - tag'
       if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
         add_match(tag, path, note, match_data.line_number, line)
