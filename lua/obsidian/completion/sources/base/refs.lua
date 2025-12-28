@@ -18,6 +18,7 @@ local iter = vim.iter
 ---@field block_link string|?
 ---@field anchor_link string|?
 ---@field new_text_to_option table<string, obsidian.completion.sources.blink.CompletionItem>
+---@field workspace obsidian.Workspace
 local RefsSourceCompletionContext = {}
 RefsSourceCompletionContext.__index = RefsSourceCompletionContext
 
@@ -53,6 +54,8 @@ function RefsSourceBase:new_completion_context(completion_resolve_callback, requ
 
   completion_context.in_buffer_only = false
 
+  completion_context.workspace = api.find_workspace(vim.api.nvim_buf_get_name(request.context.bufnr))
+
   return completion_context
 end
 
@@ -83,6 +86,7 @@ function RefsSourceBase:process_completion(cc)
     search.find_notes_async(cc.search, function(results)
       self:process_search_results(cc, results)
     end, {
+      dir = cc.workspace.root,
       search = search_opts,
       notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
     })

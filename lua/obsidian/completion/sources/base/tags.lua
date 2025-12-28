@@ -1,6 +1,7 @@
 local completion = require "obsidian.completion.tags"
 local iter = vim.iter
 local search = require "obsidian.search"
+local api = require "obsidian.api"
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
@@ -9,6 +10,7 @@ local search = require "obsidian.search"
 ---@field request obsidian.completion.sources.base.Request
 ---@field search string|?
 ---@field in_frontmatter boolean|?
+---@field workspace obsidian.Workspace
 local TagsSourceCompletionContext = {}
 TagsSourceCompletionContext.__index = TagsSourceCompletionContext
 
@@ -41,6 +43,8 @@ function TagsSourceBase:new_completion_context(completion_resolve_callback, requ
 
   -- This request object will be used to determine the current cursor location and the text around it
   completion_context.request = request
+
+  completion_context.workspace = api.find_workspace(vim.api.nvim_buf_get_name(0))
 
   return completion_context
 end
@@ -105,7 +109,7 @@ function TagsSourceBase:process_completion(cc)
     end
 
     cc.completion_resolve_callback(vim.tbl_deep_extend("force", self.complete_response, { items = items }))
-  end)
+  end, { dir = cc.workspace.root })
 end
 
 --- Returns whatever it's possible to complete the search and sets up the search related variables in cc

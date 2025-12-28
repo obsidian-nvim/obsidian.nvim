@@ -55,6 +55,9 @@ end
 return function(data)
   local tags = data.fargs or {}
 
+  local workspace = api.find_workspace(vim.api.nvim_buf_get_name(0))
+  local dir = workspace.root
+
   if vim.tbl_isempty(tags) then
     local tag = api.cursor_tag()
     if tag then
@@ -65,7 +68,7 @@ return function(data)
   if not vim.tbl_isempty(tags) then
     search.find_tags_async(tags, function(tag_locations)
       return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
-    end)
+    end, { dir = dir })
   else
     search.find_tags_async("", function(tag_locations)
       tags = list_tags(tag_locations)
@@ -81,6 +84,6 @@ return function(data)
           allow_multiple = true,
         })
       end)
-    end)
+    end, { dir = dir })
   end
 end

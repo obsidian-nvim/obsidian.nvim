@@ -285,14 +285,16 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
 end
 
 ---@param term string
+---@param dir string|obsidian.Path
 ---@param search_opts obsidian.SearchOpts|boolean|?
 ---@param find_opts obsidian.SearchOpts|boolean|?
 ---@param callback fun(path: obsidian.Path)
 ---@param exit_callback fun(paths: obsidian.Path[])
-local _search_async = function(term, search_opts, find_opts, callback, exit_callback)
+local _search_async = function(term, dir, search_opts, find_opts, callback, exit_callback)
   local found = {}
   local result = {}
   local cmds_done = 0
+  dir = dir or Obsidian.dir
 
   local function dedup_send(path)
     local key = tostring(path:resolve { strict = true })
@@ -321,21 +323,21 @@ local _search_async = function(term, search_opts, find_opts, callback, exit_call
   end
 
   M.search_async(
-    Obsidian.dir,
+    dir,
     term,
     Opts._prepare(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
     on_search_match,
     on_exit
   )
 
-  M.find_async(Obsidian.dir, term, Opts._prepare(find_opts, { ignore_case = true }), on_find_match, on_exit)
+  M.find_async(dir, term, Opts._prepare(find_opts, { ignore_case = true }), on_find_match, on_exit)
 end
 
 --- An async version of `find_notes()` using coroutines.
 ---
 ---@param term string The term to search for
 ---@param callback fun(notes: obsidian.Note[])
----@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|? }|?
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|? }|?
 M.find_notes_async = function(term, callback, opts)
   async.run(function()
     opts = opts or {}
@@ -371,7 +373,7 @@ M.find_notes_async = function(term, callback, opts)
     end
 
     local paths_found = {} ---@type string[]
-    async.await(5, _search_async, term, opts.search, nil, function(path)
+    async.await(6, _search_async, term, opts.dir, opts.search, nil, function(path)
       paths_found[#paths_found + 1] = path
     end)
 
@@ -771,7 +773,7 @@ end
 ---
 ---@param term string|string[] The search term.
 ---@param callback fun(tags: obsidian.TagLocation[])
----@param opts { search: obsidian.SearchOpts }|?
+---@param opts { search: obsidian.SearchOpts|?, dir: obsidian.Path|? }|?
 M.find_tags_async = function(term, callback, opts)
   opts = opts or {}
 
@@ -929,7 +931,7 @@ M.find_tags_async = function(term, callback, opts)
   end
 
   M.search_async(
-    Obsidian.dir,
+    opts.dir or Obsidian.dir,
     search_terms,
     Opts._prepare(opts.search, { ignore_case = true }),
     on_match,
