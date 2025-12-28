@@ -54,7 +54,8 @@ local function parsePatternBracePart(pat, start)
       alphaRange = { a1, a2 },
     }, e + 1
   end
-  local s, e, n1, n2 = pat:find("(%d+)%.%.(%d+)%}", start)
+  local n1, n2
+  s, e, n1, n2 = pat:find("(%d+)%.%.(%d+)%}", start)
   if s then
     n1 = tonumber(n1)
     n2 = tonumber(n2)
@@ -113,7 +114,7 @@ end
 function M:parsePatternOr(pat)
   local result = {
     kind = "or",
-    childs = {},
+    children = {},
   }
 
   pat = pat:sub(2)
@@ -122,7 +123,7 @@ function M:parsePatternOr(pat)
     if not pattern then
       break
     end
-    result.childs[#result.childs + 1] = pattern
+    result.children[#result.children + 1] = pattern
     local char = pat:sub(pos, pos)
     if char == "," then
       pat = pat:sub(pos + 1)
@@ -440,7 +441,7 @@ function M:checkPattern(paths, pattern, start)
       return false
     end
   elseif pattern.kind == "or" then
-    for _, child in ipairs(pattern.childs) do
+    for _, child in ipairs(pattern.children) do
       if self:checkPattern(paths, child, start) then
         return true
       end
