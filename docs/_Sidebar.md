@@ -19,6 +19,7 @@
 
 ### Modules:
 
+- [[Attachment]]
 - [[Checkbox]]
 - [[Footer]]
 - [[Frontmatter]]

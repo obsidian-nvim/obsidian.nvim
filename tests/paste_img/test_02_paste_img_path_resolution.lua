@@ -65,7 +65,7 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
     _G.captured_img_type = nil
 
     Obsidian.opts.attachments = {
-      img_folder = "assets/imgs",
+      folder = "assets/imgs",
       img_name_func = function() return "img name func" end,
       confirm_img_paste = case.confirm_img_paste,
     }
