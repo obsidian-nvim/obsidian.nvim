@@ -644,16 +644,21 @@ end
 ---
 ---@param src string
 ---@return string
-M.resolve_image_path = function(src)
-  local img_folder = Obsidian.opts.attachments.img_folder
+M.resolve_attachment_path = function(src)
+  local attachment_folder = Obsidian.opts.attachments.folder
 
-  ---@cast img_folder -nil
-  if vim.startswith(img_folder, ".") then
+  ---@cast attachment_folder -nil
+  if vim.startswith(attachment_folder, ".") then
     local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
-    return tostring(dirname / img_folder / src)
+    return tostring(dirname / attachment_folder / src)
   else
-    return tostring(Obsidian.dir / img_folder / src)
+    return tostring(Obsidian.dir / attachment_folder / src)
   end
+end
+
+M.resolve_image_path = function(src)
+  vim.deprecate("resolve_image_path", "resolve_attachment_path", "3.16.0", "obsidian.nvim", true)
+  return M.resolve_attachment_path(src)
 end
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
