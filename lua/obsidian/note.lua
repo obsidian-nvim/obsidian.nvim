@@ -964,8 +964,21 @@ Note.save = function(self, opts)
   local content = {}
   ---@type string[]
   local existing_frontmatter
+  local has_trailing_newline = true -- Default to true for new files.
 
   if self.path:is_file() then
+    -- Check if the file ends with a newline.
+    local file = io.open(tostring(self.path), "rb")
+    if file then
+      local size = file:seek "end"
+      if size and size > 0 then
+        file:seek("end", -1)
+        local last_char = file:read(1)
+        has_trailing_newline = (last_char == "\n")
+      end
+      file:close()
+    end
+
     existing_frontmatter = {}
     local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
     for idx, line in vim.iter(io.lines(tostring(self.path))):enumerate() do
@@ -1006,7 +1019,11 @@ Note.save = function(self, opts)
     new_lines = compat.flatten { existing_frontmatter, content }
   end
 
-  util.write_file(tostring(save_path), table.concat(new_lines, "\n"))
+  local file_content = table.concat(new_lines, "\n")
+  if has_trailing_newline then
+    file_content = file_content .. "\n"
+  end
+  util.write_file(tostring(save_path), file_content)
 
   if opts.check_buffers then
     -- `vim.fn.bufnr` returns the **max** bufnr loaded from the same path.
