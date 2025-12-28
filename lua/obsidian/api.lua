@@ -8,28 +8,7 @@ local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
 
---- Return a iter like `vim.fs.dir` but on a dir of notes.
----
----@param dir string | obsidian.Path
----@return Iter
-M.dir = function(dir)
-  dir = tostring(dir)
-  local dir_opts = {
-    depth = 10,
-    skip = function(p)
-      return not vim.startswith(p, ".") and p ~= vim.fs.basename(tostring(M.templates_dir()))
-    end,
-  }
-
-  return vim
-    .iter(vim.fs.dir(dir, dir_opts))
-    :filter(function(path)
-      return vim.endswith(path, ".md")
-    end)
-    :map(function(path)
-      return vim.fs.joinpath(dir, path)
-    end)
-end
+M.dir = require("obsidian.fs").dir
 
 --- TODO: will not work if plugin is managed by nix
 ---
