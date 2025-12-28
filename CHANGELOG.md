@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove incorrect `Note.crete`'s `tilte` field usage.
 - Remove duplicates in note with multiple tags in `:Obsidian tags`.
 - Picker will highlight search results as best as the backend supports.
+- `:Obsidian new` allows multiple word argument.
 
 ## [v3.15.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.0) - 2025-12-25
 
