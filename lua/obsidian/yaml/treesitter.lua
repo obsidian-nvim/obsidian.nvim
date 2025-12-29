@@ -166,4 +166,6 @@ M.loads = function(str)
   return collected
 end
 
+M.name = "treesitter"
+
 return M

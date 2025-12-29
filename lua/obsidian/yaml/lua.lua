@@ -10,4 +10,6 @@ M.loads = function(str)
   return parser.loads(str)
 end
 
+M.name = "lua"
+
 return M
