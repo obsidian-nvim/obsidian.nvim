@@ -645,7 +645,7 @@ end
 
 ---Deserialize a YAML string.
 m.loads = function(str)
-  local parser = m.new()
+  local parser = m.new { luanil = false }
   return parser:parse(str)
 end
 

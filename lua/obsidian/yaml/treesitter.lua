@@ -1,5 +1,4 @@
 local M = {}
-local log = require "obsidian.log"
 
 local ts = vim.treesitter
 
@@ -19,7 +18,7 @@ setmetatable(H, {
 
 ---@param node TSNode
 ---@param src string
-local get_node = function(node, src)
+local parse_node = function(node, src)
   local t = node:type()
   if H[t] then
     return H[t](node, src)
@@ -33,7 +32,7 @@ local function index_item(index)
   return function(node, src)
     local child = node:child(index)
     assert(child)
-    return get_node(child, src)
+    return parse_node(child, src)
   end
 end
 
@@ -109,7 +108,7 @@ end
 local get_sequence = function(node, src)
   local seq = {}
   for child in node:iter_children() do
-    seq[#seq + 1] = get_node(child, src)
+    seq[#seq + 1] = parse_node(child, src)
   end
   return seq
 end
@@ -127,9 +126,12 @@ local get_mapping = function(node, src)
       local k_child = child:child(0)
       local v_child = child:child(2)
       if k_child and v_child then
-        local k = get_node(k_child, src)
-        local v = get_node(v_child, src)
+        local k = parse_node(k_child, src)
+        local v = parse_node(v_child, src)
         mapping[k] = v
+      elseif k_child then
+        local k = parse_node(k_child, src)
+        mapping[k] = vim.NIL
       end
     end
   end
@@ -140,30 +142,18 @@ H.block_mapping = get_mapping
 H.flow_mapping = get_mapping
 
 M.loads = function(str)
-  -- local lines = vim.split(str, "\n")
-  -- lines = vim.tbl_map(function(line)
-  --   return util.strip_comments(line)
-  -- end, lines)
-  -- str = table.concat(lines, "\n")
   local parser = ts.get_string_parser(str, "yaml", {})
   local tree = parser:parse()[1]
   local root = tree:root()
 
-  if root:has_error() then
-    -- log.warn("treesitter err: ", str)
-  end
+  -- local log = require "obsidian.log"
+  -- if root:has_error() then
+  -- log.warn("treesitter err: ", str)
+  -- end
 
-  local collected = {}
-
-  for node in root:iter_children() do
-    collected[#collected + 1] = H[node:type()](node, str)
-  end
-
-  if #collected == 1 then
-    collected = collected[1]
-  end
-
-  return collected
+  local doc = root:child(0)
+  assert(doc, "empty yaml body")
+  return H[doc:type()](doc, str)
 end
 
 M.name = "treesitter"
