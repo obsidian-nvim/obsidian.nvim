@@ -2,9 +2,9 @@ name: Linting
 
 on:
   pull_request:
-    branches:
-      - '*'
+    paths: [ 'lua/**', 'tests/**' ]
   push:
+    paths: [ 'lua/**', 'tests/**' ]
     branches:
       - "main"
 
