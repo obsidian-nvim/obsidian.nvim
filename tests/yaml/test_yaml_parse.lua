@@ -55,12 +55,12 @@ T["should parse boolean field values"] = function(yaml)
 end
 
 -- TODO:
--- T["should parse implicit null values"] = function(yaml)
---   local data = yaml.loads "tags: \ncomplete: false"
---   eq(type(data), "table")
---   eq(data.tags, vim.NIL)
---   eq(data.complete, false)
--- end
+T["should parse implicit null values"] = function(yaml)
+  local data = yaml.loads "tags: \ncomplete: false"
+  eq(type(data), "table")
+  eq(data.tags, vim.NIL)
+  eq(data.complete, false)
+end
 
 -- TODO:
 -- T["should parse explicit null values while trimming whitespace"] = function(yaml)
@@ -187,19 +187,19 @@ end
 --   }, result)
 -- end
 
-T["should parse block strings"] = function(yaml)
-  local result = yaml.loads [[
-foo: |
-  # a comment here should not be ignored!
-  ls -lh
-    # extra indent should not be ignored either!]]
-  eq({
-    foo = table.concat(
-      { "# a comment here should not be ignored!", "ls -lh", "  # extra indent should not be ignored either!" },
-      "\n"
-    ),
-  }, result)
-end
+-- T["should parse block strings"] = function(yaml)
+--   local result = yaml.loads [[
+-- foo: |
+--   # a comment here should not be ignored!
+--   ls -lh
+--     # extra indent should not be ignored either!]]
+--   eq({
+--     foo = table.concat(
+--       { "# a comment here should not be ignored!", "ls -lh", "  # extra indent should not be ignored either!" },
+--       "\n"
+--     ),
+--   }, result)
+-- end
 
 --- NOTE: https://yaml-multiline.info/
 -- T["should parse multi-line strings"] = function(yaml)
