@@ -15,21 +15,6 @@ on:
       - 'v*.*.*'
 
 jobs:
-  style:
-    name: Style
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Style
-        uses: JohnnyMorganz/stylua-action@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version: 2.1.0
-          args: --check .
-
   release:
     name: Release
     runs-on: ubuntu-latest

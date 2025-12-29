@@ -4,4 +4,5 @@ Welcome to the obsidian.nvim wiki!
   - `:Obsidian help`
   - `:Obsidian helpgrep`
   - Use `<C-]>` to navigate links.
-- [[Editing-this-wiki]]
+- [[Editing-this-wiki|Editing this wiki]]
+- [Contributing to this project](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md)
