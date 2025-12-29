@@ -16,4 +16,6 @@ M.loads = function(str)
   return data
 end
 
+M.name = "yq"
+
 return M
