@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.15.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.1) - 2025-12-31
+
 ### Added
 
 - Completion will work for resolve workspace based on current buffer.
