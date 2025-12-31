@@ -213,6 +213,7 @@ function Periodic:pick(offset_start, offset_end)
   local entries = {}
 
   for offset = offset_end, offset_start, -1 do
+    -- Get the start of the current period, then offset from there
     local current = self.get_period_start(os.time(), config)
     local datetime = self.offset_period(current, offset, config)
     local path = self:note_path(datetime)
@@ -245,6 +246,8 @@ function Periodic:pick(offset_start, offset_end)
       value = offset,
       display = alias,
       ordinal = alias,
+      user_data = offset,
+      text = alias,
       filename = tostring(path),
     }
   end
@@ -252,10 +255,10 @@ function Periodic:pick(offset_start, offset_end)
   -- Capitalize first letter of period type for title
   local title = self.period_type:gsub("^%l", string.upper) .. "s"
 
-  picker:pick(entries, {
+  picker.pick(entries, {
     prompt_title = title,
     callback = function(entry)
-      local note = self:period(entry.value, {})
+      local note = self:period(entry.value or entry.user_data, {})
       note:open()
     end,
   })
