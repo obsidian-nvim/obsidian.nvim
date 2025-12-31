@@ -130,6 +130,137 @@ M.PERIODS = {
   },
 }
 
+--- Periodic class for period-based notes
+---@class Periodic
+---@field period_type string
+---@field config_key string
+---@field get_period_start fun(datetime: integer, opts: table|?): integer
+---@field offset_period fun(datetime: integer, offset: integer, opts: table|?): integer
+---@field default_date_format string
+---@field default_alias_format string
+local Periodic = {}
+Periodic.__index = Periodic
+
+--- Create a new Periodic instance
+---@param period_config obsidian.PeriodicConfig
+---@return Periodic
+function Periodic.new(period_config)
+  local instance = {
+    period_type = period_config.period_type,
+    config_key = period_config.config_key,
+    get_period_start = period_config.get_period_start,
+    offset_period = period_config.offset_period,
+    default_date_format = period_config.default_date_format,
+    default_alias_format = period_config.default_alias_format,
+  }
+  return setmetatable(instance, Periodic)
+end
+
+--- Get the path to a periodic note
+---@param datetime integer|?
+---@return obsidian.Path, string
+function Periodic:note_path(datetime)
+  return M.periodic_note_path(self, datetime)
+end
+
+--- Get the current period's note
+---@return obsidian.Note
+function Periodic:this()
+  return M.periodic_note(self, os.time(), {})
+end
+
+--- Get the previous period's note
+---@return obsidian.Note
+function Periodic:last()
+  local config = Obsidian.opts[self.config_key]
+  local current = self.get_period_start(os.time(), config)
+  local last = self.offset_period(current, -1, config)
+  return M.periodic_note(self, last, {})
+end
+
+--- Get the next period's note
+---@return obsidian.Note
+function Periodic:next()
+  local config = Obsidian.opts[self.config_key]
+  local current = self.get_period_start(os.time(), config)
+  local next = self.offset_period(current, 1, config)
+  return M.periodic_note(self, next, {})
+end
+
+--- Get a period note with offset
+---@param offset integer
+---@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
+---@return obsidian.Note
+function Periodic:period(offset, opts)
+  local config = Obsidian.opts[self.config_key]
+  local current = self.get_period_start(os.time(), config)
+  local target = self.offset_period(current, offset, config)
+  return M.periodic_note(self, target, opts)
+end
+
+--- Open a picker to select a period note
+---@param offset_start integer
+---@param offset_end integer
+function Periodic:pick(offset_start, offset_end)
+  local log = require "obsidian.log"
+  local picker = Obsidian.picker
+  if not picker then
+    log.err "No picker configured"
+    return
+  end
+
+  local config = Obsidian.opts[self.config_key]
+  local entries = {}
+
+  for offset = offset_end, offset_start, -1 do
+    local current = self.get_period_start(os.time(), config)
+    local datetime = self.offset_period(current, offset, config)
+    local path = self:note_path(datetime)
+
+    -- Generate alias with proper formatting
+    local alias
+    if self.period_type == "quarterly" then
+      local month = tonumber(os.date("%m", datetime))
+      local quarter = math.floor((month - 1) / 3) + 1
+      local formatted = (config.alias_format or self.default_alias_format):gsub("%%q", tostring(quarter))
+      alias = tostring(os.date(formatted, datetime))
+    else
+      alias = tostring(os.date(config.alias_format or self.default_alias_format, datetime))
+    end
+
+    -- Add special labels
+    if offset == 0 then
+      alias = alias .. " @this-" .. self.period_type
+    elseif offset == -1 then
+      alias = alias .. " @last-" .. self.period_type
+    elseif offset == 1 then
+      alias = alias .. " @next-" .. self.period_type
+    end
+
+    if not path:is_file() then
+      alias = alias .. " ➡️ create"
+    end
+
+    entries[#entries + 1] = {
+      value = offset,
+      display = alias,
+      ordinal = alias,
+      filename = tostring(path),
+    }
+  end
+
+  -- Capitalize first letter of period type for title
+  local title = self.period_type:gsub("^%l", string.upper) .. "s"
+
+  picker:pick(entries, {
+    prompt_title = title,
+    callback = function(entry)
+      local note = self:period(entry.value, {})
+      note:open()
+    end,
+  })
+end
+
 --- Get the path to a periodic note.
 ---
 ---@param period_config obsidian.PeriodicConfig
@@ -240,7 +371,7 @@ M.periodic_note = function(period_config, datetime, opts)
 end
 
 --- Create helper functions for a specific period type
----
+--- @deprecated Use the singleton instances (M.daily, M.weekly, etc.) instead
 ---@param period_config obsidian.PeriodicConfig
 ---@return table Functions: this_period, last_period, next_period, period, period_note_path
 M.create_period_functions = function(period_config)
@@ -282,5 +413,12 @@ M.create_period_functions = function(period_config)
 
   return functions
 end
+
+--- Singleton instances for each period type
+M.daily = Periodic.new(M.PERIODS.daily)
+M.weekly = Periodic.new(M.PERIODS.weekly)
+M.monthly = Periodic.new(M.PERIODS.monthly)
+M.quarterly = Periodic.new(M.PERIODS.quarterly)
+M.yearly = Periodic.new(M.PERIODS.yearly)
 
 return M

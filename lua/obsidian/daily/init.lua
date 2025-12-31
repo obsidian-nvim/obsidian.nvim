@@ -1,33 +1,48 @@
 local periodic = require "obsidian.periodic"
-local M = {}
 
--- Create daily period functions using the generalized periodic module
-local daily_functions = periodic.create_period_functions(periodic.PERIODS.daily)
+--- Daily notes module - uses the Periodic singleton
+---@type Periodic
+local daily = periodic.daily
+
+local M = {}
 
 --- Get the path to a daily note.
 ---
+---@param datetime integer|?
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
-M.daily_note_path = daily_functions.period_note_path
+M.daily_note_path = function(datetime)
+  return daily:note_path(datetime)
+end
 
 --- Open (or create) the daily note for today.
 ---
 ---@return obsidian.Note
-M.today = daily_functions.this_period
+M.today = function()
+  return daily:this()
+end
 
 --- Open (or create) the daily note from the last day.
 ---
 ---@return obsidian.Note
-M.yesterday = daily_functions.last_period
+M.yesterday = function()
+  return daily:last()
+end
 
 --- Open (or create) the daily note for the next day.
 ---
 ---@return obsidian.Note
-M.tomorrow = daily_functions.next_period
+M.tomorrow = function()
+  return daily:next()
+end
 
 --- Open (or create) the daily note for today + `offset_days`.
 ---
+---@param offset integer
+---@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
 ---@return obsidian.Note
-M.daily = daily_functions.period
+M.daily = function(offset, opts)
+  return daily:period(offset, opts)
+end
 
 ---@param offset_start integer
 ---@param offset_end integer

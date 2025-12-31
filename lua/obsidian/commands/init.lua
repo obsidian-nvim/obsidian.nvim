@@ -9,6 +9,17 @@ local function in_note()
   return vim.bo.filetype == "markdown"
 end
 
+---@param period_type string
+---@return boolean
+local function is_period_enabled(period_type)
+  local config_key = period_type .. "_notes"
+  local config = Obsidian.opts[config_key]
+  if config.enabled == nil then
+    return period_type == "daily" -- backward compatibility
+  end
+  return config.enabled
+end
+
 ---@param commands obsidian.CommandConfig[]
 ---@param is_visual boolean
 ---@param is_note boolean
@@ -217,45 +228,45 @@ end
 
 M.register("check", { nargs = 0 })
 
-M.register("today", { nargs = "?" })
+-- Daily commands
+if is_period_enabled "daily" then
+  M.register("today", { nargs = "?" })
+  M.register("yesterday", { nargs = 0 })
+  M.register("tomorrow", { nargs = 0 })
+  M.register("dailies", { nargs = "*" })
+end
 
-M.register("yesterday", { nargs = 0 })
+-- Weekly commands
+if is_period_enabled "weekly" then
+  M.register("weekly", { nargs = "?" })
+  M.register("last_week", { nargs = 0 })
+  M.register("next_week", { nargs = 0 })
+  M.register("weeklies", { nargs = "*" })
+end
 
-M.register("tomorrow", { nargs = 0 })
+-- Monthly commands
+if is_period_enabled "monthly" then
+  M.register("monthly", { nargs = "?" })
+  M.register("last_month", { nargs = 0 })
+  M.register("next_month", { nargs = 0 })
+  M.register("monthlies", { nargs = "*" })
+end
 
-M.register("dailies", { nargs = "*" })
+-- Quarterly commands
+if is_period_enabled "quarterly" then
+  M.register("quarterly", { nargs = "?" })
+  M.register("last_quarter", { nargs = 0 })
+  M.register("next_quarter", { nargs = 0 })
+  M.register("quarterlies", { nargs = "*" })
+end
 
-M.register("weekly", { nargs = "?" })
-
-M.register("last_week", { nargs = 0 })
-
-M.register("next_week", { nargs = 0 })
-
-M.register("weeklies", { nargs = "*" })
-
-M.register("monthly", { nargs = "?" })
-
-M.register("last_month", { nargs = 0 })
-
-M.register("next_month", { nargs = 0 })
-
-M.register("monthlies", { nargs = "*" })
-
-M.register("quarterly", { nargs = "?" })
-
-M.register("last_quarter", { nargs = 0 })
-
-M.register("next_quarter", { nargs = 0 })
-
-M.register("quarterlies", { nargs = "*" })
-
-M.register("yearly", { nargs = "?" })
-
-M.register("last_year", { nargs = 0 })
-
-M.register("next_year", { nargs = 0 })
-
-M.register("yearlies", { nargs = "*" })
+-- Yearly commands
+if is_period_enabled "yearly" then
+  M.register("yearly", { nargs = "?" })
+  M.register("last_year", { nargs = 0 })
+  M.register("next_year", { nargs = 0 })
+  M.register("yearlies", { nargs = "*" })
+end
 
 M.register("new", { nargs = "*" })
 

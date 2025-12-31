@@ -1,5 +1,4 @@
-local log = require "obsidian.log"
-local quarterly = require "obsidian.quarterly"
+local periodic = require "obsidian.periodic"
 
 ---@param arg string
 ---@return number
@@ -36,63 +35,5 @@ return function(data)
     end
   end
 
-  local picker = Obsidian.picker
-  if not picker then
-    log.err "No picker configured"
-    return
-  end
-
-  ---@type obsidian.PickerEntry[]
-  local quarterlies = {}
-  for offset = offset_end, offset_start, -1 do
-    local now = os.time()
-    local year = tonumber(os.date("%Y", now)) or 0
-    local month = tonumber(os.date("%m", now))
-
-    -- Calculate target quarter
-    month = month + (offset * 3)
-    while month > 12 do
-      month = month - 12
-      year = year + 1
-    end
-    while month < 1 do
-      month = month + 12
-      year = year - 1
-    end
-
-    local datetime = os.time { year = year, month = month, day = 1, hour = 0, min = 0, sec = 0 }
-    local quarterly_note_path = quarterly.quarterly_note_path(datetime)
-
-    -- Calculate quarter number
-    local target_month = tonumber(os.date("%m", datetime))
-    local quarter = math.floor((target_month - 1) / 3) + 1
-    local alias_format = Obsidian.opts.quarterly_notes.alias_format or "Q%q %Y"
-    local quarterly_note_alias = alias_format:gsub("%%q", tostring(quarter))
-    quarterly_note_alias = tostring(os.date(quarterly_note_alias, datetime))
-
-    if offset == 0 then
-      quarterly_note_alias = quarterly_note_alias .. " @this-quarter"
-    elseif offset == -1 then
-      quarterly_note_alias = quarterly_note_alias .. " @last-quarter"
-    elseif offset == 1 then
-      quarterly_note_alias = quarterly_note_alias .. " @next-quarter"
-    end
-    if not quarterly_note_path:is_file() then
-      quarterly_note_alias = quarterly_note_alias .. " ➡️ create"
-    end
-    quarterlies[#quarterlies + 1] = {
-      value = offset,
-      display = quarterly_note_alias,
-      ordinal = quarterly_note_alias,
-      filename = tostring(quarterly_note_path),
-    }
-  end
-
-  picker:pick(quarterlies, {
-    prompt_title = "Quarterlies",
-    callback = function(entry)
-      local note = quarterly.quarterly(entry.value, {})
-      note:open()
-    end,
-  })
+  periodic.quarterly:pick(offset_start, offset_end)
 end
