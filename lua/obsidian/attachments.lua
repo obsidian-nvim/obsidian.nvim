@@ -33,22 +33,8 @@ local filetypes = {
   "pdf",
 }
 
-local image_filetypes = {
-  "avif",
-  "bmp",
-  "gif",
-  "jpg",
-  "jpeg",
-  "png",
-  "svg",
-  "webp",
-}
+-- TODO: file extension to mime type and vice versa
 
 M.filetypes = filetypes
-M.is_supported_image_format = function(path)
-  return vim.iter(image_filetypes):any(function(ft)
-    return vim.endswith(path, "." .. ft)
-  end)
-end
 
 return M
