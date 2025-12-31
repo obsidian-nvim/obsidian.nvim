@@ -228,44 +228,47 @@ end
 
 M.register("check", { nargs = 0 })
 
+-- Periodic note commands (all loaded from commands.periodic module)
+local periodic_cmds = require "obsidian.commands.periodic"
+
 -- Daily commands
 if is_period_enabled "daily" then
-  M.register("today", { nargs = "?" })
-  M.register("yesterday", { nargs = 0 })
-  M.register("tomorrow", { nargs = 0 })
-  M.register("dailies", { nargs = "*" })
+  M.register("today", { nargs = "?", func = periodic_cmds.today })
+  M.register("yesterday", { nargs = 0, func = periodic_cmds.yesterday })
+  M.register("tomorrow", { nargs = 0, func = periodic_cmds.tomorrow })
+  M.register("dailies", { nargs = "*", func = periodic_cmds.dailies })
 end
 
 -- Weekly commands
 if is_period_enabled "weekly" then
-  M.register("weekly", { nargs = "?" })
-  M.register("last_week", { nargs = 0 })
-  M.register("next_week", { nargs = 0 })
-  M.register("weeklies", { nargs = "*" })
+  M.register("weekly", { nargs = "?", func = periodic_cmds.weekly })
+  M.register("last_week", { nargs = 0, func = periodic_cmds.last_week })
+  M.register("next_week", { nargs = 0, func = periodic_cmds.next_week })
+  M.register("weeklies", { nargs = "*", func = periodic_cmds.weeklies })
 end
 
 -- Monthly commands
 if is_period_enabled "monthly" then
-  M.register("monthly", { nargs = "?" })
-  M.register("last_month", { nargs = 0 })
-  M.register("next_month", { nargs = 0 })
-  M.register("monthlies", { nargs = "*" })
+  M.register("monthly", { nargs = "?", func = periodic_cmds.monthly })
+  M.register("last_month", { nargs = 0, func = periodic_cmds.last_month })
+  M.register("next_month", { nargs = 0, func = periodic_cmds.next_month })
+  M.register("monthlies", { nargs = "*", func = periodic_cmds.monthlies })
 end
 
 -- Quarterly commands
 if is_period_enabled "quarterly" then
-  M.register("quarterly", { nargs = "?" })
-  M.register("last_quarter", { nargs = 0 })
-  M.register("next_quarter", { nargs = 0 })
-  M.register("quarterlies", { nargs = "*" })
+  M.register("quarterly", { nargs = "?", func = periodic_cmds.quarterly })
+  M.register("last_quarter", { nargs = 0, func = periodic_cmds.last_quarter })
+  M.register("next_quarter", { nargs = 0, func = periodic_cmds.next_quarter })
+  M.register("quarterlies", { nargs = "*", func = periodic_cmds.quarterlies })
 end
 
 -- Yearly commands
 if is_period_enabled "yearly" then
-  M.register("yearly", { nargs = "?" })
-  M.register("last_year", { nargs = 0 })
-  M.register("next_year", { nargs = 0 })
-  M.register("yearlies", { nargs = "*" })
+  M.register("yearly", { nargs = "?", func = periodic_cmds.yearly })
+  M.register("last_year", { nargs = 0, func = periodic_cmds.last_year })
+  M.register("next_year", { nargs = 0, func = periodic_cmds.next_year })
+  M.register("yearlies", { nargs = "*", func = periodic_cmds.yearlies })
 end
 
 M.register("new", { nargs = "*" })
