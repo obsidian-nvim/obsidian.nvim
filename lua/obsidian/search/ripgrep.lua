@@ -88,6 +88,35 @@ M.build_search_cmd = function(dir, term, opts)
   }
 end
 
+--- Escape a string so it can be safely used as a literal rg glob.
+--- @param s string
+--- @return string
+local function escape_rg_glob(s)
+  local map = {
+    ["\\"] = "[\\]",
+    ["["] = "[[]",
+    ["]"] = "[]]",
+    ["*"] = "[*]",
+    ["?"] = "[?]",
+    ["{"] = "[{]",
+    ["}"] = "[}]",
+  }
+
+  -- One-pass replacement: replacement text won't be reprocessed.
+  s = s:gsub("[\\%[%]%*%?{}]", function(ch)
+    return map[ch]
+  end)
+
+  -- Leading '!' is glob negation
+  if s:sub(1, 1) == "!" then
+    s = "[!]" .. s:sub(2)
+  end
+
+  return s
+end
+
+M._escape_rg_glob = escape_rg_glob
+
 --- Build the 'rg' command for finding files.
 ---
 ---@param path string|?
@@ -114,7 +143,7 @@ M.build_find_cmd = function(path, term, opts)
       term = "*" .. term
     end
     additional_opts[#additional_opts + 1] = "-g"
-    additional_opts[#additional_opts + 1] = term
+    additional_opts[#additional_opts + 1] = escape_rg_glob(term)
   end
 
   if opts.ignore_case then
