@@ -50,8 +50,8 @@ M.PERIODS = {
     offset_period = function(datetime, offset)
       return datetime + (offset * 7 * 24 * 60 * 60)
     end,
-    default_date_format = "%Y-W%V",
-    default_alias_format = "Week %V, %Y",
+    default_date_format = "%G-W%V",
+    default_alias_format = "Week %V, %G",
   },
 
   monthly = {
