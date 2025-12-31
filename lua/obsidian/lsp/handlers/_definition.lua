@@ -56,25 +56,9 @@ handlers.FileUrl = function(location, _, callback)
   }
 end
 
----Checks if a given string represents a valid attachment based on its suffix.
----
----@param location string
----@return boolean
-local function is_attachment_path(location)
-  if vim.endswith(location, ".md") then
-    return false
-  end
-  for _, ext in ipairs(require("obsidian.attachments").filetypes) do
-    if vim.endswith(location, "." .. ext) then
-      return true
-    end
-  end
-  return false
-end
-
 handlers.Wiki = function(location, name, callback)
   local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
-  if is_attachment_path(location) then
+  if api.is_attachment_path(location) then
     local path = api.resolve_attachment_path(location)
     vim.ui.open(path)
     return

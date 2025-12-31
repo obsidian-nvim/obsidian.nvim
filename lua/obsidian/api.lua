@@ -7,6 +7,7 @@ local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
+local attachment = require "obsidian.attachment"
 
 M.dir = require("obsidian.fs").dir
 
@@ -619,22 +620,9 @@ M.get_icon = function(path)
   return nil
 end
 
---- Resolve a basename to full path inside the vault.
----
----@param src string
----@return string
-M.resolve_attachment_path = function(src)
-  local attachment_folder = Obsidian.opts.attachments.folder
-
-  ---@cast attachment_folder -nil
-  if vim.startswith(attachment_folder, ".") then
-    local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
-    return tostring(dirname / attachment_folder / src)
-  else
-    return tostring(Obsidian.dir / attachment_folder / src)
-  end
-end
-M.resolve_image_path = M.resolve_attachment_path
+M.resolve_attachment_path = attachment.resolve_attachment_path
+M.resolve_image_path = attachment.resolve_attachment_path
+M.is_attachment_path = attachment.is_attachment_path
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---

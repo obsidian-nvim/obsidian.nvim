@@ -71,7 +71,7 @@ T["follow encoded headerlinks"] = function()
   eq(child.api.nvim_win_get_cursor(0), { 1, 0 })
 end
 
-local filetypes = require("obsidian.attachments").filetypes
+local filetypes = require("obsidian.attachment").filetypes
 
 local function test_ft(ext)
   local files = h.mock_vault_contents(child.Obsidian.dir, {
