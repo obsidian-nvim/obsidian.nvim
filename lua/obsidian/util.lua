@@ -2,6 +2,8 @@ local compat = require "obsidian.compat"
 local ts, string, table = vim.treesitter, string, table
 local util = {}
 
+util.relpath = require("obsidian.util.fs").relpath
+
 setmetatable(util, {
   __index = function(_, k)
     return require("obsidian.api")[k] or require("obsidian.builtin")[k]
@@ -338,11 +340,6 @@ end
 ------------------------------------
 -- Miscellaneous helper functions --
 ------------------------------------
----@param anchor obsidian.note.HeaderAnchor
----@return string
-util.format_anchor_label = function(anchor)
-  return string.format(" ❯ %s", anchor.header)
-end
 
 -- We are very loose here because obsidian allows pretty much anything
 util.ANCHOR_LINK_PATTERN = "#[%w%d\128-\255][^#]*"
