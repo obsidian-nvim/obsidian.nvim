@@ -1,32 +1,47 @@
 local periodic = require "obsidian.periodic"
-local M = {}
 
--- Create weekly period functions using the generalized periodic module
-local weekly_functions = periodic.create_period_functions(periodic.PERIODS.weekly)
+--- Weekly notes module - uses the Periodic singleton
+---@type Periodic
+local weekly = periodic.weekly
+
+local M = {}
 
 --- Get the path to a weekly note.
 ---
+---@param datetime integer|?
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
-M.weekly_note_path = weekly_functions.period_note_path
+M.weekly_note_path = function(datetime)
+  return weekly:note_path(datetime)
+end
 
 --- Open (or create) the weekly note for the current week.
 ---
 ---@return obsidian.Note
-M.this_week = weekly_functions.this_period
+M.this_week = function()
+  return weekly:this()
+end
 
 --- Open (or create) the weekly note for the last week.
 ---
 ---@return obsidian.Note
-M.last_week = weekly_functions.last_period
+M.last_week = function()
+  return weekly:last()
+end
 
 --- Open (or create) the weekly note for the next week.
 ---
 ---@return obsidian.Note
-M.next_week = weekly_functions.next_period
+M.next_week = function()
+  return weekly:next()
+end
 
 --- Open (or create) the weekly note for the current week + `offset_weeks`.
 ---
+---@param offset integer
+---@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
 ---@return obsidian.Note
-M.weekly = weekly_functions.period
+M.weekly = function(offset, opts)
+  return weekly:period(offset, opts)
+end
 
 return M

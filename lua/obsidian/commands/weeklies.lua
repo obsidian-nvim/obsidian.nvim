@@ -1,5 +1,4 @@
-local log = require "obsidian.log"
-local weekly = require "obsidian.weekly"
+local periodic = require "obsidian.periodic"
 
 ---@param arg string
 ---@return number
@@ -36,41 +35,5 @@ return function(data)
     end
   end
 
-  local picker = Obsidian.picker
-  if not picker then
-    log.err "No picker configured"
-    return
-  end
-
-  ---@type obsidian.PickerEntry[]
-  local weeklies = {}
-  for offset = offset_end, offset_start, -1 do
-    local datetime = os.time() + (offset * 7 * 24 * 60 * 60)
-    local weekly_note_path = weekly.weekly_note_path(datetime)
-    local weekly_note_alias = tostring(os.date(Obsidian.opts.weekly_notes.alias_format or "Week %V, %G", datetime))
-    if offset == 0 then
-      weekly_note_alias = weekly_note_alias .. " @this-week"
-    elseif offset == -1 then
-      weekly_note_alias = weekly_note_alias .. " @last-week"
-    elseif offset == 1 then
-      weekly_note_alias = weekly_note_alias .. " @next-week"
-    end
-    if not weekly_note_path:is_file() then
-      weekly_note_alias = weekly_note_alias .. " ➡️ create"
-    end
-    weeklies[#weeklies + 1] = {
-      value = offset,
-      display = weekly_note_alias,
-      ordinal = weekly_note_alias,
-      filename = tostring(weekly_note_path),
-    }
-  end
-
-  picker:pick(weeklies, {
-    prompt_title = "Weeklies",
-    callback = function(entry)
-      local note = weekly.weekly(entry.value, {})
-      note:open()
-    end,
-  })
+  periodic.weekly:pick(offset_start, offset_end)
 end
