@@ -35,34 +35,7 @@ return function(data)
     end
   end
 
-  ---@type obsidian.PickerEntry[]
-  local dailies = {}
-  for offset = offset_end, offset_start, -1 do
-    local datetime = os.time() + (offset * 3600 * 24)
-    local daily_note_path = daily.daily_note_path(datetime)
-    local daily_note_alias = tostring(os.date(Obsidian.opts.daily_notes.alias_format or "%A %B %-d, %Y", datetime))
-    if offset == 0 then
-      daily_note_alias = daily_note_alias .. " @today"
-    elseif offset == -1 then
-      daily_note_alias = daily_note_alias .. " @yesterday"
-    elseif offset == 1 then
-      daily_note_alias = daily_note_alias .. " @tomorrow"
-    end
-    if not daily_note_path:is_file() then
-      daily_note_alias = daily_note_alias .. " ➡️ create"
-    end
-    dailies[#dailies + 1] = {
-      user_data = offset,
-      text = daily_note_alias,
-      filename = tostring(daily_note_path),
-    }
-  end
-
-  Obsidian.picker.pick(dailies, {
-    prompt_title = "Dailies",
-    callback = function(entry)
-      local note = daily.daily(entry.user_data, {})
-      note:open()
-    end,
-  })
+  daily.pick(offset_start, offset_end, function(note)
+    note:open()
+  end)
 end
