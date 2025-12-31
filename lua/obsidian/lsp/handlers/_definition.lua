@@ -39,8 +39,7 @@ end
 local handlers = {}
 
 handlers.NakedUrl = function(location)
-  -- TODO: Obsidian.opts.open.func
-  Obsidian.opts.follow_url_func(location)
+  vim.ui.open(location)
   return nil
 end
 
@@ -57,25 +56,11 @@ handlers.FileUrl = function(location, _, callback)
   }
 end
 
----Checks if a given string represents an image file based on its suffix.
----
----@param s string: The input string to check.
----@return boolean: Returns true if the string ends with a supported image suffix, false otherwise.
-local path_is_img = function(s)
-  for _, suffix in ipairs { ".png", ".jpg", ".jpeg", ".heic", ".gif", ".svg", ".ico" } do
-    if vim.endswith(s, suffix) then
-      return true
-    end
-  end
-  return false
-end
-
 handlers.Wiki = function(location, name, callback)
   local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
-  if path_is_img(location) then -- TODO: include in parse_link
-    local path = api.resolve_image_path(location)
-    -- TODO: Obsidian.opts.open.func
-    Obsidian.opts.follow_img_func(tostring(path))
+  if api.is_attachment_path(location) then
+    local path = api.resolve_attachment_path(location)
+    vim.ui.open(path)
     return
   elseif handlers[location_type] then
     handlers[location_type](location, name, callback)
@@ -150,7 +135,6 @@ handlers.BlockLink = function(location, _, callback)
 end
 
 handlers.MailtoUrl = function(location)
-  -- TODO: Obsidian.opts.open.func
   vim.ui.open(location)
   return nil
 end
@@ -177,9 +161,5 @@ return {
     end
 
     handler(location, name, wrapped_callback)
-
-    -- if lsp_locations and util.islist(lsp_locations) then
-    --   callback(nil, lsp_locations)
-    -- end
   end,
 }

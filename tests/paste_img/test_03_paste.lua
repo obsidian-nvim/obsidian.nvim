@@ -111,7 +111,7 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
     local async = require("obsidian.async")
 
     Obsidian.opts.attachments = {
-      img_folder = "assets/imgs",
+      folder = "assets/imgs",
       img_name_func = function() return "img name func" end,
       img_text_func = require("obsidian.builtin").img_text_func,
       confirm_img_paste = case.confirm_img_paste,

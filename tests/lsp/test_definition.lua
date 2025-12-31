@@ -71,27 +71,34 @@ T["follow encoded headerlinks"] = function()
   eq(child.api.nvim_win_get_cursor(0), { 1, 0 })
 end
 
--- TODO: expand to all filetypes
-T["open attachment"] = function()
-  local files = h.mock_vault_contents(child.Obsidian.dir, {
-    ["referencer.md"] = [==[
+local filetypes = require("obsidian.attachment").filetypes
 
-[target](./target.png)
-]==],
+local function test_ft(ext)
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = ([==[
+
+[target](./target.%s)
+]==]):format(ext),
   })
 
-  -- TODO: Obsidian.opt.open.func
   child.lua [[
-  Obsidian.opts.follow_img_func = function(uri)
+  vim.ui.open = function(uri)
     _G.uri = uri
   end
-  Obsidian.opts.attachments.img_folder = "."
   ]]
 
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
-  fs_eq(tostring(child.Obsidian.dir / "target.png"), child.lua_get "uri")
+  fs_eq(tostring(child.Obsidian.dir / "attachments" / ("target." .. ext)), child.lua_get "uri")
+end
+
+T["open attachment"] = function()
+  for _, ft in ipairs(filetypes) do
+    if ft ~= "md" then
+      test_ft(ft)
+    end
+  end
 end
 
 return T

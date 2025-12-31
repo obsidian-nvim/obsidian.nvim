@@ -212,7 +212,7 @@ return {
   ---@class obsidian.config.AttachmentsOpts
   ---
   ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
-  ---@field img_folder? string
+  ---@field folder? string
   ---
   ---Default name for pasted images
   ---@field img_name_func? fun(): string
@@ -223,12 +223,12 @@ return {
   ---Whether to confirm the paste or not. Defaults to true.
   ---@field confirm_img_paste? boolean
   attachments = {
-    img_folder = "assets/imgs",
+    folder = "attachments",
     img_text_func = require("obsidian.builtin").img_text_func,
     img_name_func = function()
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
-    confirm_img_paste = true,
+    confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
   },
 
   ---@class obsidian.config.CallbackConfig
