@@ -265,7 +265,9 @@ Note._resolve_id_path = function(opts)
   assert(base_dir:is_absolute(), ("failed to resolve note directory '%s'"):format(base_dir))
 
   -- Apply id transform
-  id = generate_id(id, base_dir, creation_opts.note_id_func)
+  if not (opts.verbatim and id) then
+    id = generate_id(id, base_dir, creation_opts.note_id_func)
+  end
 
   dir = base_dir
 
@@ -1226,7 +1228,8 @@ end
 ---@field new_notes_location obsidian.config.NewNotesLocation
 
 ---@class (exact) obsidian.note.NoteOpts
----@field id string|? An ID to assign the note. If not specified one will be generated.
+---@field id string|? An ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true
+---@field verbatim boolean|? whether to skip applying `note_id_func`
 ---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
 ---relative to the workspace / vault root. If the directory doesn't exist it will
 ---be created, regardless of the value of the `should_write` option.

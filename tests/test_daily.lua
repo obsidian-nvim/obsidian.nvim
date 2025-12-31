@@ -35,4 +35,11 @@ T["daily_note_path"]["should not add frontmatter for yesterday when disabled"] =
   eq(false, saved_note.has_frontmatter)
 end
 
+T["dailies"] = h.temp_vault
+
+T["dailies"]["don't be effected by `note_id_func`"] = function()
+  local note = M.daily(0)
+  eq(note.id, os.date "%Y-%m-%d")
+end
+
 return T
