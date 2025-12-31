@@ -47,7 +47,7 @@ return function(data)
   for offset = offset_end, offset_start, -1 do
     local datetime = os.time() + (offset * 7 * 24 * 60 * 60)
     local weekly_note_path = weekly.weekly_note_path(datetime)
-    local weekly_note_alias = tostring(os.date(Obsidian.opts.weekly_notes.alias_format or "Week %V, %Y", datetime))
+    local weekly_note_alias = tostring(os.date(Obsidian.opts.weekly_notes.alias_format or "Week %V, %G", datetime))
     if offset == 0 then
       weekly_note_alias = weekly_note_alias .. " @this-week"
     elseif offset == -1 then
