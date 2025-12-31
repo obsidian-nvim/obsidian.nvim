@@ -421,4 +421,124 @@ M.monthly = Periodic.new(M.PERIODS.monthly)
 M.quarterly = Periodic.new(M.PERIODS.quarterly)
 M.yearly = Periodic.new(M.PERIODS.yearly)
 
+-- Backward-compatible module exports
+-- These replicate the APIs from the old daily/, weekly/, etc. modules
+
+--- Daily note functions (backward compatible with obsidian.daily)
+M.daily_note_path = function(datetime)
+  return M.daily:note_path(datetime)
+end
+M.today = function()
+  return M.daily:this()
+end
+M.yesterday = function()
+  return M.daily:last()
+end
+M.tomorrow = function()
+  return M.daily:next()
+end
+M.daily_fn = function(offset, opts)
+  return M.daily:period(offset, opts)
+end
+M.daily_pick = function(offset_start, offset_end, callback)
+  ---@type obsidian.PickerEntry[]
+  local dailies = {}
+  for offset = offset_start, offset_end, 1 do
+    local datetime = os.time() + (offset * 3600 * 24)
+    local daily_note_path = M.daily_note_path(datetime)
+    local daily_note_alias = tostring(os.date(Obsidian.opts.daily_notes.alias_format or "%A %B %-d, %Y", datetime))
+    if offset == 0 then
+      daily_note_alias = daily_note_alias .. " @today"
+    elseif offset == -1 then
+      daily_note_alias = daily_note_alias .. " @yesterday"
+    elseif offset == 1 then
+      daily_note_alias = daily_note_alias .. " @tomorrow"
+    end
+    if not daily_note_path:is_file() then
+      daily_note_alias = daily_note_alias .. " ➡️ create"
+    end
+    dailies[#dailies + 1] = {
+      user_data = offset,
+      text = daily_note_alias,
+      filename = tostring(daily_note_path),
+    }
+  end
+
+  Obsidian.picker.pick(dailies, {
+    prompt_title = "Dailies",
+    callback = function(entry)
+      local note = M.daily_fn(entry.user_data, {})
+      callback(note)
+    end,
+  })
+end
+
+--- Weekly note functions (backward compatible with obsidian.weekly)
+M.weekly_note_path = function(datetime)
+  return M.weekly:note_path(datetime)
+end
+M.this_week = function()
+  return M.weekly:this()
+end
+M.last_week = function()
+  return M.weekly:last()
+end
+M.next_week = function()
+  return M.weekly:next()
+end
+M.weekly_fn = function(offset, opts)
+  return M.weekly:period(offset, opts)
+end
+
+--- Monthly note functions (backward compatible with obsidian.monthly)
+M.monthly_note_path = function(datetime)
+  return M.monthly:note_path(datetime)
+end
+M.this_month = function()
+  return M.monthly:this()
+end
+M.last_month = function()
+  return M.monthly:last()
+end
+M.next_month = function()
+  return M.monthly:next()
+end
+M.monthly_fn = function(offset, opts)
+  return M.monthly:period(offset, opts)
+end
+
+--- Quarterly note functions (backward compatible with obsidian.quarterly)
+M.quarterly_note_path = function(datetime)
+  return M.quarterly:note_path(datetime)
+end
+M.this_quarter = function()
+  return M.quarterly:this()
+end
+M.last_quarter = function()
+  return M.quarterly:last()
+end
+M.next_quarter = function()
+  return M.quarterly:next()
+end
+M.quarterly_fn = function(offset, opts)
+  return M.quarterly:period(offset, opts)
+end
+
+--- Yearly note functions (backward compatible with obsidian.yearly)
+M.yearly_note_path = function(datetime)
+  return M.yearly:note_path(datetime)
+end
+M.this_year = function()
+  return M.yearly:this()
+end
+M.last_year = function()
+  return M.yearly:last()
+end
+M.next_year = function()
+  return M.yearly:next()
+end
+M.yearly_fn = function(offset, opts)
+  return M.yearly:period(offset, opts)
+end
+
 return M
