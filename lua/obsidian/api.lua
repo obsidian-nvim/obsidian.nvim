@@ -634,11 +634,7 @@ M.resolve_attachment_path = function(src)
     return tostring(Obsidian.dir / attachment_folder / src)
   end
 end
-
-M.resolve_image_path = function(src)
-  vim.deprecate("resolve_image_path", "resolve_attachment_path", "3.16.0", "obsidian.nvim", true)
-  return M.resolve_attachment_path(src)
-end
+M.resolve_image_path = M.resolve_attachment_path
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
