@@ -145,7 +145,7 @@ return {
   ---@field workdays_only? boolean
   daily_notes = {
     folder = nil,
-    date_format = nil,
+    date_format = "%Y-%m-%d",
     alias_format = nil,
     default_tags = { "daily-notes" },
     workdays_only = true,

@@ -26,12 +26,7 @@ M.daily_note_path = function(datetime)
     path = path / options.notes_subdir
   end
 
-  local id
-  if options.daily_notes.date_format ~= nil then
-    id = tostring(os.date(options.daily_notes.date_format, datetime))
-  else
-    id = tostring(os.date("%Y-%m-%d", datetime))
-  end
+  local id = tostring(os.date(options.daily_notes.date_format, datetime))
 
   path = path / (id .. ".md")
 
