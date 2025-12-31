@@ -4,40 +4,47 @@ See: [[Autocmds]]
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
-   pattern = "ObsidianNoteEnter",
-   callback = function(ev)
-      vim.keymap.set("n", "<leader>ch", "<cmd>Obsidian toggle_checkbox<cr>", {
-         buffer = true,
-         desc = "Toggle checkbox",
-      })
-   end,
+  pattern = "ObsidianNoteEnter",
+  callback = function(ev)
+    vim.keymap.set("n", "<leader>ch", "<cmd>Obsidian toggle_checkbox<cr>", {
+      buffer = true,
+      desc = "Toggle checkbox",
+    })
+  end,
 })
 ```
 
 Or with the callback module:
 
 ```lua
-require("obsidian").setup({
-   callbacks = {
-      enter_note = function(note)
-         vim.keymap.set("n", "<leader>ch", "<cmd>Obsidian toggle_checkbox<cr>", {
-            buffer = true,
-            desc = "Toggle checkbox",
-         })
-      end,
-   },
-})
+require("obsidian").setup {
+  callbacks = {
+    enter_note = function(note)
+      vim.keymap.set("n", "<leader>ch", "<cmd>Obsidian toggle_checkbox<cr>", {
+        buffer = true,
+        desc = "Toggle checkbox",
+      })
+    end,
+  },
+}
 ```
 
 ## Remap default mapping
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
-   pattern = "ObsidianNoteEnter",
-   callback = function(ev)
-      vim.keymap.del("n", "<CR>", { buffer = true })
-      vim.keymap.set("n", "<leader><CR>", require("obsidian.api").smart_action, { buffer = true })
-   end,
+  pattern = "ObsidianNoteEnter",
+  callback = function(ev)
+    -- remove the default mappings
+    vim.keymap.del("n", "<CR>", { buffer = true })
+    vim.keymap.del("n", "]o", { buffer = true })
+    vim.keymap.del("n", "[o", { buffer = true })
+
+    -- add your own
+    vim.keymap.set("n", "<leader><CR>", require("obsidian.api").smart_action, { buffer = true })
+    vim.keymap.del("n", "]l", { buffer = true })
+    vim.keymap.del("n", "[l", { buffer = true })
+  end,
 })
 ```
 
@@ -62,22 +69,22 @@ The plugin provides the following remappable functions:
 Example with remapping `nav_link`:
 
 ```lua
-require("obsidian").setup({
-   callbacks = {
-      enter_note = function(note)
-         vim.keymap.set("n", "<Tab>", function()
-            require("obsidian.api").nav_link("next")
-         end, {
-            buffer = true,
-            desc = "Go to next link",
-         })
-         vim.keymap.set("n", "<S-Tab>", function()
-            require("obsidian.api").nav_link("prev")
-         end, {
-            buffer = true,
-            desc = "Go to previous link",
-         })
-      end,
-   },
-})
+require("obsidian").setup {
+  callbacks = {
+    enter_note = function(note)
+      vim.keymap.set("n", "<Tab>", function()
+        require("obsidian.api").nav_link "next"
+      end, {
+        buffer = true,
+        desc = "Go to next link",
+      })
+      vim.keymap.set("n", "<S-Tab>", function()
+        require("obsidian.api").nav_link "prev"
+      end, {
+        buffer = true,
+        desc = "Go to previous link",
+      })
+    end,
+  },
+}
 ```
