@@ -9,4 +9,21 @@ Option for attachment location is `opts.attachments.folder`
 
 ## Open
 
-Attachment opening is by default controlled by `opts.open.func`, see [[Open]]
+Attachment opening is by default controlled by [`vim.ui.open`](https://neovim.io/doc/user/lua.html#vim.ui.open()), customize it like following:
+
+```lua
+vim.ui.open = (function(overridden)
+  return function(uri, opt)
+    if vim.endswith(uri, ".png") then
+      vim.cmd("edit " .. uri) -- early return to just open in neovim
+      return
+    elseif vim.endswith(uri, ".pdf") then
+      opt = { cmd = { "zathura" } } -- override open app
+    end
+    return overridden(uri, opt)
+  end
+end)(vim.ui.open)
+```
+
+
+Put any where in you config that loads before you open attachments, a good place could be `opts.callback.enter_note`

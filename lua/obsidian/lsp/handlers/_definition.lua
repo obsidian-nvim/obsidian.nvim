@@ -39,7 +39,7 @@ end
 local handlers = {}
 
 handlers.NakedUrl = function(location)
-  Obsidian.opts.open.func(location)
+  vim.ui.open(location)
   return nil
 end
 
@@ -76,7 +76,7 @@ handlers.Wiki = function(location, name, callback)
   local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
   if is_attachment_path(location) then
     local path = api.resolve_attachment_path(location)
-    Obsidian.opts.open.func(tostring(path))
+    vim.ui.open(path)
     return
   elseif handlers[location_type] then
     handlers[location_type](location, name, callback)
@@ -151,7 +151,6 @@ handlers.BlockLink = function(location, _, callback)
 end
 
 handlers.MailtoUrl = function(location)
-  -- TODO: Obsidian.opts.open.func
   vim.ui.open(location)
   return nil
 end

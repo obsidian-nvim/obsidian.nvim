@@ -82,7 +82,7 @@ local function test_ft(ext)
   })
 
   child.lua [[
-  Obsidian.opts.open.func = function(uri)
+  vim.ui.open = function(uri)
     _G.uri = uri
   end
   ]]
