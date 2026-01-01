@@ -3,12 +3,13 @@ local obsidian = require "obsidian"
 local ns_id = vim.api.nvim_create_namespace "ObsidianFooter"
 
 ---@param buf integer
-local function update_footer(buf)
+---@param update_backlinks boolean|?
+local update_footer = vim.schedule_wrap(function(buf, update_backlinks)
   local note = obsidian.Note.from_buffer(buf)
   if note == nil then
     return
   end
-  local info = note:status()
+  local info = note:status(update_backlinks)
   if info == nil then
     return
   end
@@ -31,12 +32,15 @@ local function update_footer(buf)
   local opts = { virt_lines = footer_chunks }
   vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
   vim.api.nvim_buf_set_extmark(buf, ns_id, row0, col0, opts)
-end
+end)
+
+vim.g.obsidian_footer_update_interval = 10000
 
 --- Register buffer-specific variables
 M.start = function()
   local group = vim.api.nvim_create_augroup("obsidian_footer", {})
   local attached_bufs = {}
+  local timers = {}
   vim.api.nvim_create_autocmd("User", {
     group = group,
     desc = "Initialize obsidian footer",
@@ -45,9 +49,7 @@ M.start = function()
       if attached_bufs[ev.buf] then
         return
       end
-      vim.schedule(function()
-        update_footer(ev.buf)
-      end)
+      update_footer(ev.buf)
       local id = vim.api.nvim_create_autocmd({
         "FileChangedShellPost",
         "TextChanged",
@@ -57,9 +59,9 @@ M.start = function()
         group = group,
         desc = "Update obsidian footer",
         buffer = ev.buf,
-        callback = vim.schedule_wrap(function()
+        callback = function()
           update_footer(ev.buf)
-        end),
+        end,
       })
       vim.api.nvim_create_autocmd("CursorMoved", {
         group = group,
@@ -70,7 +72,29 @@ M.start = function()
           end
         end),
       })
+
+      local timer = vim.uv:new_timer()
+      assert(timer, "Failed to create timer")
+      timer:start(0, vim.g.obsidian_footer_update_interval, function()
+        update_footer(ev.buf, true)
+      end)
+
+      timers[ev.buf] = timer
       attached_bufs[ev.buf] = id
+
+      vim.api.nvim_create_autocmd("BufWipeout", {
+        group = group,
+        buffer = ev.buf,
+        callback = function()
+          local buf_timer = timers[ev.buf]
+          if buf_timer then
+            buf_timer:stop()
+            buf_timer:close()
+            timers[ev.buf] = nil
+          end
+          attached_bufs[ev.buf] = nil
+        end,
+      })
     end,
   })
 end
