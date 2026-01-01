@@ -395,9 +395,11 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                                  *Note.status()*
-                             `Note.status`({self})
+                    `Note.status`({self}, {update_backlink})
 Return note status counts, like obsidian's status bar
 
+Parameters ~
+{update_backlink} `(boolean|)`?
 Return ~
 `({ words: integer, chars: integer, properties: integer, backlinks: integer }?)`
 
