@@ -42,6 +42,41 @@ T["rename current note"] = function()
   eq(target_expected, table.concat(lines, "\n"))
 end
 
+T["rename current note is no-op when name matches current note"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    [target] = target_content,
+  })
+
+  child.lua [[
+require"obsidian.log".info = function(msg)
+   _G.msg = msg
+end
+  ]]
+
+  child.cmd("edit " .. files[target])
+  child.lua [[vim.lsp.buf.rename("target", {})]]
+  eq("Identical name", child.lua_get "msg")
+end
+
+T["rename current note is no-op when name matches an existing note"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    [target] = target_content,
+    ["existing.md"] = "",
+  })
+
+  child.lua [[
+require"obsidian.log".info = function(msg)
+   _G.msg = msg
+end
+  ]]
+
+  child.cmd("edit " .. files[target])
+  child.lua [[vim.lsp.buf.rename("existing", {})]]
+  eq("Note with same name exists", child.lua_get "msg")
+end
+
 T["rename note under cursor"] = function()
   local root = child.Obsidian.dir
 
