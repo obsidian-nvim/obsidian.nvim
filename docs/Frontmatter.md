@@ -1,4 +1,22 @@
-# Frontmatter
+```lua
+---@class obsidian.config.FrontmatterOpts
+---
+--- Whether to enable frontmatter, boolean for global on/off, or a function that takes filename and returns boolean.
+---@field enabled? (fun(fname: string?): boolean)|boolean
+---
+--- Function to turn Note attributes into frontmatter.
+---@field func? fun(note: obsidian.Note): table<string, any>
+--- Function that is passed to table.sort to sort the properties, or a fixed order of properties.
+---
+--- List of string that sorts frontmatter properties, or a function that compares two values, set to vim.NIL/false to do no sorting
+---@field sort? string[] | (fun(a: any, b: any): boolean) | vim.NIL | boolean
+frontmatter = {
+  enabled = true,
+  func = require("obsidian.builtin").frontmatter,
+  sort = { "id", "aliases", "tags" },
+}
+```
+---
 
 obsidian.nvim reads YAML frontmatter at the top of a note (between `---` lines). It validates a small set of keys used by the plugin and leaves any other fields untouched as metadata.
 
