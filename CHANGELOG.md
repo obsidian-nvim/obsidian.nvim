@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `definition` will by default open any attachment of filetypes that obsidian app supports with default system open application.
+- LSP rename now reports no-op/duplicate names.
 
 ## [v3.15.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.1) - 2025-12-31
 
