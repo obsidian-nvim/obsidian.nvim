@@ -332,39 +332,10 @@ end
 Note.display_info = function(self, opts)
   opts = opts and opts or {}
 
-  ---@type string[]
-  local info = {}
+  -- TODO: args
 
-  if opts.label ~= nil and string.len(opts.label) > 0 then
-    info[#info + 1] = ("%s"):format(opts.label)
-    info[#info + 1] = "--------"
-  end
-
-  if self.path ~= nil then
-    info[#info + 1] = ("**path:** `%s`"):format(self.path)
-  end
-
-  info[#info + 1] = ("**id:** `%s`"):format(self.id)
-
-  if #self.aliases > 0 then
-    info[#info + 1] = ("**aliases:** '%s'"):format(table.concat(self.aliases, "', '"))
-  end
-
-  if #self.tags > 0 then
-    info[#info + 1] = ("**tags:** `#%s`"):format(table.concat(self.tags, "`, `#"))
-  end
-
-  if opts.anchor or opts.block then
-    info[#info + 1] = "--------"
-
-    if opts.anchor then
-      info[#info + 1] = ("...\n%s %s\n..."):format(string.rep("#", opts.anchor.level), opts.anchor.header)
-    elseif opts.block then
-      info[#info + 1] = ("...\n%s\n..."):format(opts.block.block)
-    end
-  end
-
-  return table.concat(info, "\n")
+  local lines = self:frontmatter_lines {}
+  return table.concat(lines, "\n")
 end
 
 --- Check if the note exists on the file system.

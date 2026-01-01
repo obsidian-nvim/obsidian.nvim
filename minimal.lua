@@ -2,6 +2,7 @@ vim.env.LAZY_STDPATH = ".repro"
 load(vim.fn.system "curl -s https://raw.githubusercontent.com/folke/lazy.nvim/main/bootstrap.lua")()
 
 vim.fn.mkdir(".repro/vault", "p")
+vim.fn.mkdir(".repro/vault/.obsidian", "p")
 
 vim.o.conceallevel = 2
 
@@ -47,8 +48,12 @@ local plugins = {
   -- },
   {
     "saghen/blink.cmp",
+    version = "1.*",
     opts = {
-      fuzzy = { implementation = "lua" }, -- no need to build binary
+      completion = {
+        documentation = { auto_show = true },
+      },
+      -- fuzzy = { implementation = "lua" }, -- no need to build binary
     },
   },
 }
