@@ -250,6 +250,8 @@ util.working_day_after = function(time)
   end
 end
 
+util.parse_tags = require("obsidian.parse.tags").parse_tags
+
 ---@param link string
 ---@param opts { strip: boolean|?, exclude: obsidian.search.RefTypes[], link_type: obsidian.search.RefTypes|? }|?
 ---@return string|? link_location
