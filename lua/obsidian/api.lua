@@ -496,8 +496,8 @@ local INPUT_CANCELLED = "~~~INPUT-CANCELLED~~~"
 M.input = function(prompt, opts)
   opts = opts or {}
 
-  if not vim.endswith(prompt, " ") then
-    prompt = prompt .. " "
+  if not vim.endswith(prompt, ": ") then
+    prompt = prompt .. ": "
   end
 
   local input = vim.trim(

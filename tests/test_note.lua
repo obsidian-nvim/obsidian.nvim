@@ -15,8 +15,6 @@ T["new"]["should be able to be initialize directly"] = function()
   eq(true, M.is_note_obj(note))
 end
 
---- TODO: add back once we don't test from a file
-
 local function from_str(str, path, opts)
   return M.from_lines(vim.iter(vim.split(str, "\n")), path, opts)
 end

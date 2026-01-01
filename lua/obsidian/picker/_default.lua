@@ -78,7 +78,7 @@ M.grep = function(opts)
   if opts.query and vim.trim(opts.query) ~= "" then
     query = opts.query
   else
-    query = api.input(opts.prompt_title .. ": ") -- TODO:
+    query = api.input(opts.prompt_title)
   end
 
   if not query then
@@ -128,7 +128,7 @@ M.find_files = function(opts)
   if opts.query and vim.trim(opts.query) ~= "" then
     query = opts.query
   else
-    query = api.input(opts.prompt_title .. ": ") -- TODO:
+    query = api.input(opts.prompt_title)
   end
 
   if not query then

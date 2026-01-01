@@ -44,13 +44,12 @@ handlers.NakedUrl = function(location)
 end
 
 handlers.FileUrl = function(location, _, callback)
-  local line = 0 -- TODO: :lnum?
   callback {
     {
       uri = location,
       range = {
-        start = { line = line, character = 0 },
-        ["end"] = { line = line, character = 0 },
+        start = { line = 0, character = 0 },
+        ["end"] = { line = 0, character = 0 },
       },
     },
   }
