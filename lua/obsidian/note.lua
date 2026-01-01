@@ -1203,16 +1203,27 @@ Note.format_link = function(self, opts)
   end
 end
 
+-- HACK: make backlink search lazy before we have proper cache
+local backlink_cache = {}
+
 --- Return note status counts, like obsidian's status bar
 ---
+---@param update_backlink boolean|?
 ---@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
-Note.status = function(self)
+Note.status = function(self, update_backlink)
   local status = {}
   local wc = vim.fn.wordcount()
   status.words = wc.visual_words or wc.words
   status.chars = wc.visual_chars or wc.chars
   status.properties = vim.tbl_count(self:frontmatter()) -- TODO: should be zero if no frontmatter
-  status.backlinks = #self:backlinks {}
+  local path = tostring(self.path)
+  if update_backlink or backlink_cache[path] == nil then
+    local num_backlinks = #self:backlinks {}
+    status.backlinks = num_backlinks
+    backlink_cache[path] = num_backlinks
+  else
+    status.backlinks = backlink_cache[path]
+  end
   return status
 end
 
