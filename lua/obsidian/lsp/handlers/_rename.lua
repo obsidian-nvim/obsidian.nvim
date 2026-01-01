@@ -10,8 +10,8 @@ local api = obsidian.api
 ---@return boolean
 M.validate = function(name)
   for path in api.dir(Obsidian.dir) do
-    local base_as_id = vim.fs.basename(path):sub(1, -4)
-    if name == base_as_id then
+    path = Path.new(path)
+    if name == path.stem then
       return false
     end
     local note = Note.from_file(path)

@@ -17,13 +17,8 @@ return function(params, handler, _)
     return log.err(err and err or "failed writing all buffers before renaming, abort")
   end
 
-  -- TODO: check if old == new then return {}
-  if not M.validate(new_name) then
-    return handler(nil, {}) -- TODO:
-    -- return log.warn "Invalid rename id, note with the same id/filename already exists"
-  end
-
   local cur_link = api.cursor_link()
+  local note
 
   if cur_link then
     local loc = util.parse_link(cur_link, { strip = true })
@@ -33,10 +28,19 @@ return function(params, handler, _)
     if vim.tbl_isempty(notes) then
       return
     end
-    local note = notes[1]
-    M.rename(note, new_name, handler)
+    note = notes[1]
   else
-    local note = assert(api.current_note(0))
-    M.rename(note, new_name, handler)
+    note = assert(api.current_note(0))
   end
+
+  local old_stem = note.path and note.path.stem or nil
+  if new_name == note.id or (old_stem and new_name == old_stem) then
+    log.info "Identical name"
+    return handler(nil, {})
+  end
+  if not M.validate(new_name) then
+    log.info "Note with same name exists"
+    return handler(nil, {})
+  end
+  M.rename(note, new_name, handler)
 end
