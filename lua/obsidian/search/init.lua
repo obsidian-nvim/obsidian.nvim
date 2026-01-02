@@ -700,7 +700,7 @@ M.find_backlinks_async = function(note, callback, opts)
       -- local match_text = string.sub(match.lines.text, match.submatches[1].start)
       -- local link_location = util.parse_link(match_text)
       if not link_location then
-        log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
+        log.error("Failed to parse reference from '%s' ('%s')", line_text, match)
         return
       end
       local _, matched_anchor = util.strip_anchor_links(link_location)
