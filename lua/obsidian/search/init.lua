@@ -692,13 +692,15 @@ M.find_backlinks_async = function(note, callback, opts)
   ---@param match MatchData
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
+    local line_text = util.rstrip_whitespace(match.lines.text)
     if anchor then
       -- Check for a match with the anchor.
       -- NOTE: no need to do this with blocks, since blocks are standardized.
-      local match_text = string.sub(match.lines.text, match.submatches[1].start)
-      local link_location = util.parse_link(match_text)
+      local link_location, _, _ = util.parse_link(line_text)
+      -- local match_text = string.sub(match.lines.text, match.submatches[1].start)
+      -- local link_location = util.parse_link(match_text)
       if not link_location then
-        log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
+        log.error("Failed to parse reference from '%s' ('%s')", line_text, match)
         return
       end
       local _, matched_anchor = util.strip_anchor_links(link_location)
