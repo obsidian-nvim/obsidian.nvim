@@ -696,7 +696,7 @@ M.find_backlinks_async = function(note, callback, opts)
     if anchor then
       -- Check for a match with the anchor.
       -- NOTE: no need to do this with blocks, since blocks are standardized.
-      local link_location, _, matched_type = util.parse_link(line_text)
+      local link_location, _, _ = util.parse_link(line_text)
       -- local match_text = string.sub(match.lines.text, match.submatches[1].start)
       -- local link_location = util.parse_link(match_text)
       if not link_location then
