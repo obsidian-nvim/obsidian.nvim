@@ -1,10 +1,8 @@
 name: Sync Docs to Wiki
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "docs/**"
+  release:
+    types: [published]
 
 permissions:
   contents: write   # Needed to push wiki
