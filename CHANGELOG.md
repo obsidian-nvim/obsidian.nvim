@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.15.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.2) - 2026-01-02
+
 ### Added
 
 - `definition` will by default open any attachment of filetypes that obsidian app supports with default system open application.
