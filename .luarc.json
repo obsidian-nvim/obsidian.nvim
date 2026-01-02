@@ -1,5 +1,5 @@
 {
-  "runtime.version": "LuaJIT", // the version for neovim
+  "runtime.version": "LuaJIT",
   "diagnostics.libraryFiles": "Disable",
   "workspace.checkThirdParty": "Disable",
   "workspace.ignoreDir": ["completion/", "compat.lua"],

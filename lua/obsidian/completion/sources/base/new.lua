@@ -135,7 +135,12 @@ function NewNoteSourceBase:process_completion(cc)
       error "not implemented"
     end
 
-    local new_text = new_note:format_link { link_style = link_style, anchor = anchor, block = block }
+    local new_text = new_note:format_link {
+      label = new_note_opts.label,
+      link_style = link_style,
+      anchor = anchor,
+      block = block,
+    }
     local documentation = {
       kind = "markdown",
       value = new_note:display_info {
