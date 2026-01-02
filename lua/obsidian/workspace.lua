@@ -2,6 +2,8 @@ local Path = require "obsidian.path"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
 local log = require "obsidian.log"
+local settings = require "obsidian.settings"
+local api = require "obsidian.api"
 
 --- Each workspace represents a working directory (usually an Obsidian vault) along with
 --- a set of configuration options specific to the workspace.
@@ -178,12 +180,17 @@ end
 ---@param specs obsidian.workspace.WorkspaceSpec[]
 ---@return obsidian.Workspace[]
 Workspace.setup = function(specs)
+  local workspaces_specs_from_global_config = settings.get_workspaces_from_global_config()
+  vim.list_extend(specs, workspaces_specs_from_global_config)
+
   local workspaces = {}
+  local root_lookup = {}
 
   for _, spec in ipairs(specs) do
     local ws = Workspace.new(spec)
-    if ws then
+    if ws and not root_lookup[tostring(ws.path)] then
       table.insert(workspaces, ws)
+      root_lookup[tostring(ws.path)] = true
     end
   end
 
@@ -197,6 +204,17 @@ Workspace.setup = function(specs)
     Workspace.set(current_workspace)
   else
     Workspace.set(workspaces[1])
+  end
+
+  local docs_dir = api.docs_dir()
+
+  if docs_dir then
+    workspaces[#workspaces + 1] = {
+      path = docs_dir,
+      root = docs_dir,
+      name = ".obsidian.wiki",
+      -- TODO: override no daily and template dir once those two module get `.enabled` option
+    }
   end
 
   Obsidian.workspaces = workspaces
