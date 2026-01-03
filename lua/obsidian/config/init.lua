@@ -266,7 +266,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   end
 
   if opts.follow_url_func then
-    opts.attachments.follow_url_func = nil
+    opts.follow_url_func = nil
     deprecate(
       "follow_url_func",
       "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
@@ -275,7 +275,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   end
 
   if opts.follow_img_func then
-    opts.attachments.follow_img_func = nil
+    opts.follow_img_func = nil
     deprecate(
       "follow_img_func",
       "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
