@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## Fixed
+
+- Properly deprecate old follow options without error.
+
 ## [v3.15.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.2) - 2026-01-02
 
 ### Added
