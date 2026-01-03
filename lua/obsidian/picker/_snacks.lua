@@ -87,7 +87,7 @@ M.grep = function(opts)
             filename = item._path or item.filename,
             col = item.pos and item.pos[2],
             lnum = item.pos and item.pos[1],
-            value = item.user_data,
+            user_data = item.value,
           }
         else
           snacks_picker.actions.jump(picker, item, action)
@@ -153,7 +153,7 @@ M.pick = function(values, opts)
           else
             opts.callback {
               text = item.text,
-              user_data = item.text,
+              user_data = item.value,
             }
           end
         else
