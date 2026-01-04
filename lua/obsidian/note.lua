@@ -282,12 +282,16 @@ end
 --- @param opts obsidian.note.NoteOpts
 --- @return obsidian.Note
 Note.create = function(opts)
+  local original_title = opts.id
   local new_id, path = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
   -- Add the title as an alias.
   --- @type string[]
   local aliases = opts.aliases
+  if original_title and original_title ~= new_id and not vim.tbl_contains(aliases, original_title) then
+    table.insert(aliases, original_title)
+  end
   local note = Note.new(new_id, aliases, opts.tags, path)
 
   -- Ensure the parent directory exists.
