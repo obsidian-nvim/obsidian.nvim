@@ -153,7 +153,7 @@ M.pick = function(values, opts)
           else
             opts.callback {
               text = item.text,
-              user_data = item.value,
+              user_data = item.value or item.text,
             }
           end
         else
