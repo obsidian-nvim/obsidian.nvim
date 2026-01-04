@@ -175,28 +175,6 @@ M.find_refs = function(s, opts)
   return M.find_matches(s, pattern_names)
 end
 
---- Find all tags in a string.
----@param s string the string to search
----
----@return {[1]: integer, [2]: integer, [3]: obsidian.search.RefTypes}[]
-M.find_tags_in_string = function(s)
-  local matches = {}
-  if string.find(s, "<!--.*-->") ~= nil then
-    return matches
-  end
-  for _, match in ipairs(M.find_matches(s, { "Tag" })) do
-    local st, ed, m_type = unpack(match)
-    local look_ahead = s:sub(st - 1, st - 1)
-    if st == 1 or look_ahead == " " then
-      local match_string = s:sub(st, ed)
-      if m_type == "Tag" and not util.is_hex_color(match_string) then
-        matches[#matches + 1] = match
-      end
-    end
-  end
-  return matches
-end
-
 --- Find all code block boundaries in a list of lines.
 ---
 ---@param lines string[]
@@ -889,7 +867,7 @@ M.find_tags_async = function(term, callback, opts)
     local n_matches = 0
 
     -- check for tag in the wild of the form '#{tag}'
-    for _, match in ipairs(M.find_tags_in_string(line)) do
+    for _, match in ipairs(util.parse_tags(line)) do
       local m_start, m_end, _ = unpack(match)
       local tag = string.sub(line, m_start + 1, m_end)
       if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then

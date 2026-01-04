@@ -20,7 +20,7 @@ local build_selection_mappings = function(mappings)
     actions[mapping.desc:gsub(" ", "_")] = {
       char = key,
       func = function(...)
-        vim.print(...)
+        _ = ...
         -- mapping.callback({ filename = path })
       end,
     }

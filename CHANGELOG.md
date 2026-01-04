@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Fixed
 
-- `Footer`'s backlink count will be updated more lazily, by a counter controled by `vim.g.obsidian_footer_update_interval`. (temporary solution before we have a cache system)
+- `Footer`'s backlink count will be updated more lazily, by a counter controlled by `vim.g.obsidian_footer_update_interval`. (temporary solution before we have a cache system)
 - New note completion not getting correct label due to previous refactor.
 - Dailies picker order reversed by previous refactor.
 
