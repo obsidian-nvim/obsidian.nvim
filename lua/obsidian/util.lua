@@ -347,31 +347,35 @@ util.format_anchor_label = function(anchor)
 end
 
 -- We are very loose here because obsidian allows pretty much anything
-util.ANCHOR_LINK_PATTERN = "#[%w%d\128-\255][^#]*"
+-- One trailing anchor segment: "#" + at least 1 char that is not "#"
+local ANCHOR_SEGMENT_PATTERN = "#[^#]+$"
 
 util.BLOCK_PATTERN = "%^[%w%d][%w%d-]*"
 
 util.BLOCK_LINK_PATTERN = "#" .. util.BLOCK_PATTERN
 
---- Strip anchor links from a line.
----@param line string
----@return string, string|?
 util.strip_anchor_links = function(line)
-  ---@type string|?
-  local anchor
+  local parts = {}
 
   while true do
-    local anchor_match = string.match(line, util.ANCHOR_LINK_PATTERN .. "$")
-    if anchor_match then
-      anchor = anchor or ""
-      anchor = anchor_match .. anchor
-      line = string.sub(line, 1, -anchor_match:len() - 1)
-    else
+    local s, e = line:find(ANCHOR_SEGMENT_PATTERN)
+    if not s then
       break
     end
+
+    -- Prepend this segment so "#H1#H2" stays in order.
+    table.insert(parts, 1, line:sub(s, e))
+
+    -- Remove the matched segment from the end.
+    line = line:sub(1, s - 1)
   end
 
-  return line, anchor and util.standardize_anchor(anchor)
+  if #parts == 0 then
+    return line, nil
+  end
+
+  local anchor = table.concat(parts, "")
+  return line, util.standardize_anchor(anchor)
 end
 
 --- Parse a block line from a line.

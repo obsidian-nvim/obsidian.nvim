@@ -220,6 +220,18 @@ T["strip"]["anchor_links"]["should leave line alone when there are no anchor lin
   eq(nil, anchor)
 end
 
+T["strip"]["anchor_links"]["should strip emoji anchor links"] = function()
+  local line, anchor = M.strip_anchor_links "Foo Bar#😀"
+  eq("Foo Bar", line)
+  eq("#😀", anchor)
+end
+
+T["strip"]["anchor_links"]["should strip CJK anchor links"] = function()
+  local line, anchor = M.strip_anchor_links "Foo Bar#中文标题"
+  eq("Foo Bar", line)
+  eq("#中文标题", anchor)
+end
+
 T["strip"]["left whitespace"] = new_set()
 
 T["strip"]["left whitespace"]["should strip tabs and spaces from left end only"] = function()

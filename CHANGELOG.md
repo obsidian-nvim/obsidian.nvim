@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Anchors will support all unicode symbols.
+
 ## [v3.15.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.3) - 2026-01-03
 
-## Fixed
+### Fixed
 
 - Properly deprecate old follow options without error.
 
