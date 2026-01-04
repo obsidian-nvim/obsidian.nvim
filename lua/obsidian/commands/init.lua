@@ -86,7 +86,7 @@ M.install = function(opts)
 
   M.register("check", { nargs = 0 })
 
-  M.register("new", { nargs = "?" })
+  M.register("new", { nargs = "*" })
 
   M.register("open", { nargs = "?", complete = M.note_complete })
 
@@ -268,63 +268,5 @@ M.note_complete = function(cmd_arg)
 
   return completions
 end
-
-------------------------
----- general action ----
-------------------------
-
-M.register("check", { nargs = 0 })
-
-M.register("today", { nargs = "?" })
-
-M.register("yesterday", { nargs = 0 })
-
-M.register("tomorrow", { nargs = 0 })
-
-M.register("dailies", { nargs = "*" })
-
-M.register("new", { nargs = "*" })
-
-M.register("open", { nargs = "?", complete = M.note_complete })
-
-M.register("tags", { nargs = "*" })
-
-M.register("search", { nargs = "?" })
-
-M.register("new_from_template", { nargs = "*" })
-
-M.register("quick_switch", { nargs = "?" })
-
-M.register("workspace", { nargs = "?" })
-
-M.register("help", { nargs = "?" })
-
-M.register("helpgrep", { nargs = "?" })
-
----------------------
----- note action ----
----------------------
-
-M.register("backlinks", { nargs = 0, note_action = true })
-
-M.register("template", { nargs = "?", note_action = true })
-
-M.register("link_new", { mode = "v", nargs = "?", range = true, note_action = true })
-
-M.register("link", { nargs = "?", range = true, complete = M.note_complete, note_action = true })
-
-M.register("links", { nargs = 0, note_action = true })
-
-M.register("follow_link", { nargs = "?", note_action = true })
-
-M.register("toggle_checkbox", { nargs = 0, range = true, note_action = true })
-
-M.register("rename", { nargs = "?", note_action = true })
-
-M.register("paste_img", { nargs = "?", note_action = true })
-
-M.register("extract_note", { mode = "v", nargs = "?", range = true, note_action = true })
-
-M.register("toc", { nargs = 0, note_action = true })
 
 return M
