@@ -5,6 +5,9 @@ local ns_id = vim.api.nvim_create_namespace "ObsidianFooter"
 ---@param buf integer
 ---@param update_backlinks boolean|?
 local update_footer = vim.schedule_wrap(function(buf, update_backlinks)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
   local note = obsidian.Note.from_buffer(buf)
   if note == nil then
     return
@@ -66,11 +69,11 @@ M.start = function()
       vim.api.nvim_create_autocmd("CursorMoved", {
         group = group,
         buffer = ev.buf,
-        callback = vim.schedule_wrap(function()
+        callback = function()
           if vim.api.nvim_get_mode().mode:lower():find "v" then
             update_footer(ev.buf)
           end
-        end),
+        end,
       })
 
       local timer = vim.uv:new_timer()
