@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Anchors will support all unicode symbols.
 
+### Fixed
+
+- `[TITLE]` is added to alias list by default for `new` notes.
+
 ## [v3.15.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.3) - 2026-01-03
 
 ### Fixed
