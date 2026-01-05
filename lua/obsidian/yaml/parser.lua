@@ -13,7 +13,7 @@ m.ParserOpts = ParserOpts
 ---@return obsidian.yaml.ParserOpts
 ParserOpts.default = function()
   return {
-    luanil = true,
+    luanil = false,
   }
 end
 

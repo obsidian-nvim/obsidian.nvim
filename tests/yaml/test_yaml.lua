@@ -130,7 +130,7 @@ end
 T["loads"]["should parse implicit null values"] = function()
   local data = yaml.loads "tags: \ncomplete: false"
   eq(type(data), "table")
-  eq(data.tags, nil)
+  eq(data.tags, vim.NIL)
   eq(data.complete, false)
 end
 

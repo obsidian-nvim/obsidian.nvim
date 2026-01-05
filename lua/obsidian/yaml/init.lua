@@ -54,6 +54,10 @@ dumps = function(x, indent, order)
     return { indent_str .. tostring(x) }
   end
 
+  if type(x) == "userdata" then
+    return {}
+  end
+
   if type(x) == "table" then
     local out = {}
 
