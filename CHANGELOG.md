@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Frontmatter entries are no longer deleted on save if the value is nil.
 - Properly deprecate old follow options without error.
 
 ## [v3.15.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.2) - 2026-01-02
@@ -25,9 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSP rename now reports no-op/duplicate names.
 
 ## Fixed
-
-- Frontmatter entries are no longer deleted on save if the value is nil.
-- `Footer`'s backlink count will be updated more lazily, by a counter controlled by `vim.g.obsidian_footer_update_interval`. (temporary solution before we have a cache system)
+- Footer's backlink count will be updated more lazily, by a counter controlled by vim.g.obsidian_footer_update_interval. (temporary solution before we have a cache system)
 - New note completion not getting correct label due to previous refactor.
 - Dailies picker order reversed by previous refactor.
 
