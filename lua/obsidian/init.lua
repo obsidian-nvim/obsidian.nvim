@@ -96,10 +96,6 @@ obsidian.setup = function(user_opts)
     require("obsidian.statusline").start()
   end
 
-  if opts.footer.enabled then
-    require("obsidian.footer").start()
-  end
-
   -- Register completion sources, providers
   if opts.completion.nvim_cmp then
     require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()
