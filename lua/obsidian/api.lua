@@ -724,16 +724,16 @@ local function no_checkbox()
   }
 end
 
----Toggle the checkbox on the current line.
+---Toggle the checkbox on a lnum
 ---
----@param states table|nil Optional table containing checkbox states (e.g., {" ", "x"}).
----@param line_num number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
-M.toggle_checkbox = function(states, line_num)
+---@param states string[] Optional table containing checkbox states (e.g., {" ", "x"}).
+---@param lnum number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
+M._toggle_checkbox = function(states, lnum)
   if no_checkbox() then
     return
   end
-  line_num = line_num or unpack(vim.api.nvim_win_get_cursor(0))
-  local line = vim.api.nvim_buf_get_lines(0, line_num - 1, line_num, false)[1]
+  lnum = lnum or unpack(vim.api.nvim_win_get_cursor(0))
+  local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1]
 
   local checkboxes = states or { " ", "x" }
 
@@ -756,7 +756,29 @@ M.toggle_checkbox = function(states, line_num)
     return
   end
 
-  vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { line })
+  vim.api.nvim_buf_set_lines(0, lnum - 1, lnum, true, { line })
+end
+
+--- Toggle checkbox in current line or current visual region or from start to end lnum
+---@param start_lnum integer|?
+---@param end_lnum integer|?
+M.toggle_checkbox = function(start_lnum, end_lnum)
+  local viz = M.get_visual_selection()
+  local states = Obsidian.opts.checkbox.order
+  ---@cast states -nil
+  if viz then
+    start_lnum, end_lnum = viz.csrow, viz.cerow
+  else
+    local row = unpack(vim.api.nvim_win_get_cursor(0))
+    start_lnum, end_lnum = row, row
+  end
+
+  for line_nb = start_lnum, end_lnum do
+    local current_line = vim.api.nvim_buf_get_lines(0, line_nb - 1, line_nb, false)[1]
+    if current_line and current_line:match "%S" then
+      M._toggle_checkbox(states, line_nb)
+    end
+  end
 end
 
 ---Set the checkbox on the current line to a specific state.
@@ -1037,6 +1059,39 @@ M.new_from_template = function(id, template, callback)
       end
     end,
   }
+end
+
+M.add_property = function()
+  local note = assert(M.current_note(0))
+
+  -- HACK: no native way in lua
+  -- TODO: complete for existing keys in vault like obsidian app
+  -- TODO: complete for values
+  vim.cmd [[
+  function! ObsidianPropertyComplete()
+    return ['aliases', 'tags', 'id']
+  endfunction
+     ]]
+
+  local key = M.input("key: ", { completion = "customlist,ObsidianPropertyComplete" })
+  local value = M.input "value: "
+
+  if not (key and value) then
+    return log.info "Aborted"
+  end
+
+  if vim.trim(key) == "" or vim.trim(value) == "" then
+    return log.info "Empty Input"
+  end
+
+  if key == "tags" then
+    note:add_tag(value)
+  elseif key == "aliases" then
+    note:add_alias(value)
+  else
+    note:add_field(key, value)
+  end
+  note:update_frontmatter(0)
 end
 
 return M
