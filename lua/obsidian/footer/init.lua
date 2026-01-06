@@ -5,36 +5,39 @@ local ns_id = vim.api.nvim_create_namespace "ObsidianFooter"
 ---@param buf integer
 ---@param update_backlinks boolean|?
 local update_footer = vim.schedule_wrap(function(buf, update_backlinks)
-  if not vim.api.nvim_buf_is_valid(buf) then
-    return
-  end
-  local note = obsidian.Note.from_buffer(buf)
-  if note == nil then
-    return
-  end
-  local info = note:status(update_backlinks)
-  if info == nil then
-    return
-  end
-  local footer_format = Obsidian.opts.footer.format ---@cast footer_format -nil
-  for k, v in pairs(info) do
-    footer_format = footer_format:gsub("{{" .. k .. "}}", v)
-  end
-  local row0 = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
-  local col0 = 0
-  local separator = Obsidian.opts.footer.separator
-  local hl_group = Obsidian.opts.footer.hl_group
-  local footer_contents = { { footer_format, hl_group } }
-  local footer_chunks
-  if separator then
-    local footer_separator = { { separator, hl_group } }
-    footer_chunks = { footer_separator, footer_contents }
-  else
-    footer_chunks = { footer_contents }
-  end
-  local opts = { virt_lines = footer_chunks }
-  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
-  vim.api.nvim_buf_set_extmark(buf, ns_id, row0, col0, opts)
+  -- TODO: log in the future to a log file
+  local _, _ = pcall(function()
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    local note = obsidian.Note.from_buffer(buf)
+    if note == nil then
+      return
+    end
+    local info = note:status(update_backlinks)
+    if info == nil then
+      return
+    end
+    local footer_format = Obsidian.opts.footer.format ---@cast footer_format -nil
+    for k, v in pairs(info) do
+      footer_format = footer_format:gsub("{{" .. k .. "}}", v)
+    end
+    local row0 = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
+    local col0 = 0
+    local separator = Obsidian.opts.footer.separator
+    local hl_group = Obsidian.opts.footer.hl_group
+    local footer_contents = { { footer_format, hl_group } }
+    local footer_chunks
+    if separator then
+      local footer_separator = { { separator, hl_group } }
+      footer_chunks = { footer_separator, footer_contents }
+    else
+      footer_chunks = { footer_contents }
+    end
+    local opts = { virt_lines = footer_chunks }
+    vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+    vim.api.nvim_buf_set_extmark(buf, ns_id, row0, col0, opts)
+  end)
 end)
 
 vim.g.obsidian_footer_update_interval = 10000
