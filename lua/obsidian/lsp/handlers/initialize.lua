@@ -43,6 +43,9 @@ local initializeResult = {
       change = 1, -- Full
       save = true,
     },
+    codeLensProvider = {
+      resolveProvider = true,
+    },
     workspace = {
       fileOperations = {
         didRename = {
