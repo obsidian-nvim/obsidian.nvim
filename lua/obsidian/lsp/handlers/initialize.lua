@@ -26,6 +26,9 @@ local initializeResult = {
     completionProvider = {
       resolveProvider = false,
     },
+    codeLensProvider = {
+      resolveProvider = true,
+    },
     workspace = {
       fileOperations = {
         didRename = {
