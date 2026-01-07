@@ -19,6 +19,9 @@ local initializeResult = {
     definitionProvider = true,
     documentSymbolProvider = true,
     workspaceSymbolProvider = true,
+    codeLensProvider = {
+      resolveProvider = true,
+    },
     workspace = {
       fileOperations = {
         didRename = {
