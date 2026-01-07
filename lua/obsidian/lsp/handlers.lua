@@ -15,4 +15,5 @@ return {
   ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
   ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",
   ["textDocument/foldingRange"] = require "obsidian.lsp.handlers.folding_range",
+  ["textDocument/inlayHint"] = require "obsidian.lsp.handlers.inlay_hint",
 }
