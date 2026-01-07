@@ -424,7 +424,7 @@ M.new_from_template = function(id, template, callback)
 end
 
 M.add_property = function()
-  local note = assert(M.current_note(0))
+  local note = assert(api.current_note(0))
 
   -- HACK: no native way in lua
   -- TODO: complete for existing keys in vault like obsidian app
@@ -446,10 +446,31 @@ M.add_property = function()
     return log.info "Empty Input"
   end
 
+  if type(value) == "string" and vim.startswith(value, "=") then
+    local f = loadstring("return " .. value:sub(2))
+    if not f then
+      log.err "failed to eval lua value"
+      return
+    end
+    value = f()
+  end
+
   if key == "tags" then
-    note:add_tag(value)
+    if type(value) == "table" then
+      for _, tag in ipairs(value) do
+        note:add_tag(tag)
+      end
+    elseif type(value) == "string" then
+      note:add_tag(value)
+    end
   elseif key == "aliases" then
-    note:add_alias(value)
+    if type(value) == "table" then
+      for _, tag in ipairs(value) do
+        note:add_alias(tag)
+      end
+    elseif type(value) == "string" then
+      note:add_alias(value)
+    end
   else
     note:add_field(key, value)
   end
