@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Anchors will support all unicode symbols.
+- `actions.toggle_checkbox` can be mapped in visual mode.
+- `actions.add_property` to add key values to frontmatter.
+
+### Changed
+
+- Mappable actions are moved to `actions.lua`.
 
 ### Changed
 
