@@ -500,6 +500,7 @@ end
 ---@field line integer
 ---@field start integer 0-indexed
 ---@field end integer 0-indexed
+---@field type obsidian.search.RefTypes
 
 -- Gather all unique links from the a note.
 --
@@ -513,7 +514,7 @@ M.find_links = function(note)
 
   for lnum, line in vim.iter(lines):enumerate() do
     for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID", "Tag" } })) do
-      local m_start, m_end = unpack(ref_match)
+      local m_start, m_end, t = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)
       if not found[link] then
         local match = {
@@ -521,6 +522,7 @@ M.find_links = function(note)
           line = lnum,
           start = m_start - 1,
           ["end"] = m_end - 1,
+          type = t,
         }
         matches[#matches + 1] = match
         found[link] = true
