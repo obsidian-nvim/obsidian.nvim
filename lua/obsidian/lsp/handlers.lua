@@ -11,4 +11,5 @@ return {
   ["textDocument/documentSymbol"] = require "obsidian.lsp.handlers.document_symbol",
   ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
   ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",
+  ["textDocument/inlayHint"] = require "obsidian.lsp.handlers.inlay_hint",
 }
