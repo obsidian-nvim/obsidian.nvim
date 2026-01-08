@@ -10,6 +10,7 @@ local Note = require "obsidian.note"
 ---@field title string
 ---@field query string
 ---@field items obsidian.bookmark[]
+---@field url string|?
 
 ---@param items obsidian.bookmark[]
 M.pick = function(items)
@@ -57,6 +58,16 @@ local function bookmark_to_picker_entry(bookmark)
     entry.filename = tostring(Obsidian.dir / bookmark.path)
   end
 
+  if bookmark.url then
+    local preview_tmp_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(preview_tmp_buf, 0, 1, true, { bookmark.url })
+
+    entry.user_data = function()
+      vim.ui.open(bookmark.url)
+    end
+    entry.bufnr = preview_tmp_buf
+  end
+
   if bookmark.subpath then
     local ok, note = pcall(Note.from_file, entry.filename)
     if ok and note then
@@ -81,6 +92,7 @@ M._parse = function(items)
   local entries = {}
 
   for _, bookmark in ipairs(items) do
+    vim.print(Obsidian.opts.bookmarks)
     if bookmark.type == "group" and not Obsidian.opts.bookmarks.group then
       for _, bm in ipairs(bookmark.items) do
         entries[#entries + 1] = bookmark_to_picker_entry(bm)
