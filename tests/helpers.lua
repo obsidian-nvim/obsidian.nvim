@@ -82,6 +82,8 @@ M.read = function(path)
 end
 
 M.mock_vault_contents = function(dir, contents)
+  local cfg_dir = dir / ".obsidian"
+  cfg_dir:mkdir()
   local files = {}
   for rel_path, content in pairs(contents) do
     local path = dir / rel_path
