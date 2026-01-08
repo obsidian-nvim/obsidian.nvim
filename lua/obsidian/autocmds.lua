@@ -65,6 +65,10 @@ local function bufenter_callback(ev)
 
   require("obsidian.lsp").start(ev.buf)
 
+  if opts.footer.enabled then
+    require("obsidian.footer").start(ev.buf)
+  end
+
   exec_autocmds "ObsidianNoteEnter"
 end
 

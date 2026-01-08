@@ -8,7 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Fixed
-Fixed backlink searches for markdownfiles using more relaxed search terms
+Fixed backlink searches for markdownfiles using more relaxed search terms while using the position of the grep to find the correct link
+
+### Added
+
+- Anchors will support all unicode symbols.
+
+### Changed
+
+- Footer is attached by buffer, and never throws error.
+
+### Fixed
+
+- Snacks picker getting nil when picking list of strings.
+
+## [v3.15.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.3) - 2026-01-03
+
+### Fixed
+
+- Properly deprecate old follow options without error.
 
 ## [v3.15.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.2) - 2026-01-02
 
@@ -19,8 +37,9 @@ Fixed backlink searches for markdownfiles using more relaxed search terms
 
 ## Fixed
 
-- `Footer`'s backlink count will be updated more lazily, by a counter controled by `vim.g.obsidian_footer_update_interval`. (temporary solution before we have a cache system)
+- `Footer`'s backlink count will be updated more lazily, by a counter controlled by `vim.g.obsidian_footer_update_interval`. (temporary solution before we have a cache system)
 - New note completion not getting correct label due to previous refactor.
+- Dailies picker order reversed by previous refactor.
 
 ## [v3.15.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.1) - 2025-12-31
 

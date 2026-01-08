@@ -136,7 +136,7 @@ end
 M.pick = function(offset_start, offset_end, callback)
   ---@type obsidian.PickerEntry[]
   local dailies = {}
-  for offset = offset_start, offset_end, 1 do
+  for offset = offset_end, offset_start, -1 do
     local datetime = os.time() + (offset * 3600 * 24)
     local daily_note_path = M.daily_note_path(datetime)
     local daily_note_alias = tostring(os.date(Obsidian.opts.daily_notes.alias_format or "%A %B %-d, %Y", datetime))

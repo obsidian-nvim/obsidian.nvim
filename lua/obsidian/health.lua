@@ -30,7 +30,7 @@ end
 ---@private
 ---@param name string
 local function start(name)
-  vim.health.start(string.format("obsidian.nvim [%s]", name))
+  vim.health.start(string.format("[%s]", name))
 end
 
 ---@param plugin string

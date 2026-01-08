@@ -55,7 +55,7 @@ end
 return function(data)
   local tags = data.fargs or {}
 
-  local workspace = api.find_workspace(vim.api.nvim_buf_get_name(0))
+  local workspace = api.find_workspace(vim.api.nvim_buf_get_name(0)) or Obsidian.workspace
   local dir = workspace.root
 
   if vim.tbl_isempty(tags) then

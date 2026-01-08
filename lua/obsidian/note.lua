@@ -1217,12 +1217,12 @@ Note.status = function(self, update_backlink)
   status.chars = wc.visual_chars or wc.chars
   status.properties = vim.tbl_count(self:frontmatter()) -- TODO: should be zero if no frontmatter
   local path = tostring(self.path)
-  if update_backlink or backlink_cache[path] == nil then
+  if self and (update_backlink or backlink_cache[path] == nil) then -- HACK:
     local num_backlinks = #self:backlinks {}
     status.backlinks = num_backlinks
     backlink_cache[path] = num_backlinks
   else
-    status.backlinks = backlink_cache[path]
+    status.backlinks = backlink_cache[path] or 0
   end
   return status
 end

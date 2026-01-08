@@ -150,7 +150,7 @@ M.cursor_tag = function()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
   cur_col = cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
 
-  for match in iter(search.find_tags_in_string(current_line)) do
+  for _, match in ipairs(util.parse_tags(current_line)) do
     local open, close, _ = unpack(match)
     if open <= cur_col and cur_col <= close then
       return string.sub(current_line, open + 1, close)

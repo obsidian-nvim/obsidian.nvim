@@ -706,40 +706,6 @@ M.find_backlinks_async = function(note, callback, opts)
 
   vim.list_extend(results, get_in_note_backlink(note, block or anchor))
 
-  --   ---@param match MatchData
-  --   local _on_match = function(match)
-  --     local path = Path.new(match.path.text):resolve { strict = true }
-  --     local line_text = util.rstrip_whitespace(match.lines.text)
-  --     if anchor then
-  --       -- Check for a match with the anchor.
-  --       -- NOTE: no need to do this with blocks, since blocks are standardized.
-  --       local link_location, _, _ = util.parse_link(line_text)
-  --       -- local match_text = string.sub(match.lines.text, match.submatches[1].start)
-  --       -- local link_location = util.parse_link(match_text)
-  --       if not link_location then
-  --         log.error("Failed to parse reference from '%s' ('%s')", line_text, match)
-  --         return
-  --       end
-  --       local _, matched_anchor = util.strip_anchor_links(link_location)
-  --       if not matched_anchor then
-  --         return
-  --       end
-  --       if matched_anchor ~= anchor and anchor_obj ~= nil then
-  --         local resolved_anchor = note:resolve_anchor_link(matched_anchor)
-  --         if resolved_anchor == nil or resolved_anchor.header ~= anchor_obj.header then
-  --           return
-  --         end
-  --       end
-  --     end
-  --     results[#results + 1] = {
-  --       path = path,
-  --       line = match.line_number,
-  --       text = util.rstrip_whitespace(match.lines.text),
-  --       start = match.submatches[1].start,
-  --       ["end"] = match.submatches[1]["end"],
-  --     }
-  --   end
-
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
     local line_text = util.rstrip_whitespace(match.lines.text)
@@ -952,7 +918,7 @@ M.find_tags_async = function(term, callback, opts)
     local n_matches = 0
 
     -- check for tag in the wild of the form '#{tag}'
-    for _, match in ipairs(M.find_tags_in_string(line)) do
+    for _, match in ipairs(util.parse_tags(line)) do
       local m_start, m_end, _ = unpack(match)
       local tag = string.sub(line, m_start + 1, m_end)
       if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
