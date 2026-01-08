@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+Fixed backlink searches for markdownfiles using more relaxed search terms while using the position of the grep to find the correct link
+
 ### Added
 
 - Anchors will support all unicode symbols.
