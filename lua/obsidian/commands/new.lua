@@ -15,7 +15,7 @@ return function(data)
     elseif id == "" then
       id = nil
     end
-    note = Note.create { id = id }
+    note = Note.create { id = id, data = { input = id } }
   end
 
   -- Open the note in a new buffer.

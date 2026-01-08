@@ -43,6 +43,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field alt_alias string|?
 ---@field bufnr integer|?
+---@field data obsidian.note.NoteOpts
 local Note = {}
 
 local load_contents = function(note)
@@ -104,12 +105,11 @@ end
 --- Generate a unique ID for a new note. This respects the user's `note_id_func` if configured,
 --- otherwise falls back to generated a Zettelkasten style ID.
 ---
---- @param base_id? string
---- @param path? obsidian.Path
---- @param id_func (fun(title: string|?, path: obsidian.Path|?): string)
+---@param opts obsidian.note.NoteOpts
+---@param id_func function TODO:
 ---@return string
-local function generate_id(base_id, path, id_func)
-  local new_id = id_func(base_id, path)
+local function generate_id(opts, id_func)
+  local new_id = id_func(opts)
   if new_id == nil or string.len(new_id) == 0 then
     error(string.format("Your 'note_id_func' must return a non-empty string, got '%s'!", tostring(new_id)))
   end
@@ -122,20 +122,19 @@ end
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 --- `note_opts.dir / (note_opts.id .. ".md")`.
 ---
----@param id string The note ID
----@param dir obsidian.Path The note path
+---@param opts obsidian.note.NoteOpts
 ---@return obsidian.Path
 ---@private
-Note._generate_path = function(id, dir)
+Note._generate_path = function(opts)
   ---@type obsidian.Path
   local path
 
-  path = Path.new(Obsidian.opts.note_path_func { id = id, dir = dir })
+  path = Path.new(Obsidian.opts.note_path_func(opts))
 
   -- NOTE: `opts.dir` should always be absolute, but for extra safety we handle the case where
-  if not path:is_absolute() and (dir:is_absolute() or not dir:is_parent_of(path)) then
-    path = dir / path
-  end
+  -- if not path:is_absolute() and (dir:is_absolute() or not dir:is_parent_of(path)) then
+  --   path = dir / path
+  -- end
 
   -- Ensure there is only one ".md" suffix. This might arise if `note_path_func`
   -- supplies an unusual implementation returning something like /bad/note/id.md.md.md
@@ -266,13 +265,15 @@ Note._resolve_id_path = function(opts)
 
   -- Apply id transform
   if not (opts.verbatim and id) then
-    id = generate_id(id, base_dir, creation_opts.note_id_func)
+    -- id = generate_id(id, base_dir, creation_opts.note_id_func)
+    opts.dir = base_dir
+    id = generate_id(opts, creation_opts.note_id_func)
   end
 
   dir = base_dir
 
   -- Generate path.
-  local path = Note._generate_path(id, dir)
+  local path = Note._generate_path(opts)
 
   return id, path
 end
@@ -285,10 +286,7 @@ Note.create = function(opts)
   local new_id, path = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
-  -- Add the title as an alias.
-  --- @type string[]
-  local aliases = opts.aliases
-  local note = Note.new(new_id, aliases, opts.tags, path)
+  local note = Note.new(new_id, opts.aliases, opts.tags, path, opts)
 
   -- Ensure the parent directory exists.
   local parent = path:parent()
@@ -311,8 +309,9 @@ end
 --- @param aliases string[]
 --- @param tags string[]
 --- @param path string|obsidian.Path|?
+--- @param data obsidian.note.NoteOpts
 --- @return obsidian.Note
-Note.new = function(id, aliases, tags, path)
+Note.new = function(id, aliases, tags, path, data)
   local self = {}
   self.id = id
   self.aliases = aliases and aliases or {}
@@ -321,6 +320,7 @@ Note.new = function(id, aliases, tags, path)
   self.metadata = nil
   self.has_frontmatter = nil
   self.frontmatter_end_line = nil
+  self.data = data
   return setmetatable(self, Note)
 end
 

@@ -5,7 +5,7 @@ local util = require "obsidian.util"
 ---Create a new unique Zettel ID.
 ---
 ---@return string
-M.zettel_id = function()
+M.zettel_id = function(opts)
   local suffix = ""
   for _ = 1, 4 do
     suffix = suffix .. string.char(math.random(65, 90))
