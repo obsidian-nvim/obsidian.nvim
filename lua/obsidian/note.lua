@@ -118,6 +118,8 @@ local function generate_id(opts, id_func)
   return new_id
 end
 
+Note._generate_id = generate_id
+
 --- Generate the file path for a new note given its ID, parent directory, and title.
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 --- `note_opts.dir / (note_opts.id .. ".md")`.

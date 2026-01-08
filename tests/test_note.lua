@@ -294,22 +294,44 @@ T["_get_note_creation_opts"]["should load customizations for existing template"]
   eq(spec.note_id_func, zettelConfig.note_id_func)
 end
 
-T["new_note_path"] = new_set()
+T["_generate_path"] = new_set()
 
-T["new_note_path"]['should only append one ".md" at the end of the path'] = function()
+T["_generate_path"]['should only append one ".md" at the end of the path'] = function()
   Obsidian.opts.note_path_func = function(spec)
     return (spec.dir / "foo-bar-123"):with_suffix ".md.md.md"
   end
 
   -- Okay to set `id` and `dir` to default values because `note_path_func` is set
-  local path = M._generate_path("", Path:new())
-  eq(Path:new() / "foo-bar-123.md", path) -- TODO: ?
+  -- local path = M._generate_path("", Path:new())
+  local path = M._generate_path { id = "", dir = Path:new() }
+  eq(Path:new() / "foo-bar-123.md", path)
+end
+
+T["_generate_id"] = new_set()
+
+T["_generate_id"]["apply note.id func"] = function()
+  eq(
+    "id",
+    M._generate_id({}, function()
+      return "id"
+    end)
+  )
+end
+
+T["_generate_id"]["cleanup suffix"] = function()
+  eq(
+    "id",
+    M._generate_id({}, function()
+      return "id.md"
+    end)
+  )
 end
 
 T["resolve_id_path"] = new_set {
   hooks = {
     pre_case = function()
-      Obsidian.opts.note_id_func = function(id)
+      Obsidian.opts.note_id_func = function(opts)
+        local id = opts.id
         if not id then
           id = ""
           for _ = 1, 4 do
