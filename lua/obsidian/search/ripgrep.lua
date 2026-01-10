@@ -135,6 +135,7 @@ M.build_find_cmd = function(path, term, opts)
   local additional_opts = {}
 
   if term ~= nil then
+    term = escape_rg_glob(term)
     if opts.include_non_markdown then
       term = "*" .. term .. "*"
     elseif not vim.endswith(term, ".md") then
@@ -143,7 +144,7 @@ M.build_find_cmd = function(path, term, opts)
       term = "*" .. term
     end
     additional_opts[#additional_opts + 1] = "-g"
-    additional_opts[#additional_opts + 1] = escape_rg_glob(term)
+    additional_opts[#additional_opts + 1] = term
   end
 
   if opts.ignore_case then
