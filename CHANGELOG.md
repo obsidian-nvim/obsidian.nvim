@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 Fixed backlink searches for markdownfiles using more relaxed search terms while using the position of the grep to find the correct link
+
 ## [v3.15.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.4) - 2026-01-10
 
 ### Added
