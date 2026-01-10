@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Snacks picker getting nil when picking list of strings.
+- Incorrect ripgrep glob escaping that makes some files not found.
 
 ## [v3.15.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.3) - 2026-01-03
 
@@ -32,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `definition` will by default open any attachment of filetypes that obsidian app supports with default system open application.
 - LSP rename now reports no-op/duplicate names.
 
-## Fixed
+### Fixed
 
 - `Footer`'s backlink count will be updated more lazily, by a counter controlled by `vim.g.obsidian_footer_update_interval`. (temporary solution before we have a cache system)
 - New note completion not getting correct label due to previous refactor.
