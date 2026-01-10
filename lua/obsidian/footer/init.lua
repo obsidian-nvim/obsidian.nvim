@@ -68,11 +68,12 @@ local update_footer = vim.schedule_wrap(function(buf, update_backlinks)
 end)
 
 M.start = function(buf)
-  local group = vim.api.nvim_create_augroup("obsidian.footer-" .. buf, {})
   if attached_bufs[buf] then
     return
   end
-  local id = vim.api.nvim_create_autocmd({
+  local group = vim.api.nvim_create_augroup("obsidian.footer-" .. buf, {})
+
+  vim.api.nvim_create_autocmd({
     "FileChangedShellPost",
     "TextChanged",
     "TextChangedI",
@@ -102,7 +103,7 @@ M.start = function(buf)
   end)
 
   timers[buf] = timer
-  attached_bufs[buf] = id
+  attached_bufs[buf] = true
 
   vim.api.nvim_create_autocmd({
     "BufWipeout",
