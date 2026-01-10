@@ -91,11 +91,6 @@ obsidian.setup = function(user_opts)
     obsidian.commands.install_legacy()
   end
 
-  --- TODO: remove in 4.0.0
-  if opts.statusline.enabled then
-    require("obsidian.statusline").start()
-  end
-
   -- Register completion sources, providers
   if opts.completion.nvim_cmp then
     require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()

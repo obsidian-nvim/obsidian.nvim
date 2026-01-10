@@ -212,7 +212,11 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   end
 
   if opts.statusline and opts.statusline.enabled then
-    deprecate("statusline.{enabled,format} and vim.g.obsidian", "footer.{enabled,format}", "4.0")
+    deprecate(
+      "statusline.{enabled,format} and vim.g.obsidian",
+      "footer.{enabled,format}, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Statusline",
+      "4.0"
+    )
   end
 
   if opts.note_frontmatter_func then

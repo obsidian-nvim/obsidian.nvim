@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Export footer content as a buffer local variable `vim.b.obsidian_status`.
+
 ## [v3.15.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.4) - 2026-01-10
 
 ### Added
