@@ -122,6 +122,21 @@ T["dump"]["dump with custom order function"] = function()
   eq(expected, lines)
 end
 
+T["dump"]["dump attribute with null values"] = function()
+  local lines = M.dump({ id = "id", aliases = {}, tags = {}, random = vim.NIL }, { "id", "aliases", "tags", "random" })
+
+  local expected = {
+    "---",
+    "id: id",
+    "aliases: []",
+    "tags: []",
+    "random:",
+    "---",
+  }
+
+  eq(expected, lines)
+end
+
 T["parse"] = function()
   local lines = {
     "id: id",

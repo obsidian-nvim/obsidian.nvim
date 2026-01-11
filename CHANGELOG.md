@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Snacks picker getting nil when picking list of strings.
 - Incorrect ripgrep glob escaping that makes some files not found.
+- Frontmatter entries are no longer deleted on save if the value is nil.
 
 ## [v3.15.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.3) - 2026-01-03
 
