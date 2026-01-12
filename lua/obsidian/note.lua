@@ -48,6 +48,9 @@ local Note = {}
 local load_contents = function(note)
   local contents = {}
   local path = tostring(rawget(note, "path"))
+  if not vim.uv.fs_stat(path) then
+    return { "uncreated note" }
+  end
   for line in io.lines(path) do
     table.insert(contents, line)
   end
@@ -335,6 +338,10 @@ Note.display_info = function(self, opts)
   -- TODO: args
 
   local lines = self:frontmatter_lines {}
+
+  lines = vim.tbl_filter(function(line)
+    return not Note._is_frontmatter_boundary(line)
+  end, lines)
   return table.concat(lines, "\n")
 end
 
