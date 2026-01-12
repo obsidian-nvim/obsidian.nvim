@@ -37,7 +37,7 @@ _This plugin is not meant to replace Obsidian, but to complement it._ The Obsidi
 
 ## 🍴 About the fork
 
-The original project has not been actively maintained for quite a while and with the ever-changing Neovim ecosystem, new widely used tools such as [blink.cmp](https://github.com/Saghen/blink.cmp) or [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) were not supported.
+The original project has not been actively maintained for quite a while and with the ever-changing Neovim ecosystem, new widely used tools such as [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) were not supported.
 
 With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
 
@@ -48,7 +48,7 @@ With bugs, issues and pull requests piling up, people from the community decided
 
 ## ⭐ Features
 
-▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki links, `[` for markdown links, or `#` for tags)
+▶️ **Completion:** Fast, asynchronous autocompletion for note references and tags via LSP completion (triggered by typing `[[` for wiki links, `[` for markdown links, or `#` for tags)
 
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
@@ -139,11 +139,6 @@ There's one entry point user command for this plugin: `Obsidian`
 ### Plugin dependencies
 
 There's no required dependency, but there are a number of optional dependencies that enhance the obsidian.nvim experience.
-
-**Completion:**
-
-- [blink.cmp](https://github.com/Saghen/blink.cmp)
-- [nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
 
 **Pickers:**
 

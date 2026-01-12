@@ -7,6 +7,7 @@ return setmetatable({
   [ms.textDocument_references] = require "obsidian.lsp.handlers.references",
   [ms.textDocument_definition] = require "obsidian.lsp.handlers.definition",
   [ms.textDocument_documentSymbol] = require "obsidian.lsp.handlers.document_symbol",
+  [ms.textDocument_completion] = require "obsidian.lsp.handlers.completion",
 }, {
   __index = function(_, _)
     return function() end
