@@ -1,54 +1,63 @@
 local MiniTest = require "mini.test"
-local Helpers = MiniTest.new_helper()
 local Obsidian = require "obsidian"
 
-local T = MiniTest.new_set {
-  hooks = {
-    pre_case = function()
-      -- create temporary vault
-      Helpers.temp_dir = vim.fn.tempname()
-      vim.fn.mkdir(Helpers.temp_dir, "p")
+local T = MiniTest.new_set()
 
-      -- target note
-      local a_md = table.concat({
-        "# A",
-        "## Section",
-        "Paragraph with block ^block-id",
-        "==highlighted text==",
-        "## test",
-      }, "\n")
-      Helpers.write_file(Helpers.temp_dir .. "/A.md", a_md)
+local Helpers = {}
 
-      -- source note with all types + anchors + multiple links per line
-      local b_md = table.concat({
-        "[[A]] [[A|Alias]] [A](A.md)",
-        "[A test](A.md#test) [Another](A.md#Section)",
-        "https://example.com/A.md file:///vault/A.md mailto:test@example.com",
-        "#A ^block-id ==highlighted text==",
-        "[[A#Section]] [[A#^block-id]]",
-        "Multiple links on one line: [[A]] [md](A.md#test) [[A#Section]]",
-      }, "\n")
-      Helpers.write_file(Helpers.temp_dir .. "/B.md", b_md)
+function Helpers.write_file(path, content)
+  vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
+  vim.fn.writefile(vim.split(content, "\n"), path)
+end
 
-      -- obsidian.nvim setup with required workspaces
-      Obsidian.setup {
-        workspaces = {
-          { name = "test", path = Helpers.temp_dir },
-        },
-        disable_frontmatter = true,
-      }
+-- Hooks
 
-      -- index vault for backlinks
-      Obsidian.get_client():scan()
-    end,
+T.hooks = {
+  pre_case = function()
+    -- create temporary vault
+    Helpers.temp_dir = vim.fn.tempname()
+    vim.fn.mkdir(Helpers.temp_dir, "p")
 
-    post_case = function()
-      vim.fn.delete(Helpers.temp_dir, "rf")
-    end,
-  },
+    -- target note
+    local a_md = table.concat({
+      "# A",
+      "## Section",
+      "Paragraph with block ^block-id",
+      "==highlighted text==",
+      "## test",
+    }, "\n")
+    Helpers.write_file(Helpers.temp_dir .. "/A.md", a_md)
+
+    -- source note with all types + anchors + multiple links per line
+    local b_md = table.concat({
+      "[[A]] [[A|Alias]] [A](A.md)",
+      "[A test](A.md#test) [Another](A.md#Section)",
+      "https://example.com/A.md file:///vault/A.md mailto:test@example.com",
+      "#A ^block-id ==highlighted text==",
+      "[[A#Section]] [[A#^block-id]]",
+      "Multiple links on one line: [[A]] [md](A.md#test) [[A#Section]]",
+    }, "\n")
+    Helpers.write_file(Helpers.temp_dir .. "/B.md", b_md)
+
+    -- obsidian.nvim setup (workspaces REQUIRED)
+    Obsidian.setup {
+      workspaces = {
+        { name = "test", path = Helpers.temp_dir },
+      },
+      disable_frontmatter = true,
+    }
+
+    -- index vault for backlinks
+    Obsidian.get_client():scan()
+  end,
+
+  post_case = function()
+    vim.fn.delete(Helpers.temp_dir, "rf")
+  end,
 }
 
--- Helper: check if backlinks contain a type + optional anchor
+-- Utility: check backlinks
+
 local function has(backlinks, opts)
   for _, m in ipairs(backlinks) do
     local ok = true
@@ -65,10 +74,12 @@ local function has(backlinks, opts)
   return false
 end
 
--- Test 1: All ref types exist
+-- Tests
+
 T["detects all RefTypes"] = function()
   local noteA = Obsidian.get_client():find_note "A"
   assert(noteA ~= nil, "No Note A Found")
+
   local backlinks = noteA:backlinks()
 
   local expected = {
@@ -90,7 +101,6 @@ T["detects all RefTypes"] = function()
   end
 end
 
--- Test 2: Anchors work for wiki and markdown links
 T["anchor filtering works"] = function()
   local noteA = Obsidian.get_client():find_note "A"
 
@@ -109,13 +119,13 @@ T["anchor filtering works"] = function()
   -- Markdown anchor 'test'
   local test_links = noteA:backlinks { anchor = "test" }
   assert(#test_links == 2, "Expected 2 links to 'test' anchor")
+
   for _, m in ipairs(test_links) do
     assert(m.ref.anchor == "test", "Anchor mismatch: " .. tostring(m.ref.anchor))
     assert(m.ref.type == "Markdown", "Expected Markdown type for test anchor")
   end
 end
 
--- Test 3: Multiple links on the same line produce multiple backlinks
 T["multiple links per line"] = function()
   local noteA = Obsidian.get_client():find_note "A"
   local backlinks = noteA:backlinks()
