@@ -107,11 +107,6 @@ local function escape_rg_glob(s)
     return map[ch]
   end)
 
-  -- Leading '!' is glob negation
-  if s:sub(1, 1) == "!" then
-    s = "[!]" .. s:sub(2)
-  end
-
   return s
 end
 
