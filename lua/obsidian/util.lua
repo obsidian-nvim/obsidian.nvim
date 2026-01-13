@@ -280,8 +280,8 @@ util.parse_link = function(link, opts)
 
   local link_location, link_name
   if link_type == "Markdown" then
-    link_location = link:gsub("^%[(.-)%]%((.*)%)$", "%2")
-    link_name = link:gsub("^%[(.-)%]%((.*)%)$", "%1")
+    link_name = link:match "%[(.-)%]"
+    link_location = link:match "%((.-)%)"
   elseif link_type == "NakedUrl" or link_type == "FileUrl" or link_type == "MailtoUrl" then
     link_location = link
     link_name = link
