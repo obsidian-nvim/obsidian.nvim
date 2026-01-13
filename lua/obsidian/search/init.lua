@@ -681,7 +681,8 @@ M.find_backlinks_async = function(note, callback, opts)
     local path = Path.new(match.path.text):resolve { strict = true }
     local line_text = util.rstrip_whitespace(match.lines.text)
     if anchor or block then
-      local ref_text, ref_type = find_ref_at_position(line_text, match.submatches[1].start, match.submatches[1]["end"])
+      local ref_text, ref_type =
+        M.find_ref_at_position(line_text, match.submatches[1].start, match.submatches[1]["end"])
       if not ref_text then
         return
       end
