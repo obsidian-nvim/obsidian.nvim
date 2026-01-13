@@ -68,7 +68,7 @@ end
 -- Test 1: All ref types exist
 T["detects all RefTypes"] = function()
   local noteA = Obsidian.get_client():find_note "A"
-  assert(noteA ~= nil)
+  assert(noteA ~= nil, "No Note A Found")
   local backlinks = noteA:backlinks()
 
   local expected = {
