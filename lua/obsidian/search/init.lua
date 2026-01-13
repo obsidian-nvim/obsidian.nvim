@@ -166,6 +166,23 @@ M.find_refs = function(s, opts)
   return M.find_matches(s, pattern_names)
 end
 
+-- Finds the correct link in a line given a grep position
+---@param line string
+---@param match_start integer
+---@param match_end integer
+---@return string|nil, obsidian.search.RefTypes|nil
+M.find_ref_at_position = function(line, match_start, match_end)
+  for _, ref in ipairs(M.find_refs(line, { exclude = { "Tag" } })) do
+    local ref_start, ref_end, ref_type = unpack(ref)
+
+    if ref_start <= match_end and ref_end >= match_start then
+      return line:sub(ref_start, ref_end), ref_type
+    end
+  end
+
+  return nil
+end
+
 --- Find all code block boundaries in a list of lines.
 ---
 ---@param lines string[]
@@ -659,25 +676,30 @@ M.find_backlinks_async = function(note, callback, opts)
   vim.list_extend(results, get_in_note_backlink(note, block or anchor))
 
   ---@param match MatchData
+
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
-    if anchor then
-      -- Check for a match with the anchor.
-      -- NOTE: no need to do this with blocks, since blocks are standardized.
-      local match_text = string.sub(match.lines.text, match.submatches[1].start)
-      local link_location = util.parse_link(match_text)
+    local line_text = util.rstrip_whitespace(match.lines.text)
+    if anchor or block then
+      local ref_text, ref_type = find_ref_at_position(line_text, match.submatches[1].start, match.submatches[1]["end"])
+      if not ref_text then
+        return
+      end
+      local link_location = util.parse_link(ref_text, { link_type = ref_type })
       if not link_location then
-        log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
         return
       end
       local _, matched_anchor = util.strip_anchor_links(link_location)
-      if not matched_anchor then
-        return
-      end
-      if matched_anchor ~= anchor and anchor_obj ~= nil then
-        local resolved_anchor = note:resolve_anchor_link(matched_anchor)
-        if resolved_anchor == nil or resolved_anchor.header ~= anchor_obj.header then
+      if anchor then
+        if not matched_anchor then
           return
+        end
+        if matched_anchor ~= anchor and anchor_obj ~= nil then
+          local resolved = note:resolve_anchor_link(matched_anchor)
+
+          if not resolved or resolved.header ~= anchor_obj.header then
+            return
+          end
         end
       end
     end
@@ -685,11 +707,12 @@ M.find_backlinks_async = function(note, callback, opts)
     results[#results + 1] = {
       path = path,
       line = match.line_number,
-      text = util.rstrip_whitespace(match.lines.text),
-      start = submatch and submatch.start,
-      ["end"] = submatch and submatch["end"],
+      text = line_text,
+      start = match.submatches[1].start,
+      ["end"] = match.submatches[1]["end"],
     }
   end
+
   M.search_async(
     dir,
     build_backlink_search_term(note, anchor, block),
