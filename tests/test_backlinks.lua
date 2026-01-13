@@ -44,7 +44,7 @@ T.hooks = {
     -- 2. Setup Obsidian
     Obsidian.setup {
       workspaces = { { name = "test", path = temp_dir } },
-      templates = { subdir = "templates" },
+      templates = { subdir = "/templates" },
       disable_frontmatter = true,
     }
 
