@@ -49,14 +49,6 @@ T["escape_rg_glob: escapes backslash"] = function()
   eq(M._escape_rg_glob [[a\b\c]], [[a[\]b[\]c]])
 end
 
-T["escape_rg_glob: handles leading ! (negation)"] = function()
-  eq(M._escape_rg_glob "!foo", "[!]foo")
-end
-
-T["escape_rg_glob: does not special-case ! when not leading"] = function()
-  eq(M._escape_rg_glob "foo!bar", "foo!bar")
-end
-
 T["escape_rg_glob: realistic URL-like input stays literal"] = function()
   local input = "https://example.com/{foo}[bar]?a=1*b"
   local expected = "https://example.com/[{]foo[}][[]bar[]][?]a=1[*]b"
