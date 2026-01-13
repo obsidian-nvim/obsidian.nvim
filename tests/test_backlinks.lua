@@ -1,7 +1,10 @@
 local MiniTest = require "mini.test"
 local Obsidian = require "obsidian"
+local api = require "obsidian.api"
 
 local T = MiniTest.new_set()
+
+-- Local helpers (mini.test provides none)
 
 local Helpers = {}
 
@@ -28,7 +31,7 @@ T.hooks = {
     }, "\n")
     Helpers.write_file(Helpers.temp_dir .. "/A.md", a_md)
 
-    -- source note with all types + anchors + multiple links per line
+    -- source note with all link types, anchors, and multiple links per line
     local b_md = table.concat({
       "[[A]] [[A|Alias]] [A](A.md)",
       "[A test](A.md#test) [Another](A.md#Section)",
@@ -49,6 +52,9 @@ T.hooks = {
 
     -- index vault for backlinks
     Obsidian.get_client():scan()
+
+    -- open target note (required for api.current_note)
+    vim.cmd.edit(Helpers.temp_dir .. "/A.md")
   end,
 
   post_case = function()
@@ -77,8 +83,10 @@ end
 -- Tests
 
 T["detects all RefTypes"] = function()
-  local noteA = Obsidian.get_client():find_note "A"
-  assert(noteA ~= nil, "No Note A Found")
+  local noteA = api.current_note(0, {
+    collect_anchor_links = true,
+  })
+  assert(noteA ~= nil, "No current Obsidian note")
 
   local backlinks = noteA:backlinks()
 
@@ -102,9 +110,12 @@ T["detects all RefTypes"] = function()
 end
 
 T["anchor filtering works"] = function()
-  local noteA = Obsidian.get_client():find_note "A"
+  local noteA = api.current_note(0, {
+    collect_anchor_links = true,
+  })
+  assert(noteA ~= nil, "No current Obsidian note")
 
-  -- Header anchor Section (wiki + markdown)
+  -- Header anchor: Section (wiki + markdown)
   local section_links = noteA:backlinks { anchor = "Section" }
   assert(#section_links == 3, "Expected 3 links to Section")
 
@@ -116,18 +127,22 @@ T["anchor filtering works"] = function()
     )
   end
 
-  -- Markdown anchor 'test'
+  -- Markdown anchor: test
   local test_links = noteA:backlinks { anchor = "test" }
   assert(#test_links == 2, "Expected 2 links to 'test' anchor")
 
   for _, m in ipairs(test_links) do
     assert(m.ref.anchor == "test", "Anchor mismatch: " .. tostring(m.ref.anchor))
-    assert(m.ref.type == "Markdown", "Expected Markdown type for test anchor")
+    assert(m.ref.type == "Markdown", "Expected Markdown ref type")
   end
 end
 
 T["multiple links per line"] = function()
-  local noteA = Obsidian.get_client():find_note "A"
+  local noteA = api.current_note(0, {
+    collect_anchor_links = true,
+  })
+  assert(noteA ~= nil, "No current Obsidian note")
+
   local backlinks = noteA:backlinks()
 
   local by_line = {}
