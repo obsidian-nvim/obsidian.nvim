@@ -71,4 +71,30 @@ end, {})
   eq(res[2].line, 7) -- 1-indexed
 end
 
+
+T["should ignore other frontmatter fields that look like tags"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "frontmatter_test.md")
+  local file = [==[
+---
+tags:
+  - real-tag
+Other Field:
+  - not-a-tag
+---
+]==]
+  vim.fn.writefile(vim.split(file, "\n"), filepath)
+  
+  child.lua [[
+local search = require"obsidian.search"
+search.find_tags_async("", function(res)
+   _G.res = res
+end, {})
+  ]]
+  vim.uv.sleep(100)
+  local res = child.lua_get [[res]]
+
+  eq(#res, 1)
+  eq(res[1].tag, "real-tag")
+end
 return T

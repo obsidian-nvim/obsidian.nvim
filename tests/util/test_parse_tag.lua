@@ -74,4 +74,19 @@ T["should find non-English tags"] = function()
   eq(1, #M.parse_tags "#项目_计划")
 end
 
+
+T["should ignore tags in backticks"] = function()
+  local s = "`#not-a-tag` and #real-tag"
+  eq({ { 16, 25, "Tag" } }, M.parse_tags(s))
+end
+
+T["should ignore markdown headers"] = function()
+  local s = "### Header Not A Tag"
+  eq({}, M.parse_tags(s))
+end
+
+T["should ignore header links"] = function()
+  local s = "[[Note#Header Link]]"
+  eq({}, M.parse_tags(s))
+end
 return T

@@ -882,11 +882,27 @@ M.find_tags_async = function(term, callback, opts)
       and note.has_frontmatter
       and match_data.line_number < note.frontmatter_end_line
       and note.tags ~= nil
-      and (vim.startswith(line, "tags:") or string.match(line, "%s*- "))
     then
-      local tag = vim.trim(string.sub(line, 3)) -- HACK: works because we force '  - tag'
-      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
-        add_match(tag, path, note, match_data.line_number, line)
+      local tag
+      if vim.startswith(line, "tags:") then
+        tag = vim.trim(string.sub(line, 6))
+      elseif string.match(line, "^%s*- ") then
+        tag = vim.trim(string.sub(line, 3))
+      end
+
+      if tag then
+        -- Verify this tag actually exists in the note's parsed tags
+        local is_real_tag = false
+        for _, t in ipairs(note.tags) do
+          if t == tag then
+            is_real_tag = true
+            break
+          end
+        end
+
+        if is_real_tag and string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
+          add_match(tag, path, note, match_data.line_number, line)
+        end
       end
     end
   end

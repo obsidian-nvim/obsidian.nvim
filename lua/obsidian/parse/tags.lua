@@ -1,6 +1,7 @@
 local lpeg = vim.lpeg
 local P, R, S = lpeg.P, lpeg.R, lpeg.S
 local C, Cp, Ct = lpeg.C, lpeg.Cp, lpeg.Ct
+local backticked = P "`" * (P(1) - P "`")^0 * P "`"
 
 local M = {}
 
@@ -34,11 +35,12 @@ local boundary = (utf8_char - keyword_prev - P "\\") * core
 local tag_at_bol = P(function(_, i)
   return i == 1 and i or nil
 end) * core
-local one_tag = tag_at_bol + boundary
+local header = P("#") ^ 1 * P(" ") -- markdown headers
+local one_tag = (tag_at_bol + boundary) * -S(" ")
 
 -- Find all occurrences anywhere in the line:
 -- (skip 1 UTF-8 char at a time until a match is found; repeat)
-local all_tags = Ct(((utf8_char - one_tag) ^ 0 * one_tag) ^ 0)
+local all_tags = Ct(((backticked + header + utf8_char - one_tag) ^ 0 * one_tag) ^ 0)
 
 --- Find Obsidian-style tags in a markdown line (Unicode-safe).
 --- UTF-8 indices are 0-based and end-exclusive.
