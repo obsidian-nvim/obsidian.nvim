@@ -13,13 +13,15 @@ local function notes_mappings(mapping)
     local opts = { win = { input = { keys = {} } }, actions = {} }
     for k, v in pairs(mapping) do
       local name = string.gsub(v.desc, " ", "_")
-      opts.win.input.keys = {
-        [k] = { name, mode = { "n", "i" }, desc = v.desc },
-      }
+      opts.win.input.keys[k] = { name, mode = { "n", "i" }, desc = v.desc }
       opts.actions[name] = function(picker, item)
         picker:close()
+        local entry = {
+          filename = item._path,
+          user_data = item.user_data or item.value or item.text,
+        }
         vim.schedule(function()
-          v.callback(item.user_data or item._path)
+          v.callback(entry)
         end)
       end
     end
