@@ -1,11 +1,19 @@
 local M = {}
 local util = require "obsidian.util"
 
+---@class obsidian.Slide
+---@field title string: The title of the slide
+---@field body string[]: The body of slide
+
+local new_slide = function()
+  return { title = "", body = {} }
+end
+
 -- Remove only lines before the first line with content (whitespace-only counts as empty).
 local clean_slide = function(slide)
   local first = nil
   for i, line in ipairs(slide.body) do
-    if line:match "%S" then -- has some non-whitespace
+    if line:match "%S" then
       first = i
       break
     end
@@ -27,38 +35,51 @@ local clean_slide = function(slide)
   return slide
 end
 
-local new_slide = function()
-  return { title = "", body = {} }
-end
+-- Strip Obsidian markdown comments (%%...%%) and HTML comments (<!--...-->).
+-- If the result is empty/whitespace-only, returns nil to indicate "drop line".
+local strip_comments = function(line)
+  if not line then
+    return nil
+  end
 
----@class present.Slide
----@field title string: The title of the slide
----@field body string[]: The body of slide
+  -- remove %%...%% (non-greedy, same-line)
+  line = line:gsub("%%%%.-%%%%", "")
+
+  -- remove <!--...--> (non-greedy, same-line)
+  line = line:gsub("<!%-%-.-%-%->", "")
+
+  -- collapse edges (optional; helps decide drop-line accurately)
+  line = line:gsub("%s*$", "")
+
+  return line
+end
 
 --- Takes some lines and parses them
 ---@param lines string[]: The lines in the buffer
----@return present.Slide[]
+---@return obsidian.Slide[]
 M.parse = function(lines)
   local slides = {}
-
   local current_slide = new_slide()
 
-  for _, line in ipairs(lines) do
-    if line == "---" then
+  for _, raw in ipairs(lines) do
+    if raw == "---" then
       slides[#slides + 1] = clean_slide(current_slide)
       current_slide = new_slide()
     else
-      line = line:gsub("%s*$", "")
+      local line = strip_comments(raw)
 
-      if current_slide.title == "" and util.is_header(line) then
-        current_slide.title = line
-      else
-        current_slide.body[#current_slide.body + 1] = line
+      -- drop line if it was only comments/whitespace
+      if line then
+        if current_slide.title == "" and util.is_header(line) then
+          current_slide.title = line
+        else
+          current_slide.body[#current_slide.body + 1] = line
+        end
       end
     end
   end
-  slides[#slides + 1] = clean_slide(current_slide)
 
+  slides[#slides + 1] = clean_slide(current_slide)
   return slides
 end
 
