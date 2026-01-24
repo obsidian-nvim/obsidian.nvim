@@ -1,3 +1,13 @@
+--- Get the path to where a plugin is installed.
+---
+---@param name string
+---@return string|?
+local get_src_root = function(name)
+  return vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
+    return vim.endswith(path, name)
+  end)
+end
+
 ---@type obsidian.config.Internal
 return {
   -- TODO: remove these in 4.0.0
@@ -30,6 +40,24 @@ return {
   markdown_link_func = require("obsidian.builtin").markdown_link,
   preferred_link_style = "wiki",
   open_notes_in = "current",
+
+  ---@class obsidian.config.NoteOpts
+  ---
+  ---Default template to use, relative to template.folder or an absolute path.
+  ---The default looks like:
+  ---
+  ---```markdown
+  ------
+  ---id: {{id}}
+  ---aliases: []
+  ---tags: []
+  ------
+  ---```
+  ---
+  ---@field template string|?
+  note = {
+    template = vim.fs.joinpath(get_src_root "obsidian.nvim", "data/default_template.md"),
+  },
 
   ---@class obsidian.config.FrontmatterOpts
   ---

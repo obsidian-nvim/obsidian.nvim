@@ -63,6 +63,7 @@
 ---@field checkbox? obsidian.config.CheckboxOpts
 ---@field comment? obsidian.config.CommentOpts
 ---@field search? obsidian.config.SearchOpts
+---@field note? obsidian.config.NoteOpts
 
 ---@class obsidian.config.Internal
 ---@field dir string|?
@@ -94,3 +95,4 @@
 ---@field checkbox obsidian.config.CheckboxOpts
 ---@field comment obsidian.config.CommentOpts
 ---@field search obsidian.config.SearchOpts
+---@field note obsidian.config.NoteOpts

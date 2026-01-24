@@ -20,5 +20,7 @@ return function(data)
 
   -- Open the note in a new buffer.
   note:open { sync = true }
-  note:write_to_buffer()
+  note:write_to_buffer {
+    template = Obsidian.opts.note.template,
+  }
 end
