@@ -1,5 +1,5 @@
 ---
-id: {{id}}
+id: {{title}}
 aliases: []
 tags: []
 ---
