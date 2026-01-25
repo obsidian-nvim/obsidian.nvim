@@ -1,6 +1,8 @@
 local M = {}
 local util = require "obsidian.util"
 
+-- TODO: append referenced footnotes
+
 ---@class obsidian.Slide
 ---@field title string: The title of the slide
 ---@field body string[]: The body of slide
