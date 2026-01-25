@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Export footer content as a buffer local variable `vim.b.obsidian_status`.
 
+### Fixed
+
+- Snacks picker actions now return the correct format for `mappings.lua`.
+
 ## [v3.15.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.4) - 2026-01-10
 
 ### Added
