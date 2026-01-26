@@ -5,6 +5,29 @@ local log = obsidian.log
 local api = obsidian.api
 local Note = obsidian.Note
 
+local function get_uri_scheme(s)
+  -- scheme per RFC-ish: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+  local scheme, rest = s:match "^([%a][%w+%-%.]*):(.*)$"
+  if not scheme then
+    return nil
+  end
+
+  -- Avoid treating Windows drive letters as schemes: "C:\foo" or "C:/foo"
+  if #scheme == 1 and rest:match "^[\\/]." then
+    return nil
+  end
+
+  return scheme:lower(), rest
+end
+
+local function open_external_file(uri)
+  local choice = api.confirm(("Open external link?\n\n%s"):format(uri))
+
+  if choice == true then
+    vim.ui.open(uri)
+  end
+end
+
 ---@param location string
 ---@param name string
 ---@param callback function
@@ -44,6 +67,7 @@ handlers.NakedUrl = function(location)
 end
 
 handlers.FileUrl = function(location, _, callback)
+  --- TODO: open is it is plain text, else vim.ui.open
   callback {
     {
       uri = location,
@@ -55,36 +79,44 @@ handlers.FileUrl = function(location, _, callback)
   }
 end
 
+local function open_note_in_neovim(location, name, callback)
+  local block_link, anchor_link
+  location, block_link = util.strip_block_links(location)
+  location, anchor_link = util.strip_anchor_links(location)
+
+  local notes = search.resolve_note(location, {
+    notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
+  })
+  if vim.tbl_isempty(notes) then
+    create_new_note(location, name, callback)
+  elseif #notes == 1 then
+    callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
+  elseif #notes > 1 then
+    local locations = vim
+      .iter(notes)
+      :map(function(note)
+        return note:_location { block = block_link, anchor = anchor_link }
+      end)
+      :totable()
+    callback(locations)
+  end
+end
+
+local function open_attachment_file(location)
+  local path = api.resolve_attachment_path(location)
+  vim.ui.open(path)
+end
+
 handlers.Wiki = function(location, name, callback)
   local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
   if api.is_attachment_path(location) then
-    local path = api.resolve_attachment_path(location)
-    vim.ui.open(path)
-    return
+    open_attachment_file(location)
+  elseif get_uri_scheme(location) then
+    open_external_file(location) -- TODO: fileurl and nakedurl in here
   elseif handlers[location_type] then
     handlers[location_type](location, name, callback)
-    return
   else
-    local block_link, anchor_link
-    location, block_link = util.strip_block_links(location)
-    location, anchor_link = util.strip_anchor_links(location)
-
-    local notes = search.resolve_note(location, {
-      notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
-    })
-    if vim.tbl_isempty(notes) then
-      create_new_note(location, name, callback)
-    elseif #notes == 1 then
-      callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
-    elseif #notes > 1 then
-      local locations = vim
-        .iter(notes)
-        :map(function(note)
-          return note:_location { block = block_link, anchor = anchor_link }
-        end)
-        :totable()
-      callback(locations)
-    end
+    open_note_in_neovim(location, name, callback)
   end
 end
 

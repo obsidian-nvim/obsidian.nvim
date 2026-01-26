@@ -42,6 +42,9 @@ M.filetypes = filetypes
 ---@param location string
 ---@return boolean
 M.is_attachment_path = function(location)
+  if vim.startswith(location, "file://") then -- a file uri
+    return false
+  end
   if vim.endswith(location, ".md") then
     return false
   end
