@@ -98,11 +98,6 @@ T["rename note under cursor"] = function()
 end
 
 local referencer2_expected = [==[
----
-id: ref
-aliases: []
-tags: []
----
 
 [[new_target#^block]]
 ]==]
@@ -156,11 +151,6 @@ local special_ref_content = [==[
 ]==]
 
 local special_ref_expected = [==[
----
-id: ref
-aliases: []
-tags: []
----
 
 [[new-note]]
 ]==]
