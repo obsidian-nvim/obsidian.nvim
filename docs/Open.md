@@ -10,4 +10,5 @@
 ---@field func? fun(uri: string)
 ---
 ---URI scheme whitelist, new values are appended to this list, and URIs with schemes in this list, will not be prompted to confirm opening
+---@field schemes? string[]
 ```
