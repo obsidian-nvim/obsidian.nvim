@@ -20,11 +20,18 @@ local function get_uri_scheme(s)
   return scheme:lower(), rest
 end
 
-local function open_external_file(uri)
-  local choice = api.confirm(("Open external link?\n\n%s"):format(uri))
+local schemes = { "https", "http", "file", "mailto" }
 
-  if choice == true then
+local function open_uri(uri, scheme)
+  -- TODO: open.schemes as whitlist
+  if vim.list_contains(schemes, scheme) then
     vim.ui.open(uri)
+  else
+    local choice = api.confirm(("Open external link? %s"):format(uri))
+
+    if choice == true then
+      vim.ui.open(uri)
+    end
   end
 end
 
@@ -66,20 +73,7 @@ handlers.NakedUrl = function(location)
   return nil
 end
 
-handlers.FileUrl = function(location, _, callback)
-  --- TODO: open is it is plain text, else vim.ui.open
-  callback {
-    {
-      uri = location,
-      range = {
-        start = { line = 0, character = 0 },
-        ["end"] = { line = 0, character = 0 },
-      },
-    },
-  }
-end
-
-local function open_note_in_neovim(location, name, callback)
+local function open_note(location, name, callback)
   local block_link, anchor_link
   location, block_link = util.strip_block_links(location)
   location, anchor_link = util.strip_anchor_links(location)
@@ -102,26 +96,31 @@ local function open_note_in_neovim(location, name, callback)
   end
 end
 
-local function open_attachment_file(location)
+local function open_attachment(location)
   local path = api.resolve_attachment_path(location)
   vim.ui.open(path)
 end
 
 handlers.Wiki = function(location, name, callback)
-  local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
   if api.is_attachment_path(location) then
-    open_attachment_file(location)
-  elseif get_uri_scheme(location) then
-    open_external_file(location) -- TODO: fileurl and nakedurl in here
-  elseif handlers[location_type] then
-    handlers[location_type](location, name, callback)
+    open_attachment(location)
   else
-    open_note_in_neovim(location, name, callback)
+    open_note(location, name, callback)
   end
 end
 
 handlers.WikiWithAlias = handlers.Wiki
-handlers.Markdown = handlers.Wiki
+
+handlers.Markdown = function(location, name, callback)
+  local scheme = get_uri_scheme(location)
+  if api.is_attachment_path(location) then
+    open_attachment(location)
+  elseif scheme then
+    open_uri(location, scheme)
+  else
+    open_note(location, name, callback)
+  end
+end
 
 handlers.HeaderLink = function(location, _, callback)
   local note = api.current_note(0, { collect_anchor_links = true })
@@ -165,13 +164,9 @@ handlers.BlockLink = function(location, _, callback)
   }
 end
 
-handlers.MailtoUrl = function(location)
-  vim.ui.open(location)
-  return nil
-end
-
 return {
   follow_link = function(link, callback)
+    -- TODO: write an alternative treesitter link parser that finds, markdown link, wiki link, image embed
     local location, name, link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
     location = vim.uri_decode(location)
 
