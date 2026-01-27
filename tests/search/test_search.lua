@@ -10,20 +10,20 @@ T["find_refs"] = new_set()
 
 T["find_refs"]["should find positions of all refs"] = function()
   local s = "[[Foo]] [[foo|Bar]]"
-  MiniTest.expect.equality({ { 1, 7, "Wiki" }, { 9, 19, "WikiWithAlias" } }, M.find_refs(s))
+  eq({ { 1, 7, "Wiki" }, { 9, 19, "WikiWithAlias" } }, M.find_refs(s))
 end
 
 T["find_refs"]["should ignore refs within an inline code block"] = function()
   local s = "`[[Foo]]` [[foo|Bar]]"
-  MiniTest.expect.equality({ { 11, 21, "WikiWithAlias" } }, M.find_refs(s))
+  eq({ { 11, 21, "WikiWithAlias" } }, M.find_refs(s))
 
   s = "[nvim-cmp](https://github.com/hrsh7th/nvim-cmp) (triggered by typing `[[` for wiki links or "
     .. "just `[` for markdown links), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep)"
-  MiniTest.expect.equality({ { 1, 47, "Markdown" }, { 134, 183, "Markdown" } }, M.find_refs(s))
+  eq({ { 1, 47, "Markdown" }, { 134, 183, "Markdown" } }, M.find_refs(s))
 end
 
 T["find_refs"]["should find block IDs at the end of a line"] = function()
-  MiniTest.expect.equality({ { 14, 25, "BlockID" } }, M.find_refs "Hello World! ^hello-world")
+  eq({ { 14, 25, "BlockID" } }, M.find_refs "Hello World! ^hello-world")
 end
 
 T["find_matches"] = function()
@@ -160,7 +160,6 @@ T["find_links"], child = h.child_vault()
 T["find_links"]["should find all links in a file"] = function()
   local root = child.lua_get [[tostring(Obsidian.dir)]]
   local filepath = vim.fs.joinpath(root, "test.md")
-  -- TODO: any link protocol
   local file = [==[
 [[link]]
   https://neovim.io <- barelinks should not work
