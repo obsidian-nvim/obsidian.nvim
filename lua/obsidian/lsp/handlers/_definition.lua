@@ -113,10 +113,10 @@ handlers.WikiWithAlias = handlers.Wiki
 
 handlers.Markdown = function(location, name, callback)
   local scheme = get_uri_scheme(location)
-  if api.is_attachment_path(location) then
-    open_attachment(location)
-  elseif scheme then
+  if scheme then
     open_uri(location, scheme)
+  elseif api.is_attachment_path(location) then
+    open_attachment(location)
   else
     open_note(location, name, callback)
   end
