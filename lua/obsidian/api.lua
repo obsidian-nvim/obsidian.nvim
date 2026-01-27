@@ -87,11 +87,24 @@ end
 
 -- find workspaces of a path
 ---@param path string|obsidian.Path
----@return obsidian.Workspace
+---@return obsidian.Workspace|?
 M.find_workspace = function(path)
   return vim.iter(Obsidian.workspaces):find(function(ws)
     return M.path_is_note(path, ws)
   end)
+end
+
+---@return obsidian.Path workspace_root
+M.resolve_workspace_dir = function()
+  local ws
+  if vim.b.obsidian_buffer then
+    ws = M.find_workspace(vim.api.nvim_buf_get_name(0))
+  end
+  if ws then
+    return ws.root
+  else
+    return Obsidian.workspace.root
+  end
 end
 
 --- Get the current note from a buffer.
