@@ -10,28 +10,20 @@ T["find_refs"] = new_set()
 
 T["find_refs"]["should find positions of all refs"] = function()
   local s = "[[Foo]] [[foo|Bar]]"
-  MiniTest.expect.equality({ { 1, 7, "Wiki" }, { 9, 19, "WikiWithAlias" } }, M.find_refs(s))
+  eq({ { 1, 7, "Wiki" }, { 9, 19, "WikiWithAlias" } }, M.find_refs(s))
 end
 
 T["find_refs"]["should ignore refs within an inline code block"] = function()
   local s = "`[[Foo]]` [[foo|Bar]]"
-  MiniTest.expect.equality({ { 11, 21, "WikiWithAlias" } }, M.find_refs(s))
+  eq({ { 11, 21, "WikiWithAlias" } }, M.find_refs(s))
 
   s = "[nvim-cmp](https://github.com/hrsh7th/nvim-cmp) (triggered by typing `[[` for wiki links or "
     .. "just `[` for markdown links), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep)"
-  MiniTest.expect.equality(
-    { { 1, 47, "Markdown" }, { 134, 183, "Markdown" } },
-    M.find_refs(s, {
-      exclude = { "NakedUrl" },
-    })
-  )
+  eq({ { 1, 47, "Markdown" }, { 134, 183, "Markdown" } }, M.find_refs(s))
 end
 
 T["find_refs"]["should find block IDs at the end of a line"] = function()
-  MiniTest.expect.equality(
-    { { 14, 25, "BlockID" } },
-    M.find_refs("Hello World! ^hello-world", { include_block_ids = true })
-  )
+  eq({ { 14, 25, "BlockID" } }, M.find_refs "Hello World! ^hello-world")
 end
 
 T["find_matches"] = function()
@@ -40,9 +32,9 @@ T["find_matches"] = function()
 - <https://youtube.com@Fireship>
 - [Fireship](https://youtube.com@Fireship)
   ]],
-    { "NakedUrl" }
+    { "Markdown" }
   )
-  eq(2, #matches)
+  eq(1, #matches)
 end
 
 T["find_code_blocks"] = new_set()
@@ -168,10 +160,9 @@ T["find_links"], child = h.child_vault()
 T["find_links"]["should find all links in a file"] = function()
   local root = child.lua_get [[tostring(Obsidian.dir)]]
   local filepath = vim.fs.joinpath(root, "test.md")
-  -- TODO: any link protocol
   local file = [==[
 [[link]]
-  https://neovim.io
+  https://neovim.io <- barelinks should not work
 ]==]
   vim.fn.writefile(vim.split(file, "\n"), filepath)
   child.lua [[
@@ -188,12 +179,6 @@ _G.res = search.find_links(note, {})
       line = 1,
       link = "[[link]]",
       start = 0,
-    },
-    {
-      ["end"] = 18,
-      line = 2,
-      link = "https://neovim.io",
-      start = 2,
     },
   }, res)
 end

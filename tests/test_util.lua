@@ -22,20 +22,6 @@ T["unescape_single_backslash"]["should correctly remove single backslash"] = fun
   eq(M.unescape_single_backslash "[[foo\\|bar]]", "[[foo|bar]]")
 end
 
-T["is_url"] = new_set()
-
-T["is_url"]["should identify basic URLs"] = function()
-  eq(true, M.is_url "https://example.com")
-end
-
-T["is_url"]["should identify semantic scholar API URLS"] = function()
-  eq(true, M.is_url "https://api.semanticscholar.org/CorpusID:235829052")
-end
-
-T["is_url"]["should identify 'mailto' URLS"] = function()
-  eq(true, M.is_url "mailto:mail@domain.com")
-end
-
 T["is_checkbox"] = new_set()
 
 T["is_checkbox"]["should return true for valid checkbox list items"] = function()

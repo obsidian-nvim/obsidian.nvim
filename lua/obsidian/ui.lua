@@ -234,7 +234,7 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
-  local matches = search.find_refs(line, { exclude = { "FileUrl" } })
+  local matches = search.find_refs(line)
   for _, match in ipairs(matches) do
     local m_start, m_end, m_type = unpack(match)
     if m_type == "WikiWithAlias" then
@@ -315,7 +315,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       -- Reference of the form [yyy](xxx)
       local closing_bracket_loc = string.find(line, "]", m_start, true)
       assert(closing_bracket_loc, "")
-      local is_url = util.is_url(string.sub(line, closing_bracket_loc + 2, m_end - 1))
+      local is_uri = util.is_uri(string.sub(line, closing_bracket_loc + 2, m_end - 1))
       -- Conceal the opening '['
       marks[#marks + 1] = ExtMark.new(
         nil,
@@ -347,7 +347,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = closing_bracket_loc + 1,
-          conceal = is_url and " " or "",
+          conceal = is_uri and " " or "",
         }
       )
       -- Conceal the URL part 'xxx' with the external URL character
@@ -358,7 +358,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = m_end - 1,
-          conceal = is_url and ui_opts.external_link_icon.char or "",
+          conceal = is_uri and ui_opts.external_link_icon.char or "",
           hl_group = ui_opts.external_link_icon.hl_group,
         }
       )
@@ -370,35 +370,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = m_end,
-          conceal = is_url and " " or "",
-        }
-      )
-    elseif m_type == "NakedUrl" then
-      -- A "naked" URL is just a URL by itself, like 'https://github.com/'
-      local domain_start_loc = string.find(line, "://", m_start, true)
-      assert(domain_start_loc, "")
-      domain_start_loc = domain_start_loc + 3
-      -- Conceal the "https?://" part
-      marks[#marks + 1] = ExtMark.new(
-        nil,
-        lnum,
-        m_start - 1,
-        ExtMarkOpts.from_tbl {
-          end_row = lnum,
-          end_col = domain_start_loc - 1,
-          conceal = "",
-        }
-      )
-      -- Highlight the whole thing.
-      marks[#marks + 1] = ExtMark.new(
-        nil,
-        lnum,
-        m_start - 1,
-        ExtMarkOpts.from_tbl {
-          end_row = lnum,
-          end_col = m_end,
-          hl_group = ui_opts.reference_text.hl_group,
-          spell = false,
+          conceal = is_uri and " " or "",
         }
       )
     elseif m_type == "Tag" then

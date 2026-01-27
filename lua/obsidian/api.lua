@@ -599,7 +599,7 @@ end
 ---
 ---@return string|?, string|? (icon, hl_group) The icon and highlight group.
 M.get_icon = function(path)
-  if util.is_url(path) then
+  if util.is_uri(path) then
     local icon = ""
     local _, hl_group = M.get_icon "blah.html"
     return icon, hl_group

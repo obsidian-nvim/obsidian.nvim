@@ -5,6 +5,18 @@ local log = obsidian.log
 local api = obsidian.api
 local Note = obsidian.Note
 
+local function open_uri(uri, scheme)
+  if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
+    vim.ui.open(uri)
+  else
+    local choice = api.confirm(("Open external link? %s"):format(uri))
+
+    if choice == true then
+      vim.ui.open(uri)
+    end
+  end
+end
+
 ---@param location string
 ---@param name string
 ---@param callback function
@@ -38,58 +50,54 @@ end
 ---@type table<obsidian.search.RefTypes, function>
 local handlers = {}
 
-handlers.NakedUrl = function(location)
-  vim.ui.open(location)
-  return nil
+local function open_note(location, name, callback)
+  local block_link, anchor_link
+  location, block_link = util.strip_block_links(location)
+  location, anchor_link = util.strip_anchor_links(location)
+
+  local notes = search.resolve_note(location, {
+    notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
+  })
+  if vim.tbl_isempty(notes) then
+    create_new_note(location, name, callback)
+  elseif #notes == 1 then
+    callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
+  elseif #notes > 1 then
+    local locations = vim
+      .iter(notes)
+      :map(function(note)
+        return note:_location { block = block_link, anchor = anchor_link }
+      end)
+      :totable()
+    callback(locations)
+  end
 end
 
-handlers.FileUrl = function(location, _, callback)
-  callback {
-    {
-      uri = location,
-      range = {
-        start = { line = 0, character = 0 },
-        ["end"] = { line = 0, character = 0 },
-      },
-    },
-  }
+local function open_attachment(location)
+  local path = api.resolve_attachment_path(location)
+  vim.ui.open(path)
 end
 
 handlers.Wiki = function(location, name, callback)
-  local _, _, location_type = util.parse_link(location, { exclude = { "Tag", "BlockID" } })
   if api.is_attachment_path(location) then
-    local path = api.resolve_attachment_path(location)
-    vim.ui.open(path)
-    return
-  elseif handlers[location_type] then
-    handlers[location_type](location, name, callback)
-    return
+    open_attachment(location)
   else
-    local block_link, anchor_link
-    location, block_link = util.strip_block_links(location)
-    location, anchor_link = util.strip_anchor_links(location)
-
-    local notes = search.resolve_note(location, {
-      notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
-    })
-    if vim.tbl_isempty(notes) then
-      create_new_note(location, name, callback)
-    elseif #notes == 1 then
-      callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
-    elseif #notes > 1 then
-      local locations = vim
-        .iter(notes)
-        :map(function(note)
-          return note:_location { block = block_link, anchor = anchor_link }
-        end)
-        :totable()
-      callback(locations)
-    end
+    open_note(location, name, callback)
   end
 end
 
 handlers.WikiWithAlias = handlers.Wiki
-handlers.Markdown = handlers.Wiki
+
+handlers.Markdown = function(location, name, callback)
+  local is_uri, scheme = util.is_uri(location)
+  if is_uri then
+    open_uri(location, scheme)
+  elseif api.is_attachment_path(location) then
+    open_attachment(location)
+  else
+    open_note(location, name, callback)
+  end
+end
 
 handlers.HeaderLink = function(location, _, callback)
   local note = api.current_note(0, { collect_anchor_links = true })
@@ -133,13 +141,9 @@ handlers.BlockLink = function(location, _, callback)
   }
 end
 
-handlers.MailtoUrl = function(location)
-  vim.ui.open(location)
-  return nil
-end
-
 return {
   follow_link = function(link, callback)
+    -- TODO: write an alternative treesitter link parser that finds, markdown link, wiki link, image embed
     local location, name, link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
     location = vim.uri_decode(location)
 
