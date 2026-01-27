@@ -178,6 +178,7 @@ config.normalize = function(opts, defaults)
   end
 
   if opts.use_advanced_uri ~= nil then
+    opts.open.use_advanced_uri = opts.use_advanced_uri
     opts.use_advanced_uri = nil
     log.warn_once [[The config option 'use_advanced_uri' is deprecated, please use in `open` module instead]]
   end
