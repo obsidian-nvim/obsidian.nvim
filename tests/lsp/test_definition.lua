@@ -86,8 +86,7 @@ T["open attachment"] = function()
   end
 end
 
--- TODO: test for more schemes
-T["follow file url"] = function()
+T["follow uris"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = ([==[
 
