@@ -45,7 +45,7 @@ local tbl_override = function(defaults, overrides, list_fields)
       out[k] = nil
     elseif list_fields and list_fields[k] then
       out[k] = vim.deepcopy(defaults[k])
-      for _, item in ipairs(overrides or {}) do
+      for _, item in ipairs(overrides[k] or {}) do
         table.insert(out[k], item)
       end
     end
