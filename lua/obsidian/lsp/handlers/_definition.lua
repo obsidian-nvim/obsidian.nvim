@@ -68,11 +68,6 @@ end
 ---@type table<obsidian.search.RefTypes, function>
 local handlers = {}
 
-handlers.NakedUrl = function(location)
-  vim.ui.open(location)
-  return nil
-end
-
 local function open_note(location, name, callback)
   local block_link, anchor_link
   location, block_link = util.strip_block_links(location)
@@ -112,8 +107,8 @@ end
 handlers.WikiWithAlias = handlers.Wiki
 
 handlers.Markdown = function(location, name, callback)
-  local scheme = get_uri_scheme(location)
-  if scheme then
+  local is_uri, scheme = util.is_uri(location)
+  if is_uri then
     open_uri(location, scheme)
   elseif api.is_attachment_path(location) then
     open_attachment(location)

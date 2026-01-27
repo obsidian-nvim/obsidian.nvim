@@ -122,20 +122,33 @@ util.match_case = function(prefix, key)
   return table.concat(out_chars, "")
 end
 
----Check if a string is a valid URL.
 ---@param s string
----@return boolean
-util.is_url = function(s)
-  local search = require "obsidian.search"
+---@return string|? scheme
+---@return string|? rest
+local function get_uri_scheme(s)
+  -- scheme per RFC-ish: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+  local scheme, rest = s:match "^([%a][%w+%-%.]*):(.*)$"
+  if not scheme then
+    return nil
+  end
 
-  if
-    string.match(vim.trim(s), "^" .. search.Patterns["NakedUrl"] .. "$")
-    or string.match(vim.trim(s), "^" .. search.Patterns["FileUrl"] .. "$")
-    or string.match(vim.trim(s), "^" .. search.Patterns["MailtoUrl"] .. "$")
-  then
-    return true
+  -- Avoid treating Windows drive letters as schemes: "C:\foo" or "C:/foo"
+  if #scheme == 1 and rest:match "^[\\/]." then
+    return nil
+  end
+
+  return scheme:lower(), rest
+end
+
+---@param s string
+---@return boolean is_uri
+---@return string|? scheme
+util.is_uri = function(s)
+  local scheme = get_uri_scheme(s)
+  if scheme then
+    return true, scheme
   else
-    return false
+    return false, nil
   end
 end
 
@@ -282,9 +295,6 @@ util.parse_link = function(link, opts)
   if link_type == "Markdown" then
     link_location = link:gsub("^%[(.-)%]%((.*)%)$", "%2")
     link_name = link:gsub("^%[(.-)%]%((.*)%)$", "%1")
-  elseif link_type == "NakedUrl" or link_type == "FileUrl" or link_type == "MailtoUrl" then
-    link_location = link
-    link_name = link
   elseif link_type == "WikiWithAlias" then
     link = util.unescape_single_backslash(link)
     -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'

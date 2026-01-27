@@ -16,9 +16,6 @@ M.build_grep_cmd = Ripgrep.build_grep_cmd
 ---| "Wiki"
 ---| "WikiWithAlias"
 ---| "Markdown"
----| "NakedUrl"
----| "FileUrl"
----| "MailtoUrl"
 ---| "Tag"
 ---| "BlockID"
 ---| "Highlight"
@@ -38,9 +35,6 @@ M.Patterns = {
   WikiWithAlias = "%[%[[^][%|]+%|[^%]]+%]%]", -- [[xxx|yyy]]
   Wiki = "%[%[[^][%|]+%]%]", -- [[xxx]]
   Markdown = "%[[^][]+%]%([^%)]+%)", -- [yyy](xxx)
-  NakedUrl = "https?://[a-zA-Z0-9._-@]+[a-zA-Z0-9._#/=&?:+%%-@]+[a-zA-Z0-9/]", -- https://xyz.com
-  FileUrl = "file:/[/{2}]?.*", -- file:///
-  MailtoUrl = "mailto:.*", -- mailto:emailaddress
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
 }
 
@@ -158,9 +152,6 @@ M.find_refs = function(s, opts)
     "WikiWithAlias",
     "Wiki",
     "Markdown",
-    "NakedUrl",
-    "FileUrl",
-    "MailtoUrl",
     "Tag",
     "BlockID",
     "Highlight",

@@ -19,12 +19,7 @@ T["find_refs"]["should ignore refs within an inline code block"] = function()
 
   s = "[nvim-cmp](https://github.com/hrsh7th/nvim-cmp) (triggered by typing `[[` for wiki links or "
     .. "just `[` for markdown links), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep)"
-  MiniTest.expect.equality(
-    { { 1, 47, "Markdown" }, { 134, 183, "Markdown" } },
-    M.find_refs(s, {
-      exclude = { "NakedUrl" },
-    })
-  )
+  MiniTest.expect.equality({ { 1, 47, "Markdown" }, { 134, 183, "Markdown" } }, M.find_refs(s))
 end
 
 T["find_refs"]["should find block IDs at the end of a line"] = function()
@@ -40,9 +35,9 @@ T["find_matches"] = function()
 - <https://youtube.com@Fireship>
 - [Fireship](https://youtube.com@Fireship)
   ]],
-    { "NakedUrl" }
+    { "Markdown" }
   )
-  eq(2, #matches)
+  eq(1, #matches)
 end
 
 T["find_code_blocks"] = new_set()
@@ -171,7 +166,7 @@ T["find_links"]["should find all links in a file"] = function()
   -- TODO: any link protocol
   local file = [==[
 [[link]]
-  https://neovim.io
+  https://neovim.io <- barelinks should not work
 ]==]
   vim.fn.writefile(vim.split(file, "\n"), filepath)
   child.lua [[
@@ -188,12 +183,6 @@ _G.res = search.find_links(note, {})
       line = 1,
       link = "[[link]]",
       start = 0,
-    },
-    {
-      ["end"] = 18,
-      line = 2,
-      link = "https://neovim.io",
-      start = 2,
     },
   }, res)
 end
