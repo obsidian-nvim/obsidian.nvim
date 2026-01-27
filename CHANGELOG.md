@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export footer content as a buffer local variable `vim.b.obsidian_status`.
+- Open any `[](uri)`, prompt for schemes outside whitelist `opts.open.schemes`.
+
+### Changed
+
+- Bare urls, file urls, mailto urls will no longer work, always enclose them in markdown list like `[my email](mailto:example@gmail.com)`
 
 ### Fixed
 

@@ -5,26 +5,8 @@ local log = obsidian.log
 local api = obsidian.api
 local Note = obsidian.Note
 
-local function get_uri_scheme(s)
-  -- scheme per RFC-ish: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-  local scheme, rest = s:match "^([%a][%w+%-%.]*):(.*)$"
-  if not scheme then
-    return nil
-  end
-
-  -- Avoid treating Windows drive letters as schemes: "C:\foo" or "C:/foo"
-  if #scheme == 1 and rest:match "^[\\/]." then
-    return nil
-  end
-
-  return scheme:lower(), rest
-end
-
-local schemes = { "https", "http", "file", "mailto" }
-
 local function open_uri(uri, scheme)
-  -- TODO: open.schemes as whitlist
-  if vim.list_contains(schemes, scheme) then
+  if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
     vim.ui.open(uri)
   else
     local choice = api.confirm(("Open external link? %s"):format(uri))

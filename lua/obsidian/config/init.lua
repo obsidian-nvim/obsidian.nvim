@@ -38,11 +38,16 @@ config.Picker = {
 
 config.default = require "obsidian.config.default"
 
-local tbl_override = function(defaults, overrides)
+local tbl_override = function(defaults, overrides, list_fields)
   local out = vim.tbl_extend("force", defaults, overrides)
   for k, v in pairs(out) do
     if v == vim.NIL then
       out[k] = nil
+    elseif list_fields and list_fields[k] then
+      out[k] = vim.deepcopy(defaults[k])
+      for _, item in ipairs(overrides or {}) do
+        table.insert(out[k], item)
+      end
     end
   end
   return out
@@ -302,7 +307,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
   opts.statusline = tbl_override(defaults.statusline, opts.statusline)
   opts.footer = tbl_override(defaults.footer, opts.footer)
-  opts.open = tbl_override(defaults.open, opts.open)
+  opts.open = tbl_override(defaults.open, opts.open, { schemes = true })
   opts.checkbox = tbl_override(defaults.checkbox, opts.checkbox)
   opts.comment = tbl_override(defaults.comment, opts.comment)
   opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
