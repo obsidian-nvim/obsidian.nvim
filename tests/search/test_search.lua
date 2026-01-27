@@ -23,10 +23,7 @@ T["find_refs"]["should ignore refs within an inline code block"] = function()
 end
 
 T["find_refs"]["should find block IDs at the end of a line"] = function()
-  MiniTest.expect.equality(
-    { { 14, 25, "BlockID" } },
-    M.find_refs("Hello World! ^hello-world", { include_block_ids = true })
-  )
+  MiniTest.expect.equality({ { 14, 25, "BlockID" } }, M.find_refs "Hello World! ^hello-world")
 end
 
 T["find_matches"] = function()
