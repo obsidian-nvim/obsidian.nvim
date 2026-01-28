@@ -288,6 +288,7 @@ util.is_checkbox = function(s)
 end
 
 util.parse_tags = require("obsidian.parse.tags").parse_tags
+util.parse_link = require("obsidian.parse.link").parse_link
 
 ---@param link string
 ---@param opts { strip: boolean|?, exclude: obsidian.search.RefTypes[], link_type: obsidian.search.RefTypes|? }|?
