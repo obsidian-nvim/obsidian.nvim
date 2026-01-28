@@ -6,31 +6,11 @@ local m = {}
 
 ---@class obsidian.yaml.ParserOpts
 ---@field luanil boolean
-local ParserOpts = {}
-
-m.ParserOpts = ParserOpts
-
----@return obsidian.yaml.ParserOpts
-ParserOpts.default = function()
-  return {
-    luanil = false,
-  }
-end
-
----@param opts table
----@return obsidian.yaml.ParserOpts
-ParserOpts.normalize = function(opts)
-  ---@type obsidian.yaml.ParserOpts
-  opts = vim.tbl_extend("force", ParserOpts.default(), opts)
-  return opts
-end
 
 ---@class obsidian.yaml.Parser
 ---@field opts obsidian.yaml.ParserOpts
 local Parser = {}
 Parser.__index = Parser
-
-m.Parser = Parser
 
 ---@enum YamlType
 local YamlType = {
@@ -50,7 +30,7 @@ m.YamlType = YamlType
 ---@return obsidian.yaml.Parser
 m.new = function(opts)
   local self = {}
-  self.opts = ParserOpts.normalize(opts and opts or {})
+  self.opts = vim.tbl_extend("force", { luanil = false }, opts)
   return setmetatable(self, Parser)
 end
 
