@@ -867,10 +867,6 @@ Note.update_frontmatter = function(self, bufnr)
     return false
   end
 
-  if not self.has_frontmatter then
-    return false
-  end
-
   return self:save_to_buffer { bufnr = bufnr }
 end
 
@@ -902,8 +898,6 @@ Note.should_save_frontmatter = function(self)
   local enabled = Obsidian.opts.frontmatter.enabled
 
   if is_in_frontmatter_blacklist(self) then
-    return false
-  elseif not self.has_frontmatter then
     return false
   elseif type(enabled) == "boolean" then
     return enabled
