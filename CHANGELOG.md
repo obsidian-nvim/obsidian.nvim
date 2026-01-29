@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.15.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.6) - 2026-01-29
+
 ### Added
 
 - `actions.toggle_checkbox` can be mapped in visual mode.
