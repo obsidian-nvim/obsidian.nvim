@@ -730,4 +730,9 @@ M.move_note = function()
   })
 end
 
+---@param new_name string|?
+M.rename = function(new_name)
+  vim.lsp.buf.rename(new_name)
+end
+
 return M
