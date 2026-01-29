@@ -7,7 +7,7 @@ local actions = {}
 ---@param name string
 ---@param config table
 local register = function(name, config)
-  local mod = require("obsidian.lsp.commands." .. name)
+  local mod = require("obsidian.actions")[name]
   actions[#actions + 1] = {
     title = config.title,
     command = {
@@ -17,14 +17,19 @@ local register = function(name, config)
     },
     data = {
       range = config.range,
-      func = type(mod) == "table" and mod.command or mod,
-      edit = type(mod) == "table" and mod.edit or nil,
+      func = mod,
+      -- TODO: preview edit
     },
   }
   commands[#commands + 1] = name
 end
 
-register("add_file_property", {
+-- TODO: merge a note to this note, after https://github.com/obsidian-nvim/obsidian.nvim/issues/655
+register("insert_template", {
+  title = "Insert template at curosr",
+})
+
+register("add_property", {
   title = "Add file property",
 })
 
