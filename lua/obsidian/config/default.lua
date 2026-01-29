@@ -1,13 +1,3 @@
---- Get the path to where a plugin is installed.
----
----@param name string
----@return string|?
-local get_src_root = function(name)
-  return vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
-    return vim.endswith(path, name)
-  end)
-end
-
 ---@type obsidian.config.Internal
 return {
   -- TODO: remove these in 4.0.0
@@ -56,7 +46,15 @@ return {
   ---
   ---@field template string|?
   note = {
-    template = vim.fs.joinpath(get_src_root "obsidian.nvim", "data/default_template.md"),
+    template = (function()
+      local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
+        return vim.endswith(path, "obsidian.nvim")
+      end)
+      if not root then
+        return nil
+      end
+      return vim.fs.joinpath(root, "data/default_template.md")
+    end)(),
   },
 
   ---@class obsidian.config.FrontmatterOpts
