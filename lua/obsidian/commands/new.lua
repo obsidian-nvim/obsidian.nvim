@@ -5,20 +5,26 @@ local Note = require "obsidian.note"
 ---@param data obsidian.CommandArgs
 return function(data)
   ---@type obsidian.Note
-  local note
+  local note, id
   if data.args:len() > 0 then
-    note = Note.create { id = data.args }
+    id = data.args
   else
-    local id = api.input("Enter id or path (optional): ", { completion = "file" })
+    id = api.input("Enter id or path (optional): ", { completion = "file" })
     if not id then
       return log.warn "Aborted"
     elseif id == "" then
       id = nil
     end
-    note = Note.create { id = id }
   end
+
+  note = Note.create {
+    id = id,
+    template = Obsidian.opts.note.template, -- TODO: maybe unneed when creating, or set as a field that note carries
+  }
 
   -- Open the note in a new buffer.
   note:open { sync = true }
-  note:write_to_buffer()
+  note:write_to_buffer {
+    template = Obsidian.opts.note.template,
+  }
 end

@@ -1,6 +1,5 @@
 local M = {}
 local yaml = require "obsidian.yaml"
-local log = require "obsidian.log"
 local validator = require "obsidian.frontmatter.validator"
 
 local function sort_by_list(list)

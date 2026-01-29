@@ -31,6 +31,32 @@ return {
   preferred_link_style = "wiki",
   open_notes_in = "current",
 
+  ---@class obsidian.config.NoteOpts
+  ---
+  ---Default template to use, relative to template.folder or an absolute path.
+  ---The default looks like:
+  ---
+  ---```markdown
+  ------
+  ---id: {{id}}
+  ---aliases: []
+  ---tags: []
+  ------
+  ---```
+  ---
+  ---@field template string|?
+  note = {
+    template = (function()
+      local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
+        return vim.endswith(path, "obsidian.nvim")
+      end)
+      if not root then
+        return nil
+      end
+      return vim.fs.joinpath(root, "data/default_template.md")
+    end)(),
+  },
+
   ---@class obsidian.config.FrontmatterOpts
   ---
   --- Whether to enable frontmatter, boolean for global on/off, or a function that takes filename and returns boolean.

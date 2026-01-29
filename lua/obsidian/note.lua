@@ -32,6 +32,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@class obsidian.Note
 ---
 ---@field id string
+---@field title string readable name for note
 ---@field aliases string[]
 ---@field tags string[]
 ---@field path obsidian.Path|?
@@ -211,6 +212,7 @@ end
 ---@param opts obsidian.note.NoteOpts Strategy for resolving note path and title
 ---@return string id
 ---@return obsidian.Path path
+---@return string title
 ---@private
 Note._resolve_id_path = function(opts)
   local id, dir = opts.id, opts.dir
@@ -264,6 +266,8 @@ Note._resolve_id_path = function(opts)
   -- Make sure `base_dir` is absolute at this point.
   assert(base_dir:is_absolute(), ("failed to resolve note directory '%s'"):format(base_dir))
 
+  local title = id
+
   -- Apply id transform
   if not (opts.verbatim and id) then
     id = generate_id(id, base_dir, creation_opts.note_id_func)
@@ -274,7 +278,7 @@ Note._resolve_id_path = function(opts)
   -- Generate path.
   local path = Note._generate_path(id, dir)
 
-  return id, path
+  return id, path, title
 end
 
 --- Creates a new note
@@ -282,13 +286,13 @@ end
 --- @param opts obsidian.note.NoteOpts
 --- @return obsidian.Note
 Note.create = function(opts)
-  local new_id, path = Note._resolve_id_path(opts)
+  local new_id, path, title = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
   -- Add the title as an alias.
   --- @type string[]
   local aliases = opts.aliases
-  local note = Note.new(new_id, aliases, opts.tags, path)
+  local note = Note.new(new_id, aliases, opts.tags, path, title)
 
   -- Ensure the parent directory exists.
   local parent = path:parent()
@@ -311,13 +315,15 @@ end
 --- @param aliases string[]
 --- @param tags string[]
 --- @param path string|obsidian.Path|?
+--- @param title string
 --- @return obsidian.Note
-Note.new = function(id, aliases, tags, path)
+Note.new = function(id, aliases, tags, path, title)
   local self = {}
   self.id = id
   self.aliases = aliases and aliases or {}
   self.tags = tags and tags or {}
   self.path = path and Path.new(path) or nil
+  self.title = title
   self.metadata = nil
   self.has_frontmatter = nil
   self.frontmatter_end_line = nil
@@ -618,9 +624,9 @@ end
 ---
 ---@return string
 Note.display_name = function(self)
-  -- if self.title then
-  --   return self.title
-  if #self.aliases > 0 then
+  if self.title then
+    return self.title
+  elseif #self.aliases > 0 then
     return self.aliases[#self.aliases]
   end
   return tostring(self.id)
@@ -1057,7 +1063,7 @@ Note.write_to_buffer = function(self, opts)
       type = "insert_template",
       template_name = opts.template,
       template_opts = Obsidian.opts.templates,
-      templates_dir = assert(api.templates_dir(), "Templates folder is not defined or does not exist"),
+      templates_dir = api.templates_dir(),
       location = api.get_active_window_cursor_location(),
       partial_note = self,
     }
