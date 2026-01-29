@@ -77,6 +77,8 @@ obsidian.setup = function(user_opts)
 
   obsidian.commands.install()
 
+  require("obsidian.treesitter").setup()
+
   -- Setup UI add-ons.
   local has_no_renderer = not (
     obsidian.api.get_plugin_info "render-markdown.nvim" or obsidian.api.get_plugin_info "markview.nvim"
