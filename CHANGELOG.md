@@ -11,10 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `actions.toggle_checkbox` can be mapped in visual mode.
 - `actions.add_property` to add key values to frontmatter.
+- A new `opts.note` config module.
+- `opts.note.template` that allows controlling the default template used by `:Obsidian new`.
 
 ### Changed
 
 - No longer throw frontmatter warnings with searches that loading notes.
+- Regression of adding title back as a field in `Note` class.
+
+### Fixed
+
+- `:Obsidian new` and `:Obsidian new_from_template` will properly add input as alias.
 
 ## [v3.15.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.5) - 2026-01-28
 
