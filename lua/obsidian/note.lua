@@ -1069,7 +1069,7 @@ Note.write_to_buffer = function(self, opts)
       type = "insert_template",
       template_name = opts.template,
       template_opts = Obsidian.opts.templates,
-      templates_dir = assert(api.templates_dir(), "Templates folder is not defined or does not exist"),
+      templates_dir = api.templates_dir(),
       location = api.get_active_window_cursor_location(),
       partial_note = self,
     }

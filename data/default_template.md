@@ -1,5 +1,6 @@
 ---
-id: {{title}}
-aliases: []
+id: {{id}}
+aliases:
+  - {{title}}
 tags: []
 ---

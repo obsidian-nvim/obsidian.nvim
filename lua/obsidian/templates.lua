@@ -8,13 +8,18 @@ local M = {}
 --- Resolve a template name to a path.
 ---
 ---@param template_name string|obsidian.Path
----@param templates_dir obsidian.Path
+---@param templates_dir obsidian.Path|?
 ---
 ---@return obsidian.Path
 M.resolve_template = function(template_name, templates_dir)
   ---@type obsidian.Path|?
   local template_path
-  local paths_to_check = { templates_dir / tostring(template_name), Path.new(template_name) }
+  local paths_to_check = { Path.new(template_name) }
+
+  if templates_dir then
+    table.insert(paths_to_check, templates_dir and templates_dir / tostring(template_name))
+  end
+
   for _, path in ipairs(paths_to_check) do
     if path:is_file() then
       template_path = path

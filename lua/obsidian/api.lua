@@ -47,7 +47,6 @@ M.templates_dir = function(workspace)
     end
   end
 
-  log.err_once("'%s' is not a valid templates directory", opts.templates.folder)
   return nil
 end
 
