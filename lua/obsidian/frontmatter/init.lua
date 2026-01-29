@@ -55,7 +55,8 @@ end
 ---
 ---@param frontmatter_lines string[]
 ---@return { id: string, tags: string[], aliases: string[] }
----@return table<string, any>
+---@return table<string, any> metadata
+---@return string[] errors
 M.parse = function(frontmatter_lines, path)
   local frontmatter = table.concat(frontmatter_lines, "\n")
   local ok, data = pcall(yaml.loads, frontmatter)
@@ -63,14 +64,14 @@ M.parse = function(frontmatter_lines, path)
     data = {}
   end
   if not ok then
-    return {}, {}
+    return {}, {}, {}
   end
-  local metadata, ret = {}, {}
+  local metadata, ret, errors = {}, {}, {}
   for k, v in pairs(data) do
     if validator[k] then
       local value, err = validator[k](v, path)
       if err ~= nil then
-        log.warn(err)
+        errors[#errors + 1] = err
       else
         ret[k] = value
       end
@@ -79,7 +80,7 @@ M.parse = function(frontmatter_lines, path)
     end
   end
 
-  return ret, metadata
+  return ret, metadata, errors
 end
 
 return M

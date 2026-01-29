@@ -632,7 +632,8 @@ end
 ---@param path string|obsidian.Path
 ---@param opts obsidian.note.LoadOpts|?
 ---
----@return obsidian.Note
+---@return obsidian.Note note
+---@return string[] warnings
 Note.from_lines = function(lines, path, opts)
   opts = opts or {}
   path = Path.new(path):resolve()
@@ -780,11 +781,12 @@ Note.from_lines = function(lines, path, opts)
   end
 
   local info = {}
+  local warnings = {}
 
   -- Parse the frontmatter YAML.
   local metadata = {}
   if #frontmatter_lines > 0 then
-    info, metadata = Frontmatter.parse(frontmatter_lines, path)
+    info, metadata, warnings = Frontmatter.parse(frontmatter_lines, path)
   end
 
   local id, aliases, tags = info.id, info.aliases, info.tags
@@ -802,7 +804,8 @@ Note.from_lines = function(lines, path, opts)
   n.contents = contents
   n.anchor_links = anchor_links
   n.blocks = blocks
-  return n
+  -- TODO: reflect the warnings in `:Obsidian check`
+  return n, warnings
 end
 
 --- Check if a line matches a frontmatter boundary.
