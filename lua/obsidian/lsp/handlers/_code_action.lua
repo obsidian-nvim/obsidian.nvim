@@ -25,6 +25,11 @@ local register = function(name, config)
 end
 
 -- TODO: merge a note to this note, after https://github.com/obsidian-nvim/obsidian.nvim/issues/655
+
+register("rename", {
+  title = "Rename current note",
+})
+
 register("insert_template", {
   title = "Insert template at curosr",
 })
