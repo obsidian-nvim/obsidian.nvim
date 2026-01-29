@@ -246,7 +246,9 @@ Parameters ~
 {opts} `(obsidian.note.LoadOpts|)`?
 
 Return ~
-`(obsidian.Note)`
+`(obsidian.Note)` note
+Return ~
+`(string[])` warnings
 
 ------------------------------------------------------------------------------
                                                               *Note.frontmatter*
