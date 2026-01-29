@@ -51,3 +51,40 @@ jobs:
         with:
           body_path: ${{ github.workspace }}-RELEASE_NOTES.md
           prerelease: ${{ contains(env.TAG, 'rc') }}
+
+      - name: Sync docs to wiki
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Clone wiki repo
+          git clone "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+          cd wiki
+
+          # Force the correct remote (CI-safe) with token auth
+          git remote remove origin || true
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+
+          # Guard: only wiki allowed
+          REMOTE=$(git remote get-url origin)
+          case "$REMOTE" in
+            *".wiki.git") ;;
+            *)
+              echo "❌ Refusing to push to non-wiki remote: $REMOTE"
+              exit 1
+              ;;
+          esac
+
+          # CI identity
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          # Sync docs -> wiki root
+          rsync -av --delete --exclude '.git' --exclude '.*' "${GITHUB_WORKSPACE}/docs/" .
+
+          # Commit only if changes exist
+          git add -A
+          git diff --cached --quiet || git commit -m "Sync docs from main repo (${GITHUB_REF#refs/tags/})"
+
+          # Push changes (wiki default branch is often master)
+          git push origin HEAD:master

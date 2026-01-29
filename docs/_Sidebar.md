@@ -24,6 +24,7 @@
 - [[Footer]]
 - [[Frontmatter]]
 - [[Link]]
+- [[Note]]
 - [[Open]]
 - [[Tag]]
 - [[Template]]
