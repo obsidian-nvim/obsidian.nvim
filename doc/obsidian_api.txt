@@ -22,6 +22,7 @@ Class ~
 
 Fields ~
 {id} `(string)`
+{title} `(string)` readable name for note
 {aliases} `(string[])`
 {tags} `(string[])`
 {path} `(obsidian.Path|)`?
@@ -66,7 +67,7 @@ Creates a new note
 
 ------------------------------------------------------------------------------
                                                                     *Note.new()*
-                  `Note.new`({id}, {aliases}, {tags}, {path})
+              `Note.new`({id}, {aliases}, {tags}, {path}, {title})
 Instantiates a new Note object
 
 Keep in mind that you have to call `note:save(...)` to create/update the note on disk.
@@ -75,6 +76,7 @@ Keep in mind that you have to call `note:save(...)` to create/update the note on
 @param aliases string[]
 @param tags string[]
 @param path string|obsidian.Path|?
+@param title string
 @return obsidian.Note
 
 ------------------------------------------------------------------------------
