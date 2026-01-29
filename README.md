@@ -98,7 +98,23 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian search [QUERY]` - search for (or create) notes in your vault using `ripgrep` with your preferred picker
 - `:Obsidian tags [TAG ...]` - get a picker list of all occurrences of the given tags
 - `:Obsidian workspace [NAME]` - switch to another workspace
-
+- `:Obsidian weeklies [OFFSET ...]` - open a picker list of weekly notes
+- `:Obsidian weekly [OFFSET]` - open/create a weekly note
+- `:Obsidian last_week` - open/create the weekly note for the previous week
+- `:Obsidian next_week` - open/create the weekly note for the next week
+- `:Obsidian monthlies [OFFSET ...]` - open a picker list of monthly notes
+- `:Obsidian monthly [OFFSET]` - open/create a monthly note
+- `:Obsidian last_month` - open/create the monthly note for the previous month
+- `:Obsidian next_month` - open/create the monthly note for the next month
+- `:Obsidian quarterlies [OFFSET ...]` - open a picker list of quarterly notes
+- `:Obsidian quarterly [OFFSET]` - open/create a quarterly note
+- `:Obsidian last_quarter` - open/create the quarterly note for the previous quarter
+- `:Obsidian next_quarter` - open/create the quarterly note for the next quarter
+- `:Obsidian yearlies [OFFSET ...]` - open a picker list of yearly notes
+- `:Obsidian yearly [OFFSET]` - open/create a yearly note
+- `:Obsidian last_year` - open/create the yearly note for the previous year
+- `:Obsidian next_year` - open/create the yearly note for the next year
+  
 #### Note commands
 
 - `:Obsidian backlinks` - get a picker list of references to the current note
