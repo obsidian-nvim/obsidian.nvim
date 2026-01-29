@@ -26,8 +26,12 @@ You can control the style of your default notes created by `:Obsidian new` with 
 ```lua
 require("obsidian").setup {
   note = {
-    template = vim.NIL,
+    -- template = vim.NIL, -- disables the default note template and just use a blank note
+    template = "default.md", -- A template you can define your self
   },
 }
 ```
+
+
+For fields you have access to for the default template, see [[Template]].
 
