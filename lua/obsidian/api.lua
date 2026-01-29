@@ -593,37 +593,4 @@ setmetatable(M, {
   end,
 })
 
-M.add_property = function()
-  local note = assert(M.current_note(0))
-
-  -- HACK: no native way in lua
-  -- TODO: complete for existing keys in vault like obsidian app
-  -- TODO: complete for values
-  vim.cmd [[
-  function! ObsidianPropertyComplete()
-    return ['aliases', 'tags', 'id']
-  endfunction
-     ]]
-
-  local key = M.input("key: ", { completion = "customlist,ObsidianPropertyComplete" })
-  local value = M.input "value: "
-
-  if not (key and value) then
-    return log.info "Aborted"
-  end
-
-  if vim.trim(key) == "" or vim.trim(value) == "" then
-    return log.info "Empty Input"
-  end
-
-  if key == "tags" then
-    note:add_tag(value)
-  elseif key == "aliases" then
-    note:add_alias(value)
-  else
-    note:add_field(key, value)
-  end
-  note:update_frontmatter(0)
-end
-
 return M

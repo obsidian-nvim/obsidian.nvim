@@ -1,15 +1,6 @@
 ---@param params lsp.ExecuteCommandParams
 return function(params)
   local cmd = params.command
-
-  local ok, fn = pcall(require, "obsidian.lsp.commands." .. cmd)
-  if ok and fn then
-    if type(fn) == "table" then
-      pcall(fn.command)
-    else
-      pcall(fn)
-    end
-  end
-  -- return require("obsidian.lsp.handlers.commands." .. cmd)(client, params)
-  -- return require "obsidian.lsp.handlers.commands.createNote"(client, params)
+  local fn = require("obsidian.actions")[cmd]
+  pcall(fn)
 end
