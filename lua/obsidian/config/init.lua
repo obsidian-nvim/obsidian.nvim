@@ -169,6 +169,16 @@ config.normalize = function(opts, defaults)
     )
   end
 
+  if opts.completion ~= nil and opts.completion.blink ~= nil then
+    opts.completion.blink = nil
+    log.warn_once "The config option 'completion.blink' is deprecated, completion will work regardless of completion engine"
+  end
+
+  if opts.completion ~= nil and opts.completion.nvim_cmp ~= nil then
+    opts.completion.nvim_cmp = nil
+    log.warn_once "The config option 'completion.nvim_cmp' is deprecated, completion will work regardless of completion engine"
+  end
+
   if opts.detect_cwd ~= nil then
     opts.detect_cwd = nil
     log.warn_once(
