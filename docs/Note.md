@@ -4,7 +4,15 @@
 ---Default template to use, relative to template.folder or an absolute path.
 ---@field template string|?
 note = {
-  template = nil,
+  template = (function()
+    local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
+      return vim.endswith(path, "obsidian.nvim")
+    end)
+    if not root then
+      return nil
+    end
+    return vim.fs.joinpath(root, "data/default_template.md")
+  end)(),
 }
 ```
 
