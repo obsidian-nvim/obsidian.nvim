@@ -512,14 +512,20 @@ M.insert_template = function(template_name)
     return
   end
 
-  Obsidian.picker.find_files {
-    prompt_title = "Templates",
-    dir = templates_dir,
-    no_default_mappings = true,
-    callback = function(path)
-      insert_template(path)
+  ---@type obsidian.PickerEntry
+  local entries = {}
+  for path in api.dir(tostring(templates_dir)) do
+    entries[#entries + 1] = {
+      filename = path,
+      text = vim.fs.basename(path),
+    }
+  end
+
+  Obsidian.picker.pick(entries, {
+    callback = function(entry)
+      insert_template(entry.filename)
     end,
-  }
+  })
 end
 
 M.start_presentation = function(buf)
