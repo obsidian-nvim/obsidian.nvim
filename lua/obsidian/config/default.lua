@@ -163,6 +163,7 @@ return {
 
   ---@class obsidian.config.DailyNotesOpts
   ---
+  ---@field enabled? boolean
   ---@field folder? string
   ---@field date_format? string
   ---@field alias_format? string
@@ -170,11 +171,78 @@ return {
   ---@field default_tags? string[]
   ---@field workdays_only? boolean
   daily_notes = {
+    enabled = nil, -- nil defaults to true for backward compatibility
     folder = nil,
     date_format = "%Y-%m-%d",
     alias_format = nil,
     default_tags = { "daily-notes" },
     workdays_only = true,
+  },
+
+  ---@class obsidian.config.WeeklyNotesOpts
+  ---
+  ---@field enabled? boolean
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  ---@field start_of_week? integer
+  weekly_notes = {
+    enabled = false,
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "weekly-notes" },
+    start_of_week = 1, -- Monday
+  },
+
+  ---@class obsidian.config.MonthlyNotesOpts
+  ---
+  ---@field enabled? boolean
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  monthly_notes = {
+    enabled = false,
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "monthly-notes" },
+  },
+
+  ---@class obsidian.config.QuarterlyNotesOpts
+  ---
+  ---@field enabled? boolean
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  quarterly_notes = {
+    enabled = false,
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "quarterly-notes" },
+  },
+
+  ---@class obsidian.config.YearlyNotesOpts
+  ---
+  ---@field enabled? boolean
+  ---@field folder? string
+  ---@field date_format? string
+  ---@field alias_format? string
+  ---@field template? string
+  ---@field default_tags? string[]
+  yearly_notes = {
+    enabled = false,
+    folder = nil,
+    date_format = nil,
+    alias_format = nil,
+    default_tags = { "yearly-notes" },
   },
 
   ---@class obsidian.config.UICharSpec

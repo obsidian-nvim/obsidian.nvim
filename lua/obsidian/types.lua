@@ -52,6 +52,13 @@
 ---@field completion? obsidian.config.CompletionOpts
 ---@field picker? obsidian.config.PickerOpts
 ---@field daily_notes? obsidian.config.DailyNotesOpts
+---@field weekly_notes? obsidian.config.WeeklyNotesOpts
+---@field monthly_notes? obsidian.config.MonthlyNotesOpts
+---@field quarterly_notes? obsidian.config.QuarterlyNotesOpts
+---@field yearly_notes? obsidian.config.YearlyNotesOpts
+---@field sort_by? obsidian.config.SortBy
+---@field sort_reversed? boolean
+---@field search_max_lines? integer
 ---@field open_notes_in? obsidian.config.OpenStrategy
 ---@field ui? obsidian.config.UIOpts | table<string, any>
 ---@field attachments? obsidian.config.AttachmentsOpts
@@ -84,6 +91,13 @@
 ---@field completion obsidian.config.CompletionOpts
 ---@field picker obsidian.config.PickerOpts
 ---@field daily_notes obsidian.config.DailyNotesOpts
+---@field weekly_notes obsidian.config.WeeklyNotesOpts
+---@field monthly_notes obsidian.config.MonthlyNotesOpts
+---@field quarterly_notes obsidian.config.QuarterlyNotesOpts
+---@field yearly_notes obsidian.config.YearlyNotesOpts
+---@field sort_by obsidian.config.SortBy|?
+---@field sort_reversed boolean|?
+---@field search_max_lines integer
 ---@field open_notes_in obsidian.config.OpenStrategy
 ---@field ui obsidian.config.UIOpts | table<string, any>
 ---@field attachments obsidian.config.AttachmentsOpts
