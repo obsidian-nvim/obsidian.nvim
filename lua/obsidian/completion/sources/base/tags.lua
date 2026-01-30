@@ -10,7 +10,7 @@ local api = require "obsidian.api"
 ---@field request obsidian.completion.sources.base.Request
 ---@field search string|?
 ---@field in_frontmatter boolean|?
----@field workspace obsidian.Workspace
+---@field root obsidian.Path
 local TagsSourceCompletionContext = {}
 TagsSourceCompletionContext.__index = TagsSourceCompletionContext
 
@@ -44,7 +44,7 @@ function TagsSourceBase:new_completion_context(completion_resolve_callback, requ
   -- This request object will be used to determine the current cursor location and the text around it
   completion_context.request = request
 
-  completion_context.workspace = api.find_workspace(vim.api.nvim_buf_get_name(0))
+  completion_context.root = api.resolve_workspace_dir()
 
   return completion_context
 end
@@ -109,7 +109,7 @@ function TagsSourceBase:process_completion(cc)
     end
 
     cc.completion_resolve_callback(vim.tbl_deep_extend("force", self.complete_response, { items = items }))
-  end, { dir = cc.workspace.root })
+  end, { dir = cc.root })
 end
 
 --- Returns whatever it's possible to complete the search and sets up the search related variables in cc
