@@ -99,7 +99,7 @@ function NewNoteSourceBase:process_completion(cc)
   ---@type { label: string, note: obsidian.Note, template: string|? }[]
   local new_notes_opts = {}
 
-  local note = Note.create { id = cc.search }
+  local note = Note.create { id = cc.search, template = Obsidian.opts.note.template }
   if note.id and string.len(note.id) > 0 then
     new_notes_opts[#new_notes_opts + 1] = { label = cc.search, note = note }
   end
@@ -211,7 +211,7 @@ function NewNoteSourceBase:process_execute(item)
     data.note.path = setmetatable(data.note.path, Path)
   end
 
-  data.note:write { template = data.template }
+  data.note:write { template = data.template or Obsidian.opts.note.template }
   return {}
 end
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- `completion`'s create note action also use `opts.note.template`.
+
 ## [v3.15.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.7) - 2026-01-29
 
 ### Fixed
