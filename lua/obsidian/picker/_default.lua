@@ -15,8 +15,6 @@ local ut = require "obsidian.picker.util"
 ---  `prompt_title`: Title for the prompt window.
 ---  `callback`: Callback to run with the selected item(s).
 ---  `allow_multiple`: Allow multiple selections to pass to the callback.
----  `query_mappings`: Mappings that run with the query prompt.
----  `selection_mappings`: Mappings that run with the current selection.
 ---
 M.pick = function(values, opts)
   opts = opts or {}
@@ -55,9 +53,6 @@ end
 ---  `dir`: Directory to search in.
 ---  `query`: Initial query to grep for.
 ---  `callback`: Callback to run with the selected path.
----  `no_default_mappings`: Don't apply picker's default mappings.
----  `query_mappings`: Mappings that run with the query prompt.
----  `selection_mappings`: Mappings that run with the current selection.
 ---
 M.grep = function(opts)
   opts = opts or {}
@@ -117,10 +112,6 @@ end
 ---  `prompt_title`: Title for the prompt window.
 ---  `dir`: Directory to search in.
 ---  `callback`: Callback to run with the selected entry.
----  `no_default_mappings`: Don't apply picker's default mappings.
----  `query_mappings`: Mappings that run with the query prompt.
----  `selection_mappings`: Mappings that run with the current selection.
----
 M.find_files = function(opts)
   opts = opts or {}
 
