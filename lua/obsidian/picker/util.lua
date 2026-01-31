@@ -4,7 +4,7 @@ local api = require "obsidian.api"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 
----@param opts { prompt_title: string, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
+---@param opts { prompt_title: string }|?
 ---@return string
 M.build_prompt = function(opts)
   opts = opts or {}
@@ -16,24 +16,6 @@ M.build_prompt = function(opts)
   end
 
   prompt = prompt .. " | <CR> confirm"
-
-  if opts.query_mappings then
-    local keys = vim.tbl_keys(opts.query_mappings)
-    table.sort(keys)
-    for _, key in ipairs(keys) do
-      local mapping = opts.query_mappings[key]
-      prompt = prompt .. " | " .. key .. " " .. mapping.desc
-    end
-  end
-
-  if opts.selection_mappings then
-    local keys = vim.tbl_keys(opts.selection_mappings)
-    table.sort(keys)
-    for _, key in ipairs(keys) do
-      local mapping = opts.selection_mappings[key]
-      prompt = prompt .. " | " .. key .. " " .. mapping.desc
-    end
-  end
 
   return prompt
 end
