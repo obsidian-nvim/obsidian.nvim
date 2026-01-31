@@ -13,6 +13,9 @@ local plugins = {
     dir = cwd,
     opts = {
       legacy_commands = false,
+      templates = {
+        folder = "templates",
+      },
       workspaces = {
         {
           name = "test",
@@ -47,8 +50,10 @@ local plugins = {
   -- },
   {
     "saghen/blink.cmp",
+    version = "1.*",
     opts = {
-      fuzzy = { implementation = "lua" }, -- no need to build binary
+      cmdline = { enabled = false },
+      -- fuzzy = { implementation = "lua" }, -- no need to build binary
     },
   },
 }

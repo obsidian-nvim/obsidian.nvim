@@ -30,15 +30,11 @@ end
 
 local M = {}
 
----@param opts { callback: fun(selection: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+---@param opts { callback: fun(selection: obsidian.PickerEntry)|? }
 ---@param path_only? boolean HACK:
 local function get_selection_actions(opts, path_only)
   local actions = {
     default = function(selected, fzf_opts)
-      if not opts.no_default_mappings then
-        fzf_actions.file_edit_or_qf(selected, fzf_opts)
-      end
-
       if opts.callback then
         local path = entry_to_file(selected[1], fzf_opts).path
         if path_only then
@@ -50,27 +46,11 @@ local function get_selection_actions(opts, path_only)
     end,
   }
 
-  if opts.selection_mappings then
-    for key, mapping in pairs(opts.selection_mappings) do
-      actions[format_keymap(key)] = function(selected, fzf_opts)
-        local path = entry_to_file(selected[1], fzf_opts).path
-        mapping.callback { filename = path }
-      end
-    end
-
-    for key, mapping in pairs(opts.query_mappings) do
-      actions[format_keymap(key)] = function(_, fzf_opts)
-        local query = fzf_opts.query
-        mapping.callback(query)
-      end
-    end
-  end
-
   return actions
 end
 
 ---@param display_to_value_map table<string, any>
----@param opts { callback: fun(path: string)|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
+---@param opts { callback: fun(path: string)|?, allow_multiple: boolean|? }
 local function get_value_actions(display_to_value_map, opts)
   ---@param allow_multiple boolean|?
   ---@return any[]|?
@@ -114,19 +94,6 @@ local function get_value_actions(display_to_value_map, opts)
     end,
   }
 
-  if opts.selection_mappings then
-    for key, mapping in pairs(opts.selection_mappings) do
-      actions[format_keymap(key)] = function(selected)
-        local values = get_values(selected, mapping.allow_multiple)
-        if not values then
-          return
-        end
-
-        mapping.callback(unpack(values))
-      end
-    end
-  end
-
   return actions
 end
 
@@ -138,7 +105,7 @@ M.find_files = function(opts)
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
-  fzf.files {
+  local _, _, class = fzf.files {
     query = opts.query,
     cwd = tostring(dir),
     cmd = table.concat(search.build_find_cmd(), " "),
@@ -147,11 +114,9 @@ M.find_files = function(opts)
     show_details = true,
     actions = get_selection_actions({
       callback = opts.callback,
-      no_default_mappings = opts.no_default_mappings,
-      selection_mappings = opts.selection_mappings,
-      query_mappings = opts.query_mappings,
     }, true),
   }
+  return class
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
@@ -161,11 +126,7 @@ M.grep = function(opts)
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local cmd = table.concat(search.build_grep_cmd(), " ")
-  local actions = get_selection_actions {
-    no_default_mappings = opts.no_default_mappings,
-    selection_mappings = opts.selection_mappings,
-    query_mappings = opts.query_mappings,
-  }
+  local actions = get_selection_actions {}
 
   if opts.query and string.len(opts.query) > 0 then
     fzf.grep {
@@ -236,13 +197,10 @@ M.pick = function(values, opts)
 
   fzf.fzf_exec(entries, {
     previewer = file_preview and MyPreviewer or nil,
-    prompt = format_prompt(
-      ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
-    ),
+    prompt = format_prompt(ut.build_prompt { prompt_title = opts.prompt_title }),
     actions = get_value_actions(display_to_value_map, {
       callback = opts.callback,
       allow_multiple = opts.allow_multiple,
-      selection_mappings = opts.selection_mappings,
     }),
   })
 end

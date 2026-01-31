@@ -6,83 +6,19 @@ local Picker = obsidian.Picker
 local Path = obsidian.Path
 local ut = require "obsidian.picker.util"
 
----@param mapping obsidian.PickerMappingTable|?
----@return table
-local function notes_mappings(mapping)
-  if type(mapping) == "table" then
-    local opts = {
-      win = {
-        input = {
-          keys = {
-            ["q"] = "cancel",
-          },
-        },
-        list = {
-          keys = {
-            ["q"] = "cancel",
-          },
-        },
-        preview = {
-          keys = {
-            ["q"] = "cancel",
-          },
-        },
-      },
-      actions = {},
-    }
-    for k, v in pairs(mapping) do
-      local name = string.gsub(v.desc, " ", "_")
-      ---@diagnostic disable-next-line: assign-type-mismatch
-      opts.win.input.keys[k] = { name, mode = { "n", "i" }, desc = v.desc }
-      opts.actions[name] = function(picker, item)
-        picker:close()
-        if v.allow_multiple then
-          local selected = picker:selected { fallback = true }
-          ---@type obsidian.PickerEntry[]
-          local entries = {}
-          for _, sel in ipairs(selected) do
-            table.insert(entries, {
-              filename = sel._path,
-              user_data = sel.user_data or sel.value or sel.text,
-            })
-          end
-          vim.schedule(function()
-            ---@diagnostic disable-next-line: param-type-mismatch
-            v.callback(unpack(entries))
-          end)
-        else
-          ---@type obsidian.PickerEntry
-          local entry = {
-            filename = item._path,
-            user_data = item.user_data or item.value or item.text,
-          }
-          vim.schedule(function()
-            v.callback(entry)
-          end)
-        end
-      end
-    end
-    return opts
-  end
-  return {}
-end
-
 local M = {}
 
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  local callback = opts.callback or obsidian.api.open_note
 
-  ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
-
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
+  local callback = opts.callback or obsidian.api.open_note
 
   local args = search.build_find_cmd()
   local cmd = table.remove(args, 1)
 
-  local pick_opts = vim.tbl_extend("force", map or {}, {
+  local pick_opts = {
     pattern = opts.query,
     source = "files",
     title = opts.prompt_title,
@@ -95,7 +31,7 @@ M.find_files = function(opts)
         callback(item._path)
       end
     end,
-  })
+  }
   snacks_picker.pick(pick_opts)
 end
 
@@ -103,15 +39,13 @@ end
 M.grep = function(opts)
   opts = opts or {}
 
-  ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
   local callback = opts.callback or obsidian.api.open_note
 
   local args = search.build_grep_cmd()
   local cmd = table.remove(args, 1)
 
-  local pick_opts = vim.tbl_extend("force", map or {}, {
+  local pick_opts = {
     search = opts.query,
     source = "grep",
     title = opts.prompt_title,
@@ -129,7 +63,7 @@ M.grep = function(opts)
         }
       end
     end,
-  })
+  }
   snacks_picker.pick(pick_opts)
 end
 
@@ -166,9 +100,7 @@ M.pick = function(values, opts)
     })
   end
 
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
-
-  local pick_opts = vim.tbl_extend("force", map or {}, {
+  local pick_opts = {
     title = opts.prompt_title,
     items = entries,
     layout = {
@@ -195,7 +127,7 @@ M.pick = function(values, opts)
         end
       end
     end,
-  })
+  }
 
   snacks_picker.pick(pick_opts)
 end

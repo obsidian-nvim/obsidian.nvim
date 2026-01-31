@@ -1,6 +1,5 @@
 local api = require "obsidian.api"
 local PickerName = require("obsidian.config").Picker
-local Mappings = require "obsidian.picker.mappings"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
@@ -30,10 +29,7 @@ M.state = state
 ---@field prompt_title string|?
 ---@field dir string|obsidian.Path|?
 ---@field callback fun(path: string)|?
----@field no_default_mappings boolean|?
 ---@field query string|?
----@field query_mappings obsidian.PickerMappingTable|?
----@field selection_mappings obsidian.PickerMappingTable|?
 
 ---@class obsidian.PickerGrepOpts
 ---
@@ -41,9 +37,6 @@ M.state = state
 ---@field dir string|obsidian.Path|?
 ---@field query string|?
 ---@field callback fun(entry: obsidian.PickerEntry)|?
----@field no_default_mappings boolean|?
----@field query_mappings obsidian.PickerMappingTable|?
----@field selection_mappings obsidian.PickerMappingTable|?
 
 ---@class obsidian.PickerEntry: vim.quickfix.entry
 
@@ -52,8 +45,6 @@ M.state = state
 ---@field prompt_title string|?
 ---@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
 ---@field allow_multiple boolean|?
----@field query_mappings obsidian.PickerMappingTable|?
----@field selection_mappings obsidian.PickerMappingTable|?
 ---@field format_item (fun(value: obsidian.PickerEntry): string)|?
 
 ------------------------------------------------------------------
@@ -62,7 +53,7 @@ M.state = state
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, dir: obsidian.Path|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -73,21 +64,11 @@ M.find_notes = function(opts)
 
   opts = opts or {}
 
-  local query_mappings
-  local selection_mappings
-  if not opts.no_default_mappings then
-    query_mappings = M._note_query_mappings()
-    selection_mappings = M._note_selection_mappings()
-  end
-
-  return M.find_files {
+  state.class = M.find_files {
     query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
     dir = opts.dir or Obsidian.dir,
     callback = opts.callback,
-    no_default_mappings = opts.no_default_mappings,
-    query_mappings = query_mappings,
-    selection_mappings = selection_mappings,
   }
 end
 
@@ -105,21 +86,11 @@ M.grep_notes = function(opts)
 
   opts = opts or {}
 
-  local query_mappings
-  local selection_mappings
-  if not opts.no_default_mappings then
-    query_mappings = M._note_query_mappings()
-    selection_mappings = M._note_selection_mappings()
-  end
-
   M.grep {
     prompt_title = opts.prompt_title or "Grep notes",
     dir = opts.dir or Obsidian.dir,
     query = opts.query,
     callback = opts.callback or api.open_note,
-    no_default_mappings = opts.no_default_mappings,
-    query_mappings = query_mappings,
-    selection_mappings = selection_mappings,
   }
 end
 
@@ -132,18 +103,10 @@ end
 ---  `prompt_title`: Title for the prompt window.
 ---  `callback`: Callback to run with the selected note(s).
 ---  `allow_multiple`: Allow multiple selections to pass to the callback.
----  `no_default_mappings`: Don't apply picker's default mappings.
 M.pick_note = function(notes, opts)
   state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-
-  local query_mappings
-  local selection_mappings
-  if not opts.no_default_mappings then
-    query_mappings = M._note_query_mappings()
-    selection_mappings = M._note_selection_mappings()
-  end
 
   -- Launch picker with results.
   ---@type obsidian.PickerEntry[]
@@ -166,84 +129,45 @@ M.pick_note = function(notes, opts)
       opts.callback(v.user_data)
     end,
     allow_multiple = opts.allow_multiple,
-    no_default_mappings = opts.no_default_mappings,
-    query_mappings = query_mappings,
-    selection_mappings = selection_mappings,
   })
 end
 
---------------------------------
---- Concrete helper methods. ---
---------------------------------
+-- ---@param key string|?
+-- ---@return boolean
+-- local function key_is_set(key)
+--   if key ~= nil and string.len(key) > 0 then
+--     return true
+--   else
+--     return false
+--   end
+-- end
 
----@param key string|?
----@return boolean
-local function key_is_set(key)
-  if key ~= nil and string.len(key) > 0 then
-    return true
-  else
-    return false
-  end
-end
-
---- Get query mappings to use for `find_notes()` or `grep_notes()`.
----@return obsidian.PickerMappingTable
-M._note_query_mappings = function()
-  ---@type obsidian.PickerMappingTable
-  local mappings = {}
-
-  if key_is_set(Obsidian.opts.picker.note_mappings.new) then
-    mappings[Obsidian.opts.picker.note_mappings.new] = {
-      desc = "new",
-      callback = Mappings.new_note,
-    }
-  end
-
-  return mappings
-end
-
---- Get selection mappings to use for `find_notes()` or `grep_notes()`.
----@return obsidian.PickerMappingTable
-M._note_selection_mappings = function()
-  ---@type obsidian.PickerMappingTable
-  local mappings = {}
-
-  if key_is_set(Obsidian.opts.picker.note_mappings.insert_link) then
-    mappings[Obsidian.opts.picker.note_mappings.insert_link] = {
-      desc = "insert link",
-      callback = Mappings.insert_link,
-    }
-  end
-
-  return mappings
-end
-
---- Get selection mappings to use for `pick_tag()`.
----@return obsidian.PickerMappingTable
-M._tag_selection_mappings = function()
-  ---@type obsidian.PickerMappingTable
-  local mappings = {}
-
-  if key_is_set(Obsidian.opts.picker.tag_mappings.tag_note) then
-    mappings[Obsidian.opts.picker.tag_mappings.tag_note] = {
-      desc = "tag note",
-      callback = Mappings.tag_note,
-      fallback_to_query = true,
-      keep_open = true,
-      allow_multiple = true,
-    }
-  end
-
-  if key_is_set(Obsidian.opts.picker.tag_mappings.insert_tag) then
-    mappings[Obsidian.opts.picker.tag_mappings.insert_tag] = {
-      desc = "insert tag",
-      callback = Mappings.insert_tag,
-      fallback_to_query = true,
-    }
-  end
-
-  return mappings
-end
+-- --- Get selection mappings to use for `pick_tag()`.
+-- ---@return obsidian.PickerMappingTable
+-- M._tag_selection_mappings = function()
+--   ---@type obsidian.PickerMappingTable
+--   local mappings = {}
+--
+--   if key_is_set(Obsidian.opts.picker.tag_mappings.tag_note) then
+--     mappings[Obsidian.opts.picker.tag_mappings.tag_note] = {
+--       desc = "tag note",
+--       callback = Mappings.tag_note,
+--       fallback_to_query = true,
+--       keep_open = true,
+--       allow_multiple = true,
+--     }
+--   end
+--
+--   if key_is_set(Obsidian.opts.picker.tag_mappings.insert_tag) then
+--     mappings[Obsidian.opts.picker.tag_mappings.insert_tag] = {
+--       desc = "insert tag",
+--       callback = Mappings.insert_tag,
+--       fallback_to_query = true,
+--     }
+--   end
+--
+--   return mappings
+-- end
 
 --- Get the default Picker.
 ---
