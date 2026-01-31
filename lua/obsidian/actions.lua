@@ -558,6 +558,19 @@ local function list_tags_async(callback)
   end, { dir = dir })
 end
 
+local function pick_tags(callback, title)
+  list_tags_async(function(tags)
+    vim.schedule(function() -- TODO: move to picker.pick
+      Obsidian.picker.pick(tags, {
+        callback = callback,
+        prompt_title = title,
+      })
+    end)
+  end)
+end
+
+-- TODO: cleanup names
+-- TODO: use pick_tags
 ---@param tags string[]|?
 M.search_tags = function(tags)
   tags = tags or {}
@@ -575,7 +588,6 @@ M.search_tags = function(tags)
       return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
     end, { dir = dir })
   else
-    -- TODO: cleanup names
     list_tags_async(function(entries, tag_locations)
       vim.schedule(function()
         Obsidian.picker.pick(entries, {
@@ -592,10 +604,15 @@ M.search_tags = function(tags)
   end
 end
 
--- TODO: refactor
+M.insert_tag = function()
+  pick_tags(function(entry)
+    local tag = entry.user_data
+    vim.api.nvim_put({ "#" .. tag }, "", false, true)
+  end, "Tag to insert")
+end
 
 ---@param ... obsidian.PickerEntry
-M.tag_note = function(...)
+local tag_note = function(...)
   local calling_bufnr = require("obsidian.picker").state.calling_bufnr
   local tags = vim.tbl_map(function(value)
     return value.user_data
@@ -619,7 +636,8 @@ M.tag_note = function(...)
   end
 
   if #tags_added > 0 then
-    if note:update_frontmatter(calling_bufnr) then
+    local updated = note:update_frontmatter(calling_bufnr)
+    if updated then
       log.info("Added tags %s to frontmatter", tags_added)
     else
       log.warn "Frontmatter unchanged"
@@ -631,18 +649,10 @@ M.tag_note = function(...)
   end
 end
 
-M.insert_tag = function()
-  list_tags_async(function(tags)
-    vim.schedule(function() -- TODO: move to picker.pick
-      Obsidian.picker.pick(tags, {
-        callback = function(entry)
-          local tag = entry.user_data
-          vim.api.nvim_put({ "#" .. tag }, "", false, true)
-        end,
-        prompt_title = "Tag to insert",
-      })
-    end)
-  end)
+M.tag_note = function()
+  pick_tags(function(...)
+    tag_note(...)
+  end, "Add tags to current note")
 end
 
 return M
