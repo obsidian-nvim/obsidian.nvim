@@ -60,56 +60,10 @@ local function get_selected(prompt_bufnr, keep_open, allow_multiple)
   end
 end
 
----@param prompt_bufnr integer
----@param keep_open boolean|?
----@param initial_query string|?
----@return string|?
-local function get_query(prompt_bufnr, keep_open, initial_query)
-  local query = actions_state.get_current_line()
-  if not query or string.len(query) == 0 then
-    query = initial_query
-  end
-  if query and string.len(query) > 0 then
-    if not keep_open then
-      telescope_actions.close(prompt_bufnr)
-    end
-    return query
-  else
-    return nil
-  end
-end
-
----@param opts { callback: fun(entry: obsidian.PickerEntry)|?, allow_multiple: boolean|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, initial_query: string|? }
+---@param opts { callback: fun(entry: obsidian.PickerEntry)|?, allow_multiple: boolean|?, initial_query: string|? }
 local function attach_picker_mappings(map, opts)
   -- Docs for telescope actions:
   -- https://github.com/nvim-telescope/telescope.nvim/blob/master/lua/telescope/actions/init.lua
-
-  if opts.query_mappings then
-    for key, mapping in pairs(opts.query_mappings) do
-      map({ "i", "n" }, key, function(prompt_bufnr)
-        local query = get_query(prompt_bufnr, false, opts.initial_query)
-        if query then
-          mapping.callback(query)
-        end
-      end)
-    end
-  end
-
-  if opts.selection_mappings then
-    for key, mapping in pairs(opts.selection_mappings) do
-      map({ "i", "n" }, key, function(prompt_bufnr)
-        local entries = get_selected(prompt_bufnr, mapping.keep_open, mapping.allow_multiple)
-        if entries then
-          mapping.callback(unpack(entries))
-        elseif mapping.fallback_to_query then
-          local query = get_query(prompt_bufnr, mapping.keep_open)
-          if query then
-            mapping.callback(query)
-          end
-        end
-      end)
-    end
-  end
 
   if opts.callback then
     map({ "i", "n" }, "<CR>", function(prompt_bufnr)
@@ -129,8 +83,6 @@ M.find_files = function(opts)
 
   local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
-    query_mappings = opts.query_mappings,
-    selection_mappings = opts.selection_mappings,
   }
 
   telescope.find_files {
@@ -143,8 +95,6 @@ M.find_files = function(opts)
         callback = function(entry)
           opts.callback(entry.filename)
         end,
-        query_mappings = opts.query_mappings,
-        selection_mappings = opts.selection_mappings,
       })
       return true
     end,
@@ -159,15 +109,11 @@ M.grep = function(opts)
 
   local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
-    query_mappings = opts.query_mappings,
-    selection_mappings = opts.selection_mappings,
   }
 
   local attach_mappings = function(_, map)
     attach_picker_mappings(map, {
       callback = opts.callback,
-      query_mappings = opts.query_mappings,
-      selection_mappings = opts.selection_mappings,
       initial_query = opts.query,
     })
     return true
@@ -209,8 +155,6 @@ M.pick = function(values, opts)
       attach_picker_mappings(map, {
         callback = opts.callback,
         allow_multiple = opts.allow_multiple,
-        query_mappings = opts.query_mappings,
-        selection_mappings = opts.selection_mappings,
       })
       return true
     end,
@@ -222,8 +166,6 @@ M.pick = function(values, opts)
 
   local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
-    query_mappings = opts.query_mappings,
-    selection_mappings = opts.selection_mappings,
   }
 
   local previewer

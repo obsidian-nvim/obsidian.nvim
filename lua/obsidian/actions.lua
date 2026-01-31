@@ -477,4 +477,172 @@ M.add_property = function()
   note:update_frontmatter(0)
 end
 
+M.insert_link = function(query)
+  local Note = require "obsidian.note"
+  Obsidian.picker.find_files {
+    query = query,
+    callback = function(path)
+      local note = Note.from_file(path)
+      local link = note:format_link()
+      vim.api.nvim_put({ link }, "", true, true)
+      require("obsidian.ui").update(0)
+    end,
+  }
+end
+
+-- TODO: refactor
+M.new_note = function(query)
+  if not query or vim.trim(query) == "" then
+    return
+  end
+  ---@diagnostic disable-next-line: missing-fields
+  require "obsidian.commands.new" { args = query }
+end
+
+local search = require "obsidian.search"
+
+---@param tag_locations obsidian.TagLocation[]
+---@return string[]
+local list_tags = function(tag_locations)
+  local tags = {}
+  for _, tag_loc in ipairs(tag_locations) do
+    local tag = tag_loc.tag
+    if not tags[tag] then
+      tags[tag] = true
+    end
+  end
+  return vim.tbl_keys(tags)
+end
+
+---@param tag_locations obsidian.TagLocation[]
+---@param tags string[]
+local function gather_tag_picker_list(tag_locations, tags)
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for _, tag_loc in ipairs(tag_locations) do
+    for _, tag in ipairs(tags) do
+      if tag_loc.tag:lower() == tag:lower() or vim.startswith(tag_loc.tag:lower(), tag:lower() .. "/") then
+        local display = string.format("%s [%s] %s", tag_loc.note:display_name(), tag_loc.line, tag_loc.text)
+        entries[#entries + 1] = {
+          value = { path = tag_loc.path, line = tag_loc.line, col = tag_loc.tag_start },
+          display = display,
+          ordinal = display,
+          filename = tostring(tag_loc.path),
+          lnum = tag_loc.line,
+          col = tag_loc.tag_start,
+        }
+        break
+      end
+    end
+  end
+  if vim.tbl_isempty(entries) then
+    if #tags == 1 then
+      log.warn "Tag not found"
+    else
+      log.warn "Tags not found"
+    end
+    return
+  end
+
+  vim.schedule(function()
+    Obsidian.picker.pick(entries, { prompt_title = "#" .. table.concat(tags, ", #") })
+  end)
+end
+
+local function list_tags_async(callback)
+  local dir = api.resolve_workspace_dir()
+
+  search.find_tags_async("", function(tag_locations)
+    local tags = list_tags(tag_locations)
+    callback(tags, tag_locations)
+  end, { dir = dir })
+end
+
+---@param tags string[]|?
+M.search_tags = function(tags)
+  tags = tags or {}
+  if vim.tbl_isempty(tags) then
+    local tag = api.cursor_tag()
+    if tag then
+      tags = { tag }
+    end
+  end
+
+  local dir = api.resolve_workspace_dir()
+
+  if not vim.tbl_isempty(tags) then
+    search.find_tags_async(tags, function(tag_locations)
+      return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
+    end, { dir = dir })
+  else
+    -- TODO: cleanup names
+    list_tags_async(function(entries, tag_locations)
+      vim.schedule(function()
+        Obsidian.picker.pick(entries, {
+          callback = function(...)
+            tags = vim.tbl_map(function(v)
+              return v.user_data
+            end, { ... })
+            gather_tag_picker_list(tag_locations, tags)
+          end,
+          allow_multiple = true,
+        })
+      end)
+    end)
+  end
+end
+
+-- TODO: refactor
+
+---@param ... obsidian.PickerEntry
+M.tag_note = function(...)
+  local calling_bufnr = require("obsidian.picker").state.calling_bufnr
+  local tags = vim.tbl_map(function(value)
+    return value.user_data
+  end, { ... })
+
+  local note = api.current_note(calling_bufnr)
+  if not note then
+    log.warn("'%s' is not a note in your workspace", vim.api.nvim_buf_get_name(calling_bufnr))
+    return
+  end
+
+  -- Add the tag and save the new frontmatter to the buffer.
+  local tags_added = {}
+  local tags_not_added = {}
+  for _, tag in ipairs(tags) do
+    if note:add_tag(tag) then
+      table.insert(tags_added, tag)
+    else
+      table.insert(tags_not_added, tag)
+    end
+  end
+
+  if #tags_added > 0 then
+    if note:update_frontmatter(calling_bufnr) then
+      log.info("Added tags %s to frontmatter", tags_added)
+    else
+      log.warn "Frontmatter unchanged"
+    end
+  end
+
+  if #tags_not_added > 0 then
+    log.warn("Note already has tags %s", tags_not_added)
+  end
+end
+
+M.insert_tag = function()
+  list_tags_async(function(tags)
+    vim.schedule(function() -- TODO: move to picker.pick
+      Obsidian.picker.pick(tags, {
+        callback = function(entry)
+          local tag = entry.user_data
+          vim.api.nvim_put({ "#" .. tag }, "", false, true)
+        end,
+        prompt_title = "Tag to insert",
+      })
+    end)
+  end)
+end
+
 return M
