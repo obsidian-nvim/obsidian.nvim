@@ -24,16 +24,24 @@ T["detects all RefTypes"] = function()
   local root = child.Obsidian.dir
   setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
+
   child.lua [[
     _GET_REF_TYPE = function(line_text, start_col, end_col)
       local search = require("obsidian.search")
-      local _, ref_type = search.find_ref_at_position(line_text, start_col, end_col)
-      return ref_type
+      local refs = search.find_refs(line_text)  -- returns all refs in the line
+      for _, ref in ipairs(refs) do
+        if ref.start == start_col and ref["end"] == end_col then
+          return ref.type  -- now refs have a .type field
+        end
+      end
+      return nil
     end
+
     local Note = require("obsidian.note")
     local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
     _NOTE_BACKLINKS = note:backlinks({})
   ]]
+
   local backlinks = child.lua_get [[_NOTE_BACKLINKS]]
   local found_types = {}
   for _, m in ipairs(backlinks) do
@@ -42,11 +50,13 @@ T["detects all RefTypes"] = function()
       found_types[r_type] = true
     end
   end
+
   local expected = {
     "Wiki",
     "WikiWithAlias",
     "Markdown",
   }
+
   for _, t in ipairs(expected) do
     eq(true, found_types[t] == true, "Missing ref type: " .. t)
   end
@@ -58,6 +68,7 @@ T["anchor filtering works"] = function()
   child.cmd("edit " .. tostring(root / "A.md"))
   child.lua [[
     local Note = require("obsidian.note")
+
     local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
     _NOTE_SECTION = note:backlinks({ anchor = "#Section" })
     _NOTE_TEST    = note:backlinks({ anchor = "#test" })

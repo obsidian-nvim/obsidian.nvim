@@ -166,23 +166,6 @@ M.find_refs = function(s, opts)
   return M.find_matches(s, pattern_names)
 end
 
--- Finds the correct link in a line given a grep position
----@param line string
----@param match_start integer
----@param match_end integer
----@return string|nil, obsidian.search.RefTypes|nil
-M.find_ref_at_position = function(line, match_start, match_end)
-  for _, ref in ipairs(M.find_refs(line, { exclude = { "Tag" } })) do
-    local ref_start, ref_end, ref_type = unpack(ref)
-
-    if ref_start <= match_end and ref_end >= match_start then
-      return line:sub(ref_start, ref_end), ref_type
-    end
-  end
-
-  return nil
-end
-
 --- Find all code block boundaries in a list of lines.
 ---
 ---@param lines string[]
