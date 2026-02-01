@@ -5,15 +5,15 @@ local h = dofile "tests/helpers.lua"
 local T, child = h.child_vault()
 local function setup_vault(root)
   h.write(
-    "# A\n" .. "## Section\n" .. "Paragraph with block ^block-id\n" .. "==highlighted text==\n" .. "## test\n",
+    "# A\n" .. "## section\n" .. "Paragraph with block ^block-id\n" .. "==highlighted text==\n" .. "## test\n",
     root / "A.md"
   )
   h.write(
     [==[
 [[A]] [[A|Alias]] [A](A.md)
-[A test](A.md#test) [Another](A.md#Section)
-[[A#Section]] 
-Multiple links: [[A]] [md](A.md#test) [[A#Section]]
+[A test](A.md#test) [Another](A.md#section)
+[[A#section]] 
+Multiple links: [[A]] [md](A.md#test) [[A#section]]
 ]==],
     root / "B.md"
   )
