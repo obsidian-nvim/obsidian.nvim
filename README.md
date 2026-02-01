@@ -127,8 +127,8 @@ There's one entry point user command for this plugin: `Obsidian`
 
 ### LSP code actions
 
-- Use `gra` or `:=vim.lsp.buf.code_action` to trigger note specific actions.
-- See [LSP](https://github.com/obsidian-nvim/obsidian.nvim/wiki/LSP) for more info.
+- Use `gra` or `:=vim.lsp.buf.code_action()` to trigger note specific actions.
+- See [LSP code actions](https://github.com/obsidian-nvim/obsidian.nvim/wiki/LSP#code-actions) and [Actions](docs/Actions.md) for more info.
 
 > [!Waring]
 > Some note subcommands that are related to refactoring like `rename`, `template`

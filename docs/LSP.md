@@ -29,3 +29,27 @@ Available actions:
   - Link selection as name for an existing note (`link`)
   - Link selection as name for a new note (`link_new`)
   - Extract selected text to a new note (`extract_note`)
+
+### Code Action API
+
+You can register custom code actions via `require("obsidian").code_action`. Each action is exposed as an LSP
+command, so register actions before calling `require"obsidian".setup{}`.
+
+API:
+
+- `require("obsidian").code_action.add(opts)`, and `opts` field have following fields:
+  - `name`: command id (snake_case recommended).
+  - `title`: text shown in the code action picker.
+  - `fn`: function invoked when the action is executed.
+  - `range` (optional): when `true`, the action only appears for a visual selection.
+- `require("obsidian").code_action.del(name)` removes a previously registered action.
+
+<!-- Example: -->
+<!---->
+<!-- ```lua -->
+<!-- require("obsidian").code_action.add { -->
+<!--   name = "insert tag", -->
+<!--   title = "Insert an existing tag", -->
+<!--   fn = require("obsidian.actions").insert_tag, -->
+<!-- } -->
+<!-- ``` -->
