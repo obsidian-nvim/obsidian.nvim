@@ -31,23 +31,18 @@ T["detects all RefTypes"] = function()
     local backlinks = note:backlinks({})
     _FOUND_TYPES = {}
     for _, m in ipairs(backlinks) do
-      local refs = search.find_refs(m.text)  -- get all refs in the backlink text
+      local refs = search.find_refs(m.text)
       for _, ref in ipairs(refs) do
-        if ref.ref_type then
-          _FOUND_TYPES[ref.ref_type] = true
-        elseif ref.type then
-          _FOUND_TYPES[ref.type] = true
+        local t = ref.ref_type or ref.type
+        if t then
+          _FOUND_TYPES[t] = true
         end
       end
     end
   ]]
   local found_types = child.lua_get [[_FOUND_TYPES]]
-  local expected = {
-    "Wiki",
-    "WikiWithAlias",
-    "Markdown",
-  }
-  for _, t in ipairs(expected) do
+  local expected_types = { "Wiki", "WikiWithAlias", "Markdown" }
+  for _, t in ipairs(expected_types) do
     eq(true, found_types[t] == true, "Missing ref type: " .. t)
   end
 end
@@ -58,7 +53,6 @@ T["anchor filtering works"] = function()
   child.cmd("edit " .. tostring(root / "A.md"))
   child.lua [[
     local Note = require("obsidian.note")
-
     local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
     _NOTE_SECTION = note:backlinks({ anchor = "#Section" })
     _NOTE_TEST    = note:backlinks({ anchor = "#test" })
