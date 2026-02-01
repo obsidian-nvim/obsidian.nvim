@@ -24,7 +24,7 @@ T["detects all RefTypes"] = function()
   local root = child.Obsidian.dir
   setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
-  local found_types = child.lua_get [[
+  local found_types = child.lua [[
     local search = require("obsidian.search")
     local Note = require("obsidian.note")
     local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
