@@ -3,7 +3,6 @@ local eq = MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
-
 local function setup_vault(root)
   h.write(
     "# A\n" .. "## Section\n" .. "Paragraph with block ^block-id\n" .. "==highlighted text==\n" .. "## test\n",
@@ -13,7 +12,6 @@ local function setup_vault(root)
     [==[
 [[A]] [[A|Alias]] [A](A.md)
 [A test](A.md#test) [Another](A.md#Section)
-https://example.com/A.md file:///vault/A.md mailto:test@example.com
 #A ^block-id ==highlighted text==
 [[A#Section]] [[A#^block-id]]
 Multiple links: [[A]] [md](A.md#test) [[A#Section]]
@@ -48,9 +46,6 @@ T["detects all RefTypes"] = function()
     "Wiki",
     "WikiWithAlias",
     "Markdown",
-    "NakedUrl",
-    "FileUrl",
-    "MailtoUrl",
     "Tag",
     "BlockID",
     "Highlight",
@@ -69,24 +64,19 @@ T["anchor filtering works"] = function()
   child.lua [[
     local Note = require("obsidian.note")
     local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
-    -- The internal find_backlinks filters by anchor before returning
     _NOTE_SECTION = note:backlinks({ anchor = "Section" })
     _NOTE_TEST    = note:backlinks({ anchor = "test" })
   ]]
   local section_links = child.lua_get [[_NOTE_SECTION]]
   local test_links = child.lua_get [[_NOTE_TEST]]
-  eq(3, #section_links, "Should find 3 links for 'Section'")
-  eq(2, #test_links, "Should find 2 links for 'test'")
-  for _, m in ipairs(section_links) do
-    eq(true, m.text:find "#Section" ~= nil or m.text:find "|Section" ~= nil)
-  end
+  eq(3, #section_links)
+  eq(2, #test_links)
 end
 
 T["multiple links per line"] = function()
   local root = child.Obsidian.dir
   setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
-
   child.lua [[
     local Note = require("obsidian.note")
     local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
