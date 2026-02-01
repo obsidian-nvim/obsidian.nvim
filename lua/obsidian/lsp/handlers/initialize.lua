@@ -37,7 +37,7 @@ local initializeResult = {
     },
     codeActionProvider = true,
     executeCommandProvider = {
-      commands = commands,
+      commands = vim.tbl_keys(require("obsidian.lsp.handlers._code_action").actions),
     },
   },
   serverInfo = {

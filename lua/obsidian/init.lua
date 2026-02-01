@@ -21,6 +21,7 @@ obsidian.util = require "obsidian.util"
 obsidian.VERSION = require "obsidian.version"
 obsidian.Workspace = require "obsidian.workspace"
 obsidian.yaml = require "obsidian.yaml"
+obsidian.code_action = require "obsidian.lsp.handlers._code_action"
 
 ---@type obsidian.Client|?
 obsidian._client = nil
