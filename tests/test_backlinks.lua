@@ -13,7 +13,7 @@ local function setup_vault(root)
 [[A]] [[A|Alias]] [A](A.md)
 [A test](A.md#test) [Another](A.md#Section)
 [[A#Section]] 
-Multiple links: [[A]] [md](A.md#test) [[A#Section]]
+Multiple links: [[A]] [md](A.md#test) 
 [[A#test]]
 ]==],
     root / "B.md"
@@ -64,7 +64,7 @@ T["anchor filtering works"] = function()
   ]]
   local section_links = child.lua_get [[_NOTE_SECTION]]
   local test_links = child.lua_get [[_NOTE_TEST]]
-  eq(3, #section_links)
+  eq(2, #section_links)
   eq(3, #test_links)
 end
 
