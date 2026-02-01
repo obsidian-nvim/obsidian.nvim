@@ -477,4 +477,51 @@ M.add_property = function()
   note:update_frontmatter(0)
 end
 
+---@param template_name string
+M.insert_template = function(template_name)
+  local templates_dir = api.templates_dir()
+  if not templates_dir then
+    return log.err "Templates folder is not defined or does not exist"
+  end
+  local templates = require "obsidian.templates"
+
+  -- We need to get this upfront before the picker hijacks the current window.
+  local insert_location = api.get_active_window_cursor_location()
+
+  local function insert_template(name)
+    templates.insert_template {
+      type = "insert_template",
+      template_name = name,
+      template_opts = Obsidian.opts.templates,
+      templates_dir = templates_dir,
+      location = insert_location,
+    }
+  end
+
+  if template_name then
+    insert_template(template_name)
+    return
+  end
+
+  ---@type obsidian.PickerEntry
+  local entries = {}
+  for path in api.dir(tostring(templates_dir)) do
+    entries[#entries + 1] = {
+      filename = path,
+      text = vim.fs.basename(path),
+    }
+  end
+
+  Obsidian.picker.pick(entries, {
+    callback = function(entry)
+      insert_template(entry.filename)
+    end,
+  })
+end
+
+---@param new_name string|?
+M.rename = function(new_name)
+  vim.lsp.buf.rename(new_name)
+end
+
 return M
