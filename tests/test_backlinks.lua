@@ -4,17 +4,7 @@ local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
 
-local function has(backlinks, opts)
-  for _, m in ipairs(backlinks) do
-    if (not opts.type or m.ref.type == opts.type) and (not opts.anchor or m.ref.anchor == opts.anchor) then
-      return true
-    end
-  end
-  return false
-end
-
-T["detects all RefTypes"] = function()
-  local root = child.Obsidian.dir
+local function setup_vault(root)
   h.write(
     "# A\n" .. "## Section\n" .. "Paragraph with block ^block-id\n" .. "==highlighted text==\n" .. "## test\n",
     root / "A.md"
@@ -30,13 +20,28 @@ Multiple links: [[A]] [md](A.md#test) [[A#Section]]
 ]==],
     root / "B.md"
   )
+end
+
+local function has(backlinks, opts)
+  for _, m in ipairs(backlinks) do
+    local ref = m.ref or m
+    if (not opts.type or ref.type == opts.type) and (not opts.anchor or ref.anchor == opts.anchor) then
+      return true
+    end
+  end
+  return false
+end
+
+T["detects all RefTypes"] = function()
+  local root = child.Obsidian.dir
+  setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
   child.lua [[
-local Path = require("obsidian.path")
-local Note = require("obsidian.note")
-local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
-_NOTE_BACKLINKS = note:backlinks({})
-]]
+    local Path = require("obsidian.path")
+    local Note = require("obsidian.note")
+    local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
+    _NOTE_BACKLINKS = note:backlinks({})
+  ]]
   local backlinks = child.lua_get [[_NOTE_BACKLINKS]]
   local expected = {
     "Wiki",
@@ -59,42 +64,45 @@ end
 
 T["anchor filtering works"] = function()
   local root = child.Obsidian.dir
+  setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
   child.lua [[
-local Path = require("obsidian.path")
-local Note = require("obsidian.note")
-local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
-_NOTE_SECTION = note:backlinks({ anchor = "Section" })
-_NOTE_TEST    = note:backlinks({ anchor = "test" })
-]]
+    local Path = require("obsidian.path")
+    local Note = require("obsidian.note")
+    local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
+    _NOTE_SECTION = note:backlinks({ anchor = "Section" })
+    _NOTE_TEST    = note:backlinks({ anchor = "test" })
+  ]]
   local section_links = child.lua_get [[_NOTE_SECTION]]
   local test_links = child.lua_get [[_NOTE_TEST]]
   eq(3, #section_links)
   for _, m in ipairs(section_links) do
-    eq("Section", m.ref.anchor)
+    local ref = m.ref or m
+    eq("Section", ref.anchor)
     assert(
-      m.ref.type == "HeaderLink" or m.ref.type == "Markdown",
-      "Unexpected ref type for Section anchor: " .. tostring(m.ref.type)
+      ref.type == "HeaderLink" or ref.type == "Markdown",
+      "Unexpected ref type for Section anchor: " .. tostring(ref.type)
     )
   end
   eq(2, #test_links)
   for _, m in ipairs(test_links) do
-    eq("test", m.ref.anchor)
-    eq("Markdown", m.ref.type)
+    local ref = m.ref or m
+    eq("test", ref.anchor)
+    eq("Markdown", ref.type)
   end
   child.lua [[_NOTE_SECTION = nil _NOTE_TEST = nil]]
 end
 
 T["multiple links per line"] = function()
   local root = child.Obsidian.dir
+  setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
   child.lua [[
-local Path = require("obsidian.path")
-local Note = require("obsidian.note")
-local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
-_NOTE_BACKLINKS = note:backlinks({})
-]]
-
+    local Path = require("obsidian.path")
+    local Note = require("obsidian.note")
+    local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
+    _NOTE_BACKLINKS = note:backlinks({})
+  ]]
   local backlinks = child.lua_get [[_NOTE_BACKLINKS]]
   local by_line = {}
   for _, m in ipairs(backlinks) do
