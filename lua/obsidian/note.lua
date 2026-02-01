@@ -175,8 +175,8 @@ Note._get_creation_opts = function(opts)
   for key, cfg in pairs(Obsidian.opts.templates.customizations) do
     if key:lower() == stem then
       ret = {
-        notes_subdir = cfg.notes_subdir,
-        note_id_func = cfg.note_id_func,
+        notes_subdir = cfg.notes_subdir or ret.notes_subdir,
+        note_id_func = cfg.note_id_func or ret.note_id_func,
         new_notes_location = "notes_subdir",
       }
     end

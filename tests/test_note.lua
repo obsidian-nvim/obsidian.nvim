@@ -294,6 +294,20 @@ T["_get_note_creation_opts"]["should load customizations for existing template"]
   eq(spec.note_id_func, zettelConfig.note_id_func)
 end
 
+T["_get_note_creation_opts"]["should fallback to global note_id_func if customization omits it"] = function()
+  local partialConfig = {
+    notes_subdir = "partials",
+  }
+  Obsidian.opts.templates.customizations = {
+    Partial = partialConfig,
+  }
+  local temp_template = api.templates_dir() / "Partial"
+  vim.fn.writefile({}, tostring(temp_template))
+  local spec = assert(M._get_creation_opts { template = "Partial" })
+  eq(spec.notes_subdir, "partials")
+  eq(spec.note_id_func, Obsidian.opts.note_id_func)
+end
+
 T["new_note_path"] = new_set()
 
 T["new_note_path"]['should only append one ".md" at the end of the path'] = function()
