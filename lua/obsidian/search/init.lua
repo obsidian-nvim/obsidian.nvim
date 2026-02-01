@@ -688,8 +688,21 @@ M.find_backlinks_async = function(note, callback, opts)
         local _, matched_anchor = util.strip_anchor_links(link_location)
         local include = true
         if anchor then
-          if not matched_anchor or util.standardize_anchor(matched_anchor) ~= anchor then
+          if not matched_anchor then
             include = false
+          else
+            local std_matched = util.standardize_anchor(matched_anchor)
+            local is_direct_match = std_matched == anchor
+            local is_resolved_match = false
+            if not is_direct_match and anchor_obj ~= nil then
+              local resolved = note:resolve_anchor_link(matched_anchor)
+              if resolved and resolved.header == anchor_obj.header then
+                is_resolved_match = true
+              end
+            end
+            if not (is_direct_match or is_resolved_match) then
+              include = false
+            end
           end
         end
         if block and include then
