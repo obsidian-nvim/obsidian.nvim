@@ -65,7 +65,7 @@ T["anchor filtering works"] = function()
   local section_links = child.lua_get [[_NOTE_SECTION]]
   local test_links = child.lua_get [[_NOTE_TEST]]
   eq(3, #section_links)
-  eq(2, #test_links)
+  eq(3, #test_links)
 end
 
 T["multiple links per line"] = function()
