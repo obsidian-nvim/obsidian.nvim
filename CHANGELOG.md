@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Snacks picker actions now respect `allow_multiple` picker option.
 - Template customizations falls back to global configuration if not provided
 
+### Fixed
+
+- Fixed backlinks when using markdown links
+
 ## [v3.15.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.7) - 2026-01-29
 
 ### Fixed
@@ -82,13 +86,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Snacks picker actions now return the correct format for `mappings.lua`.
 - Custom deprecate function to avoid the case `vim.deprecate` being set to no-op and users don't get deprecation warnings.
 
-### Fixed
-
-- Fixed backlinks when using markdown links
-
-### Fixed
-
-- Fixed backlinks when using markdown links
 
 ## [v3.15.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.4) - 2026-01-10
 
