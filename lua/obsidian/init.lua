@@ -39,7 +39,6 @@ obsidian.get_client = function()
 end
 
 obsidian.register_command = require("obsidian.commands").register
-obsidian.register_code_action = require("obsidian.lsp.handlers._code_action").register
 
 --- Setup a new Obsidian client. This should only be called once from an Nvim session.
 ---
