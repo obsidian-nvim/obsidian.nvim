@@ -96,6 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Completion will work for resolve workspace based on current buffer.
 - Ability to read `gitignore` and ignore blobs in `:Obsidian check` and other incoming features.
+- Added periodic notes commands for weekly, monthly, quarterly, and yearly notes.
+- Added `weekly_notes`, `monthly_notes`, `quarterly_notes`, and `yearly_notes` configuration options.
 
 ### Changed
 

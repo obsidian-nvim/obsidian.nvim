@@ -318,6 +318,10 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.completion = tbl_override(defaults.completion, opts.completion)
   opts.picker = tbl_override(defaults.picker, opts.picker)
   opts.daily_notes = tbl_override(defaults.daily_notes, opts.daily_notes)
+  opts.weekly_notes = tbl_override(defaults.weekly_notes, opts.weekly_notes)
+  opts.monthly_notes = tbl_override(defaults.monthly_notes, opts.monthly_notes)
+  opts.quarterly_notes = tbl_override(defaults.quarterly_notes, opts.quarterly_notes)
+  opts.yearly_notes = tbl_override(defaults.yearly_notes, opts.yearly_notes)
   opts.templates = tbl_override(defaults.templates, opts.templates)
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
@@ -329,6 +333,11 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
   opts.search = tbl_override(defaults.search, opts.search)
   opts.note = tbl_override(defaults.note, opts.note)
+
+  -- Default enabled=true for daily_notes for backward compatibility
+  if opts.daily_notes.enabled == nil then
+    opts.daily_notes.enabled = true
+  end
 
   ---------------
   -- Validate. --
