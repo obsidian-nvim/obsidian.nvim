@@ -1,5 +1,3 @@
-local commands = require("obsidian.lsp.handlers._code_action").commands
-
 ---@type lsp.InitializeResult
 local initializeResult = {
   capabilities = {
@@ -11,7 +9,7 @@ local initializeResult = {
     documentSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {
-      commands = commands,
+      commands = vim.tbl_keys(require("obsidian.lsp.handlers._code_action").actions),
     },
   },
   serverInfo = {

@@ -5,7 +5,7 @@ local actions = require("obsidian.lsp.handlers._code_action").actions
 ---@return string[]
 local function get_commands_by_context(code_actions, in_selection)
   return vim
-    .iter(code_actions)
+    .iter(vim.tbl_values(code_actions))
     :filter(function(code_action)
       if in_selection then
         return code_action.data.range ~= nil
