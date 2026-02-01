@@ -33,7 +33,7 @@ Multiple links: [[A]] [md](A.md#test) [[A#Section]]
   child.cmd("edit " .. tostring(root / "A.md"))
   child.lua [[
 local Note = require("obsidian.note")
-local note = Note.new("A.md")
+local note = Note.new(Obsidian.dir / "A.md")
 _G.backlinks = note:backlinks({})
 ]]
 
@@ -62,7 +62,7 @@ T["anchor filtering works"] = function()
   child.cmd("edit " .. tostring(root / "A.md"))
   child.lua [[
 local Note = require("obsidian.note")
-local note = Note.new("A.md")
+local note = Note.new(Obsidian.dir / "A.md")
 _G.section_links = note:backlinks({ anchor = "Section" })
 _G.test_links    = note:backlinks({ anchor = "test" })
 ]]
@@ -88,7 +88,7 @@ T["multiple links per line"] = function()
   child.cmd("edit " .. tostring(root / "A.md"))
   child.lua [[
 local Note = require("obsidian.note")
-local note = Note.new("A.md")
+local note = Note.new(Obsidian.dir / "A.md")
 _G.backlinks = note:backlinks({})
 ]]
   local backlinks = child.lua_get [[_G.backlinks]]
