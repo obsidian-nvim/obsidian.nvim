@@ -49,6 +49,9 @@ local Note = {}
 local load_contents = function(note)
   local contents = {}
   local path = tostring(rawget(note, "path"))
+  if not path then
+    return {}
+  end
   for line in io.lines(path) do
     table.insert(contents, line)
   end
@@ -212,7 +215,7 @@ end
 ---@param opts obsidian.note.NoteOpts Strategy for resolving note path and title
 ---@return string id
 ---@return obsidian.Path path
----@return string title
+---@return string|? title
 ---@private
 Note._resolve_id_path = function(opts)
   local id, dir = opts.id, opts.dir
@@ -315,7 +318,7 @@ end
 --- @param aliases string[]
 --- @param tags string[]
 --- @param path string|obsidian.Path|?
---- @param title string
+--- @param title string|?
 --- @return obsidian.Note
 Note.new = function(id, aliases, tags, path, title)
   local self = {}
@@ -931,7 +934,7 @@ Note.write = function(self, opts)
         template_name = opts.template,
         destination_path = path,
         template_opts = Obsidian.opts.templates,
-        templates_dir = assert(api.templates_dir(), "Templates folder is not defined or does not exist"),
+        templates_dir = api.templates_dir(),
         partial_note = self,
       }
     end
