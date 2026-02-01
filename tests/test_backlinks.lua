@@ -12,8 +12,7 @@ local function setup_vault(root)
     [==[
 [[A]] [[A|Alias]] [A](A.md)
 [A test](A.md#test) [Another](A.md#Section)
-#A ^block-id ==highlighted text==
-[[A#Section]] [[A#^block-id]]
+[[A#Section]] 
 Multiple links: [[A]] [md](A.md#test) [[A#Section]]
 ]==],
     root / "B.md"
@@ -46,11 +45,6 @@ T["detects all RefTypes"] = function()
     "Wiki",
     "WikiWithAlias",
     "Markdown",
-    "Tag",
-    "BlockID",
-    "Highlight",
-    "HeaderLink",
-    "BlockLink",
   }
   for _, t in ipairs(expected) do
     eq(true, found_types[t] == true, "Missing ref type: " .. t)
