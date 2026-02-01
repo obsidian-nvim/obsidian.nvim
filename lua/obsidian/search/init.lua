@@ -688,7 +688,7 @@ M.find_backlinks_async = function(note, callback, opts)
         local include = true
         if anchor then
           local _, matched_anchor = util.strip_anchor_links(link_location)
-          if not matched_anchor or matched_anchor ~= anchor then
+          if not matched_anchor or matched_anchor:lower() ~= anchor:lower() then
             include = false
           end
         end
