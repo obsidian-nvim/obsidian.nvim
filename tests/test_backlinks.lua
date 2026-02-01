@@ -15,12 +15,10 @@ end
 
 T["detects all RefTypes"] = function()
   local root = child.Obsidian.dir
-
   h.write(
     "# A\n" .. "## Section\n" .. "Paragraph with block ^block-id\n" .. "==highlighted text==\n" .. "## test\n",
     root / "A.md"
   )
-
   h.write(
     [==[
 [[A]] [[A|Alias]] [A](A.md)
@@ -32,17 +30,14 @@ Multiple links: [[A]] [md](A.md#test) [[A#Section]]
 ]==],
     root / "B.md"
   )
-
   child.cmd("edit " .. tostring(root / "A.md"))
-
   child.lua [[
-local client = require("obsidian").get_client()
-local note = client:find_note("A")
-_G.backlinks = note:backlinks()
+local Note = require("obsidian.note")
+local note = Note.new("A.md")
+_G.backlinks = note:backlinks({})
 ]]
 
   local backlinks = child.lua_get [[_G.backlinks]]
-
   local expected = {
     "Wiki",
     "WikiWithAlias",
@@ -65,49 +60,47 @@ end
 T["anchor filtering works"] = function()
   local root = child.Obsidian.dir
   child.cmd("edit " .. tostring(root / "A.md"))
-
   child.lua [[
-local client = require("obsidian").get_client()
-local note = client:find_note("A")
-_G.section_links = note:backlinks { anchor = "Section" }
+local Note = require("obsidian.note")
+local note = Note.new("A.md")
+_G.section_links = note:backlinks({ anchor = "Section" })
+_G.test_links    = note:backlinks({ anchor = "test" })
 ]]
-
   local section_links = child.lua_get [[_G.section_links]]
-  eq(3, #section_links)
-
-  child.lua [[
-local client = require("obsidian").get_client()
-local note = client:find_note("A")
-_G.test_links = note:backlinks { anchor = "test" }
-]]
-
   local test_links = child.lua_get [[_G.test_links]]
+  eq(3, #section_links)
+  for _, m in ipairs(section_links) do
+    eq("Section", m.ref.anchor)
+    assert(
+      m.ref.type == "HeaderLink" or m.ref.type == "Markdown",
+      "Unexpected ref type for Section anchor: " .. tostring(m.ref.type)
+    )
+  end
   eq(2, #test_links)
+  for _, m in ipairs(test_links) do
+    eq("test", m.ref.anchor)
+    eq("Markdown", m.ref.type)
+  end
 end
 
 T["multiple links per line"] = function()
   local root = child.Obsidian.dir
   child.cmd("edit " .. tostring(root / "A.md"))
-
   child.lua [[
-local client = require("obsidian").get_client()
-local note = client:find_note("A")
-_G.backlinks = note:backlinks()
+local Note = require("obsidian.note")
+local note = Note.new("A.md")
+_G.backlinks = note:backlinks({})
 ]]
-
   local backlinks = child.lua_get [[_G.backlinks]]
-
   local by_line = {}
   for _, m in ipairs(backlinks) do
     by_line[m.lnum] = (by_line[m.lnum] or 0) + 1
   end
-
   for _, count in pairs(by_line) do
     if count > 1 then
       return
     end
   end
-
   error "Expected multiple backlinks on a single line"
 end
 
