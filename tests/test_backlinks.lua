@@ -59,8 +59,8 @@ T["anchor filtering works"] = function()
   child.lua [[
     local Note = require("obsidian.note")
     local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
-    _NOTE_SECTION = note:backlinks({ anchor = "Section" })
-    _NOTE_TEST    = note:backlinks({ anchor = "test" })
+    _NOTE_SECTION = note:backlinks({ anchor = "#Section" })
+    _NOTE_TEST    = note:backlinks({ anchor = "#test" })
   ]]
   local section_links = child.lua_get [[_NOTE_SECTION]]
   local test_links = child.lua_get [[_NOTE_TEST]]
