@@ -35,11 +35,11 @@ Multiple links: [[A]] [md](A.md#test) [[A#Section]]
 
   child.cmd("edit " .. tostring(root / "A.md"))
 
-  local backlinks = child.lua_get [[
+  local backlinks = child.lua_get [==[
 local client = require("obsidian").get_client()
 local note = client:find_note("A")
 return note:backlinks()
-]]
+]==]
 
   local expected = {
     "Wiki",
@@ -64,22 +64,22 @@ T["anchor filtering works"] = function()
   local root = child.Obsidian.dir
   child.cmd("edit " .. tostring(root / "A.md"))
 
-  local section_links = child.lua_get [[
+  local section_links = child.lua_get [==[
 local client = require("obsidian").get_client()
 local note = client:find_note("A")
 return note:backlinks { anchor = "Section" }
-]]
+]==]
 
   eq(3, #section_links)
   for _, m in ipairs(section_links) do
     eq("Section", m.ref.anchor)
   end
 
-  local test_links = child.lua_get [[
+  local test_links = child.lua_get [==[
 local client = require("obsidian").get_client()
 local note = client:find_note("A")
 return note:backlinks { anchor = "test" }
-]]
+]==]
 
   eq(2, #test_links)
   for _, m in ipairs(test_links) do
@@ -91,11 +91,11 @@ T["multiple links per line"] = function()
   local root = child.Obsidian.dir
   child.cmd("edit " .. tostring(root / "A.md"))
 
-  local backlinks = child.lua_get [[
+  local backlinks = child.lua_get [==[
 local client = require("obsidian").get_client()
 local note = client:find_note("A")
 return note:backlinks()
-]]
+]==]
 
   local by_line = {}
   for _, m in ipairs(backlinks) do
