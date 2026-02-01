@@ -685,15 +685,14 @@ M.find_backlinks_async = function(note, callback, opts)
       local ref_text = line_text:sub(ref_start, ref_end)
       local link_location, _, _ = util.parse_link(ref_text, { link_type = ref_type })
       if link_location then
+        local _, matched_anchor = util.strip_anchor_links(link_location)
         local include = true
         if anchor then
-          local _, matched_anchor = util.strip_anchor_links(link_location)
           if not matched_anchor or util.standardize_anchor(matched_anchor) ~= anchor then
             include = false
           end
         end
         if block and include then
-          local _, matched_anchor = util.strip_anchor_links(link_location)
           if util.standardize_block(matched_anchor) ~= block then
             include = false
           end
