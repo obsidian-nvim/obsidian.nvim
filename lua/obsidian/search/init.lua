@@ -677,47 +677,47 @@ M.find_backlinks_async = function(note, callback, opts)
 
   ---@param match MatchData
 
-local _on_match = function(match)
-  local path = Path.new(match.path.text):resolve { strict = true }
-  local line_text = util.rstrip_whitespace(match.lines.text)
-  for _, ref in ipairs(M.find_refs(line_text)) do
-    local ref_start, ref_end, ref_type = unpack(ref)
-    local ref_text = line_text:sub(ref_start, ref_end)
-    local link_location, _, _ =
-      util.parse_link(ref_text, { link_type = ref_type })
-    if not link_location then
-      goto continue
-    end
-    if anchor or block then
-      local _, matched_anchor = util.strip_anchor_links(link_location)
-      if anchor then
-        if not matched_anchor then
-          goto continue
-        end
-        if matched_anchor ~= anchor and anchor_obj ~= nil then
-          local resolved = note:resolve_anchor_link(matched_anchor)
-          if not resolved or resolved.header ~= anchor_obj.header then
-            goto continue
+  local _on_match = function(match)
+    local path = Path.new(match.path.text):resolve { strict = true }
+    local line_text = util.rstrip_whitespace(match.lines.text)
+    for _, ref in ipairs(M.find_refs(line_text)) do
+      local ref_start, ref_end, ref_type = unpack(ref)
+      local ref_text = line_text:sub(ref_start, ref_end)
+
+      local link_location = util.parse_link(ref_text, { link_type = ref_type })
+      if link_location then
+        local ok = true
+        if anchor or block then
+          local _, matched_anchor = util.strip_anchor_links(link_location)
+          if anchor then
+            if not matched_anchor then
+              ok = false
+            elseif matched_anchor ~= anchor and anchor_obj ~= nil then
+              local resolved = note:resolve_anchor_link(matched_anchor)
+              if not resolved or resolved.header ~= anchor_obj.header then
+                ok = false
+              end
+            end
+          end
+          if block and ok then
+            if util.standardize_block(matched_anchor) ~= block then
+              ok = false
+            end
           end
         end
-      end
-      if block then
-        if util.standardize_block(matched_anchor) ~= block then
-          goto continue
+
+        if ok then
+          results[#results + 1] = {
+            path = path,
+            line = match.line_number,
+            text = line_text,
+            start = ref_start,
+            ["end"] = ref_end,
+          }
         end
       end
     end
-    local submatch = match.submatches[1]
-    results[#results + 1] = {
-      path = path,
-      line = match.line_number,
-      text = line_text,
-      start = ref_start,
-      ["end"] = ref_end,
-    }
-    ::continue::
   end
-end
 
   M.search_async(
     dir,
