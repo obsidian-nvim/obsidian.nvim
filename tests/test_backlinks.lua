@@ -24,26 +24,26 @@ T["detects all RefTypes"] = function()
   local root = child.Obsidian.dir
   setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
-  child.lua [[
+  local found_types = child.lua_get [[
     local search = require("obsidian.search")
     local Note = require("obsidian.note")
     local note = Note.new("A", {}, {}, Obsidian.dir / "A.md")
     local backlinks = note:backlinks({})
-    _FOUND_TYPES = {}
+    local found = {}
     for _, m in ipairs(backlinks) do
-      local refs = search.find_refs(m.text)
-      for _, ref in ipairs(refs) do
-        local t = ref.ref_type or ref.type
-        if t then
-          _FOUND_TYPES[t] = true
+      local _,_, refs = search.find_refs(m.text)
+      for ref in ipairs(refs) do
+        local t = ref 
+        if t then 
+          found[t] = true 
         end
       end
     end
+    return found
   ]]
-  local found_types = child.lua_get [[_FOUND_TYPES]]
-  local expected_types = { "Wiki", "WikiWithAlias", "Markdown" }
-  for _, t in ipairs(expected_types) do
-    eq(true, found_types[t] == true, "Missing ref type: " .. t)
+  local expected = { "Wiki", "WikiWithAlias", "Markdown" }
+  for _, t in ipairs(expected) do
+    eq(true, found_types[t] == true, "Expected to find reference type: " .. t)
   end
 end
 
