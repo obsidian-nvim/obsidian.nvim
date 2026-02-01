@@ -31,9 +31,10 @@ T["detects all RefTypes"] = function()
     local backlinks = note:backlinks({})
     local found = {}
     for _, m in ipairs(backlinks) do
-      local _,_, refs = search.find_refs(m.text)
-      for ref in ipairs(refs) do
-        local t = ref 
+      local refs = search.find_refs(m.text)
+      for _, ref in ipairs(refs) do
+        local ref_start, ref_end, ref_type = unpack(ref)
+        local t = ref_type 
         if t then 
           found[t] = true 
         end
