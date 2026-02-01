@@ -145,7 +145,9 @@ M.pick = function(values, opts)
       picker:close()
       if item then
         if opts.callback then
-          if item.file then
+          if type(item.value) == "function" then
+            item.value()
+          elseif item.file then
             opts.callback {
               filename = item.file,
               col = item.pos and item.pos[2],

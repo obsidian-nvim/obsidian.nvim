@@ -424,6 +424,32 @@ Path.mkdir = function(self, opts)
   self:mkdir { mode = mode }
 end
 
+--- Create a file at this given path.
+---
+---@param opts { mode: integer|?, exist_ok: boolean|? }|?
+Path.touch = function(self, opts)
+  opts = opts or {}
+  local mode = opts.mode or 420
+
+  local resolved = self:resolve { strict = false }
+  if resolved:exists() then
+    local new_time = os.time()
+    vim.uv.fs_utime(resolved.filename, new_time, new_time)
+    return
+  end
+
+  local parent = resolved:parent()
+  if parent and not parent:exists() then
+    error("FileNotFoundError: " .. parent.filename)
+  end
+
+  local fd, err_name, err_msg = vim.uv.fs_open(resolved.filename, "w", mode)
+  if not fd then
+    error(err_name .. ": " .. err_msg)
+  end
+  vim.uv.fs_close(fd)
+end
+
 -- TODO: not implemented and not used, after we get to 0.11 we can simply use vim.fs.rm
 --- Recursively remove an entire directory and its contents.
 Path.rmtree = function() end

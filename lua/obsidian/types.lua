@@ -64,6 +64,7 @@
 ---@field comment? obsidian.config.CommentOpts
 ---@field search? obsidian.config.SearchOpts
 ---@field note? obsidian.config.NoteOpts
+---@field bookmarks? obsidian.config.BookmarksOpts
 
 ---@class obsidian.config.Internal
 ---@field dir string|?
@@ -96,3 +97,4 @@
 ---@field comment obsidian.config.CommentOpts
 ---@field search obsidian.config.SearchOpts
 ---@field note obsidian.config.NoteOpts
+---@field bookmarks obsidian.config.BookmarksOpts

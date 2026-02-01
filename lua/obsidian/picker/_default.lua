@@ -37,7 +37,11 @@ M.pick = function(values, opts)
         if type(item) == "string" then
           item = { value = item }
         end
-        callback(item)
+        if type(item.user_data) == "function" then
+          item.user_data() -- NOTE: pass in the item?
+        else
+          callback(item)
+        end
       end
     end)
   else
@@ -146,7 +150,7 @@ M.find_files = function(opts)
     end,
     vim.schedule_wrap(function()
       if vim.tbl_isempty(paths) then
-        return log.info "Failed to Switch" -- TODO:
+        return log.info "Search result empty"
       elseif #paths == 1 then
         return api.open_note { filename = paths[1] }
       elseif #paths > 1 then
