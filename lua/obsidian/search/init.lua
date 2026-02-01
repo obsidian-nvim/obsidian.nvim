@@ -677,30 +677,33 @@ M.find_backlinks_async = function(note, callback, opts)
 
   ---@param match MatchData
 
-  local _on_match = function(match)
-    local path = Path.new(match.path.text):resolve { strict = true }
-    local line_text = util.rstrip_whitespace(match.lines.text)
+local _on_match = function(match)
+  local path = Path.new(match.path.text):resolve { strict = true }
+  local line_text = util.rstrip_whitespace(match.lines.text)
+  for _, ref in ipairs(M.find_refs(line_text)) do
+    local ref_start, ref_end, ref_type = unpack(ref)
+    local ref_text = line_text:sub(ref_start, ref_end)
+    local link_location, _, _ =
+      util.parse_link(ref_text, { link_type = ref_type })
+    if not link_location then
+      goto continue
+    end
     if anchor or block then
-      local ref_text, ref_type =
-        M.find_ref_at_position(line_text, match.submatches[1].start, match.submatches[1]["end"])
-      if not ref_text then
-        return
-      end
-      local link_location = util.parse_link(ref_text, { link_type = ref_type })
-      if not link_location then
-        return
-      end
       local _, matched_anchor = util.strip_anchor_links(link_location)
       if anchor then
         if not matched_anchor then
-          return
+          goto continue
         end
         if matched_anchor ~= anchor and anchor_obj ~= nil then
           local resolved = note:resolve_anchor_link(matched_anchor)
-
           if not resolved or resolved.header ~= anchor_obj.header then
-            return
+            goto continue
           end
+        end
+      end
+      if block then
+        if util.standardize_block(matched_anchor) ~= block then
+          goto continue
         end
       end
     end
@@ -709,10 +712,12 @@ M.find_backlinks_async = function(note, callback, opts)
       path = path,
       line = match.line_number,
       text = line_text,
-      start = match.submatches[1].start,
-      ["end"] = match.submatches[1]["end"],
+      start = ref_start,
+      ["end"] = ref_end,
     }
+    ::continue::
   end
+end
 
   M.search_async(
     dir,
