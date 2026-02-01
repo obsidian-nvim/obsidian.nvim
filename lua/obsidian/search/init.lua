@@ -683,30 +683,22 @@ M.find_backlinks_async = function(note, callback, opts)
     for _, ref in ipairs(M.find_refs(line_text)) do
       local ref_start, ref_end, ref_type = unpack(ref)
       local ref_text = line_text:sub(ref_start, ref_end)
-
-      local link_location = util.parse_link(ref_text, { link_type = ref_type })
+      local link_location, _, _ = util.parse_link(ref_text, { link_type = ref_type })
       if link_location then
-        local ok = true
-        if anchor or block then
+        local include = true
+        if anchor then
           local _, matched_anchor = util.strip_anchor_links(link_location)
-          if anchor then
-            if not matched_anchor then
-              ok = false
-            elseif matched_anchor ~= anchor and anchor_obj ~= nil then
-              local resolved = note:resolve_anchor_link(matched_anchor)
-              if not resolved or resolved.header ~= anchor_obj.header then
-                ok = false
-              end
-            end
-          end
-          if block and ok then
-            if util.standardize_block(matched_anchor) ~= block then
-              ok = false
-            end
+          if not matched_anchor or matched_anchor ~= anchor then
+            include = false
           end
         end
-
-        if ok then
+        if block and include then
+          local _, matched_anchor = util.strip_anchor_links(link_location)
+          if util.standardize_block(matched_anchor) ~= block then
+            include = false
+          end
+        end
+        if include then
           results[#results + 1] = {
             path = path,
             line = match.line_number,
