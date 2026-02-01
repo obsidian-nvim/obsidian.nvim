@@ -125,6 +125,15 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian link_new [TITLE]` - create a new note and link it to an inline visual selection of text
   - if title is not given, selected text is used
 
+### LSP code actions
+
+- Use `gra` or `:=vim.lsp.buf.code_action` to trigger note specific actions.
+- See [LSP](https://github.com/obsidian-nvim/obsidian.nvim/wiki/LSP) for more info.
+
+> [!Waring]
+> Some note subcommands that are related to refactoring like `rename`, `template`
+> And all the visual mode commands, will be moved to code actions in `3.17.0`.
+
 ## 📝 Requirements
 
 ### System requirements
