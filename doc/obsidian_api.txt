@@ -76,7 +76,7 @@ Keep in mind that you have to call `note:save(...)` to create/update the note on
 @param aliases string[]
 @param tags string[]
 @param path string|obsidian.Path|?
-@param title string
+@param title string|?
 @return obsidian.Note
 
 ------------------------------------------------------------------------------
