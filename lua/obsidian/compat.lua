@@ -6,11 +6,10 @@ if vim.fn.has "nvim-0.11" == 1 then
 end
 
 compat.is_list = function(t)
-  if has_nvim_0_11 then
-    return vim.islist(t)
-  else
+  if not has_nvim_0_11 then
     return vim.tbl_islist(t)
   end
+  return vim.islist(t)
 end
 
 compat.flatten = function(t)

@@ -13,6 +13,9 @@ MINIDOC = deps/mini.doc
 MARKDOC = deps/markdoc.nvim
 NVIM_TREESITTER = deps/nvim-treesitter
 
+NVIM ?= nvim
+VIMRUNTIME ?= $(shell $(NVIM) --clean --headless +'lua io.write(vim.env.VIMRUNTIME)' +q 2>/dev/null)
+
 ################################################################################
 ##@ Start here
 .PHONY: chores
@@ -29,8 +32,13 @@ lint: ## Lint the code with selene and typos
 style:  ## Format the code with stylua
 	stylua --check .
 
+.PHONY: types
 types: ## Type check with lua-ls
 	lua-language-server --configpath "$(LUARC)" --check lua/obsidian/
+
+.PHONY: checklua
+checklua:
+	VIMRUNTIME=$(VIMRUNTIME) emmylua_check --warnings-as-errors .
 
 .PHONY: test
 test: $(MINITEST)
@@ -81,3 +89,5 @@ help:  ## Display this help
 	@echo "To get started:"
 	@echo "  >>> $$(tput bold)make chores$$(tput sgr0)"
 	@awk 'BEGIN {FS = ":.*##"; printf "\033[36m\033[0m"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+

@@ -128,7 +128,7 @@ end
 local function get_uri_scheme(s)
   -- scheme per RFC-ish: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
   local scheme, rest = s:match "^([%a][%w+%-%.]*):(.*)$"
-  if not scheme then
+  if not scheme or not rest then
     return nil
   end
 
@@ -304,10 +304,8 @@ util.parse_link = function(link, opts)
   if link_type == nil then
     for _, match in ipairs(search.find_refs(link, { exclude = { "Tag" } })) do
       local _, _, m_type = unpack(match)
-      if m_type then
-        link_type = m_type
-        break
-      end
+      link_type = m_type
+      break
     end
   end
 
@@ -557,7 +555,7 @@ util.buffer_fn = function(fn)
       for i = 1, #lines - 1 do
         fn(lines[i])
       end
-      buffer = lines[#lines] -- Store remaining partial line
+      buffer = lines[#lines] or "" -- Store remaining partial line
     end
   end
 end
@@ -589,10 +587,10 @@ util.in_node = function(node_type)
       return false -- silent fail for 1) a older neovim version 2) don't have markdown parser 3) ci tests
     end
     while node do
-      if node:type() == t then
+      if node.type and node:type() == t then
         return true
       end
-      node = node:parent()
+      node = node.parent and node:parent()
     end
     return false
   end
@@ -614,6 +612,7 @@ util.strdisplaywidth = (function()
   local fallback = function(str, col)
     str = tostring(str)
 
+    ---@diagnostic disable-next-line: unnecessary-if
     if vim.in_fast_event() then
       return #str - (col or 0)
     end
