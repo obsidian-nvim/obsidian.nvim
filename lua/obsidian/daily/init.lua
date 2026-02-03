@@ -17,12 +17,8 @@ M.daily_note_path = function(datetime)
   local options = Obsidian.opts
 
   if options.daily_notes.folder ~= nil then
-    ---@type obsidian.Path
-    ---@diagnostic disable-next-line: assign-type-mismatch
     path = path / options.daily_notes.folder
   elseif options.notes_subdir ~= nil then
-    ---@type obsidian.Path
-    ---@diagnostic disable-next-line: assign-type-mismatch
     path = path / options.notes_subdir
   end
 
