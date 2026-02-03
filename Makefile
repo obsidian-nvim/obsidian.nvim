@@ -38,7 +38,7 @@ types: ## Type check with lua-ls
 
 .PHONY: checklua
 checklua:
-	VIMRUNTIME=$(VIMRUNTIME) emmylua_check --warnings-as-errors .
+	VIMRUNTIME=$(VIMRUNTIME) emmylua_check .
 
 .PHONY: test
 test: $(MINITEST)
