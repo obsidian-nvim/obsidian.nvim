@@ -2,8 +2,7 @@
 return {
   -- TODO: remove these in 4.0.0
   legacy_commands = true,
-  note_frontmatter_func = require("obsidian.builtin").frontmatter,
-  disable_frontmatter = false,
+
   ---@class obsidian.config.StatuslineOpts
   ---
   ---@field format? string

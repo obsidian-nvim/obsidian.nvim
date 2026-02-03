@@ -129,7 +129,7 @@ Workspace.set = function(workspace)
   end
 
   local dir = workspace.root
-  local options = config.normalize(workspace.overrides, Obsidian._opts)
+  local options = config.normalize(workspace.overrides or {}, Obsidian._opts)
 
   Obsidian.workspace = workspace
   Obsidian.dir = dir
@@ -138,7 +138,7 @@ Workspace.set = function(workspace)
   -- Ensure directories exist.
   dir:mkdir { parents = true }
 
-  if options.notes_subdir then
+  if options.notes_subdir ~= nil then
     (dir / options.notes_subdir):mkdir { parents = true }
   end
 
