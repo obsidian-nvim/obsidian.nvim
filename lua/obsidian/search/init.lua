@@ -255,8 +255,8 @@ end
 
 ---@param term string
 ---@param dir string|obsidian.Path
----@param search_opts obsidian.SearchOpts|boolean|?
----@param find_opts obsidian.SearchOpts|boolean|?
+---@param search_opts obsidian.SearchOpts
+---@param find_opts obsidian.SearchOpts
 ---@param callback fun(path: obsidian.Path)
 ---@param exit_callback fun(paths: obsidian.Path[])
 local _search_async = function(term, dir, search_opts, find_opts, callback, exit_callback)
@@ -361,7 +361,7 @@ M.find_notes_async = function(term, callback, opts)
     end)
 
     -- Report any errors
-    if first_err and first_err_path then
+    if first_err ~= nil and first_err_path ~= nil then
       log.err(
         "%d error(s) occurred during search. First error from note at '%s':\n%s",
         err_count,
@@ -546,7 +546,7 @@ local function build_backlink_search_term(note, anchor, block)
       search_terms[#search_terms + 1] = string.format("](%s#", ref)
       -- Markdown link with anchor/block and is relative to root.
       search_terms[#search_terms + 1] = string.format("](/%s#", ref)
-    elseif anchor then
+    elseif anchor ~= nil then
       -- Note: Obsidian allow a lot of different forms of anchor links, so we can't assume
       -- it's the standardized form here.
       -- Wiki links with anchor.
@@ -556,7 +556,7 @@ local function build_backlink_search_term(note, anchor, block)
       -- Markdown link with anchor and is relative to root.
       search_terms[#search_terms + 1] = string.format("](/%s#", ref)
       search_terms[#search_terms + 1] = string.format("](./%s#", ref)
-    elseif block then
+    elseif block ~= nil then
       -- Wiki links with block.
       search_terms[#search_terms + 1] = string.format("[[%s#%s", ref, block)
       -- Markdown link with block.
@@ -573,10 +573,10 @@ local function build_backlink_search_term(note, anchor, block)
       search_terms[#search_terms + 1] = string.format("[[%s]]", alias)
       -- Wiki link with anchor/block.
       search_terms[#search_terms + 1] = string.format("[[%s#", alias)
-    elseif anchor then
+    elseif anchor ~= nil then
       -- Wiki link with anchor.
       search_terms[#search_terms + 1] = string.format("[[%s#", alias)
-    elseif block then
+    elseif block ~= nil then
       -- Wiki link with block.
       search_terms[#search_terms + 1] = string.format("[[%s#%s", alias, block)
     end
@@ -616,7 +616,7 @@ local function get_in_note_backlink(note, term)
 
   local patterns = build_in_note_search_term(term)
 
-  for lnum, line in ipairs(note.contents) do
+  for lnum, line in ipairs(note.contents or {}) do
     for _, pat in ipairs(patterns) do
       if string.find(line, pat, 1, true) ~= nil then
         matches[#matches + 1] = {
@@ -636,8 +636,8 @@ end
 ---@field path string|obsidian.Path The path to the note where the backlinks were found.
 ---@field line integer The line number (1-indexed) where the backlink was found.
 ---@field text string The text of the line where the backlink was found.
----@field start integer The start of match (0-indexed)
----@field end integer The end of match (0-indexed)
+---@field start integer|? The start of match (0-indexed)
+---@field end integer|? The end of match (0-indexed)
 
 ---@param note obsidian.Note
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
@@ -681,12 +681,13 @@ M.find_backlinks_async = function(note, callback, opts)
         end
       end
     end
+    local submatch = match.submatches[1]
     results[#results + 1] = {
       path = path,
       line = match.line_number,
       text = util.rstrip_whitespace(match.lines.text),
-      start = match.submatches[1].start,
-      ["end"] = match.submatches[1]["end"],
+      start = submatch and submatch.start,
+      ["end"] = submatch and submatch["end"],
     }
   end
   M.search_async(

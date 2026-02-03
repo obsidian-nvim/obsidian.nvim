@@ -33,8 +33,7 @@ local should_quote = function(s)
 end
 
 ---@return string[]
-local dumps
-dumps = function(x, indent, order)
+local function dumps(x, indent, order)
   local indent_str = string.rep(" ", indent)
 
   if type(x) == "string" then
