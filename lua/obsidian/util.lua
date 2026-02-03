@@ -561,7 +561,7 @@ util.buffer_fn = function(fn)
 end
 
 ---@param event string
----@param callback fun(...)
+---@param callback fun(...)|?
 ---@param ... any
 ---@return boolean success
 util.fire_callback = function(event, callback, ...)

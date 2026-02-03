@@ -25,13 +25,6 @@
 ---@alias obsidian.TemplateContext obsidian.InsertTemplateContext | obsidian.CloneTemplateContext
 ---The table passed to user substitution functions. Use `ctx.type` to distinguish between the different kinds.
 
----@class obsidian.workspace.WorkspaceSpec
----
----@field path string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path)
----@field name string|?
----@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
----@field overrides obsidian.config?
-
 ---@class obsidian.config
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
 ---@field log_level? integer
