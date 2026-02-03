@@ -116,7 +116,7 @@ function M.check()
   ok_f("operating system: %s", os)
 
   start "Config"
-  ok_f(" dir: %s", Obsidian.dir)
+  ok_f("dir: %s", Obsidian.dir)
 
   start "Pickers"
 
