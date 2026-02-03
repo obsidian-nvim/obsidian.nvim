@@ -3,7 +3,6 @@ local search = obsidian.search
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
-local Note = obsidian.Note
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
@@ -18,30 +17,20 @@ local function open_uri(uri, scheme)
 end
 
 ---@param location string
----@param name string
 ---@param callback function
 ---@return lsp.Location?
-local function create_new_note(location, name, callback)
+local function create_new_note(location, callback)
   local confirm = obsidian.api.confirm(("Create new note '%s'?"):format(location), "&Yes\nYes With &Template\n&No")
   if confirm then
-    ---@type string|?, string[]
-    local id, aliases
-    if name == location then
-      aliases = {}
-    else
-      aliases = { name }
-    end
+    ---@type string|?, string|?
+    local id, template
     id = location
 
-    if type(confirm) == "string" and confirm == "Yes With Template" then
-      api.new_from_template(name, nil, function(note)
-        callback { note:_location() }
-      end)
-      return
-    else
-      local note = Note.create { id = id, aliases = aliases }
+    template = ((type(confirm) == "boolean" and confirm == true) and Obsidian.opts.note.template or nil)
+    api.new_from_template(id, template, function(note)
       callback { note:_location() }
-    end
+    end)
+    return
   else
     return obsidian.log.warn "Aborted"
   end
@@ -50,7 +39,7 @@ end
 ---@type table<obsidian.search.RefTypes, function>
 local handlers = {}
 
-local function open_note(location, name, callback)
+local function open_note(location, callback)
   local block_link, anchor_link
   location, block_link = util.strip_block_links(location)
   location, anchor_link = util.strip_anchor_links(location)
@@ -59,7 +48,7 @@ local function open_note(location, name, callback)
     notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
   })
   if vim.tbl_isempty(notes) then
-    create_new_note(location, name, callback)
+    create_new_note(location, callback)
   elseif #notes == 1 then
     callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
   elseif #notes > 1 then
@@ -78,28 +67,28 @@ local function open_attachment(location)
   vim.ui.open(path)
 end
 
-handlers.Wiki = function(location, name, callback)
+handlers.Wiki = function(location, callback)
   if api.is_attachment_path(location) then
     open_attachment(location)
   else
-    open_note(location, name, callback)
+    open_note(location, callback)
   end
 end
 
 handlers.WikiWithAlias = handlers.Wiki
 
-handlers.Markdown = function(location, name, callback)
+handlers.Markdown = function(location, callback)
   local is_uri, scheme = util.is_uri(location)
   if is_uri then
     open_uri(location, scheme)
   elseif api.is_attachment_path(location) then
     open_attachment(location)
   else
-    open_note(location, name, callback)
+    open_note(location, callback)
   end
 end
 
-handlers.HeaderLink = function(location, _, callback)
+handlers.HeaderLink = function(location, callback)
   local note = api.current_note(0, { collect_anchor_links = true })
   if not note or vim.tbl_isempty(note.anchor_links) then
     return
@@ -120,7 +109,7 @@ handlers.HeaderLink = function(location, _, callback)
   }
 end
 
-handlers.BlockLink = function(location, _, callback)
+handlers.BlockLink = function(location, callback)
   local note = api.current_note(0, { collect_blocks = true })
   if not note or vim.tbl_isempty(note.blocks) then
     return
@@ -144,7 +133,7 @@ end
 return {
   follow_link = function(link, callback)
     -- TODO: write an alternative treesitter link parser that finds, markdown link, wiki link, image embed
-    local location, name, link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
+    local location, _, link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
     location = vim.uri_decode(location)
 
     if not location then
@@ -163,6 +152,6 @@ return {
       end
     end
 
-    handler(location, name, wrapped_callback)
+    handler(location, wrapped_callback)
   end,
 }
