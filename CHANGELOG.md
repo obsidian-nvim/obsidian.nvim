@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- Template customizations falls back to global configuration if not provided
+
 ### Changed
 
 - `completion`'s create note action also use `opts.note.template`.
