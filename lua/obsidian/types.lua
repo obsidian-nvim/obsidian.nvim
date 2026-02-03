@@ -9,7 +9,7 @@
 ---@field template_name string|obsidian.Path The name or path of the template being used.
 ---@field template_opts obsidian.config.TemplateOpts The template options being used.
 ---@field templates_dir obsidian.Path|? The folder containing the template file.
----@field location [number, number, number, number] `{ buf, win, row, col }` location from which the request was made.
+---@field location [integer, integer, integer, integer] `{ buf, win, row, col }` location from which the request was made.
 ---@field partial_note? obsidian.Note An optional note with fields to copy from.
 
 ---@class obsidian.CloneTemplateContext

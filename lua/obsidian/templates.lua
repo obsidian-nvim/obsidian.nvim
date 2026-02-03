@@ -138,7 +138,7 @@ M.clone_template = function(ctx)
 
   local new_note = Note.from_file(note_path)
 
-  if ctx.partial_note then
+  if ctx.partial_note ~= nil then
     -- Transfer fields from `ctx.partial_note`.
     new_note.id = ctx.partial_note.id
     for _, alias in ipairs(ctx.partial_note.aliases) do

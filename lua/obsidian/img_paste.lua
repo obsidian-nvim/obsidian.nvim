@@ -59,7 +59,6 @@ function M.get_clipboard_img_type()
 
   local is_img = false
   -- See: [Data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme)
-  local this_os = api.get_os()
   if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
     if vim.tbl_contains(content, "text/uri-list") then
       local success =
