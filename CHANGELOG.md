@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- `completion`'s create note action also use `opts.note.template`.
+
 ### Fixed
 
 - Snacks picker actions now respect `allow_multiple` picker option.
