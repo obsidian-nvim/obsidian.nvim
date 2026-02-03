@@ -20,7 +20,7 @@ end
 ---@param callback function
 ---@return lsp.Location?
 local function create_new_note(location, callback)
-  local confirm = obsidian.api.confirm(("Create new note '%s'?"):format(location), "&Yes\nYes With &Template\n&No")
+  local confirm = api.confirm(("Create new note '%s'?"):format(location), "&Yes\nYes With &Template\n&No")
   if confirm then
     ---@type string|?, string|?
     local id, template
@@ -32,7 +32,7 @@ local function create_new_note(location, callback)
     end)
     return
   else
-    return obsidian.log.warn "Aborted"
+    return log.warn "Aborted"
   end
 end
 

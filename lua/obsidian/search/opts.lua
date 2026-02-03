@@ -55,7 +55,7 @@ local search_defaults = {
   ignore_case = false,
 }
 
----@param opts obsidian.SearchOpts|boolean|?
+---@param opts obsidian.SearchOpts
 ---@param additional_opts obsidian.search.SearchOpts|?
 ---
 ---@return obsidian.search.SearchOpts

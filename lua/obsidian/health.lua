@@ -43,7 +43,7 @@ local function has_plugin(plugin, optional)
     return true
   else
     if not optional then
-      vim.health.error(" " .. plugin .. " not installed")
+      error(" " .. plugin .. " not installed")
     end
     return false
   end
@@ -75,7 +75,7 @@ local function has_one_of(plugins)
     end
   end
   if not found then
-    vim.health.warn("It is recommended to install at least one of " .. vim.inspect(plugins))
+    warn("It is recommended to install at least one of " .. vim.inspect(plugins))
   end
 end
 
@@ -88,7 +88,7 @@ local function has_one_of_executable(plugins)
     end
   end
   if not found then
-    vim.health.warn("It is recommended to install at least one of " .. vim.inspect(plugins))
+    warn("It is recommended to install at least one of " .. vim.inspect(plugins))
   end
 end
 
@@ -109,13 +109,14 @@ function M.check()
   local os = api.get_os()
   neovim("0.10", "0.11")
   start "Version"
-  ok_f("obsidian.nvim v%s (%s)", VERSION, api.get_plugin_info("obsidian.nvim").commit)
+  local plugin_info = api.get_plugin_info "obsidian.nvim"
+  ok_f("obsidian.nvim v%s (%s)", VERSION, plugin_info and plugin_info.commit or "unknown commit")
 
   start "Environment"
   ok_f("operating system: %s", os)
 
   start "Config"
-  ok_f("  • dir: %s", Obsidian.dir)
+  ok_f(" dir: %s", Obsidian.dir)
 
   start "Pickers"
 

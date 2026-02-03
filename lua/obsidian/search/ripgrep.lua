@@ -77,7 +77,7 @@ M.build_search_cmd = function(dir, term, opts)
 
   local path = tostring(Path.new(dir):resolve { strict = true })
   if opts.escape_path then
-    path = assert(vim.fn.fnameescape(path))
+    path = vim.fn.fnameescape(path)
   end
 
   return compat.flatten {
@@ -148,7 +148,7 @@ M.build_find_cmd = function(path, term, opts)
 
   if path ~= nil and path ~= "." then
     if opts.escape_path then
-      path = assert(vim.fn.fnameescape(tostring(path)))
+      path = vim.fn.fnameescape(tostring(path))
     end
     additional_opts[#additional_opts + 1] = path
   end

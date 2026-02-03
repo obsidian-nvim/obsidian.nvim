@@ -20,7 +20,7 @@ local ut = require "obsidian.picker.util"
 ---
 M.pick = function(values, opts)
   opts = opts or {}
-  local callback = opts.callback or obsidian.api.open_note
+  local callback = opts.callback or api.open_note
 
   if opts.callback then
     vim.ui.select(values, {
@@ -41,6 +41,7 @@ M.pick = function(values, opts)
       end
     end)
   else
+    ---@diagnostic disable-next-line: param-type-mismatch
     vim.fn.setqflist(values)
     vim.cmd "copen"
   end
@@ -69,7 +70,7 @@ M.grep = function(opts)
     return {
       filename = filename,
       lnum = match.line_number,
-      col = match.submatches[1].start + 1,
+      col = match.submatches[1] and match.submatches[1].start + 1,
       text = match.lines.text,
     }
   end
@@ -150,7 +151,7 @@ M.find_files = function(opts)
       elseif #paths == 1 then
         return api.open_note { filename = paths[1] }
       elseif #paths > 1 then
-        ---@type vim.quickfix.entry
+        ---@type vim.quickfix.entry[]
         local items = {}
         for _, path in ipairs(paths) do
           items[#items + 1] = {
