@@ -14,7 +14,7 @@
       "$VIMRUNTIME"
     ],
     "ignoreGlobs": [
-      "**/*_spec.lua"
+      "tests/test_*.lua"
     ]
   }
 }

@@ -99,6 +99,7 @@ end
 ---@field suffix string|? The final extension of the path, if any.
 ---@field suffixes string[] A list of all of the path's extensions.
 ---@field stem string|? The final path component, without its suffix.
+---@operator div(string|obsidian.Path): obsidian.Path
 local Path = {}
 
 Path.__tostring = function(self)
@@ -314,7 +315,7 @@ end
 ---@return string?
 ---@private
 Path.abspath = function(self)
-  local path = vim.loop.fs_realpath(vim.fn.resolve(self.filename))
+  local path = vim.uv.fs_realpath(vim.fn.resolve(self.filename))
   return path
 end
 
