@@ -17,10 +17,10 @@ local img_types = {
 
 -- Image pasting adapted from https://github.com/ekickx/clipboard-image.nvim
 
----@return string
-local function get_clip_check_command()
+---@param this_os OSType
+---@return string|?
+local function get_clip_check_command(this_os)
   local check_cmd
-  local this_os = api.get_os()
   if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
     local display_server = os.getenv "XDG_SESSION_TYPE"
     if display_server == "x11" or display_server == "tty" then
@@ -32,15 +32,13 @@ local function get_clip_check_command()
     check_cmd = "pngpaste -b 2>&1"
   elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
     check_cmd = 'powershell.exe "Get-Clipboard -Format Image"'
-  else
-    error("image saving not implemented for OS '" .. this_os .. "'")
   end
   return check_cmd
 end
 
 local function get_image_type(content)
   for _, line in ipairs(content) do
-    if img_types[line] then
+    if img_types[line] ~= nil then
       return img_types[line]
     end
   end
@@ -51,7 +49,11 @@ end
 ---
 ---@return "png"|"jpeg"|nil
 function M.get_clipboard_img_type()
-  local check_cmd = get_clip_check_command()
+  local this_os = api.get_os()
+  local check_cmd = get_clip_check_command(this_os)
+  if not check_cmd then
+    error("image saving not implemented for OS '" .. this_os .. "'")
+  end
   local result_string = vim.fn.system(check_cmd)
   local content = vim.split(result_string, "\n")
 

@@ -38,7 +38,7 @@ types: ## Type check with lua-ls
 
 .PHONY: checklua
 checklua:
-	VIMRUNTIME=$(VIMRUNTIME) emmylua_check .
+	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/obsidian/
 
 .PHONY: test
 test: $(MINITEST)
