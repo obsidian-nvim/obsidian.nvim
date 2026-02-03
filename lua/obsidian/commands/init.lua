@@ -3,13 +3,16 @@ local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
 local search = require "obsidian.search"
 
-local M = { commands = {} }
+local M = {
+  ---@type obsidian.CommandConfig[]
+  commands = {},
+}
 
 local function in_note()
   return vim.bo.filetype == "markdown"
 end
 
----@param commands obsidian.CommandConfig[]
+---@param commands table<string,obsidian.CommandConfig>
 ---@param is_visual boolean
 ---@param is_note boolean
 ---@return string[]
@@ -30,6 +33,21 @@ local function get_commands_by_context(commands, is_visual, is_note)
       else
         return not config.note_action
       end
+    end)
+    :filter(function(config)
+      if not Obsidian.opts.templates.enabled then
+        return config.name ~= "tempaltes" and config.name ~= "new_from_template"
+      end
+      return true
+    end)
+    :filter(function(config)
+      if not Obsidian.opts.daily_notes.enabled then
+        return config.name ~= "dailies"
+          and config.name ~= "today"
+          and config.name ~= "tomorrow"
+          and config.name ~= "yesterday"
+      end
+      return true
     end)
     :map(function(config)
       return config.name
@@ -80,63 +98,6 @@ end
 ---
 ---@param opts obsidian.config.Internal
 M.install = function(opts)
-  ------------------------
-  ---- general action ----
-  ------------------------
-
-  M.register("check", { nargs = 0 })
-
-  M.register("new", { nargs = "*" })
-
-  M.register("open", { nargs = "?", complete = M.note_complete })
-
-  M.register("tags", { nargs = "*" })
-
-  M.register("search", { nargs = "?" })
-
-  M.register("quick_switch", { nargs = "?" })
-
-  M.register("workspace", { nargs = "?" })
-
-  if opts.daily_notes.enabled then
-    M.register("today", { nargs = "?" })
-    M.register("yesterday", { nargs = 0 })
-    M.register("tomorrow", { nargs = 0 })
-    M.register("dailies", { nargs = "*" })
-  end
-
-  if opts.templates.enabled then
-    M.register("new_from_template", { nargs = "*" })
-  end
-
-  ---------------------
-  ---- note action ----
-  ---------------------
-
-  if opts.templates.enabled then
-    M.register("template", { nargs = "?", note_action = true })
-  end
-
-  M.register("backlinks", { nargs = 0, note_action = true })
-
-  M.register("link_new", { mode = "v", nargs = "?", range = true, note_action = true })
-
-  M.register("link", { nargs = "?", range = true, complete = M.note_complete, note_action = true })
-
-  M.register("links", { nargs = 0, note_action = true })
-
-  M.register("follow_link", { nargs = "?", note_action = true })
-
-  M.register("toggle_checkbox", { nargs = 0, range = true, note_action = true })
-
-  M.register("rename", { nargs = "?", note_action = true })
-
-  M.register("paste_img", { nargs = "?", note_action = true })
-
-  M.register("extract_note", { mode = "v", nargs = "?", range = true, note_action = true })
-
-  M.register("toc", { nargs = 0, note_action = true })
-
   vim.api.nvim_create_user_command("Obsidian", function(data)
     if #data.fargs == 0 then
       show_menu(data)
@@ -268,5 +229,59 @@ M.note_complete = function(cmd_arg)
 
   return completions
 end
+
+------------------------
+---- general action ----
+------------------------
+
+M.register("check", { nargs = 0 })
+
+M.register("new", { nargs = "*" })
+
+M.register("open", { nargs = "?", complete = M.note_complete })
+
+M.register("tags", { nargs = "*" })
+
+M.register("search", { nargs = "?" })
+
+M.register("quick_switch", { nargs = "?" })
+
+M.register("workspace", { nargs = "?" })
+
+M.register("today", { nargs = "?" })
+
+M.register("yesterday", { nargs = 0 })
+
+M.register("tomorrow", { nargs = 0 })
+
+M.register("dailies", { nargs = "*" })
+
+M.register("new_from_template", { nargs = "*" })
+
+---------------------
+---- note action ----
+---------------------
+
+M.register("template", { nargs = "?", note_action = true })
+
+M.register("backlinks", { nargs = 0, note_action = true })
+
+M.register("link_new", { mode = "v", nargs = "?", range = true, note_action = true })
+
+M.register("link", { nargs = "?", range = true, complete = M.note_complete, note_action = true })
+
+M.register("links", { nargs = 0, note_action = true })
+
+M.register("follow_link", { nargs = "?", note_action = true })
+
+M.register("toggle_checkbox", { nargs = 0, range = true, note_action = true })
+
+M.register("rename", { nargs = "?", note_action = true })
+
+M.register("paste_img", { nargs = "?", note_action = true })
+
+M.register("extract_note", { mode = "v", nargs = "?", range = true, note_action = true })
+
+M.register("toc", { nargs = 0, note_action = true })
 
 return M
