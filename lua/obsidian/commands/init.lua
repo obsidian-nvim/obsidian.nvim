@@ -1,12 +1,8 @@
 local iter = vim.iter
 local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
-local search = require "obsidian.search"
 
-local M = {
-  ---@type obsidian.CommandConfig[]
-  commands = {},
-}
+local M = { commands = {} }
 
 local function in_note()
   return vim.bo.filetype == "markdown"
@@ -55,7 +51,7 @@ local function get_commands_by_context(commands, is_visual, is_note)
     :totable()
 end
 
-local function show_menu(data)
+function M.show_menu(data)
   local is_visual, is_note = data.range ~= 0, in_note()
   local choices = get_commands_by_context(M.commands, is_visual, is_note)
 
@@ -92,25 +88,6 @@ M.register = function(name, config)
   end
   config.name = name
   M.commands[name] = config
-end
-
----Install all commands.
----
----@param opts obsidian.config.Internal
-M.install = function(opts)
-  vim.api.nvim_create_user_command("Obsidian", function(data)
-    if #data.fargs == 0 then
-      show_menu(data)
-      return
-    end
-    M.handle_command(data)
-  end, {
-    nargs = "*",
-    complete = function(_, cmdline, _)
-      return M.get_completions(cmdline)
-    end,
-    range = 2,
-  })
 end
 
 M.install_legacy = legacycommands.install
@@ -186,6 +163,7 @@ end
 --TODO: Note completion is currently broken (see: https://github.com/epwalsh/obsidian.nvim/issues/753)
 ---@return string[]
 M.note_complete = function(cmd_arg)
+  local search = require "obsidian.search"
   local query
   if string.len(cmd_arg) > 0 then
     if string.find(cmd_arg, "|", 1, true) then

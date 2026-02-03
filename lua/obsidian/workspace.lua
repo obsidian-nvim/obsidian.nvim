@@ -142,6 +142,14 @@ Workspace.set = function(workspace)
     (dir / options.daily_notes.folder):mkdir { parents = true }
   end
 
+  -- Setup UI add-ons.
+  local has_no_renderer = not (
+    obsidian.api.get_plugin_info "render-markdown.nvim" or obsidian.api.get_plugin_info "markview.nvim"
+  )
+  if has_no_renderer and (options.ui.enable or options.ui.enabled) then
+    require("obsidian.ui").setup(workspace, options.ui)
+  end
+
   util.fire_callback("post_set_workspace", options.callbacks.post_set_workspace, workspace)
 
   vim.api.nvim_exec_autocmds("User", {

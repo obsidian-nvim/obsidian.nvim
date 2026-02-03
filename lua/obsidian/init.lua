@@ -75,16 +75,6 @@ obsidian.setup = function(user_opts)
 
   log.set_level(Obsidian.opts.log_level)
 
-  obsidian.commands.install(opts)
-
-  -- Setup UI add-ons.
-  local has_no_renderer = not (
-    obsidian.api.get_plugin_info "render-markdown.nvim" or obsidian.api.get_plugin_info "markview.nvim"
-  )
-  if has_no_renderer and Obsidian.opts.ui.enable then
-    require("obsidian.ui").setup(Obsidian.workspace, Obsidian.opts.ui)
-  end
-
   Obsidian.picker = obsidian.Picker.get()
 
   if opts.legacy_commands then

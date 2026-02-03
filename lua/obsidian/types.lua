@@ -53,7 +53,7 @@
 ---@field picker? obsidian.config.PickerOpts
 ---@field daily_notes? obsidian.config.DailyNotesOpts
 ---@field open_notes_in? obsidian.config.OpenStrategy
----@field ui? obsidian.config.UIOpts | table<string, any>
+---@field ui? obsidian.config.UIOpts
 ---@field attachments? obsidian.config.AttachmentsOpts
 ---@field callbacks? obsidian.config.CallbackConfig
 ---@field legacy_commands? boolean
@@ -85,7 +85,7 @@
 ---@field picker obsidian.config.PickerOpts
 ---@field daily_notes obsidian.config.DailyNotesOpts
 ---@field open_notes_in obsidian.config.OpenStrategy
----@field ui obsidian.config.UIOpts | table<string, any>
+---@field ui obsidian.config.UIOpts
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean

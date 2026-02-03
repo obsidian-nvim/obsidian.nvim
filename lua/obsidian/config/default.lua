@@ -195,6 +195,7 @@ return {
   ---@class obsidian.config.UIOpts
   ---
   ---@field enable boolean
+  ---@field enabled boolean
   ---@field ignore_conceal_warn boolean
   ---@field update_debounce integer
   ---@field max_file_length integer|?
