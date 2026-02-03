@@ -260,7 +260,7 @@ Note._resolve_id_path = function(opts)
       base_dir = Obsidian.buf_dir or assert(bufpath:parent())
     else
       base_dir = Obsidian.dir
-      if creation_opts.notes_subdir then
+      if creation_opts.notes_subdir ~= nil then
         base_dir = base_dir / creation_opts.notes_subdir
       end
     end
@@ -593,7 +593,6 @@ end
 ---
 ---@return obsidian.Note
 Note.from_file = function(path, opts)
-  assert(path, "note path cannot be nil")
   path = tostring(Path.new(path):resolve { strict = true })
   local file = assert(io.open(path, "r"), "failed to open file")
   local note = Note.from_lines(file:lines(), path, opts)
@@ -714,7 +713,7 @@ Note.from_lines = function(lines, path, opts)
   local has_frontmatter, in_frontmatter, at_boundary = false, false, false
   local frontmatter_end_line = nil
   local in_code_block = false
-  for line_idx, line in vim.iter(lines):enumerate() do
+  for line_idx, line in iter(lines):enumerate() do
     line = util.rstrip_whitespace(line)
 
     if line_idx == 1 and Note._is_frontmatter_boundary(line) then
@@ -828,9 +827,6 @@ Note._is_frontmatter_boundary = function(line)
   return line:match "^---+$" ~= nil
 end
 
---- Get the frontmatter table to save.
----
----@return table
 Note.frontmatter = require("obsidian.builtin").frontmatter
 
 --- Get frontmatter lines that can be written to a buffer.
@@ -995,7 +991,7 @@ Note.save = function(self, opts)
 
     existing_frontmatter = {}
     local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
-    for idx, line in vim.iter(io.lines(tostring(self.path))):enumerate() do
+    for idx, line in iter(io.lines(tostring(self.path))):enumerate() do
       if idx == 1 and Note._is_frontmatter_boundary(line) then
         at_boundary = true
         in_frontmatter = true
