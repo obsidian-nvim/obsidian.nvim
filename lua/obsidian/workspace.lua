@@ -2,6 +2,7 @@ local Path = require "obsidian.path"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
 local log = require "obsidian.log"
+local api = require "obsidian.api"
 
 --- Each workspace represents a working directory (usually an Obsidian vault) along with
 --- a set of configuration options specific to the workspace.
@@ -134,12 +135,18 @@ Workspace.set = function(workspace)
     (dir / options.notes_subdir):mkdir { parents = true }
   end
 
-  if options.templates.folder then
+  if options.templates.enabled and options.templates.folder then
     (dir / options.templates.folder):mkdir { parents = true }
   end
 
-  if options.daily_notes.folder then
+  if options.daily_notes.enabled and options.daily_notes.folder then
     (dir / options.daily_notes.folder):mkdir { parents = true }
+  end
+
+  -- Setup UI add-ons.
+  local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
+  if has_no_renderer and (options.ui.enable or options.ui.enabled) then
+    require("obsidian.ui").setup(workspace, options.ui)
   end
 
   util.fire_callback("post_set_workspace", options.callbacks.post_set_workspace, workspace)
