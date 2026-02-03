@@ -36,10 +36,6 @@
 ---@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field preferred_link_style? obsidian.config.LinkStyle
----@field follow_url_func? fun(url: string)
----@field follow_img_func? fun(img: string)
----@field note_frontmatter_func? (fun(note: obsidian.Note): table)
----@field disable_frontmatter? (fun(fname: string?): boolean)|boolean
 ---@field frontmatter? obsidian.config.FrontmatterOpts
 ---@field backlinks? obsidian.config.BacklinkOpts
 ---@field completion? obsidian.config.CompletionOpts
@@ -59,7 +55,6 @@
 ---@field note? obsidian.config.NoteOpts
 
 ---@class obsidian.config.Internal
----@field dir string
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
 ---@field log_level integer
 ---@field notes_subdir string
@@ -70,8 +65,6 @@
 ---@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field preferred_link_style obsidian.config.LinkStyle
----@field follow_url_func fun(url: string)|?
----@field follow_img_func fun(img: string)|?
 ---@field frontmatter obsidian.config.FrontmatterOpts
 ---@field backlinks obsidian.config.BacklinkOpts
 ---@field completion obsidian.config.CompletionOpts
