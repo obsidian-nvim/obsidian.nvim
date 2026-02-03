@@ -214,18 +214,6 @@ end
 
 M.register("check", { nargs = 0 })
 
-M.register("new", { nargs = "*" })
-
-M.register("open", { nargs = "?", complete = M.note_complete })
-
-M.register("tags", { nargs = "*" })
-
-M.register("search", { nargs = "?" })
-
-M.register("quick_switch", { nargs = "?" })
-
-M.register("workspace", { nargs = "?" })
-
 M.register("today", { nargs = "?" })
 
 M.register("yesterday", { nargs = 0 })
@@ -234,15 +222,31 @@ M.register("tomorrow", { nargs = 0 })
 
 M.register("dailies", { nargs = "*" })
 
+M.register("new", { nargs = "*" })
+
+M.register("open", { nargs = "?", complete = M.note_complete })
+
+M.register("tags", { nargs = "*" })
+
+M.register("search", { nargs = "?" })
+
 M.register("new_from_template", { nargs = "*" })
+
+M.register("quick_switch", { nargs = "?" })
+
+M.register("workspace", { nargs = "?" })
+
+M.register("help", { nargs = "?" })
+
+M.register("helpgrep", { nargs = "?" })
 
 ---------------------
 ---- note action ----
 ---------------------
 
-M.register("template", { nargs = "?", note_action = true })
-
 M.register("backlinks", { nargs = 0, note_action = true })
+
+M.register("template", { nargs = "?", note_action = true })
 
 M.register("link_new", { mode = "v", nargs = "?", range = true, note_action = true })
 
