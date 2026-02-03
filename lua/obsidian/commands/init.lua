@@ -32,7 +32,7 @@ local function get_commands_by_context(commands, is_visual, is_note)
     end)
     :filter(function(config)
       if not Obsidian.opts.templates.enabled then
-        return config.name ~= "tempaltes" and config.name ~= "new_from_template"
+        return config.name ~= "template" and config.name ~= "new_from_template"
       end
       return true
     end)
