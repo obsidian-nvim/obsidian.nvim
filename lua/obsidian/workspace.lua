@@ -2,6 +2,7 @@ local Path = require "obsidian.path"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
 local log = require "obsidian.log"
+local api = require "obsidian.api"
 
 --- Each workspace represents a working directory (usually an Obsidian vault) along with
 --- a set of configuration options specific to the workspace.
@@ -143,9 +144,7 @@ Workspace.set = function(workspace)
   end
 
   -- Setup UI add-ons.
-  local has_no_renderer = not (
-    obsidian.api.get_plugin_info "render-markdown.nvim" or obsidian.api.get_plugin_info "markview.nvim"
-  )
+  local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
   if has_no_renderer and (options.ui.enable or options.ui.enabled) then
     require("obsidian.ui").setup(workspace, options.ui)
   end
