@@ -129,7 +129,7 @@ end
 ---@param start_lnum integer|?
 ---@param end_lnum integer|?
 M.toggle_checkbox = function(start_lnum, end_lnum)
-  local viz = api.get_visual_selection()
+  local viz = api.get_visual_selection { strict = true }
   local states = Obsidian.opts.checkbox.order
   ---@cast states -nil
   if viz then
