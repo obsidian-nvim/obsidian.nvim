@@ -612,7 +612,6 @@ util.strdisplaywidth = (function()
   local fallback = function(str, col)
     str = tostring(str)
 
-    ---@diagnostic disable-next-line: unnecessary-if
     if vim.in_fast_event() then
       return #str - (col or 0)
     end

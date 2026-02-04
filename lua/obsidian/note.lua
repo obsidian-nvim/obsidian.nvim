@@ -315,8 +315,8 @@ end
 --- Keep in mind that you have to call `note:save(...)` to create/update the note on disk.
 ---
 --- @param id string|number
---- @param aliases string[]
---- @param tags string[]
+--- @param aliases string[]|?
+--- @param tags string[]|?
 --- @param path string|obsidian.Path|?
 --- @param title string|?
 --- @return obsidian.Note

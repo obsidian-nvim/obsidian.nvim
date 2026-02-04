@@ -45,7 +45,6 @@ obsidian.register_command = require("obsidian.commands").register
 ---
 ---@return obsidian.Client
 obsidian.setup = function(user_opts)
-  ---@diagnostic disable-next-line: global-in-non-module
   ---@class obsidian.state
   ---@field picker obsidian.Picker Picker to use.
   ---@field workspace obsidian.Workspace Current workspace.
