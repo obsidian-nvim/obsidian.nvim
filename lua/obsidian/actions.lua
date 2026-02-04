@@ -97,6 +97,10 @@ M._toggle_checkbox = function(states, lnum)
   lnum = lnum or unpack(vim.api.nvim_win_get_cursor(0))
   local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1]
 
+  if not line then
+    return
+  end
+
   local checkboxes = states or { " ", "x" }
 
   if util.is_checkbox(line) then
@@ -156,7 +160,8 @@ M.set_checkbox = function(state)
       log.err "set_checkbox: unable to get state input"
       return
     end
-    state = string.char(key + 0)
+    ---@cast key -string
+    state = string.char(key)
   end
 
   local found = false
@@ -232,14 +237,19 @@ local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
 ---@param viz obsidian.selection The visual selection
 ---@param new_text string The replacement text
 ---@param bufnr integer? Buffer number (defaults to current buffer)
----@return lsp.TextDocumentEdit
+---@return lsp.TextDocumentEdit?
 local function make_text_edit(viz, new_text, bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local line = vim.api.nvim_buf_get_lines(bufnr, viz.cerow - 1, viz.cerow, false)[1]
 
+  if not line then
+    return
+  end
+
   -- Calculate the exclusive end position (byte after the last selected character)
   local end_col = get_utf8_char_end(line, viz.cecol)
 
+  ---@diagnostic disable-next-line: return-type-mismatch TODO: emmylua bug?
   return {
     textDocument = {
       uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(bufnr)),
@@ -264,14 +274,14 @@ end
 ---@param viz obsidian.selection
 ---@param new_text string
 ---@param opts { apply: boolean? }? Options. apply defaults to true.
----@return lsp.TextDocumentEdit
+---@return lsp.TextDocumentEdit|?
 local function replace_selection(viz, new_text, opts)
   opts = opts or {}
   local apply = opts.apply ~= false -- default to true
 
   local text_edit = make_text_edit(viz, new_text)
 
-  if apply then
+  if apply and text_edit then
     vim.lsp.util.apply_workspace_edit({ documentChanges = { text_edit } }, "utf-8")
     require("obsidian.ui").update(0)
   end
@@ -296,7 +306,7 @@ M.link = function()
     query = query,
     callback = function(path)
       local note = require("obsidian.note").from_file(path)
-      replace_selection(viz, note:format_link { label = viz.selection })
+      replace_selection(viz, note:format_link { label = query })
     end,
   }
 end
@@ -335,7 +345,6 @@ M.extract_note = function(label)
 
   local content = vim.split(viz.selection, "\n", { plain = true })
 
-  ---@type string|?
   if label ~= nil and string.len(label) > 0 then
     label = vim.trim(label)
   else
@@ -438,7 +447,7 @@ M.add_property = function()
   local key = api.input("key: ", { completion = "customlist,ObsidianPropertyComplete" })
   local value = api.input "value: "
 
-  if not (key and value) then
+  if not key or not value then
     return log.info "Aborted"
   end
 

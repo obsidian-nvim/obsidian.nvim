@@ -4,6 +4,13 @@ local config = require "obsidian.config"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 
+---@class obsidian.workspace.WorkspaceSpec
+---
+---@field path string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path)
+---@field name string|?
+---@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
+---@field overrides obsidian.config?
+
 --- Each workspace represents a working directory (usually an Obsidian vault) along with
 --- a set of configuration options specific to the workspace.
 ---
@@ -122,7 +129,7 @@ Workspace.set = function(workspace)
   end
 
   local dir = workspace.root
-  local options = config.normalize(workspace.overrides, Obsidian._opts)
+  local options = config.normalize(workspace.overrides or {}, Obsidian._opts)
 
   Obsidian.workspace = workspace
   Obsidian.dir = dir
@@ -131,7 +138,7 @@ Workspace.set = function(workspace)
   -- Ensure directories exist.
   dir:mkdir { parents = true }
 
-  if options.notes_subdir then
+  if options.notes_subdir ~= nil then
     (dir / options.notes_subdir):mkdir { parents = true }
   end
 

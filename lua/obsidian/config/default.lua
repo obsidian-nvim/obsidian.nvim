@@ -2,8 +2,7 @@
 return {
   -- TODO: remove these in 4.0.0
   legacy_commands = true,
-  note_frontmatter_func = require("obsidian.builtin").frontmatter,
-  disable_frontmatter = false,
+
   ---@class obsidian.config.StatuslineOpts
   ---
   ---@field format? string
@@ -13,9 +12,6 @@ return {
     enabled = true,
   },
 
-  -- TODO:: replace with more general options before 4.0.0
-  follow_url_func = vim.ui.open,
-  follow_img_func = vim.ui.open,
   notes_subdir = nil,
   new_notes_location = "current_dir",
 

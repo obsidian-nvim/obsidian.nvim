@@ -1,4 +1,3 @@
----@diagnostic disable: invisible, duplicate-set-field
 local M = require "obsidian.note"
 local T = dofile("tests/helpers.lua").temp_vault
 local api = require "obsidian.api"

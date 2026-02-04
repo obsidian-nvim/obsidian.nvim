@@ -206,7 +206,6 @@ end
 ---@param line_num integer
 ---@param line_text string|?
 ---@return string
----@diagnostic disable-next-line: unused-local
 Parser._error_msg = function(_, msg, line_num, line_text)
   local full_msg = "[line=" .. tostring(line_num) .. "] " .. msg
   if line_text ~= nil then

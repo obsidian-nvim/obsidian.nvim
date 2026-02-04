@@ -2,6 +2,8 @@ local M = {}
 local ns_id = vim.api.nvim_create_namespace "obsidian.footer"
 local Note = require "obsidian.note"
 local attached_bufs = {}
+
+---@type table<integer, uv.uv_timer_t>
 local timers = {}
 
 -- HACK: for now before we have cache
@@ -114,7 +116,7 @@ M.start = function(buf)
     buffer = buf,
     callback = function()
       local buf_timer = timers[buf]
-      if buf_timer then
+      if buf_timer ~= nil then
         buf_timer:stop()
         buf_timer:close()
         timers[buf] = nil

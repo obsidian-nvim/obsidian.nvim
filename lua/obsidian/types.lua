@@ -9,7 +9,7 @@
 ---@field template_name string|obsidian.Path The name or path of the template being used.
 ---@field template_opts obsidian.config.TemplateOpts The template options being used.
 ---@field templates_dir obsidian.Path|? The folder containing the template file.
----@field location [number, number, number, number] `{ buf, win, row, col }` location from which the request was made.
+---@field location [integer, integer, integer, integer] `{ buf, win, row, col }` location from which the request was made.
 ---@field partial_note? obsidian.Note An optional note with fields to copy from.
 
 ---@class obsidian.CloneTemplateContext
@@ -25,13 +25,6 @@
 ---@alias obsidian.TemplateContext obsidian.InsertTemplateContext | obsidian.CloneTemplateContext
 ---The table passed to user substitution functions. Use `ctx.type` to distinguish between the different kinds.
 
----@class obsidian.workspace.WorkspaceSpec
----
----@field path string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path)
----@field name string|?
----@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
----@field overrides obsidian.config?
-
 ---@class obsidian.config
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
 ---@field log_level? integer
@@ -43,10 +36,6 @@
 ---@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field preferred_link_style? obsidian.config.LinkStyle
----@field follow_url_func? fun(url: string)
----@field follow_img_func? fun(img: string)
----@field note_frontmatter_func? (fun(note: obsidian.Note): table)
----@field disable_frontmatter? (fun(fname: string?): boolean)|boolean
 ---@field frontmatter? obsidian.config.FrontmatterOpts
 ---@field backlinks? obsidian.config.BacklinkOpts
 ---@field completion? obsidian.config.CompletionOpts
@@ -66,19 +55,16 @@
 ---@field note? obsidian.config.NoteOpts
 
 ---@class obsidian.config.Internal
----@field dir string|?
----@field workspaces obsidian.workspace.WorkspaceSpec[]|?
+---@field workspaces obsidian.workspace.WorkspaceSpec[]
 ---@field log_level integer
 ---@field notes_subdir string|?
 ---@field templates obsidian.config.TemplateOpts
 ---@field new_notes_location obsidian.config.NewNotesLocation
----@field note_id_func (fun(id: string|?, path: obsidian.Path|?): string)|?
----@field note_path_func (fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)|?
+---@field note_id_func (fun(id: string|?, path: obsidian.Path|?): string)
+---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)
 ---@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field preferred_link_style obsidian.config.LinkStyle
----@field follow_url_func fun(url: string)|?
----@field follow_img_func fun(img: string)|?
 ---@field frontmatter obsidian.config.FrontmatterOpts
 ---@field backlinks obsidian.config.BacklinkOpts
 ---@field completion obsidian.config.CompletionOpts

@@ -3,6 +3,7 @@ local search = obsidian.search
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
+local actions = obsidian.actions
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
@@ -20,19 +21,19 @@ end
 ---@param callback function
 ---@return lsp.Location?
 local function create_new_note(location, callback)
-  local confirm = obsidian.api.confirm(("Create new note '%s'?"):format(location), "&Yes\nYes With &Template\n&No")
+  local confirm = api.confirm(("Create new note '%s'?"):format(location), "&Yes\nYes With &Template\n&No")
   if confirm then
     ---@type string|?, string|?
     local id, template
     id = location
 
     template = ((type(confirm) == "boolean" and confirm == true) and Obsidian.opts.note.template or nil)
-    api.new_from_template(id, template, function(note)
+    actions.new_from_template(id, template, function(note)
       callback { note:_location() }
     end)
     return
   else
-    return obsidian.log.warn "Aborted"
+    return log.warn "Aborted"
   end
 end
 
