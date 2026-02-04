@@ -20,12 +20,10 @@ return {
   -- preferred_link_style = "wiki",
 
   ---@class obsidian.config.LinkOpts
-  ---@field style? "wiki" | "markdown"
+  ---@field style? "wiki" | "markdown" | fun(opts: obsidian.link.LinkCreationOpts):string
   ---@field format? "shortest" | "relative" | "absolute"
   link = {
     style = "wiki",
-    markdown = require("obsidian.builtin").markdown_link,
-    wiki = require("obsidian.builtin").wiki_link,
     format = "shortest",
   },
 
