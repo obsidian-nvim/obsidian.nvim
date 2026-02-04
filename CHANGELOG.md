@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `opts.daily_notes.enabled`.
 - Added `opts.templates.enabled`.
+- Experimental `make checklua` to use `emmylua_check` to type check.
 
 ### Changed
 
