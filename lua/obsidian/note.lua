@@ -1222,9 +1222,11 @@ Note.format_link = function(self, opts)
   }
 
   if link_style == "markdown" then
-    return Obsidian.opts.link.markdown(new_opts)
+    return require("obsidian.builtin").markdown_link(new_opts)
   elseif link_style == "wiki" or link_style == nil then
-    return Obsidian.opts.link.wiki(new_opts)
+    return require("obsidian.builtin").wiki_link(new_opts)
+  elseif type(link_style) == "function" then
+    return link_style(new_opts)
   else
     error(string.format("Invalid link style '%s'", link_style))
   end

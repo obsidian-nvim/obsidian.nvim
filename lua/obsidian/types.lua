@@ -33,9 +33,6 @@
 ---@field new_notes_location? obsidian.note.NewNotesLocation
 ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
----@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
----@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
----@field preferred_link_style? obsidian.config.LinkStyle
 ---@field frontmatter? obsidian.config.FrontmatterOpts
 ---@field backlinks? obsidian.config.BacklinkOpts
 ---@field completion? obsidian.config.CompletionOpts
@@ -63,9 +60,6 @@
 ---@field new_notes_location obsidian.note.NewNotesLocation
 ---@field note_id_func (fun(id: string|?, path: obsidian.Path|?): string)
 ---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)
----@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
----@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
----@field preferred_link_style obsidian.config.LinkStyle
 ---@field frontmatter obsidian.config.FrontmatterOpts
 ---@field backlinks obsidian.config.BacklinkOpts
 ---@field completion obsidian.config.CompletionOpts

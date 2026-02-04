@@ -61,7 +61,7 @@ M.markdown_link = function(opts)
 end
 
 ---@param path string
----@return string
+---@return string|?
 M.img_text_func = function(path)
   local format_string = {
     markdown = "![](%s)",
@@ -73,8 +73,11 @@ M.img_text_func = function(path)
   if style == "markdown" then
     name = require("obsidian.util").urlencode(name)
   end
-
-  return string.format(format_string[style], name)
+  if format_string[style] ~= nil then
+    return string.format(format_string[style], name)
+  elseif type(style) == "function" then
+    return "!" .. style { path = path }
+  end
 end
 
 ---@param note obsidian.Note
