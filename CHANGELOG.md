@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.15.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.8) - 2026-02-04
+
 ### Added
 
 - Added `opts.daily_notes.enabled`.
