@@ -3,6 +3,7 @@ local search = obsidian.search
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
+local actions = obsidian.actions
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
@@ -27,7 +28,7 @@ local function create_new_note(location, callback)
     id = location
 
     template = ((type(confirm) == "boolean" and confirm == true) and Obsidian.opts.note.template or nil)
-    api.new_from_template(id, template, function(note)
+    actions.new_from_template(id, template, function(note)
       callback { note:_location() }
     end)
     return
