@@ -74,8 +74,8 @@ return {
   ---
   ---@field enabled boolean|?
   ---@field folder string|obsidian.Path|?
-  ---@field date_format string|?
-  ---@field time_format string|?
+  ---@field date_format string
+  ---@field time_format string
   --- A map for custom variables, the key should be the variable and the value a function.
   --- Functions are called with obsidian.TemplateContext objects as their sole parameter.
   --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
@@ -84,8 +84,8 @@ return {
   templates = {
     enabled = true,
     folder = nil,
-    date_format = nil,
-    time_format = nil,
+    date_format = "YYYY-MM-DD",
+    time_format = "HH:mm",
     substitutions = {},
 
     ---@class obsidian.config.CustomTemplateOpts
