@@ -89,7 +89,7 @@ end
 ---Toggle the checkbox on a lnum
 ---
 ---@param states string[] Optional table containing checkbox states (e.g., {" ", "x"}).
----@param lnum number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
+---@param lnum integer|nil Optional line number to toggle the checkbox on. Defaults to the current line.
 M._toggle_checkbox = function(states, lnum)
   if no_checkbox() then
     return

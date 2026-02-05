@@ -236,7 +236,7 @@ Note._resolve_id_path = function(opts)
   -- Resolve base directory.
   ---@type obsidian.Path
   local base_dir
-  if parent then
+  if parent ~= nil then
     base_dir = Obsidian.dir / parent
   elseif dir ~= nil then
     base_dir = Path.new(dir)
