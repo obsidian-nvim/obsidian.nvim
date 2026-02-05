@@ -171,7 +171,7 @@ return {
   daily_notes = {
     enabled = true,
     folder = nil,
-    date_format = "%Y-%m-%d",
+    date_format = "YYYY-MM-DD",
     alias_format = nil,
     default_tags = { "daily-notes" },
     workdays_only = true,

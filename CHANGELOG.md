@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `opts.templates.date_format`
   - `opts.templates.time_format`
   - `opts.daily_notes.date_format`
+  - `opts.daily_notes.alias_format`
 
 ### Fixed
 
