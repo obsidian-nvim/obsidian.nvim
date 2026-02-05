@@ -190,7 +190,7 @@ M.insert_template = function(ctx)
     error(string.format("Template file '%s' not found", template_path))
   end
 
-  local insert_note = Note.from_lines(insert_lines, nil, { load_contents = true })
+  local insert_note = Note.from_lines(insert_lines)
   local current_note = assert(api.current_note(buf))
 
   if insert_note.has_frontmatter then

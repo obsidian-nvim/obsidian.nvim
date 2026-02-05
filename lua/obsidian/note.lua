@@ -49,7 +49,7 @@ local Note = {}
 local load_contents = function(note)
   local contents = {}
   local path = tostring(rawget(note, "path"))
-  if not path then
+  if not path or not vim.uv.fs_stat(path) then
     return {}
   end
   for line in io.lines(path) do
@@ -637,27 +637,18 @@ end
 --- Initialize a note from an iterator of lines.
 ---
 ---@param lines string[] | fun(): string|? | Iter
----@param path string|obsidian.Path
+---@param path string|obsidian.Path|?
 ---@param opts obsidian.note.LoadOpts|?
 ---
 ---@return obsidian.Note note
 ---@return string[] warnings
 Note.from_lines = function(lines, path, opts)
   opts = opts or {}
-  path = Path.new(path):resolve()
+  path = path and Path.new(path):resolve()
 
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
-  -- local id = nil
-  -- local title
-  -- local aliases = {}
-  -- local tags = {}
-
-  ---@type string[]|?
-  local contents
-  if opts.load_contents then
-    contents = {}
-  end
+  local contents = {}
 
   ---@type table<string, obsidian.note.HeaderAnchor>|?
   local anchor_links
@@ -698,7 +689,7 @@ Note.from_lines = function(lines, path, opts)
     while parent ~= nil do
       out = parent.anchor .. out
       data = get_parent_anchor(parent)
-      if data then
+      if data ~= nil then
         parent = data.parent
       else
         parent = nil
@@ -775,15 +766,10 @@ Note.from_lines = function(lines, path, opts)
     end
 
     -- Collect contents.
-    if contents ~= nil then
-      table.insert(contents, line)
-    end
+    table.insert(contents, line)
 
     -- Check if we can stop reading lines now.
-    if
-      line_idx > max_lines
-      -- or (title and not opts.load_contents and not opts.collect_anchor_links and not opts.collect_blocks) -- TODO: always false
-    then
+    if line_idx > max_lines then
       break
     end
   end
@@ -800,8 +786,8 @@ Note.from_lines = function(lines, path, opts)
   local id, aliases, tags = info.id, info.aliases, info.tags
 
   -- ID should default to the filename without the extension.
-  if id == nil or id == path.name then
-    id = path.stem
+  if id == nil or (path and id == path.name) then
+    id = path and path.stem
   end
   assert(id, "failed to find a valid id for note")
 
@@ -1291,7 +1277,6 @@ end
 
 ---@class (exact) obsidian.note.LoadOpts
 ---@field max_lines integer|?
----@field load_contents boolean|?
 ---@field collect_anchor_links boolean|?
 ---@field collect_blocks boolean|?
 
