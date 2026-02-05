@@ -1,7 +1,7 @@
 -- moment_lpeg.lua
 local lpeg = vim.lpeg
 
-local P, R, S, C, Ct = lpeg.P, lpeg.R, lpeg.S, lpeg.C, lpeg.Ct
+local P, C, Ct = lpeg.P, lpeg.C, lpeg.Ct
 
 -- --------------------------------------------------
 -- Locale data (can be swapped later)
@@ -63,6 +63,38 @@ local WEEKDAYS_SHORT = {
 
 local handlers = {}
 
+local function ordinal_suffix(n)
+  local mod100 = n % 100
+  if mod100 >= 11 and mod100 <= 13 then
+    return "th"
+  end
+  local mod10 = n % 10
+  if mod10 == 1 then
+    return "st"
+  elseif mod10 == 2 then
+    return "nd"
+  elseif mod10 == 3 then
+    return "rd"
+  end
+  return "th"
+end
+
+local function iso_weekday(wday)
+  return ((wday + 5) % 7) + 1
+end
+
+local function week_of_year(date)
+  local jan1 = os.date("*t", os.time { year = date.year, month = 1, day = 1 })
+  return math.floor((date.yday + (jan1.wday - 1) - 1) / 7) + 1
+end
+
+local function iso_week(date, time)
+  local wday = iso_weekday(date.wday)
+  local thursday = time + (4 - wday) * 86400
+  local thursday_date = os.date("*t", thursday)
+  return math.floor((thursday_date.yday - 1) / 7) + 1
+end
+
 handlers["YYYY"] = function(d)
   return string.format("%04d", d.year)
 end
@@ -88,6 +120,15 @@ handlers["DD"] = function(d)
 end
 handlers["D"] = function(d)
   return d.day
+end
+handlers["Do"] = function(d)
+  return tostring(d.day) .. ordinal_suffix(d.day)
+end
+handlers["DDD"] = function(d)
+  return d.yday
+end
+handlers["DDDD"] = function(d)
+  return string.format("%03d", d.yday)
 end
 
 handlers["HH"] = function(d)
@@ -140,6 +181,30 @@ end
 handlers["ddd"] = function(d)
   return WEEKDAYS_SHORT[d.wday]
 end
+handlers["dd"] = function(d)
+  return string.sub(WEEKDAYS_SHORT[d.wday], 1, 2)
+end
+handlers["d"] = function(d)
+  return d.wday - 1
+end
+handlers["E"] = function(d)
+  return iso_weekday(d.wday)
+end
+handlers["w"] = function(d)
+  return week_of_year(d)
+end
+handlers["ww"] = function(d)
+  return string.format("%02d", week_of_year(d))
+end
+handlers["W"] = function(d, time)
+  return iso_week(d, time)
+end
+handlers["WW"] = function(d, time)
+  return string.format("%02d", iso_week(d, time))
+end
+handlers["Q"] = function(d)
+  return math.floor((d.month - 1) / 3) + 1
+end
 
 -- --------------------------------------------------
 -- LPeg grammar
@@ -159,23 +224,34 @@ end
 local token_pattern = token "YYYY"
   + token "MMMM"
   + token "dddd"
+  + token "DDDD"
   + token "MMM"
   + token "ddd"
+  + token "DDD"
   + token "YY"
   + token "MM"
   + token "DD"
+  + token "Do"
   + token "HH"
   + token "hh"
+  + token "WW"
+  + token "ww"
   + token "mm"
   + token "ss"
+  + token "dd"
   + token "M"
   + token "D"
   + token "H"
   + token "h"
   + token "m"
   + token "s"
+  + token "W"
+  + token "w"
   + token "A"
   + token "a"
+  + token "d"
+  + token "E"
+  + token "Q"
   -- localized
   + token "LLLL"
   + token "LLL"
@@ -184,6 +260,7 @@ local token_pattern = token "YYYY"
   + token "LT"
   + token "L"
 
+---@diagnostic disable-next-line: param-type-mismatch
 local literal = P "[" * C((1 - P "]") ^ 0) * P "]" / function(s)
   return { type = "literal", value = s }
 end
@@ -200,8 +277,8 @@ local LONG_DATE_FORMAT = {
   LL = "MMMM D, YYYY",
   LLL = "MMMM D, YYYY h:mm A", -- TODO: locle support
   LLLL = "dddd, MMMM D, YYYY h:mm A",
-  LT = "HH:mm",
-  LTS = "HH:mm:ss",
+  LT = "h:mm A",
+  LTS = "h:mm:ss A",
 }
 
 local function expand_localized(ast)
@@ -238,7 +315,7 @@ function M.format(time, fmt)
 
   for _, node in ipairs(ast) do
     if node.type == "token" then
-      out[#out + 1] = tostring(handlers[node.value](date))
+      out[#out + 1] = tostring(handlers[node.value](date, time))
     else
       out[#out + 1] = node.value
     end

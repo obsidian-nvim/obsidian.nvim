@@ -1,6 +1,7 @@
 local T = dofile("tests/helpers.lua").temp_vault
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local M = require "obsidian.templates"
+local moment = require "obsidian.lib.moment"
 local Note = require "obsidian.note"
 local api = require "obsidian.api"
 require "obsidian.client"
@@ -27,6 +28,19 @@ T["substitute_template_variables()"]["should substitute built-in variables"] = f
     string.format("today is %s and the title of the note is %s", os.date "%Y-%m-%d", "FOO"),
     M.substitute_template_variables(text, tmp_template_context())
   )
+end
+
+T["substitute_template_variables()"]["should support moment date_format"] = function()
+  local previous = Obsidian.opts.templates.date_format
+  Obsidian.opts.templates.date_format = "YYYY-MM-DD"
+
+  local text = "today is {{date}}"
+  eq(
+    string.format("today is %s", moment.format(os.time(), "YYYY-MM-DD")),
+    M.substitute_template_variables(text, tmp_template_context())
+  )
+
+  Obsidian.opts.templates.date_format = previous
 end
 
 T["substitute_template_variables()"]["should substitute custom variables"] = function()

@@ -52,14 +52,14 @@ M.substitute_template_variables = function(text, ctx)
   if not methods["date"] then
     methods["date"] = function()
       local date_format = ctx.template_opts.date_format or "%Y-%m-%d"
-      return tostring(os.date(date_format))
+      return tostring(util.format_date(nil, date_format))
     end
   end
 
   if not methods["time"] then
     methods["time"] = function()
       local time_format = ctx.template_opts.time_format or "%H:%M"
-      return tostring(os.date(time_format))
+      return tostring(util.format_date(nil, time_format))
     end
   end
 

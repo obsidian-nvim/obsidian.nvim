@@ -10,18 +10,62 @@ Substitutions for `{{id}}`, `{{title}}`, `{{path}}`, `{{date}}`, and `{{time}}` 
 For example, with the following configuration
 
 ```lua
-require("obsidian").setup({
-   -- other fields ...
+require("obsidian").setup {
+  -- other fields ...
 
-   templates = {
-      folder = "my-templates-folder",
-      date_format = "%Y-%m-%d-%a",
-      time_format = "%H:%M",
-   },
-})
+  templates = {
+    folder = "my-templates-folder",
+    date_format = "%Y-%m-%d-%a",
+    time_format = "%H:%M",
+  },
+}
 ```
 
-and the file `~/my-vault/my-templates-folder/note template.md`:
+## Date/time formats
+
+`date_format`, `time_format`, and daily note formats accept either:
+
+- Moment-style tokens (e.g. `YYYY-MM-DD`, `LLL`, `LT`), or
+- `os.date`/strftime formats (e.g. `%Y-%m-%d`).
+
+If the format string contains `%`, it is treated as `os.date` (strftime). Otherwise it is treated as moment-style.
+
+### Supported moment-style tokens
+
+Year: `YYYY`, `YY`
+
+Month: `MMMM`, `MMM`, `MM`, `M`
+
+Day: `DD`, `D`, `Do`, `DDD`, `DDDD`
+
+Time: `HH`, `H`, `hh`, `h`, `mm`, `m`, `ss`, `s`, `A`, `a`
+
+Weekday: `dddd`, `ddd`, `dd`, `d`, `E`
+
+Week: `w`, `ww`, `W`, `WW`
+
+Quarter: `Q`
+
+Localized: `L`, `LL`, `LLL`, `LLLL`, `LT`, `LTS`
+
+### Not supported
+
+- Ordinal variants beyond `Do` (e.g. `Qo`, `Wo`)
+- ISO week year tokens: `GG`, `GGGG`
+- Timezone tokens: `Z`, `ZZ`, `z`, `zz`
+- Unix timestamps: `X`, `x`
+- Sub-second tokens: `S`, `SS`, `SSS` (and longer)
+- Extended years: `YYYYY` and above
+
+### Locale limitations
+
+Localized tokens are fixed to English patterns and are not locale-aware.
+
+## Usage
+
+### Insert template
+
+With template: `~/my-vault/my-templates-folder/note template.md`:
 
 ```markdown
 # {{title}}
@@ -31,27 +75,39 @@ Date created: {{date}}
 
 Creating the note `Configuring Neovim.md` and executing `:Obsidian template` will insert the following above the cursor position.
 
+### New from template in cmdline
+
 ```markdown
 # Configuring Neovim
 
 Date created: 2023-03-01-Wed
 ```
 
+More conveniently, you can run `:Obsidian new_from_template [TITLE] [TEMPLATE]` to create a new note with the desired template.
+
+### New from template from new link
+
+In any given file with a link that does not point to an actual note like `[[new note]]`, hit `<cr>`, or `<C-]>`, or `:=vim.lsp.buf.definition()`, will prompt you to create the file, and there's an option `Yes with Template` to select a template from a picker.
+
+### New from template from completion
+
+TODO: this is a planned feature that has not been realized yet. See [Discussions](https://github.com/obsidian-nvim/obsidian.nvim/issues/178#issuecomment-2921607756)
+
 ## Substitutions
 
 You can also define custom template substitutions with the configuration field `templates.substitutions`. For example, to automatically substitute the template variable `{{yesterday}}` when inserting a template, you could add this to your config:
 
 ```lua
-require("obsidian").setup({
-   -- other fields ...
-   templates = {
-      substitutions = {
-         yesterday = function()
-            return os.date("%Y-%m-%d", os.time() - 86400)
-         end,
-      },
-   },
-})
+require("obsidian").setup {
+  -- other fields ...
+  templates = {
+    substitutions = {
+      yesterday = function()
+        return os.date("%Y-%m-%d", os.time() - 86400)
+      end,
+    },
+  },
+}
 ```
 
 Substitution functions are passed `obsidian.TemplateContext` objects with details about _which_ template is being used. For example, to return different values from different templates:
@@ -59,11 +115,11 @@ Substitution functions are passed `obsidian.TemplateContext` objects with detail
 ```lua
 --- NOTE: For weekly templates this means "seven days ago", otherwise it means "one day ago".
 yesterday = function(ctx)
-   if vim.endswith(ctx.template_name, "Weekly Note Template.md") then
-      return os.date("%Y-%m-%d", os.time() - 86400 * 7)
-   end
-   -- Fallback
-   return os.date("%Y-%m-%d", os.time() - 86400)
+  if vim.endswith(ctx.template_name, "Weekly Note Template.md") then
+    return os.date("%Y-%m-%d", os.time() - 86400 * 7)
+  end
+  -- Fallback
+  return os.date("%Y-%m-%d", os.time() - 86400)
 end
 ```
 
@@ -103,16 +159,16 @@ You can specify _per-template_ behavior using the `templates.customizations` con
 You might want all of your notes created using your `meeting.md` template to go to `{vault_root}/jobs/my-job/meetings/`
 
 ```lua
-require("obsidian").setup({
-   -- other fields ...
-   templates = {
-      customizations = {
-         meeting = {
-            notes_subdir = "jobs/my-job/meetings",
-         },
+require("obsidian").setup {
+  -- other fields ...
+  templates = {
+    customizations = {
+      meeting = {
+        notes_subdir = "jobs/my-job/meetings",
       },
-   },
-})
+    },
+  },
+}
 ```
 
 **2. Control the ID generated for notes based on the template you used to create it**
@@ -121,15 +177,15 @@ For example, rather than a default, Zettelkasten-style note for prominent people
 
 ```lua
 biography = {
-   -- This function currently only receives the note title as an input
-   note_id_func = function(title)
-      if title == nil then
-         return nil
-      end
+  -- This function currently only receives the note title as an input
+  note_id_func = function(title)
+    if title == nil then
+      return nil
+    end
 
-      local name = title:gsub(" ", "-"):gsub("[^A-Za-z0-9-]", ""):lower()
-      return name -- "Hulk Hogan" → "hulk-hogan"
-   end,
+    local name = title:gsub(" ", "-"):gsub("[^A-Za-z0-9-]", ""):lower()
+    return name -- "Hulk Hogan" → "hulk-hogan"
+  end,
 }
 ```
 
