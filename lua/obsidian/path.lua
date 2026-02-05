@@ -439,14 +439,14 @@ Path.vault_relative_path = function(self, opts)
 
   local api = require "obsidian.api"
 
-  local root = api.resolve_workspace_dir()
+  local ws = api.find_workspace(tostring(self)) or Obsidian.workspace
 
   -- NOTE: we don't try to resolve the `path` here because that would make the path absolute,
   -- which may result in the wrong relative path if the current working directory is not within
   -- the vault.
 
   local ok, relative_path = pcall(function()
-    return self:relative_to(root)
+    return self:relative_to(ws.root)
   end)
 
   if ok and relative_path then
