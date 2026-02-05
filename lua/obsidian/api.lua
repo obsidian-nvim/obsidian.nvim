@@ -88,7 +88,7 @@ end
 ---@param path string|obsidian.Path
 ---@return obsidian.Workspace|?
 M.find_workspace = function(path)
-  return vim.iter(Obsidian.workspaces):find(function(ws)
+  return iter(Obsidian.workspaces):find(function(ws)
     return M.path_is_note(path, ws)
   end)
 end
@@ -96,6 +96,7 @@ end
 ---@param path string|obsidian.Path|?
 ---@return obsidian.Path workspace_root
 M.resolve_workspace_dir = function(path)
+  ---@type obsidian.Workspace|?
   local ws
   if path then
     ws = M.find_workspace(path)
@@ -105,7 +106,7 @@ M.resolve_workspace_dir = function(path)
       ws = M.find_workspace(vim.api.nvim_buf_get_name(buf))
     end
   end
-  if ws then
+  if ws ~= nil then
     return ws.root
   else
     return Obsidian.workspace.root
@@ -258,7 +259,7 @@ M.open_note = function(entry, cmd)
 
   vim.cmd(string.format("%s %s", cmd, vim.fn.fnameescape(tostring(path))))
   if type(entry) == "table" and entry.lnum then
-    vim.api.nvim_win_set_cursor(0, { tonumber(entry.lnum), entry.col and entry.col or 0 })
+    vim.api.nvim_win_set_cursor(0, { entry.lnum, entry.col and entry.col or 0 })
   end
 
   if not result_bufnr then
@@ -349,7 +350,7 @@ M.get_visual_selection = function(opts)
   local end_col_for_extraction = cecol
   if line and cecol <= #line then
     local byte = line:byte(cecol)
-    if byte then
+    if byte ~= nil then
       -- Determine UTF-8 character byte length
       local char_bytes = 1
       if byte >= 240 then -- 11110xxx: 4-byte char
@@ -433,7 +434,7 @@ end
 ---@param name string
 ---@return string|?
 local get_src_root = function(name)
-  return vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
+  return iter(vim.api.nvim_list_runtime_paths()):find(function(path)
     return vim.endswith(path, name)
   end)
 end
@@ -450,7 +451,7 @@ M.get_plugin_info = function(name)
   end
   local out = { path = src_root }
   local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
-  if obj.code == 0 then
+  if obj.code == 0 and obj.stdout then
     out.commit = vim.trim(obj.stdout)
   else
     out.commit = "unknown"
@@ -464,12 +465,11 @@ end
 ---@return string|?
 M.get_external_dependency_info = function(cmd)
   local obj = vim.system({ cmd, "--version" }, {}):wait(1000)
-  if obj.code ~= 0 then
-    return
-  end
-  local version = vim.version.parse(obj.stdout)
-  if version then
-    return ("%d.%d.%d"):format(version.major, version.minor, version.patch)
+  if obj.code == 0 and obj.stdout then
+    local version = vim.version.parse(obj.stdout)
+    if version then
+      return ("%d.%d.%d"):format(version.major, version.minor, version.patch)
+    end
   end
 end
 
@@ -509,7 +509,7 @@ M.confirm = function(prompt, choices)
   choices = choices or "&Yes\n&No"
   local choices_tbl = vim.split(choices, "\n")
   choices_tbl = vim.tbl_map(function(choice)
-    local str = choice:gsub("&", "")
+    local str, _ = choice:gsub("&", "")
     return str
   end, choices_tbl)
 
@@ -530,14 +530,15 @@ M.OSType = {
   FreeBSD = "FreeBSD",
 }
 
-M._current_os = nil
+---@type OSType|nil
+local _current_os = nil
 
 ---Get the running operating system.
 ---Reference https://vi.stackexchange.com/a/2577/33116
 ---@return OSType
 M.get_os = function()
-  if M._current_os ~= nil then
-    return M._current_os
+  if _current_os ~= nil then
+    return _current_os
   end
 
   local this_os
@@ -549,11 +550,10 @@ M.get_os = function()
     if sysname:lower() == "linux" and string.find(release, "microsoft") then
       this_os = M.OSType.Wsl
     else
-      this_os = sysname
+      this_os = M.OSType[sysname]
     end
   end
 
-  assert(this_os, "failed to get your os")
   M._current_os = this_os
   return this_os
 end
