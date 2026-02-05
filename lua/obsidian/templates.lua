@@ -47,19 +47,17 @@ end
 ---
 ---@return string
 M.substitute_template_variables = function(text, ctx)
-  local methods = vim.deepcopy(ctx.template_opts.substitutions or {})
+  local methods = vim.deepcopy(Obsidian.opts.templates.substitutions or {})
 
   if not methods["date"] then
     methods["date"] = function()
-      local date_format = ctx.template_opts.date_format or "%Y-%m-%d"
-      return tostring(os.date(date_format))
+      return tostring(util.format_date(os.time(), Obsidian.opts.templates.date_format))
     end
   end
 
   if not methods["time"] then
     methods["time"] = function()
-      local time_format = ctx.template_opts.time_format or "%H:%M"
-      return tostring(os.date(time_format))
+      return tostring(util.format_date(os.time(), Obsidian.opts.templates.time_format))
     end
   end
 

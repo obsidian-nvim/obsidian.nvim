@@ -210,6 +210,20 @@ end
 --- Date helpers ---
 --------------------
 
+--- Format a timestamp with strftime or moment.js date format
+---
+---@param time integer
+---@param fmt string
+---@return string formatted date
+util.format_date = function(time, fmt)
+  if fmt:find "%%" then
+    local time_string = os.date(fmt, time)
+    ---@cast time_string -osdate
+    return time_string
+  end
+  return require("obsidian.lib.moment").format(time, fmt)
+end
+
 ---Determines if the given date is a working day (not weekend)
 ---
 ---@param time integer
