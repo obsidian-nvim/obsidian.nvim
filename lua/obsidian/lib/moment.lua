@@ -3,9 +3,9 @@ local lpeg = vim.lpeg
 
 local P, C, Ct = lpeg.P, lpeg.C, lpeg.Ct
 
--- --------------------------------------------------
+----------------------------------------------------
 -- Locale data (can be swapped later)
--- --------------------------------------------------
+----------------------------------------------------
 
 local MONTHS = {
   "January",
@@ -57,9 +57,9 @@ local WEEKDAYS_SHORT = {
   "Sat",
 }
 
--- --------------------------------------------------
+----------------------------------------------------
 -- Token handlers
--- --------------------------------------------------
+----------------------------------------------------
 
 local handlers = {}
 
@@ -225,27 +225,23 @@ end
 handlers["GG"] = function(d, time)
   return string.format("%02d", iso_week_year(d, time) % 100)
 end
-handlers["Z"] = function(d, time)
+handlers["Z"] = function(_, time)
   local offset = os.date("%z", time)
   return string.sub(offset, 1, 3) .. ":" .. string.sub(offset, 4, 5)
 end
-handlers["ZZ"] = function(d, time)
+handlers["ZZ"] = function(_, time)
   return os.date("%z", time)
 end
-handlers["X"] = function(d, time)
+handlers["X"] = function(_, time)
   return math.floor(time)
 end
-handlers["x"] = function(d, time)
+handlers["x"] = function(_, time)
   return math.floor(time * 1000)
 end
 
--- --------------------------------------------------
+----------------------------------------------------
 -- LPeg grammar
--- --------------------------------------------------
-
--- local function token(name)
---   return P(name) / name
--- end
+----------------------------------------------------
 
 local function token(name)
   return P(name) / function()
@@ -340,9 +336,9 @@ local function expand_localized(ast)
   return out
 end
 
--- --------------------------------------------------
+----------------------------------------------------
 -- Formatter
--- --------------------------------------------------
+----------------------------------------------------
 
 local M = {}
 
