@@ -93,11 +93,17 @@ M.find_workspace = function(path)
   end)
 end
 
+---@param path string|obsidian.Path|?
 ---@return obsidian.Path workspace_root
-M.resolve_workspace_dir = function()
+M.resolve_workspace_dir = function(path)
   local ws
-  if vim.b.obsidian_buffer then
-    ws = M.find_workspace(vim.api.nvim_buf_get_name(0))
+  if path then
+    ws = M.find_workspace(path)
+  else
+    local buf = vim.api.nvim_get_current_buf()
+    if vim.b[buf].obsidian_buffer == true then
+      ws = M.find_workspace(vim.api.nvim_buf_get_name(buf))
+    end
   end
   if ws then
     return ws.root

@@ -439,7 +439,7 @@ Path.vault_relative_path = function(self, opts)
 
   local api = require "obsidian.api"
 
-  local root = api.resolve_workspace_dir()
+  local root = api.resolve_workspace_dir(tostring(self))
 
   -- NOTE: we don't try to resolve the `path` here because that would make the path absolute,
   -- which may result in the wrong relative path if the current working directory is not within
