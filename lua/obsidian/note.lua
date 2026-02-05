@@ -39,7 +39,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field metadata table
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
----@field contents string[]|?
+---@field contents string[]
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field alt_alias string|?
@@ -636,7 +636,7 @@ end
 
 --- Initialize a note from an iterator of lines.
 ---
----@param lines fun(): string|? | Iter
+---@param lines string[] | fun(): string|? | Iter
 ---@param path string|obsidian.Path
 ---@param opts obsidian.note.LoadOpts|?
 ---
@@ -831,7 +831,7 @@ Note.frontmatter = require("obsidian.builtin").frontmatter
 
 --- Get frontmatter lines that can be written to a buffer.
 ---
----@param current_lines string[]
+---@param current_lines string[]|?
 ---@return string[]
 Note.frontmatter_lines = function(self, current_lines)
   local order
@@ -844,7 +844,7 @@ Note.frontmatter_lines = function(self, current_lines)
   if has_frontmatter then
     local yaml_body_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
-    end, current_lines)
+    end, current_lines or {})
     syntax_ok, _, order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
   end
   if syntax_ok or not has_frontmatter then -- if parse success or there's no frontmatter (and should insert)
@@ -1233,6 +1233,60 @@ Note.status = function(self, update_backlink)
     status.backlinks = backlink_cache[path] or 0
   end
   return status
+end
+
+Note.body_lines = function(self)
+  if not self.has_frontmatter then
+    return self.contents
+  end
+  local lines = {}
+  for i = self.frontmatter_end_line + 1, #self.contents do
+    lines[#lines + 1] = self.contents[i]
+  end
+  return lines
+end
+
+Note.merge = function(self, other)
+  if not other.has_frontmatter then
+    return
+  end
+  local frontmatter_lines = {}
+
+  assert(other.frontmatter_end_line)
+
+  for i = 2, other.frontmatter_end_line - 1 do
+    frontmatter_lines[#frontmatter_lines + 1] = other.contents[i]
+  end
+
+  local insert_frontmatter, insert_metadata = Frontmatter.parse(frontmatter_lines)
+
+  for k, v in pairs(insert_frontmatter) do
+    if k == "aliases" and type(v) == "table" then
+      for _, alias in ipairs(v) do
+        self:add_alias(alias)
+      end
+    elseif k == "tags" and type(v) == "table" then
+      for _, alias in ipairs(v) do
+        self:add_tag(alias)
+      end
+    end
+  end
+
+  local function listify(v)
+    return util.islist(v) and v or { v }
+  end
+
+  for k, v in pairs(insert_metadata) do
+    if self.metadata[k] then
+      local listified_v = listify(v)
+      if not util.islist(self.metadata[k]) then
+        self.metadata[k] = listify(self.metadata[k])
+      end
+      vim.list_extend(self.metadata[k], listified_v)
+    else
+      self.metadata[k] = v
+    end
+  end
 end
 
 ---@class (exact) obsidian.note.LoadOpts

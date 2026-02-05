@@ -242,6 +242,20 @@ T["from_lines"]["should work from a file w/o frontmatter"] = function()
   eq(false, note.has_frontmatter)
 end
 
+T["body"] = new_set()
+
+T["body"]["should return full contents when no frontmatter"] = function()
+  local note = from_str("# Title\n\nBody line", "no_frontmatter.md", { load_contents = true })
+  eq({ "# Title", "", "Body line" }, note:body())
+end
+
+T["body"]["should return contents after frontmatter"] = function()
+  local note = from_str("---\nid: test\n---\n\nBody line 1\n\nBody line 2", "with_frontmatter.md", {
+    load_contents = true,
+  })
+  eq({ "", "Body line 1", "", "Body line 2" }, note:body())
+end
+
 T["from_file"] = new_set()
 
 T["from_file"]["should work from a README"] = function()

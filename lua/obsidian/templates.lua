@@ -163,6 +163,7 @@ M.insert_template = function(ctx)
 
   local template_path = M.resolve_template(ctx.template_name, ctx.templates_dir)
 
+  ---@type string[]
   local insert_lines = {}
   local template_file = io.open(tostring(template_path), "r")
   if template_file then
@@ -189,9 +190,21 @@ M.insert_template = function(ctx)
     error(string.format("Template file '%s' not found", template_path))
   end
 
+  local insert_note = Note.from_lines(insert_lines, nil, { load_contents = true })
+  local current_note = assert(api.current_note(buf))
+
+  if insert_note.has_frontmatter then
+    insert_lines = insert_note:body_lines()
+    current_note:merge(insert_note)
+  end
+
   vim.api.nvim_buf_set_lines(buf, row - 1, row - 1, false, insert_lines)
   local new_cursor_row, _ = unpack(vim.api.nvim_win_get_cursor(win))
   vim.api.nvim_win_set_cursor(0, { new_cursor_row, 0 })
+
+  if insert_note.has_frontmatter then
+    current_note:update_frontmatter()
+  end
 
   require("obsidian.ui").update(0)
 
