@@ -95,6 +95,12 @@ local function iso_week(date, time)
   return math.floor((thursday_date.yday - 1) / 7) + 1
 end
 
+local function iso_week_year(date, time)
+  local wday = iso_weekday(date.wday)
+  local thursday = time + (4 - wday) * 86400
+  return os.date("*t", thursday).year
+end
+
 handlers["YYYY"] = function(d)
   return string.format("%04d", d.year)
 end
@@ -205,6 +211,33 @@ end
 handlers["Q"] = function(d)
   return math.floor((d.month - 1) / 3) + 1
 end
+handlers["Qo"] = function(d)
+  local q = math.floor((d.month - 1) / 3) + 1
+  return tostring(q) .. ordinal_suffix(q)
+end
+handlers["Wo"] = function(d, time)
+  local w = iso_week(d, time)
+  return tostring(w) .. ordinal_suffix(w)
+end
+handlers["GGGG"] = function(d, time)
+  return string.format("%04d", iso_week_year(d, time))
+end
+handlers["GG"] = function(d, time)
+  return string.format("%02d", iso_week_year(d, time) % 100)
+end
+handlers["Z"] = function(d, time)
+  local offset = os.date("%z", time)
+  return string.sub(offset, 1, 3) .. ":" .. string.sub(offset, 4, 5)
+end
+handlers["ZZ"] = function(d, time)
+  return os.date("%z", time)
+end
+handlers["X"] = function(d, time)
+  return math.floor(time)
+end
+handlers["x"] = function(d, time)
+  return math.floor(time * 1000)
+end
 
 -- --------------------------------------------------
 -- LPeg grammar
@@ -222,18 +255,23 @@ end
 
 -- Order matters (longest first!)
 local token_pattern = token "YYYY"
+  + token "GGGG"
   + token "MMMM"
   + token "dddd"
   + token "DDDD"
   + token "MMM"
   + token "ddd"
   + token "DDD"
+  + token "GG"
   + token "YY"
   + token "MM"
   + token "DD"
   + token "Do"
   + token "HH"
   + token "hh"
+  + token "ZZ"
+  + token "Qo"
+  + token "Wo"
   + token "WW"
   + token "ww"
   + token "mm"
@@ -245,6 +283,7 @@ local token_pattern = token "YYYY"
   + token "h"
   + token "m"
   + token "s"
+  + token "Z"
   + token "W"
   + token "w"
   + token "A"
@@ -252,6 +291,8 @@ local token_pattern = token "YYYY"
   + token "d"
   + token "E"
   + token "Q"
+  + token "X"
+  + token "x"
   -- localized
   + token "LLLL"
   + token "LLL"
@@ -275,7 +316,7 @@ local grammar = Ct((literal + token_pattern + text) ^ 0)
 local LONG_DATE_FORMAT = {
   L = "MM/DD/YYYY",
   LL = "MMMM D, YYYY",
-  LLL = "MMMM D, YYYY h:mm A", -- TODO: locle support
+  LLL = "MMMM D, YYYY h:mm A",
   LLLL = "dddd, MMMM D, YYYY h:mm A",
   LT = "h:mm A",
   LTS = "h:mm:ss A",

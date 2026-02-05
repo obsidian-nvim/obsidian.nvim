@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added support for moment.js style date format for:
+  - `opts.templates.date_format`
+  - `opts.templates.time_format`
+  - `opts.daily_notes.date_format`
+
 ### Fixed
 
 - Fixed checkbox toggle affecting incorrect lines when stale visual selection marks are present.

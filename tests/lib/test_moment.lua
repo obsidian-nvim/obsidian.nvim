@@ -66,6 +66,15 @@ local format_eq = MiniTest.new_expectation(
   end
 )
 
+local function timezone_offset(time)
+  return os.date("%z", time)
+end
+
+local function timezone_offset_colon(time)
+  local offset = os.date("%z", time)
+  return string.sub(offset, 1, 3) .. ":" .. string.sub(offset, 4, 5)
+end
+
 local T = new_set()
 
 T["format using constants"] = function() end
@@ -79,8 +88,10 @@ T["format LT/LTS"] = function()
   format_eq("LTS", "3:25:50 PM")
 end
 
-T["format ordinal day"] = function()
+T["format ordinals"] = function()
   format_eq("Do", "14th")
+  format_eq("Wo", "7th")
+  format_eq("Qo", "1st")
 end
 
 T["format day of year"] = function()
@@ -103,6 +114,21 @@ end
 
 T["format quarter"] = function()
   format_eq("Q", "1")
+end
+
+T["format iso week year"] = function()
+  format_eq("GGGG", "2009")
+  format_eq("GG", "09")
+end
+
+T["format timezone tokens"] = function()
+  format_eq("ZZ", timezone_offset(date))
+  format_eq("Z", timezone_offset_colon(date))
+end
+
+T["format unix timestamps"] = function()
+  format_eq("X", tostring(math.floor(date)))
+  format_eq("x", tostring(math.floor(date * 1000)))
 end
 
 T["format localized tokens"] = function()

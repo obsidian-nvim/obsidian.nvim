@@ -42,18 +42,21 @@ Time: `HH`, `H`, `hh`, `h`, `mm`, `m`, `ss`, `s`, `A`, `a`
 
 Weekday: `dddd`, `ddd`, `dd`, `d`, `E`
 
-Week: `w`, `ww`, `W`, `WW`
+Week: `w`, `ww`, `W`, `WW`, `Wo`
 
-Quarter: `Q`
+Week year: `GG`, `GGGG`
+
+Quarter: `Q`, `Qo`
+
+Timezone: `Z`, `ZZ`
+
+Unix: `X`, `x`
 
 Localized: `L`, `LL`, `LLL`, `LLLL`, `LT`, `LTS`
 
 ### Not supported
 
-- Ordinal variants beyond `Do` (e.g. `Qo`, `Wo`)
-- ISO week year tokens: `GG`, `GGGG`
-- Timezone tokens: `Z`, `ZZ`, `z`, `zz`
-- Unix timestamps: `X`, `x`
+- Timezone tokens: `z`, `zz`
 - Sub-second tokens: `S`, `SS`, `SSS` (and longer)
 - Extended years: `YYYYY` and above
 

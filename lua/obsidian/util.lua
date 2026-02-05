@@ -214,10 +214,12 @@ end
 ---
 ---@param time integer
 ---@param fmt string
----@return string formated date
+---@return string formatted date
 util.format_date = function(time, fmt)
   if fmt:find "%%" then
-    return os.date(fmt, time)
+    local time_string = os.date(fmt, time)
+    ---@cast time_string -osdate
+    return time_string
   end
   return require("obsidian.lib.moment").format(time, fmt)
 end
