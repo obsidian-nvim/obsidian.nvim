@@ -25,11 +25,11 @@ Fields ~
 {title} `(string)` readable name for note
 {aliases} `(string[])`
 {tags} `(string[])`
-{path} `(obsidian.Path|)`?
+{contents} `(string[])`
 {metadata} `(table)`
+{path} `(obsidian.Path|)`?
 {has_frontmatter} `(boolean|)`?
 {frontmatter_end_line} `(integer|)`?
-{contents} `(string[]|)`?
 {anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
 {blocks} `(table<string, obsidian.note.Block>?)`
 {alt_alias} `(string|)`?
