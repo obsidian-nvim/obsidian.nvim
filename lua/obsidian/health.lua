@@ -128,13 +128,6 @@ function M.check()
     "snacks.nvim",
   }
 
-  start "Completion"
-
-  has_one_of {
-    "nvim-cmp",
-    "blink.cmp",
-  }
-
   start "Dependencies"
   has_executable("rg", false)
 
