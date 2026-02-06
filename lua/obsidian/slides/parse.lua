@@ -37,6 +37,7 @@ local clean_slide = function(slide)
   return slide
 end
 
+-- TODO: use treesitter
 -- Strip Obsidian markdown comments (%%...%%) and HTML comments (<!--...-->).
 -- If the result is empty/whitespace-only, returns nil to indicate "drop line".
 local strip_comments = function(line)
@@ -56,7 +57,7 @@ local strip_comments = function(line)
   return line
 end
 
---- Takes some lines and parses them
+--- Takes a markdown document and parse them into a list of slides
 ---@param lines string[]: The lines in the buffer
 ---@return obsidian.Slide[]
 M.parse = function(lines)

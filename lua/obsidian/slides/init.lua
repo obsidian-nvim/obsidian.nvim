@@ -10,20 +10,9 @@ local function create_floating_window(config, enter)
   return { buf = buf, win = win }
 end
 
----@class present.Options
----@field syntax present.SyntaxOptions: The syntax for the plugin
+---@class obsidian.Config.SlidesOpts
 ---@field padding integer
-
----@class present.SyntaxOptions
----@field comment string?: The prefix for comments, will skip lines that start with this
----@field stop string?: The stop comment, will stop slide when found. Note: Is a Lua Pattern
-
----@type present.Options
 local options = {
-  syntax = {
-    comment = "%%", -- TODO: proper use of vim.o.commentstring
-    stop = "---",
-  },
   padding = 4,
 }
 
@@ -70,7 +59,8 @@ end
 
 local state = {
   slides = {},
-  current_slide = 1,
+  ---@type integer?
+  current_slide = nil,
   floats = {},
 }
 

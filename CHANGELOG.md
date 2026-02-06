@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `opts.templates.time_format`
   - `opts.daily_notes.date_format`
   - `opts.daily_notes.alias_format`
+- `actions.start_presentation`.
 
 ### Fixed
 

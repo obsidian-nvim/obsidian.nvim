@@ -1,99 +1,101 @@
 local parse = require("obsidian.slides.parse").parse
 
-local eq = MiniTest.expect.equality
+local eq, new_set = MiniTest.expect.equality, MiniTest.new_set
 
-describe("present.parse_slides", function()
-  it("should parse an empty file", function()
-    local slides = parse { "" }
+local T = new_set()
 
-    eq({
+T["should parse an empty file"] = function()
+  local slides = parse { "" }
+
+  eq({
+    {
+      title = "",
+      body = {},
+    },
+  }, slides)
+end
+
+T["should parse a file with one slide"] = function()
+  eq(
+    {
       {
-        title = "",
-        body = {},
+        title = "# This is the first slide",
+        body = { "This is the body" },
       },
-    }, slides)
-  end)
-
-  it("should parse a file with one slide", function()
-    eq(
-      {
-        {
-          title = "# This is the first slide",
-          body = { "This is the body" },
-        },
-      },
-      parse {
-        "# This is the first slide",
-        "This is the body",
-      }
-    )
-  end)
-
-  it("should parse a file with one slide", function()
-    local slides = parse {
+    },
+    parse {
       "# This is the first slide",
       "This is the body",
-      "```lua",
-      "print('hi')",
-      "```",
     }
+  )
+end
 
-    -- Should only have one slide
-    eq(1, #slides)
+T["should parse a file with one slide"] = function()
+  local slides = parse {
+    "# This is the first slide",
+    "This is the body",
+    "```lua",
+    "print('hi')",
+    "```",
+  }
 
-    local slide = slides[1]
-    eq("# This is the first slide", slide.title)
-    eq({
-      "This is the body",
-      "```lua",
-      "print('hi')",
-      "```",
-    }, slide.body)
-  end)
+  -- Should only have one slide
+  eq(1, #slides)
 
-  it("should use stop comment to stop slides", function()
-    local slides = parse {
-      "# This is the first slide",
-      "This is the body",
-      "---",
-      "This is the middle line",
-      "---",
-      "This is the final line",
-    }
+  local slide = slides[1]
+  eq("# This is the first slide", slide.title)
+  eq({
+    "This is the body",
+    "```lua",
+    "print('hi')",
+    "```",
+  }, slide.body)
+end
 
-    -- Should only have two slides (even though only one separator)
-    eq(3, #slides)
+T["should use stop comment to stop slides"] = function()
+  local slides = parse {
+    "# This is the first slide",
+    "This is the body",
+    "---",
+    "This is the middle line",
+    "---",
+    "This is the final line",
+  }
 
-    local slide = slides[1]
-    eq("# This is the first slide", slide.title)
-    eq("This is the body", slide.body[1])
+  -- Should only have two slides (even though only one separator)
+  eq(3, #slides)
 
-    slide = slides[2]
-    eq("", slide.title)
-    eq("This is the middle line", slide.body[1])
+  local slide = slides[1]
+  eq("# This is the first slide", slide.title)
+  eq("This is the body", slide.body[1])
 
-    slide = slides[3]
-    eq("", slide.title)
-    eq("This is the final line", slide.body[1])
-  end)
+  slide = slides[2]
+  eq("", slide.title)
+  eq("This is the middle line", slide.body[1])
 
-  it("should use ignore comments", function()
-    local slides = parse {
-      "# This is the first slide",
-      "%%This is a comment%%",
-      "This is the body",
-      "---",
-      "This is the final line",
-    }
+  slide = slides[3]
+  eq("", slide.title)
+  eq("This is the final line", slide.body[1])
+end
 
-    eq(2, #slides)
+T["should use ignore comments"] = function()
+  local slides = parse {
+    "# This is the first slide",
+    "%%This is a comment%%",
+    "This is the body",
+    "---",
+    "This is the final line",
+  }
 
-    local slide = slides[1]
-    eq("# This is the first slide", slide.title)
-    eq({ "This is the body" }, slide.body)
+  eq(2, #slides)
 
-    slide = slides[2]
-    eq("", slide.title)
-    eq({ "This is the final line" }, slide.body)
-  end)
-end)
+  local slide = slides[1]
+  eq("# This is the first slide", slide.title)
+  eq({ "This is the body" }, slide.body)
+
+  slide = slides[2]
+  eq("", slide.title)
+  eq({ "This is the final line" }, slide.body)
+end
+
+return T
