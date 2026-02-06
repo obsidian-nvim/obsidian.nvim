@@ -486,4 +486,10 @@ M.add_property = function()
   note:update_frontmatter(0)
 end
 
+M.start_presentation = function(buf)
+  local Note = require "obsidian.note"
+  local note = Note.from_buffer(buf)
+  require("obsidian.slides").start_presentation(note)
+end
+
 return M

@@ -35,11 +35,11 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field title string readable name for note
 ---@field aliases string[]
 ---@field tags string[]
----@field path obsidian.Path|?
+---@field contents string[]
 ---@field metadata table
+---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
----@field contents string[]|?
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field alt_alias string|?
