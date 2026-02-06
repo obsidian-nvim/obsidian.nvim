@@ -126,7 +126,7 @@ M.current_note = function(bufnr, opts)
   return Note.from_buffer(bufnr, opts)
 end
 
----@return [number, number, number, number] tuple containing { buf, win, row, col }
+---@return [integer, integer, integer, integer] tuple containing { buf, win, row, col }
 M.get_active_window_cursor_location = function()
   local buf = vim.api.nvim_win_get_buf(0)
   local win = vim.api.nvim_get_current_win()

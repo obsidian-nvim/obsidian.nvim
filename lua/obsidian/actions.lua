@@ -501,18 +501,17 @@ M.insert_template = function(template_name)
     templates.insert_template {
       type = "insert_template",
       template_name = name,
-      template_opts = Obsidian.opts.templates,
       templates_dir = templates_dir,
       location = insert_location,
     }
   end
 
-  if template_name then
+  if template_name ~= nil then
     insert_template(template_name)
     return
   end
 
-  ---@type obsidian.PickerEntry
+  ---@type obsidian.PickerEntry[]
   local entries = {}
   for path in api.dir(tostring(templates_dir)) do
     entries[#entries + 1] = {
@@ -528,6 +527,7 @@ M.insert_template = function(template_name)
   })
 end
 
+---@param buf integer|?
 M.start_presentation = function(buf)
   local Note = require "obsidian.note"
   local note = Note.from_buffer(buf)
