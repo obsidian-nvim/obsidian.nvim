@@ -1,20 +1,18 @@
 local M = {}
-local Note = require "obsidian.note"
 local parser = require "obsidian.slides.parse"
+local log = require "obsidian.log"
 
+---@param config vim.api.keyset.win_config
+---@param enter boolean
 local function create_floating_window(config, enter)
-  if enter == nil then
-    enter = false
-  end
-
   local buf = vim.api.nvim_create_buf(false, true)
   local win = vim.api.nvim_open_win(buf, enter or false, config)
-
   return { buf = buf, win = win }
 end
 
 ---@class present.Options
 ---@field syntax present.SyntaxOptions: The syntax for the plugin
+---@field padding integer
 
 ---@class present.SyntaxOptions
 ---@field comment string?: The prefix for comments, will skip lines that start with this
@@ -45,6 +43,7 @@ local create_window_configurations = function()
       col = 0,
       row = 0,
       zindex = 1,
+      border = "none",
     },
     body = {
       relative = "editor",
@@ -53,6 +52,7 @@ local create_window_configurations = function()
       style = "minimal",
       col = options.padding,
       row = 1,
+      border = "none",
     },
     -- TODO: 0.12 can be just a statusline that aligns right
     footer = {
@@ -63,6 +63,7 @@ local create_window_configurations = function()
       col = 0,
       row = height - 1,
       zindex = 3,
+      border = "none",
     },
   }
 end
@@ -85,30 +86,25 @@ local present_keymap = function(mode, key, callback)
   })
 end
 
----@param buf integer
-M.start_presentation = function(buf)
-  buf = buf or 0
-
-  local note = Note.from_buffer(buf)
-
+---@param note obsidian.Note
+M.start_presentation = function(note)
   local lines = {}
 
-  if note.has_frontmatter then
+  --- TODO: note:body_lines()
+  if note.has_frontmatter and note.frontmatter_end_line then
     for i = note.frontmatter_end_line + 1, #note.contents do
       lines[#lines + 1] = note.contents[i]
     end
   else
     lines = note.contents
   end
-  ---@cast lines -nil
 
   state.slides = parser.parse(lines)
   state.current_slide = 1
-  state.title = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(buf), ":t")
 
   local windows = create_window_configurations()
-  state.floats.background = create_floating_window(windows.background)
-  state.floats.footer = create_floating_window(windows.footer)
+  state.floats.background = create_floating_window(windows.background, false)
+  state.floats.footer = create_floating_window(windows.footer, false)
   state.floats.body = create_floating_window(windows.body, true)
 
   vim.bo[state.floats.body.buf].filetype = "markdown"
@@ -121,10 +117,15 @@ M.start_presentation = function(buf)
     end)
     local slide = state.slides[idx]
 
+    if not slide then
+      log.err "failed to get slides"
+      return
+    end
+
     vim.api.nvim_buf_set_lines(state.floats.body.buf, 0, -1, false, { slide.title, "" })
     vim.api.nvim_buf_set_lines(state.floats.body.buf, -1, -1, false, slide.body)
 
-    local footer = string.format("  %d / %d | %s", state.current_slide, #state.slides, state.title)
+    local footer = string.format("  %d / %d | %s", state.current_slide, #state.slides, note.title or note.id)
     vim.api.nvim_buf_set_lines(state.floats.footer.buf, 0, -1, false, { footer })
 
     pcall(vim.api.nvim_win_set_cursor, state.floats.body.win, { 2, 0 }) -- to not cover the title
@@ -207,9 +208,6 @@ M.start_presentation = function(buf)
       foreach_float(function(name, _)
         vim.api.nvim_win_set_config(state.floats[name].win, updated[name])
       end)
-
-      -- -- Re-calculates current slide contents
-      -- set_slide_content(state.current_slide)
     end,
   })
 
