@@ -37,12 +37,6 @@ local default_actions = {
     fn = actions.rename,
   },
 
-  insert_template = {
-    name = "insert_template",
-    title = "Insert template at cursor",
-    fn = actions.insert_template,
-  },
-
   add_property = {
     name = "add_property",
     title = "Add file property",
@@ -70,6 +64,22 @@ local default_actions = {
     range = true,
   },
 }
+
+if Obsidian.opts.templates.enabled then
+  default_actions.insert_template = {
+    name = "insert_template",
+    title = "Insert template at cursor",
+    fn = actions.insert_template,
+  }
+end
+
+if Obsidian.opts.slides.enabled then
+  default_actions.start_presentation = {
+    name = "start_presentation",
+    title = "Start presentation",
+    fn = actions.start_presentation,
+  }
+end
 
 -- TODO: merge a note to this note, after https://github.com/obsidian-nvim/obsidian.nvim/issues/655
 
