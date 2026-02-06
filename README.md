@@ -78,6 +78,10 @@ There's one entry point user command for this plugin: `Obsidian`
   - you are in visual mode.
 - See [Commands](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands) for more info.
 
+> [!Warning]
+> Note subcommands related to refactoring, like `rename` and `template`
+> And all the visual mode commands, will be moved to code actions in `3.17.0`.
+
 #### Top level commands
 
 - `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
@@ -124,6 +128,11 @@ There's one entry point user command for this plugin: `Obsidian`
   - query will be used to resolve the note by ID, path, or alias, else query is selected text
 - `:Obsidian link_new [TITLE]` - create a new note and link it to an inline visual selection of text
   - if title is not given, selected text is used
+
+### LSP code actions
+
+- Use `gra` or `:=vim.lsp.buf.code_action()` to trigger note specific actions.
+- See [LSP code actions](https://github.com/obsidian-nvim/obsidian.nvim/wiki/LSP#code-actions) and [Actions](docs/Actions.md) for more info.
 
 ## 📝 Requirements
 

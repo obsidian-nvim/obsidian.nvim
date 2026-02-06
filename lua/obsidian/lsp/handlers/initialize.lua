@@ -7,6 +7,10 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    codeActionProvider = true,
+    executeCommandProvider = {
+      commands = vim.tbl_keys(require("obsidian.lsp.handlers._code_action").actions),
+    },
   },
   serverInfo = {
     name = "obsidian-ls",

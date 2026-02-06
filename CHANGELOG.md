@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `opts.daily_notes.date_format`
   - `opts.daily_notes.alias_format`
 - `actions.start_presentation`.
+- Support LSP `code_action`.
+- Add code_actions with `require"obsidian".code_action.add`.
+- Delete code_actions with `require"obsidian".code_action.del`.
 
 ### Fixed
 
