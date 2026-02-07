@@ -20,14 +20,6 @@ config.SortBy = {
   created = "created",
 }
 
----@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"
-
----@enum obsidian.config.LinkStyle
-config.LinkStyle = {
-  wiki = "wiki",
-  markdown = "markdown",
-}
-
 ---@enum obsidian.config.Picker
 config.Picker = {
   telescope = "telescope.nvim",
@@ -79,7 +71,6 @@ end
 ---
 ---@return obsidian.config.Internal
 config.normalize = function(opts, defaults)
-  local builtin = require "obsidian.builtin"
   local util = require "obsidian.util"
 
   opts = opts or {}
@@ -111,44 +102,6 @@ config.normalize = function(opts, defaults)
       opts.picker.note_mappings = opts.picker.mappings
       opts.picker.mappings = nil
     end
-  end
-
-  if opts.wiki_link_func == nil and opts.completion ~= nil then
-    local warn = false
-
-    if opts.completion.prepend_note_id then
-      opts.wiki_link_func = builtin.wiki_link_id_prefix
-      opts.completion.prepend_note_id = nil
-      warn = true
-    elseif opts.completion.prepend_note_path then
-      opts.wiki_link_func = builtin.wiki_link_path_prefix
-      opts.completion.prepend_note_path = nil
-      warn = true
-    elseif opts.completion.use_path_only then
-      opts.wiki_link_func = builtin.wiki_link_path_only
-      opts.completion.use_path_only = nil
-      warn = true
-    end
-
-    if warn then
-      log.warn_once(
-        "The config options 'completion.prepend_note_id', 'completion.prepend_note_path', and 'completion.use_path_only' "
-          .. "are deprecated. Please use 'wiki_link_func' instead.\n"
-          .. "See https://github.com/epwalsh/obsidian.nvim/pull/406"
-      )
-    end
-  end
-
-  if opts.wiki_link_func == "prepend_note_id" then
-    opts.wiki_link_func = builtin.wiki_link_id_prefix
-  elseif opts.wiki_link_func == "prepend_note_path" then
-    opts.wiki_link_func = builtin.wiki_link_path_prefix
-  elseif opts.wiki_link_func == "use_path_only" then
-    opts.wiki_link_func = builtin.wiki_link_path_only
-  elseif opts.wiki_link_func == "use_alias_only" then
-    opts.wiki_link_func = builtin.wiki_link_alias_only
-  elseif type(opts.wiki_link_func) == "string" then
-    error(string.format("invalid option '%s' for 'wiki_link_func'", opts.wiki_link_func))
   end
 
   if opts.completion ~= nil and opts.completion.preferred_link_style ~= nil then
@@ -308,6 +261,23 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     )
   end
 
+  if opts.wiki_link_func then
+    opts.link = opts.link or {}
+    opts.link.wiki = opts.wiki_link_func
+    opts.wiki_link_func = nil
+    deprecate("wiki_link_func", "link.wiki", "3.16")
+    if type(opts.link.wiki) == "string" then
+      log.warn "Wiki link can no longer be a string"
+    end
+  end
+
+  if opts.markdown_link_func then
+    opts.link = opts.link or {}
+    opts.link.markdown = opts.markdown_link_func
+    opts.markdown_link_func = nil
+    deprecate("markdown_link_func", "link.markdown", "3.16")
+  end
+
   --------------------------
   -- Merge with defaults. --
   --------------------------
@@ -329,6 +299,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
   opts.search = tbl_override(defaults.search, opts.search)
   opts.note = tbl_override(defaults.note, opts.note)
+  opts.link = tbl_override(defaults.link, opts.link)
 
   ---------------
   -- Validate. --

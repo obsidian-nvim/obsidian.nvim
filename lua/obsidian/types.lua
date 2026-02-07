@@ -28,12 +28,9 @@
 ---@field log_level? integer
 ---@field notes_subdir? string
 ---@field templates? obsidian.config.TemplateOpts
----@field new_notes_location? obsidian.config.NewNotesLocation
+---@field new_notes_location? obsidian.note.NewNotesLocation
 ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
----@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
----@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
----@field preferred_link_style? obsidian.config.LinkStyle
 ---@field frontmatter? obsidian.config.FrontmatterOpts
 ---@field backlinks? obsidian.config.BacklinkOpts
 ---@field completion? obsidian.config.CompletionOpts
@@ -51,18 +48,16 @@
 ---@field comment? obsidian.config.CommentOpts
 ---@field search? obsidian.config.SearchOpts
 ---@field note? obsidian.config.NoteOpts
+---@field link? obsidian.config.LinkOpts
 
 ---@class obsidian.config.Internal
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
 ---@field log_level integer
 ---@field notes_subdir string|?
 ---@field templates obsidian.config.TemplateOpts
----@field new_notes_location obsidian.config.NewNotesLocation
+---@field new_notes_location obsidian.note.NewNotesLocation
 ---@field note_id_func (fun(id: string|?, path: obsidian.Path|?): string)
 ---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)
----@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
----@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
----@field preferred_link_style obsidian.config.LinkStyle
 ---@field frontmatter obsidian.config.FrontmatterOpts
 ---@field backlinks obsidian.config.BacklinkOpts
 ---@field completion obsidian.config.CompletionOpts
@@ -80,3 +75,7 @@
 ---@field comment obsidian.config.CommentOpts
 ---@field search obsidian.config.SearchOpts
 ---@field note obsidian.config.NoteOpts
+---@field link obsidian.config.LinkOpts
+
+---@alias obsidian.link.LinkFormat "shortest" | "relative" | "absolute"
+---@alias obsidian.note.NewNotesLocation "current_dir" | "notes_subdir"
