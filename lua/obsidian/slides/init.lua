@@ -11,12 +11,6 @@ local function create_floating_window(config, enter)
   return { buf = buf, win = win }
 end
 
----@class obsidian.Config.SlidesOpts
----@field padding integer
-local options = {
-  padding = 4,
-}
-
 local create_window_configurations = function()
   local width = vim.o.columns
   local height = vim.o.lines
@@ -37,10 +31,10 @@ local create_window_configurations = function()
     },
     body = {
       relative = "editor",
-      width = width - (options.padding * 2),
+      width = width - (Obsidian.opts.slides.padding * 2),
       height = body_height,
       style = "minimal",
-      col = options.padding,
+      col = Obsidian.opts.slides.padding,
       row = 1,
       border = "none",
     },

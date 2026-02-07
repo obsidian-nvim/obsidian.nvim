@@ -51,6 +51,7 @@
 ---@field comment? obsidian.config.CommentOpts
 ---@field search? obsidian.config.SearchOpts
 ---@field note? obsidian.config.NoteOpts
+---@field slides? obsidian.config.SlidesOpts
 
 ---@class obsidian.config.Internal
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
@@ -80,3 +81,4 @@
 ---@field comment obsidian.config.CommentOpts
 ---@field search obsidian.config.SearchOpts
 ---@field note obsidian.config.NoteOpts
+---@field slides obsidian.config.SlidesOpts
