@@ -49,48 +49,15 @@ end
 M.substitute_template_variables = function(text, ctx)
   local methods = vim.deepcopy(Obsidian.opts.templates.substitutions or {})
 
-  if not methods["date"] then
-    methods["date"] = function()
-      return tostring(util.format_date(os.time(), Obsidian.opts.templates.date_format))
-    end
-  end
-
-  if not methods["time"] then
-    methods["time"] = function()
-      return tostring(util.format_date(os.time(), Obsidian.opts.templates.time_format))
-    end
-  end
-
-  if not methods["title"] and ctx.partial_note then
-    methods["title"] = ctx.partial_note:display_name()
-  end
-
-  if not methods["id"] and ctx.partial_note then
-    methods["id"] = tostring(ctx.partial_note.id)
-  end
-
-  if not methods["path"] and ctx.partial_note and ctx.partial_note.path then
-    methods["path"] = tostring(ctx.partial_note.path)
-  end
-
   -- Replace known variables.
   for key, subst in pairs(methods) do
-    while true do
-      local m_start, m_end = string.find(text, "{{" .. key .. "}}", nil, true)
-      if not m_start or not m_end then
-        break
-      end
-      ---@type string
-      local value
-      if type(subst) == "string" then
-        value = subst
-      else
-        value = subst(ctx)
-        -- cache the result
-        methods[key] = value
-      end
-      text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
-    end
+    local key_pattern = vim.pesc(key)
+    text = string.gsub(text, "{{" .. key_pattern .. ":([^}]*)}}", function(suffix)
+      return subst(ctx, suffix)
+    end)
+    text = string.gsub(text, "{{" .. key_pattern .. "}}", function()
+      return subst(ctx)
+    end)
   end
 
   -- Find unknown variables and prompt for them.
