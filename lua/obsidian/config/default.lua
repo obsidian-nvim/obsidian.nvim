@@ -159,6 +159,14 @@ return {
     max_lines = 1000,
   },
 
+  ---@class obsidian.config.SlidesOpts
+  ---@field enabled boolean
+  ---@field padding integer
+  slides = {
+    enabled = false,
+    padding = 4,
+  },
+
   ---@class obsidian.config.DailyNotesOpts
   ---
   ---@field enabled? boolean
