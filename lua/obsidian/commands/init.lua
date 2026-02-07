@@ -240,6 +240,8 @@ M.register("help", { nargs = "?" })
 
 M.register("helpgrep", { nargs = "?" })
 
+M.register("bookmarks", { nargs = 0 })
+
 ---------------------
 ---- note action ----
 ---------------------
