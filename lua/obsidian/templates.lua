@@ -53,7 +53,7 @@ M.substitute_template_variables = function(text, ctx)
   for key, subst in pairs(methods) do
     local key_pattern = vim.pesc(key)
     text = string.gsub(text, "{{" .. key_pattern .. ":([^}]*)}}", function(suffix)
-      return subst(ctx, suffix)
+      return subst(ctx, vim.trim(suffix))
     end)
     text = string.gsub(text, "{{" .. key_pattern .. "}}", function()
       return subst(ctx)
