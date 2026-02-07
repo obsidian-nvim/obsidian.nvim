@@ -43,6 +43,14 @@ T["substitute_template_variables()"]["should support moment date_format"] = func
   Obsidian.opts.templates.date_format = previous
 end
 
+T["substitute_template_variables()"]["should support template suffix"] = function()
+  local text = "year is {{date:YYYY}} and hour is {{time:HH}}"
+  eq(
+    string.format("year is %s and hour is %s", moment.format(os.time(), "YYYY"), moment.format(os.time(), "HH")),
+    M.substitute_template_variables(text, tmp_template_context())
+  )
+end
+
 T["substitute_template_variables()"]["should substitute custom variables"] = function()
   Obsidian.opts.templates.substitutions = {
     weekday = function()
@@ -75,6 +83,16 @@ T["substitute_template_variables()"]["should provide substitution functions with
   local text = "my template is: {{test_var}}"
   local ctx = tmp_template_context { template_name = "My Template.md" }
   eq("my template is: My Template.md", M.substitute_template_variables(text, ctx))
+end
+
+T["substitute_template_variables()"]["should pass suffix to substitution functions"] = function()
+  Obsidian.opts.templates.substitutions = {
+    test_var = function(_, suffix)
+      return string.format("%s", suffix)
+    end,
+  }
+  local text = "value is {{test_var:hello}}"
+  eq("value is hello", M.substitute_template_variables(text, tmp_template_context()))
 end
 
 return T

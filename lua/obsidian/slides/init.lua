@@ -1,4 +1,4 @@
---- adaptated from https://github.com/tjdevries/present.nvim
+--- adapted from https://github.com/tjdevries/present.nvim
 local M = {}
 local parser = require "obsidian.slides.parse"
 local log = require "obsidian.log"
