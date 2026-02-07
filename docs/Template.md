@@ -7,6 +7,7 @@ To insert a template in the current note, run the command `:Obsidian template`. 
 To create a new note from a template, run the command `:Obsidian new_from_template`. This will prompt you for an optional path for the new note and will open a list of available templates in your templates folder with your preferred picker. Select a template and hit `<CR>` to create the new note with the selected template.
 
 Substitutions for `{{id}}`, `{{title}}`, `{{path}}`, `{{date}}`, and `{{time}}` are supported out-of-the-box.
+You can also pass an optional suffix with `{{var:suffix}}`, for example `{{date:YYYY}}` or `{{time:HH:mm}}`.
 For example, with the following configuration
 
 ```lua
@@ -126,6 +127,22 @@ yesterday = function(ctx)
 end
 ```
 
+### Suffixes
+
+You can add a suffix to any substitution with `{{var:suffix}}`. The suffix is passed as the second argument to your substitution function. The built-in `date` and `time` substitutions treat the suffix as a format override.
+
+```markdown
+created: {{date:YYYY-MM-DD}}
+time: {{time:HH:mm}}
+quarter: {{date:Q}}
+```
+
+```lua
+custom = function(ctx, suffix)
+  return string.format("%s:%s", tostring(ctx.template_name), tostring(suffix))
+end
+```
+
 ### Context Types
 
 ```lua
@@ -219,8 +236,8 @@ biography = {
 ---@field date_format string|?
 ---@field time_format string|?
 --- A map for custom variables, the key should be the variable and the value a function.
---- Functions are called with obsidian.TemplateContext objects as their sole parameter.
+--- Functions are called with obsidian.TemplateContext objects and optional suffix strings.
 --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
----@field substitutions table<string, (fun(ctx: obsidian.TemplateContext):string)|(fun(): string)|string>|?
+---@field substitutions table<string, (fun(ctx: obsidian.TemplateContext, suffix: string|?):string)|(fun(): string)|string>|?
 ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
 ```
