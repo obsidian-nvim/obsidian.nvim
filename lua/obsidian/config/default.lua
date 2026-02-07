@@ -79,7 +79,7 @@ return {
   --- A map for custom variables, the key should be the variable and the value a function.
   --- Functions are called with obsidian.TemplateContext objects and optional suffix strings.
   --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
-  ---@field substitutions table<string, fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?
+  ---@field substitutions table<string, fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
   ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
   templates = {
     enabled = true,
