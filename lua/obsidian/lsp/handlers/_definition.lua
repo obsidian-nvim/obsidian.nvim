@@ -21,14 +21,19 @@ end
 ---@param callback function
 ---@return lsp.Location?
 local function create_new_note(location, callback)
-  local confirm = api.confirm(("Create new note '%s'?"):format(location), "&Yes\nYes With &Template\n&No")
-  if confirm then
-    ---@type string|?, string|?
-    local id, template
-    id = location
+  local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
+  local format_options = has_template and "&Yes\nYes With &Template\n&No" or "&Yes\n&No"
 
-    template = ((type(confirm) == "boolean" and confirm == true) and Obsidian.opts.note.template or nil)
-    actions.new_from_template(id, template, function(note)
+  local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
+  if confirm == true then
+    actions.new(location, function(note)
+      callback { note:_location() }
+      note:write_to_buffer {
+        template = Obsidian.opts.note.template,
+      }
+    end)
+  elseif confirm == "Yes With Template" then
+    actions.new_from_template(location, nil, function(note)
       callback { note:_location() }
     end)
     return
