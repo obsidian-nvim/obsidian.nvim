@@ -122,22 +122,14 @@ return {
 
   ---@class obsidian.config.CompletionOpts
   ---
-  ---@field nvim_cmp? boolean
-  ---@field blink? boolean
   ---@field min_chars? integer
   ---@field match_case? boolean
   ---@field create_new? boolean
-  completion = (function()
-    local has_nvim_cmp, _ = pcall(require, "cmp")
-    local has_blink = pcall(require, "blink.cmp")
-    return {
-      nvim_cmp = has_nvim_cmp and not has_blink,
-      blink = has_blink,
-      min_chars = 2,
-      match_case = true,
-      create_new = true,
-    }
-  end)(),
+  completion = {
+    min_chars = 2,
+    match_case = true,
+    create_new = true,
+  },
 
   ---@class obsidian.config.PickerNoteMappingOpts
   ---

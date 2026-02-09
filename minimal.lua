@@ -45,12 +45,17 @@ local plugins = {
   --     }
   --   end,
   -- },
-  {
-    "saghen/blink.cmp",
-    opts = {
-      fuzzy = { implementation = "lua" }, -- no need to build binary
-    },
-  },
+  -- {
+  --   "saghen/blink.cmp",
+  --   build = "cargo build --release",
+  --   opts = {
+  --     cmdline = { enabled = false },
+  --     completion = {
+  --       documentation = { auto_show = true },
+  --     },
+  --     -- fuzzy = { implementation = "lua" }, -- no need to build binary
+  --   },
+  -- },
 }
 
 require("lazy.minit").repro { spec = plugins }
