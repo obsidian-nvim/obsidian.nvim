@@ -144,8 +144,8 @@ M.paste = function(path, img_type)
   end
 
   if Obsidian.opts.attachments.confirm_img_paste then
-    -- Get confirmation from user.
-    if not api.confirm("Saving image to '" .. tostring(path) .. "'. Do you want to continue?") then
+    local choice = api.confirm("Saving image to '" .. tostring(path) .. "'. Do you want to continue?")
+    if choice ~= "Yes" then
       return log.warn "Paste aborted"
     end
   end

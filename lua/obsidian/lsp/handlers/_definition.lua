@@ -11,7 +11,7 @@ local function open_uri(uri, scheme)
   else
     local choice = api.confirm(("Open external link? %s"):format(uri))
 
-    if choice == true then
+    if choice == "Yes" then
       vim.ui.open(uri)
     end
   end
@@ -25,15 +25,14 @@ local function create_new_note(location, callback)
   local format_options = has_template and "&Yes\nYes With &Template\n&No" or "&Yes\n&No"
 
   local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
-  if confirm == true then
+  if confirm == "Yes" then
     actions.new(location, function(note)
       callback { note:_location() }
-      note:write_to_buffer {
-        template = Obsidian.opts.note.template,
-      }
+      note:write_to_buffer { template = Obsidian.opts.note.template }
     end)
   elseif confirm == "Yes With Template" then
     actions.new_from_template(location, nil, function(note)
+      -- TODO: maybe new_from_template should not have `should_write`
       callback { note:_location() }
     end)
     return
