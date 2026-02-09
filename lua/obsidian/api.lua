@@ -498,11 +498,13 @@ M.input = function(prompt, opts)
 end
 
 --- Prompt user for a confirmation.
+---@return "Yes"|"No"|string|nil
 M.confirm = function(prompt, choices)
   choices = choices or "&Yes\n&No"
   local choices_tbl = vim.split(choices, "\n")
   choices_tbl = vim.tbl_map(function(choice)
-    return choice:gsub("&", "")
+    local str = choice:gsub("&", "")
+    return str
   end, choices_tbl)
 
   local choice_idx = vim.fn.confirm(prompt, choices)
@@ -510,13 +512,7 @@ M.confirm = function(prompt, choices)
   if not user_choice then
     return nil
   end
-  if user_choice == "Yes" then
-    return true
-  elseif user_choice == "No" then
-    return false
-  else
-    return user_choice
-  end
+  return user_choice
 end
 
 ---@enum OSType

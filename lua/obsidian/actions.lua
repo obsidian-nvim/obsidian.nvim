@@ -373,6 +373,35 @@ M.extract_note = function(label)
 end
 
 ---@param id string|?
+---@param callback fun(note: obsidian.Note)|?
+M.new = function(id, callback)
+  local Note = require "obsidian.note"
+  if not id then
+    id = api.input("Enter id or path (optional): ", { completion = "file" })
+    if not id then
+      return log.warn "Aborted"
+    elseif id == "" then
+      id = nil
+    end
+  end
+
+  local note = Note.create {
+    id = id,
+    template = Obsidian.opts.note.template, -- TODO: maybe unneed when creating, or set as a field that note carries
+  }
+
+  if callback then
+    callback(note)
+  else
+    -- Open the note in a new buffer.
+    note:open { sync = true }
+    note:write_to_buffer {
+      template = Obsidian.opts.note.template,
+    }
+  end
+end
+
+---@param id string|?
 ---@param template string|?
 ---@param callback fun(note: obsidian.Note)|?
 M.new_from_template = function(id, template, callback)
