@@ -492,4 +492,6 @@ M.start_presentation = function(buf)
   require("obsidian.slides").start_presentation(note)
 end
 
+M.cycal_global_headings = require("obsidian.folds").cycle_global
+
 return M
