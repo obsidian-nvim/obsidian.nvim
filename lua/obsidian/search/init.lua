@@ -659,48 +659,49 @@ M.find_backlinks_async = function(note, callback, opts)
   vim.list_extend(results, get_in_note_backlink(note, block or anchor))
 
   ---@param match MatchData
-
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
     local line_text = util.rstrip_whitespace(match.lines.text)
     for _, ref in ipairs(M.find_refs(line_text)) do
       local ref_start, ref_end, ref_type = unpack(ref)
-      local ref_text = line_text:sub(ref_start, ref_end)
-      local link_location, _, _ = util.parse_link(ref_text, { link_type = ref_type })
-      if link_location then
-        local _, matched_anchor = util.strip_anchor_links(link_location)
-        local include = true
-        if anchor then
-          if not matched_anchor then
-            include = false
-          else
-            local std_matched = util.standardize_anchor(matched_anchor)
-            local is_direct_match = std_matched == anchor
-            local is_resolved_match = false
-            if not is_direct_match and anchor_obj ~= nil then
-              local resolved = note:resolve_anchor_link(matched_anchor)
-              if resolved and resolved.header == anchor_obj.header then
-                is_resolved_match = true
+      if ref_start <= match.submatches[1]["end"] and ref_end >= match.submatches[1].start then
+        local ref_text = line_text:sub(ref_start, ref_end)
+        local link_location, _, _ = util.parse_link(ref_text, { link_type = ref_type })
+        if link_location then
+          local _, matched_anchor = util.strip_anchor_links(link_location)
+          local include = true
+          if anchor then
+            if not matched_anchor then
+              include = false
+            else
+              local std_matched = util.standardize_anchor(matched_anchor)
+              local is_direct_match = std_matched == anchor
+              local is_resolved_match = false
+              if not is_direct_match and anchor_obj ~= nil then
+                local resolved = note:resolve_anchor_link(matched_anchor)
+                if resolved and resolved.header == anchor_obj.header then
+                  is_resolved_match = true
+                end
+              end
+              if not (is_direct_match or is_resolved_match) then
+                include = false
               end
             end
-            if not (is_direct_match or is_resolved_match) then
+          end
+          if block and include then
+            if util.standardize_block(matched_anchor) ~= block then
               include = false
             end
           end
-        end
-        if block and include then
-          if util.standardize_block(matched_anchor) ~= block then
-            include = false
+          if include then
+            results[#results + 1] = {
+              path = path,
+              line = match.line_number,
+              text = line_text,
+              start = ref_start,
+              ["end"] = ref_end,
+            }
           end
-        end
-        if include then
-          results[#results + 1] = {
-            path = path,
-            line = match.line_number,
-            text = line_text,
-            start = ref_start,
-            ["end"] = ref_end,
-          }
         end
       end
     end

@@ -331,9 +331,6 @@ util.parse_link = function(link, opts)
   if link_type == "Markdown" then
     link_name = link:match "%[(.-)%]"
     link_location = link:match "%((.-)%)"
-  elseif link_type == "NakedUrl" or link_type == "FileUrl" or link_type == "MailtoUrl" then
-    link_location = link
-    link_name = link
   elseif link_type == "WikiWithAlias" then
     link = util.unescape_single_backslash(link)
     -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'

@@ -79,14 +79,11 @@ T["multiple links per line"] = function()
     local l = m.line
     by_line[l] = (by_line[l] or 0) + 1
   end
-  local found_multi = false
-  for _, count in pairs(by_line) do
-    if count > 1 then
-      found_multi = true
-      break
-    end
-  end
-  assert(found_multi, "Expected multiple backlinks on a single line")
+  eq(by_line[1], 3)
+  eq(by_line[2], 2)
+  eq(by_line[3], 1)
+  eq(by_line[4], 2)
+  eq(by_line[5], 1)
 end
 
 return T
