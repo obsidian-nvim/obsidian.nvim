@@ -28,7 +28,6 @@ local function create_new_note(location, callback)
   if confirm == "Yes" then
     actions.new(location, function(note)
       callback { note:_location() }
-      note:write_to_buffer { template = Obsidian.opts.note.template }
     end)
   elseif confirm == "Yes With Template" then
     actions.new_from_template(location, nil, function(note)

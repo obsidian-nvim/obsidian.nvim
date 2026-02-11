@@ -22,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed checkbox toggle affecting incorrect lines when stale visual selection marks are present.
 - Goto definition should not throw error if templates.folder is not set.
 - Fixed completion insertion misaligned under CJK languages
-- Fixed completion references source unable to fetch by rolling back the `find_workspace` function in `Path.vault_relative_path`
+- Fixed completion references source unable to fetch by passing `Path` to `api.resolve_workspace_dir` function
+- Fixed `create_new_note` action should write to the new created note buffer instead of the previous one
 
 ## [v3.15.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.8) - 2026-02-04
 
