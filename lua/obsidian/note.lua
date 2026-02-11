@@ -929,7 +929,6 @@ Note.write = function(self, opts)
         type = "clone_template",
         template_name = opts.template,
         destination_path = path,
-        template_opts = Obsidian.opts.templates,
         templates_dir = api.templates_dir(),
         partial_note = self,
       }
@@ -1061,7 +1060,6 @@ Note.write_to_buffer = function(self, opts)
     self = Template.insert_template {
       type = "insert_template",
       template_name = opts.template,
-      template_opts = Obsidian.opts.templates,
       templates_dir = api.templates_dir(),
       location = api.get_active_window_cursor_location(),
       partial_note = self,

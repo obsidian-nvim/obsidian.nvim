@@ -15,7 +15,6 @@ local tmp_template_context = function(ctx)
   return vim.tbl_extend("keep", ctx or {}, {
     type = "insert_template",
     templates_dir = api.templates_dir(),
-    template_opts = Obsidian.opts.templates,
     partial_note = Note.new("FOO", { "FOO" }, {}),
   })
 end
