@@ -39,7 +39,7 @@ config.Picker = {
 config.default = require "obsidian.config.default"
 
 local tbl_override = function(defaults, overrides, list_fields)
-  local out = vim.tbl_extend("force", defaults, overrides)
+  local out = vim.tbl_deep_extend("force", defaults, overrides)
   for k, v in pairs(out) do
     if v == vim.NIL then
       out[k] = nil
