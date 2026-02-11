@@ -95,4 +95,30 @@ T["substitute_template_variables()"]["should pass suffix to substitution functio
   eq("value is hello", M.substitute_template_variables(text, tmp_template_context()))
 end
 
+T["config.normalize()"] = new_set()
+
+T["config.normalize()"]["custom substitutions should not clobber defaults"] = function()
+  local config = require "obsidian.config"
+  local opts = config.normalize {
+    workspaces = { { path = tostring(Obsidian.dir) } },
+    templates = {
+      substitutions = {
+        weekday = function()
+          return "Monday"
+        end,
+      },
+    },
+  }
+
+  -- User's custom substitution should be present.
+  eq("function", type(opts.templates.substitutions.weekday))
+
+  -- Default substitutions should also be present.
+  eq("function", type(opts.templates.substitutions.date))
+  eq("function", type(opts.templates.substitutions.time))
+  eq("function", type(opts.templates.substitutions.title))
+  eq("function", type(opts.templates.substitutions.id))
+  eq("function", type(opts.templates.substitutions.path))
+end
+
 return T
