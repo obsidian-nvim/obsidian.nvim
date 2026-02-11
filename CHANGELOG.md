@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `opts.daily_notes.alias_format`
 - `actions.start_presentation`.
 - Support for template substitution suffix, like `{{date:YY}}`
+- `actions.new`.
+
+### Changed
+
+- `:Obsidian new` will act like `new_from_template` and write new note to disk.
 
 ### Fixed
 
@@ -692,7 +697,7 @@ There's a lot of new features and improvements here that I'm really excited abou
    We also support links to headers within the same note, like for a table of contents, e.g. `[[#Heading 1]]`, `[[#heading-1|Heading]]`, `[[#^block-1]]`.
 
 1. 📲 A basic callback system to let you easily customize obisidian.nvim's behavior even more. There are currently 4 events: `post_setup`, `enter_note`, `pre_write_note`, and `post_set_workspace`. You can define a function for each of these in your config.
-2. 🔭 Improved picker integrations (especially for telescope), particular for the `:ObsidianTags` command. See <https://github.com/epwalsh/obsidian.nvim/discussions/450> for a demo.
+1. 🔭 Improved picker integrations (especially for telescope), particular for the `:ObsidianTags` command. See <https://github.com/epwalsh/obsidian.nvim/discussions/450> for a demo.
 
 Full changelog below 👇
 
