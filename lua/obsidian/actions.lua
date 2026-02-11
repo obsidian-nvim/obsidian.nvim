@@ -394,11 +394,7 @@ M.new = function(id, callback)
   if callback then
     callback(note)
   else
-    -- Open the note in a new buffer.
     note:open { sync = true }
-    note:write_to_buffer {
-      template = Obsidian.opts.note.template,
-    }
   end
 end
 
