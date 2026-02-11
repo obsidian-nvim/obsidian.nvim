@@ -13,7 +13,7 @@ local function setup_vault(root)
 [[A]] [[A|Alias]] [A](A.md)
 [A test](A.md#test) [Another](A.md#Section)
 [[A#Section]] 
-Multiple links: [[A]] [md](A.md#test) 
+Multiple links: [[A]] [md](A.md#test) [md](A.md#test) 
 [[A#test]]
 ]==],
     root / "B.md"
@@ -61,7 +61,7 @@ T["anchor filtering works"] = function()
   local section_links = child.lua_get [[_NOTE_SECTION]]
   local test_links = child.lua_get [[_NOTE_TEST]]
   eq(2, #section_links)
-  eq(3, #test_links)
+  eq(4, #test_links)
 end
 
 T["multiple links per line"] = function()
@@ -82,7 +82,7 @@ T["multiple links per line"] = function()
   eq(by_line[1], 3)
   eq(by_line[2], 2)
   eq(by_line[3], 1)
-  eq(by_line[4], 2)
+  eq(by_line[4], 3)
   eq(by_line[5], 1)
 end
 
