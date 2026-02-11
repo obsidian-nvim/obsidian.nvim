@@ -154,7 +154,6 @@ end
 ---
 ---@field type "insert_template"
 ---@field template_name string|obsidian.Path The name or path of the template being used.
----@field template_opts obsidian.config.TemplateOpts The template options being used.
 ---@field templates_dir obsidian.Path The folder containing the template file.
 ---@field location [number, number, number, number] `{ buf, win, row, col }` location from which the request was made.
 ---@field partial_note? obsidian.Note An optional note with fields to copy from.
@@ -164,7 +163,6 @@ end
 ---
 ---@field type "clone_template"
 ---@field template_name string|obsidian.Path The name or path of the template being used.
----@field template_opts obsidian.config.TemplateOpts The template options being used.
 ---@field templates_dir obsidian.Path The folder containing the template file.
 ---@field destination_path obsidian.Path The path the cloned template will be written to.
 ---@field partial_note obsidian.Note The note being written.
