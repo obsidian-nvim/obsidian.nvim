@@ -10,7 +10,7 @@ local function setup_vault(root)
   )
   h.write(
     [==[
-[[A]] [[A|Alias]] [A](A.md)
+[[A]] [[A|Alias]] [A](A.md) [[B]] [false posititve](B.md)
 [A test](A.md#test) [Another](A.md#Section)
 [[A#Section]] 
 Multiple links: [[A]] [md](A.md#test) [md](A.md#test) 
