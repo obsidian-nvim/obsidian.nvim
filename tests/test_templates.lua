@@ -94,4 +94,80 @@ T["substitute_template_variables()"]["should pass suffix to substitution functio
   eq("value is hello", M.substitute_template_variables(text, tmp_template_context()))
 end
 
+T["config.normalize()"] = new_set()
+
+T["config.normalize()"]["custom substitutions should not clobber defaults"] = function()
+  local config = require "obsidian.config"
+  local opts = config.normalize {
+    workspaces = { { path = tostring(Obsidian.dir) } },
+    templates = {
+      substitutions = {
+        weekday = function()
+          return "Monday"
+        end,
+      },
+    },
+  }
+
+  -- User's custom substitution should be present.
+  eq("function", type(opts.templates.substitutions.weekday))
+
+  -- Default substitutions should also be present.
+  eq("function", type(opts.templates.substitutions.date))
+  eq("function", type(opts.templates.substitutions.time))
+  eq("function", type(opts.templates.substitutions.title))
+  eq("function", type(opts.templates.substitutions.id))
+  eq("function", type(opts.templates.substitutions.path))
+end
+
+T["config.normalize()"]["custom ui checkboxes should not clobber defaults"] = function()
+  local config = require "obsidian.config"
+  local opts = config.normalize {
+    workspaces = { { path = tostring(Obsidian.dir) } },
+    ui = {
+      checkboxes = {
+        ["?"] = { char = "", hl_group = "ObsidianQuestion" },
+      },
+    },
+  }
+
+  -- User's custom checkbox should be present.
+  eq("", opts.ui.checkboxes["?"].char)
+
+  -- Default checkboxes should also be present.
+  eq("obsidiantodo", opts.ui.checkboxes[" "].hl_group)
+  eq("obsidiandone", opts.ui.checkboxes["x"].hl_group)
+  eq("obsidiantilde", opts.ui.checkboxes["~"].hl_group)
+end
+
+T["config.normalize()"]["list_fields should append rather than replace"] = function()
+  local config = require "obsidian.config"
+  local opts = config.normalize {
+    workspaces = { { path = tostring(Obsidian.dir) } },
+    open = {
+      schemes = { "obsidian" },
+    },
+  }
+
+  -- User's custom scheme should be present.
+  eq(true, vim.tbl_contains(opts.open.schemes, "obsidian"))
+
+  -- Default schemes should also be present (appended, not replaced).
+  eq(true, vim.tbl_contains(opts.open.schemes, "https"))
+  eq(true, vim.tbl_contains(opts.open.schemes, "http"))
+  eq(true, vim.tbl_contains(opts.open.schemes, "file"))
+  eq(true, vim.tbl_contains(opts.open.schemes, "mailto"))
+end
+
+T["config.normalize()"]["vim.NIL should remove a default value"] = function()
+  local config = require "obsidian.config"
+  local opts = config.normalize {
+    workspaces = { { path = tostring(Obsidian.dir) } },
+    new_notes_location = vim.NIL,
+  }
+
+  -- The field should be nil, not the default "current_dir".
+  eq(nil, opts.new_notes_location)
+end
+
 return T
