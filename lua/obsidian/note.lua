@@ -169,6 +169,7 @@ Note._get_creation_opts = function(opts)
     return ret
   end
 
+  ---@cast template_path -string
   local stem = template_path.stem:lower()
 
   -- Check if the configuration has a custom key for this template
@@ -292,10 +293,7 @@ Note.create = function(opts)
   local new_id, path, title = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
-  -- Add the title as an alias.
-  --- @type string[]
-  local aliases = opts.aliases
-  local note = Note.new(new_id, aliases, opts.tags, path, title)
+  local note = Note.new(new_id, opts.aliases, opts.tags, path, title)
 
   -- Ensure the parent directory exists.
   local parent = path:parent()
@@ -335,11 +333,11 @@ end
 
 --- Get markdown display info about the note.
 ---
----@param opts { label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|?
+---@param opts { label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
 ---
 ---@return string
 Note.display_info = function(self, opts)
-  opts = opts and opts or {}
+  opts = opts or {}
 
   ---@type string[]
   local info = {}
@@ -403,7 +401,7 @@ Note.uri = function(self)
   return vim.uri_from_fname(tostring(self.path))
 end
 
----@param opts { block: string|?, anchor: string|?, range: lsp.Range|? }|?-- TODO: vim.Range in the future
+---@param opts { block: string|?, anchor: string|?, range: lsp.Range|? }-- TODO: vim.Range in the future
 ---@return lsp.Location
 Note._location = function(self, opts)
   opts = opts or {}
@@ -412,14 +410,16 @@ Note._location = function(self, opts)
     error "can not pass both range and an block/anhor link to Note:_location()"
   end
 
-  ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
+  ---@type integer
   local line = 0
   if opts.block then
+    ---@type obsidian.note.Block|?
     local block_match = self:resolve_block(opts.block)
     if block_match then
       line = block_match.line - 1
     end
   elseif opts.anchor then
+    ---@type obsidian.note.HeaderAnchor|?
     local anchor_match = self:resolve_anchor_link(opts.anchor)
     if anchor_match then
       line = anchor_match.line - 1
@@ -440,7 +440,7 @@ end
 
 --- Get a list of all of the different string that can identify this note via references,
 --- including the ID, aliases, and filename.
----@param opts { lowercase: boolean|? }|?
+---@param opts { lowercase: boolean|? }
 ---@return string[]
 Note.reference_ids = function(self, opts)
   opts = opts or {}
@@ -465,7 +465,7 @@ Note.reference_ids = function(self, opts)
 end
 
 --- Get a list of all of the different paths that can identify this note
----@param opts? { urlencode: boolean|? }
+---@param opts { urlencode: boolean|? }
 ---@return string[]
 Note.get_reference_paths = function(self, opts)
   opts = opts or {}

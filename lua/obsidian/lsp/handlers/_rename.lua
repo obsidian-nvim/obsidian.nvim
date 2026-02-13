@@ -32,7 +32,7 @@ local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
 ---@param new_name string
 ---@param callback function -- TODO:
 M.rename = function(note, new_name, callback)
-  local old_refs = note:get_reference_paths()
+  local old_refs = note:get_reference_paths {}
   local old_path = tostring(note.path)
   local current_file = vim.api.nvim_buf_get_name(0) -- Save current file before rename
 
