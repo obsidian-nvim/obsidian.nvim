@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.15.9](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.9) - 2026-02-13
+
 ### Added
 
 - Added support for moment.js style date format for:
