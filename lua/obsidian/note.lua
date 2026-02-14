@@ -15,7 +15,6 @@ local util = require "obsidian.util"
 local iter = vim.iter
 local compat = require "obsidian.compat"
 local api = require "obsidian.api"
-local config = require "obsidian.config"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
 
@@ -141,6 +140,8 @@ Note._generate_path = function(id, dir)
     path = dir / path
   end
 
+  -- TODO: automatically cleanup instead of call with_suffix in defualt and in cleanup
+
   -- Ensure there is only one ".md" suffix. This might arise if `note_path_func`
   -- supplies an unusual implementation returning something like /bad/note/id.md.md.md
   while path.filename:match "%.md$" do
@@ -179,6 +180,7 @@ Note._get_creation_opts = function(opts)
         note_id_func = cfg.note_id_func or ret.note_id_func,
         new_notes_location = "notes_subdir",
       }
+      break
     end
   end
   return ret
@@ -1181,29 +1183,48 @@ Note.links = function(self)
   return search.find_links(self)
 end
 
+---@param path obsidian.Path vault-relative-path
+---@param style obsidian.link.LinkFormat
+---@return string foramted_path
+local function format_path(path, style)
+  if style == "absolute" then
+    return assert(path:vault_relative_path {})
+  elseif style == "relative" then
+    local relpath = util.relpath(tostring(Obsidian.buf_dir), tostring(path))
+    return assert(relpath, "failed to resolve link path against current note")
+  else
+    return vim.fs.basename(tostring(path))
+  end
+end
+
 --- Create a formatted markdown / wiki link for a note.
 ---
----@param opts { label: string|?, link_style: obsidian.config.LinkStyle|?, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|? Options.
+---@param opts obsidian.link.LinkCreationOpts?
 ---@return string
 Note.format_link = function(self, opts)
   opts = opts or {}
-  local rel_path = assert(self.path:vault_relative_path { strict = true }, "note with no path")
   local label = opts.label or self:display_name()
-  local note_id = opts.id or self.id
-  local link_style = opts.link_style or Obsidian.opts.preferred_link_style
+  local link_style = opts.style or Obsidian.opts.link.style
+
+  local formatted_path = format_path(self.path, Obsidian.opts.link.format)
+  formatted_path = util.urlencode(formatted_path, { keep_path_sep = true })
+  if link_style == "wiki" then
+    formatted_path = formatted_path:gsub(".md", "")
+  end
 
   local new_opts = {
-    path = rel_path,
+    path = formatted_path,
     label = label,
-    id = note_id,
     anchor = opts.anchor,
     block = opts.block,
   }
 
-  if link_style == config.LinkStyle.markdown then
-    return Obsidian.opts.markdown_link_func(new_opts)
-  elseif link_style == config.LinkStyle.wiki or link_style == nil then
-    return Obsidian.opts.wiki_link_func(new_opts)
+  if link_style == "markdown" then
+    return require("obsidian.builtin").markdown_link(new_opts)
+  elseif link_style == "wiki" or link_style == nil then
+    return require("obsidian.builtin").wiki_link(new_opts)
+  elseif type(link_style) == "function" then
+    return link_style(new_opts)
   else
     error(string.format("Invalid link style '%s'", link_style))
   end
@@ -1242,7 +1263,7 @@ end
 ---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string
 ---@field note_id_func fun()
----@field new_notes_location obsidian.config.NewNotesLocation
+---@field new_notes_location "current_dir" | "notes_subdir"
 
 ---@class (exact) obsidian.note.NoteOpts
 ---@field id string|? An ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true

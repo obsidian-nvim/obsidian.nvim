@@ -1,5 +1,4 @@
 local completion = require "obsidian.completion.refs"
-local LinkStyle = require("obsidian.config").LinkStyle
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
@@ -14,7 +13,6 @@ local iter = vim.iter
 ---@field search string|?
 ---@field insert_start integer|?
 ---@field insert_end integer|?
----@field ref_type obsidian.completion.RefType|?
 ---@field block_link string|?
 ---@field anchor_link string|?
 ---@field new_text_to_option table<string, obsidian.completion.sources.blink.CompletionItem>
@@ -98,7 +96,7 @@ end
 ---@return boolean success provides a chance to return early if the request didn't meet the requirements
 function RefsSourceBase:can_complete_request(cc)
   local can_complete
-  can_complete, cc.search, cc.insert_start, cc.insert_end, cc.ref_type = completion.can_complete(cc.request)
+  can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
 
   if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
     cc.completion_resolve_callback(self.incomplete_response)
@@ -236,9 +234,9 @@ function RefsSourceBase:process_search_results(cc, results)
     -- TODO: need a better label, maybe just the note's display name?
     ---@type string
     local label
-    if cc.ref_type == completion.RefType.Wiki then
+    if Obsidian.opts.link.style == "wiki" then
       label = string.format("[[%s]]", option.label)
-    elseif cc.ref_type == completion.RefType.Markdown then
+    elseif Obsidian.opts.link.style == "markdown" then
       label = string.format("[%s](…)", option.label)
     else
       error "not implemented"
@@ -299,21 +297,10 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
 
   -- De-duplicate options relative to their `new_text`.
   for _, option in ipairs(new_options) do
-    ---@type obsidian.config.LinkStyle
-    local link_style
-    if cc.ref_type == completion.RefType.Wiki then
-      link_style = LinkStyle.wiki
-    elseif cc.ref_type == completion.RefType.Markdown then
-      link_style = LinkStyle.markdown
-    else
-      error "not implemented"
-    end
-
     ---@type string, string, string, table|?
     local final_label, sort_text, new_text, documentation
     if option.label then
-      new_text =
-        note:format_link { label = option.label, link_style = link_style, anchor = option.anchor, block = option.block }
+      new_text = note:format_link { label = option.label, anchor = option.anchor, block = option.block }
 
       final_label = assert(option.alt_label or option.label, "no valid label")
       if option.anchor then
@@ -334,9 +321,9 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
     elseif option.anchor then
       -- In buffer anchor link.
       -- TODO: allow users to customize this?
-      if cc.ref_type == completion.RefType.Wiki then
+      if Obsidian.opts.link.style == "wiki" then
         new_text = "[[#" .. option.anchor.header .. "]]"
-      elseif cc.ref_type == completion.RefType.Markdown then
+      elseif Obsidian.opts.link.style == "markdown" then
         new_text = "[#" .. option.anchor.header .. "](" .. option.anchor.anchor .. ")"
       else
         error "not implemented"
@@ -352,9 +339,9 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
     elseif option.block then
       -- In buffer block link.
       -- TODO: allow users to customize this?
-      if cc.ref_type == completion.RefType.Wiki then
+      if Obsidian.opts.link.style == "wiki" then
         new_text = "[[#" .. option.block.id .. "]]"
-      elseif cc.ref_type == completion.RefType.Markdown then
+      elseif Obsidian.opts.link.style == "markdown" then
         new_text = "[#" .. option.block.id .. "](#" .. option.block.id .. ")"
       else
         error "not implemented"

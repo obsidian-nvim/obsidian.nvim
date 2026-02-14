@@ -427,6 +427,53 @@ T["resolve_id_path"]["should ensure result of 'note_path_func' is always an abso
   eq(Path.new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
 end
 
+T["format_link"] = new_set()
+
+T["format_link"]["should respect link.style"] = function() end
+
+T["format_link"]["wiki should respect link.format"] = function()
+  -- default to link.style = "shortest"
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str("", Obsidian.dir / "notes/foo.md")
+  eq("[[foo]]", note:format_link())
+  Obsidian.opts.link.format = "absolute"
+  eq("[[notes/foo]]", note:format_link())
+
+  Obsidian.opts.link.format = "relative"
+
+  local subfolder = Obsidian.dir / "notes" / "sub"
+  subfolder:mkdir { exist_ok = true }
+
+  Obsidian.buf_dir = subfolder
+  eq("[[../foo]]", note:format_link())
+
+  Obsidian.buf_dir = Obsidian.dir / "notes"
+  local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
+  eq("[[sub/bar]]", bar_note:format_link())
+end
+
+T["format_link"]["markdown should respect link.format"] = function()
+  -- default to link.style = "shortest"
+  Obsidian.opts.link.style = "markdown"
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str("", Obsidian.dir / "notes/foo.md")
+  eq("[foo](foo.md)", note:format_link())
+  Obsidian.opts.link.format = "absolute"
+  eq("[foo](notes/foo.md)", note:format_link())
+
+  Obsidian.opts.link.format = "relative"
+
+  local subfolder = Obsidian.dir / "notes" / "sub"
+  subfolder:mkdir { exist_ok = true }
+
+  Obsidian.buf_dir = subfolder
+  eq("[foo](../foo.md)", note:format_link())
+
+  Obsidian.buf_dir = Obsidian.dir / "notes"
+  local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
+  eq("[bar](sub/bar.md)", bar_note:format_link())
+end
+
 -- T["reference_paths"] = new_set()
 --
 -- T["reference_paths"]["do four basic paths"] = function()
