@@ -76,7 +76,9 @@ T["cursor_link"] = function()
   end
 end
 
-T["cursor_tag"] = function()
+T["cursor_tag"] = new_set()
+
+T["cursor_tag"]["should detect inline tags"] = function()
   --                                               0    5    10   15   20   25
   --                                               |    |    |    |    |    |
   child.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] Do the dishes #TODO " })
@@ -94,6 +96,158 @@ T["cursor_tag"] = function()
     local tag = child.lua [[return M.cursor_tag()]]
     eq(test.res, tag)
   end
+end
+
+T["cursor_tag"]["should detect tags in frontmatter list"] = function()
+  local lines = {
+    "---",
+    "id: test-note",
+    "tags:",
+    "  - project",
+    "  - important",
+    "---",
+    "",
+    "# Content",
+  }
+  child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  child.bo.filetype = "markdown"
+
+  -- Ensure treesitter parser is attached
+  child.lua [[vim.treesitter.start(0, "markdown")]]
+
+  -- Test cursor on "project" tag
+  child.api.nvim_win_set_cursor(0, { 4, 5 }) -- Line 4: "  - project"
+  local tag = child.lua [[return M.cursor_tag()]]
+  eq("project", tag)
+
+  -- Test cursor on "important" tag
+  child.api.nvim_win_set_cursor(0, { 5, 5 }) -- Line 5: "  - important"
+  tag = child.lua [[return M.cursor_tag()]]
+  eq("important", tag)
+end
+
+T["cursor_tag"]["should detect tags in frontmatter inline array"] = function()
+  local lines = {
+    "---",
+    "id: test-note",
+    "tags: [work, personal]",
+    "---",
+    "",
+    "# Content",
+  }
+  child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  child.bo.filetype = "markdown"
+
+  -- Ensure treesitter parser is attached
+  child.lua [[vim.treesitter.start(0, "markdown")]]
+
+  -- Test cursor on "work" tag
+  child.api.nvim_win_set_cursor(0, { 3, 8 }) -- Line 3: cursor on "work"
+  local tag = child.lua [[return M.cursor_tag()]]
+  eq("work", tag)
+
+  -- Test cursor on "personal" tag
+  child.api.nvim_win_set_cursor(0, { 3, 15 }) -- Line 3: cursor on "personal"
+  tag = child.lua [[return M.cursor_tag()]]
+  eq("personal", tag)
+end
+
+T["cursor_tag"]["should detect tags in frontmatter inline value"] = function()
+  local lines = {
+    "---",
+    "id: test-note",
+    "tags: single-tag",
+    "---",
+    "",
+    "# Content",
+  }
+  child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  child.bo.filetype = "markdown"
+
+  -- Ensure treesitter parser is attached
+  child.lua [[vim.treesitter.start(0, "markdown")]]
+
+  -- Test cursor on tag value
+  child.api.nvim_win_set_cursor(0, { 3, 8 }) -- Line 3: "tags: single-tag"
+  local tag = child.lua [[return M.cursor_tag()]]
+  eq("single-tag", tag)
+end
+
+T["cursor_tag"]["should handle quoted tags in frontmatter"] = function()
+  local lines = {
+    "---",
+    "tags:",
+    '  - "quoted tag"',
+    "  - 'another tag'",
+    "---",
+    "",
+    "# Content",
+  }
+  child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  child.bo.filetype = "markdown"
+
+  -- Ensure treesitter parser is attached
+  child.lua [[vim.treesitter.start(0, "markdown")]]
+
+  -- Test cursor on double-quoted tag
+  child.api.nvim_win_set_cursor(0, { 3, 5 })
+  local tag = child.lua [[return M.cursor_tag()]]
+  eq("quoted tag", tag)
+
+  -- Test cursor on single-quoted tag
+  child.api.nvim_win_set_cursor(0, { 4, 5 })
+  tag = child.lua [[return M.cursor_tag()]]
+  eq("another tag", tag)
+end
+
+T["cursor_tag"]["should not detect non-tags in frontmatter"] = function()
+  local lines = {
+    "---",
+    "id: test-note",
+    "title: My Title",
+    "other: value",
+    "tags:",
+    "  - real-tag",
+    "---",
+    "",
+    "# Content",
+  }
+  child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  child.bo.filetype = "markdown"
+
+  -- Ensure treesitter parser is attached
+  child.lua [[vim.treesitter.start(0, "markdown")]]
+
+  -- Test cursor on non-tag key
+  child.api.nvim_win_set_cursor(0, { 3, 5 }) -- Line 3: "title: My Title"
+  local tag = child.lua [[return M.cursor_tag()]]
+  eq(vim.NIL, tag)
+
+  -- Test cursor on non-tag value
+  child.api.nvim_win_set_cursor(0, { 4, 5 }) -- Line 4: "other: value"
+  tag = child.lua [[return M.cursor_tag()]]
+  eq(vim.NIL, tag)
+end
+
+T["cursor_tag"]["should return nil outside frontmatter"] = function()
+  local lines = {
+    "---",
+    "tags:",
+    "  - frontmatter-tag",
+    "---",
+    "",
+    "# Content with #inline-tag",
+  }
+  child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  child.bo.filetype = "markdown"
+
+  -- Ensure treesitter parser is attached
+  child.lua [[vim.treesitter.start(0, "markdown")]]
+
+  -- Test cursor on content (outside frontmatter)
+  child.api.nvim_win_set_cursor(0, { 6, 15 }) -- Line 6: on "inline-tag"
+  local tag = child.lua [[return M.cursor_tag()]]
+  eq("inline-tag", tag)
 end
 
 T["cursor_heading"] = function()
