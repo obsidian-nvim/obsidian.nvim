@@ -19,7 +19,19 @@ local function get_entry(prompt_bufnr, keep_open)
   if entry and not keep_open then
     telescope_actions.close(prompt_bufnr)
   end
-  return entry
+
+  if entry.index ~= nil then -- is find/grep entry
+    return {
+      filename = entry.path,
+      lnum = entry.lnum,
+      col = entry.col,
+      user_data = entry.value,
+    }
+  end
+
+  if entry.filename then -- is pick entry
+    return entry
+  end
 end
 
 ---@param prompt_bufnr integer
@@ -30,12 +42,7 @@ local function get_selected(prompt_bufnr, keep_open, allow_multiple)
   ---
   ---@return obsidian.PickerEntry
   local function selection_to_entry(selection)
-    return {
-      filename = selection.path or selection.filename or selection.value.path,
-      lnum = selection.lnum,
-      col = selection.col,
-      user_data = selection.value,
-    }
+    return selection.raw
   end
 
   local picker = actions_state.get_current_picker(prompt_bufnr)
@@ -55,7 +62,7 @@ local function get_selected(prompt_bufnr, keep_open, allow_multiple)
     local entry = get_entry(prompt_bufnr, keep_open)
 
     if entry then
-      return vim.tbl_map(selection_to_entry, { entry })
+      return { entry }
     end
   end
 end
@@ -114,9 +121,17 @@ local function attach_picker_mappings(map, opts)
   if opts.callback then
     map({ "i", "n" }, "<CR>", function(prompt_bufnr)
       local entries = get_selected(prompt_bufnr, false, opts.allow_multiple)
-      if entries then
-        ---@diagnostic disable-next-line: param-type-mismatch
+      if not entries then
+        return
+      end
+      if vim.tbl_isempty(entries) then
+        return
+      end
+      if type(entries[1].user_data) == "function" then
+        entries[1].user_data()
+      elseif opts.callback then
         opts.callback(unpack(entries))
+        return
       end
     end)
   end
@@ -254,7 +269,7 @@ M.pick = function(values, opts)
             return make_entry_from_string(v)
           else
             return {
-              value = v.user_data,
+              value = v.text,
               display = displayer,
               ordinal = v.filename, -- NOTE: not sure
               filename = v.filename,
