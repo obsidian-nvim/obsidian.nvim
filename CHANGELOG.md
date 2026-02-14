@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `:Obsidian tags` and `api.cursor_tag` will work for tags in frontmatter.
+
 ### Fixed
 
 - Fixed markdown backlinks, so they are properly located with regex and respect to anchoring
