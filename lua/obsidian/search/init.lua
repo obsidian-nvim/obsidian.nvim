@@ -658,38 +658,71 @@ M.find_backlinks_async = function(note, callback, opts)
 
   vim.list_extend(results, get_in_note_backlink(note, block or anchor))
 
+  ---@param submatches SubMatch[]
+  ---@param ref_start integer
+  ---@param ref_end integer
+  ---@return boolean
+  local function _submatch_in_ref(submatches, ref_start, ref_end)
+    for _, submatch in ipairs(submatches) do
+      -- Convert 0-indexed submatch positions to 1-indexed for comparison
+      local submatch_start_1idx = submatch.start + 1
+      local submatch_end_1idx = submatch["end"]
+      if submatch_start_1idx >= ref_start and submatch_end_1idx <= ref_end then
+        return true
+      end
+    end
+    return false
+  end
+
   ---@param match MatchData
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
-    if anchor then
-      -- Check for a match with the anchor.
-      -- NOTE: no need to do this with blocks, since blocks are standardized.
-      local match_text = string.sub(match.lines.text, match.submatches[1].start)
-      local link_location = util.parse_link(match_text)
-      if not link_location then
-        log.error("Failed to parse reference from '%s' ('%s')", match_text, match)
-        return
-      end
-      local _, matched_anchor = util.strip_anchor_links(link_location)
-      if not matched_anchor then
-        return
-      end
-      if matched_anchor ~= anchor and anchor_obj ~= nil then
-        local resolved_anchor = note:resolve_anchor_link(matched_anchor)
-        if resolved_anchor == nil or resolved_anchor.header ~= anchor_obj.header then
-          return
+    local line_text = util.rstrip_whitespace(match.lines.text)
+    for _, ref in ipairs(M.find_refs(line_text)) do
+      local ref_start, ref_end, ref_type = unpack(ref)
+      if _submatch_in_ref(match.submatches, ref_start, ref_end) then
+        local ref_text = line_text:sub(ref_start, ref_end)
+        local link_location, _, _ = util.parse_link(ref_text, { link_type = ref_type })
+        if link_location then
+          local _, matched_anchor = util.strip_anchor_links(link_location)
+          local include = true
+          if anchor then
+            if not matched_anchor then
+              include = false
+            else
+              local std_matched = util.standardize_anchor(matched_anchor)
+              local is_direct_match = std_matched == anchor
+              local is_resolved_match = false
+              if not is_direct_match and anchor_obj ~= nil then
+                local resolved = note:resolve_anchor_link(matched_anchor)
+                if resolved and resolved.header == anchor_obj.header then
+                  is_resolved_match = true
+                end
+              end
+              if not (is_direct_match or is_resolved_match) then
+                include = false
+              end
+            end
+          end
+          if block and include then
+            if util.standardize_block(matched_anchor) ~= block then
+              include = false
+            end
+          end
+          if include then
+            results[#results + 1] = {
+              path = path,
+              line = match.line_number,
+              text = line_text,
+              start = ref_start,
+              ["end"] = ref_end,
+            }
+          end
         end
       end
     end
-    local submatch = match.submatches[1]
-    results[#results + 1] = {
-      path = path,
-      line = match.line_number,
-      text = util.rstrip_whitespace(match.lines.text),
-      start = submatch and submatch.start,
-      ["end"] = submatch and submatch["end"],
-    }
   end
+
   M.search_async(
     dir,
     build_backlink_search_term(note, anchor, block),

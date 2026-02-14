@@ -329,8 +329,8 @@ util.parse_link = function(link, opts)
 
   local link_location, link_name
   if link_type == "Markdown" then
-    link_location = link:gsub("^%[(.-)%]%((.*)%)$", "%2")
-    link_name = link:gsub("^%[(.-)%]%((.*)%)$", "%1")
+    link_name = link:match "%[(.-)%]"
+    link_location = link:match "%((.-)%)"
   elseif link_type == "WikiWithAlias" then
     link = util.unescape_single_backslash(link)
     -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'
