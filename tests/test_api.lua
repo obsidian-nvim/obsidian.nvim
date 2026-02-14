@@ -76,7 +76,9 @@ T["cursor_link"] = function()
   end
 end
 
-T["cursor_tag"] = function()
+T["cursor_tag"] = new_set()
+
+T["cursor_tag"]["should detect inline tags"] = function()
   --                                               0    5    10   15   20   25
   --                                               |    |    |    |    |    |
   child.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] Do the dishes #TODO " })
@@ -94,6 +96,65 @@ T["cursor_tag"] = function()
     local tag = child.lua [[return M.cursor_tag()]]
     eq(test.res, tag)
   end
+end
+
+T["cursor_tag"]["should detect tags in frontmatter list"] = function()
+  local lines = vim.split(
+    [[
+---
+id: test-note
+tags:
+   - project
+   - important
+   - nested/tag
+---
+# Content
+    ]],
+    "\n",
+    true
+  )
+  child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+
+  -- Test cursor on "project" tag
+  child.api.nvim_win_set_cursor(0, { 4, 5 }) -- Line 4: "  - project"
+  local tag = child.lua [[return M.cursor_tag()]]
+  eq("project", tag)
+
+  -- Test cursor on "important" tag
+  child.api.nvim_win_set_cursor(0, { 5, 5 }) -- Line 5: "  - important"
+  tag = child.lua [[return M.cursor_tag()]]
+  eq("important", tag)
+
+  -- Test cursor on "nested/tag" tag
+  child.api.nvim_win_set_cursor(0, { 6, 5 }) -- Line 6: "  - nested/tag"
+  tag = child.lua [[return M.cursor_tag()]]
+  eq("nested/tag", tag)
+end
+
+T["cursor_tag"]["should not detect non-tags in frontmatter"] = function()
+  local lines = vim.split(
+    [[
+ ---
+ id: test-note
+ title: My Title
+ other: value
+ tags:
+   - real-tag
+ ---
+
+ # Content]],
+    "\n",
+    true
+  )
+  child.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  child.api.nvim_win_set_cursor(0, { 3, 5 }) -- Line 3: "title: My Title"
+  local tag = child.lua [[return M.cursor_tag()]]
+  eq(vim.NIL, tag)
+
+  -- Test cursor on non-tag value
+  child.api.nvim_win_set_cursor(0, { 4, 5 }) -- Line 4: "other: value"
+  tag = child.lua [[return M.cursor_tag()]]
+  eq(vim.NIL, tag)
 end
 
 T["cursor_heading"] = function()
