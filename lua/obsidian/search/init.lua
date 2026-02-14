@@ -581,7 +581,7 @@ local function build_backlink_search_term(note, anchor, block)
       search_terms[#search_terms + 1] = string.format("[[%s#%s", alias, block)
     end
   end
-  return search_terms, raw_refs
+  return search_terms
 end
 
 M._build_backlink_search_term = build_backlink_search_term
