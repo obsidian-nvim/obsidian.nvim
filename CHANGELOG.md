@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- Fixed markdown backlinks, so they are properly located with regex and respect to anchoring
+
 ## [v3.15.9](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.9) - 2026-02-13
 
 ### Added
@@ -30,7 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Goto definition should not throw error if templates.folder is not set.
 - Fixed completion insertion misaligned under CJK languages
 - Fixed completion references source unable to fetch by rolling back the `find_workspace` function in `Path.vault_relative_path`
-- Fixed markdown backlinks, so they are properly located with regex and respect to anchoring
 - Fixed custom `templates.substitutions` (and other nested config tables like
   `ui.checkboxes`) silently replacing defaults instead of merging with them.
 
