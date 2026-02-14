@@ -176,7 +176,7 @@ M.cursor_tag = function()
   end
 
   local Note = require "obsidian.note"
-  local cword = vim.fn.expand "<cword>"
+  local cword = vim.fn.expand "<cWORD>"
   local note = Note.from_buffer(0, { max_lines = 100 })
   if note and vim.list_contains(note.tags, cword) then
     return cword
