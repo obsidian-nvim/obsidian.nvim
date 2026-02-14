@@ -16,7 +16,6 @@ return function(data)
     templates.insert_template {
       type = "insert_template",
       template_name = name,
-      template_opts = Obsidian.opts.templates,
       templates_dir = templates_dir,
       location = insert_location,
     }

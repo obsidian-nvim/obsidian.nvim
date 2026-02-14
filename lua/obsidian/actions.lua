@@ -388,16 +388,13 @@ M.new = function(id, callback)
   local note = Note.create {
     id = id,
     template = Obsidian.opts.note.template, -- TODO: maybe unneed when creating, or set as a field that note carries
+    should_write = true,
   }
 
   if callback then
     callback(note)
   else
-    -- Open the note in a new buffer.
     note:open { sync = true }
-    note:write_to_buffer {
-      template = Obsidian.opts.note.template,
-    }
   end
 end
 
