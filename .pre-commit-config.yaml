@@ -85,7 +85,7 @@ repos:
         language: system
         types: [lua]
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
 
       # Run Tests (only on pre-push)
       - id: run-tests
@@ -95,7 +95,7 @@ repos:
         language: system
         types: [lua]
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
 
 # Optional: Commit message validation (uncomment if desired)
 # - repo: https://github.com/compilerla/conventional-pre-commit
