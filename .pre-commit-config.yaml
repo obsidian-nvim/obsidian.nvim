@@ -1,8 +1,6 @@
 # Pre-commit hooks for obsidian-nvim
 # See https://pre-commit.com for more information
 # Install: pip install pre-commit && pre-commit install
-
-default_install_hook_types: [pre-commit, commit-msg]
 fail_fast: false
 
 repos:
