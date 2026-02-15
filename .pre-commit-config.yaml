@@ -1,0 +1,120 @@
+# Pre-commit hooks for obsidian-nvim
+# See https://pre-commit.com for more information
+# Install: pip install pre-commit && pre-commit install
+
+default_install_hook_types: [pre-commit, commit-msg]
+fail_fast: false
+
+repos:
+  # ============================================================================
+  # Lua Code Formatting
+  # ============================================================================
+  - repo: https://github.com/JohnnyMorganz/StyLua
+    rev: v0.20.0
+    hooks:
+      - id: stylua
+        name: Format Lua with StyLua
+        args: ['--config-path', '.stylua.toml']
+
+  # ============================================================================
+  # Spell Checking
+  # ============================================================================
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.19.0
+    hooks:
+      - id: typos
+        name: Check for typos
+        args: ['--format', 'brief']
+
+  # ============================================================================
+  # Git Hygiene & File Format Checks
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      # Prevent large files from being committed
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+
+      # Check for merge conflict markers
+      - id: check-merge-conflict
+
+      # Remove trailing whitespace
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+      # Ensure files end with newline
+      - id: end-of-file-fixer
+
+      # Validate YAML files
+      - id: check-yaml
+        exclude: '^selene/.*\.yml$'
+
+      # Validate JSON files
+      - id: check-json
+
+      # Validate TOML files
+      - id: check-toml
+
+      # Check for files that would conflict on case-insensitive filesystems
+      - id: check-case-conflict
+
+      # Prevent committing to main branch
+      - id: no-commit-to-branch
+        args: ['--branch', 'main']
+
+  # ============================================================================
+  # Local Hooks (require tools to be installed on system)
+  # ============================================================================
+  - repo: local
+    hooks:
+      # Selene Lua Linting
+      - id: selene
+        name: Lint Lua with Selene
+        entry: selene
+        args: ['--config', 'selene.toml', 'lua']
+        language: system
+        types: [lua]
+        pass_filenames: false
+
+      # Type Checking (only on pre-push to avoid slowdown)
+      - id: lua-ls-check
+        name: Type Check with Lua Language Server
+        entry: make
+        args: ['types']
+        language: system
+        types: [lua]
+        pass_filenames: false
+        stages: [push]
+
+      # Run Tests (only on pre-push)
+      - id: run-tests
+        name: Run Plenary Tests
+        entry: make
+        args: ['test']
+        language: system
+        types: [lua]
+        pass_filenames: false
+        stages: [push]
+
+# Optional: Commit message validation (uncomment if desired)
+# - repo: https://github.com/compilerla/conventional-pre-commit
+#   rev: v3.1.0
+#   hooks:
+#     - id: conventional-pre-commit
+#       stages: [commit-msg]
+
+# Optional: Markdown link checking (may be slow)
+# - repo: https://github.com/tcort/markdown-link-check
+#   rev: v3.11.2
+#   hooks:
+#     - id: markdown-link-check
+#       args: ['--quiet']
+#       files: \.(md|markdown)$
+
+# Optional: Markdown linting
+# - repo: https://github.com/igorshubovych/markdownlint-cli
+#   rev: v0.39.0
+#   hooks:
+#     - id: markdownlint
+#       args: ['--config', '.markdownlint.yaml']
