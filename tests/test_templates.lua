@@ -73,6 +73,14 @@ T["substitute_template_variables()"]["should substitute consecutive custom varia
   eq("VALUE and then VALUE and then VALUE", M.substitute_template_variables(text, tmp_template_context()))
 end
 
+T["substitute_template_variables()"]["should substitute string values"] = function()
+  Obsidian.opts.templates.substitutions = {
+    username = "obsidian-nvim",
+  }
+  local text = "author: {{username}}"
+  eq("author: obsidian-nvim", M.substitute_template_variables(text, tmp_template_context()))
+end
+
 T["substitute_template_variables()"]["should provide substitution functions with template context"] = function()
   Obsidian.opts.templates.substitutions = {
     test_var = function(ctx)
