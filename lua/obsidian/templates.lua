@@ -52,12 +52,16 @@ M.substitute_template_variables = function(text, ctx)
   -- Replace known variables.
   for key, subst in pairs(methods) do
     local key_pattern = vim.pesc(key)
-    text = string.gsub(text, "{{" .. key_pattern .. ":([^}]*)}}", function(suffix)
-      return subst(ctx, vim.trim(suffix))
-    end)
-    text = string.gsub(text, "{{" .. key_pattern .. "}}", function()
-      return subst(ctx)
-    end)
+    if type(subst) == "string" then
+      text = string.gsub(text, "{{" .. key_pattern .. "}}", subst)
+    else
+      text = string.gsub(text, "{{" .. key_pattern .. ":([^}]*)}}", function(suffix)
+        return subst(ctx, vim.trim(suffix))
+      end)
+      text = string.gsub(text, "{{" .. key_pattern .. "}}", function()
+        return subst(ctx)
+      end)
+    end
   end
 
   -- Find unknown variables and prompt for them.
