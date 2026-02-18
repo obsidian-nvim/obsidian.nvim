@@ -18,6 +18,26 @@ local function create_autocmd(events, buffer, callback)
   })
 end
 
+local function setup_cmdline_autocompletion()
+  vim.cmd [[set wildmode=noselect:lastused,full]]
+  vim.cmd [[set wildoptions=pum]]
+  vim.api.nvim_create_autocmd("CmdlineChanged", {
+    group = group,
+    callback = function()
+      if vim.fn.getcmdtype() ~= ":" then
+        return
+      end
+
+      local cmdline = vim.fn.getcmdline()
+      if not cmdline:match "^['<,'>]*Obsidian[!]?" then
+        return
+      end
+
+      vim.fn.wildtrigger()
+    end,
+  })
+end
+
 -- Complete setup and update workspace (if needed) when entering a markdown buffer.
 local function bufenter_callback(ev)
   -- Set the current directory of the buffer.
@@ -102,6 +122,8 @@ vim.api.nvim_create_autocmd("FileType", {
     end)
   end,
 })
+
+setup_cmdline_autocompletion()
 
 -- Run enter_note callback.
 vim.api.nvim_create_autocmd("User", {
