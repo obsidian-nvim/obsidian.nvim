@@ -88,6 +88,15 @@ M.register = function(name, config)
   end
   config.name = name
   M.commands[name] = config
+
+  vim.api.nvim_create_autocmd("CmdlineChanged", {
+    callback = function(args)
+      local cmdline = vim.fn.getcmdline()
+      if cmdline:match "^Obsidian[A-Za-z0-9]*$" then
+        vim.fn.wildtrigger()
+      end
+    end,
+  })
 end
 
 M.install_legacy = legacycommands.install
@@ -130,8 +139,10 @@ M.handle_command = function(data)
   cmdconfig.func(data)
 end
 
+---@param arg_lead string
 ---@param cmdline string
-M.get_completions = function(cmdline)
+---@param cursor_pos number
+M.get_completions = function(arg_lead, cmdline, cursor_pos)
   local obspat = "^['<,'>]*Obsidian[!]?"
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
   local obsidiancmd = splitcmd[2]
@@ -148,28 +159,31 @@ M.get_completions = function(cmdline)
   if cmdconfig == nil then
     return
   end
-  if cmdline:match(obspat .. "%s%S*%s%S*$") then
-    local cmd_arg = table.concat(vim.list_slice(splitcmd, 3), " ")
+  if cmdline:match(obspat .. "%s%S+%s.*$") then
     local complete_type = type(cmdconfig.complete)
     if complete_type == "function" then
-      return cmdconfig.complete(cmd_arg)
+      return cmdconfig.complete(arg_lead, cmdline, cursor_pos)
     end
     if complete_type == "string" then
+      local cmd_arg = table.concat(vim.list_slice(splitcmd, 3), " ")
       return vim.fn.getcompletion(cmd_arg, cmdconfig.complete)
     end
   end
 end
 
 --TODO: Note completion is currently broken (see: https://github.com/epwalsh/obsidian.nvim/issues/753)
+---@param arg_lead string
+---@param cmd_line string
+---@param cursor_pos number
 ---@return string[]
-M.note_complete = function(cmd_arg)
+M.note_complete = function(arg_lead, cmd_line, cursor_pos)
   local search = require "obsidian.search"
   local query
-  if string.len(cmd_arg) > 0 then
-    if string.find(cmd_arg, "|", 1, true) then
+  if string.len(arg_lead) > 0 then
+    if string.find(arg_lead, "|", 1, true) then
       return {}
     else
-      query = cmd_arg
+      query = arg_lead
     end
   else
     local _, csrow, cscol, _ = unpack(assert(vim.fn.getpos "'<"))

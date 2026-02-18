@@ -11,13 +11,13 @@ vim.api.nvim_create_user_command("Obsidian", function(data)
   commands.handle_command(data)
 end, {
   nargs = "*",
-  complete = function(_, cmdline, _)
+  complete = function(arg_lead, cmdline, cursor_pos)
     if not Obsidian then
       require("obsidian.log").err_once "Did not setup obsidian.nvim"
       return
     end
     local commands = require "obsidian.commands"
-    return commands.get_completions(cmdline)
+    return commands.get_completions(arg_lead, cmdline, cursor_pos)
   end,
   range = 2,
 })
