@@ -131,7 +131,9 @@ M.handle_command = function(data)
 end
 
 ---@param cmdline string
-M.get_completions = function(cmdline)
+---@param cursor_pos integer|?
+M.get_completions = function(cmdline, cursor_pos)
+  cursor_pos = cursor_pos or #cmdline
   local obspat = "^['<,'>]*Obsidian[!]?"
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
   local obsidiancmd = splitcmd[2]
@@ -148,14 +150,30 @@ M.get_completions = function(cmdline)
   if cmdconfig == nil then
     return
   end
-  if cmdline:match(obspat .. "%s%S*%s%S*$") then
-    local cmd_arg = table.concat(vim.list_slice(splitcmd, 3), " ")
+  if cmdline:match(obspat .. "%s%S+%s") then
+    local args_text = cmdline:match(obspat .. "%s+" .. vim.pesc(obsidiancmd) .. "%s*(.*)$") or ""
+    local has_trailing_space = cmdline:match "%s$" ~= nil
+    local args = {}
+    if args_text ~= "" then
+      args = vim.split(args_text, " ", { plain = true, trimempty = true })
+    end
+    local cmd_arg = table.concat(args, " ")
+    local arg_lead = ""
+    if not has_trailing_space then
+      arg_lead = args[#args] or ""
+    end
+
     local complete_type = type(cmdconfig.complete)
     if complete_type == "function" then
-      return cmdconfig.complete(cmd_arg)
+      -- local info = debug.getinfo(cmdconfig.complete, "u")
+      -- local use_legacy_signature = info ~= nil and info.nparams ~= nil and info.nparams <= 1
+      -- if use_legacy_signature then
+      --   return cmdconfig.complete(cmd_arg, cmdline, arg_lead, args, cursor_pos)
+      -- end
+      return cmdconfig.complete(arg_lead, cmdline, cursor_pos, cmd_arg, args)
     end
     if complete_type == "string" then
-      return vim.fn.getcompletion(cmd_arg, cmdconfig.complete)
+      return vim.fn.getcompletion(arg_lead, cmdconfig.complete)
     end
   end
 end
