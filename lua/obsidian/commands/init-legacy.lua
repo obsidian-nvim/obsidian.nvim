@@ -90,8 +90,8 @@ M.complete_args_search = function(_, cmd_line, _)
       query = cmd_arg
     end
   else
-    local _, csrow, cscol, _ = unpack(assert(vim.fn.getpos "'<"))
-    local _, cerow, cecol, _ = unpack(assert(vim.fn.getpos "'>"))
+    local _, csrow, cscol, _ = unpack(vim.fn.getpos "'<")
+    local _, cerow, cecol, _ = unpack(vim.fn.getpos "'>")
     local lines = vim.fn.getline(csrow, cerow)
     assert(type(lines) == "table", "")
 

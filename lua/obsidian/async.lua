@@ -208,12 +208,14 @@ end
 --- @param ... any func arguments
 --- @return any ...
 function M.await(argc, fun, ...)
-  assert(coroutine.running(), "Async.await() must be called from an async function")
+  if not coroutine.running() then
+    error("Async.await() must be called from an async function")
+  end
   local args = vim.F.pack_len(...) --- @type {n:integer, [integer]:any}
 
   --- @param callback fun(...:any)
   return coroutine.yield(function(callback)
-    args[argc] = assert(callback, "no valid callback")
+    args[argc] = callback
     fun(unpack(args, 1, math.max(argc, args.n)))
   end)
 end

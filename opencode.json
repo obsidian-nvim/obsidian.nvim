@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "lsp": {
+    "lua-ls": {
+      "disabled": true
+    },
+    "emmylua": {
+      "command": ["emmylua_ls", "--stdio"],
+      "extensions": [".lua"]
+    }
+  }
+}
