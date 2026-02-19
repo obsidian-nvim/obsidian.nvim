@@ -137,6 +137,8 @@ T["config.normalize()"]["custom ui checkboxes should not clobber defaults"] = fu
         ["?"] = { char = "", hl_group = "ObsidianQuestion" },
       },
     },
+
+    legacy_commands = false,
   }
 
   -- User's custom checkbox should be present.
@@ -155,6 +157,7 @@ T["config.normalize()"]["list_fields should append rather than replace"] = funct
     open = {
       schemes = { "obsidian" },
     },
+    legacy_commands = false,
   }
 
   -- User's custom scheme should be present.

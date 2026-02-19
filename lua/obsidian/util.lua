@@ -224,6 +224,40 @@ util.format_date = function(time, fmt)
   return require("obsidian.lib.moment").format(time, fmt)
 end
 
+--- Format a timestamp with strftime or moment.js date format
+---
+---@param str string
+---@param fmt string|?
+---@return osdateparam date as os.date table
+---@return string|? error
+util.parse_date = function(str, fmt)
+  -- Try common date formats
+  local formats = {
+    "YYYY-MM-DD",
+    "YYYY-M-D", -- TODO:
+    "YYYY/MM/DD",
+    "MM/DD/YYYY",
+    "DD/MM/YYYY",
+    "MMMM D, YYYY",
+    "MMM D, YYYY",
+    "M/D/YYYY",
+    "D/M/YYYY",
+  }
+  local parse = require("obsidian.lib.moment").parse
+
+  if fmt ~= nil then
+    return parse(str, fmt)
+  else
+    for _, _fmt in ipairs(formats) do
+      local parsed = parse(str, _fmt)
+      if parsed then
+        local timestamp = os.time(parsed)
+        return timestamp, nil
+      end
+    end
+  end
+end
+
 ---Determines if the given date is a working day (not weekend)
 ---
 ---@param time integer
