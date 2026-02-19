@@ -13,8 +13,8 @@ return function(data)
       offset_days = offset
     else
       -- Try parsing as a formatted date
-      local timestamp, err = util.parse_date(arg)
-      if timestamp then
+      local date, err = util.parse_date(arg)
+      if date then
         -- Calculate offset relative to today
         local today_start = os.time {
           year = os.date("*t").year,
@@ -24,22 +24,22 @@ return function(data)
           min = 0,
           sec = 0,
         }
-        local target_date = os.date("*t", timestamp)
-        local target_start = os.time {
-          year = target_date.year,
-          month = target_date.month,
-          day = target_date.day,
-          hour = 0,
-          min = 0,
-          sec = 0,
-        }
+        local target_start =
+          os.time { year = date.year, month = date.month, day = date.day, hour = 0, min = 0, sec = 0 }
         offset_days = math.floor((target_start - today_start) / 86400)
       else
-        log.err(string.format("Invalid argument: %s (expected integer offset or date in format like YYYY-MM-DD)", arg))
+        log.err(
+          string.format(
+            "Invalid argument: %s (expected integer offset or date in format like YYYY-MM-DD)\nErr: %s",
+            arg,
+            err
+          )
+        )
         return
       end
     end
   end
+  -- TODO: no need to have offset_days if we can just pass the date directly to daily() and let it handle formatting and path generation
   local note = require("obsidian.daily").daily(offset_days, {})
   note:open()
 end

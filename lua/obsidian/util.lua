@@ -228,7 +228,7 @@ end
 ---
 ---@param str string
 ---@param fmt string|?
----@return osdateparam date as os.date table
+---@return osdateparam|? date as os.date table
 ---@return string|? error
 util.parse_date = function(str, fmt)
   -- Try common date formats
@@ -251,8 +251,7 @@ util.parse_date = function(str, fmt)
     for _, _fmt in ipairs(formats) do
       local parsed = parse(str, _fmt)
       if parsed then
-        local timestamp = os.time(parsed)
-        return timestamp, nil
+        return parsed
       end
     end
   end
