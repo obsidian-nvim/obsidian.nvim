@@ -184,6 +184,29 @@ end
 ---@param _ string
 ---@param cmdline string
 ---@return string[]
+M.help_complete = function(_, cmdline)
+  local api = require "obsidian.api"
+  local docs_dir = api.docs_dir()
+  if not docs_dir then
+    return {}
+  end
+
+  local query = cmdline:match "^%S+%s%S+%s(.*)$" or ""
+
+  local files = vim.fn.globpath(tostring(docs_dir), "*.md", true, true)
+  local completions = {}
+  local basenames = vim.tbl_map(function(path)
+    return vim.fn.fnamemodify(path, ":t:r")
+  end, files)
+
+  completions = vim.fn.matchfuzzy(basenames, query, { limit = 10 })
+
+  return completions
+end
+
+---@param _ string
+---@param cmdline string
+---@return string[]
 M.note_complete = function(_, cmdline)
   local search = require "obsidian.search"
   local completions = {}
@@ -252,7 +275,7 @@ M.register("quick_switch", { nargs = "?" })
 
 M.register("workspace", { nargs = "?" })
 
-M.register("help", { nargs = "?" })
+M.register("help", { nargs = "?", complete = M.help_complete })
 
 M.register("helpgrep", { nargs = "?" })
 
