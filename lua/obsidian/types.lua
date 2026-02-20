@@ -24,7 +24,7 @@
 ---The table passed to user substitution functions. Use `ctx.type` to distinguish between the different kinds.
 
 ---@class obsidian.config
----@field workspaces obsidian.workspace.WorkspaceSpec[]
+---@field workspaces? obsidian.workspace.WorkspaceSpec[]
 ---@field log_level? integer
 ---@field notes_subdir? string
 ---@field templates? obsidian.config.TemplateOpts

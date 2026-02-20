@@ -80,11 +80,11 @@ end
 M.read = function(path)
   return vim.fn.readfile(tostring(path))
 end
-
 M.mock_vault_contents = function(dir, contents)
   local files = {}
   for rel_path, content in pairs(contents) do
     local path = dir / rel_path
+    path:parent():mkdir { parents = true }
     files[rel_path] = tostring(path)
     M.write(content, path)
   end
