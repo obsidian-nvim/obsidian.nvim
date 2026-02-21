@@ -1,4 +1,3 @@
-local api = require "obsidian.api"
 local log = require "obsidian.log"
 
 return function(data)
@@ -24,7 +23,7 @@ return function(data)
     check_path(dir / query)
 
     if #matches == 1 then
-      api.open_note(matches[1])
+      vim.cmd("edit " .. tostring(matches[1]))
       return
     end
   end
