@@ -1,6 +1,6 @@
 # Daily Notes
 
-[[#Options]]
+[Options](#Options)
 
 The Daily Notes feature allows you to quickly create and navigate to date-based notes in your vault. This is useful for journaling, tracking daily tasks, or maintaining a chronological record of your work.
 

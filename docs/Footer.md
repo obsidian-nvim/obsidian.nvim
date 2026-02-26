@@ -1,17 +1,19 @@
+[Options](#Options)
+
 By default, `obsidian.nvim` displays footer similar to the obsidian app.
 You can change the footer options as below:
 
 ```lua
-require("obsidian").setup({
-   footer = {
-      enabled = false, -- turn it off
-      separator = false, -- turn it off
-      -- separator = "", -- insert a blank line
-      format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars", -- works like the template system
-      -- format = "({{backlinks}} backlinks)", -- limit to backlinks
-      hl_group = "@property", -- Use another hl group
-   },
-})
+require("obsidian").setup {
+  footer = {
+    enabled = false, -- turn it off
+    separator = false, -- turn it off
+    -- separator = "", -- insert a blank line
+    format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars", -- works like the template system
+    -- format = "({{backlinks}} backlinks)", -- limit to backlinks
+    hl_group = "@property", -- Use another hl group
+  },
+}
 ```
 
 ## Options

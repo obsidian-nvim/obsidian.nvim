@@ -21,6 +21,7 @@
 
 - [[Attachment]]
 - [[Checkbox]]
+- [[Daily Notes]]
 - [[Footer]]
 - [[Frontmatter]]
 - [[Link]]

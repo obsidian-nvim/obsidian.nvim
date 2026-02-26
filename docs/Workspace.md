@@ -6,12 +6,12 @@ For example, suppose you have an Obsidian vault at `~/vaults/personal`, then the
 
 ```lua
 config = {
-   workspaces = {
-      {
-         name = "personal",
-         path = "~/vaults/personal",
-      },
-   },
+  workspaces = {
+    {
+      name = "personal",
+      path = "~/vaults/personal",
+    },
+  },
 }
 ```
 
@@ -19,26 +19,26 @@ However obsidian.nvim's concept of workspaces is a little more general than that
 
 ```lua
 config = {
-   workspaces = {
-      {
-         name = "project-1",
-         path = "~/vaults/personal/project-1",
-         -- `strict=true` here tells obsidian to use the `path` as the workspace/vault root,
-         -- even though the actual Obsidian vault root may be `~/vaults/personal/`.
-         strict = true,
-         overrides = {
-            -- ...
-         },
+  workspaces = {
+    {
+      name = "project-1",
+      path = "~/vaults/personal/project-1",
+      -- `strict=true` here tells obsidian to use the `path` as the workspace/vault root,
+      -- even though the actual Obsidian vault root may be `~/vaults/personal/`.
+      strict = true,
+      overrides = {
+        -- ...
       },
-      {
-         name = "project-2",
-         path = "~/vaults/personal/project-2",
-         strict = true,
-         overrides = {
-            -- ...
-         },
+    },
+    {
+      name = "project-2",
+      path = "~/vaults/personal/project-2",
+      strict = true,
+      overrides = {
+        -- ...
       },
-   },
+    },
+  },
 }
 ```
 
@@ -48,14 +48,14 @@ obsidian.nvim also supports "dynamic" workspaces. These are simply workspaces wh
 
 ```lua
 config = {
-   workspaces = {
-      {
-         name = "buf-parent",
-         path = function()
-            return assert(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
-         end,
-      },
-   },
+  workspaces = {
+    {
+      name = "buf-parent",
+      path = function()
+        return assert(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
+      end,
+    },
+  },
 }
 ```
 
@@ -100,4 +100,3 @@ With this configuration, anytime you enter a markdown buffer outside of "~/vault
 
 Please note that in order to avoid unexpected behavior (like a new directory being created for `notes_subdir`) it's important to carefully set the workspace `overrides` options.
 And keep in mind that to reset a configuration option to `nil` you'll have to use `vim.NIL` there instead of the builtin Lua `nil` due to the way Lua tables work.
-
