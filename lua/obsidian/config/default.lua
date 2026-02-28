@@ -293,12 +293,31 @@ return {
     confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
   },
 
-  ---@class obsidian.config.HeadlessSyncOpts
-  ---
-  ---Run sync in watch mode (--continuous)
-  ---@field watch? boolean
-  headless_sync = {
+  ---@class obsidian.config.SyncOpts
+  ---https://help.obsidian.md/sync/settings
+  ---@field conflict_strategy? "merge"|"conflict"
+  ---@field file_types? string[]
+  ---@field configs? string[]
+  ---@field excluded_folders? string[]
+  ---@field device_name? string
+  ---@field config_dir? string
+  sync = {
     watch = false,
+    conflict_strategy = "merge",
+    file_types = { "image", "audio", "video", "pdf", "unsupported" },
+    configs = {
+      "app",
+      "appearance",
+      "appearance-data",
+      "hotkey",
+      "core-plugin",
+      "core-plugin-data",
+      "community-plugin",
+      "community-plugin-data",
+    },
+    excluded_folders = {},
+    device_name = nil,
+    config_dir = ".obsidian",
   },
 
   ---@class obsidian.config.CallbackConfig

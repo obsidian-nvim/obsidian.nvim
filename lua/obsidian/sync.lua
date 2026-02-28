@@ -82,7 +82,7 @@ function M.login(self, email, password)
   })
 end
 
----@return string[]?
+---@return { hash: string, name: string }[]?  -- list of remote vaults
 function M.list_remote(self)
   local out = self.cli:run_sync("sync-list-remote", {}, { silent = true })
 
@@ -111,15 +111,18 @@ end
 ---@param path string
 ---@return boolean
 function M.is_configured(self, path)
-  local out = self.cli:run_sync("sync-status", { path = path }, { silent = true })
-  return out and out.code == 0 and out.stdout and out.stdout:match "%S"
+  local vaults = self:list_local()
+  if not vaults then
+    return false
+  end
+  return vaults[path] ~= nil
 end
 
----@param vault_name string
+---@param vault string  -- vault id or name
 ---@param path string
-function M.setup(self, vault_name, path)
+function M.setup(self, vault, path)
   self.cli:run("sync-setup", {
-    vault = vault_name,
+    vault = vault,
     path = path,
   }, {
     callback = function(out)
@@ -135,12 +138,12 @@ end
 ---@param path string
 ---@param watch boolean
 function M.sync(self, path, watch)
-  local args = { "sync", path = path }
-  if watch then
-    table.insert(args, "--continuous")
-  end
+  -- TODO:
+  -- if watch then
+  --   table.insert(args, "--continuous")
+  -- end
 
-  self.cli:run("sync", args, {
+  self.cli:run("sync", { path = path }, {
     callback = function(out)
       if out.code == 0 then
         vim.notify("Sync completed!", vim.log.levels.INFO)
@@ -174,7 +177,12 @@ function M.unlink(self, path)
   })
 end
 
----@return string[]?
+---@class obsidian.SyncVault
+---@field id string
+---@field path string
+---@field host string
+
+---@return table<string, obsidian.SyncVault>?  -- keyed by path
 function M.list_local(self)
   local out = self.cli:run_sync("sync-list-local", {}, { silent = true })
   if not out or out.code ~= 0 then
@@ -183,9 +191,25 @@ function M.list_local(self)
 
   local lines = vim.split(out.stdout, "\n", { trimempty = true })
   local res = {}
+  local current_id = nil
+  local current_path = nil
+
   for _, line in ipairs(lines) do
-    if line:match "%S" then
-      table.insert(res, line)
+    local id = line:match "^%s*([0-9a-fA-F]+)$"
+    if id then
+      current_id = id
+      current_path = nil
+    elseif current_id and line:match "^%s+Path:%s+" then
+      local vault_path = line:match "^%s+Path:%s+(.+)$"
+      if vault_path then
+        current_path = vault_path
+        res[vault_path] = { id = current_id, path = vault_path, host = "" }
+      end
+    elseif current_id and current_path and line:match "^%s+Host:%s+" then
+      local host = line:match "^%s+Host:%s+(.+)$"
+      if host then
+        res[current_path].host = host
+      end
     end
   end
 
@@ -232,21 +256,21 @@ function M.get_config(self, path)
 end
 
 ---@param path string?
----@param opts { conflict_strategy?: string, file_types?: string, configs?: string, excluded_folders?: string, device_name?: string, config_dir?: string }?
+---@param opts { conflict_strategy?: string, file_types?: string[], configs?: string[], excluded_folders?: string[], device_name?: string, config_dir?: string }?
 function M.set_config(self, path, opts)
   opts = opts or {}
   local args = { path = path or "" }
   if opts.conflict_strategy then
     args["conflict-strategy"] = opts.conflict_strategy
   end
-  if opts.file_types then
-    args["file-types"] = opts.file_types
+  if opts.file_types and #opts.file_types > 0 then
+    args["file-types"] = table.concat(opts.file_types, ",")
   end
-  if opts.configs then
-    args.configs = opts.configs
+  if opts.configs and #opts.configs > 0 then
+    args.configs = table.concat(opts.configs, ",")
   end
-  if opts.excluded_folders then
-    args["excluded-folders"] = opts.excluded_folders
+  if opts.excluded_folders and #opts.excluded_folders > 0 then
+    args["excluded-folders"] = table.concat(opts.excluded_folders, ",")
   end
   if opts.device_name then
     args["device-name"] = opts.device_name
@@ -264,6 +288,32 @@ function M.set_config(self, path, opts)
       end
     end,
   })
+end
+
+---@param path string
+---@param sync_opts obsidian.config.HeadlessSyncOpts
+function M.apply_config(self, path, sync_opts)
+  local cfg = {}
+  if sync_opts.conflict_strategy then
+    cfg.conflict_strategy = sync_opts.conflict_strategy
+  end
+  if sync_opts.file_types and #sync_opts.file_types > 0 then
+    cfg.file_types = sync_opts.file_types
+  end
+  if sync_opts.configs and #sync_opts.configs > 0 then
+    cfg.configs = sync_opts.configs
+  end
+  if sync_opts.excluded_folders and #sync_opts.excluded_folders > 0 then
+    cfg.excluded_folders = sync_opts.excluded_folders
+  end
+  if sync_opts.device_name then
+    cfg.device_name = sync_opts.device_name
+  end
+  if sync_opts.config_dir then
+    cfg.config_dir = sync_opts.config_dir
+  end
+
+  self:set_config(path, cfg)
 end
 
 return M
