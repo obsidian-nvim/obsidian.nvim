@@ -227,6 +227,8 @@ M.register("tags", { nargs = "*" })
 
 M.register("search", { nargs = "?" })
 
+M.register("sync", { nargs = "?" })
+
 M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })

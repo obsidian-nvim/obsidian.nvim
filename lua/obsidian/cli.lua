@@ -1,6 +1,9 @@
 ---@class obsidian.CLI
 local M = {}
 
+-- TODO: a live interface with completions like vim-fuigitive
+-- TODO: to return cli run results in many places: float, quickfix, statusline
+
 M.__index = M
 
 ---@class obsidian.CLIOpts
@@ -13,7 +16,7 @@ M.__index = M
 M.new = function(cmd, opts)
   return setmetatable({
     cmd = cmd,
-    opts = opts,
+    opts = opts or {},
   }, M)
 end
 
@@ -46,6 +49,26 @@ M.run = function(self, subcmd, flags, opts)
   end)
 end
 
+M.run_sync = function(self, subcmd, flags, opts)
+  local cmds = { self.cmd, subcmd }
+  flags = flags or {}
+  opts = opts or {}
+
+  for k, v in pairs(flags) do
+    table.insert(cmds, string.format("--%s", k))
+    table.insert(cmds, v)
+  end
+
+  local out = vim.system(cmds, {}, nil):wait()
+  if not opts.silent and out.code ~= 0 then
+    vim.notify(string.format("Command failed: %s", table.concat(cmds, " ")), vim.log.levels.ERROR)
+    return nil
+  end
+
+  return out
+end
+
+return M
 -- local cli = M.new("ob", {})
 --
 -- cli:run("sync", {
