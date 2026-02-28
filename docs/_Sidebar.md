@@ -26,6 +26,7 @@
 - [[Link]]
 - [[Note]]
 - [[Open]]
+- [[Sync]]
 - [[Tag]]
 - [[Template]]
 - [[Workspace]]
