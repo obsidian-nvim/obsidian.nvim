@@ -13,6 +13,8 @@ return function()
     return
   end
 
+  -- TODO: check log in
+
   local workspace_path = tostring(api.resolve_workspace_dir())
 
   if not workspace_path then
