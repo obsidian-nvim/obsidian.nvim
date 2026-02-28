@@ -60,9 +60,9 @@ M.run_sync = function(self, subcmd, flags, opts)
   end
 
   local out = vim.system(cmds, {}, nil):wait()
-  if not opts.silent and out.code ~= 0 then
+  if not opts.silent and out.code ~= 0 then -- BUG:
     vim.notify(string.format("Command failed: %s", table.concat(cmds, " ")), vim.log.levels.ERROR)
-    return nil
+    return out
   end
 
   return out

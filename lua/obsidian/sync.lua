@@ -1,5 +1,6 @@
 local cli = require "obsidian.cli"
 local api = require "obsidian.api"
+local log = require "obsidian.log"
 
 -- TODO: statusline indicator in footer
 -- TODO: logs, settings?
@@ -52,16 +53,29 @@ function M.new()
   }, M)
 end
 
+function M.run_sync(self, cmd, flags, opts)
+  local out = self.cli:run_sync(cmd, flags, opts)
+  if out.code == 2 then
+    -- TODO: prompt to confirm login?
+    if api.confirm "Not login in, confirm to enter your obsidian account" == "Yes" then
+      self:login_sync()
+      return self.cli.run_sync(cmd, flags, opts)
+    end
+    return
+  end
+  return out
+end
+
 function M.check_installed()
   local cmd = M.detect_cmd()
   return cmd ~= nil
 end
 
----@param email string?
----@param password string?
+---@param email string
+---@param password string
 function M.login(self, email, password)
-  email = email or api.input "Email: "
-  password = password or api.input "Password: "
+  email = email or api.input "Email"
+  password = password or vim.fn.inputsecret "Password: "
 
   if not email or not password then
     vim.notify("Email and password are required for login.", vim.log.levels.ERROR)
@@ -82,9 +96,42 @@ function M.login(self, email, password)
   })
 end
 
+---@param email string
+---@param password string
+function M.login_sync(self, email, password)
+  email = email or api.input "Email"
+  password = password or vim.fn.inputsecret "Password: "
+
+  if not email or not password then
+    vim.notify("Email and password are required for login.", vim.log.levels.ERROR)
+    return
+  end
+
+  local out = self:run_sync("login", { email = email, password = password }, {})
+
+  if out.code == 0 then
+    vim.notify("Login successful!", vim.log.levels.INFO)
+  else
+    vim.notify("Login failed: " .. out.stderr, vim.log.levels.ERROR)
+  end
+  return out
+end
+
+function M.logout(self)
+  self.cli:run("logout", {}, {
+    callback = function(out)
+      if out.code == 0 then
+        vim.notify("Logout successful!", vim.log.levels.INFO)
+      else
+        vim.notify("Logout failed: " .. out.stderr, vim.log.levels.ERROR)
+      end
+    end,
+  })
+end
+
 ---@return { hash: string, name: string }[]?  -- list of remote vaults
 function M.list_remote(self)
-  local out = self.cli:run_sync("sync-list-remote", {}, { silent = true })
+  local out = self:run_sync("sync-list-remote", {}, { silent = true })
 
   if not out then
     return nil
@@ -157,7 +204,7 @@ end
 ---@param path string?
 ---@return string?
 function M.status(self, path)
-  local out = self.cli:run_sync("sync-status", { path = path or "" }, { silent = true })
+  local out = self:run_sync("sync-status", { path = path or "" }, { silent = true })
   if not out or out.code ~= 0 then
     return nil
   end
@@ -184,7 +231,7 @@ end
 
 ---@return table<string, obsidian.SyncVault>?  -- keyed by path
 function M.list_local(self)
-  local out = self.cli:run_sync("sync-list-local", {}, { silent = true })
+  local out = self:run_sync("sync-list-local", {}, { silent = true })
   if not out or out.code ~= 0 then
     return nil
   end
@@ -199,13 +246,13 @@ function M.list_local(self)
     if id then
       current_id = id
       current_path = nil
-    elseif current_id and line:match "^%s+Path:%s+" then
+    elseif current_id ~= nil and line:match "^%s+Path:%s+" then
       local vault_path = line:match "^%s+Path:%s+(.+)$"
       if vault_path then
         current_path = vault_path
         res[vault_path] = { id = current_id, path = vault_path, host = "" }
       end
-    elseif current_id and current_path and line:match "^%s+Host:%s+" then
+    elseif current_id ~= nil and current_path ~= nil and line:match "^%s+Host:%s+" then
       local host = line:match "^%s+Host:%s+(.+)$"
       if host then
         res[current_path].host = host
@@ -248,7 +295,7 @@ end
 ---@param path string?
 ---@return string?
 function M.get_config(self, path)
-  local out = self.cli:run_sync("sync-config", { path = path or "" }, { silent = true })
+  local out = self:run_sync("sync-config", { path = path or "" }, { silent = true })
   if not out or out.code ~= 0 then
     return nil
   end
@@ -291,7 +338,7 @@ function M.set_config(self, path, opts)
 end
 
 ---@param path string
----@param sync_opts obsidian.config.HeadlessSyncOpts
+---@param sync_opts obsidian.config.SyncOpts
 function M.apply_config(self, path, sync_opts)
   local cfg = {}
   if sync_opts.conflict_strategy then
@@ -315,5 +362,10 @@ function M.apply_config(self, path, sync_opts)
 
   self:set_config(path, cfg)
 end
+
+local m = M.new()
+-- m:logout()
+-- m:login()
+vim.print(m:list_remote())
 
 return M
