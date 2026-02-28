@@ -2,6 +2,8 @@ local Sync = require "obsidian.sync"
 local api = require "obsidian.api"
 
 return function()
+  -- TODO: check if there's already watcher runnnig
+
   local sync = Sync.new()
   if not sync or not sync:check_installed() then
     vim.notify(
