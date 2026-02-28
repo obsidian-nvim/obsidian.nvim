@@ -276,6 +276,14 @@ return {
     confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
   },
 
+  ---@class obsidian.config.HeadlessSyncOpts
+  ---
+  ---Run sync in watch mode (--continuous)
+  ---@field watch? boolean
+  headless_sync = {
+    watch = false,
+  },
+
   ---@class obsidian.config.CallbackConfig
   ---
   ---Runs right after setup
