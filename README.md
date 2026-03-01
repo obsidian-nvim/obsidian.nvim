@@ -96,7 +96,7 @@ There's one entry point user command for this plugin: `Obsidian`
   - both arguments are optional. If not given, the template will be selected from a list using your preferred picker
 - `:Obsidian quick_switch` - switch to another note in your vault, searching by its name with a picker
 - `:Obsidian search [QUERY]` - search for (or create) notes in your vault using `ripgrep` with your preferred picker
-- `:Obsidian tags [TAG ...]` - get a picker list of all occurrences of the given tags
+- `:Obsidian tags [TAG ...]` - picker lists all occurrences of the given tags, supporting AND/OR queries and hash-prefixed tag searches. 
 - `:Obsidian workspace [NAME]` - switch to another workspace
 
 #### Note commands

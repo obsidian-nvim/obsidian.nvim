@@ -1,5 +1,4 @@
 local log = require "obsidian.log"
-local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 
