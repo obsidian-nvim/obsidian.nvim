@@ -304,6 +304,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://caechao.github.io"><img src="https://avatars.githubusercontent.com/u/47220170?v=4?s=100" width="100px;" alt="CaeChao"/><br /><sub><b>CaeChao</b></sub></a><br /><a href="#code-CaeChao" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/tartansandal"><img src="https://avatars.githubusercontent.com/u/3327775?v=4?s=100" width="100px;" alt="Kahlil Hodgson"/><br /><sub><b>Kahlil Hodgson</b></sub></a><br /><a href="#code-tartansandal" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/pR0land"><img src="https://avatars.githubusercontent.com/u/16734321?v=4?s=100" width="100px;" alt="Frederik Roland Christiansen"/><br /><sub><b>Frederik Roland Christiansen</b></sub></a><br /><a href="#code-pR0land" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/laughing96"><img src="https://avatars.githubusercontent.com/u/67511038?v=4?s=100" width="100px;" alt="Lucky Laughing"/><br /><sub><b>Lucky Laughing</b></sub></a><br /><a href="#code-laughing96" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
