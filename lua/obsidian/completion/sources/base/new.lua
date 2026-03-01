@@ -143,7 +143,7 @@ function NewNoteSourceBase:process_completion(cc)
     }
     local documentation = {
       kind = "markdown",
-      value = new_note:display_info {
+      value = new_note:info {
         label = "Create: " .. new_text,
       },
     }

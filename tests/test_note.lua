@@ -263,6 +263,9 @@ local zettelConfig = {
   note_id_func = function()
     return "hummus"
   end,
+  note_path_func = function(spec)
+    return spec.dir / "hummus-path.md"
+  end,
 }
 
 T["_get_note_creation_opts"] = new_set {
@@ -280,6 +283,8 @@ T["_get_note_creation_opts"]["should not load customizations for non-existent te
 
   eq(spec.notes_subdir, Obsidian.opts.notes_subdir)
   eq(spec.note_id_func, Obsidian.opts.note_id_func)
+  eq(spec.note_path_func, Obsidian.opts.note_path_func)
+  eq(spec.template, "zettel")
   eq(spec.new_notes_location, Obsidian.opts.new_notes_location)
 end
 
@@ -291,6 +296,7 @@ T["_get_note_creation_opts"]["should load customizations for existing template"]
 
   eq(spec.notes_subdir, zettelConfig.notes_subdir)
   eq(spec.note_id_func, zettelConfig.note_id_func)
+  eq(spec.note_path_func, zettelConfig.note_path_func)
 end
 
 T["_get_note_creation_opts"]["should fallback to global note_id_func if customization omits it"] = function()
@@ -305,6 +311,12 @@ T["_get_note_creation_opts"]["should fallback to global note_id_func if customiz
   local spec = assert(M._get_creation_opts { template = "Partial" })
   eq(spec.notes_subdir, "partials")
   eq(spec.note_id_func, Obsidian.opts.note_id_func)
+  eq(spec.note_path_func, Obsidian.opts.note_path_func)
+end
+
+T["_get_note_creation_opts"]["should default template to opts.note.template"] = function()
+  local spec = assert(M._get_creation_opts {})
+  eq(spec.template, Obsidian.opts.note.template)
 end
 
 T["new_note_path"] = new_set()
@@ -425,6 +437,36 @@ T["resolve_id_path"]["should ensure result of 'note_path_func' is always an abso
   }
   eq("New Note", id)
   eq(Path.new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
+end
+
+T["note_info"] = new_set()
+
+T["note_info"]["should fallback to display_info"] = function()
+  local note = M.new("foo", { "Foo" }, { "bar" }, Obsidian.dir / "foo.md", "Foo")
+
+  local expected = note:display_info { label = "label" }
+  local actual = note:info { label = "label" }
+
+  eq(actual, expected)
+end
+
+T["note_info"]["should support custom callback returning lines"] = function()
+  local original = Obsidian.opts.note.info
+
+  local ok, err = pcall(function()
+    Obsidian.opts.note.info = function(note, opts)
+      return {
+        "note: " .. note.id,
+        "label: " .. (opts and opts.label or ""),
+      }
+    end
+
+    local note = M.new("foo", {}, {}, Obsidian.dir / "foo.md", "Foo")
+    eq(note:info { label = "my-link" }, "note: foo\nlabel: my-link")
+  end)
+
+  Obsidian.opts.note.info = original
+  assert(ok, err)
 end
 
 -- T["reference_paths"] = new_set()

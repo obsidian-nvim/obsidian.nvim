@@ -17,6 +17,7 @@ return {
 
   workspaces = {},
   log_level = vim.log.levels.INFO,
+  -- Legacy top-level aliases. Prefer `note.id_func` and `note.path_func`.
   note_id_func = require("obsidian.builtin").zettel_id,
   note_path_func = function(spec)
     local path = spec.dir / tostring(spec.id)
@@ -40,8 +41,19 @@ return {
   ------
   ---```
   ---
+  ---Function to generate note IDs.
+  ---@field id_func? (fun(title: string|?, path: obsidian.Path|?): string)
+  ---Function to generate note paths.
+  ---@field path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
   ---@field template string|?
+  ---Function to build preview text for completion/hover.
+  ---@field info? fun(note: obsidian.Note, opts: { label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|?): string|string[]
   note = {
+    id_func = require("obsidian.builtin").zettel_id,
+    path_func = function(spec)
+      local path = spec.dir / tostring(spec.id)
+      return path
+    end,
     template = (function()
       local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
         return vim.endswith(path, "obsidian.nvim")
@@ -51,6 +63,9 @@ return {
       end
       return vim.fs.joinpath(root, "data/default_template.md")
     end)(),
+    info = function(note, opts)
+      return note:display_info(opts)
+    end,
   },
 
   ---@class obsidian.config.FrontmatterOpts
@@ -110,6 +125,8 @@ return {
     ---
     ---@field notes_subdir? string
     ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)
+    ---@field note_path_func? (fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path)
+    ---@field template? string
     customizations = {},
   },
 
