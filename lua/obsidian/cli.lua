@@ -2,7 +2,6 @@
 local M = {}
 
 -- TODO: a live interface with completions like vim-fuigitive
--- TODO: to return cli run results in many places: float, quickfix, statusline
 
 M.__index = M
 
@@ -20,22 +19,28 @@ M.new = function(cmd, opts)
   }, M)
 end
 
+local function build_cmd(cmd, subcmd, flags)
+  local cmds = { cmd, subcmd }
+  for k, v in pairs(flags) do
+    table.insert(cmds, string.format("--%s", k))
+    if type(v) ~= "boolean" and v ~= true then
+      table.insert(cmds, v)
+    end
+  end
+  return cmds
+end
+
 ---@param subcmd string
 ---@param flags table<string, string>|?
 ---@param opts obsidian.CLIOpts|?
 ---@return vim.SystemObj
 M.run = function(self, subcmd, flags, opts)
-  local cmds = { self.cmd, subcmd }
   flags = flags or {}
   opts = opts or {}
 
+  local cmds = build_cmd(self.cmd, subcmd, flags)
   local callback = self.opts.callback or opts.callback
   local silent = self.opts.silent or opts.silent -- TODO: this is a bit hacky, maybe we should merge opts in the constructor instead?
-
-  for k, v in pairs(flags) do
-    table.insert(cmds, string.format("--%s", k))
-    table.insert(cmds, v)
-  end
 
   return vim.system(cmds, {}, function(out)
     if not silent and out.code ~= 0 then
@@ -50,15 +55,10 @@ M.run = function(self, subcmd, flags, opts)
 end
 
 M.run_sync = function(self, subcmd, flags, opts)
-  local cmds = { self.cmd, subcmd }
   flags = flags or {}
   opts = opts or {}
 
-  for k, v in pairs(flags) do
-    table.insert(cmds, string.format("--%s", k))
-    table.insert(cmds, v)
-  end
-
+  local cmds = build_cmd(self.cmd, subcmd, flags)
   local out = vim.system(cmds, {}, nil):wait()
   if not opts.silent and out.code ~= 0 then -- BUG:
     vim.notify(string.format("Command failed: %s", table.concat(cmds, " ")), vim.log.levels.ERROR)
@@ -69,8 +69,3 @@ M.run_sync = function(self, subcmd, flags, opts)
 end
 
 return M
--- local cli = M.new("ob", {})
---
--- cli:run("sync", {
---   workspace = "my_workspace",
--- })
