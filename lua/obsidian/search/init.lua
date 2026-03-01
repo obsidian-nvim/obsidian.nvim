@@ -24,9 +24,12 @@ M.build_grep_cmd = Ripgrep.build_grep_cmd
 
 M.Patterns = {
   -- Tags
-  TagCharsOptional = "[A-Za-z0-9_/-]*",
-  TagCharsRequired = "[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+", -- assumes tag is at least 2 chars
-  Tag = "#[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+",
+  TagCharsOptional = "[%w\128-\244_/-]*",
+  TagCharsRequired = "[%w\128-\244_/-]+[%w\128-\244_/-]*[%a\128-\244_/-]+[%w\128-\244_/-]*",
+
+  Tag = "#[%w\128-\244_/-]+[%w\128-\244_/-]*[%a\128-\244_/-]+[%w\128-\244_/-]*",
+  TagCharsRequiredRg = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L}\p{N}_/-]*]],
+  TagCharsOptionalRg = [[[\p{L}\p{N}_/-]*]],
 
   -- Miscellaneous
   Highlight = "==[^=]+==", -- ==text==
@@ -920,22 +923,25 @@ M.find_tags_async = function(term, callback, opts)
   for _, t in ipairs(terms) do
     if string.len(t) > 0 then
       -- tag in the wild
-      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsOptional .. t .. M.Patterns.TagCharsOptional
+      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsOptionalRg .. t .. M.Patterns.TagCharsOptionalRg
       -- frontmatter tag in multiline list
       search_terms[#search_terms + 1] = "\\s*- "
-        .. M.Patterns.TagCharsOptional
+        .. M.Patterns.TagCharsOptionalRg
         .. t
-        .. M.Patterns.TagCharsOptional
+        .. M.Patterns.TagCharsOptionalRg
         .. "$"
       -- frontmatter tag in inline list
-      search_terms[#search_terms + 1] = "tags: .*" .. M.Patterns.TagCharsOptional .. t .. M.Patterns.TagCharsOptional
+      search_terms[#search_terms + 1] = "tags: .*"
+        .. M.Patterns.TagCharsOptionalRg
+        .. t
+        .. M.Patterns.TagCharsOptionalRg
     else
       -- tag in the wild
-      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsRequired
+      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsRequiredRg
       -- frontmatter tag in multiline list
-      search_terms[#search_terms + 1] = "\\s*- " .. M.Patterns.TagCharsRequired .. "$"
+      search_terms[#search_terms + 1] = "\\s*- " .. M.Patterns.TagCharsRequiredRg .. "$"
       -- frontmatter tag in inline list
-      search_terms[#search_terms + 1] = "tags: .*" .. M.Patterns.TagCharsRequired
+      search_terms[#search_terms + 1] = "tags: .*" .. M.Patterns.TagCharsRequiredRg
     end
   end
 
