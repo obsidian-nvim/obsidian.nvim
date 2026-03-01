@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.15.11](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.11) - 2026-03-01
+
+- Added tag normalization and argument parsing functions
+- Improved tag search logic with AND/OR/hash search modes
+- Enhanced picker display and file reading for tag locations
+
 ## [v3.15.10](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.10) - 2026-02-18
 
 ### Added
