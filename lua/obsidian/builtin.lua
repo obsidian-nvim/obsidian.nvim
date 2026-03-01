@@ -6,7 +6,9 @@ local M = {}
 ---@field path? obsidian.Path|string|?
 ---@field anchor? obsidian.note.HeaderAnchor|?
 ---@field block? obsidian.note.Block|?
----@field style? "wiki" | "markdown"
+---@field style? obsidian.link.LinkStyle
+---@field format? obsidian.link.LinkFormat
+---@field raw_path? obsidian.Path|string|?
 
 ---Create a new unique Zettel ID.
 ---
@@ -25,8 +27,6 @@ local format_anchor_label = function(anchor)
   return string.format(" ❯ %s", anchor.header)
 end
 
--- TODO: resolve this before release this, path should be vault relative string, and then compared against label, if different, use label
-
 ---@param opts obsidian.link.LinkCreationOpts
 ---@return string
 M.wiki_link = function(opts)
@@ -40,8 +40,16 @@ M.wiki_link = function(opts)
     header = "#" .. opts.block.id
   end
 
-  local format = "[[%s%s]]"
-  return string.format(format, opts.path, anchor, opts.label, header)
+  local path = tostring(opts.path)
+  local raw_path = tostring(opts.raw_path or opts.path)
+  local label = tostring(opts.label or "")
+  local path_basename = vim.fs.basename(raw_path)
+
+  if label ~= "" and label ~= path_basename then
+    return string.format("[[%s%s|%s%s]]", path, anchor, label, header)
+  end
+
+  return string.format("[[%s%s]]", path, anchor)
 end
 
 ---@param opts obsidian.link.LinkCreationOpts

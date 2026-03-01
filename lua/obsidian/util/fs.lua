@@ -122,7 +122,7 @@ local function abspath(path)
   -- Windows allows paths like C:foo/bar, these paths are relative to the current working directory
   -- of the drive specified in the path
   local cwd = (iswin and prefix:match "^%w:$") and uv.fs_realpath(prefix) or uv.cwd()
-  assert(cwd ~= nil)
+  assert(cwd ~= nil, "failed to resolve current working directory")
   -- Convert cwd path separator to `/`
   cwd = cwd:gsub(os_sep, "/")
 

@@ -105,12 +105,21 @@ config.normalize = function(opts, defaults)
   end
 
   if opts.completion ~= nil and opts.completion.preferred_link_style ~= nil then
-    opts.preferred_link_style = opts.completion.preferred_link_style
+    opts.link = opts.link or {}
+    if opts.link.style == nil then
+      opts.link.style = opts.completion.preferred_link_style
+    end
     opts.completion.preferred_link_style = nil
-    log.warn_once(
-      "The config option 'completion.preferred_link_style' is deprecated, please use the top-level "
-        .. "'preferred_link_style' instead."
-    )
+    deprecate("completion.preferred_link_style", "link.style", "3.16")
+  end
+
+  if opts.preferred_link_style ~= nil then
+    opts.link = opts.link or {}
+    if opts.link.style == nil then
+      opts.link.style = opts.preferred_link_style
+    end
+    opts.preferred_link_style = nil
+    deprecate("preferred_link_style", "link.style", "3.16")
   end
 
   if opts.completion ~= nil and opts.completion.new_notes_location ~= nil then
@@ -318,6 +327,20 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
 
   if opts.sort_by ~= nil and not vim.tbl_contains(vim.tbl_values(config.SortBy), opts.sort_by) then
     error("Invalid 'sort_by' option '" .. opts.sort_by .. "' in obsidian.nvim config.")
+  end
+
+  local valid_link_styles = { "wiki", "markdown" }
+  if
+    opts.link.style ~= nil
+    and type(opts.link.style) ~= "function"
+    and not vim.tbl_contains(valid_link_styles, opts.link.style)
+  then
+    error("Invalid 'link.style' option '" .. tostring(opts.link.style) .. "' in obsidian.nvim config.")
+  end
+
+  local valid_link_formats = { "shortest", "relative", "absolute" }
+  if opts.link.format ~= nil and not vim.tbl_contains(valid_link_formats, opts.link.format) then
+    error("Invalid 'link.format' option '" .. tostring(opts.link.format) .. "' in obsidian.nvim config.")
   end
 
   if not util.islist(opts.workspaces) then
