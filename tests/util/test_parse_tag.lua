@@ -5,7 +5,10 @@ local T = new_set()
 
 T["should find positions of all tags"] = function()
   local s = "#TODO I have a #meeting at noon"
-  eq({ { 1, 5, "Tag" }, { 16, 23, "Tag" } }, M.parse_tags(s))
+  eq({
+    { 1, 5, "TODO" },
+    { 16, 23, "meeting" },
+  }, M.parse_tags(s))
 end
 
 T["should find four cases"] = function()
@@ -22,7 +25,7 @@ end
 
 T["should ignore escaped tags"] = function()
   local s = "I have a #meeting at noon \\#not-a-tag"
-  eq({ { 10, 17, "Tag" } }, M.parse_tags(s))
+  eq({ { 10, 17, "meeting" } }, M.parse_tags(s))
   s = [[\#notatag]]
   eq({}, M.parse_tags(s))
 end
@@ -53,7 +56,7 @@ end
 
 T["should ignore tags not on word boundaries"] = function()
   eq({}, M.parse_tags "foobar#notatag")
-  eq({ { 9, 12, "Tag" } }, M.parse_tags "foo bar #tag")
+  eq({ { 9, 12, "tag" } }, M.parse_tags "foo bar #tag")
 end
 
 T["should ignore tags in markdown links with parentheses"] = function()

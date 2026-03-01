@@ -1,21 +1,19 @@
 local Note = require "obsidian.note"
-local Patterns = require("obsidian.search").Patterns
+local parse_tags = require("obsidian.parse.tags").parse_tags
 
 local M = {}
 
----@type { pattern: string, offset: integer }[]
-local TAG_PATTERNS = {
-  { pattern = "[%s%(]#" .. Patterns.TagCharsOptional .. "$", offset = 2 },
-  { pattern = "^#" .. Patterns.TagCharsOptional .. "$", offset = 1 },
-}
-
+---@param input string
+---@return string|?
 M.find_tags_start = function(input)
-  for _, pattern in ipairs(TAG_PATTERNS) do
-    local match = string.match(input, pattern.pattern)
-    if match then
-      return string.sub(match, pattern.offset + 1)
-    end
+  local tags = parse_tags(input)
+  if #tags == 0 then
+    return
   end
+
+  -- Check if the last tag extends to the end of the input (i.e. cursor is on a tag).
+  local last_tag = tags[#tags]
+  return last_tag[3]
 end
 
 --- Find the boundaries of the YAML frontmatter within the buffer.
@@ -60,7 +58,7 @@ M.get_keyword_pattern = function()
   -- The enclosing [=[ ... ]=] is just a way to mark the boundary of a
   -- string in Lua.
   -- return [=[\%(^\|[^#]\)\zs#[a-zA-Z0-9_/-]\+]=]
-  return "#[a-zA-Z0-9_/-]\\+"
+  return "#[a-zA-Z0-9_/\\x80-\\xff-]\\+"
 end
 
 return M

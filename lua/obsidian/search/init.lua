@@ -23,11 +23,7 @@ M.build_grep_cmd = Ripgrep.build_grep_cmd
 ---| "BlockLink"
 
 M.Patterns = {
-  -- Tags
-  TagCharsOptional = "[%w\128-\244_/-]*",
-  TagCharsRequired = "[%w\128-\244_/-]+[%w\128-\244_/-]*[%a\128-\244_/-]+[%w\128-\244_/-]*",
-
-  Tag = "#[%w\128-\244_/-]+[%w\128-\244_/-]*[%a\128-\244_/-]+[%w\128-\244_/-]*",
+  -- for ripgrep
   TagCharsRequiredRg = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L}\p{N}_/-]*]],
   TagCharsOptionalRg = [[[\p{L}\p{N}_/-]*]],
 
@@ -39,11 +35,6 @@ M.Patterns = {
   Wiki = "%[%[[^][%|]+%]%]", -- [[xxx]]
   Markdown = "%[[^][]+%]%([^%)]+%)", -- [yyy](xxx)
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
-}
-
----@type table<obsidian.search.RefTypes, { ignore_if_escape_prefix: boolean|? }>
-M.PatternConfig = {
-  Tag = { ignore_if_escape_prefix = true },
 }
 
 --- Find all matches of a pattern
@@ -62,7 +53,6 @@ M.find_matches = function(s, pattern_names)
   local matches = {}
   for _, pattern_name in ipairs(pattern_names) do
     local pattern = M.Patterns[pattern_name]
-    local pattern_cfg = M.PatternConfig[pattern_name]
     local search_start = 1
     while search_start < #s do
       local m_start, m_end = string.find(s, pattern, search_start)
@@ -89,14 +79,6 @@ M.find_matches = function(s, pattern_names)
 
           -- Check if we should skip to an escape sequence before the pattern.
           local skip_due_to_escape = false
-          if
-            pattern_cfg ~= nil
-            and pattern_cfg.ignore_if_escape_prefix
-            and string.sub(s, m_start - 1, m_start - 1) == [[\]]
-          then
-            skip_due_to_escape = true
-          end
-
           if not overlap and not skip_due_to_escape then
             matches[#matches + 1] = { m_start, m_end, pattern_name }
           end
@@ -155,7 +137,6 @@ M.find_refs = function(s, opts)
     "WikiWithAlias",
     "Wiki",
     "Markdown",
-    "Tag",
     "BlockID",
     "Highlight",
   }
@@ -506,7 +487,7 @@ M.find_links = function(note)
   local lines = io.lines(tostring(note.path))
 
   for lnum, line in vim.iter(lines):enumerate() do
-    for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID", "Tag" } })) do
+    for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID" } })) do
       local m_start, m_end = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)
       if not found[link] then
@@ -896,12 +877,9 @@ M.find_tags_async = function(term, callback, opts)
 
     -- check for tag in the wild of the form '#{tag}'
     for _, match in ipairs(util.parse_tags(line)) do
-      local m_start, m_end, _ = unpack(match)
-      local tag = string.sub(line, m_start + 1, m_end)
-      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
-        add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
-        n_matches = n_matches + 1
-      end
+      local m_start, m_end, tag = unpack(match)
+      add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
+      n_matches = n_matches + 1
     end
 
     -- check for tags in frontmatter
@@ -913,9 +891,7 @@ M.find_tags_async = function(term, callback, opts)
       and (vim.startswith(line, "tags:") or string.match(line, "%s*- "))
     then
       local tag = vim.trim(string.sub(line, 3)) -- HACK: works because we force '  - tag'
-      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
-        add_match(tag, path, note, match_data.line_number, line)
-      end
+      add_match(tag, path, note, match_data.line_number, line)
     end
   end
 

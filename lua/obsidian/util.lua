@@ -316,7 +316,7 @@ util.parse_link = function(link, opts)
 
   local link_type = opts.link_type
   if link_type == nil then
-    for _, match in ipairs(search.find_refs(link, { exclude = { "Tag" } })) do
+    for _, match in ipairs(search.find_refs(link)) do
       local _, _, m_type = unpack(match)
       link_type = m_type
       break

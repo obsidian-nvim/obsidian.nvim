@@ -44,7 +44,7 @@ local all_tags = Ct(((utf8_char - one_tag) ^ 0 * one_tag) ^ 0)
 --- UTF-8 indices are 0-based and end-exclusive.
 ---
 --- @param line string
---- @return { tag: string, start_idx: integer, end_idx: integer, start_byte: integer, end_byte: integer }[]
+--- @return table[] List of tags, each with fields: start_byte_index, end_byte_index, tag_body
 M.parse_tags = function(line)
   if string.find(line, "<!--.*-->") ~= nil then
     return {}
@@ -72,7 +72,7 @@ M.parse_tags = function(line)
       out[#out + 1] = {
         start_byte_index,
         end_byte_index,
-        "Tag", -- TODO: return tag directly
+        string.sub(line, start_byte_index + 1, end_byte_index),
         -- vim.str_utfindex(line, start_byte),
         -- vim.str_utfindex(line, end_byte),
       }
