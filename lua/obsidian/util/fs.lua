@@ -100,7 +100,7 @@ end
 local function abspath(path)
   -- TODO(justinmk): mark f_fnamemodify as API_FAST and use it, ":p:h" should be safe...
 
-  vim.validate("path", path, "string")
+  vim.validate { path = { path, "string" } }
 
   -- Expand ~ to user's home directory
   path = expand_home(path)
