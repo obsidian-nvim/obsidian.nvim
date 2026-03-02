@@ -32,6 +32,8 @@ local function get_commands_by_context(commands, is_visual, is_note)
     :filter(function(config)
       if not Obsidian.opts.templates.enabled then
         return config.name ~= "template" and config.name ~= "new_from_template"
+      elseif not Obsidian.opts.checkbox.enabled then
+        return config.name ~= "toggle_checkbox"
       end
       return true
     end)
