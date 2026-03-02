@@ -140,7 +140,7 @@ Note._generate_path = function(id, dir)
     path = dir / path
   end
 
-  -- TODO: automatically cleanup instead of call with_suffix in defualt and in cleanup
+  -- TODO: automatically cleanup instead of call with_suffix in default and in cleanup
 
   -- Ensure there is only one ".md" suffix. This might arise if `note_path_func`
   -- supplies an unusual implementation returning something like /bad/note/id.md.md.md
@@ -1190,7 +1190,12 @@ local function format_path(path, style)
   if style == "absolute" then
     return assert(path:vault_relative_path {})
   elseif style == "relative" then
-    local relpath = util.relpath(tostring(Obsidian.buf_dir), tostring(path))
+    local base_dir = Obsidian.buf_dir or Obsidian.dir
+    if base_dir == nil then
+      return assert(path:vault_relative_path {})
+    end
+
+    local relpath = util.relpath(tostring(base_dir), tostring(path))
     return assert(relpath, "failed to resolve link path against current note")
   else
     return vim.fs.basename(tostring(path))
@@ -1205,24 +1210,33 @@ Note.format_link = function(self, opts)
   opts = opts or {}
   local label = opts.label or self:display_name()
   local link_style = opts.style or Obsidian.opts.link.style
+  local link_format = opts.format or Obsidian.opts.link.format
 
-  local formatted_path = format_path(self.path, Obsidian.opts.link.format)
-  formatted_path = util.urlencode(formatted_path, { keep_path_sep = true })
+  local raw_formatted_path = format_path(self.path, link_format)
+
+  local formatted_path = util.urlencode(raw_formatted_path, { keep_path_sep = true })
   if link_style == "wiki" then
-    formatted_path = formatted_path:gsub(".md", "")
+    raw_formatted_path = raw_formatted_path:gsub("%.md$", "")
+    formatted_path = formatted_path:gsub("%.md$", "")
   end
 
   local new_opts = {
     path = formatted_path,
+    raw_path = raw_formatted_path,
     label = label,
     anchor = opts.anchor,
     block = opts.block,
+    style = link_style,
+    format = link_format,
   }
 
+  local markdown_link_func = Obsidian.opts.link.markdown or require("obsidian.builtin").markdown_link
+  local wiki_link_func = Obsidian.opts.link.wiki or require("obsidian.builtin").wiki_link
+
   if link_style == "markdown" then
-    return require("obsidian.builtin").markdown_link(new_opts)
+    return markdown_link_func(new_opts)
   elseif link_style == "wiki" or link_style == nil then
-    return require("obsidian.builtin").wiki_link(new_opts)
+    return wiki_link_func(new_opts)
   elseif type(link_style) == "function" then
     return link_style(new_opts)
   else

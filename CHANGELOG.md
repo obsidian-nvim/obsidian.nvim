@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- New `link` module options: `link.style`, `link.format`, `link.wiki`, and `link.markdown`.
+
+### Changed
+
+- Deprecated `preferred_link_style`, `wiki_link_func`, and `markdown_link_func` in favor of `link.style`, `link.wiki`, and `link.markdown`.
+
+### Fixed
+
+- Wiki link rendering now compares the raw path basename against the label, avoiding unnecessary label prefixes when the path is URL-encoded.
+
 ## [v3.15.11](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.11) - 2026-03-05
 
 ### Added
