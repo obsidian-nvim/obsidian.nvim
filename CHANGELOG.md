@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `:Obsidian tags` support Unicode tags.
 - `opts.checkbox.enabled` works.
+- Telescope picker filtering works with right ordinal value.
 
 ## [v3.15.10](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.10) - 2026-02-18
 
