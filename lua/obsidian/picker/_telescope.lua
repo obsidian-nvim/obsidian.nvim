@@ -256,7 +256,7 @@ M.pick = function(values, opts)
             return {
               value = v.user_data,
               display = displayer,
-              ordinal = v.filename, -- NOTE: not sure
+              ordinal = v.text or v.filename,
               filename = v.filename,
               lnum = v.lnum,
               col = v.col,
