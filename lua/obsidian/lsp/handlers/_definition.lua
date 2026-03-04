@@ -7,7 +7,7 @@ local actions = obsidian.actions
 local obsidian_uri = require "obsidian.uri"
 
 local function open_uri(uri, scheme)
-  if scheme == "obsidian" then
+  if scheme == "obsidian" then -- TODO: is opts.uri.enabled = true, or opts.open.uri
     obsidian_uri.handle(uri)
   elseif vim.list_contains(Obsidian.opts.open.schemes, scheme) then
     vim.ui.open(uri)
