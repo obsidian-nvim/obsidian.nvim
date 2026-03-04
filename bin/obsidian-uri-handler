@@ -1,0 +1,93 @@
+#!/bin/sh
+# obsidian-uri-handler -- OS-level handler for obsidian:// URIs.
+#
+# Opens a new Neovim instance, loads the user's config (which runs obsidian.setup()),
+# and dispatches the URI to the obsidian.nvim handler.
+#
+# Installation (Linux):
+#   1. Copy or symlink this script somewhere on your $PATH
+#   2. Make it executable: chmod +x obsidian-uri-handler
+#   3. Copy the .desktop file:
+#        cp data/obsidian-nvim.desktop ~/.local/share/applications/
+#   4. Register it:
+#        xdg-mime default obsidian-nvim.desktop x-scheme-handler/obsidian
+#
+# Installation (macOS):
+#   Register via a small Automator app, Platypus wrapper, or duti:
+#     duti -s com.obsidian-nvim obsidian
+#
+# The script opens a terminal with Neovim. Set TERMINAL to override
+# which terminal emulator is used (default: auto-detect).
+#
+# Environment variables:
+#   NVIM          Path to nvim binary (default: nvim)
+#   TERMINAL      Terminal emulator command (default: auto-detect)
+#   OBSIDIAN_URI_NVIM_ARGS  Extra arguments to pass to nvim
+
+set -e
+
+NVIM="${NVIM:-nvim}"
+URI="$1"
+
+if [ -z "$URI" ]; then
+  echo "Usage: obsidian-uri-handler 'obsidian://...'" >&2
+  exit 1
+fi
+
+# Sanitize: only allow URIs that start with obsidian://
+case "$URI" in
+  obsidian://*)
+    ;;
+  *)
+    echo "Error: not an obsidian:// URI: $URI" >&2
+    exit 1
+    ;;
+esac
+
+# Build the nvim command. The +cmd runs after init.lua loads.
+# We single-quote the URI inside the Lua string to prevent injection,
+# and escape any single quotes within the URI itself.
+ESCAPED_URI=$(printf '%s' "$URI" | sed "s/'/\\\\'/g")
+NVIM_CMD="$NVIM $OBSIDIAN_URI_NVIM_ARGS +\"lua require('obsidian.uri').handle('${ESCAPED_URI}')\""
+
+# Detect if we're already inside a terminal (interactive shell).
+# If so, just exec nvim directly. Otherwise, open a terminal.
+if [ -t 0 ] && [ -t 1 ]; then
+  eval exec "$NVIM_CMD"
+fi
+
+# Try to find a terminal emulator.
+if [ -n "$TERMINAL" ]; then
+  TERM_CMD="$TERMINAL"
+elif command -v kitty >/dev/null 2>&1; then
+  TERM_CMD="kitty"
+elif command -v alacritty >/dev/null 2>&1; then
+  TERM_CMD="alacritty"
+elif command -v wezterm >/dev/null 2>&1; then
+  TERM_CMD="wezterm"
+elif command -v foot >/dev/null 2>&1; then
+  TERM_CMD="foot"
+elif command -v ghostty >/dev/null 2>&1; then
+  TERM_CMD="ghostty"
+elif command -v xterm >/dev/null 2>&1; then
+  TERM_CMD="xterm"
+else
+  echo "Error: no terminal emulator found. Set \$TERMINAL." >&2
+  exit 1
+fi
+
+# Most terminals accept -e to run a command.
+case "$TERM_CMD" in
+  kitty)
+    exec kitty sh -c "$NVIM_CMD"
+    ;;
+  wezterm)
+    exec wezterm start -- sh -c "$NVIM_CMD"
+    ;;
+  ghostty)
+    exec ghostty -e sh -c "$NVIM_CMD"
+    ;;
+  *)
+    exec "$TERM_CMD" -e sh -c "$NVIM_CMD"
+    ;;
+esac
