@@ -1,3 +1,5 @@
+local log = require "obsidian.log"
+
 ---@class obsidian.CLI
 local M = {}
 
@@ -44,7 +46,7 @@ M.run = function(self, subcmd, flags, opts)
 
   return vim.system(cmds, {}, function(out)
     if not silent and out.code ~= 0 then
-      vim.notify(string.format("Command failed: %s", table.concat(cmds, " ")), vim.log.levels.ERROR)
+      log.err("Command failed: %s", table.concat(cmds, " "))
       return
     end
 
@@ -61,7 +63,7 @@ M.run_sync = function(self, subcmd, flags, opts)
   local cmds = build_cmd(self.cmd, subcmd, flags)
   local out = vim.system(cmds, {}, nil):wait()
   if not opts.silent and out.code ~= 0 then -- BUG:
-    vim.notify(string.format("Command failed: %s", table.concat(cmds, " ")), vim.log.levels.ERROR)
+    log.err("Command failed: %s", table.concat(cmds, " "))
     return out
   end
 

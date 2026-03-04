@@ -35,10 +35,7 @@ function M.detect_cmd()
   end
 
   if not cmd then
-    vim.notify(
-      "obsidian-headless not found. Run 'npm install obsidian-headless' in plugin folder.",
-      vim.log.levels.ERROR
-    )
+    log.err "obsidian-headless not found. Run 'npm install obsidian-headless' in plugin folder."
   end
   return cmd
 end
@@ -78,7 +75,7 @@ function M.login(self, email, password)
   password = password or vim.fn.inputsecret "Password: "
 
   if not email or not password then
-    vim.notify("Email and password are required for login.", vim.log.levels.ERROR)
+    log.err "Email and password are required for login."
     return
   end
 
@@ -88,9 +85,9 @@ function M.login(self, email, password)
   }, {
     callback = function(out)
       if out.code == 0 then
-        vim.notify("Login successful!", vim.log.levels.INFO)
+        log.info "Login successful!"
       else
-        vim.notify("Login failed: " .. out.stderr, vim.log.levels.ERROR)
+        log.err("Login failed: %s", out.stderr)
       end
     end,
   })
@@ -103,16 +100,16 @@ function M.login_sync(self, email, password)
   password = password or vim.fn.inputsecret "Password: "
 
   if not email or not password then
-    vim.notify("Email and password are required for login.", vim.log.levels.ERROR)
+    log.err "Email and password are required for login."
     return
   end
 
   local out = self:run_sync("login", { email = email, password = password }, {})
 
   if out.code == 0 then
-    vim.notify("Login successful!", vim.log.levels.INFO)
+    log.info "Login successful!"
   else
-    vim.notify("Login failed: " .. out.stderr, vim.log.levels.ERROR)
+    log.err("Login failed: %s", out.stderr)
   end
   return out
 end
@@ -121,9 +118,9 @@ function M.logout(self)
   self.cli:run("logout", {}, {
     callback = function(out)
       if out.code == 0 then
-        vim.notify("Logout successful!", vim.log.levels.INFO)
+        log.info "Logout successful!"
       else
-        vim.notify("Logout failed: " .. out.stderr, vim.log.levels.ERROR)
+        log.err("Logout failed: %s", out.stderr)
       end
     end,
   })
@@ -149,7 +146,7 @@ function M.list_remote(self)
   end
 
   if vim.tbl_isempty(res) then
-    vim.notify("No remote vaults found.", vim.log.levels.INFO)
+    log.info "No remote vaults found."
     return nil
   end
   return res
@@ -174,9 +171,9 @@ function M.setup(self, vault, path)
   }, {
     callback = function(out)
       if out.code == 0 then
-        vim.notify("Vault configured successfully!", vim.log.levels.INFO)
+        log.info "Vault configured successfully!"
       else
-        vim.notify("Setup failed: " .. out.stderr, vim.log.levels.ERROR)
+        log.err("Setup failed: %s", out.stderr)
       end
     end,
   })
@@ -193,9 +190,9 @@ function M.sync(self, path, watch)
   self.cli:run("sync", { path = path }, {
     callback = function(out)
       if out.code == 0 then
-        vim.notify("Sync completed!", vim.log.levels.INFO)
+        log.info "Sync completed!"
       else
-        vim.notify("Sync failed: " .. out.stderr, vim.log.levels.ERROR)
+        log.err("Sync failed: %s", out.stderr)
       end
     end,
   })
@@ -216,9 +213,9 @@ function M.unlink(self, path)
   self.cli:run("sync-unlink", { path = path or "" }, {
     callback = function(out)
       if out.code == 0 then
-        vim.notify("Vault unlinked successfully!", vim.log.levels.INFO)
+        log.info "Vault unlinked successfully!"
       else
-        vim.notify("Unlink failed: " .. out.stderr, vim.log.levels.ERROR)
+        log.err("Unlink failed: %s", out.stderr)
       end
     end,
   })
@@ -284,9 +281,9 @@ function M.create_remote(self, name, opts)
   self.cli:run("sync-create-remote", args, {
     callback = function(out)
       if out.code == 0 then
-        vim.notify("Remote vault created!", vim.log.levels.INFO)
+        log.info "Remote vault created!"
       else
-        vim.notify("Create failed: " .. out.stderr, vim.log.levels.ERROR)
+        log.err("Create failed: %s", out.stderr)
       end
     end,
   })
@@ -329,9 +326,9 @@ function M.set_config(self, path, opts)
   self.cli:run("sync-config", args, {
     callback = function(out)
       if out.code == 0 then
-        vim.notify("Config updated!", vim.log.levels.INFO)
+        log.info "Config updated!"
       else
-        vim.notify("Config update failed: " .. out.stderr, vim.log.levels.ERROR)
+        log.err("Config update failed: %s", out.stderr)
       end
     end,
   })

@@ -1,15 +1,13 @@
 local Sync = require "obsidian.sync"
 local api = require "obsidian.api"
+local log = require "obsidian.log"
 
 return function()
   -- TODO: check if there's already watcher runnnig
 
   local sync = Sync.new()
   if not sync or not sync:check_installed() then
-    vim.notify(
-      "obsidian-headless not found. Run 'npm install obsidian-headless' in the plugin folder.",
-      vim.log.levels.ERROR
-    )
+    log.err "obsidian-headless not found. Run 'npm install obsidian-headless' in the plugin folder."
     return
   end
 
@@ -18,7 +16,7 @@ return function()
   local workspace_path = tostring(api.resolve_workspace_dir())
 
   if not workspace_path then
-    vim.notify("No active workspace. Open a vault first.", vim.log.levels.ERROR)
+    log.err "No active workspace. Open a vault first."
     return
   end
 
