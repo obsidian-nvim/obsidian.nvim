@@ -29,8 +29,8 @@
 ---@field notes_subdir? string
 ---@field templates? obsidian.config.TemplateOpts
 ---@field new_notes_location? obsidian.config.NewNotesLocation
----@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
----@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
+---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|? Deprecated, use `note.id_func`
+---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path Deprecated, use `note.path_func`
 ---@field wiki_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field markdown_link_func? fun(opts: {path: string, label: string, id: string|?}): string
 ---@field preferred_link_style? obsidian.config.LinkStyle
@@ -58,8 +58,8 @@
 ---@field notes_subdir string|?
 ---@field templates obsidian.config.TemplateOpts
 ---@field new_notes_location obsidian.config.NewNotesLocation
----@field note_id_func (fun(id: string|?, path: obsidian.Path|?): string)
----@field note_path_func (fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)
+---@field note_id_func (fun(title: string|?, path: obsidian.Path|?): string)
+---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path)
 ---@field wiki_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field markdown_link_func (fun(opts: {path: string, label: string, id: string|?}): string)
 ---@field preferred_link_style obsidian.config.LinkStyle

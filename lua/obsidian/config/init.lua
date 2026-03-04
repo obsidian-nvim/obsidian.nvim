@@ -220,6 +220,24 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.templates.subdir = nil
   end
 
+  if opts.note_id_func ~= nil then
+    opts.note = opts.note or {}
+    if opts.note.id_func == nil then
+      opts.note.id_func = opts.note_id_func
+    end
+    opts.note_id_func = nil
+    deprecate("top-level 'note_id_func'", "note.id_func", "4.0")
+  end
+
+  if opts.note_path_func ~= nil then
+    opts.note = opts.note or {}
+    if opts.note.path_func == nil then
+      opts.note.path_func = opts.note_path_func
+    end
+    opts.note_path_func = nil
+    deprecate("top-level 'note_path_func'", "note.path_func", "4.0")
+  end
+
   if opts.ui and opts.ui.checkboxes then
     log.warn_once [[The 'ui.checkboxes' no longer effect the way checkboxes are ordered, use `checkbox.order`. See: https://github.com/obsidian-nvim/obsidian.nvim/issues/262]]
   end
@@ -329,6 +347,10 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
   opts.search = tbl_override(defaults.search, opts.search)
   opts.note = tbl_override(defaults.note, opts.note)
+
+  -- Keep legacy aliases for backwards compatibility.
+  opts.note_id_func = opts.note.id_func
+  opts.note_path_func = opts.note.path_func
 
   ---------------
   -- Validate. --

@@ -325,7 +325,7 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
 
       documentation = {
         kind = "markdown",
-        value = note:display_info {
+        value = note:info {
           label = new_text,
           anchor = option.anchor,
           block = option.block,

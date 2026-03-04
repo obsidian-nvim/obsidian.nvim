@@ -226,6 +226,40 @@ vim.pack.add {
 
 To configure obsidian.nvim, pass your custom options that are different from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
 
+### Note creation options
+
+You can configure note creation behavior under `note`:
+
+```lua
+require("obsidian").setup {
+  note = {
+    -- Generate IDs from note titles.
+    id_func = function(title)
+      return title or tostring(os.time())
+    end,
+
+    -- Optional custom path strategy.
+    path_func = function(spec)
+      return spec.dir / tostring(spec.id)
+    end,
+
+    -- Default template for `:Obsidian new`.
+    template = "default.md",
+
+    -- Preview text used for completion/hover docs.
+    info = function(note, opts)
+      return {
+        "# " .. note:display_name(),
+        "id: " .. tostring(note.id),
+        "path: " .. tostring(note.path),
+      }
+    end,
+  },
+}
+```
+
+Top-level `note_id_func` and `note_path_func` are still supported for backwards compatibility, but `note.id_func` and `note.path_func` are preferred.
+
 ## 🤝 Contributing
 
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.

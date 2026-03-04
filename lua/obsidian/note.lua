@@ -128,13 +128,17 @@ end
 ---
 ---@param id string The note ID
 ---@param dir obsidian.Path The note path
+---@param title string|? The note title
+---@param path_func fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
 ---@return obsidian.Path
 ---@private
-Note._generate_path = function(id, dir)
+Note._generate_path = function(id, dir, title, path_func)
   ---@type obsidian.Path
   local path
 
-  path = Path.new(Obsidian.opts.note_path_func { id = id, dir = dir })
+  path_func = path_func or Obsidian.opts.note_path_func
+
+  path = Path.new(path_func { id = id, dir = dir, title = title })
 
   -- NOTE: `opts.dir` should always be absolute, but for extra safety we handle the case where
   if not path:is_absolute() and (dir:is_absolute() or not dir:is_parent_of(path)) then
@@ -155,15 +159,21 @@ end
 ---@return obsidian.note.NoteCreationOpts The strategy to use for creating the note
 ---@private
 Note._get_creation_opts = function(opts)
+  opts = opts or {}
+
+  local note_opts = Obsidian.opts.note or {}
+
   --- @type obsidian.note.NoteCreationOpts
   local ret = {
     notes_subdir = Obsidian.opts.notes_subdir,
-    note_id_func = Obsidian.opts.note_id_func,
+    note_id_func = Obsidian.opts.note_id_func or note_opts.id_func,
+    note_path_func = Obsidian.opts.note_path_func or note_opts.path_func,
+    template = opts.template or note_opts.template,
     new_notes_location = Obsidian.opts.new_notes_location,
   }
 
   local resolve_template = require("obsidian.templates").resolve_template
-  local success, template_path = pcall(resolve_template, opts.template, api.templates_dir())
+  local success, template_path = pcall(resolve_template, ret.template, api.templates_dir())
 
   if not success then
     return ret
@@ -177,6 +187,8 @@ Note._get_creation_opts = function(opts)
       ret = {
         notes_subdir = cfg.notes_subdir or ret.notes_subdir,
         note_id_func = cfg.note_id_func or ret.note_id_func,
+        note_path_func = cfg.note_path_func or ret.note_path_func,
+        template = cfg.template or ret.template,
         new_notes_location = "notes_subdir",
       }
     end
@@ -213,13 +225,14 @@ end
 --- Resolves the ID, and path for a new note.
 ---
 ---@param opts obsidian.note.NoteOpts Strategy for resolving note path and title
+---@param creation_opts obsidian.note.NoteCreationOpts|?
 ---@return string id
 ---@return obsidian.Path path
 ---@return string|? title
 ---@private
-Note._resolve_id_path = function(opts)
+Note._resolve_id_path = function(opts, creation_opts)
   local id, dir = opts.id, opts.dir
-  local creation_opts = Note._get_creation_opts(opts or {})
+  creation_opts = creation_opts or Note._get_creation_opts(opts or {})
 
   if id then
     id = vim.trim(id)
@@ -279,7 +292,7 @@ Note._resolve_id_path = function(opts)
   dir = base_dir
 
   -- Generate path.
-  local path = Note._generate_path(id, dir)
+  local path = Note._generate_path(id, dir, title, creation_opts.note_path_func)
 
   return id, path, title
 end
@@ -289,7 +302,8 @@ end
 --- @param opts obsidian.note.NoteOpts
 --- @return obsidian.Note
 Note.create = function(opts)
-  local new_id, path, title = Note._resolve_id_path(opts)
+  local creation_opts = Note._get_creation_opts(opts)
+  local new_id, path, title = Note._resolve_id_path(opts, creation_opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
 
   -- Add the title as an alias.
@@ -304,7 +318,7 @@ Note.create = function(opts)
 
   -- Write to disk.
   if opts.should_write then
-    note:write { template = opts.template }
+    note:write { template = opts.template or creation_opts.template }
   end
 
   return note
@@ -374,6 +388,38 @@ Note.display_info = function(self, opts)
   end
 
   return table.concat(info, "\n")
+end
+
+--- Get preview information for this note.
+--- Uses the configured `note.info` callback and falls back to `display_info()`.
+---
+---@param opts { label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|?
+---@return string
+Note.info = function(self, opts)
+  local info_func = Obsidian.opts.note and Obsidian.opts.note.info
+  if type(info_func) ~= "function" then
+    return self:display_info(opts)
+  end
+
+  local ok, result = pcall(info_func, self, opts)
+  if not ok then
+    log.error("Error running note.info callback: %s", tostring(result))
+    return self:display_info(opts)
+  end
+
+  if type(result) == "string" then
+    return result
+  elseif type(result) == "table" then
+    local lines = {}
+    for _, line in ipairs(result) do
+      lines[#lines + 1] = tostring(line)
+    end
+    if #lines > 0 then
+      return table.concat(lines, "\n")
+    end
+  end
+
+  return self:display_info(opts)
 end
 
 --- Check if the note exists on the file system.
@@ -1241,7 +1287,9 @@ end
 
 ---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string
----@field note_id_func fun()
+---@field note_id_func (fun(title: string|?, path: obsidian.Path|?): string)
+---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path)
+---@field template string|?
 ---@field new_notes_location obsidian.config.NewNotesLocation
 
 ---@class (exact) obsidian.note.NoteOpts

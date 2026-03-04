@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `note.id_func`, `note.path_func`, and `note.info` configuration options.
+
+### Changed
+
+- Completion docs now use `note.info` (with fallback to `note:display_info()`).
+- Top-level `note_id_func` and `note_path_func` are now treated as legacy aliases for `note.id_func` and `note.path_func`.
+
 ### Fixed
 
 - `:Obsidian tags` support Unicode tags.
