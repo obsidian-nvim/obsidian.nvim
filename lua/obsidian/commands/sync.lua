@@ -6,7 +6,7 @@ return function()
   -- TODO: check if there's already watcher runnnig
 
   local sync = Sync.new()
-  if not sync or not sync:check_installed() then
+  if not sync or not sync.check_installed() then
     log.err "obsidian-headless not found. Run 'npm install obsidian-headless' in the plugin folder."
     return
   end

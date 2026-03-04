@@ -6,11 +6,7 @@ local log = require "obsidian.log"
 -- TODO: logs, settings?
 -- TODO: choose watch mode or autocmd sync, or LSP didChange sync
 
----@class obsidian.Headless
----@field cli obsidian.CLI
 local M = {}
-
-M.__index = M
 
 local function get_plugin_root()
   local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
@@ -34,33 +30,44 @@ function M.detect_cmd()
     cmd = "ob"
   end
 
-  if not cmd then
-    log.err "obsidian-headless not found. Run 'npm install obsidian-headless' in plugin folder."
-  end
   return cmd
 end
 
-function M.new()
-  local cmd = M.detect_cmd()
-  if not cmd then
+local state = {
+  cli = (function()
+    local cmd = M.detect_cmd()
+    if cmd then
+      return cli.new(cmd, {})
+    else
+      log.err "obsidian-headless not found. Run 'npm install obsidian-headless'"
+    end
+  end)(),
+}
+
+function M.run_sync(subcmd, flags, opts)
+  if not state.cli then
+    log.err "CLI not initialized, cannot run command."
     return nil
   end
-  return setmetatable({
-    cli = cli.new(cmd, {}),
-  }, M)
-end
 
-function M.run_sync(self, cmd, flags, opts)
-  local out = self.cli:run_sync(cmd, flags, opts)
+  local out = state.cli:run_sync(subcmd, flags, opts)
   if out.code == 2 then
-    -- TODO: prompt to confirm login?
-    if api.confirm "Not login in, confirm to enter your obsidian account" == "Yes" then
-      self:login_sync()
-      return self.cli.run_sync(cmd, flags, opts)
+    if api.confirm "Not login in, login to your obsidian account?" == "Yes" then
+      M.login_sync()
+      return state.cli.run_sync(subcmd, flags, opts)
     end
     return
   end
   return out
+end
+
+function M.run(subcmd, flags, opts)
+  if not state.cli then
+    log.err "CLI not initialized, cannot run command."
+    return nil
+  end
+
+  return state.cli:run(subcmd, flags, opts)
 end
 
 function M.check_installed()
@@ -70,7 +77,7 @@ end
 
 ---@param email string
 ---@param password string
-function M.login(self, email, password)
+function M.login(email, password)
   email = email or api.input "Email"
   password = password or vim.fn.inputsecret "Password: "
 
@@ -79,7 +86,7 @@ function M.login(self, email, password)
     return
   end
 
-  self.cli:run("login", {
+  M.run("login", {
     email = email,
     password = password,
   }, {
@@ -93,9 +100,9 @@ function M.login(self, email, password)
   })
 end
 
----@param email string
----@param password string
-function M.login_sync(self, email, password)
+---@param email string|?
+---@param password string|?
+function M.login_sync(email, password)
   email = email or api.input "Email"
   password = password or vim.fn.inputsecret "Password: "
 
@@ -104,18 +111,18 @@ function M.login_sync(self, email, password)
     return
   end
 
-  local out = self:run_sync("login", { email = email, password = password }, {})
+  local out = M.run_sync("login", { email = email, password = password }, {})
 
-  if out.code == 0 then
+  if out ~= nil and out.code == 0 then
     log.info "Login successful!"
   else
-    log.err("Login failed: %s", out.stderr)
+    log.err("Login failed: %s", out and out.stderr)
   end
   return out
 end
 
-function M.logout(self)
-  self.cli:run("logout", {}, {
+function M.logout()
+  M.run("logout", {}, {
     callback = function(out)
       if out.code == 0 then
         log.info "Logout successful!"
@@ -127,10 +134,10 @@ function M.logout(self)
 end
 
 ---@return { hash: string, name: string }[]?  -- list of remote vaults
-function M.list_remote(self)
-  local out = self:run_sync("sync-list-remote", {}, { silent = true })
+function M.list_remote()
+  local out = M.run_sync("sync-list-remote", {}, { silent = true })
 
-  if not out then
+  if not out or not out.stdout then
     return nil
   end
 
@@ -154,8 +161,8 @@ end
 
 ---@param path string
 ---@return boolean
-function M.is_configured(self, path)
-  local vaults = self:list_local()
+function M.is_configured(path)
+  local vaults = M.list_local()
   if not vaults then
     return false
   end
@@ -164,8 +171,8 @@ end
 
 ---@param vault string  -- vault id or name
 ---@param path string
-function M.setup(self, vault, path)
-  self.cli:run("sync-setup", {
+function M.setup(vault, path)
+  M.run("sync-setup", {
     vault = vault,
     path = path,
   }, {
@@ -181,13 +188,13 @@ end
 
 ---@param path string
 ---@param watch boolean
-function M.sync(self, path, watch)
+function M.sync(path, watch)
   -- TODO:
   -- if watch then
   --   table.insert(args, "--continuous")
   -- end
 
-  self.cli:run("sync", { path = path }, {
+  M.run("sync", { path = path }, {
     callback = function(out)
       if out.code == 0 then
         log.info "Sync completed!"
@@ -200,8 +207,8 @@ end
 
 ---@param path string?
 ---@return string?
-function M.status(self, path)
-  local out = self:run_sync("sync-status", { path = path or "" }, { silent = true })
+function M.status(path)
+  local out = M.run_sync("sync-status", { path = path or "" }, { silent = true })
   if not out or out.code ~= 0 then
     return nil
   end
@@ -209,8 +216,8 @@ function M.status(self, path)
 end
 
 ---@param path string?
-function M.unlink(self, path)
-  self.cli:run("sync-unlink", { path = path or "" }, {
+function M.unlink(path)
+  M.run("sync-unlink", { path = path or "" }, {
     callback = function(out)
       if out.code == 0 then
         log.info "Vault unlinked successfully!"
@@ -221,15 +228,14 @@ function M.unlink(self, path)
   })
 end
 
----@class obsidian.SyncVault
+---@class obsidian.sync.LocalVault
 ---@field id string
----@field path string
 ---@field host string
 
----@return table<string, obsidian.SyncVault>?  -- keyed by path
-function M.list_local(self)
-  local out = self:run_sync("sync-list-local", {}, { silent = true })
-  if not out or out.code ~= 0 then
+---@return table<string, obsidian.sync.LocalVault>?  -- keyed by path
+function M.list_local()
+  local out = M.run_sync("sync-list-local", {}, { silent = true })
+  if not out or out.code ~= 0 or not out.stdout then
     return nil
   end
 
@@ -247,7 +253,10 @@ function M.list_local(self)
       local vault_path = line:match "^%s+Path:%s+(.+)$"
       if vault_path then
         current_path = vault_path
-        res[vault_path] = { id = current_id, path = vault_path, host = "" }
+        res[vault_path] = {
+          id = current_id,
+          host = "",
+        }
       end
     elseif current_id ~= nil and current_path ~= nil and line:match "^%s+Host:%s+" then
       local host = line:match "^%s+Host:%s+(.+)$"
@@ -265,7 +274,7 @@ end
 
 ---@param name string
 ---@param opts { encryption?: string, password?: string, region?: string }?
-function M.create_remote(self, name, opts)
+function M.create_remote(name, opts)
   opts = opts or {}
   local args = { name = name }
   if opts.encryption then
@@ -278,7 +287,7 @@ function M.create_remote(self, name, opts)
     args.region = opts.region
   end
 
-  self.cli:run("sync-create-remote", args, {
+  M.run("sync-create-remote", args, {
     callback = function(out)
       if out.code == 0 then
         log.info "Remote vault created!"
@@ -291,8 +300,8 @@ end
 
 ---@param path string?
 ---@return string?
-function M.get_config(self, path)
-  local out = self:run_sync("sync-config", { path = path or "" }, { silent = true })
+function M.get_config(path)
+  local out = M.run_sync("sync-config", { path = path or "" }, { silent = true })
   if not out or out.code ~= 0 then
     return nil
   end
@@ -301,7 +310,7 @@ end
 
 ---@param path string?
 ---@param opts { conflict_strategy?: string, file_types?: string[], configs?: string[], excluded_folders?: string[], device_name?: string, config_dir?: string }?
-function M.set_config(self, path, opts)
+function M.set_config(path, opts)
   opts = opts or {}
   local args = { path = path or "" }
   if opts.conflict_strategy then
@@ -323,7 +332,7 @@ function M.set_config(self, path, opts)
     args["config-dir"] = opts.config_dir
   end
 
-  self.cli:run("sync-config", args, {
+  M.run("sync-config", args, {
     callback = function(out)
       if out.code == 0 then
         log.info "Config updated!"
@@ -336,7 +345,7 @@ end
 
 ---@param path string
 ---@param sync_opts obsidian.config.SyncOpts
-function M.apply_config(self, path, sync_opts)
+function M.apply_config(path, sync_opts)
   local cfg = {}
   if sync_opts.conflict_strategy then
     cfg.conflict_strategy = sync_opts.conflict_strategy
@@ -357,12 +366,7 @@ function M.apply_config(self, path, sync_opts)
     cfg.config_dir = sync_opts.config_dir
   end
 
-  self:set_config(path, cfg)
+  M.set_config(path, cfg)
 end
-
-local m = M.new()
--- m:logout()
--- m:login()
-vim.print(m:list_remote())
 
 return M
