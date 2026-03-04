@@ -4,9 +4,12 @@ local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
 local actions = obsidian.actions
+local obsidian_uri = require "obsidian.uri"
 
 local function open_uri(uri, scheme)
-  if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
+  if scheme == "obsidian" then
+    obsidian_uri.handle(uri)
+  elseif vim.list_contains(Obsidian.opts.open.schemes, scheme) then
     vim.ui.open(uri)
   else
     local choice = api.confirm(("Open external link? %s"):format(uri))
