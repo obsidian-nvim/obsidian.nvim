@@ -13,6 +13,60 @@ M.zettel_id = function()
   return tostring(os.time()) .. "-" .. suffix
 end
 
+---Create a UTF-8 slug-based ID from title.
+---Falls back to `zettel_id()` when title is empty or cannot be slugified.
+---
+---@param title string|?
+---@return string
+M.title_to_slug = function(title)
+  if type(title) ~= "string" then
+    return M.zettel_id()
+  end
+
+  local slug = vim.trim(vim.fn.tolower(title))
+  if slug == "" then
+    return M.zettel_id()
+  end
+
+  slug = vim.fn.substitute(slug, "[^[:keyword:][:space:]-]", "", "g")
+  slug = vim.fn.substitute(slug, "[_[:space:]]\\+", "-", "g")
+  slug = vim.fn.substitute(slug, "-\\+", "-", "g")
+  slug = vim.fn.substitute(slug, "^-\\+", "", "")
+  slug = vim.fn.substitute(slug, "-\\+$", "", "")
+
+  if slug == "" then
+    return M.zettel_id()
+  end
+
+  return slug
+end
+
+---Create a UTF-8 slug-based note ID from title.
+---When a target directory is provided, appends `-2`, `-3`, ... to avoid collisions.
+---
+---@param title string|?
+---@param dir obsidian.Path|?
+---@return string
+M.title_id = function(title, dir)
+  local base = M.title_to_slug(title)
+
+  if not dir then
+    return base
+  end
+
+  local Path = require "obsidian.path"
+  local base_dir = Path.new(dir)
+  local candidate = base
+  local idx = 2
+
+  while (base_dir / candidate):with_suffix(".md", true):exists() do
+    candidate = string.format("%s-%d", base, idx)
+    idx = idx + 1
+  end
+
+  return candidate
+end
+
 ---@param opts { path: string, label: string, id: string|integer|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }
 ---@return string
 M.wiki_link_alias_only = function(opts)
