@@ -107,7 +107,7 @@ function NewNoteSourceBase:process_completion(cc)
   -- Check for datetime macros.
   for _, dt_offset in ipairs(util.resolve_date_macro(cc.search)) do
     if dt_offset.cadence == "daily" then
-      note = require("obsidian.daily").daily(dt_offset.offset, { no_write = true })
+      note = require("obsidian.daily").daily { offset = dt_offset.offset, no_write = true }
       if not note:exists() then
         new_notes_opts[#new_notes_opts + 1] =
           { label = dt_offset.macro, note = note, template = Obsidian.opts.daily_notes.template }

@@ -233,15 +233,13 @@ end
 util.parse_date = function(str, fmt)
   -- Try common date formats
   local formats = {
-    "YYYY-MM-DD",
-    "YYYY-M-D", -- TODO:
-    "YYYY/MM/DD",
-    "MM/DD/YYYY",
-    "DD/MM/YYYY",
-    "MMMM D, YYYY",
-    "MMM D, YYYY",
+    "YYYY-M-D",
     "M/D/YYYY",
     "D/M/YYYY",
+    "MMMM D, YYYY",
+    "MMM D, YYYY",
+    "M-D",
+    "M/D",
   }
   local parse = require("obsidian.lib.moment").parse
 

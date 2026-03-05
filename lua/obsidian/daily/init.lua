@@ -116,14 +116,29 @@ M.tomorrow = function()
   return _daily(tomorrow, {})
 end
 
+---@class obsidian.daily.DailyOpts
+---@field offset? integer Offset in days from today (e.g. -1 for yesterday,
+---@field date? integer|? Specific date as a timestamp (overrides offset)
+---@field no_write? boolean|? If true, the note will not be written to disk if it doesn't exist
+---@field load? obsidian.note.LoadOpts|? Options to pass to Note.from_file when loading an existing note
+
 --- Open (or create) the daily note for today + `offset_days`.
 ---
----@param offset_days integer|?
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
+---@param opts obsidian.daily.DailyOpts|?
 ---
 ---@return obsidian.Note
-M.daily = function(offset_days, opts)
-  return _daily(os.time() + (offset_days * 3600 * 24), opts)
+M.daily = function(opts)
+  opts = opts or {}
+  local timestamp
+
+  if opts.offset then
+    assert(type(opts.offset) == "number", "offset must be a number")
+    timestamp = os.time() + (opts.offset * 3600 * 24)
+  else
+    timestamp = opts.date or os.time()
+  end
+
+  return _daily(timestamp, opts)
 end
 
 ---@param offset_start integer
@@ -157,7 +172,9 @@ M.pick = function(offset_start, offset_end, callback)
   Obsidian.picker.pick(dailies, {
     prompt_title = "Dailies",
     callback = function(entry)
-      local note = M.daily(entry.user_data, {})
+      local note = M.daily {
+        offset = entry.user_data,
+      }
       callback(note)
     end,
   })
