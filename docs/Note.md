@@ -43,3 +43,24 @@ require("obsidian").setup {
 
 For fields you have access to for the default template, see [[Template]].
 
+## Note ID Presets
+
+By default obsidian.nvim uses random zettel IDs.
+
+If you want readable UTF-8 title-based IDs (works across scripts), use the built-in preset:
+
+```lua
+require("obsidian").setup {
+  note = {
+    id_func = require("obsidian.builtin").title_id,
+  },
+}
+```
+
+Examples:
+
+- `"Hello, world"` -> `"hello-world"`
+- `"Привет, мир"` -> `"привет-мир"`
+- `"你好 世界"` -> `"你好-世界"`
+
+When creating notes in a directory where the slug already exists, this preset appends a numeric suffix (`-2`, `-3`, ...).

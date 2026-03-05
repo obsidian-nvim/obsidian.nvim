@@ -226,26 +226,6 @@ vim.pack.add {
 
 To configure obsidian.nvim, pass your custom options that are different from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
 
-### Note ID presets
-
-By default obsidian.nvim uses random zettel IDs.
-
-If you want readable UTF-8 title-based IDs (works across scripts), use the built-in preset:
-
-```lua
-require("obsidian").setup({
-  note_id_func = require("obsidian.builtin").title_id,
-})
-```
-
-Examples:
-
-- `"Hello, world"` -> `"hello-world"`
-- `"Привет, мир"` -> `"привет-мир"`
-- `"你好 世界"` -> `"你好-世界"`
-
-When creating notes in a directory where the slug already exists, this preset appends a numeric suffix (`-2`, `-3`, ...).
-
 ## 🤝 Contributing
 
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.
