@@ -87,8 +87,9 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian new [TITLE]` - create a new note
 - `:Obsidian open [QUERY]` - open a note in the Obsidian app
   - query is used to resolve the note to open by ID, path, or alias, else use current note
-- `:Obsidian today [OFFSET]` - open/create a new daily note
+- `:Obsidian today [OFFSET_OR_DATE]` - open/create a new daily note
   - offset is in days, e.g. use `:Obsidian today -1` to go to yesterday's note.
+  - you can also give an argument like `3-1`/`2026-3-1`, it will parse common date formats and open daily for that specific date.
   - Unlike `:Obsidian yesterday` and `:Obsidian tomorrow` this command does not differentiate between weekdays and weekends
 - `:Obsidian tomorrow` - open/create the daily note for the next working day
 - `:Obsidian yesterday` - open/create the daily note for the previous working day

@@ -51,7 +51,7 @@ end
 T["dailies"] = h.temp_vault
 
 T["dailies"]["don't be effected by `note_id_func`"] = function()
-  local note = M.daily(0)
+  local note = M.daily { offset = 0 }
   eq(note.id, os.date "%Y-%m-%d")
 end
 
