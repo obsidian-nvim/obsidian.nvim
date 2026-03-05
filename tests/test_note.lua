@@ -498,7 +498,7 @@ T["format_link"]["wiki should respect link.format"] = function()
 
   Obsidian.buf_dir = Obsidian.dir / "notes"
   local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
-  eq("[[sub/bar]]", bar_note:format_link())
+  eq("[[sub/bar|bar]]", bar_note:format_link())
 end
 
 T["format_link"]["markdown should respect link.format"] = function()
