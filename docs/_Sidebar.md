@@ -15,6 +15,7 @@
 - [[Keymaps]]
 - [[Scripting]]
 - [[Startup-Guide]]
+- [[Obsidian-URI]]
 - [[Recipes]]
 
 ### Modules:
