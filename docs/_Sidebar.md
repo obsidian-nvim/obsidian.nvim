@@ -16,6 +16,7 @@
 - [[Navigation]]
 - [[Scripting]]
 - [[Startup-Guide]]
+- [[Obsidian-URI]]
 - [[Recipes]]
 
 ### Modules:
