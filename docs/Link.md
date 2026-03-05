@@ -1,4 +1,12 @@
-## Customizing Links
+## Link Format
+
+`opts.link.format` defaults to `"shortest"` like obsidian app, valid values:
+
+- `shortest`: shortest file path when possible.
+- `relative`: relative path from the current note file.
+- `absolute`: vault-relative absolute path.
+
+## Link Style
 
 Default `opts.link.style` can be either `"wiki"`, `"markdown"` or a custom function that accepts the following type and return a string:
 
