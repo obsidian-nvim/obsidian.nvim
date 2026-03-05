@@ -3,6 +3,7 @@
 `opts.link.format` defaults to `"shortest"` like obsidian app, valid values:
 
 - `shortest`: shortest file path when possible.
+  - NOTE: obsidian app use its internal cache to disambiguate link paths, since this plugin don't currently have that, this option basically means using the stem of a note path as path of the link.
 - `relative`: relative path from the current note file.
 - `absolute`: vault-relative absolute path.
 

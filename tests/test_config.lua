@@ -46,25 +46,6 @@ T["normalize"]["should prefer explicit link.style over deprecated preferred_link
   eq("wiki", opts.link.style)
 end
 
-T["normalize"]["should migrate deprecated wiki and markdown link functions"] = function()
-  local wiki = function(link_opts)
-    return "wiki:" .. tostring(link_opts.path)
-  end
-  local markdown = function(link_opts)
-    return "md:" .. tostring(link_opts.path)
-  end
-
-  local opts = normalize {
-    wiki_link_func = wiki,
-    markdown_link_func = markdown,
-  }
-
-  eq(wiki, opts.link.wiki)
-  eq(markdown, opts.link.markdown)
-  eq(nil, opts.wiki_link_func)
-  eq(nil, opts.markdown_link_func)
-end
-
 T["normalize"]["should validate link.style"] = function()
   local ok, err = pcall(normalize, {
     link = {

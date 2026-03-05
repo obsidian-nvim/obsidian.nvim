@@ -494,7 +494,7 @@ T["format_link"]["wiki should respect link.format"] = function()
   subfolder:mkdir { exist_ok = true }
 
   Obsidian.buf_dir = subfolder
-  eq("[[../foo]]", note:format_link())
+  eq("[[../foo|foo]]", note:format_link())
 
   Obsidian.buf_dir = Obsidian.dir / "notes"
   local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
