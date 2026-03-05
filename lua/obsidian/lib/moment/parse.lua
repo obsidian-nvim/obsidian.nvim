@@ -585,9 +585,7 @@ return function(input, fmt)
       local value = result.value
 
       -- Map tokens to date fields
-      if token_name == "YYYY" or token_name == "GGGG" then
-        date_fields.year = value
-      elseif token_name == "YY" or token_name == "GG" then
+      if token_name == "YYYY" or token_name == "GGGG" or token_name == "YY" or token_name == "GG" then
         date_fields.year = value
       elseif token_name == "MMMM" or token_name == "MMM" or token_name == "MM" or token_name == "M" then
         date_fields.month = value
