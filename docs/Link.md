@@ -11,7 +11,7 @@
 
 ## Link Style
 
-Default `opts.link.style` can be either `"wiki"`, `"markdown"` or a custom function that accepts the following type and return a string:
+`opts.link.style` can be either `"wiki"`, `"markdown"` or a custom function that accepts the following type and return a string:
 
 ```lua
 ---@class obsidian.link.LinkCreationOpts
