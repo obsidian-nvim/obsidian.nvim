@@ -1274,7 +1274,7 @@ end
 ---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string
 ---@field note_id_func fun()
----@field new_notes_location "current_dir" | "notes_subdir"
+---@field new_notes_location obsidian.note.NewNotesLocation
 
 ---@class (exact) obsidian.note.NoteOpts
 ---@field id string|? An ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true
