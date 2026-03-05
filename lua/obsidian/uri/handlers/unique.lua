@@ -1,13 +1,19 @@
-local ut = require "obsidian.uri.util"
-
 --- Handle the "unique" action. Creates a new note with an auto-generated ID.
 ---@param parsed obsidian.uri.Parsed
 local function handle_unique(parsed)
+  local ut = require "obsidian.uri.util"
   local Note = require "obsidian.note"
 
-  local content = parsed.content
+  -- Prefer clipboard, fall back to content param.
+  local content = nil
   if parsed.clipboard then
-    content = vim.fn.getreg "+"
+    local clip = vim.fn.getreg "+"
+    if clip and clip ~= "" then
+      content = clip
+    end
+  end
+  if not content then
+    content = parsed.content
   end
 
   -- id = nil causes note_id_func to auto-generate a zettel ID.

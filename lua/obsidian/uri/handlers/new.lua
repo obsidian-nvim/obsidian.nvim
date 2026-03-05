@@ -21,11 +21,17 @@ local function handle_new(parsed)
     id = parsed.file
   end
 
-  -- Determine content.
-  local content = parsed.content
-  -- TODO: further clipboard support
+  -- Determine content. Prefer clipboard, fall back to content param.
+  -- In headless mode (e.g. Web Clipper with silent=true), clipboard may be unavailable.
+  local content = nil
   if parsed.clipboard then
-    content = vim.fn.getreg "+"
+    local clip = vim.fn.getreg "+"
+    if clip and clip ~= "" then
+      content = clip
+    end
+  end
+  if not content then
+    content = parsed.content
   end
 
   local note = Note.create {
