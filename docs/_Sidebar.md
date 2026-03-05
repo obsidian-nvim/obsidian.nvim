@@ -17,6 +17,7 @@
 - [[Navigation]]
 - [[Scripting]]
 - [[Startup-Guide]]
+- [[Obsidian-URI]]
 - [[Recipes]]
 - [[LSP]]
 - [[LSP-Progress]]

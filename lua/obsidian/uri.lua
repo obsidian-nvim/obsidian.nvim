@@ -15,7 +15,8 @@ local function parse_query(qs)
   for pair in qs:gmatch "[^&]+" do
     local key, value = pair:match "^([^=]+)=(.*)$"
     if key then
-      params[vim.uri_decode(key)] = vim.uri_decode(value)
+      -- '+' means space in query strings; vim.uri_decode doesn't handle this.
+      params[vim.uri_decode(key)] = vim.uri_decode(value:gsub("+", "%%20"))
     else
       -- Bare key with no value, e.g. &silent&
       params[vim.uri_decode(pair)] = "true"
@@ -241,7 +242,6 @@ end
 ---
 ---@param uri string
 M.handle = function(uri)
-  vim.fn.writefile({ uri }, "/home/n451/obsidian-uri-debug.txt", "a") -- debug log
   local parsed = M.parse(uri)
   if parsed then
     M.dispatch(parsed)
