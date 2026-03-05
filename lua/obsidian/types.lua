@@ -28,16 +28,9 @@
 ---@field log_level? integer
 ---@field notes_subdir? string
 ---@field templates? obsidian.config.TemplateOpts
----@field new_notes_location? obsidian.note.NewNotesLocation
+---@field new_notes_location? obsidian.config.NewNotesLocation
 ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
----@field preferred_link_style? obsidian.link.LinkStyle Deprecated, use `link.style`
----@field wiki_link_func? fun(opts: obsidian.link.LinkCreationOpts): string Deprecated, use `link.wiki`
----@field markdown_link_func? fun(opts: obsidian.link.LinkCreationOpts): string Deprecated, use `link.markdown`
----@field follow_url_func? fun(url: string)
----@field follow_img_func? fun(img: string)
----@field note_frontmatter_func? (fun(note: obsidian.Note): table)
----@field disable_frontmatter? (fun(fname: string?): boolean)|boolean
 ---@field frontmatter? obsidian.config.FrontmatterOpts
 ---@field backlinks? obsidian.config.BacklinkOpts
 ---@field completion? obsidian.config.CompletionOpts
@@ -62,7 +55,7 @@
 ---@field log_level integer
 ---@field notes_subdir string|?
 ---@field templates obsidian.config.TemplateOpts
----@field new_notes_location obsidian.note.NewNotesLocation
+---@field new_notes_location obsidian.config.NewNotesLocation
 ---@field note_id_func (fun(id: string|?, path: obsidian.Path|?): string)
 ---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)
 ---@field frontmatter obsidian.config.FrontmatterOpts
@@ -84,4 +77,4 @@
 ---@field note obsidian.config.NoteOpts
 ---@field link obsidian.config.LinkOpts
 
----@alias obsidian.note.NewNotesLocation "current_dir" | "notes_subdir"
+---@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"

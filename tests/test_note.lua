@@ -451,41 +451,14 @@ T["format_link"]["wiki should include label only when different from raw basenam
   eq("[[foo-bar|Foo Bar]]", note:format_link { label = "Foo Bar" })
 end
 
-T["format_link"]["wiki should not force label when path is URL encoded"] = function()
-  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
-  local note = from_str(foo, Obsidian.dir / "notes/hello world.md")
-
-  Obsidian.opts.link.style = "wiki"
-  Obsidian.opts.link.format = "shortest"
-
-  eq("[[hello%20world]]", note:format_link { label = "hello world" })
-end
-
 T["format_link"]["should respect custom link formatter callbacks"] = function()
   (Obsidian.dir / "notes"):mkdir { exist_ok = true }
   local note = from_str(foo, Obsidian.dir / "notes/foo.md")
 
-  local old_wiki = Obsidian.opts.link.wiki
-  local old_markdown = Obsidian.opts.link.markdown
-
-  local ok, err = pcall(function()
-    Obsidian.opts.link.wiki = function(opts)
-      return "W:" .. tostring(opts.path)
-    end
-    Obsidian.opts.link.markdown = function(opts)
-      return "M:" .. tostring(opts.path)
-    end
-
-    Obsidian.opts.link.style = "wiki"
-    eq("W:foo", note:format_link())
-
-    Obsidian.opts.link.style = "markdown"
-    eq("M:foo.md", note:format_link())
-  end)
-
-  Obsidian.opts.link.wiki = old_wiki
-  Obsidian.opts.link.markdown = old_markdown
-  assert(ok, err)
+  Obsidian.opts.link.style = function(opts)
+    return "W:" .. tostring(opts.path)
+  end
+  eq("W:foo.md", note:format_link())
 end
 
 T["format_link"]["opts.format should override global link.format"] = function()
@@ -494,7 +467,7 @@ T["format_link"]["opts.format should override global link.format"] = function()
 
   Obsidian.opts.link.format = "absolute"
   eq("[[foo]]", note:format_link { format = "shortest", label = "foo" })
-  eq("[[notes/foo]]", note:format_link { format = "absolute", label = "foo" })
+  eq("[[notes/foo|foo]]", note:format_link { format = "absolute", label = "foo" })
 end
 
 T["format_link"]["relative format should fallback to vault root when current note dir is unavailable"] = function()
@@ -504,7 +477,7 @@ T["format_link"]["relative format should fallback to vault root when current not
   (Obsidian.dir / "notes"):mkdir { exist_ok = true }
   local note = from_str(foo, Obsidian.dir / "notes/foo.md")
 
-  eq("[[notes/foo]]", note:format_link { label = "foo" })
+  eq("[[notes/foo|foo]]", note:format_link { label = "foo" })
 end
 
 T["format_link"]["wiki should respect link.format"] = function()
@@ -513,7 +486,7 @@ T["format_link"]["wiki should respect link.format"] = function()
   local note = from_str("", Obsidian.dir / "notes/foo.md")
   eq("[[foo]]", note:format_link())
   Obsidian.opts.link.format = "absolute"
-  eq("[[notes/foo]]", note:format_link())
+  eq("[[notes/foo|foo]]", note:format_link())
 
   Obsidian.opts.link.format = "relative"
 

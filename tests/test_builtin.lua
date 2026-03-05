@@ -59,8 +59,6 @@ T["title_id"]["should return unique title-based ID inside directory"] = function
   vim.fn.delete(tostring(dir), "rf")
 end
 
-T["wiki_link_id_prefix"] = new_set()
-
 T["markdown_link"] = new_set()
 
 T["markdown_link"]["should work without an anchor link"] = function()
@@ -78,6 +76,29 @@ T["markdown_link"]["should work with an anchor link"] = function()
     "[Foo ❯ Heading](123-foo.md#heading)",
     builtin.markdown_link {
       path = "123-foo.md",
+      label = "Foo",
+      anchor = { anchor = "#heading", header = "Heading", level = 1, line = 1 },
+    }
+  )
+end
+
+T["wiki_link"] = new_set()
+
+T["wiki_link"]["should work without an anchor link"] = function()
+  eq(
+    "[[123-foo|Foo]]",
+    builtin.wiki_link {
+      raw_path = "123-foo.md",
+      label = "Foo",
+    }
+  )
+end
+
+T["wiki_link"]["should work with an anchor link"] = function()
+  eq(
+    "[[123-foo#heading|Foo ❯ Heading]]",
+    builtin.wiki_link {
+      raw_path = "123-foo.md",
       label = "Foo",
       anchor = { anchor = "#heading", header = "Heading", level = 1, line = 1 },
     }

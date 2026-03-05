@@ -94,16 +94,17 @@ M.wiki_link = function(opts)
     header = "#" .. opts.block.id
   end
 
-  local path = tostring(opts.path)
-  local raw_path = tostring(opts.raw_path or opts.path)
+  local raw_path = tostring(opts.raw_path or "") -- NOTE: don't care about opts.path, since wiki link don't need to be URL-encoded
   local label = tostring(opts.label or "")
-  local path_basename = vim.fs.basename(raw_path)
 
-  if label ~= "" and label ~= path_basename then
-    return string.format("[[%s%s|%s%s]]", path, anchor, label, header)
+  -- TODO: handle other extensions and suffixes, .canvas, .base
+  local raw_stem = raw_path:gsub("%.md$", "")
+
+  if label ~= "" and label ~= raw_stem then
+    return string.format("[[%s%s|%s%s]]", raw_stem, anchor, label, header)
   end
 
-  return string.format("[[%s%s]]", path, anchor)
+  return string.format("[[%s%s]]", raw_stem, anchor)
 end
 
 ---@param opts obsidian.link.LinkCreationOpts

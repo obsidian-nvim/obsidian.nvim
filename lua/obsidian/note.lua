@@ -1184,7 +1184,7 @@ Note.links = function(self)
 end
 
 ---@param path obsidian.Path vault-relative-path
----@param style obsidian.link.LinkFormat
+---@param style obsidian.link.LinkFormat?
 ---@return string foramted_path
 local function format_path(path, style)
   if style == "absolute" then
@@ -1215,10 +1215,6 @@ Note.format_link = function(self, opts)
   local raw_formatted_path = format_path(self.path, link_format)
 
   local formatted_path = util.urlencode(raw_formatted_path, { keep_path_sep = true })
-  if link_style == "wiki" then
-    raw_formatted_path = raw_formatted_path:gsub("%.md$", "")
-    formatted_path = formatted_path:gsub("%.md$", "")
-  end
 
   local new_opts = {
     path = formatted_path,
@@ -1274,7 +1270,7 @@ end
 ---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string
 ---@field note_id_func fun()
----@field new_notes_location obsidian.note.NewNotesLocation
+---@field new_notes_location obsidian.config.NewNotesLocation
 
 ---@class (exact) obsidian.note.NoteOpts
 ---@field id string|? An ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true
