@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.15.11](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.11) - 2026-03-05
+
 ### Added
 
 - Built-in `title_id` note ID preset for UTF-8 slug IDs with collision suffixing.
