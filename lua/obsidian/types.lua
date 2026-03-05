@@ -84,6 +84,4 @@
 ---@field note obsidian.config.NoteOpts
 ---@field link obsidian.config.LinkOpts
 
----@alias obsidian.link.LinkStyle "wiki" | "markdown"
----@alias obsidian.link.LinkFormat "shortest" | "relative" | "absolute"
 ---@alias obsidian.note.NewNotesLocation "current_dir" | "notes_subdir"

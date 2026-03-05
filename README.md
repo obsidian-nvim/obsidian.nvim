@@ -227,37 +227,6 @@ vim.pack.add {
 
 To configure obsidian.nvim, pass your custom options that are different from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
 
-### Link module
-
-Link rendering is configured under `link`:
-
-```lua
-require("obsidian").setup {
-  link = {
-    style = "wiki", -- "wiki", "markdown", or a custom function(opts)
-    format = "shortest", -- "shortest", "relative", "absolute"
-
-    -- Optional custom renderers used when style is "wiki" or "markdown".
-    wiki = function(opts)
-      return string.format("[[%s]]", opts.path)
-    end,
-    markdown = function(opts)
-      return string.format("[%s](%s)", opts.label, opts.path)
-    end,
-  },
-}
-```
-
-- `shortest`: shortest file path when possible.
-- `relative`: relative path from the current note file.
-- `absolute`: vault-relative absolute path.
-
-Deprecated options still work for now but should be migrated:
-
-- `preferred_link_style` -> `link.style`
-- `wiki_link_func` -> `link.wiki`
-- `markdown_link_func` -> `link.markdown`
-
 ## 📖 Documentation
 
 See the [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki)

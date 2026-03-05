@@ -271,20 +271,14 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   end
 
   if opts.wiki_link_func then
-    opts.link = opts.link or {}
-    opts.link.wiki = opts.wiki_link_func
     opts.wiki_link_func = nil
-    deprecate("wiki_link_func", "link.wiki", "3.16")
-    if type(opts.link.wiki) == "string" then
-      log.warn "Wiki link can no longer be a string"
-    end
+    deprecate("wiki_link_func", "link.style, see `:Obsidian help Link`", "3.16")
   end
 
   if opts.markdown_link_func then
     opts.link = opts.link or {}
-    opts.link.markdown = opts.markdown_link_func
     opts.markdown_link_func = nil
-    deprecate("markdown_link_func", "link.markdown", "3.16")
+    deprecate("markdown_link_func", "link.style, see `:Obsidian help Link`", "3.16")
   end
 
   --------------------------
@@ -331,7 +325,8 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
 
   local valid_link_styles = { "wiki", "markdown" }
   if
-    opts.link.style ~= nil
+    opts.link ~= nil
+    and opts.link.style ~= nil
     and type(opts.link.style) ~= "function"
     and not vim.tbl_contains(valid_link_styles, opts.link.style)
   then
@@ -339,7 +334,7 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
   end
 
   local valid_link_formats = { "shortest", "relative", "absolute" }
-  if opts.link.format ~= nil and not vim.tbl_contains(valid_link_formats, opts.link.format) then
+  if opts.link ~= nil and opts.link.format ~= nil and not vim.tbl_contains(valid_link_formats, opts.link.format) then
     error("Invalid 'link.format' option '" .. tostring(opts.link.format) .. "' in obsidian.nvim config.")
   end
 

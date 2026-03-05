@@ -1230,13 +1230,10 @@ Note.format_link = function(self, opts)
     format = link_format,
   }
 
-  local markdown_link_func = Obsidian.opts.link.markdown or require("obsidian.builtin").markdown_link
-  local wiki_link_func = Obsidian.opts.link.wiki or require("obsidian.builtin").wiki_link
-
   if link_style == "markdown" then
-    return markdown_link_func(new_opts)
+    return require("obsidian.builtin").markdown_link(new_opts)
   elseif link_style == "wiki" or link_style == nil then
-    return wiki_link_func(new_opts)
+    return require("obsidian.builtin").wiki_link(new_opts)
   elseif type(link_style) == "function" then
     return link_style(new_opts)
   else

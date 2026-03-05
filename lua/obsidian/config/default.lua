@@ -15,19 +15,14 @@ return {
   notes_subdir = nil,
   new_notes_location = "current_dir",
 
-  -- wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
-  -- markdown_link_func = require("obsidian.builtin").markdown_link,
-  -- preferred_link_style = "wiki",
+  ---@alias obsidian.link.LinkStyle "wiki" | "markdown" | fun(opts: obsidian.link.LinkCreationOpts): string
+  ---@alias obsidian.link.LinkFormat "shortest" | "relative" | "absolute"
 
   ---@class obsidian.config.LinkOpts
-  ---@field style? "wiki" | "markdown" | fun(opts: obsidian.link.LinkCreationOpts): string
-  ---@field wiki? fun(opts: obsidian.link.LinkCreationOpts): string
-  ---@field markdown? fun(opts: obsidian.link.LinkCreationOpts): string
-  ---@field format? "shortest" | "relative" | "absolute"
+  ---@field style? obsidian.link.LinkStyle
+  ---@field format? obsidian.link.LinkFormat
   link = {
     style = "wiki",
-    wiki = require("obsidian.builtin").wiki_link,
-    markdown = require("obsidian.builtin").markdown_link,
     format = "shortest",
   },
 
