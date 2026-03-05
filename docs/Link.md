@@ -1,3 +1,5 @@
+[Options](#Options)
+
 ## Link Format
 
 `opts.link.format` defaults to `"shortest"` like obsidian app, valid values:
