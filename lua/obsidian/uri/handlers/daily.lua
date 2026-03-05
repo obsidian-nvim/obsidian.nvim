@@ -1,5 +1,3 @@
-local ut = require "obsidian.uri.util"
-
 --- Handle the "daily" action.
 ---@param parsed obsidian.uri.Parsed
 local function handle_daily(parsed)

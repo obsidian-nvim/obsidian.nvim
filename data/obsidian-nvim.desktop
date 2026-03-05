@@ -1,8 +1,0 @@
-[Desktop Entry]
-Name=Obsidian (Neovim)
-Comment=Handle obsidian:// URIs in Neovim with obsidian.nvim
-Exec=obsidian-uri-handler %u
-Type=Application
-NoDisplay=true
-MimeType=x-scheme-handler/obsidian
-Categories=Utility;TextEditor;
