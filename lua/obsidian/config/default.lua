@@ -53,6 +53,13 @@ return {
     end)(),
   },
 
+  ---@class obsidian.config.BookmarksOpts
+  ---@field enabled boolean  TODO: no effect yet
+  ---@field group boolean whether to group bookmarks or list as flat list
+  bookmarks = {
+    group = false,
+  },
+
   ---@class obsidian.config.FrontmatterOpts
   ---
   --- Whether to enable frontmatter, boolean for global on/off, or a function that takes filename and returns boolean.
