@@ -110,7 +110,7 @@ config.normalize = function(opts, defaults)
       opts.link.style = opts.completion.preferred_link_style
     end
     opts.completion.preferred_link_style = nil
-    deprecate("completion.preferred_link_style", "link.style", "3.16")
+    deprecate("completion.preferred_link_style", "link.style", "3.18")
   end
 
   if opts.preferred_link_style ~= nil then
@@ -119,7 +119,7 @@ config.normalize = function(opts, defaults)
       opts.link.style = opts.preferred_link_style
     end
     opts.preferred_link_style = nil
-    deprecate("preferred_link_style", "link.style", "3.16")
+    deprecate("preferred_link_style", "link.style", "3.18")
   end
 
   if opts.completion ~= nil and opts.completion.new_notes_location ~= nil then
@@ -227,21 +227,21 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.search = opts.search or {}
     opts.search.max_lines = opts.search_max_lines
     opts.search_max_lines = nil
-    deprecate("top-level 'search_max_lines'", "search.max_lines", "3.16")
+    deprecate("top-level 'search_max_lines'", "search.max_lines", "3.18")
   end
 
   if opts.sort_by ~= nil then
     opts.search = opts.search or {}
     opts.search.sort_by = opts.sort_by
     opts.sort_by = nil
-    deprecate("top-level 'sort_by'", "search.sort_by", "3.16")
+    deprecate("top-level 'sort_by'", "search.sort_by", "3.18")
   end
 
   if opts.sort_reversed ~= nil then
     opts.search = opts.search or {}
     opts.search.sort_reversed = opts.sort_reversed
     opts.sort_reversed = nil
-    deprecate("top-level 'sort_reversed'", "search.sort_reversed", "3.16")
+    deprecate("top-level 'sort_reversed'", "search.sort_reversed", "3.18")
   end
 
   ---@diagnostic disable-next-line: undefined-field
@@ -249,7 +249,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     ---@diagnostic disable-next-line: undefined-field
     opts.attachments.folder = opts.attachments.img_folder
     opts.attachments.img_folder = nil
-    deprecate("attachments.img_folder", "attachments.folder", "3.16")
+    deprecate("attachments.img_folder", "attachments.folder", "3.18")
   end
 
   if opts.follow_url_func then
@@ -257,7 +257,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     deprecate(
       "follow_url_func",
       "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
-      "3.16"
+      "3.18"
     )
   end
 
@@ -266,19 +266,19 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     deprecate(
       "follow_img_func",
       "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
-      "3.16"
+      "3.18"
     )
   end
 
   if opts.wiki_link_func then
     opts.wiki_link_func = nil
-    deprecate("wiki_link_func", "link.style, see `:Obsidian help Link`", "3.16")
+    deprecate("wiki_link_func", "link.style, see `:Obsidian help Link`", "3.18")
   end
 
   if opts.markdown_link_func then
     opts.link = opts.link or {}
     opts.markdown_link_func = nil
-    deprecate("markdown_link_func", "link.style, see `:Obsidian help Link`", "3.16")
+    deprecate("markdown_link_func", "link.style, see `:Obsidian help Link`", "3.18")
   end
 
   --------------------------
