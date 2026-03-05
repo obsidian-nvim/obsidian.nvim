@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Built-in `title_id` note ID preset for UTF-8 slug IDs with collision suffixing.
+- Date parser for common date formats.
+- `:Obsidian today` can accept a specific date.
 
 ### Fixed
 
