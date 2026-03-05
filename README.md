@@ -227,10 +227,6 @@ vim.pack.add {
 
 To configure obsidian.nvim, pass your custom options that are different from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
 
-## 📖 Documentation
-
-See the [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki)
-
 ## 🤝 Contributing
 
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.
