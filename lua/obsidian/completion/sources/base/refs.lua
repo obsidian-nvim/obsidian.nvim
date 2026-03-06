@@ -239,7 +239,7 @@ function RefsSourceBase:process_search_results(cc, results)
     elseif Obsidian.opts.link.style == "markdown" then
       label = string.format("[%s](…)", option.label)
     elseif type(Obsidian.opts.link.style) == "function" then
-      label = Obsidian.opts.link.style { label = option.label, path = "…" }
+      label = Obsidian.opts.link.style { label = option.label or "", path = "" }
     else
       error "not implemented"
     end
@@ -328,7 +328,7 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
       elseif Obsidian.opts.link.style == "markdown" then
         new_text = "[#" .. option.anchor.header .. "](" .. option.anchor.anchor .. ")"
       elseif type(Obsidian.opts.link.style) == "function" then
-        new_text = Obsidian.opts.link.style { label = option.label, anchor = option.anchor }
+        new_text = Obsidian.opts.link.style { label = option.label or "", path = "", anchor = option.anchor }
       else
         error "not implemented"
       end
@@ -348,7 +348,7 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
       elseif Obsidian.opts.link.style == "markdown" then
         new_text = "[#" .. option.block.id .. "](#" .. option.block.id .. ")"
       elseif type(Obsidian.opts.link.style) == "function" then
-        new_text = Obsidian.opts.link.style { label = option.label, block = option.block }
+        new_text = Obsidian.opts.link.style { label = option.label or "", path = "", block = option.block }
       else
         error "not implemented"
       end
