@@ -15,18 +15,27 @@ return {
   notes_subdir = nil,
   new_notes_location = "current_dir",
 
+  ---@alias obsidian.link.LinkStyle "wiki" | "markdown" | fun(opts: obsidian.link.LinkCreationOpts): string
+  ---@alias obsidian.link.LinkFormat "shortest" | "relative" | "absolute"
+
+  ---@class obsidian.config.LinkOpts
+  ---@field style? obsidian.link.LinkStyle
+  ---@field format? obsidian.link.LinkFormat
+  link = {
+    style = "wiki",
+    format = "shortest",
+  },
+
   workspaces = {},
   log_level = vim.log.levels.INFO,
   -- Default random zettel IDs. To use readable UTF-8 slug IDs, set:
   -- note_id_func = require("obsidian.builtin").title_id
   note_id_func = require("obsidian.builtin").zettel_id,
   note_path_func = function(spec)
+    -- This is equivalent to the default behavior.
     local path = spec.dir / tostring(spec.id)
-    return path
+    return path:with_suffix(".md", true)
   end,
-  wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
-  markdown_link_func = require("obsidian.builtin").markdown_link,
-  preferred_link_style = "wiki",
   open_notes_in = "current",
 
   ---@class obsidian.config.NoteOpts

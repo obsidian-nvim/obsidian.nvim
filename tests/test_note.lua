@@ -427,6 +427,102 @@ T["resolve_id_path"]["should ensure result of 'note_path_func' is always an abso
   eq(Path.new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
 end
 
+T["format_link"] = new_set()
+
+T["format_link"]["should respect link.style"] = function()
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+
+  Obsidian.opts.link.style = "wiki"
+  eq("[[foo]]", note:format_link { label = "foo" })
+
+  Obsidian.opts.link.style = "markdown"
+  eq("[foo](foo.md)", note:format_link { label = "foo" })
+end
+
+T["format_link"]["wiki should include label only when different from raw basename"] = function()
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo-bar.md")
+
+  Obsidian.opts.link.style = "wiki"
+  Obsidian.opts.link.format = "shortest"
+
+  eq("[[foo-bar]]", note:format_link { label = "foo-bar" })
+  eq("[[foo-bar|Foo Bar]]", note:format_link { label = "Foo Bar" })
+end
+
+T["format_link"]["should respect custom link formatter callbacks"] = function()
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+
+  Obsidian.opts.link.style = function(opts)
+    return "W:" .. tostring(opts.path)
+  end
+  eq("W:foo.md", note:format_link())
+end
+
+T["format_link"]["opts.format should override global link.format"] = function()
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+
+  Obsidian.opts.link.format = "absolute"
+  eq("[[foo]]", note:format_link { format = "shortest", label = "foo" })
+  eq("[[notes/foo|foo]]", note:format_link { format = "absolute", label = "foo" })
+end
+
+T["format_link"]["relative format should fallback to vault root when current note dir is unavailable"] = function()
+  Obsidian.opts.link.format = "relative"
+  Obsidian.buf_dir = nil
+
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+
+  eq("[[notes/foo|foo]]", note:format_link { label = "foo" })
+end
+
+T["format_link"]["wiki should respect link.format"] = function()
+  -- default to link.style = "shortest"
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str("", Obsidian.dir / "notes/foo.md")
+  eq("[[foo]]", note:format_link())
+  Obsidian.opts.link.format = "absolute"
+  eq("[[notes/foo|foo]]", note:format_link())
+
+  Obsidian.opts.link.format = "relative"
+
+  local subfolder = Obsidian.dir / "notes" / "sub"
+  subfolder:mkdir { exist_ok = true }
+
+  Obsidian.buf_dir = subfolder
+  eq("[[../foo|foo]]", note:format_link())
+
+  Obsidian.buf_dir = Obsidian.dir / "notes"
+  local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
+  eq("[[sub/bar|bar]]", bar_note:format_link())
+end
+
+T["format_link"]["markdown should respect link.format"] = function()
+  -- default to link.style = "shortest"
+  Obsidian.opts.link.style = "markdown"
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str("", Obsidian.dir / "notes/foo.md")
+  eq("[foo](foo.md)", note:format_link())
+  Obsidian.opts.link.format = "absolute"
+  eq("[foo](notes/foo.md)", note:format_link())
+
+  Obsidian.opts.link.format = "relative"
+
+  local subfolder = Obsidian.dir / "notes" / "sub"
+  subfolder:mkdir { exist_ok = true }
+
+  Obsidian.buf_dir = subfolder
+  eq("[foo](../foo.md)", note:format_link())
+
+  Obsidian.buf_dir = Obsidian.dir / "notes"
+  local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
+  eq("[bar](sub/bar.md)", bar_note:format_link())
+end
+
 -- T["reference_paths"] = new_set()
 --
 -- T["reference_paths"]["do four basic paths"] = function()

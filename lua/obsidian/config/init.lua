@@ -20,14 +20,6 @@ config.SortBy = {
   created = "created",
 }
 
----@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"
-
----@enum obsidian.config.LinkStyle
-config.LinkStyle = {
-  wiki = "wiki",
-  markdown = "markdown",
-}
-
 ---@enum obsidian.config.Picker
 config.Picker = {
   telescope = "telescope.nvim",
@@ -79,7 +71,6 @@ end
 ---
 ---@return obsidian.config.Internal
 config.normalize = function(opts, defaults)
-  local builtin = require "obsidian.builtin"
   local util = require "obsidian.util"
 
   opts = opts or {}
@@ -113,51 +104,22 @@ config.normalize = function(opts, defaults)
     end
   end
 
-  if opts.wiki_link_func == nil and opts.completion ~= nil then
-    local warn = false
-
-    if opts.completion.prepend_note_id then
-      opts.wiki_link_func = builtin.wiki_link_id_prefix
-      opts.completion.prepend_note_id = nil
-      warn = true
-    elseif opts.completion.prepend_note_path then
-      opts.wiki_link_func = builtin.wiki_link_path_prefix
-      opts.completion.prepend_note_path = nil
-      warn = true
-    elseif opts.completion.use_path_only then
-      opts.wiki_link_func = builtin.wiki_link_path_only
-      opts.completion.use_path_only = nil
-      warn = true
-    end
-
-    if warn then
-      log.warn_once(
-        "The config options 'completion.prepend_note_id', 'completion.prepend_note_path', and 'completion.use_path_only' "
-          .. "are deprecated. Please use 'wiki_link_func' instead.\n"
-          .. "See https://github.com/epwalsh/obsidian.nvim/pull/406"
-      )
-    end
-  end
-
-  if opts.wiki_link_func == "prepend_note_id" then
-    opts.wiki_link_func = builtin.wiki_link_id_prefix
-  elseif opts.wiki_link_func == "prepend_note_path" then
-    opts.wiki_link_func = builtin.wiki_link_path_prefix
-  elseif opts.wiki_link_func == "use_path_only" then
-    opts.wiki_link_func = builtin.wiki_link_path_only
-  elseif opts.wiki_link_func == "use_alias_only" then
-    opts.wiki_link_func = builtin.wiki_link_alias_only
-  elseif type(opts.wiki_link_func) == "string" then
-    error(string.format("invalid option '%s' for 'wiki_link_func'", opts.wiki_link_func))
-  end
-
   if opts.completion ~= nil and opts.completion.preferred_link_style ~= nil then
-    opts.preferred_link_style = opts.completion.preferred_link_style
+    opts.link = opts.link or {}
+    if opts.link.style == nil then
+      opts.link.style = opts.completion.preferred_link_style
+    end
     opts.completion.preferred_link_style = nil
-    log.warn_once(
-      "The config option 'completion.preferred_link_style' is deprecated, please use the top-level "
-        .. "'preferred_link_style' instead."
-    )
+    deprecate("completion.preferred_link_style", "link.style", "3.18")
+  end
+
+  if opts.preferred_link_style ~= nil then
+    opts.link = opts.link or {}
+    if opts.link.style == nil then
+      opts.link.style = opts.preferred_link_style
+    end
+    opts.preferred_link_style = nil
+    deprecate("preferred_link_style", "link.style", "3.18")
   end
 
   if opts.completion ~= nil and opts.completion.new_notes_location ~= nil then
@@ -265,21 +227,21 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.search = opts.search or {}
     opts.search.max_lines = opts.search_max_lines
     opts.search_max_lines = nil
-    deprecate("top-level 'search_max_lines'", "search.max_lines", "3.16")
+    deprecate("top-level 'search_max_lines'", "search.max_lines", "3.18")
   end
 
   if opts.sort_by ~= nil then
     opts.search = opts.search or {}
     opts.search.sort_by = opts.sort_by
     opts.sort_by = nil
-    deprecate("top-level 'sort_by'", "search.sort_by", "3.16")
+    deprecate("top-level 'sort_by'", "search.sort_by", "3.18")
   end
 
   if opts.sort_reversed ~= nil then
     opts.search = opts.search or {}
     opts.search.sort_reversed = opts.sort_reversed
     opts.sort_reversed = nil
-    deprecate("top-level 'sort_reversed'", "search.sort_reversed", "3.16")
+    deprecate("top-level 'sort_reversed'", "search.sort_reversed", "3.18")
   end
 
   ---@diagnostic disable-next-line: undefined-field
@@ -287,7 +249,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     ---@diagnostic disable-next-line: undefined-field
     opts.attachments.folder = opts.attachments.img_folder
     opts.attachments.img_folder = nil
-    deprecate("attachments.img_folder", "attachments.folder", "3.16")
+    deprecate("attachments.img_folder", "attachments.folder", "3.18")
   end
 
   if opts.follow_url_func then
@@ -295,7 +257,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     deprecate(
       "follow_url_func",
       "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
-      "3.16"
+      "3.18"
     )
   end
 
@@ -304,8 +266,19 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     deprecate(
       "follow_img_func",
       "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
-      "3.16"
+      "3.18"
     )
+  end
+
+  if opts.wiki_link_func then
+    opts.wiki_link_func = nil
+    deprecate("wiki_link_func", "link.style, see `:Obsidian help Link`", "3.18")
+  end
+
+  if opts.markdown_link_func then
+    opts.link = opts.link or {}
+    opts.markdown_link_func = nil
+    deprecate("markdown_link_func", "link.style, see `:Obsidian help Link`", "3.18")
   end
 
   --------------------------
@@ -329,6 +302,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
   opts.search = tbl_override(defaults.search, opts.search)
   opts.note = tbl_override(defaults.note, opts.note)
+  opts.link = tbl_override(defaults.link, opts.link)
 
   ---------------
   -- Validate. --
@@ -347,6 +321,21 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
 
   if opts.sort_by ~= nil and not vim.tbl_contains(vim.tbl_values(config.SortBy), opts.sort_by) then
     error("Invalid 'sort_by' option '" .. opts.sort_by .. "' in obsidian.nvim config.")
+  end
+
+  local valid_link_styles = { "wiki", "markdown" }
+  if
+    opts.link ~= nil
+    and opts.link.style ~= nil
+    and type(opts.link.style) ~= "function"
+    and not vim.tbl_contains(valid_link_styles, opts.link.style)
+  then
+    error("Invalid 'link.style' option '" .. tostring(opts.link.style) .. "' in obsidian.nvim config.")
+  end
+
+  local valid_link_formats = { "shortest", "relative", "absolute" }
+  if opts.link ~= nil and opts.link.format ~= nil and not vim.tbl_contains(valid_link_formats, opts.link.format) then
+    error("Invalid 'link.format' option '" .. tostring(opts.link.format) .. "' in obsidian.nvim config.")
   end
 
   if not util.islist(opts.workspaces) then

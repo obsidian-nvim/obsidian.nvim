@@ -48,7 +48,7 @@ With bugs, issues and pull requests piling up, people from the community decided
 
 ## ⭐ Features
 
-▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki links, `[` for markdown links, or `#` for tags)
+▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki and markdown links, `#` for tags)
 
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
