@@ -1212,13 +1212,8 @@ Note.format_link = function(self, opts)
   local link_style = opts.style or Obsidian.opts.link.style
   local link_format = opts.format or Obsidian.opts.link.format
 
-  local raw_formatted_path = format_path(self.path, link_format)
-
-  local formatted_path = util.urlencode(raw_formatted_path, { keep_path_sep = true })
-
   local new_opts = {
-    path = formatted_path,
-    raw_path = raw_formatted_path,
+    path = format_path(self.path, link_format),
     label = label,
     anchor = opts.anchor,
     block = opts.block,

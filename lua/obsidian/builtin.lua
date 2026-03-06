@@ -3,12 +3,11 @@ local M = {}
 
 ---@class obsidian.link.LinkCreationOpts
 ---@field label? string
----@field path? obsidian.Path|string|?
+---@field path? string|?
 ---@field anchor? obsidian.note.HeaderAnchor|?
 ---@field block? obsidian.note.Block|?
 ---@field style? obsidian.link.LinkStyle
 ---@field format? obsidian.link.LinkFormat
----@field raw_path? obsidian.Path|string|?
 
 ---Create a new unique Zettel ID.
 ---
@@ -94,17 +93,17 @@ M.wiki_link = function(opts)
     header = "#" .. opts.block.id
   end
 
-  local raw_path = tostring(opts.raw_path or "") -- NOTE: don't care about opts.path, since wiki link don't need to be URL-encoded
+  local path = tostring(opts.path or "")
   local label = tostring(opts.label or "")
 
   -- TODO: handle other extensions and suffixes, .canvas, .base
-  local raw_stem = raw_path:gsub("%.md$", "")
+  local stem = path:gsub("%.md$", "")
 
-  if label ~= "" and label ~= raw_stem then
-    return string.format("[[%s%s|%s%s]]", raw_stem, anchor, label, header)
+  if label ~= "" and label ~= stem then
+    return string.format("[[%s%s|%s%s]]", stem, anchor, label, header)
   end
 
-  return string.format("[[%s%s]]", raw_stem, anchor)
+  return string.format("[[%s%s]]", stem, anchor)
 end
 
 ---@param opts obsidian.link.LinkCreationOpts
@@ -120,7 +119,10 @@ M.markdown_link = function(opts)
     header = "#" .. opts.block.id
   end
 
-  return string.format("[%s%s](%s%s)", opts.label, header, opts.path, anchor)
+  local util = require "obsidian.util"
+  local path = opts.path and util.urlencode(tostring(opts.path), { keep_path_sep = true }) or ""
+
+  return string.format("[%s%s](%s%s)", opts.label, header, path, anchor)
 end
 
 ---@param path string

@@ -88,7 +88,7 @@ T["wiki_link"]["should work without an anchor link"] = function()
   eq(
     "[[123-foo|Foo]]",
     builtin.wiki_link {
-      raw_path = "123-foo.md",
+      path = "123-foo.md",
       label = "Foo",
     }
   )
@@ -98,7 +98,7 @@ T["wiki_link"]["should work with an anchor link"] = function()
   eq(
     "[[123-foo#heading|Foo ❯ Heading]]",
     builtin.wiki_link {
-      raw_path = "123-foo.md",
+      path = "123-foo.md",
       label = "Foo",
       anchor = { anchor = "#heading", header = "Heading", level = 1, line = 1 },
     }

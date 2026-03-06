@@ -126,6 +126,8 @@ function NewNoteSourceBase:process_completion(cc)
       label = string.format("[[%s]] (create)", new_note_opts.label)
     elseif Obsidian.opts.link.style == "markdown" then
       label = string.format("[%s](…) (create)", new_note_opts.label)
+    elseif type(Obsidian.opts.link.style) == "function" then
+      label = Obsidian.opts.link.style { label = new_note_opts.label, path = "…" } .. " (create)"
     else
       error "not implemented"
     end
