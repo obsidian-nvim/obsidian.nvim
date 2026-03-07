@@ -102,6 +102,25 @@ T["substitute_template_variables()"]["should pass suffix to substitution functio
   eq("value is hello", M.substitute_template_variables(text, tmp_template_context()))
 end
 
+T["clone_template()"] = new_set()
+
+T["clone_template()"]["should transfer title from partial_note"] = function()
+  vim.fn.writefile({}, tostring(Obsidian.dir / "templates" / "basic.md"))
+
+  local destination = Obsidian.dir / "test-note.md"
+  local partial = Note.new("1234-ABCD", {}, {}, nil, "My Note Title")
+
+  local result = M.clone_template {
+    type = "clone_template",
+    template_name = "basic.md",
+    destination_path = destination,
+    templates_dir = api.templates_dir(),
+    partial_note = partial,
+  }
+
+  eq("My Note Title", result.title)
+end
+
 T["config.normalize()"] = new_set()
 
 T["config.normalize()"]["custom substitutions should not clobber defaults"] = function()
