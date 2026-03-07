@@ -53,9 +53,7 @@ end
 ---@return integer new_timestamp
 local function increment_timestamp(timestamp, fmt)
   local unit = get_smallest_unit(fmt)
-  ---@type osdateparam
   local date = os.date("*t", timestamp)
-  ---@diagnostic disable-next-line: need-check-nil
   date[unit] = date[unit] + 1
   return os.time(date)
 end
