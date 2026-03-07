@@ -94,7 +94,7 @@ function M.new_unique_id(timestamp)
       api.confirm("Unique note folder does not exist: \n" .. tostring(folder_path) .. "\n" .. "Crete it now?")
 
     if choice == "Yes" then
-      folder_path:mkdir()
+      folder_path:mkdir { parents = true }
     else
       return
     end
