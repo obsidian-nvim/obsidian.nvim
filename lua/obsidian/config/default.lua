@@ -268,7 +268,7 @@ return {
   ---@class obsidian.config.UniqueNoteOpts
   ---
   ---@field enabled? boolean
-  ---@field format? string
+  ---@field format? string|fun():string
   ---@field folder? string
   ---@field template? string
   unique_note = {

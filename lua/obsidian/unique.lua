@@ -60,9 +60,7 @@ local function increment_timestamp(timestamp, fmt)
   return os.time(date)
 end
 
---- Generate a unique note ID, handling collisions by incrementing timestamp.
---- When a collision is detected, the timestamp is incremented by the smallest
---- time unit present in the format (matching Obsidian app behavior).
+-- Generate unique ID with collision handling (increments timestamp by smallest unit)
 ---
 ---@param timestamp integer|nil Unix timestamp (defaults to os.time())
 ---@param fmt string The format string (e.g., "YYYYMMDDHHmm")
@@ -100,6 +98,13 @@ function M.new_unique_id(timestamp)
     end
   end
 
+  local format = Obsidian.opts.unique_note.format
+
+  if type(format) == "function" then
+    return format() -- skip the default generation logic if user provides a custom function
+  end
+  ---@cast format string
+
   -- Collect existing file stems to check for collisions
   local existing_stems = {}
   for file, t in vim.fs.dir(tostring(folder_path)) do
@@ -109,9 +114,7 @@ function M.new_unique_id(timestamp)
     end
   end
 
-  -- Generate unique ID with collision handling (increments timestamp by smallest unit)
-  ---@diagnostic disable-next-line: param-type-mismatch
-  local date_id = generate_unique_id(timestamp, Obsidian.opts.unique_note.format, existing_stems)
+  local date_id = generate_unique_id(timestamp, format, existing_stems)
 
   return date_id
 end
