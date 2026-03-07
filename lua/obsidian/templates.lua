@@ -110,6 +110,7 @@ M.clone_template = function(ctx)
   if ctx.partial_note ~= nil then
     -- Transfer fields from `ctx.partial_note`.
     new_note.id = ctx.partial_note.id
+    new_note.title = ctx.partial_note.title
     for _, alias in ipairs(ctx.partial_note.aliases) do
       new_note:add_alias(alias)
     end
