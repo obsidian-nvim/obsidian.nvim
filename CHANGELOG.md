@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `shortest`: shortest file path when possible.
   - `relative`: relative path from the current note file.
   - `absolute`: vault-relative absolute path.
+- New `unique_note` module compatible with [obsidian app's unique note creator](https://help.obsidian.md/plugins/unique-note)
+  - `:Obsidian unique_note`
+  - `actions.unique_link`
 
 ### Changed
 
