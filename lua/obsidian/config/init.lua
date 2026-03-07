@@ -303,6 +303,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.search = tbl_override(defaults.search, opts.search)
   opts.note = tbl_override(defaults.note, opts.note)
   opts.link = tbl_override(defaults.link, opts.link)
+  opts.unique_note = tbl_override(defaults.unique_note, opts.unique_note)
 
   ---------------
   -- Validate. --
