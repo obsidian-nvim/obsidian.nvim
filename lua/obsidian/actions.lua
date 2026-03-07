@@ -2,6 +2,8 @@ local M = {}
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local Note = require "obsidian.note"
+local unique = require "obsidian.unique"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -24,7 +26,6 @@ end
 M.nav_link = function(direction)
   -- vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")
   local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
-  local Note = require "obsidian.note"
 
   local matches = Note.from_buffer(0):links()
 
@@ -375,7 +376,6 @@ end
 ---@param id string|?
 ---@param callback fun(note: obsidian.Note)|?
 M.new = function(id, callback)
-  local Note = require "obsidian.note"
   if not id then
     id = api.input("Enter id or path (optional): ", { completion = "file" })
     if not id then
@@ -402,8 +402,6 @@ end
 ---@param template string|?
 ---@param callback fun(note: obsidian.Note)|?
 M.new_from_template = function(id, template, callback)
-  local Note = require "obsidian.note"
-
   local templates_dir = api.templates_dir()
   if not templates_dir then
     return log.err "Templates folder is not defined or does not exist"
@@ -456,6 +454,38 @@ M.new_from_template = function(id, template, callback)
       end
     end,
   }
+end
+
+-- https://help.obsidian.md/plugins/unique-note
+---@param timestamp integer|?
+---@return obsidian.Note
+M.new_unique_note = function(timestamp)
+  timestamp = timestamp or os.time()
+
+  local unique_note_folder = Obsidian.opts.unique_note.folder
+  local folder_path = unique_note_folder and Obsidian.dir / unique_note_folder or Obsidian.dir
+
+  -- Collect existing file stems to check for collisions
+  local existing_stems = {}
+  for file, t in vim.fs.dir(tostring(folder_path)) do
+    if t == "file" then
+      local stem = file:gsub("%.%w+$", "")
+      existing_stems[stem] = true
+    end
+  end
+
+  -- Generate unique ID with collision handling (increments timestamp by smallest unit)
+  local date_id = unique.generate_unique_id(timestamp, Obsidian.opts.unique_note.format, existing_stems)
+
+  local note = Note.create {
+    id = date_id,
+    verbatim = true,
+    template = Obsidian.opts.unique_note.template,
+    dir = unique_note_folder,
+    should_write = true,
+  }
+
+  return note
 end
 
 M.add_property = function()
@@ -513,7 +543,6 @@ M.add_property = function()
 end
 
 M.start_presentation = function(buf)
-  local Note = require "obsidian.note"
   local note = Note.from_buffer(buf)
   require("obsidian.slides").start_presentation(note)
 end
