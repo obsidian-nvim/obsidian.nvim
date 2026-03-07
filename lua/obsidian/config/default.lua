@@ -265,6 +265,19 @@ return {
     },
   },
 
+  ---@class obsidian.config.UniqueNoteOpts
+  ---
+  ---@field enabled? boolean
+  ---@field format? string
+  ---@field folder? string
+  ---@field template? string
+  unique_note = {
+    enabled = true,
+    format = "YYYYMMDDHHmm",
+    folder = nil,
+    template = nil,
+  },
+
   ---@class obsidian.config.AttachmentsOpts
   ---
   ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location

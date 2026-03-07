@@ -46,6 +46,12 @@ local function get_commands_by_context(commands, is_visual, is_note)
       end
       return true
     end)
+    :filter(function(config)
+      if not Obsidian.opts.unique_note.enabled then
+        return config.name ~= "unique_note"
+      end
+      return true
+    end)
     :map(function(config)
       return config.name
     end)
@@ -224,6 +230,8 @@ M.register("workspace", { nargs = "?" })
 M.register("help", { nargs = "?" })
 
 M.register("helpgrep", { nargs = "?" })
+
+M.register("unique_note", { nargs = "?" })
 
 ---------------------
 ---- note action ----
