@@ -16,7 +16,6 @@ T["create a unique note with timestamp"] = function()
 end
 
 T["create a unique note in specific folder"] = function()
-  local previous = Obsidian.opts.unique_note.folder
   Obsidian.opts.unique_note.folder = "unique-notes"
 
   -- Create the folder
@@ -25,12 +24,9 @@ T["create a unique note in specific folder"] = function()
   local note = M.new_unique_note()
 
   eq(true, tostring(note.path):find "unique%-notes" ~= nil)
-
-  Obsidian.opts.unique_note.folder = previous
 end
 
 T["create a unique note with specific template"] = function()
-  local previous = Obsidian.opts.unique_note.template
   Obsidian.opts.unique_note.template = "unique"
 
   -- Create template file
@@ -40,8 +36,6 @@ T["create a unique note with specific template"] = function()
   local content = table.concat(h.read(note.path), "\n")
 
   eq(true, content:find "Unique Note Template" ~= nil)
-
-  Obsidian.opts.unique_note.template = previous
 end
 
 T["use next available timestamp"] = function()
@@ -56,7 +50,6 @@ T["use next available timestamp"] = function()
 end
 
 T["use next available timestamp for format with non numeric"] = function()
-  local previous = Obsidian.opts.unique_note.format
   Obsidian.opts.unique_note.format = "YYYYMMDD-HHmmss"
 
   local timestamp = os.time()
@@ -66,8 +59,6 @@ T["use next available timestamp for format with non numeric"] = function()
   -- Smallest unit is second, note2 should be 1 second after note1
   local expected_id = util.format_date(timestamp + 1, "YYYYMMDD-HHmmss")
   eq(expected_id, note2.id)
-
-  Obsidian.opts.unique_note.format = previous
 end
 
 T["create multiple unique notes in sequence"] = function()
@@ -87,7 +78,6 @@ T["create multiple unique notes in sequence"] = function()
 end
 
 T["custom date format"] = function()
-  local previous = Obsidian.opts.unique_note.format
   Obsidian.opts.unique_note.format = "YYYYMMDD"
 
   local timestamp = os.time()
@@ -95,8 +85,6 @@ T["custom date format"] = function()
   local expected_id = util.format_date(timestamp, "YYYYMMDD")
 
   eq(expected_id, note.id)
-
-  Obsidian.opts.unique_note.format = previous
 end
 
 return T
