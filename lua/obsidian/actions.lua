@@ -2,6 +2,7 @@ local M = {}
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local Note = require "obsidian.note"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -24,7 +25,6 @@ end
 M.nav_link = function(direction)
   -- vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")
   local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
-  local Note = require "obsidian.note"
 
   local matches = Note.from_buffer(0):links()
 
@@ -375,7 +375,6 @@ end
 ---@param id string|?
 ---@param callback fun(note: obsidian.Note)|?
 M.new = function(id, callback)
-  local Note = require "obsidian.note"
   if not id then
     id = api.input("Enter id or path (optional): ", { completion = "file" })
     if not id then
@@ -402,8 +401,6 @@ end
 ---@param template string|?
 ---@param callback fun(note: obsidian.Note)|?
 M.new_from_template = function(id, template, callback)
-  local Note = require "obsidian.note"
-
   local templates_dir = api.templates_dir()
   if not templates_dir then
     return log.err "Templates folder is not defined or does not exist"
@@ -456,6 +453,30 @@ M.new_from_template = function(id, template, callback)
       end
     end,
   }
+end
+
+-- https://help.obsidian.md/plugins/unique-note
+---@param timestamp integer|?
+---@return obsidian.Note?
+M.unique_note = function(timestamp)
+  local note = require("obsidian.unique").new_unique_note(timestamp)
+  if not note then
+    return
+  end
+  note:open { sync = true }
+  return note
+end
+
+-- https://help.obsidian.md/plugins/unique-note
+---@param timestamp integer|?
+---@return string?
+M.unique_link = function(timestamp)
+  local link = require("obsidian.unique").new_unique_link(timestamp)
+  if not link then
+    return
+  end
+  vim.api.nvim_put({ link }, "c", true, true)
+  return link
 end
 
 M.add_property = function()
@@ -513,7 +534,6 @@ M.add_property = function()
 end
 
 M.start_presentation = function(buf)
-  local Note = require "obsidian.note"
   local note = Note.from_buffer(buf)
   require("obsidian.slides").start_presentation(note)
 end
