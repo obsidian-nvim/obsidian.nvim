@@ -1,5 +1,5 @@
-local M = require "obsidian.actions"
-local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
+local M = require "obsidian.unique"
+local eq = MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
@@ -47,7 +47,7 @@ end
 T["use next available timestamp"] = function()
   -- Default format is "YYYYMMDDHHmm", smallest unit is minute
   local timestamp = os.time()
-  local note1 = M.new_unique_note(timestamp)
+  local _note1 = M.new_unique_note(timestamp)
   local note2 = M.new_unique_note(timestamp)
 
   -- note2 should be 1 minute after note1
@@ -60,7 +60,7 @@ T["use next available timestamp for format with non numeric"] = function()
   Obsidian.opts.unique_note.format = "YYYYMMDD-HHmmss"
 
   local timestamp = os.time()
-  local note1 = M.new_unique_note(timestamp)
+  local _note1 = M.new_unique_note(timestamp)
   local note2 = M.new_unique_note(timestamp)
 
   -- Smallest unit is second, note2 should be 1 second after note1

@@ -3,7 +3,6 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
-local unique = require "obsidian.unique"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -458,34 +457,26 @@ end
 
 -- https://help.obsidian.md/plugins/unique-note
 ---@param timestamp integer|?
----@return obsidian.Note
-M.new_unique_note = function(timestamp)
-  timestamp = timestamp or os.time()
-
-  local unique_note_folder = Obsidian.opts.unique_note.folder
-  local folder_path = unique_note_folder and Obsidian.dir / unique_note_folder or Obsidian.dir
-
-  -- Collect existing file stems to check for collisions
-  local existing_stems = {}
-  for file, t in vim.fs.dir(tostring(folder_path)) do
-    if t == "file" then
-      local stem = file:gsub("%.%w+$", "")
-      existing_stems[stem] = true
-    end
+---@return obsidian.Note?
+M.unique_note = function(timestamp)
+  local note = require("obsidian.unique").new_unique_note(timestamp)
+  if not note then
+    return
   end
-
-  -- Generate unique ID with collision handling (increments timestamp by smallest unit)
-  local date_id = unique.generate_unique_id(timestamp, Obsidian.opts.unique_note.format, existing_stems)
-
-  local note = Note.create {
-    id = date_id,
-    verbatim = true,
-    template = Obsidian.opts.unique_note.template,
-    dir = unique_note_folder,
-    should_write = true,
-  }
-
+  note:open { sync = true }
   return note
+end
+
+-- https://help.obsidian.md/plugins/unique-note
+---@param timestamp integer|?
+---@return string?
+M.unique_link = function(timestamp)
+  local link = require("obsidian.unique").new_unique_link(timestamp)
+  if not link then
+    return
+  end
+  vim.api.nvim_put({ link }, "c", true, true)
+  return link
 end
 
 M.add_property = function()

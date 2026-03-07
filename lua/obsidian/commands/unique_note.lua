@@ -1,4 +1,3 @@
 return function()
-  local note = require("obsidian.actions").new_unique_note()
-  note:open { sync = true }
+  require("obsidian.actions").unique_note()
 end
