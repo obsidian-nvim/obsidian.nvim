@@ -16,6 +16,7 @@ frontmatter = {
   sort = { "id", "aliases", "tags" },
 }
 ```
+
 ---
 
 obsidian.nvim reads YAML frontmatter at the top of a note (between `---` lines). It validates a small set of keys used by the plugin and leaves any other fields untouched as metadata.
@@ -27,6 +28,17 @@ obsidian.nvim reads YAML frontmatter at the top of a note (between `---` lines).
 - `tags`: string or list of strings
 
 Invalid types are ignored with a warning.
+
+## Syntax
+
+- See [Obsidian's docs on property format](https://help.obsidian.md/properties#Property+format)
+- For multiline strings, use block `|` syntax to denote start of a multiline string
+
+```yaml
+description: |
+  obsidian app is an electron app
+  obsidian.nvim is a neovim plugin
+```
 
 ## Example
 

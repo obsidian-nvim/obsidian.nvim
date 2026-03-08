@@ -189,4 +189,13 @@ T["roundtrip"]["should preserve wikilinks in arrays"] = function()
   eq(reloaded.a[2], "[[other]]")
 end
 
+T["roundtrip"]["should preserve multiline strings"] = function()
+  local original = "description: |\n  Line 1\n  Line 2"
+  local loaded = yaml.loads(original)
+  eq(loaded.description, "Line 1\nLine 2")
+  local dumped = yaml.dumps(loaded)
+  local reloaded = yaml.loads(dumped)
+  eq(reloaded.description, "Line 1\nLine 2")
+end
+
 return T

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `unique_note` module compatible with [obsidian app's unique note creator](https://help.obsidian.md/plugins/unique-note)
   - `:Obsidian unique_note`
   - `actions.unique_link`
+- Multiline strings in frontmatter with `|` syntax is properly preserved.
 
 ### Changed
 
