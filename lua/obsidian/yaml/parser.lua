@@ -411,6 +411,11 @@ end
 ---@param text string
 ---@return any, string
 Parser._parse_inline_value = function(self, i, text)
+  if text:match "%[%[.-%]%]" then
+    local _, _, str = self:_parse_string(i, text)
+    return str, YamlType.Scalar
+  end
+
   for parse_func_and_type in
     vim.iter {
       { self._parse_number, YamlType.Scalar },
