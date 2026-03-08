@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `note.title` is now correctly transferred when creating a note from a template, so custom `frontmatter.func` functions receive the user-entered title.
+- Wiki links in frontmatter will be properly quoted.
+
 ## [v3.15.11](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.11) - 2026-03-05
 
 ### Added

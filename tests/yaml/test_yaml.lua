@@ -134,4 +134,59 @@ T["loads"]["should parse implicit null values"] = function()
   eq(data.complete, false)
 end
 
+T["loads"]["should parse wikilinks as strings"] = function()
+  local data = yaml.loads "a: [[note]]"
+  eq(type(data), "table")
+  eq(data.a, "[[note]]")
+
+  data = yaml.loads "a: [[note|alias]]"
+  eq(data.a, "[[note|alias]]")
+
+  data = yaml.loads "a: [[note#section]]"
+  eq(data.a, "[[note#section]]")
+end
+
+T["loads"]["should parse wikilinks in arrays as strings"] = function()
+  local data = yaml.loads "a:\n  - [[note]]"
+  eq(type(data), "table")
+  eq(type(data.a), "table")
+  eq(data.a[1], "[[note]]")
+
+  data = yaml.loads "a:\n  - [[note|alias]]\n  - [[other]]"
+  eq(data.a[1], "[[note|alias]]")
+  eq(data.a[2], "[[other]]")
+end
+
+T["dump"] = T["dump"] or new_set()
+
+T["dump"]["should quote wikilinks in scalar values"] = function()
+  eq(yaml.dumps { a = "[[note]]" }, 'a: "[[note]]"')
+  eq(yaml.dumps { a = "[[note|alias]]" }, 'a: "[[note|alias]]"')
+  eq(yaml.dumps { a = "[[note#section]]" }, 'a: "[[note#section]]"')
+end
+
+T["dump"]["should quote wikilinks in arrays"] = function()
+  eq(yaml.dumps { a = { "[[note]]" } }, 'a:\n  - "[[note]]"')
+  eq(yaml.dumps { a = { "[[note|alias]]", "[[other]]" } }, 'a:\n  - "[[note|alias]]"\n  - "[[other]]"')
+end
+
+T["roundtrip"] = new_set()
+
+T["roundtrip"]["should preserve wikilinks in scalar values"] = function()
+  local original = "a: [[note]]"
+  local loaded = yaml.loads(original)
+  local dumped = yaml.dumps(loaded)
+  local reloaded = yaml.loads(dumped)
+  eq(reloaded.a, "[[note]]")
+end
+
+T["roundtrip"]["should preserve wikilinks in arrays"] = function()
+  local original = "a:\n  - [[note]]\n  - [[other]]"
+  local loaded = yaml.loads(original)
+  local dumped = yaml.dumps(loaded)
+  local reloaded = yaml.loads(dumped)
+  eq(reloaded.a[1], "[[note]]")
+  eq(reloaded.a[2], "[[other]]")
+end
+
 return T
