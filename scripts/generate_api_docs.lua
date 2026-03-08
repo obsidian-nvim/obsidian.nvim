@@ -8,6 +8,7 @@ local submodules = {
   "lua/obsidian/note.lua",
   "lua/obsidian/workspace.lua",
   "lua/obsidian/path.lua",
+  "lua/obsidian/actions.lua",
 }
 
 local hooks = vim.deepcopy(MiniDoc.default_hooks)
