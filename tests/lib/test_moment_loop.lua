@@ -6,14 +6,6 @@ local moment = require "obsidian.lib.moment"
 
 local new_set = MiniTest.new_set
 
--- Helper to check only date fields (year/month/day, ignoring isdst)
-local function date_eq_ymd(date1, date2)
-  if not date1 or not date2 then
-    return false
-  end
-  return date1.year == date2.year and date1.month == date2.month and date1.day == date2.day
-end
-
 -- Helper to convert date table to unix timestamp
 local function date_to_timestamp(date)
   return os.time(date)
@@ -67,29 +59,6 @@ local roundtrip_eq = MiniTest.new_expectation(
       format_str,
       formatted,
       vim.inspect(test_date),
-      vim.inspect(parsed)
-    )
-  end
-)
-
--- Expectation for round-trip test (date only)
-local roundtrip_eq_ymd = MiniTest.new_expectation(
-  "round-trip format→parse→date preserves Y/M/D",
-  function(format_str, test_date)
-    local timestamp = date_to_timestamp(test_date)
-    local formatted = moment.format(timestamp, format_str)
-    local parsed = moment.parse(formatted, format_str)
-    return date_eq_ymd(parsed, test_date)
-  end,
-  function(format_str, test_date)
-    local timestamp = date_to_timestamp(test_date)
-    local formatted = moment.format(timestamp, format_str)
-    local parsed = moment.parse(formatted, format_str)
-    return string.format(
-      "Format: %s\nOriginal date: %s\nFormatted string: %s\nParsed back: %s",
-      format_str,
-      vim.inspect(test_date),
-      formatted,
       vim.inspect(parsed)
     )
   end
