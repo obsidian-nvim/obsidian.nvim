@@ -118,8 +118,8 @@ Parser.parse = function(self, str)
       elseif util.islist(parent) and value_type == YamlType.ArrayItem then
         -- Add value to parent array.
         parent[#parent + 1] = value
-       elseif type(parent) == "table" and value_type == YamlType.Mapping then
-         -- Add value to parent mapping.
+      elseif type(parent) == "table" and value_type == YamlType.Mapping then
+        -- Add value to parent mapping.
         for key, item in pairs(value) do
           -- Check for duplicate keys.
           if parent[key] ~= nil then
