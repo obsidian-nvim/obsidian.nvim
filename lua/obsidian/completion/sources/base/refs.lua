@@ -187,9 +187,6 @@ end
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
 ---@param results obsidian.Note[]
 function RefsSourceBase:process_search_results(cc, results)
-  assert(cc, "no cc")
-  assert(results, "no results")
-
   local completion_items = {}
 
   cc.new_text_to_option = {}
@@ -304,7 +301,7 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
     if option.label then
       new_text = note:format_link { label = option.label, anchor = option.anchor, block = option.block }
 
-      final_label = assert(option.alt_label or option.label, "no valid label")
+      final_label = option.alt_label or option.label
       if option.anchor then
         final_label = final_label .. option.anchor.anchor
       elseif option.block then

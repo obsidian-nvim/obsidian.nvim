@@ -8,6 +8,15 @@
       "?/lua/?/init.lua"
     ]
   },
+  "diagnostics": {
+    "disable": [
+      "unnecessary-if"
+    ]
+  },
+  "strict": {
+    "typeCall": true,
+    "arrayIndex": true
+  },
   "workspace": {
     "checkThirdParty": false,
     "library": [

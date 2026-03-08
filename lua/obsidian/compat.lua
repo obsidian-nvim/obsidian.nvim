@@ -7,6 +7,7 @@ end
 
 compat.is_list = function(t)
   if not has_nvim_0_11 then
+    ---@diagnostic disable-line: deprecated
     return vim.tbl_islist(t)
   end
   return vim.islist(t)
@@ -17,6 +18,7 @@ compat.flatten = function(t)
     ---@diagnostic disable-next-line: undefined-field
     return vim.iter(t):flatten():totable()
   else
+    ---@diagnostic disable-line: deprecated
     return vim.tbl_flatten(t)
   end
 end

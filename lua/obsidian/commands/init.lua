@@ -90,7 +90,8 @@ M.register = function(name, config)
   if not config.func then
     config.func = function(data)
       local mod = require("obsidian.commands." .. name)
-      return mod(data)
+      mod(data)
+      return
     end
   end
   config.name = name

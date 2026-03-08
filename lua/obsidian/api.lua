@@ -88,7 +88,7 @@ end
 ---@param path string|obsidian.Path
 ---@return obsidian.Workspace|?
 M.find_workspace = function(path)
-  return vim.iter(Obsidian.workspaces):find(function(ws)
+  return iter(Obsidian.workspaces):find(function(ws)
     return M.path_is_note(path, ws)
   end)
 end
@@ -440,7 +440,7 @@ end
 ---@param name string
 ---@return string|?
 local get_src_root = function(name)
-  return vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
+  return iter(vim.api.nvim_list_runtime_paths()):find(function(path)
     return vim.endswith(path, name)
   end)
 end
@@ -560,7 +560,6 @@ M.get_os = function()
     end
   end
 
-  assert(this_os, "failed to get your os")
   M._current_os = this_os
   return this_os
 end

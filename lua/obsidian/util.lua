@@ -574,10 +574,11 @@ end
 
 --- Check if a string contains invalid characters.
 ---
---- @param fname string
+--- @param fname string|obsidian.Path
 ---
 --- @return boolean
 util.contains_invalid_characters = function(fname)
+  fname = tostring(fname)
   local invalid_chars = "#^%[%]|"
   return string.find(fname, "[" .. invalid_chars .. "]") ~= nil
 end

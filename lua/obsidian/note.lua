@@ -805,7 +805,6 @@ Note.from_lines = function(lines, path, opts)
   if id == nil or id == path.name then
     id = path.stem
   end
-  assert(id, "failed to find a valid id for note")
 
   local n = Note.new(id, aliases, tags, path)
   n.metadata = metadata

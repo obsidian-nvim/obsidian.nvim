@@ -119,7 +119,6 @@ Parser.parse = function(self, str)
         -- Add value to parent array.
         parent[#parent + 1] = value
       elseif type(parent) == "table" and value_type == YamlType.Mapping then
-        assert(parent, "invalid parent")
         -- Add value to parent mapping.
         for key, item in pairs(value) do
           -- Check for duplicate keys.

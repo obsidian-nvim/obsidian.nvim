@@ -35,7 +35,7 @@ NewNoteSourceBase.get_trigger_characters = completion.get_trigger_characters
 ---@param completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
 ---@param request obsidian.completion.sources.base.Request
 ---@return obsidian.completion.sources.base.NewNoteSourceCompletionContext
-function NewNoteSourceBase:new_completion_context(completion_resolve_callback, request)
+function NewNoteSourceBase.new_completion_context(_self, completion_resolve_callback, request)
   local completion_context = NewNoteSourceCompletionContext.new()
 
   -- Sets up the completion callback, which will be called when the (possibly incomplete) completion items are ready
@@ -193,7 +193,7 @@ end
 --- Runs a generalized version of the execute method
 ---@param item any
 ---@return table|? callback_return_value
-function NewNoteSourceBase:process_execute(item)
+function NewNoteSourceBase.process_execute(_self, item)
   local data = item.data
 
   if data == nil then

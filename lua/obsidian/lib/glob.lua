@@ -1,6 +1,9 @@
 --- credit to: https://github.com/sumneko/lua-glob/blob/master/glob.lua
 
 ---@class Glob
+---@field patternMap table<string, table[]?>
+---@field options Glob.Options
+---@field interface Glob.Interface
 local M = {}
 M.__index = M
 
