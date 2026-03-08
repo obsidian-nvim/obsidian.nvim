@@ -209,7 +209,7 @@ end
 --- @return any ...
 function M.await(argc, fun, ...)
   if not coroutine.running() then
-    error("Async.await() must be called from an async function")
+    error "Async.await() must be called from an async function"
   end
   local args = vim.F.pack_len(...) --- @type {n:integer, [integer]:any}
 
