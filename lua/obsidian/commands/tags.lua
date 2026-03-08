@@ -64,12 +64,10 @@ return function(data)
     end
   end
 
-  local search_opts = { sort = true }
-
   if not vim.tbl_isempty(tags) then
     search.find_tags_async(tags, function(tag_locations)
       return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
-    end, { dir = dir, search = search_opts })
+    end, { dir = dir })
   else
     search.find_tags_async("", function(tag_locations)
       tags = list_tags(tag_locations)
@@ -85,6 +83,6 @@ return function(data)
           allow_multiple = true,
         })
       end)
-    end, { dir = dir, search = search_opts })
+    end, { dir = dir })
   end
 end

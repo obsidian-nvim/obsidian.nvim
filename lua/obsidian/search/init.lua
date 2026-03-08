@@ -451,7 +451,7 @@ M.resolve_note = function(query, opts)
     return paths_found
   end
 
-  local results = M.find_notes(query, { search = { sort = true, ignore_case = true }, notes = opts.notes })
+  local results = M.find_notes(query, { search = { ignore_case = true }, notes = opts.notes })
   local query_lwr = string.lower(query)
 
   -- We'll gather both exact matches (of ID, filename, and aliases) and fuzzy matches.
