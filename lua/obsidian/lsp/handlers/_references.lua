@@ -34,7 +34,7 @@ end
 ---@param opts { anchor: string|?, block: string|? }
 ---@return lsp.Location[]
 local function collect_backlinks(note, opts)
-  local backlink_matches = note:backlinks { search = { sort = true }, anchor = opts.anchor, block = opts.block }
+  local backlink_matches = note:backlinks { anchor = opts.anchor, block = opts.block }
   return vim.iter(backlink_matches):map(backlink_to_lsp_location):totable()
 end
 
