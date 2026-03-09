@@ -1241,6 +1241,7 @@ Note.status = function(self, update_backlink)
   return status
 end
 
+---@return string[]
 Note.body_lines = function(self)
   if not self.has_frontmatter then
     return self.contents
@@ -1252,9 +1253,11 @@ Note.body_lines = function(self)
   return lines
 end
 
+---@param other obsidian.Note
+---@return obsidian.Note
 Note.merge = function(self, other)
-  if not other.has_frontmatter then
-    return
+  if not other.has_frontmatter or not other.frontmatter_end_line then
+    return self
   end
   local frontmatter_lines = {}
 
@@ -1293,6 +1296,7 @@ Note.merge = function(self, other)
   end
 
   self.has_frontmatter = true
+  return self
 end
 
 ---@class (exact) obsidian.note.LoadOpts
