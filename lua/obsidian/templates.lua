@@ -5,6 +5,12 @@ local api = require "obsidian.api"
 
 local M = {}
 
+---@param line string
+---@return boolean
+local is_frontmatter_boundary = function(line)
+  return line:match "^---+$" ~= nil
+end
+
 --- Resolve a template name to a path.
 ---
 ---@param template_name string|obsidian.Path
@@ -97,9 +103,48 @@ M.clone_template = function(ctx)
     error(string.format("Unable to write note at '%s': %s", note_path, tostring(write_err)))
   end
 
+  local strip_frontmatter = false
+  if ctx.partial_note ~= nil then
+    local note_for_frontmatter = ctx.partial_note
+    if note_for_frontmatter.path == nil then
+      note_for_frontmatter = Note.new(
+        ctx.partial_note.id,
+        ctx.partial_note.aliases,
+        ctx.partial_note.tags,
+        note_path,
+        ctx.partial_note.title
+      )
+    end
+
+    strip_frontmatter = not note_for_frontmatter:should_save_frontmatter()
+  end
+  local saw_first_line = false
+  local in_frontmatter = false
+
   for line in template_file:lines "L" do
-    line = M.substitute_template_variables(line, ctx)
-    note_file:write(line)
+    local write_line = true
+
+    if strip_frontmatter then
+      local line_without_newline = line:gsub("[\r\n]+$", "")
+
+      if not saw_first_line then
+        saw_first_line = true
+        if is_frontmatter_boundary(line_without_newline) then
+          in_frontmatter = true
+          write_line = false
+        end
+      elseif in_frontmatter then
+        write_line = false
+        if is_frontmatter_boundary(line_without_newline) then
+          in_frontmatter = false
+        end
+      end
+    end
+
+    if write_line then
+      line = M.substitute_template_variables(line, ctx)
+      note_file:write(line)
+    end
   end
 
   assert(template_file:close())

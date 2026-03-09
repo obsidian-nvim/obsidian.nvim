@@ -42,6 +42,46 @@ T["rename current note"] = function()
   eq(target_expected, table.concat(lines, "\n"))
 end
 
+T["rename current note does not insert frontmatter when disabled"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["plain.md"] = "hello\nworld",
+  })
+
+  local new_target_path = root / "renamed-plain.md"
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["plain.md"])
+  child.lua [[vim.lsp.buf.rename("renamed-plain", {})]]
+  child.cmd "wa"
+
+  eq(true, new_target_path:exists())
+  local lines = h.read(new_target_path)
+  eq("hello\nworld", table.concat(lines, "\n"))
+end
+
+T["rename note under cursor does not insert frontmatter when disabled"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["plain.md"] = "hello\nworld",
+    [ref] = ref_content:gsub("target", "plain"),
+  })
+
+  local new_target_path = root / "renamed-plain.md"
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files[ref])
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  child.lua [[vim.lsp.buf.rename("renamed-plain", {})]]
+  child.cmd "wa"
+
+  eq(true, new_target_path:exists())
+  eq("hello\nworld", table.concat(h.read(new_target_path), "\n"))
+  local ref_result = table.concat(h.read(files[ref]), "\n")
+  eq(true, ref_result:find "%[%[renamed%-plain%]%]" ~= nil)
+  eq(nil, ref_result:find "^%-%-%-")
+end
+
 T["rename current note is no-op when name matches current note"] = function()
   local root = child.Obsidian.dir
   local files = h.mock_vault_contents(root, {
