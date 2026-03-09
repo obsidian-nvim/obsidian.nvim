@@ -14,6 +14,23 @@ T["new"]["should be able to be initialize directly"] = function()
   eq(true, M.is_note_obj(note))
 end
 
+T["create"] = new_set()
+
+T["create"]["should not add frontmatter from the default template when disabled"] = function()
+  Obsidian.opts.frontmatter.enabled = false
+
+  local note = M.create {
+    id = "plain",
+    verbatim = true,
+    dir = Obsidian.dir,
+    template = Obsidian.opts.note.template,
+    should_write = true,
+  }
+
+  local saved_note = M.from_file(note.path)
+  eq(false, saved_note.has_frontmatter)
+end
+
 local function from_str(str, path, opts)
   return M.from_lines(vim.iter(vim.split(str, "\n")), path, opts)
 end

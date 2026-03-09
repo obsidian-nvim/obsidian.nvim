@@ -166,7 +166,7 @@ M.rename = function(note, new_name, callback)
 
   note.id = new_name
   note.path = Path.new(new_path)
-  note:save_to_buffer { bufnr = note.bufnr }
+  note:update_frontmatter(note.bufnr)
 
   -- Reload buffer to show updated backlinks
   vim.schedule(function()

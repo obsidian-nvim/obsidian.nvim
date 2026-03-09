@@ -121,6 +121,25 @@ T["clone_template()"]["should transfer title from partial_note"] = function()
   eq("My Note Title", result.title)
 end
 
+T["clone_template()"]["should strip template frontmatter when disabled"] = function()
+  vim.fn.writefile(
+    { "---", "id: {{id}}", "aliases: []", "tags: []", "---", "body" },
+    tostring(Obsidian.dir / "templates" / "with-frontmatter.md")
+  )
+  Obsidian.opts.frontmatter.enabled = false
+
+  local result = M.clone_template {
+    type = "clone_template",
+    template_name = "with-frontmatter.md",
+    destination_path = Obsidian.dir / "test-note.md",
+    templates_dir = api.templates_dir(),
+    partial_note = Note.new("plain", {}, {}, Obsidian.dir / "test-note.md", "plain"),
+  }
+
+  eq(false, result.has_frontmatter)
+  eq("body", table.concat(vim.fn.readfile(tostring(result.path)), "\n"))
+end
+
 T["config.normalize()"] = new_set()
 
 T["config.normalize()"]["custom substitutions should not clobber defaults"] = function()
