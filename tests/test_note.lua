@@ -242,6 +242,86 @@ T["from_lines"]["should work from a file w/o frontmatter"] = function()
   eq(false, note.has_frontmatter)
 end
 
+T["body_lines"] = new_set()
+
+T["body_lines"]["should return full contents when no frontmatter"] = function()
+  local note = from_str("# Title\n\nBody line", "no_frontmatter.md", { load_contents = true })
+  eq({ "# Title", "", "Body line" }, note:body_lines())
+end
+
+T["body_lines"]["should return contents after frontmatter"] = function()
+  local note = from_str("---\nid: test\n---\n\nBody line 1\n\nBody line 2", "with_frontmatter.md", {
+    load_contents = true,
+  })
+  eq({ "", "Body line 1", "", "Body line 2" }, note:body_lines())
+end
+
+T["merge"] = new_set()
+
+T["merge"]["should merge aliases, tags, and metadata"] = function()
+  local base_note = from_str(
+    [[---
+id: self
+aliases:
+   - alpha
+tags:
+   - one
+foo: bar
+---]],
+    "self.md"
+  )
+  local other_note = from_str(
+    [[---
+aliases:
+   - beta
+tags:
+   - two
+foo: baz
+extra:
+   - 1
+   - 2
+---]],
+    "other.md"
+  )
+
+  base_note:merge(other_note)
+
+  eq(true, base_note:has_alias "beta")
+  eq(true, base_note:has_tag "two")
+  eq({ "bar", "baz" }, base_note.metadata.foo)
+  eq({ 1, 2 }, base_note.metadata.extra)
+end
+
+T["merge"]["should do nothing when other has no frontmatter"] = function()
+  local base_note = from_str("---\nfoo: bar\n---", "self.md", { load_contents = true })
+  local other_note = from_str("Just body", "other.md", { load_contents = true })
+
+  base_note:merge(other_note)
+
+  eq("bar", base_note.metadata.foo)
+end
+
+T["merge"]["should merge into note with no frontmatter"] = function()
+  local base_note = from_str("Just body content", "self.md", { load_contents = true })
+  local other_note = from_str(
+    [[---
+aliases:
+   - beta
+tags:
+   - two
+foo: baz
+---]],
+    "other.md"
+  )
+
+  base_note:merge(other_note)
+
+  eq(true, base_note:has_alias "beta")
+  eq(true, base_note:has_tag "two")
+  eq("baz", base_note.metadata.foo)
+  eq(true, base_note.has_frontmatter)
+end
+
 T["from_file"] = new_set()
 
 T["from_file"]["should work from a README"] = function()

@@ -135,7 +135,8 @@ M.insert_template = function(ctx)
 
   local template_path = M.resolve_template(ctx.template_name, ctx.templates_dir)
 
-  local insert_lines = {}
+  ---@type string[]
+  local template_lines = {}
   local template_file = io.open(tostring(template_path), "r")
   if template_file then
     local lines = template_file:lines()
@@ -145,15 +146,15 @@ M.insert_template = function(ctx)
         local line_start = 1
         for line_end in util.gfind(new_lines, "[\r\n]") do
           local new_line = string.sub(new_lines, line_start, line_end - 1)
-          table.insert(insert_lines, new_line)
+          table.insert(template_lines, new_line)
           line_start = line_end + 1
         end
         local last_line = string.sub(new_lines, line_start)
         if string.len(last_line) > 0 then
-          table.insert(insert_lines, last_line)
+          table.insert(template_lines, last_line)
         end
       else
-        table.insert(insert_lines, new_lines)
+        table.insert(template_lines, new_lines)
       end
     end
     template_file:close()
@@ -161,9 +162,25 @@ M.insert_template = function(ctx)
     error(string.format("Template file '%s' not found", template_path))
   end
 
+  local insert_note = Note.from_lines(template_lines)
+  local current_note = api.current_note(buf)
+  if not current_note then
+    error "Failed to get current note for buffer"
+  end
+
+  local insert_lines = template_lines
+  if insert_note.has_frontmatter then
+    insert_lines = insert_note:body_lines()
+    current_note:merge(insert_note)
+  end
+
   vim.api.nvim_buf_set_lines(buf, row - 1, row - 1, false, insert_lines)
   local new_cursor_row, _ = unpack(vim.api.nvim_win_get_cursor(win))
   vim.api.nvim_win_set_cursor(0, { new_cursor_row, 0 })
+
+  if insert_note.has_frontmatter then
+    current_note:update_frontmatter()
+  end
 
   require("obsidian.ui").update(0)
 

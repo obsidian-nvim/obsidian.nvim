@@ -48,7 +48,7 @@ local Note = {}
 local load_contents = function(note)
   local contents = {}
   local path = tostring(rawget(note, "path"))
-  if not path then
+  if not path or not vim.uv.fs_stat(path) then
     return {}
   end
   for line in io.lines(path) do
@@ -638,28 +638,19 @@ end
 
 --- Initialize a note from an iterator of lines.
 ---
----@param lines fun(): string|? | Iter
----@param path string|obsidian.Path
+---@param lines string[] | fun(): string|? | Iter
+---@param path string|obsidian.Path|?
 ---@param opts obsidian.note.LoadOpts|?
 ---
 ---@return obsidian.Note note
 ---@return string[] warnings
 Note.from_lines = function(lines, path, opts)
   opts = opts or {}
-  path = Path.new(path):resolve()
+  path = path and Path.new(path):resolve()
 
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
-  -- local id = nil
-  -- local title
-  -- local aliases = {}
-  -- local tags = {}
-
-  ---@type string[]|?
-  local contents
-  if opts.load_contents then
-    contents = {}
-  end
+  local contents = {}
 
   ---@type table<string, obsidian.note.HeaderAnchor>|?
   local anchor_links
@@ -700,7 +691,7 @@ Note.from_lines = function(lines, path, opts)
     while parent ~= nil do
       out = parent.anchor .. out
       data = get_parent_anchor(parent)
-      if data then
+      if data ~= nil then
         parent = data.parent
       else
         parent = nil
@@ -777,15 +768,10 @@ Note.from_lines = function(lines, path, opts)
     end
 
     -- Collect contents.
-    if contents ~= nil then
-      table.insert(contents, line)
-    end
+    table.insert(contents, line)
 
     -- Check if we can stop reading lines now.
-    if
-      line_idx > max_lines
-      -- or (title and not opts.load_contents and not opts.collect_anchor_links and not opts.collect_blocks) -- TODO: always false
-    then
+    if line_idx > max_lines then
       break
     end
   end
@@ -802,8 +788,8 @@ Note.from_lines = function(lines, path, opts)
   local id, aliases, tags = info.id, info.aliases, info.tags
 
   -- ID should default to the filename without the extension.
-  if id == nil or id == path.name then
-    id = path.stem
+  if id == nil or (path and id == path.name) then
+    id = path and path.stem
   end
 
   local n = Note.new(id, aliases, tags, path)
@@ -832,7 +818,7 @@ Note.frontmatter = require("obsidian.builtin").frontmatter
 
 --- Get frontmatter lines that can be written to a buffer.
 ---
----@param current_lines string[]
+---@param current_lines string[]|?
 ---@return string[]
 Note.frontmatter_lines = function(self, current_lines)
   local order
@@ -845,7 +831,7 @@ Note.frontmatter_lines = function(self, current_lines)
   if has_frontmatter then
     local yaml_body_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
-    end, current_lines)
+    end, current_lines or {})
     syntax_ok, _, order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
   end
   if syntax_ok or not has_frontmatter then -- if parse success or there's no frontmatter (and should insert)
@@ -1255,9 +1241,66 @@ Note.status = function(self, update_backlink)
   return status
 end
 
+---@return string[]
+Note.body_lines = function(self)
+  if not self.has_frontmatter then
+    return self.contents
+  end
+  local lines = {}
+  for i = self.frontmatter_end_line + 1, #self.contents do
+    lines[#lines + 1] = self.contents[i]
+  end
+  return lines
+end
+
+---@param other obsidian.Note
+---@return obsidian.Note
+Note.merge = function(self, other)
+  if not other.has_frontmatter or not other.frontmatter_end_line then
+    return self
+  end
+  local frontmatter_lines = {}
+
+  for i = 2, other.frontmatter_end_line - 1 do
+    frontmatter_lines[#frontmatter_lines + 1] = other.contents[i]
+  end
+
+  local insert_frontmatter, insert_metadata = Frontmatter.parse(frontmatter_lines)
+
+  for k, v in pairs(insert_frontmatter) do
+    if k == "aliases" and type(v) == "table" then
+      for _, alias in ipairs(v) do
+        self:add_alias(alias)
+      end
+    elseif k == "tags" and type(v) == "table" then
+      for _, tag in ipairs(v) do
+        self:add_tag(tag)
+      end
+    end
+  end
+
+  local function listify(v)
+    return util.islist(v) and v or { v }
+  end
+
+  for k, v in pairs(insert_metadata) do
+    if self.metadata[k] then
+      local listified_v = listify(v)
+      if not util.islist(self.metadata[k]) then
+        self.metadata[k] = listify(self.metadata[k])
+      end
+      vim.list_extend(self.metadata[k], listified_v)
+    else
+      self.metadata[k] = v
+    end
+  end
+
+  self.has_frontmatter = true
+  return self
+end
+
 ---@class (exact) obsidian.note.LoadOpts
 ---@field max_lines integer|?
----@field load_contents boolean|?
 ---@field collect_anchor_links boolean|?
 ---@field collect_blocks boolean|?
 
