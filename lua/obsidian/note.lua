@@ -1258,8 +1258,6 @@ Note.merge = function(self, other)
   end
   local frontmatter_lines = {}
 
-  assert(other.frontmatter_end_line)
-
   for i = 2, other.frontmatter_end_line - 1 do
     frontmatter_lines[#frontmatter_lines + 1] = other.contents[i]
   end
@@ -1272,8 +1270,8 @@ Note.merge = function(self, other)
         self:add_alias(alias)
       end
     elseif k == "tags" and type(v) == "table" then
-      for _, alias in ipairs(v) do
-        self:add_tag(alias)
+      for _, tag in ipairs(v) do
+        self:add_tag(tag)
       end
     end
   end
@@ -1293,6 +1291,8 @@ Note.merge = function(self, other)
       self.metadata[k] = v
     end
   end
+
+  self.has_frontmatter = true
 end
 
 ---@class (exact) obsidian.note.LoadOpts

@@ -136,7 +136,7 @@ M.insert_template = function(ctx)
   local template_path = M.resolve_template(ctx.template_name, ctx.templates_dir)
 
   ---@type string[]
-  local insert_lines = {}
+  local template_lines = {}
   local template_file = io.open(tostring(template_path), "r")
   if template_file then
     local lines = template_file:lines()
@@ -146,15 +146,15 @@ M.insert_template = function(ctx)
         local line_start = 1
         for line_end in util.gfind(new_lines, "[\r\n]") do
           local new_line = string.sub(new_lines, line_start, line_end - 1)
-          table.insert(insert_lines, new_line)
+          table.insert(template_lines, new_line)
           line_start = line_end + 1
         end
         local last_line = string.sub(new_lines, line_start)
         if string.len(last_line) > 0 then
-          table.insert(insert_lines, last_line)
+          table.insert(template_lines, last_line)
         end
       else
-        table.insert(insert_lines, new_lines)
+        table.insert(template_lines, new_lines)
       end
     end
     template_file:close()
@@ -162,9 +162,13 @@ M.insert_template = function(ctx)
     error(string.format("Template file '%s' not found", template_path))
   end
 
-  local insert_note = Note.from_lines(insert_lines)
-  local current_note = assert(api.current_note(buf))
+  local insert_note = Note.from_lines(template_lines)
+  local current_note = api.current_note(buf)
+  if not current_note then
+    error "Failed to get current note for buffer"
+  end
 
+  local insert_lines = template_lines
   if insert_note.has_frontmatter then
     insert_lines = insert_note:body_lines()
     current_note:merge(insert_note)

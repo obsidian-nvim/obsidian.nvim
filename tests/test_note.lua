@@ -301,6 +301,27 @@ T["merge"]["should do nothing when other has no frontmatter"] = function()
   eq("bar", base_note.metadata.foo)
 end
 
+T["merge"]["should merge into note with no frontmatter"] = function()
+  local base_note = from_str("Just body content", "self.md", { load_contents = true })
+  local other_note = from_str(
+    [[---
+aliases:
+   - beta
+tags:
+   - two
+foo: baz
+---]],
+    "other.md"
+  )
+
+  base_note:merge(other_note)
+
+  eq(true, base_note:has_alias "beta")
+  eq(true, base_note:has_tag "two")
+  eq("baz", base_note.metadata.foo)
+  eq(true, base_note.has_frontmatter)
+end
+
 T["from_file"] = new_set()
 
 T["from_file"]["should work from a README"] = function()
