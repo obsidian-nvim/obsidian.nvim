@@ -19,6 +19,13 @@ local initializeResult = {
     definitionProvider = true,
     documentSymbolProvider = true,
     workspaceSymbolProvider = true,
+    completionProvider = {
+      triggerCharacters = { "[", "#" },
+      resolveProvider = false,
+    },
+    executeCommandProvider = {
+      commands = { "obsidian.create_note" },
+    },
     workspace = {
       fileOperations = {
         didRename = {

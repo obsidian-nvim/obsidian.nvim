@@ -26,50 +26,47 @@ local search = require "obsidian.search"
 ---@field anchor_link string|?
 ---@field new_text_to_option table<string, obsidian.completion.CompletionItemOptions>
 ---@field root obsidian.Path
-local RefsSourceCompletionContext = {}
-RefsSourceCompletionContext.__index = RefsSourceCompletionContext
-
-RefsSourceCompletionContext.new = function()
-  return setmetatable({}, RefsSourceCompletionContext)
-end
 
 ---@class obsidian.completion.sources.base.RefsSourceBase
 ---@field incomplete_response table
 ---@field complete_response table
-local RefsSourceBase = {}
-RefsSourceBase.__index = RefsSourceBase
+local M = {
+  incomplete_response = { isIncomplete = true },
+  complete_response = { isIncomplete = true, items = {} },
+}
+
+M.__index = M
 
 ---@return obsidian.completion.sources.base.RefsSourceBase
-RefsSourceBase.new = function()
-  return setmetatable({}, RefsSourceBase)
+M.new = function()
+  return setmetatable({}, M)
 end
 
-RefsSourceBase.get_trigger_characters = completion.get_trigger_characters
+M.get_trigger_characters = completion.get_trigger_characters
 
 ---Sets up a new completion context that is used to pass around variables between completion source methods
 ---@param completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
 ---@param request obsidian.completion.sources.base.Request
 ---@return obsidian.completion.sources.base.RefsSourceCompletionContext
-function RefsSourceBase:new_completion_context(completion_resolve_callback, request)
-  local completion_context = RefsSourceCompletionContext.new()
+function M.new_completion_context(_self, completion_resolve_callback, request)
+  local cc = {}
 
   -- Sets up the completion callback, which will be called when the (possibly incomplete) completion items are ready
-  completion_context.completion_resolve_callback = completion_resolve_callback
+  cc.completion_resolve_callback = completion_resolve_callback
 
   -- This request object will be used to determine the current cursor location and the text around it
-  completion_context.request = request
+  cc.request = request
+  cc.in_buffer_only = false
+  cc.root = api.resolve_workspace_dir()
+  cc.new_text_to_option = {}
 
-  completion_context.in_buffer_only = false
-
-  completion_context.root = api.resolve_workspace_dir()
-
-  return completion_context
+  return cc
 end
 
 --- Runs a generalized version of the complete (nvim_cmp) or get_completions (blink) methods
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
-function RefsSourceBase:process_completion(cc)
-  if not self:can_complete_request(cc) then
+function M:process_completion(cc)
+  if not self:can_complete_request(cc) or not cc.search then
     return
   end
 
@@ -103,7 +100,7 @@ end
 --- Returns whatever it's possible to complete the search and sets up the search related variables in cc
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
 ---@return boolean success provides a chance to return early if the request didn't meet the requirements
-function RefsSourceBase:can_complete_request(cc)
+function M:can_complete_request(cc)
   local can_complete
   can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
 
@@ -119,7 +116,7 @@ end
 ---@param note obsidian.Note
 ---@param block_link string?
 ---@return obsidian.note.Block[]|?
-function RefsSourceBase:collect_matching_blocks(note, block_link)
+function M.collect_matching_blocks(note, block_link)
   ---@type obsidian.note.Block[]|?
   local matching_blocks
   if block_link then
@@ -144,7 +141,7 @@ end
 ---@param note obsidian.Note
 ---@param anchor_link string?
 ---@return obsidian.note.HeaderAnchor[]?
-function RefsSourceBase:collect_matching_anchors(note, anchor_link)
+function M.collect_matching_anchors(note, anchor_link)
   ---@type obsidian.note.HeaderAnchor[]|?
   local matching_anchors
   if anchor_link then
@@ -167,7 +164,10 @@ end
 
 --- Strips block and anchor links from the current search string
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
-function RefsSourceBase:strip_links(cc)
+function M.strip_links(_self, cc)
+  if not cc.search then
+    return
+  end
   cc.search, cc.block_link = util.strip_block_links(cc.search)
   cc.search, cc.anchor_link = util.strip_anchor_links(cc.search)
 
@@ -186,7 +186,10 @@ end
 
 --- Determines whatever the in_buffer_only should be enabled
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
-function RefsSourceBase:determine_buffer_only_search_scope(cc)
+function M.determine_buffer_only_search_scope(_self, cc)
+  if not cc.search then
+    return
+  end
   if (cc.anchor_link or cc.block_link) and string.len(cc.search) == 0 then
     -- Search over headers/blocks in current buffer only.
     cc.in_buffer_only = true
@@ -195,16 +198,17 @@ end
 
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
 ---@param results obsidian.Note[]
-function RefsSourceBase:process_search_results(cc, results)
+function M:process_search_results(cc, results)
+  if not cc.search then
+    return
+  end
   local completion_items = {}
-
-  cc.new_text_to_option = {}
 
   for _, note in ipairs(results) do
     ---@cast note obsidian.Note
 
-    local matching_blocks = self:collect_matching_blocks(note, cc.block_link)
-    local matching_anchors = self:collect_matching_anchors(note, cc.anchor_link)
+    local matching_blocks = M.collect_matching_blocks(note, cc.block_link)
+    local matching_anchors = M.collect_matching_anchors(note, cc.anchor_link)
 
     if cc.in_buffer_only then
       self:update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
@@ -279,7 +283,7 @@ end
 ---@param label string|?
 ---@param alt_label string|?
 ---@param note obsidian.Note
-function RefsSourceBase:update_completion_options(cc, label, alt_label, matching_anchors, matching_blocks, note)
+function M.update_completion_options(_self, cc, label, alt_label, matching_anchors, matching_blocks, note)
   ---@type { label: string|?, alt_label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }[]
   local new_options = {}
   if matching_anchors ~= nil then
@@ -427,4 +431,4 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
   end
 end
 
-return RefsSourceBase
+return M
