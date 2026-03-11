@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `:Obsidian tags` now respects `search.sort_by` and `search.sort_reversed` config options.
 - Wiki links in frontmatter will be properly quoted.
 - Numbers in `tags` and `aliases` will be preserved.
+- `insert_tag` action will check for non-existing tag.
 
 ## [v3.15.11](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.11) - 2026-03-05
 

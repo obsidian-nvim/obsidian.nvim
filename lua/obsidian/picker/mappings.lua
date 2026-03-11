@@ -52,6 +52,10 @@ end
 ---@param entry obsidian.PickerEntry
 M.insert_tag = function(entry)
   local tag = entry.user_data
+  if tag == nil then
+    log.err "Tag does not exist"
+    return
+  end
   vim.api.nvim_put({ "#" .. tag }, "", false, true)
 end
 
