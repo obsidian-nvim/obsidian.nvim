@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `actions.unique_link`
 - Multiline strings in frontmatter with `|` syntax is properly preserved.
 - `:Obsidian template` will merge frontmatter.
+- `opts.checkbox.order` accept an `""` to change checkbox to list item.
 
 ### Changed
 
