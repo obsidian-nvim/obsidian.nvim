@@ -9,4 +9,6 @@ return {
   ["textDocument/definition"] = require "obsidian.lsp.handlers.definition",
   ["textDocument/documentSymbol"] = require "obsidian.lsp.handlers.document_symbol",
   ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
+  ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",
+  ["workspace/executeCommand"] = require "obsidian.lsp.handlers.execute_command",
 }
