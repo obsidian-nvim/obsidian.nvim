@@ -86,6 +86,61 @@ local function no_checkbox()
   }
 end
 
+---@param states string[]
+---@param cur string|nil
+---@return string?
+local function next_checkbox_state(states, cur)
+  if not states or #states == 0 then
+    return cur or " "
+  end
+  if cur == nil then
+    return states[1]
+  end
+
+  local idx
+  for i, s in ipairs(states) do
+    if s == cur then
+      idx = i
+      break
+    end
+  end
+  if not idx then
+    return states[1]
+  end
+
+  idx = idx % #states
+  return states[idx + 1]
+end
+
+---@param line string
+---@return string|nil prefix
+---@return string|nil rest
+local function parse_list_prefix(line)
+  local indent, bullet, spaces, rest = line:match "^(%s*)([-+*])(%s+)(.*)$"
+  if bullet then
+    return indent .. bullet .. spaces, rest
+  end
+
+  local indent2, num, delim, spaces2, rest2 = line:match "^(%s*)(%d+)([%.%)])(%s+)(.*)$"
+  if num then
+    return indent2 .. num .. delim .. spaces2, rest2
+  end
+
+  return nil, nil
+end
+
+---@param rest string
+---@return string|nil state
+---@return string|nil ws
+---@return string|nil body
+local function parse_checkbox_rest(rest)
+  local state, ws, body = rest:match "^%[(.)%](%s*)(.*)$"
+  if state ~= nil then
+    return state, ws, body
+  end
+  return nil, nil, nil
+end
+
 ---Toggle the checkbox on a lnum
 ---
 ---@param states string[] Optional table containing checkbox states (e.g., {" ", "x"}).
@@ -103,20 +158,36 @@ M._toggle_checkbox = function(states, lnum)
 
   local checkboxes = states or { " ", "x" }
 
-  if util.is_checkbox(line) then
-    for i, check_char in ipairs(checkboxes) do
-      if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
-        i = i % #checkboxes
-        line = string.gsub(line, vim.pesc("[" .. check_char .. "]"), "[" .. checkboxes[i + 1] .. "]", 1)
-        break
+  local prefix, rest = parse_list_prefix(line)
+  if prefix and rest then
+    local cur_state, ws, body = parse_checkbox_rest(rest)
+    if cur_state then
+      local next_state = next_checkbox_state(checkboxes, cur_state)
+      if next_state == "" then
+        line = prefix .. body
+      else
+        if ws == "" and body ~= "" then
+          ws = " "
+        end
+        line = prefix .. "[" .. next_state .. "]" .. ws .. body
       end
+    else
+      -- A list item without a checkbox; treat current state as "".
+      local next_state = next_checkbox_state(checkboxes, "")
+      if next_state ~= "" then
+        line = prefix .. "[" .. next_state .. "] " .. rest
+      end
+      -- If next_state == "", do nothing.
     end
   elseif Obsidian.opts.checkbox.create_new then
-    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
-    if string.match(line, unordered_list_pattern) then
-      line = string.gsub(line, unordered_list_pattern, "%1- [ ] %2")
+    -- Create a new list item, optionally with a checkbox.
+    local indent = line:match "^(%s*)" or ""
+    local after_indent = line:sub(#indent + 1)
+    local next_state = next_checkbox_state(checkboxes, nil)
+    if next_state == "" then
+      line = indent .. "- " .. after_indent
     else
-      line = string.gsub(line, "^(%s*)", "%1- [ ] ")
+      line = indent .. "- [" .. next_state .. "] " .. after_indent
     end
   else
     return
@@ -183,16 +254,30 @@ M.set_checkbox = function(state)
 
   local cur_line = vim.api.nvim_get_current_line()
 
-  if util.is_checkbox(cur_line) then
-    if string.match(cur_line, "^.* %[.%].*") then
-      cur_line = string.gsub(cur_line, "%[.%]", "[" .. state .. "]", 1)
+  local prefix, rest = parse_list_prefix(cur_line)
+  if prefix then
+    local cur_state, ws, body = parse_checkbox_rest(rest)
+    if state == "" then
+      if cur_state then
+        cur_line = prefix .. body
+      end
+    else
+      if cur_state then
+        if ws == "" and body ~= "" then
+          ws = " "
+        end
+        cur_line = prefix .. "[" .. state .. "]" .. ws .. body
+      else
+        cur_line = prefix .. "[" .. state .. "] " .. rest
+      end
     end
   elseif Obsidian.opts.checkbox.create_new then
-    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
-    if string.match(cur_line, unordered_list_pattern) then
-      cur_line = string.gsub(cur_line, unordered_list_pattern, "%1- [" .. state .. "] %2")
+    local indent = cur_line:match "^(%s*)" or ""
+    local after_indent = cur_line:sub(#indent + 1)
+    if state == "" then
+      cur_line = indent .. "- " .. after_indent
     else
-      cur_line = string.gsub(cur_line, "^(%s*)", "%1- [" .. state .. "] ")
+      cur_line = indent .. "- [" .. state .. "] " .. after_indent
     end
   else
     return
