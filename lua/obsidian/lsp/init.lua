@@ -6,27 +6,13 @@ local log = require "obsidian.log"
 ---@param buf integer
 ---@return integer?
 lsp.start = function(buf)
-  local handlers = require "obsidian.lsp.handlers"
   local capabilities = vim.lsp.protocol.make_client_capabilities()
 
   local lsp_config = {
     name = "obsidian-ls",
     capabilities = capabilities,
     offset_encoding = "utf-8",
-    cmd = function()
-      return {
-        request = function(method, ...)
-          local ok = pcall(handlers[method], ...)
-          return ok
-        end,
-        notify = function(method, ...)
-          local ok = pcall(handlers[method], ...)
-          return ok
-        end,
-        is_closing = function() end,
-        terminate = function() end,
-      }
-    end,
+    cmd = require "obsidian.lsp.server",
     init_options = {},
     root_dir = tostring(Obsidian.dir),
   }
@@ -37,6 +23,7 @@ lsp.start = function(buf)
     log.err("[obsidian-ls]: failed to start: " .. client_id)
   end
 
+  ---@cast client_id integer
   return client_id
 end
 
