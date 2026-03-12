@@ -3,6 +3,11 @@ local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
 
+local function flush()
+  child.lua [[vim.wait(100, function() end)]]
+  child.lua [[vim.wait(100, function() end)]]
+end
+
 local target = "target.md"
 local ref = "ref.md"
 
@@ -37,6 +42,7 @@ T["rename current note"] = function()
 
   child.cmd("edit " .. files[target])
   child.lua [[vim.lsp.buf.rename("new_target", {})]]
+  flush()
   eq(true, new_target_path:exists())
   local lines = child.api.nvim_buf_get_lines(1, 0, -1, false) -- new_target
   eq(target_expected, table.concat(lines, "\n"))
@@ -90,6 +96,7 @@ T["rename note under cursor"] = function()
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
   child.lua [[vim.lsp.buf.rename("new_target", {})]]
+  flush()
   child.cmd "wa"
   eq(true, new_target_path:exists())
   local lines = vim.fn.readfile(tostring(new_target_path))
@@ -123,6 +130,7 @@ T["rename note without changing blocks and headers"] = function()
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
   child.lua [[vim.lsp.buf.rename("new_target", {})]]
+  flush()
   child.cmd "wa"
   eq(true, new_target_path:exists())
 
@@ -178,6 +186,7 @@ T["rename note with special characters in filename"] = function()
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
   child.lua [[vim.lsp.buf.rename("new-note", {})]]
+  flush()
   child.cmd "wa"
   eq(true, new_target_path:exists())
 
@@ -221,6 +230,7 @@ T["rename note with markdown link reference"] = function()
   child.api.nvim_win_set_cursor(0, { 8, 40 }) -- cursor on noteb.md in the link (line 8, col 40)
 
   child.lua [[vim.lsp.buf.rename("renamed-note", {})]]
+  flush()
   child.cmd "wa"
 
   -- Check that file was renamed

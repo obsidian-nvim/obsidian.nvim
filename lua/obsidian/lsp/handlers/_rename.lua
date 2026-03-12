@@ -155,21 +155,21 @@ M.rename = function(note, new_name, callback)
 
   callback(nil, edit)
 
-  if not note.bufnr then
-    note.bufnr = vim.fn.bufnr(new_path, true)
-  end
-
-  -- so that file with renamed refs are displaying correctly
-  for _, buf in ipairs(buf_list) do
-    vim.bo[buf].filetype = "markdown"
-  end
-
-  note.id = new_name
-  note.path = Path.new(new_path)
-  note:save_to_buffer { bufnr = note.bufnr }
-
-  -- Reload buffer to show updated backlinks
   vim.schedule(function()
+    if not note.bufnr then
+      note.bufnr = vim.fn.bufnr(new_path, true)
+    end
+
+    -- so that file with renamed refs are displaying correctly
+    for _, buf in ipairs(buf_list) do
+      vim.bo[buf].filetype = "markdown"
+    end
+
+    note.id = new_name
+    note.path = Path.new(new_path)
+    note:save_to_buffer { bufnr = note.bufnr }
+
+    -- Reload buffer to show updated backlinks
     -- Save all modified buffers (including files with updated refs)
     vim.cmd "silent! wall"
     -- If we were editing the renamed file, switch to its new path
