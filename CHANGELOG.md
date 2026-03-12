@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multiline strings in frontmatter with `|` syntax is properly preserved.
 - `:Obsidian template` will merge frontmatter.
 - `opts.checkbox.order` accept an `""` to change checkbox to list item.
+- `obsidian-ls` acts more properly like LSP
+  - handle libuv scheduled callbacks
+  - send progress messages
 
 ### Changed
 
