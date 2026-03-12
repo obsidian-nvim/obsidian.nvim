@@ -62,6 +62,7 @@ end
 
   child.cmd("edit " .. files[target])
   child.lua [[vim.lsp.buf.rename("target", {})]]
+  flush()
   eq("Identical name", child.lua_get "msg")
 end
 
@@ -80,6 +81,7 @@ end
 
   child.cmd("edit " .. files[target])
   child.lua [[vim.lsp.buf.rename("existing", {})]]
+  flush()
   eq("Note with same name exists", child.lua_get "msg")
 end
 
