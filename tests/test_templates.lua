@@ -102,6 +102,108 @@ T["substitute_template_variables()"]["should pass suffix to substitution functio
   eq("value is hello", M.substitute_template_variables(text, tmp_template_context()))
 end
 
+T["substitute_template_variables()"]["should evaluate lua expressions"] = function()
+  local text = "sum is {{= 1 + 2 }}"
+  eq("sum is 3", M.substitute_template_variables(text, tmp_template_context()))
+end
+
+T["substitute_template_variables()"]["should evaluate lua expressions with braces"] = function()
+  local text = "value is {{= ({ value = 2 }).value + 1 }}"
+  eq("value is 3", M.substitute_template_variables(text, tmp_template_context()))
+end
+
+T["substitute_template_variables()"]["should execute lua blocks"] = function()
+  local text = table.concat({
+    "Tags:",
+    "{{lua",
+    "for _, tag in ipairs(tags) do",
+    "  print('- #' .. tag)",
+    "end",
+    "}}",
+  }, "\n")
+
+  local out = M.substitute_template_variables(text, vim.tbl_extend("force", tmp_template_context(), {
+    tags = { "nvim", "lua" },
+  }))
+
+  eq(table.concat({ "Tags:", "- #nvim", "- #lua" }, "\n"), out)
+end
+
+T["substitute_template_variables()"]["should preserve indentation for lua block output"] = function()
+  local text = table.concat({
+    "tags:",
+    "  {{lua",
+    "  for _, tag in ipairs(tags) do",
+    "    print('- ' .. tag)",
+    "  end",
+    "  }}",
+  }, "\n")
+
+  local out = M.substitute_template_variables(text, vim.tbl_extend("force", tmp_template_context(), {
+    tags = { "nvim", "lua" },
+  }))
+
+  eq(table.concat({ "tags:", "  - nvim", "  - lua" }, "\n"), out)
+end
+
+T["substitute_template_variables()"]["should return readable error for bad expression"] = function()
+  local text = "bad: {{= missing_fn() }}"
+  local out = M.substitute_template_variables(text, tmp_template_context())
+  eq(true, string.match(out, "^bad: %[template error: .+%]$") ~= nil)
+end
+
+T["substitute_template_variables()"]["should return readable error for bad lua block"] = function()
+  local text = table.concat({
+    "{{lua",
+    "error('boom')",
+    "}}",
+  }, "\n")
+  local out = M.substitute_template_variables(text, tmp_template_context())
+  eq(true, string.match(out, "^%[template error: .+%]$") ~= nil)
+end
+
+T["substitute_template_variables()"]["should only prompt for identifier variables"] = function()
+  local original_input = api.input
+  local prompted = false
+  local ok, out
+
+  api.input = function(_)
+    prompted = true
+    return ""
+  end
+
+  ok, out = pcall(M.substitute_template_variables, "{{foo.bar}}", tmp_template_context())
+  api.input = original_input
+
+  if not ok then
+    error(out)
+  end
+
+  eq("{{foo.bar}}", out)
+  eq(false, prompted)
+end
+
+T["substitute_template_variables()"]["should prompt for unknown identifier variables"] = function()
+  local original_input = api.input
+  local prompted = false
+  local ok, out
+
+  api.input = function(prompt)
+    prompted = string.match(prompt, "unknown") ~= nil
+    return "VALUE"
+  end
+
+  ok, out = pcall(M.substitute_template_variables, "x={{unknown}}", tmp_template_context())
+  api.input = original_input
+
+  if not ok then
+    error(out)
+  end
+
+  eq("x=VALUE", out)
+  eq(true, prompted)
+end
+
 T["clone_template()"] = new_set()
 
 T["clone_template()"]["should transfer title from partial_note"] = function()

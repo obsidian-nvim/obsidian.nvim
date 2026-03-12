@@ -1,9 +1,245 @@
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
-local util = require "obsidian.util"
 local api = require "obsidian.api"
 
 local M = {}
+
+---@param src string
+---@param chunk_name string
+---@param env table
+---@return function|nil
+---@return string|nil
+local function load_with_env(src, chunk_name, env)
+  local fn, err = loadstring(src, chunk_name)
+  if not fn then
+    return nil, err
+  end
+
+  setfenv(fn, env)
+  return fn, nil
+end
+
+---@param text string
+---@param start_idx integer
+---@return integer|nil
+---@return integer|nil
+local function find_lua_block_close(text, start_idx)
+  local line_start = start_idx
+
+  while line_start <= #text + 1 do
+    local newline_idx = string.find(text, "\n", line_start, true)
+    local line_end = newline_idx and (newline_idx - 1) or #text
+    local line = string.sub(text, line_start, line_end)
+
+    if string.match(line, "^%s*}}%s*$") then
+      return line_start, line_end
+    end
+
+    if newline_idx == nil then
+      break
+    end
+
+    line_start = newline_idx + 1
+  end
+
+  return nil, nil
+end
+
+---@param text string
+---@return string[]
+local function split_lines(text)
+  local normalized = string.gsub(text, "\r\n", "\n")
+  local lines = vim.split(normalized, "\n", { plain = true })
+  if #lines > 0 and lines[#lines] == "" then
+    table.remove(lines)
+  end
+  return lines
+end
+
+---@param methods table<string, string|fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
+---@param ctx obsidian.TemplateContext
+---@param suffix string|?
+---@return table
+local function make_template_env(methods, ctx, suffix)
+  local env = {
+    ctx = ctx,
+    tp = ctx.partial_note,
+  }
+
+  return setmetatable(env, {
+    __index = function(_, key)
+      local ctx_value = rawget(ctx, key)
+      if ctx_value ~= nil then
+        return ctx_value
+      end
+
+      local subst = methods[key]
+      if subst ~= nil then
+        if type(subst) == "string" then
+          return subst
+        else
+          return subst(ctx, suffix)
+        end
+      end
+
+      return _G[key]
+    end,
+  })
+end
+
+---@param methods table<string, string|fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
+---@param ctx obsidian.TemplateContext
+---@param expr string
+---@return string
+local function eval_lua_expression(methods, ctx, expr)
+  local env = make_template_env(methods, ctx)
+  local chunk, load_err = load_with_env("return " .. expr, "template expression", env)
+  if not chunk then
+    return string.format("[template error: %s]", tostring(load_err))
+  end
+
+  local ok, run_err = pcall(chunk)
+  if not ok then
+    return string.format("[template error: %s]", tostring(run_err))
+  end
+
+  return tostring(run_err)
+end
+
+---@param methods table<string, string|fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
+---@param ctx obsidian.TemplateContext
+---@param code string
+---@param indent string
+---@return string
+local function eval_lua_block(methods, ctx, code, indent)
+  local buffer = {}
+
+  local env = make_template_env(methods, ctx)
+  env.print = function(...)
+    local parts = {}
+    for i = 1, select("#", ...) do
+      parts[i] = tostring(select(i, ...))
+    end
+    table.insert(buffer, table.concat(parts, " "))
+  end
+
+  local chunk, load_err = load_with_env(code, "template lua block", env)
+  if not chunk then
+    return string.format("[template error: %s]", tostring(load_err))
+  end
+
+  local ok, run_err = pcall(chunk)
+  if not ok then
+    return string.format("[template error: %s]", tostring(run_err))
+  end
+
+  if #buffer == 0 then
+    return ""
+  end
+
+  local lines = {}
+  for _, line in ipairs(buffer) do
+    table.insert(lines, indent .. line)
+  end
+
+  return table.concat(lines, "\n")
+end
+
+---@param methods table<string, string|fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
+---@param ctx obsidian.TemplateContext
+---@param token string
+---@return string
+local function resolve_variable_token(methods, ctx, token)
+  local key, suffix = string.match(token, "^([%a_][%w_]*):(.+)$")
+  if key and methods[key] ~= nil and type(methods[key]) == "function" then
+    local out = methods[key](ctx, vim.trim(suffix))
+    return out ~= nil and tostring(out) or ""
+  end
+
+  local subst = methods[token]
+  if subst ~= nil then
+    if type(subst) == "string" then
+      return subst
+    else
+      local out = subst(ctx)
+      return out ~= nil and tostring(out) or ""
+    end
+  end
+
+  if string.match(token, "^[%a_][%w_]*$") then
+    local value = api.input(string.format("Enter value for '%s' (<cr> to skip): ", token))
+    if value and string.len(value) > 0 then
+      return value
+    end
+  end
+
+  return "{{" .. token .. "}}"
+end
+
+---@param text string
+---@param methods table<string, string|fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
+---@param ctx obsidian.TemplateContext
+---@return string
+local function render_template(text, methods, ctx)
+  local out = {}
+  local i = 1
+
+  while i <= #text do
+    local open_start, open_end = string.find(text, "{{", i, true)
+    if not open_start then
+      table.insert(out, string.sub(text, i))
+      break
+    end
+
+    table.insert(out, string.sub(text, i, open_start - 1))
+
+    local token_start = open_end + 1
+    local is_lua_block = string.match(string.sub(text, token_start), "^lua[ \t]*\r?\n") ~= nil
+    if is_lua_block then
+      local _, header_end_rel = string.find(string.sub(text, token_start), "^lua[ \t]*\r?\n")
+      local block_start = token_start + header_end_rel
+      local close_line_start, close_line_end = find_lua_block_close(text, block_start)
+      if close_line_start == nil or close_line_end == nil then
+        table.insert(out, "[template error: missing closing delimiter for lua block]")
+        break
+      end
+
+      local before_open = string.sub(text, 1, open_start - 1)
+      local prev_newline = string.match(before_open, ".*()\n")
+      local indent = prev_newline and string.sub(before_open, prev_newline + 1) or before_open
+      if string.match(indent, "^%s*$") == nil then
+        indent = ""
+      elseif #indent > 0 and #out > 0 and vim.endswith(out[#out], indent) then
+        out[#out] = string.sub(out[#out], 1, #out[#out] - #indent)
+      end
+
+      local code = string.sub(text, block_start, close_line_start - 1)
+      table.insert(out, eval_lua_block(methods, ctx, code, indent))
+
+      i = close_line_end + 1
+      if string.sub(text, i, i) == "\n" then
+        i = i + 1
+      end
+    else
+      local close_start, close_end = string.find(text, "}}", token_start, true)
+      if not close_start then
+        table.insert(out, string.sub(text, open_start))
+        break
+      end
+
+      local token = vim.trim(string.sub(text, token_start, close_start - 1))
+      if vim.startswith(token, "=") then
+        table.insert(out, eval_lua_expression(methods, ctx, vim.trim(string.sub(token, 2))))
+      else
+        table.insert(out, resolve_variable_token(methods, ctx, token))
+      end
+
+      i = close_end + 1
+    end
+  end
+
+  return table.concat(out, "")
+end
 
 --- Resolve a template name to a path.
 ---
@@ -49,31 +285,7 @@ end
 M.substitute_template_variables = function(text, ctx)
   local methods = vim.deepcopy(Obsidian.opts.templates.substitutions or {})
 
-  -- Replace known variables.
-  for key, subst in pairs(methods) do
-    local key_pattern = vim.pesc(key)
-    if type(subst) == "string" then
-      text = string.gsub(text, "{{" .. key_pattern .. "}}", subst)
-    else
-      text = string.gsub(text, "{{" .. key_pattern .. ":([^}]*)}}", function(suffix)
-        return subst(ctx, vim.trim(suffix))
-      end)
-      text = string.gsub(text, "{{" .. key_pattern .. "}}", function()
-        return subst(ctx)
-      end)
-    end
-  end
-
-  -- Find unknown variables and prompt for them.
-  for m_start, m_end in util.gfind(text, "{{[^}]+}}") do
-    local key = vim.trim(string.sub(text, m_start + 2, m_end - 2))
-    local value = api.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
-    if value and string.len(value) > 0 then
-      text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
-    end
-  end
-
-  return text
+  return render_template(text, methods, ctx)
 end
 
 --- Clone template to a new note.
@@ -92,17 +304,17 @@ M.clone_template = function(ctx)
     error(string.format("Unable to read template at '%s': %s", template_path, tostring(read_err)))
   end
 
+  local template_content = template_file:read "*a"
+  assert(template_file:close())
+
+  local rendered_content = M.substitute_template_variables(template_content, ctx)
+
   local note_file, write_err = io.open(tostring(note_path), "w")
   if not note_file then
     error(string.format("Unable to write note at '%s': %s", note_path, tostring(write_err)))
   end
 
-  for line in template_file:lines "L" do
-    line = M.substitute_template_variables(line, ctx)
-    note_file:write(line)
-  end
-
-  assert(template_file:close())
+  note_file:write(rendered_content)
   assert(note_file:close())
 
   local new_note = Note.from_file(note_path)
@@ -139,24 +351,9 @@ M.insert_template = function(ctx)
   local template_lines = {}
   local template_file = io.open(tostring(template_path), "r")
   if template_file then
-    local lines = template_file:lines()
-    for line in lines do
-      local new_lines = M.substitute_template_variables(line, ctx)
-      if string.find(new_lines, "[\r\n]") then
-        local line_start = 1
-        for line_end in util.gfind(new_lines, "[\r\n]") do
-          local new_line = string.sub(new_lines, line_start, line_end - 1)
-          table.insert(template_lines, new_line)
-          line_start = line_end + 1
-        end
-        local last_line = string.sub(new_lines, line_start)
-        if string.len(last_line) > 0 then
-          table.insert(template_lines, last_line)
-        end
-      else
-        table.insert(template_lines, new_lines)
-      end
-    end
+    local template_content = template_file:read "*a"
+    local rendered_content = M.substitute_template_variables(template_content, ctx)
+    template_lines = split_lines(rendered_content)
     template_file:close()
   else
     error(string.format("Template file '%s' not found", template_path))
