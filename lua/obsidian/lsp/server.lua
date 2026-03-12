@@ -1,4 +1,5 @@
 local handlers = require "obsidian.lsp.handlers"
+local log = require "obsidian.log"
 
 return function(dispatchers)
   local server = {}
@@ -47,7 +48,15 @@ return function(dispatchers)
   end
 
   server.notify = function(method, ...)
-    local ok = pcall(handlers[method], ...)
+    local handler = handlers[method]
+    if not handler then
+      return false
+    end
+
+    local ok, err = pcall(handler, ...)
+    if not ok then
+      log.err("[obsidian-ls] notify handler error (" .. method .. "): " .. tostring(err))
+    end
     return ok
   end
 
