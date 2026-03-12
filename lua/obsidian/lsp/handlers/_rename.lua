@@ -179,6 +179,9 @@ M.rename = function(note, new_name, callback)
     else
       vim.cmd("edit " .. vim.fn.fnameescape(current_file))
     end
+
+    -- Ensure the current buffer is attached to obsidian-ls after rename, no-op if attached
+    require("obsidian.lsp").start(vim.api.nvim_get_current_buf())
   end)
 
   log.info("renamed " .. count .. " reference(s) across " .. vim.tbl_count(path_lookup) .. " file(s)")
