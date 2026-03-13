@@ -439,7 +439,15 @@ Path.vault_relative_path = function(self, opts)
 
   local api = require "obsidian.api"
 
-  local root = api.resolve_workspace_dir(tostring(self))
+  local root_ok, root = pcall(api.resolve_workspace_dir, tostring(self))
+  if not root_ok or not root then
+    if opts.strict then
+      error(string.format("failed to resolve '%s' relative to vault root (no resolved workspace)", self))
+    elseif not self:is_absolute() then
+      return tostring(self)
+    end
+    return nil
+  end
 
   -- NOTE: we don't try to resolve the `path` here because that would make the path absolute,
   -- which may result in the wrong relative path if the current working directory is not within
@@ -454,7 +462,8 @@ Path.vault_relative_path = function(self, opts)
   elseif not self:is_absolute() then
     return tostring(self)
   elseif opts.strict then
-    error(string.format("failed to resolve '%s' relative to vault root '%s'", self, Obsidian.workspace.root))
+    local root_str = tostring(root)
+    error(string.format("failed to resolve '%s' relative to vault root '%s'", self, root_str))
   end
 end
 

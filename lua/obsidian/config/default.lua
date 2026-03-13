@@ -26,6 +26,11 @@ return {
     format = "shortest",
   },
 
+  --- Whether to auto-detect Obsidian vaults by looking for .obsidian/ folders
+  --- when no configured workspace matches the current buffer.
+  ---@type boolean
+  auto_detect = true,
+
   workspaces = {},
   log_level = vim.log.levels.INFO,
   -- Default random zettel IDs. To use readable UTF-8 slug IDs, set:

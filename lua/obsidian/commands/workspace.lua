@@ -1,23 +1,33 @@
 local Workspace = require "obsidian.workspace"
+local log = require "obsidian.log"
 
 ---@param data obsidian.CommandArgs
 return function(data)
   if not data.args or string.len(data.args) == 0 then
     ---@type obsidian.PickerEntry[]
-    local items = vim.tbl_map(function(ws)
+    local items = {}
+    for _, ws in ipairs(Obsidian.workspaces) do
       if ws.name == ".obsidian.wiki" then
-        return
+        goto continue
       end
-      return {
+      items[#items + 1] = {
         user_data = ws,
         text = tostring(ws),
-        filename = tostring(ws.path),
+        filename = ws:is_resolved() and tostring(ws.path) or nil,
       }
-    end, Obsidian.workspaces)
+      ::continue::
+    end
     Obsidian.picker.pick(items, {
       prompt_title = "Obsidian Workspace",
       callback = function(entry)
-        Workspace.set(entry.user_data)
+        local ws = entry.user_data
+        if not ws:is_resolved() then
+          if not ws:resolve() then
+            log.err("Workspace '%s' could not be resolved", ws.name)
+            return
+          end
+        end
+        Workspace.set(ws)
       end,
     })
   else

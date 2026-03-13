@@ -40,7 +40,11 @@ M.templates_dir = function(workspace)
     return nil
   end
 
-  local paths_to_check = { Obsidian.workspace.root / opts.templates.folder, Path.new(opts.templates.folder) }
+  local paths_to_check = {}
+  if Obsidian.workspace and Obsidian.workspace.root then
+    paths_to_check[#paths_to_check + 1] = Obsidian.workspace.root / opts.templates.folder
+  end
+  paths_to_check[#paths_to_check + 1] = Path.new(opts.templates.folder)
   for _, path in ipairs(paths_to_check) do
     if path:is_dir() then
       return path
@@ -59,6 +63,10 @@ end
 M.path_is_note = function(path, workspace)
   path = Path.new(path):resolve()
   workspace = workspace or Obsidian.workspace
+
+  if not workspace or not workspace.root then
+    return false
+  end
 
   local in_vault = path.filename:find(vim.pesc(tostring(workspace.root))) ~= nil
   if not in_vault then
@@ -107,8 +115,10 @@ M.resolve_workspace_dir = function(path)
   end
   if ws then
     return ws.root
-  else
+  elseif Obsidian.workspace and Obsidian.workspace.root then
     return Obsidian.workspace.root
+  else
+    error "No resolved workspace available. Open a file inside a workspace first."
   end
 end
 

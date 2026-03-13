@@ -115,8 +115,32 @@ function M.check()
   start "Environment"
   ok_f("operating system: %s", os)
 
+  start "Workspaces"
+  if Obsidian.workspaces then
+    for _, ws in ipairs(Obsidian.workspaces) do
+      if ws.name == ".obsidian.wiki" then
+        goto continue
+      end
+      if ws:is_resolved() then
+        local active = (Obsidian.workspace and ws.name == Obsidian.workspace.name) and " (active)" or ""
+        ok_f("'%s' @ '%s'%s", ws.name, ws.path, active)
+      else
+        if ws._resolve_path then
+          warn_f("'%s' (dynamic, unresolved)", ws.name)
+        else
+          error_f("'%s' (path does not exist)", ws.name)
+        end
+      end
+      ::continue::
+    end
+  end
+  if Obsidian.workspace == nil then
+    warn "No active workspace. Will resolve on next buffer entry."
+  end
+  ok_f("auto_detect: %s", Obsidian.opts.auto_detect and "enabled" or "disabled")
+
   start "Config"
-  ok_f("dir: %s", Obsidian.dir)
+  ok_f("dir: %s", Obsidian.dir or "(none)")
 
   start "Pickers"
 

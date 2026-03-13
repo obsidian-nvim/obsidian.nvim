@@ -47,9 +47,9 @@ obsidian.register_command = require("obsidian.commands").register
 obsidian.setup = function(user_opts)
   ---@class obsidian.state
   ---@field picker obsidian.Picker Picker to use.
-  ---@field workspace obsidian.Workspace Current workspace.
-  ---@field workspaces obsidian.Workspace[] All workspaces.
-  ---@field dir obsidian.Path Root of the vault for the current workspace.
+  ---@field workspace obsidian.Workspace|? Current workspace. Nil if no workspace has been resolved yet.
+  ---@field workspaces obsidian.Workspace[] All workspaces (may include unresolved ones).
+  ---@field dir obsidian.Path|? Root of the vault for the current workspace. Nil if no workspace resolved.
   ---@field buf_dir obsidian.Path|? Parent directory of the current buffer.
   ---@field opts obsidian.config.Internal Current options.
   ---@field _opts obsidian.config.Internal User input options.
@@ -58,18 +58,23 @@ obsidian.setup = function(user_opts)
   local opts = obsidian.config.normalize(user_opts)
 
   Obsidian._opts = opts
+  -- Ensure opts is always available even if no workspace resolves at setup time.
+  Obsidian.opts = opts
 
   obsidian.Workspace.setup(opts.workspaces)
 
   local docs_dir = obsidian.api.docs_dir()
 
   if docs_dir then
-    Obsidian.workspaces[#Obsidian.workspaces + 1] = obsidian.Workspace.new {
+    local docs_ws = obsidian.Workspace.new {
       path = docs_dir,
-      root = docs_dir,
       name = ".obsidian.wiki",
+      strict = true,
       -- TODO: override no daily and template dir once those two module get `.enabled` option
     }
+    if docs_ws:is_resolved() then
+      Obsidian.workspaces[#Obsidian.workspaces + 1] = docs_ws
+    end
   end
 
   local client = obsidian.Client.new() -- TODO: remove in 4.0.0

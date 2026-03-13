@@ -6,6 +6,10 @@ local log = require "obsidian.log"
 
 ---@param path? string|obsidian.Path
 local function open_in_app(path)
+  if not Obsidian.workspace or not Obsidian.workspace.root then
+    log.err "No resolved workspace. Open a file inside a workspace first."
+    return
+  end
   local vault_name = vim.fs.basename(tostring(Obsidian.workspace.root))
   if not path then
     return Obsidian.opts.open.func("obsidian://open?vault=" .. vim.uri_encode(vault_name))

@@ -20,16 +20,54 @@ end
 
 -- Complete setup and update workspace (if needed) when entering a markdown buffer.
 local function bufenter_callback(ev)
+  local Workspace = require "obsidian.workspace"
+
   -- Set the current directory of the buffer.
   local buf_dir = vim.fs.dirname(ev.file)
   if buf_dir then
     Obsidian.buf_dir = Path.new(buf_dir)
   end
 
-  -- Check if we're in *any* workspace.
+  -- Step 1: Check if we're in any already-resolved workspace.
   local workspace = api.find_workspace(ev.file)
+
+  -- Step 2: Try resolving unresolved dynamic workspaces.
+  if not workspace then
+    for _, ws in ipairs(Obsidian.workspaces) do
+      if not ws:is_resolved() and ws:resolve() then
+        if api.path_is_note(ev.file, ws) then
+          workspace = ws
+          break
+        end
+      end
+    end
+  end
+
+  -- Step 3: Auto-detect vault from .obsidian/ folder.
+  if not workspace and Obsidian.opts.auto_detect and buf_dir then
+    workspace = Workspace.detect(buf_dir)
+    if workspace then
+      -- Add the newly detected workspace to the list (if it's not already there).
+      local already_known = false
+      for _, ws in ipairs(Obsidian.workspaces) do
+        if ws == workspace then
+          already_known = true
+          break
+        end
+      end
+      if not already_known then
+        table.insert(Obsidian.workspaces, workspace)
+      end
+    end
+  end
+
   if not workspace then
     return
+  end
+
+  -- Set as current workspace if changed (or if no workspace was set yet).
+  if not Obsidian.workspace or workspace.name ~= Obsidian.workspace.name then
+    Workspace.set(workspace)
   end
 
   if workspace.name == ".obsidian.wiki" then

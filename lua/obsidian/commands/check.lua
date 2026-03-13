@@ -5,6 +5,11 @@ local api = require "obsidian.api"
 local iter = vim.iter
 
 return function()
+  if not Obsidian.dir then
+    log.err "No resolved workspace. Open a file inside a workspace first."
+    return
+  end
+
   local start_time = vim.uv.hrtime()
   local count = 0
   local errors = {}
