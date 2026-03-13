@@ -137,7 +137,6 @@ function M.check()
   if Obsidian.workspace == nil then
     warn "No active workspace. Will resolve on next buffer entry."
   end
-  ok_f("auto_detect: %s", Obsidian.opts.auto_detect and "enabled" or "disabled")
 
   start "Config"
   ok_f("dir: %s", Obsidian.dir or "(none)")
