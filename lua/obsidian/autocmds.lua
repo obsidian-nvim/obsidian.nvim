@@ -44,7 +44,7 @@ local function bufenter_callback(ev)
   end
 
   -- Step 3: Auto-detect vault from .obsidian/ folder.
-  if not workspace and Obsidian.opts.auto_detect and buf_dir then
+  if not workspace and buf_dir then
     workspace = Workspace.detect(buf_dir)
     if workspace then
       -- Add the newly detected workspace to the list (if it's not already there).

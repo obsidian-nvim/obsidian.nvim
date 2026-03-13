@@ -7,15 +7,13 @@ return function(data)
     ---@type obsidian.PickerEntry[]
     local items = {}
     for _, ws in ipairs(Obsidian.workspaces) do
-      if ws.name == ".obsidian.wiki" then
-        goto continue
+      if ws.name ~= ".obsidian.wiki" then
+        items[#items + 1] = {
+          user_data = ws,
+          text = tostring(ws),
+          filename = ws:is_resolved() and tostring(ws.path) or nil,
+        }
       end
-      items[#items + 1] = {
-        user_data = ws,
-        text = tostring(ws),
-        filename = ws:is_resolved() and tostring(ws.path) or nil,
-      }
-      ::continue::
     end
     Obsidian.picker.pick(items, {
       prompt_title = "Obsidian Workspace",
