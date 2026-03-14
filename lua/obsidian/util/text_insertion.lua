@@ -16,18 +16,15 @@ local H = {}
 function M.resolve(lines, opts)
   local line_details = H.get_line_details(lines)
   local sections = H.collapse_into_sections(line_details)
-  local section_idx, section_missing = H.get_section_idx(sections, opts)
+  local section_idx = H.find_desired_section(sections, opts)
 
-  if not section_missing then
-    return H.on_section_found(sections, section_idx, opts)
+  if section_idx > 0 then
+    return H.expand_old_section(sections, section_idx, opts)
   end
 
-  local on_missing_opt = opts.section.on_missing or "create"
-  local on_missing_handler = assert(
-    H.on_missing_handler[on_missing_opt],
-    string.format("unsupported `opts.section.on_missing` option: %s", vim.inspect(on_missing_opt))
-  )
-  return on_missing_handler(sections, section_idx, opts)
+  local key = opts.section.on_missing or "create"
+  local on_missing_handler = assert(H.on_missing_handler[key], "unsupported `opts.section.on_missing` option: " .. key)
+  return on_missing_handler(sections, opts)
 end
 
 --- Produces detail records for each line in the markdown document that meaningfully contributes to the document layout.
@@ -126,20 +123,19 @@ end
 ---
 ---@param sections SectionDetail[] List of sections in the document. Must contain preamble and eof-marker.
 ---@param opts obsidian.note.InsertTextOpts Options for constraining where text can be inserted into the document.
----@return integer section_idx where the the new text can be inserted while maintaining the layout.
----@return boolean section_missing `true` if the specified section couldn't be found.
-function H.get_section_idx(sections, opts)
+---@return integer section_idx where the the new text can be inserted while maintaining the layout, or `0` if not found.
+function H.find_desired_section(sections, opts)
   if not opts.section then
-    return 1, false
+    return 1
   end
 
   for idx = 2, #sections - 1 do
     if sections[idx].heading.label == opts.section.header and sections[idx].heading.level == opts.section.level then
-      return idx, false
+      return idx
     end
   end
 
-  return opts.placement == "bot" and #sections or 2, true
+  return 0
 end
 
 ---@type fun(beg_incl: integer, end_excl: integer, level?: integer, label?: string): SectionDetail
@@ -150,38 +146,67 @@ function H.new_section_detail(beg_incl, end_excl, level, label)
   }
 end
 
----@type table<string, InsertHandler>
+---@type table<string, OnMissingHandler>
 H.on_missing_handler = {
-  abort = function(_, _, _)
+  abort = function(_, _)
     return 0, {}, {}
   end,
 
-  error = function(_, _, opts)
+  error = function(_, opts)
     error(string.format("Failed to find the section: %s", vim.inspect(opts.section.header)))
   end,
 
-  create = function(sections, section_idx, opts)
-    local section = sections[section_idx]
-    local prev_section = sections[section_idx - 1]
-
-    local insert_idx = section.heading.beg_incl
-    local insert_before = { string.rep("#", opts.section.level) .. " " .. opts.section.header, "" }
-    local insert_after = {}
-
-    if not H.is_section_empty(prev_section) and prev_section.content.end_excl == insert_idx then
-      table.insert(insert_before, 1, "")
-    end
-
-    if not H.is_section_empty(section) then
-      table.insert(insert_after, 1, "")
-    end
-
-    return insert_idx, insert_before, insert_after
+  create = function(sections, opts)
+    -- NOTE: This is an arbitrary choice. Users might want more control over where new sections get positioned.
+    local create_at_idx = opts.placement == "bot" and #sections or 2
+    return H.create_new_section(sections, create_at_idx, opts)
   end,
 }
 
----@type InsertHandler
-function H.on_section_found(sections, section_idx, opts)
+--- Creates a new heading and section at the specified index and then "pushes down" the section that is currently there.
+---
+--- Assumes that `index > 1` because the preamble is _defined_ as the lines above all of the other headings in the file.
+---
+---@param sections SectionDetail[] List of sections in the document. Must contain preamble and eof-marker.
+---@param section_idx integer The index where the new section will be inserted. Must NOT be the preamble (at `1`).
+---@param opts obsidian.note.InsertTextOpts Options for constraining where text can be inserted into the document.
+---@return integer insert_idx where new text should be inserted to satisfy the constraints.
+---@return string[] insert_before holds the lines needed _before_ the text in order to preserve the layout.
+---@return string[] insert_after holds the lines needed _after_ the text in order to preserve the layout.
+function H.create_new_section(sections, section_idx, opts)
+  assert(section_idx > 1, "the preamble cannot have headers placed before it.")
+
+  local section = sections[section_idx]
+  local prev_section = sections[section_idx - 1]
+
+  local insert_idx = section.heading.beg_incl
+  local insert_before = { string.rep("#", opts.section.level) .. " " .. opts.section.header, "" }
+  local insert_after = {}
+
+  if not H.is_section_empty(prev_section) and prev_section.content.end_excl == insert_idx then
+    table.insert(insert_before, 1, "")
+  end
+
+  if not H.is_section_empty(section) then
+    table.insert(insert_after, 1, "")
+  end
+
+  return insert_idx, insert_before, insert_after
+end
+
+--- Expands the section positioned at the specified index so that it can have more text inserted into it.
+---
+--- Assumes that `index < #sections` because the EOF marker is _defined_ as the empty section of the bottom of the file.
+---
+---@param sections SectionDetail[] List of sections in the document. Must contain preamble and eof-marker.
+---@param section_idx integer The index where the old section is located. Must NOT be the EOF marker (at `#sections`).
+---@param opts obsidian.note.InsertTextOpts Options for constraining where text can be inserted into the document.
+---@return integer insert_idx where new text should be inserted to satisfy the constraints.
+---@return string[] insert_before holds the lines needed _before_ the text in order to preserve the layout.
+---@return string[] insert_after holds the lines needed _after_ the text in order to preserve the layout.
+function H.expand_old_section(sections, section_idx, opts)
+  assert(section_idx < #sections, "the EOF marker cannot have content placed after it.")
+
   local section = sections[section_idx]
   local next_section = sections[section_idx + 1]
 
@@ -210,6 +235,19 @@ function H.is_content_empty(section)
   return not section or section.content.beg_incl == section.content.end_excl
 end
 
+---@alias (exact) OnMissingHandler fun(sections: SectionDetail[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_before: string[], insert_after: string[]
+
+---@class (exact) SectionDetail
+---@field heading? { beg_incl: integer, end_excl: integer, level: integer, label: string }
+---@field content? { beg_incl: integer, end_excl: integer }
+
+---@alias (exact) LineDetail
+---|LineTextDetail
+---|LineHeaderDetail
+---|LineHeaderUnderlineDetail
+---|LineCodeDetail
+---|LineEmptyDetail
+
 ---@class (exact) LineTextDetail
 ---@field type 'text'
 ---@field text string
@@ -227,19 +265,5 @@ end
 
 ---@class (exact) LineEmptyDetail
 ---@field type 'empty'
-
----@class (exact) SectionDetail
----@field heading? { beg_incl: integer, end_excl: integer, level: integer, label: string }
----@field content? { beg_incl: integer, end_excl: integer }
-
----@alias (exact) LineDetail
----|LineTextDetail
----|LineHeaderDetail
----|LineHeaderUnderlineDetail
----|LineCodeDetail
----|LineEmptyDetail
-
----@alias (exact) InsertHandler
----|fun(sections: SectionDetail[], section_idx: integer, opts: obsidian.note.InsertTextOpts): integer, string[], string[]
 
 return M
