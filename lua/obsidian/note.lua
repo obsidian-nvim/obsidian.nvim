@@ -1261,24 +1261,31 @@ end
 
 ---@param text string|string[] The text to insert into the note.
 ---@param opts obsidian.note.InsertTextOpts? The options for constraining where text can be inserted.
----@return integer new_text_idx of the inserted text, or `0` if insertion failed.
+---@return integer text_idx where the text begins in the file (_including_ frontmatter) or `0` when insert is cancelled.
 Note.insert_text = function(self, text, opts)
-  local new_text_idx = 0
+  local text_idx = 0
+
   opts = opts or {}
   opts.update_content = function(lines)
-    local idx, insert_before, insert_after = text_insertion.resolve(lines, opts)
+    local insert_idx, insert_before, insert_after = text_insertion.resolve(lines, opts)
 
-    if idx == 0 then
+    if insert_idx == 0 then
       return lines
     end
 
-    new_text_idx = idx + #insert_before
-    local head = vim.list_slice(lines, 1, idx - 1)
-    local tail = vim.list_slice(lines, idx, #lines)
+    text_idx = insert_idx + #insert_before
+    local head = vim.list_slice(lines, 1, insert_idx - 1)
+    local tail = vim.list_slice(lines, insert_idx, #lines)
     return vim.iter({ head, insert_before, text, insert_after, tail }):flatten():totable()
   end
+
   self:save(opts)
-  return new_text_idx
+
+  if self.has_frontmatter and text_idx > 0 then
+    return self.frontmatter_end_line + text_idx
+  end
+
+  return text_idx
 end
 
 ---@param other obsidian.Note
@@ -1381,7 +1388,7 @@ end
 --- of the file up to but not including the first heading). Defaults to `nil`.
 ---@field section? obsidian.note.Section
 --- Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
----@field placement? 'top'|'bot'
+---@field placement? "top"|"bot"
 
 ---@class (exact) obsidian.note.Section
 --- The label of the heading.
