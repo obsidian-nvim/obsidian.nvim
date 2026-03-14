@@ -836,7 +836,12 @@ Note.frontmatter_lines = function(self, current_lines)
   end
   if syntax_ok or not has_frontmatter then -- if parse success or there's no frontmatter (and should insert)
     ---@diagnostic disable-next-line: param-type-mismatch
-    return Frontmatter.dump(Obsidian.opts.frontmatter.func(self), order)
+    local frontmatter_properties = Obsidian.opts.frontmatter.func(self)
+    if frontmatter_properties and not vim.tbl_isempty(frontmatter_properties) then
+      return Frontmatter.dump(frontmatter_properties, order)
+    else
+      return current_lines
+    end
   else
     log.info "invalid yaml syntax in frontmatter"
     return current_lines

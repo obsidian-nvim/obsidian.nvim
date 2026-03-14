@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Deprecated `preferred_link_style`, `wiki_link_func`, and `markdown_link_func` in favor of `link.style`.
+- Returning nil or empty table in `opts.frontmatter.func` means no inserting frontmatter.
 
 ### Fixed
 
