@@ -221,7 +221,7 @@ end
 
 ---@type table<string, OnSectionMissingHandler>
 H.on_section_missing_handlers = {
-  abort = function(_, _)
+  cancel = function(_, _)
     return 0, {}, {}
   end,
 

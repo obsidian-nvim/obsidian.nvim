@@ -13,7 +13,7 @@ T["insert_text"]["section found"] = new_set()
 T["insert_text"]["section missing"] = new_set()
 T["insert_text"]["section missing"]["create"] = new_set()
 T["insert_text"]["section missing"]["error"] = new_set()
-T["insert_text"]["section missing"]["abort"] = new_set()
+T["insert_text"]["section missing"]["cancel"] = new_set()
 T["insert_text"]["section missing"]["invalid key"] = new_set()
 
 T["insert_text"]["section nil"]["should insert at top of preamble_only"] = function()
@@ -1043,29 +1043,29 @@ T["insert_text"]["section missing"]["error"]["should error w/ preamble_multi bot
   end)
 end
 
-T["insert_text"]["section missing"]["abort"]["should abort in empty top"] = function()
+T["insert_text"]["section missing"]["cancel"]["should cancel in empty top"] = function()
   local note = H.save_note { "" }
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "abort" } }
+    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
   )
 
   eq(H.load_note(note), { "" })
 end
 
-T["insert_text"]["section missing"]["abort"]["should abort in empty bot"] = function()
+T["insert_text"]["section missing"]["cancel"]["should cancel in empty bot"] = function()
   local note = H.save_note { "" }
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "abort" } }
+    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
   )
 
   eq(H.load_note(note), { "" })
 end
 
-T["insert_text"]["section missing"]["abort"]["should abort in preamble_only top"] = function()
+T["insert_text"]["section missing"]["cancel"]["should cancel in preamble_only top"] = function()
   local note = H.save_note {
     "Lorem.",
     "",
@@ -1074,26 +1074,7 @@ T["insert_text"]["section missing"]["abort"]["should abort in preamble_only top"
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "abort" } }
-  )
-
-  eq(H.load_note(note), {
-    "Lorem.",
-    "",
-    "Ipsum.",
-  })
-end
-
-T["insert_text"]["section missing"]["abort"]["should abort in preamble_only bot"] = function()
-  local note = H.save_note {
-    "Lorem.",
-    "",
-    "Ipsum.",
-  }
-
-  note:insert_text(
-    EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "abort" } }
+    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
   )
 
   eq(H.load_note(note), {
@@ -1103,7 +1084,26 @@ T["insert_text"]["section missing"]["abort"]["should abort in preamble_only bot"
   })
 end
 
-T["insert_text"]["section missing"]["abort"]["should abort in multi top"] = function()
+T["insert_text"]["section missing"]["cancel"]["should cancel in preamble_only bot"] = function()
+  local note = H.save_note {
+    "Lorem.",
+    "",
+    "Ipsum.",
+  }
+
+  note:insert_text(
+    EXPECTED_LINE,
+    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
+  )
+
+  eq(H.load_note(note), {
+    "Lorem.",
+    "",
+    "Ipsum.",
+  })
+end
+
+T["insert_text"]["section missing"]["cancel"]["should cancel in multi top"] = function()
   local note = H.save_note {
     "# H1",
     "",
@@ -1116,7 +1116,7 @@ T["insert_text"]["section missing"]["abort"]["should abort in multi top"] = func
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "abort" } }
+    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
   )
 
   eq(H.load_note(note), {
@@ -1130,7 +1130,7 @@ T["insert_text"]["section missing"]["abort"]["should abort in multi top"] = func
   })
 end
 
-T["insert_text"]["section missing"]["abort"]["should abort in multi bot"] = function()
+T["insert_text"]["section missing"]["cancel"]["should cancel in multi bot"] = function()
   local note = H.save_note {
     "# H1",
     "",
@@ -1143,7 +1143,7 @@ T["insert_text"]["section missing"]["abort"]["should abort in multi bot"] = func
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "abort" } }
+    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
   )
 
   eq(H.load_note(note), {
@@ -1157,7 +1157,7 @@ T["insert_text"]["section missing"]["abort"]["should abort in multi bot"] = func
   })
 end
 
-T["insert_text"]["section missing"]["abort"]["should abort in preamble_multi top"] = function()
+T["insert_text"]["section missing"]["cancel"]["should cancel in preamble_multi top"] = function()
   local note = H.save_note {
     "Lorem.",
     "",
@@ -1172,7 +1172,7 @@ T["insert_text"]["section missing"]["abort"]["should abort in preamble_multi top
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "abort" } }
+    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
   )
 
   eq(H.load_note(note), {
@@ -1188,7 +1188,7 @@ T["insert_text"]["section missing"]["abort"]["should abort in preamble_multi top
   })
 end
 
-T["insert_text"]["section missing"]["abort"]["should abort in preamble_multi bot"] = function()
+T["insert_text"]["section missing"]["cancel"]["should cancel in preamble_multi bot"] = function()
   local note = H.save_note {
     "Lorem.",
     "",
@@ -1203,7 +1203,7 @@ T["insert_text"]["section missing"]["abort"]["should abort in preamble_multi bot
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "abort" } }
+    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
   )
 
   eq(H.load_note(note), {

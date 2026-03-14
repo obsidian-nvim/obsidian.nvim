@@ -1389,7 +1389,7 @@ end
 --- The level of the heading (H1, H2, H3, ...).
 ---@field level integer
 --- Decides what to do when the section is missing. Defaults to `create`.
----@field on_missing? 'create'|'error'|'abort'
+---@field on_missing? "create"|"error"|"cancel"
 
 ---@class obsidian.note.HeaderAnchor
 ---
