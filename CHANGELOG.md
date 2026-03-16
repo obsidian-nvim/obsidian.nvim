@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.16.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.0) - 2026-03-16
+
 ### Added
 
 - New `link` module options: `link.style`, `link.format`.
