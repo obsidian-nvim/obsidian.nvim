@@ -8,6 +8,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
   cancel-in-progress: true
@@ -21,14 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Generate Docs
     steps:
-      - name: Checkout with token
-        if: github.event_name != 'pull_request'
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_PAT }}
-
-      - name: Checkout without token
-        if: github.event_name == 'pull_request'
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install neovim and dependencies
@@ -44,12 +40,6 @@ jobs:
           export VIM="${PWD}/_neovim/share/nvim/runtime"
           make api-docs
 
-      # - name: Generate plugin docs
-      #   run: |
-      #     export PATH="${PWD}/_neovim/bin:${PATH}"
-      #     export VIM="${PWD}/_neovim/share/nvim/runtime"
-      #     make user-docs
-
       - name: Clean up
         run: |
           rm -rf _neovim/
@@ -60,4 +50,4 @@ jobs:
         with:
           commit_user_name: github-actions[bot]
           commit_message: "chore(docs): auto generate docs"
-          branch: ${{ github.head_ref }}
+          branch: ${{ github.ref_name }}
