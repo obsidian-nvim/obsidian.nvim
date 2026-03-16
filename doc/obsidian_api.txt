@@ -243,8 +243,8 @@ Return ~
 Initialize a note from an iterator of lines.
 
 Parameters ~
-{lines} `(fun(): string|? | Iter)`
-{path} `(string|obsidian.Path)`
+{lines} `(string[] | fun(): string|? | Iter)`
+{path} `(string|obsidian.Path|)`?
 {opts} `(obsidian.note.LoadOpts|)`?
 
 Return ~
@@ -258,7 +258,7 @@ Return ~
 Get frontmatter lines that can be written to a buffer.
 
 Parameters ~
-{current_lines} `(string[])`
+{current_lines} `(string[]|)`?
 Return ~
 `(string[])`
 
@@ -409,11 +409,24 @@ Return ~
 `({ words: integer, chars: integer, properties: integer, backlinks: integer }?)`
 
 ------------------------------------------------------------------------------
+                                                             *Note.body_lines()*
+                           `Note.body_lines`({self})
+Return ~
+`(string[])`
+
+------------------------------------------------------------------------------
+                                                                  *Note.merge()*
+                         `Note.merge`({self}, {other})
+Parameters ~
+{other} `(obsidian.Note)`
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
 Class ~
 {(exact)} obsidian.note.LoadOpts
 Fields ~
 {max_lines} `(integer|)`?
-{load_contents} `(boolean|)`?
 {collect_anchor_links} `(boolean|)`?
 {collect_blocks} `(boolean|)`?
 
@@ -767,7 +780,7 @@ Return ~
 Create a new directory at the given path.
 
 Parameters ~
-{opts} `({ mode: integer|?, parents: boolean|?, exist_ok: boolean|? }|)`?
+{opts} `({ mode: integer|?, parents: boolean|? }|)`?
 
 ------------------------------------------------------------------------------
                                                                  *Path.rmtree()*
