@@ -1,6 +1,3 @@
---- Actions provided by this plugin, signatures can change, and will be stablized by 4.0.0
----@toc_entry obsidian.Actions
-
 local M = {}
 local api = require "obsidian.api"
 local log = require "obsidian.log"
