@@ -3,6 +3,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
+local attachment = require "obsidian.attachment"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -566,6 +567,37 @@ M.unique_link = function(timestamp)
   end
   vim.api.nvim_put({ link }, "c", true, true)
   return link
+end
+
+---@param src string?
+M.add_attachment = function(src)
+  if src ~= nil and vim.trim(src) ~= "" then
+    return attachment.add(src)
+  end
+
+  if src == nil or vim.trim(src) == "" then
+    local pick = Obsidian.opts.attachments.pick
+    if type(pick) == "function" then
+      local ok, picked = pcall(pick, attachment.add)
+      if not ok then
+        log.err("attachments.pick failed: " .. tostring(picked))
+        return
+      end
+
+      if type(picked) == "string" and vim.trim(picked) ~= "" then
+        return attachment.add(picked)
+      end
+
+      return
+    else
+      src = api.input("Attachment path or URL: ", { completion = "file" })
+      if not src then
+        log.warn "Aborted"
+        return
+      end
+      return attachment.add(src)
+    end
+  end
 end
 
 M.add_property = function()
