@@ -10,7 +10,9 @@ local BASE_CMD = {
   "md:*.qmd",
   "--type-add",
   "md:*.base",
+  --- TODO: controled by include_non_markdown option?
   "--type=md",
+  -- "--type=md",
 }
 
 local SEARCH_CMD = compat.flatten { BASE_CMD, "--json" }
@@ -133,6 +135,7 @@ M.build_find_cmd = function(path, term, opts)
 
   if term ~= nil then
     term = escape_rg_glob(term)
+    --- TODO: remove
     if opts.include_non_markdown then
       term = "*" .. term .. "*"
     elseif vim.endswith(term, ".md") or vim.endswith(term, ".qmd") or vim.endswith(term, ".base") then

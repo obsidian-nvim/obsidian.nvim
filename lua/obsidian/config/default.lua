@@ -284,6 +284,11 @@ return {
   ---
   ---Whether to confirm the paste or not. Defaults to true.
   ---@field confirm_img_paste? boolean
+  ---
+  ---Optional picker used when add_attachment is called without an argument.
+  ---Receives a callback that accepts a filepath/URL and adds that attachment.
+  ---May also return a filepath/URL string directly.
+  ---@field pick? fun(add: fun(src: string): string|?): string|?
   attachments = {
     folder = "attachments",
     img_text_func = require("obsidian.builtin").img_text_func,
