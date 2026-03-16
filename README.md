@@ -29,7 +29,7 @@
 <hr>
 <!--markdoc_ignore_end-->
 
-A **community fork** of the Neovim plugin for writing and navigating [Obsidian](https://obsidian.md) vaults, written in Lua, created by [epwalsh](https://github.com/epwalsh).
+A **community fork** of [epwalsh/obsidian.nvim](https://github.com/epwalsh/obsidian.nvim), neovim plugin for [Obsidian](https://obsidian.md) vaults.
 
 Built for people who love the concept of Obsidian -- a simple, markdown-based notes app -- but love Neovim too much to stand typing characters into anything else.
 
@@ -37,14 +37,15 @@ _This plugin is not meant to replace Obsidian, but to complement it._ The Obsidi
 
 ## 🍴 About the fork
 
-The original project has not been actively maintained for quite a while and with the ever-changing Neovim ecosystem, new widely used tools such as [blink.cmp](https://github.com/Saghen/blink.cmp) or [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) were not supported.
-
-With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
+The original project has not been actively maintained for quite a while and with bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
 
 - Discussions are happening in [GitHub Discussions](https://github.com/obsidian-nvim/obsidian.nvim/discussions/6)
 - Sponsor the project at [Open Collective](https://opencollective.com/nvim-obsidian)
-- See [Breaking changes](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Breaking-Changes) to migrate from original repo or older releases
-- See the latest documentation in [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki), or navigate the wiki in neovim with `:Obsidian help` or `:Obsidian helpgrep`, which is the most accurate and versioned documentation of your local install.
+- To migrate from original repo or older releases, see [Breaking changes](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Breaking-Changes)
+- See the documentation:
+  - [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki) for documentation of the latest release.
+  - `:Obsidian help` or `:Obsidian helpgrep` for documentation update to date with your current installation.
+  - `:h obsidian-api` for API reference.
 
 ## ⭐ Features
 
@@ -158,17 +159,6 @@ There's no required dependency, but there are a number of optional dependencies 
 - [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
 - See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
 
-**Syntax highlighting:**
-
-See [syntax highlighting](#syntax-highlighting) for more details.
-
-- For base syntax highlighting:
-  - [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
-  - [vim-markdown](https://github.com/preservim/vim-markdown)
-- For additional syntax features:
-  - [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)
-  - [markview.nvim](https://github.com/OXY2DEV/markview.nvim)
-
 ## 📥 Installation
 
 > [!WARNING]
@@ -187,7 +177,6 @@ See [syntax highlighting](#syntax-highlighting) for more details.
 return {
   "obsidian-nvim/obsidian.nvim",
   version = "*", -- use latest release, remove to use latest commit
-  ft = "markdown",
   ---@module 'obsidian'
   ---@type obsidian.config
   opts = {
@@ -225,7 +214,7 @@ vim.pack.add {
 
 ## ⚙️ Configuration
 
-To configure obsidian.nvim, pass your custom options that are different from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
+To configure obsidian.nvim, pass your custom options that are _different_ from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
 
 ## 🤝 Contributing
 
