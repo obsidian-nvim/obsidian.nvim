@@ -577,25 +577,15 @@ M.add_attachment = function(src)
 
   if src == nil or vim.trim(src) == "" then
     local pick = Obsidian.opts.attachments.pick
-    if type(pick) == "function" then
-      local ok, picked = pcall(pick, attachment.add)
-      if not ok then
-        log.err("attachments.pick failed: " .. tostring(picked))
-        return
-      end
-
-      if type(picked) == "string" and vim.trim(picked) ~= "" then
-        return attachment.add(picked)
-      end
-
+    -- if type(pick) == "function" then
+    local ok, picked = pcall(pick, function(dst)
+      attachment.add(dst)
+      local link_text = attachment.format_link(dst)
+      vim.api.nvim_put({ link_text }, "c", true, true)
+    end)
+    if not ok then
+      log.err("attachments.pick failed: " .. tostring(picked))
       return
-    else
-      src = api.input("Attachment path or URL: ", { completion = "file" })
-      if not src then
-        log.warn "Aborted"
-        return
-      end
-      return attachment.add(src)
     end
   end
 end
