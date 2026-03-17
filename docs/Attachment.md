@@ -13,8 +13,6 @@ Option for attachment location is `opts.attachments.folder`
 
 ## Add attachment
 
-Use `:Obsidian add_attachment [source]` (or legacy `:ObsidianAddAttachment [source]`) to copy/download a file into your vault attachment folder.
-
 - If `source` is a local path (or `file://` URI), the file is copied.
 - If `source` is an `http(s)` URL, the file is downloaded with `curl`.
 - The destination path is always resolved by `api.resolve_attachment_path()`.
@@ -62,34 +60,6 @@ attachments = {
 }
 ```
 
-Pick with telescope file finder:
-
-```lua
-attachments = {
-  pick = function(add)
-    local co = coroutine.running()
-    require("telescope.builtin").find_files {
-      attach_mappings = function(prompt_bufnr, map)
-        local actions = require "telescope.actions"
-        local state = require "telescope.actions.state"
-        local function choose()
-          local entry = state.get_selected_entry()
-          actions.close(prompt_bufnr)
-          coroutine.resume(co, entry and entry.path or "")
-        end
-        map("i", "<CR>", choose)
-        map("n", "<CR>", choose)
-        return true
-      end,
-    }
-    local src = coroutine.yield()
-    if src and src ~= "" then
-      add(src)
-    end
-  end,
-}
-```
-
 Pick with a terminal file manager:
 
 ```lua
@@ -122,7 +92,7 @@ attachments = {
 
 ## Open
 
-Attachment opening is by default controlled by [`vim.ui.open`](https://neovim.io/doc/user/lua.html#vim.ui.open()), customize it like following:
+Attachment opening is by default controlled by `:h vim.ui.open`, customize it like following:
 
 ```lua
 vim.ui.open = (function(overridden)
@@ -137,7 +107,6 @@ vim.ui.open = (function(overridden)
   end
 end)(vim.ui.open)
 ```
-
 
 Put any where in you config that loads before you open attachments, a good place could be `opts.callback.enter_note`
 

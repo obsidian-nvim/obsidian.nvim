@@ -77,7 +77,8 @@ M.resolve_attachment_path = function(src)
 end
 
 ---@param src string
----@return string|?, string|?
+---@return string|?
+---@return string|?
 local function get_attachment_paths(src)
   local is_uri, scheme = util.is_uri(src)
   if is_uri then
@@ -106,7 +107,7 @@ local function get_attachment_paths(src)
     return nil, "Failed to resolve source filename from path"
   end
 
-  return src_path, util.resolve_attachment_path(fname)
+  return src_path, M.resolve_attachment_path(fname)
 end
 
 ---@param src string
@@ -135,8 +136,6 @@ local function copy_attachment(src, dst)
   end
 end
 
--- TODO: insert link?
-
 ---@param src string
 ---@return string|?
 M.add = function(src)
@@ -154,6 +153,20 @@ M.add = function(src)
   end
 
   return resolved_dst_or_err
+end
+
+---@param dst string
+---@return string|?
+M.format_link = function(dst)
+  local basename = vim.fs.basename(dst)
+  local style = Obsidian.opts.link.style
+  if style == "wiki" then
+    return "![[" .. basename .. "]]"
+  elseif style == "markdown" then
+    return "![](" .. basename .. ")"
+  elseif type(style) == "function" then
+    return style { path = basename }
+  end
 end
 
 return M

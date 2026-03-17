@@ -288,7 +288,7 @@ return {
   ---Optional picker used when add_attachment is called without an argument.
   ---Receives a callback that accepts a filepath/URL and adds that attachment.
   ---May also return a filepath/URL string directly.
-  ---@field pick? fun(add: fun(src: string): string|?): string|?
+  ---@field pick? fun(add: fun(src: string): string|?)
   attachments = {
     folder = "attachments",
     img_text_func = require("obsidian.builtin").img_text_func,
