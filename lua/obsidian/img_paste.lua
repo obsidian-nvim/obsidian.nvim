@@ -61,8 +61,24 @@ function M.get_clipboard_img_type()
   -- See: [Data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme)
   if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
     if vim.tbl_contains(content, "text/uri-list") then
-      local success =
-        os.execute "wl-paste --type text/uri-list | sed 's|file://||' | head -n1 | tr -d '[:space:]' | xargs -I{} sh -c 'wl-copy < \"$1\"' _ {}"
+      local display_server = os.getenv "XDG_SESSION_TYPE"
+      local success = nil
+      if display_server == "x11" or display_server == "tty" then
+        -- Gets the file path from the clipboard uri-list, as well as the mime-type
+        -- and copies the file content to the clipboard, with the correct target type (=mime type)
+        local cmd = [[
+          f=$(xclip -o -sel c -t text/uri-list | sed 's|file://||' | head -n1 | tr -d '\r\n') && \
+          [ -f "$f" ] && \
+          m=$(xdg-mime query filetype "$f") && \
+          xclip -i "$f" -sel c -t "$m"
+        ]]
+        success = os.execute(cmd)
+      else
+        -- Gets the file path from the clipboard uri-list and copies the file content to the clipboard.
+        -- Note: wl-copy sets the correct target type on its own (in contrast to xclip).
+        success =
+          os.execute "wl-paste --type text/uri-list | sed 's|file://||' | head -n1 | tr -d '[:space:]' | xargs -I{} sh -c 'wl-copy < \"$1\"' _ {}"
+      end
       if success == 0 then
         -- Re-check for image type after potential conversion
         result_string = vim.fn.system(check_cmd)
