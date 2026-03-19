@@ -240,35 +240,35 @@ function H.get_line_details(lines)
   return line_details
 end
 
----@alias (exact) obsidian.note.OnSectionMissingHandler fun(sections: obsidian.note.SectionDetail[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_before: string[], insert_after: string[]
+---@alias obsidian.note.OnSectionMissingHandler fun(sections: obsidian.note.SectionDetail[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_before: string[], insert_after: string[]
 
----@class (exact) obsidian.note.SectionDetail
+---@class obsidian.note.SectionDetail
 ---@field heading? { beg_incl: integer, end_excl: integer, level: integer, label: string }
 ---@field content? { beg_incl: integer, end_excl: integer }
 
----@alias (exact) obsidian.note.LineDetail
+---@alias obsidian.note.LineDetail
 ---|obsidian.note.LineTextDetail
 ---|obsidian.note.LineHeaderDetail
 ---|obsidian.note.LineHeaderUnderlineDetail
 ---|obsidian.note.LineCodeDetail
 ---|obsidian.note.LineEmptyDetail
 
----@class (exact) obsidian.note.LineTextDetail
+---@class obsidian.note.LineTextDetail
 ---@field type 'text'
 ---@field text string
 
----@class (exact) obsidian.note.LineHeaderDetail
+---@class obsidian.note.LineHeaderDetail
 ---@field type 'header'
 ---@field level integer
 ---@field label string
 
----@class (exact) obsidian.note.LineHeaderUnderlineDetail
+---@class obsidian.note.LineHeaderUnderlineDetail
 ---@field type 'header-underline'
 
----@class (exact) obsidian.note.LineCodeDetail
+---@class obsidian.note.LineCodeDetail
 ---@field type 'code'
 
----@class (exact) obsidian.note.LineEmptyDetail
+---@class obsidian.note.LineEmptyDetail
 ---@field type 'empty'
 
 return M
