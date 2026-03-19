@@ -40,7 +40,7 @@ end
 --- the final lines in the document.
 ---
 ---@param lines string[] The list of lines in the markdown document.
----@return SectionDetail[] sections defining the document. There will always be at least two items.
+---@return obsidian.note.SectionDetail[] sections defining the document. There will always be at least two items.
 function H.collapse_into_sections(lines)
   local sections = { H.new_section_detail(1, 1) }
   local current = sections[1]
@@ -74,7 +74,7 @@ end
 
 --- Chooses a section to insert new text into.
 ---
----@param sections SectionDetail[] List of sections in the document. Must contain the preamble and EOF-marker.
+---@param sections obsidian.note.SectionDetail[] List of sections in the document. Must contain the preamble and EOF-marker.
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer chosen_idx where the new text can be inserted while maintaining the layout, or `0` if none are valid.
 function H.choose_section(sections, opts)
@@ -94,7 +94,7 @@ end
 
 --- Expands the section positioned at the specified index so that it can have more text inserted into it.
 ---
----@param sections SectionDetail[] List of sections in the document. Must contain the preamble and EOF-marker.
+---@param sections obsidian.note.SectionDetail[] List of sections in the document. Must contain the preamble and EOF-marker.
 ---@param chosen_idx integer The index where the old section is located. Must NOT be the EOF-marker (`idx = #sections`).
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer insert_idx where new text should be inserted to satisfy the constraints.
@@ -123,7 +123,7 @@ end
 
 --- Inserts a new heading and section at the specified index and "pushes down" the section that is currently there.
 ---
----@param sections SectionDetail[] List of sections in the document. Must contain the preamble and EOF-marker.
+---@param sections obsidian.note.SectionDetail[] List of sections in the document. Must contain the preamble and EOF-marker.
 ---@param chosen_idx integer The index where the new section will be inserted. Must NOT be the preamble (`idx = 1`).
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer insert_idx where new text should be inserted to satisfy the constraints.
@@ -153,7 +153,7 @@ function H.insert_new_section(sections, chosen_idx, opts)
   return insert_idx, insert_before, insert_after
 end
 
----@type table<string, OnSectionMissingHandler>
+---@type table<string, obsidian.note.OnSectionMissingHandler>
 H.on_section_missing_handlers = {
   cancel = function(_, _)
     return 0, {}, {}
@@ -171,7 +171,11 @@ H.on_section_missing_handlers = {
   end,
 }
 
----@type fun(beg_incl: integer, end_excl: integer, level?: integer, label?: string): SectionDetail
+---@param beg_incl integer
+---@param end_excl integer
+---@param level? integer
+---@param label? string
+---@return obsidian.note.SectionDetail
 function H.new_section_detail(beg_incl, end_excl, level, label)
   return {
     heading = { beg_incl = beg_incl, end_excl = end_excl, level = level or 0, label = label or "" },
@@ -179,21 +183,26 @@ function H.new_section_detail(beg_incl, end_excl, level, label)
   }
 end
 
----@type fun(section?: SectionDetail): boolean
+---@param section? obsidian.note.SectionDetail
+---@return boolean
 function H.is_section_empty(section)
   return not section or section.heading.beg_incl == section.content.end_excl
 end
 
----@type fun(section?: SectionDetail): boolean
+---@param section? obsidian.note.SectionDetail
+---@return boolean
 function H.is_content_empty(section)
   return not section or section.content.beg_incl == section.content.end_excl
 end
 
----@type fun(lines: string[]): LineDetail[]
+---@param lines string[]
+---@return obsidian.note.LineDetail[]
 function H.get_line_details(lines)
   local line_details = {}
   local within_code_block = false
 
+  ---@param idx integer
+  ---@return obsidian.note.LineDetail
   local function get_detail_for_idx_by_using_early_return_statements(idx)
     local line_str = vim.trim(lines[idx])
 
@@ -231,35 +240,35 @@ function H.get_line_details(lines)
   return line_details
 end
 
----@alias (exact) OnSectionMissingHandler fun(sections: SectionDetail[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_before: string[], insert_after: string[]
+---@alias (exact) obsidian.note.OnSectionMissingHandler fun(sections: obsidian.note.SectionDetail[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_before: string[], insert_after: string[]
 
----@class (exact) SectionDetail
+---@class (exact) obsidian.note.SectionDetail
 ---@field heading? { beg_incl: integer, end_excl: integer, level: integer, label: string }
 ---@field content? { beg_incl: integer, end_excl: integer }
 
----@alias (exact) LineDetail
----|LineTextDetail
----|LineHeaderDetail
----|LineHeaderUnderlineDetail
----|LineCodeDetail
----|LineEmptyDetail
+---@alias (exact) obsidian.note.LineDetail
+---|obsidian.note.LineTextDetail
+---|obsidian.note.LineHeaderDetail
+---|obsidian.note.LineHeaderUnderlineDetail
+---|obsidian.note.LineCodeDetail
+---|obsidian.note.LineEmptyDetail
 
----@class (exact) LineTextDetail
+---@class (exact) obsidian.note.LineTextDetail
 ---@field type 'text'
 ---@field text string
 
----@class (exact) LineHeaderDetail
+---@class (exact) obsidian.note.LineHeaderDetail
 ---@field type 'header'
 ---@field level integer
 ---@field label string
 
----@class (exact) LineHeaderUnderlineDetail
+---@class (exact) obsidian.note.LineHeaderUnderlineDetail
 ---@field type 'header-underline'
 
----@class (exact) LineCodeDetail
+---@class (exact) obsidian.note.LineCodeDetail
 ---@field type 'code'
 
----@class (exact) LineEmptyDetail
+---@class (exact) obsidian.note.LineEmptyDetail
 ---@field type 'empty'
 
 return M
