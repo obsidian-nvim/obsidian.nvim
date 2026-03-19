@@ -67,6 +67,7 @@ obsidian.setup = function(user_opts)
     Obsidian.workspaces[#Obsidian.workspaces + 1] = obsidian.Workspace.new {
       path = docs_dir,
       root = docs_dir,
+      strict = true,
       name = ".obsidian.wiki",
       -- TODO: override no daily and template dir once those two module get `.enabled` option
     }
