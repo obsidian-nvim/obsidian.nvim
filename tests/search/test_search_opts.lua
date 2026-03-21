@@ -9,6 +9,7 @@ T = new_set()
 
 T["should initialize from a raw table and resolve to ripgrep options"] = function()
   local opts = {
+    sort = true,
     sort_by = "modified",
     fixed_strings = true,
     ignore_case = true,
