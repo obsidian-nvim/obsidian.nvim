@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- New `search.sort` option to enable/disable sorting of search results.
+
 ### Fixed
 
 - Help wiki workspace is set to `strict` to avoid being misidentified for other markdown files.
