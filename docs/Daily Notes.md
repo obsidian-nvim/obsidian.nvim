@@ -48,6 +48,18 @@ daily_notes = {
 }
 ```
 
+### Date format
+
+Adding slash in daily formats will automatically create subdirectories:
+
+```lua
+daily_notes = {
+  date_format = "YYYY/MM/DD",
+}
+```
+
+Will create notes in path `daily_notes.folder/year/month/day.md`
+
 ## Notes
 
 - Daily notes are created automatically when you open a date that doesn't have a note yet
