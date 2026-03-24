@@ -35,6 +35,10 @@ T["dump"]["should dump arrays with simple table values"] = function()
   eq(yaml.dumps { { a = 1 }, { b = 2 } }, "- a: 1\n- b: 2")
 end
 
+T["dump"]["should dump arrays containing an empty array."] = function()
+  eq(yaml.dumps { {} }, "- []")
+end
+
 T["dump"]["should dump tables with string values"] = function()
   eq(yaml.dumps { a = "foo", b = "bar" }, "a: foo\nb: bar")
 end

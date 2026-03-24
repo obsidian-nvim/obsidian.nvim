@@ -88,9 +88,13 @@ local function dumps(x, indent, order)
     if util.islist(x) then
       for _, v in ipairs(x) do
         local item_lines = dumps(v, indent + 2)
-        table.insert(out, indent_str .. "- " .. util.lstrip_whitespace(item_lines[1]))
-        for i = 2, #item_lines do
-          table.insert(out, item_lines[i])
+        if #item_lines == 0 then
+          table.insert(out, indent_str .. "- []")
+        else
+          table.insert(out, indent_str .. "- " .. util.lstrip_whitespace(item_lines[1]))
+          for i = 2, #item_lines do
+            table.insert(out, item_lines[i])
+          end
         end
       end
     else
