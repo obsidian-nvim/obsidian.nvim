@@ -296,6 +296,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/pR0land"><img src="https://avatars.githubusercontent.com/u/16734321?v=4?s=100" width="100px;" alt="Frederik Roland Christiansen"/><br /><sub><b>Frederik Roland Christiansen</b></sub></a><br /><a href="#code-pR0land" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/laughing96"><img src="https://avatars.githubusercontent.com/u/67511038?v=4?s=100" width="100px;" alt="Lucky Laughing"/><br /><sub><b>Lucky Laughing</b></sub></a><br /><a href="#code-laughing96" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://www.jennius.co.uk"><img src="https://avatars.githubusercontent.com/u/724096?v=4?s=100" width="100px;" alt="Jorg Jenni"/><br /><sub><b>Jorg Jenni</b></sub></a><br /><a href="#code-Enceradeira" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/zzhirong"><img src="https://avatars.githubusercontent.com/u/627330?v=4?s=100" width="100px;" alt="zzhirong"/><br /><sub><b>zzhirong</b></sub></a><br /><a href="#code-zzhirong" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
