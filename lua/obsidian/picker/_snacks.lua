@@ -6,46 +6,6 @@ local Picker = obsidian.Picker
 local Path = obsidian.Path
 local ut = require "obsidian.picker.util"
 
----@param mapping table
----@return table
-local function notes_mappings(mapping)
-  if type(mapping) == "table" then
-    local opts = { win = { input = { keys = {} } }, actions = {} }
-    for k, v in pairs(mapping) do
-      local name = string.gsub(v.desc, " ", "_")
-      opts.win.input.keys[k] = { name, mode = { "n", "i" }, desc = v.desc }
-      opts.actions[name] = function(picker, item)
-        picker:close()
-        if v.allow_multiple then
-          local selected = picker:selected { fallback = true }
-          ---@type obsidian.PickerEntry[]
-          local entries = {}
-          for _, sel in ipairs(selected) do
-            table.insert(entries, {
-              filename = sel._path,
-              user_data = sel.user_data or sel.value or sel.text,
-            })
-          end
-          vim.schedule(function()
-            v.callback(unpack(entries))
-          end)
-        else
-          ---@type obsidian.PickerEntry
-          local entry = {
-            filename = item._path,
-            user_data = item.user_data or item.value or item.text,
-          }
-          vim.schedule(function()
-            v.callback(entry)
-          end)
-        end
-      end
-    end
-    return opts
-  end
-  return {}
-end
-
 local M = {}
 
 ---@param opts obsidian.PickerFindOpts|? Options.
@@ -54,9 +14,9 @@ M.find_files = function(opts)
   opts.callback = opts.callback or obsidian.api.open_note
 
   ---@type obsidian.Path
-  local dir = opts.dir.filename and Path.new(opts.dir.filename) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
+  local map = {}
 
   local args = search.build_find_cmd()
   local cmd = table.remove(args, 1)
@@ -83,9 +43,9 @@ M.grep = function(opts)
   opts = opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir.filename and Path.new(opts.dir.filename) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
+  local map = {}
 
   local args = search.build_grep_cmd()
   local cmd = table.remove(args, 1)
@@ -137,6 +97,7 @@ M.pick = function(values, opts)
     else
       display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
+    ---@cast value obsidian.PickerEntry
     table.insert(entries, {
       text = display,
       file = value.filename,
@@ -147,7 +108,7 @@ M.pick = function(values, opts)
     })
   end
 
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
+  local map = {}
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
     title = opts.prompt_title,
