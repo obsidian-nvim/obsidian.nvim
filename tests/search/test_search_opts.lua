@@ -9,7 +9,6 @@ T = new_set()
 
 T["should initialize from a raw table and resolve to ripgrep options"] = function()
   local opts = {
-    sort = true,
     sort_by = "modified",
     fixed_strings = true,
     ignore_case = true,
@@ -23,10 +22,9 @@ T["should not include any options with defaults"] = function()
   eq(M._generate_args {}, {})
 end
 
-T["should disable sort when sort is false"] = function()
+T["should disable sort when sort_by is false"] = function()
   local opts = {
-    sort = false,
-    sort_by = "modified",
+    sort_by = false,
   }
   eq(M._generate_args(opts), {})
 end

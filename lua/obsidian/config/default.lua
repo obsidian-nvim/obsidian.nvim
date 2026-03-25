@@ -179,12 +179,10 @@ return {
 
   ---@class obsidian.config.SearchOpts
   ---
-  ---@field sort boolean
-  ---@field sort_by string
+  ---@field sort_by string|false
   ---@field sort_reversed boolean
   ---@field max_lines integer
   search = {
-    sort = true,
     sort_by = "modified",
     sort_reversed = true,
     max_lines = 1000,

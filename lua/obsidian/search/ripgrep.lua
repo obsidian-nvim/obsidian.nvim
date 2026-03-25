@@ -21,7 +21,7 @@ local generate_args = function(opts)
 
   local ret = {}
 
-  if opts.sort and opts.sort_by ~= nil then
+  if opts.sort_by then
     local sort = "sortr" -- default sort is reverse
     if opts.sort_reversed == false then
       sort = "sort"

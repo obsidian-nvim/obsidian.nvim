@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New `search.sort` option to enable/disable sorting of search results.
+- `search.sort_by` can now be set to `false` to disable sorting of search results.
 
 ### Fixed
 
