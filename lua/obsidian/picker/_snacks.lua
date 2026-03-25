@@ -6,13 +6,33 @@ local Picker = obsidian.Picker
 local Path = obsidian.Path
 local ut = require "obsidian.picker.util"
 
----@param mapping table
+---@param mapping obsidian.PickerMappingTable|?
 ---@return table
 local function notes_mappings(mapping)
   if type(mapping) == "table" then
-    local opts = { win = { input = { keys = {} } }, actions = {} }
+    local opts = {
+      win = {
+        input = {
+          keys = {
+            ["q"] = "cancel",
+          },
+        },
+        list = {
+          keys = {
+            ["q"] = "cancel",
+          },
+        },
+        preview = {
+          keys = {
+            ["q"] = "cancel",
+          },
+        },
+      },
+      actions = {},
+    }
     for k, v in pairs(mapping) do
       local name = string.gsub(v.desc, " ", "_")
+      ---@diagnostic disable-next-line: assign-type-mismatch
       opts.win.input.keys[k] = { name, mode = { "n", "i" }, desc = v.desc }
       opts.actions[name] = function(picker, item)
         picker:close()
@@ -27,6 +47,7 @@ local function notes_mappings(mapping)
             })
           end
           vim.schedule(function()
+            ---@diagnostic disable-next-line: param-type-mismatch
             v.callback(unpack(entries))
           end)
         else
@@ -51,10 +72,10 @@ local M = {}
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  local callback = opts.callback or obsidian.api.open_note
 
   ---@type obsidian.Path
-  local dir = opts.dir.filename and Path.new(opts.dir.filename) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
@@ -71,7 +92,7 @@ M.find_files = function(opts)
     confirm = function(picker, item)
       picker:close()
       if item then
-        opts.callback(item._path)
+        callback(item._path)
       end
     end,
   })
@@ -83,9 +104,9 @@ M.grep = function(opts)
   opts = opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir.filename and Path.new(opts.dir.filename) or Obsidian.dir
-
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
+  local callback = opts.callback or obsidian.api.open_note
 
   local args = search.build_grep_cmd()
   local cmd = table.remove(args, 1)
@@ -97,19 +118,15 @@ M.grep = function(opts)
     cwd = tostring(dir),
     cmd = cmd,
     args = args,
-    confirm = function(picker, item, action)
+    confirm = function(picker, item)
       picker:close()
       if item then
-        if opts.callback then
-          opts.callback {
-            filename = item._path or item.filename,
-            col = item.pos and item.pos[2],
-            lnum = item.pos and item.pos[1],
-            user_data = item.value,
-          }
-        else
-          snacks_picker.actions.jump(picker, item, action)
-        end
+        callback {
+          filename = item._path or item.filename,
+          col = item.pos and item.pos[2],
+          lnum = item.pos and item.pos[1],
+          user_data = item.value,
+        }
       end
     end,
   })
@@ -122,8 +139,9 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  local callback = opts.callback or obsidian.api.open_note
 
+  ---@diagnostic disable-next-line: redundant-parameter
   local preview = vim.iter(values):any(function(value)
     return type(value) == "table" and value.filename ~= nil
   end)
@@ -137,6 +155,7 @@ M.pick = function(values, opts)
     else
       display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
+    ---@cast value obsidian.PickerEntry
     table.insert(entries, {
       text = display,
       file = value.filename,
@@ -157,25 +176,21 @@ M.pick = function(values, opts)
       preset = "default",
     },
     format = "text",
-    confirm = function(picker, item, action)
+    confirm = function(picker, item)
       picker:close()
       if item then
-        if opts.callback then
-          if item.file then
-            opts.callback {
-              filename = item.file,
-              col = item.pos and item.pos[2],
-              lnum = item.pos and item.pos[1],
-              user_data = item.value,
-            }
-          else
-            opts.callback {
-              text = item.text,
-              user_data = item.value or item.text,
-            }
-          end
+        if item.file then
+          callback {
+            filename = item.file,
+            col = item.pos and item.pos[2],
+            lnum = item.pos and item.pos[1],
+            user_data = item.value,
+          }
         else
-          snacks_picker.actions.jump(picker, item, action)
+          callback {
+            text = item.text,
+            user_data = item.value or item.text,
+          }
         end
       end
     end,
