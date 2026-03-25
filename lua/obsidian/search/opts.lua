@@ -9,7 +9,7 @@
 
 ---@class obsidian.search.SearchOpts
 ---
----@field sort_by obsidian.config.SortBy|?
+---@field sort_by obsidian.config.SortBy|false|?
 ---@field sort_reversed boolean|?
 ---@field fixed_strings boolean|?
 ---@field ignore_case boolean|?
