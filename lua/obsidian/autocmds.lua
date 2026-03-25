@@ -40,7 +40,7 @@ local function bufenter_callback(ev)
   local opts = Obsidian.opts
 
   vim.b[ev.buf].obsidian_buffer = true
-  vim.bo[ev.buf].includeexpr = "v:lua.require('obsidian.api').includeexpr(v:fname)"
+  vim.bo[ev.buf].includeexpr = "v:lua.require('obsidian.link').includeexpr(v:fname)"
 
   if opts.comment.enabled then
     vim.o.commentstring = "%%%s%%"
