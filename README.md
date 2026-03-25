@@ -298,6 +298,9 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="http://www.jennius.co.uk"><img src="https://avatars.githubusercontent.com/u/724096?v=4?s=100" width="100px;" alt="Jorg Jenni"/><br /><sub><b>Jorg Jenni</b></sub></a><br /><a href="#code-Enceradeira" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/zzhirong"><img src="https://avatars.githubusercontent.com/u/627330?v=4?s=100" width="100px;" alt="zzhirong"/><br /><sub><b>zzhirong</b></sub></a><br /><a href="#code-zzhirong" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/franco-ruggeri"><img src="https://avatars.githubusercontent.com/u/38300576?v=4?s=100" width="100px;" alt="Franco Ruggeri"/><br /><sub><b>Franco Ruggeri</b></sub></a><br /><a href="#code-franco-ruggeri" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
