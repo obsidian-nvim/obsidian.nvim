@@ -22,6 +22,13 @@ T["should not include any options with defaults"] = function()
   eq(M._generate_args {}, {})
 end
 
+T["should disable sort when sort_by is false"] = function()
+  local opts = {
+    sort_by = false,
+  }
+  eq(M._generate_args(opts), {})
+end
+
 T["should merge with another SearchOpts instance"] = function()
   local opts1 = { fixed_strings = true, max_count_per_file = 1 }
   local opts2 = { fixed_strings = false, ignore_case = true }

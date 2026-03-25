@@ -26,6 +26,7 @@
 - [[Link]]
 - [[Note]]
 - [[Open]]
+- [[Search]]
 - [[Tag]]
 - [[Template]]
 - [[Workspace]]
