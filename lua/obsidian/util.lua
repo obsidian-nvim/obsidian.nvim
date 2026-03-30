@@ -1,4 +1,3 @@
-local compat = require "obsidian.compat"
 local ts, string, table = vim.treesitter, string, table
 local util = {}
 
@@ -26,13 +25,10 @@ end
 --- Table tools ---
 -------------------
 
----Check if an object is an array-like table.
---- TODO: after 0.12 replace with vim.islist
----
----@param t any
----@return boolean
-util.islist = function(t)
-  return compat.is_list(t)
+---@param t table
+util.flatten = function(t)
+  ---@diagnostic disable-next-line: redundant-parameter
+  return vim.iter(t):flatten():totable()
 end
 
 ---Return a new list table with only the unique values of the original table.

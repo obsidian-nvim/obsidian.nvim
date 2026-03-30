@@ -1,5 +1,5 @@
 local Path = require "obsidian.path"
-local compat = require "obsidian.compat"
+local util = require "obsidian.util"
 
 local M = {}
 
@@ -12,8 +12,8 @@ local BASE_CMD = {
   "md:*.base",
 }
 
-local SEARCH_CMD = compat.flatten { BASE_CMD, "--type=md", "--json" }
-local FIND_CMD = compat.flatten { BASE_CMD, "--files" }
+local SEARCH_CMD = util.flatten { BASE_CMD, "--type=md", "--json" }
+local FIND_CMD = util.flatten { BASE_CMD, "--files" }
 
 ---@param opts obsidian.search.SearchOpts
 ---@return string[]
@@ -81,7 +81,7 @@ M.build_search_cmd = function(dir, term, opts)
     path = vim.fn.fnameescape(path)
   end
 
-  return compat.flatten {
+  return util.flatten {
     SEARCH_CMD,
     generate_args(opts),
     search_terms,
@@ -158,7 +158,7 @@ M.build_find_cmd = function(path, term, opts)
     additional_opts[#additional_opts + 1] = path
   end
 
-  return compat.flatten {
+  return util.flatten {
     FIND_CMD,
     generate_args(opts),
     additional_opts,
@@ -180,7 +180,7 @@ M.build_grep_cmd = function(opts)
     fixed_strings = true,
   })
 
-  return compat.flatten {
+  return util.flatten {
     BASE_CMD,
     "--type=md",
     generate_args(opts),
