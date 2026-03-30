@@ -55,6 +55,7 @@ M.state = state
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field format_item (fun(value: obsidian.PickerEntry): string)|?
+---@field preview_item (fun(value: obsidian.PickerEntry|string): { buf: integer, pos: integer[]|?, end_pos: integer[]|? }|nil)|?
 
 ------------------------------------------------------------------
 --- Concrete methods with a default implementation subclasses. ---
