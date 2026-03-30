@@ -1,4 +1,3 @@
-local util = require "obsidian.util"
 local obsidian = require "obsidian"
 
 local M = {}
