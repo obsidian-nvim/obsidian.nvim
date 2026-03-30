@@ -151,7 +151,7 @@ return {
     end
 
     local wrapped_callback = function(lsp_locations)
-      if lsp_locations and util.islist(lsp_locations) then
+      if lsp_locations and vim.islist(lsp_locations) then
         callback(nil, lsp_locations)
       end
     end

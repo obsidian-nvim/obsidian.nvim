@@ -13,7 +13,6 @@ local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local iter = vim.iter
-local compat = require "obsidian.compat"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
@@ -1014,10 +1013,10 @@ Note.save = function(self, opts)
   local new_lines
   if opts.insert_frontmatter then
     -- Replace frontmatter.
-    new_lines = compat.flatten { self:frontmatter_lines(existing_frontmatter), content }
+    new_lines = util.flatten { self:frontmatter_lines(existing_frontmatter), content }
   else
     -- Use existing frontmatter.
-    new_lines = compat.flatten { existing_frontmatter, content }
+    new_lines = util.flatten { existing_frontmatter, content }
   end
 
   local file_content = table.concat(new_lines, "\n")
@@ -1285,13 +1284,13 @@ Note.merge = function(self, other)
   end
 
   local function listify(v)
-    return util.islist(v) and v or { v }
+    return vim.islist(v) and v or { v }
   end
 
   for k, v in pairs(insert_metadata) do
     if self.metadata[k] then
       local listified_v = listify(v)
-      if not util.islist(self.metadata[k]) then
+      if not vim.islist(self.metadata[k]) then
         self.metadata[k] = listify(self.metadata[k])
       end
       vim.list_extend(self.metadata[k], listified_v)

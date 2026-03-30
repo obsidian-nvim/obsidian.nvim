@@ -85,7 +85,7 @@ local function dumps(x, indent, order)
   if type(x) == "table" then
     local out = {}
 
-    if util.islist(x) then
+    if vim.islist(x) then
       for _, v in ipairs(x) do
         local item_lines = dumps(v, indent + 2)
         if #item_lines == 0 then

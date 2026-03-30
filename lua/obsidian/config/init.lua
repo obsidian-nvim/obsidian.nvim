@@ -339,7 +339,7 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error("Invalid 'link.format' option '" .. tostring(opts.link.format) .. "' in obsidian.nvim config.")
   end
 
-  if not util.islist(opts.workspaces) then
+  if not vim.islist(opts.workspaces) then
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
   end
 
