@@ -107,7 +107,7 @@ end
 
 function M.check()
   local os = api.get_os()
-  neovim("0.10", "0.11")
+  neovim("0.11", "0.12")
   start "Version"
   local plugin_info = api.get_plugin_info "obsidian.nvim"
   ok_f("obsidian.nvim v%s (%s)", VERSION, plugin_info and plugin_info.commit or "unknown commit")

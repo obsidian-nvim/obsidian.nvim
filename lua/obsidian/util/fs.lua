@@ -94,51 +94,12 @@ local function split_windows_path(path)
   return prefix, path, true
 end
 
--- neovim standard implementation for backward compatibility 0.10.4
---- @param path string Path
---- @return string Absolute path
-local function abspath(path)
-  -- TODO(justinmk): mark f_fnamemodify as API_FAST and use it, ":p:h" should be safe...
-
-  vim.validate { path = { path, "string" } }
-
-  -- Expand ~ to user's home directory
-  path = expand_home(path)
-
-  -- Convert path separator to `/`
-  path = path:gsub(os_sep, "/")
-
-  local prefix = ""
-
-  if iswin then
-    prefix, path = split_windows_path(path)
-  end
-
-  if prefix == "//" or vim.startswith(path, "/") then
-    -- Path is already absolute, do nothing
-    return prefix .. path
-  end
-
-  -- Windows allows paths like C:foo/bar, these paths are relative to the current working directory
-  -- of the drive specified in the path
-  local cwd = (iswin and prefix:match "^%w:$") and uv.fs_realpath(prefix) or uv.cwd()
-  assert(cwd ~= nil, "failed to resolve current working directory")
-  -- Convert cwd path separator to `/`
-  cwd = cwd:gsub(os_sep, "/")
-
-  if path == "." then
-    return cwd
-  end
-  -- Prefix is not needed for expanding relative paths, `cwd` already contains it.
-  return vim.fs.joinpath(cwd, path)
-end
-
 ---@param base string
 ---@param target string
 ---@return string|?
 local function relpath(base, target)
-  base = vim.fs.normalize(abspath(base))
-  target = vim.fs.normalize(abspath(target))
+  base = vim.fs.normalize(vim.fs.abspath(base))
+  target = vim.fs.normalize(vim.fs.abspath(target))
 
   if base == target then
     return "."
