@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Help wiki workspace is set to `strict` to avoid being misidentified for other markdown files.
 - Prevent crash when dumping nested empty arrays.
 - Mapping `q` to be quit in normal mode in snacks picker.
+- Wrong migration process for `opts.use_advanced_uri`.
 
 ## [v3.16.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.0) - 2026-03-16
 
