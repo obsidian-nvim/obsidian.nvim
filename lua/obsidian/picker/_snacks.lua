@@ -1,10 +1,71 @@
 local snacks_picker = require "snacks.picker"
+local snacks_preview = require "snacks.picker.preview"
 
 local obsidian = require "obsidian"
 local search = obsidian.search
 local Picker = obsidian.Picker
 local Path = obsidian.Path
 local ut = require "obsidian.picker.util"
+
+---@param preview_data table|?
+---@return { buf: integer, pos: integer[]|?, end_pos: integer[]|? }|?
+local function normalize_preview_data(preview_data)
+  if type(preview_data) ~= "table" or type(preview_data.buf) ~= "number" then
+    return nil
+  end
+
+  if not vim.api.nvim_buf_is_valid(preview_data.buf) then
+    return nil
+  end
+
+  return {
+    buf = preview_data.buf,
+    pos = preview_data.pos,
+    end_pos = preview_data.end_pos,
+  }
+end
+
+---@param preview_item fun(value: obsidian.PickerEntry|string): { buf: integer, pos: integer[]|?, end_pos: integer[]|? }|nil
+---@return snacks.picker.preview
+local function get_preview(preview_item)
+  return function(ctx)
+    local item = ctx.item
+    local preview_data = item._preview_data
+
+    if preview_data == nil then
+      preview_data = normalize_preview_data(preview_item(item._obsidian_value)) or false
+      item._preview_data = preview_data
+    end
+
+    if preview_data == false then
+      if item.file then
+        return snacks_preview.file(ctx)
+      else
+        return snacks_preview.none(ctx)
+      end
+    end
+
+    local buf = item.buf
+    local pos = item.pos
+    local end_pos = item.end_pos
+
+    item.buf = preview_data.buf
+    item.pos = preview_data.pos
+    item.end_pos = preview_data.end_pos
+
+    local ok, ret = pcall(snacks_preview.file, ctx)
+
+    item.buf = buf
+    item.pos = pos
+    item.end_pos = end_pos
+
+    if ok then
+      return ret
+    else
+      error(ret)
+    end
+  end
+end
 
 ---@param mapping obsidian.PickerMappingTable|?
 ---@return table
@@ -141,13 +202,13 @@ M.pick = function(values, opts)
   opts = opts or {}
   local callback = opts.callback or obsidian.api.open_note
 
-  ---@diagnostic disable-next-line: redundant-parameter
-  local preview = vim.iter(values):any(function(value)
+  local preview = vim.is_callable(opts.preview_item) or vim.iter(values):any(function(value)
     return type(value) == "table" and value.filename ~= nil
   end)
 
   local entries = {}
   for _, value in ipairs(values) do
+    local raw_value = value
     local display
     if type(value) == "string" then
       display = value
@@ -157,6 +218,7 @@ M.pick = function(values, opts)
     end
     ---@cast value obsidian.PickerEntry
     table.insert(entries, {
+      _obsidian_value = raw_value,
       text = display,
       file = value.filename,
       value = value.user_data,
@@ -171,6 +233,7 @@ M.pick = function(values, opts)
   local pick_opts = vim.tbl_extend("force", map or {}, {
     title = opts.prompt_title,
     items = entries,
+    preview = vim.is_callable(opts.preview_item) and get_preview(opts.preview_item) or nil,
     layout = {
       preview = preview,
       preset = "default",
