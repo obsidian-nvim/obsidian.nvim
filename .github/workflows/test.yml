@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        neovim_version: [ 'v0.10.4', 'v0.11.4', 'nightly']
+        neovim_version: [ 'v0.11.4', 'v0.12.0', 'nightly']
         include:
         - os: macos-latest
           neovim_version: v0.11.4
