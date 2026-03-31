@@ -913,7 +913,7 @@ M.find_tags_async = function(term, callback, opts)
       and (vim.startswith(line, "tags:") or string.match(line, "%s*- "))
     then
       local tag = vim.trim(string.sub(line, 3)) -- HACK: works because we force '  - tag'
-      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
+      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") and vim.list_contains(note.tags, tag) then
         add_match(tag, path, note, match_data.line_number, line)
       end
     end
