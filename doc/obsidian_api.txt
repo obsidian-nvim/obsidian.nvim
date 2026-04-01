@@ -369,7 +369,7 @@ Parameters ~
                                                               *Note.backlinks()*
                         `Note.backlinks`({self}, {opts})
 Parameters ~
-{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path })`
+{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? })`
 Return ~
 `(obsidian.BacklinkMatch)`
 
