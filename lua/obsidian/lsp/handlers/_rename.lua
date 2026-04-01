@@ -43,6 +43,7 @@ M.build_edit = function(note, new_name, opts)
   local include_file_rename = opts.include_file_rename ~= false
   local old_refs = build_search_note(note, old_path):get_reference_paths()
 
+  -- Sort refs by length (longest first) to match most specific reference first
   table.sort(old_refs, function(a, b)
     return #a > #b
   end)
@@ -52,15 +53,19 @@ M.build_edit = function(note, new_name, opts)
   local buf_list = {}
   local matches = build_search_note(note, old_path):backlinks {}
   local documentChanges = {}
+
+  -- Track which lines we've already processed to avoid duplicates
   local processed_lines = {}
 
   for _, match in ipairs(matches) do
     local match_path = tostring(match.path)
     local line_key = match_path .. ":" .. match.line
 
+    -- Skip if we've already processed this line
     if not processed_lines[line_key] then
       processed_lines[line_key] = true
 
+      -- Find ALL occurrences of refs in this line
       local line_edits = {}
 
       for _, ref in ipairs(old_refs) do
@@ -76,9 +81,11 @@ M.build_edit = function(note, new_name, opts)
             new_text = new_name .. ".md"
           end
 
+          -- Check if this position overlaps with an already found edit (longer ref takes priority)
           local dominated = false
           for _, existing in ipairs(line_edits) do
             if offset_st >= existing.start_1idx and offset_ed <= existing.end_1idx then
+              -- This match is inside an existing longer match, skip it
               dominated = true
               break
             end
@@ -88,6 +95,7 @@ M.build_edit = function(note, new_name, opts)
             line_edits[#line_edits + 1] = {
               start_1idx = offset_st,
               end_1idx = offset_ed,
+              -- LSP with utf-8 offset_encoding expects byte positions (0-indexed)
               replace_st = offset_st - 1,
               replace_ed = offset_ed,
               new_text = new_text,
@@ -98,10 +106,12 @@ M.build_edit = function(note, new_name, opts)
         end
       end
 
+      -- Sort line_edits by position descending (right to left) so edits don't affect each other's positions
       table.sort(line_edits, function(a, b)
         return a.start_1idx > b.start_1idx
       end)
 
+      -- Collect all edits for this file
       if #line_edits > 0 then
         local edits_for_line = {}
         for _, edit_info in ipairs(line_edits) do
@@ -170,6 +180,7 @@ M.rename = function(note, new_name, callback, opts)
       note.bufnr = vim.fn.bufnr(new_path, true)
     end
 
+    -- so that file with renamed refs are displaying correctly
     for _, buf in ipairs(buf_list) do
       vim.bo[buf].filetype = "markdown"
     end
@@ -178,13 +189,18 @@ M.rename = function(note, new_name, callback, opts)
     note.path = Path.new(new_path)
     note:save_to_buffer { bufnr = note.bufnr }
 
+    -- Reload buffer to show updated backlinks
+    -- Save all modified buffers (including files with updated refs)
     vim.cmd "silent! wall"
+    -- If we were editing the renamed file, switch to its new path
+    -- Otherwise stay in the current file (e.g., when renaming from a referencing note)
     if current_file == old_path then
       vim.cmd("edit " .. vim.fn.fnameescape(new_path))
     else
       vim.cmd("edit " .. vim.fn.fnameescape(current_file))
     end
 
+    -- Ensure the current buffer is attached to obsidian-ls after rename, no-op if attached
     require("obsidian.lsp").start(vim.api.nvim_get_current_buf())
   end)
 

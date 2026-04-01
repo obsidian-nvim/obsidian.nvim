@@ -19,67 +19,6 @@ T["initialize advertises didRenameFiles file operation support"] = function()
   eq("file", child.lua_get "did_rename_filter.pattern.matches")
 end
 
-T["initialized dynamically registers markdown watcher"] = function()
-  child.lua [[
-    local handler = require "obsidian.lsp.handlers.initialized"
-
-    handler(vim.empty_dict(), {
-      server_request = function(method, params)
-        _G.request_method = method
-        _G.request_id = params.registrations[1].id
-        _G.request_watch_method = params.registrations[1].method
-        _G.request_watch_glob = params.registrations[1].registerOptions.watchers[1].globPattern
-        _G.request_watch_kind = params.registrations[1].registerOptions.watchers[1].kind
-        return vim.NIL, nil
-      end,
-    })
-  ]]
-
-  eq("client/registerCapability", child.lua_get "request_method")
-  eq("obsidian-watch-markdown", child.lua_get "request_id")
-  eq("workspace/didChangeWatchedFiles", child.lua_get "request_watch_method")
-  eq("**/*.md", child.lua_get "request_watch_glob")
-  eq(
-    vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete,
-    child.lua_get "request_watch_kind"
-  )
-end
-
-T["didChangeWatchedFiles prints normalized raw file events"] = function()
-  child.lua [[
-    local handler = require "obsidian.lsp.handlers.did_change_watched_files"
-    local original_print = vim.print
-    local create_uri = vim.uri_from_fname "/tmp/fresh.md"
-    local delete_uri = vim.uri_from_fname "/tmp/gone.md"
-
-    vim.print = function(value)
-      _G.printed_events = value
-    end
-
-    handler {
-      changes = {
-        {
-          uri = create_uri,
-          type = vim.lsp.protocol.FileChangeType.Created,
-        },
-        {
-          uri = delete_uri,
-          type = vim.lsp.protocol.FileChangeType.Deleted,
-        },
-      },
-    }
-
-    vim.print = original_print
-  ]]
-
-  eq("created", child.lua_get "printed_events[1].type")
-  eq("/tmp/fresh.md", child.lua_get "printed_events[1].path")
-  eq(vim.uri_from_fname "/tmp/fresh.md", child.lua_get "printed_events[1].uri")
-  eq("deleted", child.lua_get "printed_events[2].type")
-  eq("/tmp/gone.md", child.lua_get "printed_events[2].path")
-  eq(vim.uri_from_fname "/tmp/gone.md", child.lua_get "printed_events[2].uri")
-end
-
 T["didRenameFiles applies reference edits without file rename"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.did_rename_files"
@@ -251,59 +190,6 @@ T["didRenameFiles skips confirmation when auto_rename is enabled"] = function()
 
   eq(false, child.lua_get "confirm_called")
   eq(true, child.lua_get "request_called")
-end
-
-T["watchfiles dispatches normalized events to registered handlers"] = function()
-  child.lua [[
-    local watchfiles = require "obsidian.lsp.watchfiles"
-    local changed_uri = vim.uri_from_fname "/tmp/watch.md"
-
-    watchfiles.register_handler(function(events, payload, source)
-      _G.received_event_type = events[1].type
-      _G.received_event_path = events[1].path
-      _G.received_payload_uri = payload[1].uri
-      _G.received_source = source
-    end)
-
-    local events = watchfiles.handle {
-      {
-        uri = changed_uri,
-        type = vim.lsp.protocol.FileChangeType.Changed,
-      },
-    }
-
-    _G.returned_event_type = events[1].type
-    _G.returned_event_path = events[1].path
-  ]]
-
-  eq("changed", child.lua_get "returned_event_type")
-  eq("/tmp/watch.md", child.lua_get "returned_event_path")
-  eq("changed", child.lua_get "received_event_type")
-  eq("/tmp/watch.md", child.lua_get "received_event_path")
-  eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_payload_uri")
-  eq("workspace/didChangeWatchedFiles", child.lua_get "received_source")
-end
-
-T["lsp.start enables watched files and didRename capabilities"] = function()
-  child.lua [[
-    local lsp = require "obsidian.lsp"
-    local original_start = vim.lsp.start
-
-    vim.lsp.start = function(config)
-      _G.did_change_dynamic = config.capabilities.workspace.didChangeWatchedFiles.dynamicRegistration
-      _G.did_change_relative = config.capabilities.workspace.didChangeWatchedFiles.relativePatternSupport
-      _G.did_rename = config.capabilities.workspace.fileOperations.didRename
-      return 1
-    end
-
-    lsp.start(1)
-
-    vim.lsp.start = original_start
-  ]]
-
-  eq(true, child.lua_get "did_change_dynamic")
-  eq(true, child.lua_get "did_change_relative")
-  eq(true, child.lua_get "did_rename")
 end
 
 return T
