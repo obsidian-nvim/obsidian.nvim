@@ -209,7 +209,6 @@ M.handle = function(changes)
   local events = M.normalize(changes)
 
   if #handlers == 0 then
-    vim.print(events)
     return events
   end
 
