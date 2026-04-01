@@ -21,11 +21,11 @@ return {
   ---@class obsidian.config.LinkOpts
   ---@field style? obsidian.link.LinkStyle
   ---@field format? obsidian.link.LinkFormat
-  ---@field auto_rename? boolean
+  ---@field auto_update? boolean
   link = {
     style = "wiki",
     format = "shortest",
-    auto_rename = false,
+    auto_update = false,
   },
 
   workspaces = {},

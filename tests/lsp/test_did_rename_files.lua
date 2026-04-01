@@ -52,6 +52,12 @@ T["didRenameFiles applies reference edits without file rename"] = function()
             edits = {},
           },
         },
+      }, {
+        count = 2,
+        path_lookup = { ["/tmp/ref.md"] = true },
+        buf_list = {},
+        old_path = opts.old_path,
+        new_path = opts.new_path,
       }
     end
 
@@ -84,7 +90,7 @@ T["didRenameFiles applies reference edits without file rename"] = function()
   eq("/tmp/folder/old.md", child.lua_get "captured_old_path")
   eq("/tmp/folder/new.md", child.lua_get "captured_new_path")
   eq(false, child.lua_get "captured_include_file_rename")
-  eq("Update links to renamed note 'new'?", child.lua_get "confirm_prompt")
+  eq("Update 2 reference(s) across 1 file(s) for renamed note 'new'?", child.lua_get "confirm_prompt")
   eq("workspace/applyEdit", child.lua_get "request_method")
   eq("Update renamed note references", child.lua_get "request_label")
 end
@@ -108,8 +114,24 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
       }
     end
 
-    rename.build_edit = function()
-      return { documentChanges = {} }
+    rename.build_edit = function(_, _, opts)
+      return {
+        documentChanges = {
+          {
+            textDocument = {
+              uri = vim.uri_from_fname "/tmp/ref.md",
+              version = vim.NIL,
+            },
+            edits = {},
+          },
+        },
+      }, {
+        count = 1,
+        path_lookup = { ["/tmp/ref.md"] = true },
+        buf_list = {},
+        old_path = opts.old_path,
+        new_path = opts.new_path,
+      }
     end
 
     api.confirm = function(prompt)
@@ -135,11 +157,11 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
     api.confirm = old_confirm
   ]]
 
-  eq("Update links to renamed note 'new'?", child.lua_get "confirm_prompt")
+  eq("Update 1 reference(s) across 1 file(s) for renamed note 'new'?", child.lua_get "confirm_prompt")
   eq(false, child.lua_get "request_called")
 end
 
-T["didRenameFiles skips confirmation when auto_rename is enabled"] = function()
+T["didRenameFiles skips confirmation when auto_update is enabled"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.did_rename_files"
     local rename = require "obsidian.lsp.handlers._rename"
@@ -152,7 +174,7 @@ T["didRenameFiles skips confirmation when auto_rename is enabled"] = function()
 
     _G.request_called = false
     _G.confirm_called = false
-    Obsidian.opts.link.auto_rename = true
+    Obsidian.opts.link.auto_update = true
 
     note_mod.from_file = function(path)
       return {
@@ -161,7 +183,13 @@ T["didRenameFiles skips confirmation when auto_rename is enabled"] = function()
     end
 
     rename.build_edit = function()
-      return { documentChanges = {} }
+      return { documentChanges = {} }, {
+        count = 0,
+        path_lookup = {},
+        buf_list = {},
+        old_path = "",
+        new_path = "",
+      }
     end
 
     api.confirm = function()
@@ -182,7 +210,7 @@ T["didRenameFiles skips confirmation when auto_rename is enabled"] = function()
       end,
     })
 
-    Obsidian.opts.link.auto_rename = false
+    Obsidian.opts.link.auto_update = false
     rename.build_edit = old_build_edit
     note_mod.from_file = old_from_file
     api.confirm = old_confirm
