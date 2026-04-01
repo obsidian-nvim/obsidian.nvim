@@ -11,7 +11,7 @@ return function(data)
 
   for line_nb = start_line, end_line do
     local current_line = vim.api.nvim_buf_get_lines(buf, line_nb - 1, line_nb, false)[1]
-    if current_line and current_line:match "%S" then
+    if current_line and (current_line:match "%S" or Obsidian.opts.checkbox.create_new) then
       toggle_checkbox(checkboxes, line_nb)
     end
   end
