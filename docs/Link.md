@@ -88,6 +88,10 @@ require("obsidian").setup {
 }
 ```
 
+## Link Rename
+
+See [LSP rename](LSP.md#rename)
+
 ## Options
 
 ```lua

@@ -528,10 +528,11 @@ end
 ---@param note obsidian.Note
 ---@param anchor string
 ---@param block string
-local function build_backlink_search_term(note, anchor, block)
+---@param refs string[]|? Pre-computed reference paths (skips note:get_reference_paths() if provided)
+local function build_backlink_search_term(note, anchor, block, refs)
   -- Prepare search terms.
   local search_terms = {}
-  local raw_refs = note:get_reference_paths { urlencode = true }
+  local raw_refs = refs or note:get_reference_paths { urlencode = true }
 
   for _, ref in ipairs(raw_refs) do
     if anchor == nil and block == nil then
@@ -644,7 +645,7 @@ end
 
 ---@param note obsidian.Note
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
----@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string, dir: string|obsidian.Path }
+---@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string, dir: string|obsidian.Path, refs: string[]|? }
 M.find_backlinks_async = function(note, callback, opts)
   -- vim.validate("note", note, "table")
   -- vim.validate("callback", callback, "function")
@@ -728,7 +729,7 @@ M.find_backlinks_async = function(note, callback, opts)
 
   M.search_async(
     dir,
-    build_backlink_search_term(note, anchor, block),
+    build_backlink_search_term(note, anchor, block, opts.refs),
     { fixed_strings = true, ignore_case = true },
     _on_match,
     function()
@@ -738,7 +739,7 @@ M.find_backlinks_async = function(note, callback, opts)
 end
 
 ---@param note obsidian.Note
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path }?
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?
 ---@return obsidian.BacklinkMatch
 M.find_backlinks = function(note, opts)
   opts = opts or {}
@@ -747,7 +748,7 @@ M.find_backlinks = function(note, opts)
     return M.find_backlinks_async(
       note,
       cb,
-      { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir }
+      { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
     )
   end, opts.timeout)
 end

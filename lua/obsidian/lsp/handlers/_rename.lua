@@ -26,33 +26,35 @@ end
 
 local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
 
--- TODO: note:rename(self, new_name, callback)
+local function build_search_note(note, old_path)
+  local search_note = vim.tbl_extend("force", {}, note, { path = Path.new(old_path) })
+  return setmetatable(search_note, getmetatable(note))
+end
 
 ---@param note obsidian.Note
 ---@param new_name string
----@param callback function -- TODO:
-M.rename = function(note, new_name, callback)
-  local old_refs = note:get_reference_paths()
-  local old_path = tostring(note.path)
-  local current_file = vim.api.nvim_buf_get_name(0) -- Save current file before rename
+---@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|? }
+---@return lsp.WorkspaceEdit|?, { count: integer, path_lookup: table<string, boolean>, buf_list: integer[], old_path: string, new_path: string }
+M.build_edit = function(note, new_name, opts)
+  opts = opts or {}
+
+  local old_path = opts.old_path or tostring(note.path)
+  local new_path = opts.new_path or (vim.fs.joinpath(vim.fs.dirname(old_path), new_name) .. ".md")
+  local include_file_rename = opts.include_file_rename ~= false
+  local search_note = build_search_note(note, old_path)
+  local old_refs = search_note:get_reference_paths()
+  -- Pre-compute url-encoded refs for backlink search so backlinks() doesn't repeat get_reference_paths()
+  local search_refs = search_note:get_reference_paths { urlencode = true }
 
   -- Sort refs by length (longest first) to match most specific reference first
   table.sort(old_refs, function(a, b)
     return #a > #b
   end)
 
-  local new_path = vim.fs.joinpath(vim.fs.dirname(old_path), new_name) .. ".md" -- TODO: resolve relative paths like ../new_name.md
-
-  if old_path == new_path then
-    return callback(nil, nil)
-  end
-
   local count = 0
   local path_lookup = {}
   local buf_list = {}
-
-  local matches = note:backlinks {}
-
+  local matches = search_note:backlinks { refs = search_refs }
   local documentChanges = {}
 
   -- Track which lines we've already processed to avoid duplicates
@@ -77,7 +79,6 @@ M.rename = function(note, new_name, callback)
             break
           end
 
-          -- Determine new text: preserve .md suffix if the original ref had it
           local new_text = new_name
           if vim.endswith(ref, ".md") then
             new_text = new_name .. ".md"
@@ -141,19 +142,41 @@ M.rename = function(note, new_name, callback)
     end
   end
 
-  ---@type lsp.RenameFile
-  local rename_file = {
-    kind = "rename",
-    oldUri = vim.uri_from_fname(old_path),
-    newUri = vim.uri_from_fname(new_path),
-    options = {}, -- TODO:
-  }
+  if include_file_rename and old_path ~= new_path then
+    documentChanges[#documentChanges + 1] = {
+      kind = "rename",
+      oldUri = vim.uri_from_fname(old_path),
+      newUri = vim.uri_from_fname(new_path),
+      options = {},
+    }
+  end
 
-  documentChanges[#documentChanges + 1] = rename_file
+  local edit = #documentChanges > 0 and { documentChanges = documentChanges } or nil
 
-  local edit = { documentChanges = documentChanges }
+  return edit,
+    {
+      count = count,
+      path_lookup = path_lookup,
+      buf_list = buf_list,
+      old_path = old_path,
+      new_path = new_path,
+    }
+end
 
+---@param note obsidian.Note
+---@param new_name string
+---@param callback function -- TODO:
+---@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|? }
+M.rename = function(note, new_name, callback, opts)
+  opts = opts or {}
+
+  local edit, meta = M.build_edit(note, new_name, opts)
   callback(nil, edit)
+
+  local current_file = vim.api.nvim_buf_get_name(0)
+  local new_path = meta.new_path
+  local old_path = meta.old_path
+  local buf_list = meta.buf_list
 
   vim.schedule(function()
     if not note.bufnr then
@@ -184,7 +207,7 @@ M.rename = function(note, new_name, callback)
     require("obsidian.lsp").start(vim.api.nvim_get_current_buf())
   end)
 
-  log.info("renamed " .. count .. " reference(s) across " .. vim.tbl_count(path_lookup) .. " file(s)")
+  log.info("renamed " .. meta.count .. " reference(s) across " .. vim.tbl_count(meta.path_lookup) .. " file(s)")
 
   return note
 end
