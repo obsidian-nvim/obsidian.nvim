@@ -7,6 +7,12 @@ local log = require "obsidian.log"
 ---@return integer?
 lsp.start = function(buf)
   local capabilities = vim.lsp.protocol.make_client_capabilities()
+  capabilities.workspace = capabilities.workspace or {}
+  -- manually enable dynamic registration for file watching, since neovim turns off this capability by default on linux and BSD
+  capabilities.workspace.didChangeWatchedFiles = {
+    dynamicRegistration = true,
+    relativePatternSupport = true,
+  }
 
   local lsp_config = {
     name = "obsidian-ls",

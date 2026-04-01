@@ -53,7 +53,7 @@ return function(dispatchers)
       return false
     end
 
-    local ok, err = pcall(handler, ...)
+    local ok, err = pcall(handler, ..., dispatchers)
     if not ok then
       log.err("[obsidian-ls] notify handler error (" .. method .. "): " .. tostring(err))
     end
