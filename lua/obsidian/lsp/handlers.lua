@@ -3,6 +3,7 @@ return {
   ["initialize"] = require "obsidian.lsp.handlers.initialize",
   ["initialized"] = require "obsidian.lsp.handlers.initialized",
   ["workspace/didChangeWatchedFiles"] = require "obsidian.lsp.handlers.did_change_watched_files",
+  ["workspace/didRenameFiles"] = require "obsidian.lsp.handlers.did_rename_files",
   ["textDocument/rename"] = require "obsidian.lsp.handlers.rename",
   ["textDocument/prepareRename"] = require "obsidian.lsp.handlers.prepare_rename",
   ["textDocument/references"] = require "obsidian.lsp.handlers.references",

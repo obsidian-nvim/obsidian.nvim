@@ -13,6 +13,9 @@ lsp.start = function(buf)
     dynamicRegistration = true,
     relativePatternSupport = true,
   }
+  capabilities.workspace.fileOperations = vim.tbl_extend("force", capabilities.workspace.fileOperations or {}, {
+    didRename = true,
+  })
 
   local lsp_config = {
     name = "obsidian-ls",
