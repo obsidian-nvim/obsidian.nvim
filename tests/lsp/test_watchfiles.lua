@@ -1,11 +1,7 @@
 local eq = MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
 
-local T, child = h.child_vault [[
-package.loaded["obsidian.lsp.watchfiles"] = nil
-package.loaded["obsidian.lsp.handlers.did_rename_files"] = nil
-Obsidian.opts.link.auto_update = false
-]]
+local T, child = h.child_vault()
 
 T["initialize advertises didRenameFiles file operation support"] = function()
   child.lua [[
@@ -204,7 +200,7 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
   eq(false, child.lua_get "request_called")
 end
 
-T["didRenameFiles skips confirmation when auto_update is enabled"] = function()
+T["didRenameFiles skips confirmation when auto_rename is enabled"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.did_rename_files"
     local rename = require "obsidian.lsp.handlers._rename"
@@ -217,7 +213,7 @@ T["didRenameFiles skips confirmation when auto_update is enabled"] = function()
 
     _G.request_called = false
     _G.confirm_called = false
-    Obsidian.opts.link.auto_update = true
+    Obsidian.opts.link.auto_rename = true
 
     note_mod.from_file = function(path)
       return {
@@ -247,7 +243,7 @@ T["didRenameFiles skips confirmation when auto_update is enabled"] = function()
       end,
     })
 
-    Obsidian.opts.link.auto_update = false
+    Obsidian.opts.link.auto_rename = false
     rename.build_edit = old_build_edit
     note_mod.from_file = old_from_file
     api.confirm = old_confirm

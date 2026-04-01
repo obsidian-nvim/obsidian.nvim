@@ -19,7 +19,7 @@ local function rename_note(file, dispatchers)
     return
   end
 
-  if Obsidian.opts.link.auto_update ~= true then
+  if Obsidian.opts.link.auto_rename ~= true then
     local choice = api.confirm(("Update links to renamed note '%s'?"):format(new_name))
     if choice ~= "Yes" then
       return

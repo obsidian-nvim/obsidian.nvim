@@ -33,11 +33,7 @@ end
 
 ---@param note obsidian.Note
 ---@param new_name string
----@param opts? {
---- old_path: string|?,
---- new_path: string|?,
---- include_file_rename: boolean|?
----}
+---@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|? }
 ---@return lsp.WorkspaceEdit|?, { count: integer, path_lookup: table<string, boolean>, buf_list: integer[], old_path: string, new_path: string }
 M.build_edit = function(note, new_name, opts)
   opts = opts or {}
@@ -144,25 +140,20 @@ M.build_edit = function(note, new_name, opts)
 
   local edit = #documentChanges > 0 and { documentChanges = documentChanges } or nil
 
-  return edit, {
-    count = count,
-    path_lookup = path_lookup,
-    buf_list = buf_list,
-    old_path = old_path,
-    new_path = new_path,
-  }
+  return edit,
+    {
+      count = count,
+      path_lookup = path_lookup,
+      buf_list = buf_list,
+      old_path = old_path,
+      new_path = new_path,
+    }
 end
 
 ---@param note obsidian.Note
 ---@param new_name string
 ---@param callback function -- TODO:
----@param opts? {
---- old_path: string|?,
---- new_path: string|?,
---- include_file_rename: boolean|?,
---- apply_side_effects: boolean|?,
---- update_note_id: boolean|?
----}
+---@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|?, apply_side_effects: boolean|?, update_note_id: boolean|? }
 M.rename = function(note, new_name, callback, opts)
   opts = opts or {}
 
