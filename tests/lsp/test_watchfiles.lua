@@ -1,150 +1,128 @@
-local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
+local eq = MiniTest.expect.equality
+local h = dofile "tests/helpers.lua"
 
-local T = new_set()
+local T, child = h.child_vault [[
+package.loaded["obsidian.lsp.watchfiles"] = nil
+]]
 
-T.hooks = {
-  pre_case = function()
-    package.loaded["obsidian.lsp.watchfiles"] = nil
-  end,
-}
+T["initialized dynamically registers markdown watcher"] = function()
+  child.lua [[
+    local handler = require "obsidian.lsp.handlers.initialized"
 
-T["initialized"] = new_set()
+    handler(vim.empty_dict(), {
+      server_request = function(method, params)
+        _G.request_method = method
+        _G.request_id = params.registrations[1].id
+        _G.request_watch_method = params.registrations[1].method
+        _G.request_watch_glob = params.registrations[1].registerOptions.watchers[1].globPattern
+        _G.request_watch_kind = params.registrations[1].registerOptions.watchers[1].kind
+        return vim.NIL, nil
+      end,
+    })
+  ]]
 
-T["initialized"]["should dynamically register markdown watcher"] = function()
-  local handler = require "obsidian.lsp.handlers.initialized"
-  local request_method, request_params
-  local dispatchers = {
-    server_request = function(method, params)
-      request_method = method
-      request_params = params
-      return vim.NIL, nil
-    end,
-  }
+  eq("client/registerCapability", child.lua_get "request_method")
+  eq("obsidian-watch-markdown", child.lua_get "request_id")
+  eq("workspace/didChangeWatchedFiles", child.lua_get "request_watch_method")
+  eq("**/*.md", child.lua_get "request_watch_glob")
+  eq(
+    vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete,
+    child.lua_get "request_watch_kind"
+  )
+end
 
-  handler(vim.empty_dict(), dispatchers)
+T["didChangeWatchedFiles normalizes create and rename events"] = function()
+  child.lua [[
+    local handler = require "obsidian.lsp.handlers.did_change_watched_files"
+    local results = {}
+    local old_uri = vim.uri_from_fname "/tmp/old.md"
+    local new_uri = vim.uri_from_fname "/tmp/new.md"
+    local create_uri = vim.uri_from_fname "/tmp/fresh.md"
 
-  eq("client/registerCapability", request_method)
-  eq({
-    registrations = {
-      {
-        id = "obsidian-watch-markdown",
-        method = "workspace/didChangeWatchedFiles",
-        registerOptions = {
-          watchers = {
-            {
-              globPattern = "**/*.md",
-              kind = vim.lsp.protocol.WatchKind.Create
-                + vim.lsp.protocol.WatchKind.Change
-                + vim.lsp.protocol.WatchKind.Delete,
-            },
-          },
+    require("obsidian.lsp.watchfiles").register_handler(function(events)
+      for _, event in ipairs(events) do
+        results[#results + 1] = event
+      end
+    end)
+
+    handler {
+      changes = {
+        {
+          uri = old_uri,
+          type = vim.lsp.protocol.FileChangeType.Deleted,
+        },
+        {
+          uri = new_uri,
+          type = vim.lsp.protocol.FileChangeType.Created,
+        },
+        {
+          uri = create_uri,
+          type = vim.lsp.protocol.FileChangeType.Created,
         },
       },
-    },
-  }, request_params)
+    }
+
+    _G.result_1 = results[1]
+    _G.result_2 = results[2]
+  ]]
+
+  eq("renamed", child.lua_get "result_1.type")
+  eq("/tmp/old.md", child.lua_get "result_1.old_path")
+  eq(vim.uri_from_fname "/tmp/old.md", child.lua_get "result_1.old_uri")
+  eq("/tmp/new.md", child.lua_get "result_1.new_path")
+  eq(vim.uri_from_fname "/tmp/new.md", child.lua_get "result_1.new_uri")
+  eq("created", child.lua_get "result_2.type")
+  eq("/tmp/fresh.md", child.lua_get "result_2.path")
+  eq(vim.uri_from_fname "/tmp/fresh.md", child.lua_get "result_2.uri")
 end
 
-T["workspace/didChangeWatchedFiles"] = new_set()
+T["watchfiles dispatches normalized events to registered handlers"] = function()
+  child.lua [[
+    local watchfiles = require "obsidian.lsp.watchfiles"
+    local changed_uri = vim.uri_from_fname "/tmp/watch.md"
 
-T["workspace/didChangeWatchedFiles"]["should print normalized create and rename events"] = function()
-  local handler = require "obsidian.lsp.handlers.did_change_watched_files"
-  local original_print = vim.print
-  local printed
+    watchfiles.register_handler(function(events, raw_changes)
+      _G.received_event_type = events[1].type
+      _G.received_event_path = events[1].path
+      _G.received_raw_uri = raw_changes[1].uri
+    end)
 
-  vim.print = function(value)
-    printed = value
-  end
-
-  local old_uri = vim.uri_from_fname "/tmp/old.md"
-  local new_uri = vim.uri_from_fname "/tmp/new.md"
-  local create_uri = vim.uri_from_fname "/tmp/fresh.md"
-
-  handler {
-    changes = {
+    local events = watchfiles.handle {
       {
-        uri = old_uri,
-        type = vim.lsp.protocol.FileChangeType.Deleted,
+        uri = changed_uri,
+        type = vim.lsp.protocol.FileChangeType.Changed,
       },
-      {
-        uri = new_uri,
-        type = vim.lsp.protocol.FileChangeType.Created,
-      },
-      {
-        uri = create_uri,
-        type = vim.lsp.protocol.FileChangeType.Created,
-      },
-    },
-  }
+    }
 
-  vim.print = original_print
+    _G.returned_event_type = events[1].type
+    _G.returned_event_path = events[1].path
+  ]]
 
-  eq({
-    {
-      type = "renamed",
-      old_path = "/tmp/old.md",
-      old_uri = old_uri,
-      new_path = "/tmp/new.md",
-      new_uri = new_uri,
-    },
-    {
-      type = "created",
-      path = "/tmp/fresh.md",
-      uri = create_uri,
-    },
-  }, printed)
+  eq("changed", child.lua_get "returned_event_type")
+  eq("/tmp/watch.md", child.lua_get "returned_event_path")
+  eq("changed", child.lua_get "received_event_type")
+  eq("/tmp/watch.md", child.lua_get "received_event_path")
+  eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_raw_uri")
 end
 
-T["workspace/didChangeWatchedFiles"]["should dispatch normalized events to registered handlers"] = function()
-  local watchfiles = require "obsidian.lsp.watchfiles"
-  local received_events, received_raw
+T["lsp.start enables dynamic watched files capability"] = function()
+  child.lua [[
+    local lsp = require "obsidian.lsp"
+    local original_start = vim.lsp.start
 
-  watchfiles.register_handler(function(events, raw_changes)
-    received_events = events
-    received_raw = raw_changes
-  end)
+    vim.lsp.start = function(config)
+      _G.did_change_dynamic = config.capabilities.workspace.didChangeWatchedFiles.dynamicRegistration
+      _G.did_change_relative = config.capabilities.workspace.didChangeWatchedFiles.relativePatternSupport
+      return 1
+    end
 
-  local changed_uri = vim.uri_from_fname "/tmp/watch.md"
-  local raw_changes = {
-    {
-      uri = changed_uri,
-      type = vim.lsp.protocol.FileChangeType.Changed,
-    },
-  }
+    lsp.start(1)
 
-  local events = watchfiles.handle(raw_changes)
+    vim.lsp.start = original_start
+  ]]
 
-  eq({
-    {
-      type = "changed",
-      path = "/tmp/watch.md",
-      uri = changed_uri,
-    },
-  }, events)
-  eq(events, received_events)
-  eq(raw_changes, received_raw)
-end
-
-T["lsp.start"] = new_set()
-
-T["lsp.start"]["should enable dynamic watched files capability"] = function()
-  local lsp = require "obsidian.lsp"
-  local original_start = vim.lsp.start
-  local captured_config
-
-  vim.lsp.start = function(config)
-    captured_config = config
-    return 1
-  end
-
-  _G.Obsidian = _G.Obsidian or {}
-  Obsidian.dir = "/tmp/obsidian-vault"
-
-  lsp.start(1)
-
-  vim.lsp.start = original_start
-
-  eq(true, captured_config.capabilities.workspace.didChangeWatchedFiles.dynamicRegistration)
-  eq(true, captured_config.capabilities.workspace.didChangeWatchedFiles.relativePatternSupport)
+  eq(true, child.lua_get "did_change_dynamic")
+  eq(true, child.lua_get "did_change_relative")
 end
 
 return T
