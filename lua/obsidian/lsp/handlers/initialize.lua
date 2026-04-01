@@ -18,6 +18,21 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    workspace = {
+      fileOperations = {
+        didRename = {
+          filters = {
+            {
+              scheme = "file",
+              pattern = {
+                glob = "**/*.md",
+                matches = "file",
+              },
+            },
+          },
+        },
+      },
+    },
   },
   serverInfo = {
     name = "obsidian-ls",
