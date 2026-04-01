@@ -41,7 +41,10 @@ M.build_edit = function(note, new_name, opts)
   local old_path = opts.old_path or tostring(note.path)
   local new_path = opts.new_path or (vim.fs.joinpath(vim.fs.dirname(old_path), new_name) .. ".md")
   local include_file_rename = opts.include_file_rename ~= false
-  local old_refs = build_search_note(note, old_path):get_reference_paths()
+  local search_note = build_search_note(note, old_path)
+  local old_refs = search_note:get_reference_paths()
+  -- Pre-compute url-encoded refs for backlink search so backlinks() doesn't repeat get_reference_paths()
+  local search_refs = search_note:get_reference_paths { urlencode = true }
 
   -- Sort refs by length (longest first) to match most specific reference first
   table.sort(old_refs, function(a, b)
@@ -51,7 +54,7 @@ M.build_edit = function(note, new_name, opts)
   local count = 0
   local path_lookup = {}
   local buf_list = {}
-  local matches = build_search_note(note, old_path):backlinks {}
+  local matches = search_note:backlinks { refs = search_refs }
   local documentChanges = {}
 
   -- Track which lines we've already processed to avoid duplicates
