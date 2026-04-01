@@ -6,6 +6,8 @@ return {
   ["workspace/didRenameFiles"] = require "obsidian.lsp.handlers.did_rename_files",
   ["workspace/symbol"] = require "obsidian.lsp.handlers.workspace_symbol",
   ["workspace/executeCommand"] = require "obsidian.lsp.handlers.workspace_execute_command",
+  ["initialized"] = require "obsidian.lsp.handlers.initialized",
+  ["workspace/didChangeWatchedFiles"] = require "obsidian.lsp.handlers.did_change_watched_files",
   ["textDocument/rename"] = require "obsidian.lsp.handlers.rename",
   ["textDocument/prepareRename"] = require "obsidian.lsp.handlers.prepare_rename",
   ["textDocument/references"] = require "obsidian.lsp.handlers.references",
