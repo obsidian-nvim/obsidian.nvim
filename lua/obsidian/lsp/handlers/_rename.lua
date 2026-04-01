@@ -153,16 +153,12 @@ end
 ---@param note obsidian.Note
 ---@param new_name string
 ---@param callback function -- TODO:
----@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|?, apply_side_effects: boolean|?, update_note_id: boolean|? }
+---@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|? }
 M.rename = function(note, new_name, callback, opts)
   opts = opts or {}
 
   local edit, meta = M.build_edit(note, new_name, opts)
   callback(nil, edit)
-
-  if opts.apply_side_effects == false or not edit then
-    return note
-  end
 
   local current_file = vim.api.nvim_buf_get_name(0)
   local new_path = meta.new_path
@@ -178,11 +174,9 @@ M.rename = function(note, new_name, callback, opts)
       vim.bo[buf].filetype = "markdown"
     end
 
-    if opts.update_note_id ~= false then
-      note.id = new_name
-      note.path = Path.new(new_path)
-      note:save_to_buffer { bufnr = note.bufnr }
-    end
+    note.id = new_name
+    note.path = Path.new(new_path)
+    note:save_to_buffer { bufnr = note.bufnr }
 
     vim.cmd "silent! wall"
     if current_file == old_path then
