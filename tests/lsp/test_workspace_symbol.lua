@@ -20,7 +20,7 @@ local function ensure_lsp(files)
   flush()
 end
 
---- Request workspace/symbol and return the raw SymbolInformation[] via Lua.
+--- Request workspace/symbol and return the raw WorkspaceSymbol[] via Lua.
 --- Using client.request_sync avoids dealing with quickfix list formatting.
 ---@param query string
 ---@return table[]

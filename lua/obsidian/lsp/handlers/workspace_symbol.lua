@@ -1,13 +1,7 @@
 local search = require "obsidian.search"
 local async = require "obsidian.async"
 local util = require "obsidian.util"
-
--- LSP SymbolKind constants.
-local SymbolKind = {
-  File = 1,
-  Enum = 10,
-  String = 15,
-}
+local SymbolKind = vim.lsp.protocol.SymbolKind
 
 --- Compute the vault-relative path without the .md extension.
 ---@param abs_path string|obsidian.Path
@@ -21,7 +15,7 @@ local function relative_path_no_ext(abs_path)
 end
 
 ---@param note obsidian.Note
----@return lsp.SymbolInformation[]
+---@return lsp.WorkspaceSymbol[]
 local function note_to_symbols(note)
   local uri = vim.uri_from_fname(tostring(note.path))
   assert(note.path, "Note must have a path")
@@ -34,7 +28,7 @@ local function note_to_symbols(note)
     },
   }
 
-  ---@type lsp.SymbolInformation[]
+  ---@type lsp.WorkspaceSymbol[]
   local symbols = {}
 
   -- Primary symbol: display name.
@@ -63,8 +57,9 @@ end
 
 ---@param note obsidian.Note
 ---@param heading obsidian.note.HeaderAnchor
----@return lsp.SymbolInformation
+---@return lsp.WorkspaceSymbol
 local function heading_to_symbol(note, heading)
+  assert(note.path, "Note must have a path")
   local container = relative_path_no_ext(note.path)
   local name = container .. "#" .. heading.header
   local uri = vim.uri_from_fname(tostring(note.path))
@@ -98,7 +93,7 @@ end
 
 ---@param note obsidian.Note
 ---@param query string
----@return lsp.SymbolInformation[]
+---@return lsp.WorkspaceSymbol[]
 local function note_heading_symbols(note, query)
   ---@type obsidian.note.HeaderAnchor[]
   local headings = {}
@@ -122,12 +117,12 @@ local function note_heading_symbols(note, query)
 end
 
 ---@param params lsp.WorkspaceSymbolParams
----@param handler fun(_: any, result: lsp.SymbolInformation[])
+---@param handler fun(_: any, result: lsp.WorkspaceSymbol[])
 return function(params, handler)
   local query = params.query or ""
 
   async.run(function()
-    ---@type lsp.SymbolInformation[]
+    ---@type lsp.WorkspaceSymbol[]
     local symbols = {}
 
     local notes = async.await(2, search.find_notes_async, query, nil, {
