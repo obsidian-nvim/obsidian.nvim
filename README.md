@@ -300,6 +300,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/franco-ruggeri"><img src="https://avatars.githubusercontent.com/u/38300576?v=4?s=100" width="100px;" alt="Franco Ruggeri"/><br /><sub><b>Franco Ruggeri</b></sub></a><br /><a href="#code-franco-ruggeri" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/JohnTKelly"><img src="https://avatars.githubusercontent.com/u/25050248?v=4?s=100" width="100px;" alt="John T. Kelly"/><br /><sub><b>John T. Kelly</b></sub></a><br /><a href="#code-JohnTKelly" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
