@@ -205,6 +205,18 @@ function RefsSourceBase:process_search_results(cc, results)
       local aliases
       if not cc.in_buffer_only then
         aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
+
+        -- Add the vault-relative path (without extension) as a completion option
+        -- so files in subdirectories can be linked by path, e.g. [[subdir/foo]].
+        if note.path then
+          local rel_path = note.path:vault_relative_path()
+          if rel_path then
+            local rel_stem = rel_path:gsub("%.md$", "")
+            if rel_stem ~= tostring(note.id) then
+              table.insert(aliases, rel_stem)
+            end
+          end
+        end
       end
 
       for alias in iter(aliases) do

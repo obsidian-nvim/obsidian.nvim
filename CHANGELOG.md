@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Completion for wiki links now includes vault-relative paths for notes in subdirectories (e.g. `[[subdir/foo]]`). Closes #754.
 - `search.sort_by` can now be set to `false` to disable sorting of search results.
 - Support `workspace/didRenameFiles` and file changes will be prompted with confirmation to rename references.
   - Use `opts.link.auto_update` to control whether ask for confirmation or auto run, false by default.
