@@ -443,7 +443,11 @@ M.extract_note = function(label)
   end
 
   -- create the new note.
-  local note = require("obsidian.note").create { id = label }
+  local note = require("obsidian.note").create {
+    id = label,
+    template = Obsidian.opts.note.template,
+    should_write = true,
+  }
 
   -- replace selection with link to new note
   local link = note:format_link()

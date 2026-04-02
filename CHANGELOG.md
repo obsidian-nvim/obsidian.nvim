@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Apply configured `note.template` in `extract_note` action, matching the behavior of the `new` action.
 - Help wiki workspace is set to `strict` to avoid being misidentified for other markdown files.
 - Prevent crash when dumping nested empty arrays.
 - Mapping `q` to be quit in normal mode in snacks picker.
