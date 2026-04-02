@@ -1074,7 +1074,7 @@ M.find_headings_async = function(term, callback, opts)
 
   ---@param match_data MatchData
   local on_match = function(match_data)
-    local path = Path.new(match_data.path.text):resolve({ strict = true })
+    local path = Path.new(match_data.path.text):resolve { strict = true }
     local path_str = tostring(path)
 
     if path_order[path_str] == nil then
