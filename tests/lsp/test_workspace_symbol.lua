@@ -139,6 +139,30 @@ T["query filters results"] = function()
   eq(false, found_beta)
 end
 
+T["query filters heading symbols without duplicates"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["heading-query.md"] = [[
+# Alpha heading
+
+## Beta heading
+
+body mentions alpha
+]],
+  })
+  ensure_lsp(files)
+
+  local symbols = get_symbols "alpha"
+  local heading_names = {}
+  for _, s in ipairs(symbols) do
+    if s.kind == 15 then -- String
+      heading_names[#heading_names + 1] = s.name
+    end
+  end
+
+  eq(1, #heading_names)
+  eq("heading-query#Alpha heading", heading_names[1])
+end
+
 T["empty query returns all notes"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["one.md"] = "",

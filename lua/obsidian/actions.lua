@@ -627,4 +627,12 @@ M.start_presentation = function(buf)
   require("obsidian.slides").start_presentation(note)
 end
 
+M.workspace_symbol = function()
+  vim.lsp.buf.workspace_symbol("", {
+    on_list = function(t)
+      Obsidian.picker.pick(t.items, { prompt_title = "Workspace Symbols" })
+    end,
+  })
+end
+
 return M
