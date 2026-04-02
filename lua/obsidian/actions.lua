@@ -212,7 +212,7 @@ M.toggle_checkbox = function(start_lnum, end_lnum)
 
   for line_nb = start_lnum, end_lnum do
     local current_line = vim.api.nvim_buf_get_lines(0, line_nb - 1, line_nb, false)[1]
-    if current_line and current_line:match "%S" then
+    if current_line and (current_line:match "%S" or Obsidian.opts.checkbox.create_new) then
       M._toggle_checkbox(states, line_nb)
     end
   end
