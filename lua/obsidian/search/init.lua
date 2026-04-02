@@ -998,4 +998,148 @@ M.find_tags_async = function(term, callback, opts)
   )
 end
 
+---@class obsidian.HeadingLocation
+---
+---@field heading string The heading text (without # prefix).
+---@field level integer The heading level (1-6).
+---@field anchor string The anchor link for the heading.
+---@field path string|obsidian.Path The path to the note where the heading was found.
+---@field line integer The line number (1-indexed) where the heading was found.
+---@field text string The full line text.
+
+--- Find all headings across the vault matching a given search term.
+---
+---@param term string The search term to match against heading text.
+---@param callback fun(headings: obsidian.HeadingLocation[])
+---@param opts { search: obsidian.SearchOpts|?, dir: obsidian.Path|? }|?
+M.find_headings_async = function(term, callback, opts)
+  opts = opts or {}
+
+  -- Caches code block locations per path.
+  ---@type table<string, { [1]: integer, [2]: integer }[]>
+  local path_to_code_blocks = {}
+  -- Caches file lines per path for code block detection.
+  ---@type table<string, string[]>
+  local path_to_lines = {}
+
+  ---@type obsidian.HeadingLocation[]
+  local results = {}
+  -- Track path order for stable sorting.
+  ---@type table<string, integer>
+  local path_order = {}
+  local num_paths = 0
+
+  --- Load lines and code blocks for a file, with caching.
+  ---@param path string
+  ---@return { [1]: integer, [2]: integer }[]
+  local function get_code_blocks(path)
+    if path_to_code_blocks[path] then
+      return path_to_code_blocks[path]
+    end
+    local lines = {}
+    local f = io.open(path, "r")
+    if f then
+      for line in f:lines() do
+        lines[#lines + 1] = line
+      end
+      f:close()
+    end
+    path_to_lines[path] = lines
+    local blocks = M.find_code_blocks(lines)
+    path_to_code_blocks[path] = blocks
+    return blocks
+  end
+
+  --- Check if a line number is inside a code block.
+  ---@param code_blocks { [1]: integer, [2]: integer }[]
+  ---@param lnum integer 1-indexed line number
+  ---@return boolean
+  local function in_code_block(code_blocks, lnum)
+    for _, block in ipairs(code_blocks) do
+      if block[1] <= lnum and lnum <= block[2] then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Build rg search pattern: match lines starting with 1-6 '#' followed by space.
+  -- If term is non-empty, also require the term to appear somewhere in the heading.
+  local search_term
+  if term and #term > 0 then
+    search_term = "^#{1,6}\\s+.*" .. term
+  else
+    search_term = "^#{1,6}\\s+.+"
+  end
+
+  ---@param match_data MatchData
+  local on_match = function(match_data)
+    local path = Path.new(match_data.path.text):resolve({ strict = true })
+    local path_str = tostring(path)
+
+    if path_order[path_str] == nil then
+      num_paths = num_paths + 1
+      path_order[path_str] = num_paths
+    end
+
+    -- 1-indexed line number (ripgrep JSON output uses 1-indexed line numbers).
+    local lnum = match_data.line_number
+    local line_text = util.rstrip_whitespace(match_data.lines.text)
+
+    -- Skip matches inside code blocks.
+    local code_blocks = get_code_blocks(path_str)
+    if in_code_block(code_blocks, lnum) then
+      return
+    end
+
+    local parsed = util.parse_header(line_text)
+    if not parsed then
+      return
+    end
+
+    results[#results + 1] = {
+      heading = parsed.header,
+      level = parsed.level,
+      anchor = parsed.anchor,
+      path = path,
+      line = lnum,
+      text = line_text,
+    }
+  end
+
+  M.search_async(
+    opts.dir or Obsidian.dir,
+    search_term,
+    Opts._prepare(opts.search, { ignore_case = true }),
+    on_match,
+    function()
+      -- Sort by path order, then by line number within each file.
+      table.sort(results, function(a, b)
+        local a_order = path_order[tostring(a.path)] or 0
+        local b_order = path_order[tostring(b.path)] or 0
+        if a_order ~= b_order then
+          return a_order < b_order
+        end
+        return a.line < b.line
+      end)
+
+      callback(results)
+    end
+  )
+end
+
+--- Synchronous version of `find_headings_async()`.
+---
+---@param term string The search term.
+---@param opts { search: obsidian.SearchOpts|?, timeout: integer|? }|?
+---
+---@return obsidian.HeadingLocation[]
+M.find_headings = function(term, opts)
+  opts = opts or {}
+  opts.timeout = opts.timeout or 1000
+  return async.block_on(function(cb)
+    return M.find_headings_async(term, cb, { search = opts.search })
+  end, opts.timeout)
+end
+
 return M
