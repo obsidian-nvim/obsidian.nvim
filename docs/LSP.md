@@ -1,3 +1,5 @@
+See [[LSP Progress]]
+
 ## Definition
 
 There are three types of links supported:
