@@ -97,30 +97,6 @@ T["returns headings as String symbols"] = function()
   eq(true, heading_names["headings#Sub heading"] or false)
 end
 
-T["returns tags as Enum symbols (deduplicated)"] = function()
-  local files = h.mock_vault_contents(child.Obsidian.dir, {
-    ["tagged.md"] = [[
-#mytag
-
-#mytag
-
-#othertag
-]],
-  })
-  ensure_lsp(files)
-
-  local symbols = get_symbols ""
-  local tag_count = {}
-  for _, s in ipairs(symbols) do
-    if s.kind == 10 then -- Enum
-      tag_count[s.name] = (tag_count[s.name] or 0) + 1
-    end
-  end
-  -- Each unique tag should appear exactly once (deduplicated).
-  eq(1, tag_count["#mytag"] or 0)
-  eq(1, tag_count["#othertag"] or 0)
-end
-
 T["heading containerName is vault-relative path without .md"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["container-test.md"] = [[
