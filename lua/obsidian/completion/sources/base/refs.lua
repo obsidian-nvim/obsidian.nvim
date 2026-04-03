@@ -244,6 +244,7 @@ function RefsSourceBase:process_search_results(cc, results)
     table.insert(completion_items, {
       documentation = option.documentation,
       sortText = option.sort_text,
+      filterText = completion.get_filter_text(option.label),
       label = label,
       kind = vim.lsp.protocol.CompletionItemKind.Reference,
       textEdit = {

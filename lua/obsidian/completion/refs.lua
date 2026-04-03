@@ -57,4 +57,10 @@ M.get_keyword_pattern = function()
   return [=[\%(^\|[^\[]\)\zs\[\{1,2}[^\]]\+\]\{,2}]=]
 end
 
+---@param label string
+---@return string
+M.get_filter_text = function(label)
+  return "[[" .. label
+end
+
 return M
