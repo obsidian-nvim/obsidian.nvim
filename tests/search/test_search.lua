@@ -183,4 +183,36 @@ _G.res = search.find_links(note, {})
   }, res)
 end
 
+T["find_links"]["should return duplicate link occurrences when dedup is false"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "test.md")
+  local file = [==[
+[[link]]
+[[link]]
+]==]
+  vim.fn.writefile(vim.split(file, "\n"), filepath)
+  child.lua [[
+local search = require"obsidian.search"
+local note = require"obsidian.note".from_file(tostring(Obsidian.dir / "test.md"))
+_G.res = search.find_links(note, { dedup = false })
+  ]]
+  vim.uv.sleep(100)
+  local res = child.lua_get [[res]]
+
+  eq({
+    {
+      ["end"] = 7,
+      line = 1,
+      link = "[[link]]",
+      start = 0,
+    },
+    {
+      ["end"] = 7,
+      line = 2,
+      link = "[[link]]",
+      start = 0,
+    },
+  }, res)
+end
+
 return T

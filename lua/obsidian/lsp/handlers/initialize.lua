@@ -12,6 +12,13 @@ end
 ---@type lsp.InitializeResult
 local initializeResult = {
   capabilities = {
+    textDocumentSync = {
+      openClose = true,
+      change = vim.lsp.protocol.TextDocumentSyncKind.Full,
+      save = {
+        includeText = false,
+      },
+    },
     renameProvider = {
       prepareProvider = true,
     },

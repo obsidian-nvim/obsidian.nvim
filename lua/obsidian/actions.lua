@@ -3,6 +3,8 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
+local dead_links_analysis = require "obsidian.analysis.dead_links"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -625,6 +627,302 @@ end
 M.start_presentation = function(buf)
   local note = Note.from_buffer(buf)
   require("obsidian.slides").start_presentation(note)
+end
+
+---@param opts? { output_type: "md"|"qf"|string|? }
+---@return "md"|"qf"
+local function normalize_output_type(opts)
+  opts = opts or {}
+  local output_type = opts.output_type or "md"
+  if output_type ~= "md" and output_type ~= "qf" then
+    log.err("Invalid output_type '%s', expected 'md' or 'qf'", tostring(output_type))
+    return "md"
+  end
+  return output_type
+end
+
+---@return obsidian.Note[]
+local function collect_workspace_notes()
+  ---@type obsidian.Note[]
+  local notes = {}
+  for path in api.dir(Obsidian.dir) do
+    local ok, note = pcall(Note.from_file, path)
+    if ok and note then
+      notes[#notes + 1] = note
+    end
+  end
+  return notes
+end
+
+---@param title string
+---@param filename string
+---@param lines string[]
+local function open_markdown_report(title, filename, lines)
+  local path = Obsidian.dir / filename
+  util.write_file(tostring(path), table.concat(lines, "\n") .. "\n")
+  api.open_note({
+    filename = tostring(path),
+    lnum = 1,
+    col = 1,
+  }, "e")
+  log.info("Wrote %s to '%s'", title, tostring(path:vault_relative_path { strict = true }))
+end
+
+---@param title string
+---@param items vim.quickfix.entry[]
+local function open_quickfix_report(title, items)
+  if vim.tbl_isempty(items) then
+    return log.info("No results for %s", title)
+  end
+  vim.fn.setqflist({}, " ", { title = title, items = items })
+  vim.cmd "copen"
+end
+
+---@param note obsidian.Note
+---@return boolean
+local function note_is_empty(note)
+  for _, line in ipairs(note:body_lines()) do
+    if vim.trim(line) ~= "" then
+      return false
+    end
+  end
+  return true
+end
+
+---@param location string
+---@return string[]
+local function path_location_candidates(location)
+  local candidates = {
+    location,
+    location:gsub("^%./", ""),
+    location:gsub("^/", ""),
+    vim.uri_decode(location),
+  }
+
+  local dedup = {}
+  local out = {}
+  for _, candidate in ipairs(candidates) do
+    if candidate and candidate ~= "" and not dedup[candidate] then
+      dedup[candidate] = true
+      out[#out + 1] = candidate
+    end
+  end
+  return out
+end
+
+---@param notes obsidian.Note[]
+---@return table<string, string>
+---@return table<string, string>
+local function build_note_lookups(notes)
+  local reference_lookup = {}
+  local absolute_lookup = {}
+
+  for _, note in ipairs(notes) do
+    local abs = tostring(note.path:resolve())
+    local abs_key = abs:lower()
+    absolute_lookup[abs_key] = abs
+    reference_lookup[abs_key] = abs
+
+    for _, ref in ipairs(note:get_reference_paths { urlencode = true }) do
+      local key = ref:lower()
+      if not reference_lookup[key] then
+        reference_lookup[key] = abs
+      end
+    end
+
+    for _, alias in ipairs(note.aliases) do
+      local key = alias:lower()
+      if not reference_lookup[key] then
+        reference_lookup[key] = abs
+      end
+    end
+  end
+
+  return reference_lookup, absolute_lookup
+end
+
+---@param source_path obsidian.Path
+---@param location string
+---@param reference_lookup table<string, string>
+---@param absolute_lookup table<string, string>
+---@return string|nil
+local function resolve_target_path(source_path, location, reference_lookup, absolute_lookup)
+  for _, candidate in ipairs(path_location_candidates(location)) do
+    local reference_hit = reference_lookup[candidate:lower()]
+    if reference_hit then
+      return reference_hit
+    end
+
+    local parent = source_path:parent()
+    if parent ~= nil then
+      local resolved = tostring((parent / candidate):resolve())
+      local absolute_hit = absolute_lookup[resolved:lower()]
+      if absolute_hit then
+        return absolute_hit
+      end
+    end
+  end
+
+  return nil
+end
+
+
+---@param opts? { output_type: "md"|"qf"|string|? }
+M.list_empty_files = function(opts)
+  -- TODO: expand scan scope to include non-note filetypes.
+  local output_type = normalize_output_type(opts)
+  local notes = collect_workspace_notes()
+
+  ---@type obsidian.Note[]
+  local empty_notes = {}
+  for _, note in ipairs(notes) do
+    if note_is_empty(note) then
+      empty_notes[#empty_notes + 1] = note
+    end
+  end
+
+  table.sort(empty_notes, function(a, b)
+    return tostring(a.path) < tostring(b.path)
+  end)
+
+  if output_type == "qf" then
+    ---@type vim.quickfix.entry[]
+    local items = {}
+    for _, note in ipairs(empty_notes) do
+      items[#items + 1] = {
+        filename = tostring(note.path),
+        lnum = 1,
+        col = 1,
+        text = "Empty file",
+      }
+    end
+    return open_quickfix_report("Obsidian Empty Files", items)
+  end
+
+  local lines = { "# Empty files", "" }
+  for _, note in ipairs(empty_notes) do
+    local rel = tostring(assert(note.path:vault_relative_path { strict = true }))
+    lines[#lines + 1] = "- [[" .. rel .. "]]"
+  end
+  if #empty_notes == 0 then
+    lines[#lines + 1] = "No empty files found."
+  end
+
+  open_markdown_report("Obsidian Empty Files", "empty files result.md", lines)
+end
+
+---@param opts? { output_type: "md"|"qf"|string|? }
+M.list_orphan_files = function(opts)
+  -- TODO: expand scan scope to include non-note filetypes.
+  local output_type = normalize_output_type(opts)
+  local notes = collect_workspace_notes()
+  local reference_lookup, absolute_lookup = build_note_lookups(notes)
+
+  ---@type table<string, integer>
+  local inbound = {}
+  for _, note in ipairs(notes) do
+    inbound[tostring(note.path:resolve())] = 0
+  end
+
+  for _, source_note in ipairs(notes) do
+    for _, match in ipairs(source_note:links { dedup = false }) do
+      local location, _, link_type = util.parse_link(match.link, { strip = true })
+      if
+        location
+        and location ~= ""
+        and link_type ~= "HeaderLink"
+        and link_type ~= "BlockLink"
+        and not util.is_uri(location)
+      then
+        local target_path = resolve_target_path(source_note.path, location, reference_lookup, absolute_lookup)
+        if target_path ~= nil and inbound[target_path] ~= nil then
+          inbound[target_path] = inbound[target_path] + 1
+        end
+      end
+    end
+  end
+
+  ---@type obsidian.Note[]
+  local orphan_notes = {}
+  for _, note in ipairs(notes) do
+    local path = tostring(note.path:resolve())
+    if inbound[path] == 0 then
+      orphan_notes[#orphan_notes + 1] = note
+    end
+  end
+
+  table.sort(orphan_notes, function(a, b)
+    return tostring(a.path) < tostring(b.path)
+  end)
+
+  if output_type == "qf" then
+    ---@type vim.quickfix.entry[]
+    local items = {}
+    for _, note in ipairs(orphan_notes) do
+      items[#items + 1] = {
+        filename = tostring(note.path),
+        lnum = 1,
+        col = 1,
+        text = "Orphan file",
+      }
+    end
+    return open_quickfix_report("Obsidian Orphan Files", items)
+  end
+
+  local lines = { "# Orphan files", "" }
+  for _, note in ipairs(orphan_notes) do
+    local rel = tostring(assert(note.path:vault_relative_path { strict = true }))
+    lines[#lines + 1] = "- [[" .. rel .. "]]"
+  end
+  if #orphan_notes == 0 then
+    lines[#lines + 1] = "No orphan files found."
+  end
+
+  open_markdown_report("Obsidian Orphan Files", "orphan files result.md", lines)
+end
+
+---@param opts? { output_type: "md"|"qf"|string|? }
+M.list_dead_links = function(opts)
+  -- TODO: expand scan scope to include non-note filetypes.
+  local output_type = normalize_output_type(opts)
+  local entries = dead_links_analysis.collect { use_cache = false }
+
+  ---@type vim.quickfix.entry[]
+  local items = {}
+
+  for _, entry in ipairs(entries) do
+    items[#items + 1] = {
+      filename = entry.filename,
+      lnum = entry.line,
+      col = entry.start + 1,
+      text = entry.text,
+    }
+  end
+
+  table.sort(items, function(a, b)
+    if a.filename == b.filename then
+      if a.lnum == b.lnum then
+        return a.col < b.col
+      end
+      return a.lnum < b.lnum
+    end
+    return a.filename < b.filename
+  end)
+
+  if output_type == "qf" then
+    return open_quickfix_report("Obsidian Dead Links", items)
+  end
+
+  local md_lines = { "# Dead links", "" }
+  for _, item in ipairs(items) do
+    local rel = tostring(assert(Path.new(item.filename):vault_relative_path { strict = true }))
+    md_lines[#md_lines + 1] = string.format("- [[%s]]:%d:%d - %s", rel, item.lnum, item.col, item.text)
+  end
+  if vim.tbl_isempty(items) then
+    md_lines[#md_lines + 1] = "No dead links found."
+  end
+
+  open_markdown_report("Obsidian Dead Links", "dead links result.md", md_lines)
 end
 
 return M

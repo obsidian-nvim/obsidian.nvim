@@ -498,8 +498,11 @@ end
 -- Gather all unique links from the a note.
 --
 ---@param note obsidian.Note
+---@param opts? { dedup: boolean|? }
 ---@return obsidian.LinkMatch[]
-M.find_links = function(note)
+M.find_links = function(note, opts)
+  opts = opts or {}
+  local dedup = opts.dedup ~= false
   local matches = {}
   ---@type table<string, boolean>
   local found = {}
@@ -509,7 +512,7 @@ M.find_links = function(note)
     for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID", "Tag" } })) do
       local m_start, m_end = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)
-      if not found[link] then
+      if (not dedup) or (not found[link]) then
         local match = {
           link = link,
           line = lnum,
@@ -517,7 +520,9 @@ M.find_links = function(note)
           ["end"] = m_end - 1,
         }
         matches[#matches + 1] = match
-        found[link] = true
+        if dedup then
+          found[link] = true
+        end
       end
     end
   end

@@ -1168,9 +1168,10 @@ Note.backlinks = function(self, opts)
   return search.find_backlinks(self, opts)
 end
 
+---@param opts? { dedup: boolean|? }
 ---@return obsidian.LinkMatch[]
-Note.links = function(self)
-  return search.find_links(self)
+Note.links = function(self, opts)
+  return search.find_links(self, opts)
 end
 
 ---@param path obsidian.Path vault-relative-path
