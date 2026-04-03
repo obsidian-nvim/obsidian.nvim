@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tag finding will not generate false positives of other list fields.
 - `toggle_checkbox` now works on blank/whitespace-only lines when `checkbox.create_new` is enabled.
 - Proper `filter_text` so that nvim-cmp's matcher don't rule out completion items.
+- Properly disambiguate completion items with same stem.
 
 ## [v3.16.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.0) - 2026-03-16
 
