@@ -147,6 +147,7 @@ function NewNoteSourceBase:process_completion(cc)
     items[#items + 1] = {
       documentation = documentation,
       sortText = new_note_opts.label,
+      filterText = completion.get_filter_text(new_note_opts.label),
       label = label,
       kind = vim.lsp.protocol.CompletionItemKind.Reference,
       textEdit = {
