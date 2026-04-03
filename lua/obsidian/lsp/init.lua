@@ -46,6 +46,12 @@ lsp.start = function(buf)
   -- vim.lsp.completion.enable() is available in Neovim >= 0.11.
   if vim.lsp.completion and vim.lsp.completion.enable and not has_completion_engine() then
     vim.lsp.completion.enable(true, client_id, buf, { autotrigger = true })
+    vim.api.nvim_create_autocmd("InsertCharPre", {
+      buffer = buf,
+      callback = function()
+        vim.lsp.completion.get()
+      end,
+    })
   end
 
   ---@cast client_id integer
