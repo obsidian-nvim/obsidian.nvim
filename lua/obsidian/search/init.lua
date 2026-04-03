@@ -508,8 +508,11 @@ end
 -- Gather all unique links from the a note.
 --
 ---@param note obsidian.Note
+---@param opts? { dedup: boolean|? }
 ---@return obsidian.LinkMatch[]
-M.find_links = function(note)
+M.find_links = function(note, opts)
+  opts = opts or {}
+  local dedup = opts.dedup ~= false
   local matches = {}
   ---@type table<string, boolean>
   local found = {}
@@ -519,7 +522,7 @@ M.find_links = function(note)
   for lnum, line in iter(lines):enumerate() do
     for _, ref in ipairs(parse_refs.extract(line)) do
       local link = ref.embed and ref.raw:sub(2) or ref.raw
-      if not found[link] then
+      if (not dedup) or not found[link] then
         local match = {
           link = link,
           line = lnum,
@@ -527,7 +530,9 @@ M.find_links = function(note)
           ["end"] = ref.range.end_col - 1,
         }
         matches[#matches + 1] = match
-        found[link] = true
+        if dedup then
+          found[link] = true
+        end
       end
     end
   end

@@ -1324,9 +1324,10 @@ Note.backlinks_async = function(self, opts, callback)
   return search.find_backlinks_async(self, callback, backlink_opts)
 end
 
+---@param opts? { dedup: boolean|? }
 ---@return obsidian.LinkMatch[]
-Note.links = function(self)
-  return search.find_links(self)
+Note.links = function(self, opts)
+  return search.find_links(self, opts)
 end
 
 ---@param path obsidian.Path vault-relative-path
