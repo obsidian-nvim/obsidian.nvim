@@ -9,6 +9,12 @@ local function send_progress(dispatchers, kind, title, percentage)
   })
 end
 
+local chars = { "[", "#" }
+
+for i = 32, 126 do
+  table.insert(chars, string.char(i))
+end
+
 ---@type lsp.InitializeResult
 local initializeResult = {
   capabilities = {
@@ -21,7 +27,7 @@ local initializeResult = {
     workspaceSymbolProvider = true,
     codeActionProvider = true,
     completionProvider = {
-      triggerCharacters = { "[", "#" },
+      triggerCharacters = chars,
       resolveProvider = false,
     },
     executeCommandProvider = {
