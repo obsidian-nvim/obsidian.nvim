@@ -2,7 +2,16 @@ local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
-local iter = vim.iter
+
+---@class obsidian.completion.CompletionItemOptions
+---@field label string
+---@field new_text string
+---@field sort_text string
+---@field documentation table|?
+---@field note obsidian.Note|?
+---@field anchor obsidian.note.HeaderAnchor|?
+---@field block obsidian.note.Block|?
+---@field disambiguated boolean|?
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
@@ -15,7 +24,7 @@ local iter = vim.iter
 ---@field insert_end integer|?
 ---@field block_link string|?
 ---@field anchor_link string|?
----@field new_text_to_option table<string, obsidian.completion.sources.blink.CompletionItem>
+---@field new_text_to_option table<string, obsidian.completion.CompletionItemOptions>
 ---@field root obsidian.Path
 local RefsSourceCompletionContext = {}
 RefsSourceCompletionContext.__index = RefsSourceCompletionContext
@@ -191,7 +200,7 @@ function RefsSourceBase:process_search_results(cc, results)
 
   cc.new_text_to_option = {}
 
-  for note in iter(results) do
+  for _, note in ipairs(results) do
     ---@cast note obsidian.Note
 
     local matching_blocks = self:collect_matching_blocks(note, cc.block_link)
@@ -207,7 +216,7 @@ function RefsSourceBase:process_search_results(cc, results)
         aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
       end
 
-      for alias in iter(aliases) do
+      for _, alias in ipairs(aliases) do
         self:update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
         local alias_case_matched = util.match_case(cc.search, alias)
 
@@ -274,11 +283,11 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
   ---@type { label: string|?, alt_label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }[]
   local new_options = {}
   if matching_anchors ~= nil then
-    for anchor in iter(matching_anchors) do
+    for _, anchor in ipairs(matching_anchors) do
       table.insert(new_options, { label = label, alt_label = alt_label, anchor = anchor })
     end
   elseif matching_blocks ~= nil then
-    for block in iter(matching_blocks) do
+    for _, block in ipairs(matching_blocks) do
       table.insert(new_options, { label = label, alt_label = alt_label, block = block })
     end
   else
@@ -362,11 +371,58 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
       error "should not happen"
     end
 
+    -- use abosulte unless relative
+    local resolve_link_format = Obsidian.opts.link.format == "relative" and "relative" or "absolute"
+
     if cc.new_text_to_option[new_text] then
-      cc.new_text_to_option[new_text].sort_text = cc.new_text_to_option[new_text].sort_text .. " " .. sort_text
+      local existing = cc.new_text_to_option[new_text]
+      if
+        option.label
+        and existing.note
+        and existing.note.path
+        and tostring(existing.note.path) ~= tostring(note.path)
+      then
+        -- Different notes produced the same link text: disambiguate using vault-relative paths.
+        if not existing.disambiguated then
+          cc.new_text_to_option[new_text] = nil
+          local ex_new_text = existing.note:format_link {
+            label = existing.label,
+            format = resolve_link_format,
+            anchor = existing.anchor,
+            block = existing.block,
+          }
+          existing.new_text = ex_new_text
+          existing.disambiguated = true
+          cc.new_text_to_option[ex_new_text] = existing
+        end
+
+        local cur_new_text = note:format_link {
+          label = final_label,
+          format = resolve_link_format,
+          anchor = option.anchor,
+          block = option.block,
+        }
+        if not cc.new_text_to_option[cur_new_text] then
+          cc.new_text_to_option[cur_new_text] = {
+            label = final_label,
+            new_text = cur_new_text,
+            sort_text = sort_text,
+            documentation = documentation,
+            note = note,
+            disambiguated = true,
+          }
+        end
+      end
     else
-      cc.new_text_to_option[new_text] =
-        { label = final_label, new_text = new_text, sort_text = sort_text, documentation = documentation }
+      cc.new_text_to_option[new_text] = {
+        label = final_label,
+        new_text = new_text,
+        sort_text = sort_text,
+        documentation = documentation,
+        note = option.label and note or nil,
+        anchor = option.anchor,
+        block = option.block,
+      }
     end
   end
 end
