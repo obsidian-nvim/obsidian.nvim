@@ -371,7 +371,7 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
       error "should not happen"
     end
 
-    -- use abosulte unless relative
+    -- use absoulte unless relative
     local resolve_link_format = Obsidian.opts.link.format == "relative" and "relative" or "absolute"
 
     if cc.new_text_to_option[new_text] then
