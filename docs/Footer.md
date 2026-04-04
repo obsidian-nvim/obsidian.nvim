@@ -41,7 +41,9 @@ Built-in substitutions:
 ---@field format? string
 ---@field hl_group? string
 ---@field separator? string|false Set false to disable separator; set an empty string to insert a blank line separator.
----@field substitutions? table<string, string|number|string[]|fun(ctx: obsidian.FooterContext): string|string[]|number|nil>
+--- A map for custom footer substitutions, where the key is the variable name used in `{{...}}`.
+--- Functions receive an `obsidian.FooterContext`.
+---@field substitutions? table<string, string|string[]|fun(ctx: obsidian.Note): string|string[]>
 footer = {
   enabled = true,
   format = "{{status}}",

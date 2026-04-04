@@ -1,14 +1,10 @@
 local M = {}
 local ns_id = vim.api.nvim_create_namespace "obsidian.footer"
 local Note = require "obsidian.note"
-local Path = require "obsidian.path"
 local attached_bufs = {}
 
 ---@type table<integer, uv.uv_timer_t>
 local timers = {}
-
----@type table<string, obsidian.BacklinkMatch[]>
-local linked_mentions_cache = {}
 
 -- HACK: for now before we have cache
 vim.g.obsidian_footer_update_interval = 10000
@@ -33,116 +29,42 @@ local function split_lines(text)
   return vim.split(text, "\n", { plain = true })
 end
 
----@param match obsidian.BacklinkMatch
----@return string, integer, integer, string
-local function backlink_sort_key(match)
-  local rel_path = Path.new(match.path):vault_relative_path() or tostring(match.path)
-  return rel_path, match.line or 0, match.start or 0, match.text or ""
-end
+local builtins = {
+  words = function()
+    local wc = vim.fn.wordcount()
+    return wc.visual_words or wc.words or 0
+  end,
+  chars = function()
+    local wc = vim.fn.wordcount()
+    return wc.visual_chars or wc.chars or 0
+  end,
+  properties = function(note)
+    return vim.tbl_count(note:frontmatter()) -- TODO: should be zero if no frontmatter
+  end,
+  backlinks = function(note, update)
+    return note:status(update).backlinks or 0
+  end,
+  status = function(note, update)
+    local info = note:status(update) or {}
+    return string.format(
+      "%d backlinks  %d properties  %d words  %d chars",
+      info.backlinks or 0,
+      info.properties or 0,
+      info.words or 0,
+      info.chars or 0
+    )
+  end,
+}
 
----@param matches obsidian.BacklinkMatch[]
----@return obsidian.BacklinkMatch[]
-local function sort_backlink_matches(matches)
-  table.sort(matches, function(a, b)
-    local a_path, a_line, a_start, a_text = backlink_sort_key(a)
-    local b_path, b_line, b_start, b_text = backlink_sort_key(b)
-
-    if a_path ~= b_path then
-      return a_path < b_path
-    elseif a_line ~= b_line then
-      return a_line < b_line
-    elseif a_start ~= b_start then
-      return a_start < b_start
-    else
-      return a_text < b_text
-    end
-  end)
-
-  return matches
-end
-
----@param note obsidian.Note
----@param update_backlinks boolean|?
----@return table<string, string|number|string[]|fun(note: obsidian.Note): string|string[]|number|nil>
-local function build_substitutions(note, update_backlinks)
-  ---@type { words: integer, chars: integer, properties: integer, backlinks: integer }?
-  local status
-  ---@type obsidian.BacklinkMatch[]?
-  local backlink_matches
-
-  local get_status = function()
-    if status == nil then
-      status = note:status(update_backlinks)
-    end
-    return status or {}
-  end
-
-  local get_backlink_matches = function()
-    local path = tostring(note.path)
-    if backlink_matches == nil then
-      if update_backlinks or linked_mentions_cache[path] == nil then
-        linked_mentions_cache[path] = sort_backlink_matches(note:backlinks {})
-      end
-      backlink_matches = linked_mentions_cache[path]
-    end
-    return backlink_matches
-  end
-
-  local builtins
-  builtins = {
-    words = function()
-      return get_status().words or 0
-    end,
-    chars = function()
-      return get_status().chars or 0
-    end,
-    properties = function()
-      return get_status().properties or 0
-    end,
-    backlinks = function()
-      return get_status().backlinks or 0
-    end,
-    status = function()
-      local info = get_status()
-      return string.format(
-        "%d backlinks  %d properties  %d words  %d chars",
-        info.backlinks or 0,
-        info.properties or 0,
-        info.words or 0,
-        info.chars or 0
-      )
-    end,
-    linked_mentions = function()
-      local matches = get_backlink_matches()
-      if #matches == 0 then
-        return {}
-      end
-
-      local lines = { "Linked Mentions", "" }
-      for _, match in ipairs(matches) do
-        local rel_path = Path.new(match.path):vault_relative_path() or tostring(match.path)
-        lines[#lines + 1] = string.format("%s: %s", rel_path, match.text or "")
-      end
-
-      return lines
-    end,
-    unlinked_mentions = function()
-      return {}
-    end,
-  }
-
-  local user_substitutions = Obsidian.opts.footer.substitutions or {}
-  return vim.tbl_extend("force", builtins, user_substitutions)
-end
-
----@param substitutions table<string, string|number|string[]|fun(note: obsidian.Note): string|string[]|number|nil>
+---@param substitutions table<string, string|number|string[]|fun(note: obsidian.Note, update: boolean): string|string[]|number|nil>
 ---@param note obsidian.Note
 ---@param key string
+---@param update boolean
 ---@return string|string[]|number|nil
-local function evaluate_substitution(substitutions, note, key)
+local function evaluate_substitution(substitutions, note, key, update)
   local value = substitutions[key]
   if type(value) == "function" then
-    return value(note)
+    return value(note, update)
   else
     return value
   end
@@ -152,12 +74,12 @@ end
 ---@param substitutions table<string, string|number|string[]|fun(note: obsidian.Note): string|string[]|number|nil>
 ---@param note obsidian.Note
 ---@return string[]
-local function apply_substitutions(lines, substitutions, note)
+local function apply_substitutions(lines, substitutions, note, trigger_update)
   local out = {}
   for _, line in ipairs(lines) do
     local exact_key = line:match "^{{%s*([%w_]+)%s*}}$"
     if exact_key ~= nil then
-      local value = evaluate_substitution(substitutions, note, exact_key)
+      local value = evaluate_substitution(substitutions, note, exact_key, trigger_update)
       if type(value) == "table" then
         for _, list_line in ipairs(value) do
           out[#out + 1] = tostring(list_line)
@@ -167,7 +89,7 @@ local function apply_substitutions(lines, substitutions, note)
       end
     else
       local rendered = line:gsub("{{%s*([%w_]+)%s*}}", function(key)
-        local value = evaluate_substitution(substitutions, note, key)
+        local value = evaluate_substitution(substitutions, note, key, trigger_update)
         return substitution_to_string(value)
       end)
       vim.list_extend(out, split_lines(rendered))
@@ -178,9 +100,9 @@ end
 
 ---@param buf integer
 ---@param format string
----@param update_backlinks boolean|?
+---@param trigger_update boolean|?
 ---@return string[]|?
-local function render_lines(buf, format, update_backlinks)
+local function render_lines(buf, format, trigger_update)
   if not vim.api.nvim_buf_is_valid(buf) then
     return
   end
@@ -190,9 +112,11 @@ local function render_lines(buf, format, update_backlinks)
     return
   end
 
-  local substitutions = build_substitutions(note, update_backlinks)
+  local user_substitutions = Obsidian.opts.footer.substitutions or {}
+  local substitutions = vim.tbl_extend("force", builtins, user_substitutions)
+
   local lines = split_lines(format)
-  return apply_substitutions(lines, substitutions, note)
+  return apply_substitutions(lines, substitutions, note, trigger_update)
 end
 
 ---@param lines string[]|?
@@ -292,11 +216,6 @@ M.start = function(buf)
     group = group,
     buffer = buf,
     callback = function()
-      local buf_path = vim.api.nvim_buf_get_name(buf)
-      if buf_path ~= "" then
-        linked_mentions_cache[Path.new(buf_path).filename] = nil
-      end
-
       local buf_timer = timers[buf]
       if buf_timer ~= nil then
         buf_timer:stop()
