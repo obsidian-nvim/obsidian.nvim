@@ -1163,7 +1163,7 @@ Note.open = function(self, opts)
 end
 
 ---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }
----@return obsidian.BacklinkMatch
+---@return obsidian.BacklinkMatch[]
 Note.backlinks = function(self, opts)
   opts.dir = opts.dir or api.resolve_workspace_dir()
   return search.find_backlinks(self, opts)

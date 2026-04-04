@@ -746,7 +746,7 @@ end
 
 ---@param note obsidian.Note
 ---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?
----@return obsidian.BacklinkMatch
+---@return obsidian.BacklinkMatch[]
 M.find_backlinks = function(note, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
