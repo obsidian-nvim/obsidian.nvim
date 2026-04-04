@@ -39,7 +39,7 @@ local function depth_deltas(line)
     :gsub("%b''", "") -- single-quoted strings
 
   local bd, pd = 0, 0
-  for c in stripped:gmatch(".") do
+  for c in stripped:gmatch "." do
     if c == "{" then
       bd = bd + 1
     elseif c == "}" then
@@ -57,7 +57,7 @@ end
 ---@param line string
 ---@return boolean
 local function is_annotation(line)
-  return line:match("^%s*%-%-%-") ~= nil
+  return line:match "^%s*%-%-%-" ~= nil
 end
 
 --- Detect a table/value assignment line like `  key = {` or `  key = (function()`.
@@ -67,7 +67,7 @@ end
 local function assignment_key(line)
   -- Match `  key = {`, `  key = (function()`, `  key = value,`, `  key = require(...)...`
   -- Must be indented exactly 2 spaces (top-level field in the returned table).
-  return line:match("^  ([%w_]+)%s*=")
+  return line:match "^  ([%w_]+)%s*="
 end
 
 --- Parse config/default.lua and extract sections.
@@ -102,7 +102,7 @@ local function parse_config(path)
   local function flush_section()
     if current_key then
       -- Trim trailing empty lines
-      while #current_lines > 0 and current_lines[#current_lines]:match("^%s*$") do
+      while #current_lines > 0 and current_lines[#current_lines]:match "^%s*$" do
         table.remove(current_lines)
       end
       -- Remove trailing comma from last line (top-level table entry ends with `},`)
@@ -138,7 +138,7 @@ local function parse_config(path)
       end
     elseif is_annotation(line) then
       -- Check if it's an @alias line (floating between sections).
-      if line:match("^%s*%-%-%-@alias") then
+      if line:match "^%s*%-%-%-@alias" then
         alias_buf[#alias_buf + 1] = line
       else
         annotation_buf[#annotation_buf + 1] = line
@@ -210,7 +210,7 @@ end
 local function extract_headings(lines)
   local headings = {}
   for i, line in ipairs(lines) do
-    local text = line:match("^## (.+)$")
+    local text = line:match "^## (.+)$"
     if text then
       headings[#headings + 1] = { text = text, line_idx = i }
     end
@@ -238,7 +238,7 @@ end
 ---@return integer|nil
 local function first_heading_idx(lines)
   for i, line in ipairs(lines) do
-    if line:match("^## ") then
+    if line:match "^## " then
       return i
     end
   end
@@ -252,7 +252,7 @@ end
 local function find_existing_toc(lines, first_h_idx)
   local start_idx, end_idx
   for i = 1, first_h_idx - 1 do
-    if lines[i]:match("^%- %[") then
+    if lines[i]:match "^%- %[" then
       if not start_idx then
         start_idx = i
       end
@@ -269,9 +269,9 @@ end
 local function find_options_range(lines)
   local start_idx
   for i, line in ipairs(lines) do
-    if line:match("^## Options%s*$") then
+    if line:match "^## Options%s*$" then
       start_idx = i
-    elseif start_idx and line:match("^## ") then
+    elseif start_idx and line:match "^## " then
       return start_idx, i
     end
   end
@@ -289,7 +289,7 @@ local function build_options_section(block)
   result[#result + 1] = "## Options"
   result[#result + 1] = ""
   result[#result + 1] = "```lua"
-  for line in (block .. "\n"):gmatch("([^\n]*)\n") do
+  for line in (block .. "\n"):gmatch "([^\n]*)\n" do
     result[#result + 1] = line
   end
   result[#result + 1] = "```"
@@ -382,7 +382,7 @@ local function update_page(page_path, options_block)
       end
       -- Skip blank lines immediately after the old TOC.
       local resume = toc_end + 1
-      while resume <= #lines and lines[resume]:match("^%s*$") do
+      while resume <= #lines and lines[resume]:match "^%s*$" do
         resume = resume + 1
       end
       for i = resume, #lines do
@@ -393,7 +393,7 @@ local function update_page(page_path, options_block)
   end
 
   -- Ensure file ends with exactly one newline.
-  while #lines > 0 and lines[#lines]:match("^%s*$") do
+  while #lines > 0 and lines[#lines]:match "^%s*$" do
     table.remove(lines)
   end
 
@@ -423,4 +423,4 @@ for key, page_name in pairs(module_pages) do
   update_page(page_path, block)
 end
 
-print("Done.")
+print "Done."
