@@ -1,4 +1,7 @@
-[Options](#Options)
+- [Sort By](#sort-by)
+- [Sort Reversed](#sort-reversed)
+- [Max Lines](#max-lines)
+- [Options](#options)
 
 ## Sort By
 
@@ -15,10 +18,9 @@
 ## Options
 
 ```lua
----@alias obsidian.config.SortBy "modified" | "created" | "accessed" | "path"
-
 ---@class obsidian.config.SearchOpts
----@field sort_by obsidian.config.SortBy|false
+---
+---@field sort_by string|false
 ---@field sort_reversed boolean
 ---@field max_lines integer
 search = {

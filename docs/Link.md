@@ -1,4 +1,7 @@
-[Options](#Options)
+- [Link Format](#link-format)
+- [Link Style](#link-style)
+- [Link Rename](#link-rename)
+- [Options](#options)
 
 ## Link Format
 
@@ -100,8 +103,10 @@ See [LSP rename](LSP.md#rename)
 ---@class obsidian.config.LinkOpts
 ---@field style? obsidian.link.LinkStyle
 ---@field format? obsidian.link.LinkFormat
+---@field auto_update? boolean
 link = {
   style = "wiki",
   format = "shortest",
+  auto_update = false,
 }
 ```

@@ -11,4 +11,9 @@
 ---
 ---URI scheme whitelist, new values are appended to this list, and URIs with schemes in this list, will not be prompted to confirm opening
 ---@field schemes? string[]
+open = {
+  use_advanced_uri = false,
+  func = vim.ui.open,
+  schemes = { "https", "http", "file", "mailto" },
+}
 ```

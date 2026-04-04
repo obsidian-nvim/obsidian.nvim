@@ -1,6 +1,8 @@
-[Options](#Options)
-
-## Unique Note
+- [Format](#format)
+- [Folder](#folder)
+- [Template](#template)
+- [Usage](#usage)
+- [Options](#options)
 
 This feature creates notes with timestamp-based unique IDs, compatible with the [Obsidian Unique Note plugin](https://help.obsidian.md/plugins/unique-note).
 
@@ -63,6 +65,7 @@ There's an additional action exposed via lua function, to insert a unique link a
 
 ```lua
 ---@class obsidian.config.UniqueNoteOpts
+---
 ---@field enabled? boolean
 ---@field format? string|fun():string
 ---@field folder? string
