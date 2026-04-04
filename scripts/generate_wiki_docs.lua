@@ -1,9 +1,9 @@
 --- Generate wiki documentation from config/default.lua annotations.
 --- Run with: nvim --headless --noplugin -c "luafile scripts/generate_wiki_docs.lua" -c "qa!"
 
-local root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h")
-local config_path = root .. "/lua/obsidian/config/default.lua"
-local docs_dir = root .. "/docs"
+local project_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h")
+local config_path = project_root .. "/lua/obsidian/config/default.lua"
+local docs_dir = project_root .. "/docs"
 
 --- Hard-coded mapping: config key -> wiki page filename.
 --- Only pages in this list are updated.
@@ -24,171 +24,90 @@ local module_pages = {
 }
 
 --------------------------------------------------------------------------------
--- Parsing config/default.lua
+-- Parsing config/default.lua (using treesitter)
 --------------------------------------------------------------------------------
 
---- Count net brace/paren depth change in a line.
----@param line string
----@return integer brace_delta
----@return integer paren_delta
-local function depth_deltas(line)
-  -- Strip string literals and comments to avoid counting braces inside them.
-  local stripped = line
-    :gsub("%-%-.*$", "") -- line comments
-    :gsub('%b""', "") -- double-quoted strings
-    :gsub("%b''", "") -- single-quoted strings
-
-  local bd, pd = 0, 0
-  for c in stripped:gmatch "." do
-    if c == "{" then
-      bd = bd + 1
-    elseif c == "}" then
-      bd = bd - 1
-    elseif c == "(" then
-      pd = pd + 1
-    elseif c == ")" then
-      pd = pd - 1
-    end
+--- Walk backwards from a field's start row to find the annotation block above it,
+--- including any @alias lines separated by blank lines.
+---@param lines string[] 1-indexed file lines
+---@param field_start_row integer 0-indexed treesitter row
+---@return integer annotation_start_row 0-indexed
+local function find_annotations_start(lines, field_start_row)
+  -- Step 1: walk backwards through contiguous `---` comment lines.
+  local i = field_start_row - 1
+  while i >= 0 and lines[i + 1]:match "^%s*%-%-%-" do
+    i = i - 1
   end
-  return bd, pd
+  local comment_start = i + 1
+
+  -- Step 2: skip blank lines, then collect any @alias lines above.
+  local j = comment_start - 1
+  while j >= 0 and lines[j + 1]:match "^%s*$" do
+    j = j - 1
+  end
+  local alias_end = j
+  while j >= 0 and lines[j + 1]:match "^%s*%-%-%-@alias" do
+    j = j - 1
+  end
+  -- Only extend comment_start if we actually found @alias lines.
+  if j < alias_end then
+    comment_start = j + 1
+  end
+
+  return comment_start
 end
 
---- Detect if a line is an annotation line (starts with optional whitespace then `---`).
----@param line string
----@return boolean
-local function is_annotation(line)
-  return line:match "^%s*%-%-%-" ~= nil
-end
-
---- Detect a table/value assignment line like `  key = {` or `  key = (function()`.
---- Returns the key name or nil.
----@param line string
----@return string|nil key
-local function assignment_key(line)
-  -- Match `  key = {`, `  key = (function()`, `  key = value,`, `  key = require(...)...`
-  -- Must be indented exactly 2 spaces (top-level field in the returned table).
-  return line:match "^  ([%w_]+)%s*="
-end
-
---- Parse config/default.lua and extract sections.
+--- Parse config/default.lua using treesitter and extract sections.
 --- Returns a table mapping config keys to their annotation+code text blocks.
 ---@param path string
 ---@return table<string, string>
 local function parse_config(path)
-  local f = io.open(path, "r")
-  if not f then
-    error("Cannot open " .. path)
-  end
-  local all_lines = {}
-  for line in f:lines() do
-    all_lines[#all_lines + 1] = line
-  end
-  f:close()
+  local lines = vim.fn.readfile(path)
+  local source = table.concat(lines, "\n")
+  local parser = vim.treesitter.get_string_parser(source, "lua")
+  local tree = assert(parser:parse(), "no tree")[1]
+
+  -- Navigate: chunk > return_statement > expression_list > table_constructor
+  local root = tree:root()
+  local ret_node = root:child(1) -- return_statement
+  assert(ret_node and ret_node:type() == "return_statement", "Expected a return statement, got " .. ret_node:type())
+  local expr_node = ret_node:child(1) -- expression_list
+  assert(expr_node and expr_node:type() == "expression_list", "Expected an expression list, got " .. expr_node:type())
+  local tbl_node = expr_node:child(0) -- table_constructor
+  assert(tbl_node and tbl_node:type() == "table_constructor", "Expected a table constructor, got " .. tbl_node:type())
 
   ---@type table<string, string>
   local sections = {}
-  ---@type string[]
-  local annotation_buf = {} -- buffered annotation lines before current section
-  ---@type string[]
-  local alias_buf = {} -- @alias lines floating between sections
-  ---@type string|nil
-  local current_key = nil
-  ---@type string[]
-  local current_lines = {}
-  local brace_depth = 0
-  local paren_depth = 0
-  local in_body = false -- tracking a table assignment body
 
-  local function flush_section()
-    if current_key then
-      -- Trim trailing empty lines
-      while #current_lines > 0 and current_lines[#current_lines]:match "^%s*$" do
-        table.remove(current_lines)
-      end
-      -- Remove trailing comma from last line (top-level table entry ends with `},`)
-      if #current_lines > 0 then
-        current_lines[#current_lines] = current_lines[#current_lines]:gsub(",%s*$", "")
-      end
-      -- Strip common 2-space leading indent (lines are inside `return { ... }` in default.lua).
-      for i, l in ipairs(current_lines) do
-        current_lines[i] = l:gsub("^  ", "")
-      end
-      sections[current_key] = table.concat(current_lines, "\n")
-    end
-    current_key = nil
-    current_lines = {}
-    brace_depth = 0
-    paren_depth = 0
-    in_body = false
-  end
+  for field in tbl_node:iter_children() do
+    if field:type() == "field" then
+      local name_node = field:field("name")[1]
+      if name_node then
+        local name = vim.treesitter.get_node_text(name_node, source)
+        local sr, _, er = field:range()
+        local ann_start = find_annotations_start(lines, sr)
 
-  for _, line in ipairs(all_lines) do
-    if in_body then
-      -- We're inside a table assignment body.
-      current_lines[#current_lines + 1] = line
-      local bd, pd = depth_deltas(line)
-      brace_depth = brace_depth + bd
-      paren_depth = paren_depth + pd
+        -- Only include fields that have annotations above them.
+        if ann_start < sr then
+          -- Build the block: annotation lines + field assignment lines.
+          local block = {}
+          for i = ann_start + 1, er + 1 do
+            if lines[i] then
+              -- Strip the 2-space indent (lines are inside `return { ... }`).
+              block[#block + 1] = lines[i]:gsub("^  ", "")
+            end
+          end
 
-      -- Check for nested @class inside the body (e.g., CustomTemplateOpts inside templates).
-      -- These are kept as part of the parent section.
+          -- Remove trailing comma from the last line.
+          if #block > 0 then
+            block[#block] = block[#block]:gsub(",%s*$", "")
+          end
 
-      if brace_depth <= 0 and paren_depth <= 0 then
-        flush_section()
-      end
-    elseif is_annotation(line) then
-      -- Check if it's an @alias line (floating between sections).
-      if line:match "^%s*%-%-%-@alias" then
-        alias_buf[#alias_buf + 1] = line
-      else
-        annotation_buf[#annotation_buf + 1] = line
-      end
-    else
-      -- Non-annotation, non-body line.
-      local key = assignment_key(line)
-      if key and #annotation_buf > 0 then
-        -- Start of a new section with annotations.
-        flush_section()
-        current_key = key
-
-        -- Prepend any buffered aliases.
-        for _, a in ipairs(alias_buf) do
-          current_lines[#current_lines + 1] = a
+          sections[name] = table.concat(block, "\n")
         end
-        if #alias_buf > 0 then
-          current_lines[#current_lines + 1] = ""
-        end
-        alias_buf = {}
-
-        -- Add the annotation block.
-        for _, a in ipairs(annotation_buf) do
-          current_lines[#current_lines + 1] = a
-        end
-        annotation_buf = {}
-
-        -- Add the assignment line.
-        current_lines[#current_lines + 1] = line
-
-        local bd, pd = depth_deltas(line)
-        brace_depth = brace_depth + bd
-        paren_depth = paren_depth + pd
-
-        if brace_depth > 0 or paren_depth > 0 then
-          in_body = true
-        else
-          -- Single-line assignment (e.g., `key = value,`).
-          flush_section()
-        end
-      else
-        -- Not a section start or no annotations: discard buffered annotations.
-        annotation_buf = {}
-        -- Keep alias_buf as it may apply to the next section.
       end
     end
   end
-
-  -- Flush any remaining section.
-  flush_section()
 
   return sections
 end
@@ -201,7 +120,7 @@ end
 ---@param text string
 ---@return string
 local function heading_to_anchor(text)
-  return text:lower():gsub("[^%w%s%-]", ""):gsub("%s+", "-")
+  return (text:lower():gsub("[^%w%s%-]", ""):gsub("%s+", "-"))
 end
 
 --- Extract all level-2 headings from lines.
@@ -252,7 +171,7 @@ end
 local function find_existing_toc(lines, first_h_idx)
   local start_idx, end_idx
   for i = 1, first_h_idx - 1 do
-    if lines[i]:match "^%- %[" then
+    if lines[i] and lines[i]:match "^%- %[" then
       if not start_idx then
         start_idx = i
       end
