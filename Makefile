@@ -72,6 +72,14 @@ api-docs: $(MINIDOC) ## Generate API documentation with mini.doc
 		-c "luafile scripts/generate_api_docs.lua" \
 		-c "qa!"
 
+.PHONY: docgen
+docgen: ## Generate wiki documentation from config annotations
+	nvim \
+		--headless \
+		--noplugin \
+		-c "luafile scripts/generate_wiki_docs.lua" \
+		-c "qa!"
+
 $(MINIDOC):
 	git clone --depth 1 https://github.com/echasnovski/mini.doc $(MINIDOC)
 

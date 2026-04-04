@@ -43,15 +43,6 @@ return {
   ---@class obsidian.config.NoteOpts
   ---
   ---Default template to use, relative to template.folder or an absolute path.
-  ---The default looks like:
-  ---
-  ---```markdown
-  ------
-  ---id: {{id}}
-  ---aliases: []
-  ---tags: []
-  ------
-  ---```
   ---
   ---@field template string|?
   note = {
