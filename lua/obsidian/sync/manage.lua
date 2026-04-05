@@ -1,6 +1,6 @@
 local api = require "obsidian.api"
 local log = require "obsidian.log"
-local sync = require "obsidian.sync.client"
+local client = require "obsidian.sync.client"
 
 --- Connect a workspace to a chosen remote vault, apply sync config, and optionally start syncing.
 ---@param remote obsidian.sync.RemoteVault
@@ -8,14 +8,14 @@ local sync = require "obsidian.sync.client"
 local function connect_and_configure(remote, workspace)
   local path = tostring(workspace.root)
 
-  local out = sync.setup(remote.hash, path)
+  local out = client.setup(remote.hash, path)
   if not out or out.code ~= 0 then
     return
   end
 
   -- Apply sync settings from user config.
   if Obsidian.opts.sync then
-    sync.apply_config(path, Obsidian.opts.sync)
+    client.apply_config(path, Obsidian.opts.sync)
   end
 
   if api.confirm "Start syncing now?" == "Yes" then
@@ -31,7 +31,7 @@ local function create_and_connect(workspace)
     return
   end
 
-  local remote_create_result = sync.create_remote(name)
+  local remote_create_result = client.create_remote(name)
 
   if not remote_create_result then
     log.err "Failed to parse the newly created remote vault ID."
@@ -47,6 +47,7 @@ local CREATE_NEW = { hash = "", name = "" }
 ---@param workspace obsidian.Workspace
 ---@param remotes obsidian.sync.RemoteVault[] list of remote vaults to choose from
 local function select_remote(workspace, remotes)
+  local sync = require "obsidian.sync"
   -- Already configured check.
   if sync.is_configured(workspace) then
     log.info("Workspace '%s' is already linked to a remote vault.", workspace.name)
@@ -100,15 +101,15 @@ local function build_linked_map(local_vaults, remotes)
   return map
 end
 
-local function wizard()
+local function setup()
   local workspaces = Obsidian.workspaces
   if not workspaces or #workspaces == 0 then
     log.err "No workspaces configured."
     return
   end
 
-  local local_vaults = sync.list_local()
-  local remotes = sync.list_remote()
+  local local_vaults = client.list_local()
+  local remotes = client.list_remote()
 
   local linked = build_linked_map(local_vaults, remotes)
 
@@ -134,6 +135,41 @@ local function wizard()
   end)
 end
 
+local function unlink()
+  local workspaces = Obsidian.workspaces
+  if not workspaces or #workspaces == 0 then
+    log.err "No workspaces configured."
+    return
+  end
+
+  local local_vaults = client.list_local()
+  local remotes = client.list_remote()
+
+  local linked = build_linked_map(local_vaults, remotes)
+
+  local vaults_with_remotes = vim.tbl_filter(function(ws)
+    local root = tostring(ws.root)
+    return linked[root] ~= nil
+  end, workspaces)
+
+  vim.ui.select(vaults_with_remotes, {
+    prompt = "Select workspace to unlink",
+    format_item = function(ws)
+      local root = tostring(ws.root)
+      local remote_name = linked[root]
+      if remote_name ~= nil then
+        return string.format("%s (%s) -> %s", ws.name, root, remote_name)
+      end
+      return string.format("%s (%s)", ws.name, root)
+    end,
+  }, function(ws)
+    if ws then
+      client.unlink(tostring(ws.root))
+    end
+  end)
+end
+
 return {
-  wizard = wizard,
+  setup = setup,
+  unlink = unlink,
 }

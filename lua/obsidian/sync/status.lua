@@ -38,10 +38,9 @@ local function set_statusline_globals(kind)
   vim.g.obsidian_sync_status = icon ~= "" and string.format(" %%#%s# %s %%*", hl, icon) or ""
 end
 
----@param workspace obsidian.Workspace
+---@param key string
 ---@param kind "synced" | "syncing" | "paused"
-local function set_status(workspace, kind)
-  local key = tostring(workspace.root)
+local function set_status(key, kind)
   sync_status[key] = kind
 
   local current = Obsidian and Obsidian.workspace or nil

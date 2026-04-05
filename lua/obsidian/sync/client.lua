@@ -1,5 +1,6 @@
 local api = require "obsidian.api"
 local log = require "obsidian.log"
+local status = require "obsidian.sync.status"
 
 ---@class obsidian.sync.Client
 ---@field cmd string?  -- path to CLI, if available
@@ -110,6 +111,36 @@ function M.run(subcmd, flags)
   return out
 end
 
+---@param subcmd string
+---@param flags table<string, string|boolean>|?
+---@param opts vim.SystemOpts|?
+---@param callback fun(out: vim.SystemCompleted)
+---@return vim.SystemObj|nil
+function M.run_async(subcmd, flags, opts, callback)
+  if not M.cli then
+    log.err "CLI not initialized, cannot run command."
+    return nil
+  end
+
+  return M.cli:run(
+    subcmd,
+    flags,
+    opts,
+    vim.schedule_wrap(function(out)
+      vim.print(out)
+      if out.code == 2 then
+        if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
+          local success = M.login()
+          if success then
+            M.cli:run(subcmd, flags, opts, callback)
+          end
+        end
+        return
+      end
+    end)
+  )
+end
+
 ---@param email string|?
 ---@param password string|?
 ---@return boolean
@@ -213,16 +244,6 @@ function M.list_remote()
   return res
 end
 
----@param ws obsidian.Workspace
----@return boolean
-function M.is_configured(ws)
-  local vaults = M.list_local()
-  if not vaults then
-    return false
-  end
-  return vaults[tostring(ws.root)] ~= nil
-end
-
 ---@param name string
 ---@param opts { encryption?: string, password?: string, region?: string }?
 ---@return obsidian.sync.RemoteVault|nil
@@ -310,6 +331,131 @@ end
 ---@return vim.SystemCompleted|nil
 function M.unlink(path)
   return M.run("sync-unlink", { path = path or "" })
+end
+
+--------------------------------
+--- Sync Process Management ---
+--------------------------------
+
+---@type table<string, vim.SystemObj>
+local sync_proc = {}
+
+---@type table<string, string[]>
+local sync_log = {}
+
+---@param dir string
+---@param message string
+local function append_log(dir, message)
+  if not message or message == "" then
+    return
+  end
+
+  if not sync_log[dir] then
+    sync_log[dir] = {}
+  end
+
+  local ts = os.date "%Y-%m-%d %H:%M"
+  local lines = vim.split(message, "\n")
+
+  for _, line in ipairs(lines) do
+    if line and line ~= "" then
+      if line == "Fully synced" then
+        status.set(dir, "synced")
+      elseif line:lower():find("paused", 1, true) then
+        status.set(dir, "paused")
+      else
+        status.set(dir, "syncing")
+      end
+      local entry = string.format("%s - %s", ts, line)
+      table.insert(sync_log[dir], entry)
+    end
+  end
+end
+
+---@param dir string
+function M.stop(dir)
+  if not sync_proc[dir] then
+    return
+  end
+
+  pcall(function()
+    sync_proc[dir]:kill(15)
+  end)
+
+  sync_proc[dir] = nil
+  status.set(dir, "paused")
+end
+
+---@param dir string
+---@return fun(err, line)
+local function make_handler(dir)
+  return function(err, line)
+    if err then
+      log.err(err)
+      append_log(dir, tostring(err))
+    end
+    if not line then
+      return
+    end
+    line = vim.trim(line)
+    if line == "" then
+      return
+    end
+    append_log(dir, line)
+  end
+end
+
+---@param dir string
+function M.start(dir)
+  local handler = make_handler(dir)
+
+  if not M.cli then
+    log.err "CLI not available, cannot start sync."
+    return
+  end
+
+  if sync_proc[dir] ~= nil then
+    return
+  end
+
+  local callback = function(out)
+    if sync_proc[dir] ~= nil then
+      sync_proc[dir] = nil
+      status.set(dir, "paused")
+    end
+
+    if out.code ~= 0 then
+      log.err("obsidian sync exited", out)
+      append_log(dir, string.format("obsidian sync exited with code %s", tostring(out.code)))
+    end
+  end
+
+  sync_proc[dir] = M.run_async("sync", { continuous = true }, {
+    cwd = dir,
+    stderr = handler,
+    stdout = handler,
+  }, callback)
+
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = vim.api.nvim_create_augroup("obsidian-sync-" .. dir, { clear = true }),
+    callback = function()
+      M.stop(dir)
+    end,
+  })
+end
+
+---@param dir string
+---@return { buf: integer }
+function M.open_log(dir)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, sync_log[dir] or {})
+  vim.bo[buf].modifiable = false
+  vim.api.nvim_buf_set_name(buf, ("Obsidian Sync Log %s"):format(dir))
+  vim.api.nvim_set_current_buf(buf)
+  vim.keymap.set("n", "q", function()
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end, { buffer = buf, silent = true })
+  return { buf = buf }
 end
 
 return M
