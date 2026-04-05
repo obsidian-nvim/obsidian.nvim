@@ -83,9 +83,10 @@ function M.menu(subcmd)
 end
 
 ---@param ws obsidian.Workspace
+---@param vaults table<string, obsidian.sync.LocalVault>? -- pre-fetched vaults to avoid redundant shell-outs
 ---@return boolean
-function M.is_configured(ws)
-  local vaults = client.list_local()
+function M.is_configured(ws, vaults)
+  vaults = vaults or client.list_local()
   if not vaults then
     return false
   end

@@ -167,12 +167,20 @@ function M.login(email, password)
   end
 end
 
+---@type table<string, obsidian.sync.LocalVault>|nil
+local _local_vaults_cache = nil
+
+local function invalidate_cache()
+  _local_vaults_cache = nil
+end
+
 ---@param vault string  -- vault id or name
 ---@param path string
 ---@return vim.SystemCompleted|nil
 function M.setup(vault, path)
   local out = M.run("sync-setup", { vault = vault, path = path })
   if out and out.code == 0 then
+    invalidate_cache()
     log.info "Vault configured successfully!"
   elseif out then
     log.err("Setup failed: %s", out.stderr)
@@ -184,8 +192,13 @@ end
 ---@field hash string
 ---@field host string
 
+---@param use_cache boolean? -- if true (default), return cached result when available
 ---@return table<string, obsidian.sync.LocalVault>
-function M.list_local()
+function M.list_local(use_cache)
+  if use_cache ~= false and _local_vaults_cache then
+    return _local_vaults_cache
+  end
+
   local out = M.run("sync-list-local", {})
   if not out or out.code ~= 0 or not out.stdout then
     return {}
@@ -218,6 +231,7 @@ function M.list_local()
     end
   end
 
+  _local_vaults_cache = res
   return res
 end
 
@@ -333,7 +347,11 @@ end
 ---@param path string?
 ---@return vim.SystemCompleted|nil
 function M.unlink(path)
-  return M.run("sync-unlink", { path = path or "" })
+  local out = M.run("sync-unlink", { path = path or "" })
+  if out and out.code == 0 then
+    invalidate_cache()
+  end
+  return out
 end
 
 --------------------------------

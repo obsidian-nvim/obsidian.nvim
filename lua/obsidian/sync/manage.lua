@@ -46,10 +46,11 @@ local CREATE_NEW = { hash = "", name = "" }
 --- Prompt the user to select (or create) a remote vault, then connect the workspace to it.
 ---@param workspace obsidian.Workspace
 ---@param remotes obsidian.sync.RemoteVault[] list of remote vaults to choose from
-local function select_remote(workspace, remotes)
+---@param local_vaults table<string, obsidian.sync.LocalVault>? pre-fetched local vaults
+local function select_remote(workspace, remotes, local_vaults)
   local sync = require "obsidian.sync"
   -- Already configured check.
-  if sync.is_configured(workspace) then
+  if sync.is_configured(workspace, local_vaults) then
     log.info("Workspace '%s' is already linked to a remote vault.", workspace.name)
     return
   end
@@ -114,7 +115,7 @@ local function setup()
   local linked = build_linked_map(local_vaults, remotes)
 
   if #workspaces == 1 then
-    select_remote(workspaces[1], remotes)
+    select_remote(workspaces[1], remotes, local_vaults)
     return
   end
 
@@ -130,7 +131,7 @@ local function setup()
     end,
   }, function(ws)
     if ws then
-      select_remote(ws, remotes)
+      select_remote(ws, remotes, local_vaults)
     end
   end)
 end
