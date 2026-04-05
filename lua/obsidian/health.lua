@@ -149,8 +149,6 @@ function M.check()
 
   start "Dependencies"
   has_executable("rg", false)
-  has_executable("ob", true)
-  has_executable(sync_client.get_cmd(), true)
 
   if os == api.OSType.Wsl then
     has_executable("wsl-open", true)
@@ -162,6 +160,13 @@ function M.check()
   elseif os == api.OSType.Darwin then
     has_executable("pngpaste", true)
   end
+
+  start "Sync"
+
+  has_one_of_executable {
+    "ob",
+    sync_client.cmd,
+  }
 end
 
 return M

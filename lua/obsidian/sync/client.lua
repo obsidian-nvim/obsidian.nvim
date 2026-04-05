@@ -45,7 +45,7 @@ local function install_local_cli()
     log.err("Failed to install obsidian-headless: %s", result)
     return false
   else
-    local new_cmd = M.get_cmd()
+    local new_cmd = M.cmd
     log.info "obsidian-headless installed successfully!"
     return true, new_cmd
   end
@@ -53,7 +53,7 @@ end
 
 local state = {
   cli = (function()
-    local cmd = M.get_cmd()
+    local cmd = M.cmd
     if cmd then
       return cli.new(cmd, {})
     else
@@ -69,6 +69,22 @@ local state = {
     end
   end)(),
 }
+
+local cmd
+
+setmetatable(M, {
+  __index = function(_, k)
+    if k == "cmd" then
+      if not cmd then
+        return M.get_cmd()
+      else
+        return cmd
+      end
+    else
+      return rawget(M, k)
+    end
+  end,
+})
 
 function M.run_sync(subcmd, flags, opts)
   if not state.cli then
@@ -94,11 +110,6 @@ function M.run(subcmd, flags, opts)
   end
 
   return state.cli:run(subcmd, flags, opts)
-end
-
-function M.check_installed()
-  local cmd = M.get_cmd()
-  return cmd ~= nil
 end
 
 ---@param email string|?

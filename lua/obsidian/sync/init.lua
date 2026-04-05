@@ -78,12 +78,20 @@ end
 local function start_sync(workspace)
   local root = tostring(workspace.root)
   local handler = make_handler(workspace)
+  local cmd = client.cmd
+
+  if not cmd then
+    log.err "Obsidian Sync client not found. Please configure the path to the client executable."
+    return
+  end
+
+  local cmds = { cmd, "sync", "--continuous" }
 
   if sync_proc[root] ~= nil then
     return
   end
 
-  sync_proc[root] = vim.system({ client.get_cmd(), "sync", "--continuous" }, {
+  sync_proc[root] = vim.system(cmds, {
     cwd = tostring(workspace.root),
     stderr = handler,
     stdout = handler,

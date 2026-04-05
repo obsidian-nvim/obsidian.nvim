@@ -56,12 +56,10 @@ require("obsidian").setup {
 
 ### Available Methods
 
-- `sync.check_installed()` - Check if obsidian-headless is installed
-- `sync.new()` - Create a new Headless instance
 - `sync.login(email, password)` - Login to Obsidian Sync
 - `sync.list_remote()` - List remote vaults
 - `sync.list_local()` - List locally configured vaults
-- `sync.is_configured(path)` - Check if vault is configured
+- `sync.is_configured(workspace)` - Check if vault is configured
 - `sync.setup(vault_name, path)` - Configure a vault for sync
 - `sync.apply_config(path, opts)` - Apply sync configuration
 - `sync.status(path)` - Get sync status
