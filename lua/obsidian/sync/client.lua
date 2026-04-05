@@ -1,6 +1,9 @@
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 
+---@class obsidian.sync.Client
+---@field cmd string?  -- path to CLI, if available
+---@field cli obsidian.CLI?  -- CLI instance, if available
 local M = {}
 
 local function get_plugin_root()
@@ -54,12 +57,12 @@ end
 local function ensure_cli()
   local CLI = require "obsidian.cli"
   if M.cmd then
-    return CLI.new(M.cmd, {})
+    return CLI.new(M.cmd)
   end
   if api.confirm "Obsidian CLI not found. Would you like to install it locally for obsidian.nvim?" == "Yes" then
     local success, new_cmd = install_local_cli()
     if success and new_cmd then
-      return CLI.new(new_cmd, {})
+      return CLI.new(new_cmd)
     else
       log.err "CLI still not found after installation. Please report issue to repo."
     end
@@ -86,70 +89,55 @@ setmetatable(M, {
   end,
 })
 
-function M.run_sync(subcmd, flags, opts)
+---@param subcmd string
+---@param flags table<string, string|boolean>|?
+function M.run(subcmd, flags)
   if not M.cli then
     log.err "CLI not initialized, cannot run command."
     return nil
   end
 
-  local out = M.cli:run_sync(subcmd, flags, opts)
+  local out = M.cli:run_sync(subcmd, flags)
   if out.code == 2 then
     if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
-      M.login_sync()
-      return M.cli:run_sync(subcmd, flags, opts)
+      local success = M.login()
+      if success then
+        return M.cli:run_sync(subcmd, flags)
+      end
     end
     return
   end
   return out
 end
 
-function M.run(subcmd, flags, opts)
-  if not M.cli then
-    log.err "CLI not initialized, cannot run command."
-    return nil
-  end
-
-  return M.cli:run(subcmd, flags, opts)
-end
-
 ---@param email string|?
 ---@param password string|?
-function M.login_sync(email, password)
+---@return boolean
+function M.login(email, password)
   email = email or api.input "Email"
   password = password or vim.fn.inputsecret "Password: "
 
   if not email or not password then
-    log.err "Email and password are required for login."
-    return
+    log.err "Aborted"
+    return false
   end
 
-  local out = M.run_sync("login", { email = email, password = password }, {})
+  local out = M.run("login", { email = email, password = password })
 
   if out ~= nil and out.code == 0 then
     log.info "Login successful!"
+    return true
   else
     log.err("Login failed: %s", out and out.stderr)
+    return false
   end
-  return out
-end
-
-function M.logout()
-  M.run("logout", {}, {
-    callback = function(out)
-      if out.code == 0 then
-        log.info "Logout successful!"
-      else
-        log.err("Logout failed: %s", out.stderr)
-      end
-    end,
-  })
 end
 
 ---@param vault string  -- vault id or name
 ---@param path string
 ---@return vim.SystemCompleted|nil
 function M.setup(vault, path)
-  local out = M.run_sync("sync-setup", { vault = vault, path = path }, {})
+  local out = M.run("sync-setup", { vault = vault, path = path })
   if out and out.code == 0 then
     log.info "Vault configured successfully!"
   elseif out then
@@ -158,26 +146,13 @@ function M.setup(vault, path)
   return out
 end
 
----@param path string?
-function M.unlink(path)
-  M.run("sync-unlink", { path = path or "" }, {
-    callback = function(out)
-      if out.code == 0 then
-        log.info "Vault unlinked successfully!"
-      else
-        log.err("Unlink failed: %s", out.stderr)
-      end
-    end,
-  })
-end
-
 ---@class obsidian.sync.LocalVault
 ---@field hash string
 ---@field host string
 
 ---@return table<string, obsidian.sync.LocalVault>
 function M.list_local()
-  local out = M.run_sync("sync-list-local", {}, { silent = true })
+  local out = M.run("sync-list-local", {})
   if not out or out.code ~= 0 or not out.stdout then
     return {}
   end
@@ -218,7 +193,7 @@ end
 
 ---@return obsidian.sync.RemoteVault[]  -- list of remote vaults
 function M.list_remote()
-  local out = M.run_sync("sync-list-remote", {}, { silent = true })
+  local out = M.run "sync-list-remote"
 
   if not out or not out.stdout then
     return {}
@@ -264,7 +239,7 @@ function M.create_remote(name, opts)
     args.region = opts.region
   end
 
-  local out = M.run_sync("sync-create-remote", args, {})
+  local out = M.run("sync-create-remote", args)
   if out and out.code == 0 and out.stdout then
     local vault_id = out.stdout:match "[Vv]ault ID:%s*([0-9a-fA-F]+)"
     return { hash = assert(vault_id, "failed to parse sync-create-remote result"), name = name }
@@ -273,6 +248,7 @@ end
 
 ---@param path string?
 ---@param opts { conflict_strategy?: string, file_types?: string[], configs?: string[], excluded_folders?: string[], device_name?: string, config_dir?: string }?
+---@return vim.SystemCompleted|nil
 function M.set_config(path, opts)
   opts = opts or {}
   local args = { path = path or "" }
@@ -295,19 +271,12 @@ function M.set_config(path, opts)
     args["config-dir"] = opts.config_dir
   end
 
-  M.run("sync-config", args, {
-    callback = function(out)
-      if out.code == 0 then
-        log.info "Config updated!"
-      else
-        log.err("Config update failed: %s", out.stderr)
-      end
-    end,
-  })
+  return M.run("sync-config", args)
 end
 
 ---@param path string
 ---@param sync_opts obsidian.config.SyncOpts
+---@return vim.SystemCompleted|nil
 function M.apply_config(path, sync_opts)
   local cfg = {}
   if sync_opts.conflict_strategy then
@@ -329,7 +298,18 @@ function M.apply_config(path, sync_opts)
     cfg.config_dir = sync_opts.config_dir
   end
 
-  M.set_config(path, cfg)
+  return M.set_config(path, cfg)
+end
+
+---@return vim.SystemCompleted|nil
+function M.logout()
+  return M.run("logout", {})
+end
+
+---@param path string?
+---@return vim.SystemCompleted|nil
+function M.unlink(path)
+  return M.run("sync-unlink", { path = path or "" })
 end
 
 return M
