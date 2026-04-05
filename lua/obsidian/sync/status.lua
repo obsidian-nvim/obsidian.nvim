@@ -53,6 +53,6 @@ local function set_status(workspace, kind)
 end
 
 return {
-  set_status = sync_status,
+  set = set_status,
   color = status_color,
 }
