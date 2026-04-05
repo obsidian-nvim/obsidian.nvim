@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Support `obsidian-headless` sync client.
+- `:Obsidian sync` for a menu to manage sync state.
+
 ### Fixed
 
 - Command completion no longer appear for commands that are disabled through `module.enabled`.
@@ -19,8 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support `workspace/didRenameFiles` and file changes will be prompted with confirmation to rename references.
   - Use `opts.link.auto_update` to control whether ask for confirmation or auto run, false by default.
 - `make docgen` to auto update module docs with up to date module options.
-- Support `obsidian-headless` sync client.
-- `:Obsidian sync` for a menu to manage sync state.
 
 ### Fixed
 
