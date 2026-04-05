@@ -1,8 +1,14 @@
 local sync = require "obsidian.sync"
 local api = require "obsidian.api"
+local log = require "obsidian.log"
 
 ---@param data obsidian.CommandArgs
 return function(data)
+  if not Obsidian.opts.sync.enabled then
+    log.warn "Sync is disabled. Enable 'opts.sync.enabled = true' to use :Obsidian sync."
+    return
+  end
+
   local subcmd = data.args:len() > 0 and data.args or nil
   -- TODO: doc on how this command behaves
 

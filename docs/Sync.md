@@ -30,6 +30,8 @@ Sync the current workspace vault. On first run, it will:
 3. Apply sync configuration from plugin settings
 4. Run the sync
 
+When switching workspaces, any running continuous sync process for the previous workspace is stopped before starting sync for the new workspace.
+
 ## Configuration Example
 
 ```lua
@@ -54,19 +56,16 @@ require("obsidian").setup {
 }
 ```
 
-### Available Methods
+### Available Methods (`require("obsidian.sync")`)
 
-- `sync.login(email, password)` - Login to Obsidian Sync
-- `sync.list_remote()` - List remote vaults
-- `sync.list_local()` - List locally configured vaults
-- `sync.is_configured(workspace)` - Check if vault is configured
-- `sync.setup(vault_name, path)` - Configure a vault for sync
-- `sync.apply_config(path, opts)` - Apply sync configuration
-- `sync.status(path)` - Get sync status
-- `sync.unlink(path)` - Disconnect vault from sync
-- `sync.get_config(path)` - Get current sync config
-- `sync.set_config(path, opts)` - Set sync config
-- `sync.create_remote(name, opts)` - Create a new remote vault
+- `sync.start(workspace?)` - Start continuous sync for a workspace (defaults to current workspace)
+- `sync.stop(workspace?)` - Stop continuous sync for a workspace (defaults to current workspace)
+- `sync.menu(subcmd?)` - Open the sync action menu or run a specific subcommand (`start`, `pause`, `log`, `wizard`)
+- `sync.is_configured(workspace)` - Check if a workspace is configured for sync
+- `sync.wizard()` - Run the interactive setup wizard
+
+> [!Note]
+> lower-level CLI helpers live in `require("obsidian.sync.client")` and are not the primary public API surface.
 
 ## Options
 
