@@ -51,6 +51,22 @@ local function install_local_cli()
   end
 end
 
+local cmd
+
+setmetatable(M, {
+  __index = function(_, k)
+    if k == "cmd" then
+      if not cmd then
+        return M.get_cmd()
+      else
+        return cmd
+      end
+    else
+      return rawget(M, k)
+    end
+  end,
+})
+
 local state = {
   cli = (function()
     local cmd = M.cmd
@@ -69,22 +85,6 @@ local state = {
     end
   end)(),
 }
-
-local cmd
-
-setmetatable(M, {
-  __index = function(_, k)
-    if k == "cmd" then
-      if not cmd then
-        return M.get_cmd()
-      else
-        return cmd
-      end
-    else
-      return rawget(M, k)
-    end
-  end,
-})
 
 function M.run_sync(subcmd, flags, opts)
   if not state.cli then
