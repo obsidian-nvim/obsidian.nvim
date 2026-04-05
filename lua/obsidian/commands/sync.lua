@@ -12,11 +12,11 @@ return function(data)
   if not has_configured then
     local choice = api.confirm "No vaults are configured for syncing. Do you want to run the setup wizard?"
     if choice == "Yes" then
-      require("obsidian.setup").wizard()
+      sync.wizard()
     else
       return
     end
   end
 
-  require("obsidian.sync").menu(subcmd)
+  sync.menu(subcmd)
 end

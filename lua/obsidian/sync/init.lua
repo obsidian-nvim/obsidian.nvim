@@ -187,4 +187,6 @@ end
 
 M.is_configured = require("obsidian.sync.client").is_configured
 
+M.wizard = require("obsidian.sync.wizard").wizard
+
 return M
