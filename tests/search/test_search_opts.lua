@@ -5,8 +5,6 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
-T = new_set()
-
 T["should initialize from a raw table and resolve to ripgrep options"] = function()
   local opts = {
     sort_by = "modified",

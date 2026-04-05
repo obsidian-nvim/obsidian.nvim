@@ -81,6 +81,7 @@ There's one entry point user command for this plugin: `Obsidian`
 
 #### Top level commands
 
+- `:Obsidian check` - check for common issues in your vault and plugin setup
 - `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
 - `:Obsidian help` - find files in the help wiki
@@ -99,6 +100,7 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian quick_switch` - switch to another note in your vault, searching by its name with a picker
 - `:Obsidian search [QUERY]` - search for (or create) notes in your vault using `ripgrep` with your preferred picker
 - `:Obsidian tags [TAG ...]` - get a picker list of all occurrences of the given tags
+- `:Obsidian unique_note [TITLE]` - create a new note with a unique, timestamp-based ID
 - `:Obsidian workspace [NAME]` - switch to another workspace
 
 #### Note commands
