@@ -252,7 +252,7 @@ function M.create_remote(name, opts)
   local out = M.run_sync("sync-create-remote", args, {})
   if out and out.code == 0 and out.stdout then
     local vault_id = out.stdout:match "[Vv]ault ID:%s*([0-9a-fA-F]+)"
-    return { hash = assert(vault_id), name = name }
+    return { hash = assert(vault_id, "failed to parse sync-create-remote result"), name = name }
   end
 end
 
