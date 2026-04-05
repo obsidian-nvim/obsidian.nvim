@@ -3,7 +3,7 @@ local log = require "obsidian.log"
 local sync = require "obsidian.sync.client"
 
 --- Connect a workspace to a chosen remote vault, apply sync config, and optionally start syncing.
----@param remote { hash: string, name: string }
+---@param remote obsidian.sync.RemoteVault
 ---@param workspace obsidian.Workspace
 local function connect_and_configure(remote, workspace)
   local path = tostring(workspace.root)
@@ -45,7 +45,7 @@ local CREATE_NEW = { hash = "", name = "" }
 
 --- Prompt the user to select (or create) a remote vault, then connect the workspace to it.
 ---@param workspace obsidian.Workspace
----@param remotes { hash: string, name: string }[] list of remote vaults to choose from
+---@param remotes obsidian.sync.RemoteVault[] list of remote vaults to choose from
 local function select_remote(workspace, remotes)
   -- Already configured check.
   if sync.is_configured(workspace) then

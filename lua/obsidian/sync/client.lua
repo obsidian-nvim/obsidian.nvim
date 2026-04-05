@@ -50,8 +50,6 @@ local function install_local_cli()
   end
 end
 
-local cmd, cli
-
 ---@return obsidian.CLI|nil
 local function ensure_cli()
   local CLI = require "obsidian.cli"
@@ -67,6 +65,8 @@ local function ensure_cli()
     end
   end
 end
+
+local cmd, cli
 
 setmetatable(M, {
   __index = function(_, k)
@@ -250,7 +250,7 @@ end
 
 ---@param name string
 ---@param opts { encryption?: string, password?: string, region?: string }?
----@return { hash: string, name: string }|nil
+---@return obsidian.sync.RemoteVault|nil
 function M.create_remote(name, opts)
   opts = opts or {}
   local args = { name = name }
