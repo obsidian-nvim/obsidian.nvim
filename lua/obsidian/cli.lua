@@ -17,7 +17,7 @@ local function build_cmd(cmd, subcmd, flags)
   local cmds = { cmd, subcmd }
   for k, v in pairs(flags or {}) do
     table.insert(cmds, string.format("--%s", k))
-    if type(v) ~= "boolean" and v ~= true then
+    if type(v) ~= "boolean" then
       table.insert(cmds, v)
     end
   end

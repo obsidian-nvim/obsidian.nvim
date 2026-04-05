@@ -1,5 +1,6 @@
 local client = require "obsidian.sync.client"
 local manage = require "obsidian.sync.manage"
+local log = require "obsidian.log"
 
 local M = {}
 
@@ -75,6 +76,7 @@ function M.menu(subcmd)
     return act.name == subcmd
   end)
   if not action then
+    log.err("Unknown sync subcommand: " .. subcmd)
     return
   end
   action.fn()

@@ -10,7 +10,7 @@ return function(data)
   if not has_configured then
     local choice = api.confirm "No vaults are configured for syncing. Do you want to run the setup wizard?"
     if choice == "Yes" then
-      sync.wizard()
+      sync.setup()
     else
       return
     end

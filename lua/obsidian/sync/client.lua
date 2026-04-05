@@ -127,7 +127,6 @@ function M.run_async(subcmd, flags, opts, callback)
     flags,
     opts,
     vim.schedule_wrap(function(out)
-      vim.print(out)
       if out.code == 2 then
         if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
           local success = M.login()
@@ -136,6 +135,10 @@ function M.run_async(subcmd, flags, opts, callback)
           end
         end
         return
+      elseif out.code ~= 0 then
+        log.err("Command failed: %s", out.stderr)
+      else
+        callback(out)
       end
     end)
   )
@@ -425,8 +428,8 @@ function M.start(dir)
     end
 
     if out.code ~= 0 then
-      log.err("obsidian sync exited", out)
-      append_log(dir, string.format("obsidian sync exited with code %s", tostring(out.code)))
+      log.err("obsidian sync exited %s", out.stderr)
+      append_log(dir, string.format("obsidian sync exited with code %s: %s", out.code, out.stderr))
     end
   end
 

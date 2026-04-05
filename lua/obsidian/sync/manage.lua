@@ -164,6 +164,7 @@ local function unlink()
     end,
   }, function(ws)
     if ws then
+      client.stop(tostring(ws.root))
       client.unlink(tostring(ws.root))
     end
   end)
