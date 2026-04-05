@@ -145,7 +145,78 @@ function M.logout()
   })
 end
 
----@return { hash: string, name: string }[]  -- list of remote vaults
+---@param vault string  -- vault id or name
+---@param path string
+---@return vim.SystemCompleted|nil
+function M.setup(vault, path)
+  local out = M.run_sync("sync-setup", { vault = vault, path = path }, {})
+  if out and out.code == 0 then
+    log.info "Vault configured successfully!"
+  elseif out then
+    log.err("Setup failed: %s", out.stderr)
+  end
+  return out
+end
+
+---@param path string?
+function M.unlink(path)
+  M.run("sync-unlink", { path = path or "" }, {
+    callback = function(out)
+      if out.code == 0 then
+        log.info "Vault unlinked successfully!"
+      else
+        log.err("Unlink failed: %s", out.stderr)
+      end
+    end,
+  })
+end
+
+---@class obsidian.sync.LocalVault
+---@field hash string
+---@field host string
+
+---@return table<string, obsidian.sync.LocalVault>
+function M.list_local()
+  local out = M.run_sync("sync-list-local", {}, { silent = true })
+  if not out or out.code ~= 0 or not out.stdout then
+    return {}
+  end
+
+  local lines = vim.split(out.stdout, "\n", { trimempty = true })
+  local res = {}
+  local current_hash = nil
+  local current_path = nil
+
+  for _, line in ipairs(lines) do
+    local id = line:match "^%s*([0-9a-fA-F]+)$"
+    if id then
+      current_hash = id
+      current_path = nil
+    elseif current_hash ~= nil and line:match "^%s+Path:%s+" then
+      local vault_path = line:match "^%s+Path:%s+(.+)$"
+      if vault_path then
+        current_path = vault_path
+        res[vault_path] = {
+          hash = current_hash,
+          host = "",
+        }
+      end
+    elseif current_hash ~= nil and current_path ~= nil and line:match "^%s+Host:%s+" then
+      local host = line:match "^%s+Host:%s+(.+)$"
+      if host then
+        res[current_path].host = host
+      end
+    end
+  end
+
+  return res
+end
+
+---@class obsidian.sync.RemoteVault
+---@field hash string
+---@field name string
+
+---@return obsidian.sync.RemoteVault[]  -- list of remote vaults
 function M.list_remote()
   local out = M.run_sync("sync-list-remote", {}, { silent = true })
 
@@ -175,73 +246,6 @@ function M.is_configured(ws)
     return false
   end
   return vaults[tostring(ws.root)] ~= nil
-end
-
----@param vault string  -- vault id or name
----@param path string
----@return vim.SystemCompleted|nil
-function M.setup(vault, path)
-  local out = M.run_sync("sync-setup", { vault = vault, path = path }, {})
-  if out and out.code == 0 then
-    log.info "Vault configured successfully!"
-  elseif out then
-    log.err("Setup failed: %s", out.stderr)
-  end
-  return out
-end
-
----@param path string?
-function M.unlink(path)
-  M.run("sync-unlink", { path = path or "" }, {
-    callback = function(out)
-      if out.code == 0 then
-        log.info "Vault unlinked successfully!"
-      else
-        log.err("Unlink failed: %s", out.stderr)
-      end
-    end,
-  })
-end
-
----@class obsidian.sync.LocalVault
----@field id string
----@field host string
-
----@return table<string, obsidian.sync.LocalVault>
-function M.list_local()
-  local out = M.run_sync("sync-list-local", {}, { silent = true })
-  if not out or out.code ~= 0 or not out.stdout then
-    return {}
-  end
-
-  local lines = vim.split(out.stdout, "\n", { trimempty = true })
-  local res = {}
-  local current_id = nil
-  local current_path = nil
-
-  for _, line in ipairs(lines) do
-    local id = line:match "^%s*([0-9a-fA-F]+)$"
-    if id then
-      current_id = id
-      current_path = nil
-    elseif current_id ~= nil and line:match "^%s+Path:%s+" then
-      local vault_path = line:match "^%s+Path:%s+(.+)$"
-      if vault_path then
-        current_path = vault_path
-        res[vault_path] = {
-          id = current_id,
-          host = "",
-        }
-      end
-    elseif current_id ~= nil and current_path ~= nil and line:match "^%s+Host:%s+" then
-      local host = line:match "^%s+Host:%s+(.+)$"
-      if host then
-        res[current_path].host = host
-      end
-    end
-  end
-
-  return res
 end
 
 ---@param name string

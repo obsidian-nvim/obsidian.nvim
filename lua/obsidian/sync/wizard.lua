@@ -82,8 +82,8 @@ local function select_remote(workspace, remotes)
 end
 
 --- Build a lookup from workspace root path -> remote vault name.
----@param local_vaults table<string, { id: string }> map of path -> local vault info (id at least)
----@param remotes { hash: string, name: string }[] list of remote vaults
+---@param local_vaults table<string, obsidian.sync.LocalVault> map of path -> local vault info (id at least)
+---@param remotes obsidian.sync.RemoteVault[] list of remote vaults
 ---@return table<string, string> map of path -> remote name (or id if name unknown)
 local function build_linked_map(local_vaults, remotes)
   local remote_by_id = {}
@@ -95,7 +95,7 @@ local function build_linked_map(local_vaults, remotes)
 
   local map = {}
   for vault_path, vault in pairs(local_vaults) do
-    map[vault_path] = remote_by_id[vault.id] or vault.id
+    map[vault_path] = remote_by_id[vault.hash] or vault.hash
   end
   return map
 end
