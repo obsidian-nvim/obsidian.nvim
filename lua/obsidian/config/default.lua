@@ -302,7 +302,6 @@ return {
   ---@field device_name? string
   ---@field config_dir? string
   sync = {
-    watch = false,
     conflict_strategy = "merge",
     file_types = { "image", "audio", "video", "pdf", "unsupported" },
     configs = {
