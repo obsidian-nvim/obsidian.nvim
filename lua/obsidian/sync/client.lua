@@ -134,12 +134,12 @@ function M.logout()
   })
 end
 
----@return { hash: string, name: string }[]?  -- list of remote vaults
+---@return { hash: string, name: string }[]  -- list of remote vaults
 function M.list_remote()
   local out = M.run_sync("sync-list-remote", {}, { silent = true })
 
   if not out or not out.stdout then
-    return nil
+    return {}
   end
 
   local lines = vim.split(out.stdout, "\n", { trimempty = true })
@@ -153,10 +153,6 @@ function M.list_remote()
     end
   end
 
-  if vim.tbl_isempty(res) then
-    log.info "No remote vaults found."
-    return nil
-  end
   return res
 end
 
@@ -184,16 +180,6 @@ function M.setup(vault, path)
 end
 
 ---@param path string?
----@return string?
-function M.status(path)
-  local out = M.run_sync("sync-status", { path = path or "" }, { silent = true })
-  if not out or out.code ~= 0 then
-    return nil
-  end
-  return out.stdout
-end
-
----@param path string?
 function M.unlink(path)
   M.run("sync-unlink", { path = path or "" }, {
     callback = function(out)
@@ -210,11 +196,11 @@ end
 ---@field id string
 ---@field host string
 
----@return table<string, obsidian.sync.LocalVault>?  -- keyed by path
+---@return table<string, obsidian.sync.LocalVault>
 function M.list_local()
   local out = M.run_sync("sync-list-local", {}, { silent = true })
   if not out or out.code ~= 0 or not out.stdout then
-    return nil
+    return {}
   end
 
   local lines = vim.split(out.stdout, "\n", { trimempty = true })
@@ -244,15 +230,12 @@ function M.list_local()
     end
   end
 
-  if vim.tbl_isempty(res) then
-    return nil
-  end
   return res
 end
 
 ---@param name string
 ---@param opts { encryption?: string, password?: string, region?: string }?
----@return vim.SystemCompleted|nil
+---@return { hash: string, name: string }|nil
 function M.create_remote(name, opts)
   opts = opts or {}
   local args = { name = name }
@@ -267,22 +250,10 @@ function M.create_remote(name, opts)
   end
 
   local out = M.run_sync("sync-create-remote", args, {})
-  if out and out.code == 0 then
-    log.info "Remote vault created!"
-  elseif out then
-    log.err("Create failed: %s", out.stderr)
+  if out and out.code == 0 and out.stdout then
+    local vault_id = out.stdout:match "[Vv]ault ID:%s*([0-9a-fA-F]+)"
+    return { hash = assert(vault_id), name = name }
   end
-  return out
-end
-
----@param path string?
----@return string?
-function M.get_config(path)
-  local out = M.run_sync("sync-config", { path = path or "" }, { silent = true })
-  if not out or out.code ~= 0 then
-    return nil
-  end
-  return out.stdout
 end
 
 ---@param path string?

@@ -8,13 +8,13 @@ local sync = require "obsidian.sync.client"
 local function connect_and_configure(remote, workspace)
   local path = tostring(workspace.root)
 
-  local out = sync.setup_sync(remote.hash, path)
+  local out = sync.setup(remote.hash, path)
   if not out or out.code ~= 0 then
     return
   end
 
   -- Apply sync settings from user config.
-  if Obsidian.opts.sync then -- TODO:
+  if Obsidian.opts.sync then
     sync.apply_config(path, Obsidian.opts.sync)
   end
 
@@ -31,45 +31,29 @@ local function create_and_connect(workspace)
     return
   end
 
-  local out = sync.create_remote_sync(name)
-  if not out or out.code ~= 0 then
+  local remote_create_result = sync.create_remote(name)
+
+  if not remote_create_result then
+    log.err "Failed to parse the newly created remote vault ID."
     return
   end
 
-  -- Re-list to get the newly created vault's hash.
-  local remotes = sync.list_remote()
-  if not remotes or #remotes == 0 then
-    log.err "Failed to find the newly created remote vault."
-    return
-  end
-
-  -- Auto-select the vault matching the name we just created.
-  local created = vim.iter(remotes):find(function(r)
-    return r.name == name
-  end)
-  if created then
-    connect_and_configure(created, workspace)
-  else
-    -- Fallback: if name matching fails (e.g. server trimmed it), use the last one.
-    connect_and_configure(remotes[#remotes], workspace)
-  end
+  connect_and_configure({ hash = remote_create_result.hash, name = name }, workspace)
 end
 
 local CREATE_NEW = { hash = "", name = "" }
 
 --- Prompt the user to select (or create) a remote vault, then connect the workspace to it.
 ---@param workspace obsidian.Workspace
-local function select_remote(workspace)
+---@param remotes { hash: string, name: string }[] list of remote vaults to choose from
+local function select_remote(workspace, remotes)
   -- Already configured check.
   if sync.is_configured(workspace) then
     log.info("Workspace '%s' is already linked to a remote vault.", workspace.name)
     return
   end
 
-  -- list_remote triggers auto-login on exit code 2 via run_sync.
-  local remotes = sync.list_remote()
-
-  if not remotes or #remotes == 0 then
+  if #remotes == 0 then
     create_and_connect(workspace)
     return
   end
@@ -98,14 +82,10 @@ local function select_remote(workspace)
 end
 
 --- Build a lookup from workspace root path -> remote vault name.
+---@param local_vaults table<string, { id: string }> map of path -> local vault info (id at least)
+---@param remotes { hash: string, name: string }[] list of remote vaults
 ---@return table<string, string> map of path -> remote name (or id if name unknown)
-local function build_linked_map()
-  local local_vaults = sync.list_local()
-  if not local_vaults then
-    return {}
-  end
-
-  local remotes = sync.list_remote()
+local function build_linked_map(local_vaults, remotes)
   local remote_by_id = {}
   if remotes then
     for _, r in ipairs(remotes) do
@@ -121,21 +101,19 @@ local function build_linked_map()
 end
 
 local function wizard()
-  if not sync or not sync.check_installed() then
-    log.err "obsidian-headless not found. Install with: npm install -g obsidian-headless"
-    return
-  end
-
   local workspaces = Obsidian.workspaces
   if not workspaces or #workspaces == 0 then
     log.err "No workspaces configured."
     return
   end
 
-  local linked = build_linked_map()
+  local local_vaults = sync.list_local()
+  local remotes = sync.list_remote()
+
+  local linked = build_linked_map(local_vaults, remotes)
 
   if #workspaces == 1 then
-    select_remote(workspaces[1])
+    select_remote(workspaces[1], remotes)
     return
   end
 
@@ -151,7 +129,7 @@ local function wizard()
     end,
   }, function(ws)
     if ws then
-      select_remote(ws)
+      select_remote(ws, remotes)
     end
   end)
 end
