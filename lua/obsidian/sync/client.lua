@@ -1,4 +1,3 @@
-local cli = require "obsidian.cli"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 
@@ -12,7 +11,7 @@ local function get_plugin_root()
 end
 
 ---@return string?
-function M.get_cmd()
+local function get_cmd()
   local plugin_root = get_plugin_root()
   local cmd
   if plugin_root then
@@ -51,52 +50,53 @@ local function install_local_cli()
   end
 end
 
-local cmd
+local cmd, cli
+
+---@return obsidian.CLI|nil
+local function ensure_cli()
+  local CLI = require "obsidian.cli"
+  if M.cmd then
+    return CLI.new(M.cmd, {})
+  end
+  if api.confirm "Obsidian CLI not found. Would you like to install it locally for obsidian.nvim?" == "Yes" then
+    local success, new_cmd = install_local_cli()
+    if success and new_cmd then
+      return CLI.new(new_cmd, {})
+    else
+      log.err "CLI still not found after installation. Please report issue to repo."
+    end
+  end
+end
 
 setmetatable(M, {
   __index = function(_, k)
     if k == "cmd" then
       if not cmd then
-        return M.get_cmd()
-      else
-        return cmd
+        cmd = get_cmd()
       end
+      return cmd
+    elseif k == "cli" then
+      if not cli then
+        cli = ensure_cli()
+      end
+      return cli
     else
       return rawget(M, k)
     end
   end,
 })
 
-local state = {
-  cli = (function()
-    local cmd = M.cmd
-    if cmd then
-      return cli.new(cmd, {})
-    else
-      if api.confirm "Obsidian CLI not found. Would you like to install it locally for obsidian.nvim?" == "Yes" then
-        local success, new_cmd = install_local_cli()
-        if success and new_cmd then
-          return cli.new(new_cmd, {})
-        else
-          log.err "CLI still not found after installation. Please report issue to repo."
-          return nil
-        end
-      end
-    end
-  end)(),
-}
-
 function M.run_sync(subcmd, flags, opts)
-  if not state.cli then
+  if not M.cli then
     log.err "CLI not initialized, cannot run command."
     return nil
   end
 
-  local out = state.cli:run_sync(subcmd, flags, opts)
+  local out = M.cli:run_sync(subcmd, flags, opts)
   if out.code == 2 then
     if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
       M.login_sync()
-      return state.cli:run_sync(subcmd, flags, opts)
+      return M.cli:run_sync(subcmd, flags, opts)
     end
     return
   end
@@ -104,12 +104,12 @@ function M.run_sync(subcmd, flags, opts)
 end
 
 function M.run(subcmd, flags, opts)
-  if not state.cli then
+  if not M.cli then
     log.err "CLI not initialized, cannot run command."
     return nil
   end
 
-  return state.cli:run(subcmd, flags, opts)
+  return M.cli:run(subcmd, flags, opts)
 end
 
 ---@param email string|?
