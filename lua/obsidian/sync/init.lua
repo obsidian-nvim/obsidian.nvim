@@ -200,25 +200,35 @@ local function open_log(workspace)
   end, { buffer = buf, silent = true })
 end
 
-M.menu = function()
-  vim.ui.select({
-    "Start Sync",
-    "Pause Sync",
-    "View Sync Log",
-    "Run Sync Setup Wizard",
-  }, {
-    prompt = "Obsidian Sync",
-  }, function(choice)
-    if choice == "Start Sync" then
-      M.start()
-    elseif choice == "Pause Sync" then
-      M.stop()
-    elseif choice == "View Sync Log" then
-      open_log()
-    elseif choice == "Run Sync Setup Wizard" then
-      require("obsidian.sync.wizard").wizard()
-    end
-  end)
+local function run_cmd(choice)
+  if choice == "Start Sync" then
+    M.start()
+  elseif choice == "Pause Sync" then
+    M.stop()
+  elseif choice == "View Sync Log" then
+    open_log()
+  elseif choice == "Run Sync Setup Wizard" then
+    require("obsidian.sync.wizard").wizard()
+  end
 end
+
+---@param subcmd? string
+M.menu = function(subcmd)
+  if not subcmd then
+    vim.ui.select({
+      "Start Sync",
+      "Pause Sync",
+      "View Sync Log",
+      "Run Sync Setup Wizard",
+    }, {
+      prompt = "Obsidian Sync",
+    }, run_cmd)
+    return
+  end
+
+  run_cmd(subcmd)
+end
+
+M.is_configured = require("obsidian.sync.client").is_configured
 
 return M

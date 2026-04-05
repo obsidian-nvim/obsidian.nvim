@@ -56,6 +56,12 @@ local function get_commands_by_context(commands, is_visual, is_note)
       end
       return true
     end)
+    :filter(function(config)
+      if not Obsidian.opts.sync.enabled then
+        return config.name ~= "sync"
+      end
+      return true
+    end)
     :map(function(config)
       return config.name
     end)
@@ -227,7 +233,12 @@ M.register("tags", { nargs = "*" })
 
 M.register("search", { nargs = "?" })
 
-M.register("sync", { nargs = "?" })
+M.register("sync", {
+  nargs = "?",
+  complete = function()
+    return { "start", "stop", "log", "wizard" }
+  end,
+})
 
 M.register("new_from_template", { nargs = "*" })
 

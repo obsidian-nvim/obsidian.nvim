@@ -1,5 +1,7 @@
-return function()
+---@param data obsidian.CommandArgs
+return function(data)
+  local subcmd = data.args:len() > 0 and data.args or nil
+  -- TODO: doc on how this command behaves
   -- TODO: if sync.enabled and no conigured vault -> run wizard
-  -- TODO: accept argument and auto complete
-  require("obsidian.sync").menu()
+  require("obsidian.sync").menu(subcmd)
 end

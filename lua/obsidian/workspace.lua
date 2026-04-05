@@ -3,6 +3,7 @@ local util = require "obsidian.util"
 local config = require "obsidian.config"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
+local sync = require "obsidian.sync"
 
 ---@class obsidian.workspace.WorkspaceSpec
 ---
@@ -154,6 +155,10 @@ Workspace.set = function(workspace)
   local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
   if has_no_renderer and (options.ui.enable or options.ui.enabled) then
     require("obsidian.ui").setup(workspace, options.ui)
+  end
+
+  if Obsidian.opts.sync.enabled and sync.is_configured(workspace) then
+    require("obsidian.sync").start(workspace)
   end
 
   util.fire_callback("post_set_workspace", options.callbacks.post_set_workspace, workspace)

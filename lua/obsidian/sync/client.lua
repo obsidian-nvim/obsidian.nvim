@@ -155,14 +155,14 @@ function M.list_remote()
   return res
 end
 
----@param path string
+---@param ws obsidian.Workspace
 ---@return boolean
-function M.is_configured(path)
+function M.is_configured(ws)
   local vaults = M.list_local()
   if not vaults then
     return false
   end
-  return vaults[path] ~= nil
+  return vaults[tostring(ws.root)] ~= nil
 end
 
 ---@param vault string  -- vault id or name

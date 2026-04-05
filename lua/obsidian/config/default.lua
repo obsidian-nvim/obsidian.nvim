@@ -293,8 +293,10 @@ return {
     confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
   },
 
-  ---@class obsidian.config.SyncOpts
   ---https://help.obsidian.md/sync/settings
+  ---@class obsidian.config.SyncOpts
+  ---
+  ---@field enabled? boolean
   ---@field conflict_strategy? "merge"|"conflict"
   ---@field file_types? string[]
   ---@field configs? string[]
@@ -302,6 +304,7 @@ return {
   ---@field device_name? string
   ---@field config_dir? string
   sync = {
+    enabled = false,
     conflict_strategy = "merge",
     file_types = { "image", "audio", "video", "pdf", "unsupported" },
     configs = {

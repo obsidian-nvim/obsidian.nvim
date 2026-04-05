@@ -60,10 +60,8 @@ local CREATE_NEW = { hash = "", name = "" }
 --- Prompt the user to select (or create) a remote vault, then connect the workspace to it.
 ---@param workspace obsidian.Workspace
 local function select_remote(workspace)
-  local path = tostring(workspace.root)
-
   -- Already configured check.
-  if sync.is_configured(path) then
+  if sync.is_configured(workspace) then
     log.info("Workspace '%s' is already linked to a remote vault.", workspace.name)
     return
   end
