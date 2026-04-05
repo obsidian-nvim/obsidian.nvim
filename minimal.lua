@@ -33,24 +33,24 @@ local plugins = {
   -- "echasnovski/mini.pick",
 
   -- **Choose your completion engine**
-  {
-    "hrsh7th/nvim-cmp",
-    config = function()
-      local cmp = require "cmp"
-      cmp.setup {
-        mapping = cmp.mapping.preset.insert {
-          ["<C-e>"] = cmp.mapping.abort(),
-          ["<C-y>"] = cmp.mapping.confirm { select = true },
-        },
-      }
-    end,
-  },
   -- {
-  --   "saghen/blink.cmp",
-  --   opts = {
-  --     fuzzy = { implementation = "lua" }, -- no need to build binary
-  --   },
+  --   "hrsh7th/nvim-cmp",
+  --   config = function()
+  --     local cmp = require "cmp"
+  --     cmp.setup {
+  --       mapping = cmp.mapping.preset.insert {
+  --         ["<C-e>"] = cmp.mapping.abort(),
+  --         ["<C-y>"] = cmp.mapping.confirm { select = true },
+  --       },
+  --     }
+  --   end,
   -- },
+  {
+    "saghen/blink.cmp",
+    opts = {
+      fuzzy = { implementation = "lua" }, -- no need to build binary
+    },
+  },
 }
 
 require("lazy.minit").repro { spec = plugins }
