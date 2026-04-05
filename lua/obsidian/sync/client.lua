@@ -2,10 +2,6 @@ local cli = require "obsidian.cli"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 
--- TODO: statusline indicator in footer
--- TODO: logs, settings?
--- TODO: choose watch mode or autocmd sync, or LSP didChange sync
-
 local M = {}
 
 local function get_plugin_root()
@@ -186,23 +182,17 @@ function M.setup(vault, path)
   })
 end
 
+---@param vault string  -- vault id or name
 ---@param path string
----@param watch boolean
-function M.sync(path, watch)
-  -- TODO:
-  -- if watch then
-  --   table.insert(args, "--continuous")
-  -- end
-
-  M.run("sync", { path = path }, {
-    callback = function(out)
-      if out.code == 0 then
-        log.info "Sync completed!"
-      else
-        log.err("Sync failed: %s", out.stderr)
-      end
-    end,
-  })
+---@return vim.SystemCompleted|nil
+function M.setup_sync(vault, path)
+  local out = M.run_sync("sync-setup", { vault = vault, path = path }, {})
+  if out and out.code == 0 then
+    log.info "Vault configured successfully!"
+  elseif out then
+    log.err("Setup failed: %s", out.stderr)
+  end
+  return out
 end
 
 ---@param path string?
@@ -296,6 +286,31 @@ function M.create_remote(name, opts)
       end
     end,
   })
+end
+
+---@param name string
+---@param opts { encryption?: string, password?: string, region?: string }?
+---@return vim.SystemCompleted|nil
+function M.create_remote_sync(name, opts)
+  opts = opts or {}
+  local args = { name = name }
+  if opts.encryption then
+    args.encryption = opts.encryption
+  end
+  if opts.password then
+    args.password = opts.password
+  end
+  if opts.region then
+    args.region = opts.region
+  end
+
+  local out = M.run_sync("sync-create-remote", args, {})
+  if out and out.code == 0 then
+    log.info "Remote vault created!"
+  elseif out then
+    log.err("Create failed: %s", out.stderr)
+  end
+  return out
 end
 
 ---@param path string?
