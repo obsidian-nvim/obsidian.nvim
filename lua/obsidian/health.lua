@@ -150,7 +150,7 @@ function M.check()
   start "Dependencies"
   has_executable("rg", false)
   has_executable("ob", true)
-  has_executable(sync_client.detect_cmd(), true)
+  has_executable(sync_client.get_cmd(), true)
 
   if os == api.OSType.Wsl then
     has_executable("wsl-open", true)

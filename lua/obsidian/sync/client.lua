@@ -12,7 +12,7 @@ local function get_plugin_root()
 end
 
 ---@return string?
-function M.detect_cmd()
+function M.get_cmd()
   local plugin_root = get_plugin_root()
   local cmd
   if plugin_root then
@@ -33,7 +33,6 @@ end
 ---@return string?
 local function install_local_cli()
   local plugin_root = get_plugin_root()
-  print("Plugin root:", plugin_root)
   if not plugin_root then
     log.err "Could not find plugin root, cannot install CLI."
     return false
@@ -42,32 +41,30 @@ local function install_local_cli()
   local cmds = { "npm", "install", "obsidian-headless" }
 
   local result = vim.system(cmds, { cwd = plugin_root }):wait()
-  vim.print(result)
   if result.code ~= 0 then
     log.err("Failed to install obsidian-headless: %s", result)
-    local new_cmd = M.detect_cmd()
-    return false, new_cmd
+    return false
   else
+    local new_cmd = M.get_cmd()
     log.info "obsidian-headless installed successfully!"
-    return true
+    return true, new_cmd
   end
 end
 
 local state = {
   cli = (function()
-    local cmd = M.detect_cmd()
+    local cmd = M.get_cmd()
     if cmd then
       return cli.new(cmd, {})
     else
       if api.confirm "Obsidian CLI not found. Would you like to install it locally for obsidian.nvim?" == "Yes" then
         local success, new_cmd = install_local_cli()
-        --   print("Installation success:", success, "New cmd:", new_cmd)
-        --   if success and new_cmd then
-        --     return cli.new(new_cmd, {})
-        --   else
-        --     log.err "CLI still not found after installation. Please report issue to repo."
-        --     return nil
-        --   end
+        if success and new_cmd then
+          return cli.new(new_cmd, {})
+        else
+          log.err "CLI still not found after installation. Please report issue to repo."
+          return nil
+        end
       end
     end
   end)(),
@@ -100,33 +97,8 @@ function M.run(subcmd, flags, opts)
 end
 
 function M.check_installed()
-  local cmd = M.detect_cmd()
+  local cmd = M.get_cmd()
   return cmd ~= nil
-end
-
----@param email string
----@param password string
-function M.login(email, password)
-  email = email or api.input "Email"
-  password = password or vim.fn.inputsecret "Password: "
-
-  if not email or not password then
-    log.err "Email and password are required for login."
-    return
-  end
-
-  M.run("login", {
-    email = email,
-    password = password,
-  }, {
-    callback = function(out)
-      if out.code == 0 then
-        log.info "Login successful!"
-      else
-        log.err("Login failed: %s", out.stderr)
-      end
-    end,
-  })
 end
 
 ---@param email string|?
@@ -200,25 +172,8 @@ end
 
 ---@param vault string  -- vault id or name
 ---@param path string
-function M.setup(vault, path)
-  M.run("sync-setup", {
-    vault = vault,
-    path = path,
-  }, {
-    callback = function(out)
-      if out.code == 0 then
-        log.info "Vault configured successfully!"
-      else
-        log.err("Setup failed: %s", out.stderr)
-      end
-    end,
-  })
-end
-
----@param vault string  -- vault id or name
----@param path string
 ---@return vim.SystemCompleted|nil
-function M.setup_sync(vault, path)
+function M.setup(vault, path)
   local out = M.run_sync("sync-setup", { vault = vault, path = path }, {})
   if out and out.code == 0 then
     log.info "Vault configured successfully!"
@@ -297,34 +252,8 @@ end
 
 ---@param name string
 ---@param opts { encryption?: string, password?: string, region?: string }?
-function M.create_remote(name, opts)
-  opts = opts or {}
-  local args = { name = name }
-  if opts.encryption then
-    args.encryption = opts.encryption
-  end
-  if opts.password then
-    args.password = opts.password
-  end
-  if opts.region then
-    args.region = opts.region
-  end
-
-  M.run("sync-create-remote", args, {
-    callback = function(out)
-      if out.code == 0 then
-        log.info "Remote vault created!"
-      else
-        log.err("Create failed: %s", out.stderr)
-      end
-    end,
-  })
-end
-
----@param name string
----@param opts { encryption?: string, password?: string, region?: string }?
 ---@return vim.SystemCompleted|nil
-function M.create_remote_sync(name, opts)
+function M.create_remote(name, opts)
   opts = opts or {}
   local args = { name = name }
   if opts.encryption then

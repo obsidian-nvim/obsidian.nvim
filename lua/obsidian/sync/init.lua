@@ -134,7 +134,7 @@ local function start_sync(workspace)
     return
   end
 
-  sync_proc[root] = vim.system({ client.detect_cmd(), "sync", "--continuous" }, {
+  sync_proc[root] = vim.system({ client.get_cmd(), "sync", "--continuous" }, {
     cwd = tostring(workspace.root),
     stderr = handler,
     stdout = handler,
