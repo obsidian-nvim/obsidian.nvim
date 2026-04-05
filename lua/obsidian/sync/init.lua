@@ -1,6 +1,6 @@
 local log = require "obsidian.log"
 local client = require "obsidian.sync.client"
-local api = require "obsidian.api"
+local status = require "obsidian.sync.status"
 
 local M = {}
 
@@ -9,58 +9,6 @@ local sync_proc = {}
 
 ---@type table<string, string[]>
 local sync_log = {}
-
----@type table<string, string>
-local sync_status = {}
-
-local sync_icons = {
-  synced = "󰸞",
-  syncing = "󰑓",
-  paused = "󰏤",
-}
-
-local group = {
-  synced = "DiagnosticOk",
-  syncing = "DiagnosticWarn",
-  paused = "DiagnosticInfo",
-}
-
-vim.g.obsidian_sync_status_kind = "paused"
-vim.g.obsidian_sync_status_icon = ""
-vim.g.obsidian_sync_status = ""
-
-function M.status_color()
-  local workspace = Obsidian and Obsidian.workspace or nil
-  local key = workspace and tostring(workspace.root) or nil
-  local kind = key and sync_status[key] or nil
-
-  local hl = group[kind]
-  return hl or "DiagnosticInfo"
-end
-
----@param kind? "synced" | "syncing" | "paused"
-local function set_statusline_globals(kind)
-  local icon = (kind and sync_icons[kind]) or ""
-  local hl = group[kind] or "DiagnosticInfo"
-
-  vim.g.obsidian_sync_status_kind = kind
-  vim.g.obsidian_sync_status_icon = icon
-  vim.g.obsidian_sync_status = icon ~= "" and string.format(" %%#%s# %s %%*", hl, icon) or ""
-end
-
----@param workspace obsidian.Workspace
----@param kind "synced" | "syncing" | "paused"
-local function set_status(workspace, kind)
-  local key = tostring(workspace.root)
-  sync_status[key] = kind
-
-  local current = Obsidian and Obsidian.workspace or nil
-  if not current or tostring(current.root) ~= key then
-    return
-  end
-
-  set_statusline_globals(kind)
-end
 
 ---@param workspace obsidian.Workspace
 ---@param message string
@@ -80,11 +28,11 @@ local function append_log(workspace, message)
   for _, line in ipairs(lines) do
     if line and line ~= "" then
       if line == "Fully synced" then
-        set_status(workspace, "synced")
+        status.set(workspace, "synced")
       elseif line:lower():find("paused", 1, true) then
-        set_status(workspace, "paused")
+        status.set(workspace, "paused")
       else
-        set_status(workspace, "syncing")
+        status.set(workspace, "syncing")
       end
       local entry = string.format("%s - %s", ts, line)
       table.insert(sync_log[key], entry)
@@ -104,7 +52,7 @@ local function stop_sync(workspace)
   end)
 
   sync_proc[key] = nil
-  set_status(workspace, "paused")
+  status.set(workspace, "paused")
 end
 
 ---@param workspace obsidian.Workspace
@@ -142,7 +90,7 @@ local function start_sync(workspace)
   }, function(out)
     if sync_proc[root] ~= nil then
       sync_proc[root] = nil
-      set_status(workspace, "paused")
+      status.set(workspace, "paused")
     end
 
     if out.code ~= 0 then
@@ -167,25 +115,7 @@ end
 
 ---@param workspace? obsidian.Workspace
 M.stop = function(workspace)
-  if workspace and not workspace.root then
-    workspace = nil
-  end
-
   workspace = workspace or Obsidian.workspace
-
-  if not workspace then
-    for path, proc in pairs(sync_proc) do
-      pcall(function()
-        proc:kill(15)
-      end)
-
-      sync_proc[path] = nil
-      sync_status[path] = nil
-    end
-    set_statusline_globals(nil)
-    return
-  end
-
   stop_sync(workspace)
 end
 
@@ -231,7 +161,6 @@ M._actions = actions
 
 ---@param subcmd? string
 M.menu = function(subcmd)
-  local workspace = Obsidian.workspace -- TODO: use resolve workspace dir for all
   if not subcmd then
     vim.ui.select(actions, {
       prompt = "Obsidian Sync",
@@ -242,7 +171,7 @@ M.menu = function(subcmd)
       if not choice then
         return
       end
-      choice.fn(workspace)
+      choice.fn()
     end)
     return
   end
@@ -253,7 +182,7 @@ M.menu = function(subcmd)
   if not action then
     return
   end
-  action.fn(workspace)
+  action.fn()
 end
 
 M.is_configured = require("obsidian.sync.client").is_configured
