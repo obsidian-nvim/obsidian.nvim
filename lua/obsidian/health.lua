@@ -1,6 +1,7 @@
 local M = {}
 local VERSION = require "obsidian.version"
 local api = require "obsidian.api"
+local sync_client = require "obsidian.sync.client"
 
 local error = vim.health.error
 local warn = vim.health.warn
@@ -148,6 +149,8 @@ function M.check()
 
   start "Dependencies"
   has_executable("rg", false)
+  has_executable("ob", true)
+  has_executable(sync_client.detect_cmd(), true)
 
   if os == api.OSType.Wsl then
     has_executable("wsl-open", true)

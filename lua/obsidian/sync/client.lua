@@ -16,7 +16,7 @@ function M.detect_cmd()
   local plugin_root = get_plugin_root()
   local cmd
   if plugin_root then
-    local local_bin = vim.fs.joinpath(plugin_root, "node_modules", ".bin", "obsidian-headless")
+    local local_bin = vim.fs.joinpath(plugin_root, "node_modules", ".bin", "ob")
     if vim.fn.executable(local_bin) == 1 then
       cmd = local_bin
     end
@@ -29,13 +29,46 @@ function M.detect_cmd()
   return cmd
 end
 
+---@return boolean
+---@return string?
+local function install_local_cli()
+  local plugin_root = get_plugin_root()
+  print("Plugin root:", plugin_root)
+  if not plugin_root then
+    log.err "Could not find plugin root, cannot install CLI."
+    return false
+  end
+
+  local cmds = { "npm", "install", "obsidian-headless" }
+
+  local result = vim.system(cmds, { cwd = plugin_root }):wait()
+  vim.print(result)
+  if result.code ~= 0 then
+    log.err("Failed to install obsidian-headless: %s", result)
+    local new_cmd = M.detect_cmd()
+    return false, new_cmd
+  else
+    log.info "obsidian-headless installed successfully!"
+    return true
+  end
+end
+
 local state = {
   cli = (function()
     local cmd = M.detect_cmd()
     if cmd then
       return cli.new(cmd, {})
     else
-      log.err "obsidian-headless not found. Run 'npm install obsidian-headless'"
+      if api.confirm "Obsidian CLI not found. Would you like to install it locally for obsidian.nvim?" == "Yes" then
+        local success, new_cmd = install_local_cli()
+        --   print("Installation success:", success, "New cmd:", new_cmd)
+        --   if success and new_cmd then
+        --     return cli.new(new_cmd, {})
+        --   else
+        --     log.err "CLI still not found after installation. Please report issue to repo."
+        --     return nil
+        --   end
+      end
     end
   end)(),
 }
