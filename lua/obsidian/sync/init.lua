@@ -1,5 +1,6 @@
 local log = require "obsidian.log"
 local client = require "obsidian.sync.client"
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -201,33 +202,58 @@ local function open_log(workspace)
   end, { buffer = buf, silent = true })
 end
 
-local function run_cmd(choice)
-  if choice == "Start Sync" then
-    M.start()
-  elseif choice == "Pause Sync" then
-    M.stop()
-  elseif choice == "View Sync Log" then
-    open_log()
-  elseif choice == "Run Sync Setup Wizard" then
-    require("obsidian.sync.wizard").wizard()
-  end
-end
+local actions = {
+  {
+    name = "start",
+    text = "Start Sync",
+    fn = M.start,
+  },
+  {
+    name = "pause",
+    text = "Pause Sync",
+    fn = M.stop,
+  },
+  {
+    name = "log",
+    text = "View Sync Log",
+    fn = open_log,
+  },
+  {
+    name = "wizard",
+    text = "Setup Wizard",
+    fn = function()
+      require("obsidian.sync.wizard").wizard()
+    end,
+  },
+}
+
+M._actions = actions
 
 ---@param subcmd? string
 M.menu = function(subcmd)
+  local workspace = Obsidian.workspace -- TODO: use resolve workspace dir for all
   if not subcmd then
-    vim.ui.select({
-      "Start Sync",
-      "Pause Sync",
-      "View Sync Log",
-      "Run Sync Setup Wizard",
-    }, {
+    vim.ui.select(actions, {
       prompt = "Obsidian Sync",
-    }, run_cmd)
+      format_item = function(item)
+        return item.text
+      end,
+    }, function(choice)
+      if not choice then
+        return
+      end
+      choice.fn(workspace)
+    end)
     return
   end
 
-  run_cmd(subcmd)
+  local action = vim.iter(actions):find(function(act)
+    return act.name == subcmd
+  end)
+  if not action then
+    return
+  end
+  action.fn(workspace)
 end
 
 M.is_configured = require("obsidian.sync.client").is_configured

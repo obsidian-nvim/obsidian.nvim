@@ -235,8 +235,14 @@ M.register("search", { nargs = "?" })
 
 M.register("sync", {
   nargs = "?",
-  complete = function()
-    return { "start", "stop", "log", "wizard" }
+  complete = function(arg)
+    local choices = vim.tbl_map(function(action)
+      return action.name
+    end, require("obsidian.sync")._actions)
+
+    return vim.tbl_filter(function(s)
+      return vim.startswith(s, arg)
+    end, choices)
   end,
 })
 
