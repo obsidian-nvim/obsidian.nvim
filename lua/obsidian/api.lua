@@ -465,21 +465,6 @@ M.get_plugin_info = function(name)
   return out
 end
 
---- Get info about a external dependency.
----
----@param cmd string
----@return string|?
-M.get_external_dependency_info = function(cmd)
-  local obj = vim.system({ cmd, "--version" }, {}):wait(1000)
-  if obj.code ~= 0 then
-    return
-  end
-  local version = vim.version.parse(obj.stdout)
-  if version then
-    return ("%d.%d.%d"):format(version.major, version.minor, version.patch)
-  end
-end
-
 ------------------
 --- UI helpers ---
 ------------------

@@ -49,14 +49,25 @@ local function has_plugin(plugin, optional)
   end
 end
 
+---@class obsidian.DependencyInfo
+---@field path string
+---@field version string
+
+---@param name string
+---@return obsidian.DependencyInfo
+local function get_exe_info(name)
+  local path = vim.fn.exepath(name)
+  local out = vim.trim(vim.fn.system { name, "--version" })
+  local version = vim.version.parse(out)
+  local version_string = version and ("%d.%d.%d"):format(version.major, version.minor, version.patch)
+    or "unknown version"
+  return { path = path, version = version_string, out = out }
+end
+
 local function has_executable(name, optional)
   if vim.fn.executable(name) == 1 then
-    local version = api.get_external_dependency_info(name)
-    if version then
-      ok_f("%s: %s", name, version)
-    else
-      ok_f("%s: found", name)
-    end
+    local exe = get_exe_info(name)
+    ok_f("%s: %s (%s)", name, exe.version, exe.path)
     return true
   else
     if not optional then
