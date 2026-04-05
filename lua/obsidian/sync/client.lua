@@ -94,7 +94,7 @@ function M.run_sync(subcmd, flags, opts)
 
   local out = state.cli:run_sync(subcmd, flags, opts)
   if out.code == 2 then
-    if api.confirm "Not login in, login to your obsidian account?" == "Yes" then
+    if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
       M.login_sync()
       return state.cli:run_sync(subcmd, flags, opts)
     end
