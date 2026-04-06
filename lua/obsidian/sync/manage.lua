@@ -2,6 +2,8 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local client = require "obsidian.sync.client"
 
+local M = {}
+
 --- Connect a workspace to a chosen remote vault, apply sync config, and optionally start syncing.
 ---@param remote obsidian.sync.RemoteVault
 ---@param workspace obsidian.Workspace
@@ -102,7 +104,7 @@ local function build_linked_map(local_vaults, remotes)
   return map
 end
 
-local function setup()
+function M.setup()
   local workspaces = Obsidian.workspaces
   if not workspaces or #workspaces == 0 then
     log.err "No workspaces configured."
@@ -136,7 +138,7 @@ local function setup()
   end)
 end
 
-local function unlink()
+function M.disconnect()
   local workspaces = Obsidian.workspaces
   if not workspaces or #workspaces == 0 then
     log.err "No workspaces configured."
@@ -165,13 +167,10 @@ local function unlink()
     end,
   }, function(ws)
     if ws then
-      client.stop(tostring(ws.root))
+      client.pause(tostring(ws.root))
       client.unlink(tostring(ws.root))
     end
   end)
 end
 
-return {
-  setup = setup,
-  unlink = unlink,
-}
+return M

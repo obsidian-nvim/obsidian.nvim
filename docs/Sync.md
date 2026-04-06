@@ -26,11 +26,23 @@ npm install obsidian-headless -g
 Sync the current workspace vault. On first run, it will:
 
 1. Check if logged in (prompt for credentials if not)
-2. Check if vault is configured (prompt for vault name if not)
+2. Check if any vault is configured (prompt to create at least one connection to remote)
 3. Apply sync configuration from plugin settings
 4. Run the sync
 
 When switching workspaces, any running continuous sync process for the previous workspace is stopped before starting sync for the new workspace.
+
+### `:Obsidian sync [SUBCMD]`
+
+Once you have configured a working setup, `:Obsidian sync` alone will work as a menu to select subcommands, like top-level `:Obsidian`, you can `<CR>` for the select interface or `<Tab>` it for autocompletion.
+
+Available subcommands:
+
+- `:Obsidian sync start`: start sync for current workspace
+- `:Obsidian sync pause`: pause sync for current workspace
+- `:Obsidian sync setup`: setup wizard
+- `:Obsidian sync disconnect`: disconnect existing connections
+- `:Obsidian sync log`: open log for current session
 
 ## Configuration Example
 
@@ -56,13 +68,14 @@ require("obsidian").setup {
 }
 ```
 
-### Available Methods (`require("obsidian.sync")`)
+### Available API (`require("obsidian.sync")`)
 
 - `sync.start(workspace?)` - Start continuous sync for a workspace (defaults to current workspace)
-- `sync.stop(workspace?)` - Stop continuous sync for a workspace (defaults to current workspace)
-- `sync.menu(subcmd?)` - Open the sync action menu or run a specific subcommand (`start`, `pause`, `log`, `wizard`)
+- `sync.pause(workspace?)` - Stop continuous sync for a workspace (defaults to current workspace)
+- `sync.menu(subcmd?)` - Open the sync action menu or run a specific subcommand (`start`, `pause`, `log`, `setup`, `disconnect`)
 - `sync.is_configured(workspace)` - Check if a workspace is configured for sync
-- `sync.wizard()` - Run the interactive setup wizard
+- `sync.setup()` - Run the interactive setup wizard
+- `sync.disconnect()` - Interactively unlink configured local vaults from remote
 
 > [!Note]
 > lower-level CLI helpers live in `require("obsidian.sync.client")` and are not the primary public API surface.

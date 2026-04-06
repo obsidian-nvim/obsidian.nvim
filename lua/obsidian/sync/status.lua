@@ -41,6 +41,9 @@ end
 ---@param key string
 ---@param kind "synced" | "syncing" | "paused"
 local function set_status(key, kind)
+  if kind == "syncing" and vim.g.obsidian_sync_status_kind == "paused" then
+    return
+  end
   sync_status[key] = kind
 
   local current = Obsidian and Obsidian.workspace or nil

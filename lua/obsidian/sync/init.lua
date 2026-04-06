@@ -5,7 +5,7 @@ local log = require "obsidian.log"
 local M = {}
 
 M.setup = manage.setup
-M.unlink = manage.unlink
+M.disconnect = manage.disconnect
 
 ---@param workspace? obsidian.Workspace
 M.start = function(workspace)
@@ -14,15 +14,22 @@ M.start = function(workspace)
 end
 
 ---@param workspace? obsidian.Workspace
-M.stop = function(workspace)
+M.pause = function(workspace)
   workspace = workspace or Obsidian.workspace
-  client.stop(tostring(workspace.root))
+  local dir = tostring(workspace.root)
+  local ok, err = client.pause(dir)
+
+  if ok then
+    log.info("Paused sync for %s", dir)
+  else
+    log.err("Failed to pause sync for %s: %s", dir, err)
+  end
 end
 
 ---@param workspace? obsidian.Workspace
-M.open_log = function(workspace)
+M.log = function(workspace)
   workspace = workspace or Obsidian.workspace
-  client.open_log(tostring(workspace.root))
+  client.log(tostring(workspace.root))
 end
 
 local actions = {
@@ -34,12 +41,12 @@ local actions = {
   {
     name = "pause",
     text = "Pause Sync",
-    fn = M.stop,
+    fn = M.pause,
   },
   {
     name = "log",
-    text = "View Sync Log",
-    fn = M.open_log,
+    text = "Open Sync Log",
+    fn = M.log,
   },
   {
     name = "setup",
@@ -47,9 +54,9 @@ local actions = {
     fn = M.setup,
   },
   {
-    name = "unlink",
+    name = "disconnect",
     text = "Unlink Vault From Remote",
-    fn = M.unlink,
+    fn = M.disconnect,
   },
 }
 

@@ -394,17 +394,17 @@ local function append_log(dir, message)
 end
 
 ---@param dir string
-function M.stop(dir)
+function M.pause(dir)
   if not sync_proc[dir] then
     return
   end
 
-  pcall(function()
+  local ok, err = pcall(function()
     sync_proc[dir]:kill(15)
+    sync_proc[dir] = nil
+    status.set(dir, "paused")
   end)
-
-  sync_proc[dir] = nil
-  status.set(dir, "paused")
+  return ok, err
 end
 
 ---@param dir string
@@ -436,15 +436,11 @@ function M.start(dir)
   end
 
   if sync_proc[dir] ~= nil then
+    log.info("Sync already running for %s", dir)
     return
   end
 
   local callback = function(out)
-    if sync_proc[dir] ~= nil then
-      sync_proc[dir] = nil
-      status.set(dir, "paused")
-    end
-
     if out.code ~= 0 then
       log.err("obsidian sync exited %s", out.stderr)
       append_log(dir, string.format("obsidian sync exited with code %s: %s", out.code, out.stderr))
@@ -460,14 +456,14 @@ function M.start(dir)
   vim.api.nvim_create_autocmd("VimLeavePre", {
     group = vim.api.nvim_create_augroup("obsidian-sync-" .. dir, { clear = true }),
     callback = function()
-      M.stop(dir)
+      M.pause(dir)
     end,
   })
 end
 
 ---@param dir string
 ---@return { buf: integer }
-function M.open_log(dir)
+function M.log(dir)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, sync_log[dir] or {})
   vim.bo[buf].modifiable = false
