@@ -149,14 +149,15 @@ M.get_completions = function(arg_lead, cmdline, cursor_pos)
   local obspat = "^['<,'>]*Obsidian[!]?"
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
   local obsidiancmd = splitcmd[2]
+  local is_visual = vim.startswith(cmdline, "'<,'>")
+  local cmds = get_commands_by_context(M.commands, is_visual, in_note())
   if cmdline:match(obspat .. "%s$") then
-    local is_visual = vim.startswith(cmdline, "'<,'>")
-    return get_commands_by_context(M.commands, is_visual, in_note())
+    return cmds
   end
   if cmdline:match(obspat .. "%s%S+$") then
     return vim.tbl_filter(function(s)
       return s:sub(1, #obsidiancmd) == obsidiancmd
-    end, vim.tbl_keys(M.commands))
+    end, cmds)
   end
   local cmdconfig = M.commands[obsidiancmd]
   if cmdconfig == nil then
