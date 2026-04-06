@@ -17,7 +17,7 @@ local function connect_and_configure(remote, workspace)
 
   -- Apply sync settings from user config.
   if Obsidian.opts.sync then
-    client.apply_config(path, Obsidian.opts.sync)
+    client.set_config(path, Obsidian.opts.sync)
   end
 
   if api.confirm "Start syncing now?" == "Yes" then

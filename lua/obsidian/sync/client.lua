@@ -297,11 +297,14 @@ function M.create_remote(name, opts)
 end
 
 ---@param path string?
----@param opts { conflict_strategy?: string, file_types?: string[], configs?: string[], excluded_folders?: string[], device_name?: string, config_dir?: string }?
+---@param opts obsidian.config.SyncOpts?
 ---@return vim.SystemCompleted|nil
 function M.set_config(path, opts)
   opts = opts or {}
   local args = { path = path or "" }
+  if opts.mode then
+    args.mode = opts.mode
+  end
   if opts.conflict_strategy then
     args["conflict-strategy"] = opts.conflict_strategy
   end
@@ -324,33 +327,7 @@ function M.set_config(path, opts)
   return M.run("sync-config", args)
 end
 
----@param path string
----@param sync_opts obsidian.config.SyncOpts
----@return vim.SystemCompleted|nil
-function M.apply_config(path, sync_opts)
-  local cfg = {}
-  if sync_opts.conflict_strategy then
-    cfg.conflict_strategy = sync_opts.conflict_strategy
-  end
-  if sync_opts.file_types and #sync_opts.file_types > 0 then
-    cfg.file_types = sync_opts.file_types
-  end
-  if sync_opts.configs and #sync_opts.configs > 0 then
-    cfg.configs = sync_opts.configs
-  end
-  if sync_opts.excluded_folders and #sync_opts.excluded_folders > 0 then
-    cfg.excluded_folders = sync_opts.excluded_folders
-  end
-  if sync_opts.device_name then
-    cfg.device_name = sync_opts.device_name
-  end
-  if sync_opts.config_dir then
-    cfg.config_dir = sync_opts.config_dir
-  end
-
-  return M.set_config(path, cfg)
-end
-
+---@param path string?
 ---@return vim.SystemCompleted|nil
 function M.logout()
   return M.run("logout", {})
@@ -452,6 +429,8 @@ function M.start(dir)
       append_log(dir, string.format("obsidian sync exited with code %s: %s", out.code, out.stderr))
     end
   end
+
+  M.set_config(dir, Obsidian.opts.sync)
 
   sync_proc[dir] = M.run_async("sync", { continuous = true }, {
     cwd = dir,

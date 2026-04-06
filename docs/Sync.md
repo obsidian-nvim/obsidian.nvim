@@ -1,23 +1,8 @@
-- [Installation](#installation)
 - [Commands](#commands)
-- [Configuration Example](#configuration-example)
+- [Sync Settings](#sync-settings)
 - [Options](#options)
 
-The Sync module integrates with [Obsidian Headless](https://help.obsidian.md/sync/headless) to sync vaults from the CLI without requiring the desktop app. This is useful for headless environments, CI pipelines, or CLI-only workflows.
-
-## Installation
-
-In the plugin installation folder:
-
-```bash
-npm install obsidian-headless
-```
-
-or just install globally
-
-```bash
-npm install obsidian-headless -g
-```
+The Sync module integrates with [Obsidian Headless](https://help.obsidian.md/sync/headless) to sync vaults without requiring the desktop app.
 
 ## Commands
 
@@ -25,16 +10,18 @@ npm install obsidian-headless -g
 
 Sync the current workspace vault. On first run, it will:
 
-1. Check if logged in (prompt for credentials if not)
-2. Check if any vault is configured (prompt to create at least one connection to remote)
-3. Apply sync configuration from plugin settings
-4. Run the sync
+1. Check if you have a working `obsidian-headless` CLI, if not it will prompt you go install a local copy managed by this plugin, or you can manually install a global CLI with
+   `npm install obsidian-headless -g`
+2. Check if logged in (prompt for credentials if not)
+3. Check if any vault is configured (prompt to create at least one connection to remote)
+4. Apply sync configuration from plugin settings
+5. Run the sync
 
 When switching workspaces, any running continuous sync process for the previous workspace is stopped before starting sync for the new workspace.
 
 ### `:Obsidian sync [SUBCMD]`
 
-Once you have configured a working setup, `:Obsidian sync` alone will work as a menu to select subcommands, like top-level `:Obsidian`, you can `<CR>` for the select interface or `<Tab>` it for autocompletion.
+Once you have configured a working setup, `:Obsidian sync` alone will work as a menu like top-level `:Obsidian`, you can `<CR>` for the select interface or `<Tab>` it for autocompletion.
 
 Available subcommands:
 
@@ -44,29 +31,19 @@ Available subcommands:
 - `:Obsidian sync disconnect`: disconnect existing connections
 - `:Obsidian sync log`: open log for current session
 
-## Configuration Example
+## Sync Settings
 
-```lua
-require("obsidian").setup {
-  sync = {
-    conflict_strategy = "merge",
-    file_types = { "image", "audio", "video", "pdf", "unsupported" },
-    configs = {
-      "app",
-      "appearance",
-      "appearance-data",
-      "hotkey",
-      "core-plugin",
-      "core-plugin-data",
-      "community-plugin",
-      "community-plugin-data",
-    },
-    excluded_folders = {},
-    device_name = nil,
-    config_dir = ".obsidian",
-  },
-}
-```
+These settings map directly to `ob sync-config` options from the [Obsidian Headless CLI](https://help.obsidian.md/sync/headless). They are applied automatically before each sync run.
+
+| Option              | Type                                            | Default                                               | Description                                                                                                                                                                                                       |
+| ------------------- | ----------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`              | `"bidirectional"\|"pull-only"\|"mirror-remote"` | `nil` (bidirectional)                                 | Sync direction. `pull-only` only downloads and ignores local changes. `mirror-remote` only downloads and reverts local changes.                                                                                   |
+| `conflict_strategy` | `"merge"\|"conflict"`                           | `"merge"`                                             | How to handle conflicts. `"conflict"` is not currently supported by the headless client.                                                                                                                          |
+| `file_types`        | `string[]`                                      | `{ "image", "audio", "video", "pdf", "unsupported" }` | Attachment types to sync. Use an empty table `{}` to disable attachment syncing.                                                                                                                                  |
+| `configs`           | `string[]\|nil`                                 | `nil`                                                 | Obsidian app config categories to sync (e.g. `"app"`, `"appearance"`, `"hotkey"`, `"core-plugin"`, `"community-plugin"`, etc). Only relevant if you share a vault with the desktop app. `nil` skips this setting. |
+| `excluded_folders`  | `string[]`                                      | `{}`                                                  | Folders to exclude from syncing.                                                                                                                                                                                  |
+| `device_name`       | `string\|nil`                                   | `nil`                                                 | Device name shown in sync version history.                                                                                                                                                                        |
+| `config_dir`        | `string`                                        | `".obsidian"`                                         | Config directory name.                                                                                                                                                                                            |
 
 ### Available API (`require("obsidian.sync")`)
 
@@ -87,26 +64,33 @@ require("obsidian").setup {
 ---@class obsidian.config.SyncOpts
 ---
 ---@field enabled? boolean
+---
+---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
+---@field mode? "bidirectional"|"pull-only"|"mirror-remote"
+---
+---Conflict strategy when a conflict is detected, NOTE: conflict is not currently supported in this client
 ---@field conflict_strategy? "merge"|"conflict"
----@field file_types? string[]
----@field configs? string[]
----@field excluded_folders? string[]
----@field device_name? string
+---
+---Attachment types to sync: image, audio, video, pdf, unsupported, empty table to disable attachment syncing
+---@field file_types? obsidian.sync.FileType[]
+---
+---Config categories to sync, empty table to disable config syncing, this is config for obsidian app, and is just here for completeness
+---@field configs? obsidian.sync.ConfigCategory[]
+---
+---Config directory name, this is for obsidian app
 ---@field config_dir? string
+---
+---Folders to exclude
+---@field excluded_folders? string[]
+---
+---Device name to identify this client in the sync version history
+---@field device_name? string
 sync = {
   enabled = false,
+  mode = nil,
   conflict_strategy = "merge",
   file_types = { "image", "audio", "video", "pdf", "unsupported" },
-  configs = {
-    "app",
-    "appearance",
-    "appearance-data",
-    "hotkey",
-    "core-plugin",
-    "core-plugin-data",
-    "community-plugin",
-    "community-plugin-data",
-  },
+  configs = nil,
   excluded_folders = {},
   device_name = nil,
   config_dir = ".obsidian",
