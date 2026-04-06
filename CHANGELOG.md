@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- Command completion no longer appear for commands that are disabled through `module.enabled`.
+
 ## [v3.16.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.1) - 2026-04-05
 
 ### Added
