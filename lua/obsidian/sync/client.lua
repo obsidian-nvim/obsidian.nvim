@@ -2,6 +2,12 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local status = require "obsidian.sync.status"
 
+---@type table<string, vim.SystemObj>
+local sync_proc = {}
+
+---@type table<string, string[]>
+local sync_log = {}
+
 ---@class obsidian.sync.Client
 ---@field cmd string?  -- path to CLI, if available
 ---@field cli obsidian.CLI?  -- CLI instance, if available
@@ -121,6 +127,7 @@ function M.run_async(subcmd, flags, opts, callback)
     log.err "CLI not initialized, cannot run command."
     return nil
   end
+  opts = opts or {}
 
   return M.cli:run(
     subcmd,
@@ -136,7 +143,12 @@ function M.run_async(subcmd, flags, opts, callback)
         end
         return
       elseif out.code ~= 0 then
-        log.err("Command failed: %s", out.stderr)
+        local error_output = opts.cwd and sync_log[opts.cwd] and table.concat(sync_log[opts.cwd], "\n") or out.stderr
+        if error_output:find "Another sync instance is already running for this vault." then
+          log.info "Another sync instance is already running for this vault."
+        else
+          log.err("Command failed with code %s: %s", out.code, error_output)
+        end
       else
         callback(out)
       end
@@ -357,12 +369,6 @@ end
 --------------------------------
 --- Sync Process Management ---
 --------------------------------
-
----@type table<string, vim.SystemObj>
-local sync_proc = {}
-
----@type table<string, string[]>
-local sync_log = {}
 
 ---@param dir string
 ---@param message string
