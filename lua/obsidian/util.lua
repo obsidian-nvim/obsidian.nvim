@@ -27,12 +27,15 @@ end
 -------------------
 
 ---Check if an object is an array-like table.
---- TODO: after 0.12 replace with vim.islist
 ---
 ---@param t any
 ---@return boolean
 util.islist = function(t)
-  return compat.is_list(t)
+  if vim.fn.has "nvim-0.12" then
+    return vim.islist(t)
+  else
+    return compat.is_list(t)
+  end
 end
 
 ---Return a new list table with only the unique values of the original table.
