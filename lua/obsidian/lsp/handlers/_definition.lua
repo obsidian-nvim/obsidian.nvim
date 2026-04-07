@@ -51,6 +51,20 @@ local function open_note(location, callback)
   local notes = search.resolve_note(location, {
     notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
   })
+
+  -- TODO: integrate into resolve_note?
+  if block_link then
+    notes = vim.tbl_filter(function(note)
+      return not vim.tbl_isempty(note.blocks or {}) and note:resolve_block(block_link) ~= nil
+    end, notes)
+  end
+
+  if anchor_link then
+    notes = vim.tbl_filter(function(note)
+      return not vim.tbl_isempty(note.anchor_links or {}) and note:resolve_anchor_link(anchor_link) ~= nil
+    end, notes)
+  end
+
   if vim.tbl_isempty(notes) then
     create_new_note(location, callback)
   elseif #notes == 1 then
