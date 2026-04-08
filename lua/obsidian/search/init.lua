@@ -377,6 +377,10 @@ M.find_notes_async = function(term, callback, opts)
   end)
 end
 
+--- Find notes matching search term
+---
+---@param term string The term to search for
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|? }
 M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000

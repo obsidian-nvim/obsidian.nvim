@@ -337,7 +337,7 @@ end
 util.parse_tags = require("obsidian.parse.tags").parse_tags
 
 ---@param link string
----@param opts { strip: boolean|?, exclude: obsidian.search.RefTypes[], link_type: obsidian.search.RefTypes|? }|?
+---@param opts { strip: boolean|?, exclude: obsidian.search.RefTypes[]|?, link_type: obsidian.search.RefTypes|? }|?
 ---@return string|? link_location
 ---@return string|? link_name
 ---@return obsidian.search.RefTypes|? link_type
