@@ -1,4 +1,3 @@
-local util = require "obsidian.util"
 local obsidian = require "obsidian"
 
 local M = {}
@@ -85,7 +84,7 @@ local function try_inject_blink_sources_into_per_filetype(blink_sources_per_file
   end
 
   local markdown_config_type = type(markdown_config)
-  if markdown_config_type == "table" and util.islist(markdown_config) then
+  if markdown_config_type == "table" and vim.islist(markdown_config) then
     for _, provider in pairs(M.providers) do
       add_element_to_list_if_not_exists(markdown_config, provider.name)
     end
@@ -141,7 +140,7 @@ local function try_inject_blink_sources_into_default(blink_sources_default)
     -- Overwrite the original config function with the newly generated one
     require("blink.cmp.config").sources.default = blink_sources_default
     return true
-  elseif blink_default_type == "table" and util.islist(blink_sources_default) then
+  elseif blink_default_type == "table" and vim.islist(blink_sources_default) then
     for _, provider in pairs(M.providers) do
       add_element_to_list_if_not_exists(blink_sources_default, provider.name)
     end

@@ -53,10 +53,9 @@ end
 ---@param version     string     Version when the deprecated function will be removed.
 ---
 local function deprecate(name, alternative, version)
-  -- TODO: until we support 0.11 min
-  -- vim.validate("name", name, "string")
-  -- vim.validate("alternative", alternative, "string", true)
-  -- vim.validate("version", version, "string", true)
+  vim.validate("name", name, "string")
+  vim.validate("alternative", alternative, "string", true)
+  vim.validate("version", version, "string", true)
 
   local msg = ("%s is deprecated"):format(name)
   msg = alternative and ("%s, use %s instead."):format(msg, alternative) or (msg .. ".")
@@ -71,8 +70,6 @@ end
 ---
 ---@return obsidian.config.Internal
 config.normalize = function(opts, defaults)
-  local util = require "obsidian.util"
-
   opts = opts or {}
 
   if not defaults then
@@ -340,7 +337,7 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error("Invalid 'link.format' option '" .. tostring(opts.link.format) .. "' in obsidian.nvim config.")
   end
 
-  if not util.islist(opts.workspaces) then
+  if not vim.islist(opts.workspaces) then
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
   end
 

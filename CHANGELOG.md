@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- Raise minimum supported version to `0.11`
+
 ### Fixed
 
 - Command completion no longer appear for commands that are disabled through `module.enabled`.

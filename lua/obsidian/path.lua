@@ -425,10 +425,6 @@ Path.mkdir = function(self, opts)
   self:mkdir { mode = mode }
 end
 
--- TODO: not implemented and not used, after we get to 0.11 we can simply use vim.fs.rm
---- Recursively remove an entire directory and its contents.
-Path.rmtree = function() end
-
 --- Make a path relative to the vault root, if possible, return a string
 ---
 ---@param opts { strict: boolean|? }|?
