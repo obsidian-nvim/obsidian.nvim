@@ -120,21 +120,27 @@ function M.new_unique_id(timestamp)
 end
 
 ---@param timestamp integer?
+---@param opts obsidian.note.NoteOpts?
 ---@return obsidian.Note? A new unique note instance with a unique ID based on the timestamp and format.
-function M.new_unique_note(timestamp)
+function M.new_unique_note(timestamp, opts)
   local unique_id = M.new_unique_id(timestamp)
   if not unique_id then
     return
   end
 
-  local note = Note.create {
+  opts = opts or {}
+
+  local default = {
     id = unique_id,
     template = Obsidian.opts.unique_note.template,
     dir = Obsidian.opts.unique_note.folder,
     verbatim = true,
     should_write = true,
   }
-  return note
+
+  opts = vim.tbl_extend("force", default, opts)
+
+  return Note.create(opts)
 end
 
 ---@param timestamp integer?
