@@ -21,6 +21,7 @@ local module_pages = {
   footer = "Footer.md",
   open = "Open.md",
   checkbox = "Checkbox.md",
+  sync = "Sync.md",
 }
 
 --------------------------------------------------------------------------------

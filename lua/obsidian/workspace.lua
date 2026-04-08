@@ -131,6 +131,7 @@ Workspace.set = function(workspace)
   local dir = workspace.root
   local options = config.normalize(workspace.overrides or {}, Obsidian._opts)
 
+  local previous_workspace = Obsidian.workspace
   Obsidian.workspace = workspace
   Obsidian.dir = dir
   Obsidian.opts = options
@@ -154,6 +155,18 @@ Workspace.set = function(workspace)
   local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
   if has_no_renderer and (options.ui.enable or options.ui.enabled) then
     require("obsidian.ui").setup(workspace, options.ui)
+  end
+
+  if options.sync.enabled then
+    local sync = require "obsidian.sync"
+
+    if previous_workspace and tostring(previous_workspace.root) ~= tostring(dir) then
+      pcall(sync.pause, previous_workspace)
+    end
+
+    if sync.is_configured(workspace) then
+      sync.start(workspace)
+    end
   end
 
   util.fire_callback("post_set_workspace", options.callbacks.post_set_workspace, workspace)

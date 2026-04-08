@@ -56,6 +56,12 @@ local function get_commands_by_context(commands, is_visual, is_note)
       end
       return true
     end)
+    :filter(function(config)
+      if not Obsidian.opts.sync.enabled then
+        return config.name ~= "sync"
+      end
+      return true
+    end)
     :map(function(config)
       return config.name
     end)
@@ -226,6 +232,19 @@ M.register("open", { nargs = "*", complete = M.note_complete })
 M.register("tags", { nargs = "*" })
 
 M.register("search", { nargs = "?" })
+
+M.register("sync", {
+  nargs = "?",
+  complete = function(arg)
+    local choices = vim.tbl_map(function(action)
+      return action.name
+    end, require("obsidian.sync")._actions)
+
+    return vim.tbl_filter(function(s)
+      return vim.startswith(s, arg)
+    end, choices)
+  end,
+})
 
 M.register("new_from_template", { nargs = "*" })
 
