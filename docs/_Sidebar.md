@@ -13,6 +13,7 @@
 - [[Images]]
 - [[Integrations]]
 - [[Keymaps]]
+- [[Navigation]]
 - [[Scripting]]
 - [[Startup-Guide]]
 - [[Recipes]]
