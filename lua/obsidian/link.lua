@@ -12,7 +12,7 @@ local function normalize_path(path)
   return Path.new(path):resolve()
 end
 
---- TODO: use in definition handler later?
+--- TODO: use in definition handler later, replace resolve_note
 
 ---@param location string
 ---@return string|?
@@ -27,11 +27,7 @@ M.resolve_link_path = function(location)
   location, anchor_link = util.strip_anchor_links(location)
 
   if location == "" then
-    local current_path = vim.api.nvim_buf_get_name(0)
-    if current_path ~= "" then
-      return tostring(normalize_path(current_path))
-    end
-    return nil
+    return
   end
 
   if attachment.is_attachment_path(location) then
@@ -85,9 +81,7 @@ M.resolve_link_path = function(location)
     end
   end
 
-  local notes = search.resolve_note(location, {
-    notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
-  })
+  local notes = search.find_notes(location, {})
   if vim.tbl_isempty(notes) then
     return nil
   elseif #notes == 1 then
@@ -105,7 +99,7 @@ M.includeexpr = function(fname)
   local location = fname
 
   if link then
-    local parsed_location, _, _link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
+    local parsed_location = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
     location = parsed_location or location
   end
 
@@ -114,8 +108,7 @@ M.includeexpr = function(fname)
   end
 
   location = vim.uri_decode(location)
-  local res = M.resolve_link_path(location)
-  return res
+  return M.resolve_link_path(location)
 end
 
 return M
