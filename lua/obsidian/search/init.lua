@@ -377,13 +377,19 @@ M.find_notes_async = function(term, callback, opts)
   end)
 end
 
+--- Find notes matching search term
+---
+---@param term string The term to search for
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|? }
 M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   return async.block_on(function(cb)
-    return M.find_notes_async(term, cb, { search = opts.search })
+    return M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
   end, opts.timeout)
 end
+
+-- TODO: filter blocks and anchors in here, see _definition, but how does it interact with the shortcut stuff?
 
 ---@param query string
 ---@param opts { notes: obsidian.note.LoadOpts|? }|?
