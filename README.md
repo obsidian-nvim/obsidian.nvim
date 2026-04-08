@@ -57,6 +57,8 @@ The original project has not been actively maintained for quite a while and with
 
 📈 **Status:** See note status in footer like obsidian app.
 
+🔄 **Sync:** [Sync](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Sync) support for [Obsidian Sync](https://obsidian.md/help/sync).
+
 ### Keymaps
 
 - `smart_action`, bind to `<CR>` will:

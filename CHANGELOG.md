@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
+
 ### Added
 
 - Custom `includeexpr` to allow goto file actions, like `:h gf`, `:h CTRL-W_f` and `:h CTRL-W_gf`
