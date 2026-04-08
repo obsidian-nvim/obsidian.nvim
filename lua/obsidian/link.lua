@@ -22,10 +22,6 @@ M.resolve_link_path = function(location)
     return nil
   end
 
-  local block_link, anchor_link
-  location, block_link = util.strip_block_links(location)
-  location, anchor_link = util.strip_anchor_links(location)
-
   if location == "" then
     return
   end
@@ -99,7 +95,10 @@ M.includeexpr = function(fname)
   local location = fname
 
   if link then
-    local parsed_location = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
+    local parsed_location = util.parse_link(link, {
+      strip = true,
+      exclude = { "Tag", "BlockID" },
+    })
     location = parsed_location or location
   end
 
