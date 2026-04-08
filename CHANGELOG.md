@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Command completion no longer appear for commands that are disabled through `module.enabled`.
+- Definition will properly filter on matched anchors and blocks.
 - Do not throw an error when blink.cmp's per_filetype config for markdown is not a list.
+
 
 ## [v3.16.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.1) - 2026-04-05
 
