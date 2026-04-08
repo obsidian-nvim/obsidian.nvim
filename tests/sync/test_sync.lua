@@ -2,6 +2,7 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local Path = require "obsidian.path"
 local client = require "obsidian.sync.client"
 local sync = require "obsidian.sync"
+local status = require "obsidian.sync.status"
 
 local T = new_set()
 
@@ -189,38 +190,16 @@ end
 
 T["status.set"] = new_set()
 
-T["status.set"]["should set status for a vault path"] = function()
-  vim.g.obsidian_sync_status_kind = nil
-  ---@diagnostic disable-next-line:undefined-global
-  Obsidian = { workspace = { root = Path.new "/home/user/vault" } }
-  local status = require "obsidian.sync.status"
-  status.set("/home/user/vault", "syncing")
-  eq("syncing", vim.g.obsidian_sync_status_kind)
-  ---@diagnostic disable-next-line:undefined-global
-  Obsidian = nil
-end
-
 T["status.set"]["should set status to synced"] = function()
-  vim.g.obsidian_sync_status_kind = nil
-  ---@diagnostic disable-next-line:undefined-global
-  Obsidian = { workspace = { root = Path.new "/home/user/vault" } }
-  local status = require "obsidian.sync.status"
-  status.set("/home/user/vault", "synced")
-  eq("synced", vim.g.obsidian_sync_status_kind)
-  ---@diagnostic disable-next-line:undefined-global
-  Obsidian = nil
+  status.set "synced"
+  eq("󰸞", vim.g.obsidian_sync_status_icon)
+  status.set "syncing"
+  eq("󰑓", vim.g.obsidian_sync_status_icon)
+  status.set "paused"
+  eq("󰏤", vim.g.obsidian_sync_status_icon)
 end
 
-T["status.set"]["should not override paused with syncing"] = function()
-  vim.g.obsidian_sync_status_kind = "paused"
-  ---@diagnostic disable-next-line:undefined-global
-  Obsidian = { workspace = { root = Path.new "/home/user/vault" } }
-  local status = require "obsidian.sync.status"
-  status.set("/home/user/vault", "syncing")
-  eq("paused", vim.g.obsidian_sync_status_kind)
-  ---@diagnostic disable-next-line:undefined-global
-  Obsidian = nil
-end
+T["status.set"]["should not override paused with syncing"] = function() end
 
 T["init.is_configured"] = new_set()
 

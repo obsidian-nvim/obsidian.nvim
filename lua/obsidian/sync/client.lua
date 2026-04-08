@@ -369,11 +369,11 @@ local function append_log(dir, message)
   for _, line in ipairs(lines) do
     if line and line ~= "" then
       if line == "Fully synced" then
-        status.set(dir, "synced")
+        status.set "synced"
       elseif line:lower():find("paused", 1, true) then
-        status.set(dir, "paused")
+        status.set "paused"
       else
-        status.set(dir, "syncing")
+        status.set "syncing"
       end
       local entry = string.format("%s - %s", ts, line)
       table.insert(sync_log[dir], entry)
@@ -390,7 +390,7 @@ function M.pause(dir)
   local ok, err = pcall(function()
     sync_proc[dir]:kill(15)
     sync_proc[dir] = nil
-    status.set(dir, "paused")
+    status.set "paused"
   end)
   return ok, err
 end
