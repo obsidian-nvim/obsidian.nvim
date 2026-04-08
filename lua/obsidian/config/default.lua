@@ -293,6 +293,59 @@ return {
     confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
   },
 
+  ---@alias obsidian.sync.FileType
+  ---"image" |
+  ---"audio" |
+  ---"video" |
+  ---"pdf" |
+  ---"unsupported"
+
+  ---@alias obsidian.sync.ConfigCategory
+  ---"app" |
+  ---"appearance" |
+  ---"appearance-data" |
+  ---"hotkey" |
+  ---"core-plugin" |
+  ---"core-plugin-data" |
+  ---"community-plugin" |
+  ---"community-plugin-data"
+
+  ---https://help.obsidian.md/sync/settings
+  ---@class obsidian.config.SyncOpts
+  ---
+  ---@field enabled? boolean
+  ---
+  ---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
+  ---@field mode? "bidirectional"|"pull-only"|"mirror-remote"
+  ---
+  ---Conflict strategy when a conflict is detected, NOTE: conflict is not currently supported in this client
+  ---@field conflict_strategy? "merge"|"conflict"
+  ---
+  ---Attachment types to sync: image, audio, video, pdf, unsupported, empty table to disable attachment syncing
+  ---@field file_types? obsidian.sync.FileType[]
+  ---
+  ---Config categories to sync, empty table to disable config syncing, this is config for obsidian app, and is just here for completeness
+  ---@field configs? obsidian.sync.ConfigCategory[]
+  ---
+  ---Config directory name, this is for obsidian app
+  ---@field config_dir? string
+  ---
+  ---Folders to exclude
+  ---@field excluded_folders? string[]
+  ---
+  ---Device name to identify this client in the sync version history
+  ---@field device_name? string
+  sync = {
+    enabled = false,
+    mode = nil,
+    conflict_strategy = "merge",
+    file_types = { "image", "audio", "video", "pdf", "unsupported" },
+    configs = nil,
+    excluded_folders = {},
+    device_name = nil,
+    config_dir = ".obsidian",
+  },
+
   ---@class obsidian.config.CallbackConfig
   ---
   ---Runs right after setup

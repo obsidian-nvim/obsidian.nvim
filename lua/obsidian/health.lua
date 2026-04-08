@@ -1,6 +1,7 @@
 local M = {}
 local VERSION = require "obsidian.version"
 local api = require "obsidian.api"
+local sync_client = require "obsidian.sync.client"
 
 local error = vim.health.error
 local warn = vim.health.warn
@@ -159,6 +160,13 @@ function M.check()
   elseif os == api.OSType.Darwin then
     has_executable("pngpaste", true)
   end
+
+  start "Sync"
+
+  has_one_of_executable {
+    "ob",
+    sync_client.cmd,
+  }
 end
 
 return M

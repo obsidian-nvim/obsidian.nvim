@@ -50,6 +50,7 @@
 ---@field note? obsidian.config.NoteOpts
 ---@field link? obsidian.config.LinkOpts
 ---@field unique_note? obsidian.config.UniqueNoteOpts
+---@field sync? obsidian.config.SyncOpts
 
 ---@class obsidian.config.Internal
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
@@ -78,5 +79,6 @@
 ---@field note obsidian.config.NoteOpts
 ---@field link obsidian.config.LinkOpts
 ---@field unique_note obsidian.config.UniqueNoteOpts
+---@field sync obsidian.config.SyncOpts
 
 ---@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"
