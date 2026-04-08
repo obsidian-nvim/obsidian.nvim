@@ -41,6 +41,38 @@ Available subcommands:
 - `:Obsidian sync disconnect`: disconnect existing connections
 - `:Obsidian sync log`: open log for current session
 
+## Statusline Component
+
+This plugin exports a formatter statusline component via `require("obsidian.sync.status").component`, for finer control and live updates via dedicated statusline plugins, take lualine.nvim as an example:
+
+```lua
+require("lualine").setup {
+  sections = {
+    lualine_x = {
+      {
+        require("obsidian.sync.status").icon, -- raw icon
+        color = require("obsidian.sync.status").color, -- default colors
+        cond = require("obsidian.sync.status").cond, -- returns a boolean to indicate should update
+      },
+    },
+  },
+}
+```
+
+The default sync highlight groups are:
+
+- `ObsidianSyncSynced` linked to `DiagnosticOk`
+- `ObsidianSyncSyncing` linked to `DiagnosticWarn`
+- `ObsidianSyncPaused` linked to `DiagnosticInfo`
+
+You can override them in your config like this:
+
+```lua
+vim.api.nvim_set_hl(0, "ObsidianSyncSynced", { fg = "#98c379" })
+vim.api.nvim_set_hl(0, "ObsidianSyncSyncing", { fg = "#e5c07b" })
+vim.api.nvim_set_hl(0, "ObsidianSyncPaused", { fg = "#61afef" })
+```
+
 ## Sync Settings
 
 These settings map directly to `ob sync-config` options from the [Obsidian Headless CLI](https://help.obsidian.md/sync/headless). They are applied automatically before each sync run.
@@ -48,14 +80,14 @@ These settings map directly to `ob sync-config` options from the [Obsidian Headl
 | Option              | Type                                            | Default                                               | Description                                                                                                                                                                                                       |
 | ------------------- | ----------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `mode`              | `"bidirectional"\|"pull-only"\|"mirror-remote"` | `nil` (bidirectional)                                 | Sync direction. `pull-only` only downloads and ignores local changes. `mirror-remote` only downloads and reverts local changes.                                                                                   |
-| `conflict_strategy` | `"merge"\|"conflict"`                           | `"merge"`                                             | How to handle conflicts. `"conflict"` is not currently supported by the headless client.                                                                                                                          |
+| `conflict_strategy` | `"merge"\|"conflict"`                           | `"merge"`                                             | How to handle conflicts. conflict mode will generate conflict files in your repo, more support will be in later releases, for now prefer merge                                                                    |
 | `file_types`        | `string[]`                                      | `{ "image", "audio", "video", "pdf", "unsupported" }` | Attachment types to sync. Use an empty table `{}` to disable attachment syncing.                                                                                                                                  |
 | `configs`           | `string[]\|nil`                                 | `nil`                                                 | Obsidian app config categories to sync (e.g. `"app"`, `"appearance"`, `"hotkey"`, `"core-plugin"`, `"community-plugin"`, etc). Only relevant if you share a vault with the desktop app. `nil` skips this setting. |
 | `excluded_folders`  | `string[]`                                      | `{}`                                                  | Folders to exclude from syncing.                                                                                                                                                                                  |
 | `device_name`       | `string\|nil`                                   | `nil`                                                 | Device name shown in sync version history.                                                                                                                                                                        |
 | `config_dir`        | `string`                                        | `".obsidian"`                                         | Config directory name.                                                                                                                                                                                            |
 
-### Available API (`require("obsidian.sync")`)
+## Available API (`require("obsidian.sync")`)
 
 - `sync.start(workspace?)` - Start continuous sync for a workspace (defaults to current workspace)
 - `sync.pause(workspace?)` - Stop continuous sync for a workspace (defaults to current workspace)

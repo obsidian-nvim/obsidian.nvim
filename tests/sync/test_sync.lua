@@ -192,14 +192,21 @@ T["status.set"] = new_set()
 
 T["status.set"]["should set status to synced"] = function()
   status.set "synced"
-  eq("󰸞", vim.g.obsidian_sync_status_icon)
+  eq("󰸞", status.state.icon)
   status.set "syncing"
-  eq("󰑓", vim.g.obsidian_sync_status_icon)
+  eq("󰑓", status.state.icon)
   status.set "paused"
-  eq("󰏤", vim.g.obsidian_sync_status_icon)
+  eq("󰏤", status.state.icon)
 end
 
-T["status.set"]["should not override paused with syncing"] = function() end
+T["status.set"]["should use obsidian highlight groups"] = function()
+  status.set "synced"
+  eq("ObsidianSyncSynced", status.color())
+  status.set "syncing"
+  eq("ObsidianSyncSyncing", status.color())
+  status.set "paused"
+  eq("ObsidianSyncPaused", status.color())
+end
 
 T["init.is_configured"] = new_set()
 
