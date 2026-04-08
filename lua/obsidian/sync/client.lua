@@ -182,9 +182,13 @@ end
 ---@type table<string, obsidian.sync.LocalVault>|nil
 local _local_vaults_cache = nil
 
+M._local_vaults_cache = _local_vaults_cache
+
 local function invalidate_cache()
   _local_vaults_cache = nil
 end
+
+M.invalidate_vaults_cache = invalidate_cache
 
 ---@param vault string  -- vault id or name
 ---@param path string
@@ -244,6 +248,7 @@ function M.list_local(use_cache)
   end
 
   _local_vaults_cache = res
+  M._local_vaults_cache = res
   return res
 end
 

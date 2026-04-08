@@ -104,6 +104,8 @@ local function build_linked_map(local_vaults, remotes)
   return map
 end
 
+M.build_linked_map = build_linked_map
+
 function M.setup()
   local workspaces = Obsidian.workspaces
   if not workspaces or #workspaces == 0 then
