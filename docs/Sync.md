@@ -1,5 +1,7 @@
 - [Commands](#commands)
+- [Statusline Component](#statusline-component)
 - [Sync Settings](#sync-settings)
+- [Available API (`require("obsidian.sync")`)](#available-api-requireobsidiansync)
 - [Options](#options)
 
 The Sync module integrates with [Obsidian Headless](https://help.obsidian.md/sync/headless) to sync vaults without requiring the desktop app.
@@ -110,7 +112,7 @@ These settings map directly to `ob sync-config` options from the [Obsidian Headl
 ---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
 ---@field mode? "bidirectional"|"pull-only"|"mirror-remote"
 ---
----Conflict strategy when a conflict is detected, NOTE: conflict mode will generate conflict files in your repo, more support will be in later releases, for now prefer merge
+---Conflict strategy when a conflict is detected, NOTE: conflict is not currently supported in this client
 ---@field conflict_strategy? "merge"|"conflict"
 ---
 ---Attachment types to sync: image, audio, video, pdf, unsupported, empty table to disable attachment syncing
