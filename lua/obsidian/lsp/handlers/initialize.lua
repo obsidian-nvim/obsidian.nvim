@@ -19,6 +19,7 @@ local initializeResult = {
     definitionProvider = true,
     documentSymbolProvider = true,
     workspaceSymbolProvider = true,
+    codeActionProvider = true,
     workspace = {
       fileOperations = {
         didRename = {
@@ -33,10 +34,6 @@ local initializeResult = {
           },
         },
       },
-    },
-    codeActionProvider = true,
-    executeCommandProvider = {
-      commands = vim.tbl_keys(require("obsidian.lsp.handlers._code_action").actions),
     },
   },
   serverInfo = {
