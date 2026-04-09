@@ -8,6 +8,5 @@ return {
   ["textDocument/references"] = require "obsidian.lsp.handlers.references",
   ["textDocument/definition"] = require "obsidian.lsp.handlers.definition",
   ["textDocument/documentSymbol"] = require "obsidian.lsp.handlers.document_symbol",
-  ["workspace/executeCommand"] = require "obsidian.lsp.handlers.execute_command",
   ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
 }
