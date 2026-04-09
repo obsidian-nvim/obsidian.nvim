@@ -48,7 +48,7 @@ return function(_, handler, dispatchers)
 
   -- NOTE: seems the only sensible place to initialize client commands
   for k, f in pairs(require "obsidian.actions") do
-    vim.lsp.commands["obsidian-ls." .. k] = function(params)
+    vim.lsp.commands["obsidian" .. k] = function(params)
       f(unpack(params.arguments or {}))
     end
   end
