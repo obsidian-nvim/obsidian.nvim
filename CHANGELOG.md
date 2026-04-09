@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add unique note creation prompt option for missing definitions.
+- LSP client commands can run actions in actions.lua.
 
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 
