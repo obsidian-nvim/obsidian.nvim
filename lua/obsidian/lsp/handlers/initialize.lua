@@ -45,5 +45,12 @@ local initializeResult = {
 return function(_, handler, dispatchers)
   send_progress(dispatchers, "begin", "Initializing obsidian LSP server...", 0)
   handler(nil, initializeResult)
+
+  -- NOTE: seems the only sensible place to initialize client commands
+  for k, f in pairs(require "obsidian.actions") do
+    vim.lsp.commands["obsidian-ls." .. k] = function(params)
+      f(unpack(params.arguments or {}))
+    end
+  end
   send_progress(dispatchers, "end", "Obsidian LSP server loaded.", 100)
 end
