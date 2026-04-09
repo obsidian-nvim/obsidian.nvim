@@ -73,13 +73,13 @@ if Obsidian.opts.templates.enabled then
   }
 end
 
-if Obsidian.opts.slides.enabled then
-  default_actions.start_presentation = {
-    name = "start_presentation",
-    title = "Start presentation",
-    fn = actions.start_presentation,
-  }
-end
+-- if Obsidian.opts.slides.enabled then
+--   default_actions.start_presentation = {
+--     name = "start_presentation",
+--     title = "Start presentation",
+--     fn = actions.start_presentation,
+--   }
+-- end
 
 -- TODO: merge a note to this note, after https://github.com/obsidian-nvim/obsidian.nvim/issues/655
 

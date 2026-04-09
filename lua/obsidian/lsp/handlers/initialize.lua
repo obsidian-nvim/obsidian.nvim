@@ -8,7 +8,6 @@ local function send_progress(dispatchers, kind, title, percentage)
     },
   })
 end
-local commands = require("obsidian.lsp.handlers._code_action").commands
 
 ---@type lsp.InitializeResult
 local initializeResult = {
