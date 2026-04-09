@@ -1,7 +1,6 @@
 local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
-local Path = require "obsidian.path"
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
@@ -144,12 +143,18 @@ function NewNoteSourceBase:process_completion(cc)
       },
     }
 
-    items[#items + 1] = {
+    ---@type lsp.CompletionItem
+    local item = {
       documentation = documentation,
       sortText = new_note_opts.label,
       filterText = completion.get_filter_text(new_note_opts.label),
       label = label,
       kind = vim.lsp.protocol.CompletionItemKind.Reference,
+      command = {
+        command = "obsidian.new",
+        title = "Obsidian new",
+        arguments = { new_note.id },
+      },
       textEdit = {
         newText = new_text,
         range = {
@@ -168,6 +173,8 @@ function NewNoteSourceBase:process_completion(cc)
         template = new_note_opts.template,
       },
     }
+
+    items[#items + 1] = item
   end
 
   cc.completion_resolve_callback(vim.tbl_deep_extend("force", self.complete_response, { items = items }))
@@ -189,27 +196,6 @@ function NewNoteSourceBase:can_complete_request(cc)
     return false
   end
   return true
-end
-
---- Runs a generalized version of the execute method
----@param item any
----@return table|? callback_return_value
-function NewNoteSourceBase.process_execute(_self, item)
-  local data = item.data
-
-  if data == nil then
-    return nil
-  end
-
-  -- Make sure `data.note` is actually an `obsidian.Note` object. If it gets serialized at some
-  -- point (seems to happen on Linux), it will lose its metatable.
-  if not Note.is_note_obj(data.note) then
-    data.note = setmetatable(data.note, Note)
-    data.note.path = setmetatable(data.note.path, Path)
-  end
-
-  data.note:write { template = data.template or Obsidian.opts.note.template }
-  return {}
 end
 
 return NewNoteSourceBase

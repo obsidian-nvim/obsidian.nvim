@@ -29,9 +29,6 @@ local initializeResult = {
       triggerCharacters = chars,
       resolveProvider = false,
     },
-    executeCommandProvider = {
-      commands = { "obsidian.create_note" },
-    },
     workspace = {
       fileOperations = {
         didRename = {
