@@ -135,7 +135,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `opts.daily_notes.date_format`
   - `opts.daily_notes.alias_format`
 - `actions.start_presentation`.
-  <<<<<<< HEAD
 - Support for template substitution suffix, like `{{date:YY}}`
 - `actions.new`.
 
