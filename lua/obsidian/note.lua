@@ -9,7 +9,7 @@
 ---@toc
 
 local Path = require "obsidian.path"
-local yaml = require "obsidian.yaml"
+local yaml = require "obsidian.yaml.line"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local iter = vim.iter

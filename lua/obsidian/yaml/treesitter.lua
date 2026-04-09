@@ -156,6 +156,4 @@ M.loads = function(str)
   return H[doc:type()](doc, str)
 end
 
-M.name = "treesitter"
-
 return M

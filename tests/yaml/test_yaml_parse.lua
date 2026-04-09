@@ -4,7 +4,7 @@ local T = new_set {
   parametrize = {
     { require "obsidian.yaml.yq" },
     { require "obsidian.yaml.treesitter" },
-    { require "obsidian.yaml.lua" },
+    { require "obsidian.yaml" },
   },
 }
 
