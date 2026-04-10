@@ -19,8 +19,6 @@ M.open = function(prompt, opts, callback)
   local width = opts.width or 60
   local height = opts.height or 8
 
-  callback = vim.schedule_wrap(callback)
-
   local buf = vim.api.nvim_create_buf(false, true)
 
   -- Place the buffer in the workspace so obsidian autocmds fire.

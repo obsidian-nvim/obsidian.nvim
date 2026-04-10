@@ -27,7 +27,8 @@
     ],
     "ignoreGlobs": [
       "tests/test_*.lua",
-      "obsidian/lib/glob.lua"
+      "obsidian/lib/glob.lua",
+      ".repro/**/*.lua"
     ]
   }
 }
