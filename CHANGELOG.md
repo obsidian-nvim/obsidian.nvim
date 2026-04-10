@@ -66,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `obsidian-ls` acts more properly like LSP
   - handle libuv scheduled callbacks
   - send progress messages
+- Add `Note.insert_text` for inserting text under a specific section
 
 ### Changed
 

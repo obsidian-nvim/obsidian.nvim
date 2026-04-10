@@ -12,6 +12,7 @@ local Path = require "obsidian.path"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local text_insertion = require "obsidian.util.text_insertion"
 local iter = vim.iter
 local compat = require "obsidian.compat"
 local api = require "obsidian.api"
@@ -1258,6 +1259,35 @@ Note.body_lines = function(self)
   return lines
 end
 
+---@param text string|string[] The text to insert into the note.
+---@param opts obsidian.note.InsertTextOpts? The options for constraining where text can be inserted.
+---@return integer text_idx where the text begins in the file (_including_ frontmatter) or `0` when insert is cancelled.
+Note.insert_text = function(self, text, opts)
+  local text_idx = 0
+
+  opts = opts or {}
+  opts.update_content = function(lines)
+    local insert_idx, insert_before, insert_after = text_insertion.resolve(lines, opts)
+
+    if insert_idx == 0 then
+      return lines
+    end
+
+    text_idx = insert_idx + #insert_before
+    local head = vim.list_slice(lines, 1, insert_idx - 1)
+    local tail = vim.list_slice(lines, insert_idx, #lines)
+    return vim.iter({ head, insert_before, text, insert_after, tail }):flatten():totable()
+  end
+
+  self:save(opts)
+
+  if self.has_frontmatter and text_idx > 0 then
+    return self.frontmatter_end_line + text_idx
+  end
+
+  return text_idx
+end
+
 ---@param other obsidian.Note
 ---@return obsidian.Note
 Note.merge = function(self, other)
@@ -1352,6 +1382,21 @@ end
 --- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
 --- See `:help checktime` to learn more.
 ---@field check_buffers? boolean
+
+---@class (exact) obsidian.note.InsertTextOpts: obsidian.note.NoteSaveOpts
+--- Specifies the section to insert the text into, or `nil` to target the preamble (i.e. the area starting from the top
+--- of the file up to but not including the first heading). Defaults to `nil`.
+---@field section? obsidian.note.Section
+--- Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
+---@field placement? "top"|"bot"
+
+---@class (exact) obsidian.note.Section
+--- The label of the heading.
+---@field header string
+--- The level of the heading (H1, H2, H3, ...).
+---@field level integer
+--- Decides what to do when the section is missing. Defaults to `create`.
+---@field on_missing? "create"|"error"|"cancel"
 
 ---@class obsidian.note.HeaderAnchor
 ---
