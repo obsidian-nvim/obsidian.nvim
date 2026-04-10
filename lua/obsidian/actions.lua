@@ -593,7 +593,7 @@ end
 
 --- Add property to current note
 M.add_property = function()
-  local note = assert(api.current_note(0))
+  local note = assert(api.current_note(0), "not in a note")
 
   -- TODO: complete for existing keys and values in vault like obsidian app
   -- work via https://github.com/obsidian-nvim/obsidian.nvim/pull/757

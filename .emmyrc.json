@@ -23,7 +23,8 @@
       "$VIMRUNTIME"
     ],
     "ignoreGlobs": [
-      "tests/test_*.lua"
+      "tests/test_*.lua",
+      ".repro/**/*.lua"
     ]
   }
 }
