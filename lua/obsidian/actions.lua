@@ -568,19 +568,37 @@ M.unique_link = function(timestamp)
   return link
 end
 
+local function add_property(note, key, value)
+  if key == "tags" then
+    if type(value) == "table" then
+      for _, tag in ipairs(value) do
+        note:add_tag(tag)
+      end
+    elseif type(value) == "string" then
+      note:add_tag(value)
+    end
+  elseif key == "aliases" then
+    if type(value) == "table" then
+      for _, tag in ipairs(value) do
+        note:add_alias(tag)
+      end
+    elseif type(value) == "string" then
+      note:add_alias(value)
+    end
+  else
+    note:add_field(key, value)
+  end
+  note:update_frontmatter()
+end
+
+--- Add property to current note
 M.add_property = function()
   local note = assert(api.current_note(0))
 
-  -- HACK: no native way in lua
-  -- TODO: complete for existing keys in vault like obsidian app
-  -- TODO: complete for values
-  vim.cmd [[
-  function! ObsidianPropertyComplete()
-    return ['aliases', 'tags', 'id']
-  endfunction
-     ]]
-
-  local key = api.input("key: ", { completion = "customlist,ObsidianPropertyComplete" })
+  -- TODO: complete for existing keys and values in vault like obsidian app
+  -- work via https://github.com/obsidian-nvim/obsidian.nvim/pull/757
+  -- which will check for a vim.b.obsidian_editor var and inject the results of opts.completion (fun(note): string[]) into completion
+  local key = api.input("key: ", {})
   api.input("value: ", { editor = true, height = 1 }, function(value)
     if not key or not value then
       return log.info "Aborted"
@@ -590,35 +608,7 @@ M.add_property = function()
       return log.info "Empty Input"
     end
 
-    if type(value) == "string" and vim.startswith(value, "=") then
-      local f = loadstring("return " .. value:sub(2))
-      if not f then
-        log.err "failed to eval lua value"
-        return
-      end
-      value = f()
-    end
-
-    if key == "tags" then
-      if type(value) == "table" then
-        for _, tag in ipairs(value) do
-          note:add_tag(tag)
-        end
-      elseif type(value) == "string" then
-        note:add_tag(value)
-      end
-    elseif key == "aliases" then
-      if type(value) == "table" then
-        for _, tag in ipairs(value) do
-          note:add_alias(tag)
-        end
-      elseif type(value) == "string" then
-        note:add_alias(value)
-      end
-    else
-      note:add_field(key, value)
-    end
-    note:update_frontmatter()
+    add_property(note, key, value)
   end)
 end
 
