@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add unique note creation prompt option for missing definitions.
 - LSP client commands can run actions in actions.lua.
+- Add `Note.insert_text` for inserting text under a specific section
 
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 
@@ -66,7 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `obsidian-ls` acts more properly like LSP
   - handle libuv scheduled callbacks
   - send progress messages
-- Add `Note.insert_text` for inserting text under a specific section
 
 ### Changed
 
