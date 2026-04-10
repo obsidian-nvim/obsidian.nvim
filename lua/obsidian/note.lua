@@ -61,7 +61,7 @@ end
 ---@field aliases string[]
 ---@field tags string[]
 ---@field contents string[]
----@field metadata table
+---@field metadata table<string, string|number>
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
@@ -391,7 +391,7 @@ Note.new = function(id, aliases, tags, path, title)
   self.tags = tags and tags or {}
   self.path = path and Path.new(path) or nil
   self.title = title
-  self.metadata = nil
+  self.metadata = {}
   self.has_frontmatter = nil
   self.frontmatter_end_line = nil
   return setmetatable(self, Note)
@@ -639,11 +639,14 @@ Note.add_field = function(self, key, value)
     error "Updating field '%s' this way is not allowed. Please update the corresponding attribute directly instead"
   end
 
-  if not self.metadata then
-    self.metadata = {}
+  if self.metadata[key] then
+    if not util.islist(self.metadata[key]) then
+      self.metadata[key] = { self.metadata[key] }
+    end
+    table.insert(self.metadata[key], value)
+  else
+    self.metadata[key] = value
   end
-
-  self.metadata[key] = value
 end
 
 --- Get a field in the frontmatter.
@@ -654,10 +657,6 @@ end
 Note.get_field = function(self, key)
   if key == "id" or key == "aliases" or key == "tags" then
     error "Getting field '%s' this way is not allowed. Please use the corresponding attribute directly instead"
-  end
-
-  if not self.metadata then
-    return nil
   end
 
   return self.metadata[key]
@@ -1448,19 +1447,13 @@ Note.merge = function(self, other)
     end
   end
 
-  local function listify(v)
-    return vim.islist(v) and v or { v }
-  end
-
   for k, v in pairs(insert_metadata) do
-    if self.metadata[k] then
-      local listified_v = listify(v)
-      if not vim.islist(self.metadata[k]) then
-        self.metadata[k] = listify(self.metadata[k])
+    if util.islist(v) then
+      for _, item in ipairs(v) do
+        self:add_field(k, item)
       end
-      vim.list_extend(self.metadata[k], listified_v)
     else
-      self.metadata[k] = v
+      self:add_field(k, v)
     end
   end
 
