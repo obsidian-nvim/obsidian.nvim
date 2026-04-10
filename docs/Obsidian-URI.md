@@ -176,19 +176,9 @@ obsidian://new?file=Clippings%2FPage%20Title&silent=true&clipboard&content=fallb
 
 This creates `Clippings/Page Title.md` in your vault. The clipper puts the formatted content in your clipboard (`clipboard` flag), with a `content` fallback if clipboard access fails. The `silent` flag means no UI is shown -- the handler script detects this and runs Neovim in headless mode.
 
-## Calling from Neovim
-
-Inside a running Neovim session with obsidian.nvim loaded:
-
-```vim
-:Obsidian uri obsidian://open?vault=my%20vault&file=my%20note
-:Obsidian uri obsidian://daily
-:Obsidian uri obsidian://search?query=TODO
-:Obsidian uri obsidian://new?name=quick-note&content=Hello
-```
-
-Or from Lua:
+## Calling from Lua:
 
 ```lua
 require("obsidian.uri").handle "obsidian://daily"
+
 ```
