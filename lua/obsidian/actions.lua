@@ -581,45 +581,45 @@ M.add_property = function()
      ]]
 
   local key = api.input("key: ", { completion = "customlist,ObsidianPropertyComplete" })
-  local value = api.input "value: "
-
-  if not key or not value then
-    return log.info "Aborted"
-  end
-
-  if vim.trim(key) == "" or vim.trim(value) == "" then
-    return log.info "Empty Input"
-  end
-
-  if type(value) == "string" and vim.startswith(value, "=") then
-    local f = loadstring("return " .. value:sub(2))
-    if not f then
-      log.err "failed to eval lua value"
-      return
+  api.input("value: ", { editor = true, height = 1 }, function(value)
+    if not key or not value then
+      return log.info "Aborted"
     end
-    value = f()
-  end
 
-  if key == "tags" then
-    if type(value) == "table" then
-      for _, tag in ipairs(value) do
-        note:add_tag(tag)
+    if vim.trim(key) == "" or vim.trim(value) == "" then
+      return log.info "Empty Input"
+    end
+
+    if type(value) == "string" and vim.startswith(value, "=") then
+      local f = loadstring("return " .. value:sub(2))
+      if not f then
+        log.err "failed to eval lua value"
+        return
       end
-    elseif type(value) == "string" then
-      note:add_tag(value)
+      value = f()
     end
-  elseif key == "aliases" then
-    if type(value) == "table" then
-      for _, tag in ipairs(value) do
-        note:add_alias(tag)
+
+    if key == "tags" then
+      if type(value) == "table" then
+        for _, tag in ipairs(value) do
+          note:add_tag(tag)
+        end
+      elseif type(value) == "string" then
+        note:add_tag(value)
       end
-    elseif type(value) == "string" then
-      note:add_alias(value)
+    elseif key == "aliases" then
+      if type(value) == "table" then
+        for _, tag in ipairs(value) do
+          note:add_alias(tag)
+        end
+      elseif type(value) == "string" then
+        note:add_alias(value)
+      end
+    else
+      note:add_field(key, value)
     end
-  else
-    note:add_field(key, value)
-  end
-  note:update_frontmatter(0)
+    note:update_frontmatter()
+  end)
 end
 
 M.start_presentation = function(buf)

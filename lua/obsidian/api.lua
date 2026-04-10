@@ -473,12 +473,28 @@ local INPUT_CANCELLED = "~~~INPUT-CANCELLED~~~"
 
 --- Prompt user for an input. Returns nil if canceled, otherwise a string (possibly empty).
 ---
----@param prompt string
----@param opts { completion: string|?, default: string|? }|?
+--- When `opts.editor` is true, opens a floating markdown buffer with full
+--- obsidian.nvim features (completion, wiki links, etc.) instead of the
+--- builtin `vim.fn.input`. The call becomes asynchronous: `callback` is
+--- required and receives the result string (or nil if cancelled).
 ---
----@return string|?
-M.input = function(prompt, opts)
+---@param prompt string
+---@param opts { completion: string|?, default: string|?, editor: boolean|?, width: integer|?, height: integer|? }|?
+---@param callback fun(result: string?)|? Required when opts.editor is true.
+---
+---@return string|? Only returned in synchronous (non-editor) mode.
+M.input = function(prompt, opts, callback)
   opts = opts or {}
+
+  if opts.editor then
+    assert(callback, "callback is required when opts.editor is true")
+    require("obsidian.editor").open(prompt, {
+      default = opts.default,
+      width = opts.width,
+      height = opts.height,
+    }, callback)
+    return
+  end
 
   if not vim.endswith(prompt, ": ") then
     prompt = prompt .. ": "
@@ -488,11 +504,16 @@ M.input = function(prompt, opts)
     vim.fn.input { prompt = prompt, completion = opts.completion, default = opts.default, cancelreturn = INPUT_CANCELLED }
   )
 
+  local result
   if input ~= INPUT_CANCELLED then
-    return input
-  else
-    return nil
+    result = input
   end
+
+  if callback then
+    callback(result)
+    return
+  end
+  return result
 end
 
 --- Prompt user for a confirmation.
