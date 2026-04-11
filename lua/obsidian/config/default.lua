@@ -63,8 +63,14 @@ return {
   --- Users should use simple gitignore style globs without modifiers,
   --- and ripgrep compatibility is not guaranteed.
   ---@field ignore_filters? string[]
+  ---
+  --- Trash behavior when deleting notes.
+  --- - "local": move deleted files to a `.trash` folder in the vault root.
+  --- - false (default): permanently delete files.
+  ---@field trash? "local"|false
   file = {
     ignore_filters = {},
+    trash = false,
   },
 
   ---@class obsidian.config.FrontmatterOpts
