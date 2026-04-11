@@ -20,7 +20,26 @@ local initializeResult = {
     documentSymbolProvider = true,
     workspace = {
       fileOperations = {
+        willDelete = {
+          filters = {
+            {
+              scheme = "file",
+              pattern = {
+                glob = "**/*.md",
+                matches = "file",
+              },
+            },
+            {
+              scheme = "file",
+              pattern = {
+                glob = "**/*",
+                matches = "folder",
+              },
+            },
+          },
+        },
         didRename = {
+          -- TODO: for folders
           filters = {
             {
               scheme = "file",
