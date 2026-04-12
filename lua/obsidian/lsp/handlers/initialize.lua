@@ -27,7 +27,7 @@ local initializeResult = {
       resolveProvider = false,
     },
     codeLensProvider = {
-      resolveProvider = true,
+      resolveProvider = false,
     },
     workspace = {
       fileOperations = {
