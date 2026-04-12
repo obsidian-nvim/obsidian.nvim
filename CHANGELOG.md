@@ -25,9 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom `includeexpr` to allow goto file actions, like `:h gf`, `:h CTRL-W_f` and `:h CTRL-W_gf`
 - Support `obsidian-headless` sync client.
 - `:Obsidian sync` for a menu to manage sync state.
-- `search.sort_by` can now be set to `false` to disable sorting of search results.
-- Support `workspace/didRenameFiles` and file changes will be prompted with confirmation to rename references.
-  - Use `opts.link.auto_update` to control whether ask for confirmation or auto run, false by default.
 
 ### Fixed
 

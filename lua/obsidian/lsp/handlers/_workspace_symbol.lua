@@ -17,8 +17,8 @@ end
 ---@param note obsidian.Note
 ---@return lsp.WorkspaceSymbol[]
 local function note_to_symbols(note)
-  local uri = vim.uri_from_fname(tostring(note.path))
   assert(note.path, "Note must have a path")
+  local uri = vim.uri_from_fname(tostring(note.path))
   local container = relative_path_no_ext(note.path)
   local location = {
     uri = uri,
