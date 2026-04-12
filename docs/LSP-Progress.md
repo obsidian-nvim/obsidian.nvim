@@ -2,8 +2,6 @@
 
 Tracking implementation status of [LSP 3.17](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/) features in `obsidian-ls`.
 
-Legend:
-
 - `[x]` - Implemented
 - `[ ]` - Not yet implemented, but feasible and meaningful for this plugin
 - Plain list item - Not applicable, not meaningful, or redundant for an in-process LSP server
