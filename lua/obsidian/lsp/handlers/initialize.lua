@@ -44,7 +44,7 @@ local initializeResult = {
       save = true,
     },
     codeLensProvider = {
-      resolveProvider = true,
+      resolveProvider = false,
     },
     workspace = {
       fileOperations = {
