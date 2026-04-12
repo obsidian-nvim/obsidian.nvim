@@ -83,7 +83,21 @@ T["dump"]["should not unnecessarily escape double quotes in strings"] = function
   eq(yaml.dumps { a = 'his name is "Winny the Poo"' }, 'a: his name is "Winny the Poo"')
 end
 
+T["dump"]["should dump null array items as bare dash"] = function()
+  eq(yaml.dumps { vim.NIL, vim.NIL }, "-\n-")
+end
+
+T["dump"]["should dump mixed null and value array items"] = function()
+  eq(yaml.dumps { vim.NIL, "foo", vim.NIL }, "-\n- foo\n-")
+end
+
 T["loads"] = new_set()
+
+T["loads"]["should parse tilde as null"] = function()
+  local data = yaml.loads "a: ~"
+  eq(type(data), "table")
+  eq(data.a, vim.NIL)
+end
 
 T["loads"]["should parse inline lists with quotes on items"] = function()
   local data = yaml.loads 'aliases: ["Foo", "Bar", "Foo Baz"]'
@@ -136,6 +150,25 @@ T["loads"]["should parse implicit null values"] = function()
   eq(type(data), "table")
   eq(data.tags, vim.NIL)
   eq(data.complete, false)
+end
+
+T["loads"]["should parse bare dash as null array item"] = function()
+  local data = yaml.loads "tags:\n  -\n  -"
+  eq(type(data), "table")
+  eq(type(data.tags), "table")
+  eq(#data.tags, 2)
+  eq(data.tags[1], vim.NIL)
+  eq(data.tags[2], vim.NIL)
+end
+
+T["loads"]["should parse mixed bare dash and value array items"] = function()
+  local data = yaml.loads "tags:\n  -\n  - foo\n  -"
+  eq(type(data), "table")
+  eq(type(data.tags), "table")
+  eq(#data.tags, 3)
+  eq(data.tags[1], vim.NIL)
+  eq(data.tags[2], "foo")
+  eq(data.tags[3], vim.NIL)
 end
 
 T["loads"]["should parse wikilinks as strings"] = function()
