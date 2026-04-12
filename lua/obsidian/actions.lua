@@ -627,4 +627,26 @@ M.start_presentation = function(buf)
   require("obsidian.slides").start_presentation(note)
 end
 
+---@param symbol lsp.WorkspaceSymbol
+---@return obsidian.PickerEntry
+local function symbol_to_entry(symbol)
+  local range = symbol.location.range
+  return {
+    filename = vim.uri_to_fname(symbol.location.uri),
+    text = symbol.name,
+    lnum = range and range.start.line + 1 or nil,
+    user_data = symbol.data,
+  }
+end
+
+---@param query string|?
+---@param callback fun(entry: obsidian.PickerEntry)|?
+M.workspace_symbol = function(query, callback)
+  query = query or ""
+  require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
+    local entries = vim.tbl_map(symbol_to_entry, symbols)
+    Obsidian.picker.pick(entries, { prompt_title = "Workspace Symbols", callback = callback })
+  end)
+end
+
 return M

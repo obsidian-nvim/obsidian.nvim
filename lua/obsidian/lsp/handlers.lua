@@ -2,6 +2,7 @@
 return {
   ["initialize"] = require "obsidian.lsp.handlers.initialize",
   ["workspace/didRenameFiles"] = require "obsidian.lsp.handlers.did_rename_files",
+  ["workspace/symbol"] = require "obsidian.lsp.handlers.workspace_symbol",
   ["textDocument/rename"] = require "obsidian.lsp.handlers.rename",
   ["textDocument/prepareRename"] = require "obsidian.lsp.handlers.prepare_rename",
   ["textDocument/references"] = require "obsidian.lsp.handlers.references",
