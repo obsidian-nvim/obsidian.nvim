@@ -1,4 +1,4 @@
-See [[LSP-Progress]]
+See also: [[LSP-Progress]]
 
 ## Definition
 
