@@ -268,7 +268,11 @@ Parser._try_parse_field = function(self, lines, i, text)
     local out = {}
     local next_line = lines[i + 1]
     local j = i + 1
-    if next_line ~= nil and next_line.indent >= line.indent and (next_line.content == "-" or vim.startswith(next_line.content, "- ")) then
+    if
+      next_line ~= nil
+      and next_line.indent >= line.indent
+      and (next_line.content == "-" or vim.startswith(next_line.content, "- "))
+    then
       -- This is the start of an array.
       local array
       j, array = self:_parse_array(lines, j)
