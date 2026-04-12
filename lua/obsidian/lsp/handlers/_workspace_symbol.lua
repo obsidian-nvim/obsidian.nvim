@@ -3,6 +3,10 @@ local async = require "obsidian.async"
 local util = require "obsidian.util"
 local SymbolKind = vim.lsp.protocol.SymbolKind
 
+---@class obsidian.lsp.SymbolMetadata
+---@field note obsidian.Note
+---@field section obsidian.note.HeaderAnchor -- TODO: use note.Section later when it is formalized
+
 --- Compute the vault-relative path without the .md extension.
 ---@param abs_path string|obsidian.Path
 ---@return string
@@ -37,6 +41,9 @@ local function note_to_symbols(note)
     kind = SymbolKind.File,
     location = location,
     containerName = container,
+    data = {
+      note = note,
+    },
   }
 
   -- Additional symbols for each alias.
@@ -48,6 +55,9 @@ local function note_to_symbols(note)
         kind = SymbolKind.File,
         location = location,
         containerName = container,
+        data = {
+          note = note,
+        },
       }
     end
   end
@@ -75,7 +85,10 @@ local function heading_to_symbol(note, heading)
       },
     },
     containerName = container,
-    data = heading,
+    data = {
+      note = note,
+      section = heading,
+    },
   }
 end
 
