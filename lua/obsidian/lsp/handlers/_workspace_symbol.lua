@@ -121,6 +121,7 @@ end
 ---@param callback fun(result: lsp.WorkspaceSymbol[])
 return function(query, callback)
   query = query or ""
+  callback = vim.schedule_wrap(callback)
 
   async.run(function()
     ---@type lsp.WorkspaceSymbol[]
