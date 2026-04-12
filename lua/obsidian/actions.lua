@@ -649,4 +649,41 @@ M.workspace_symbol = function(query, callback)
   end)
 end
 
+--- Show references for a header at a given line (used by codelens).
+---@param uri string
+---@param line integer 0-indexed line number
+M.show_references = function(uri, line)
+  local bufnr = vim.uri_to_bufnr(uri)
+  local line_text = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)[1]
+  if not line_text then
+    return
+  end
+  local header_match = util.parse_header(line_text)
+  if not header_match then
+    return
+  end
+  local note = Note.from_buffer(bufnr, { collect_anchor_links = true })
+  if not note then
+    return
+  end
+  local backlinks = note:backlinks { anchor = header_match.anchor }
+  local locations = vim.tbl_map(function(bl)
+    return {
+      uri = vim.uri_from_fname(tostring(bl.path)),
+      range = {
+        start = { line = bl.line - 1, character = bl.start or 0 },
+        ["end"] = { line = bl.line - 1, character = bl["end"] or 0 },
+      },
+    }
+  end, backlinks)
+  if #locations == 0 then
+    return
+  end
+  vim.lsp.util.show_document(locations[1], "utf-8", { focus = true })
+  if #locations > 1 then
+    vim.fn.setqflist(vim.lsp.util.locations_to_items(locations, "utf-8"))
+    vim.cmd "copen"
+  end
+end
+
 return M

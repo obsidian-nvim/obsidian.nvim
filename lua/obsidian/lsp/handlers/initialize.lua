@@ -20,7 +20,7 @@ local initializeResult = {
     documentSymbolProvider = true,
     workspaceSymbolProvider = true,
     codeLensProvider = {
-      resolveProvider = true,
+      resolveProvider = false,
     },
     workspace = {
       fileOperations = {
