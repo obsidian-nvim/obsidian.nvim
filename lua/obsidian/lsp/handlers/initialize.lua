@@ -18,6 +18,7 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    workspaceSymbolProvider = true,
     workspace = {
       fileOperations = {
         didRename = {
