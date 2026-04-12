@@ -812,7 +812,7 @@ end
 ---
 ---@private
 Note._is_frontmatter_boundary = function(line)
-  return line:match "^---+$" ~= nil
+  return line:match "^%-%-%-+$" ~= nil
 end
 
 Note.frontmatter = require("obsidian.builtin").frontmatter

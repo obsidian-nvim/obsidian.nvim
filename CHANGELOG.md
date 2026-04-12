@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSP client commands can run actions in actions.lua.
 - Add `Note.insert_text` for inserting text under a specific section
 
+### Fixed
+
+- YAML parser handling of null values and dashes.
+
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 
 ### Added
