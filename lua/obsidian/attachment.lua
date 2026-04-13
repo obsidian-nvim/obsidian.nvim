@@ -137,8 +137,9 @@ local function copy_attachment(src, dst)
 end
 
 ---@param src string
+---@param insert_link boolean|?
 ---@return string|?
-M.add = function(src)
+M.add = function(src, insert_link)
   src = vim.trim(src)
   local resolved_src, resolved_dst_or_err = get_attachment_paths(src)
   if not resolved_src then
@@ -150,6 +151,11 @@ M.add = function(src)
   if err then
     log.err(err)
     return
+  end
+
+  if insert_link ~= false then
+    local link_text = M.format_link(src)
+    vim.api.nvim_put({ link_text }, "c", true, true)
   end
 
   return resolved_dst_or_err

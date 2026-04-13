@@ -285,10 +285,8 @@ return {
   ---Whether to confirm the paste or not. Defaults to true.
   ---@field confirm_img_paste? boolean
   ---
-  ---Optional picker used when add_attachment is called without an argument.
-  ---Receives a callback that accepts a filepath/URL and adds that attachment.
-  ---May also return a filepath/URL string directly.
-  ---@field pick? fun(add: fun(src: string): string|?)
+  ---Controls how actions.add_attachment resolves attachments from outside the vault.
+  ---@field resolve? fun(opts: { insert: boolean|? })|?
   attachments = {
     folder = "attachments",
     img_text_func = require("obsidian.builtin").img_text_func,
@@ -296,6 +294,7 @@ return {
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
     confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
+    resolve = require("obsidian.builtin").resolve_attachment_func,
   },
 
   ---@alias obsidian.sync.FileType

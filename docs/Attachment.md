@@ -1,4 +1,5 @@
 - [Save location](#save-location)
+- [Add attachment](#add-attachment)
 - [Open](#open)
 - [Options](#options)
 
@@ -13,79 +14,47 @@ Option for attachment location is `opts.attachments.folder`
 
 ## Add attachment
 
-- If `source` is a local path (or `file://` URI), the file is copied.
-- If `source` is an `http(s)` URL, the file is downloaded with `curl`.
-- The destination path is always resolved by `api.resolve_attachment_path()`.
+Use `require"obsidian.actions".add_attachment(source)` or invoke it via code action.
 
-When called without an argument, obsidian.nvim uses `opts.attachments.pick` (if set).
+- If `source` is a local file (or `file://` URI), the file is copied.
+- If `source` is a local directory, a file picker is opened, and selected file is copied.
+- If `source` is a `http(s)` URL, the file is downloaded with `curl`.
+- The destination path is always resolved by `api.resolve_attachment_path()` and controlled by [Save location](#save-location)
 
-`attachments.pick` receives a callback that you can call with a filepath/URL once your picker resolves a choice. It can also return a filepath/URL directly.
+When called without an argument, obsidian.nvim uses `opts.attachments.resolve`.
 
-```lua
-require("obsidian").setup {
-  attachments = {
-    pick = function(add)
-      local src = vim.fn.input "Attachment path or URL: "
-      if src and src ~= "" then
-        add(src)
-      end
-    end,
-  },
-}
-```
-
-### Picker examples
-
-Pick with `snacks.explorer`:
+Pick with a terminal file manager (yazi in a centered float):
 
 ```lua
 attachments = {
-  pick = function(add)
-    local ok, Snacks = pcall(require, "snacks")
-    if not ok then
-      return
-    end
-
-    Snacks.picker.explorer {
-      title = "Pick attachment",
-      focus = "list",
-      confirm = function(picker, item)
-        picker:close()
-        if item and item.file then
-          add(item.file)
+  resolve = function(add)
+    local tmp = vim.fn.tempname()
+    local buf = vim.api.nvim_create_buf(false, true)
+    local width = math.floor(vim.o.columns * 0.8)
+    local height = math.floor(vim.o.lines * 0.8)
+    local win = vim.api.nvim_open_win(buf, true, {
+      relative = "editor",
+      row = math.floor((vim.o.lines - height) / 2),
+      col = math.floor((vim.o.columns - width) / 2),
+      width = width,
+      height = height,
+      style = "minimal",
+      border = "rounded",
+    })
+    vim.fn.jobstart({ "yazi", "--chooser-file=" .. tmp }, {
+      term = true,
+      on_exit = function()
+        vim.api.nvim_win_close(win, true)
+        vim.api.nvim_buf_delete(buf, { force = true })
+        if vim.uv.fs_stat(tmp) then
+          local lines = vim.fn.readfile(tmp)
+          if lines[1] then
+            add(lines[1])
+          end
         end
       end,
-    }
-  end,
-}
-```
-
-Pick with a terminal file manager:
-
-```lua
-attachments = {
-  pick = function(add)
-    local tmp = vim.fn.tempname()
-    vim.system({ "bash", "-c", "ranger --choosefile='" .. tmp .. "'" }):wait()
-    if vim.uv.fs_stat(tmp) then
-      local lines = vim.fn.readfile(tmp)
-      if lines[1] then
-        add(lines[1])
-      end
-    end
-  end,
-}
-```
-
-Pick from URLs only:
-
-```lua
-attachments = {
-  pick = function(add)
-    local url = vim.fn.input "URL: "
-    if url and url ~= "" then
-      add(url)
-    end
+    })
+    vim.cmd "startinsert"
   end,
 }
 ```
@@ -126,6 +95,9 @@ Put any where in you config that loads before you open attachments, a good place
 ---
 ---Whether to confirm the paste or not. Defaults to true.
 ---@field confirm_img_paste? boolean
+---
+---Controls how actions.add_attachment resolves attachments from outside the vault.
+---@field resolve? fun(opts: { insert: boolean|? })|?
 attachments = {
   folder = "attachments",
   img_text_func = require("obsidian.builtin").img_text_func,
@@ -133,5 +105,6 @@ attachments = {
     return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
   end,
   confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
+  resolve = require("obsidian.builtin").resolve_attachment_func,
 }
 ```
