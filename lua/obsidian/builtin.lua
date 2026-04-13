@@ -157,4 +157,36 @@ M.frontmatter = function(note)
   return out
 end
 
+---@param opts { insert: boolean|? }
+M.resolve_attachment_func = function(opts)
+  opts = opts or {}
+  vim.ui.input({ prompt = "Url or filepath", completion = "file" }, function(input)
+    if not input then
+      require("obsidian.log").info "Aborted"
+      return
+    end
+    input = vim.trim(input)
+    local util = require "obsidian.util"
+    local attachment = require "obsidian.attachment"
+    local picker = require "obsidian.picker"
+    local is_uri, scheme = util.is_uri(input)
+    if is_uri and scheme and vim.startswith(scheme, "http") then
+      attachment.add(input, true)
+    else
+      local path = vim.fs.normalize(input)
+      local stat = vim.uv.fs_stat(path)
+      if stat and stat.type == "directory" then
+        picker.find_files {
+          dir = path,
+          callback = function(p)
+            attachment.add(p, opts.insert)
+          end,
+        }
+      else
+        attachment.add(path, opts.insert)
+      end
+    end
+  end)
+end
+
 return M

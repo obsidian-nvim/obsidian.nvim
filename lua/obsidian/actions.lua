@@ -570,24 +570,19 @@ M.unique_link = function(timestamp)
 end
 
 ---@param src string?
-M.add_attachment = function(src)
+---@param opts { resolve: function|?, insert: boolean|? }
+M.add_attachment = function(src, opts)
+  opts = opts or {}
+  if not vim.b.obsidian_buffer then
+    log.warn "Not in an obsidian buffer"
+    return
+  end
   if src ~= nil and vim.trim(src) ~= "" then
-    return attachment.add(src)
+    attachment.add(src, opts.insert)
+    return
   end
-
-  if src == nil or vim.trim(src) == "" then
-    local pick = Obsidian.opts.attachments.pick
-    -- if type(pick) == "function" then
-    local ok, picked = pcall(pick, function(dst)
-      attachment.add(dst)
-      local link_text = attachment.format_link(dst)
-      vim.api.nvim_put({ link_text }, "c", true, true)
-    end)
-    if not ok then
-      log.err("attachments.pick failed: " .. tostring(picked))
-      return
-    end
-  end
+  local resolve = opts.resolve or Obsidian.opts.attachments.resolve ---@cast resolve -nil
+  resolve()
 end
 
 M.add_property = function()
