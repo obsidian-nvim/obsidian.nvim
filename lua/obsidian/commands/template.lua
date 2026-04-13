@@ -27,13 +27,7 @@ return function(data)
     return
   end
 
-  local picker = Obsidian.picker
-  if not picker then
-    log.err "No picker configured"
-    return
-  end
-
-  picker.find_files {
+  require("obsidian.picker").find_files {
     prompt_title = "Templates",
     dir = templates_dir,
     no_default_mappings = true,

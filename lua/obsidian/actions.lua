@@ -16,7 +16,7 @@ M.follow_link = function(link, opts)
     if #items == 1 then
       api.open_note(items[1], cmd)
     else
-      Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
+      require("obsidian.picker").pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
     end
   end)
 end
@@ -386,7 +386,7 @@ M.link = function()
 
   local query = viz.selection
 
-  Obsidian.picker.find_notes {
+  require("obsidian.picker").find_notes {
     prompt_title = "Select note to link",
     query = query,
     callback = function(path)
@@ -509,7 +509,7 @@ M.new_from_template = function(id, template, callback)
     return
   end
 
-  Obsidian.picker.find_files {
+  require("obsidian.picker").find_files {
     prompt_title = "Templates",
     dir = templates_dir,
     no_default_mappings = true,
@@ -645,7 +645,7 @@ M.workspace_symbol = function(query, callback)
   query = query or ""
   require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
     local entries = vim.tbl_map(symbol_to_entry, symbols)
-    Obsidian.picker.pick(entries, { prompt_title = "Workspace Symbols", callback = callback })
+    require("obsidian.picker").pick(entries, { prompt_title = "Workspace Symbols", callback = callback })
   end)
 end
 

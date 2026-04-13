@@ -9,7 +9,7 @@ return function(data)
     return
   end
 
-  Obsidian.picker.grep {
+  require("obsidian.picker").grep {
     prompt_title = "Quick Switch",
     dir = dir,
     query = query,

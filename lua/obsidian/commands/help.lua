@@ -10,7 +10,7 @@ return function(data)
     return
   end
 
-  Obsidian.picker.find_notes {
+  require("obsidian.picker").find_notes {
     prompt_title = "Quick Switch",
     dir = dir,
     query = query,
