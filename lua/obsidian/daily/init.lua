@@ -169,7 +169,7 @@ M.pick = function(offset_start, offset_end, callback)
     }
   end
 
-  Obsidian.picker.pick(dailies, {
+  require("obsidian.picker").pick(dailies, {
     prompt_title = "Dailies",
     callback = function(entry)
       local note = M.daily {

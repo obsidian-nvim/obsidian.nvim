@@ -2,6 +2,7 @@ local log = require "obsidian.log"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
+local picker = require "obsidian.picker"
 
 ---@param tag_locations obsidian.TagLocation[]
 ---@return string[]
@@ -47,7 +48,7 @@ local function gather_tag_picker_list(tag_locations, tags)
   end
 
   vim.schedule(function()
-    Obsidian.picker.pick(entries, { prompt_title = "#" .. table.concat(tags, ", #") })
+    picker.pick(entries, { prompt_title = "#" .. table.concat(tags, ", #") })
   end)
 end
 
@@ -72,14 +73,14 @@ return function(data)
     search.find_tags_async("", function(tag_locations)
       tags = list_tags(tag_locations)
       vim.schedule(function()
-        Obsidian.picker.pick(tags, {
+        picker.pick(tags, {
           callback = function(...)
             tags = vim.tbl_map(function(v)
               return v.user_data
             end, { ... })
             gather_tag_picker_list(tag_locations, tags)
           end,
-          selection_mappings = Obsidian.picker._tag_selection_mappings(),
+          selection_mappings = require("obsidian.picker")._tag_selection_mappings(),
           allow_multiple = true,
         })
       end)

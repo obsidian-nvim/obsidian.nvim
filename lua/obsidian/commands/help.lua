@@ -28,7 +28,7 @@ return function(data)
     end
   end
 
-  Obsidian.picker.find_notes {
+  require("obsidian.picker").find_notes {
     prompt_title = "Obsidian Help",
     dir = dir,
     query = query,

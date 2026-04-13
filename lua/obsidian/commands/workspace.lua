@@ -14,7 +14,7 @@ return function(data)
         filename = tostring(ws.path),
       }
     end, Obsidian.workspaces)
-    Obsidian.picker.pick(items, {
+    require("obsidian.picker").pick(items, {
       prompt_title = "Obsidian Workspace",
       callback = function(entry)
         Workspace.set(entry.user_data)
