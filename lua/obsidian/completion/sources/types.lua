@@ -1,7 +1,0 @@
----A request class that partially matches cmp.Request to serve as a common interface for completion sources
----@class obsidian.completion.Request
----@field bufnr integer
----@field cursor_after_line string
----@field cursor_before_line string
----@field line integer 1-indexed line number (same as row, used by tags for frontmatter)
----@field character integer 0-indexed byte offset into the line (utf-8)

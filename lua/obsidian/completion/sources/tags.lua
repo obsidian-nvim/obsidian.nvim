@@ -10,12 +10,12 @@ local api = require "obsidian.api"
 ---@field search string|?
 ---@field in_frontmatter boolean|?
 
----@class obsidian.completion.sources.base.TagsSourceBase
----@field incomplete_response table
----@field complete_response table
-local M = {
-  incomplete_response = { isIncomplete = true },
-  complete_response = { isIncomplete = true, items = {} },
+local M = {}
+
+---@type lsp.CompletionList
+local EMPTY_RESPONSE = {
+  isIncomplete = true,
+  items = {},
 }
 
 --- Returns whatever it's possible to complete the search and sets up the search related variables in cc
@@ -42,13 +42,13 @@ function M.process_completion(completion_resolve_callback, request)
   }
 
   if not can_complete_request(cc) then
-    cc.completion_resolve_callback(M.incomplete_response)
+    cc.completion_resolve_callback(EMPTY_RESPONSE)
     return
   end
 
   search.find_tags_async(cc.search, function(tag_locs)
     local tags = {}
-    for tag_loc in vim.iter(tag_locs) do
+    for _, tag_loc in ipairs(tag_locs) do
       tags[tag_loc.tag] = true
     end
 
@@ -92,7 +92,10 @@ function M.process_completion(completion_resolve_callback, request)
       }
     end
 
-    cc.completion_resolve_callback(vim.tbl_deep_extend("force", M.complete_response, { items = items }))
+    cc.completion_resolve_callback {
+      isIncomplete = true,
+      items = items,
+    }
   end, { dir = api.resolve_workspace_dir() })
 end
 
