@@ -49,11 +49,11 @@ function M.process_completion(completion_resolve_callback, request)
   search.find_tags_async(cc.search, function(tag_locs)
     local tags = {}
     for _, tag_loc in ipairs(tag_locs) do
-      tags[tag_loc.tag] = true
+      tags[tag_loc.tag] = (tags[tag_loc.tag] or 0) + 1
     end
 
     local items = {}
-    for tag, _ in pairs(tags) do
+    for tag, count in pairs(tags) do
       -- Generate context-appropriate text
       local insert_text, label_text
       if cc.in_frontmatter then
@@ -77,6 +77,10 @@ function M.process_completion(completion_resolve_callback, request)
         filterText = "#" .. tag,
         label = label_text,
         kind = vim.lsp.protocol.CompletionItemKind.Text,
+        documentation = {
+          kind = "markdown",
+          value = string.format("`#%s` — %d occurrence%s", tag, count, count == 1 and "" or "s"),
+        },
         textEdit = {
           newText = insert_text,
           range = {
