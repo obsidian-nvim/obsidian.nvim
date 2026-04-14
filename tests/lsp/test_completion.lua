@@ -12,9 +12,7 @@ T["refs"]["can_complete should handle wiki links with text"] = function()
   local request = {
     cursor_before_line = before,
     cursor_after_line = "",
-    cursor = {
-      character = vim.fn.strchars(before),
-    },
+    character = string.len(before),
   }
 
   local can_complete, search, insert_start, insert_end, _ = completion.can_complete(request)
@@ -31,16 +29,14 @@ T["refs"]["can_complete should handle wiki links with preceding Unicode text"] =
   local request = {
     cursor_before_line = before,
     cursor_after_line = "",
-    cursor = {
-      character = vim.fn.strchars(before),
-    },
+    character = string.len(before),
   }
 
   local can_complete, search, insert_start, insert_end, _ = completion.can_complete(request)
   eq(true, can_complete)
   eq("foo", search)
-  eq(15, insert_start)
-  eq(20, insert_end)
+  eq(16, insert_start)
+  eq(21, insert_end)
 end
 
 T["completion"] = MiniTest.new_set()
