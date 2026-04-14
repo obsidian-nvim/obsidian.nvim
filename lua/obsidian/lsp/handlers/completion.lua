@@ -23,8 +23,8 @@ local function build_request(params)
   local lines = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)
   local line_text = lines[1] or ""
 
-  local cursor_before_line = line_text:sub(1, line - 1)
-  local cursor_after_line = line_text:sub(line)
+  local cursor_before_line = line_text:sub(1, lsp_char)
+  local cursor_after_line = line_text:sub(lsp_char + 1)
 
   return {
     bufnr = bufnr,
