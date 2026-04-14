@@ -1,27 +1,18 @@
 local M = {}
 
----Safe version of vim.str_utfindex
----@param text string
----@param vimindex integer|nil
----@return integer
-local to_utfindex = function(text, vimindex)
-  vimindex = vimindex or #text + 1
-  if vim.fn.has "nvim-0.11" == 1 then
-    return vim.str_utfindex(text, "utf-8", math.max(0, math.min(vimindex - 1, #text)))
-  end
-  return vim.str_utfindex(text, math.max(0, math.min(vimindex - 1, #text)))
-end
-
----Generates the completion request from a blink context
+---Generates the completion request from a blink context.
+---
+---blink.cmp gets cursor from nvim_win_get_cursor (byte offset) and applies
+---textEdits via vim.lsp.util.apply_text_edits with 'utf-8' encoding, so all
+---positions are in bytes. We use byte offsets throughout to stay consistent.
 ---@param context blink.cmp.Context
 ---@return obsidian.completion.sources.base.Request
 M.generate_completion_request_from_editor_state = function(context)
   local row = context.cursor[1]
-  local col = context.cursor[2] + 1
-  local cursor_before_line = context.line:sub(1, col - 1)
-  local cursor_after_line = context.line:sub(col)
-
-  local character = to_utfindex(context.line, col)
+  -- context.cursor[2] is a 0-indexed byte offset from nvim_win_get_cursor
+  local byte_col = context.cursor[2]
+  local cursor_before_line = context.line:sub(1, byte_col)
+  local cursor_after_line = context.line:sub(byte_col + 1)
 
   return {
     context = {
@@ -30,9 +21,8 @@ M.generate_completion_request_from_editor_state = function(context)
       cursor_after_line = cursor_after_line,
       cursor = {
         row = row,
-        col = col,
-        line = row + 1,
-        character = character,
+        line = row,
+        character = byte_col,
       },
     },
   }
