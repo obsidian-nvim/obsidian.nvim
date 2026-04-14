@@ -1,6 +1,6 @@
-local Ref = require "obsidian.completion.sources.base.refs"
-local Tag = require "obsidian.completion.sources.base.tags"
-local NewNote = require "obsidian.completion.sources.base.new"
+local Ref = require "obsidian.completion.sources.refs"
+local Tag = require "obsidian.completion.sources.tags"
+local NewNote = require "obsidian.completion.sources.new"
 
 --- Build a base-class Request from LSP CompletionParams.
 ---

@@ -11,13 +11,7 @@ local Note = require "obsidian.note"
 ---@field insert_start integer|?
 ---@field insert_end integer|?
 
----@class obsidian.completion.NewNoteSourceBase
----@field incomplete_response table
----@field complete_response table
-local M = {
-  incomplete_response = { isIncomplete = true },
-  complete_response = { isIncomplete = true, items = {} },
-}
+local M = {}
 
 --- Returns whatever it's possible to complete the search and sets up the search related variables in cc
 ---@param cc obsidian.completion.NewNoteSourceCompletionContext
@@ -180,7 +174,8 @@ function M.process_completion(completion_resolve_callback, request)
     items[#items + 1] = item
   end
 
-  cc.completion_resolve_callback(vim.tbl_deep_extend("force", M.complete_response, { items = items }))
+  local completion_list = vim.tbl_deep_extend("force", completion.complete_response, { items = items })
+  cc.completion_resolve_callback(completion_list)
 end
 
 return M
