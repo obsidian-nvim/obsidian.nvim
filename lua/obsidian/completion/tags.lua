@@ -30,15 +30,15 @@ end
 
 ---@return boolean, string|?, boolean|?
 M.can_complete = function(request)
-  local search = M.find_tags_start(request.context.cursor_before_line)
+  local search = M.find_tags_start(request.cursor_before_line)
   if not search or string.len(search) == 0 then
     return false
   end
 
   -- Check if we're inside frontmatter.
   local in_frontmatter = false
-  local line = request.context.cursor.line
-  local frontmatter_start, frontmatter_end = get_frontmatter_boundaries(request.context.bufnr)
+  local line = request.line + 1 -- 1-indexed
+  local frontmatter_start, frontmatter_end = get_frontmatter_boundaries(request.bufnr)
   if
     frontmatter_start ~= nil
     and frontmatter_start <= (line + 1)
@@ -49,18 +49,6 @@ M.can_complete = function(request)
   end
 
   return true, search, in_frontmatter
-end
-
-M.get_trigger_characters = function()
-  return { "#" }
-end
-
-M.get_keyword_pattern = function()
-  -- Note that this is a vim pattern, not a Lua pattern. See ':help pattern'.
-  -- The enclosing [=[ ... ]=] is just a way to mark the boundary of a
-  -- string in Lua.
-  -- return [=[\%(^\|[^#]\)\zs#[a-zA-Z0-9_/-]\+]=]
-  return "#[a-zA-Z0-9_/-]\\+"
 end
 
 return M

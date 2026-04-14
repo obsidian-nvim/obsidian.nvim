@@ -16,8 +16,8 @@ local search = require "obsidian.search"
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
 ---@class obsidian.completion.sources.base.RefsSourceCompletionContext
----@field completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
----@field request obsidian.completion.sources.base.Request
+---@field completion_resolve_callback fun(resp: lsp.CompletionList)
+---@field request obsidian.completion.Request
 ---@field in_buffer_only boolean
 ---@field search string|?
 ---@field insert_start integer|?
@@ -25,7 +25,6 @@ local search = require "obsidian.search"
 ---@field block_link string|?
 ---@field anchor_link string|?
 ---@field new_text_to_option table<string, obsidian.completion.CompletionItemOptions>
----@field root obsidian.Path
 
 ---@class obsidian.completion.sources.base.RefsSourceBase
 ---@field incomplete_response table
@@ -35,50 +34,44 @@ local M = {
   complete_response = { isIncomplete = true, items = {} },
 }
 
-M.__index = M
-
----@return obsidian.completion.sources.base.RefsSourceBase
-M.new = function()
-  return setmetatable({}, M)
-end
-
-M.get_trigger_characters = completion.get_trigger_characters
-
----Sets up a new completion context that is used to pass around variables between completion source methods
----@param completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
----@param request obsidian.completion.sources.base.Request
----@return obsidian.completion.sources.base.RefsSourceCompletionContext
-function M.new_completion_context(_self, completion_resolve_callback, request)
-  local cc = {}
-
-  -- Sets up the completion callback, which will be called when the (possibly incomplete) completion items are ready
-  cc.completion_resolve_callback = completion_resolve_callback
-
-  -- This request object will be used to determine the current cursor location and the text around it
-  cc.request = request
-  cc.in_buffer_only = false
-  cc.root = api.resolve_workspace_dir()
-  cc.new_text_to_option = {}
-
-  return cc
-end
-
---- Runs a generalized version of the complete (nvim_cmp) or get_completions (blink) methods
+--- Returns whatever it's possible to complete the search and sets up the search related variables in cc
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
-function M:process_completion(cc)
-  if not self:can_complete_request(cc) or not cc.search then
+---@return boolean success provides a chance to return early if the request didn't meet the requirements
+local function can_complete_request(cc)
+  local can_complete
+  can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
+
+  if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
+    return false
+  end
+
+  return true
+end
+
+---@param completion_resolve_callback function
+---@param request obsidian.completion.Request
+function M.process_completion(completion_resolve_callback, request)
+  local cc = {
+    completion_resolve_callback = completion_resolve_callback,
+    request = request,
+    in_buffer_only = false,
+    new_text_to_option = {},
+  }
+
+  if not can_complete_request(cc) or not cc.search then
+    cc.completion_resolve_callback(M.incomplete_response)
     return
   end
 
-  self:strip_links(cc)
-  self:determine_buffer_only_search_scope(cc)
+  M.strip_links(cc)
+  M.determine_buffer_only_search_scope(cc)
 
   if cc.in_buffer_only then
     local note = api.current_note(0, { collect_anchor_links = true, collect_blocks = true })
     if note then
-      self:process_search_results(cc, { note })
+      M.process_search_results(cc, { note })
     else
-      cc.completion_resolve_callback(self.incomplete_response)
+      cc.completion_resolve_callback(M.incomplete_response)
     end
   else
     local search_opts = {
@@ -88,28 +81,13 @@ function M:process_completion(cc)
     }
 
     search.find_notes_async(cc.search, function(results)
-      self:process_search_results(cc, results)
+      M.process_search_results(cc, results)
     end, {
-      dir = cc.root,
+      dir = api.resolve_workspace_dir(),
       search = search_opts,
       notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
     })
   end
-end
-
---- Returns whatever it's possible to complete the search and sets up the search related variables in cc
----@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
----@return boolean success provides a chance to return early if the request didn't meet the requirements
-function M:can_complete_request(cc)
-  local can_complete
-  can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
-
-  if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
-    cc.completion_resolve_callback(self.incomplete_response)
-    return false
-  end
-
-  return true
 end
 
 ---Collect matching block links.
@@ -164,7 +142,7 @@ end
 
 --- Strips block and anchor links from the current search string
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
-function M.strip_links(_self, cc)
+function M.strip_links(cc)
   if not cc.search then
     return
   end
@@ -186,7 +164,7 @@ end
 
 --- Determines whatever the in_buffer_only should be enabled
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
-function M.determine_buffer_only_search_scope(_self, cc)
+function M.determine_buffer_only_search_scope(cc)
   if not cc.search then
     return
   end
@@ -198,7 +176,7 @@ end
 
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
 ---@param results obsidian.Note[]
-function M:process_search_results(cc, results)
+function M.process_search_results(cc, results)
   if not cc.search then
     return
   end
@@ -211,7 +189,7 @@ function M:process_search_results(cc, results)
     local matching_anchors = M.collect_matching_anchors(note, cc.anchor_link)
 
     if cc.in_buffer_only then
-      self:update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
+      M.update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
     else
       -- Collect all valid aliases for the note, including ID, title, and filename.
       ---@type string[]
@@ -221,7 +199,7 @@ function M:process_search_results(cc, results)
       end
 
       for _, alias in ipairs(aliases) do
-        self:update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
+        M.update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
         local alias_case_matched = util.match_case(cc.search, alias)
 
         if
@@ -230,12 +208,12 @@ function M:process_search_results(cc, results)
           and not vim.list_contains(note.aliases, alias_case_matched)
           and Obsidian.opts.completion.match_case
         then
-          self:update_completion_options(cc, alias_case_matched, nil, matching_anchors, matching_blocks, note)
+          M.update_completion_options(cc, alias_case_matched, nil, matching_anchors, matching_blocks, note)
         end
       end
 
       if note.alt_alias ~= nil then
-        self:update_completion_options(cc, note:display_name(), note.alt_alias, matching_anchors, matching_blocks, note)
+        M.update_completion_options(cc, note:display_name(), note.alt_alias, matching_anchors, matching_blocks, note)
       end
     end
   end
@@ -254,6 +232,8 @@ function M:process_search_results(cc, results)
       error "not implemented"
     end
 
+    ---@cast cc.insert_end -nil
+
     table.insert(completion_items, {
       documentation = option.documentation,
       sortText = option.sort_text,
@@ -264,11 +244,11 @@ function M:process_search_results(cc, results)
         newText = option.new_text,
         range = {
           ["start"] = {
-            line = cc.request.context.cursor.row - 1,
+            line = cc.request.line,
             character = cc.insert_start,
           },
           ["end"] = {
-            line = cc.request.context.cursor.row - 1,
+            line = cc.request.line,
             character = cc.insert_end + 1,
           },
         },
@@ -276,14 +256,16 @@ function M:process_search_results(cc, results)
     })
   end
 
-  cc.completion_resolve_callback(vim.tbl_deep_extend("force", self.complete_response, { items = completion_items }))
+  cc.completion_resolve_callback(vim.tbl_deep_extend("force", M.complete_response, { items = completion_items }))
 end
+
+-- TODO: localize
 
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
 ---@param label string|?
 ---@param alt_label string|?
 ---@param note obsidian.Note
-function M.update_completion_options(_self, cc, label, alt_label, matching_anchors, matching_blocks, note)
+function M.update_completion_options(cc, label, alt_label, matching_anchors, matching_blocks, note)
   ---@type { label: string|?, alt_label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }[]
   local new_options = {}
   if matching_anchors ~= nil then
