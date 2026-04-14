@@ -3,12 +3,16 @@ local Patterns = require("obsidian.search").Patterns
 
 local M = {}
 
+-- TODO: use proper unicode match
+
 ---@type { pattern: string, offset: integer }[]
 local TAG_PATTERNS = {
   { pattern = "[%s%(]#" .. Patterns.TagCharsOptional .. "$", offset = 2 },
   { pattern = "^#" .. Patterns.TagCharsOptional .. "$", offset = 1 },
 }
 
+---@param input string
+---@return string?
 M.find_tags_start = function(input)
   for _, pattern in ipairs(TAG_PATTERNS) do
     local match = string.match(input, pattern.pattern)
@@ -28,6 +32,7 @@ local get_frontmatter_boundaries = function(bufnr)
   end
 end
 
+---@param request obsidian.completion.Request
 ---@return boolean, string|?, boolean|?
 M.can_complete = function(request)
   local search = M.find_tags_start(request.cursor_before_line)
