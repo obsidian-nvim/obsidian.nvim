@@ -137,7 +137,7 @@ M.find_files = function(opts)
     default_text = opts.query,
     prompt_title = prompt_title,
     cwd = opts.dir and tostring(opts.dir) or tostring(Obsidian.dir),
-    find_command = search.build_find_cmd(),
+    find_command = search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown }),
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
         callback = function(entry)

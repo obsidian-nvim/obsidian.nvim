@@ -141,7 +141,7 @@ M.find_files = function(opts)
   search.find_async(
     opts.dir,
     query,
-    {},
+    { include_non_markdown = opts.include_non_markdown },
     function(path)
       paths[#paths + 1] = path
     end,

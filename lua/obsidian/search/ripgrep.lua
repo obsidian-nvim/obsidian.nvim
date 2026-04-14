@@ -8,11 +8,9 @@ local BASE_CMD = {
   "--no-config",
   "--type-add",
   "md:*.qmd",
-  --- TODO: controled by include_non_markdown option?
-  -- "--type=md",
 }
 
-local SEARCH_CMD = compat.flatten { BASE_CMD, "--json" }
+local SEARCH_CMD = compat.flatten { BASE_CMD, "--type=md", "--json" }
 local FIND_CMD = compat.flatten { BASE_CMD, "--files" }
 
 ---@param opts obsidian.search.SearchOpts
@@ -130,9 +128,12 @@ M.build_find_cmd = function(path, term, opts)
 
   local additional_opts = {}
 
+  if not opts.include_non_markdown then
+    additional_opts[#additional_opts + 1] = "--type=md"
+  end
+
   if term ~= nil then
     term = escape_rg_glob(term)
-    --- TODO: remove
     if opts.include_non_markdown then
       term = "*" .. term .. "*"
     elseif not vim.endswith(term, ".md") then
@@ -179,6 +180,7 @@ M.build_grep_cmd = function(opts)
 
   return compat.flatten {
     BASE_CMD,
+    "--type=md",
     generate_args(opts),
     "--column",
     "--line-number",

@@ -43,7 +43,7 @@ M.find_files = function(opts)
   end
 
   local path = mini_pick.builtin.cli({
-    command = search.build_find_cmd(),
+    command = search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown }),
     mappings = mappings,
   }, {
     source = {

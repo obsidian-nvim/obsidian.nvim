@@ -178,6 +178,7 @@ M.resolve_attachment_func = function(opts)
       if stat and stat.type == "directory" then
         picker.find_files {
           dir = path,
+          include_non_markdown = true,
           callback = function(p)
             attachment.add(p, opts.insert)
           end,
