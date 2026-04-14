@@ -76,7 +76,7 @@ function M.process_completion(completion_resolve_callback, request)
         sortText = tag,
         filterText = "#" .. tag,
         label = label_text,
-        kind = vim.lsp.protocol.CompletionItemKind.Text,
+        kind = vim.lsp.protocol.CompletionItemKind.Keyword,
         documentation = {
           kind = "markdown",
           value = string.format("`#%s` — %d occurrence%s", tag, count, count == 1 and "" or "s"),
