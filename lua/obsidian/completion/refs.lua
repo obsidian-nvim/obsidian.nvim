@@ -52,11 +52,4 @@ M.get_filter_text = function(label)
   return "[[" .. label
 end
 
----@type lsp.CompletionList
-M.incomplete_response = { isIncomplete = true, items = {} }
-
--- TODO:
----@type lsp.CompletionList
-M.complete_response = { isIncomplete = false, items = {} }
-
 return M

@@ -13,6 +13,12 @@ local Note = require "obsidian.note"
 
 local M = {}
 
+---@type lsp.CompletionList
+local EMPTY_RESPONSE = {
+  isIncomplete = true,
+  items = {},
+}
+
 --- Returns whatever it's possible to complete the search and sets up the search related variables in cc
 ---@param cc obsidian.completion.NewNoteSourceCompletionContext
 ---@return boolean success provides a chance to return early if the request didn't meet the requirements
@@ -39,7 +45,7 @@ function M.process_completion(completion_resolve_callback, request)
     request = request,
   }
   if not can_complete_request(cc) then
-    cc.completion_resolve_callback(M.incomplete_response)
+    cc.completion_resolve_callback(EMPTY_RESPONSE)
     return
   end
 
@@ -53,19 +59,19 @@ function M.process_completion(completion_resolve_callback, request)
 
   -- If block link is incomplete, do nothing.
   if not block_link and vim.endswith(cc.search, "#^") then
-    cc.completion_resolve_callback(M.incomplete_response)
+    cc.completion_resolve_callback(EMPTY_RESPONSE)
     return
   end
 
   -- If anchor link is incomplete, do nothing.
   if not anchor_link and vim.endswith(cc.search, "#") then
-    cc.completion_resolve_callback(M.incomplete_response)
+    cc.completion_resolve_callback(EMPTY_RESPONSE)
     return
   end
 
   -- Probably just a block/anchor link within current note.
   if string.len(cc.search) == 0 then
-    cc.completion_resolve_callback(M.incomplete_response)
+    cc.completion_resolve_callback(EMPTY_RESPONSE)
     return
   end
 
@@ -174,8 +180,10 @@ function M.process_completion(completion_resolve_callback, request)
     items[#items + 1] = item
   end
 
-  local completion_list = vim.tbl_deep_extend("force", completion.complete_response, { items = items })
-  cc.completion_resolve_callback(completion_list)
+  cc.completion_resolve_callback {
+    isIncomplete = true,
+    items = items,
+  }
 end
 
 return M

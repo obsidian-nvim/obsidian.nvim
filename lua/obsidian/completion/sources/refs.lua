@@ -26,12 +26,12 @@ local search = require "obsidian.search"
 ---@field anchor_link string|?
 ---@field new_text_to_option table<string, obsidian.completion.CompletionItemOptions>
 
----@class obsidian.completion.sources.base.RefsSourceBase
----@field incomplete_response table
----@field complete_response table
-local M = {
-  incomplete_response = { isIncomplete = true },
-  complete_response = { isIncomplete = true, items = {} },
+local M = {}
+
+---@type lsp.CompletionList
+local EMPTY_RESPONSE = {
+  isIncomplete = true,
+  items = {},
 }
 
 --- Returns whatever it's possible to complete the search and sets up the search related variables in cc
@@ -59,7 +59,7 @@ function M.process_completion(completion_resolve_callback, request)
   }
 
   if not can_complete_request(cc) or not cc.search then
-    cc.completion_resolve_callback(M.incomplete_response)
+    cc.completion_resolve_callback(EMPTY_RESPONSE)
     return
   end
 
@@ -71,7 +71,7 @@ function M.process_completion(completion_resolve_callback, request)
     if note then
       M.process_search_results(cc, { note })
     else
-      cc.completion_resolve_callback(M.incomplete_response)
+      cc.completion_resolve_callback(EMPTY_RESPONSE)
     end
   else
     local search_opts = {
@@ -256,7 +256,10 @@ function M.process_search_results(cc, results)
     })
   end
 
-  cc.completion_resolve_callback(vim.tbl_deep_extend("force", M.complete_response, { items = completion_items }))
+  cc.completion_resolve_callback {
+    isIncomplete = true,
+    items = completion_items,
+  }
 end
 
 -- TODO: localize

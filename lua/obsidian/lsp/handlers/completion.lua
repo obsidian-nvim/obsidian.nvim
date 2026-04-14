@@ -2,8 +2,13 @@ local Ref = require "obsidian.completion.sources.refs"
 local Tag = require "obsidian.completion.sources.tags"
 local NewNote = require "obsidian.completion.sources.new"
 
---- Build a base-class Request from LSP CompletionParams.
----
+---@class obsidian.completion.Request
+---@field bufnr integer
+---@field cursor_after_line string
+---@field cursor_before_line string
+---@field line integer 0-indexed line number
+---@field character integer 0-indexed byte offset into the line (utf-8)
+
 ---@param params lsp.CompletionParams
 ---@return obsidian.completion.Request
 local function build_request(params)
