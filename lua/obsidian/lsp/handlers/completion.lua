@@ -4,39 +4,28 @@ local NewNote = require "obsidian.completion.sources.new"
 
 --- Build a base-class Request from LSP CompletionParams.
 ---
---- The base classes expect:
----   request.bufnr            (integer)
----   request.cursor_before_line (string)
----   request.cursor_after_line  (string)
----   request.line      (0-indexed line, used by tags for frontmatter)
----   request.character (0-indexed UTF-8 offset, used by refs.can_complete)
----
 ---@param params lsp.CompletionParams
 ---@return obsidian.completion.Request
 local function build_request(params)
   local uri = params.textDocument.uri
   local bufnr = vim.uri_to_bufnr(uri)
 
-  -- LSP position is 0-indexed line, 0-indexed character (UTF-16 by default, but
-  -- obsidian-ls advertises utf-8 offset encoding).
-  local lsp_line = params.position.line
+  -- LSP position is 0-indexed line, 0-indexed character
+  local line = params.position.line
   local lsp_char = params.position.character
 
   -- Fetch the full line text from the buffer.
-  local lines = vim.api.nvim_buf_get_lines(bufnr, lsp_line, lsp_line + 1, false)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)
   local line_text = lines[1] or ""
 
-  -- Convert 0-indexed character to 1-indexed byte column.
-  local col = lsp_char + 1
-
-  local cursor_before_line = line_text:sub(1, col - 1)
-  local cursor_after_line = line_text:sub(col)
+  local cursor_before_line = line_text:sub(1, line - 1)
+  local cursor_after_line = line_text:sub(line)
 
   return {
     bufnr = bufnr,
     cursor_before_line = cursor_before_line,
     cursor_after_line = cursor_after_line,
-    line = lsp_line,
+    line = line,
     character = lsp_char, -- 0-indexed, used by refs.can_complete
   }
 end
