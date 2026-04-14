@@ -79,14 +79,14 @@ M.find_files = function(opts)
 
   local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
 
-  local args = search.build_find_cmd()
+  local args = search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown })
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
     pattern = opts.query,
     source = "files",
     title = opts.prompt_title,
-    cwd = opts.dir and tostring(opts.dir) and tostring(dir),
+    cwd = tostring(dir),
     cmd = cmd,
     args = args,
     confirm = function(picker, item)

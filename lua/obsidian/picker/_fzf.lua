@@ -141,7 +141,7 @@ M.find_files = function(opts)
   fzf.files {
     query = opts.query,
     cwd = tostring(dir),
-    cmd = table.concat(search.build_find_cmd(), " "),
+    cmd = table.concat(search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown }), " "),
     cwd_prompt = false,
     prompt = format_prompt(opts.prompt_title),
     show_details = true,

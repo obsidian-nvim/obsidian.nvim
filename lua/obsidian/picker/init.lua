@@ -34,6 +34,7 @@ M.state = state
 ---@field query string|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
+---@field include_non_markdown boolean|?
 
 ---@class obsidian.PickerGrepOpts
 ---
@@ -79,6 +80,8 @@ M.find_notes = function(opts)
     query_mappings = M._note_query_mappings()
     selection_mappings = M._note_selection_mappings()
   end
+
+  -- TODO: build cmd here instead of in all pickers
 
   return M.find_files {
     query = opts.query,
