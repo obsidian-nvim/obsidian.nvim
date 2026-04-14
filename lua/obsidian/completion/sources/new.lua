@@ -2,15 +2,6 @@ local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
 
----Used to track variables that are used between reusable method calls. This is required, because each
----call to the sources's completion hook won't create a new source object, but will reuse the same one.
----@class obsidian.completion.NewNoteSourceCompletionContext
----@field completion_resolve_callback fun(resp: lsp.CompletionList)
----@field request obsidian.completion.Request
----@field search string|?
----@field insert_start integer|?
----@field insert_end integer|?
-
 local M = {}
 
 ---@type lsp.CompletionList
@@ -19,59 +10,46 @@ local EMPTY_RESPONSE = {
   items = {},
 }
 
---- Returns whatever it's possible to complete the search and sets up the search related variables in cc
----@param cc obsidian.completion.NewNoteSourceCompletionContext
----@return boolean success provides a chance to return early if the request didn't meet the requirements
-local function can_complete_request(cc)
-  local can_complete
-  can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
-
-  if cc.search ~= nil then
-    cc.search = util.lstrip_whitespace(cc.search)
-  end
-
-  if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
-    return false
-  end
-  return true
-end
-
 --- Runs a generalized version of the complete (nvim_cmp) or get_completions (blink) methods
----@param completion_resolve_callback fun(resp: lsp.CompletionList)
+---@param callback fun(resp: lsp.CompletionList)
 ---@param request obsidian.completion.Request
-function M.process_completion(completion_resolve_callback, request)
-  local cc = {
-    completion_resolve_callback = completion_resolve_callback,
-    request = request,
-  }
-  if not can_complete_request(cc) then
-    cc.completion_resolve_callback(EMPTY_RESPONSE)
+function M.process_completion(callback, request)
+  local can_complete, search, insert_start, insert_end = completion.can_complete(request)
+
+  if (not can_complete) or (#search >= Obsidian.opts.completion.min_chars) then
+    callback(EMPTY_RESPONSE)
     return
   end
 
+  ---@cast search -nil
+  ---@cast insert_start -nil
+  ---@cast insert_end -nil
+
+  search = util.lstrip_whitespace(search)
+
   ---@type string|?
   local block_link
-  cc.search, block_link = util.strip_block_links(cc.search)
+  search, block_link = util.strip_block_links(search)
 
   ---@type string|?
   local anchor_link
-  cc.search, anchor_link = util.strip_anchor_links(cc.search)
+  search, anchor_link = util.strip_anchor_links(search)
 
   -- If block link is incomplete, do nothing.
-  if not block_link and vim.endswith(cc.search, "#^") then
-    cc.completion_resolve_callback(EMPTY_RESPONSE)
+  if not block_link and vim.endswith(search, "#^") then
+    callback(EMPTY_RESPONSE)
     return
   end
 
   -- If anchor link is incomplete, do nothing.
-  if not anchor_link and vim.endswith(cc.search, "#") then
-    cc.completion_resolve_callback(EMPTY_RESPONSE)
+  if not anchor_link and vim.endswith(search, "#") then
+    callback(EMPTY_RESPONSE)
     return
   end
 
   -- Probably just a block/anchor link within current note.
-  if string.len(cc.search) == 0 then
-    cc.completion_resolve_callback(EMPTY_RESPONSE)
+  if string.len(search) == 0 then
+    callback(EMPTY_RESPONSE)
     return
   end
 
@@ -92,13 +70,13 @@ function M.process_completion(completion_resolve_callback, request)
   ---@type { label: string, note: obsidian.Note, template: string|? }[]
   local new_notes_opts = {}
 
-  local note = Note.create { id = cc.search, template = Obsidian.opts.note.template }
+  local note = Note.create { id = search, template = Obsidian.opts.note.template }
   if note.id and string.len(note.id) > 0 then
-    new_notes_opts[#new_notes_opts + 1] = { label = cc.search, note = note }
+    new_notes_opts[#new_notes_opts + 1] = { label = search, note = note }
   end
 
   -- Check for datetime macros.
-  for _, dt_offset in ipairs(util.resolve_date_macro(cc.search)) do
+  for _, dt_offset in ipairs(util.resolve_date_macro(search)) do
     if dt_offset.cadence == "daily" then
       note = require("obsidian.daily").daily { offset = dt_offset.offset, no_write = true }
       if not note:exists() then
@@ -139,18 +117,15 @@ function M.process_completion(completion_resolve_callback, request)
       },
     }
 
-    ---@cast cc.insert_end -nil
-    ---@cast cc.insert_start -nil
-
     ---@type lsp.Range
     local range = {
       start = {
-        line = cc.request.line,
-        character = cc.insert_start,
+        line = request.line,
+        character = insert_start,
       },
       ["end"] = {
-        line = cc.request.line,
-        character = cc.insert_end + 1,
+        line = request.line,
+        character = insert_end + 1,
       },
     }
 
@@ -166,10 +141,11 @@ function M.process_completion(completion_resolve_callback, request)
         title = "Obsidian new",
         arguments = { new_note.id, new_note_opts.template },
       },
+      -- NOTE: for [[new_note@template future expansion
       -- command = {
       --   command = "obsidian.new_from_template",
       --   title = "Obsidian new_from_template",
-      --   arguments = { new_note.id, new_note_opts.template } -- for [[new_note@template future expansion
+      --   arguments = { new_note.id, new_note_opts.template } --
       -- },
       textEdit = {
         newText = new_text,
@@ -180,7 +156,7 @@ function M.process_completion(completion_resolve_callback, request)
     items[#items + 1] = item
   end
 
-  cc.completion_resolve_callback {
+  callback {
     isIncomplete = true,
     items = items,
   }
