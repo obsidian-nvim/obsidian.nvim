@@ -73,7 +73,8 @@ function M.process_completion(completion_resolve_callback, request)
       local insert_end = #cursor_before
 
       items[#items + 1] = {
-        sortText = "#" .. tag,
+        sortText = tag,
+        filterText = "#" .. tag,
         label = label_text,
         kind = vim.lsp.protocol.CompletionItemKind.Text,
         textEdit = {
