@@ -17,21 +17,21 @@ local function build_request(params)
 
   -- LSP position is 0-indexed line, 0-indexed character
   local line = params.position.line
-  local lsp_char = params.position.character
+  local character = params.position.character
 
   -- Fetch the full line text from the buffer.
   local lines = vim.api.nvim_buf_get_lines(bufnr, line, line + 1, false)
   local line_text = lines[1] or ""
 
-  local cursor_before_line = line_text:sub(1, lsp_char)
-  local cursor_after_line = line_text:sub(lsp_char + 1)
+  local cursor_before_line = line_text:sub(1, character)
+  local cursor_after_line = line_text:sub(character + 1)
 
   return {
     bufnr = bufnr,
     cursor_before_line = cursor_before_line,
     cursor_after_line = cursor_after_line,
     line = line,
-    character = lsp_char, -- 0-indexed, used by refs.can_complete
+    character = character,
   }
 end
 
@@ -58,10 +58,15 @@ end
 return function(params, callback, _)
   local request = build_request(params)
 
-  -- We'll collect results from up to 3 sources (refs, tags, new note) and merge
-  -- them before calling the LSP callback. Because each source is async, we use
-  -- a simple counter to know when all have finished.
-  local pending = 0
+  -- Collect results from up to 3 sources and merge before calling the LSP callback.
+  -- IMPORTANT: all pending counts must be set before starting any source, because
+  -- sources that can't complete call back synchronously, which would fire the final
+  -- callback before remaining sources are even registered.
+  local pending = 2 -- refs + tags always run
+  if Obsidian.opts.completion.create_new then
+    pending = pending + 1
+  end
+
   local merged = { isIncomplete = true, items = {} }
 
   local function on_source_done(result)
@@ -75,25 +80,13 @@ return function(params, callback, _)
   end
 
   -- Refs source.
-  -- local refs_source = RefsSourceBase:new()
-  pending = pending + 1
-  -- local refs_cc = Ref.new_completion_context(
   Ref.process_completion(on_source_done, request)
 
   -- Tags source.
-  -- local tags_source = TagsSourceBase:new()
-  pending = pending + 1
   Tag.process_completion(on_source_done, request)
 
   -- New note source (only if configured).
   if Obsidian.opts.completion.create_new then
-    pending = pending + 1
     NewNote.process_completion(on_source_done, request)
-  end
-
-  -- If no sources were started (shouldn't happen, but guard against it),
-  -- return an empty result immediately.
-  if pending == 0 then
-    callback(nil, merged)
   end
 end
