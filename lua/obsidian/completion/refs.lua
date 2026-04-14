@@ -23,13 +23,13 @@ end
 ---and, if true, the search string and the column indices of where the completion
 ---items should be inserted.
 ---
----@param request obsidian.completion.sources.base.Request
+---@param request obsidian.completion.Request
 ---@return boolean can_complete
 ---@return string|? search_string
 ---@return integer|? insert_start
 ---@return integer|? insert_end
 M.can_complete = function(request)
-  local input, search = find_search_start(request.context.cursor_before_line)
+  local input, search = find_search_start(request.cursor_before_line)
   if input == nil or search == nil then
     return false
   elseif string.len(search) == 0 or util.is_whitespace(search) then
@@ -37,24 +37,13 @@ M.can_complete = function(request)
   end
 
   if vim.startswith(input, "[[") then
-    local suffix = string.sub(request.context.cursor_after_line, 1, 2)
-    local cursor_char = request.context.cursor.character
+    local suffix = string.sub(request.cursor_after_line, 1, 2)
+    local cursor_char = request.character
     local insert_end_offset = suffix == "]]" and 1 or -1
     return true, search, cursor_char - string.len(input), cursor_char + 1 + insert_end_offset
   else
     return false
   end
-end
-
-M.get_trigger_characters = function()
-  return { "[" }
-end
-
-M.get_keyword_pattern = function()
-  -- Note that this is a vim pattern, not a Lua pattern. See ':help pattern'.
-  -- The enclosing [=[ ... ]=] is just a way to mark the boundary of a
-  -- string in Lua.
-  return [=[\%(^\|[^\[]\)\zs\[\{1,2}[^\]]\+\]\{,2}]=]
 end
 
 ---@param label string

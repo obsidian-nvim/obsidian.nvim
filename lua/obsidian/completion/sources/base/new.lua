@@ -4,52 +4,48 @@ local Note = require "obsidian.note"
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
----@class obsidian.completion.sources.base.NewNoteSourceCompletionContext
----@field completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
----@field request obsidian.completion.sources.base.Request
+---@class obsidian.completion.NewNoteSourceCompletionContext
+---@field completion_resolve_callback fun(resp: lsp.CompletionList)
+---@field request obsidian.completion.Request
 ---@field search string|?
 ---@field insert_start integer|?
 ---@field insert_end integer|?
-local NewNoteSourceCompletionContext = {}
-NewNoteSourceCompletionContext.__index = NewNoteSourceCompletionContext
 
-NewNoteSourceCompletionContext.new = function()
-  return setmetatable({}, NewNoteSourceCompletionContext)
-end
-
----@class obsidian.completion.sources.base.NewNoteSourceBase
+---@class obsidian.completion.NewNoteSourceBase
 ---@field incomplete_response table
 ---@field complete_response table
-local NewNoteSourceBase = {}
-NewNoteSourceBase.__index = NewNoteSourceBase
+local M = {
+  incomplete_response = { isIncomplete = true },
+  complete_response = { isIncomplete = true, items = {} },
+}
 
----@return obsidian.completion.sources.base.NewNoteSourceBase
-NewNoteSourceBase.new = function()
-  return setmetatable({}, NewNoteSourceBase)
-end
+--- Returns whatever it's possible to complete the search and sets up the search related variables in cc
+---@param cc obsidian.completion.NewNoteSourceCompletionContext
+---@return boolean success provides a chance to return early if the request didn't meet the requirements
+local function can_complete_request(cc)
+  local can_complete
+  can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
 
-NewNoteSourceBase.get_trigger_characters = completion.get_trigger_characters
+  if cc.search ~= nil then
+    cc.search = util.lstrip_whitespace(cc.search)
+  end
 
----Sets up a new completion context that is used to pass around variables between completion source methods
----@param completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
----@param request obsidian.completion.sources.base.Request
----@return obsidian.completion.sources.base.NewNoteSourceCompletionContext
-function NewNoteSourceBase.new_completion_context(_self, completion_resolve_callback, request)
-  local completion_context = NewNoteSourceCompletionContext.new()
-
-  -- Sets up the completion callback, which will be called when the (possibly incomplete) completion items are ready
-  completion_context.completion_resolve_callback = completion_resolve_callback
-
-  -- This request object will be used to determine the current cursor location and the text around it
-  completion_context.request = request
-
-  return completion_context
+  if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
+    return false
+  end
+  return true
 end
 
 --- Runs a generalized version of the complete (nvim_cmp) or get_completions (blink) methods
----@param cc obsidian.completion.sources.base.NewNoteSourceCompletionContext
-function NewNoteSourceBase:process_completion(cc)
-  if not self:can_complete_request(cc) then
+---@param completion_resolve_callback fun(resp: lsp.CompletionList)
+---@param request obsidian.completion.Request
+function M.process_completion(completion_resolve_callback, request)
+  local cc = {
+    completion_resolve_callback = completion_resolve_callback,
+    request = request,
+  }
+  if not can_complete_request(cc) then
+    cc.completion_resolve_callback(M.incomplete_response)
     return
   end
 
@@ -63,19 +59,19 @@ function NewNoteSourceBase:process_completion(cc)
 
   -- If block link is incomplete, do nothing.
   if not block_link and vim.endswith(cc.search, "#^") then
-    cc.completion_resolve_callback(self.incomplete_response)
+    cc.completion_resolve_callback(M.incomplete_response)
     return
   end
 
   -- If anchor link is incomplete, do nothing.
   if not anchor_link and vim.endswith(cc.search, "#") then
-    cc.completion_resolve_callback(self.incomplete_response)
+    cc.completion_resolve_callback(M.incomplete_response)
     return
   end
 
   -- Probably just a block/anchor link within current note.
   if string.len(cc.search) == 0 then
-    cc.completion_resolve_callback(self.incomplete_response)
+    cc.completion_resolve_callback(M.incomplete_response)
     return
   end
 
@@ -143,6 +139,21 @@ function NewNoteSourceBase:process_completion(cc)
       },
     }
 
+    ---@cast cc.insert_end -nil
+    ---@cast cc.insert_start -nil
+
+    ---@type lsp.Range
+    local range = {
+      start = {
+        line = cc.request.line,
+        character = cc.insert_start,
+      },
+      ["end"] = {
+        line = cc.request.line,
+        character = cc.insert_end + 1,
+      },
+    }
+
     ---@type lsp.CompletionItem
     local item = {
       documentation = documentation,
@@ -153,49 +164,23 @@ function NewNoteSourceBase:process_completion(cc)
       command = {
         command = "obsidian.new",
         title = "Obsidian new",
-        arguments = { new_note.id },
+        arguments = { new_note.id, new_note_opts.template },
       },
+      -- command = {
+      --   command = "obsidian.new_from_template",
+      --   title = "Obsidian new_from_template",
+      --   arguments = { new_note.id, new_note_opts.template } -- for [[new_note@template future expansion
+      -- },
       textEdit = {
         newText = new_text,
-        range = {
-          start = {
-            line = cc.request.context.cursor.row - 1,
-            character = cc.insert_start,
-          },
-          ["end"] = {
-            line = cc.request.context.cursor.row - 1,
-            character = cc.insert_end + 1,
-          },
-        },
-      },
-      data = {
-        note = new_note,
-        template = new_note_opts.template,
+        range = range,
       },
     }
 
     items[#items + 1] = item
   end
 
-  cc.completion_resolve_callback(vim.tbl_deep_extend("force", self.complete_response, { items = items }))
+  cc.completion_resolve_callback(vim.tbl_deep_extend("force", M.complete_response, { items = items }))
 end
 
---- Returns whatever it's possible to complete the search and sets up the search related variables in cc
----@param cc obsidian.completion.sources.base.NewNoteSourceCompletionContext
----@return boolean success provides a chance to return early if the request didn't meet the requirements
-function NewNoteSourceBase:can_complete_request(cc)
-  local can_complete
-  can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
-
-  if cc.search ~= nil then
-    cc.search = util.lstrip_whitespace(cc.search)
-  end
-
-  if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
-    cc.completion_resolve_callback(self.incomplete_response)
-    return false
-  end
-  return true
-end
-
-return NewNoteSourceBase
+return M

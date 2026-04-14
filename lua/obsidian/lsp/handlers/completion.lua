@@ -1,24 +1,18 @@
-local RefsSourceBase = require "obsidian.completion.sources.base.refs"
-local TagsSourceBase = require "obsidian.completion.sources.base.tags"
-local NewNoteSourceBase = require "obsidian.completion.sources.base.new"
-
---- LSP-standard response shapes.
-local incomplete_response = { isIncomplete = true }
-local complete_response = { isIncomplete = true, items = {} }
+local Ref = require "obsidian.completion.sources.base.refs"
+local Tag = require "obsidian.completion.sources.base.tags"
+local NewNote = require "obsidian.completion.sources.base.new"
 
 --- Build a base-class Request from LSP CompletionParams.
 ---
 --- The base classes expect:
----   request.context.bufnr            (integer)
----   request.context.cursor_before_line (string)
----   request.context.cursor_after_line  (string)
----   request.context.cursor.row       (1-indexed line)
----   request.context.cursor.col       (1-indexed byte column)
----   request.context.cursor.line      (1-indexed line, used by tags for frontmatter)
----   request.context.cursor.character (0-indexed UTF-8 offset, used by refs.can_complete)
+---   request.bufnr            (integer)
+---   request.cursor_before_line (string)
+---   request.cursor_after_line  (string)
+---   request.line      (0-indexed line, used by tags for frontmatter)
+---   request.character (0-indexed UTF-8 offset, used by refs.can_complete)
 ---
 ---@param params lsp.CompletionParams
----@return obsidian.completion.sources.base.Request
+---@return obsidian.completion.Request
 local function build_request(params)
   local uri = params.textDocument.uri
   local bufnr = vim.uri_to_bufnr(uri)
@@ -39,29 +33,12 @@ local function build_request(params)
   local cursor_after_line = line_text:sub(col)
 
   return {
-    context = {
-      bufnr = bufnr,
-      cursor_before_line = cursor_before_line,
-      cursor_after_line = cursor_after_line,
-      cursor = {
-        row = lsp_line + 1, -- 1-indexed
-        col = col, -- 1-indexed byte
-        line = lsp_line + 1, -- 1-indexed, used by tags for frontmatter detection
-        character = lsp_char, -- 0-indexed, used by refs.can_complete
-      },
-    },
+    bufnr = bufnr,
+    cursor_before_line = cursor_before_line,
+    cursor_after_line = cursor_after_line,
+    line = lsp_line,
+    character = lsp_char, -- 0-indexed, used by refs.can_complete
   }
-end
-
---- Instantiate a source with LSP-standard response fields.
----@generic T
----@param Source { new: fun(): T }
----@return T
-local function make_source(Source)
-  local source = Source.new()
-  source.incomplete_response = incomplete_response
-  source.complete_response = complete_response
-  return source
 end
 
 --- Merge two LSP CompletionList tables.
@@ -104,23 +81,20 @@ return function(params, callback, _)
   end
 
   -- Refs source.
-  local refs_source = make_source(RefsSourceBase)
+  -- local refs_source = RefsSourceBase:new()
   pending = pending + 1
-  local refs_cc = refs_source:new_completion_context(on_source_done, request)
-  refs_source:process_completion(refs_cc)
+  -- local refs_cc = Ref.new_completion_context(
+  Ref.process_completion(on_source_done, request)
 
   -- Tags source.
-  local tags_source = make_source(TagsSourceBase)
+  -- local tags_source = TagsSourceBase:new()
   pending = pending + 1
-  local tags_cc = tags_source:new_completion_context(on_source_done, request)
-  tags_source:process_completion(tags_cc)
+  Tag.process_completion(on_source_done, request)
 
   -- New note source (only if configured).
   if Obsidian.opts.completion.create_new then
-    local new_source = make_source(NewNoteSourceBase)
     pending = pending + 1
-    local new_cc = new_source:new_completion_context(on_source_done, request)
-    new_source:process_completion(new_cc)
+    NewNote.process_completion(on_source_done, request)
   end
 
   -- If no sources were started (shouldn't happen, but guard against it),
