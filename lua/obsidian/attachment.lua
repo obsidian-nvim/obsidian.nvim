@@ -88,14 +88,14 @@ local function get_attachment_paths(src)
       if not fname or fname == "" then
         return nil, "Failed to resolve source filename from URI"
       end
-      return src_path, util.resolve_attachment_path(fname)
+      return src_path, M.resolve_attachment_path(fname)
     elseif scheme == "http" or scheme == "https" then
       local src_clean = src:gsub("#.*$", ""):gsub("%?.*$", "")
       local fname = src_clean:match "/([^/]+)$"
       if not fname or fname == "" then
         return nil, "Failed to resolve attachment name from URL"
       end
-      return src, util.resolve_attachment_path(fname)
+      return src, M.resolve_attachment_path(fname)
     else
       return nil, "Unsupported URI scheme '" .. tostring(scheme) .. "'"
     end
@@ -154,7 +154,7 @@ M.add = function(src, insert_link)
   end
 
   if insert_link ~= false then
-    local link_text = M.format_link(src)
+    local link_text = M.format_link(resolved_src)
     vim.api.nvim_put({ link_text }, "c", true, true)
   end
 
