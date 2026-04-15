@@ -1,14 +1,6 @@
 local lsp = {}
 local log = require "obsidian.log"
 
----@return boolean
-local function has_completion_engine()
-  local has_blink = pcall(require, "blink.cmp")
-  local has_cmp = pcall(require, "cmp")
-  local has_mini = pcall(require, "mini.completion")
-  return has_blink or has_cmp or has_mini
-end
-
 --- Start the lsp client
 ---
 ---@param buf integer
@@ -33,20 +25,6 @@ lsp.start = function(buf)
   if not ok then
     log.err("[obsidian-ls]: failed to start: " .. client_id)
     return nil
-  end
-
-  -- Enable native completion for users without blink.cmp or nvim-cmp.
-  -- vim.lsp.completion.enable() is available in Neovim >= 0.11.
-  if vim.lsp.completion and vim.lsp.completion.enable and not has_completion_engine() then
-    ---@cast client_id integer
-    vim.lsp.completion.enable(true, client_id, buf, {})
-    vim.bo[buf].completeopt = "menuone,noselect,fuzzy,nosort"
-    vim.api.nvim_create_autocmd("InsertCharPre", {
-      buffer = buf,
-      callback = function()
-        vim.lsp.completion.get()
-      end,
-    })
   end
 
   ---@cast client_id integer
