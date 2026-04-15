@@ -242,6 +242,9 @@ util.parse_date = function(str, fmt)
     "MMM D, YYYY",
     "M-D",
     "M/D",
+    -- ISO 8601
+    "YYYY-MM-DD[T]HH:mm:ss[Z]",
+    "YYYY-MM-DD[T]HH:mm:ssZ",
   }
   local parse = require("obsidian.lib.moment").parse
 

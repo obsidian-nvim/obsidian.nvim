@@ -3,6 +3,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -692,6 +693,63 @@ M.move_note = function()
       return tostring(v.text)
     end,
   })
+end
+
+local fields = {
+  title = true,
+  source = true,
+  author = true,
+  published = true,
+  created = true,
+  description = true,
+  tags = true,
+}
+
+---@param url string|?
+M.new_from_url = function(url)
+  local date_format = "YYYY-MM-DD"
+  local cursor_urls = vim.ui._get_urls()
+  url = url or (not vim.tbl_isempty(cursor_urls) and cursor_urls[1] or nil) or api.input "URL"
+  if not url then
+    return
+  end
+  url = vim.trim(url)
+  local cmds = { "curl", "-sL", "https://defuddle.md/" .. url }
+  local out = vim.system(cmds):wait()
+  if out.code ~= 0 or out.stdout == nil then
+    log.err("Failed to convert url content to markdown: %s", vim.inspect(out))
+    return
+  end
+  local lines = vim.split(out.stdout, "\n")
+
+  local note = Note.from_lines(lines)
+  local title = (note.metadata and note.metadata.title) or note.id or "untitled"
+  local filename = title:gsub('[/\\:%*%?"<>|]', "-") .. ".md" -- TODO: abstact to sluggify
+  local path = tostring(Obsidian.workspace.root / "Clippings" / filename)
+  util.write_file(path, out.stdout)
+
+  note.path = Path.new(path)
+
+  for k, v in pairs(note.metadata) do
+    if not fields[k] then
+      note.metadata[k] = nil
+    end
+    if k == "author" and type(v) == "string" then
+      note.metadata[k] = { "[[" .. v .. "]]" }
+    elseif k == "published" then
+      local date = util.parse_date(v)
+      if date then
+        note.metadata[k] = util.format_date(os.time(date), date_format)
+      end
+    end
+  end
+
+  note.metadata.created = util.format_date(os.time(), date_format)
+  note.tags = { "clippings" }
+
+  note:save { path = path, insert_frontmatter = true }
+  note:open { sync = true }
+  return note
 end
 
 return M
