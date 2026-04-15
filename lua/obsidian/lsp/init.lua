@@ -1,14 +1,6 @@
 local lsp = {}
 local log = require "obsidian.log"
 
----@return boolean
-local function has_completion_engine()
-  local has_blink = pcall(require, "blink.cmp")
-  local has_cmp = pcall(require, "cmp")
-  local has_mini = pcall(require, "mini.completion")
-  return has_blink or has_cmp or has_mini
-end
-
 --- Start the lsp client
 ---
 ---@param buf integer

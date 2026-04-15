@@ -58,5 +58,3 @@ local plugins = {
 }
 
 require("lazy.minit").repro { spec = plugins }
-
-vim.cmd "checkhealth obsidian"
