@@ -5,6 +5,9 @@ local search = require "obsidian.search"
 
 local M = {}
 
+-- TODO: config
+local num_word_as_phrase = 3
+
 ---Check if a completion request can/should be carried out. Returns a boolean
 ---and, if true, the search string and the column indices of where the completion
 ---items should be inserted.
@@ -16,7 +19,12 @@ local M = {}
 ---@return integer|? insert_end
 M.can_complete = function(request)
   local words = vim.split(request.cursor_before_line, " ") -- tokenize words, TODO: cjk here
-  local term = words[#words] -- TODO: not optimal
+  local term_words = {}
+  for i = #words - num_word_as_phrase, #words do
+    term_words[#term_words + 1] = words[i]
+  end
+  -- TODO: run the 1, 2, 3 word term at the same time
+  local term = table.concat(term_words, " ")
   local cursor_char = request.character
   return true, term, cursor_char - string.len(term), cursor_char
 end
