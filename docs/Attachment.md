@@ -27,7 +27,7 @@ Pick with a terminal file manager (yazi in a centered float):
 
 ```lua
 attachments = {
-  resolve = function(add)
+  resolve = function(opts)
     local tmp = vim.fn.tempname()
     local buf = vim.api.nvim_create_buf(false, true)
     local width = math.floor(vim.o.columns * 0.8)
@@ -49,7 +49,7 @@ attachments = {
         if vim.uv.fs_stat(tmp) then
           local lines = vim.fn.readfile(tmp)
           if lines[1] then
-            add(lines[1])
+            require("obsidian.attachment").add(lines[1], opts)
           end
         end
       end,
