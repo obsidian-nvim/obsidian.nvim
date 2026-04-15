@@ -582,7 +582,7 @@ M.add_attachment = function(src, opts)
     return
   end
   local resolve = opts.resolve or Obsidian.opts.attachments.resolve ---@cast resolve -nil
-  resolve()
+  resolve { insert = opts.insert }
 end
 
 M.add_property = function()
