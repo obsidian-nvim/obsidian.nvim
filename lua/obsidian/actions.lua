@@ -691,6 +691,31 @@ M.workspace_symbol = function(query, callback)
   end)
 end
 
+---Pick a folder under the vault root.
+---@param callback fun(directory: string, text: string)
+local function pick_folder(callback)
+  local root = tostring(Obsidian.workspace.root)
+  local choices = { { filename = root, text = "/" } }
+
+  for path, t in vim.fs.dir(root, { depth = math.huge }) do
+    if t == "directory" then
+      choices[#choices + 1] = {
+        filename = vim.fs.joinpath(root, path),
+        text = path .. "/",
+      }
+    end
+  end
+
+  Obsidian.picker.pick(choices, {
+    callback = function(entry)
+      callback(entry.filename, entry.text)
+    end,
+    format_item = function(v)
+      return tostring(v.text)
+    end,
+  })
+end
+
 ---@param directory string
 ---@param text string
 local function move_note(directory, text)
@@ -714,26 +739,7 @@ M.move_note = function()
     log.info "Not in an obsidian buffer"
     return
   end
-  local root = tostring(Obsidian.workspace.root)
-  local choices = { { filename = root, text = "/" } }
-
-  for path, t in vim.fs.dir(root, { depth = math.huge }) do
-    if t == "directory" then
-      choices[#choices + 1] = {
-        filename = vim.fs.joinpath(root, path),
-        text = path .. "/",
-      }
-    end
-  end
-
-  Obsidian.picker.pick(choices, {
-    callback = function(entry)
-      move_note(entry.filename, entry.text)
-    end,
-    format_item = function(v)
-      return tostring(v.text)
-    end,
-  })
+  pick_folder(move_note)
 end
 
 ---@param new_name string|?

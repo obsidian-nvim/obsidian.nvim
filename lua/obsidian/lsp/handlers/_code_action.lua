@@ -2,18 +2,20 @@
 local code_actions = {}
 
 ---@class obsidian.lsp.CodeActionOpts
+---@field name string unique name
 ---@field title string text display in code action interface
 ---@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
+---@field fn? function
 
 ---Register a new command.
 ---@param opts obsidian.lsp.CodeActionOpts
-local add = function(name, opts)
+local add = function(opts)
   -- TODO: validate
   local action = {
     title = opts.title,
     command = {
       title = opts.title,
-      command = "obsidian." .. name,
+      command = "obsidian." .. opts.name,
       -- TODO: kind
     },
     data = {
@@ -23,7 +25,13 @@ local add = function(name, opts)
       -- TODO: preview?
     },
   }
-  code_actions[name] = action
+
+  if opts.fn then
+    vim.lsp.commands["obsidian." .. opts.name] = vim.schedule_wrap(function(params)
+      opts.fn(unpack(params.arguments or {}))
+    end)
+  end
+  code_actions[opts.name] = action
 end
 
 local function in_visual()
@@ -64,22 +72,30 @@ local default_actions = {
       return Obsidian.opts.templates.enabled
     end,
   },
-}
 
--- if Obsidian.opts.slides.enabled then
---   default_actions.start_presentation = {
---     name = "obsidian-ls.start_presentation",
---     title = "Start presentation",
---   }
--- end
+  start_presentation = {
+    title = "Start presentation",
+    cond = function()
+      return Obsidian.opts.slides.enabled
+    end,
+  },
+
+  new_from_url = {
+    title = "Create new note from url at cursor",
+    cond = function()
+      return not vim.tbl_isempty(vim.ui._get_urls())
+    end,
+  },
+}
 
 ---@param name string
 local del = function(name)
   code_actions[name] = nil
 end
 
-for name, action in pairs(default_actions) do
-  add(name, action)
+for name, opts in pairs(default_actions) do
+  opts.name = name
+  add(opts)
 end
 
 return {
