@@ -52,7 +52,7 @@ function M.process_completion(callback, request)
 
       items[#items + 1] = {
         sortText = tag,
-        filterText = "#" .. tag,
+        filterText = hash_start and "#" .. tag or tag,
         label = label_text,
         kind = vim.lsp.protocol.CompletionItemKind.Keyword,
         documentation = {
