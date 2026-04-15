@@ -649,4 +649,49 @@ M.workspace_symbol = function(query, callback)
   end)
 end
 
+---@param directory string
+---@param text string
+local function move_note(directory, text)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local src = vim.api.nvim_buf_get_name(bufnr)
+  local dest = vim.fs.joinpath(directory, vim.fs.basename(src))
+  if src == dest then
+    return log.info "Note is already in that folder"
+  end
+  local ok, err = vim.uv.fs_rename(src, dest)
+  if not ok then
+    return log.err("Failed to move note: " .. (err or "unknown error"))
+  end
+  vim.api.nvim_buf_set_name(bufnr, dest)
+  vim.cmd "silent! write"
+  log.info("Moved note to '%s'", text)
+end
+
+M.move_note = function()
+  if not vim.b.obsidian_buffer then
+    log.info "Not in an obsidian buffer"
+    return
+  end
+  local root = tostring(Obsidian.workspace.root)
+  local choices = { { filename = root, text = "/" } }
+
+  for path, t in vim.fs.dir(root, { depth = math.huge }) do
+    if t == "directory" then
+      choices[#choices + 1] = {
+        filename = vim.fs.joinpath(root, path),
+        text = path .. "/",
+      }
+    end
+  end
+
+  Obsidian.picker.pick(choices, {
+    callback = function(entry)
+      move_note(entry.filename, entry.text)
+    end,
+    format_item = function(v)
+      return tostring(v.text)
+    end,
+  })
+end
+
 return M

@@ -184,6 +184,7 @@ M.pick = function(values, opts)
             filename = item.file,
             col = item.pos and item.pos[2],
             lnum = item.pos and item.pos[1],
+            text = item.text,
             user_data = item.value,
           }
         else
