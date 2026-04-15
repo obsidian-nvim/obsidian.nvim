@@ -14,41 +14,41 @@ local EMPTY_RESPONSE = {
 ---@param callback fun(resp: lsp.CompletionList)
 ---@param request obsidian.completion.Request
 function M.process_completion(callback, request)
-  local can_complete, search, insert_start, insert_end = completion.can_complete(request)
+  local can_complete, term, insert_start, insert_end = completion.can_complete(request)
 
-  if (not can_complete) or (#search >= Obsidian.opts.completion.min_chars) then
+  if (not can_complete) or (#term < Obsidian.opts.completion.min_chars) then
     callback(EMPTY_RESPONSE)
     return
   end
 
-  ---@cast search -nil
+  ---@cast term -nil
   ---@cast insert_start -nil
   ---@cast insert_end -nil
 
-  search = util.lstrip_whitespace(search)
+  term = util.lstrip_whitespace(term)
 
   ---@type string|?
   local block_link
-  search, block_link = util.strip_block_links(search)
+  term, block_link = util.strip_block_links(term)
 
   ---@type string|?
   local anchor_link
-  search, anchor_link = util.strip_anchor_links(search)
+  term, anchor_link = util.strip_anchor_links(term)
 
   -- If block link is incomplete, do nothing.
-  if not block_link and vim.endswith(search, "#^") then
+  if not block_link and vim.endswith(term, "#^") then
     callback(EMPTY_RESPONSE)
     return
   end
 
   -- If anchor link is incomplete, do nothing.
-  if not anchor_link and vim.endswith(search, "#") then
+  if not anchor_link and vim.endswith(term, "#") then
     callback(EMPTY_RESPONSE)
     return
   end
 
   -- Probably just a block/anchor link within current note.
-  if string.len(search) == 0 then
+  if string.len(term) == 0 then
     callback(EMPTY_RESPONSE)
     return
   end
@@ -70,13 +70,13 @@ function M.process_completion(callback, request)
   ---@type { label: string, note: obsidian.Note, template: string|? }[]
   local new_notes_opts = {}
 
-  local note = Note.create { id = search, template = Obsidian.opts.note.template }
+  local note = Note.create { id = term, template = Obsidian.opts.note.template }
   if note.id and string.len(note.id) > 0 then
-    new_notes_opts[#new_notes_opts + 1] = { label = search, note = note }
+    new_notes_opts[#new_notes_opts + 1] = { label = term, note = note }
   end
 
   -- Check for datetime macros.
-  for _, dt_offset in ipairs(util.resolve_date_macro(search)) do
+  for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
     if dt_offset.cadence == "daily" then
       note = require("obsidian.daily").daily { offset = dt_offset.offset, no_write = true }
       if not note:exists() then

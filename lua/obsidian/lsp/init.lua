@@ -1,19 +1,12 @@
 local lsp = {}
 local log = require "obsidian.log"
 
---- Check if a third-party completion engine (blink.cmp or nvim-cmp) is available.
---- Both engines auto-consume LSP completion from attached language servers.
 ---@return boolean
 local function has_completion_engine()
   local has_blink = pcall(require, "blink.cmp")
-  if has_blink then
-    return true
-  end
   local has_cmp = pcall(require, "cmp")
-  if has_cmp then
-    return true
-  end
-  return false
+  local has_mini = pcall(require, "mini.completion")
+  return has_blink or has_cmp or has_mini
 end
 
 --- Start the lsp client
@@ -45,7 +38,9 @@ lsp.start = function(buf)
   -- Enable native completion for users without blink.cmp or nvim-cmp.
   -- vim.lsp.completion.enable() is available in Neovim >= 0.11.
   if vim.lsp.completion and vim.lsp.completion.enable and not has_completion_engine() then
-    vim.lsp.completion.enable(true, client_id, buf, { autotrigger = true })
+    ---@cast client_id integer
+    vim.lsp.completion.enable(true, client_id, buf, {})
+    vim.bo[buf].completeopt = "menuone,noselect,fuzzy,nosort"
     vim.api.nvim_create_autocmd("InsertCharPre", {
       buffer = buf,
       callback = function()
