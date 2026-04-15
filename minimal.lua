@@ -45,12 +45,16 @@ local plugins = {
   --     }
   --   end,
   -- },
-  {
-    "saghen/blink.cmp",
-    opts = {
-      fuzzy = { implementation = "lua" }, -- no need to build binary
-    },
-  },
+  -- {
+  --   "saghen/blink.cmp",
+  --   opts = {
+  --     fuzzy = { implementation = "lua" }, -- no need to build binary
+  --   },
+  -- },
+  -- {
+  --   "nvim-mini/mini.completion",
+  --   opts = {},
+  -- },
 }
 
 require("lazy.minit").repro { spec = plugins }

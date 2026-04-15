@@ -1,19 +1,12 @@
 local lsp = {}
 local log = require "obsidian.log"
 
---- Check if a third-party completion engine (blink.cmp or nvim-cmp) is available.
---- Both engines auto-consume LSP completion from attached language servers.
 ---@return boolean
 local function has_completion_engine()
   local has_blink = pcall(require, "blink.cmp")
-  if has_blink then
-    return true
-  end
   local has_cmp = pcall(require, "cmp")
-  if has_cmp then
-    return true
-  end
-  return false
+  local has_mini = pcall(require, "mini.completion")
+  return has_blink or has_cmp or has_mini
 end
 
 --- Start the lsp client
