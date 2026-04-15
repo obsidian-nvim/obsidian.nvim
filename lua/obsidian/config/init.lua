@@ -122,6 +122,24 @@ config.normalize = function(opts, defaults)
     deprecate("preferred_link_style", "link.style", "3.18")
   end
 
+  if opts.completion ~= nil and opts.completion.nvim_cmp ~= nil then
+    opts.completion.nvim_cmp = nil
+    deprecate(
+      "completion.nvim_cmp",
+      "removing it from your config. Completion is now provided via the built-in obsidian-ls LSP server",
+      "4.0"
+    )
+  end
+
+  if opts.completion ~= nil and opts.completion.blink ~= nil then
+    opts.completion.blink = nil
+    deprecate(
+      "completion.blink",
+      "removing it from your config. Completion is now provided via the built-in obsidian-ls LSP server",
+      "4.0"
+    )
+  end
+
   if opts.completion ~= nil and opts.completion.new_notes_location ~= nil then
     opts.new_notes_location = opts.completion.new_notes_location
     opts.completion.new_notes_location = nil

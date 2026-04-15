@@ -185,7 +185,9 @@ M.rename = function(note, new_name, callback, opts)
 
     -- so that file with renamed refs are displaying correctly
     for _, buf in ipairs(buf_list) do
-      vim.bo[buf].filetype = "markdown"
+      if vim.api.nvim_buf_is_valid(buf) then
+        vim.bo[buf].filetype = "markdown"
+      end
     end
 
     note.id = new_name

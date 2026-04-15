@@ -19,6 +19,12 @@ local initializeResult = {
     definitionProvider = true,
     documentSymbolProvider = true,
     workspaceSymbolProvider = true,
+    executeCommandProvider = {
+      commands = { "obsidian.new" },
+    },
+    completionProvider = {
+      resolveProvider = false,
+    },
     workspace = {
       fileOperations = {
         didRename = {

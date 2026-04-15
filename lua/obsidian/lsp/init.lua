@@ -24,6 +24,7 @@ lsp.start = function(buf)
 
   if not ok then
     log.err("[obsidian-ls]: failed to start: " .. client_id)
+    return nil
   end
 
   ---@cast client_id integer

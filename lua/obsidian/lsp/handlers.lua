@@ -3,9 +3,11 @@ return {
   ["initialize"] = require "obsidian.lsp.handlers.initialize",
   ["workspace/didRenameFiles"] = require "obsidian.lsp.handlers.did_rename_files",
   ["workspace/symbol"] = require "obsidian.lsp.handlers.workspace_symbol",
+  ["workspace/executeCommand"] = require "obsidian.lsp.handlers.workspace_execute_command",
   ["textDocument/rename"] = require "obsidian.lsp.handlers.rename",
   ["textDocument/prepareRename"] = require "obsidian.lsp.handlers.prepare_rename",
   ["textDocument/references"] = require "obsidian.lsp.handlers.references",
   ["textDocument/definition"] = require "obsidian.lsp.handlers.definition",
   ["textDocument/documentSymbol"] = require "obsidian.lsp.handlers.document_symbol",
+  ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",
 }

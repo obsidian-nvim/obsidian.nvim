@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSP client commands can run actions in actions.lua.
 - Add `Note.insert_text` for inserting text under a specific section
 - Support `workspace/symbol` to search through note, note aliases and headings.
+- LSP completion replaces completion plugin based completion.
+- Frontmatter tag completion.
 
 ### Fixed
 

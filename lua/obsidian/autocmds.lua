@@ -57,13 +57,6 @@ local function bufenter_callback(ev)
     api.nav_link "prev"
   end, { buffer = true, desc = "Obsidian Previous Link" })
 
-  -- Inject completion sources, providers to their plugin configurations
-  if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources()
-  elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").inject_sources()
-  end
-
   require("obsidian.lsp").start(ev.buf)
 
   if opts.footer.enabled then
