@@ -3,7 +3,7 @@ local code_actions = {}
 
 ---@class obsidian.lsp.CodeActionOpts
 ---@field title string text display in code action interface
----@field range boolean|? whether to show action only in visual mode
+---@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
 
 ---Register a new command.
 ---@param opts obsidian.lsp.CodeActionOpts
@@ -17,48 +17,54 @@ local add = function(name, opts)
       -- TODO: kind
     },
     data = {
-      range = opts.range,
+      cond = opts.cond or function()
+        return true
+      end,
       -- TODO: preview?
     },
   }
   code_actions[name] = action
 end
 
----@enum (key) obsidian.lsp.CodeAtionDefaults
-local default_actions = {
-  rename = {
-    title = "Rename current note",
-  },
+local function in_visual()
+  return vim.api.nvim_get_mode().mode:find "v" ~= nil
+end
 
+local default_actions = {
   add_property = {
     title = "Add file property",
   },
 
+  merge_note = {
+    title = "Merge current note into another note",
+  },
+
+  move_note = {
+    title = "Move current note to another folder",
+  },
+
   link = {
     title = "Link selection as name for a existing note",
-    range = true,
+    cond = in_visual,
   },
 
   link_new = {
     title = "Link selection as name for a new note",
-    range = true,
+    cond = in_visual,
   },
 
   extract_note = {
     title = "Extract selected text to a new note",
-    range = true,
+    cond = in_visual,
   },
 
-  merge_note = {
-    title = "Merge this note into another note",
+  insert_template = {
+    title = "Insert template at cursor",
+    cond = function()
+      return Obsidian.opts.templates.enabled
+    end,
   },
 }
-
-if Obsidian.opts.templates.enabled then
-  default_actions.insert_template = {
-    title = "Insert template at cursor",
-  }
-end
 
 -- if Obsidian.opts.slides.enabled then
 --   default_actions.start_presentation = {
@@ -67,9 +73,7 @@ end
 --   }
 -- end
 
--- TODO: merge a note to this note, after https://github.com/obsidian-nvim/obsidian.nvim/issues/655
-
----@param name string | obsidian.lsp.CodeAtionDefaults
+---@param name string
 local del = function(name)
   code_actions[name] = nil
 end

@@ -1,26 +1,21 @@
 local actions = require("obsidian.lsp.handlers._code_action").actions
 
 ---@param code_actions lsp.CodeAction[]
----@param in_selection boolean
+---@param note obsidian.Note
 ---@return string[]
-local function get_commands_by_context(code_actions, in_selection)
+local function get_commands_by_context(code_actions, note)
   return vim
     .iter(vim.tbl_values(code_actions))
     :filter(function(code_action)
-      if in_selection then
-        return code_action.data.range ~= nil
-      else
-        return code_action.data.range == nil
-      end
+      return code_action.data.cond(note)
     end)
     :totable()
 end
 
 ---@param params lsp.CodeActionParams
 return function(params, handler)
-  local range = params.range
-  local in_selection = range.start ~= range["end"]
-  local res = get_commands_by_context(actions, in_selection)
-
+  local buf = vim.uri_to_bufnr(params.textDocument.uri)
+  local note = require("obsidian.note").from_buffer(buf)
+  local res = get_commands_by_context(actions, note)
   handler(nil, res)
 end
