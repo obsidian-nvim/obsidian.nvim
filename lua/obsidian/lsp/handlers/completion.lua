@@ -1,4 +1,4 @@
-local Ref = require "obsidian.completion.sources.refs"
+local Ref = require "obsidian.completion.sources.any_refs"
 local Tag = require "obsidian.completion.sources.tags"
 local NewNote = require "obsidian.completion.sources.new"
 
