@@ -46,7 +46,8 @@ function M.process_completion(callback, request)
       -- Calculate the range to replace (the entire #tag pattern)
       local cursor_before = request.cursor_before_line
       local hash_start = string.find(cursor_before, "#[^%s]*$")
-      local insert_start = hash_start and (hash_start - 1) or #cursor_before
+      local _, dash_end = string.find(cursor_before, "%-%s")
+      local insert_start = hash_start and (hash_start - 1) or dash_end
       local insert_end = #cursor_before
 
       items[#items + 1] = {
