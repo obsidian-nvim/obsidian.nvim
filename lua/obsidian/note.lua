@@ -1265,7 +1265,7 @@ end
 Note.insert_text = function(self, text, opts)
   local text_idx = 0
 
-  opts = opts or {}
+  opts = vim.tbl_extend("keep", opts or {}, { padding_top = self.has_frontmatter })
   opts.update_content = function(lines)
     local insert_idx, insert_before, insert_after = text_insertion.resolve(lines, opts)
 
@@ -1278,7 +1278,6 @@ Note.insert_text = function(self, text, opts)
     local tail = vim.list_slice(lines, insert_idx, #lines)
     return vim.iter({ head, insert_before, text, insert_after, tail }):flatten():totable()
   end
-  if opts.padding_top == nil then opts.padding_top = self.has_frontmatter end
 
   self:save(opts)
 
