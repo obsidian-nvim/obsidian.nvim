@@ -1278,6 +1278,7 @@ Note.insert_text = function(self, text, opts)
     local tail = vim.list_slice(lines, insert_idx, #lines)
     return vim.iter({ head, insert_before, text, insert_after, tail }):flatten():totable()
   end
+  if opts.padding_top == nil then opts.padding_top = self.has_frontmatter end
 
   self:save(opts)
 
@@ -1384,6 +1385,9 @@ end
 ---@field check_buffers? boolean
 
 ---@class (exact) obsidian.note.InsertTextOpts: obsidian.note.NoteSaveOpts
+--- Whether a blank line is inserted between frontmatter/top-of-file and the first heading of a note.
+--- Defaults to the expression: `note.has_frontmatter`.
+---@field padding_top? boolean
 --- Specifies the section to insert the text into, or `nil` to target the preamble (i.e. the area starting from the top
 --- of the file up to but not including the first heading). Defaults to `nil`.
 ---@field section? obsidian.note.Section

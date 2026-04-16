@@ -810,6 +810,63 @@ T["insert_text"]["section missing"]["create"]["should create in multi top"] = fu
   })
 end
 
+T["insert_text"]["section missing"]["create"]["should fix top padding"] = function()
+  local note = H.save_note {
+    "# H1",
+    "",
+    "Body1.",
+    "",
+    "## H2",
+    "",
+    "Body2.",
+  }
+
+  note:insert_text(
+    EXPECTED_LINE,
+    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" }, padding_top = true }
+  )
+
+  eq(H.load_note(note), {
+    "",
+    "### " .. EXPECTED_HEADING,
+    "",
+    EXPECTED_LINE,
+    "",
+    "# H1",
+    "",
+    "Body1.",
+    "",
+    "## H2",
+    "",
+    "Body2.",
+  })
+end
+
+T["insert_text"]["section missing"]["create"]["should preserve correct padding"] = function()
+  local note = H.save_note {
+    "",
+    "# H1",
+    "",
+    "Body1.",
+  }
+
+  note:insert_text(
+    EXPECTED_LINE,
+    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" }, padding_top = true }
+  )
+
+  eq(H.load_note(note), {
+    "",
+    "### " .. EXPECTED_HEADING,
+    "",
+    EXPECTED_LINE,
+    "",
+    "# H1",
+    "",
+    "Body1.",
+  })
+end
+
 T["insert_text"]["section missing"]["create"]["should create in multi bot"] = function()
   local note = H.save_note {
     "# H1",
