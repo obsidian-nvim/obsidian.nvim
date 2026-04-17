@@ -3,6 +3,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
+local picker = require "obsidian.picker"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -672,26 +673,43 @@ M.move_note = function()
     log.info "Not in an obsidian buffer"
     return
   end
-  local root = tostring(Obsidian.workspace.root)
-  local choices = { { filename = root, text = "/" } }
-
-  for path, t in vim.fs.dir(root, { depth = math.huge }) do
-    if t == "directory" then
-      choices[#choices + 1] = {
-        filename = vim.fs.joinpath(root, path),
-        text = path .. "/",
-      }
-    end
-  end
-
-  Obsidian.picker.pick(choices, {
-    callback = function(entry)
-      move_note(entry.filename, entry.text)
-    end,
-    format_item = function(v)
-      return tostring(v.text)
-    end,
+  picker.pick_folder(nil, {
+    callback = move_note,
+    prompt_title = "Folder to move to",
   })
+end
+
+---@param dst_note obsidian.Note
+local function merge_note(dst_note)
+  local current_note = api.current_note()
+  assert(current_note, "Must be in a note to merge")
+
+  local message = ('Are you sure you want to merge "%s" to "%s"? "%s" will be deleted.'):format(
+    current_note.id,
+    dst_note.id,
+    current_note.id
+  )
+
+  if api.confirm(message) == "Yes" then
+    dst_note:merge(current_note)
+    dst_note:open { sync = true }
+    vim.fs.rm(tostring(current_note.path))
+  end
+end
+
+---@param dst_note obsidian.Note?
+M.merge_note = function(dst_note)
+  if dst_note then
+    merge_note(dst_note)
+  else
+    picker.find_notes {
+      callback = function(path)
+        local note = Note.from_file(path)
+        merge_note(note)
+      end,
+      prompt_title = "Note to merge with",
+    }
+  end
 end
 
 return M

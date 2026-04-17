@@ -172,6 +172,40 @@ M.pick_note = function(notes, opts)
   })
 end
 
+---Pick a folder under the vault root.
+---@param folder string|?
+---@param opts { callback: fun(directory: string, text: string), prompt_title: string }
+M.pick_folder = function(folder, opts)
+  if folder then
+    local stat = vim.uv.fs_stat(folder)
+    if not stat or stat.type ~= "directory" then
+      error "invalid directory for pick folder"
+    end
+  end
+
+  local root = folder or tostring(Obsidian.workspace.root)
+  local choices = { { filename = root, text = "/" } }
+
+  for path, t in vim.fs.dir(root, { depth = math.huge }) do
+    if t == "directory" then
+      choices[#choices + 1] = {
+        filename = vim.fs.joinpath(root, path),
+        text = path .. "/",
+      }
+    end
+  end
+
+  M.pick(choices, {
+    callback = function(entry)
+      opts.callback(entry.filename, entry.text)
+    end,
+    format_item = function(v)
+      return tostring(v.text)
+    end,
+    prompt_title = opts.prompt_title,
+  })
+end
+
 --------------------------------
 --- Concrete helper methods. ---
 --------------------------------
