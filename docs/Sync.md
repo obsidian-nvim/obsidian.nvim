@@ -2,6 +2,7 @@
 - [Statusline Component](#statusline-component)
 - [Sync Settings](#sync-settings)
 - [Available API (`require("obsidian.sync")`)](#available-api-requireobsidiansync)
+- [Quirks](#quirks)
 - [Options](#options)
 
 The Sync module integrates with [Obsidian Headless](https://help.obsidian.md/sync/headless) to sync vaults without requiring the desktop app.
@@ -152,7 +153,7 @@ If you use neovim exclusively (no Obsidian desktop app), `configs = nil` is fine
 ---Attachment types to sync: image, audio, video, pdf, unsupported, empty table to disable attachment syncing
 ---@field file_types? obsidian.sync.FileType[]
 ---
----Config categories to sync, empty table to disable config syncing, this is config for obsidian app, and is just here for completeness
+---Config categories to sync. nil = leave server config unchanged. {} = explicitly disable config syncing (pass --configs ""). Non-empty list = sync only those categories.
 ---@field configs? obsidian.sync.ConfigCategory[]
 ---
 ---Config directory name, this is for obsidian app
