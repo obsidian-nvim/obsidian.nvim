@@ -498,9 +498,12 @@ See `:help checktime` to learn more.
 ------------------------------------------------------------------------------
 Class ~
 {(exact)} obsidian.note.InsertTextOpts: obsidian.note.NoteSaveOpts
+Whether a blank line is inserted between frontmatter/top-of-file and the first heading of a note.
+Defaults to the expression: `note.has_frontmatter`.
+Fields ~
+{padding_top} `(optional)` `(boolean)`
 Specifies the section to insert the text into, or `nil` to target the preamble (i.e. the area starting from the top
 of the file up to but not including the first heading). Defaults to `nil`.
-Fields ~
 {section} `(optional)` `(obsidian.note.Section)`
 Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
 {placement} `(optional)` "`(top)`"|"bot"
