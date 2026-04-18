@@ -2,12 +2,13 @@ name: Tests
 
 on:
   push:
+    branches: [main]
     paths: [ 'lua/**', 'tests/**' ]
   pull_request:
     paths: [ 'lua/**', 'tests/**' ]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
