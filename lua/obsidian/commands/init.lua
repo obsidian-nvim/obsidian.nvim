@@ -285,6 +285,8 @@ M.register("helpgrep", { nargs = "?" })
 
 M.register("unique_note", { nargs = "?" })
 
+M.register("bookmarks", { nargs = 0 })
+
 ---------------------
 ---- note action ----
 ---------------------

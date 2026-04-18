@@ -147,7 +147,7 @@ M.find_files = function(opts)
     end,
     vim.schedule_wrap(function()
       if vim.tbl_isempty(paths) then
-        return log.info "Failed to Switch" -- TODO:
+        return log.info "Search result empty"
       elseif #paths == 1 then
         return api.open_note { filename = paths[1] }
       elseif #paths > 1 then
