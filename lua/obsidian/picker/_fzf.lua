@@ -101,17 +101,16 @@ local function get_value_actions(display_to_value_map, opts)
 
   local actions = {
     default = function(selected)
+      if not opts.callback then
+        return
+      end
+
       local values = get_values(selected, opts.allow_multiple)
       if not values then
         return
       end
 
-      if not opts.allow_multiple and type(values[1].user_data) == "function" then
-        values[1].user_data()
-      elseif opts.callback then
-        opts.callback(unpack(values))
-        return
-      end
+      opts.callback(unpack(values))
     end,
   }
 

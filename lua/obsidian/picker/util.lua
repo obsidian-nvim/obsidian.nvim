@@ -50,8 +50,6 @@ M.make_display = function(entry)
 
   if entry.filename then
     icon, icon_hl = api.get_icon(entry.filename)
-  else
-    icon, icon_hl = "󰈔", ""
   end
 
   if icon then
