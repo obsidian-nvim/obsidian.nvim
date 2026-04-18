@@ -19,7 +19,7 @@ local function get_entry(prompt_bufnr, keep_open)
   if entry and not keep_open then
     telescope_actions.close(prompt_bufnr)
   end
-  return entry
+  return entry.raw
 end
 
 ---@param prompt_bufnr integer
