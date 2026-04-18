@@ -227,7 +227,40 @@ M.pick = function(values, opts)
   }
 
   local previewer
-  if type(values[1]) == "table" then
+  if vim.is_callable(opts.preview_item) then
+    local previewers = require "telescope.previewers"
+    previewer = previewers.new_buffer_previewer {
+      define_preview = function(self, entry, _status)
+        if not entry.raw then
+          return
+        end
+        local cached = entry._preview_data
+        if cached == nil then
+          cached = ut.normalize_preview_data(opts.preview_item(entry.raw)) or false
+          entry._preview_data = cached
+        end
+        if cached ~= false then
+          local lines = vim.api.nvim_buf_get_lines(cached.buf, 0, -1, false)
+          vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
+          -- copy filetype for syntax highlighting
+          local ft = vim.bo[cached.buf].filetype
+          if ft and ft ~= "" then
+            vim.bo[self.state.bufnr].filetype = ft
+          end
+          if cached.pos and self.state.winid and vim.api.nvim_win_is_valid(self.state.winid) then
+            pcall(vim.api.nvim_win_set_cursor, self.state.winid, { cached.pos[1], cached.pos[2] or 0 })
+          end
+        elseif entry.filename then
+          conf.values.buffer_previewer_maker(entry.filename, self.state.bufnr, {
+            bufname = self.state.bufname,
+            winid = self.state.winid,
+            preview = picker_opts.preview,
+            file_encoding = picker_opts.file_encoding,
+          })
+        end
+      end,
+    }
+  elseif type(values[1]) == "table" then
     previewer = conf.values.grep_previewer(picker_opts)
     -- Get theme to use.
     if conf.pickers then
