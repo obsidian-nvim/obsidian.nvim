@@ -199,6 +199,10 @@ M.help_complete = function(_, cmdline)
     return vim.fn.fnamemodify(path, ":t:r")
   end, files)
 
+  if query == "" then
+    return basenames
+  end
+
   completions = vim.fn.matchfuzzy(basenames, query, { limit = 10 })
 
   return completions
