@@ -1,8 +1,9 @@
-local M = {}
 local log = require "obsidian.log"
 local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
+
+local M = {}
 
 ---@class obsidian.Bookmark
 ---@field ctime integer
@@ -43,6 +44,86 @@ local function bookmark_to_picker_entry(bookmark)
   return entry
 end
 
+---@type table<string, string[]>
+local url_cache = {}
+
+local function format_bookmark(bookmark)
+  if bookmark.type == "folder" then
+    return bookmark.path .. "/"
+  end
+
+  if bookmark.title then
+    return bookmark.title
+  elseif bookmark.query then
+    return "query: " .. bookmark.query
+  elseif bookmark.path then
+    return bookmark.path .. (bookmark.subpath and bookmark.subpath or "")
+  end
+  return bookmark.title
+end
+
+---@param bookmark obsidian.Bookmark
+local function preview_url(bookmark)
+  local url = bookmark.url
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].filetype = "markdown"
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Fetching preview for url..." })
+  if url_cache[url] then
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, url_cache[url])
+  else
+    vim.system(
+      { "curl", "https://defuddle.md/" .. url },
+      {},
+      vim.schedule_wrap(function(out)
+        local lines = vim.split(out.stdout, "\n")
+        url_cache[url] = lines
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+      end)
+    )
+  end
+  return { buf = buf }
+end
+
+---@param bookmark obsidian.Bookmark
+local function preview_group(bookmark)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].filetype = "markdown"
+  local lines = vim.tbl_map(function(bm)
+    return "- " .. format_bookmark(bm)
+  end, bookmark.items)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  return { buf = buf }
+end
+
+--  TODO: proper obsidian search term parser, like the expalin search term feature
+--
+---@param bookmark obsidian.Bookmark
+local function preview_query(bookmark)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].filetype = "markdown"
+  local lines = { "query: " .. bookmark.query }
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  return { buf = buf }
+end
+
+---@return string?
+M.resolve_bookmark_file = function()
+  local bookmark_file = Obsidian.workspace.root / ".obsidian" / "bookmarks.json"
+
+  if not bookmark_file:exists() then
+    log.info "bookmark file does not exist, adding and managing bookmarks is not supported yet"
+    return
+  end
+  return tostring(bookmark_file)
+end
+
+---@param src string
+---@return obsidian.PickerEntry[]
+M.parse = function(src)
+  local obj = vim.json.decode(src)
+  return vim.tbl_map(bookmark_to_picker_entry, obj.items)
+end
+
 ---@param entries obsidian.PickerEntry[]
 M.pick = function(entries)
   picker.pick(entries, {
@@ -66,41 +147,20 @@ M.pick = function(entries)
     end,
     format_item = function(entry)
       local bookmark = entry.user_data
-
-      if bookmark.title then
-        return bookmark.title
-      elseif bookmark.query then
-        return "query: " .. bookmark.query
-      elseif bookmark.path then
-        return bookmark.path .. (bookmark.subpath and bookmark.subpath or "")
-      end
-      return entry.text or bookmark.title
+      return format_bookmark(bookmark)
     end,
-    preview_item = function()
-      -- url -> defuddle.md
-      -- group -> list items in a buf
-      -- search -> proper obsidian search term parser
-      -- file -> default preview
+    preview_item = function(entry)
+      local bookmark = entry.user_data
+      ---@cast bookmark obsidian.Bookmark
+      if bookmark.type == "url" then
+        return preview_url(bookmark)
+      elseif bookmark.type == "group" then
+        return preview_group(bookmark)
+      elseif bookmark.type == "search" then
+        return preview_query(bookmark)
+      end
     end,
   })
-end
-
----@param src string
----@return obsidian.PickerEntry[]
-M.parse = function(src)
-  local obj = vim.json.decode(src)
-  return vim.tbl_map(bookmark_to_picker_entry, obj.items)
-end
-
----@return string?
-M.resolve_bookmark_file = function()
-  local bookmark_file = Obsidian.workspace.root / ".obsidian" / "bookmarks.json"
-
-  if not bookmark_file:exists() then
-    log.info "bookmark file does not exist, adding and managing bookmarks is not supported yet"
-    return
-  end
-  return tostring(bookmark_file)
 end
 
 return M
