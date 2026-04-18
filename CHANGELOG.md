@@ -14,11 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Note.insert_text` for inserting text under a specific section
 - Support `workspace/symbol` to search through note, note aliases and headings.
 - `actions.move_note` to move current note to a folder in the current workspace.
+- Add `padding_top` option to `Note.insert_text` for configuring blank lines inserted at the top of notes.
 
 ### Fixed
 
 - YAML parser handling of null values and dashes.
 - Uses byte offsets consistently in completion sources.
+- Fix `Note.insert_text` to add blank-line when inserting at top of note even when it is empty.
 
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 

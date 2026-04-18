@@ -139,7 +139,7 @@ function H.insert_new_section(sections, chosen_idx, opts)
   local insert_before = {}
   local insert_after = {}
 
-  if not H.is_section_empty(section_before) and section_before.content.end_excl == insert_idx then
+  if (not H.is_section_empty(section_before) or opts.padding_top) and section_before.content.end_excl == insert_idx then
     table.insert(insert_before, "")
   end
 
