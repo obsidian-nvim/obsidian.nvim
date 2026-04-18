@@ -316,8 +316,8 @@ function M.set_config(path, opts)
   if opts.file_types and #opts.file_types > 0 then
     args["file-types"] = table.concat(opts.file_types, ",")
   end
-  if opts.configs and #opts.configs > 0 then
-    args.configs = table.concat(opts.configs, ",")
+  if opts.configs ~= nil then
+    args.configs = #opts.configs > 0 and table.concat(opts.configs, ",") or ""
   end
   if opts.excluded_folders and #opts.excluded_folders > 0 then
     args["excluded-folders"] = table.concat(opts.excluded_folders, ",")
