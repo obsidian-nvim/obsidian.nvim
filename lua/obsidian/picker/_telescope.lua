@@ -19,19 +19,7 @@ local function get_entry(prompt_bufnr, keep_open)
   if entry and not keep_open then
     telescope_actions.close(prompt_bufnr)
   end
-
-  if entry.index ~= nil then -- is find/grep entry
-    return {
-      filename = entry.path,
-      lnum = entry.lnum,
-      col = entry.col,
-      user_data = entry.value,
-    }
-  end
-
-  if entry.filename then -- is pick entry
-    return entry
-  end
+  return entry
 end
 
 ---@param prompt_bufnr integer

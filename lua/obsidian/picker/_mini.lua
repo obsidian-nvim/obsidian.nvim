@@ -133,13 +133,7 @@ M.pick = function(values, opts)
     },
   }
 
-  if not entry then
-    return
-  end
-
-  if type(entry.user_data) == "function" then
-    entry.user_data()
-  elseif opts.callback then
+  if entry and opts.callback then
     opts.callback(entry)
   end
 end

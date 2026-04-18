@@ -306,7 +306,6 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.link = tbl_override(defaults.link, opts.link)
   opts.unique_note = tbl_override(defaults.unique_note, opts.unique_note)
   opts.sync = tbl_override(defaults.sync, opts.sync)
-  opts.bookmarks = tbl_override(defaults.bookmarks, opts.bookmarks)
 
   ---------------
   -- Validate. --
