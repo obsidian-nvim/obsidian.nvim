@@ -1,76 +1,32 @@
 local M = {}
 local log = require "obsidian.log"
 local Note = require "obsidian.note"
+local picker = require "obsidian.picker"
+local api = require "obsidian.api"
 
----@class obsidian.bookmark
+---@class obsidian.Bookmark
 ---@field ctime integer
----@field type "group" | "file" | "folder" | "search" TODO:
+---@field type "group" | "file" | "folder" | "search" | "url"
 ---@field path string
 ---@field subpath string
 ---@field title string
 ---@field query string
----@field items obsidian.bookmark[]
+---@field items obsidian.Bookmark[]
 ---@field url string|?
 
----@param items obsidian.bookmark[]
-M.pick = function(items)
-  local entries = M._parse(items)
-
-  Obsidian.picker.pick(entries, {
-    prompt_title = "Bookmarks",
-  })
-end
-
----@param bookmark obsidian.bookmark
+---@param bookmark obsidian.Bookmark
 ---@return obsidian.PickerEntry entry
 local function bookmark_to_picker_entry(bookmark)
-  -- TODO: all pickers should run user_data if is function
-
   local entry = { text = bookmark.title }
-
-  if bookmark.title then
-    entry.text = bookmark.title
-  elseif bookmark.query then
-    entry.text = bookmark.query
-  elseif bookmark.path then
-    entry.text = bookmark.path .. (bookmark.subpath and bookmark.subpath or "")
-  end
-
-  if bookmark.type == "group" then
-    entry.user_data = function()
-      M.pick(bookmark.items)
-    end
-  end
-
-  if bookmark.query then
-    local preview_tmp_buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(preview_tmp_buf, 0, 1, true, { bookmark.query })
-
-    entry.user_data = function()
-      Obsidian.picker.grep_notes {
-        query = bookmark.query,
-      }
-    end
-    entry.bufnr = preview_tmp_buf
-  end
 
   if bookmark.path then
     entry.filename = tostring(Obsidian.dir / bookmark.path)
   end
 
-  if bookmark.url then
-    local preview_tmp_buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(preview_tmp_buf, 0, 1, true, { bookmark.url })
-
-    entry.user_data = function()
-      vim.ui.open(bookmark.url)
-    end
-    entry.bufnr = preview_tmp_buf
-  end
-
   if bookmark.subpath then
     local ok, note = pcall(Note.from_file, entry.filename)
     if ok and note then
+      ---@cast note -string
       if vim.startswith(bookmark.subpath, "#^") then
         local block = note:resolve_block(bookmark.subpath:sub(2))
         entry.lnum = block and block.line or nil
@@ -83,38 +39,57 @@ local function bookmark_to_picker_entry(bookmark)
     end
   end
 
+  entry.user_data = bookmark
   return entry
 end
 
----@param items obsidian.bookmark[]
----@return obsidian.PickerEntry[]
-M._parse = function(items)
-  local entries = {}
-
-  for _, bookmark in ipairs(items) do
-    vim.print(Obsidian.opts.bookmarks)
-    if bookmark.type == "group" and not Obsidian.opts.bookmarks.group then
-      for _, bm in ipairs(bookmark.items) do
-        entries[#entries + 1] = bookmark_to_picker_entry(bm)
+---@param entries obsidian.PickerEntry[]
+M.pick = function(entries)
+  picker.pick(entries, {
+    prompt_title = "Bookmarks",
+    callback = function(entry)
+      ---@type obsidian.Bookmark
+      local bookmark = entry.user_data
+      if bookmark.type == "url" and bookmark.url then
+        vim.ui.open(bookmark.url)
+      elseif bookmark.type == "group" then
+        local _entries = vim.tbl_map(bookmark_to_picker_entry, bookmark.items)
+        M.pick(_entries)
+      elseif bookmark.type == "search" and bookmark.query then
+        -- proper obsidian search term parser
+        picker.grep {
+          query = bookmark.query,
+        }
+      elseif bookmark.type == "file" then
+        api.open_note(entry)
       end
-    else
-      entries[#entries + 1] = bookmark_to_picker_entry(bookmark)
-    end
-  end
+    end,
+    format_item = function(entry)
+      local bookmark = entry.user_data
 
-  return entries
+      if bookmark.title then
+        return bookmark.title
+      elseif bookmark.query then
+        return "query: " .. bookmark.query
+      elseif bookmark.path then
+        return bookmark.path .. (bookmark.subpath and bookmark.subpath or "")
+      end
+      return entry.text or bookmark.title
+    end,
+    preview_item = function()
+      -- url -> defuddle.md
+      -- group -> list items in a buf
+      -- search -> proper obsidian search term parser
+      -- file -> default preview
+    end,
+  })
 end
 
 ---@param src string
 ---@return obsidian.PickerEntry[]
 M.parse = function(src)
-  local ok, obj = pcall(vim.json.decode, src)
-
-  if not ok then
-    ---@diagnostic disable-next-line: return-type-mismatch
-    return log.error(obj)
-  end
-  return M._parse(obj.items)
+  local obj = vim.json.decode(src)
+  return vim.tbl_map(bookmark_to_picker_entry, obj.items)
 end
 
 ---@return string?
