@@ -150,6 +150,32 @@ local function generate_id(base_id, path, id_func)
   return new_id
 end
 
+--- Check whether a filename stem is valid across all platforms (Windows + Linux/macOS).
+---
+--- https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
+---
+---@param name string Filename stem (without extension)
+---@return boolean valid
+---@return string? reason Human-readable error when invalid
+Note.is_valid_filename = function(name)
+  if not name or name == "" then
+    return false, "cannot be empty"
+  end
+
+  -- Forbidden on Windows (and / on Linux); %z matches the NUL byte
+  local forbidden = name:match '[<>:"/\\|?*%z]'
+  if forbidden then
+    return false, ("contains forbidden character: %q"):format(forbidden)
+  end
+
+  -- Control characters 0x01-0x1F (NUL covered above)
+  if name:match "[\1-\31]" then
+    return false, "contains a control character"
+  end
+
+  return true, nil
+end
+
 --- Generate the file path for a new note given its ID, parent directory, and title.
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 --- `note_opts.dir / (note_opts.id .. ".md")`.
@@ -321,6 +347,12 @@ Note._resolve_id_path = function(opts)
   -- Apply id transform
   if not (opts.verbatim and id) then
     id = generate_id(id, base_dir, creation_opts.note_id_func)
+  end
+
+  -- Reject ids that would produce filenames invalid on any platform.
+  local valid, reason = Note.is_valid_filename(id)
+  if not valid then
+    error(("invalid note filename %q: %s"):format(id, reason), 2)
   end
 
   dir = base_dir

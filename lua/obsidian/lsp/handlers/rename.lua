@@ -1,5 +1,6 @@
 local obsidian = require "obsidian"
 
+local Note = obsidian.Note
 local search = obsidian.search
 local log = obsidian.log
 local api = obsidian.api
@@ -15,6 +16,12 @@ return function(params, handler, _)
 
   if not ok then
     return log.err(err and err or "failed writing all buffers before renaming, abort")
+  end
+
+  local valid, reason = Note.is_valid_filename(new_name)
+  if not valid then
+    log.err(("Invalid filename %q: %s"):format(new_name, reason))
+    return handler(nil, {})
   end
 
   local cur_link = api.cursor_link()

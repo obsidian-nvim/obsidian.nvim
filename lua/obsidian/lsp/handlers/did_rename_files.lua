@@ -1,5 +1,6 @@
 local obsidian = require "obsidian"
 local Note = obsidian.Note
+local log = obsidian.log
 local api = obsidian.api
 local rename = require "obsidian.lsp.handlers._rename"
 
@@ -7,8 +8,37 @@ local rename = require "obsidian.lsp.handlers._rename"
 ---@param dispatchers table
 local function rename_note(file, dispatchers)
   local new_path = vim.uri_to_fname(file.newUri)
-  local note = Note.from_file(new_path)
   local new_name = vim.fs.basename(new_path):gsub("%.md$", "")
+
+  -- Guard: if the new filename is invalid, rename it back immediately so the
+  -- invalid file never persists on disk (and never gets picked up by Obsidian Sync).
+  local valid, reason = Note.is_valid_filename(new_name)
+  if not valid then
+    local old_path = vim.uri_to_fname(file.oldUri)
+
+    local old_buf = vim.fn.bufnr(old_path)
+    if old_buf ~= -1 then
+      vim.api.nvim_buf_delete(old_buf, { force = true })
+    end
+
+    log.err(("Invalid filename %q: %s — reverting rename"):format(new_name, reason))
+    dispatchers.server_request("workspace/applyEdit", {
+      label = "Revert invalid filename",
+      edit = {
+        documentChanges = {
+          {
+            kind = "rename",
+            oldUri = file.newUri,
+            newUri = file.oldUri,
+            options = {},
+          },
+        },
+      },
+    })
+    return
+  end
+
+  local note = Note.from_file(new_path)
   rename.build_edit(note, new_name, {
     old_path = vim.uri_to_fname(file.oldUri),
     new_path = new_path,
