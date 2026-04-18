@@ -93,7 +93,7 @@ These settings map directly to `ob sync-config` options from the [Obsidian Headl
 | `mode`              | `"bidirectional"\|"pull-only"\|"mirror-remote"` | `nil` (bidirectional)                                 | Sync direction. `pull-only` only downloads and ignores local changes. `mirror-remote` only downloads and reverts local changes.                                                                                   |
 | `conflict_strategy` | `"merge"\|"conflict"`                           | `"merge"`                                             | How to handle conflicts. conflict mode will generate conflict files in your repo, more support will be in later releases, for now prefer merge                                                                    |
 | `file_types`        | `string[]`                                      | `{ "image", "audio", "video", "pdf", "unsupported" }` | Attachment types to sync. Use an empty table `{}` to disable attachment syncing.                                                                                                                                  |
-| `configs`           | `string[]\|nil`                                 | `nil`                                                 | Obsidian app config categories to sync (e.g. `"app"`, `"appearance"`, `"hotkey"`, `"core-plugin"`, `"community-plugin"`, etc). Only relevant if you share a vault with the desktop app. `nil` skips this setting. |
+| `configs`           | `string[]\|nil`                                 | `nil`                                                 | Obsidian app config categories to sync (e.g. `"app"`, `"appearance"`, `"hotkey"`, `"core-plugin"`, `"community-plugin"`, etc). `nil` = leave server config unchanged. `{}` = explicitly disable config syncing. See [Quirks](#quirks). |
 | `excluded_folders`  | `string[]`                                      | `{}`                                                  | Folders to exclude from syncing.                                                                                                                                                                                  |
 | `device_name`       | `string\|nil`                                   | `nil`                                                 | Device name shown in sync version history.                                                                                                                                                                        |
 | `config_dir`        | `string`                                        | `".obsidian"`                                         | Config directory name.                                                                                                                                                                                            |
@@ -109,6 +109,31 @@ These settings map directly to `ob sync-config` options from the [Obsidian Headl
 
 > [!Note]
 > lower-level CLI helpers live in `require("obsidian.sync.client")` and are not the primary public API surface.
+
+## Quirks
+
+### Running alongside the Obsidian desktop app
+
+The Obsidian desktop app runs its own sync process. If both the app and obsidian.nvim sync are active on the same machine at the same time, they will race to push `.obsidian/*.json` config files (appearance, core plugins, hotkeys, etc.). When both sides have local changes the `ob` CLI resolves conflicts in favor of the remote version — your local Obsidian app changes get overwritten.
+
+**If you open neovim while the Obsidian app is also open**, disable config syncing from the obsidian.nvim side:
+
+```lua
+sync = {
+  enabled = true,
+  configs = {},  -- explicitly disable .obsidian/*.json syncing
+}
+```
+
+**`configs` semantics:**
+
+| Value | Behavior |
+|-------|----------|
+| `nil` (default) | Leave server's config-sync setting unchanged — safe if the Obsidian app is never open at the same time |
+| `{}` | Explicitly disable config syncing — pass `--configs ""` to `ob sync-config` |
+| `{"app", "appearance", ...}` | Sync only the listed categories |
+
+If you use neovim exclusively (no Obsidian desktop app), `configs = nil` is fine. If both coexist on the same machine, set `configs = {}` to avoid conflicts.
 
 ## Options
 

@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Uses byte offsets consistently in completion sources.
 - Fix `Note.insert_text` to add blank-line when inserting at top of note even when it is empty.
 - Switch workspace will not produce failed to pause sync log for not configured workspace.
+- Set `opts.sync.configs = {}` to disable obsidian.nvim from racing to sync config with obsidian app using the same folder.
 
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 
