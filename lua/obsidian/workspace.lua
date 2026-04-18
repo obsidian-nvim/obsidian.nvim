@@ -160,7 +160,11 @@ Workspace.set = function(workspace)
   if options.sync.enabled then
     local sync = require "obsidian.sync"
 
-    if previous_workspace and tostring(previous_workspace.root) ~= tostring(dir) then
+    if
+      previous_workspace
+      and sync.is_configured(previous_workspace)
+      and tostring(previous_workspace.root) ~= tostring(dir)
+    then
       pcall(sync.pause, previous_workspace)
     end
 
