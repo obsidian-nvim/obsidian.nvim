@@ -85,4 +85,20 @@ M.make_display = function(entry)
   return table.concat(buf, ""), highlights
 end
 
+---@param preview_data table|?
+---@return { buf: integer, pos: integer[]|?, end_pos: integer[]|? }|?
+M.normalize_preview_data = function(preview_data)
+  if type(preview_data) ~= "table" or type(preview_data.buf) ~= "number" then
+    return nil
+  end
+  if not vim.api.nvim_buf_is_valid(preview_data.buf) then
+    return nil
+  end
+  return {
+    buf = preview_data.buf,
+    pos = preview_data.pos,
+    end_pos = preview_data.end_pos,
+  }
+end
+
 return M

@@ -125,10 +125,39 @@ M.pick = function(values, opts)
     end
   end
 
+  local source_preview
+  if vim.is_callable(opts.preview_item) then
+    source_preview = function(buf_id, item)
+      local cached = item._preview_data
+      if cached == nil then
+        cached = ut.normalize_preview_data(opts.preview_item(item)) or false
+        item._preview_data = cached
+      end
+      if cached ~= false then
+        local lines = vim.api.nvim_buf_get_lines(cached.buf, 0, -1, false)
+        vim.api.nvim_buf_set_lines(buf_id, 0, -1, false, lines)
+        local ft = vim.bo[cached.buf].filetype
+        if ft and ft ~= "" then
+          vim.bo[buf_id].filetype = ft
+        end
+        if cached.pos then
+          local state = mini_pick.get_picker_state()
+          local win = state and state.windows and state.windows.preview
+          if win and vim.api.nvim_win_is_valid(win) then
+            pcall(vim.api.nvim_win_set_cursor, win, { cached.pos[1], cached.pos[2] or 0 })
+          end
+        end
+      else
+        mini_pick.default_preview(buf_id, item)
+      end
+    end
+  end
+
   local entry = mini_pick.start {
     source = {
       name = opts.prompt_title,
       items = entries,
+      preview = source_preview,
       choose = function() end,
     },
   }

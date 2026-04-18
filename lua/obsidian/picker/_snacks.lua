@@ -7,23 +7,6 @@ local Picker = obsidian.Picker
 local Path = obsidian.Path
 local ut = require "obsidian.picker.util"
 
----@param preview_data table|?
----@return { buf: integer, pos: integer[]|?, end_pos: integer[]|? }|?
-local function normalize_preview_data(preview_data)
-  if type(preview_data) ~= "table" or type(preview_data.buf) ~= "number" then
-    return nil
-  end
-
-  if not vim.api.nvim_buf_is_valid(preview_data.buf) then
-    return nil
-  end
-
-  return {
-    buf = preview_data.buf,
-    pos = preview_data.pos,
-    end_pos = preview_data.end_pos,
-  }
-end
 
 ---@param preview_item fun(value: obsidian.PickerEntry|string): { buf: integer, pos: integer[]|?, end_pos: integer[]|? }|nil
 ---@return snacks.picker.preview
@@ -33,7 +16,7 @@ local function get_preview(preview_item)
     local preview_data = item._preview_data
 
     if preview_data == nil then
-      preview_data = normalize_preview_data(preview_item(item._obsidian_value)) or false
+      preview_data = ut.normalize_preview_data(preview_item(item._obsidian_value)) or false
       item._preview_data = preview_data
     end
 

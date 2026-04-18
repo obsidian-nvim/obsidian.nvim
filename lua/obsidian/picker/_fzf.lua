@@ -228,14 +228,46 @@ M.pick = function(values, opts)
   function MyPreviewer.parse_entry(_self, entry_str)
     local entry = display_to_value_map[entry_str]
     return {
-      path = entry.filename,
-      line = entry.lnum,
-      col = entry.col and entry.col + 1,
+      path = entry and entry.filename,
+      line = entry and entry.lnum,
+      col = entry and entry.col and entry.col + 1,
     }
   end
 
+  if vim.is_callable(opts.preview_item) then
+    function MyPreviewer:populate_preview_buf(entry_str)
+      if not self.win or not self.win:validate_preview() then
+        return
+      end
+      local entry = display_to_value_map[entry_str]
+      if entry then
+        local cached = entry._preview_data
+        if cached == nil then
+          cached = ut.normalize_preview_data(opts.preview_item(entry)) or false
+          entry._preview_data = cached
+        end
+        if cached ~= false then
+          local tmpbuf = self:get_tmp_buffer()
+          local lines = vim.api.nvim_buf_get_lines(cached.buf, 0, -1, false)
+          vim.api.nvim_buf_set_lines(tmpbuf, 0, -1, false, lines)
+          local ft = vim.bo[cached.buf].filetype
+          if ft and ft ~= "" then
+            vim.bo[tmpbuf].filetype = ft
+          end
+          self:set_preview_buf(tmpbuf)
+          self:preview_buf_post {
+            line = cached.pos and cached.pos[1],
+            col = cached.pos and cached.pos[2] and cached.pos[2] + 1,
+          }
+          return
+        end
+      end
+      MyPreviewer.super.populate_preview_buf(self, entry_str)
+    end
+  end
+
   fzf.fzf_exec(entries, {
-    previewer = file_preview and MyPreviewer or nil,
+    previewer = (file_preview or vim.is_callable(opts.preview_item)) and MyPreviewer or nil,
     prompt = format_prompt(
       ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
     ),
