@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `actions.move_note` to move current note to a folder in the current workspace.
 - Add `padding_top` option to `Note.insert_text` for configuring blank lines inserted at the top of notes.
 - `:Obsidian help` has cmdline completion for wiki pages.
+- Obsidian sync client will emit `ObsidianSyncChanged` autocmd event for better status rendering.
 
 ### Fixed
 

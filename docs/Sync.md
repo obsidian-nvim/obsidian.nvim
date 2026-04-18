@@ -61,6 +61,15 @@ require("lualine").setup {
 }
 ```
 
+To redraw status more dynamically once the sync state changes for other statusline setups, put this in your config:
+
+```lua
+vim.api.nvim_create_autocmd("User", {
+  pattern = "ObsidianSyncChanged",
+  command = "redrawstatus",
+})
+```
+
 The default sync highlight groups are:
 
 - `ObsidianSyncSynced` linked to `DiagnosticOk`
