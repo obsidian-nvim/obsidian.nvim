@@ -46,6 +46,9 @@ local function set(kind)
   local icon = (kind and sync_icons[kind]) or ""
   state.icon = icon
   state.need_update = true
+  vim.schedule(function()
+    vim.api.nvim_exec_autocmds("User", { pattern = "ObsidianSyncChanged" })
+  end)
 end
 
 local function component()
