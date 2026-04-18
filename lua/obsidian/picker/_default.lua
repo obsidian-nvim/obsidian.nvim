@@ -37,11 +37,7 @@ M.pick = function(values, opts)
         if type(item) == "string" then
           item = { value = item }
         end
-        if type(item.user_data) == "function" then
-          item.user_data() -- NOTE: pass in the item?
-        else
-          callback(item)
-        end
+        callback(item)
       end
     end)
   else
