@@ -12,8 +12,5 @@ return function()
   f:close()
 
   local entries = Bookmarks.parse(src)
-
-  Obsidian.picker.pick(entries, {
-    prompt_title = "Bookmarks",
-  })
+  Bookmarks.pick(entries)
 end
