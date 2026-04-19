@@ -25,6 +25,11 @@ local DEFAULT_MAX_LINES = 500
 
 local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 
+---@class obsidian.Section
+---
+---@field heading obsidian.note.HeaderAnchor  heading that starts this section (line is 1-based)
+---@field end_line integer  last line of section, 1-based inclusive
+
 --- A class that represents a note within a vault.
 ---
 ---@toc_entry obsidian.Note
@@ -42,6 +47,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field frontmatter_end_line integer|?
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
+---@field sections obsidian.Section[]|?
 ---@field alt_alias string|?
 ---@field bufnr integer|?
 local Note = {}
@@ -668,6 +674,13 @@ Note.from_lines = function(lines, path, opts)
     blocks = {}
   end
 
+  -- Ordered list of headings for section-end computation; populated when collect_sections.
+  ---@type obsidian.note.HeaderAnchor[]
+  local sections_headings = {}
+  if not opts.collect_sections then
+    sections_headings = nil --[[@as obsidian.note.HeaderAnchor[] ]]
+  end
+
   ---@param anchor_data obsidian.note.HeaderAnchor
   ---@return obsidian.note.HeaderAnchor|?
   local function get_parent_anchor(anchor_data)
@@ -757,6 +770,16 @@ Note.from_lines = function(lines, path, opts)
             anchor_links[nested_anchor] = vim.tbl_extend("force", data, { anchor = nested_anchor })
           end
         end
+
+        if sections_headings then
+          ---@type obsidian.note.HeaderAnchor
+          sections_headings[#sections_headings + 1] = {
+            anchor = header_match.anchor,
+            line = line_idx,
+            header = header_match.header,
+            level = header_match.level,
+          }
+        end
       end
 
       -- Check for block.
@@ -800,6 +823,27 @@ Note.from_lines = function(lines, path, opts)
   n.contents = contents
   n.anchor_links = anchor_links
   n.blocks = blocks
+
+  -- Compute sections: for each heading, find where its section ends (before next
+  -- heading at same or higher level, or end of content).
+  if sections_headings then
+    ---@type obsidian.Section[]
+    local sections = {}
+    local total_lines = #contents
+    for i = 1, #sections_headings do
+      local h = sections_headings[i]
+      local end_line = total_lines
+      for j = i + 1, #sections_headings do
+        if sections_headings[j].level <= h.level then
+          end_line = sections_headings[j].line - 1
+          break
+        end
+      end
+      sections[#sections + 1] = { heading = h, end_line = end_line }
+    end
+    n.sections = sections
+  end
+
   -- TODO: reflect the warnings in `:Obsidian check`
   return n, warnings
 end
@@ -1338,6 +1382,7 @@ end
 ---@field max_lines integer|?
 ---@field collect_anchor_links boolean|?
 ---@field collect_blocks boolean|?
+---@field collect_sections boolean|?
 
 ---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string
