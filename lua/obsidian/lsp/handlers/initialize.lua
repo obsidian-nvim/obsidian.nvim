@@ -28,6 +28,12 @@ local initializeResult = {
       -- "^" so that clients request completion right after typing "[^" (footnotes).
       triggerCharacters = { "^" },
     },
+    foldingRangeProvider = true,
+    -- Needed so Neovim sends textDocument/didChange notifications, which
+    -- triggers LspNotify and causes foldingRange to be re-requested on edits.
+    textDocumentSync = {
+      change = 1, -- Full
+    },
     workspace = {
       fileOperations = {
         didRename = {
