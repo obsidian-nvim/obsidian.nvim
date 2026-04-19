@@ -191,6 +191,18 @@ M.cursor_heading = function()
   return util.parse_header(vim.api.nvim_get_current_line())
 end
 
+--- Whether the cursor is at the start of a fold (any fold type: heading, frontmatter, callout, etc.)
+---@return boolean
+M.cursor_fold_start = function()
+  local lnum = vim.fn.line "."
+  local level = vim.fn.foldlevel(lnum)
+  if level == 0 then
+    return false
+  end
+  local prev_level = lnum > 1 and vim.fn.foldlevel(lnum - 1) or 0
+  return level > prev_level
+end
+
 --- Whether there is a checkbox under the cursor
 ---@return boolean
 M.cursor_checkbox = function()

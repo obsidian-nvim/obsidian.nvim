@@ -66,7 +66,7 @@ M.smart_action = function()
     return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
   elseif api.cursor_tag() then
     return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
-  elseif has_markdown_folding() and api.cursor_heading() then
+  elseif has_markdown_folding() and api.cursor_fold_start() then
     return "za"
   elseif Obsidian.opts.checkbox.enabled and (api.cursor_checkbox() or Obsidian.opts.checkbox.create_new) then
     return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
