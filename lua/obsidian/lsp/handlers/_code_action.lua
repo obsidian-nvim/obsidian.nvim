@@ -79,13 +79,6 @@ local default_actions = {
       return Obsidian.opts.slides.enabled
     end,
   },
-
-  new_from_url = {
-    title = "Create new note from url at cursor",
-    cond = function()
-      return not vim.tbl_isempty(vim.ui._get_urls())
-    end,
-  },
 }
 
 ---@param name string
