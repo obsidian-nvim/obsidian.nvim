@@ -742,11 +742,6 @@ M.move_note = function()
   pick_folder(move_note)
 end
 
----@param new_name string|?
-M.rename = function(new_name)
-  vim.lsp.buf.rename(new_name)
-end
-
 ---@param dst_note obsidian.Note
 local function merge_note(dst_note)
   local current_note = api.current_note()

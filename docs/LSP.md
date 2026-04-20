@@ -44,9 +44,9 @@ obsidian.nvim exposes a small set of LSP code actions for common note operations
 Available actions:
 
 - Normal mode:
-  - Rename current note (`rename`)
   - Insert template at cursor (`insert_template`)
   - Add file property (`add_property`)
+  - TODO:
 - Visual mode:
   - Link selection as name for an existing note (`link`)
   - Link selection as name for a new note (`link_new`)
@@ -63,15 +63,11 @@ API:
   - `name`: command id (snake_case recommended).
   - `title`: text shown in the code action picker.
   - `fn`: function invoked when the action is executed.
-  - `range` (optional): when `true`, the action only appears for a visual selection.
+  - `cond` (optional): a filter function that gets the current note object, determines whether actions is listed.
 - `require("obsidian").code_action.del(name)` removes a previously registered action.
 
-<!-- Example: -->
-<!---->
-<!-- ```lua -->
-<!-- require("obsidian").code_action.add { -->
-<!--   name = "insert tag", -->
-<!--   title = "Insert an existing tag", -->
-<!--   fn = require("obsidian.actions").insert_tag, -->
-<!-- } -->
-<!-- ``` -->
+Example:
+
+```lua
+-- TODO:
+```

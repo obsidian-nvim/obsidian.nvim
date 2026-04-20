@@ -10,7 +10,7 @@ See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP inte
 | `insert_template`   | `n`      | Insert a template at cursor.          | `name`      |
 | `rename`            | `n`      | Rename current note.                  | `name`      |
 | `toggle_checkbox`   | `n`, `v` | Toggle (cycle) checkbox state.        |             |
-| `set_checkbox`      | `n`, `v` | Set to specifi checkbox state.        | `state`     |
+| `set_checkbox`      | `n`, `v` | Set to specific checkbox state.       | `state`     |
 | `link`              | `v`      | Link selection to an existing note.   |             |
 | `link_new`          | `v`      | Create a new note and link selection. | `title`     |
 | `extract_note`      | `v`      | Move selection to a new note.         | `title`     |
