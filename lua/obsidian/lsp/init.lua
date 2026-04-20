@@ -20,13 +20,13 @@ lsp.start = function(buf)
     root_dir = tostring(Obsidian.dir),
   }
 
-  local ok, client_id = pcall(vim.lsp.start, lsp_config, { bufnr = buf, silent = false })
+  local client_id = vim.lsp.start(lsp_config, { bufnr = buf, silent = false })
 
-  if not ok then
-    log.err("[obsidian-ls]: failed to start: " .. client_id)
+  if not client_id then
+    log.err "[obsidian-ls]: failed to start"
+    return
   end
 
-  ---@cast client_id integer
   return client_id
 end
 

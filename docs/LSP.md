@@ -36,3 +36,33 @@ require("obsidian").setup {
   },
 }
 ```
+
+## Code Actions
+
+obsidian.nvim exposes a small set of LSP code actions for common note operations. You can trigger them using your normal LSP code action keymap, by default neovim maps `vim.lsp.buf.code_action` to `gra`.
+
+Available actions:
+
+- Normal mode:
+  - Add file property (`add_property`)
+  - Insert template at cursor (`insert_template`, requires templates enabled)
+  - Move current note to another folder (`move_note`)
+  - Merge current note into another note (`merge_note`)
+  - Start presentation (`start_presentation`, requires slides enabled)
+- Visual mode:
+  - Link selection as name for an existing note (`link`)
+  - Link selection as name for a new note (`link_new`)
+  - Extract selected text to a new note (`extract_note`)
+
+### Code Action API
+
+You can register custom code actions via `require("obsidian").code_action` module.
+
+API:
+
+- `require("obsidian").code_action.add(opts)`, and `opts` field have following fields:
+  - `name`: command id (snake_case recommended).
+  - `title`: text shown in the code action picker.
+  - `fn`: function invoked when the action is executed.
+  - `cond` (optional): a filter function that gets the current note object, determines whether actions is listed.
+- `require("obsidian").code_action.del(name)` removes a previously registered action.

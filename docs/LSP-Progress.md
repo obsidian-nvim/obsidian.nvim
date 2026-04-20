@@ -14,11 +14,11 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [x] Document Symbols (`textDocument/documentSymbol`) - returns markdown headings
 - [x] Rename (`textDocument/rename`) - rename notes and update all references across the vault
 - [x] Prepare Rename (`textDocument/prepareRename`)
+- [x] Code Action (`textDocument/codeAction`)
 - [ ] Hover (`textDocument/hover`)
 - [ ] Completion Proposals (`textDocument/completion`) - currently handled outside LSP via nvim-cmp/blink.cmp
 - [ ] Completion Item Resolve (`completionItem/resolve`)
 - [ ] Publish Diagnostics (`textDocument/publishDiagnostics`)
-- [ ] Code Action (`textDocument/codeAction`)
 - [ ] Code Action Resolve (`codeAction/resolve`)
 - [ ] Document Link (`textDocument/documentLink`)
 - [ ] Document Link Resolve (`documentLink/resolve`)

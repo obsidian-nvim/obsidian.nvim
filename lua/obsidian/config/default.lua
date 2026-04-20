@@ -409,8 +409,14 @@ return {
   },
 
   ---@class obsidian.config.CommentOpts
-  ---@field enabled boolean
+  ---@field enabled? boolean
   comment = {
     enabled = false,
+  },
+
+  ---@class obsidian.config.SlidesOpts
+  ---@field enabled? boolean
+  slides = {
+    enabled = true,
   },
 }

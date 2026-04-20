@@ -4,6 +4,7 @@ local obsidian = {}
 
 obsidian.api = require "obsidian.api"
 obsidian.actions = require "obsidian.actions"
+obsidian.code_action = require "obsidian.lsp.handlers._code_action"
 obsidian.async = require "obsidian.async"
 obsidian.Client = require "obsidian.client"
 obsidian.commands = require "obsidian.commands"

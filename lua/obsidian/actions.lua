@@ -622,6 +622,48 @@ M.add_property = function()
   note:update_frontmatter(0)
 end
 
+---@param template_name string
+M.insert_template = function(template_name)
+  local templates_dir = api.templates_dir()
+  if not templates_dir then
+    return log.err "Templates folder is not defined or does not exist"
+  end
+  local templates = require "obsidian.templates"
+
+  -- We need to get this upfront before the picker hijacks the current window.
+  local insert_location = api.get_active_window_cursor_location()
+
+  local function insert_template(name)
+    templates.insert_template {
+      type = "insert_template",
+      template_name = name,
+      templates_dir = templates_dir,
+      location = insert_location,
+    }
+  end
+
+  if template_name ~= nil then
+    insert_template(template_name)
+    return
+  end
+
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for path in api.dir(tostring(templates_dir)) do
+    entries[#entries + 1] = {
+      filename = path,
+      text = vim.fs.basename(path),
+    }
+  end
+
+  Obsidian.picker.pick(entries, {
+    callback = function(entry)
+      insert_template(entry.filename)
+    end,
+  })
+end
+
+---@param buf integer|?
 M.start_presentation = function(buf)
   local note = Note.from_buffer(buf)
   require("obsidian.slides").start_presentation(note)
@@ -649,6 +691,31 @@ M.workspace_symbol = function(query, callback)
   end)
 end
 
+---Pick a folder under the vault root.
+---@param callback fun(directory: string, text: string)
+local function pick_folder(callback)
+  local root = tostring(Obsidian.workspace.root)
+  local choices = { { filename = root, text = "/" } }
+
+  for path, t in vim.fs.dir(root, { depth = math.huge }) do
+    if t == "directory" then
+      choices[#choices + 1] = {
+        filename = vim.fs.joinpath(root, path),
+        text = path .. "/",
+      }
+    end
+  end
+
+  Obsidian.picker.pick(choices, {
+    callback = function(entry)
+      callback(entry.filename, entry.text)
+    end,
+    format_item = function(v)
+      return tostring(v.text)
+    end,
+  })
+end
+
 ---@param directory string
 ---@param text string
 local function move_note(directory, text)
@@ -672,26 +739,39 @@ M.move_note = function()
     log.info "Not in an obsidian buffer"
     return
   end
-  local root = tostring(Obsidian.workspace.root)
-  local choices = { { filename = root, text = "/" } }
+  pick_folder(move_note)
+end
 
-  for path, t in vim.fs.dir(root, { depth = math.huge }) do
-    if t == "directory" then
-      choices[#choices + 1] = {
-        filename = vim.fs.joinpath(root, path),
-        text = path .. "/",
-      }
-    end
+---@param dst_note obsidian.Note
+local function merge_note(dst_note)
+  local current_note = api.current_note()
+  assert(current_note, "Must be in a note to merge")
+
+  local message = ('Are you sure you want to merge "%s" to "%s"? "%s" will be deleted.'):format(
+    current_note.id,
+    dst_note.id,
+    current_note.id
+  )
+
+  if api.confirm(message) == "Yes" then
+    dst_note:merge(current_note)
+    dst_note:open { sync = true }
+    vim.fs.rm(tostring(current_note.path))
   end
+end
 
-  Obsidian.picker.pick(choices, {
-    callback = function(entry)
-      move_note(entry.filename, entry.text)
-    end,
-    format_item = function(v)
-      return tostring(v.text)
-    end,
-  })
+---@param dst_note obsidian.Note?
+M.merge_note = function(dst_note)
+  if dst_note then
+    merge_note(dst_note)
+  else
+    Obsidian.picker.find_notes {
+      callback = function(path)
+        local note = Note.from_file(path)
+        merge_note(note)
+      end,
+    }
+  end
 end
 
 return M

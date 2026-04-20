@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `padding_top` option to `Note.insert_text` for configuring blank lines inserted at the top of notes.
 - `:Obsidian help` has cmdline completion for wiki pages.
 - Obsidian sync client will emit `ObsidianSyncChanged` autocmd event for better status rendering.
+- Support LSP code_action:
+  - Add code_actions with `require"obsidian".code_action.add`.
+  - Delete code_actions with `require"obsidian".code_action.del`.
 
 ### Fixed
 
