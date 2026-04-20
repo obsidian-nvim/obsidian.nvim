@@ -88,7 +88,7 @@ There's one entry point user command for this plugin: `Obsidian`
 #### Top level commands
 
 - `:Obsidian check` - check for common issues in your vault and plugin setup
-- `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
+- `:Obsidian ailies [OFFSET ...]` - open a picker list of daily notes
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
 - `:Obsidian help` - find files in the help wiki
 - `:Obsidian helpgrep` - grep files in the help wiki
@@ -194,7 +194,7 @@ return {
   ---@module 'obsidian'
   ---@type obsidian.config
   opts = {
-    legacy_commands = false, -- this will be removed in the next major release
+    legacy_commands = false, -- this will be removed in 4.0.0
     workspaces = {
       {
         name = "personal",
@@ -222,6 +222,20 @@ vim.pack.add {
   {
     src = "https://github.com/obsidian-nvim/obsidian.nvim",
     version = vim.version.range "*", -- use latest release, remove to use latest commit
+  },
+}
+
+require("obsidian").setup {
+  legacy_commands = false, -- this will be removed in 4.0.0
+  workspaces = {
+    {
+      name = "personal",
+      path = "~/vaults/personal",
+    },
+    {
+      name = "work",
+      path = "~/vaults/work",
+    },
   },
 }
 ```
