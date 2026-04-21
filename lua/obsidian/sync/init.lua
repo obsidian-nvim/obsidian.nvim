@@ -7,17 +7,28 @@ local M = {}
 M.setup = manage.setup
 M.disconnect = manage.disconnect
 
+---@class obsidian.sync.ActionOpts
+---@field silent boolean? -- if true, suppress informational messages (errors still shown)
+
 ---@param workspace? obsidian.Workspace
-M.start = function(workspace)
+---@param opts obsidian.sync.ActionOpts?
+M.start = function(workspace, opts)
   workspace = workspace or Obsidian.workspace
-  client.start(tostring(workspace.root))
+  opts = opts or {}
+  client.start(tostring(workspace.root), { silent = opts.silent })
 end
 
 ---@param workspace? obsidian.Workspace
-M.pause = function(workspace)
+---@param opts obsidian.sync.ActionOpts?
+M.pause = function(workspace, opts)
   workspace = workspace or Obsidian.workspace
+  opts = opts or {}
   local dir = tostring(workspace.root)
   local ok, err = client.pause(dir)
+
+  if opts.silent then
+    return
+  end
 
   if ok then
     log.info("Paused sync for %s", dir)

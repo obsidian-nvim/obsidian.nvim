@@ -119,33 +119,38 @@ end
 
 ---@param subcmd string
 ---@param flags table<string, string|boolean>|?
----@param opts vim.SystemOpts|?
+---@param sys_opts vim.SystemOpts|?
 ---@param callback fun(out: vim.SystemCompleted)
+---@param opts { silent: boolean? }?
 ---@return vim.SystemObj|nil
-function M.run_async(subcmd, flags, opts, callback)
+function M.run_async(subcmd, flags, sys_opts, callback, opts)
   if not M.cli then
     log.err "CLI not initialized, cannot run command."
     return nil
   end
+  sys_opts = sys_opts or {}
   opts = opts or {}
 
   return M.cli:run(
     subcmd,
     flags,
-    opts,
+    sys_opts,
     vim.schedule_wrap(function(out)
       if out.code == 2 then
         if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
           local success = M.login()
           if success then
-            M.cli:run(subcmd, flags, opts, callback)
+            M.cli:run(subcmd, flags, sys_opts, callback)
           end
         end
         return
       elseif out.code ~= 0 then
-        local error_output = opts.cwd and sync_log[opts.cwd] and table.concat(sync_log[opts.cwd], "\n") or out.stderr
+        local error_output = sys_opts.cwd and sync_log[sys_opts.cwd] and table.concat(sync_log[sys_opts.cwd], "\n")
+          or out.stderr
         if error_output:find "Another sync instance is already running for this vault." then
-          log.info "Another sync instance is already running for this vault."
+          if not opts.silent then
+            log.info "Another sync instance is already running for this vault."
+          end
         else
           log.err("Command failed with code %s: %s", out.code, error_output)
         end
@@ -415,7 +420,9 @@ local function make_handler(dir)
 end
 
 ---@param dir string
-function M.start(dir)
+---@param opts { silent: boolean? }?
+function M.start(dir, opts)
+  opts = opts or {}
   local handler = make_handler(dir)
 
   if not M.cli then
@@ -424,7 +431,9 @@ function M.start(dir)
   end
 
   if sync_proc[dir] ~= nil then
-    log.info("Sync already running for %s", dir)
+    if not opts.silent then
+      log.info("Sync already running for %s", dir)
+    end
     return
   end
 
@@ -441,7 +450,7 @@ function M.start(dir)
     cwd = dir,
     stderr = handler,
     stdout = handler,
-  }, callback)
+  }, callback, { silent = opts.silent })
 
   vim.api.nvim_create_autocmd("VimLeavePre", {
     group = vim.api.nvim_create_augroup("obsidian-sync-" .. dir, { clear = true }),
