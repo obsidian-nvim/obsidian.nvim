@@ -30,7 +30,7 @@ M.resolve_link_path = function(location)
   end
 
   if attachment.is_attachment_path(location) then
-    return tostring(normalize_path(M.resolve_attachment_path(location)))
+    return tostring(normalize_path(attachment.resolve_attachment_path(location)))
   end
 
   local location_path = Path.new(location)
