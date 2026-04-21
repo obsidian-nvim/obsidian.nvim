@@ -165,11 +165,11 @@ Workspace.set = function(workspace)
       and sync.is_configured(previous_workspace)
       and tostring(previous_workspace.root) ~= tostring(dir)
     then
-      pcall(sync.pause, previous_workspace)
+      pcall(sync.pause, previous_workspace, { silent = true })
     end
 
     if sync.is_configured(workspace) then
-      sync.start(workspace)
+      sync.start(workspace, { silent = true })
     end
   end
 
