@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add code_actions with `require"obsidian".code_action.add`.
   - Delete code_actions with `require"obsidian".code_action.del`.
 - `Note.create` accept a `title` field for readable name for note.
+- Refactor `Note.insert_text` with flattened and flexible opts for more-expressive configs
 
 ### Fixed
 
