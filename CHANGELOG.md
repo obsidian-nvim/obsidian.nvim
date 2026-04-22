@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support LSP code_action:
   - Add code_actions with `require"obsidian".code_action.add`.
   - Delete code_actions with `require"obsidian".code_action.del`.
+- `Note.create` accept a `title` field for readable name for note.
 
 ### Fixed
 
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switch workspace will not produce failed to pause sync log for not configured workspace.
 - Set `opts.sync.configs = {}` to disable obsidian.nvim from racing to sync config with obsidian app using the same folder.
 - Removes unnecessary sync log messages.
+- Unique note creation through link gets a proper readable title instead of id.
 
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 

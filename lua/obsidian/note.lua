@@ -272,7 +272,7 @@ Note._resolve_id_path = function(opts)
   -- Make sure `base_dir` is absolute at this point.
   assert(base_dir:is_absolute(), ("failed to resolve note directory '%s'"):format(base_dir))
 
-  local title = id
+  local title = opts.title or id
 
   -- Apply id transform
   if not (opts.verbatim and id) then
@@ -1346,6 +1346,7 @@ end
 
 ---@class (exact) obsidian.note.NoteOpts
 ---@field id string|? An ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true
+---@field title string|? Readable title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
 ---@field verbatim boolean|? whether to skip applying `note_id_func`
 ---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
 ---relative to the workspace / vault root. If the directory doesn't exist it will

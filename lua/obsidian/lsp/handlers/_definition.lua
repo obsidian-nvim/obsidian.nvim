@@ -22,7 +22,18 @@ end
 ---@return lsp.Location?
 local function create_new_note(location, callback)
   local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
-  local format_options = has_template and "&Yes\nYes With &Template\nYes as &Unique Note\n&No" or "&Yes\n&No"
+  local has_unique = Obsidian.opts.unique_note.enabled
+
+  local options = { "&Yes" }
+  if has_template then
+    table.insert(options, "Yes with &Template")
+  end
+  if has_unique then
+    table.insert(options, "Yes as &Unique Note")
+  end
+  table.insert(options, "&No")
+
+  local format_options = table.concat(options, "\n")
 
   local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
@@ -36,7 +47,7 @@ local function create_new_note(location, callback)
     end)
     return
   elseif confirm == "Yes as Unique Note" then
-    local note = require("obsidian.unique").new_unique_note(nil, { id = location })
+    local note = require("obsidian.unique").new_unique_note(nil, { title = location })
     if note then
       callback { note:_location() }
     end

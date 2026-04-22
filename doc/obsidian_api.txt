@@ -452,6 +452,7 @@ Class ~
 {(exact)} obsidian.note.NoteOpts
 Fields ~
 {id} `(string|? An)` ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true
+{title} `(string|? Readable)` title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
 {verbatim} `(boolean|? whether)` to skip applying `note_id_func`
 {dir} `(string|obsidian.Path|? An)` optional directory to place the note in. Relative paths will be interpreted
 to the workspace / vault root. If the directory doesn't exist it will
