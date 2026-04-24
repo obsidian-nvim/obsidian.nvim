@@ -24,6 +24,9 @@ local builtin_loaders = {
   git = function()
     return require "obsidian.sync.backends.git"
   end,
+  rclone = function()
+    return require "obsidian.sync.backends.rclone"
+  end,
 }
 
 ---@type table<string, obsidian.sync.Backend>
