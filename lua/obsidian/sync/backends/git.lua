@@ -43,7 +43,7 @@ end
 ---@param dir string
 ---@return string
 local function conflict_name(path, dir)
-  local stem, ext = path:match("^(.+)%.([^.]+)$")
+  local stem, ext = path:match "^(.+)%.([^.]+)$"
   if not stem then
     stem = path
     ext = ""
@@ -51,7 +51,7 @@ local function conflict_name(path, dir)
   local device_name = (Obsidian.opts.sync and Obsidian.opts.sync.device_name)
     or (vim.uv or vim.loop).os_gethostname()
     or "nvim"
-  local timestamp = os.date("%Y%m%d%H%M")
+  local timestamp = os.date "%Y%m%d%H%M"
   local base_name
   if ext ~= "" then
     base_name = string.format("%s (Conflicted copy %s %s).%s", stem, device_name, timestamp, ext)
@@ -113,8 +113,8 @@ local function resolve_conflicts(dir, remote_branch, callback)
     end
 
     local files = {}
-    for line in ls_out.stdout:gmatch("[^\r\n]+") do
-      local stage, path = line:match("^%d+ %x+ (%d+) (.+)$")
+    for line in ls_out.stdout:gmatch "[^\r\n]+" do
+      local stage, path = line:match "^%d+ %x+ (%d+) (.+)$"
       if stage == "2" or stage == "3" then
         files[path] = true
       end
@@ -134,11 +134,15 @@ local function resolve_conflicts(dir, remote_branch, callback)
     local failed = false
 
     for _, path in ipairs(conflict_paths) do
-      if failed then break end
+      if failed then
+        break
+      end
 
       -- Read ours (stage 2)
       git(dir, { "show", ":2:" .. path }, function(ours_out)
-        if failed then return end
+        if failed then
+          return
+        end
         if ours_out.code ~= 0 then
           log.err("Failed to read ours for " .. path .. ": " .. (ours_out.stderr or ""))
           failed = true
@@ -148,7 +152,9 @@ local function resolve_conflicts(dir, remote_branch, callback)
 
         -- Read theirs (stage 3)
         git(dir, { "show", ":3:" .. path }, function(theirs_out)
-          if failed then return end
+          if failed then
+            return
+          end
           if theirs_out.code ~= 0 then
             log.err("Failed to read theirs for " .. path .. ": " .. (theirs_out.stderr or ""))
             failed = true
@@ -159,7 +165,9 @@ local function resolve_conflicts(dir, remote_branch, callback)
           -- Write theirs to original path
           local theirs_content = theirs_out.stdout
           uv.fs_write(dir .. "/" .. path, theirs_content, 0, function(write_err)
-            if failed then return end
+            if failed then
+              return
+            end
             if write_err then
               log.err("Failed to write theirs content to " .. path .. ": " .. write_err)
               failed = true
@@ -171,7 +179,9 @@ local function resolve_conflicts(dir, remote_branch, callback)
             local conflict_path = conflict_name(path, dir)
             local ours_content = ours_out.stdout
             uv.fs_write(dir .. "/" .. conflict_path, ours_content, 0, function(write_ours_err)
-              if failed then return end
+              if failed then
+                return
+              end
               if write_ours_err then
                 log.err("Failed to write conflict copy " .. conflict_path .. ": " .. write_ours_err)
                 failed = true
@@ -181,7 +191,9 @@ local function resolve_conflicts(dir, remote_branch, callback)
 
               -- Stage both files
               git(dir, { "add", path, conflict_path }, function(add_out)
-                if failed then return end
+                if failed then
+                  return
+                end
                 pending = pending - 1
                 if pending == 0 and not failed then
                   callback(true)
@@ -204,12 +216,6 @@ function M.is_configured(ws)
   end
   local out = git(dir, { "remote", "get-url", remote_name() })
   return out.code == 0
-end
-
----@param dir string
----@param message string
-local function logln(dir, message)
-  runner.append_log(dir, message)
 end
 
 ---@param dir string
@@ -355,16 +361,20 @@ function M.sync_once(dir, opts)
               -- Conflict, resolve
               resolve_conflicts(dir, remote_branch, function(success)
                 if not success then
-                  fail("Failed to resolve conflicts")
+                  fail "Failed to resolve conflicts"
                   return
                 end
-                git(dir, { "commit", "-m", "sync: merge " .. remote_branch .. " with conflict copies" }, function(commit_out)
-                  if commit_out.code ~= 0 then
-                    fail("Failed to commit conflict resolution: " .. (commit_out.stderr or ""))
-                    return
+                git(
+                  dir,
+                  { "commit", "-m", "sync: merge " .. remote_branch .. " with conflict copies" },
+                  function(commit_out)
+                    if commit_out.code ~= 0 then
+                      fail("Failed to commit conflict resolution: " .. (commit_out.stderr or ""))
+                      return
+                    end
+                    do_push(function() end)
                   end
-                  do_push(function() end)
-                end)
+                )
               end)
             end
           end)
