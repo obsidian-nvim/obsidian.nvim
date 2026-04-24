@@ -310,10 +310,38 @@ return {
   ---"community-plugin" |
   ---"community-plugin-data"
 
+  ---Options for the git sync backend.
+  ---@class obsidian.config.GitSyncOpts
+  ---
+  ---Remote name. Defaults to "origin".
+  ---@field remote? string
+  ---
+  ---Branch to push/pull. Defaults to the current branch.
+  ---@field branch? string
+  ---
+  ---Function returning the commit message for an auto-sync commit.
+  ---@field commit_message? fun(): string
+  ---
+  ---Interval in milliseconds between pulls in continuous mode. Defaults to 30000.
+  ---@field poll_interval? integer
+
   ---https://help.obsidian.md/sync/settings
   ---@class obsidian.config.SyncOpts
   ---
   ---@field enabled? boolean
+  ---
+  ---Which backend to use. Built-ins: "obsidian" (obsidian-headless CLI), "git".
+  ---Custom backends can be added with `require("obsidian.sync").register(name, backend)`.
+  ---@field backend? string
+  ---
+  ---When to run a sync.
+  --- - "continuous": keep a long-running sync process (default for obsidian backend).
+  --- - "on_write": run a one-shot sync (debounced) after each note save.
+  --- - "manual": only sync via :Obsidian sync start or explicit calls.
+  ---@field trigger? "continuous"|"on_write"|"manual"
+  ---
+  ---Debounce window in ms for trigger="on_write". Defaults to 2000.
+  ---@field write_debounce_ms? integer
   ---
   ---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
   ---@field mode? "bidirectional"|"pull-only"|"mirror-remote"
@@ -335,8 +363,14 @@ return {
   ---
   ---Device name to identify this client in the sync version history
   ---@field device_name? string
+  ---
+  ---Git backend options (only used when backend = "git").
+  ---@field git? obsidian.config.GitSyncOpts
   sync = {
     enabled = false,
+    backend = "obsidian",
+    trigger = "continuous",
+    write_debounce_ms = 2000,
     mode = nil,
     conflict_strategy = "merge",
     file_types = { "image", "audio", "video", "pdf", "unsupported" },
@@ -344,6 +378,12 @@ return {
     excluded_folders = {},
     device_name = nil,
     config_dir = ".obsidian",
+    git = {
+      remote = "origin",
+      branch = nil,
+      commit_message = nil,
+      poll_interval = 30000,
+    },
   },
 
   ---@class obsidian.config.CallbackConfig

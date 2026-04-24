@@ -1,12 +1,5 @@
 local api = require "obsidian.api"
 local log = require "obsidian.log"
-local status = require "obsidian.sync.status"
-
----@type table<string, vim.SystemObj>
-local sync_proc = {}
-
----@type table<string, string[]>
-local sync_log = {}
 
 ---@class obsidian.sync.Client
 ---@field cmd string?  -- path to CLI, if available
@@ -145,7 +138,10 @@ function M.run_async(subcmd, flags, sys_opts, callback, opts)
         end
         return
       elseif out.code ~= 0 then
-        local error_output = sys_opts.cwd and sync_log[sys_opts.cwd] and table.concat(sync_log[sys_opts.cwd], "\n")
+        local runner = require "obsidian.sync.runner"
+        local error_output = sys_opts.cwd
+            and runner.logs[sys_opts.cwd]
+            and table.concat(runner.logs[sys_opts.cwd], "\n")
           or out.stderr
         if error_output:find "Another sync instance is already running for this vault." then
           if not opts.silent then
@@ -337,7 +333,6 @@ function M.set_config(path, opts)
   return M.run("sync-config", args)
 end
 
----@param path string?
 ---@return vim.SystemCompleted|nil
 function M.logout()
   return M.run("logout", {})
@@ -351,127 +346,6 @@ function M.unlink(path)
     invalidate_cache()
   end
   return out
-end
-
---------------------------------
---- Sync Process Management ---
---------------------------------
-
----@param dir string
----@param message string
-local function append_log(dir, message)
-  if not message or message == "" then
-    return
-  end
-
-  if not sync_log[dir] then
-    sync_log[dir] = {}
-  end
-
-  local ts = os.date "%Y-%m-%d %H:%M"
-  local lines = vim.split(message, "\n")
-
-  for _, line in ipairs(lines) do
-    if line and line ~= "" then
-      if line == "Fully synced" then
-        status.set "synced"
-      elseif line:lower():find("paused", 1, true) then
-        status.set "paused"
-      else
-        status.set "syncing"
-      end
-      local entry = string.format("%s - %s", ts, line)
-      table.insert(sync_log[dir], entry)
-    end
-  end
-end
-
----@param dir string
-function M.pause(dir)
-  if not sync_proc[dir] then
-    return
-  end
-
-  local ok, err = pcall(function()
-    sync_proc[dir]:kill(15)
-    sync_proc[dir] = nil
-    status.set "paused"
-  end)
-  return ok, err
-end
-
----@param dir string
----@return fun(err, line)
-local function make_handler(dir)
-  return function(err, line)
-    if err then
-      log.err(err)
-      append_log(dir, tostring(err))
-    end
-    if not line then
-      return
-    end
-    line = vim.trim(line)
-    if line == "" then
-      return
-    end
-    append_log(dir, line)
-  end
-end
-
----@param dir string
----@param opts { silent: boolean? }?
-function M.start(dir, opts)
-  opts = opts or {}
-  local handler = make_handler(dir)
-
-  if not M.cli then
-    log.err "CLI not available, cannot start sync."
-    return
-  end
-
-  if sync_proc[dir] ~= nil then
-    if not opts.silent then
-      log.info("Sync already running for %s", dir)
-    end
-    return
-  end
-
-  local callback = function(out)
-    if out.code ~= 0 then
-      log.err("obsidian sync exited %s", out.stderr)
-      append_log(dir, string.format("obsidian sync exited with code %s: %s", out.code, out.stderr))
-    end
-  end
-
-  M.set_config(dir, Obsidian.opts.sync)
-
-  sync_proc[dir] = M.run_async("sync", { continuous = true }, {
-    cwd = dir,
-    stderr = handler,
-    stdout = handler,
-  }, callback, { silent = opts.silent })
-
-  vim.api.nvim_create_autocmd("VimLeavePre", {
-    group = vim.api.nvim_create_augroup("obsidian-sync-" .. dir, { clear = true }),
-    callback = function()
-      M.pause(dir)
-    end,
-  })
-end
-
----@param dir string
----@return { buf: integer }
-function M.log(dir)
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, sync_log[dir] or {})
-  vim.bo[buf].modifiable = false
-  vim.api.nvim_buf_set_name(buf, ("Obsidian Sync Log %s"):format(dir))
-  vim.api.nvim_set_current_buf(buf)
-  vim.keymap.set("n", "q", function()
-    vim.api.nvim_buf_delete(buf, { force = true })
-  end, { buffer = buf, silent = true })
-  return { buf = buf }
 end
 
 return M

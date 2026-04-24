@@ -163,10 +163,17 @@ function M.check()
 
   start "Sync"
 
-  has_one_of_executable {
-    "ob",
-    sync_client.cmd,
-  }
+  local backend = Obsidian.opts.sync and Obsidian.opts.sync.backend or "obsidian"
+  ok_f("backend: %s", backend)
+
+  if backend == "git" then
+    has_executable("git", false)
+  else
+    has_one_of_executable {
+      "ob",
+      sync_client.cmd,
+    }
+  end
 end
 
 return M
