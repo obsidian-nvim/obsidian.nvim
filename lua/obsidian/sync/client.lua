@@ -215,8 +215,12 @@ local _local_vaults_cache = nil
 
 M._local_vaults_cache = _local_vaults_cache
 
+---@type obsidian.sync.RemoteVault[]|nil
+local _remote_vaults_cache = nil
+
 local function invalidate_cache()
   _local_vaults_cache = nil
+  _remote_vaults_cache = nil
 end
 
 M.invalidate_vaults_cache = invalidate_cache
@@ -302,8 +306,13 @@ end
 ---@field hash string
 ---@field name string
 
+---@param use_cache boolean? -- if true (default), return cached result when available
 ---@return obsidian.sync.RemoteVault[]  -- list of remote vaults
-function M.list_remote()
+function M.list_remote(use_cache)
+  if use_cache ~= false and _remote_vaults_cache then
+    return _remote_vaults_cache
+  end
+
   local out = M.run "sync-list-remote"
 
   if not out or not out.stdout then
@@ -321,6 +330,7 @@ function M.list_remote()
     end
   end
 
+  _remote_vaults_cache = res
   return res
 end
 

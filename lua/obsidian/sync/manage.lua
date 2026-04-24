@@ -10,10 +10,7 @@ end
 ---@param backend obsidian.sync.Backend
 ---@return fun(ws: obsidian.Workspace): string
 local function get_formatter(backend)
-  if backend.ws_formatter then
-    return backend.ws_formatter()
-  end
-  return ws_label
+  return backend.ws_formatter or ws_label
 end
 
 function M.setup()

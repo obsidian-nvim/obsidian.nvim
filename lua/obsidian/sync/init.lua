@@ -12,7 +12,7 @@ local M = {}
 ---@field setup fun(ws: obsidian.Workspace)
 ---@field disconnect fun(ws: obsidian.Workspace)
 ---@field log fun(dir: string)
----@field ws_formatter (fun(): fun(ws: obsidian.Workspace): string)?
+---@field ws_formatter (fun(ws: obsidian.Workspace): string)?
 
 ---@class obsidian.sync.ActionOpts
 ---@field silent boolean?
