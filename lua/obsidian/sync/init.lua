@@ -1,36 +1,87 @@
-local client = require "obsidian.sync.client"
-local manage = require "obsidian.sync.manage"
 local log = require "obsidian.log"
 
 local M = {}
 
-M.setup = manage.setup
-M.disconnect = manage.disconnect
+---@class obsidian.sync.Backend
+---@field name string
+---@field caps table<string, boolean>
+---@field is_configured fun(ws: obsidian.Workspace, cache: any?): boolean
+---@field start fun(dir: string, opts?: { silent: boolean? })
+---@field pause fun(dir: string)
+---@field sync_once fun(dir: string, opts?: { silent: boolean? })
+---@field setup fun(ws: obsidian.Workspace)
+---@field disconnect fun(ws: obsidian.Workspace)
+---@field log fun(dir: string)
 
 ---@class obsidian.sync.ActionOpts
----@field silent boolean? -- if true, suppress informational messages (errors still shown)
+---@field silent boolean?
 
----@param workspace? obsidian.Workspace
----@param opts obsidian.sync.ActionOpts?
-M.start = function(workspace, opts)
-  workspace = workspace or Obsidian.workspace
-  opts = opts or {}
-  client.start(tostring(workspace.root), { silent = opts.silent })
+---@type table<string, fun(): obsidian.sync.Backend>
+local builtin_loaders = {
+  obsidian = function()
+    return require "obsidian.sync.backends.obsidian"
+  end,
+}
+
+---@type table<string, obsidian.sync.Backend>
+local registered = {}
+
+---Register a custom sync backend.
+---@param name string
+---@param backend obsidian.sync.Backend
+function M.register(name, backend)
+  registered[name] = backend
+end
+
+---@return obsidian.sync.Backend?
+function M.get_backend()
+  local name = (Obsidian and Obsidian.opts and Obsidian.opts.sync and Obsidian.opts.sync.backend) or "obsidian"
+  if registered[name] then
+    return registered[name]
+  end
+  local loader = builtin_loaders[name]
+  if loader then
+    local ok, backend = pcall(loader)
+    if ok and backend then
+      registered[name] = backend
+      return backend
+    end
+    log.err("Failed to load sync backend '%s'", name)
+    return nil
+  end
+  log.err("Unknown sync backend '%s'", name)
+  return nil
 end
 
 ---@param workspace? obsidian.Workspace
 ---@param opts obsidian.sync.ActionOpts?
-M.pause = function(workspace, opts)
+function M.start(workspace, opts)
+  workspace = workspace or Obsidian.workspace
+  opts = opts or {}
+  local backend = M.get_backend()
+  if not backend then
+    return
+  end
+  backend.start(tostring(workspace.root), { silent = opts.silent })
+end
+
+---@param workspace? obsidian.Workspace
+---@param opts obsidian.sync.ActionOpts?
+function M.pause(workspace, opts)
   workspace = workspace or Obsidian.workspace
   opts = opts or {}
   local dir = tostring(workspace.root)
-  local ok, err = client.pause(dir)
+  local backend = M.get_backend()
+  if not backend then
+    return
+  end
+  local ok, err = backend.pause(dir)
 
   if opts.silent then
     return
   end
 
-  if ok then
+  if ok or ok == nil then
     log.info("Paused sync for %s", dir)
   else
     log.err("Failed to pause sync for %s: %s", dir, err)
@@ -38,9 +89,84 @@ M.pause = function(workspace, opts)
 end
 
 ---@param workspace? obsidian.Workspace
-M.log = function(workspace)
+function M.log(workspace)
   workspace = workspace or Obsidian.workspace
-  client.log(tostring(workspace.root))
+  local backend = M.get_backend()
+  if not backend then
+    return
+  end
+  backend.log(tostring(workspace.root))
+end
+
+---@param workspace? obsidian.Workspace
+---@param opts obsidian.sync.ActionOpts?
+function M.sync_once(workspace, opts)
+  workspace = workspace or Obsidian.workspace
+  opts = opts or {}
+  local backend = M.get_backend()
+  if not backend then
+    return
+  end
+  if not backend.is_configured(workspace) then
+    if not opts.silent then
+      log.info("Sync not configured for %s", tostring(workspace.root))
+    end
+    return
+  end
+  backend.sync_once(tostring(workspace.root), { silent = opts.silent })
+end
+
+---@type table<string, uv.uv_timer_t>
+local debounce_timers = {}
+
+---Debounced one-shot sync. Coalesces rapid calls within the configured window.
+---@param workspace? obsidian.Workspace
+function M.sync_once_debounced(workspace)
+  workspace = workspace or Obsidian.workspace
+  local dir = tostring(workspace.root)
+  local delay = (Obsidian.opts.sync and Obsidian.opts.sync.write_debounce_ms) or 2000
+
+  local prev = debounce_timers[dir]
+  if prev then
+    pcall(function()
+      prev:stop()
+      prev:close()
+    end)
+  end
+
+  local t = (vim.uv or vim.loop).new_timer()
+  debounce_timers[dir] = t
+  t:start(
+    delay,
+    0,
+    vim.schedule_wrap(function()
+      pcall(function()
+        t:stop()
+        t:close()
+      end)
+      debounce_timers[dir] = nil
+      M.sync_once(workspace, { silent = true })
+    end)
+  )
+end
+
+---@param ws obsidian.Workspace
+---@param cache any?
+---@return boolean
+function M.is_configured(ws, cache)
+  local backend = M.get_backend()
+  if not backend then
+    return false
+  end
+  return backend.is_configured(ws, cache)
+end
+
+M.setup = function()
+  require("obsidian.sync.manage").setup()
+end
+
+M.disconnect = function()
+  require("obsidian.sync.manage").disconnect()
 end
 
 local actions = {
@@ -53,6 +179,13 @@ local actions = {
     name = "pause",
     text = "Pause Sync",
     fn = M.pause,
+  },
+  {
+    name = "sync",
+    text = "Sync Now (one-shot)",
+    fn = function()
+      M.sync_once()
+    end,
   },
   {
     name = "log",
@@ -98,17 +231,6 @@ function M.menu(subcmd)
     return
   end
   action.fn()
-end
-
----@param ws obsidian.Workspace
----@param vaults table<string, obsidian.sync.LocalVault>? -- pre-fetched vaults to avoid redundant shell-outs
----@return boolean
-function M.is_configured(ws, vaults)
-  vaults = vaults or client.list_local()
-  if not vaults then
-    return false
-  end
-  return vaults[tostring(ws.root)] ~= nil
 end
 
 return M

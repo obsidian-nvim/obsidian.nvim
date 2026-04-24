@@ -155,6 +155,10 @@ function M.check()
   end
 
   start "Sync"
+
+  local backend = Obsidian.opts.sync and Obsidian.opts.sync.backend or "obsidian"
+  ok_f("backend: %s", backend)
+
   has_one_of_executable {
     "ob",
     sync_client.cmd,
