@@ -228,4 +228,19 @@ function M.build_linked_map(local_vaults, remotes)
   return map
 end
 
+---@return fun(ws: obsidian.Workspace): string
+function M.ws_formatter()
+  local local_vaults = client.list_local()
+  local remotes = client.list_remote()
+  local linked = M.build_linked_map(local_vaults, remotes)
+  return function(ws)
+    local root = tostring(ws.root)
+    local remote_name = linked[root]
+    if remote_name then
+      return string.format("%s (%s) -> %s", ws.name, root, remote_name)
+    end
+    return string.format("%s (%s)", ws.name, root)
+  end
+end
+
 return M

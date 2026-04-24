@@ -12,6 +12,7 @@ local M = {}
 ---@field setup fun(ws: obsidian.Workspace)
 ---@field disconnect fun(ws: obsidian.Workspace)
 ---@field log fun(dir: string)
+---@field ws_formatter (fun(): fun(ws: obsidian.Workspace): string)?
 
 ---@class obsidian.sync.ActionOpts
 ---@field silent boolean?
@@ -134,7 +135,7 @@ function M.sync_once_debounced(workspace)
     end)
   end
 
-  local t = (vim.uv or vim.loop).new_timer()
+  local t = assert(vim.uv.new_timer(), "failed to spawn timer")
   debounce_timers[dir] = t
   t:start(
     delay,

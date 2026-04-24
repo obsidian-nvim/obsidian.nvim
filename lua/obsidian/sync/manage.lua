@@ -2,29 +2,18 @@ local log = require "obsidian.log"
 
 local M = {}
 
---- Build a lookup from workspace root path -> remote vault name.
---- Obsidian-backend specific helper, kept here for backward compatibility.
----@param local_vaults table<string, obsidian.sync.LocalVault>
----@param remotes obsidian.sync.RemoteVault[]?
----@return table<string, string>
-function M.build_linked_map(local_vaults, remotes)
-  local remote_by_id = {}
-  if remotes then
-    for _, r in ipairs(remotes) do
-      remote_by_id[r.hash] = r.name
-    end
-  end
-
-  local map = {}
-  for vault_path, vault in pairs(local_vaults) do
-    map[vault_path] = remote_by_id[vault.hash] or vault.hash
-  end
-  return map
-end
-
 ---@param ws obsidian.Workspace
 local function ws_label(ws)
   return string.format("%s (%s)", ws.name, tostring(ws.root))
+end
+
+---@param backend obsidian.sync.Backend
+---@return fun(ws: obsidian.Workspace): string
+local function get_formatter(backend)
+  if backend.ws_formatter then
+    return backend.ws_formatter()
+  end
+  return ws_label
 end
 
 function M.setup()
@@ -44,9 +33,11 @@ function M.setup()
     return
   end
 
+  local format_item = get_formatter(backend)
+
   vim.ui.select(workspaces, {
     prompt = "Select workspace to set up sync for",
-    format_item = ws_label,
+    format_item = format_item,
   }, function(ws)
     if ws then
       backend.setup(ws)
@@ -75,9 +66,11 @@ function M.disconnect()
     return
   end
 
+  local format_item = get_formatter(backend)
+
   vim.ui.select(linked, {
     prompt = "Select workspace to unlink",
-    format_item = ws_label,
+    format_item = format_item,
   }, function(ws)
     if ws then
       backend.disconnect(ws)
