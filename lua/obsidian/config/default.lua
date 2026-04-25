@@ -29,6 +29,7 @@ return {
   },
 
   workspaces = {},
+  exclude_dir = {},
   log_level = vim.log.levels.INFO,
   -- Default random zettel IDs. To use readable UTF-8 slug IDs, set:
   -- note_id_func = require("obsidian.builtin").title_id
