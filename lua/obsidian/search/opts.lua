@@ -74,6 +74,12 @@ M._prepare = function(opts, additional_opts)
     add_exclude(search_opts, tostring(Obsidian.opts.templates.folder))
   end
 
+  if Obsidian.opts.exclude_dir and #Obsidian.opts.exclude_dir > 0 then
+    for _, dir in ipairs(Obsidian.opts.exclude_dir) do
+      add_exclude(search_opts, dir)
+    end
+  end
+
   if opts.ignore_case then
     search_opts.ignore_case = true
   end

@@ -345,6 +345,17 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
   end
 
+  if opts.exclude_dir ~= nil then
+    if type(opts.exclude_dir) ~= "table" then
+      error "Invalid obsidian.nvim config, 'exclude_dir' should be an array of strings."
+    end
+    for i, dir in ipairs(opts.exclude_dir) do
+      if type(dir) ~= "string" then
+        error(string.format("Invalid obsidian.nvim config, 'exclude_dir[%d]' should be a string.", i))
+      end
+    end
+  end
+
   -- Convert dir to workspace format.
   if opts.dir ~= nil then
     table.insert(opts.workspaces, 1, { path = opts.dir })
