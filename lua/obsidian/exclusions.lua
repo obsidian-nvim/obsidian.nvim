@@ -11,7 +11,7 @@ local function is_absolute_path(path)
     return true
   end
   -- Only check Windows-style absolute paths when actually on Windows.
-  if SYSNAME == "Windows_NT" and path:match("^%a:[/\\]") then
+  if SYSNAME == "Windows_NT" and path:match "^%a:[/\\]" then
     return true
   end
   return false
