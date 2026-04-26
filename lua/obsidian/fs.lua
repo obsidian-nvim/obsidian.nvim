@@ -1,5 +1,6 @@
 local M = {}
 local gitignore = require("obsidian.lib.glob").gitignore
+local exclusions = require "obsidian.exclusions"
 
 ---@return Glob|function
 local function parse_gitignore(dir)
@@ -30,7 +31,8 @@ M.dir = function(dir)
       local not_dot = not vim.startswith(dirname, ".")
       local not_template = dirname ~= vim.fs.basename(tostring(api.templates_dir()))
       local not_gitignored = not parser(dirname)
-      return not_dot and not_template and not_gitignored
+      local not_excluded = not exclusions.is_excluded_dir(dirname)
+      return not_dot and not_template and not_gitignored and not_excluded
     end,
   }
 
@@ -40,7 +42,8 @@ M.dir = function(dir)
       local is_markdown = vim.endswith(path, ".md") or vim.endswith(path, ".qmd")
       local not_gitignored = not parser(path)
       local not_dot = not vim.startswith(path, ".")
-      return is_markdown and not_gitignored and not_dot
+      local not_excluded = not exclusions.is_excluded(path)
+      return is_markdown and not_gitignored and not_dot and not_excluded
     end)
     :map(function(path)
       return vim.fs.joinpath(dir, path)
