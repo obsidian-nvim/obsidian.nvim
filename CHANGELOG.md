@@ -99,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Wiki links in frontmatter will be properly quoted.
 - Numbers in `tags` and `aliases` will be preserved.
 - `insert_tag` action will check for non-existing tag.
+- Pasting images which are in the clipboard as `text/uri-list` are working for X11
 
 ## [v3.15.11](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.11) - 2026-03-05
 
