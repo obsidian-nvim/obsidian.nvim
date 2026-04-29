@@ -620,13 +620,16 @@ T["move_note"]["should include vault root in folder picker options"] = function(
     end,
   }
 
-  require("obsidian.commands.move_note")({ args = "" })
+  require "obsidian.commands.move_note" { args = "" }
 
   Obsidian.picker = old_picker
 
-  local labels = vim.iter(entries):map(function(e)
-    return e.text
-  end):totable()
+  local labels = vim
+    .iter(entries)
+    :map(function(e)
+      return e.text
+    end)
+    :totable()
   eq(true, vim.tbl_contains(labels, "/"))
 end
 
@@ -641,7 +644,7 @@ T["move_note"]["should move note and update current buffer path"] = function()
   vim.fn.writefile({ "# Sample" }, tostring(source_path))
   vim.cmd.edit(vim.fn.fnameescape(tostring(source_path)))
 
-  require("obsidian.commands.move_note")({ args = "archive" })
+  require "obsidian.commands.move_note" { args = "archive" }
 
   eq(tostring(moved_path), vim.api.nvim_buf_get_name(0))
   eq(false, source_path:exists())

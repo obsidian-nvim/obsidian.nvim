@@ -37,7 +37,7 @@ return function(data)
 
   local source_path = Path.buffer(0)
   local source_parent = assert(source_path:parent())
-  local source_filename = assert(source_path.name)
+  local source_filename = assert(source_path.name, "current buffer path has no filename")
 
   local ok = pcall(function()
     source_path:vault_relative_path { strict = true }
@@ -95,7 +95,7 @@ return function(data)
   if data.args and string.len(data.args) > 0 then
     local target_arg = vim.trim(data.args)
     local target_dir = target_arg == "/" and Obsidian.dir or (Obsidian.dir / target_arg)
-    move_to_dir({ text = target_arg, user_data = target_dir })
+    move_to_dir { text = target_arg, user_data = target_dir }
     return
   end
 
