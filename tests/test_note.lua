@@ -603,6 +603,54 @@ T["format_link"]["markdown should respect link.format"] = function()
   eq("[bar](sub/bar.md)", bar_note:format_link())
 end
 
+T["move_note"] = new_set()
+
+T["move_note"]["should include vault root in folder picker options"] = function()
+  local notes_dir = Obsidian.dir / "notes"
+  notes_dir:mkdir { parents = true }
+  local note_path = notes_dir / "sample.md"
+  vim.fn.writefile({ "# Sample" }, tostring(note_path))
+  vim.cmd.edit(vim.fn.fnameescape(tostring(note_path)))
+
+  local entries
+  local old_picker = Obsidian.picker
+  Obsidian.picker = {
+    pick = function(items, _)
+      entries = items
+    end,
+  }
+
+  require "obsidian.commands.move_note" { args = "" }
+
+  Obsidian.picker = old_picker
+
+  local labels = vim
+    .iter(entries)
+    :map(function(e)
+      return e.text
+    end)
+    :totable()
+  eq(true, vim.tbl_contains(labels, "/"))
+end
+
+T["move_note"]["should move note and update current buffer path"] = function()
+  local notes_dir = Obsidian.dir / "notes"
+  notes_dir:mkdir { parents = true }
+  local target_dir = Obsidian.dir / "archive"
+  target_dir:mkdir { parents = true }
+
+  local source_path = notes_dir / "sample.md"
+  local moved_path = target_dir / "sample.md"
+  vim.fn.writefile({ "# Sample" }, tostring(source_path))
+  vim.cmd.edit(vim.fn.fnameescape(tostring(source_path)))
+
+  require "obsidian.commands.move_note" { args = "archive" }
+
+  eq(tostring(moved_path), vim.api.nvim_buf_get_name(0))
+  eq(false, source_path:exists())
+  eq(true, moved_path:exists())
+end
+
 -- T["reference_paths"] = new_set()
 --
 -- T["reference_paths"]["do four basic paths"] = function()

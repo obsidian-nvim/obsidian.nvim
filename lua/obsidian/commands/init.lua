@@ -305,6 +305,8 @@ M.register("toggle_checkbox", { nargs = 0, range = true, note_action = true })
 
 M.register("rename", { nargs = "?", note_action = true })
 
+M.register("move_note", { nargs = "?", complete = "dir", note_action = true })
+
 M.register("paste_img", { nargs = "?", note_action = true })
 
 M.register("extract_note", { mode = "v", nargs = "?", range = true, note_action = true })

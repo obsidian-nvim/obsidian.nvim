@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Note.insert_text` for inserting text under a specific section
 - Support `workspace/symbol` to search through note, note aliases and headings.
 - `actions.move_note` to move current note to a folder in the current workspace.
+- `:Obsidian move_note [FOLDER]` command to move the current note, with folder picker support and buffer path update.
 - Add `padding_top` option to `Note.insert_text` for configuring blank lines inserted at the top of notes.
 - `:Obsidian help` has cmdline completion for wiki pages.
 - Obsidian sync client will emit `ObsidianSyncChanged` autocmd event for better status rendering.
