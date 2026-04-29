@@ -126,6 +126,9 @@ There's one entry point user command for this plugin: `Obsidian`
   - runs `:wa` before renaming, and loads every note with backlinks into your buffer-list
   - after renaming you need to do `:wa` again for changes to take effect
   - alternatively, call `vim.lsp.buf.rename` or use `grn`
+- `:Obsidian move_note [FOLDER]` - move the current note to another folder in the current vault
+  - if `FOLDER` is omitted, opens a folder picker (works with any configured picker; falls back to `vim.ui.select`)
+  - updates the active buffer path to the moved note
 - `:Obsidian toggle_checkbox` - cycle through checkbox options
 
 #### Visual mode commands
