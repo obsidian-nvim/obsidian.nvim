@@ -82,7 +82,7 @@ Top level commands ~
   - both arguments are optional. If not given, the template will be selected from a list using your preferred picker
 - `:Obsidian quick_switch` - switch to another note in your vault, searching by its name with a picker
 - `:Obsidian search [QUERY]` - search for (or create) notes in your vault using `ripgrep` with your preferred picker
-- `:Obsidian tags [TAG ...]` - get a picker list of all occurrences of the given tags
+- `:Obsidian tags [TAG ...]` - search tags, supporting OR queries, `+tag` AND queries, and `#tag` inline-only searches.
 - `:Obsidian workspace [NAME]` - switch to another workspace
 
 Note commands ~

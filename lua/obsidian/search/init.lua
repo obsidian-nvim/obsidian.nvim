@@ -758,6 +758,7 @@ end
 ---@field text string The text (with whitespace stripped) of the line where the tag was found.
 ---@field tag_start integer|? The index within 'text' where the tag starts.
 ---@field tag_end integer|? The index within 'text' where the tag ends.
+---@field inline boolean True when the tag was found as an inline '#tag' outside YAML frontmatter.
 
 --- Find all tags starting with the given search term(s).
 ---
@@ -817,13 +818,63 @@ M.find_tags_async = function(term, callback, opts)
   local first_err_path = nil
 
   ---@param tag string
+  ---@return boolean
+  local matches_term = function(tag)
+    if vim.tbl_isempty(terms) then
+      return true
+    end
+
+    local lower_tag = tag:lower()
+    for _, term in ipairs(terms) do
+      if term == "" or lower_tag:find(term:lower(), 1, true) then
+        return true
+      end
+    end
+
+    return false
+  end
+
+  ---@param char string
+  ---@return boolean
+  local is_tag_char = function(char)
+    return char:match "[A-Za-z0-9_/-]" ~= nil
+  end
+
+  ---@param line string
+  ---@param tag string
+  ---@return integer|?, integer|?
+  local find_tag_on_line = function(line, tag)
+    local lower_line = line:lower()
+    local lower_tag = tag:lower()
+    local init = 1
+
+    while init <= #lower_line do
+      local start_col, end_col = lower_line:find(lower_tag, init, true)
+      if start_col == nil or end_col == nil then
+        return nil, nil
+      end
+
+      local before = start_col > 1 and lower_line:sub(start_col - 1, start_col - 1) or ""
+      local after = end_col < #lower_line and lower_line:sub(end_col + 1, end_col + 1) or ""
+      if not is_tag_char(before) and not is_tag_char(after) then
+        return start_col, end_col
+      end
+
+      init = end_col + 1
+    end
+
+    return nil, nil
+  end
+
+  ---@param tag string
   ---@param path string|obsidian.Path
   ---@param note obsidian.Note
   ---@param lnum integer
   ---@param text string
   ---@param col_start integer|?
   ---@param col_end integer|?
-  local add_match = function(tag, path, note, lnum, text, col_start, col_end)
+  ---@param inline boolean
+  local add_match = function(tag, path, note, lnum, text, col_start, col_end, inline)
     if vim.startswith(tag, "#") then
       tag = string.sub(tag, 2)
     end
@@ -838,6 +889,7 @@ M.find_tags_async = function(term, callback, opts)
       text = text,
       tag_start = col_start,
       tag_end = col_end,
+      inline = inline,
     }
   end
 
@@ -889,29 +941,28 @@ M.find_tags_async = function(term, callback, opts)
     end
 
     local line = vim.trim(match_data.lines.text)
-    local n_matches = 0
+    local in_frontmatter = note.has_frontmatter and match_data.line_number < note.frontmatter_end_line
 
     -- check for tag in the wild of the form '#{tag}'
-    for _, match in ipairs(util.parse_tags(line)) do
-      local m_start, m_end, _ = unpack(match)
-      local tag = string.sub(line, m_start + 1, m_end)
-      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
-        add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
-        n_matches = n_matches + 1
+    if not in_frontmatter then
+      for _, match in ipairs(util.parse_tags(line)) do
+        local m_start, m_end, _ = unpack(match)
+        local tag = string.sub(line, m_start + 1, m_end)
+        if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
+          add_match(tag, path, note, match_data.line_number, line, m_start, m_end, true)
+        end
       end
     end
 
     -- check for tags in frontmatter
-    if
-      n_matches == 0
-      and note.has_frontmatter
-      and match_data.line_number < note.frontmatter_end_line
-      and note.tags ~= nil
-      and (vim.startswith(line, "tags:") or string.match(line, "%s*- "))
-    then
-      local tag = vim.trim(string.sub(line, 3)) -- HACK: works because we force '  - tag'
-      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
-        add_match(tag, path, note, match_data.line_number, line)
+    if in_frontmatter and note.tags ~= nil and (vim.startswith(line, "tags:") or string.match(line, "%s*- ")) then
+      for _, tag in ipairs(note.tags) do
+        if matches_term(tag) then
+          local tag_start, tag_end = find_tag_on_line(line, tag)
+          if tag_start ~= nil and tag_end ~= nil then
+            add_match(tag, path, note, match_data.line_number, line, tag_start, tag_end, false)
+          end
+        end
       end
     end
   end
