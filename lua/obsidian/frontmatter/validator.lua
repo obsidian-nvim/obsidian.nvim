@@ -23,6 +23,8 @@ validator.aliases = function(v, path)
         table.insert(aliases, alias)
       elseif type(alias) == "number" then
         table.insert(aliases, tostring(alias))
+      elseif alias == vim.NIL then
+        -- Skip empty list items (e.g. `aliases:\n  -` from a template placeholder).
       else
         return nil,
           string.format(
@@ -52,6 +54,8 @@ validator.tags = function(v, path)
         table.insert(tags, tag)
       elseif type(tag) == "number" then
         table.insert(tags, tostring(tag))
+      elseif tag == vim.NIL then
+        -- Skip empty list items (e.g. `tags:\n  -` from a template placeholder).
       else
         return nil,
           string.format(
