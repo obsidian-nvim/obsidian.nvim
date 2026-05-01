@@ -23,9 +23,9 @@ Then you are good to go.
 
 ## Change image insert text
 
-The default `opts.image_text_func` is trying to be 100% obsidian compatible, and changes with the `opts.preferred_link_style`.
+The default `opts.attachments.img_text_func` is trying to be 100% Obsidian compatible, and changes with `opts.link.style`.
 
-See the implementation in `builtins.lua`.
+See the implementation in `builtin.lua`.
 
 You can override the default behavior, for example to always use markdown use the base name as the markdown display text, like:
 

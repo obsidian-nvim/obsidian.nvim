@@ -15,30 +15,34 @@ return {
   notes_subdir = nil,
   new_notes_location = "current_dir",
 
+  ---@alias obsidian.link.LinkStyle "wiki" | "markdown" | fun(opts: obsidian.link.LinkCreationOpts): string
+  ---@alias obsidian.link.LinkFormat "shortest" | "relative" | "absolute"
+
+  ---@class obsidian.config.LinkOpts
+  ---@field style? obsidian.link.LinkStyle
+  ---@field format? obsidian.link.LinkFormat
+  ---@field auto_update? boolean
+  link = {
+    style = "wiki",
+    format = "shortest",
+    auto_update = false,
+  },
+
   workspaces = {},
   log_level = vim.log.levels.INFO,
+  -- Default random zettel IDs. To use readable UTF-8 slug IDs, set:
+  -- note_id_func = require("obsidian.builtin").title_id
   note_id_func = require("obsidian.builtin").zettel_id,
   note_path_func = function(spec)
+    -- This is equivalent to the default behavior.
     local path = spec.dir / tostring(spec.id)
-    return path
+    return path:with_suffix(".md", true)
   end,
-  wiki_link_func = require("obsidian.builtin").wiki_link_id_prefix,
-  markdown_link_func = require("obsidian.builtin").markdown_link,
-  preferred_link_style = "wiki",
   open_notes_in = "current",
 
   ---@class obsidian.config.NoteOpts
   ---
   ---Default template to use, relative to template.folder or an absolute path.
-  ---The default looks like:
-  ---
-  ---```markdown
-  ------
-  ---id: {{id}}
-  ---aliases: []
-  ---tags: []
-  ------
-  ---```
   ---
   ---@field template string|?
   note = {
@@ -168,7 +172,7 @@ return {
 
   ---@class obsidian.config.SearchOpts
   ---
-  ---@field sort_by string
+  ---@field sort_by string|false
   ---@field sort_reversed boolean
   ---@field max_lines integer
   search = {
@@ -254,6 +258,19 @@ return {
     },
   },
 
+  ---@class obsidian.config.UniqueNoteOpts
+  ---
+  ---@field enabled? boolean
+  ---@field format? string|fun():string
+  ---@field folder? string
+  ---@field template? string
+  unique_note = {
+    enabled = true,
+    format = "YYYYMMDDHHmm",
+    folder = nil,
+    template = nil,
+  },
+
   ---@class obsidian.config.AttachmentsOpts
   ---
   ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
@@ -274,6 +291,59 @@ return {
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
     confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
+  },
+
+  ---@alias obsidian.sync.FileType
+  ---"image" |
+  ---"audio" |
+  ---"video" |
+  ---"pdf" |
+  ---"unsupported"
+
+  ---@alias obsidian.sync.ConfigCategory
+  ---"app" |
+  ---"appearance" |
+  ---"appearance-data" |
+  ---"hotkey" |
+  ---"core-plugin" |
+  ---"core-plugin-data" |
+  ---"community-plugin" |
+  ---"community-plugin-data"
+
+  ---https://help.obsidian.md/sync/settings
+  ---@class obsidian.config.SyncOpts
+  ---
+  ---@field enabled? boolean
+  ---
+  ---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
+  ---@field mode? "bidirectional"|"pull-only"|"mirror-remote"
+  ---
+  ---Conflict strategy when a conflict is detected, NOTE: conflict is not currently supported in this client
+  ---@field conflict_strategy? "merge"|"conflict"
+  ---
+  ---Attachment types to sync: image, audio, video, pdf, unsupported, empty table to disable attachment syncing
+  ---@field file_types? obsidian.sync.FileType[]
+  ---
+  ---Config categories to sync. nil = leave server config unchanged. {} = explicitly disable config syncing (pass --configs ""). Non-empty list = sync only those categories.
+  ---@field configs? obsidian.sync.ConfigCategory[]
+  ---
+  ---Config directory name, this is for obsidian app
+  ---@field config_dir? string
+  ---
+  ---Folders to exclude
+  ---@field excluded_folders? string[]
+  ---
+  ---Device name to identify this client in the sync version history
+  ---@field device_name? string
+  sync = {
+    enabled = false,
+    mode = nil,
+    conflict_strategy = "merge",
+    file_types = { "image", "audio", "video", "pdf", "unsupported" },
+    configs = nil,
+    excluded_folders = {},
+    device_name = nil,
+    config_dir = ".obsidian",
   },
 
   ---@class obsidian.config.CallbackConfig
@@ -339,8 +409,14 @@ return {
   },
 
   ---@class obsidian.config.CommentOpts
-  ---@field enabled boolean
+  ---@field enabled? boolean
   comment = {
     enabled = false,
+  },
+
+  ---@class obsidian.config.SlidesOpts
+  ---@field enabled? boolean
+  slides = {
+    enabled = true,
   },
 }

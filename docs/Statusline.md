@@ -19,7 +19,6 @@ require("lualine").setup {
 > [!Warning]
 > the old `vim.g.obsidian`/`g:obsidian` approach no longer works
 
-
 The status is lazily computed, only updates when you are in an obsidian note, and when the properties change.
 
 You can also turn it off or reformat the string in the statusline module (will be deprecated and the format will be controlled by `footer.format` in the future):
@@ -30,5 +29,18 @@ require("obsidian").setup {
     enabled = false, -- turn it off
     format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars", -- works like the template system
   },
+}
+```
+
+## Options
+
+```lua
+---@class obsidian.config.StatuslineOpts
+---
+---@field format? string
+---@field enabled? boolean
+statusline = {
+  format = "{{backlinks}} backlinks  {{properties}} properties  {{words}} words  {{chars}} chars",
+  enabled = true,
 }
 ```

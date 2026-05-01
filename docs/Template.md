@@ -1,6 +1,8 @@
-[Options](#Options)
-
-## Usage
+- [Date/time formats](#datetime-formats)
+- [Usage](#usage)
+- [Substitutions](#substitutions)
+- [Customizations](#customizations)
+- [Options](#options)
 
 To insert a template in the current note, run the command `:Obsidian template`. This will open a list of available templates in your templates folder with your preferred picker. Select a template and hit `<CR>` to insert.
 
@@ -230,12 +232,44 @@ biography = {
 ```lua
 ---@class obsidian.config.TemplateOpts
 ---
+---@field enabled boolean|?
 ---@field folder string|obsidian.Path|?
----@field date_format string|?
----@field time_format string|?
+---@field date_format string
+---@field time_format string
 --- A map for custom variables, the key should be the variable and the value a function.
 --- Functions are called with obsidian.TemplateContext objects and optional suffix strings.
 --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
----@field substitutions table<string, (fun(ctx: obsidian.TemplateContext, suffix: string|?):string)|(fun(): string)|string>|?
+---@field substitutions table<string, string|fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
 ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
+templates = {
+  enabled = true,
+  folder = nil,
+  date_format = "YYYY-MM-DD",
+  time_format = "HH:mm",
+  substitutions = {
+    date = function(_, suffix)
+      local format = suffix or Obsidian.opts.templates.date_format
+      return require("obsidian.util").format_date(os.time(), format)
+    end,
+    time = function(_, suffix)
+      local format = suffix or Obsidian.opts.templates.time_format
+      return require("obsidian.util").format_date(os.time(), format)
+    end,
+    title = function(ctx)
+      return ctx.partial_note and ctx.partial_note:display_name()
+    end,
+    id = function(ctx)
+      return ctx.partial_note and ctx.partial_note.id
+    end,
+    path = function(ctx)
+      return ctx.partial_note and tostring(ctx.partial_note.path)
+    end,
+  },
+
+  ---@class obsidian.config.CustomTemplateOpts
+  ---
+  ---@field notes_subdir? string
+  ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)
+  customizations = {},
+}
 ```

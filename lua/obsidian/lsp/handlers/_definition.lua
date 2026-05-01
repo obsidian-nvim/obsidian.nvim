@@ -22,7 +22,18 @@ end
 ---@return lsp.Location?
 local function create_new_note(location, callback)
   local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
-  local format_options = has_template and "&Yes\nYes With &Template\n&No" or "&Yes\n&No"
+  local has_unique = Obsidian.opts.unique_note.enabled
+
+  local options = { "&Yes" }
+  if has_template then
+    table.insert(options, "Yes with &Template")
+  end
+  if has_unique then
+    table.insert(options, "Yes as &Unique Note")
+  end
+  table.insert(options, "&No")
+
+  local format_options = table.concat(options, "\n")
 
   local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
@@ -35,6 +46,11 @@ local function create_new_note(location, callback)
       callback { note:_location() }
     end)
     return
+  elseif confirm == "Yes as Unique Note" then
+    local note = require("obsidian.unique").new_unique_note(nil, { title = location })
+    if note then
+      callback { note:_location() }
+    end
   else
     return log.warn "Aborted"
   end
@@ -51,6 +67,20 @@ local function open_note(location, callback)
   local notes = search.resolve_note(location, {
     notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
   })
+
+  -- TODO: integrate into resolve_note?
+  if block_link then
+    notes = vim.tbl_filter(function(note)
+      return not vim.tbl_isempty(note.blocks or {}) and note:resolve_block(block_link) ~= nil
+    end, notes)
+  end
+
+  if anchor_link then
+    notes = vim.tbl_filter(function(note)
+      return not vim.tbl_isempty(note.anchor_links or {}) and note:resolve_anchor_link(anchor_link) ~= nil
+    end, notes)
+  end
+
   if vim.tbl_isempty(notes) then
     create_new_note(location, callback)
   elseif #notes == 1 then

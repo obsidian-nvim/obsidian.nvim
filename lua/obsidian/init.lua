@@ -4,6 +4,7 @@ local obsidian = {}
 
 obsidian.api = require "obsidian.api"
 obsidian.actions = require "obsidian.actions"
+obsidian.code_action = require "obsidian.lsp.handlers._code_action"
 obsidian.async = require "obsidian.async"
 obsidian.Client = require "obsidian.client"
 obsidian.commands = require "obsidian.commands"
@@ -67,6 +68,7 @@ obsidian.setup = function(user_opts)
     Obsidian.workspaces[#Obsidian.workspaces + 1] = obsidian.Workspace.new {
       path = docs_dir,
       root = docs_dir,
+      strict = true,
       name = ".obsidian.wiki",
       -- TODO: override no daily and template dir once those two module get `.enabled` option
     }

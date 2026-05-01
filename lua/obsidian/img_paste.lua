@@ -115,7 +115,8 @@ local function save_clipboard_image(path, img_type)
     local cmd = 'powershell.exe -c "'
       .. string.format("(get-clipboard -format image).save('%s', 'png')", string.gsub(path, "/", "\\"))
       .. '"'
-    return os.execute(cmd)
+    local ret = os.execute(cmd)
+    return ret
   elseif this_os == api.OSType.Darwin then
     return run_job { "pngpaste", path }
   else
@@ -123,13 +124,12 @@ local function save_clipboard_image(path, img_type)
   end
 end
 
---- @param path string image_path The absolute path to the image file.
+--- @param path string|obsidian.Path image_path The absolute path to the image file.
 M.paste = function(path, img_type)
   if util.contains_invalid_characters(path) then
     log.warn "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |"
   end
 
-  ---@diagnostic disable-next-line: cast-local-type
   path = Path.new(path)
 
   -- If there is no suffix provided, append it

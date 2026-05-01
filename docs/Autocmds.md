@@ -13,6 +13,7 @@ Autocmd events provide by this plugin follows following conventions:
 | `ObsidianNoteWritePost` | `BufWritePost`                     |                    |
 | `ObsidianNoteWritePre`  | `BufWritePre`                      |                    |
 | `ObsidianWorkspaceSet`  | When you enter or switch workspace | `workspace` object |
+| `ObsidianSyncChanged`   | When obsidian sync changes status  |                    |
 
 ## How to use
 

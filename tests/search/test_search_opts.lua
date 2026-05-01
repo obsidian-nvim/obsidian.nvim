@@ -5,8 +5,6 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
-T = new_set()
-
 T["should initialize from a raw table and resolve to ripgrep options"] = function()
   local opts = {
     sort_by = "modified",
@@ -20,6 +18,13 @@ end
 
 T["should not include any options with defaults"] = function()
   eq(M._generate_args {}, {})
+end
+
+T["should disable sort when sort_by is false"] = function()
+  local opts = {
+    sort_by = false,
+  }
+  eq(M._generate_args(opts), {})
 end
 
 T["should merge with another SearchOpts instance"] = function()

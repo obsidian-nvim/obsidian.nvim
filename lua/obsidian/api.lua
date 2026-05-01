@@ -88,7 +88,7 @@ end
 ---@param path string|obsidian.Path
 ---@return obsidian.Workspace|?
 M.find_workspace = function(path)
-  return vim.iter(Obsidian.workspaces):find(function(ws)
+  return iter(Obsidian.workspaces):find(function(ws)
     return M.path_is_note(path, ws)
   end)
 end
@@ -132,7 +132,7 @@ M.current_note = function(bufnr, opts)
   return Note.from_buffer(bufnr, opts)
 end
 
----@return [number, number, number, number] tuple containing { buf, win, row, col }
+---@return [integer, integer, integer, integer] tuple containing { buf, win, row, col }
 M.get_active_window_cursor_location = function()
   local buf = vim.api.nvim_win_get_buf(0)
   local win = vim.api.nvim_get_current_win()
@@ -440,7 +440,7 @@ end
 ---@param name string
 ---@return string|?
 local get_src_root = function(name)
-  return vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
+  return iter(vim.api.nvim_list_runtime_paths()):find(function(path)
     return vim.endswith(path, name)
   end)
 end
@@ -463,21 +463,6 @@ M.get_plugin_info = function(name)
     out.commit = "unknown"
   end
   return out
-end
-
---- Get info about a external dependency.
----
----@param cmd string
----@return string|?
-M.get_external_dependency_info = function(cmd)
-  local obj = vim.system({ cmd, "--version" }, {}):wait(1000)
-  if obj.code ~= 0 then
-    return
-  end
-  local version = vim.version.parse(obj.stdout)
-  if version then
-    return ("%d.%d.%d"):format(version.major, version.minor, version.patch)
-  end
 end
 
 ------------------
@@ -560,7 +545,6 @@ M.get_os = function()
     end
   end
 
-  assert(this_os, "failed to get your os")
   M._current_os = this_os
   return this_os
 end

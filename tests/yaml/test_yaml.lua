@@ -35,6 +35,10 @@ T["dump"]["should dump arrays with simple table values"] = function()
   eq(yaml.dumps { { a = 1 }, { b = 2 } }, "- a: 1\n- b: 2")
 end
 
+T["dump"]["should dump arrays containing an empty array."] = function()
+  eq(yaml.dumps { {} }, "- []")
+end
+
 T["dump"]["should dump tables with string values"] = function()
   eq(yaml.dumps { a = "foo", b = "bar" }, "a: foo\nb: bar")
 end
@@ -79,7 +83,21 @@ T["dump"]["should not unnecessarily escape double quotes in strings"] = function
   eq(yaml.dumps { a = 'his name is "Winny the Poo"' }, 'a: his name is "Winny the Poo"')
 end
 
+T["dump"]["should dump null array items as bare dash"] = function()
+  eq(yaml.dumps { vim.NIL, vim.NIL }, "-\n-")
+end
+
+T["dump"]["should dump mixed null and value array items"] = function()
+  eq(yaml.dumps { vim.NIL, "foo", vim.NIL }, "-\n- foo\n-")
+end
+
 T["loads"] = new_set()
+
+T["loads"]["should parse tilde as null"] = function()
+  local data = yaml.loads "a: ~"
+  eq(type(data), "table")
+  eq(data.a, vim.NIL)
+end
 
 T["loads"]["should parse inline lists with quotes on items"] = function()
   local data = yaml.loads 'aliases: ["Foo", "Bar", "Foo Baz"]'
@@ -132,6 +150,89 @@ T["loads"]["should parse implicit null values"] = function()
   eq(type(data), "table")
   eq(data.tags, vim.NIL)
   eq(data.complete, false)
+end
+
+T["loads"]["should parse bare dash as null array item"] = function()
+  local data = yaml.loads "tags:\n  -\n  -"
+  eq(type(data), "table")
+  eq(type(data.tags), "table")
+  eq(#data.tags, 2)
+  eq(data.tags[1], vim.NIL)
+  eq(data.tags[2], vim.NIL)
+end
+
+T["loads"]["should parse mixed bare dash and value array items"] = function()
+  local data = yaml.loads "tags:\n  -\n  - foo\n  -"
+  eq(type(data), "table")
+  eq(type(data.tags), "table")
+  eq(#data.tags, 3)
+  eq(data.tags[1], vim.NIL)
+  eq(data.tags[2], "foo")
+  eq(data.tags[3], vim.NIL)
+end
+
+T["loads"]["should parse wikilinks as strings"] = function()
+  local data = yaml.loads "a: [[note]]"
+  eq(type(data), "table")
+  eq(data.a, "[[note]]")
+
+  data = yaml.loads "a: [[note|alias]]"
+  eq(data.a, "[[note|alias]]")
+
+  data = yaml.loads "a: [[note#section]]"
+  eq(data.a, "[[note#section]]")
+end
+
+T["loads"]["should parse wikilinks in arrays as strings"] = function()
+  local data = yaml.loads "a:\n  - [[note]]"
+  eq(type(data), "table")
+  eq(type(data.a), "table")
+  eq(data.a[1], "[[note]]")
+
+  data = yaml.loads "a:\n  - [[note|alias]]\n  - [[other]]"
+  eq(data.a[1], "[[note|alias]]")
+  eq(data.a[2], "[[other]]")
+end
+
+T["dump"] = T["dump"] or new_set()
+
+T["dump"]["should quote wikilinks in scalar values"] = function()
+  eq(yaml.dumps { a = "[[note]]" }, 'a: "[[note]]"')
+  eq(yaml.dumps { a = "[[note|alias]]" }, 'a: "[[note|alias]]"')
+  eq(yaml.dumps { a = "[[note#section]]" }, 'a: "[[note#section]]"')
+end
+
+T["dump"]["should quote wikilinks in arrays"] = function()
+  eq(yaml.dumps { a = { "[[note]]" } }, 'a:\n  - "[[note]]"')
+  eq(yaml.dumps { a = { "[[note|alias]]", "[[other]]" } }, 'a:\n  - "[[note|alias]]"\n  - "[[other]]"')
+end
+
+T["roundtrip"] = new_set()
+
+T["roundtrip"]["should preserve wikilinks in scalar values"] = function()
+  local original = "a: [[note]]"
+  local loaded = yaml.loads(original)
+  local dumped = yaml.dumps(loaded)
+  local reloaded = yaml.loads(dumped)
+  eq(reloaded.a, "[[note]]")
+end
+
+T["roundtrip"]["should preserve wikilinks in arrays"] = function()
+  local original = "a:\n  - [[note]]\n  - [[other]]"
+  local loaded = yaml.loads(original)
+  local dumped = yaml.dumps(loaded)
+  local reloaded = yaml.loads(dumped)
+  eq(reloaded.a[1], "[[note]]")
+  eq(reloaded.a[2], "[[other]]")
+end
+
+T["roundtrip"]["should preserve multiline strings"] = function()
+  local original = "description: |\n  Line 1\n  Line 2"
+  local loaded = yaml.loads(original)
+  eq(loaded.description, "Line 1\nLine 2")
+  local dumped = yaml.dumps(loaded)
+  local reloaded = yaml.loads(dumped)
+  eq(reloaded.description, "Line 1\nLine 2")
 end
 
 return T

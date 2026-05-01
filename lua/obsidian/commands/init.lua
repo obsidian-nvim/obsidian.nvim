@@ -36,11 +36,29 @@ local function get_commands_by_context(commands, is_visual, is_note)
       return true
     end)
     :filter(function(config)
+      if not Obsidian.opts.checkbox.enabled then
+        return config.name ~= "toggle_checkbox"
+      end
+      return true
+    end)
+    :filter(function(config)
       if not Obsidian.opts.daily_notes.enabled then
         return config.name ~= "dailies"
           and config.name ~= "today"
           and config.name ~= "tomorrow"
           and config.name ~= "yesterday"
+      end
+      return true
+    end)
+    :filter(function(config)
+      if not Obsidian.opts.unique_note.enabled then
+        return config.name ~= "unique_note"
+      end
+      return true
+    end)
+    :filter(function(config)
+      if not Obsidian.opts.sync.enabled then
+        return config.name ~= "sync"
       end
       return true
     end)
@@ -82,7 +100,8 @@ M.register = function(name, config)
   if not config.func then
     config.func = function(data)
       local mod = require("obsidian.commands." .. name)
-      return mod(data)
+      mod(data)
+      return
     end
   end
   config.name = name
@@ -136,14 +155,15 @@ M.get_completions = function(arg_lead, cmdline, cursor_pos)
   local obspat = "^['<,'>]*Obsidian[!]?"
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
   local obsidiancmd = splitcmd[2]
+  local is_visual = vim.startswith(cmdline, "'<,'>")
+  local cmds = get_commands_by_context(M.commands, is_visual, in_note())
   if cmdline:match(obspat .. "%s$") then
-    local is_visual = vim.startswith(cmdline, "'<,'>")
-    return get_commands_by_context(M.commands, is_visual, in_note())
+    return cmds
   end
   if cmdline:match(obspat .. "%s%S+$") then
     return vim.tbl_filter(function(s)
       return s:sub(1, #obsidiancmd) == obsidiancmd
-    end, vim.tbl_keys(M.commands))
+    end, cmds)
   end
   local cmdconfig = M.commands[obsidiancmd]
   if cmdconfig == nil then
@@ -164,6 +184,33 @@ end
 ---@param _ string
 ---@param cmdline string
 ---@return string[]
+M.help_complete = function(_, cmdline)
+  local api = require "obsidian.api"
+  local docs_dir = api.docs_dir()
+  if not docs_dir then
+    return {}
+  end
+
+  local query = cmdline:match "^%S+%s%S+%s(.*)$" or ""
+
+  local files = vim.fn.globpath(tostring(docs_dir), "*.md", true, true)
+  local completions = {}
+  local basenames = vim.tbl_map(function(path)
+    return vim.fn.fnamemodify(path, ":t:r")
+  end, files)
+
+  if query == "" then
+    return basenames
+  end
+
+  completions = vim.fn.matchfuzzy(basenames, query, { limit = 10 })
+
+  return completions
+end
+
+---@param _ string
+---@param cmdline string
+---@return string[]
 M.note_complete = function(_, cmdline)
   local search = require "obsidian.search"
   local completions = {}
@@ -175,7 +222,7 @@ M.note_complete = function(_, cmdline)
   end
 
   -- if there's already partial query that ended with a space, then we should search for the query instead of note names
-  local query_results = search.find_notes(query, { search = { sort = true } })
+  local query_results = search.find_notes(query, {})
 
   for _, note in ipairs(query_results) do
     local note_path = assert(note.path:vault_relative_path { strict = true })
@@ -213,15 +260,30 @@ M.register("tags", { nargs = "*" })
 
 M.register("search", { nargs = "?" })
 
+M.register("sync", {
+  nargs = "?",
+  complete = function(arg)
+    local choices = vim.tbl_map(function(action)
+      return action.name
+    end, require("obsidian.sync")._actions)
+
+    return vim.tbl_filter(function(s)
+      return vim.startswith(s, arg)
+    end, choices)
+  end,
+})
+
 M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
 M.register("workspace", { nargs = "?" })
 
-M.register("help", { nargs = "?" })
+M.register("help", { nargs = "?", complete = M.help_complete })
 
 M.register("helpgrep", { nargs = "?" })
+
+M.register("unique_note", { nargs = "?" })
 
 ---------------------
 ---- note action ----

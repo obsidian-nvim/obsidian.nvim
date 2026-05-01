@@ -1,6 +1,7 @@
-# Daily Notes
-
-[[#Options]]
+- [Commands](#commands)
+- [Usage Examples](#usage-examples)
+- [Notes](#notes)
+- [Options](#options)
 
 The Daily Notes feature allows you to quickly create and navigate to date-based notes in your vault. This is useful for journaling, tracking daily tasks, or maintaining a chronological record of your work.
 
@@ -48,6 +49,18 @@ daily_notes = {
 }
 ```
 
+### Date format
+
+Adding slash in daily formats will automatically create subdirectories:
+
+```lua
+daily_notes = {
+  date_format = "YYYY/MM/DD",
+}
+```
+
+Will create notes in path `daily_notes.folder/year/month/day.md`
+
 ## Notes
 
 - Daily notes are created automatically when you open a date that doesn't have a note yet
@@ -56,7 +69,7 @@ daily_notes = {
 
 ```lua
 ---@class obsidian.config.DailyNotesOpts
-
+---
 ---@field enabled? boolean
 ---@field folder? string
 ---@field date_format? string

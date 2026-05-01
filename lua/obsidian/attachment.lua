@@ -61,6 +61,10 @@ M.resolve_attachment_path = function(src)
   local Path = require "obsidian.path"
   local attachment_folder = Obsidian.opts.attachments.folder
 
+  if vim.startswith(src, "file:/") then
+    return vim.uri_to_fname(src)
+  end
+
   ---@cast attachment_folder -nil
   if vim.startswith(attachment_folder, ".") then
     local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))

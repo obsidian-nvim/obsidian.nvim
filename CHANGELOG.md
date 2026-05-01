@@ -7,11 +7,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## [v3.15.11](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.11) - 2026-03-01
+### Added
 
-- Added tag normalization and argument parsing functions
-- Improved tag search logic with AND/OR/hash search modes
-- Enhanced picker display and file reading for tag locations
+- Add Obsidian-style tag query support for `:Obsidian tags`, including `tag:#book`, explicit `OR`, and negated tag terms.
+- Add unique note creation prompt option for missing definitions.
+- LSP client commands can run actions in actions.lua.
+- Add `Note.insert_text` for inserting text under a specific section
+- Support `workspace/symbol` to search through note, note aliases and headings.
+- `actions.move_note` to move current note to a folder in the current workspace.
+- Add `padding_top` option to `Note.insert_text` for configuring blank lines inserted at the top of notes.
+- `:Obsidian help` has cmdline completion for wiki pages.
+- Obsidian sync client will emit `ObsidianSyncChanged` autocmd event for better status rendering.
+- Support LSP code_action:
+  - Add code_actions with `require"obsidian".code_action.add`.
+  - Delete code_actions with `require"obsidian".code_action.del`.
+- `Note.create` accept a `title` field for readable name for note.
+
+### Fixed
+
+- YAML parser handling of null values and dashes.
+- Uses byte offsets consistently in completion sources.
+- Fix `Note.insert_text` to add blank-line when inserting at top of note even when it is empty.
+- Switch workspace will not produce failed to pause sync log for not configured workspace.
+- Set `opts.sync.configs = {}` to disable obsidian.nvim from racing to sync config with obsidian app using the same folder.
+- Removes unnecessary sync log messages.
+- Unique note creation through link gets a proper readable title instead of id.
+
+## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
+
+### Added
+
+- Custom `includeexpr` to allow goto file actions, like `:h gf`, `:h CTRL-W_f` and `:h CTRL-W_gf`
+- Support `obsidian-headless` sync client.
+- `:Obsidian sync` for a menu to manage sync state.
+
+### Fixed
+
+- Command completion no longer appear for commands that are disabled through `module.enabled`.
+- Definition will properly filter on matched anchors and blocks.
+- Do not throw an error when blink.cmp's per_filetype config for markdown is not a list.
+
+## [v3.16.1](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.1) - 2026-04-05
+
+### Added
+
+- `search.sort_by` can now be set to `false` to disable sorting of search results.
+- Support `workspace/didRenameFiles` and file changes will be prompted with confirmation to rename references.
+  - Use `opts.link.auto_update` to control whether ask for confirmation or auto run, false by default.
+- `make docgen` to auto update module docs with up to date module options.
+
+### Fixed
+
+- Apply configured `note.template` in `extract_note` action, matching the behavior of the `new` action.
+- Help wiki workspace is set to `strict` to avoid being misidentified for other markdown files.
+- Prevent crash when dumping nested empty arrays.
+- Mapping `q` to be quit in normal mode in snacks picker.
+- Wrong migration process for `opts.use_advanced_uri`.
+- Tag finding will not generate false positives of other list fields.
+- `toggle_checkbox` now works on blank/whitespace-only lines when `checkbox.create_new` is enabled.
+- Proper `filter_text` so that nvim-cmp's matcher don't rule out completion items.
+- Properly disambiguate completion items with same stem.
+- Decoupled `checkbox` and `template` enabled field check in commands.
+
+## [v3.16.0](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.0) - 2026-03-16
+
+### Added
+
+- New `link` module options: `link.style`, `link.format`.
+- `link.format` is fully obsidian app compatible, controlling how path is formatted
+  - `shortest`: shortest file path when possible.
+  - `relative`: relative path from the current note file.
+  - `absolute`: vault-relative absolute path.
+- New `unique_note` module compatible with [obsidian app's unique note creator](https://help.obsidian.md/plugins/unique-note)
+  - `:Obsidian unique_note`
+  - `actions.unique_link`
+- Multiline strings in frontmatter with `|` syntax is properly preserved.
+- `:Obsidian template` will merge frontmatter.
+- `opts.checkbox.order` accept an `""` to change checkbox to list item.
+- `obsidian-ls` acts more properly like LSP
+  - handle libuv scheduled callbacks
+  - send progress messages
+
+### Changed
+
+- Deprecated `preferred_link_style`, `wiki_link_func`, and `markdown_link_func` in favor of `link.style`.
+- Returning nil or empty table in `opts.frontmatter.func` means no inserting frontmatter.
+
+### Fixed
+
+- `note.title` is now correctly transferred when creating a note from a template, so custom `frontmatter.func` functions receive the user-entered title.
+- `:Obsidian tags` now respects `search.sort_by` and `search.sort_reversed` config options.
+- Wiki links in frontmatter will be properly quoted.
+- Numbers in `tags` and `aliases` will be preserved.
+- `insert_tag` action will check for non-existing tag.
+
+## [v3.15.11](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.11) - 2026-03-05
+
+### Added
+
+- Built-in `title_id` note ID preset for UTF-8 slug IDs with collision suffixing.
+- Date parser for common date formats.
+- `:Obsidian today` can accept a specific date.
+
+### Fixed
+
+- `:Obsidian tags` support Unicode tags.
+- `opts.checkbox.enabled` works.
+- Telescope picker filtering works with right ordinal value.
+- `api.resolve_attachment_path` will resolve file uri paths.
 
 ## [v3.15.10](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.15.10) - 2026-02-18
 

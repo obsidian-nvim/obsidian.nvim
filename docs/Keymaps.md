@@ -73,7 +73,7 @@ The plugin provides the following remappable functions:
 - `extract_note`
 - `new_from_template`
 
-For their implementation, see [obsidian.nvim/lua/obsidian/action.lua at main · obsidian-nvim/obsidian.nvim](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/action.lua)
+For their implementation, see [obsidian.nvim/lua/obsidian/actions.lua at main · obsidian-nvim/obsidian.nvim](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/actions.lua)
 
 Example with remapping `nav_link`:
 

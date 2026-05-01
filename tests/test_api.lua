@@ -52,6 +52,44 @@ T["toggle_checkbox"]["should use custom states if provided"] = function()
   eq("- [!] dummy", child.api.nvim_get_current_line())
 end
 
+T["toggle_checkbox"]["should rotate to list items when empty state is provided"] = function()
+  local custom_states = { " ", "x", "" }
+  local toggle_expr = string.format([[M._toggle_checkbox(%s)]], vim.inspect(custom_states))
+
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ] dummy" })
+  child.lua(toggle_expr)
+  eq("- [x] dummy", child.api.nvim_get_current_line())
+  child.lua(toggle_expr)
+  eq("- dummy", child.api.nvim_get_current_line())
+  child.lua(toggle_expr)
+  eq("- [ ] dummy", child.api.nvim_get_current_line())
+
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "1. [ ] dummy" })
+  child.lua(toggle_expr)
+  eq("1. [x] dummy", child.api.nvim_get_current_line())
+  child.lua(toggle_expr)
+  eq("1. dummy", child.api.nvim_get_current_line())
+  child.lua(toggle_expr)
+  eq("1. [ ] dummy", child.api.nvim_get_current_line())
+end
+
+T["toggle_checkbox"]["should add a checkbox to list items without one"] = function()
+  local custom_states = { " ", "x", "" }
+  local toggle_expr = string.format([[M._toggle_checkbox(%s)]], vim.inspect(custom_states))
+
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "- dummy" })
+  child.lua(toggle_expr)
+  eq("- [ ] dummy", child.api.nvim_get_current_line())
+
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "1. dummy" })
+  child.lua(toggle_expr)
+  eq("1. [ ] dummy", child.api.nvim_get_current_line())
+
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "* dummy" })
+  child.lua(toggle_expr)
+  eq("* [ ] dummy", child.api.nvim_get_current_line())
+end
+
 T["cursor_link"] = function()
   --                                               0    5    10   15   20   25   30   35   40    45  50   55
   --                                               |    |    |    |    |    |    |    |    |    |    |    |

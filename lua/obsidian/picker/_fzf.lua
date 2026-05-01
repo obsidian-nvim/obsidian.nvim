@@ -225,7 +225,7 @@ M.pick = function(values, opts)
     return self
   end
 
-  function MyPreviewer:parse_entry(entry_str)
+  function MyPreviewer.parse_entry(_self, entry_str)
     local entry = display_to_value_map[entry_str]
     return {
       path = entry.filename,

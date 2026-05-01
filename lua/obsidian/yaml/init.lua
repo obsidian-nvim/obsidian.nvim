@@ -22,6 +22,9 @@ local should_quote = function(s)
   -- Check if it has a colon followed by whitespace.
   elseif string.find(s, ": ", 1, true) then
     return true
+  -- Check for wikilinks (e.g., [[note]], [[note|alias]], [[note#section]])
+  elseif s:match "%[%[.-%]%]" then
+    return true
   -- Check if it's an empty string.
   elseif s == "" or string.match(s, "^[%s]+$") then
     return true
@@ -32,17 +35,39 @@ local should_quote = function(s)
   end
 end
 
+---@param s string
+---@param indent integer
+---@return string[]
+local function dump_string(s, indent)
+  local indent_str = string.rep(" ", indent)
+
+  -- Check if string contains newlines - use literal block syntax
+  if s:find("\n", 1, true) then
+    local lines = {}
+    -- First line: just the literal block indicator
+    table.insert(lines, "|")
+    -- Subsequent lines: content with additional indent for block
+    local content_indent = string.rep(" ", 2)
+    for line in s:gmatch "[^\n]+" do
+      table.insert(lines, content_indent .. line)
+    end
+    return lines
+  end
+
+  if should_quote(s) then
+    s = string.gsub(s, '"', '\\"')
+    return { indent_str .. [["]] .. s .. [["]] }
+  else
+    return { indent_str .. s }
+  end
+end
+
 ---@return string[]
 local function dumps(x, indent, order)
   local indent_str = string.rep(" ", indent)
 
   if type(x) == "string" then
-    if should_quote(x) then
-      x = string.gsub(x, '"', '\\"')
-      return { indent_str .. [["]] .. x .. [["]] }
-    else
-      return { indent_str .. x }
-    end
+    return dump_string(x, indent)
   end
 
   if type(x) == "boolean" then
@@ -63,9 +88,17 @@ local function dumps(x, indent, order)
     if util.islist(x) then
       for _, v in ipairs(x) do
         local item_lines = dumps(v, indent + 2)
-        table.insert(out, indent_str .. "- " .. util.lstrip_whitespace(item_lines[1]))
-        for i = 2, #item_lines do
-          table.insert(out, item_lines[i])
+        if #item_lines == 0 then
+          if v == vim.NIL then
+            table.insert(out, indent_str .. "-")
+          else
+            table.insert(out, indent_str .. "- []")
+          end
+        else
+          table.insert(out, indent_str .. "- " .. util.lstrip_whitespace(item_lines[1]))
+          for i = 2, #item_lines do
+            table.insert(out, item_lines[i])
+          end
         end
       end
     else
@@ -77,8 +110,20 @@ local function dumps(x, indent, order)
       table.sort(keys, order)
       for _, k in ipairs(keys) do
         local v = x[k]
-        if type(v) == "string" or type(v) == "boolean" or type(v) == "number" then
-          table.insert(out, indent_str .. tostring(k) .. ": " .. dumps(v, 0)[1])
+        if type(v) == "string" then
+          local key_str = tostring(k)
+          -- For multiline strings, we need proper indent; for simple strings use 0
+          local is_multiline = v:find("\n", 1, true) ~= nil
+          local str_indent = is_multiline and (#indent_str + #key_str + 2) or 0
+          local str_lines = dump_string(v, str_indent)
+          -- First line: key + ": " + content
+          table.insert(out, indent_str .. key_str .. ": " .. str_lines[1])
+          -- Subsequent lines: content with proper indent
+          for i = 2, #str_lines do
+            table.insert(out, indent_str .. str_lines[i])
+          end
+        elseif type(v) == "boolean" or type(v) == "number" then
+          table.insert(out, indent_str .. tostring(k) .. ": " .. tostring(v))
         elseif type(v) == "table" and vim.tbl_isempty(v) then
           table.insert(out, indent_str .. tostring(k) .. ": []")
         else

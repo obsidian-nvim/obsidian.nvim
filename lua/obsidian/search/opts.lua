@@ -9,7 +9,7 @@
 
 ---@class obsidian.search.SearchOpts
 ---
----@field sort_by obsidian.config.SortBy|?
+---@field sort_by obsidian.config.SortBy|false|?
 ---@field sort_reversed boolean|?
 ---@field fixed_strings boolean|?
 ---@field ignore_case boolean|?
@@ -50,7 +50,7 @@ local add_exclude = function(opts, path)
 end
 
 local search_defaults = {
-  sort = false,
+  sort = true,
   include_templates = false,
   ignore_case = false,
 }
@@ -65,7 +65,7 @@ M._prepare = function(opts, additional_opts)
 
   local search_opts = {}
 
-  if opts.sort then
+  if opts.sort ~= false then
     search_opts.sort_by = Obsidian.opts.search.sort_by
     search_opts.sort_reversed = Obsidian.opts.search.sort_reversed
   end

@@ -2,6 +2,8 @@ local compat = require "obsidian.compat"
 local ts, string, table = vim.treesitter, string, table
 local util = {}
 
+util.relpath = require("obsidian.util.fs").relpath
+
 setmetatable(util, {
   __index = function(_, k)
     return require("obsidian.api")[k] or require("obsidian.builtin")[k]
@@ -224,6 +226,37 @@ util.format_date = function(time, fmt)
   return require("obsidian.lib.moment").format(time, fmt)
 end
 
+--- Format a timestamp with strftime or moment.js date format
+---
+---@param str string
+---@param fmt string|?
+---@return osdateparam|? date as os.date table
+---@return string|? error
+util.parse_date = function(str, fmt)
+  -- Try common date formats
+  local formats = {
+    "YYYY-M-D",
+    "M/D/YYYY",
+    "D/M/YYYY",
+    "MMMM D, YYYY",
+    "MMM D, YYYY",
+    "M-D",
+    "M/D",
+  }
+  local parse = require("obsidian.lib.moment").parse
+
+  if fmt ~= nil then
+    return parse(str, fmt)
+  else
+    for _, _fmt in ipairs(formats) do
+      local parsed = parse(str, _fmt)
+      if parsed then
+        return parsed
+      end
+    end
+  end
+end
+
 ---Determines if the given date is a working day (not weekend)
 ---
 ---@param time integer
@@ -304,7 +337,7 @@ end
 util.parse_tags = require("obsidian.parse.tags").parse_tags
 
 ---@param link string
----@param opts { strip: boolean|?, exclude: obsidian.search.RefTypes[], link_type: obsidian.search.RefTypes|? }|?
+---@param opts { strip: boolean|?, exclude: obsidian.search.RefTypes[]|?, link_type: obsidian.search.RefTypes|? }|?
 ---@return string|? link_location
 ---@return string|? link_name
 ---@return obsidian.search.RefTypes|? link_type
@@ -386,11 +419,6 @@ end
 ------------------------------------
 -- Miscellaneous helper functions --
 ------------------------------------
----@param anchor obsidian.note.HeaderAnchor
----@return string
-util.format_anchor_label = function(anchor)
-  return string.format(" ❯ %s", anchor.header)
-end
 
 -- We are very loose here because obsidian allows pretty much anything
 -- One trailing anchor segment: "#" + at least 1 char that is not "#"
@@ -546,10 +574,11 @@ end
 
 --- Check if a string contains invalid characters.
 ---
---- @param fname string
+--- @param fname string|obsidian.Path
 ---
 --- @return boolean
 util.contains_invalid_characters = function(fname)
+  fname = tostring(fname)
   local invalid_chars = "#^%[%]|"
   return string.find(fname, "[" .. invalid_chars .. "]") ~= nil
 end

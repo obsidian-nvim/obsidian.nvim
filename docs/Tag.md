@@ -7,22 +7,22 @@ Tags are:
 
 ## Searching tags
 
-`:Obsidian tags [TAG ...]` searches tags across the active workspace. With no
+`:Obsidian tags [QUERY]` searches tags across the active workspace. With no
 arguments, it uses the tag under the cursor when available; otherwise it opens a
 tag picker.
 
-The command supports a small query syntax:
+The command accepts Obsidian-style tag search terms:
 
-- `tag` matches `tag` and nested tags such as `tag/child`.
-- `tag1 tag2` matches notes that contain either tag.
-- `+tag1 tag2` matches only notes that contain all tags. A single `+` prefix on
-  any tag enables AND mode for the whole query.
-- `#tag` restricts results to inline `#tag` occurrences outside YAML
-  frontmatter and opens the picker at the matching line and column.
-- `+#tag1 tag2` combines AND mode with inline-only matching.
+- `tag:#book` matches `book` and nested tags such as `book/child`.
+- `tag:#book tag:#project` matches notes that contain both tags.
+- `tag:#book OR tag:#movie` matches notes that contain either tag.
+- `tag:#book -tag:#archive` excludes notes with `archive`.
 
-Single-tag and hash-prefixed searches list tag locations. Multi-tag searches
-without `#` list matching notes and show which query tags matched each note.
+Bare tags like `book` and `-archive` are treated as shorthand for `tag:#book`
+and `-tag:#archive`.
+
+Results always open as concrete tag locations with file, line, and column
+context. Selecting tags from the picker builds an AND query by default.
 
 TODO:
 

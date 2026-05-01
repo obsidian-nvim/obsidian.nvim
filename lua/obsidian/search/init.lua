@@ -24,9 +24,12 @@ M.build_grep_cmd = Ripgrep.build_grep_cmd
 
 M.Patterns = {
   -- Tags
-  TagCharsOptional = "[A-Za-z0-9_/-]*",
-  TagCharsRequired = "[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+", -- assumes tag is at least 2 chars
-  Tag = "#[A-Za-z]+[A-Za-z0-9_/-]*[A-Za-z0-9]+",
+  TagCharsOptional = "[%w\128-\244_/-]*",
+  TagCharsRequired = "[%w\128-\244_/-]+[%w\128-\244_/-]*[%a\128-\244_/-]+[%w\128-\244_/-]*",
+
+  Tag = "#[%w\128-\244_/-]+[%w\128-\244_/-]*[%a\128-\244_/-]+[%w\128-\244_/-]*",
+  TagCharsRequiredRg = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L}\p{N}_/-]*]],
+  TagCharsOptionalRg = [[[\p{L}\p{N}_/-]*]],
 
   -- Miscellaneous
   Highlight = "==[^=]+==", -- ==text==
@@ -374,13 +377,19 @@ M.find_notes_async = function(term, callback, opts)
   end)
 end
 
+--- Find notes matching search term
+---
+---@param term string The term to search for
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|? }
 M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   return async.block_on(function(cb)
-    return M.find_notes_async(term, cb, { search = opts.search })
+    return M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
   end, opts.timeout)
 end
+
+-- TODO: filter blocks and anchors in here, see _definition, but how does it interact with the shortcut stuff?
 
 ---@param query string
 ---@param opts { notes: obsidian.note.LoadOpts|? }|?
@@ -448,7 +457,7 @@ M.resolve_note = function(query, opts)
     return paths_found
   end
 
-  local results = M.find_notes(query, { search = { sort = true, ignore_case = true }, notes = opts.notes })
+  local results = M.find_notes(query, { search = { ignore_case = true }, notes = opts.notes })
   local query_lwr = string.lower(query)
 
   -- We'll gather both exact matches (of ID, filename, and aliases) and fuzzy matches.
@@ -525,10 +534,11 @@ end
 ---@param note obsidian.Note
 ---@param anchor string
 ---@param block string
-local function build_backlink_search_term(note, anchor, block)
+---@param refs string[]|? Pre-computed reference paths (skips note:get_reference_paths() if provided)
+local function build_backlink_search_term(note, anchor, block, refs)
   -- Prepare search terms.
   local search_terms = {}
-  local raw_refs = note:get_reference_paths { urlencode = true }
+  local raw_refs = refs or note:get_reference_paths { urlencode = true }
 
   for _, ref in ipairs(raw_refs) do
     if anchor == nil and block == nil then
@@ -641,7 +651,7 @@ end
 
 ---@param note obsidian.Note
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
----@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string, dir: string|obsidian.Path }
+---@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string, dir: string|obsidian.Path, refs: string[]|? }
 M.find_backlinks_async = function(note, callback, opts)
   -- vim.validate("note", note, "table")
   -- vim.validate("callback", callback, "function")
@@ -725,7 +735,7 @@ M.find_backlinks_async = function(note, callback, opts)
 
   M.search_async(
     dir,
-    build_backlink_search_term(note, anchor, block),
+    build_backlink_search_term(note, anchor, block, opts.refs),
     { fixed_strings = true, ignore_case = true },
     _on_match,
     function()
@@ -735,7 +745,7 @@ M.find_backlinks_async = function(note, callback, opts)
 end
 
 ---@param note obsidian.Note
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path }?
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?
 ---@return obsidian.BacklinkMatch
 M.find_backlinks = function(note, opts)
   opts = opts or {}
@@ -744,7 +754,7 @@ M.find_backlinks = function(note, opts)
     return M.find_backlinks_async(
       note,
       cb,
-      { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir }
+      { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
     )
   end, opts.timeout)
 end
@@ -825,8 +835,8 @@ M.find_tags_async = function(term, callback, opts)
     end
 
     local lower_tag = tag:lower()
-    for _, term in ipairs(terms) do
-      if term == "" or lower_tag:find(term:lower(), 1, true) then
+    for _, query_term in ipairs(terms) do
+      if query_term == "" or lower_tag:find(query_term:lower(), 1, true) then
         return true
       end
     end
@@ -971,22 +981,25 @@ M.find_tags_async = function(term, callback, opts)
   for _, t in ipairs(terms) do
     if string.len(t) > 0 then
       -- tag in the wild
-      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsOptional .. t .. M.Patterns.TagCharsOptional
+      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsOptionalRg .. t .. M.Patterns.TagCharsOptionalRg
       -- frontmatter tag in multiline list
       search_terms[#search_terms + 1] = "\\s*- "
-        .. M.Patterns.TagCharsOptional
+        .. M.Patterns.TagCharsOptionalRg
         .. t
-        .. M.Patterns.TagCharsOptional
+        .. M.Patterns.TagCharsOptionalRg
         .. "$"
       -- frontmatter tag in inline list
-      search_terms[#search_terms + 1] = "tags: .*" .. M.Patterns.TagCharsOptional .. t .. M.Patterns.TagCharsOptional
+      search_terms[#search_terms + 1] = "tags: .*"
+        .. M.Patterns.TagCharsOptionalRg
+        .. t
+        .. M.Patterns.TagCharsOptionalRg
     else
       -- tag in the wild
-      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsRequired
+      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsRequiredRg
       -- frontmatter tag in multiline list
-      search_terms[#search_terms + 1] = "\\s*- " .. M.Patterns.TagCharsRequired .. "$"
+      search_terms[#search_terms + 1] = "\\s*- " .. M.Patterns.TagCharsRequiredRg .. "$"
       -- frontmatter tag in inline list
-      search_terms[#search_terms + 1] = "tags: .*" .. M.Patterns.TagCharsRequired
+      search_terms[#search_terms + 1] = "tags: .*" .. M.Patterns.TagCharsRequiredRg
     end
   end
 

@@ -1,3 +1,5 @@
+See also: [[LSP-Progress]]
+
 ## Definition
 
 There are three types of links supported:
@@ -14,3 +16,53 @@ There are three types of links supported:
 Bare Links in the wild like `https://nevoim.io`, `mailto:example@gmail.com` and `file:///home/username/.vimrc` are not supported, , to open them, use neovim default keymaps like `gx` and `gf`, or you can enclose them in markdown links.
 
 Attachments and URIs are opened with neovim's default `vim.ui.open`, to customize the behavior, see [[Attachment#open]]
+
+## Rename
+
+Use `vim.lsp.buf.rename()` or default neovim mapping `grn` to rename the target note and update all references across your vault.
+
+The note to be renamed is either the note that the link under your cursor points to, or your current buffer note.
+
+## Auto Rename
+
+When a `.md` file is renamed (e.g. via a file explorer or `:mv`), the LSP server detects the rename and updates all links pointing to that note across your vault.
+
+By default you will be prompted to confirm before links are updated. To apply updates automatically without confirmation, set:
+
+```lua
+require("obsidian").setup {
+  link = {
+    auto_update = true,
+  },
+}
+```
+
+## Code Actions
+
+obsidian.nvim exposes a small set of LSP code actions for common note operations. You can trigger them using your normal LSP code action keymap, by default neovim maps `vim.lsp.buf.code_action` to `gra`.
+
+Available actions:
+
+- Normal mode:
+  - Add file property (`add_property`)
+  - Insert template at cursor (`insert_template`, requires templates enabled)
+  - Move current note to another folder (`move_note`)
+  - Merge current note into another note (`merge_note`)
+  - Start presentation (`start_presentation`, requires slides enabled)
+- Visual mode:
+  - Link selection as name for an existing note (`link`)
+  - Link selection as name for a new note (`link_new`)
+  - Extract selected text to a new note (`extract_note`)
+
+### Code Action API
+
+You can register custom code actions via `require("obsidian").code_action` module.
+
+API:
+
+- `require("obsidian").code_action.add(opts)`, and `opts` field have following fields:
+  - `name`: command id (snake_case recommended).
+  - `title`: text shown in the code action picker.
+  - `fn`: function invoked when the action is executed.
+  - `cond` (optional): a filter function that gets the current note object, determines whether actions is listed.
+- `require("obsidian").code_action.del(name)` removes a previously registered action.

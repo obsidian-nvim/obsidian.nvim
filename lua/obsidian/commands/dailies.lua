@@ -4,7 +4,7 @@ local daily = require "obsidian.daily"
 ---@return number
 local function parse_offset(arg)
   if vim.startswith(arg, "+") then
-    return assert(tonumber(string.sub(arg, 2)), string.format("invalid offset '%'", arg))
+    return assert(tonumber(string.sub(arg, 2)), string.format("invalid offset '%s'", arg))
   elseif vim.startswith(arg, "-") then
     return -assert(tonumber(string.sub(arg, 2)), string.format("invalid offset '%s'", arg))
   else

@@ -1,9 +1,17 @@
 local completion = require "obsidian.completion.refs"
-local LinkStyle = require("obsidian.config").LinkStyle
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
-local iter = vim.iter
+
+---@class obsidian.completion.CompletionItemOptions
+---@field label string
+---@field new_text string
+---@field sort_text string
+---@field documentation table|?
+---@field note obsidian.Note|?
+---@field anchor obsidian.note.HeaderAnchor|?
+---@field block obsidian.note.Block|?
+---@field disambiguated boolean|?
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
@@ -14,10 +22,9 @@ local iter = vim.iter
 ---@field search string|?
 ---@field insert_start integer|?
 ---@field insert_end integer|?
----@field ref_type obsidian.completion.RefType|?
 ---@field block_link string|?
 ---@field anchor_link string|?
----@field new_text_to_option table<string, obsidian.completion.sources.blink.CompletionItem>
+---@field new_text_to_option table<string, obsidian.completion.CompletionItemOptions>
 ---@field root obsidian.Path
 local RefsSourceCompletionContext = {}
 RefsSourceCompletionContext.__index = RefsSourceCompletionContext
@@ -98,7 +105,7 @@ end
 ---@return boolean success provides a chance to return early if the request didn't meet the requirements
 function RefsSourceBase:can_complete_request(cc)
   local can_complete
-  can_complete, cc.search, cc.insert_start, cc.insert_end, cc.ref_type = completion.can_complete(cc.request)
+  can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
 
   if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
     cc.completion_resolve_callback(self.incomplete_response)
@@ -189,14 +196,11 @@ end
 ---@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
 ---@param results obsidian.Note[]
 function RefsSourceBase:process_search_results(cc, results)
-  assert(cc, "no cc")
-  assert(results, "no results")
-
   local completion_items = {}
 
   cc.new_text_to_option = {}
 
-  for note in iter(results) do
+  for _, note in ipairs(results) do
     ---@cast note obsidian.Note
 
     local matching_blocks = self:collect_matching_blocks(note, cc.block_link)
@@ -212,7 +216,7 @@ function RefsSourceBase:process_search_results(cc, results)
         aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
       end
 
-      for alias in iter(aliases) do
+      for _, alias in ipairs(aliases) do
         self:update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
         local alias_case_matched = util.match_case(cc.search, alias)
 
@@ -236,10 +240,12 @@ function RefsSourceBase:process_search_results(cc, results)
     -- TODO: need a better label, maybe just the note's display name?
     ---@type string
     local label
-    if cc.ref_type == completion.RefType.Wiki then
+    if Obsidian.opts.link.style == "wiki" then
       label = string.format("[[%s]]", option.label)
-    elseif cc.ref_type == completion.RefType.Markdown then
+    elseif Obsidian.opts.link.style == "markdown" then
       label = string.format("[%s](…)", option.label)
+    elseif type(Obsidian.opts.link.style) == "function" then
+      label = Obsidian.opts.link.style { label = option.label or "", path = "" }
     else
       error "not implemented"
     end
@@ -247,6 +253,7 @@ function RefsSourceBase:process_search_results(cc, results)
     table.insert(completion_items, {
       documentation = option.documentation,
       sortText = option.sort_text,
+      filterText = completion.get_filter_text(option.label),
       label = label,
       kind = vim.lsp.protocol.CompletionItemKind.Reference,
       textEdit = {
@@ -276,11 +283,11 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
   ---@type { label: string|?, alt_label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }[]
   local new_options = {}
   if matching_anchors ~= nil then
-    for anchor in iter(matching_anchors) do
+    for _, anchor in ipairs(matching_anchors) do
       table.insert(new_options, { label = label, alt_label = alt_label, anchor = anchor })
     end
   elseif matching_blocks ~= nil then
-    for block in iter(matching_blocks) do
+    for _, block in ipairs(matching_blocks) do
       table.insert(new_options, { label = label, alt_label = alt_label, block = block })
     end
   else
@@ -299,23 +306,12 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
 
   -- De-duplicate options relative to their `new_text`.
   for _, option in ipairs(new_options) do
-    ---@type obsidian.config.LinkStyle
-    local link_style
-    if cc.ref_type == completion.RefType.Wiki then
-      link_style = LinkStyle.wiki
-    elseif cc.ref_type == completion.RefType.Markdown then
-      link_style = LinkStyle.markdown
-    else
-      error "not implemented"
-    end
-
     ---@type string, string, string, table|?
     local final_label, sort_text, new_text, documentation
     if option.label then
-      new_text =
-        note:format_link { label = option.label, link_style = link_style, anchor = option.anchor, block = option.block }
+      new_text = note:format_link { label = option.label, anchor = option.anchor, block = option.block }
 
-      final_label = assert(option.alt_label or option.label, "no valid label")
+      final_label = option.alt_label or option.label
       if option.anchor then
         final_label = final_label .. option.anchor.anchor
       elseif option.block then
@@ -334,10 +330,12 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
     elseif option.anchor then
       -- In buffer anchor link.
       -- TODO: allow users to customize this?
-      if cc.ref_type == completion.RefType.Wiki then
+      if Obsidian.opts.link.style == "wiki" then
         new_text = "[[#" .. option.anchor.header .. "]]"
-      elseif cc.ref_type == completion.RefType.Markdown then
+      elseif Obsidian.opts.link.style == "markdown" then
         new_text = "[#" .. option.anchor.header .. "](" .. option.anchor.anchor .. ")"
+      elseif type(Obsidian.opts.link.style) == "function" then
+        new_text = Obsidian.opts.link.style { label = option.label or "", path = "", anchor = option.anchor }
       else
         error "not implemented"
       end
@@ -352,10 +350,12 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
     elseif option.block then
       -- In buffer block link.
       -- TODO: allow users to customize this?
-      if cc.ref_type == completion.RefType.Wiki then
+      if Obsidian.opts.link.style == "wiki" then
         new_text = "[[#" .. option.block.id .. "]]"
-      elseif cc.ref_type == completion.RefType.Markdown then
+      elseif Obsidian.opts.link.style == "markdown" then
         new_text = "[#" .. option.block.id .. "](#" .. option.block.id .. ")"
+      elseif type(Obsidian.opts.link.style) == "function" then
+        new_text = Obsidian.opts.link.style { label = option.label or "", path = "", block = option.block }
       else
         error "not implemented"
       end
@@ -371,11 +371,58 @@ function RefsSourceBase:update_completion_options(cc, label, alt_label, matching
       error "should not happen"
     end
 
+    -- use absolute unless relative
+    local resolve_link_format = Obsidian.opts.link.format == "relative" and "relative" or "absolute"
+
     if cc.new_text_to_option[new_text] then
-      cc.new_text_to_option[new_text].sort_text = cc.new_text_to_option[new_text].sort_text .. " " .. sort_text
+      local existing = cc.new_text_to_option[new_text]
+      if
+        option.label
+        and existing.note
+        and existing.note.path
+        and tostring(existing.note.path) ~= tostring(note.path)
+      then
+        -- Different notes produced the same link text: disambiguate using vault-relative paths.
+        if not existing.disambiguated then
+          cc.new_text_to_option[new_text] = nil
+          local ex_new_text = existing.note:format_link {
+            label = existing.label,
+            format = resolve_link_format,
+            anchor = existing.anchor,
+            block = existing.block,
+          }
+          existing.new_text = ex_new_text
+          existing.disambiguated = true
+          cc.new_text_to_option[ex_new_text] = existing
+        end
+
+        local cur_new_text = note:format_link {
+          label = final_label,
+          format = resolve_link_format,
+          anchor = option.anchor,
+          block = option.block,
+        }
+        if not cc.new_text_to_option[cur_new_text] then
+          cc.new_text_to_option[cur_new_text] = {
+            label = final_label,
+            new_text = cur_new_text,
+            sort_text = sort_text,
+            documentation = documentation,
+            note = note,
+            disambiguated = true,
+          }
+        end
+      end
     else
-      cc.new_text_to_option[new_text] =
-        { label = final_label, new_text = new_text, sort_text = sort_text, documentation = documentation }
+      cc.new_text_to_option[new_text] = {
+        label = final_label,
+        new_text = new_text,
+        sort_text = sort_text,
+        documentation = documentation,
+        note = option.label and note or nil,
+        anchor = option.anchor,
+        block = option.block,
+      }
     end
   end
 end

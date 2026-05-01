@@ -397,7 +397,7 @@ end
 
 --- Create a new directory at the given path.
 ---
----@param opts { mode: integer|?, parents: boolean|?, exist_ok: boolean|? }|?
+---@param opts { mode: integer|?, parents: boolean|? }|?
 Path.mkdir = function(self, opts)
   opts = opts or {}
 
@@ -418,7 +418,7 @@ Path.mkdir = function(self, opts)
   local parents = self:parents()
   for i = #parents, 1, -1 do
     if not parents[i]:is_dir() then
-      parents[i]:mkdir { exist_ok = true, mode = mode }
+      parents[i]:mkdir { mode = mode }
     end
   end
 

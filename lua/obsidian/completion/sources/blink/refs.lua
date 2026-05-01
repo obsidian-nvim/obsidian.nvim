@@ -1,12 +1,6 @@
 local RefsSourceBase = require "obsidian.completion.sources.base.refs"
 local blink_util = require "obsidian.completion.sources.blink.util"
 
----@class obsidian.completion.sources.blink.CompletionItem
----@field label string
----@field new_text string
----@field sort_text string
----@field documentation table|?
-
 ---@class obsidian.completion.sources.blink.RefsSource : obsidian.completion.sources.base.RefsSourceBase
 local RefsSource = {}
 RefsSource.__index = RefsSource

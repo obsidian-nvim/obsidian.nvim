@@ -29,7 +29,7 @@
 <hr>
 <!--markdoc_ignore_end-->
 
-A **community fork** of the Neovim plugin for writing and navigating [Obsidian](https://obsidian.md) vaults, written in Lua, created by [epwalsh](https://github.com/epwalsh).
+A **community fork** of [epwalsh/obsidian.nvim](https://github.com/epwalsh/obsidian.nvim), neovim plugin for [Obsidian](https://obsidian.md) vaults.
 
 Built for people who love the concept of Obsidian -- a simple, markdown-based notes app -- but love Neovim too much to stand typing characters into anything else.
 
@@ -37,24 +37,27 @@ _This plugin is not meant to replace Obsidian, but to complement it._ The Obsidi
 
 ## 🍴 About the fork
 
-The original project has not been actively maintained for quite a while and with the ever-changing Neovim ecosystem, new widely used tools such as [blink.cmp](https://github.com/Saghen/blink.cmp) or [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md) were not supported.
-
-With bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
+The original project has not been actively maintained for quite a while and with bugs, issues and pull requests piling up, people from the community decided to fork and maintain the project.
 
 - Discussions are happening in [GitHub Discussions](https://github.com/obsidian-nvim/obsidian.nvim/discussions/6)
 - Sponsor the project at [Open Collective](https://opencollective.com/nvim-obsidian)
-- See [Breaking changes](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Breaking-Changes) to migrate from original repo or older releases
-- See the latest documentation in [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki), or navigate the wiki in neovim with `:Obsidian help` or `:Obsidian helpgrep`, which is the most accurate and versioned documentation of your local install.
+- To migrate from original repo or older releases, see [Breaking changes](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Breaking-Changes)
+- See the documentation:
+  - [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki) for documentation of the latest release.
+  - `:Obsidian help` or `:Obsidian helpgrep` for documentation update to date with your current installation.
+  - `:h obsidian-api` for API reference.
 
 ## ⭐ Features
 
-▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki links, `[` for markdown links, or `#` for tags)
+▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki and markdown links, `#` for tags)
 
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
 📷 **Images:** Paste images into notes.
 
 📈 **Status:** See note status in footer like obsidian app.
+
+🔄 **Sync:** [Sync](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Sync) support for [Obsidian Sync](https://obsidian.md/help/sync).
 
 ### Keymaps
 
@@ -78,17 +81,23 @@ There's one entry point user command for this plugin: `Obsidian`
   - you are in visual mode.
 - See [Commands](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands) for more info.
 
+> [!Warning]
+> Note subcommands related to refactoring, like `rename` and `template`
+> And all the visual mode commands, will be moved to code actions in `3.17.0`.
+
 #### Top level commands
 
-- `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
+- `:Obsidian check` - check for common issues in your vault and plugin setup
+- `:Obsidian ailies [OFFSET ...]` - open a picker list of daily notes
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
 - `:Obsidian help` - find files in the help wiki
 - `:Obsidian helpgrep` - grep files in the help wiki
 - `:Obsidian new [TITLE]` - create a new note
 - `:Obsidian open [QUERY]` - open a note in the Obsidian app
   - query is used to resolve the note to open by ID, path, or alias, else use current note
-- `:Obsidian today [OFFSET]` - open/create a new daily note
+- `:Obsidian today [OFFSET_OR_DATE]` - open/create a new daily note
   - offset is in days, e.g. use `:Obsidian today -1` to go to yesterday's note.
+  - you can also give an argument like `3-1`/`2026-3-1`, it will parse common date formats and open daily for that specific date.
   - Unlike `:Obsidian yesterday` and `:Obsidian tomorrow` this command does not differentiate between weekdays and weekends
 - `:Obsidian tomorrow` - open/create the daily note for the next working day
 - `:Obsidian yesterday` - open/create the daily note for the previous working day
@@ -96,7 +105,9 @@ There's one entry point user command for this plugin: `Obsidian`
   - both arguments are optional. If not given, the template will be selected from a list using your preferred picker
 - `:Obsidian quick_switch` - switch to another note in your vault, searching by its name with a picker
 - `:Obsidian search [QUERY]` - search for (or create) notes in your vault using `ripgrep` with your preferred picker
-- `:Obsidian tags [TAG ...]` - search tags, supporting OR queries, `+tag` AND queries, and `#tag` inline-only searches.
+- `:Obsidian sync [SUBCMD]` - use [obsidian-headless](https://obsidian.md/help/sync/headless) to access official obsidian sync service. Default off, enable with `opts.sync.enabled = true`, for more see [Sync](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Sync).
+- `:Obsidian tags [QUERY]` - search tags with Obsidian-style tag terms such as `tag:#book`, `tag:#book OR tag:#movie`, or `tag:#book -tag:#archive`.
+- `:Obsidian unique_note [TITLE]` - create a new note with a unique, timestamp-based ID
 - `:Obsidian workspace [NAME]` - switch to another workspace
 
 #### Note commands
@@ -124,6 +135,11 @@ There's one entry point user command for this plugin: `Obsidian`
   - query will be used to resolve the note by ID, path, or alias, else query is selected text
 - `:Obsidian link_new [TITLE]` - create a new note and link it to an inline visual selection of text
   - if title is not given, selected text is used
+
+### LSP code actions
+
+- Use `gra` or `:=vim.lsp.buf.code_action()` to trigger note specific actions.
+- See [LSP code actions](https://github.com/obsidian-nvim/obsidian.nvim/wiki/LSP#code-actions) and [Actions](docs/Actions.md) for more info.
 
 ## 📝 Requirements
 
@@ -157,17 +173,6 @@ There's no required dependency, but there are a number of optional dependencies 
 - [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
 - See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
 
-**Syntax highlighting:**
-
-See [syntax highlighting](#syntax-highlighting) for more details.
-
-- For base syntax highlighting:
-  - [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
-  - [vim-markdown](https://github.com/preservim/vim-markdown)
-- For additional syntax features:
-  - [render-markdown.nvim](https://github.com/MeanderingProgrammer/render-markdown.nvim)
-  - [markview.nvim](https://github.com/OXY2DEV/markview.nvim)
-
 ## 📥 Installation
 
 > [!WARNING]
@@ -186,11 +191,10 @@ See [syntax highlighting](#syntax-highlighting) for more details.
 return {
   "obsidian-nvim/obsidian.nvim",
   version = "*", -- use latest release, remove to use latest commit
-  ft = "markdown",
   ---@module 'obsidian'
   ---@type obsidian.config
   opts = {
-    legacy_commands = false, -- this will be removed in the next major release
+    legacy_commands = false, -- this will be removed in 4.0.0
     workspaces = {
       {
         name = "personal",
@@ -220,11 +224,25 @@ vim.pack.add {
     version = vim.version.range "*", -- use latest release, remove to use latest commit
   },
 }
+
+require("obsidian").setup {
+  legacy_commands = false, -- this will be removed in 4.0.0
+  workspaces = {
+    {
+      name = "personal",
+      path = "~/vaults/personal",
+    },
+    {
+      name = "work",
+      path = "~/vaults/work",
+    },
+  },
+}
 ```
 
 ## ⚙️ Configuration
 
-To configure obsidian.nvim, pass your custom options that are different from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
+To configure obsidian.nvim, pass your custom options that are _different_ from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
 
 ## 🤝 Contributing
 
@@ -304,6 +322,14 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://caechao.github.io"><img src="https://avatars.githubusercontent.com/u/47220170?v=4?s=100" width="100px;" alt="CaeChao"/><br /><sub><b>CaeChao</b></sub></a><br /><a href="#code-CaeChao" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/tartansandal"><img src="https://avatars.githubusercontent.com/u/3327775?v=4?s=100" width="100px;" alt="Kahlil Hodgson"/><br /><sub><b>Kahlil Hodgson</b></sub></a><br /><a href="#code-tartansandal" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/pR0land"><img src="https://avatars.githubusercontent.com/u/16734321?v=4?s=100" width="100px;" alt="Frederik Roland Christiansen"/><br /><sub><b>Frederik Roland Christiansen</b></sub></a><br /><a href="#code-pR0land" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/laughing96"><img src="https://avatars.githubusercontent.com/u/67511038?v=4?s=100" width="100px;" alt="Lucky Laughing"/><br /><sub><b>Lucky Laughing</b></sub></a><br /><a href="#code-laughing96" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.jennius.co.uk"><img src="https://avatars.githubusercontent.com/u/724096?v=4?s=100" width="100px;" alt="Jorg Jenni"/><br /><sub><b>Jorg Jenni</b></sub></a><br /><a href="#code-Enceradeira" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/zzhirong"><img src="https://avatars.githubusercontent.com/u/627330?v=4?s=100" width="100px;" alt="zzhirong"/><br /><sub><b>zzhirong</b></sub></a><br /><a href="#code-zzhirong" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/franco-ruggeri"><img src="https://avatars.githubusercontent.com/u/38300576?v=4?s=100" width="100px;" alt="Franco Ruggeri"/><br /><sub><b>Franco Ruggeri</b></sub></a><br /><a href="#code-franco-ruggeri" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/JohnTKelly"><img src="https://avatars.githubusercontent.com/u/25050248?v=4?s=100" width="100px;" alt="John T. Kelly"/><br /><sub><b>John T. Kelly</b></sub></a><br /><a href="#code-JohnTKelly" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/antinomie8"><img src="https://avatars.githubusercontent.com/u/130611615?v=4?s=100" width="100px;" alt="antinomie8"/><br /><sub><b>antinomie8</b></sub></a><br /><a href="#code-antinomie8" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

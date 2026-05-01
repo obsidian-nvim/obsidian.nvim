@@ -1,18 +1,36 @@
 local log = require "obsidian.log"
+local util = require "obsidian.util"
 
 ---@param data obsidian.CommandArgs
 return function(data)
-  local offset_days = 0
   local arg = string.gsub(data.args, " ", "")
+  local note
+
   if string.len(arg) > 0 then
     local offset = tonumber(arg)
-    if offset == nil then
-      log.err "Invalid argument, expected an integer offset"
-      return
-    else
-      offset_days = offset
+    if offset ~= nil then -- It's a numeric offset
+      ---@diagnostic disable-next-line: param-type-mismatch
+      note = require("obsidian.daily").daily { offset = offset }
+    else -- Try parsing as a formatted date
+      local date, err = util.parse_date(arg)
+      if date then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        note = require("obsidian.daily").daily { date = os.time(date) }
+      else
+        log.err(
+          string.format(
+            "Invalid argument: %s (expected integer offset or date in format like YYYY-MM-DD)\nErr: %s",
+            arg,
+            err
+          )
+        )
+        return
+      end
     end
+  else
+    note = require("obsidian.daily").today()
   end
-  local note = require("obsidian.daily").daily(offset_days, {})
-  note:open()
+  if note ~= nil then
+    note:open()
+  end
 end

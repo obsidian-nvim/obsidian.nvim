@@ -35,7 +35,7 @@ TagsSourceBase.get_trigger_characters = completion.get_trigger_characters
 ---@param completion_resolve_callback (fun(self: any)) blink or nvim_cmp completion resolve callback
 ---@param request obsidian.completion.sources.base.Request
 ---@return obsidian.completion.sources.base.TagsSourceCompletionContext
-function TagsSourceBase:new_completion_context(completion_resolve_callback, request)
+function TagsSourceBase.new_completion_context(_self, completion_resolve_callback, request)
   local completion_context = TagsSourceCompletionContext.new()
 
   -- Sets up the completion callback, which will be called when the (possibly incomplete) completion items are ready

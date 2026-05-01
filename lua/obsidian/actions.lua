@@ -2,6 +2,7 @@ local M = {}
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local Note = require "obsidian.note"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -24,7 +25,6 @@ end
 M.nav_link = function(direction)
   -- vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")
   local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
-  local Note = require "obsidian.note"
 
   local matches = Note.from_buffer(0):links()
 
@@ -68,7 +68,7 @@ M.smart_action = function()
     return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
   elseif has_markdown_folding() and api.cursor_heading() then
     return "za"
-  elseif api.cursor_checkbox() or Obsidian.opts.checkbox.create_new then
+  elseif Obsidian.opts.checkbox.enabled and (api.cursor_checkbox() or Obsidian.opts.checkbox.create_new) then
     return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
   else
     return "<CR>"
@@ -84,6 +84,61 @@ local function no_checkbox()
     "minus_metadata",
     --- what other types?
   }
+end
+
+---@param states string[]
+---@param cur string|nil
+---@return string?
+local function next_checkbox_state(states, cur)
+  if not states or #states == 0 then
+    return cur or " "
+  end
+  if cur == nil then
+    return states[1]
+  end
+
+  local idx
+  for i, s in ipairs(states) do
+    if s == cur then
+      idx = i
+      break
+    end
+  end
+  if not idx then
+    return states[1]
+  end
+
+  idx = idx % #states
+  return states[idx + 1]
+end
+
+---@param line string
+---@return string|nil prefix
+---@return string|nil rest
+local function parse_list_prefix(line)
+  local indent, bullet, spaces, rest = line:match "^(%s*)([-+*])(%s+)(.*)$"
+  if bullet then
+    return indent .. bullet .. spaces, rest
+  end
+
+  local indent2, num, delim, spaces2, rest2 = line:match "^(%s*)(%d+)([%.%)])(%s+)(.*)$"
+  if num then
+    return indent2 .. num .. delim .. spaces2, rest2
+  end
+
+  return nil, nil
+end
+
+---@param rest string
+---@return string|nil state
+---@return string|nil ws
+---@return string|nil body
+local function parse_checkbox_rest(rest)
+  local state, ws, body = rest:match "^%[(.)%](%s*)(.*)$"
+  if state ~= nil then
+    return state, ws, body
+  end
+  return nil, nil, nil
 end
 
 ---Toggle the checkbox on a lnum
@@ -103,20 +158,36 @@ M._toggle_checkbox = function(states, lnum)
 
   local checkboxes = states or { " ", "x" }
 
-  if util.is_checkbox(line) then
-    for i, check_char in ipairs(checkboxes) do
-      if string.match(line, "^.* %[" .. vim.pesc(check_char) .. "%].*") then
-        i = i % #checkboxes
-        line = string.gsub(line, vim.pesc("[" .. check_char .. "]"), "[" .. checkboxes[i + 1] .. "]", 1)
-        break
+  local prefix, rest = parse_list_prefix(line)
+  if prefix and rest then
+    local cur_state, ws, body = parse_checkbox_rest(rest)
+    if cur_state then
+      local next_state = next_checkbox_state(checkboxes, cur_state)
+      if next_state == "" then
+        line = prefix .. body
+      else
+        if ws == "" and body ~= "" then
+          ws = " "
+        end
+        line = prefix .. "[" .. next_state .. "]" .. ws .. body
       end
+    else
+      -- A list item without a checkbox; treat current state as "".
+      local next_state = next_checkbox_state(checkboxes, "")
+      if next_state ~= "" then
+        line = prefix .. "[" .. next_state .. "] " .. rest
+      end
+      -- If next_state == "", do nothing.
     end
   elseif Obsidian.opts.checkbox.create_new then
-    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
-    if string.match(line, unordered_list_pattern) then
-      line = string.gsub(line, unordered_list_pattern, "%1- [ ] %2")
+    -- Create a new list item, optionally with a checkbox.
+    local indent = line:match "^(%s*)" or ""
+    local after_indent = line:sub(#indent + 1)
+    local next_state = next_checkbox_state(checkboxes, nil)
+    if next_state == "" then
+      line = indent .. "- " .. after_indent
     else
-      line = string.gsub(line, "^(%s*)", "%1- [ ] ")
+      line = indent .. "- [" .. next_state .. "] " .. after_indent
     end
   else
     return
@@ -141,7 +212,7 @@ M.toggle_checkbox = function(start_lnum, end_lnum)
 
   for line_nb = start_lnum, end_lnum do
     local current_line = vim.api.nvim_buf_get_lines(0, line_nb - 1, line_nb, false)[1]
-    if current_line and current_line:match "%S" then
+    if current_line and (current_line:match "%S" or Obsidian.opts.checkbox.create_new) then
       M._toggle_checkbox(states, line_nb)
     end
   end
@@ -183,16 +254,30 @@ M.set_checkbox = function(state)
 
   local cur_line = vim.api.nvim_get_current_line()
 
-  if util.is_checkbox(cur_line) then
-    if string.match(cur_line, "^.* %[.%].*") then
-      cur_line = string.gsub(cur_line, "%[.%]", "[" .. state .. "]", 1)
+  local prefix, rest = parse_list_prefix(cur_line)
+  if prefix then
+    local cur_state, ws, body = parse_checkbox_rest(rest)
+    if state == "" then
+      if cur_state then
+        cur_line = prefix .. body
+      end
+    else
+      if cur_state then
+        if ws == "" and body ~= "" then
+          ws = " "
+        end
+        cur_line = prefix .. "[" .. state .. "]" .. ws .. body
+      else
+        cur_line = prefix .. "[" .. state .. "] " .. rest
+      end
     end
   elseif Obsidian.opts.checkbox.create_new then
-    local unordered_list_pattern = "^(%s*)[-*+] (.*)"
-    if string.match(cur_line, unordered_list_pattern) then
-      cur_line = string.gsub(cur_line, unordered_list_pattern, "%1- [" .. state .. "] %2")
+    local indent = cur_line:match "^(%s*)" or ""
+    local after_indent = cur_line:sub(#indent + 1)
+    if state == "" then
+      cur_line = indent .. "- " .. after_indent
     else
-      cur_line = string.gsub(cur_line, "^(%s*)", "%1- [" .. state .. "] ")
+      cur_line = indent .. "- [" .. state .. "] " .. after_indent
     end
   else
     return
@@ -358,7 +443,11 @@ M.extract_note = function(label)
   end
 
   -- create the new note.
-  local note = require("obsidian.note").create { id = label }
+  local note = require("obsidian.note").create {
+    id = label,
+    template = Obsidian.opts.note.template,
+    should_write = true,
+  }
 
   -- replace selection with link to new note
   local link = note:format_link()
@@ -375,7 +464,6 @@ end
 ---@param id string|?
 ---@param callback fun(note: obsidian.Note)|?
 M.new = function(id, callback)
-  local Note = require "obsidian.note"
   if not id then
     id = api.input("Enter id or path (optional): ", { completion = "file" })
     if not id then
@@ -402,8 +490,6 @@ end
 ---@param template string|?
 ---@param callback fun(note: obsidian.Note)|?
 M.new_from_template = function(id, template, callback)
-  local Note = require "obsidian.note"
-
   local templates_dir = api.templates_dir()
   if not templates_dir then
     return log.err "Templates folder is not defined or does not exist"
@@ -456,6 +542,30 @@ M.new_from_template = function(id, template, callback)
       end
     end,
   }
+end
+
+-- https://help.obsidian.md/plugins/unique-note
+---@param timestamp integer|?
+---@return obsidian.Note?
+M.unique_note = function(timestamp)
+  local note = require("obsidian.unique").new_unique_note(timestamp)
+  if not note then
+    return
+  end
+  note:open { sync = true }
+  return note
+end
+
+-- https://help.obsidian.md/plugins/unique-note
+---@param timestamp integer|?
+---@return string?
+M.unique_link = function(timestamp)
+  local link = require("obsidian.unique").new_unique_link(timestamp)
+  if not link then
+    return
+  end
+  vim.api.nvim_put({ link }, "c", true, true)
+  return link
 end
 
 M.add_property = function()
@@ -512,10 +622,156 @@ M.add_property = function()
   note:update_frontmatter(0)
 end
 
+---@param template_name string
+M.insert_template = function(template_name)
+  local templates_dir = api.templates_dir()
+  if not templates_dir then
+    return log.err "Templates folder is not defined or does not exist"
+  end
+  local templates = require "obsidian.templates"
+
+  -- We need to get this upfront before the picker hijacks the current window.
+  local insert_location = api.get_active_window_cursor_location()
+
+  local function insert_template(name)
+    templates.insert_template {
+      type = "insert_template",
+      template_name = name,
+      templates_dir = templates_dir,
+      location = insert_location,
+    }
+  end
+
+  if template_name ~= nil then
+    insert_template(template_name)
+    return
+  end
+
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for path in api.dir(tostring(templates_dir)) do
+    entries[#entries + 1] = {
+      filename = path,
+      text = vim.fs.basename(path),
+    }
+  end
+
+  Obsidian.picker.pick(entries, {
+    callback = function(entry)
+      insert_template(entry.filename)
+    end,
+  })
+end
+
+---@param buf integer|?
 M.start_presentation = function(buf)
-  local Note = require "obsidian.note"
   local note = Note.from_buffer(buf)
   require("obsidian.slides").start_presentation(note)
+end
+
+---@param symbol lsp.WorkspaceSymbol
+---@return obsidian.PickerEntry
+local function symbol_to_entry(symbol)
+  local range = symbol.location.range
+  return {
+    filename = vim.uri_to_fname(symbol.location.uri),
+    text = symbol.name,
+    lnum = range and range.start.line + 1 or nil,
+    user_data = symbol.data,
+  }
+end
+
+---@param query string|?
+---@param callback fun(entry: obsidian.PickerEntry)|?
+M.workspace_symbol = function(query, callback)
+  query = query or ""
+  require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
+    local entries = vim.tbl_map(symbol_to_entry, symbols)
+    Obsidian.picker.pick(entries, { prompt_title = "Workspace Symbols", callback = callback })
+  end)
+end
+
+---Pick a folder under the vault root.
+---@param callback fun(directory: string, text: string)
+local function pick_folder(callback)
+  local root = tostring(Obsidian.workspace.root)
+  local choices = { { filename = root, text = "/" } }
+
+  for path, t in vim.fs.dir(root, { depth = math.huge }) do
+    if t == "directory" then
+      choices[#choices + 1] = {
+        filename = vim.fs.joinpath(root, path),
+        text = path .. "/",
+      }
+    end
+  end
+
+  Obsidian.picker.pick(choices, {
+    callback = function(entry)
+      callback(entry.filename, entry.text)
+    end,
+    format_item = function(v)
+      return tostring(v.text)
+    end,
+  })
+end
+
+---@param directory string
+---@param text string
+local function move_note(directory, text)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local src = vim.api.nvim_buf_get_name(bufnr)
+  local dest = vim.fs.joinpath(directory, vim.fs.basename(src))
+  if src == dest then
+    return log.info "Note is already in that folder"
+  end
+  local ok, err = vim.uv.fs_rename(src, dest)
+  if not ok then
+    return log.err("Failed to move note: " .. (err or "unknown error"))
+  end
+  vim.api.nvim_buf_set_name(bufnr, dest)
+  vim.cmd "silent! write"
+  log.info("Moved note to '%s'", text)
+end
+
+M.move_note = function()
+  if not vim.b.obsidian_buffer then
+    log.info "Not in an obsidian buffer"
+    return
+  end
+  pick_folder(move_note)
+end
+
+---@param dst_note obsidian.Note
+local function merge_note(dst_note)
+  local current_note = api.current_note()
+  assert(current_note, "Must be in a note to merge")
+
+  local message = ('Are you sure you want to merge "%s" to "%s"? "%s" will be deleted.'):format(
+    current_note.id,
+    dst_note.id,
+    current_note.id
+  )
+
+  if api.confirm(message) == "Yes" then
+    dst_note:merge(current_note)
+    dst_note:open { sync = true }
+    vim.fs.rm(tostring(current_note.path))
+  end
+end
+
+---@param dst_note obsidian.Note?
+M.merge_note = function(dst_note)
+  if dst_note then
+    merge_note(dst_note)
+  else
+    Obsidian.picker.find_notes {
+      callback = function(path)
+        local note = Note.from_file(path)
+        merge_note(note)
+      end,
+    }
+  end
 end
 
 return M

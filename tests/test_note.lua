@@ -242,6 +242,86 @@ T["from_lines"]["should work from a file w/o frontmatter"] = function()
   eq(false, note.has_frontmatter)
 end
 
+T["body_lines"] = new_set()
+
+T["body_lines"]["should return full contents when no frontmatter"] = function()
+  local note = from_str("# Title\n\nBody line", "no_frontmatter.md", { load_contents = true })
+  eq({ "# Title", "", "Body line" }, note:body_lines())
+end
+
+T["body_lines"]["should return contents after frontmatter"] = function()
+  local note = from_str("---\nid: test\n---\n\nBody line 1\n\nBody line 2", "with_frontmatter.md", {
+    load_contents = true,
+  })
+  eq({ "", "Body line 1", "", "Body line 2" }, note:body_lines())
+end
+
+T["merge"] = new_set()
+
+T["merge"]["should merge aliases, tags, and metadata"] = function()
+  local base_note = from_str(
+    [[---
+id: self
+aliases:
+   - alpha
+tags:
+   - one
+foo: bar
+---]],
+    "self.md"
+  )
+  local other_note = from_str(
+    [[---
+aliases:
+   - beta
+tags:
+   - two
+foo: baz
+extra:
+   - 1
+   - 2
+---]],
+    "other.md"
+  )
+
+  base_note:merge(other_note)
+
+  eq(true, base_note:has_alias "beta")
+  eq(true, base_note:has_tag "two")
+  eq({ "bar", "baz" }, base_note.metadata.foo)
+  eq({ 1, 2 }, base_note.metadata.extra)
+end
+
+T["merge"]["should do nothing when other has no frontmatter"] = function()
+  local base_note = from_str("---\nfoo: bar\n---", "self.md", { load_contents = true })
+  local other_note = from_str("Just body", "other.md", { load_contents = true })
+
+  base_note:merge(other_note)
+
+  eq("bar", base_note.metadata.foo)
+end
+
+T["merge"]["should merge into note with no frontmatter"] = function()
+  local base_note = from_str("Just body content", "self.md", { load_contents = true })
+  local other_note = from_str(
+    [[---
+aliases:
+   - beta
+tags:
+   - two
+foo: baz
+---]],
+    "other.md"
+  )
+
+  base_note:merge(other_note)
+
+  eq(true, base_note:has_alias "beta")
+  eq(true, base_note:has_tag "two")
+  eq("baz", base_note.metadata.foo)
+  eq(true, base_note.has_frontmatter)
+end
+
 T["from_file"] = new_set()
 
 T["from_file"]["should work from a README"] = function()
@@ -425,6 +505,102 @@ T["resolve_id_path"]["should ensure result of 'note_path_func' is always an abso
   }
   eq("New Note", id)
   eq(Path.new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
+end
+
+T["format_link"] = new_set()
+
+T["format_link"]["should respect link.style"] = function()
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+
+  Obsidian.opts.link.style = "wiki"
+  eq("[[foo]]", note:format_link { label = "foo" })
+
+  Obsidian.opts.link.style = "markdown"
+  eq("[foo](foo.md)", note:format_link { label = "foo" })
+end
+
+T["format_link"]["wiki should include label only when different from raw basename"] = function()
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo-bar.md")
+
+  Obsidian.opts.link.style = "wiki"
+  Obsidian.opts.link.format = "shortest"
+
+  eq("[[foo-bar]]", note:format_link { label = "foo-bar" })
+  eq("[[foo-bar|Foo Bar]]", note:format_link { label = "Foo Bar" })
+end
+
+T["format_link"]["should respect custom link formatter callbacks"] = function()
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+
+  Obsidian.opts.link.style = function(opts)
+    return "W:" .. tostring(opts.path)
+  end
+  eq("W:foo.md", note:format_link())
+end
+
+T["format_link"]["opts.format should override global link.format"] = function()
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+
+  Obsidian.opts.link.format = "absolute"
+  eq("[[foo]]", note:format_link { format = "shortest", label = "foo" })
+  eq("[[notes/foo|foo]]", note:format_link { format = "absolute", label = "foo" })
+end
+
+T["format_link"]["relative format should fallback to vault root when current note dir is unavailable"] = function()
+  Obsidian.opts.link.format = "relative"
+  Obsidian.buf_dir = nil
+
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str(foo, Obsidian.dir / "notes/foo.md")
+
+  eq("[[notes/foo|foo]]", note:format_link { label = "foo" })
+end
+
+T["format_link"]["wiki should respect link.format"] = function()
+  -- default to link.style = "shortest"
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str("", Obsidian.dir / "notes/foo.md")
+  eq("[[foo]]", note:format_link())
+  Obsidian.opts.link.format = "absolute"
+  eq("[[notes/foo|foo]]", note:format_link())
+
+  Obsidian.opts.link.format = "relative"
+
+  local subfolder = Obsidian.dir / "notes" / "sub"
+  subfolder:mkdir { exist_ok = true }
+
+  Obsidian.buf_dir = subfolder
+  eq("[[../foo|foo]]", note:format_link())
+
+  Obsidian.buf_dir = Obsidian.dir / "notes"
+  local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
+  eq("[[sub/bar|bar]]", bar_note:format_link())
+end
+
+T["format_link"]["markdown should respect link.format"] = function()
+  -- default to link.style = "shortest"
+  Obsidian.opts.link.style = "markdown"
+  (Obsidian.dir / "notes"):mkdir { exist_ok = true }
+  local note = from_str("", Obsidian.dir / "notes/foo.md")
+  eq("[foo](foo.md)", note:format_link())
+  Obsidian.opts.link.format = "absolute"
+  eq("[foo](notes/foo.md)", note:format_link())
+
+  Obsidian.opts.link.format = "relative"
+
+  local subfolder = Obsidian.dir / "notes" / "sub"
+  subfolder:mkdir { exist_ok = true }
+
+  Obsidian.buf_dir = subfolder
+  eq("[foo](../foo.md)", note:format_link())
+
+  Obsidian.buf_dir = Obsidian.dir / "notes"
+  local bar_note = from_str("", Obsidian.dir / "notes/sub/bar.md")
+  eq("[bar](sub/bar.md)", bar_note:format_link())
 end
 
 -- T["reference_paths"] = new_set()

@@ -119,7 +119,6 @@ Parser.parse = function(self, str)
         -- Add value to parent array.
         parent[#parent + 1] = value
       elseif type(parent) == "table" and value_type == YamlType.Mapping then
-        assert(parent, "invalid parent")
         -- Add value to parent mapping.
         for key, item in pairs(value) do
           -- Check for duplicate keys.
@@ -269,7 +268,11 @@ Parser._try_parse_field = function(self, lines, i, text)
     local out = {}
     local next_line = lines[i + 1]
     local j = i + 1
-    if next_line ~= nil and next_line.indent >= line.indent and vim.startswith(next_line.content, "- ") then
+    if
+      next_line ~= nil
+      and next_line.indent >= line.indent
+      and (next_line.content == "-" or vim.startswith(next_line.content, "- "))
+    then
       -- This is the start of an array.
       local array
       j, array = self:_parse_array(lines, j)
@@ -331,7 +334,10 @@ end
 Parser._try_parse_array_item = function(self, lines, i, text)
   local line = lines[i]
   text = text and text or yaml_util.strip_comments(line.content)
-  if vim.startswith(text, "- ") then
+  if text == "-" then
+    -- Bare dash is a null array item.
+    return true, i + 1, self:_new_null()
+  elseif vim.startswith(text, "- ") then
     local _, _, array_item_str = string.find(text, "- (.*)")
     local value
     -- Check for null entry.
@@ -356,7 +362,7 @@ Parser._parse_array = function(self, lines, i)
   local item_indent = lines[i].indent
   while i <= #lines do
     local line = lines[i]
-    if line.indent == item_indent and vim.startswith(line.content, "- ") then
+    if line.indent == item_indent and (line.content == "-" or vim.startswith(line.content, "- ")) then
       local is_array_item, value
       is_array_item, i, value = self:_try_parse_array_item(lines, i)
       assert(is_array_item, "not an array item")
@@ -395,7 +401,7 @@ Parser._parse_mapping = function(self, i, lines)
           end
         end
       else
-        error(self:_error_msg("unexpected value found found in table", i))
+        error(self:_error_msg("unexpected value found in table", i))
       end
     else
       break
@@ -412,6 +418,11 @@ end
 ---@param text string
 ---@return any, string
 Parser._parse_inline_value = function(self, i, text)
+  if text:match "%[%[.-%]%]" then
+    local _, _, str = self:_parse_string(i, text)
+    return str, YamlType.Scalar
+  end
+
   for parse_func_and_type in
     vim.iter {
       { self._parse_number, YamlType.Scalar },
@@ -621,7 +632,7 @@ end
 ---@param text string
 ---@return boolean, string|?, vim.NIL|nil
 Parser._parse_null = function(self, _, text)
-  if text == "null" or text == "" then
+  if text == "null" or text == "~" or text == "" then
     return true, nil, self:_new_null()
   else
     return false, nil, nil

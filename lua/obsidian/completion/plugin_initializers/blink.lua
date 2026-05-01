@@ -85,7 +85,7 @@ local function try_inject_blink_sources_into_per_filetype(blink_sources_per_file
   end
 
   local markdown_config_type = type(markdown_config)
-  if markdown_config_type == "table" and util.islist(markdown_config) then
+  if markdown_config_type == "table" then
     for _, provider in pairs(M.providers) do
       add_element_to_list_if_not_exists(markdown_config, provider.name)
     end
