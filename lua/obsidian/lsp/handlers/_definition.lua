@@ -40,7 +40,7 @@ local function create_new_note(location, callback)
     actions.new(location, function(note)
       callback { note:_location() }
     end)
-  elseif confirm == "Yes With Template" then
+  elseif confirm == "Yes with Template" then
     actions.new_from_template(location, nil, function(note)
       -- TODO: maybe new_from_template should not have `should_write`
       callback { note:_location() }
