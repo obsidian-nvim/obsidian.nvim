@@ -10,6 +10,15 @@ local Note = require "obsidian.note"
 ---@param opts { open_strategy: obsidian.config.OpenStrategy|? }|?
 M.follow_link = function(link, opts)
   opts = opts and opts or {}
+  local range
+  if not link then
+    link, _, range = api.cursor_link()
+  end
+
+  if not link then
+    return log.warn "No link found under cursor"
+  end
+
   require("obsidian.lsp.handlers._definition").follow_link(link, function(_, locations)
     local items = vim.lsp.util.locations_to_items(locations, "utf-8")
     local cmd = opts.open_strategy or api.get_open_strategy(Obsidian.opts.open_notes_in)
@@ -18,7 +27,7 @@ M.follow_link = function(link, opts)
     else
       Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
     end
-  end)
+  end, { range = range })
 end
 
 ---@param direction "next" | "prev"
