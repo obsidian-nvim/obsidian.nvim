@@ -11,8 +11,8 @@ local H = {}
 ---@param lines string[] The list of lines in the markdown document.
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer insert_idx where new text should be inserted to satisfy the constraints, or `0` when impossible.
----@return string[] insert_before holds the lines needed _before_ the text in order to preserve the constraints.
----@return string[] insert_after holds the lines needed _after_ the text in order to preserve the constraints.
+---@return string[] insert_top holds the lines needed _before_ the text in order to preserve the constraints.
+---@return string[] insert_bot holds the lines needed _after_ the text in order to preserve the constraints.
 function M.resolve(lines, opts)
   local sections = H.collapse_into_sections(lines)
   local chosen_idx = H.choose_section(sections, opts)
@@ -20,8 +20,8 @@ function M.resolve(lines, opts)
   if chosen_idx > 0 then
     return H.expand_old_section(sections, chosen_idx, opts)
   else
-    local key = opts.section.on_missing or "create"
-    local handler = assert(H.on_section_missing_handlers[key], "unsupported `opts.section.on_missing` key: " .. key)
+    local key = opts.on_section_missing or "create"
+    local handler = assert(H.on_section_missing_handlers[key], "unknown `on_section_missing` key: " .. vim.inspect(key))
     return handler(sections, opts)
   end
 end
@@ -78,13 +78,19 @@ end
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer chosen_idx where the new text can be inserted while maintaining the layout, or `0` if none are valid.
 function H.choose_section(sections, opts)
-  if not opts.section then
+  local header_wanted = opts.section.header
+  local level_wanted = opts.section.level
+
+  if not header_wanted and not level_wanted then
     return 1
   end
 
-  -- TODO: This loop returns the first match, but users may want more precise control (e.g., "heading is child of X").
   for idx = 2, #sections - 1 do
-    if sections[idx].heading.label == opts.section.header and sections[idx].heading.level == opts.section.level then
+    local ith_heading = sections[idx].heading or {}
+    if
+      (not header_wanted or ith_heading.label == header_wanted)
+      and (not level_wanted or ith_heading.level == level_wanted)
+    then
       return idx
     end
   end
@@ -98,8 +104,8 @@ end
 ---@param chosen_idx integer The index where the old section is located. Must NOT be the EOF-marker (`idx = #sections`).
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer insert_idx where new text should be inserted to satisfy the constraints.
----@return string[] insert_before holds the lines needed _before_ the text in order to preserve the constraints.
----@return string[] insert_after holds the lines needed _after_ the text in order to preserve the constraints.
+---@return string[] insert_top holds the lines needed _before_ the text in order to preserve the constraints.
+---@return string[] insert_bot holds the lines needed _after_ the text in order to preserve the constraints.
 function H.expand_old_section(sections, chosen_idx, opts)
   assert(chosen_idx < #sections, "EOF-marker cannot have content placed into it.")
 
@@ -107,18 +113,18 @@ function H.expand_old_section(sections, chosen_idx, opts)
   local section_after = sections[chosen_idx + 1]
 
   local insert_idx = opts.placement == "top" and section_chosen.content.beg_incl or section_chosen.content.end_excl
-  local insert_before = {}
-  local insert_after = {}
+  local insert_top = {}
+  local insert_bot = {}
 
   if H.is_content_empty(section_chosen) then
-    table.insert(insert_before, "")
+    table.insert(insert_top, "")
   end
 
   if not H.is_section_empty(section_after) and section_after.heading.beg_incl == insert_idx then
-    table.insert(insert_after, "")
+    table.insert(insert_bot, "")
   end
 
-  return insert_idx, insert_before, insert_after
+  return insert_idx, insert_top, insert_bot
 end
 
 --- Inserts a new heading and section at the specified index and "pushes down" the section that is currently there.
@@ -127,8 +133,8 @@ end
 ---@param chosen_idx integer The index where the new section will be inserted. Must NOT be the preamble (`idx = 1`).
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer insert_idx where new text should be inserted to satisfy the constraints.
----@return string[] insert_before holds the lines needed _before_ the text in order to preserve the constraints.
----@return string[] insert_after holds the lines needed _after_ the text in order to preserve the constraints.
+---@return string[] insert_top holds the lines needed _before_ the text in order to preserve the constraints.
+---@return string[] insert_bot holds the lines needed _after_ the text in order to preserve the constraints.
 function H.insert_new_section(sections, chosen_idx, opts)
   assert(chosen_idx > 1, "Preamble cannot have header placed before it.")
 
@@ -136,21 +142,21 @@ function H.insert_new_section(sections, chosen_idx, opts)
   local section_before = sections[chosen_idx - 1]
 
   local insert_idx = section_chosen.heading.beg_incl
-  local insert_before = {}
-  local insert_after = {}
+  local insert_top = {}
+  local insert_bot = {}
 
   if (not H.is_section_empty(section_before) or opts.padding_top) and section_before.content.end_excl == insert_idx then
-    table.insert(insert_before, "")
+    table.insert(insert_top, "")
   end
 
-  table.insert(insert_before, string.rep("#", opts.section.level) .. " " .. opts.section.header)
-  table.insert(insert_before, "")
+  table.insert(insert_top, string.rep("#", opts.section.level or 2) .. " " .. (opts.section.header or "Untitled"))
+  table.insert(insert_top, "")
 
   if not H.is_section_empty(section_chosen) then
-    table.insert(insert_after, "")
+    table.insert(insert_bot, "")
   end
 
-  return insert_idx, insert_before, insert_after
+  return insert_idx, insert_top, insert_bot
 end
 
 ---@type table<string, obsidian.note.OnSectionMissingHandler>
@@ -240,7 +246,7 @@ function H.get_line_details(lines)
   return line_details
 end
 
----@alias obsidian.note.OnSectionMissingHandler fun(sections: obsidian.note.SectionDetail[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_before: string[], insert_after: string[]
+---@alias obsidian.note.OnSectionMissingHandler fun(sections: obsidian.note.SectionDetail[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_top: string[], insert_bot: string[]
 
 ---@class obsidian.note.SectionDetail
 ---@field heading? { beg_incl: integer, end_excl: integer, level: integer, label: string }
