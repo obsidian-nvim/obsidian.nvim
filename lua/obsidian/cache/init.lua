@@ -15,6 +15,7 @@ local M = {}
 ---@field vault string
 ---@field flush_timer uv.uv_timer_t|nil
 ---@field unregister fun()|nil
+---@field ignore_patterns string[]
 
 ---@type obsidian.cache.State?
 local state = nil
@@ -46,8 +47,6 @@ local function schedule_flush()
   )
 end
 
-local IGNORED_DIRS = { ".trash", ".obsidian", ".git" }
-
 ---@param abs_path string
 ---@return boolean
 local function is_ignored(abs_path)
@@ -59,8 +58,8 @@ local function is_ignored(abs_path)
   if vim.startswith(abs_path, root .. "/") then
     rel = abs_path:sub(#root + 2)
   end
-  for _, dir in ipairs(IGNORED_DIRS) do
-    if rel == dir or vim.startswith(rel, dir .. "/") or rel:find("/" .. dir .. "/", 1, true) then
+  for _, pat in ipairs(state.ignore_patterns) do
+    if rel:find(pat) then
       return true
     end
   end
@@ -167,6 +166,7 @@ end
 ---@field enabled? boolean
 ---@field path? string  cache file path (relative to vault or absolute)
 ---@field backend? string  "json" (default)
+---@field ignore_patterns? string[]  Lua patterns matched against rel_path; merged with defaults via tbl_override list_field
 
 ---@param opts obsidian.cache.SetupOpts
 function M.setup(opts)
@@ -181,6 +181,8 @@ function M.setup(opts)
     cache_path = vault .. "/" .. cache_path
   end
 
+  local ignore_patterns = vim.deepcopy(opts.ignore_patterns or {})
+
   local backend
   if opts.backend == nil or opts.backend == "json" then
     backend = JsonBackend.open { path = cache_path, vault = vault }
@@ -193,6 +195,7 @@ function M.setup(opts)
     vault = vault,
     flush_timer = nil,
     unregister = nil,
+    ignore_patterns = ignore_patterns,
   }
 
   state.unregister = watchfiles.register_handler(function(events)

@@ -441,9 +441,13 @@ return {
   ---@field enabled? boolean
   ---@field path? string  cache file path, relative to vault root or absolute
   ---@field backend? "json"
+  ---
+  ---Lua patterns matched against rel_path. User entries are appended to defaults.
+  ---@field ignore_patterns? string[]
   cache = {
     enabled = false,
     path = ".cache.json",
     backend = "json",
+    ignore_patterns = { "^%.trash/", "^%.obsidian/", "^%.git/" },
   },
 }
