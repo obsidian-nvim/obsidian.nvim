@@ -86,6 +86,7 @@ local sort_values = vim.tbl_values(types.SortBy)
 local open_strategies = vim.tbl_values(types.OpenStrategy)
 local link_styles = vim.tbl_values(types.LinkStyle)
 local link_formats = vim.tbl_values(types.LinkFormat)
+local link_resolves = { "default", "strict" }
 local new_notes_locations = vim.tbl_values(types.NewNotesLocation)
 local sync_triggers = vim.tbl_values(types.SyncTrigger)
 local sync_modes = vim.tbl_values(types.SyncMode)
@@ -322,6 +323,7 @@ function M.validate(opts, skip_workspace_overrides)
     fields(errors, "link", opts.link, {
       { "format", one_of(link_formats), choices(link_formats) },
       { "auto_update", "boolean" },
+      { "resolve", one_of(link_resolves), choices(link_resolves) },
     })
   elseif opts.link ~= nil then
     check(errors, "link", opts.link, "table")

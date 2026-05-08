@@ -13,6 +13,12 @@ local tags = require "obsidian.tag"
 
 local M = {}
 
+local NOTE_SUFFIXES = {
+  [".md"] = true,
+  [".qmd"] = true,
+  [".base"] = true,
+}
+
 ---@param t table|function
 local function iter(t)
   ---@diagnostic disable-next-line: call-non-callable
@@ -255,7 +261,11 @@ local _search_async = function(term, dir, search_opts, find_opts, callback, exit
     on_exit
   )
 
-  M.find_async(dir, term, Opts._prepare(find_opts, { ignore_case = true }), on_find_match, on_exit)
+  local prepared_find_opts = Opts._prepare(find_opts, { ignore_case = true })
+  if find_opts and find_opts.include_non_markdown then
+    prepared_find_opts.include_non_markdown = true
+  end
+  M.find_async(dir, term, prepared_find_opts, on_find_match, on_exit)
 end
 
 --- An async version of `find_notes()` using coroutines.
@@ -299,7 +309,8 @@ M.find_notes_async = function(term, callback, opts)
     end
 
     local paths_found = {} ---@type string[]
-    async.await(6, _search_async, term, opts.dir, opts.search, nil, function(path)
+    local find_opts = opts.search and { include_non_markdown = opts.search.include_non_markdown } or nil
+    async.await(6, _search_async, term, opts.dir, opts.search, find_opts, function(path)
       paths_found[#paths_found + 1] = path
     end)
 
@@ -343,13 +354,84 @@ M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
+    M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes, dir = opts.dir })
   end, opts.timeout)
   ---@cast result obsidian.Note[]?
   return result or {}
 end
 
 -- TODO: filter blocks and anchors in here, see _definition, but how does it interact with the shortcut stuff?
+
+--- Strict resolver: Obsidian app compatible.
+--- Path-like query → relative to the source buffer or workspace root, with a
+--- `.md` fallback. Bare query → exact basename/stem matching across the
+--- workspace. No id, alias, display_name, notes_subdir, or daily_notes magic.
+---@param query string
+---@param opts { notes: obsidian.note.LoadOpts|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }
+---@return obsidian.Note[]
+local function resolve_note_strict(query, opts)
+  opts = opts or {}
+  opts.notes = opts.notes or {}
+  local Note = require "obsidian.note"
+  local workspace_dir = Path.new(opts.dir or api.resolve_workspace_dir())
+  local current_dir = opts.buf_dir or (opts.dir == nil and Obsidian.buf_dir or nil)
+
+  local query_path = Path.new(query)
+  local suffix = query_path.suffix and string.lower(query_path.suffix) or nil
+  local has_note_suffix = suffix ~= nil and NOTE_SUFFIXES[suffix] == true
+  local fname = has_note_suffix and query or (query .. ".md")
+  local fname_path = Path.new(fname)
+  local path_like = fname_path:is_absolute() or query:find "[/\\\\]" ~= nil or suffix == ".base"
+
+  if path_like then
+    local seen = {}
+    local paths_found = {}
+
+    local function try(p)
+      local norm = tostring(Path.new(p):resolve())
+      if seen[norm] then
+        return
+      end
+      seen[norm] = true
+      if Path.new(norm):is_file() then
+        paths_found[#paths_found + 1] = Note.from_file(norm, opts.notes)
+      end
+    end
+
+    if fname_path:is_absolute() then
+      try(fname_path)
+    else
+      if current_dir ~= nil then
+        try(Path.new(current_dir) / fname)
+      end
+      try(workspace_dir / fname)
+    end
+
+    return paths_found
+  end
+
+  local results = M.find_notes(query, {
+    dir = workspace_dir,
+    search = { ignore_case = true, include_non_markdown = suffix == ".base" },
+    notes = opts.notes,
+  })
+  local query_name = query_path.name or query
+  local query_stem = query_path.stem or query_name
+  local query_lwr = string.lower(has_note_suffix and query_name or query_stem)
+
+  ---@type obsidian.Note[]
+  local matches = {}
+  for _, note in ipairs(results) do
+    local note_suffix = note.path and note.path.suffix and string.lower(note.path.suffix) or nil
+    if has_note_suffix or note_suffix ~= ".base" then
+      local ref = has_note_suffix and note.path.name or note.path.stem
+      if ref and string.lower(ref) == query_lwr then
+        matches[#matches + 1] = note
+      end
+    end
+  end
+  return matches
+end
 
 ---@param query string
 ---@param callback fun(notes: obsidian.Note[])
@@ -370,6 +452,10 @@ M.resolve_note_async = function(query, callback, opts)
     local full_path = workspace_dir / note_path
     callback { Note.from_file(full_path, opts.notes) }
     return
+  end
+
+  if Obsidian.opts.link and Obsidian.opts.link.resolve == "strict" then
+    return callback(resolve_note_strict(query, opts))
   end
 
   -- Query might be a path.
