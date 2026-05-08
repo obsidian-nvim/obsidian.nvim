@@ -391,6 +391,70 @@ end
 
 -- TODO: filter blocks and anchors in here, see _definition, but how does it interact with the shortcut stuff?
 
+--- Strict resolver: Obsidian app compatible.
+--- Path-like query → relative to current buf or vault root, with `.md` fallback.
+--- Bare query → match by basename only across vault. No id, alias, display_name,
+--- notes_subdir, or daily_notes magic.
+---@param query string
+---@param opts { notes: obsidian.note.LoadOpts|? }
+---@return obsidian.Note[]
+local function resolve_note_strict(query, opts)
+  local Note = require "obsidian.note"
+
+  local fname = query
+  if not vim.endswith(fname, ".md") then
+    fname = fname .. ".md"
+  end
+
+  local query_path = Path.new(query)
+  local has_sep = query:find("/", 1, true) ~= nil or query_path:is_absolute()
+
+  if has_sep then
+    local seen = {}
+    local paths_found = {}
+
+    local function try(p)
+      local norm = tostring(Path.new(p):resolve())
+      if seen[norm] then
+        return
+      end
+      seen[norm] = true
+      if Path.new(norm):is_file() then
+        paths_found[#paths_found + 1] = Note.from_file(norm, opts.notes)
+      end
+    end
+
+    if query_path:is_absolute() then
+      try(query)
+      try(fname)
+    else
+      if Obsidian.buf_dir ~= nil then
+        try(Obsidian.buf_dir / query)
+        try(Obsidian.buf_dir / fname)
+      end
+      try(Obsidian.dir / query)
+      try(Obsidian.dir / fname)
+    end
+
+    return paths_found
+  end
+
+  local results = M.find_notes(query, { search = { ignore_case = true }, notes = opts.notes })
+  local query_lwr = string.lower(query)
+  local query_lwr_md = vim.endswith(query_lwr, ".md") and query_lwr or (query_lwr .. ".md")
+
+  ---@type obsidian.Note[]
+  local matches = {}
+  for _, note in ipairs(results) do
+    local stem = note.path and note.path.stem and string.lower(note.path.stem) or ""
+    local name = note.path and note.path.name and string.lower(note.path.name) or ""
+    if stem == query_lwr or name == query_lwr or name == query_lwr_md then
+      matches[#matches + 1] = note
+    end
+  end
+  return matches
+end
+
 ---@param query string
 ---@param opts { notes: obsidian.note.LoadOpts|? }|?
 ---
@@ -410,6 +474,10 @@ M.resolve_note = function(query, opts)
     ---@diagnostic disable-next-line: assign-type-mismatch
     local full_path = Obsidian.dir / note_path
     return { Note.from_file(full_path, opts.notes) }
+  end
+
+  if Obsidian.opts.link and Obsidian.opts.link.resolve == "strict" then
+    return resolve_note_strict(query, opts)
   end
 
   -- Query might be a path.

@@ -341,6 +341,11 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error("Invalid 'link.format' option '" .. tostring(opts.link.format) .. "' in obsidian.nvim config.")
   end
 
+  local valid_link_resolves = { "default", "strict" }
+  if opts.link ~= nil and opts.link.resolve ~= nil and not vim.tbl_contains(valid_link_resolves, opts.link.resolve) then
+    error("Invalid 'link.resolve' option '" .. tostring(opts.link.resolve) .. "' in obsidian.nvim config.")
+  end
+
   if not util.islist(opts.workspaces) then
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
   end

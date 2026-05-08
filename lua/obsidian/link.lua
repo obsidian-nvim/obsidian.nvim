@@ -15,6 +15,78 @@ end
 --- TODO: use in definition handler later,
 
 ---@param location string
+---@param current_dir obsidian.Path|?
+---@return string|?
+local function resolve_strict(location, current_dir)
+  local location_path = Path.new(location)
+  local has_sep = location:find("/", 1, true) ~= nil
+
+  if location_path:is_absolute() or has_sep then
+    local candidates = {}
+    if location_path:is_absolute() then
+      candidates[#candidates + 1] = location_path
+    else
+      if current_dir then
+        candidates[#candidates + 1] = current_dir / location
+      end
+      candidates[#candidates + 1] = Obsidian.dir / location
+    end
+    for _, c in ipairs(candidates) do
+      local norm = normalize_path(c)
+      if norm:is_file() or norm:is_dir() then
+        return tostring(norm)
+      end
+      if not vim.endswith(tostring(norm), ".md") then
+        local with_md = Path.new(tostring(norm) .. ".md")
+        if with_md:is_file() then
+          return tostring(with_md)
+        end
+      end
+    end
+    return nil
+  end
+
+  local notes = search.find_notes(location, {})
+  if vim.tbl_isempty(notes) then
+    return nil
+  end
+
+  local loc_lwr = string.lower(location)
+  local loc_lwr_md = vim.endswith(loc_lwr, ".md") and loc_lwr or (loc_lwr .. ".md")
+  local pool = {}
+
+  for _, note in ipairs(notes) do
+    local stem = note.path and note.path.stem and string.lower(note.path.stem) or ""
+    local name = note.path and note.path.name and string.lower(note.path.name) or ""
+    if stem == loc_lwr or name == loc_lwr or name == loc_lwr_md then
+      pool[#pool + 1] = note
+    end
+  end
+
+  if #pool == 0 then
+    return nil
+  end
+
+  if current_dir then
+    local cur_key = tostring(normalize_path(current_dir))
+    for _, n in ipairs(pool) do
+      if tostring(normalize_path(n.path:parent())) == cur_key then
+        return tostring(n.path)
+      end
+    end
+  end
+
+  local vault_key = tostring(normalize_path(Obsidian.dir))
+  for _, n in ipairs(pool) do
+    if tostring(normalize_path(n.path:parent())) == vault_key then
+      return tostring(n.path)
+    end
+  end
+
+  return tostring(pool[1].path)
+end
+
+---@param location string
 ---@return string|?
 M.resolve_link_path = function(location)
   local is_uri = util.is_uri(location)
@@ -33,10 +105,14 @@ M.resolve_link_path = function(location)
     return tostring(normalize_path(M.resolve_attachment_path(location)))
   end
 
-  local location_path = Path.new(location)
   local current_path = vim.api.nvim_buf_get_name(0)
   local current_dir = current_path ~= "" and Path.new(vim.fs.dirname(current_path)) or nil
 
+  if Obsidian.opts.link and Obsidian.opts.link.resolve == "strict" then
+    return resolve_strict(location, current_dir)
+  end
+
+  local location_path = Path.new(location)
   local candidates = {}
   local seen = {}
 

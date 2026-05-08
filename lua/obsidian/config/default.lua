@@ -17,15 +17,22 @@ return {
 
   ---@alias obsidian.link.LinkStyle "wiki" | "markdown" | fun(opts: obsidian.link.LinkCreationOpts): string
   ---@alias obsidian.link.LinkFormat "shortest" | "relative" | "absolute"
+  ---@alias obsidian.link.LinkResolve "default" | "strict"
 
   ---@class obsidian.config.LinkOpts
   ---@field style? obsidian.link.LinkStyle
   ---@field format? obsidian.link.LinkFormat
   ---@field auto_update? boolean
+  ---@field resolve? obsidian.link.LinkResolve
+  ---  "default" — permissive, tries notes_subdir, daily_notes folder, ID, aliases, etc.
+  ---  "strict"  — Obsidian app compatible. Path-like links resolve relative to current
+  ---              file or vault root; bare links match by basename only. Aliases are
+  ---              autocomplete/display-only in Obsidian and do not resolve `[[alias]]`.
   link = {
     style = "wiki",
     format = "shortest",
     auto_update = false,
+    resolve = "default",
   },
 
   workspaces = {},
