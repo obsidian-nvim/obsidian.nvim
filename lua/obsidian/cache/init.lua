@@ -7,15 +7,19 @@ local log = require "obsidian.log"
 local watchfiles = require "obsidian.lsp.watchfiles"
 local cache_note = require "obsidian.cache.note"
 local JsonBackend = require "obsidian.cache.json_backend"
+local MemoryBackend = require "obsidian.cache.memory_backend"
 
 local M = {}
 
 ---@class obsidian.cache.State
 ---@field backend table
+---@field backend_kind "json"|"memory"
 ---@field vault string
 ---@field flush_timer uv.uv_timer_t|nil
 ---@field unregister fun()|nil
 ---@field ignore_patterns string[]
+---@field ready boolean
+---@field pending fun()[]
 
 ---@type obsidian.cache.State?
 local state = nil
@@ -24,6 +28,9 @@ local FLUSH_DEBOUNCE_MS = 2000
 
 local function schedule_flush()
   if not state then
+    return
+  end
+  if state.backend_kind == "memory" then
     return
   end
   if state.flush_timer then
@@ -162,10 +169,47 @@ local function initial_scan(force)
   end
 end
 
+local function mark_ready()
+  if not state then
+    return
+  end
+  state.ready = true
+  local pending = state.pending
+  state.pending = {}
+  for _, fn in ipairs(pending) do
+    local ok, err = pcall(fn)
+    if not ok then
+      log.err("[cache] pending callback failed: %s", err)
+    end
+  end
+end
+
+---Run `fn` now if cache ready, else queue until initial scan finishes.
+---@param fn fun()
+function M.when_ready(fn)
+  if not state then
+    return fn()
+  end
+  if state.ready then
+    return fn()
+  end
+  state.pending[#state.pending + 1] = fn
+end
+
+---@return boolean
+function M.is_ready()
+  return state ~= nil and state.ready
+end
+
+---@return boolean
+function M.is_enabled()
+  return state ~= nil
+end
+
 ---@class obsidian.cache.SetupOpts
 ---@field enabled? boolean
----@field path? string  cache file path (relative to vault or absolute)
----@field backend? string  "json" (default)
+---@field path? string  cache file path (relative to vault or absolute) — json only
+---@field backend? "json"|"memory"
 ---@field ignore_patterns? string[]  Lua patterns matched against rel_path; merged with defaults via tbl_override list_field
 
 ---@param opts obsidian.cache.SetupOpts
@@ -184,18 +228,24 @@ function M.setup(opts)
   local ignore_patterns = vim.deepcopy(opts.ignore_patterns or {})
 
   local backend
-  if opts.backend == nil or opts.backend == "json" then
+  local backend_kind = opts.backend or "json"
+  if backend_kind == "json" then
     backend = JsonBackend.open { path = cache_path, vault = vault }
+  elseif backend_kind == "memory" then
+    backend = MemoryBackend.open { vault = vault }
   else
     error("cache: unknown backend '" .. tostring(opts.backend) .. "'")
   end
 
   state = {
     backend = backend,
+    backend_kind = backend_kind,
     vault = vault,
     flush_timer = nil,
     unregister = nil,
     ignore_patterns = ignore_patterns,
+    ready = false,
+    pending = {},
   }
 
   state.unregister = watchfiles.register_handler(function(events)
@@ -203,7 +253,8 @@ function M.setup(opts)
   end)
 
   vim.schedule(function()
-    initial_scan(false)
+    initial_scan(backend_kind == "memory")
+    mark_ready()
   end)
 
   vim.api.nvim_create_autocmd("VimLeavePre", {

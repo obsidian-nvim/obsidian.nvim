@@ -82,10 +82,9 @@ local function pick_note(paths, tag_label)
   end)
 end
 
----@param data obsidian.CommandArgs
-return function(data)
-  if not cache.notes or cache.notes.count() == 0 then
-    vim.notify("[obsidian] cache empty or disabled", vim.log.levels.WARN)
+local function run(data)
+  if cache.notes.count() == 0 then
+    vim.notify("[obsidian] cache empty", vim.log.levels.WARN)
     return
   end
 
@@ -98,13 +97,11 @@ return function(data)
     return
   end
 
-  -- If user provided exact tag → skip tag picker, go straight to notes.
   if query ~= "" then
     pick_note(paths_for_tags(idx, matched), query)
     return
   end
 
-  -- Tag picker: format `#tag (n)`.
   local items = {}
   for _, t in ipairs(matched) do
     items[#items + 1] = { tag = t, count = #idx[t] }
@@ -119,5 +116,16 @@ return function(data)
       return
     end
     pick_note(paths_for_tags(idx, tags_matching(idx, choice.tag)), choice.tag)
+  end)
+end
+
+---@param data obsidian.CommandArgs
+return function(data)
+  if not cache.is_enabled() then
+    vim.notify("[obsidian] cache disabled", vim.log.levels.WARN)
+    return
+  end
+  cache.when_ready(function()
+    run(data)
   end)
 end

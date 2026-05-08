@@ -1,9 +1,8 @@
 local cache = require "obsidian.cache"
 
----@param data obsidian.CommandArgs
-return function(data)
-  if not cache.notes or cache.notes.count() == 0 then
-    vim.notify("[obsidian] cache empty or disabled", vim.log.levels.WARN)
+local function run(data)
+  if cache.notes.count() == 0 then
+    vim.notify("[obsidian] cache empty", vim.log.levels.WARN)
     return
   end
 
@@ -23,7 +22,6 @@ return function(data)
       return not t.done
     end
   else
-    -- single state char, e.g. `!` or `~`
     local want = arg:sub(1, 1)
     filter = function(t)
       return t.state == want
@@ -69,5 +67,16 @@ return function(data)
     end
     vim.cmd.edit(vim.fn.fnameescape(choice.path))
     pcall(vim.api.nvim_win_set_cursor, 0, { choice.line, 0 })
+  end)
+end
+
+---@param data obsidian.CommandArgs
+return function(data)
+  if not cache.is_enabled() then
+    vim.notify("[obsidian] cache disabled", vim.log.levels.WARN)
+    return
+  end
+  cache.when_ready(function()
+    run(data)
   end)
 end

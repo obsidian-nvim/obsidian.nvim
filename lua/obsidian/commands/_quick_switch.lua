@@ -26,22 +26,27 @@ local function build_items()
 end
 
 return function()
-  if not cache.notes or cache.notes.count() == 0 then
-    vim.notify("[obsidian] cache empty or disabled — enable `cache.enabled = true`", vim.log.levels.WARN)
+  if not cache.is_enabled() then
+    vim.notify("[obsidian] cache disabled — enable `cache.enabled = true`", vim.log.levels.WARN)
     return
   end
 
-  local items = build_items()
-
-  vim.ui.select(items, {
-    prompt = "Quick Switch",
-    format_item = function(item)
-      return item.label
-    end,
-  }, function(choice)
-    if not choice then
+  cache.when_ready(function()
+    if cache.notes.count() == 0 then
+      vim.notify("[obsidian] cache empty", vim.log.levels.WARN)
       return
     end
-    vim.cmd.edit(vim.fn.fnameescape(choice.path))
+    local items = build_items()
+    vim.ui.select(items, {
+      prompt = "Quick Switch",
+      format_item = function(item)
+        return item.label
+      end,
+    }, function(choice)
+      if not choice then
+        return
+      end
+      vim.cmd.edit(vim.fn.fnameescape(choice.path))
+    end)
   end)
 end

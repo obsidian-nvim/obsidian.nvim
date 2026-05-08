@@ -44,9 +44,9 @@ local function build_backlinks_for(target_path)
   return out
 end
 
-return function()
-  if not cache.notes or cache.notes.count() == 0 then
-    vim.notify("[obsidian] cache empty or disabled", vim.log.levels.WARN)
+local function run()
+  if cache.notes.count() == 0 then
+    vim.notify("[obsidian] cache empty", vim.log.levels.WARN)
     return
   end
 
@@ -84,4 +84,12 @@ return function()
     vim.cmd.edit(vim.fn.fnameescape(choice.path))
     pcall(vim.api.nvim_win_set_cursor, 0, { choice.line, 0 })
   end)
+end
+
+return function()
+  if not cache.is_enabled() then
+    vim.notify("[obsidian] cache disabled", vim.log.levels.WARN)
+    return
+  end
+  cache.when_ready(run)
 end
