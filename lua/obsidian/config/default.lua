@@ -436,4 +436,14 @@ return {
   slides = {
     enabled = true,
   },
+
+  ---@class obsidian.config.CacheOpts
+  ---@field enabled? boolean
+  ---@field path? string  cache file path, relative to vault root or absolute
+  ---@field backend? "json"
+  cache = {
+    enabled = false,
+    path = ".cache.json",
+    backend = "json",
+  },
 }
