@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Obsidian-style tag query support for `:Obsidian tags`, including `tag:#book`, explicit `OR`, and negated tag terms.
 - Add unique note creation prompt option for missing definitions.
 - LSP client commands can run actions in actions.lua.
 - Add `Note.insert_text` for inserting text under a specific section
