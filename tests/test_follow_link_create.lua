@@ -42,7 +42,7 @@ T["follow link to non-existing note and create it"] = function()
 
   -- Check if the new note was opened
   local current_buf_name = child.api.nvim_buf_get_name(0)
-  assert(current_buf_name:match("fixed%-id%-new note%.md$"), "New note should be opened, but got " .. current_buf_name)
+  assert(current_buf_name:match "fixed%-id%-new note%.md$", "New note should be opened, but got " .. current_buf_name)
 end
 
 T["follow link with alias to non-existing note and create it"] = function()

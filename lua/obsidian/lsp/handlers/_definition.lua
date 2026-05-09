@@ -43,14 +43,7 @@ local function create_new_note(location, callback, opts)
   local function update_link(note)
     if opts.range then
       local new_link = note:format_link { label = opts.label or location }
-      vim.api.nvim_buf_set_text(
-        bufnr,
-        cursor_row - 1,
-        opts.range[1] - 1,
-        cursor_row - 1,
-        opts.range[2],
-        { new_link }
-      )
+      vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
     end
   end
 
