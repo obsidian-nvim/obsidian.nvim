@@ -25,7 +25,7 @@ config.Picker = {
   telescope = "telescope.nvim",
   fzf_lua = "fzf-lua",
   mini = "mini.pick",
-  snacks = "snacks.pick",
+  snacks = "snacks.picker",
 }
 
 config.default = require "obsidian.config.default"
