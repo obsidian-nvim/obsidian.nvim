@@ -36,9 +36,7 @@ If you want readable UTF-8 title-based IDs (works across scripts), use the built
 
 ```lua
 require("obsidian").setup {
-  note = {
-    id_func = require("obsidian.builtin").title_id,
-  },
+  note_id_func = require("obsidian.builtin").title_id,
 }
 ```
 
