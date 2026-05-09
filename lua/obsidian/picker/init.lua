@@ -278,7 +278,8 @@ M.get = function(picker_name)
     patch "obsidian.picker._mini"
   elseif picker_name == string.lower(PickerName.fzf_lua) then
     patch "obsidian.picker._fzf"
-  elseif picker_name == string.lower(PickerName.snacks) then
+    -- or statement added for backwards compatibility
+  elseif picker_name == string.lower(PickerName.snacks) or picker_name == "snacks.pick" then
     patch "obsidian.picker._snacks"
   else
     patch "obsidian.picker._default"
