@@ -8,6 +8,8 @@ local BASE_CMD = {
   "--no-config",
   "--type-add",
   "md:*.qmd",
+  "--type-add",
+  "md:*.base",
   "--type=md",
 }
 
@@ -133,10 +135,10 @@ M.build_find_cmd = function(path, term, opts)
     term = escape_rg_glob(term)
     if opts.include_non_markdown then
       term = "*" .. term .. "*"
-    elseif not vim.endswith(term, ".md") then
-      term = "*" .. term .. "*.md"
-    else
+    elseif vim.endswith(term, ".md") or vim.endswith(term, ".qmd") or vim.endswith(term, ".base") then
       term = "*" .. term
+    else
+      term = "*" .. term .. "*.{md,qmd,base}"
     end
     additional_opts[#additional_opts + 1] = "-g"
     additional_opts[#additional_opts + 1] = term
