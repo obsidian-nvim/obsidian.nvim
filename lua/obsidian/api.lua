@@ -69,7 +69,7 @@ M.path_is_note = function(path, workspace)
   -- context issues. vim.filetype.match calls getenv() which is not allowed in
   -- completion context.
   local extension = tostring(path):match "%.([^%.]+)$"
-  if not vim.list_contains({ "md", "markdown", "qmd" }, extension) then
+  if not vim.list_contains({ "md", "markdown", "qmd", "base" }, extension) then
     return false
   end
 

@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Update link in buffer when creating a new note via `follow_link`.
+- Minimal `.base` support, definition, references and quick_switch will work.
+
 ## [v3.16.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.3) - 2026-05-08
 
 ### Added
 
-- Update link in buffer when creating a new note via `follow_link`.
 - Add unique note creation prompt option for missing definitions.
 - LSP client commands can run actions in actions.lua.
 - Add `Note.insert_text` for inserting text under a specific section

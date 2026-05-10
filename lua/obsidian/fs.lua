@@ -37,7 +37,7 @@ M.dir = function(dir)
   return vim
     .iter(vim.fs.dir(dir, dir_opts))
     :filter(function(path)
-      local is_markdown = vim.endswith(path, ".md") or vim.endswith(path, ".qmd")
+      local is_markdown = vim.endswith(path, ".md") or vim.endswith(path, ".qmd") or vim.endswith(path, ".base")
       local not_gitignored = not parser(path)
       local not_dot = not vim.startswith(path, ".")
       return is_markdown and not_gitignored and not_dot

@@ -414,7 +414,7 @@ M.resolve_note = function(query, opts)
 
   -- Query might be a path.
   local fname = query
-  if not vim.endswith(fname, ".md") then
+  if not vim.endswith(fname, ".md") and not vim.endswith(fname, ".qmd") and not vim.endswith(fname, ".base") then
     fname = fname .. ".md"
   end
 
