@@ -547,6 +547,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "beekeepeer",
+      "name": "beekeepeer",
+      "avatar_url": "https://avatars.githubusercontent.com/u/108191539?v=4",
+      "profile": "https://github.com/beekeepeer",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }
