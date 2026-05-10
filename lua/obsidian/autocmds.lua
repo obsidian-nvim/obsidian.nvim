@@ -2,6 +2,7 @@ local api = require "obsidian.api"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
+local exclusions = require "obsidian.exclusions"
 local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
 -- wrapper for creating autocmd events
@@ -20,6 +21,11 @@ end
 
 -- Complete setup and update workspace (if needed) when entering a markdown buffer.
 local function bufenter_callback(ev)
+  -- Check if this file should be ignored based on ignore_filters.
+  if exclusions.is_excluded(ev.file) then
+    return
+  end
+
   -- Set the current directory of the buffer.
   local buf_dir = vim.fs.dirname(ev.file)
   if buf_dir then
