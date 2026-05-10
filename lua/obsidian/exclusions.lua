@@ -1,4 +1,5 @@
 local gitignore = require("obsidian.lib.glob").gitignore
+local Path = require "obsidian.path"
 
 local M = {}
 
@@ -24,11 +25,12 @@ local function get_vault_relative(path)
     return nil
   end
 
-  local vault_root = vim.fs.normalize(tostring(Obsidian.dir))
-  path = vim.fs.normalize(path)
+  local vault_root = Obsidian.dir
+  local path_obj = Path.new(path)
 
-  if vim.startswith(path, vault_root) then
-    local rel = path:sub(#vault_root + 1)
+  -- Use Path.is_parent_of to avoid false positives with similarly named directories
+  if vault_root:is_parent_of(path_obj) or vault_root == path_obj then
+    local rel = vim.fs.normalize(tostring(path_obj)):sub(#vim.fs.normalize(tostring(vault_root)) + 1)
     -- Remove leading path separator if present
     if vim.startswith(rel, "/") then
       rel = rel:sub(2)
