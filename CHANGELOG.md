@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update link in buffer when creating a new note via `follow_link`.
 - Minimal `.base` support, definition, references and quick_switch will work.
 
+### Fixed
+
+- Preserve anchors and blocks when creating notes from unresolved links.
+
 ## [v3.16.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.3) - 2026-05-08
 
 ### Added
