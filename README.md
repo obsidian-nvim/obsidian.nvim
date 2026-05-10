@@ -331,6 +331,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/JohnTKelly"><img src="https://avatars.githubusercontent.com/u/25050248?v=4?s=100" width="100px;" alt="John T. Kelly"/><br /><sub><b>John T. Kelly</b></sub></a><br /><a href="#code-JohnTKelly" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/antinomie8"><img src="https://avatars.githubusercontent.com/u/130611615?v=4?s=100" width="100px;" alt="antinomie8"/><br /><sub><b>antinomie8</b></sub></a><br /><a href="#code-antinomie8" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://thoughts.tp6gw94.qzz.io/explore"><img src="https://avatars.githubusercontent.com/u/71218426?v=4?s=100" width="100px;" alt="Todd"/><br /><sub><b>Todd</b></sub></a><br /><a href="#doc-tp6gw94" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/beekeepeer"><img src="https://avatars.githubusercontent.com/u/108191539?v=4?s=100" width="100px;" alt="beekeepeer"/><br /><sub><b>beekeepeer</b></sub></a><br /><a href="#code-beekeepeer" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
