@@ -170,12 +170,13 @@ There's no required dependency, but there are a number of optional dependencies 
 
 To use a specific picker, set `picker.name` in your config, e.g.:
 ```lua
-picker = {
-  name = "snacks.picker",  -- use snacks picker
-  -- name = "telescope.nvim",   -- or telescope
-  -- name = "fzf-lua",     -- or fzf-lua
-  -- name = "mini.pick",   -- or mini.pick
-}
+require"obsidian".setup {
+   picker = {
+    name = "snacks.picker",  -- use snacks picker
+    -- name = "telescope.nvim",   -- or telescope
+    -- name = "fzf-lua",     -- or fzf-lua
+    -- name = "mini.pick",   -- or mini.pick
+}}
 ```
 
 **Image viewing:**
