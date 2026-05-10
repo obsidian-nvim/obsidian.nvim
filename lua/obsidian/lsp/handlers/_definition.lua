@@ -19,8 +19,13 @@ end
 
 ---@param location string
 ---@param callback function
+---@param opts { range: [integer, integer]|?, label: string|? }|?
 ---@return lsp.Location?
-local function create_new_note(location, callback)
+local function create_new_note(location, callback, opts)
+  opts = opts or {}
+  local bufnr = vim.api.nvim_get_current_buf()
+  local cursor_row = vim.api.nvim_win_get_cursor(0)[1]
+
   local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
   local has_unique = Obsidian.opts.unique_note.enabled
 
@@ -35,20 +40,29 @@ local function create_new_note(location, callback)
 
   local format_options = table.concat(options, "\n")
 
+  local function update_link(note)
+    if opts.range then
+      local new_link = note:format_link { label = opts.label or location }
+      vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
+    end
+  end
+
   local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
     actions.new(location, function(note)
+      update_link(note)
       callback { note:_location() }
     end)
   elseif confirm == "Yes with Template" then
     actions.new_from_template(location, nil, function(note)
-      -- TODO: maybe new_from_template should not have `should_write`
+      update_link(note)
       callback { note:_location() }
     end)
     return
   elseif confirm == "Yes as Unique Note" then
     local note = require("obsidian.unique").new_unique_note(nil, { title = location })
     if note then
+      update_link(note)
       callback { note:_location() }
     end
   else
@@ -59,7 +73,10 @@ end
 ---@type table<obsidian.search.RefTypes, function>
 local handlers = {}
 
-local function open_note(location, callback)
+---@param location string
+---@param callback function
+---@param opts { range: [integer, integer]|?, label: string|? }|?
+local function open_note(location, callback, opts)
   local block_link, anchor_link
   location, block_link = util.strip_block_links(location)
   location, anchor_link = util.strip_anchor_links(location)
@@ -82,7 +99,7 @@ local function open_note(location, callback)
   end
 
   if vim.tbl_isempty(notes) then
-    create_new_note(location, callback)
+    create_new_note(location, callback, opts)
   elseif #notes == 1 then
     callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
   elseif #notes > 1 then
@@ -101,28 +118,28 @@ local function open_attachment(location)
   vim.ui.open(path)
 end
 
-handlers.Wiki = function(location, callback)
+handlers.Wiki = function(location, callback, opts)
   if api.is_attachment_path(location) then
     open_attachment(location)
   else
-    open_note(location, callback)
+    open_note(location, callback, opts)
   end
 end
 
 handlers.WikiWithAlias = handlers.Wiki
 
-handlers.Markdown = function(location, callback)
+handlers.Markdown = function(location, callback, opts)
   local is_uri, scheme = util.is_uri(location)
   if is_uri then
     open_uri(location, scheme)
   elseif api.is_attachment_path(location) then
     open_attachment(location)
   else
-    open_note(location, callback)
+    open_note(location, callback, opts)
   end
 end
 
-handlers.HeaderLink = function(location, callback)
+handlers.HeaderLink = function(location, callback, _)
   local note = api.current_note(0, { collect_anchor_links = true })
   if not note or vim.tbl_isempty(note.anchor_links) then
     return
@@ -143,7 +160,7 @@ handlers.HeaderLink = function(location, callback)
   }
 end
 
-handlers.BlockLink = function(location, callback)
+handlers.BlockLink = function(location, callback, _)
   local note = api.current_note(0, { collect_blocks = true })
   if not note or vim.tbl_isempty(note.blocks) then
     return
@@ -165,9 +182,10 @@ handlers.BlockLink = function(location, callback)
 end
 
 return {
-  follow_link = function(link, callback)
+  follow_link = function(link, callback, opts)
+    opts = opts or {}
     -- TODO: write an alternative treesitter link parser that finds, markdown link, wiki link, image embed
-    local location, _, link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
+    local location, label, link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
     location = vim.uri_decode(location)
 
     if not location then
@@ -186,6 +204,7 @@ return {
       end
     end
 
-    handler(location, wrapped_callback)
+    opts.label = label
+    handler(location, wrapped_callback, opts)
   end,
 }

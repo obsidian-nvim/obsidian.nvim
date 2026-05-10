@@ -116,6 +116,7 @@ There's one entry point user command for this plugin: `Obsidian`
   - `grr`/`vim.lsp.buf.references` to see references in quickfix list
 - `:Obsidian follow_link [STRATEGY]` - follow a note reference under the cursor
   - available strategies: `vsplit, hsplit, vsplit_force, hsplit_force`
+  - If the link does not exist, you will be prompted to create it. If you choose to create it, the link in the buffer will be automatically updated with the new note's ID and alias.
 - `:Obsidian toc` - get a picker list of table of contents for current note
 - `:Obsidian template [NAME]` - insert a template from the templates folder, selecting from a list using your preferred picker
   - [Template](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template)
