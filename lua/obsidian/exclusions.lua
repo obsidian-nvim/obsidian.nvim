@@ -68,17 +68,17 @@ function M.get_checker()
     return nil
   end
 
-  local exclude_dir = Obsidian.opts.exclude_dir
-  if not exclude_dir or vim.tbl_isempty(exclude_dir) then
+  local ignore_filters = Obsidian.opts.ignore_filters
+  if not ignore_filters or vim.tbl_isempty(ignore_filters) then
     return nil
   end
 
-  local key = table.concat(exclude_dir, "|")
+  local key = table.concat(ignore_filters, "|")
   if M._cache[key] then
     return M._cache[key]
   end
 
-  local checker = build_exclusion_checker(exclude_dir)
+  local checker = build_exclusion_checker(ignore_filters)
   M._cache[key] = checker
   return checker
 end

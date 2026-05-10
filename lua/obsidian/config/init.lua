@@ -345,13 +345,13 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
   end
 
-  if opts.exclude_dir ~= nil then
-    if type(opts.exclude_dir) ~= "table" then
-      error "Invalid obsidian.nvim config, 'exclude_dir' should be an array of strings."
+  if opts.ignore_filters ~= nil then
+    if type(opts.ignore_filters) ~= "table" then
+      error "Invalid obsidian.nvim config, 'ignore_filters' should be an array of strings."
     end
-    for i, dir in ipairs(opts.exclude_dir) do
+    for i, dir in ipairs(opts.ignore_filters) do
       if type(dir) ~= "string" then
-        error(string.format("Invalid obsidian.nvim config, 'exclude_dir[%d]' should be a string.", i))
+        error(string.format("Invalid obsidian.nvim config, 'ignore_filters[%d]' should be a string.", i))
       end
     end
   end
