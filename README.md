@@ -334,6 +334,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://thoughts.tp6gw94.qzz.io/explore"><img src="https://avatars.githubusercontent.com/u/71218426?v=4?s=100" width="100px;" alt="Todd"/><br /><sub><b>Todd</b></sub></a><br /><a href="#doc-tp6gw94" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/beekeepeer"><img src="https://avatars.githubusercontent.com/u/108191539?v=4?s=100" width="100px;" alt="beekeepeer"/><br /><sub><b>beekeepeer</b></sub></a><br /><a href="#code-beekeepeer" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/tdashelby-cmyk"><img src="https://avatars.githubusercontent.com/u/253610080?v=4?s=100" width="100px;" alt="tdashelby-cmyk"/><br /><sub><b>tdashelby-cmyk</b></sub></a><br /><a href="#doc-tdashelby-cmyk" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/gsmith-alvarez"><img src="https://avatars.githubusercontent.com/u/175654654?v=4?s=100" width="100px;" alt="Giovanni Smith-Alvarez"/><br /><sub><b>Giovanni Smith-Alvarez</b></sub></a><br /><a href="#code-gsmith-alvarez" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
