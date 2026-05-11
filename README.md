@@ -88,7 +88,7 @@ There's one entry point user command for this plugin: `Obsidian`
 #### Top level commands
 
 - `:Obsidian check` - check for common issues in your vault and plugin setup
-- `:Obsidian ailies [OFFSET ...]` - open a picker list of daily notes
+- `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
 - `:Obsidian help` - find files in the help wiki
 - `:Obsidian helpgrep` - grep files in the help wiki
