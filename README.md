@@ -169,6 +169,17 @@ There's no required dependency, but there are a number of optional dependencies 
 - [mini.pick](https://github.com/echasnovski/mini.pick)
 - [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
 
+To use a specific picker, set `picker.name` in your config, e.g.:
+```lua
+require"obsidian".setup {
+   picker = {
+    name = "snacks.picker",  -- use snacks picker
+    -- name = "telescope.nvim",   -- or telescope
+    -- name = "fzf-lua",     -- or fzf-lua
+    -- name = "mini.pick",   -- or mini.pick
+}}
+```
+
 **Image viewing:**
 
 - [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)

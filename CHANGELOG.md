@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set `opts.sync.configs = {}` to disable obsidian.nvim from racing to sync config with obsidian app using the same folder.
 - Removes unnecessary sync log messages.
 - Unique note creation through link gets a proper readable title instead of id.
+- Updated picker enum values to use correct module names and added picker configuration documentation in README.md.
 
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 
