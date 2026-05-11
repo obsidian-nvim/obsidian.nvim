@@ -565,6 +565,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "gsmith-alvarez",
+      "name": "Giovanni Smith-Alvarez",
+      "avatar_url": "https://avatars.githubusercontent.com/u/175654654?v=4",
+      "profile": "https://github.com/gsmith-alvarez",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }
