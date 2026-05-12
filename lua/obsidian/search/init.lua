@@ -460,6 +460,13 @@ M.resolve_note = function(query, opts)
   local results = M.find_notes(query, { search = { ignore_case = true }, notes = opts.notes })
   local query_lwr = string.lower(query)
 
+  -- `.base` files only resolve when the query explicitly names them.
+  if not vim.endswith(query_lwr, ".base") then
+    results = vim.tbl_filter(function(note)
+      return not vim.endswith(tostring(note.path), ".base")
+    end, results)
+  end
+
   -- We'll gather both exact matches (of ID, filename, and aliases) and fuzzy matches.
   -- If we end up with any exact matches, we'll return those. Otherwise we fall back to fuzzy
   -- matches.
