@@ -445,11 +445,11 @@ util.strip_anchor_links = function(line)
   end
 
   if #parts == 0 then
-    return line, nil
+    return line, nil, nil
   end
 
   local anchor = table.concat(parts, "")
-  return line, util.standardize_anchor(anchor)
+  return line, util.standardize_anchor(anchor), anchor
 end
 
 --- Parse a block line from a line.

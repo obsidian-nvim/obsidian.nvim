@@ -86,11 +86,19 @@ M.wiki_link = function(opts)
   local anchor = ""
   local header = ""
   if opts.anchor then
-    anchor = opts.anchor.anchor
-    header = format_anchor_label(opts.anchor)
+    if type(opts.anchor) == "table" then
+      anchor = opts.anchor.anchor
+      header = format_anchor_label(opts.anchor)
+    else
+      anchor = opts.anchor
+    end
   elseif opts.block then
-    anchor = "#" .. opts.block.id
-    header = "#" .. opts.block.id
+    if type(opts.block) == "table" then
+      anchor = "#" .. opts.block.id
+      header = "#" .. opts.block.id
+    else
+      anchor = opts.block
+    end
   end
 
   local path = tostring(opts.path or "")
@@ -112,11 +120,19 @@ M.markdown_link = function(opts)
   local anchor = ""
   local header = ""
   if opts.anchor then
-    anchor = opts.anchor.anchor
-    header = format_anchor_label(opts.anchor)
+    if type(opts.anchor) == "table" then
+      anchor = opts.anchor.anchor
+      header = format_anchor_label(opts.anchor)
+    else
+      anchor = opts.anchor
+    end
   elseif opts.block then
-    anchor = "#" .. opts.block.id
-    header = "#" .. opts.block.id
+    if type(opts.block) == "table" then
+      anchor = "#" .. opts.block.id
+      header = "#" .. opts.block.id
+    else
+      anchor = opts.block
+    end
   end
 
   local util = require "obsidian.util"

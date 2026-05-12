@@ -42,7 +42,7 @@ local function create_new_note(location, callback, opts)
 
   local function update_link(note)
     if opts.range then
-      local new_link = note:format_link { label = opts.label or location }
+      local new_link = note:format_link { label = opts.label or location, anchor = opts.anchor, block = opts.block }
       vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
     end
   end
@@ -77,9 +77,9 @@ local handlers = {}
 ---@param callback function
 ---@param opts { range: [integer, integer]|?, label: string|? }|?
 local function open_note(location, callback, opts)
-  local block_link, anchor_link
+  local block_link, anchor_link, raw_anchor
   location, block_link = util.strip_block_links(location)
-  location, anchor_link = util.strip_anchor_links(location)
+  location, anchor_link, raw_anchor = util.strip_anchor_links(location)
 
   local notes = search.resolve_note(location, {
     notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
@@ -99,6 +99,8 @@ local function open_note(location, callback, opts)
   end
 
   if vim.tbl_isempty(notes) then
+    opts.anchor = raw_anchor
+    opts.block = block_link
     create_new_note(location, callback, opts)
   elseif #notes == 1 then
     callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
