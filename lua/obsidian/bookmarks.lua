@@ -15,10 +15,11 @@ local M = {}
 ---@field items obsidian.Bookmark[]
 ---@field url string|?
 
+--- TODO: once preview_item is universally supported, use this to return .pos
 ---@param bookmark obsidian.Bookmark
 ---@return obsidian.PickerEntry entry
 local function bookmark_to_picker_entry(bookmark)
-  local entry = { text = bookmark.title }
+  local entry = { text = bookmark.title, user_data = bookmark }
 
   if bookmark.path then
     entry.filename = tostring(Obsidian.dir / bookmark.path)
@@ -40,7 +41,6 @@ local function bookmark_to_picker_entry(bookmark)
     end
   end
 
-  entry.user_data = bookmark
   return entry
 end
 
@@ -50,9 +50,9 @@ local url_cache = {}
 local function format_bookmark(bookmark)
   if bookmark.type == "folder" then
     return bookmark.path .. "/"
-  end
-
-  if bookmark.title then
+  elseif bookmark.type == "group" then
+    return "> " .. bookmark.title
+  elseif bookmark.title then
     return bookmark.title
   elseif bookmark.query then
     return "query: " .. bookmark.query
@@ -118,40 +118,37 @@ M.resolve_bookmark_file = function()
 end
 
 ---@param src string
----@return obsidian.PickerEntry[]
+---@return obsidian.Bookmark[]
 M.parse = function(src)
   local obj = vim.json.decode(src)
-  return vim.tbl_map(bookmark_to_picker_entry, obj.items)
+  return obj.items
 end
 
----@param entries obsidian.PickerEntry[]
-M.pick = function(entries)
-  picker.pick(entries, {
+---@param bookmark obsidian.Bookmark?
+local function open_bookmark(bookmark)
+  if not bookmark then
+    return
+  end
+  if bookmark.type == "url" and bookmark.url then
+    vim.ui.open(bookmark.url)
+  elseif bookmark.type == "group" then
+    M.pick(bookmark.items)
+  elseif bookmark.type == "search" and bookmark.query then
+    -- proper obsidian search term parser
+    picker.grep {
+      query = bookmark.query,
+    }
+  elseif bookmark.type == "file" then
+    api.open_note(bookmark_to_picker_entry(bookmark))
+  end
+end
+
+---@param bookmarks obsidian.Bookmark[]
+M.pick = function(bookmarks)
+  vim.ui.select(bookmarks, {
     prompt_title = "Bookmarks",
-    callback = function(entry)
-      ---@type obsidian.Bookmark
-      local bookmark = entry.user_data
-      if bookmark.type == "url" and bookmark.url then
-        vim.ui.open(bookmark.url)
-      elseif bookmark.type == "group" then
-        local _entries = vim.tbl_map(bookmark_to_picker_entry, bookmark.items)
-        M.pick(_entries)
-      elseif bookmark.type == "search" and bookmark.query then
-        -- proper obsidian search term parser
-        picker.grep {
-          query = bookmark.query,
-        }
-      elseif bookmark.type == "file" then
-        api.open_note(entry)
-      end
-    end,
-    format_item = function(entry)
-      local bookmark = entry.user_data
-      return format_bookmark(bookmark)
-    end,
-    preview_item = function(entry)
-      local bookmark = entry.user_data
-      ---@cast bookmark obsidian.Bookmark
+    format_item = format_bookmark,
+    preview_item = function(bookmark)
       if bookmark.type == "url" then
         return preview_url(bookmark)
       elseif bookmark.type == "group" then
@@ -160,7 +157,7 @@ M.pick = function(entries)
         return preview_query(bookmark)
       end
     end,
-  })
+  }, open_bookmark)
 end
 
 return M
