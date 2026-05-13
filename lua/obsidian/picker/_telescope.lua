@@ -19,7 +19,7 @@ local function get_entry(prompt_bufnr, keep_open)
   if entry and not keep_open then
     telescope_actions.close(prompt_bufnr)
   end
-  return entry and entry.raw
+  return entry and entry.raw or nil
 end
 
 ---@param prompt_bufnr integer
@@ -55,7 +55,7 @@ local function get_selected(prompt_bufnr, keep_open, allow_multiple)
     local entry = get_entry(prompt_bufnr, keep_open)
 
     if entry then
-      return { entry }
+      return vim.tbl_map(selection_to_entry, { entry })
     end
   end
 end
@@ -114,17 +114,8 @@ local function attach_picker_mappings(map, opts)
   if opts.callback then
     map({ "i", "n" }, "<CR>", function(prompt_bufnr)
       local entries = get_selected(prompt_bufnr, false, opts.allow_multiple)
-      if not entries then
-        return
-      end
-      if vim.tbl_isempty(entries) then
-        return
-      end
-      if type(entries[1].user_data) == "function" then
-        entries[1].user_data()
-      elseif opts.callback then
+      if entries then
         opts.callback(unpack(entries))
-        return
       end
     end)
   end
@@ -262,7 +253,7 @@ M.pick = function(values, opts)
             return make_entry_from_string(v)
           else
             return {
-              value = v.text,
+              value = v.user_data,
               display = displayer,
               ordinal = v.text or v.filename,
               filename = v.filename,
