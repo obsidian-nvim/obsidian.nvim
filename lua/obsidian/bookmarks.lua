@@ -190,7 +190,7 @@ local function open_bookmark(bookmark)
     api.open_note(bookmark_to_picker_entry(bookmark))
   elseif bookmark.type == "folder" then
     local entry = bookmark_to_picker_entry(bookmark)
-    vim.cmd("edit " .. entry.filename)
+    vim.cmd("edit " .. vim.fn.fnameescape(entry.filename))
   end
 end
 
