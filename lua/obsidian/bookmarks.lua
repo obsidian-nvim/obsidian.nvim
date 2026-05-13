@@ -109,7 +109,7 @@ local function preview_group(bookmark, buf)
   return { buf = buf }
 end
 
---  TODO: proper obsidian search term parser, like the expalin search term feature
+--  TODO: proper obsidian search term parser, like the explain search term feature
 --
 ---@param bookmark obsidian.Bookmark
 ---@param buf integer
