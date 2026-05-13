@@ -9,6 +9,7 @@ local M = {}
 ---@field ctime integer
 ---@field type "group" | "file" | "folder" | "search" | "url"
 ---@field path string
+---@field _path string resolved path
 ---@field subpath string
 ---@field title string
 ---@field query string
@@ -21,7 +22,7 @@ local function bookmark_to_picker_entry(bookmark)
   local entry = { text = bookmark.title, user_data = bookmark }
 
   if bookmark.path then
-    entry.filename = tostring(Obsidian.dir / bookmark.path)
+    entry.filename = bookmark._path
   end
 
   if bookmark.subpath then
@@ -187,11 +188,30 @@ local function open_bookmark(bookmark)
     }
   elseif bookmark.type == "file" then
     api.open_note(bookmark_to_picker_entry(bookmark))
+  elseif bookmark.type == "folder" then
+    local entry = bookmark_to_picker_entry(bookmark)
+    vim.cmd("edit " .. entry.filename)
   end
 end
 
 ---@param bookmarks obsidian.Bookmark[]
 M.pick = function(bookmarks)
+  bookmarks = vim
+    .iter(bookmarks)
+    :map(function(bm)
+      if bm.path then
+        bm._path = tostring(Obsidian.dir / bm.path)
+      end
+      return bm
+    end)
+    :filter(function(bm)
+      if bm.path then
+        return vim.uv.fs_stat(bm._path) ~= nil
+      end
+      return true
+    end)
+    :totable()
+
   vim.ui.select(bookmarks, {
     prompt_title = "Bookmarks",
     format_item = format_bookmark,
