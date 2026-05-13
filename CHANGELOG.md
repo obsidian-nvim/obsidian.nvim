@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update link in buffer when creating a new note via `follow_link`.
 - Minimal `.base` support, definition, references and quick_switch will work.
 - Proper resolve `.base` file only with explicit suffix.
+- `:Obsidian bookmarks` to view existing bookmarks.
 
 ### Fixed
 

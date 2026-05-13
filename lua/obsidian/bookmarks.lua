@@ -15,7 +15,6 @@ local M = {}
 ---@field items obsidian.Bookmark[]
 ---@field url string|?
 
---- TODO: once preview_item is universally supported, use this to return .pos
 ---@param bookmark obsidian.Bookmark
 ---@return obsidian.PickerEntry entry
 local function bookmark_to_picker_entry(bookmark)
@@ -62,10 +61,16 @@ local function format_bookmark(bookmark)
   return bookmark.title
 end
 
+---@alias obsidian.ui.select_preview_spec {buf?:integer, pos?:[integer,integer], pos_end?:[integer,integer]}
+
 ---@param bookmark obsidian.Bookmark
-local function preview_url(bookmark)
+---@param buf integer
+---@return obsidian.ui.select_preview_spec
+local function preview_url(bookmark, buf)
   local url = bookmark.url
-  local buf = vim.api.nvim_create_buf(false, true)
+  if not url then
+    return { buf = buf }
+  end
   vim.bo[buf].filetype = "markdown"
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Fetching preview for url..." })
   if url_cache[url] then
@@ -75,6 +80,13 @@ local function preview_url(bookmark)
       { "curl", "https://defuddle.md/" .. url },
       {},
       vim.schedule_wrap(function(out)
+        if not vim.api.nvim_buf_is_valid(buf) then
+          return
+        end
+        if out.code ~= 0 or not out.stdout or out.stdout == "" then
+          vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Failed to fetch preview for " .. url })
+          return
+        end
         local lines = vim.split(out.stdout, "\n")
         url_cache[url] = lines
         vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -85,8 +97,9 @@ local function preview_url(bookmark)
 end
 
 ---@param bookmark obsidian.Bookmark
-local function preview_group(bookmark)
-  local buf = vim.api.nvim_create_buf(false, true)
+---@param buf integer
+---@return obsidian.ui.select_preview_spec
+local function preview_group(bookmark, buf)
   vim.bo[buf].filetype = "markdown"
   local lines = vim.tbl_map(function(bm)
     return "- " .. format_bookmark(bm)
@@ -98,12 +111,46 @@ end
 --  TODO: proper obsidian search term parser, like the expalin search term feature
 --
 ---@param bookmark obsidian.Bookmark
-local function preview_query(bookmark)
-  local buf = vim.api.nvim_create_buf(false, true)
+---@param buf integer
+---@return obsidian.ui.select_preview_spec
+local function preview_query(bookmark, buf)
   vim.bo[buf].filetype = "markdown"
   local lines = { "query: " .. bookmark.query }
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   return { buf = buf }
+end
+
+---@param bookmark obsidian.Bookmark
+---@param buf integer
+---@return obsidian.ui.select_preview_spec
+local function preview_file(bookmark, buf)
+  if not bookmark.path then
+    return { buf = buf }
+  end
+  local entry = bookmark_to_picker_entry(bookmark)
+  if not entry.filename then
+    return { buf = buf }
+  end
+  local lines = vim.fn.readfile(entry.filename)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  return { buf = buf, pos = entry.lnum and { entry.lnum, 0 } or nil }
+end
+
+---@param bookmark obsidian.Bookmark
+---@return obsidian.ui.select_preview_spec
+local function preview_bookmark(bookmark)
+  local buf = vim.api.nvim_create_buf(false, true)
+  if bookmark.type == "url" then
+    return preview_url(bookmark, buf)
+  elseif bookmark.type == "group" then
+    return preview_group(bookmark, buf)
+  elseif bookmark.type == "search" then
+    return preview_query(bookmark, buf)
+  elseif bookmark.type == "file" then
+    return preview_file(bookmark, buf)
+  else
+    return { buf = buf }
+  end
 end
 
 ---@return string?
@@ -134,7 +181,7 @@ local function open_bookmark(bookmark)
   elseif bookmark.type == "group" then
     M.pick(bookmark.items)
   elseif bookmark.type == "search" and bookmark.query then
-    -- proper obsidian search term parser
+    -- TODO: proper obsidian search term parser and search
     picker.grep {
       query = bookmark.query,
     }
@@ -148,15 +195,7 @@ M.pick = function(bookmarks)
   vim.ui.select(bookmarks, {
     prompt_title = "Bookmarks",
     format_item = format_bookmark,
-    preview_item = function(bookmark)
-      if bookmark.type == "url" then
-        return preview_url(bookmark)
-      elseif bookmark.type == "group" then
-        return preview_group(bookmark)
-      elseif bookmark.type == "search" then
-        return preview_query(bookmark)
-      end
-    end,
+    preview_item = preview_bookmark,
   }, open_bookmark)
 end
 

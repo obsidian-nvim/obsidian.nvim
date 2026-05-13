@@ -1,4 +1,3 @@
-local M = require "obsidian.bookmarks"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local T = new_set()
 local h = dofile "tests/helpers.lua"
@@ -7,48 +6,6 @@ local child
 T["parse"], child = h.child_vault {
   pre_case = [[M = require "obsidian.bookmarks"]],
 }
-
-local src = [[
-local items = {
-  {
-    ctime = 1764611279166,
-    path = "nvim.md",
-    title = "neovim",
-    type = "file",
-  },
-  {
-    ctime = 1764611343536,
-    path = "nvim",
-    title = "neovim",
-    type = "folder",
-  },
-  {
-    ctime = 1764865200095,
-    path = "nvim.md",
-    subpath = "#^archive",
-    type = "file",
-  },
-  {
-    ctime = 1764891189524,
-    query = "neovim",
-    title = "neovim search",
-    type = "search",
-  },
-  {
-    ctime = 1764856070428,
-    items = {
-      {
-        ctime = 1764611543232,
-        path = "nested.md",
-        title = "nested",
-        type = "file",
-      },
-    },
-    title = "a group",
-    type = "group",
-  },
-}
-]]
 
 local example_json = [[
 {
@@ -110,21 +67,17 @@ local example_json = [[
   ]
 }]]
 
-T["parse"]["expand group as a flat list"] = function()
+T["parse"]["decodes bookmarks.json into items"] = function()
   local dir = child.Obsidian.dir
 
   h.mock_vault_contents(dir, {
-    ["nvim.md"] = [[
-^archive
-     ]],
+    ["nvim.md"] = "^archive\n",
     [".obsidian/bookmarks.json"] = example_json,
   })
 
   child.lua [[
 local fp = M.resolve_bookmark_file()
-if not fp then
- return
-end
+assert(fp, "resolve_bookmark_file returned nil")
 
 local f = io.open(fp, "r")
 assert(f, "Failed to open bookmarks file")
@@ -135,18 +88,23 @@ _G.res = M.parse(src)
 
   local result = child.lua_get [[res]]
 
-  eq(result[5], {
-    filename = "/home/n451/Vaults/1 Notes/nested.md",
-    text = "nested",
-  })
-end
+  eq(#result, 8)
+  eq(result[1].type, "file")
+  eq(result[1].path, "todo.md")
+  eq(result[1].title, "TODOs")
 
--- T["parse"]["keep group with a callback to open new picker"] = function()
---   Obsidian.opts.bookmarks.group = true
---   local result = M._parse(items)
---
---   eq(result[5].text, "a group")
---   eq(type(result[5].user_data), "function")
--- end
+  eq(result[3].type, "group")
+  eq(#result[3].items, 1)
+  eq(result[3].items[1].path, "Projects/nvim/archived.md")
+
+  eq(result[4].type, "file")
+  eq(result[4].subpath, "#^archive")
+
+  eq(result[5].type, "search")
+  eq(result[5].query, "neovim")
+
+  eq(result[8].type, "url")
+  eq(result[8].url, "https://chatgpt.com/")
+end
 
 return T
