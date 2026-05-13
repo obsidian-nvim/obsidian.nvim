@@ -115,7 +115,6 @@ local function attach_picker_mappings(map, opts)
     map({ "i", "n" }, "<CR>", function(prompt_bufnr)
       local entries = get_selected(prompt_bufnr, false, opts.allow_multiple)
       if entries then
-        ---@diagnostic disable-next-line: param-type-mismatch
         opts.callback(unpack(entries))
       end
     end)
