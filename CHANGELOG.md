@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minimal `.base` support, definition, references and quick_switch will work.
 - Proper resolve `.base` file only with explicit suffix.
 - `:Obsidian bookmarks` to view existing bookmarks.
+- use `vim.g.obsidian_default_keymap` to disable the default keymaps.
 
 ### Fixed
 
