@@ -308,6 +308,7 @@ end
 ---@param callback fun(notes: obsidian.Note[])
 ---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|? }|?
 M.find_notes_async = function(term, callback, opts)
+  callback = vim.schedule_wrap(callback)
   async.run(function()
     opts = opts or {}
     opts.notes = opts.notes or {}
@@ -374,7 +375,10 @@ M.find_notes_async = function(term, callback, opts)
   end)
 end
 
---- Find notes matching search term
+--- Find notes matching search term.
+---
+--- Synchronous wrapper retained for Vim callbacks that must return synchronously
+--- (`includeexpr`, command-completion `customlist` functions).
 ---
 ---@param term string The term to search for
 ---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|? }
@@ -391,10 +395,10 @@ end
 -- TODO: filter blocks and anchors in here, see _definition, but how does it interact with the shortcut stuff?
 
 ---@param query string
+---@param callback fun(notes: obsidian.Note[])
 ---@param opts { notes: obsidian.note.LoadOpts|? }|?
----
----@return obsidian.Note[]
-M.resolve_note = function(query, opts)
+M.resolve_note_async = function(query, callback, opts)
+  callback = vim.schedule_wrap(callback)
   opts = opts or {}
   opts.notes = opts.notes or {}
   if not opts.notes.max_lines then
@@ -408,7 +412,7 @@ M.resolve_note = function(query, opts)
     ---@type obsidian.Path
     ---@diagnostic disable-next-line: assign-type-mismatch
     local full_path = Obsidian.dir / note_path
-    return { Note.from_file(full_path, opts.notes) }
+    return callback { Note.from_file(full_path, opts.notes) }
   end
 
   -- Query might be a path.
@@ -453,52 +457,53 @@ M.resolve_note = function(query, opts)
   end
 
   if not vim.tbl_isempty(paths_found) then
-    return paths_found
+    return callback(paths_found)
   end
 
-  local results = M.find_notes(query, { search = { ignore_case = true }, notes = opts.notes })
-  local query_lwr = string.lower(query)
+  M.find_notes_async(query, function(results)
+    local query_lwr = string.lower(query)
 
-  -- `.base` files only resolve when the query explicitly names them.
-  if not vim.endswith(query_lwr, ".base") then
-    results = vim.tbl_filter(function(note)
-      return not vim.endswith(tostring(note.path), ".base")
-    end, results)
-  end
+    -- `.base` files only resolve when the query explicitly names them.
+    if not vim.endswith(query_lwr, ".base") then
+      results = vim.tbl_filter(function(note)
+        return not vim.endswith(tostring(note.path), ".base")
+      end, results)
+    end
 
-  -- We'll gather both exact matches (of ID, filename, and aliases) and fuzzy matches.
-  -- If we end up with any exact matches, we'll return those. Otherwise we fall back to fuzzy
-  -- matches.
-  ---@type obsidian.Note[]
-  local exact_matches = {}
-  ---@type obsidian.Note[]
-  local fuzzy_matches = {}
+    -- We'll gather both exact matches (of ID, filename, and aliases) and fuzzy matches.
+    -- If we end up with any exact matches, we'll return those. Otherwise we fall back to fuzzy
+    -- matches.
+    ---@type obsidian.Note[]
+    local exact_matches = {}
+    ---@type obsidian.Note[]
+    local fuzzy_matches = {}
 
-  for _, note in ipairs(results) do
-    ---@cast note obsidian.Note
+    for _, note in ipairs(results) do
+      ---@cast note obsidian.Note
 
-    local reference_ids = note:reference_ids { lowercase = true }
+      local reference_ids = note:reference_ids { lowercase = true }
 
-    -- Check for exact match.
-    if vim.list_contains(reference_ids, query_lwr) then
-      table.insert(exact_matches, note)
-    else
-      -- TODO: use vim.fn.fuzzymatch
-      -- Fall back to fuzzy match.
-      for _, ref_id in ipairs(reference_ids) do
-        if string.find(ref_id, query_lwr, 1, true) ~= nil then
-          table.insert(fuzzy_matches, note)
-          break
+      -- Check for exact match.
+      if vim.list_contains(reference_ids, query_lwr) then
+        table.insert(exact_matches, note)
+      else
+        -- TODO: use vim.fn.fuzzymatch
+        -- Fall back to fuzzy match.
+        for _, ref_id in ipairs(reference_ids) do
+          if string.find(ref_id, query_lwr, 1, true) ~= nil then
+            table.insert(fuzzy_matches, note)
+            break
+          end
         end
       end
     end
-  end
 
-  if #exact_matches > 0 then
-    return exact_matches
-  else
-    return fuzzy_matches
-  end
+    if #exact_matches > 0 then
+      callback(exact_matches)
+    else
+      callback(fuzzy_matches)
+    end
+  end, { search = { ignore_case = true }, notes = opts.notes })
 end
 
 ---@class obsidian.LinkMatch
@@ -657,11 +662,12 @@ end
 
 ---@param note obsidian.Note
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
----@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string, dir: string|obsidian.Path, refs: string[]|? }
+---@param opts { search: obsidian.SearchOpts|?, anchor: string|?, block: string|?, dir: string|obsidian.Path|?, refs: string[]|? }|?
 ---@return vim.SystemObj handle
 M.find_backlinks_async = function(note, callback, opts)
   -- vim.validate("note", note, "table")
   -- vim.validate("callback", callback, "function")
+  callback = vim.schedule_wrap(callback)
   opts = opts or {}
   local dir = opts.dir or Obsidian.dir
   local block = opts.block and util.standardize_block(opts.block) or nil
@@ -751,22 +757,6 @@ M.find_backlinks_async = function(note, callback, opts)
   )
 end
 
----@param note obsidian.Note
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?
----@return obsidian.BacklinkMatch[] matches always returns a list (empty on timeout)
-M.find_backlinks = function(note, opts)
-  opts = opts or {}
-  opts.timeout = opts.timeout or 1000
-  local result = async.block_on(function(cb)
-    return M.find_backlinks_async(
-      note,
-      cb,
-      { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
-    )
-  end, opts.timeout)
-  return result or {}
-end
-
 ---@class obsidian.TagLocation
 ---
 ---@field tag string The tag found.
@@ -780,23 +770,10 @@ end
 --- Find all tags starting with the given search term(s).
 ---
 ---@param term string|string[] The search term.
----@param opts { search: obsidian.SearchOpts|?, timeout: integer|? }|?
----
----@return obsidian.TagLocation[] tags always returns a list (empty on timeout)
-M.find_tags = function(term, opts)
-  opts = opts or {}
-  local result = async.block_on(function(cb)
-    return M.find_tags_async(term, cb, { search = opts.search })
-  end, opts.timeout)
-  return result or {}
-end
-
---- An async version of 'find_tags()'.
----
----@param term string|string[] The search term.
 ---@param callback fun(tags: obsidian.TagLocation[])
 ---@param opts { search: obsidian.SearchOpts|?, dir: obsidian.Path|? }|?
 M.find_tags_async = function(term, callback, opts)
+  callback = vim.schedule_wrap(callback)
   opts = opts or {}
 
   local Note = require "obsidian.note"

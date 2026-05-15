@@ -81,38 +81,38 @@ local function open_note(location, callback, opts)
   location, block_link = util.strip_block_links(location)
   location, anchor_link, raw_anchor = util.strip_anchor_links(location)
 
-  local notes = search.resolve_note(location, {
+  search.resolve_note_async(location, function(notes)
+    -- TODO: integrate into resolve_note?
+    if block_link then
+      notes = vim.tbl_filter(function(note)
+        return not vim.tbl_isempty(note.blocks or {}) and note:resolve_block(block_link) ~= nil
+      end, notes)
+    end
+
+    if anchor_link then
+      notes = vim.tbl_filter(function(note)
+        return not vim.tbl_isempty(note.anchor_links or {}) and note:resolve_anchor_link(anchor_link) ~= nil
+      end, notes)
+    end
+
+    if vim.tbl_isempty(notes) then
+      opts.anchor = raw_anchor
+      opts.block = block_link
+      create_new_note(location, callback, opts)
+    elseif #notes == 1 then
+      callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
+    elseif #notes > 1 then
+      local locations = vim
+        .iter(notes)
+        :map(function(note)
+          return note:_location { block = block_link, anchor = anchor_link }
+        end)
+        :totable()
+      callback(locations)
+    end
+  end, {
     notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
   })
-
-  -- TODO: integrate into resolve_note?
-  if block_link then
-    notes = vim.tbl_filter(function(note)
-      return not vim.tbl_isempty(note.blocks or {}) and note:resolve_block(block_link) ~= nil
-    end, notes)
-  end
-
-  if anchor_link then
-    notes = vim.tbl_filter(function(note)
-      return not vim.tbl_isempty(note.anchor_links or {}) and note:resolve_anchor_link(anchor_link) ~= nil
-    end, notes)
-  end
-
-  if vim.tbl_isempty(notes) then
-    opts.anchor = raw_anchor
-    opts.block = block_link
-    create_new_note(location, callback, opts)
-  elseif #notes == 1 then
-    callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
-  elseif #notes > 1 then
-    local locations = vim
-      .iter(notes)
-      :map(function(note)
-        return note:_location { block = block_link, anchor = anchor_link }
-      end)
-      :totable()
-    callback(locations)
-  end
 end
 
 local function open_attachment(location)

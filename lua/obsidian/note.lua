@@ -1169,11 +1169,11 @@ Note.open = function(self, opts)
   end
 end
 
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }
----@return obsidian.BacklinkMatch
-Note.backlinks = function(self, opts)
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, dir: string|obsidian.Path, refs: string[]|? }
+---@param callback fun(matches: obsidian.BacklinkMatch[])
+Note.backlinks_async = function(self, opts, callback)
   opts.dir = opts.dir or api.resolve_workspace_dir()
-  return search.find_backlinks(self, opts)
+  return search.find_backlinks_async(self, callback, opts)
 end
 
 ---@return obsidian.LinkMatch[]
@@ -1236,8 +1236,8 @@ local backlink_cache = {}
 --- Return note status counts, like obsidian's status bar
 ---
 ---@param update_backlink boolean|?
----@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
-Note.status = function(self, update_backlink)
+---@param callback fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer })
+Note.status = function(self, update_backlink, callback)
   local status = {}
   local wc = vim.fn.wordcount()
   status.words = wc.visual_words or wc.words
@@ -1245,13 +1245,16 @@ Note.status = function(self, update_backlink)
   status.properties = vim.tbl_count(self:frontmatter()) -- TODO: should be zero if no frontmatter
   local path = tostring(self.path)
   if self and (update_backlink or backlink_cache[path] == nil) then -- HACK:
-    local num_backlinks = #self:backlinks {}
-    status.backlinks = num_backlinks
-    backlink_cache[path] = num_backlinks
+    self:backlinks_async({}, function(matches)
+      local num_backlinks = #matches
+      status.backlinks = num_backlinks
+      backlink_cache[path] = num_backlinks
+      callback(status)
+    end)
   else
     status.backlinks = backlink_cache[path] or 0
+    callback(status)
   end
-  return status
 end
 
 ---@return string[]

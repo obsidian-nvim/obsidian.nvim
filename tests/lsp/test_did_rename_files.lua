@@ -36,13 +36,13 @@ T["didRenameFiles applies reference edits without file rename"] = function()
       }
     end
 
-    rename.build_edit = function(note, new_name, opts)
+    rename.build_edit = function(note, new_name, opts, callback)
       _G.captured_note_path = tostring(note.path)
       _G.captured_name = new_name
       _G.captured_old_path = opts.old_path
       _G.captured_new_path = opts.new_path
       _G.captured_include_file_rename = opts.include_file_rename
-      return {
+      callback({
         documentChanges = {
           {
             textDocument = {
@@ -58,7 +58,7 @@ T["didRenameFiles applies reference edits without file rename"] = function()
         buf_list = {},
         old_path = opts.old_path,
         new_path = opts.new_path,
-      }
+      })
     end
 
     api.confirm = function(prompt)
@@ -114,8 +114,8 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
       }
     end
 
-    rename.build_edit = function(_, _, opts)
-      return {
+    rename.build_edit = function(_, _, opts, callback)
+      callback({
         documentChanges = {
           {
             textDocument = {
@@ -131,7 +131,7 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
         buf_list = {},
         old_path = opts.old_path,
         new_path = opts.new_path,
-      }
+      })
     end
 
     api.confirm = function(prompt)
@@ -182,14 +182,14 @@ T["didRenameFiles skips confirmation when auto_update is enabled"] = function()
       }
     end
 
-    rename.build_edit = function()
-      return { documentChanges = {} }, {
+    rename.build_edit = function(_, _, _, callback)
+      callback({ documentChanges = {} }, {
         count = 0,
         path_lookup = {},
         buf_list = {},
         old_path = "",
         new_path = "",
-      }
+      })
     end
 
     api.confirm = function()
