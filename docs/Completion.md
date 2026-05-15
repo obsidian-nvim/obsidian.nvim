@@ -25,11 +25,18 @@ require("blink.cmp").setup {
 To use completions without completion plugin, put this anywhere in your config before an obsidian buffer loads:
 
 ```lua
+-- HACK: to trigger on every ascii char, unicode will work when the upstream neovim completion respects isIncomplete field properly
+local chars = {}
+for i = 32, 126 do
+  table.insert(chars, string.char(i))
+end
+
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(ev)
     local buf = ev.buf
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
     if client and client.name == "obsidian-ls" then
+      client.server_capabilities.completionProvider.triggerCharacters = chars -- HACK:
       vim.bo[buf].completeopt = "menuone,noselect,fuzzy,nosort" -- noselect to make sure no accidentally accept and create new notes, others are not strictly necessary, adjust to your taste, see `:h completeopt'
       vim.lsp.completion.enable(true, client.id, buf, { autotrigger = true })
     end

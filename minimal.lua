@@ -7,6 +7,7 @@ vim.o.conceallevel = 2
 
 local cwd = vim.uv.cwd()
 
+-- HACK: for native neovim completion and mini.completion
 local chars = {}
 for i = 32, 126 do
   table.insert(chars, string.char(i))
@@ -18,8 +19,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
     if client and client.name == "obsidian-ls" then
       client.server_capabilities.completionProvider.triggerCharacters = chars
-      -- vim.bo[ev.buf].completeopt = "menuone,noselect,fuzzy,nosort" -- noselect to make sure no accidentally accept and create new notes, others are not necessary
-      -- vim.lsp.completion.enable(true, client.id, ev.buf, { autotrigger = true })
+      vim.bo[ev.buf].completeopt = "menuone,noselect,fuzzy,nosort" -- noselect to make sure no accidentally accept and create new notes, others are not necessary
+      vim.lsp.completion.enable(true, client.id, ev.buf, { autotrigger = true })
     end
   end,
 })
