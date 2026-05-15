@@ -127,6 +127,7 @@ local function copy_attachment(src, dst)
       return "Could not download URL: 'curl' is not installed"
     end
 
+    -- TODO: make async once vim.spinner lands
     local obj = vim.system({ "curl", "-fL", src, "-o", dst }, { text = true }):wait()
     if obj.code ~= 0 then
       return "Failed to download attachment: " .. (obj.stderr or obj.stdout or "unknown error")
@@ -138,6 +139,27 @@ local function copy_attachment(src, dst)
   if not ok then
     return "Failed to copy attachment: " .. tostring(err)
   end
+end
+
+---@param dst string
+---@return string
+local function unique_dst(dst)
+  if not vim.uv.fs_stat(dst) then
+    return dst
+  end
+  local dir = vim.fs.dirname(dst)
+  local base = vim.fs.basename(dst)
+  local stem, ext = base:match "^(.+)(%.[^.]+)$"
+  if not stem then
+    stem, ext = base, ""
+  end
+  for i = 1, 9999 do
+    local candidate = string.format("%s/%s (%d)%s", dir, stem, i, ext)
+    if not vim.uv.fs_stat(candidate) then
+      return candidate
+    end
+  end
+  return dst
 end
 
 ---@param src string
@@ -153,6 +175,7 @@ M.add = function(src, opts)
   end
 
   ---@cast resolved_dst -nil
+  resolved_dst = unique_dst(resolved_dst)
   local err = copy_attachment(resolved_src, resolved_dst)
   if err then
     log.err(err)
