@@ -8,7 +8,6 @@ local M = {}
 ---@param on_exit function|? (integer) -> nil
 M.run_job_async = function(cmds, on_stdout, on_exit)
   local stderr_lines = false
-  local cancelled = false
 
   local on_obj = function(obj)
     --- NOTE: commands like `rg` return a non-zero exit code when there are no matches, which is okay.
