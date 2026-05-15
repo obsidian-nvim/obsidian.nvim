@@ -79,6 +79,10 @@ local default_actions = {
       return Obsidian.opts.slides.enabled
     end,
   },
+
+  add_attachment = {
+    title = "Add attachment from folder, filepath or url",
+  },
 }
 
 ---@param name string

@@ -141,7 +141,7 @@ M.find_files = function(opts)
   search.find_async(
     opts.dir,
     query,
-    {},
+    { include_non_markdown = opts.include_non_markdown },
     function(path)
       paths[#paths + 1] = path
     end,
@@ -149,7 +149,11 @@ M.find_files = function(opts)
       if vim.tbl_isempty(paths) then
         return log.info "Search result empty"
       elseif #paths == 1 then
-        return api.open_note { filename = paths[1] }
+        if opts.callback then
+          return opts.callback(paths[1])
+        else
+          return api.open_note { filename = paths[1] }
+        end
       elseif #paths > 1 then
         ---@type vim.quickfix.entry[]
         local items = {}
