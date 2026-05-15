@@ -6,8 +6,7 @@ local M = {}
 ---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
----@param sync boolean
-local init_job = function(cmds, on_stdout, on_exit, sync)
+M.run_job_async = function(cmds, on_stdout, on_exit)
   local stderr_lines = false
 
   local on_obj = function(obj)
@@ -46,34 +45,11 @@ local init_job = function(cmds, on_stdout, on_exit, sync)
     end
   end
 
-  return function()
-    log.debug("Initializing job '%s'", cmds)
+  log.debug("Initializing job '%s'", cmds)
 
-    if sync then
-      local obj = vim.system(cmds, { stdout = stdout, stderr = stderr }):wait()
-      on_obj(obj)
-      return obj
-    else
-      vim.system(cmds, { stdout = stdout, stderr = stderr }, on_obj)
-    end
-  end
-end
+  local sys_obj = vim.system(cmds, { stdout = stdout, stderr = stderr }, on_obj)
 
----@param cmds string[]
----@param on_stdout function|? (string) -> nil
----@param on_exit function|? (integer) -> nil
----@return integer exit_code
-M.run_job = function(cmds, on_stdout, on_exit)
-  local job = init_job(cmds, on_stdout, on_exit, true)
-  return job().code
-end
-
----@param cmds string[]
----@param on_stdout function|? (string) -> nil
----@param on_exit function|? (integer) -> nil
-M.run_job_async = function(cmds, on_stdout, on_exit)
-  local job = init_job(cmds, on_stdout, on_exit, false)
-  job()
+  return sys_obj
 end
 
 ---@param fn function
@@ -120,25 +96,38 @@ M.throttle = function(fn, timeout)
 end
 
 ---Run an async function in a non-async context. The async function is expected to take a single
----callback parameters with the results. This function returns those results.
----@param async_fn_with_callback function (function,) -> any
+---callback parameter with the results. This function returns those results.
+---
+---On timeout, returns nil and (when supported) cancels the underlying job. The async function may
+---optionally return an `obsidian.async.JobHandle` (or any table with a `kill` method) so that
+---`block_on` can terminate the in-flight work instead of letting it run on past the timeout.
+---
+---@param async_fn_with_callback fun(cb: fun(...:any)): any
 ---@param timeout integer|?
 ---@return ...any results
 M.block_on = function(async_fn_with_callback, timeout)
   local done = false
-  local result
-  timeout = timeout and timeout or 2000
+  local result = {}
+  timeout = timeout or 2000
 
   local function collect_result(...)
     result = { ... }
     done = true
   end
 
-  async_fn_with_callback(collect_result)
+  local handle = async_fn_with_callback(collect_result)
 
   vim.wait(timeout, function()
     return done
   end, 20, false)
+
+  if not done then
+    log.warn("block_on timed out after %dms; cancelling job", timeout)
+    if handle and type(handle) == "table" and type(handle.kill) == "function" then
+      pcall(handle.kill, handle, "sigterm")
+    end
+    return nil
+  end
 
   return unpack(result)
 end

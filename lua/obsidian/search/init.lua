@@ -224,9 +224,10 @@ end
 ---@param opts obsidian.search.SearchOpts|?
 ---@param on_match fun(match: MatchData)
 ---@param on_exit fun(exit_code: integer)|?
+---@return vim.SystemObj handle
 M.search_async = function(dir, term, opts, on_match, on_exit)
   local cmd = M.build_search_cmd(dir, term, opts)
-  async.run_job_async(cmd, function(line)
+  return async.run_job_async(cmd, function(line)
     local data = vim.json.decode(line)
     if data["type"] == "match" then
       local match_data = data.data
@@ -246,10 +247,11 @@ end
 ---@param opts obsidian.search.SearchOpts|?
 ---@param on_match fun(path: string)
 ---@param on_exit fun(exit_code: integer)|?
+---@return vim.SystemObj handle
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
   local cmd = M.build_find_cmd(tostring(norm_dir), term, opts)
-  async.run_job_async(cmd, on_match, function(code)
+  return async.run_job_async(cmd, on_match, function(code)
     if on_exit ~= nil then
       on_exit(code)
     end
@@ -381,12 +383,14 @@ end
 ---
 ---@param term string The term to search for
 ---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|? }
+---@return obsidian.Note[] notes always returns a list (empty on timeout)
 M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
-  return async.block_on(function(cb)
+  local result = async.block_on(function(cb)
     return M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
   end, opts.timeout)
+  return result or {}
 end
 
 -- TODO: filter blocks and anchors in here, see _definition, but how does it interact with the shortcut stuff?
@@ -659,6 +663,7 @@ end
 ---@param note obsidian.Note
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
 ---@param opts { search: obsidian.SearchOpts, on_match: fun(match: obsidian.BacklinkMatch), anchor: string, block: string, dir: string|obsidian.Path, refs: string[]|? }
+---@return vim.SystemObj handle
 M.find_backlinks_async = function(note, callback, opts)
   -- vim.validate("note", note, "table")
   -- vim.validate("callback", callback, "function")
@@ -740,7 +745,7 @@ M.find_backlinks_async = function(note, callback, opts)
     end
   end
 
-  M.search_async(
+  return M.search_async(
     dir,
     build_backlink_search_term(note, anchor, block, opts.refs),
     { fixed_strings = true, ignore_case = true },
@@ -753,17 +758,18 @@ end
 
 ---@param note obsidian.Note
 ---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?
----@return obsidian.BacklinkMatch
+---@return obsidian.BacklinkMatch[] matches always returns a list (empty on timeout)
 M.find_backlinks = function(note, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
-  return async.block_on(function(cb)
+  local result = async.block_on(function(cb)
     return M.find_backlinks_async(
       note,
       cb,
       { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
     )
   end, opts.timeout)
+  return result or {}
 end
 
 ---@class obsidian.TagLocation
@@ -781,12 +787,13 @@ end
 ---@param term string|string[] The search term.
 ---@param opts { search: obsidian.SearchOpts|?, timeout: integer|? }|?
 ---
----@return obsidian.TagLocation[]
+---@return obsidian.TagLocation[] tags always returns a list (empty on timeout)
 M.find_tags = function(term, opts)
   opts = opts or {}
-  return async.block_on(function(cb)
+  local result = async.block_on(function(cb)
     return M.find_tags_async(term, cb, { search = opts.search })
   end, opts.timeout)
+  return result or {}
 end
 
 --- An async version of 'find_tags()'.
