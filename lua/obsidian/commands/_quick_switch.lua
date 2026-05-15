@@ -42,6 +42,13 @@ return function()
       format_item = function(item)
         return item.label
       end,
+      preview_item = function(item)
+        local lines = vim.fn.readfile(item.path)
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+        vim.bo[buf].filetype = "markdown"
+        return { buf = buf }
+      end,
     }, function(choice)
       if not choice then
         return
