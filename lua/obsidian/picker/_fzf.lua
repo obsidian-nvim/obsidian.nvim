@@ -35,10 +35,6 @@ local M = {}
 local function get_selection_actions(opts, path_only)
   local actions = {
     default = function(selected, fzf_opts)
-      if not opts.no_default_mappings then
-        fzf_actions.file_edit_or_qf(selected, fzf_opts)
-      end
-
       if opts.callback then
         local path = entry_to_file(selected[1], fzf_opts).path
         if path_only then
@@ -46,6 +42,8 @@ local function get_selection_actions(opts, path_only)
         else
           opts.callback { filename = path }
         end
+      elseif not opts.no_default_mappings then
+        fzf_actions.file_edit_or_qf(selected, fzf_opts)
       end
     end,
   }

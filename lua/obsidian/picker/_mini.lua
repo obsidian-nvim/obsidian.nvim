@@ -50,8 +50,9 @@ M.find_files = function(opts)
       name = opts.prompt_title,
       cwd = tostring(dir),
       choose = function(chosen_path)
-        -- TODO: use opts.callback
-        if not opts.no_default_mappings then
+        if opts.callback then
+          return
+        elseif not opts.no_default_mappings then
           mini_pick.default_choose(chosen_path)
         end
       end,

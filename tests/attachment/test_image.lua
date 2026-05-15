@@ -59,6 +59,24 @@ T["add"]["URL filenames should be decoded before basename resolution"] = functio
   eq(expected, result)
 end
 
+T["add"]["relative attachment folders should resolve against target buffer"] = function()
+  Obsidian.opts.attachments.folder = "./"
+
+  local subdir = vim.fs.joinpath(tostring(Obsidian.dir), "notes")
+  vim.fn.mkdir(subdir, "p")
+  local src = vim.fs.joinpath(tostring(Obsidian.dir), "source.png")
+  vim.fn.writefile({ "image" }, src)
+
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(bufnr, vim.fs.joinpath(subdir, "note.md"))
+
+  local result = attachment.add(src, { insert = false, bufnr = bufnr })
+  local expected = vim.fs.joinpath(subdir, "source.png")
+
+  eq(expected, result)
+  eq(1, vim.fn.filereadable(expected))
+end
+
 T["actions"] = new_set()
 
 T["actions"]["add_attachment should open picker for directory sources"] = function()

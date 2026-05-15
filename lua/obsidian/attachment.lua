@@ -58,8 +58,9 @@ end
 --- Resolve a basename to full path inside the vault.
 ---
 ---@param src string
+---@param bufnr integer|?
 ---@return string
-M.resolve_attachment_path = function(src)
+M.resolve_attachment_path = function(src, bufnr)
   local Path = require "obsidian.path"
   local attachment_folder = Obsidian.opts.attachments.folder
 
@@ -69,7 +70,8 @@ M.resolve_attachment_path = function(src)
 
   ---@cast attachment_folder -nil
   if vim.startswith(attachment_folder, ".") then
-    local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(0)))
+    bufnr = bufnr or 0
+    local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)))
     return tostring(dirname / attachment_folder / src)
   else
     return tostring(Obsidian.dir / attachment_folder / src)
@@ -89,9 +91,10 @@ local function decoded_basename(fname)
 end
 
 ---@param src string
+---@param bufnr integer|?
 ---@return string|?
 ---@return string|?
-local function get_attachment_paths(src)
+local function get_attachment_paths(src, bufnr)
   local is_uri, scheme = util.is_uri(src)
   if is_uri then
     if scheme == "file" then
@@ -100,7 +103,7 @@ local function get_attachment_paths(src)
       if not fname or fname == "" then
         return nil, "Failed to resolve source filename from URI"
       end
-      return src_path, M.resolve_attachment_path(fname)
+      return src_path, M.resolve_attachment_path(fname, bufnr)
     elseif scheme == "http" or scheme == "https" then
       local src_clean = src:gsub("#.*$", ""):gsub("%?.*$", "")
       local fname = src_clean:match "/([^/]+)$"
@@ -112,7 +115,7 @@ local function get_attachment_paths(src)
         return nil, err
       end
       fname = decoded_fname
-      return src, M.resolve_attachment_path(fname)
+      return src, M.resolve_attachment_path(fname, bufnr)
     else
       return nil, "Unsupported URI scheme '" .. tostring(scheme) .. "'"
     end
@@ -124,7 +127,7 @@ local function get_attachment_paths(src)
     return nil, "Failed to resolve source filename from path"
   end
 
-  return src_path, M.resolve_attachment_path(fname)
+  return src_path, M.resolve_attachment_path(fname, bufnr)
 end
 
 ---@param src string
@@ -184,7 +187,7 @@ end
 M.add = function(src, opts)
   opts = opts or {}
   src = vim.trim(src)
-  local resolved_src, resolved_dst = get_attachment_paths(src)
+  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr)
   if not resolved_src then
     log.err(assert(resolved_dst))
     return
