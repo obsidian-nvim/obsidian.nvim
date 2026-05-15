@@ -7,7 +7,7 @@ vim.o.conceallevel = 2
 
 local cwd = vim.uv.cwd()
 
--- HACK: for native neovim completion and mini.completion
+-- HACK: enable for native neovim completion and mini.completion
 local chars = {}
 for i = 32, 126 do
   table.insert(chars, string.char(i))
@@ -64,9 +64,14 @@ local plugins = {
   --         ["<C-y>"] = cmp.mapping.confirm { select = true },
   --       },
   --       sources = {
-  --         { name = "nvim_lsp" },
+  --         -- { name = "nvim_lsp" },
   --       },
   --     }
+  --     require("cmp").setup.filetype("markdown", {
+  --       sources = {
+  --         { name = "nvim_lsp" },
+  --       },
+  --     })
   --   end,
   -- },
   -- {
