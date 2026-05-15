@@ -124,6 +124,8 @@ local function save_clipboard_image(path, img_type)
   end
 end
 
+-- TODO: use atttachment.add, deprecate img_text_func and etc
+
 --- @param path string|obsidian.Path image_path The absolute path to the image file.
 M.paste = function(path, img_type)
   if util.contains_invalid_characters(path) then
