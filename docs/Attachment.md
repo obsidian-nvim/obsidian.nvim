@@ -1,5 +1,6 @@
 - [Save location](#save-location)
 - [Add attachment](#add-attachment)
+- [Paste from clipboard path](#paste-from-clipboard-path)
 - [Open](#open)
 - [Options](#options)
 
@@ -14,14 +15,55 @@ Option for attachment location is `opts.attachments.folder`
 
 ## Add attachment
 
-Use `require"obsidian.actions".add_attachment(source)` or invoke it via code action.
+There are two attachment entry points:
+
+- `require("obsidian.attachment").add(source, opts)` is the lower-level API. It copies or downloads `source`, then optionally inserts a link.
+- `require("obsidian.actions").add_attachment(source, opts)` is the interactive action wrapper, and is what the code action invokes. It prompts when `source` is missing, opens a picker when `source` is a directory, then delegates to `attachment.add()`.
+
+For `attachment.add(source, opts)`:
 
 - If `source` is a local file (or `file://` URI), the file is copied.
-- If `source` is a local directory, a file picker is opened, and selected file is copied.
 - If `source` is a `http(s)` URL, the file is downloaded with `curl`.
-- The destination path is always resolved by `api.resolve_attachment_path()` and controlled by [Save location](#save-location)
+- The destination path is always resolved by `api.resolve_attachment_path()` and controlled by [Save location](#save-location).
 
-When called without an argument, obsidian.nvim prompts for a URL or file path.
+For `actions.add_attachment(source, opts)`:
+
+- If `source` is a local directory, a file picker is opened, and the selected file is copied.
+- If `source` is missing or empty, obsidian.nvim prompts for a URL or file path.
+- The target `bufnr` must be an obsidian buffer.
+
+Both functions accept the same `opts` table:
+
+```lua
+---@class obsidian.AttachmentAddOpts
+---@field insert? boolean Insert the generated attachment link after adding. Defaults to true.
+---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
+```
+
+## Paste from clipboard path
+
+If your clipboard contains a file path, you can add it directly with `attachment.add()`.
+The example below checks that the clipboard resolves to an existing path first and reports the aborted branch through `obsidian.log`:
+
+```lua
+local log = require "obsidian.log"
+
+local paste_from_path = function()
+  local path = vim.trim(vim.fn.getreg "+")
+  if path == "" then
+    return log.warn "Clipboard is empty"
+  end
+
+  local stat_path = vim.startswith(path, "file://") and vim.uri_to_fname(path) or path
+  if not vim.uv.fs_stat(stat_path) then
+    return log.warn("Clipboard does not contain a valid path: %s", path)
+  end
+
+  vim.schedule(function()
+    require("obsidian.attachment").add(path, { insert = true })
+  end)
+end
+```
 
 To customize attachment resolution, override `require("obsidian.actions").add_attachment`.
 For example, pick with a terminal file manager (yazi in a centered float):
