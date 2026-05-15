@@ -3,7 +3,7 @@ local search = obsidian.search
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
-local actions = obsidian.actions
+local actions = require "obsidian.actions"
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
@@ -49,7 +49,7 @@ local function create_new_note(location, callback, opts)
 
   local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
-    actions.new(location, function(note)
+    actions.new(location, opts.label, function(note)
       update_link(note)
       callback { note:_location() }
     end)

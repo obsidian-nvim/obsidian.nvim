@@ -138,7 +138,7 @@ function M.process_completion(callback, request)
       command = {
         command = "obsidian.new",
         title = "Obsidian new",
-        arguments = { new_note.id },
+        arguments = { new_note.id, new_note_opts.label },
       },
       -- NOTE: for [[new_note@template future expansion
       -- command = {

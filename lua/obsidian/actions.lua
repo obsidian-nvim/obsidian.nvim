@@ -475,8 +475,9 @@ end
 --- this function never opens it.
 ---
 ---@param id string|?
+---@param title string|?
 ---@param callback fun(note: obsidian.Note)|?
-M.new = function(id, callback)
+M.new = function(id, title, callback)
   if not id then
     id = api.input("Enter id or path (optional): ", { completion = "file" })
     if not id then
@@ -486,7 +487,11 @@ M.new = function(id, callback)
     end
   end
 
-  local note = Note.create { id = id, template = Obsidian.opts.note.template }
+  local note = Note.create {
+    id = id,
+    title = title,
+    template = Obsidian.opts.note.template, -- TODO: maybe unneed when creating, or set as a field that note carries
+  }
   note:write()
 
   if callback then
