@@ -284,9 +284,6 @@ return {
   ---
   ---Whether to confirm the paste or not. Defaults to true.
   ---@field confirm_img_paste? boolean
-  ---
-  ---Controls how actions.add_attachment resolves attachments from outside the vault.
-  ---@field resolve? fun(opts: { insert: boolean|?, bufnr: integer|? })|?
   attachments = {
     folder = "attachments",
     img_text_func = require("obsidian.builtin").img_text_func,
@@ -294,7 +291,6 @@ return {
       return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
     end,
     confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
-    resolve = require("obsidian.builtin").resolve_attachment_func,
   },
 
   ---@alias obsidian.sync.FileType

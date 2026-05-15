@@ -21,42 +21,46 @@ Use `require"obsidian.actions".add_attachment(source)` or invoke it via code act
 - If `source` is a `http(s)` URL, the file is downloaded with `curl`.
 - The destination path is always resolved by `api.resolve_attachment_path()` and controlled by [Save location](#save-location)
 
-When called without an argument, obsidian.nvim uses `opts.attachments.resolve`.
+When called without an argument, obsidian.nvim prompts for a URL or file path.
 
-Pick with a terminal file manager (yazi in a centered float):
+To customize attachment resolution, override `require("obsidian.actions").add_attachment`.
+For example, pick with a terminal file manager (yazi in a centered float):
 
 ```lua
-attachments = {
-  resolve = function(opts)
-    local tmp = vim.fn.tempname()
-    local buf = vim.api.nvim_create_buf(false, true)
-    local width = math.floor(vim.o.columns * 0.8)
-    local height = math.floor(vim.o.lines * 0.8)
-    local win = vim.api.nvim_open_win(buf, true, {
-      relative = "editor",
-      row = math.floor((vim.o.lines - height) / 2),
-      col = math.floor((vim.o.columns - width) / 2),
-      width = width,
-      height = height,
-      style = "minimal",
-      border = "rounded",
-    })
-    vim.fn.jobstart({ "yazi", "--chooser-file=" .. tmp }, {
-      term = true,
-      on_exit = function()
-        vim.api.nvim_win_close(win, true)
-        vim.api.nvim_buf_delete(buf, { force = true })
-        if vim.uv.fs_stat(tmp) then
-          local lines = vim.fn.readfile(tmp)
-          if lines[1] then
-            require("obsidian.attachment").add(lines[1], { insert = opts.insert, bufnr = opts.bufnr })
-          end
+local actions = require "obsidian.actions"
+local attachment = require "obsidian.attachment"
+
+actions.add_attachment = function(_, opts)
+  opts = opts or {}
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  local tmp = vim.fn.tempname()
+  local buf = vim.api.nvim_create_buf(false, true)
+  local width = math.floor(vim.o.columns * 0.8)
+  local height = math.floor(vim.o.lines * 0.8)
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    row = math.floor((vim.o.lines - height) / 2),
+    col = math.floor((vim.o.columns - width) / 2),
+    width = width,
+    height = height,
+    style = "minimal",
+    border = "rounded",
+  })
+  vim.fn.jobstart({ "yazi", "--chooser-file=" .. tmp }, {
+    term = true,
+    on_exit = function()
+      vim.api.nvim_win_close(win, true)
+      vim.api.nvim_buf_delete(buf, { force = true })
+      if vim.uv.fs_stat(tmp) then
+        local lines = vim.fn.readfile(tmp)
+        if lines[1] then
+          attachment.add(lines[1], { insert = opts.insert, bufnr = bufnr })
         end
-      end,
-    })
-    vim.cmd "startinsert"
-  end,
-}
+      end
+    end,
+  })
+  vim.cmd "startinsert"
+end
 ```
 
 ## Open
@@ -95,9 +99,6 @@ Put any where in you config that loads before you open attachments, a good place
 ---
 ---Whether to confirm the paste or not. Defaults to true.
 ---@field confirm_img_paste? boolean
----
----Controls how actions.add_attachment resolves attachments from outside the vault.
----@field resolve? fun(opts: { insert: boolean|?, bufnr: integer|? })|?
 attachments = {
   folder = "attachments",
   img_text_func = require("obsidian.builtin").img_text_func,
@@ -105,6 +106,5 @@ attachments = {
     return string.format("Pasted image %s", os.date "%Y%m%d%H%M%S")
   end,
   confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
-  resolve = require("obsidian.builtin").resolve_attachment_func,
 }
 ```

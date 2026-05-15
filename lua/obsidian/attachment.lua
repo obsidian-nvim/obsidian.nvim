@@ -76,6 +76,18 @@ M.resolve_attachment_path = function(src)
   end
 end
 
+---@param fname string
+---@return string|?
+---@return string|?
+local function decoded_basename(fname)
+  local decoded = vim.uri_decode(fname)
+  local basename = vim.fs.basename(decoded:gsub("\\", "/"))
+  if not basename or basename == "" or basename == "." or basename == ".." then
+    return nil, "Failed to resolve attachment name from URL"
+  end
+  return basename
+end
+
 ---@param src string
 ---@return string|?
 ---@return string|?
@@ -95,7 +107,11 @@ local function get_attachment_paths(src)
       if not fname or fname == "" then
         return nil, "Failed to resolve attachment name from URL"
       end
-      fname = vim.uri_decode(fname)
+      local decoded_fname, err = decoded_basename(fname)
+      if not decoded_fname then
+        return nil, err
+      end
+      fname = decoded_fname
       return src, M.resolve_attachment_path(fname)
     else
       return nil, "Unsupported URI scheme '" .. tostring(scheme) .. "'"
@@ -201,7 +217,7 @@ M.format_link = function(dst)
   if style == "wiki" then
     return "![[" .. basename .. "]]"
   elseif style == "markdown" then
-    return "![](" .. basename .. ")"
+    return "![](" .. util.urlencode(basename) .. ")"
   elseif type(style) == "function" then
     return style { path = basename }
   end
