@@ -1,4 +1,4 @@
----Mostly not needed, but some lsp related plugins like nvim-cmp-lsp don't support vim.lsp.commmands yet
+---Mostly not needed, but some lsp related plugins like nvim-cmp-lsp don't support vim.lsp.commands yet
 
 ---@param params lsp.ExecuteCommandParams
 return function(params)
