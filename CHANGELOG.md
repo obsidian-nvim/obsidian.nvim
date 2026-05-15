@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Proper resolve `.base` file only with explicit suffix.
 - `:Obsidian bookmarks` to view existing bookmarks.
 - use `vim.g.obsidian_default_keymap` to disable the default keymaps.
+- `attachment.add(src, opts)` and `actions.add_attachment(src, opts)` for adding:
+  - filepath and urls for attachment
+  - folders will open a file picker
+  - see docs at <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment>
 
 ### Fixed
 

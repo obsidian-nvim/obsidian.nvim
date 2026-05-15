@@ -189,7 +189,7 @@ M.add = function(src, opts)
   src = vim.trim(src)
   local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr)
   if not resolved_src then
-    log.err(assert(resolved_dst))
+    log.err(resolved_dst or "Failed to resolve attachment")
     return
   end
 
