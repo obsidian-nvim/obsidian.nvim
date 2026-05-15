@@ -10,8 +10,6 @@ local BASE_CMD = {
   "md:*.qmd",
   "--type-add",
   "md:*.base",
-  --- TODO: controled by include_non_markdown option?
-  "--type=md",
 }
 
 local SEARCH_CMD = compat.flatten { BASE_CMD, "--type=md", "--json" }

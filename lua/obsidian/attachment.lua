@@ -95,6 +95,7 @@ local function get_attachment_paths(src)
       if not fname or fname == "" then
         return nil, "Failed to resolve attachment name from URL"
       end
+      fname = vim.uri_decode(fname)
       return src, M.resolve_attachment_path(fname)
     else
       return nil, "Unsupported URI scheme '" .. tostring(scheme) .. "'"
@@ -116,7 +117,10 @@ end
 local function copy_attachment(src, dst)
   local is_uri, scheme = util.is_uri(src)
 
-  vim.fn.mkdir(vim.fs.dirname(dst), "p")
+  local mkdir_ok, mkdir_err = pcall(vim.fn.mkdir, vim.fs.dirname(dst), "p")
+  if not mkdir_ok then
+    return "Failed to create attachment directory: " .. tostring(mkdir_err)
+  end
 
   if is_uri and (scheme == "http" or scheme == "https") then
     if vim.fn.executable "curl" ~= 1 then
@@ -137,32 +141,37 @@ local function copy_attachment(src, dst)
 end
 
 ---@param src string
----@param insert_link boolean|?
+---@param opts { insert: boolean|?, bufnr: integer|? }|?
 ---@return string|?
-M.add = function(src, insert_link)
+M.add = function(src, opts)
+  opts = opts or {}
   src = vim.trim(src)
-  local resolved_src, resolved_dst_or_err = get_attachment_paths(src)
+  local resolved_src, resolved_dst = get_attachment_paths(src)
   if not resolved_src then
-    log.err(assert(resolved_dst_or_err))
+    log.err(assert(resolved_dst))
     return
   end
 
-  local err = copy_attachment(resolved_src, assert(resolved_dst_or_err))
+  ---@cast resolved_dst -nil
+  local err = copy_attachment(resolved_src, resolved_dst)
   if err then
     log.err(err)
     return
   end
 
-  if insert_link ~= false then
-    local link_text = M.format_link(resolved_src)
-    vim.api.nvim_put({ link_text }, "c", true, true)
+  if opts.insert ~= false then
+    local link_text = M.format_link(resolved_dst)
+    local bufnr = opts.bufnr or 0
+    vim.api.nvim_buf_call(bufnr, function()
+      vim.api.nvim_put({ link_text }, "c", true, true)
+    end)
   end
 
-  return resolved_dst_or_err
+  return resolved_dst
 end
 
 ---@param dst string
----@return string|?
+---@return string
 M.format_link = function(dst)
   local basename = vim.fs.basename(dst)
   local style = Obsidian.opts.link.style
@@ -173,6 +182,7 @@ M.format_link = function(dst)
   elseif type(style) == "function" then
     return style { path = basename }
   end
+  return "![[" .. basename .. "]]"
 end
 
 return M

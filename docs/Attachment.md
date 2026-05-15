@@ -49,7 +49,7 @@ attachments = {
         if vim.uv.fs_stat(tmp) then
           local lines = vim.fn.readfile(tmp)
           if lines[1] then
-            require("obsidian.attachment").add(lines[1], opts)
+            require("obsidian.attachment").add(lines[1], { insert = opts.insert, bufnr = opts.bufnr })
           end
         end
       end,
@@ -97,7 +97,7 @@ Put any where in you config that loads before you open attachments, a good place
 ---@field confirm_img_paste? boolean
 ---
 ---Controls how actions.add_attachment resolves attachments from outside the vault.
----@field resolve? fun(opts: { insert: boolean|? })|?
+---@field resolve? fun(opts: { insert: boolean|?, bufnr: integer|? })|?
 attachments = {
   folder = "attachments",
   img_text_func = require("obsidian.builtin").img_text_func,
