@@ -638,7 +638,7 @@ T["frontmatter_lines"]["respects opts.frontmatter.sort over parsed key order"] =
     return out
   end
 
-  local note = from_str([[---
+  local note = from_str [[---
 tags:
   - foo
 created: 2026-05-20
@@ -646,7 +646,7 @@ start: morning
 ---
 
 # n
-]])
+]]
   local current_lines = { "---", "tags:", "  - foo", "created: 2026-05-20", "start: morning", "---" }
   local lines = note:frontmatter_lines(current_lines)
 
@@ -658,7 +658,7 @@ start: morning
     end
     return nil
   end
-  local start_i, created_i, tags_i = find("start"), find("created"), find("tags")
+  local start_i, created_i, tags_i = find "start", find "created", find "tags"
   eq(true, start_i < created_i)
   eq(true, created_i < tags_i)
 

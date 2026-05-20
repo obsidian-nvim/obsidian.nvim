@@ -838,7 +838,9 @@ Note.frontmatter_lines = function(self, current_lines)
     -- would be silently overwritten by the parsed order on every save.
     local parsed_order
     syntax_ok, _, parsed_order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
-    if order == nil then order = parsed_order end
+    if order == nil then
+      order = parsed_order
+    end
   end
   if syntax_ok or not has_frontmatter then -- if parse success or there's no frontmatter (and should insert)
     ---@diagnostic disable-next-line: param-type-mismatch
