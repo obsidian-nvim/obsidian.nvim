@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Preserve anchors and blocks when creating notes from unresolved links.
 - WIP: proper async jobs and no `block_on` calls which performs bad on windows.
+- Skip empty list items in `tags`/`aliases` frontmatter validators so template placeholders no longer surface as `vim.NIL` validation errors. Refs #801.
+- Preserve template frontmatter when `frontmatter.enabled = false` (the strip+merge round-trip previously dropped it because `update_frontmatter` short-circuits). Closes #801.
 
 ## [v3.16.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.3) - 2026-05-08
 
