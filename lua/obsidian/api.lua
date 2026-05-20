@@ -69,7 +69,7 @@ M.path_is_note = function(path, workspace)
   -- context issues. vim.filetype.match calls getenv() which is not allowed in
   -- completion context.
   local extension = tostring(path):match "%.([^%.]+)$"
-  if not vim.list_contains({ "md", "markdown", "qmd" }, extension) then
+  if not vim.list_contains({ "md", "markdown", "qmd", "base" }, extension) then
     return false
   end
 
@@ -145,6 +145,7 @@ end
 ---
 ---@return string? link
 ---@return obsidian.search.RefTypes? link_type
+---@return [integer, integer]? range
 M.cursor_link = function()
   local line = vim.api.nvim_get_current_line()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
@@ -157,7 +158,7 @@ M.cursor_link = function()
     return cur_col >= open and cur_col <= close
   end)
   if match then
-    return line:sub(match[1], match[2]), match[3]
+    return line:sub(match[1], match[2]), match[3], { match[1], match[2] }
   end
 end
 

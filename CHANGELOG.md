@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Update link in buffer when creating a new note via `follow_link`.
+- Minimal `.base` support, definition, references and quick_switch will work.
+- Proper resolve `.base` file only with explicit suffix.
+- `:Obsidian bookmarks` to view existing bookmarks.
+- use `vim.g.obsidian_default_keymap` to disable the default keymaps.
+- `attachment.add(src, opts)` and `actions.add_attachment(src, opts)` for adding:
+  - filepath and urls for attachment
+  - folders will open a file picker
+  - see docs at <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment>
+
+### Fixed
+
+- Preserve anchors and blocks when creating notes from unresolved links.
+- WIP: proper async jobs and no `block_on` calls which performs bad on windows.
+
+## [v3.16.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.3) - 2026-05-08
+
+### Added
+
 - Add unique note creation prompt option for missing definitions.
 - LSP client commands can run actions in actions.lua.
 - Add `Note.insert_text` for inserting text under a specific section
@@ -21,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add code_actions with `require"obsidian".code_action.add`.
   - Delete code_actions with `require"obsidian".code_action.del`.
 - `Note.create` accept a `title` field for readable name for note.
+- Refactor `Note.insert_text` with flattened and flexible opts for more-expressive configs
 
 ### Fixed
 
@@ -31,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set `opts.sync.configs = {}` to disable obsidian.nvim from racing to sync config with obsidian app using the same folder.
 - Removes unnecessary sync log messages.
 - Unique note creation through link gets a proper readable title instead of id.
+- Updated picker enum values to use correct module names and added picker configuration documentation in README.md.
 
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 

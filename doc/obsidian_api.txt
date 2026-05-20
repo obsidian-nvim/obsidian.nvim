@@ -415,6 +415,14 @@ Return ~
 `(string[])`
 
 ------------------------------------------------------------------------------
+                                                    *normalize_section_choice()*
+                      `normalize_section_choice`({choice})
+Parameters ~
+{choice} `(obsidian.note.insert_text.SectionChoice)`
+Return ~
+`({ header?: string, level?: integer })`
+
+------------------------------------------------------------------------------
                                                             *Note.insert_text()*
                    `Note.insert_text`({self}, {text}, {opts})
 Parameters ~
@@ -499,26 +507,34 @@ See `:help checktime` to learn more.
 ------------------------------------------------------------------------------
 Class ~
 {(exact)} obsidian.note.InsertTextOpts: obsidian.note.NoteSaveOpts
+Specifies the section to insert text under. When neither `header` nor `level` are provided, then the "preamble" will
+be targeted (i.e. everything from the beginning of the file up to, but not including, the first heading).
+Defaults to the preamble.
+Fields ~
+{section} `(optional)` `(obsidian.note.insert_text.SectionChoice)`
+Decides what to do when the specified section is not found in the note. Defaults to `create`.
+{on_section_missing} `(optional)` `(obsidian.note.insert_text.OnSectionMissing)`
 Whether a blank line is inserted between frontmatter/top-of-file and the first heading of a note.
 Defaults to the expression: `note.has_frontmatter`.
-Fields ~
 {padding_top} `(optional)` `(boolean)`
-Specifies the section to insert the text into, or `nil` to target the preamble (i.e. the area starting from the top
-of the file up to but not including the first heading). Defaults to `nil`.
-{section} `(optional)` `(obsidian.note.Section)`
 Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
 {placement} `(optional)` "`(top)`"|"bot"
 
 ------------------------------------------------------------------------------
-Class ~
-{(exact)} obsidian.note.Section
-The label of the heading.
-Fields ~
-{header} `(string)`
-The level of the heading (H1, H2, H3, ...).
-{level} `(integer)`
-Decides what to do when the section is missing. Defaults to `create`.
-{on_missing} `(optional)` "`(create)`"|"error"|"cancel"
+    | [ nil,     nil     ] | { header: nil,    level: nil     })
+Selects the first section with the given `header`, regardless of its `level`.
+When `on_section_missing == "create"`, then `level` will default to `2`.
+ | [ string,  nil     ] | { header: string, level: nil     })
+Selects the first section with the given `level`, regardless of its `header`.
+When `on_section_missing == "create"`, then `header` will default to `Untitled`.
+| [ nil,     integer ] | { header: nil,    level: integer })
+Selects the first section with BOTH the given `header` and the given `level`.
+         [ string,  integer ] | { header: string, level: integer })
+
+------------------------------------------------------------------------------
+"create" Create the missing section where text will be inserted under.
+"error"  Force user to handle the missing section by raising an error.
+"cancel" Silently abandon the insert operation altogether.
 
 ------------------------------------------------------------------------------
 Class ~

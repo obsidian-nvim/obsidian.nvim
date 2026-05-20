@@ -1259,31 +1259,56 @@ Note.body_lines = function(self)
   return lines
 end
 
+---@param choice obsidian.note.insert_text.SectionChoice
+---@return { header?: string, level?: integer }
+local function normalize_section_choice(choice)
+  local norm = { header = nil, level = nil }
+
+  if type(choice) == "string" then
+    norm.header = choice
+  elseif type(choice) == "number" then
+    norm.level = choice
+  elseif type(choice) == "table" then
+    if vim.islist(choice) then
+      norm.header = choice[1]
+      norm.level = choice[2]
+    else
+      norm.header = choice.header
+      norm.level = choice.level
+    end
+    assert(norm.header == nil or type(norm.header) == "string", "`section.header` must be string or nil")
+    assert(norm.level == nil or type(norm.level) == "number", "`section.level` must be number or nil")
+  elseif choice ~= nil then
+    error("invalid `section`: " .. vim.inspect(choice))
+  end
+
+  return norm
+end
+
 ---@param text string|string[] The text to insert into the note.
 ---@param opts obsidian.note.InsertTextOpts? The options for constraining where text can be inserted.
 ---@return integer text_idx where the text begins in the file (_including_ frontmatter) or `0` when insert is cancelled.
 Note.insert_text = function(self, text, opts)
-  local text_idx = 0
+  local defaults = { padding_top = self.has_frontmatter }
+  local overrides = { section = normalize_section_choice(opts and opts.section) }
+  opts = vim.tbl_deep_extend("force", defaults, opts or {}, overrides)
 
-  opts = vim.tbl_extend("keep", opts or {}, { padding_top = self.has_frontmatter })
-  opts.update_content = function(lines)
-    local insert_idx, insert_before, insert_after = text_insertion.resolve(lines, opts)
+  local text_idx = self.has_frontmatter and self.frontmatter_end_line or 0
 
-    if insert_idx == 0 then
-      return lines
-    end
-
-    text_idx = insert_idx + #insert_before
-    local head = vim.list_slice(lines, 1, insert_idx - 1)
-    local tail = vim.list_slice(lines, insert_idx, #lines)
-    return vim.iter({ head, insert_before, text, insert_after, tail }):flatten():totable()
-  end
-
-  self:save(opts)
-
-  if self.has_frontmatter and text_idx > 0 then
-    return self.frontmatter_end_line + text_idx
-  end
+  self:save(vim.tbl_extend("error", opts, {
+    update_content = function(lines)
+      local insert_idx, insert_top, insert_bot = text_insertion.resolve(lines, opts)
+      if insert_idx == 0 then
+        text_idx = 0
+        return lines
+      else
+        text_idx = text_idx + insert_idx + #insert_top
+        local top_lines = vim.list_slice(lines, 1, insert_idx - 1)
+        local bot_lines = vim.list_slice(lines, insert_idx, #lines)
+        return vim.iter({ top_lines, insert_top, text, insert_bot, bot_lines }):flatten():totable()
+      end
+    end,
+  }))
 
   return text_idx
 end
@@ -1385,22 +1410,34 @@ end
 ---@field check_buffers? boolean
 
 ---@class (exact) obsidian.note.InsertTextOpts: obsidian.note.NoteSaveOpts
+--- Specifies the section to insert text under. When neither `header` nor `level` are provided, then the "preamble" will
+--- be targeted (i.e. everything from the beginning of the file up to, but not including, the first heading).
+--- Defaults to the preamble.
+---@field section? obsidian.note.insert_text.SectionChoice
+--- Decides what to do when the specified section is not found in the note. Defaults to `create`.
+---@field on_section_missing? obsidian.note.insert_text.OnSectionMissing
 --- Whether a blank line is inserted between frontmatter/top-of-file and the first heading of a note.
 --- Defaults to the expression: `note.has_frontmatter`.
 ---@field padding_top? boolean
---- Specifies the section to insert the text into, or `nil` to target the preamble (i.e. the area starting from the top
---- of the file up to but not including the first heading). Defaults to `nil`.
----@field section? obsidian.note.Section
 --- Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
 ---@field placement? "top"|"bot"
 
----@class (exact) obsidian.note.Section
---- The label of the heading.
----@field header string
---- The level of the heading (H1, H2, H3, ...).
----@field level integer
---- Decides what to do when the section is missing. Defaults to `create`.
----@field on_missing? "create"|"error"|"cancel"
+---@alias obsidian.note.insert_text.SectionChoice
+--- Selects the "preamble" (i.e., all of the lines above the first heading in the note).
+---|(nil     | [ nil,     nil     ] | { header: nil,    level: nil     })
+--- Selects the first section with the given `header`, regardless of its `level`.
+--- When `on_section_missing == "create"`, then `level` will default to `2`.
+---|(string  | [ string,  nil     ] | { header: string, level: nil     })
+--- Selects the first section with the given `level`, regardless of its `header`.
+--- When `on_section_missing == "create"`, then `header` will default to `Untitled`.
+---|(integer | [ nil,     integer ] | { header: nil,    level: integer })
+--- Selects the first section with BOTH the given `header` and the given `level`.
+---|(          [ string,  integer ] | { header: string, level: integer })
+
+---@alias obsidian.note.insert_text.OnSectionMissing
+---| "create" Create the missing section where text will be inserted under.
+---| "error"  Force user to handle the missing section by raising an error.
+---| "cancel" Silently abandon the insert operation altogether.
 
 ---@class obsidian.note.HeaderAnchor
 ---
