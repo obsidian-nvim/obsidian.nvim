@@ -621,6 +621,117 @@ M.toggle_recording = function()
   require("obsidian.core-plugins.audio_recorder").toggle()
 end
 
+---Inspect cursor context and return a description of what would be bookmarked.
+---@return { kind: "url"|"block"|"heading"|"note", label: string }?
+local function bookmark_context()
+  local note = api.current_note(0)
+
+  -- URL under cursor (Markdown link)
+  local link, link_type = api.cursor_link()
+  if link and link_type == "markdown" then
+    local loc = link:match "%((.-)%)"
+    if loc then
+      local is_uri, scheme = util.is_uri(loc)
+      if is_uri and (scheme == "http" or scheme == "https") then
+        return { kind = "url", label = "URL under cursor" }
+      end
+    end
+  end
+
+  -- Block under cursor
+  local line = vim.api.nvim_get_current_line()
+  local block = util.parse_block(line)
+  if block and note then
+    return { kind = "block", label = "block under cursor" }
+  end
+
+  -- Heading under cursor
+  local heading = api.cursor_heading()
+  if heading and note then
+    return { kind = "heading", label = "heading under cursor" }
+  end
+
+  if note then
+    return { kind = "note", label = "current note" }
+  end
+end
+
+---Bookmark whatever is under the cursor: URL, block, heading; fallback to the current note.
+M.add_bookmark = function()
+  local Bookmarks = require "obsidian.bookmarks"
+  local ctx = bookmark_context()
+  if not ctx then
+    log.warn "Nothing to bookmark"
+    return
+  end
+
+  local note = api.current_note(0)
+  local ctime = os.time() * 1000
+
+  if ctx.kind == "url" then
+    local link = api.cursor_link()
+    local title = link and link:match "%[(.-)%]" or nil
+    local url = link and link:match "%((.-)%)" or nil
+    if not url then
+      return log.warn "No URL under cursor"
+    end
+    local ok = Bookmarks.add { type = "url", url = url, title = title or url, ctime = ctime }
+    if ok then
+      log.info("Bookmarked URL: %s", url)
+    end
+  elseif ctx.kind == "block" and note then
+    local line = vim.api.nvim_get_current_line()
+    local block = util.parse_block(line)
+    local rel = note.path and note.path:vault_relative_path()
+    if not rel then
+      return log.err "Cannot resolve note path"
+    end
+    local subpath = "#" .. block
+    local ok = Bookmarks.add {
+      type = "file",
+      path = rel,
+      subpath = subpath,
+      title = (note.title or note.id or rel) .. " > " .. block,
+      ctime = ctime,
+    }
+    if ok then
+      log.info("Bookmarked block: %s", block)
+    end
+  elseif ctx.kind == "heading" and note then
+    local heading = api.cursor_heading()
+    local rel = note.path and note.path:vault_relative_path()
+    if not rel or not heading then
+      return log.err "Cannot resolve heading"
+    end
+    local ok = Bookmarks.add {
+      type = "file",
+      path = rel,
+      subpath = "#" .. heading.header,
+      title = (note.title or note.id or rel) .. " > " .. heading.header,
+      ctime = ctime,
+    }
+    if ok then
+      log.info("Bookmarked heading: %s", heading.header)
+    end
+  elseif ctx.kind == "note" and note then
+    local rel = note.path and note.path:vault_relative_path()
+    if not rel then
+      return log.err "Cannot resolve note path"
+    end
+    local ok = Bookmarks.add {
+      type = "file",
+      path = rel,
+      title = note.title or note.id or rel,
+      ctime = ctime,
+    }
+    if ok then
+      log.info("Bookmarked note: %s", rel)
+    end
+  end
+end
+
+M._bookmark_context = bookmark_context
+
 M.add_property = function()
   local note = assert(api.current_note(0))
 

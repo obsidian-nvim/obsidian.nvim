@@ -8,13 +8,13 @@ local M = {}
 ---@class obsidian.Bookmark
 ---@field ctime integer
 ---@field type "group" | "file" | "folder" | "search" | "url"
----@field path string
----@field _path string resolved path
----@field subpath string
----@field title string
----@field query string
----@field items obsidian.Bookmark[]
----@field url string|?
+---@field path string?
+---@field _path string? resolved path
+---@field subpath string?
+---@field title string?
+---@field query string?
+---@field items obsidian.Bookmark[]?
+---@field url string?
 
 ---@param bookmark obsidian.Bookmark
 ---@return obsidian.PickerEntry entry
@@ -162,15 +162,65 @@ local function preview_bookmark(bookmark)
   end
 end
 
+---@param opts { create: boolean? }?
 ---@return string?
-M.resolve_bookmark_file = function()
+M.resolve_bookmark_file = function(opts)
+  opts = opts or {}
   local bookmark_file = Obsidian.workspace.root / ".obsidian" / "bookmarks.json"
 
   if not bookmark_file:exists() then
-    log.info "bookmark file does not exist, adding and managing bookmarks is not supported yet"
-    return
+    if opts.create then
+      local parent = bookmark_file:parent()
+      if parent and not parent:exists() then
+        vim.fn.mkdir(tostring(parent), "p")
+      end
+      local f = io.open(tostring(bookmark_file), "w")
+      if not f then
+        log.err "failed to create bookmarks file"
+        return
+      end
+      f:write '{"items":[]}'
+      f:close()
+    else
+      log.info "bookmark file does not exist, adding and managing bookmarks is not supported yet"
+      return
+    end
   end
   return tostring(bookmark_file)
+end
+
+---Append a bookmark to the vault's bookmarks.json file.
+---@param bookmark obsidian.Bookmark
+---@return boolean ok
+M.add = function(bookmark)
+  local fp = M.resolve_bookmark_file { create = true }
+  if not fp then
+    return false
+  end
+
+  local f = io.open(fp, "r")
+  if not f then
+    log.err "failed to open bookmarks file"
+    return false
+  end
+  local src = f:read "*a"
+  f:close()
+
+  local ok, obj = pcall(vim.json.decode, src)
+  if not ok or type(obj) ~= "table" then
+    obj = { items = {} }
+  end
+  obj.items = obj.items or {}
+  table.insert(obj.items, bookmark)
+
+  local out = io.open(fp, "w")
+  if not out then
+    log.err "failed to write bookmarks file"
+    return false
+  end
+  out:write(vim.json.encode(obj))
+  out:close()
+  return true
 end
 
 ---@param src string

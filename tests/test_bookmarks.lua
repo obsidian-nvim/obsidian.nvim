@@ -140,4 +140,154 @@ return false
   eq(true, blinked)
 end
 
+T["add"], child = h.child_vault {
+  pre_case = [[
+M = require "obsidian.bookmarks"
+A = require "obsidian.actions"
+  ]],
+}
+
+T["add"]["bookmarks current note when nothing under cursor"] = function()
+  local dir = child.Obsidian.dir
+
+  h.mock_vault_contents(dir, {
+    ["note.md"] = "# Hello\n\nbody line\n",
+  })
+
+  child.lua(string.format(
+    [[
+vim.cmd("edit " .. vim.fn.fnameescape(%q))
+vim.api.nvim_win_set_cursor(0, { 3, 0 }) -- on "body line"
+A.add_bookmark()
+
+local fp = M.resolve_bookmark_file()
+local f = io.open(fp, "r")
+_G.src = f:read("*a")
+f:close()
+  ]],
+    tostring(dir / "note.md")
+  ))
+
+  local src = child.lua_get [[src]]
+  local obj = vim.json.decode(src)
+  eq(#obj.items, 1)
+  eq(obj.items[1].type, "file")
+  eq(obj.items[1].path, "note.md")
+end
+
+T["add"]["bookmarks heading under cursor"] = function()
+  local dir = child.Obsidian.dir
+
+  h.mock_vault_contents(dir, {
+    ["note.md"] = "# Hello\n\nbody line\n",
+  })
+
+  child.lua(string.format(
+    [[
+vim.cmd("edit " .. vim.fn.fnameescape(%q))
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+A.add_bookmark()
+
+local fp = M.resolve_bookmark_file()
+local f = io.open(fp, "r")
+_G.src = f:read("*a")
+f:close()
+  ]],
+    tostring(dir / "note.md")
+  ))
+
+  local src = child.lua_get [[src]]
+  local obj = vim.json.decode(src)
+  eq(#obj.items, 1)
+  eq(obj.items[1].type, "file")
+  eq(obj.items[1].subpath, "#Hello")
+end
+
+T["add"]["bookmarks block under cursor"] = function()
+  local dir = child.Obsidian.dir
+
+  h.mock_vault_contents(dir, {
+    ["note.md"] = "intro line ^my-block\nnext\n",
+  })
+
+  child.lua(string.format(
+    [[
+vim.cmd("edit " .. vim.fn.fnameescape(%q))
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+A.add_bookmark()
+
+local fp = M.resolve_bookmark_file()
+local f = io.open(fp, "r")
+_G.src = f:read("*a")
+f:close()
+  ]],
+    tostring(dir / "note.md")
+  ))
+
+  local src = child.lua_get [[src]]
+  local obj = vim.json.decode(src)
+  eq(#obj.items, 1)
+  eq(obj.items[1].type, "file")
+  eq(obj.items[1].subpath, "#^my-block")
+end
+
+T["add"]["bookmarks url under cursor"] = function()
+  local dir = child.Obsidian.dir
+
+  h.mock_vault_contents(dir, {
+    ["note.md"] = "see [ChatGPT](https://chatgpt.com/) please\n",
+  })
+
+  child.lua(string.format(
+    [[
+vim.cmd("edit " .. vim.fn.fnameescape(%q))
+vim.api.nvim_win_set_cursor(0, { 1, 8 }) -- inside the markdown link
+A.add_bookmark()
+
+local fp = M.resolve_bookmark_file()
+local f = io.open(fp, "r")
+_G.src = f:read("*a")
+f:close()
+  ]],
+    tostring(dir / "note.md")
+  ))
+
+  local src = child.lua_get [[src]]
+  local obj = vim.json.decode(src)
+  eq(#obj.items, 1)
+  eq(obj.items[1].type, "url")
+  eq(obj.items[1].url, "https://chatgpt.com/")
+  eq(obj.items[1].title, "ChatGPT")
+end
+
+T["add"]["dynamic code action title reflects context"] = function()
+  local dir = child.Obsidian.dir
+
+  h.mock_vault_contents(dir, {
+    ["note.md"] = "# Hello\n\nsee [ChatGPT](https://chatgpt.com/)\n",
+  })
+
+  child.lua(string.format(
+    [[
+vim.cmd("edit " .. vim.fn.fnameescape(%q))
+local ca = require "obsidian.lsp.handlers._code_action"
+local opts = ca.actions.add_bookmark
+
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+_G.t_heading = ca.resolve(opts).title
+
+vim.api.nvim_win_set_cursor(0, { 3, 8 })
+_G.t_url = ca.resolve(opts).title
+
+vim.api.nvim_win_set_cursor(0, { 3, 0 })
+_G.t_note = ca.resolve(opts).title
+  ]],
+    tostring(dir / "note.md")
+  ))
+
+  eq(child.lua_get [[t_heading]], "Bookmark heading under cursor")
+  eq(child.lua_get [[t_url]], "Bookmark URL under cursor")
+  eq(child.lua_get [[t_note]], "Bookmark current note")
+end
+
 return T

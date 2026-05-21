@@ -1,25 +1,20 @@
----@class obsidian.lsp.CodeActionData
----@field title string|fun(note: obsidian.Note): string
----@field cond fun(note: obsidian.Note): boolean
-
----@class obsidian.lsp.CodeAction : lsp.CodeAction
----@field data obsidian.lsp.CodeActionData
-
----@type table<string, obsidian.lsp.CodeAction>
+---@type table<string, obsidian.lsp.CodeActionOpts>
 local code_actions = {}
 
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
----@field title string|fun(note: obsidian.Note): string text display in code action interface
----@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
+---@field title string|fun(note?: obsidian.Note): string text display in code action interface; may be evaluated each request for dynamic context
+---@field cond? fun(note: obsidian.Note): boolean function used to determine whether code action is shown
 ---@field fn? function
 
----Register a new command.
+---Resolve registered opts into an lsp.CodeAction, evaluating dynamic titles.
 ---@param opts obsidian.lsp.CodeActionOpts
-local add = function(opts)
-  -- TODO: validate
-  local title = type(opts.title) == "string" and opts.title or ""
-  local action = {
+---@param note? obsidian.Note
+---@return lsp.CodeAction
+local resolve = function(opts, note)
+  local title = type(opts.title) == "function" and opts.title(note) or opts.title
+  ---@cast title string
+  return {
     title = title,
     command = {
       title = title,
@@ -34,13 +29,18 @@ local add = function(opts)
       -- TODO: preview?
     },
   }
+end
 
+---Register a new command.
+---@param opts obsidian.lsp.CodeActionOpts
+local add = function(opts)
+  -- TODO: validate
   if opts.fn then
     vim.lsp.commands["obsidian." .. opts.name] = vim.schedule_wrap(function(params)
       opts.fn(unpack(params.arguments or {}))
     end)
   end
-  code_actions[opts.name] = action
+  code_actions[opts.name] = opts
 end
 
 local function in_visual()
@@ -115,6 +115,17 @@ local default_actions = {
       return is_recording_audio() and "Stop recording audio" or "Start recording audio as attachment"
     end,
   },
+
+  add_bookmark = {
+    title = function()
+      local actions = require "obsidian.actions"
+      local ctx = actions._bookmark_context()
+      if not ctx then
+        return "Bookmark current location"
+      end
+      return "Bookmark " .. ctx.label
+    end,
+  },
 }
 
 ---@param name string
@@ -132,4 +143,5 @@ return {
   actions = code_actions,
   add = add,
   del = del,
+  resolve = resolve,
 }
