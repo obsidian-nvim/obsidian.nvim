@@ -347,6 +347,9 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/tdashelby-cmyk"><img src="https://avatars.githubusercontent.com/u/253610080?v=4?s=100" width="100px;" alt="tdashelby-cmyk"/><br /><sub><b>tdashelby-cmyk</b></sub></a><br /><a href="#doc-tdashelby-cmyk" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/gsmith-alvarez"><img src="https://avatars.githubusercontent.com/u/175654654?v=4?s=100" width="100px;" alt="Giovanni Smith-Alvarez"/><br /><sub><b>Giovanni Smith-Alvarez</b></sub></a><br /><a href="#code-gsmith-alvarez" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Booyaka101"><img src="https://avatars.githubusercontent.com/u/1064588?v=4?s=100" width="100px;" alt="Christo"/><br /><sub><b>Christo</b></sub></a><br /><a href="#code-Booyaka101" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
