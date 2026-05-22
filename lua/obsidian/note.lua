@@ -833,7 +833,14 @@ Note.frontmatter_lines = function(self, current_lines)
     local yaml_body_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
     end, current_lines or {})
-    syntax_ok, _, order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
+    -- Preserve the existing frontmatter's key order only when the user hasn't
+    -- configured an explicit sort. Otherwise the user's `frontmatter.sort`
+    -- would be silently overwritten by the parsed order on every save.
+    local parsed_order
+    syntax_ok, _, parsed_order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
+    if order == nil then
+      order = parsed_order
+    end
   end
   if syntax_ok or not has_frontmatter then -- if parse success or there's no frontmatter (and should insert)
     ---@diagnostic disable-next-line: param-type-mismatch
