@@ -32,10 +32,14 @@ M.daily_note_path = function(datetime)
   return path, id
 end
 
---- Open (or create) the daily note.
+--- Load (or build in-memory) the daily note for `datetime`.
+---
+--- If the file exists on disk, it is loaded. Otherwise a fresh Note is built
+--- in memory; the file is NOT written. Callers that want the file persisted
+--- must call `note:write { template = ... }` themselves.
 ---
 ---@param datetime integer
----@param opts { no_write: boolean|?, load: obsidian.note.LoadOpts|? }|?
+---@param opts { load: obsidian.note.LoadOpts|? }|?
 ---
 ---@return obsidian.Note
 ---
@@ -63,14 +67,11 @@ local _daily = function(datetime, opts)
       aliases = {},
       tags = options.daily_notes.default_tags or {},
       dir = path:parent(),
+      template = options.daily_notes.template,
     }
 
     if alias then
       note:add_alias(alias)
-    end
-
-    if not opts.no_write then
-      note:write { template = options.daily_notes.template }
     end
   end
 
@@ -119,7 +120,6 @@ end
 ---@class obsidian.daily.DailyOpts
 ---@field offset? integer Offset in days from today (e.g. -1 for yesterday,
 ---@field date? integer|? Specific date as a timestamp (overrides offset)
----@field no_write? boolean|? If true, the note will not be written to disk if it doesn't exist
 ---@field load? obsidian.note.LoadOpts|? Options to pass to Note.from_file when loading an existing note
 
 --- Open (or create) the daily note for today + `offset_days`.

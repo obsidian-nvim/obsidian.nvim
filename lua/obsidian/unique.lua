@@ -135,12 +135,13 @@ function M.new_unique_note(timestamp, opts)
     template = Obsidian.opts.unique_note.template,
     dir = Obsidian.opts.unique_note.folder,
     verbatim = true,
-    should_write = true,
   }
 
   opts = vim.tbl_extend("force", default, opts)
 
-  return Note.create(opts)
+  local note = Note.create(opts)
+  note:write()
+  return note
 end
 
 ---@param timestamp integer?
