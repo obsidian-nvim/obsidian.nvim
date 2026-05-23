@@ -7,23 +7,7 @@ vim.o.conceallevel = 2
 
 local cwd = vim.uv.cwd()
 
--- HACK: enable for native neovim completion and mini.completion
-local chars = {}
-for i = 32, 126 do
-  table.insert(chars, string.char(i))
-end
-
-vim.api.nvim_create_autocmd("LspAttach", {
-  callback = function(ev)
-    local client = vim.lsp.get_client_by_id(ev.data.client_id)
-
-    if client and client.name == "obsidian-ls" then
-      client.server_capabilities.completionProvider.triggerCharacters = chars
-      vim.bo[ev.buf].completeopt = "menuone,noselect,fuzzy,nosort" -- noselect to make sure no accidentally accept and create new notes, others are not necessary
-      vim.lsp.completion.enable(true, client.id, ev.buf, { autotrigger = true })
-    end
-  end,
-})
+-- NOTE: if you want to try native lsp completion, see `:Obsidian help Completion`
 
 local plugins = {
   {
@@ -51,34 +35,28 @@ local plugins = {
   -- "echasnovski/mini.pick",
 
   -- **Choose your completion engine**
-  {
-    "hrsh7th/nvim-cmp",
-    dependencies = {
-      "hrsh7th/cmp-nvim-lsp",
-    },
-    config = function()
-      local cmp = require "cmp"
-      cmp.setup {
-        mapping = cmp.mapping.preset.insert {
-          ["<C-e>"] = cmp.mapping.abort(),
-          ["<C-y>"] = cmp.mapping.confirm { select = true },
-        },
-        sources = {
-          -- { name = "nvim_lsp" },
-        },
-      }
-      require("cmp").setup.filetype("markdown", {
-        sources = {
-          { name = "nvim_lsp" },
-        },
-      })
-    end,
-  },
+  -- {
+  --   "hrsh7th/nvim-cmp",
+  --   dependencies = {
+  --     "hrsh7th/cmp-nvim-lsp",
+  --   },
+  --   config = function()
+  --     local cmp = require "cmp"
+  --     cmp.setup {
+  --       mapping = cmp.mapping.preset.insert {
+  --         ["<C-e>"] = cmp.mapping.abort(),
+  --         ["<C-y>"] = cmp.mapping.confirm { select = true },
+  --       },
+  --       sources = {
+  --         { name = "nvim_lsp" },
+  --       },
+  --     }
+  --   end,
+  -- },
   -- {
   --   "saghen/blink.cmp",
-  --   opts = {
-  --     fuzzy = { implementation = "lua" }, -- no need to build binary
-  --   },
+  --   version = "1.*",
+  --   opts = {},
   -- },
   -- {
   --   "nvim-mini/mini.nvim",
