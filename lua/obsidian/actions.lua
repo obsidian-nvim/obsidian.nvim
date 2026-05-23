@@ -3,6 +3,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 
@@ -475,9 +476,8 @@ end
 --- this function never opens it.
 ---
 ---@param id string|?
----@param title string|?
 ---@param callback fun(note: obsidian.Note)|?
-M.new = function(id, title, callback)
+M.new = function(id, callback)
   if not id then
     id = api.input("Enter id or path (optional): ", { completion = "file" })
     if not id then
@@ -489,7 +489,6 @@ M.new = function(id, title, callback)
 
   local note = Note.create {
     id = id,
-    title = title,
     template = Obsidian.opts.note.template, -- TODO: maybe unneed when creating, or set as a field that note carries
   }
   note:write()
@@ -845,6 +844,12 @@ end
 ---
 ---@param note obsidian.Note
 M.write_note = function(note)
+  -- Make sure `note` is actually an `obsidian.Note` object.
+  -- If it gets serialized by server commands, it will lose its metatable.
+  if not Note.is_note_obj(note) then
+    note = setmetatable(note, Note)
+    note.path = setmetatable(note.path, Path)
+  end
   note:write()
 end
 

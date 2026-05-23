@@ -49,7 +49,7 @@ local function create_new_note(location, callback, opts)
 
   local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
-    actions.new(location, opts.label, function(note)
+    actions.new(location, function(note)
       update_link(note)
       callback { note:_location() }
     end)

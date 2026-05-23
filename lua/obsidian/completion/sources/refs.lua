@@ -1,12 +1,13 @@
+--- TODO: make more declarative
 local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 
----@class obsidian.completion.CompletionItemOptions
----@field label string
+---@class obsidian.completion.sources.refs.options
+---@field label string|?
 ---@field new_text string
----@field sort_text string
+---@field sort_text string|?
 ---@field documentation table|?
 ---@field note obsidian.Note|?
 ---@field anchor obsidian.note.HeaderAnchor|?
@@ -15,7 +16,7 @@ local search = require "obsidian.search"
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
----@class obsidian.completion.sources.base.RefsSourceCompletionContext
+---@class obsidian.completion.sources.refs.context
 ---@field completion_resolve_callback fun(resp: lsp.CompletionList)
 ---@field request obsidian.completion.Request
 ---@field in_buffer_only boolean
@@ -24,7 +25,7 @@ local search = require "obsidian.search"
 ---@field insert_end integer|?
 ---@field block_link string|?
 ---@field anchor_link string|?
----@field new_text_to_option table<string, obsidian.completion.CompletionItemOptions>
+---@field new_text_to_option table<string, obsidian.completion.sources.refs.options>
 
 local M = {}
 
@@ -34,8 +35,8 @@ local EMPTY_RESPONSE = {
   items = {},
 }
 
---- Returns whatever it's possible to complete the search and sets up the search related variables in cc
----@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
+--- Returns whether it's possible to complete the search and sets up the search related variables in cc
+---@param cc obsidian.completion.sources.refs.context
 ---@return boolean success provides a chance to return early if the request didn't meet the requirements
 local function can_complete_request(cc)
   local can_complete
@@ -48,101 +49,21 @@ local function can_complete_request(cc)
   return true
 end
 
----@param completion_resolve_callback function
----@param request obsidian.completion.Request
-function M.process_completion(completion_resolve_callback, request)
-  local cc = {
-    completion_resolve_callback = completion_resolve_callback,
-    request = request,
-    in_buffer_only = false,
-    new_text_to_option = {},
-  }
-
-  if not can_complete_request(cc) or not cc.search then
-    cc.completion_resolve_callback(EMPTY_RESPONSE)
+--- Determines whatever the in_buffer_only should be enabled
+---@param cc obsidian.completion.sources.refs.context
+local function determine_buffer_only_search_scope(cc)
+  if not cc.search then
     return
   end
-
-  M.strip_links(cc)
-  M.determine_buffer_only_search_scope(cc)
-
-  if cc.in_buffer_only then
-    local note = api.current_note(0, { collect_anchor_links = true, collect_blocks = true })
-    if note then
-      M.process_search_results(cc, { note })
-    else
-      cc.completion_resolve_callback(EMPTY_RESPONSE)
-    end
-  else
-    local search_opts = {
-      sort = false,
-      include_templates = false,
-      ignore_case = true,
-    }
-
-    search.find_notes_async(cc.search, function(results)
-      M.process_search_results(cc, results)
-    end, {
-      dir = api.resolve_workspace_dir(),
-      search = search_opts,
-      notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
-    })
+  if (cc.anchor_link or cc.block_link) and string.len(cc.search) == 0 then
+    -- Search over headers/blocks in current buffer only.
+    cc.in_buffer_only = true
   end
-end
-
----Collect matching block links.
----@param note obsidian.Note
----@param block_link string?
----@return obsidian.note.Block[]|?
-function M.collect_matching_blocks(note, block_link)
-  ---@type obsidian.note.Block[]|?
-  local matching_blocks
-  if block_link then
-    assert(note.blocks, "no block")
-    matching_blocks = {}
-    for block_id, block_data in pairs(note.blocks) do
-      if vim.startswith("#" .. block_id, block_link) then
-        table.insert(matching_blocks, block_data)
-      end
-    end
-
-    if #matching_blocks == 0 then
-      -- Unmatched, create a mock one.
-      table.insert(matching_blocks, { id = util.standardize_block(block_link), line = 1 })
-    end
-  end
-
-  return matching_blocks
-end
-
----Collect matching anchor links.
----@param note obsidian.Note
----@param anchor_link string?
----@return obsidian.note.HeaderAnchor[]?
-function M.collect_matching_anchors(note, anchor_link)
-  ---@type obsidian.note.HeaderAnchor[]|?
-  local matching_anchors
-  if anchor_link then
-    assert(note.anchor_links, "no anchor link")
-    matching_anchors = {}
-    for anchor, anchor_data in pairs(note.anchor_links) do
-      if vim.startswith(anchor, anchor_link) then
-        table.insert(matching_anchors, anchor_data)
-      end
-    end
-
-    if #matching_anchors == 0 then
-      -- Unmatched, create a mock one.
-      table.insert(matching_anchors, { anchor = anchor_link, header = string.sub(anchor_link, 2), level = 1, line = 1 })
-    end
-  end
-
-  return matching_anchors
 end
 
 --- Strips block and anchor links from the current search string
----@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
-function M.strip_links(cc)
+---@param cc obsidian.completion.sources.refs.context
+local function strip_links(cc)
   if not cc.search then
     return
   end
@@ -162,113 +83,11 @@ function M.strip_links(cc)
   end
 end
 
---- Determines whatever the in_buffer_only should be enabled
----@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
-function M.determine_buffer_only_search_scope(cc)
-  if not cc.search then
-    return
-  end
-  if (cc.anchor_link or cc.block_link) and string.len(cc.search) == 0 then
-    -- Search over headers/blocks in current buffer only.
-    cc.in_buffer_only = true
-  end
-end
-
----@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
----@param results obsidian.Note[]
-function M.process_search_results(cc, results)
-  if not cc.search then
-    return
-  end
-  local completion_items = {}
-
-  for _, note in ipairs(results) do
-    ---@cast note obsidian.Note
-
-    local matching_blocks = M.collect_matching_blocks(note, cc.block_link)
-    local matching_anchors = M.collect_matching_anchors(note, cc.anchor_link)
-
-    if cc.in_buffer_only then
-      M.update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
-    else
-      -- Collect all valid aliases for the note, including ID, title, and filename.
-      ---@type string[]
-      local aliases
-      if not cc.in_buffer_only then
-        aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
-      end
-
-      for _, alias in ipairs(aliases) do
-        M.update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
-        local alias_case_matched = util.match_case(cc.search, alias)
-
-        if
-          alias_case_matched ~= nil
-          and alias_case_matched ~= alias
-          and not vim.list_contains(note.aliases, alias_case_matched)
-          and Obsidian.opts.completion.match_case
-        then
-          M.update_completion_options(cc, alias_case_matched, nil, matching_anchors, matching_blocks, note)
-        end
-      end
-
-      if note.alt_alias ~= nil then
-        M.update_completion_options(cc, note:display_name(), note.alt_alias, matching_anchors, matching_blocks, note)
-      end
-    end
-  end
-
-  for _, option in pairs(cc.new_text_to_option) do
-    -- TODO: need a better label, maybe just the note's display name?
-    ---@type string
-    local label
-    if Obsidian.opts.link.style == "wiki" then
-      label = string.format("[[%s]]", option.label)
-    elseif Obsidian.opts.link.style == "markdown" then
-      label = string.format("[%s](…)", option.label)
-    elseif type(Obsidian.opts.link.style) == "function" then
-      label = Obsidian.opts.link.style { label = option.label or "", path = "" }
-    else
-      error "not implemented"
-    end
-
-    ---@cast cc.insert_end -nil
-
-    table.insert(completion_items, {
-      documentation = option.documentation,
-      sortText = option.sort_text,
-      filterText = completion.get_filter_text(option.label),
-      label = label,
-      kind = vim.lsp.protocol.CompletionItemKind.Reference,
-      textEdit = {
-        newText = option.new_text,
-        range = {
-          ["start"] = {
-            line = cc.request.line,
-            character = cc.insert_start,
-          },
-          ["end"] = {
-            line = cc.request.line,
-            character = cc.insert_end + 1,
-          },
-        },
-      },
-    })
-  end
-
-  cc.completion_resolve_callback {
-    isIncomplete = true,
-    items = completion_items,
-  }
-end
-
--- TODO: localize
-
----@param cc obsidian.completion.sources.base.RefsSourceCompletionContext
+---@param cc obsidian.completion.sources.refs.context
 ---@param label string|?
 ---@param alt_label string|?
 ---@param note obsidian.Note
-function M.update_completion_options(cc, label, alt_label, matching_anchors, matching_blocks, note)
+local function update_completion_options(cc, label, alt_label, matching_anchors, matching_blocks, note)
   ---@type { label: string|?, alt_label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }[]
   local new_options = {}
   if matching_anchors ~= nil then
@@ -295,7 +114,6 @@ function M.update_completion_options(cc, label, alt_label, matching_anchors, mat
 
   -- De-duplicate options relative to their `new_text`.
   for _, option in ipairs(new_options) do
-    ---@type string, string, string, table|?
     local final_label, sort_text, new_text, documentation
     if option.label then
       new_text = note:format_link { label = option.label, anchor = option.anchor, block = option.block }
@@ -318,7 +136,6 @@ function M.update_completion_options(cc, label, alt_label, matching_anchors, mat
       }
     elseif option.anchor then
       -- In buffer anchor link.
-      -- TODO: allow users to customize this?
       if Obsidian.opts.link.style == "wiki" then
         new_text = "[[#" .. option.anchor.header .. "]]"
       elseif Obsidian.opts.link.style == "markdown" then
@@ -338,7 +155,6 @@ function M.update_completion_options(cc, label, alt_label, matching_anchors, mat
       }
     elseif option.block then
       -- In buffer block link.
-      -- TODO: allow users to customize this?
       if Obsidian.opts.link.style == "wiki" then
         new_text = "[[#" .. option.block.id .. "]]"
       elseif Obsidian.opts.link.style == "markdown" then
@@ -413,6 +229,130 @@ function M.update_completion_options(cc, label, alt_label, matching_anchors, mat
         block = option.block,
       }
     end
+  end
+end
+
+---@param cc obsidian.completion.sources.refs.context
+---@param results obsidian.Note[]
+local function process_search_results(cc, results)
+  if not cc.search then
+    return
+  end
+  local completion_items = {}
+
+  for _, note in ipairs(results) do
+    ---@cast note obsidian.Note
+
+    local matching_blocks = completion.collect_matching_blocks(note, cc.block_link)
+    local matching_anchors = completion.collect_matching_anchors(note, cc.anchor_link)
+
+    if cc.in_buffer_only then
+      update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
+    else
+      -- Collect all valid aliases for the note, including ID, title, and filename.
+      local aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
+
+      for _, alias in ipairs(aliases) do
+        update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
+        local alias_case_matched = util.match_case(cc.search, alias)
+
+        if
+          alias_case_matched ~= nil
+          and alias_case_matched ~= alias
+          and not vim.list_contains(note.aliases, alias_case_matched)
+          and Obsidian.opts.completion.match_case
+        then
+          update_completion_options(cc, alias_case_matched, nil, matching_anchors, matching_blocks, note)
+        end
+      end
+
+      if note.alt_alias ~= nil then
+        update_completion_options(cc, note:display_name(), note.alt_alias, matching_anchors, matching_blocks, note)
+      end
+    end
+  end
+
+  for _, option in pairs(cc.new_text_to_option) do
+    -- TODO: need a better label, maybe just the note's display name?
+    ---@type string
+    local label
+    if Obsidian.opts.link.style == "wiki" then
+      label = string.format("[[%s]]", option.label)
+    elseif Obsidian.opts.link.style == "markdown" then
+      label = string.format("[%s](…)", option.label)
+    elseif type(Obsidian.opts.link.style) == "function" then
+      label = Obsidian.opts.link.style { label = option.label or "", path = "" }
+    else
+      error "not implemented"
+    end
+
+    table.insert(completion_items, {
+      documentation = option.documentation,
+      sortText = option.sort_text,
+      filterText = completion.get_filter_text(option.label),
+      label = label,
+      kind = vim.lsp.protocol.CompletionItemKind.Reference,
+      textEdit = {
+        newText = option.new_text,
+        range = {
+          ["start"] = {
+            line = cc.request.line,
+            character = cc.insert_start,
+          },
+          ["end"] = {
+            line = cc.request.line,
+            character = cc.insert_end + 1,
+          },
+        },
+      },
+    })
+  end
+
+  cc.completion_resolve_callback {
+    isIncomplete = true,
+    items = completion_items,
+  }
+end
+
+---@param completion_resolve_callback function
+---@param request obsidian.completion.Request
+function M.process_completion(completion_resolve_callback, request)
+  local cc = {
+    completion_resolve_callback = completion_resolve_callback,
+    request = request,
+    in_buffer_only = false,
+    new_text_to_option = {},
+  }
+
+  if not can_complete_request(cc) or not cc.search then
+    cc.completion_resolve_callback(EMPTY_RESPONSE)
+    return
+  end
+
+  strip_links(cc)
+  determine_buffer_only_search_scope(cc)
+
+  if cc.in_buffer_only then
+    local note = api.current_note(0, { collect_anchor_links = true, collect_blocks = true })
+    if note then
+      process_search_results(cc, { note })
+    else
+      cc.completion_resolve_callback(EMPTY_RESPONSE)
+    end
+  else
+    local search_opts = {
+      sort = false,
+      include_templates = false,
+      ignore_case = true,
+    }
+
+    search.find_notes_async(cc.search, function(results)
+      process_search_results(cc, results)
+    end, {
+      dir = api.resolve_workspace_dir(),
+      search = search_opts,
+      notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
+    })
   end
 end
 

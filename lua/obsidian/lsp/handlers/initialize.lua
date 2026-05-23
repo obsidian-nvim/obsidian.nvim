@@ -21,7 +21,7 @@ local initializeResult = {
     workspaceSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {
-      commands = { "obsidian.new" },
+      commands = { "obsidian.write_note" },
     },
     completionProvider = {
       resolveProvider = false,

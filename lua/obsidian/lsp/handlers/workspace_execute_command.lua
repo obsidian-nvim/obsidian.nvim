@@ -10,10 +10,8 @@ return function(params, callback)
     return
   end
 
-  ---@diagnostic disable-next-line: param-type-mismatch
-  local action = vim.schedule_wrap(actions[command])
+  local action = actions[command]
   local args = params.arguments and params.arguments or {}
-  ---@diagnostic disable-next-line: param-type-mismatch
   local ok, err = pcall(action, unpack(args))
   if ok then
     callback(nil, nil)
