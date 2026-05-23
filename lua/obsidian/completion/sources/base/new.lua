@@ -94,7 +94,7 @@ function NewNoteSourceBase:process_completion(cc)
     anchor = { anchor = anchor_link, header = string.sub(anchor_link, 2), level = 1, line = 1 }
   end
 
-  ---@type { label: string, note: obsidian.Note, template: string|? }[]
+  ---@type { label: string, note: obsidian.Note }[]
   local new_notes_opts = {}
 
   local note = Note.create { id = cc.search, template = Obsidian.opts.note.template }
@@ -105,10 +105,9 @@ function NewNoteSourceBase:process_completion(cc)
   -- Check for datetime macros.
   for _, dt_offset in ipairs(util.resolve_date_macro(cc.search)) do
     if dt_offset.cadence == "daily" then
-      note = require("obsidian.daily").daily { offset = dt_offset.offset, no_write = true }
+      note = require("obsidian.daily").daily { offset = dt_offset.offset }
       if not note:exists() then
-        new_notes_opts[#new_notes_opts + 1] =
-          { label = dt_offset.macro, note = note, template = Obsidian.opts.daily_notes.template }
+        new_notes_opts[#new_notes_opts + 1] = { label = dt_offset.macro, note = note }
       end
     end
   end
@@ -165,7 +164,6 @@ function NewNoteSourceBase:process_completion(cc)
       },
       data = {
         note = new_note,
-        template = new_note_opts.template,
       },
     }
   end
@@ -208,7 +206,7 @@ function NewNoteSourceBase.process_execute(_self, item)
     data.note.path = setmetatable(data.note.path, Path)
   end
 
-  data.note:write { template = data.template or Obsidian.opts.note.template }
+  data.note:write()
   return {}
 end
 

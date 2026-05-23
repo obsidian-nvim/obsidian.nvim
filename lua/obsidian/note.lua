@@ -44,6 +44,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field alt_alias string|?
 ---@field bufnr integer|?
+---@field template string|? Template name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
 local Note = {}
 
 local load_contents = function(note)
@@ -287,29 +288,25 @@ Note._resolve_id_path = function(opts)
   return id, path, title
 end
 
---- Creates a new note
+--- Creates a new note in memory.
+---
+--- The note is NOT written to disk. Call `note:write {}` after if you want the
+--- file persisted; the `template` passed here is carried on the note and used
+--- by `note:write` unless overridden.
 ---
 --- @param opts obsidian.note.NoteOpts
 --- @return obsidian.Note
 Note.create = function(opts)
   local new_id, path, title = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
+  if opts.should_write then
+    log.warn "`should_write` in Note.create is removed, call note:write instead"
+  end
 
-  -- Add the title as an alias.
   --- @type string[]
   local aliases = opts.aliases
   local note = Note.new(new_id, aliases, opts.tags, path, title)
-
-  -- Ensure the parent directory exists.
-  local parent = path:parent()
-  assert(parent, "failed to get parent in note creation")
-  parent:mkdir { parents = true, exist_ok = true }
-
-  -- Write to disk.
-  if opts.should_write then
-    note:write { template = opts.template }
-  end
-
+  note.template = opts.template
   return note
 end
 
@@ -918,16 +915,19 @@ Note.write = function(self, opts)
   local path = assert(self.path, "A path must be provided")
   path = Path.new(path)
 
+  -- Fall back to the template carried by the note (set at Note.create).
+  local template = opts.template ~= nil and opts.template or self.template
+
   ---@type string
   local verb
   if path:is_file() then
     verb = "Updated"
   else
     verb = "Created"
-    if opts.template ~= nil then
+    if template ~= nil then
       self = Template.clone_template {
         type = "clone_template",
-        template_name = opts.template,
+        template_name = template,
         destination_path = path,
         templates_dir = api.templates_dir(),
         partial_note = self,
@@ -1381,12 +1381,10 @@ end
 ---@field title string|? Readable title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
 ---@field verbatim boolean|? whether to skip applying `note_id_func`
 ---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
----relative to the workspace / vault root. If the directory doesn't exist it will
----be created, regardless of the value of the `should_write` option.
+---relative to the workspace / vault root.
 ---@field aliases string[]|? Aliases for the note
 ---@field tags string[]|?  Tags for this note
----@field should_write boolean|? Don't write the note to disk
----@field template string|? The name of the template
+---@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
 
 ---@class (exact) obsidian.note.NoteSaveOpts
 --- Specify a path to save to. Defaults to `self.path`.

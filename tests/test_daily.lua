@@ -30,12 +30,14 @@ end
 T["daily_note_path"]["should be able to initialize a daily note"] = function()
   local note = M.today()
   eq(true, note.path ~= nil)
+  note:write()
   eq(true, note:exists())
 end
 
 T["daily_note_path"]["should not add frontmatter for today when disabled"] = function()
   Obsidian.opts.frontmatter.enabled = false
   local new_note = M.today()
+  new_note:write()
 
   local saved_note = Note.from_file(new_note.path)
   eq(false, saved_note.has_frontmatter)
@@ -44,6 +46,7 @@ end
 T["daily_note_path"]["should not add frontmatter for yesterday when disabled"] = function()
   Obsidian.opts.frontmatter.enabled = false
   local new_note = M.yesterday()
+  new_note:write()
   local saved_note = Note.from_file(new_note.path)
   eq(false, saved_note.has_frontmatter)
 end
