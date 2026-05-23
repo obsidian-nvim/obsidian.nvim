@@ -841,4 +841,11 @@ M.merge_note = function(dst_note)
   end
 end
 
+--- write note to disk, for lsp completion create note
+---
+---@param note obsidian.Note
+M.write_note = function(note)
+  note:write()
+end
+
 return M

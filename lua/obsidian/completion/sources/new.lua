@@ -136,9 +136,9 @@ function M.process_completion(callback, request)
       label = label,
       kind = vim.lsp.protocol.CompletionItemKind.Reference,
       command = {
-        command = "obsidian.new",
-        title = "Obsidian new",
-        arguments = { new_note.id, new_note_opts.label },
+        command = "obsidian.write_note",
+        title = "Obsidian write note",
+        arguments = { new_note },
       },
       -- NOTE: for [[new_note@template future expansion
       -- command = {
