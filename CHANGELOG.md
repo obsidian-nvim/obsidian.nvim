@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - filepath and urls for attachment
   - folders will open a file picker
   - see docs at <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment>
+- `Note` class can carry a `template` field.
+
+### Removed
+
+- `should_write` option on `Note.create` is removed. Call `note:write {}` explicitly instead.
 
 ### Fixed
 

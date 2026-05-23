@@ -299,6 +299,9 @@ end
 Note.create = function(opts)
   local new_id, path, title = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
+  if opts.should_write then
+    log.warn "`should_write` in Note.create is removed, call note:write instead"
+  end
 
   --- @type string[]
   local aliases = opts.aliases
