@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WIP: proper async jobs and no `block_on` calls which performs bad on windows.
 - snacks picker now honors `picker.note_mappings.new` (and any other query mappings) for `find_files`, `grep` and `pick`, so creating a new note from the typed query (e.g. `<C-x>`) works on par with the telescope/fzf integrations.
 - Respect `frontmatter.sort` for notes that already have frontmatter (the parsed key order was silently overwriting the configured sort). Closes #818.
+- Skip empty list items in `tags`/`aliases` frontmatter validators so template placeholders no longer surface as `vim.NIL` validation errors. Refs #801.
+- Preserve template frontmatter when `frontmatter.enabled = false` (the strip+merge round-trip previously dropped it because `update_frontmatter` short-circuits). Closes #801.
 
 ## [v3.16.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.3) - 2026-05-08
 

@@ -168,8 +168,11 @@ M.insert_template = function(ctx)
     error "Failed to get current note for buffer"
   end
 
+  -- Only round-trip the template's frontmatter through update_frontmatter when
+  -- it's actually managed; otherwise leave it in the inserted lines as-is.
+  local manage_frontmatter = insert_note.has_frontmatter and current_note:should_save_frontmatter()
   local insert_lines = template_lines
-  if insert_note.has_frontmatter then
+  if manage_frontmatter then
     insert_lines = insert_note:body_lines()
     current_note:merge(insert_note)
   end
@@ -178,7 +181,7 @@ M.insert_template = function(ctx)
   local new_cursor_row, _ = unpack(vim.api.nvim_win_get_cursor(win))
   vim.api.nvim_win_set_cursor(0, { new_cursor_row, 0 })
 
-  if insert_note.has_frontmatter then
+  if manage_frontmatter then
     current_note:update_frontmatter()
   end
 
