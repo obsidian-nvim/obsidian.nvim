@@ -2,7 +2,7 @@ local obsidian = require "obsidian"
 
 return function()
   require "obsidian.lsp.handlers._references"(nil, { tag = false }, function(_, locations)
-    local items = vim.lsp.util.locations_toi_items(locations, "utf-8")
+    local items = vim.lsp.util.locations_to_items(locations, "utf-8")
     if #items == 0 then
       obsidian.log.info "No backlinks"
       return
