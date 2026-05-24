@@ -31,6 +31,9 @@ return function(data)
     note = require("obsidian.daily").today()
   end
   if note ~= nil then
+    if not note:exists() then
+      note:write()
+    end
     note:open()
   end
 end

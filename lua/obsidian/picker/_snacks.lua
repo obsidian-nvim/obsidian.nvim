@@ -6,6 +6,42 @@ local Picker = obsidian.Picker
 local Path = obsidian.Path
 local ut = require "obsidian.picker.util"
 
+--- Build snacks pick opts (keymaps + actions) for query-style mappings. The
+--- callback receives the currently typed query string, mirroring the behavior
+--- of the telescope/fzf integrations.
+---
+---@param mapping obsidian.PickerMappingTable|?
+---@param live boolean Whether the picker runs in live mode (grep). When true
+---  the query is read from `picker.input.filter.search`, otherwise from
+---  `picker.input.filter.pattern`.
+---@return table
+local function query_mappings(mapping, live)
+  if type(mapping) ~= "table" then
+    return {}
+  end
+  local opts = {
+    win = {
+      input = {
+        keys = {},
+      },
+    },
+    actions = {},
+  }
+  for k, v in pairs(mapping) do
+    local name = "obsidian_query_" .. string.gsub(v.desc, " ", "_")
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    opts.win.input.keys[k] = { name, mode = { "n", "i" }, desc = v.desc }
+    opts.actions[name] = function(picker)
+      local query = live and picker.input.filter.search or picker.input.filter.pattern
+      picker:close()
+      vim.schedule(function()
+        v.callback(query)
+      end)
+    end
+  end
+  return opts
+end
+
 ---@param mapping obsidian.PickerMappingTable|?
 ---@return table
 local function notes_mappings(mapping)
@@ -77,7 +113,12 @@ M.find_files = function(opts)
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
+  local map = vim.tbl_deep_extend(
+    "force",
+    {},
+    notes_mappings(opts.selection_mappings),
+    query_mappings(opts.query_mappings, false)
+  )
 
   local args = search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown })
   local cmd = table.remove(args, 1)
@@ -105,7 +146,8 @@ M.grep = function(opts)
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
+  local map =
+    vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings), query_mappings(opts.query_mappings, true))
   local callback = opts.callback or obsidian.api.open_note
 
   local args = search.build_grep_cmd()
@@ -166,7 +208,12 @@ M.pick = function(values, opts)
     })
   end
 
-  local map = vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings))
+  local map = vim.tbl_deep_extend(
+    "force",
+    {},
+    notes_mappings(opts.selection_mappings),
+    query_mappings(opts.query_mappings, false)
+  )
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
     title = opts.prompt_title,

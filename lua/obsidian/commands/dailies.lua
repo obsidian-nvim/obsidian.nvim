@@ -36,6 +36,9 @@ return function(data)
   end
 
   daily.pick(offset_start, offset_end, function(note)
+    if not note:exists() then
+      note:write()
+    end
     note:open()
   end)
 end

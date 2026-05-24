@@ -454,11 +454,8 @@ M.extract_note = function(label)
   end
 
   -- create the new note.
-  local note = require("obsidian.note").create {
-    id = label,
-    template = Obsidian.opts.note.template,
-    should_write = true,
-  }
+  local note = require("obsidian.note").create { id = label, template = Obsidian.opts.note.template }
+  note:write()
 
   -- replace selection with link to new note
   local link = note:format_link()
@@ -472,6 +469,11 @@ M.extract_note = function(label)
   vim.api.nvim_buf_set_lines(0, -1, -1, false, content)
 end
 
+--- Create a new note and write it to disk.
+---
+--- Runs `callback` if provided. The caller decides whether to open the note;
+--- this function never opens it.
+---
 ---@param id string|?
 ---@param callback fun(note: obsidian.Note)|?
 M.new = function(id, callback)
@@ -484,19 +486,19 @@ M.new = function(id, callback)
     end
   end
 
-  local note = Note.create {
-    id = id,
-    template = Obsidian.opts.note.template, -- TODO: maybe unneed when creating, or set as a field that note carries
-    should_write = true,
-  }
+  local note = Note.create { id = id, template = Obsidian.opts.note.template }
+  note:write()
 
   if callback then
     callback(note)
-  else
-    note:open { sync = true }
   end
 end
 
+--- Create a new note from a template and write it to disk.
+---
+--- Runs `callback` if provided. The caller decides whether to open the note;
+--- this function never opens it.
+---
 ---@param id string|?
 ---@param template string|?
 ---@param callback fun(note: obsidian.Note)|?
@@ -507,15 +509,10 @@ M.new_from_template = function(id, template, callback)
   end
 
   if id ~= nil and template ~= nil then
-    local note = Note.create {
-      id = id,
-      template = template,
-      should_write = true,
-    }
+    local note = Note.create { id = id, template = template }
+    note:write()
     if callback then
       callback(note)
-    else
-      note:open { sync = true }
     end
     return
   end
@@ -544,12 +541,11 @@ M.new_from_template = function(id, template, callback)
       end
 
       ---@type obsidian.Note
-      local note = Note.create { id = id, template = template_name, should_write = true }
+      local note = Note.create { id = id, template = template_name }
+      note:write()
 
       if callback then
         callback(note)
-      else
-        note:open { sync = false } -- TODO:??
       end
     end,
   }
