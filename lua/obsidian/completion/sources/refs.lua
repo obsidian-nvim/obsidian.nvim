@@ -301,7 +301,7 @@ local function process_search_results(cc, results)
           },
           ["end"] = {
             line = cc.request.line,
-            character = cc.insert_end + 1,
+            character = cc.insert_end,
           },
         },
       },

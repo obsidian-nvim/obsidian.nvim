@@ -124,7 +124,7 @@ function M.process_completion(callback, request)
       },
       ["end"] = {
         line = request.line,
-        character = insert_end + 1,
+        character = insert_end,
       },
     }
 
