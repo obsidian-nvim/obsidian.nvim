@@ -44,7 +44,7 @@ local all_tags = Ct(((utf8_char - one_tag) ^ 0 * one_tag) ^ 0)
 --- UTF-8 indices are 0-based and end-exclusive.
 ---
 --- @param line string
---- @return { [1]: integer, [2]: integer, [3]: string }[]
+--- @return { [1]: integer, [2]: integer }[]
 M.parse_tags = function(line)
   if string.find(line, "<!--.*-->") ~= nil then
     return {}
@@ -72,7 +72,6 @@ M.parse_tags = function(line)
       out[#out + 1] = {
         start_byte_index,
         end_byte_index,
-        "Tag",
       }
     end
   end
