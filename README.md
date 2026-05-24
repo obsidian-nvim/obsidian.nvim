@@ -49,7 +49,7 @@ The original project has not been actively maintained for quite a while and with
 
 ## ⭐ Features
 
-▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki and markdown links, `#` for tags)
+▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via in-process LSP (triggered by typing `[[` for wiki and markdown links, `#` for tags)
 
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
@@ -157,33 +157,31 @@ There's one entry point user command for this plugin: `Obsidian`
 
 There's no required dependency, but there are a number of optional dependencies that enhance the obsidian.nvim experience.
 
-**Completion:**
-
-- [blink.cmp](https://github.com/Saghen/blink.cmp)
-- [nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
-
-**Pickers:**
-
-- [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
-- [fzf-lua](https://github.com/ibhagwan/fzf-lua)
-- [mini.pick](https://github.com/echasnovski/mini.pick)
-- [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
+- **Pickers:**
+  - [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
+  - [fzf-lua](https://github.com/ibhagwan/fzf-lua)
+  - [mini.pick](https://github.com/echasnovski/mini.pick)
+  - [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
 
 To use a specific picker, set `picker.name` in your config, e.g.:
+
 ```lua
-require"obsidian".setup {
-   picker = {
-    name = "snacks.picker",  -- use snacks picker
+require("obsidian").setup {
+  picker = {
+    name = "snacks.picker", -- use snacks picker
     -- name = "telescope.nvim",   -- or telescope
     -- name = "fzf-lua",     -- or fzf-lua
     -- name = "mini.pick",   -- or mini.pick
-}}
+  },
+}
 ```
 
-**Image viewing:**
+- **Image viewing:**
+  - [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
+  - See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
 
-- [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
-- See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
+- **Completion**
+  - See [Completion](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Completion)
 
 ## 📥 Installation
 

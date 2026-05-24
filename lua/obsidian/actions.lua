@@ -489,7 +489,7 @@ M.new = function(id, callback)
 
   local note = Note.create {
     id = id,
-    template = Obsidian.opts.note.template, -- TODO: maybe unneed when creating, or set as a field that note carries
+    template = Obsidian.opts.note.template,
   }
   note:write()
 

@@ -1,8 +1,8 @@
 ## Plugin Completion
 
-This plugin provide plugin-agnostic completion via in-process LSP, you only need to make sure you are triggering LSP completions in markdown buffers.
+This plugin provides plugin-agnostic completion via in-process LSP, you only need to make sure you are triggering LSP completions in markdown buffers.
 
-For blink.cmp, if you have a dedicated `per_filetype` config for markdown, lsp completion will not attach, use:
+For blink.cmp, if you have a dedicated `per_filetype` config for markdown, LSP completion will not attach, use:
 
 ```lua
 
@@ -25,7 +25,7 @@ require("blink.cmp").setup {
 To use completions without completion plugin, put this anywhere in your config before an obsidian buffer loads:
 
 ```lua
--- HACK: to trigger on every ascii char, unicode will work when the upstream neovim completion respects isIncomplete field properly
+-- HACK: to trigger on every ASCII char, unicode will work when the upstream neovim completion respects isIncomplete field properly
 local chars = {}
 for i = 32, 126 do
   table.insert(chars, string.char(i))

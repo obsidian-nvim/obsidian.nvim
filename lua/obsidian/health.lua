@@ -155,11 +155,16 @@ function M.check()
   end
 
   start "Sync"
-
   has_one_of_executable {
     "ob",
     sync_client.cmd,
   }
+
+  local warning = require("obsidian.lsp.util").check_completion_availability()
+  if warning then
+    start "Completion"
+    warn_f(warning)
+  end
 end
 
 return M
