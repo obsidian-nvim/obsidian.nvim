@@ -373,19 +373,6 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           conceal = is_uri and " " or "",
         }
       )
-    elseif m_type == "Tag" then
-      -- A tag is like '#tag'
-      marks[#marks + 1] = ExtMark.new(
-        nil,
-        lnum,
-        m_start - 1,
-        ExtMarkOpts.from_tbl {
-          end_row = lnum,
-          end_col = m_end,
-          hl_group = ui_opts.tags.hl_group,
-          spell = false,
-        }
-      )
     elseif m_type == "BlockID" then
       -- A block ID, like '^hello-world'
       marks[#marks + 1] = ExtMark.new(
@@ -401,6 +388,37 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       )
     end
   end
+
+  local inline_code_blocks = {}
+  for m_start, m_end in util.gfind(line, "`[^`]*`") do
+    inline_code_blocks[#inline_code_blocks + 1] = { m_start, m_end }
+  end
+
+  for _, match in ipairs(util.parse_tags(line)) do
+    local m_start, m_end = unpack(match)
+    local inside_code_block = false
+    for _, code_block_boundary in ipairs(inline_code_blocks) do
+      if code_block_boundary[1] < m_start and m_end < code_block_boundary[2] then
+        inside_code_block = true
+        break
+      end
+    end
+
+    if not inside_code_block then
+      marks[#marks + 1] = ExtMark.new(
+        nil,
+        lnum,
+        m_start - 1,
+        ExtMarkOpts.from_tbl {
+          end_row = lnum,
+          end_col = m_end,
+          hl_group = ui_opts.tags.hl_group,
+          spell = false,
+        }
+      )
+    end
+  end
+
   return marks
 end
 

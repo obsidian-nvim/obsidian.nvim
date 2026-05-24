@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Note` class can carry a `template` field.
 - LSP completion replaces completion plugin based completion.
 - Frontmatter tag completion.
+- Unicode/CJK tag support across parsing, completion, and UI highlighting (e.g. `#café`, `#中文`).
 
 ### Removed
 
