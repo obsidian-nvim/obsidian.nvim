@@ -8,7 +8,7 @@ return function()
         return
       end
       if #items == 1 then
-        obsidian.api.open)note(items[1])
+        obsidian.api.open_note(items[1])
     else
       Obsidian.picker.pick(items, { prompt_title = "Resolve link",
           format_item = function (item)
