@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `should_write` option on `Note.create` is removed. Call `note:write {}` explicitly instead.
 
 ### Fixed
-
+- Backlink command supports 3rd party "quickfix/qf" pickers. No dual windows. Auto enter parent link unless parents > 1. Parents < 1 no empty quickpick window.
 - Preserve anchors and blocks when creating notes from unresolved links.
 - WIP: proper async jobs and no `block_on` calls which performs bad on windows.
 - snacks picker now honors `picker.note_mappings.new` (and any other query mappings) for `find_files`, `grep` and `pick`, so creating a new note from the typed query (e.g. `<C-x>`) works on par with the telescope/fzf integrations.
