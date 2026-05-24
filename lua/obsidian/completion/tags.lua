@@ -1,14 +1,13 @@
 local Note = require "obsidian.note"
-local Patterns = require("obsidian.search").Patterns
 
 local M = {}
 
--- TODO: use proper unicode match
+local TagCharsOptional = "[%w\128-\244_/-]*"
 
 ---@type { pattern: string, offset: integer }[]
 local TAG_PATTERNS = {
-  { pattern = "[%s%(]#" .. Patterns.TagCharsOptional .. "$", offset = 2 },
-  { pattern = "^#" .. Patterns.TagCharsOptional .. "$", offset = 1 },
+  { pattern = "[%s%(]#" .. TagCharsOptional .. "$", offset = 2 },
+  { pattern = "^#" .. TagCharsOptional .. "$", offset = 1 },
 }
 
 ---@param input string

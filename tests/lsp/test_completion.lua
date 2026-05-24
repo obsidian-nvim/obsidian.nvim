@@ -58,6 +58,16 @@ T["refs"]["can_complete should handle wiki links with preceding Unicode text"] =
   eq(21, insert_end)
 end
 
+T["tags"] = MiniTest.new_set()
+
+T["tags"]["find_tags_start should accept in-progress prefixes"] = function()
+  local completion = require "obsidian.completion.tags"
+
+  eq("202", completion.find_tags_start "#202")
+  eq("abc", completion.find_tags_start "#abc")
+  eq("foo", completion.find_tags_start "(#foo")
+end
+
 T["completion"] = MiniTest.new_set()
 
 T["completion"]["returns items for wiki link trigger"] = function()
@@ -154,6 +164,128 @@ tags:
   local found = false
   for _, item in ipairs(result.items or {}) do
     if item.textEdit and item.textEdit.newText == "task" then
+      found = true
+      break
+    end
+  end
+  eq(true, found)
+end
+
+T["completion"]["returns items for unicode tag trigger in body"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "#snö",
+    ["tagged.md"] = [==[
+---
+id: tagged
+tags:
+  - snöw
+---
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+
+  run_completion(0, 5)
+
+  local result = child.lua_get [[_G._test_result]]
+  eq("table", type(result))
+
+  local found = false
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit and item.textEdit.newText == "#snöw" then
+      found = true
+      break
+    end
+  end
+  eq(true, found)
+end
+
+T["completion"]["completes unicode tag inside frontmatter tags: list"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "---\ntags:\n  - caf\n---\n",
+    ["tagged.md"] = [==[
+---
+id: tagged
+tags:
+  - café
+---
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 3, 7 })
+
+  run_completion(2, 7)
+
+  local result = child.lua_get [[_G._test_result]]
+  eq("table", type(result))
+
+  local found = false
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit and item.textEdit.newText == "café" then
+      found = true
+      break
+    end
+  end
+  eq(true, found)
+end
+
+T["completion"]["returns items for CJK tag trigger in body"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "#中",
+    ["tagged.md"] = [==[
+---
+id: tagged
+tags:
+  - 中文
+---
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  -- byte len of "#中" = 1 + 3
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  run_completion(0, 4)
+
+  local result = child.lua_get [[_G._test_result]]
+  eq("table", type(result))
+
+  local found = false
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit and item.textEdit.newText == "#中文" then
+      found = true
+      break
+    end
+  end
+  eq(true, found)
+end
+
+T["completion"]["completes CJK tag inside frontmatter tags: list"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "---\ntags:\n  - 中\n---\n",
+    ["tagged.md"] = [==[
+---
+id: tagged
+tags:
+  - 中文
+---
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  -- byte len of "  - 中" = 4 + 3 = 7
+  child.api.nvim_win_set_cursor(0, { 3, 7 })
+
+  run_completion(2, 7)
+
+  local result = child.lua_get [[_G._test_result]]
+  eq("table", type(result))
+
+  local found = false
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit and item.textEdit.newText == "中文" then
       found = true
       break
     end

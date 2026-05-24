@@ -24,10 +24,6 @@ M.build_grep_cmd = Ripgrep.build_grep_cmd
 
 M.Patterns = {
   -- Tags
-  TagCharsOptional = "[%w\128-\244_/-]*",
-  TagCharsRequired = "[%w\128-\244_/-]+[%w\128-\244_/-]*[%a\128-\244_/-]+[%w\128-\244_/-]*",
-
-  Tag = "#[%w\128-\244_/-]+[%w\128-\244_/-]*[%a\128-\244_/-]+[%w\128-\244_/-]*",
   TagCharsRequiredRg = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L}\p{N}_/-]*]],
   TagCharsOptionalRg = [[[\p{L}\p{N}_/-]*]],
 
@@ -155,7 +151,6 @@ M.find_refs = function(s, opts)
     "WikiWithAlias",
     "Wiki",
     "Markdown",
-    "Tag",
     "BlockID",
     "Highlight",
   }
@@ -523,7 +518,7 @@ M.find_links = function(note)
   local lines = io.lines(tostring(note.path))
 
   for lnum, line in vim.iter(lines):enumerate() do
-    for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID", "Tag" } })) do
+    for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID" } })) do
       local m_start, m_end = unpack(ref_match)
       local link = string.sub(line, m_start, m_end)
       if not found[link] then
@@ -919,10 +914,8 @@ M.find_tags_async = function(term, callback, opts)
     for _, match in ipairs(util.parse_tags(line)) do
       local m_start, m_end, _ = unpack(match)
       local tag = string.sub(line, m_start + 1, m_end)
-      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") then
-        add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
-        n_matches = n_matches + 1
-      end
+      add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
+      n_matches = n_matches + 1
     end
 
     -- check for tags in frontmatter
@@ -934,7 +927,7 @@ M.find_tags_async = function(term, callback, opts)
       and (vim.startswith(line, "tags:") or string.match(line, "%s*- "))
     then
       local tag = vim.trim(string.sub(line, 3)) -- HACK: works because we force '  - tag'
-      if string.match(tag, "^" .. M.Patterns.TagCharsRequired .. "$") and vim.list_contains(note.tags, tag) then
+      if vim.list_contains(note.tags, tag) then
         add_match(tag, path, note, match_data.line_number, line)
       end
     end
