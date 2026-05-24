@@ -3,7 +3,7 @@ local search = obsidian.search
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
-local actions = obsidian.actions
+local actions = require "obsidian.actions"
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes, scheme) then

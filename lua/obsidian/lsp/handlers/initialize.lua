@@ -20,6 +20,12 @@ local initializeResult = {
     documentSymbolProvider = true,
     workspaceSymbolProvider = true,
     codeActionProvider = true,
+    executeCommandProvider = {
+      commands = { "obsidian.write_note" },
+    },
+    completionProvider = {
+      resolveProvider = false,
+    },
     workspace = {
       fileOperations = {
         didRename = {

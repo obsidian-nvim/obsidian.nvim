@@ -23,13 +23,13 @@ end
 ---and, if true, the search string and the column indices of where the completion
 ---items should be inserted.
 ---
----@param request obsidian.completion.sources.base.Request
+---@param request obsidian.completion.Request
 ---@return boolean can_complete
 ---@return string|? search_string
 ---@return integer|? insert_start
 ---@return integer|? insert_end
 M.can_complete = function(request)
-  local input, search = find_search_start(request.context.cursor_before_line)
+  local input, search = find_search_start(request.cursor_before_line)
   if input == nil or search == nil then
     return false
   elseif string.len(search) == 0 or util.is_whitespace(search) then
@@ -37,8 +37,8 @@ M.can_complete = function(request)
   end
 
   if vim.startswith(input, "[[") then
-    local suffix = string.sub(request.context.cursor_after_line, 1, 2)
-    local cursor_char = request.context.cursor.character
+    local suffix = string.sub(request.cursor_after_line, 1, 2)
+    local cursor_char = request.character
     local insert_end_offset = suffix == "]]" and 1 or -1
     return true, search, cursor_char - string.len(input), cursor_char + 1 + insert_end_offset
   else
@@ -46,21 +46,60 @@ M.can_complete = function(request)
   end
 end
 
-M.get_trigger_characters = function()
-  return { "[" }
-end
-
-M.get_keyword_pattern = function()
-  -- Note that this is a vim pattern, not a Lua pattern. See ':help pattern'.
-  -- The enclosing [=[ ... ]=] is just a way to mark the boundary of a
-  -- string in Lua.
-  return [=[\%(^\|[^\[]\)\zs\[\{1,2}[^\]]\+\]\{,2}]=]
-end
-
 ---@param label string
 ---@return string
 M.get_filter_text = function(label)
   return "[[" .. label
+end
+
+---Collect matching block links.
+---@param note obsidian.Note
+---@param block_link string?
+---@return obsidian.note.Block[]|?
+function M.collect_matching_blocks(note, block_link)
+  ---@type obsidian.note.Block[]|?
+  local matching_blocks
+  if block_link then
+    assert(note.blocks, "no block")
+    matching_blocks = {}
+    for block_id, block_data in pairs(note.blocks) do
+      if vim.startswith("#" .. block_id, block_link) then
+        table.insert(matching_blocks, block_data)
+      end
+    end
+
+    if #matching_blocks == 0 then
+      -- Unmatched, create a mock one.
+      table.insert(matching_blocks, { id = util.standardize_block(block_link), line = 1 })
+    end
+  end
+
+  return matching_blocks
+end
+
+---Collect matching anchor links.
+---@param note obsidian.Note
+---@param anchor_link string?
+---@return obsidian.note.HeaderAnchor[]?
+function M.collect_matching_anchors(note, anchor_link)
+  ---@type obsidian.note.HeaderAnchor[]|?
+  local matching_anchors
+  if anchor_link then
+    assert(note.anchor_links, "no anchor link")
+    matching_anchors = {}
+    for anchor, anchor_data in pairs(note.anchor_links) do
+      if vim.startswith(anchor, anchor_link) then
+        table.insert(matching_anchors, anchor_data)
+      end
+    end
+
+    if #matching_anchors == 0 then
+      -- Unmatched, create a mock one.
+      table.insert(matching_anchors, { anchor = anchor_link, header = string.sub(anchor_link, 2), level = 1, line = 1 })
+    end
+  end
+
+  return matching_anchors
 end
 
 return M

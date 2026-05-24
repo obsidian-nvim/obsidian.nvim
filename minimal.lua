@@ -7,6 +7,8 @@ vim.o.conceallevel = 2
 
 local cwd = vim.uv.cwd()
 
+-- NOTE: if you want to try native lsp completion, see `:Obsidian help Completion`
+
 local plugins = {
   {
     "obsidian-nvim/obsidian.nvim",
@@ -35,6 +37,9 @@ local plugins = {
   -- **Choose your completion engine**
   -- {
   --   "hrsh7th/nvim-cmp",
+  --   dependencies = {
+  --     "hrsh7th/cmp-nvim-lsp",
+  --   },
   --   config = function()
   --     local cmp = require "cmp"
   --     cmp.setup {
@@ -42,17 +47,25 @@ local plugins = {
   --         ["<C-e>"] = cmp.mapping.abort(),
   --         ["<C-y>"] = cmp.mapping.confirm { select = true },
   --       },
+  --       sources = {
+  --         { name = "nvim_lsp" },
+  --       },
   --     }
   --   end,
   -- },
-  {
-    "saghen/blink.cmp",
-    opts = {
-      fuzzy = { implementation = "lua" }, -- no need to build binary
-    },
-  },
+  -- {
+  --   "saghen/blink.cmp",
+  --   version = "1.*",
+  --   opts = {},
+  -- },
+  -- {
+  --   "nvim-mini/mini.nvim",
+  --   config = function()
+  --     require("mini.completion").setup {}
+  --   end,
+  -- },
 }
 
 require("lazy.minit").repro { spec = plugins }
 
-vim.cmd "checkhealth obsidian"
+-- vim.cmd "checkhealth obsidian"

@@ -3,6 +3,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 
@@ -486,7 +487,10 @@ M.new = function(id, callback)
     end
   end
 
-  local note = Note.create { id = id, template = Obsidian.opts.note.template }
+  local note = Note.create {
+    id = id,
+    template = Obsidian.opts.note.template,
+  }
   note:write()
 
   if callback then
@@ -834,6 +838,19 @@ M.merge_note = function(dst_note)
       end,
     }
   end
+end
+
+--- write note to disk, for lsp completion create note
+---
+---@param note obsidian.Note
+M.write_note = function(note)
+  -- Make sure `note` is actually an `obsidian.Note` object.
+  -- If it gets serialized by server commands, it will lose its metatable.
+  if not Note.is_note_obj(note) then
+    note = setmetatable(note, Note)
+    note.path = setmetatable(note.path, Path)
+  end
+  note:write()
 end
 
 return M

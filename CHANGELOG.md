@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - folders will open a file picker
   - see docs at <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment>
 - `Note` class can carry a `template` field.
+- LSP completion replaces completion plugin based completion.
+- Frontmatter tag completion.
 
 ### Removed
 
