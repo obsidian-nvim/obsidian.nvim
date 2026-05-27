@@ -1,9 +1,12 @@
 local handlers = require "obsidian.lsp.handlers"
 local log = require "obsidian.log"
+local lsp_util = require "obsidian.lsp.util"
 
 return function(dispatchers)
   local server = {}
   local closing = false
+
+  lsp_util.register_diagnostic_dispatchers(dispatchers)
 
   local message_id = 0
 
@@ -66,6 +69,7 @@ return function(dispatchers)
 
   server.terminate = function()
     closing = true
+    lsp_util.unregister_diagnostic_dispatchers(dispatchers)
   end
 
   return server

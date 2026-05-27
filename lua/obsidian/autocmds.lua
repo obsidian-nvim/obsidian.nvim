@@ -61,6 +61,11 @@ local function bufenter_callback(ev)
 
   require("obsidian.lsp").start(ev.buf)
 
+  if not vim.b[ev.buf].obsidian_diagnostics_started then
+    vim.b[ev.buf].obsidian_diagnostics_started = true
+    require("obsidian.lsp.diagnostics").publish_unresolved_link_diagnostics(ev.buf)
+  end
+
   if opts.footer.enabled then
     require("obsidian.footer").start(ev.buf)
   end
@@ -94,6 +99,7 @@ vim.api.nvim_create_autocmd("FileType", {
       if not vim.b[ev.buf].obsidian_buffer then
         return
       end
+      require("obsidian.lsp.diagnostics").publish_unresolved_link_diagnostics(ev.buf)
       exec_autocmds "ObsidianNoteWritePost"
     end)
   end,
