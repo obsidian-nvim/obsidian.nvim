@@ -4,7 +4,7 @@ local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
 
-local function backlinks(opts_lua)
+local function get_backlinks(opts_lua)
   return h.child_await(
     child,
     ([=[
@@ -42,7 +42,7 @@ T["detects all RefTypes"] = function()
   child.cmd("edit " .. tostring(root / "A.md"))
   local search = require "obsidian.search"
   local found_types = {}
-  for _, m in ipairs(backlinks "{}") do
+  for _, m in ipairs(get_backlinks "{}") do
     local refs = search.find_refs(m.text)
     for _, ref in ipairs(refs) do
       local _, _, ref_type = unpack(ref)
@@ -62,8 +62,8 @@ T["anchor filtering works"] = function()
   local root = child.Obsidian.dir
   setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
-  local section_links = backlinks [[{ anchor = "#Section" }]]
-  local test_links = backlinks [[{ anchor = "#test" }]]
+  local section_links = get_backlinks [[{ anchor = "#Section" }]]
+  local test_links = get_backlinks [[{ anchor = "#test" }]]
   eq(2, #section_links)
   eq(4, #test_links)
 end
@@ -72,7 +72,7 @@ T["multiple links per line"] = function()
   local root = child.Obsidian.dir
   setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
-  local backlinks = backlinks "{}"
+  local backlinks = get_backlinks "{}"
   local by_line = {}
   for _, m in ipairs(backlinks) do
     local l = m.line
