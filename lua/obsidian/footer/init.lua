@@ -38,6 +38,9 @@ end
 ---@param buf integer
 ---@param display_text string|?
 local render_footer = function(buf, display_text)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
   local row0 = #vim.api.nvim_buf_get_lines(buf, 0, -2, false)
   local col0 = 0
   local separator = Obsidian.opts.footer.separator
@@ -63,17 +66,25 @@ local update_footer = vim.schedule_wrap(function(buf, update_backlinks)
     local footer_format = Obsidian.opts.footer.format
     ---@cast footer_format -nil
     note_status(buf, footer_format, update_backlinks, function(display_text)
-      render_footer(buf, display_text)
+      pcall(function()
+        if not vim.api.nvim_buf_is_valid(buf) then
+          return
+        end
 
-      if Obsidian.opts.statusline.enabled then
-        note_status(buf, Obsidian.opts.statusline.format, true, function(res)
-          if res then
-            vim.b[buf].obsidian_status = res
-          end
-        end)
-      else
-        vim.b[buf].obsidian_status = display_text
-      end
+        render_footer(buf, display_text)
+
+        if Obsidian.opts.statusline.enabled then
+          note_status(buf, Obsidian.opts.statusline.format, true, function(res)
+            pcall(function()
+              if res and vim.api.nvim_buf_is_valid(buf) then
+                vim.b[buf].obsidian_status = res
+              end
+            end)
+          end)
+        else
+          vim.b[buf].obsidian_status = display_text
+        end
+      end)
     end)
   end)
 end)

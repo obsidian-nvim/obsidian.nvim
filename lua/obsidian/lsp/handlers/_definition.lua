@@ -19,12 +19,12 @@ end
 
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|? }|?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
 ---@return lsp.Location?
 local function create_new_note(location, callback, opts)
   opts = opts or {}
-  local bufnr = vim.api.nvim_get_current_buf()
-  local cursor_row = vim.api.nvim_win_get_cursor(0)[1]
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  local cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
 
   local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
   local has_unique = Obsidian.opts.unique_note.enabled
@@ -41,7 +41,7 @@ local function create_new_note(location, callback, opts)
   local format_options = table.concat(options, "\n")
 
   local function update_link(note)
-    if opts.range then
+    if opts.range and vim.api.nvim_buf_is_valid(bufnr) then
       local new_link = note:format_link { label = opts.label or location, anchor = opts.anchor, block = opts.block }
       vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
     end
@@ -75,8 +75,12 @@ local handlers = {}
 
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|? }|?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
 local function open_note(location, callback, opts)
+  opts = opts or {}
+  opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  opts.cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
+
   local block_link, anchor_link, raw_anchor
   location, block_link = util.strip_block_links(location)
   location, anchor_link, raw_anchor = util.strip_anchor_links(location)

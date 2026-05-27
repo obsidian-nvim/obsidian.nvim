@@ -506,6 +506,18 @@ M.resolve_note_async = function(query, callback, opts)
   end, { search = { ignore_case = true }, notes = opts.notes })
 end
 
+---@param query string
+---@param opts { notes: obsidian.note.LoadOpts|?, timeout: integer|? }|?
+---@return obsidian.Note[]
+M.resolve_note = function(query, opts)
+  opts = opts or {}
+  opts.timeout = opts.timeout or 1000
+  local result = async.block_on(function(cb)
+    return M.resolve_note_async(query, cb, { notes = opts.notes })
+  end, opts.timeout)
+  return result or {}
+end
+
 ---@class obsidian.LinkMatch
 ---@field link string
 ---@field line integer
@@ -757,6 +769,22 @@ M.find_backlinks_async = function(note, callback, opts)
   )
 end
 
+---@param note obsidian.Note
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?
+---@return obsidian.BacklinkMatch[] matches always returns a list (empty on timeout)
+M.find_backlinks = function(note, opts)
+  opts = opts or {}
+  opts.timeout = opts.timeout or 1000
+  local result = async.block_on(function(cb)
+    return M.find_backlinks_async(
+      note,
+      cb,
+      { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
+    )
+  end, opts.timeout)
+  return result or {}
+end
+
 ---@class obsidian.TagLocation
 ---
 ---@field tag string The tag found.
@@ -768,6 +796,20 @@ end
 ---@field tag_end integer|? The index within 'text' where the tag ends.
 
 --- Find all tags starting with the given search term(s).
+---
+---@param term string|string[] The search term.
+---@param opts { search: obsidian.SearchOpts|?, timeout: integer|?, dir: obsidian.Path|? }|?
+---@return obsidian.TagLocation[] tags always returns a list (empty on timeout)
+M.find_tags = function(term, opts)
+  opts = opts or {}
+  opts.timeout = opts.timeout or 1000
+  local result = async.block_on(function(cb)
+    return M.find_tags_async(term, cb, { search = opts.search, dir = opts.dir })
+  end, opts.timeout)
+  return result or {}
+end
+
+--- An async version of 'find_tags()'.
 ---
 ---@param term string|string[] The search term.
 ---@param callback fun(tags: obsidian.TagLocation[])
