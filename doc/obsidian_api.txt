@@ -374,9 +374,16 @@ Parameters ~
                                                               *Note.backlinks()*
                         `Note.backlinks`({self}, {opts})
 Parameters ~
-{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? })`
+{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?)`
 Return ~
-`(obsidian.BacklinkMatch)`
+`(obsidian.BacklinkMatch[])`
+
+------------------------------------------------------------------------------
+                                                        *Note.backlinks_async()*
+               `Note.backlinks_async`({self}, {opts}, {callback})
+Parameters ~
+{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, dir: string|obsidian.Path, refs: string[]|? }?)`
+{callback} `(fun(matches: obsidian.BacklinkMatch[]))`
 
 ------------------------------------------------------------------------------
                                                                   *Note.links()*
@@ -405,11 +412,12 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                                  *Note.status()*
-                    `Note.status`({self}, {update_backlink})
+              `Note.status`({self}, {update_backlink}, {callback})
 Return note status counts, like obsidian's status bar
 
 Parameters ~
 {update_backlink} `(boolean|)`?
+{callback} `(fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer })|)`?
 Return ~
 `({ words: integer, chars: integer, properties: integer, backlinks: integer }?)`
 
