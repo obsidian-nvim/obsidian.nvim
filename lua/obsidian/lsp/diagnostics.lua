@@ -8,6 +8,8 @@ local M = {}
 
 local SOURCE = "obsidian.links"
 
+local refresh_scheduled = false
+
 ---@param path string
 ---@return boolean
 local function path_exists(path)
@@ -120,6 +122,26 @@ end
 ---@return boolean published
 M.publish_unresolved_link_diagnostics = function(bufnr)
   return lsp_util.publish_diagnostics(bufnr, M.collect_unresolved_link_diagnostics(bufnr), { source = SOURCE })
+end
+
+M.refresh_loaded_buffers = function()
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) and vim.b[bufnr].obsidian_buffer then
+      M.publish_unresolved_link_diagnostics(bufnr)
+    end
+  end
+end
+
+M.schedule_refresh_loaded_buffers = function()
+  if refresh_scheduled then
+    return
+  end
+
+  refresh_scheduled = true
+  vim.schedule(function()
+    refresh_scheduled = false
+    M.refresh_loaded_buffers()
+  end)
 end
 
 return M

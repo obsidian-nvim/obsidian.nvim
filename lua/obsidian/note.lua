@@ -948,6 +948,8 @@ Note.write = function(self, opts)
     check_buffers = opts.check_buffers,
   }
 
+  require("obsidian.lsp.diagnostics").schedule_refresh_loaded_buffers()
+
   log.info("%s note '%s' at '%s'", verb, self.id, self.path:vault_relative_path(self.path) or self.path)
 
   return self
