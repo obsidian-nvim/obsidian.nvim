@@ -3,23 +3,23 @@ local T, child = h.child_vault()
 local eq = MiniTest.expect.equality
 
 local function run_completion(line, character)
-  child.lua(string.format(
-    [[
-    _G._test_result = nil
-    local done = false
-    local handler = require "obsidian.lsp.handlers.completion"
-    handler({
-      textDocument = { uri = vim.uri_from_bufnr(0) },
-      position = { line = %d, character = %d },
-    }, function(_, res)
-      _G._test_result = res
-      done = true
-    end)
-    vim.wait(2000, function() return done end, 10)
-  ]],
-    line,
-    character
-  ))
+  return h.child_await(
+    child,
+    string.format(
+      [[
+        local handler = require "obsidian.lsp.handlers.completion"
+        handler({
+          textDocument = { uri = vim.uri_from_bufnr(0) },
+          position = { line = %d, character = %d },
+        }, function(_, res)
+          done(res)
+        end)
+      ]],
+      line,
+      character
+    ),
+    { desc = "completion response", timeout = 2000 }
+  )
 end
 
 T["refs"] = MiniTest.new_set()
@@ -86,9 +86,7 @@ Target note content
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   child.api.nvim_win_set_cursor(0, { 1, 4 })
 
-  run_completion(0, 4)
-
-  local result = child.lua_get [[_G._test_result]]
+  local result = run_completion(0, 4)
   eq("table", type(result))
   eq(true, result.isIncomplete)
 
@@ -119,9 +117,7 @@ tags:
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   child.api.nvim_win_set_cursor(0, { 1, 3 })
 
-  run_completion(0, 3)
-
-  local result = child.lua_get [[_G._test_result]]
+  local result = run_completion(0, 3)
   eq("table", type(result))
 end
 
@@ -133,9 +129,8 @@ T["completion"]["isIncomplete is true"] = function()
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   child.api.nvim_win_set_cursor(0, { 1, 4 })
 
-  run_completion(0, 4)
-
-  local is_incomplete = child.lua_get [[_G._test_result and _G._test_result.isIncomplete]]
+  local result = run_completion(0, 4)
+  local is_incomplete = result and result.isIncomplete
   eq(true, is_incomplete)
 end
 
@@ -155,9 +150,7 @@ tags:
   -- Line 3 (1-indexed) "  - ta", cursor after "ta" at byte 6.
   child.api.nvim_win_set_cursor(0, { 3, 6 })
 
-  run_completion(2, 6)
-
-  local result = child.lua_get [[_G._test_result]]
+  local result = run_completion(2, 6)
   eq("table", type(result))
 
   -- Frontmatter form: newText is bare tag (no '#').
@@ -186,9 +179,7 @@ tags:
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   child.api.nvim_win_set_cursor(0, { 1, 5 })
 
-  run_completion(0, 5)
-
-  local result = child.lua_get [[_G._test_result]]
+  local result = run_completion(0, 5)
   eq("table", type(result))
 
   local found = false
@@ -216,9 +207,7 @@ tags:
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   child.api.nvim_win_set_cursor(0, { 3, 7 })
 
-  run_completion(2, 7)
-
-  local result = child.lua_get [[_G._test_result]]
+  local result = run_completion(2, 7)
   eq("table", type(result))
 
   local found = false
@@ -247,9 +236,7 @@ tags:
   -- byte len of "#中" = 1 + 3
   child.api.nvim_win_set_cursor(0, { 1, 4 })
 
-  run_completion(0, 4)
-
-  local result = child.lua_get [[_G._test_result]]
+  local result = run_completion(0, 4)
   eq("table", type(result))
 
   local found = false
@@ -278,9 +265,7 @@ tags:
   -- byte len of "  - 中" = 4 + 3 = 7
   child.api.nvim_win_set_cursor(0, { 3, 7 })
 
-  run_completion(2, 7)
-
-  local result = child.lua_get [[_G._test_result]]
+  local result = run_completion(2, 7)
   eq("table", type(result))
 
   local found = false
@@ -301,23 +286,44 @@ T["completion"]["create_new emits write_note command that writes file"] = functi
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   child.api.nvim_win_set_cursor(0, { 1, 14 })
 
-  run_completion(0, 14)
-
-  child.lua [[
-    _G._note_path = nil
-    _G._has_create = false
-    for _, item in ipairs((_G._test_result or {}).items or {}) do
-      if item.command and item.command.command == "obsidian.write_note" then
-        _G._has_create = true
-        local note = item.command.arguments[1]
-        require("obsidian.actions").write_note(note)
-        _G._note_path = tostring(note.path)
-        break
-      end
-    end
-  ]]
-  eq(true, child.lua_get [[_G._has_create]])
-  local note_path = child.lua_get [[_G._note_path]]
+  local result = h.child_await(
+    child,
+    [[
+      local handler = require "obsidian.lsp.handlers.completion"
+      handler({
+        textDocument = { uri = vim.uri_from_bufnr(0) },
+        position = { line = 0, character = 14 },
+      }, function(_, res)
+        vim.schedule(function()
+          local ok, result = pcall(function()
+            local note_path
+            local has_create = false
+            for _, item in ipairs((res or {}).items or {}) do
+              if item.command and item.command.command == "obsidian.write_note" then
+                has_create = true
+                local note = item.command.arguments[1]
+                require("obsidian.actions").write_note(note)
+                note_path = tostring(note.path)
+                break
+              end
+            end
+            return { has_create = has_create, note_path = note_path }
+          end)
+          if ok then
+            done(result)
+          else
+            done({ error = result })
+          end
+        end)
+      end)
+    ]],
+    { desc = "completion create command" }
+  )
+  if result.error then
+    error(result.error)
+  end
+  eq(true, result.has_create)
+  local note_path = result.note_path
   eq("string", type(note_path))
   eq(1, vim.fn.filereadable(note_path))
 end

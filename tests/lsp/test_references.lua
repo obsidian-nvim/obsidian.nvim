@@ -3,6 +3,31 @@ local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
 
+local function get_refs()
+  return h.child_await(
+    child,
+    [[
+      require("obsidian.lsp.handlers._references")(nil, {}, function(_, locations)
+        local refs = {}
+        for _, loc in ipairs(locations or {}) do
+          local path = vim.uri_to_fname(loc.uri)
+          local lnum = loc.range.start.line + 1
+          local lines = vim.fn.readfile(path)
+          refs[#refs + 1] = {
+            filename = path,
+            lnum = lnum,
+            text = lines[lnum],
+            col = loc.range.start.character + 1,
+            end_col = loc.range["end"].character + 1,
+          }
+        end
+        done(refs)
+      end)
+    ]],
+    { desc = "references" }
+  )
+end
+
 T["find wiki references"] = function()
   local referencer = [==[
 
@@ -17,8 +42,7 @@ T["find wiki references"] = function()
   h.write("", target_path)
 
   child.cmd(string.format("edit %s", target_path))
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(1, #qflist)
   eq("[[target]]", qflist[1].text)
 end
@@ -38,8 +62,7 @@ T["find wiki references under cursor"] = function()
 
   child.cmd(string.format("edit %s", referencer_path))
   child.api.nvim_win_set_cursor(0, { 2, 0 })
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(1, #qflist)
   eq("[[target]]", qflist[1].text)
 end
@@ -58,8 +81,7 @@ T["find markdown references"] = function()
   h.write("", target_path)
 
   child.cmd(string.format("edit %s", target_path))
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(1, #qflist)
   eq("[target](target.md)", qflist[1].text)
 end
@@ -79,8 +101,7 @@ T["find markdown references under cursor"] = function()
 
   child.cmd(string.format("edit %s", referencer_path))
   child.api.nvim_win_set_cursor(0, { 2, 0 })
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(1, #qflist)
   eq("[target](target.md)", qflist[1].text)
 end
@@ -99,8 +120,7 @@ T["find tag references under cursor"] = function()
 
   child.cmd(string.format("edit %s", file_path))
   child.api.nvim_win_set_cursor(0, { 2, 0 })
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(2, #qflist)
   eq("#tag", qflist[1].text)
 end
@@ -137,8 +157,7 @@ T["resolve header links under cursor"] = function()
 
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(1, #qflist)
   eq("[[target#header]]", qflist[1].text)
   eq(3, qflist[1].lnum)
@@ -158,8 +177,7 @@ block ^123
 
   child.cmd(string.format("edit %s", file_path))
   child.api.nvim_win_set_cursor(0, { 2, 0 })
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(1, #qflist)
   eq("[[file#^123]]", qflist[1].text)
 end
@@ -178,8 +196,7 @@ block ^123
 
   child.cmd(string.format("edit %s", file_path))
   child.api.nvim_win_set_cursor(0, { 2, 0 })
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(1, #qflist)
   eq("[[#^123]]", qflist[1].text)
 end
@@ -198,8 +215,7 @@ T["find anchor references under cursor"] = function()
 
   child.cmd(string.format("edit %s", file_path))
   child.api.nvim_win_set_cursor(0, { 2, 0 })
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(1, #qflist)
   eq("[[#header]]", qflist[1].text)
 end
@@ -218,8 +234,7 @@ T["avoid invalid patterns"] = function()
   h.write("", target_path)
 
   child.cmd(string.format("edit %s", target_path))
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(0, #qflist)
 end
 
@@ -242,8 +257,7 @@ id: id
   )
 
   child.cmd(string.format("edit %s", target_path))
-  child.lua "vim.lsp.buf.references()"
-  local qflist = child.fn.getqflist()
+  local qflist = get_refs()
   eq(0, #qflist)
 end
 

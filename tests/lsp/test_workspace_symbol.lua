@@ -3,11 +3,6 @@ local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
 
-local function flush()
-  child.lua [[vim.wait(100, function() end)]]
-  child.lua [[vim.wait(100, function() end)]]
-end
-
 --- Ensure the LSP client is attached by opening a file in the vault.
 local function ensure_lsp(files)
   -- Open any vault file so the LSP client attaches.
@@ -17,25 +12,20 @@ local function ensure_lsp(files)
     break
   end
   child.cmd("edit " .. any_path)
-  flush()
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
 end
 
 --- Request workspace/symbol and return the raw WorkspaceSymbol[] via Lua.
---- Using client.request_sync avoids dealing with quickfix list formatting.
 ---@param query string
 ---@return table[]
 local function get_symbols(query)
-  child.lua(string.format(
-    [[
-    local clients = vim.lsp.get_clients { name = "obsidian-ls" }
-    local client = clients[1]
-    local results = client.request_sync("workspace/symbol", { query = %q }, 5000)
-    _G._ws_symbols = results and results.result or {}
-    ]],
-    query
-  ))
-  flush()
-  return child.lua_get "_G._ws_symbols"
+  return h.child_lsp_request(
+    child,
+    "obsidian-ls",
+    "workspace/symbol",
+    ("{ query = %q }"):format(query),
+    { desc = "workspace symbols" }
+  )
 end
 
 T["returns note as File symbol"] = function()

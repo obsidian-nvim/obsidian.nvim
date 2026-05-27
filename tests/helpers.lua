@@ -3,6 +3,151 @@ local child = MiniTest.new_child_neovim()
 
 local M = {}
 
+local wait_timeout = 3000
+local wait_interval = 20
+local async_id = 0
+
+---@param opts { timeout: integer|?, interval: integer|?, desc: string|? }|?
+local function wait_opts(opts)
+  opts = opts or {}
+  return opts.timeout or wait_timeout, opts.interval or wait_interval, opts.desc or "condition"
+end
+
+---Wait in the parent test Neovim until predicate returns true.
+---@param predicate fun(): boolean
+---@param opts { timeout: integer|?, interval: integer|?, desc: string|? }|?
+M.wait = function(predicate, opts)
+  local timeout, interval, desc = wait_opts(opts)
+  local ok = vim.wait(timeout, predicate, interval, false)
+  assert(ok, ("Timed out after %dms waiting for %s"):format(timeout, desc))
+end
+
+---Wait in a child Neovim until a Lua predicate body returns true.
+---The predicate is executed as the body of a function, so it must `return` a boolean.
+---@param child_neovim table
+---@param predicate_lua string
+---@param opts { timeout: integer|?, interval: integer|?, desc: string|? }|?
+M.child_wait = function(child_neovim, predicate_lua, opts)
+  local timeout, interval, desc = wait_opts(opts)
+  child_neovim.lua(([[
+    local ok = vim.wait(%d, function()
+      %s
+    end, %d, false)
+    assert(ok, %q)
+  ]]):format(timeout, predicate_lua, interval, ("Timed out after %dms waiting for %s"):format(timeout, desc)))
+end
+
+---Run child Lua that calls `done(...)` asynchronously and return the callback values.
+---@param child_neovim table
+---@param body_lua string
+---@param opts { timeout: integer|?, interval: integer|?, desc: string|? }|?
+---@return any ...
+M.child_await = function(child_neovim, body_lua, opts)
+  local timeout, interval, desc = wait_opts(opts)
+  async_id = async_id + 1
+  local key = "_obsidian_test_async_" .. async_id
+  return child_neovim.lua(([[
+    local state = { done = false, values = vim.F.pack_len() }
+    _G[%q] = state
+    local function done(...)
+      state.values = vim.F.pack_len(...)
+      state.done = true
+    end
+
+    %s
+
+    local ok = vim.wait(%d, function()
+      return state.done
+    end, %d, false)
+    _G[%q] = nil
+    assert(ok, %q)
+    return unpack(state.values, 1, state.values.n)
+  ]]):format(key, body_lua, timeout, interval, key, ("Timed out after %dms waiting for %s"):format(timeout, desc)))
+end
+
+---@param child_neovim table
+---@param expected string|obsidian.Path
+---@param opts { timeout: integer|?, interval: integer|?, desc: string|? }|?
+M.child_wait_for_buf_name = function(child_neovim, expected, opts)
+  expected = tostring(expected)
+  opts = opts or {}
+  opts.desc = opts.desc or ("buffer name " .. expected)
+  M.child_wait(
+    child_neovim,
+    ("return vim.fs.normalize(vim.api.nvim_buf_get_name(0)) == vim.fs.normalize(%q)"):format(expected),
+    opts
+  )
+end
+
+---@param child_neovim table
+---@param path string|obsidian.Path
+---@param opts { timeout: integer|?, interval: integer|?, desc: string|? }|?
+M.child_wait_for_path = function(child_neovim, path, opts)
+  path = tostring(path)
+  opts = opts or {}
+  opts.desc = opts.desc or ("path " .. path)
+  M.child_wait(child_neovim, ("return vim.uv.fs_stat(%q) ~= nil"):format(path), opts)
+end
+
+---@param child_neovim table
+---@param bufnr integer
+---@param lnum integer 0-indexed
+---@param expected string
+---@param opts { timeout: integer|?, interval: integer|?, desc: string|? }|?
+M.child_wait_for_line = function(child_neovim, bufnr, lnum, expected, opts)
+  opts = opts or {}
+  opts.desc = opts.desc or ("line " .. lnum .. " in buffer " .. bufnr)
+  M.child_wait(
+    child_neovim,
+    ("local line = vim.api.nvim_buf_get_lines(%d, %d, %d, false)[1]; return line == %q"):format(
+      bufnr,
+      lnum,
+      lnum + 1,
+      expected
+    ),
+    opts
+  )
+end
+
+---@param child_neovim table
+---@param client_name string
+---@param opts { timeout: integer|?, interval: integer|?, desc: string|? }|?
+M.child_wait_for_lsp_client = function(child_neovim, client_name, opts)
+  opts = opts or {}
+  opts.desc = opts.desc or ("LSP client " .. client_name)
+  M.child_wait(child_neovim, ("return #vim.lsp.get_clients({ name = %q }) > 0"):format(client_name), opts)
+end
+
+---@param child_neovim table
+---@param client_name string
+---@param method string
+---@param params_lua string Lua expression for request params.
+---@param opts { timeout: integer|?, interval: integer|?, desc: string|? }|?
+---@return any result
+M.child_lsp_request = function(child_neovim, client_name, method, params_lua, opts)
+  opts = opts or {}
+  opts.desc = opts.desc or (method .. " response")
+  local out = M.child_await(
+    child_neovim,
+    ([=[
+      local clients = vim.lsp.get_clients { name = %q }
+      local client = assert(clients[1], "LSP client not attached: %s")
+      client.request(%q, %s, function(err, result)
+        if err then
+          done({ error = vim.inspect(err) })
+        else
+          done({ result = result or {} })
+        end
+      end, 0)
+    ]=]):format(client_name, client_name, method, params_lua),
+    opts
+  )
+  if out.error then
+    error(out.error)
+  end
+  return out.result
+end
+
 ---Return test set and child instance
 M.child_vault = function(hooks)
   hooks = hooks or {}

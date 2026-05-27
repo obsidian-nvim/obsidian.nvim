@@ -3,9 +3,19 @@ local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
 
-local function flush()
-  child.lua [[vim.wait(100, function() end)]]
-  child.lua [[vim.wait(100, function() end)]]
+local function rename(new_name)
+  h.child_await(
+    child,
+    ([[
+      require("obsidian.lsp.handlers.rename")({ newName = %q }, function(_, edit)
+        if edit then
+          vim.lsp.util.apply_workspace_edit(edit, "utf-8")
+        end
+        done(true)
+      end)
+    ]]):format(new_name),
+    { desc = "rename" }
+  )
 end
 
 local target = "target.md"
@@ -41,8 +51,8 @@ T["rename current note"] = function()
   local new_target_path = root / "new_target.md"
 
   child.cmd("edit " .. files[target])
-  child.lua [[vim.lsp.buf.rename("new_target", {})]]
-  flush()
+  rename "new_target"
+  h.child_wait_for_path(child, new_target_path)
   eq(true, new_target_path:exists())
   local lines = child.api.nvim_buf_get_lines(1, 0, -1, false) -- new_target
   eq(target_expected, table.concat(lines, "\n"))
@@ -61,8 +71,8 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  child.lua [[vim.lsp.buf.rename("target", {})]]
-  flush()
+  rename "target"
+  h.child_wait(child, [[return _G.msg == "Identical name"]], { desc = "rename no-op message" })
   eq("Identical name", child.lua_get "msg")
 end
 
@@ -80,8 +90,8 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  child.lua [[vim.lsp.buf.rename("existing", {})]]
-  flush()
+  rename "existing"
+  h.child_wait(child, [[return _G.msg == "Note with same name exists"]], { desc = "rename no-op message" })
   eq("Note with same name exists", child.lua_get "msg")
 end
 
@@ -97,8 +107,8 @@ T["rename note under cursor"] = function()
   child.cmd("edit " .. files[ref])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
-  child.lua [[vim.lsp.buf.rename("new_target", {})]]
-  flush()
+  rename "new_target"
+  h.child_wait_for_path(child, new_target_path)
   child.cmd "wa"
   eq(true, new_target_path:exists())
   local lines = vim.fn.readfile(tostring(new_target_path))
@@ -131,8 +141,8 @@ T["rename note without changing blocks and headers"] = function()
   child.cmd("edit " .. files[ref])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
-  child.lua [[vim.lsp.buf.rename("new_target", {})]]
-  flush()
+  rename "new_target"
+  h.child_wait_for_path(child, new_target_path)
   child.cmd "wa"
   eq(true, new_target_path:exists())
 
@@ -187,8 +197,8 @@ T["rename note with special characters in filename"] = function()
   child.cmd("edit " .. files[ref])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
-  child.lua [[vim.lsp.buf.rename("new-note", {})]]
-  flush()
+  rename "new-note"
+  h.child_wait_for_path(child, new_target_path)
   child.cmd "wa"
   eq(true, new_target_path:exists())
 
@@ -231,8 +241,8 @@ T["rename note with markdown link reference"] = function()
   child.lua("vim.cmd.edit('" .. files["notea.md"]:gsub("'", "\\'") .. "')")
   child.api.nvim_win_set_cursor(0, { 8, 40 }) -- cursor on noteb.md in the link (line 8, col 40)
 
-  child.lua [[vim.lsp.buf.rename("renamed-note", {})]]
-  flush()
+  rename "renamed-note"
+  h.child_wait_for_path(child, new_target_path)
   child.cmd "wa"
 
   -- Check that file was renamed
