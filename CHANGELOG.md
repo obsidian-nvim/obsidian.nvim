@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontmatter tag completion.
 - Unicode/CJK tag support across parsing, completion, and UI highlighting (e.g. `#café`, `#中文`).
 
+### Changed
+
+- Always call async version of search functions internally, blocking version are just for scripting.
+
 ### Removed
 
 - `should_write` option on `Note.create` is removed. Call `note:write {}` explicitly instead.
