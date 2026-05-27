@@ -409,10 +409,9 @@ M.resolve_note_async = function(query, callback, opts)
   -- Autocompletion for command args will have this format.
   local note_path, count = string.gsub(query, "^.*  ", "")
   if count > 0 then
-    ---@type obsidian.Path
-    ---@diagnostic disable-next-line: assign-type-mismatch
     local full_path = Obsidian.dir / note_path
-    return callback { Note.from_file(full_path, opts.notes) }
+    callback { Note.from_file(full_path, opts.notes) }
+    return
   end
 
   -- Query might be a path.
