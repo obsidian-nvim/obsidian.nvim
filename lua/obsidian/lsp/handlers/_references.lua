@@ -32,10 +32,11 @@ end
 
 ---@param note obsidian.Note
 ---@param opts { anchor: string|?, block: string|? }
----@return lsp.Location[]
-local function collect_backlinks(note, opts)
-  local backlink_matches = note:backlinks { anchor = opts.anchor, block = opts.block }
-  return vim.iter(backlink_matches):map(backlink_to_lsp_location):totable()
+---@param callback fun(locations: lsp.Location[])
+local function collect_backlinks(note, opts, callback)
+  note:backlinks_async({ anchor = opts.anchor, block = opts.block }, function(backlink_matches)
+    callback(vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
+  end)
 end
 
 ---@type table<obsidian.search.RefTypes, fun(_: string, callback: fun(locs: lsp.Location[]))|?>
@@ -57,23 +58,24 @@ handlers.Markdown = function(link, callback)
 
   local opts = { anchor = anchor_link, block = block_link }
 
-  local notes = search.resolve_note(location)
-
-  if vim.tbl_isempty(notes) then
-    log.err("No notes matching '%s'", location)
-  else
-    local note = notes[1]
-    callback(collect_backlinks(note, opts))
-  end
+  search.resolve_note_async(location, function(notes)
+    if vim.tbl_isempty(notes) then
+      log.err("No notes matching '%s'", location)
+    else
+      local note = notes[1]
+      collect_backlinks(note, opts, callback)
+    end
+  end)
 end
 
 handlers.Wiki = handlers.Markdown
 handlers.WikiWithAlias = handlers.Markdown
 
 handlers.Tag = function(tag, callback)
-  local tag_locs = search.find_tags(tag)
-  local lsp_locs = vim.tbl_map(tag_loc_to_lsp_location, tag_locs)
-  callback(lsp_locs)
+  search.find_tags_async(tag, function(tag_locs)
+    local lsp_locs = vim.tbl_map(tag_loc_to_lsp_location, tag_locs)
+    callback(lsp_locs)
+  end)
 end
 
 local function collect_current_note(link, link_type, callback)
@@ -101,7 +103,9 @@ local function collect_current_note(link, link_type, callback)
     return log.err "Current buffer does not appear to be a note inside the vault"
   end
 
-  callback(nil, collect_backlinks(note, { anchor = anchor, block = block }))
+  collect_backlinks(note, { anchor = anchor, block = block }, function(locations)
+    callback(nil, locations)
+  end)
 end
 
 ---@type obsidian.search.RefTypes[]

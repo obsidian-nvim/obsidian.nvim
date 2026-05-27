@@ -47,16 +47,17 @@ return function(data)
   end
 
   if search_term and vim.trim(search_term) ~= "" then
-    local notes = search.resolve_note(search_term)
-    if vim.tbl_isempty(notes) then
-      return log.err "Note under cursor is not resolved"
-    end
-    local note = notes[1]
-    path = note.path:vault_relative_path()
+    search.resolve_note_async(search_term, function(notes)
+      if vim.tbl_isempty(notes) then
+        return log.err "Note under cursor is not resolved"
+      end
+      local note = notes[1]
+      open_in_app(note.path:vault_relative_path())
+    end)
   else
     -- Otherwise use the pathk of the current buffer.
     local bufname = vim.api.nvim_buf_get_name(0)
     path = Path.new(bufname):vault_relative_path()
+    open_in_app(path)
   end
-  open_in_app(path)
 end

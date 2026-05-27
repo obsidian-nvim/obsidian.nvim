@@ -1169,11 +1169,20 @@ Note.open = function(self, opts)
   end
 end
 
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }
----@return obsidian.BacklinkMatch
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?
+---@return obsidian.BacklinkMatch[]
 Note.backlinks = function(self, opts)
+  opts = opts or {}
   opts.dir = opts.dir or api.resolve_workspace_dir()
   return search.find_backlinks(self, opts)
+end
+
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, dir: string|obsidian.Path, refs: string[]|? }?
+---@param callback fun(matches: obsidian.BacklinkMatch[])
+Note.backlinks_async = function(self, opts, callback)
+  opts = opts or {}
+  opts.dir = opts.dir or api.resolve_workspace_dir()
+  return search.find_backlinks_async(self, callback, opts)
 end
 
 ---@return obsidian.LinkMatch[]
@@ -1236,22 +1245,37 @@ local backlink_cache = {}
 --- Return note status counts, like obsidian's status bar
 ---
 ---@param update_backlink boolean|?
+---@param callback fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer })|?
 ---@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
-Note.status = function(self, update_backlink)
+Note.status = function(self, update_backlink, callback)
   local status = {}
   local wc = vim.fn.wordcount()
   status.words = wc.visual_words or wc.words
   status.chars = wc.visual_chars or wc.chars
   status.properties = vim.tbl_count(self:frontmatter()) -- TODO: should be zero if no frontmatter
   local path = tostring(self.path)
-  if self and (update_backlink or backlink_cache[path] == nil) then -- HACK:
-    local num_backlinks = #self:backlinks {}
+
+  local function finish(num_backlinks)
     status.backlinks = num_backlinks
     backlink_cache[path] = num_backlinks
-  else
-    status.backlinks = backlink_cache[path] or 0
+    if callback then
+      callback(status)
+    else
+      return status
+    end
   end
-  return status
+
+  if self and (update_backlink or backlink_cache[path] == nil) then -- HACK:
+    if callback then
+      self:backlinks_async({}, function(matches)
+        finish(#matches)
+      end)
+    else
+      return finish(#self:backlinks {})
+    end
+  else
+    return finish(backlink_cache[path] or 0)
+  end
 end
 
 ---@return string[]

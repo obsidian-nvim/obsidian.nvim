@@ -9,32 +9,32 @@ local function rename_note(file, dispatchers)
   local new_path = vim.uri_to_fname(file.newUri)
   local note = Note.from_file(new_path)
   local new_name = vim.fs.basename(new_path):gsub("%.md$", "")
-  local edit, meta = rename.build_edit(note, new_name, {
+  rename.build_edit(note, new_name, {
     old_path = vim.uri_to_fname(file.oldUri),
     new_path = new_path,
     include_file_rename = false,
-  })
-
-  if not edit then
-    return
-  end
-
-  if Obsidian.opts.link.auto_update ~= true then
-    local prompt = ("Update %d reference(s) across %d file(s) for renamed note '%s'?"):format(
-      meta.count,
-      vim.tbl_count(meta.path_lookup),
-      new_name
-    )
-    local choice = api.confirm(prompt)
-    if choice ~= "Yes" then
+  }, function(edit, meta)
+    if not edit then
       return
     end
-  end
 
-  dispatchers.server_request("workspace/applyEdit", {
-    label = "Update renamed note references",
-    edit = edit,
-  })
+    if Obsidian.opts.link.auto_update ~= true then
+      local prompt = ("Update %d reference(s) across %d file(s) for renamed note '%s'?"):format(
+        meta.count,
+        vim.tbl_count(meta.path_lookup),
+        new_name
+      )
+      local choice = api.confirm(prompt)
+      if choice ~= "Yes" then
+        return
+      end
+    end
+
+    dispatchers.server_request("workspace/applyEdit", {
+      label = "Update renamed note references",
+      edit = edit,
+    })
+  end)
 end
 
 ---@param params lsp.RenameFilesParams
