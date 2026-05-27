@@ -170,7 +170,6 @@ local search = require"obsidian.search"
 local note = require"obsidian.note".from_file(tostring(Obsidian.dir / "test.md"))
 _G.res = search.find_links(note, {})
   ]]
-  vim.uv.sleep(100)
   local res = child.lua_get [[res]]
 
   eq({
