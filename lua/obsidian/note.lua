@@ -1035,10 +1035,13 @@ Note.save = function(self, opts)
   util.write_file(tostring(save_path), file_content)
 
   if opts.check_buffers then
-    -- `vim.fn.bufnr` returns the **max** bufnr loaded from the same path.
-    if vim.fn.bufnr(save_path.filename) ~= -1 then
-      -- But we want to call |checktime| on **all** buffers loaded from the path.
-      vim.cmd.checktime(save_path.filename)
+    -- `:checktime <name>` parses {name} as a Vim regex, so paths with `[`,
+    -- `*`, etc. raise E94. Pass the bufnr instead, iterating to cover
+    -- every buffer loaded from this path.
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_get_name(bufnr) == save_path.filename then
+        vim.cmd.checktime(bufnr)
+      end
     end
   end
 end

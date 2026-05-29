@@ -115,6 +115,23 @@ T["save"]["should preserve noeol status"] = function()
   vim.fn.delete(temp_path)
 end
 
+T["save"]["should not error on :checktime when save path contains regex-special characters"] = function()
+  -- Regression: the old code passed `save_path.filename` as a string to
+  -- `:checktime`, which treats it as a Vim regex pattern. Paths with `[`,
+  -- `]`, `*`, etc. (legal in note filenames, e.g. `[[wiki]] title.md`)
+  -- would raise E94 even when a buffer was loaded for the exact path.
+  local path = "/tmp/" .. util.zettel_id() .. " [draft].md"
+  local note = M.new("FOO", {}, {}, path)
+  note:save()
+
+  vim.cmd.edit(vim.fn.fnameescape(path))
+
+  note:save() -- must not raise E94
+
+  vim.cmd "bwipeout!"
+  vim.fn.delete(path)
+end
+
 T["add_alias"] = new_set()
 
 T["add_alias"]["should be able to add an alias"] = function()
