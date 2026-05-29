@@ -42,7 +42,7 @@ checklua:
 
 .PHONY: test
 test: $(MINITEST)
-	nvim --headless --noplugin -u ./scripts/minimal_init.lua -c "lua MiniTest.run()"
+	nvim --headless --clean --noplugin -u ./scripts/minimal_init.lua -c "lua MiniTest.run()"
 
 $(MINITEST):
 	mkdir -p deps
