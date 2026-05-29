@@ -23,6 +23,7 @@
 
 ### Modules:
 
+- [[Agenda]]
 - [[Attachment]]
 - [[Audio-recorder]]
 - [[Bookmarks]]

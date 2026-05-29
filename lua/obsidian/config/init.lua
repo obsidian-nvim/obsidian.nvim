@@ -53,6 +53,8 @@ config.normalize = function(opts, defaults)
   opts = tbl_override(defaults, opts)
 
   opts.backlinks = tbl_override(defaults.backlinks, opts.backlinks)
+  opts.date = tbl_override(defaults.date, opts.date)
+  opts.agenda = tbl_override(defaults.agenda, opts.agenda)
   opts.completion = tbl_override(defaults.completion, opts.completion)
   opts.picker = tbl_override(defaults.picker, opts.picker)
   opts.quick_switch = tbl_override(defaults.quick_switch, opts.quick_switch)
