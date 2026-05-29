@@ -51,6 +51,12 @@ local function get_commands_by_context(commands, is_visual, is_note)
       return true
     end)
     :filter(function(config)
+      if not Obsidian.opts.agenda.enabled then
+        return config.name ~= "agenda"
+      end
+      return true
+    end)
+    :filter(function(config)
       if not Obsidian.opts.unique_note.enabled then
         return config.name ~= "unique_note"
       end
@@ -248,6 +254,13 @@ M.register("yesterday", { nargs = 0 })
 M.register("tomorrow", { nargs = 0 })
 
 M.register("dailies", { nargs = "*" })
+
+M.register("agenda", {
+  nargs = "*",
+  complete = function(arg_lead)
+    return require("obsidian.agenda").complete(arg_lead)
+  end,
+})
 
 M.register("new", { nargs = "*" })
 

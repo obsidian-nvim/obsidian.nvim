@@ -9,6 +9,7 @@ local command_lookups = {
   ObsidianYesterday = "obsidian.commands.yesterday",
   ObsidianTomorrow = "obsidian.commands.tomorrow",
   ObsidianDailies = "obsidian.commands.dailies",
+  ObsidianAgenda = "obsidian.commands.agenda",
   ObsidianNew = "obsidian.commands.new",
   ObsidianOpen = "obsidian.commands.open",
   ObsidianBacklinks = "obsidian.commands.backlinks",
@@ -135,6 +136,8 @@ M.register("ObsidianYesterday", { opts = { nargs = 0, desc = "Open the daily not
 M.register("ObsidianTomorrow", { opts = { nargs = 0, desc = "Open the daily note for the next working day" } })
 
 M.register("ObsidianDailies", { opts = { nargs = "*", desc = "Open a picker with daily notes" } })
+
+M.register("ObsidianAgenda", { opts = { nargs = "*", desc = "Open agenda" } })
 
 M.register("ObsidianNew", { opts = { nargs = "?", desc = "Create a new note" } })
 

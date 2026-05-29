@@ -134,6 +134,78 @@ return {
     parse_headers = true,
   },
 
+  ---@class obsidian.config.DateOpts
+  ---@field start_of_week? integer 0 = Sunday, 1 = Monday, ..., 6 = Saturday.
+  date = {
+    start_of_week = 1,
+  },
+
+  ---@class obsidian.config.AgendaViewOpts
+  ---@field show_done? boolean
+  ---@field show_overdue? boolean
+  ---@field show_undated? boolean
+  ---@field span? integer
+
+  ---@class obsidian.config.AgendaOpts
+  ---@field enabled? boolean
+  ---@field file? string Agenda file, relative to vault root unless absolute.
+  ---@field default_view? "day"|"week"|"month"|"year"|"todo"
+  ---@field get_items? fun(ctx: obsidian.agenda.SourceContext, done: fun(items: obsidian.agenda.Item[]|nil, err: string|nil)): obsidian.agenda.Item[]|any
+  ---@field date_format? string
+  ---@field views? table<string, obsidian.config.AgendaViewOpts>
+  ---@field ui? table
+  agenda = {
+    enabled = true,
+    file = "agenda.md",
+    default_view = "week",
+    get_items = nil,
+    date_format = "YYYY-MM-DD",
+    views = {
+      day = {
+        show_done = false,
+        show_overdue = true,
+        show_undated = true,
+      },
+      week = {
+        span = 7,
+        show_done = false,
+        show_overdue = true,
+        show_undated = true,
+      },
+      month = {
+        show_done = false,
+        show_overdue = true,
+        show_undated = false,
+      },
+      year = {
+        show_done = false,
+        show_overdue = false,
+        show_undated = false,
+      },
+      todo = {
+        show_done = false,
+      },
+    },
+    ui = {
+      renderer = "buffer",
+      open_strategy = "current",
+      mappings = {
+        open = "<CR>",
+        toggle = "x",
+        refresh = "r",
+        next = "n",
+        prev = "p",
+        today = ".",
+        day = "d",
+        week = "w",
+        month = "m",
+        year = "y",
+        todo = "t",
+        quit = "q",
+      },
+    },
+  },
+
   ---@class obsidian.config.CompletionOpts
   ---
   ---@field min_chars? integer

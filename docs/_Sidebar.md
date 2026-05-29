@@ -23,6 +23,7 @@
 
 ### Modules:
 
+- [[Agenda]]
 - [[Attachment]]
 - [[Bookmarks]]
 - [[Checkbox]]

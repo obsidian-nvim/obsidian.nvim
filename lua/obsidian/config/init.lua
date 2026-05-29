@@ -304,6 +304,8 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts = tbl_override(defaults, opts)
 
   opts.backlinks = tbl_override(defaults.backlinks, opts.backlinks)
+  opts.date = tbl_override(defaults.date, opts.date)
+  opts.agenda = tbl_override(defaults.agenda, opts.agenda)
   opts.completion = tbl_override(defaults.completion, opts.completion)
   opts.picker = tbl_override(defaults.picker, opts.picker)
   opts.daily_notes = tbl_override(defaults.daily_notes, opts.daily_notes)
@@ -341,6 +343,10 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
 
   if opts.sort_by ~= nil and not vim.tbl_contains(vim.tbl_values(config.SortBy), opts.sort_by) then
     error("Invalid 'sort_by' option '" .. opts.sort_by .. "' in obsidian.nvim config.")
+  end
+
+  if type(opts.date.start_of_week) ~= "number" or opts.date.start_of_week < 0 or opts.date.start_of_week > 6 then
+    error("Invalid 'date.start_of_week' option '" .. tostring(opts.date.start_of_week) .. "' in obsidian.nvim config.")
   end
 
   local valid_link_styles = { "wiki", "markdown" }
