@@ -583,6 +583,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "snapwich",
+      "name": "Rich Snapp",
+      "avatar_url": "https://avatars.githubusercontent.com/u/551085?v=4",
+      "profile": "http://www.richsnapp.com",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }
