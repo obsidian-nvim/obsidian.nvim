@@ -36,7 +36,7 @@ T["is_excluded with glob pattern"] = function()
   local ignored = tostring(dir / "private" / "secret.md")
   local ignored_deep = tostring(dir / "private" / "sub" / "deep" / "very_secret.md")
   local kept = tostring(dir / "main.md")
-  local ignored_file = tostring(dir/"test.bak.md")
+  local ignored_file = tostring(dir / "test.bak.md")
   vim.fn.writefile({}, ignored)
   vim.fn.writefile({}, ignored_deep)
   vim.fn.writefile({}, kept)
@@ -55,19 +55,19 @@ T["is_excluded_dir correctly identifies directories"] = function()
   Obsidian.opts.ignore_filters = { "archive", "templates" }
   exclusions.clear_cache()
 
-  eq(exclusions.is_excluded_dir("archive"), true)
-  eq(exclusions.is_excluded_dir("templates"), true)
-  eq(exclusions.is_excluded_dir("notes"), false)
-  eq(exclusions.is_excluded_dir(".obsidian"), false)
+  eq(exclusions.is_excluded_dir "archive", true)
+  eq(exclusions.is_excluded_dir "templates", true)
+  eq(exclusions.is_excluded_dir "notes", false)
+  eq(exclusions.is_excluded_dir ".obsidian", false)
 end
 
 T["is_excluded works with vault relative paths"] = function()
   Obsidian.opts.ignore_filters = { "archive", "private" }
   exclusions.clear_cache()
 
-  eq(exclusions.is_excluded("archive/old.md"), true)
-  eq(exclusions.is_excluded("private/secret.md"), true)
-  eq(exclusions.is_excluded("notes/main.md"), false)
+  eq(exclusions.is_excluded "archive/old.md", true)
+  eq(exclusions.is_excluded "private/secret.md", true)
+  eq(exclusions.is_excluded "notes/main.md", false)
 end
 
 T["is_excluded works with absolute input paths"] = function()
@@ -129,9 +129,9 @@ T["is_excluded with file-specific path"] = function()
   Obsidian.opts.ignore_filters = { "slides/present.md" }
   exclusions.clear_cache()
 
-  eq(exclusions.is_excluded_dir("slides"), false)
-  eq(exclusions.is_excluded("slides/present.md"), true)
-  eq(exclusions.is_excluded("slides/other.md"), false)
+  eq(exclusions.is_excluded_dir "slides", false)
+  eq(exclusions.is_excluded "slides/present.md", true)
+  eq(exclusions.is_excluded "slides/other.md", false)
 end
 
 T["fs.dir with file-specific pattern does not prune directory"] = function()
@@ -165,28 +165,28 @@ T["is_excluded with root-anchored pattern only matches at root"] = function()
   Obsidian.opts.ignore_filters = { "/README.md" }
   exclusions.clear_cache()
 
-  eq(exclusions.is_excluded("README.md"), true)
-  eq(exclusions.is_excluded("sub/README.md"), false)
-  eq(exclusions.is_excluded_dir("sub"), false)
+  eq(exclusions.is_excluded "README.md", true)
+  eq(exclusions.is_excluded "sub/README.md", false)
+  eq(exclusions.is_excluded_dir "sub", false)
 end
 
 T["is_excluded with double-star pattern matches at any depth"] = function()
   Obsidian.opts.ignore_filters = { "**/draft.md" }
   exclusions.clear_cache()
 
-  eq(exclusions.is_excluded("draft.md"), true)
-  eq(exclusions.is_excluded("notes/draft.md"), true)
-  eq(exclusions.is_excluded("notes/sub/draft.md"), true)
+  eq(exclusions.is_excluded "draft.md", true)
+  eq(exclusions.is_excluded "notes/draft.md", true)
+  eq(exclusions.is_excluded "notes/sub/draft.md", true)
 end
 
 T["is_excluded_dir with trailing slash pattern"] = function()
   Obsidian.opts.ignore_filters = { "archive/" }
   exclusions.clear_cache()
 
-  eq(exclusions.is_excluded_dir("archive"), true)
-  eq(exclusions.is_excluded("archive/note.md"), true)
-  eq(exclusions.is_excluded("other.md"), false)
-  eq(exclusions.is_excluded_dir("other"), false)
+  eq(exclusions.is_excluded_dir "archive", true)
+  eq(exclusions.is_excluded "archive/note.md", true)
+  eq(exclusions.is_excluded "other.md", false)
+  eq(exclusions.is_excluded_dir "other", false)
 end
 
 T["fs.dir excludes directory with trailing slash pattern"] = function()
@@ -215,9 +215,9 @@ T["is_excluded with subdirectory wildcard pattern"] = function()
   Obsidian.opts.ignore_filters = { "drafts/*.md" }
   exclusions.clear_cache()
 
-  eq(exclusions.is_excluded_dir("drafts"), false)
-  eq(exclusions.is_excluded("drafts/foo.md"), true)
-  eq(exclusions.is_excluded("drafts/sub/bar.md"), false)
+  eq(exclusions.is_excluded_dir "drafts", false)
+  eq(exclusions.is_excluded "drafts/foo.md", true)
+  eq(exclusions.is_excluded "drafts/sub/bar.md", false)
 end
 
 return T
