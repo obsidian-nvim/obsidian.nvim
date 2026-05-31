@@ -1,13 +1,13 @@
 local eq = MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
 local fs = require "obsidian.fs"
-local exclusions = require "obsidian.exclusions"
+local ignore = require "obsidian.ignore"
 
 local T = h.temp_vault
 
-T["is_excluded with simple directory name"] = function()
-  Obsidian.opts.ignore_filters = { "archive" }
-  exclusions.clear_cache()
+T["is_ignored with simple directory name"] = function()
+  Obsidian.opts.file = { ignore_filters = { "archive" } }
+  ignore.clear_cache()
 
   local dir = Obsidian.dir
   local ignore_dir = dir / "archive"
@@ -26,9 +26,9 @@ T["is_excluded with simple directory name"] = function()
   eq(result[1], kept_file)
 end
 
-T["is_excluded with glob pattern"] = function()
-  Obsidian.opts.ignore_filters = { "private/**", "*.bak.md" }
-  exclusions.clear_cache()
+T["is_ignored with glob pattern"] = function()
+  Obsidian.opts.file = { ignore_filters = { "private/**", "*.bak.md" } }
+  ignore.clear_cache()
 
   local dir = Obsidian.dir
   vim.fn.mkdir(tostring(dir / "private" / "sub" / "deep"), "p")
@@ -51,28 +51,28 @@ T["is_excluded with glob pattern"] = function()
   eq(result[1], kept)
 end
 
-T["is_excluded_dir correctly identifies directories"] = function()
-  Obsidian.opts.ignore_filters = { "archive", "templates" }
-  exclusions.clear_cache()
+T["is_ignored_dir correctly identifies directories"] = function()
+  Obsidian.opts.file = { ignore_filters = { "archive", "templates" } }
+  ignore.clear_cache()
 
-  eq(exclusions.is_excluded_dir "archive", true)
-  eq(exclusions.is_excluded_dir "templates", true)
-  eq(exclusions.is_excluded_dir "notes", false)
-  eq(exclusions.is_excluded_dir ".obsidian", false)
+  eq(ignore.is_ignored_dir "archive", true)
+  eq(ignore.is_ignored_dir "templates", true)
+  eq(ignore.is_ignored_dir "notes", false)
+  eq(ignore.is_ignored_dir ".obsidian", false)
 end
 
-T["is_excluded works with vault relative paths"] = function()
-  Obsidian.opts.ignore_filters = { "archive", "private" }
-  exclusions.clear_cache()
+T["is_ignored works with vault relative paths"] = function()
+  Obsidian.opts.file = { ignore_filters = { "archive", "private" } }
+  ignore.clear_cache()
 
-  eq(exclusions.is_excluded "archive/old.md", true)
-  eq(exclusions.is_excluded "private/secret.md", true)
-  eq(exclusions.is_excluded "notes/main.md", false)
+  eq(ignore.is_ignored "archive/old.md", true)
+  eq(ignore.is_ignored "private/secret.md", true)
+  eq(ignore.is_ignored "notes/main.md", false)
 end
 
-T["is_excluded works with absolute input paths"] = function()
-  Obsidian.opts.ignore_filters = { "archive" }
-  exclusions.clear_cache()
+T["is_ignored works with absolute input paths"] = function()
+  Obsidian.opts.file = { ignore_filters = { "archive" } }
+  ignore.clear_cache()
 
   local dir = Obsidian.dir
   local archive_dir = dir / "archive"
@@ -85,13 +85,13 @@ T["is_excluded works with absolute input paths"] = function()
   vim.fn.writefile({}, archive_path)
   vim.fn.writefile({}, notes_path)
 
-  eq(exclusions.is_excluded(archive_path), true)
-  eq(exclusions.is_excluded(notes_path), false)
+  eq(ignore.is_ignored(archive_path), true)
+  eq(ignore.is_ignored(notes_path), false)
 end
 
 T["no false positives with similar directory names"] = function()
-  Obsidian.opts.ignore_filters = { "archive" }
-  exclusions.clear_cache()
+  Obsidian.opts.file = { ignore_filters = { "archive" } }
+  ignore.clear_cache()
 
   local dir = Obsidian.dir
   local archive_dir = dir / "archive"
@@ -109,34 +109,33 @@ T["no false positives with similar directory names"] = function()
     result[#result + 1] = path
   end
 
-  -- archive should be excluded, archive_backup should NOT be
   eq(#result, 1)
   eq(result[1], backup_file)
 end
 
 T["clear_cache resets the checker"] = function()
-  Obsidian.opts.ignore_filters = { "archive" }
-  exclusions.clear_cache()
+  Obsidian.opts.file = { ignore_filters = { "archive" } }
+  ignore.clear_cache()
 
   local dir = Obsidian.dir
-  local new_dir = dir / "new_exclude"
+  local new_dir = dir / "new_ignore"
   new_dir:mkdir()
 
-  eq(type(exclusions._cache) == "table", true)
+  eq(type(ignore._cache) == "table", true)
 end
 
-T["is_excluded with file-specific path"] = function()
-  Obsidian.opts.ignore_filters = { "slides/present.md" }
-  exclusions.clear_cache()
+T["is_ignored with file-specific path"] = function()
+  Obsidian.opts.file = { ignore_filters = { "slides/present.md" } }
+  ignore.clear_cache()
 
-  eq(exclusions.is_excluded_dir "slides", false)
-  eq(exclusions.is_excluded "slides/present.md", true)
-  eq(exclusions.is_excluded "slides/other.md", false)
+  eq(ignore.is_ignored_dir "slides", false)
+  eq(ignore.is_ignored "slides/present.md", true)
+  eq(ignore.is_ignored "slides/other.md", false)
 end
 
 T["fs.dir with file-specific pattern does not prune directory"] = function()
-  Obsidian.opts.ignore_filters = { "slides/present.md" }
-  exclusions.clear_cache()
+  Obsidian.opts.file = { ignore_filters = { "slides/present.md" } }
+  ignore.clear_cache()
 
   local dir = Obsidian.dir
   local slides_dir = dir / "slides"
@@ -154,44 +153,43 @@ T["fs.dir with file-specific pattern does not prune directory"] = function()
     result[#result + 1] = path
   end
 
-  -- slides/ is entered (not pruned), but present.md is filtered out
   eq(#result, 2)
   eq(vim.tbl_contains(result, present_file), false)
   eq(vim.tbl_contains(result, other_file), true)
   eq(vim.tbl_contains(result, main_file), true)
 end
 
-T["is_excluded with root-anchored pattern only matches at root"] = function()
-  Obsidian.opts.ignore_filters = { "/README.md" }
-  exclusions.clear_cache()
+T["is_ignored with root-anchored pattern only matches at root"] = function()
+  Obsidian.opts.file = { ignore_filters = { "/README.md" } }
+  ignore.clear_cache()
 
-  eq(exclusions.is_excluded "README.md", true)
-  eq(exclusions.is_excluded "sub/README.md", false)
-  eq(exclusions.is_excluded_dir "sub", false)
+  eq(ignore.is_ignored "README.md", true)
+  eq(ignore.is_ignored "sub/README.md", false)
+  eq(ignore.is_ignored_dir "sub", false)
 end
 
-T["is_excluded with double-star pattern matches at any depth"] = function()
-  Obsidian.opts.ignore_filters = { "**/draft.md" }
-  exclusions.clear_cache()
+T["is_ignored with double-star pattern matches at any depth"] = function()
+  Obsidian.opts.file = { ignore_filters = { "**/draft.md" } }
+  ignore.clear_cache()
 
-  eq(exclusions.is_excluded "draft.md", true)
-  eq(exclusions.is_excluded "notes/draft.md", true)
-  eq(exclusions.is_excluded "notes/sub/draft.md", true)
+  eq(ignore.is_ignored "draft.md", true)
+  eq(ignore.is_ignored "notes/draft.md", true)
+  eq(ignore.is_ignored "notes/sub/draft.md", true)
 end
 
-T["is_excluded_dir with trailing slash pattern"] = function()
-  Obsidian.opts.ignore_filters = { "archive/" }
-  exclusions.clear_cache()
+T["is_ignored_dir with trailing slash pattern"] = function()
+  Obsidian.opts.file = { ignore_filters = { "archive/" } }
+  ignore.clear_cache()
 
-  eq(exclusions.is_excluded_dir "archive", true)
-  eq(exclusions.is_excluded "archive/note.md", true)
-  eq(exclusions.is_excluded "other.md", false)
-  eq(exclusions.is_excluded_dir "other", false)
+  eq(ignore.is_ignored_dir "archive", true)
+  eq(ignore.is_ignored "archive/note.md", true)
+  eq(ignore.is_ignored "other.md", false)
+  eq(ignore.is_ignored_dir "other", false)
 end
 
 T["fs.dir excludes directory with trailing slash pattern"] = function()
-  Obsidian.opts.ignore_filters = { "archive/" }
-  exclusions.clear_cache()
+  Obsidian.opts.file = { ignore_filters = { "archive/" } }
+  ignore.clear_cache()
 
   local dir = Obsidian.dir
   local archive_dir = dir / "archive"
@@ -211,13 +209,13 @@ T["fs.dir excludes directory with trailing slash pattern"] = function()
   eq(result[1], kept_file)
 end
 
-T["is_excluded with subdirectory wildcard pattern"] = function()
-  Obsidian.opts.ignore_filters = { "drafts/*.md" }
-  exclusions.clear_cache()
+T["is_ignored with subdirectory wildcard pattern"] = function()
+  Obsidian.opts.file = { ignore_filters = { "drafts/*.md" } }
+  ignore.clear_cache()
 
-  eq(exclusions.is_excluded_dir "drafts", false)
-  eq(exclusions.is_excluded "drafts/foo.md", true)
-  eq(exclusions.is_excluded "drafts/sub/bar.md", false)
+  eq(ignore.is_ignored_dir "drafts", false)
+  eq(ignore.is_ignored "drafts/foo.md", true)
+  eq(ignore.is_ignored "drafts/sub/bar.md", false)
 end
 
 return T

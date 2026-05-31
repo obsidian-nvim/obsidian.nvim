@@ -324,6 +324,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.link = tbl_override(defaults.link, opts.link)
   opts.unique_note = tbl_override(defaults.unique_note, opts.unique_note)
   opts.sync = tbl_override(defaults.sync, opts.sync)
+  opts.file = tbl_override(defaults.file, opts.file)
 
   ---------------
   -- Validate. --
@@ -363,13 +364,13 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
   end
 
-  if opts.ignore_filters ~= nil then
-    if type(opts.ignore_filters) ~= "table" then
-      error "Invalid obsidian.nvim config, 'ignore_filters' should be an array of strings."
+  if opts.file and opts.file.ignore_filters ~= nil then
+    if type(opts.file.ignore_filters) ~= "table" then
+      error "Invalid obsidian.nvim config, 'file.ignore_filters' should be an array of strings."
     end
-    for i, dir in ipairs(opts.ignore_filters) do
-      if type(dir) ~= "string" then
-        error(string.format("Invalid obsidian.nvim config, 'ignore_filters[%d]' should be a string.", i))
+    for i, pattern in ipairs(opts.file.ignore_filters) do
+      if type(pattern) ~= "string" then
+        error(string.format("Invalid obsidian.nvim config, 'file.ignore_filters[%d]' should be a string.", i))
       end
     end
   end

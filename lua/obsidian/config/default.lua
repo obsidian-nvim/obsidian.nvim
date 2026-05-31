@@ -29,7 +29,6 @@ return {
   },
 
   workspaces = {},
-  ignore_filters = {},
   log_level = vim.log.levels.INFO,
   -- Default random zettel IDs. To use readable UTF-8 slug IDs, set:
   -- note_id_func = require("obsidian.builtin").title_id
@@ -56,6 +55,16 @@ return {
       end
       return vim.fs.joinpath(root, "data/default_template.md")
     end)(),
+  },
+
+  ---@class obsidian.config.FileOpts
+  ---
+  --- A list of gitignore-style glob patterns to ignore files and directories.
+  --- Users should use simple gitignore style globs without modifiers,
+  --- and ripgrep compatibility is not guaranteed.
+  ---@field ignore_filters? string[]
+  file = {
+    ignore_filters = {},
   },
 
   ---@class obsidian.config.FrontmatterOpts
