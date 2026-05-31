@@ -3,7 +3,7 @@ local search = obsidian.search
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
-local actions = obsidian.actions
+local actions = require "obsidian.actions"
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
@@ -19,12 +19,12 @@ end
 
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|? }|?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
 ---@return lsp.Location?
 local function create_new_note(location, callback, opts)
   opts = opts or {}
-  local bufnr = vim.api.nvim_get_current_buf()
-  local cursor_row = vim.api.nvim_win_get_cursor(0)[1]
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  local cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
 
   local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
   local has_unique = Obsidian.opts.unique_note.enabled
@@ -41,8 +41,8 @@ local function create_new_note(location, callback, opts)
   local format_options = table.concat(options, "\n")
 
   local function update_link(note)
-    if opts.range then
-      local new_link = note:format_link { label = opts.label or location }
+    if opts.range and vim.api.nvim_buf_is_valid(bufnr) then
+      local new_link = note:format_link { label = opts.label or location, anchor = opts.anchor, block = opts.block }
       vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
     end
   end
@@ -75,42 +75,48 @@ local handlers = {}
 
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|? }|?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
 local function open_note(location, callback, opts)
-  local block_link, anchor_link
-  location, block_link = util.strip_block_links(location)
-  location, anchor_link = util.strip_anchor_links(location)
+  opts = opts or {}
+  opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  opts.cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
 
-  local notes = search.resolve_note(location, {
+  local block_link, anchor_link, raw_anchor
+  location, block_link = util.strip_block_links(location)
+  location, anchor_link, raw_anchor = util.strip_anchor_links(location)
+
+  search.resolve_note_async(location, function(notes)
+    -- TODO: integrate into resolve_note?
+    if block_link then
+      notes = vim.tbl_filter(function(note)
+        return not vim.tbl_isempty(note.blocks or {}) and note:resolve_block(block_link) ~= nil
+      end, notes)
+    end
+
+    if anchor_link then
+      notes = vim.tbl_filter(function(note)
+        return not vim.tbl_isempty(note.anchor_links or {}) and note:resolve_anchor_link(anchor_link) ~= nil
+      end, notes)
+    end
+
+    if vim.tbl_isempty(notes) then
+      opts.anchor = raw_anchor
+      opts.block = block_link
+      create_new_note(location, callback, opts)
+    elseif #notes == 1 then
+      callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
+    elseif #notes > 1 then
+      local locations = vim
+        .iter(notes)
+        :map(function(note)
+          return note:_location { block = block_link, anchor = anchor_link }
+        end)
+        :totable()
+      callback(locations)
+    end
+  end, {
     notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
   })
-
-  -- TODO: integrate into resolve_note?
-  if block_link then
-    notes = vim.tbl_filter(function(note)
-      return not vim.tbl_isempty(note.blocks or {}) and note:resolve_block(block_link) ~= nil
-    end, notes)
-  end
-
-  if anchor_link then
-    notes = vim.tbl_filter(function(note)
-      return not vim.tbl_isempty(note.anchor_links or {}) and note:resolve_anchor_link(anchor_link) ~= nil
-    end, notes)
-  end
-
-  if vim.tbl_isempty(notes) then
-    create_new_note(location, callback, opts)
-  elseif #notes == 1 then
-    callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
-  elseif #notes > 1 then
-    local locations = vim
-      .iter(notes)
-      :map(function(note)
-        return note:_location { block = block_link, anchor = anchor_link }
-      end)
-      :totable()
-    callback(locations)
-  end
 end
 
 local function open_attachment(location)

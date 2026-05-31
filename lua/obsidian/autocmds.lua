@@ -53,21 +53,16 @@ local function bufenter_callback(ev)
   end
 
   -- Register keymap.
-  vim.keymap.set("n", "<CR>", api.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
+  if vim.g.obsidian_default_keymap ~= false then -- NOTE: not in config since not sure whether the confusion and the small interface is worth it, might remove in major release
+    vim.keymap.set("n", "<CR>", api.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
 
-  vim.keymap.set("n", "]o", function()
-    api.nav_link "next"
-  end, { buffer = true, desc = "Obsidian Next Link" })
+    vim.keymap.set("n", "]o", function()
+      api.nav_link "next"
+    end, { buffer = true, desc = "Obsidian Next Link" })
 
-  vim.keymap.set("n", "[o", function()
-    api.nav_link "prev"
-  end, { buffer = true, desc = "Obsidian Previous Link" })
-
-  -- Inject completion sources, providers to their plugin configurations
-  if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources()
-  elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").inject_sources()
+    vim.keymap.set("n", "[o", function()
+      api.nav_link "prev"
+    end, { buffer = true, desc = "Obsidian Previous Link" })
   end
 
   require("obsidian.lsp").start(ev.buf)

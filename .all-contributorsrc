@@ -556,6 +556,42 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "tdashelby-cmyk",
+      "name": "tdashelby-cmyk",
+      "avatar_url": "https://avatars.githubusercontent.com/u/253610080?v=4",
+      "profile": "https://github.com/tdashelby-cmyk",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "gsmith-alvarez",
+      "name": "Giovanni Smith-Alvarez",
+      "avatar_url": "https://avatars.githubusercontent.com/u/175654654?v=4",
+      "profile": "https://github.com/gsmith-alvarez",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Booyaka101",
+      "name": "Christo",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1064588?v=4",
+      "profile": "https://github.com/Booyaka101",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "snapwich",
+      "name": "Rich Snapp",
+      "avatar_url": "https://avatars.githubusercontent.com/u/551085?v=4",
+      "profile": "http://www.richsnapp.com",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }

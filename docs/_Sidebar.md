@@ -24,6 +24,7 @@
 ### Modules:
 
 - [[Attachment]]
+- [[Bookmarks]]
 - [[Checkbox]]
 - [[Daily-Notes]]
 - [[Footer]]

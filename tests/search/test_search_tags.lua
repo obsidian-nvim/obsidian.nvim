@@ -26,14 +26,16 @@ end
 T["should return both frontmatter and inline tags"] = function()
   local root = child.lua_get [[tostring(Obsidian.dir)]]
   tmp_file(root)
-  child.lua [[
-local search = require"obsidian.search"
-search.find_tags_async("", function(res)
-   _G.res = res
-end, {})
-  ]]
-  vim.uv.sleep(100)
-  local res = child.lua_get [[res]]
+  local res = h.child_await(
+    child,
+    [[
+      local search = require "obsidian.search"
+      search.find_tags_async("", function(res)
+        done(res)
+      end, {})
+    ]],
+    { desc = "tags search" }
+  )
 
   eq(#res, 3)
   eq(res[1].tag, "Book")
@@ -52,14 +54,16 @@ end
 T["should search specific tags"] = function()
   local root = child.lua_get [[tostring(Obsidian.dir)]]
   tmp_file(root)
-  child.lua [[
-local search = require"obsidian.search"
-search.find_tags_async("Book", function(res)
-   _G.res = res
-end, {})
-  ]]
-  vim.uv.sleep(100)
-  local res = child.lua_get [[res]]
+  local res = h.child_await(
+    child,
+    [[
+      local search = require "obsidian.search"
+      search.find_tags_async("Book", function(res)
+        done(res)
+      end, {})
+    ]],
+    { desc = "tags search" }
+  )
 
   eq(#res, 2)
   eq(res[1].tag, "Book")

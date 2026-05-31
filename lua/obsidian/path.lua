@@ -412,13 +412,13 @@ Path.mkdir = function(self, opts)
   end
 
   if not opts.parents then
-    error("FileNotFoundError: " .. tostring(self:parent()))
+    error("FileNotFoundError: " .. self.filename)
   end
 
   local parents = self:parents()
   for i = #parents, 1, -1 do
     if not parents[i]:is_dir() then
-      parents[i]:mkdir { mode = mode }
+      parents[i]:mkdir { mode = mode, parents = true }
     end
   end
 

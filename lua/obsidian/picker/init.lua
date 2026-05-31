@@ -34,6 +34,7 @@ M.state = state
 ---@field query string|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
+---@field include_non_markdown boolean|?
 
 ---@class obsidian.PickerGrepOpts
 ---
@@ -79,6 +80,8 @@ M.find_notes = function(opts)
     query_mappings = M._note_query_mappings()
     selection_mappings = M._note_selection_mappings()
   end
+
+  -- TODO: build cmd here instead of in all pickers
 
   return M.find_files {
     query = opts.query,
@@ -278,7 +281,8 @@ M.get = function(picker_name)
     patch "obsidian.picker._mini"
   elseif picker_name == string.lower(PickerName.fzf_lua) then
     patch "obsidian.picker._fzf"
-  elseif picker_name == string.lower(PickerName.snacks) then
+    -- or statement added for backwards compatibility
+  elseif picker_name == string.lower(PickerName.snacks) or picker_name == "snacks.pick" then
     patch "obsidian.picker._snacks"
   else
     patch "obsidian.picker._default"

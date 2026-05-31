@@ -45,6 +45,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field alt_alias string|?
 ---@field bufnr integer|?
+---@field template string|? Template name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
 local Note = {}
 
 local load_contents = function(note)
@@ -288,29 +289,25 @@ Note._resolve_id_path = function(opts)
   return id, path, title
 end
 
---- Creates a new note
+--- Creates a new note in memory.
+---
+--- The note is NOT written to disk. Call `note:write {}` after if you want the
+--- file persisted; the `template` passed here is carried on the note and used
+--- by `note:write` unless overridden.
 ---
 --- @param opts obsidian.note.NoteOpts
 --- @return obsidian.Note
 Note.create = function(opts)
   local new_id, path, title = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
+  if opts.should_write then
+    log.warn "`should_write` in Note.create is removed, call note:write instead"
+  end
 
-  -- Add the title as an alias.
   --- @type string[]
   local aliases = opts.aliases
   local note = Note.new(new_id, aliases, opts.tags, path, title)
-
-  -- Ensure the parent directory exists.
-  local parent = path:parent()
-  assert(parent, "failed to get parent in note creation")
-  parent:mkdir { parents = true, exist_ok = true }
-
-  -- Write to disk.
-  if opts.should_write then
-    note:write { template = opts.template }
-  end
-
+  note.template = opts.template
   return note
 end
 
@@ -834,7 +831,14 @@ Note.frontmatter_lines = function(self, current_lines)
     local yaml_body_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
     end, current_lines or {})
-    syntax_ok, _, order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
+    -- Preserve the existing frontmatter's key order only when the user hasn't
+    -- configured an explicit sort. Otherwise the user's `frontmatter.sort`
+    -- would be silently overwritten by the parsed order on every save.
+    local parsed_order
+    syntax_ok, _, parsed_order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
+    if order == nil then
+      order = parsed_order
+    end
   end
   if syntax_ok or not has_frontmatter then -- if parse success or there's no frontmatter (and should insert)
     ---@diagnostic disable-next-line: param-type-mismatch
@@ -916,16 +920,19 @@ Note.write = function(self, opts)
   local path = assert(self.path, "A path must be provided")
   path = Path.new(path)
 
+  -- Fall back to the template carried by the note (set at Note.create).
+  local template = opts.template ~= nil and opts.template or self.template
+
   ---@type string
   local verb
   if path:is_file() then
     verb = "Updated"
   else
     verb = "Created"
-    if opts.template ~= nil then
+    if template ~= nil then
       self = Template.clone_template {
         type = "clone_template",
-        template_name = opts.template,
+        template_name = template,
         destination_path = path,
         templates_dir = api.templates_dir(),
         partial_note = self,
@@ -1033,10 +1040,13 @@ Note.save = function(self, opts)
   util.write_file(tostring(save_path), file_content)
 
   if opts.check_buffers then
-    -- `vim.fn.bufnr` returns the **max** bufnr loaded from the same path.
-    if vim.fn.bufnr(save_path.filename) ~= -1 then
-      -- But we want to call |checktime| on **all** buffers loaded from the path.
-      vim.cmd.checktime(save_path.filename)
+    -- `:checktime <name>` parses {name} as a Vim regex, so paths with `[`,
+    -- `*`, etc. raise E94. Pass the bufnr instead, iterating to cover
+    -- every buffer loaded from this path.
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_get_name(bufnr) == save_path.filename then
+        vim.cmd.checktime(bufnr)
+      end
     end
   end
 end
@@ -1167,11 +1177,20 @@ Note.open = function(self, opts)
   end
 end
 
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }
----@return obsidian.BacklinkMatch
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?
+---@return obsidian.BacklinkMatch[]
 Note.backlinks = function(self, opts)
+  opts = opts or {}
   opts.dir = opts.dir or api.resolve_workspace_dir()
   return search.find_backlinks(self, opts)
+end
+
+---@param opts { search: obsidian.SearchOpts, anchor: string, block: string, dir: string|obsidian.Path, refs: string[]|? }?
+---@param callback fun(matches: obsidian.BacklinkMatch[])
+Note.backlinks_async = function(self, opts, callback)
+  opts = opts or {}
+  opts.dir = opts.dir or api.resolve_workspace_dir()
+  return search.find_backlinks_async(self, callback, opts)
 end
 
 ---@return obsidian.LinkMatch[]
@@ -1234,22 +1253,37 @@ local backlink_cache = {}
 --- Return note status counts, like obsidian's status bar
 ---
 ---@param update_backlink boolean|?
+---@param callback fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer })|?
 ---@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
-Note.status = function(self, update_backlink)
+Note.status = function(self, update_backlink, callback)
   local status = {}
   local wc = vim.fn.wordcount()
   status.words = wc.visual_words or wc.words
   status.chars = wc.visual_chars or wc.chars
   status.properties = vim.tbl_count(self:frontmatter()) -- TODO: should be zero if no frontmatter
   local path = tostring(self.path)
-  if self and (update_backlink or backlink_cache[path] == nil) then -- HACK:
-    local num_backlinks = #self:backlinks {}
+
+  local function finish(num_backlinks)
     status.backlinks = num_backlinks
     backlink_cache[path] = num_backlinks
-  else
-    status.backlinks = backlink_cache[path] or 0
+    if callback then
+      callback(status)
+    else
+      return status
+    end
   end
-  return status
+
+  if self and (update_backlink or backlink_cache[path] == nil) then -- HACK:
+    if callback then
+      self:backlinks_async({}, function(matches)
+        finish(#matches)
+      end)
+    else
+      return finish(#self:backlinks {})
+    end
+  else
+    return finish(backlink_cache[path] or 0)
+  end
 end
 
 ---@return string[]
@@ -1379,12 +1413,10 @@ end
 ---@field title string|? Readable title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
 ---@field verbatim boolean|? whether to skip applying `note_id_func`
 ---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
----relative to the workspace / vault root. If the directory doesn't exist it will
----be created, regardless of the value of the `should_write` option.
+---relative to the workspace / vault root.
 ---@field aliases string[]|? Aliases for the note
 ---@field tags string[]|?  Tags for this note
----@field should_write boolean|? Don't write the note to disk
----@field template string|? The name of the template
+---@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
 
 ---@class (exact) obsidian.note.NoteSaveOpts
 --- Specify a path to save to. Defaults to `self.path`.

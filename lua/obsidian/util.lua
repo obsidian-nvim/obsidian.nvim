@@ -349,7 +349,7 @@ util.parse_link = function(link, opts)
 
   local link_type = opts.link_type
   if link_type == nil then
-    for _, match in ipairs(search.find_refs(link, { exclude = { "Tag" } })) do
+    for _, match in ipairs(search.find_refs(link)) do
       local _, _, m_type = unpack(match)
       link_type = m_type
       break
@@ -445,11 +445,11 @@ util.strip_anchor_links = function(line)
   end
 
   if #parts == 0 then
-    return line, nil
+    return line, nil, nil
   end
 
   local anchor = table.concat(parts, "")
-  return line, util.standardize_anchor(anchor)
+  return line, util.standardize_anchor(anchor), anchor
 end
 
 --- Parse a block line from a line.

@@ -1,6 +1,5 @@
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
-local run_job = require("obsidian.async").run_job
 local api = require "obsidian.api"
 local util = require "obsidian.util"
 
@@ -96,7 +95,7 @@ end
 ---@param path string
 ---@param img_type "png" | "jpeg"
 ---
----@return boolean|integer|? result
+---@return boolean|? result
 local function save_clipboard_image(path, img_type)
   local this_os = api.get_os()
 
@@ -106,23 +105,25 @@ local function save_clipboard_image(path, img_type)
     local display_server = os.getenv "XDG_SESSION_TYPE"
     if display_server == "x11" or display_server == "tty" then
       cmd = string.format("xclip -selection clipboard -t %s -o > '%s'", mime_type, path)
-      return run_job { "bash", "-c", cmd }
+      return vim.system({ "bash", "-c", cmd }):wait() ~= 0
     elseif display_server == "wayland" then
       cmd = string.format("wl-paste --no-newline --type %s > %s", mime_type, vim.fn.shellescape(path))
-      return run_job { "bash", "-c", cmd }
+      return vim.system({ "bash", "-c", cmd }):wait() ~= 0
     end
   elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
     local cmd = 'powershell.exe -c "'
       .. string.format("(get-clipboard -format image).save('%s', 'png')", string.gsub(path, "/", "\\"))
       .. '"'
-    local ret = os.execute(cmd)
+    local ret = os.execute(cmd) -- TODO:
     return ret
   elseif this_os == api.OSType.Darwin then
-    return run_job { "pngpaste", path }
+    return vim.system({ "pngpaste", path }):wait() ~= 0
   else
     error("image saving not implemented for OS '" .. this_os .. "'")
   end
 end
+
+-- TODO: use attachment.add, deprecate img_text_func and etc
 
 --- @param path string|obsidian.Path image_path The absolute path to the image file.
 M.paste = function(path, img_type)

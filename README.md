@@ -49,7 +49,7 @@ The original project has not been actively maintained for quite a while and with
 
 ## ⭐ Features
 
-▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki and markdown links, `#` for tags)
+▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via in-process LSP (triggered by typing `[[` for wiki and markdown links, `#` for tags)
 
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
@@ -88,7 +88,7 @@ There's one entry point user command for this plugin: `Obsidian`
 #### Top level commands
 
 - `:Obsidian check` - check for common issues in your vault and plugin setup
-- `:Obsidian ailies [OFFSET ...]` - open a picker list of daily notes
+- `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
 - `:Obsidian help` - find files in the help wiki
 - `:Obsidian helpgrep` - grep files in the help wiki
@@ -157,22 +157,31 @@ There's one entry point user command for this plugin: `Obsidian`
 
 There's no required dependency, but there are a number of optional dependencies that enhance the obsidian.nvim experience.
 
-**Completion:**
+- **Pickers:**
+  - [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
+  - [fzf-lua](https://github.com/ibhagwan/fzf-lua)
+  - [mini.pick](https://github.com/echasnovski/mini.pick)
+  - [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
 
-- [blink.cmp](https://github.com/Saghen/blink.cmp)
-- [nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
+To use a specific picker, set `picker.name` in your config, e.g.:
 
-**Pickers:**
+```lua
+require("obsidian").setup {
+  picker = {
+    name = "snacks.picker", -- use snacks picker
+    -- name = "telescope.nvim",   -- or telescope
+    -- name = "fzf-lua",     -- or fzf-lua
+    -- name = "mini.pick",   -- or mini.pick
+  },
+}
+```
 
-- [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
-- [fzf-lua](https://github.com/ibhagwan/fzf-lua)
-- [mini.pick](https://github.com/echasnovski/mini.pick)
-- [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
+- **Image viewing:**
+  - [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
+  - See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
 
-**Image viewing:**
-
-- [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
-- See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
+- **Completion**
+  - See [Completion](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Completion)
 
 ## 📥 Installation
 
@@ -333,6 +342,12 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/antinomie8"><img src="https://avatars.githubusercontent.com/u/130611615?v=4?s=100" width="100px;" alt="antinomie8"/><br /><sub><b>antinomie8</b></sub></a><br /><a href="#code-antinomie8" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://thoughts.tp6gw94.qzz.io/explore"><img src="https://avatars.githubusercontent.com/u/71218426?v=4?s=100" width="100px;" alt="Todd"/><br /><sub><b>Todd</b></sub></a><br /><a href="#doc-tp6gw94" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/beekeepeer"><img src="https://avatars.githubusercontent.com/u/108191539?v=4?s=100" width="100px;" alt="beekeepeer"/><br /><sub><b>beekeepeer</b></sub></a><br /><a href="#code-beekeepeer" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/tdashelby-cmyk"><img src="https://avatars.githubusercontent.com/u/253610080?v=4?s=100" width="100px;" alt="tdashelby-cmyk"/><br /><sub><b>tdashelby-cmyk</b></sub></a><br /><a href="#doc-tdashelby-cmyk" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/gsmith-alvarez"><img src="https://avatars.githubusercontent.com/u/175654654?v=4?s=100" width="100px;" alt="Giovanni Smith-Alvarez"/><br /><sub><b>Giovanni Smith-Alvarez</b></sub></a><br /><a href="#code-gsmith-alvarez" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Booyaka101"><img src="https://avatars.githubusercontent.com/u/1064588?v=4?s=100" width="100px;" alt="Christo"/><br /><sub><b>Christo</b></sub></a><br /><a href="#code-Booyaka101" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.richsnapp.com"><img src="https://avatars.githubusercontent.com/u/551085?v=4?s=100" width="100px;" alt="Rich Snapp"/><br /><sub><b>Rich Snapp</b></sub></a><br /><a href="#code-snapwich" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

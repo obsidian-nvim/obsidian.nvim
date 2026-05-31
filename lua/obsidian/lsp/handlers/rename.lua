@@ -18,29 +18,31 @@ return function(params, handler, _)
   end
 
   local cur_link = api.cursor_link()
-  local note
+
+  local function do_rename(note)
+    local old_stem = note.path and note.path.stem or nil
+    if new_name == note.id or (old_stem and new_name == old_stem) then
+      log.info "Identical name"
+      return handler(nil, {})
+    end
+    if not M.validate(new_name) then
+      log.info "Note with same name exists"
+      return handler(nil, {})
+    end
+    M.rename(note, new_name, handler)
+  end
 
   if cur_link then
     local loc = util.parse_link(cur_link, { strip = true })
     assert(loc, "wrong link format")
-    local notes = search.resolve_note(loc)
-    -- TODO: pick note
-    if vim.tbl_isempty(notes) then
-      return
-    end
-    note = notes[1]
+    search.resolve_note_async(loc, function(notes)
+      -- TODO: pick note
+      if vim.tbl_isempty(notes) then
+        return
+      end
+      do_rename(notes[1])
+    end)
   else
-    note = assert(api.current_note(0))
+    do_rename(assert(api.current_note(0)))
   end
-
-  local old_stem = note.path and note.path.stem or nil
-  if new_name == note.id or (old_stem and new_name == old_stem) then
-    log.info "Identical name"
-    return handler(nil, {})
-  end
-  if not M.validate(new_name) then
-    log.info "Note with same name exists"
-    return handler(nil, {})
-  end
-  M.rename(note, new_name, handler)
 end

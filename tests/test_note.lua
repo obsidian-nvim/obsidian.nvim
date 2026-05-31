@@ -115,6 +115,23 @@ T["save"]["should preserve noeol status"] = function()
   vim.fn.delete(temp_path)
 end
 
+T["save"]["should not error on :checktime when save path contains regex-special characters"] = function()
+  -- Regression: the old code passed `save_path.filename` as a string to
+  -- `:checktime`, which treats it as a Vim regex pattern. Paths with `[`,
+  -- `]`, `*`, etc. (legal in note filenames, e.g. `[[wiki]] title.md`)
+  -- would raise E94 even when a buffer was loaded for the exact path.
+  local path = "/tmp/" .. util.zettel_id() .. " [draft].md"
+  local note = M.new("FOO", {}, {}, path)
+  note:save()
+
+  vim.cmd.edit(vim.fn.fnameescape(path))
+
+  note:save() -- must not raise E94
+
+  vim.cmd "bwipeout!"
+  vim.fn.delete(path)
+end
+
 T["add_alias"] = new_set()
 
 T["add_alias"]["should be able to add an alias"] = function()
@@ -618,5 +635,52 @@ end
 --   note = M.from_file(path)
 --   eq({ "hi", "sub/hi", "sub%2Fhi", "sub%2Fhi.md", "sub/hi.md", "hi.md" }, note:get_reference_paths())
 -- end
+
+T["frontmatter_lines"] = new_set()
+
+T["frontmatter_lines"]["respects opts.frontmatter.sort over parsed key order"] = function()
+  -- Regression test for #818: when a note already has frontmatter, the parsed
+  -- key order was being assigned to the same `order` local, silently
+  -- overwriting the user's configured `opts.frontmatter.sort`.
+  local prev_sort = Obsidian.opts.frontmatter.sort
+  local prev_func = Obsidian.opts.frontmatter.func
+  Obsidian.opts.frontmatter.sort = { "id", "aliases", "start", "created", "modified", "tags" }
+  Obsidian.opts.frontmatter.func = function(note)
+    local out = { tags = note.tags }
+    if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
+      for k, v in pairs(note.metadata) do
+        out[k] = v
+      end
+    end
+    return out
+  end
+
+  local note = from_str [[---
+tags:
+  - foo
+created: 2026-05-20
+start: morning
+---
+
+# n
+]]
+  local current_lines = { "---", "tags:", "  - foo", "created: 2026-05-20", "start: morning", "---" }
+  local lines = note:frontmatter_lines(current_lines)
+
+  local function find(key)
+    for i, line in ipairs(lines) do
+      if line:match("^" .. key .. ":") then
+        return i
+      end
+    end
+    return nil
+  end
+  local start_i, created_i, tags_i = find "start", find "created", find "tags"
+  eq(true, start_i < created_i)
+  eq(true, created_i < tags_i)
+
+  Obsidian.opts.frontmatter.sort = prev_sort
+  Obsidian.opts.frontmatter.func = prev_func
+end
 
 return T

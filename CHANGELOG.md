@@ -11,6 +11,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update link in buffer when creating a new note via `follow_link`.
 - Minimal `.base` support, definition, references and quick_switch will work.
+- Proper resolve `.base` file only with explicit suffix.
+- `:Obsidian bookmarks` to view existing bookmarks.
+- use `vim.g.obsidian_default_keymap` to disable the default keymaps.
+- `attachment.add(src, opts)` and `actions.add_attachment(src, opts)` for adding:
+  - filepath and urls for attachment
+  - folders will open a file picker
+  - see docs at <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment>
+- `Note` class can carry a `template` field.
+- LSP completion replaces completion plugin based completion.
+- Frontmatter tag completion.
+- Unicode/CJK tag support across parsing, completion, and UI highlighting (e.g. `#café`, `#中文`).
+
+### Changed
+
+- Always call async version of search functions internally, blocking version are just for scripting.
+
+### Removed
+
+- `should_write` option on `Note.create` is removed. Call `note:write {}` explicitly instead.
+
+### Fixed
+
+- `Note.save` no longer raises `E94: No matching buffer` when the save path contains Vim regex-special characters (e.g. `[`, `]`, `*`). The `:checktime` call now passes a bufnr instead of the path string.
+- Preserve anchors and blocks when creating notes from unresolved links.
+- WIP: proper async jobs and no `block_on` calls which performs bad on windows.
+- snacks picker now honors `picker.note_mappings.new` (and any other query mappings) for `find_files`, `grep` and `pick`, so creating a new note from the typed query (e.g. `<C-x>`) works on par with the telescope/fzf integrations.
+- Respect `frontmatter.sort` for notes that already have frontmatter (the parsed key order was silently overwriting the configured sort). Closes #818.
+- Skip empty list items in `tags`/`aliases` frontmatter validators so template placeholders no longer surface as `vim.NIL` validation errors. Refs #801.
+- Preserve template frontmatter when `frontmatter.enabled = false` (the strip+merge round-trip previously dropped it because `update_frontmatter` short-circuits). Closes #801.
 
 ## [v3.16.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.3) - 2026-05-08
 
@@ -40,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set `opts.sync.configs = {}` to disable obsidian.nvim from racing to sync config with obsidian app using the same folder.
 - Removes unnecessary sync log messages.
 - Unique note creation through link gets a proper readable title instead of id.
+- Updated picker enum values to use correct module names and added picker configuration documentation in README.md.
 
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 

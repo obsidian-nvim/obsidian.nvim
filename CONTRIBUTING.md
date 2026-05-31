@@ -59,7 +59,11 @@ TL;DR: `make types`
 TL;DR: `make test`
 
 - Tests are written in the `tests/` folder and are run using [mini.test](https://github.com/echasnovski/mini.nvim/blob/main/readmes/mini-test.md). The make command will download the dependencies for you.
-  \_ For a reference of using mini.test, see [this guide](https://github.com/echasnovski/mini.nvim/blob/main/TESTING.md).
+  - For a reference of using mini.test, see [this guide](https://github.com/echasnovski/mini.nvim/blob/main/TESTING.md).
+- For async tests, use the helpers in `tests/helpers.lua`:
+  - `h.child_await(child, lua, { desc = "..." })` for callback-style child-Neovim async code.
+  - `h.child_wait(child, lua, { desc = "..." })` or focused helpers like `h.child_wait_for_buf_name()` for eventual child state.
+  - Avoid raw `vim.wait()` and fixed sleeps in tests; always wait for a specific condition with a timeout message.
 
 ### Building the vim user documentation
 
