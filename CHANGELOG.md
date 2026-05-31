@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSP completion replaces completion plugin based completion.
 - Frontmatter tag completion.
 - Unicode/CJK tag support across parsing, completion, and UI highlighting (e.g. `#café`, `#中文`).
+- Add `ignore_filters` to exclude directories completely from the plug-in.
 
 ### Changed
 
@@ -58,7 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Delete code_actions with `require"obsidian".code_action.del`.
 - `Note.create` accept a `title` field for readable name for note.
 - Refactor `Note.insert_text` with flattened and flexible opts for more-expressive configs
-- Add `ignore_filters` to exclude directories completely from the plug-in.
 
 ### Fixed
 
