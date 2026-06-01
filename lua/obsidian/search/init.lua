@@ -22,6 +22,15 @@ M.Patterns = {
   -- Tags
   TagCharsRequiredRg = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L}\p{N}_/-]*]],
   TagCharsOptionalRg = [[[\p{L}\p{N}_/-]*]],
+
+  -- Miscellaneous
+  Highlight = "==[^=]+==", -- ==text==
+
+  -- References
+  WikiWithAlias = "%[%[[^][%|]+%|[^%]]+%]%]", -- [[xxx|yyy]]
+  Wiki = "%[%[[^][%|]+%]%]", -- [[xxx]]
+  Markdown = "%[[^][]*%]%([^%)]+%)", -- [yyy](xxx)
+  BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
 }
 
 --- Find inline highlights

@@ -4,6 +4,7 @@ local search = obsidian.search
 local log = obsidian.log
 local api = obsidian.api
 local util = obsidian.util
+local attachment_rename = require "obsidian.lsp.handlers._rename_attachment"
 
 local M = require "obsidian.lsp.handlers._rename"
 
@@ -35,9 +36,16 @@ return function(params, handler, _)
   if cur_link then
     local loc = util.parse_link(cur_link)
     assert(loc, "wrong link format")
+
+    local attachment_path = attachment_rename.resolve_link(loc)
+    if attachment_path then
+      return attachment_rename.rename(attachment_path, new_name, handler)
+    end
+
     local stripped = util.strip_anchor_links(loc)
     stripped = util.strip_block_links(stripped)
     loc = stripped ~= "" and stripped or loc
+
     search.resolve_note_async(loc, function(notes)
       -- TODO: pick note
       if vim.tbl_isempty(notes) then
