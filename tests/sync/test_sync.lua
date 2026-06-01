@@ -1,5 +1,6 @@
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local Path = require "obsidian.path"
+local api = require "obsidian.api"
 local client = require "obsidian.sync.client"
 local sync = require "obsidian.sync"
 local status = require "obsidian.sync.status"
@@ -121,6 +122,108 @@ T["client.list_remote parsing"]["should return empty on nil stdout"] = function(
   eq(0, #remotes)
 
   client.run = orig_run
+end
+
+T["client.run auth handling"] = new_set()
+
+T["client.run auth handling"]["should prompt login only for actual login errors"] = function()
+  local orig_cli = rawget(client, "cli")
+  local orig_confirm = api.confirm
+  local orig_login = client.login
+  local calls = 0
+  local confirms = 0
+  local logins = 0
+
+  client.cli = {
+    run_sync = function()
+      calls = calls + 1
+      if calls == 1 then
+        return { code = 2, stdout = "", stderr = 'No account logged in. Run "ob login" first.' }
+      end
+      return { code = 0, stdout = "ok", stderr = "" }
+    end,
+  }
+  api.confirm = function()
+    confirms = confirms + 1
+    return "Yes"
+  end
+  client.login = function()
+    logins = logins + 1
+    return true
+  end
+
+  local out = client.run("sync-list-remote", {})
+  eq(0, out.code)
+  eq(2, calls)
+  eq(1, confirms)
+  eq(1, logins)
+
+  client.cli = orig_cli
+  api.confirm = orig_confirm
+  client.login = orig_login
+end
+
+T["client.run auth handling"]["should not prompt login for password validation errors"] = function()
+  local orig_cli = rawget(client, "cli")
+  local orig_confirm = api.confirm
+  local orig_login = client.login
+  local calls = 0
+  local confirms = 0
+
+  client.cli = {
+    run_sync = function()
+      calls = calls + 1
+      return { code = 2, stdout = "", stderr = "Failed to validate password." }
+    end,
+  }
+  api.confirm = function()
+    confirms = confirms + 1
+    return "Yes"
+  end
+  client.login = function()
+    error "login should not be called"
+  end
+
+  local out = client.run("sync-setup", {})
+  eq(2, out.code)
+  eq(1, calls)
+  eq(0, confirms)
+
+  client.cli = orig_cli
+  api.confirm = orig_confirm
+  client.login = orig_login
+end
+
+T["client.setup"] = new_set()
+
+T["client.setup"]["should retry password validation failures with an E2E password"] = function()
+  local orig_run = client.run
+  local orig_inputsecret = vim.fn.inputsecret
+  local calls = {}
+
+  client.run = function(subcmd, flags)
+    table.insert(calls, { subcmd = subcmd, flags = vim.deepcopy(flags) })
+    if #calls == 1 then
+      return { code = 2, stdout = "", stderr = "Failed to validate password." }
+    end
+    return { code = 0, stdout = "ok", stderr = "" }
+  end
+  vim.fn.inputsecret = function(prompt)
+    eq("End-to-end encryption password: ", prompt)
+    return "vault-password"
+  end
+
+  local out = client.setup("abc123", "/home/user/vault")
+  eq(0, out.code)
+  eq(2, #calls)
+  eq("sync-setup", calls[1].subcmd)
+  eq("abc123", calls[1].flags.vault)
+  eq("/home/user/vault", calls[1].flags.path)
+  eq(nil, calls[1].flags.password)
+  eq("vault-password", calls[2].flags.password)
+
+  client.run = orig_run
+  vim.fn.inputsecret = orig_inputsecret
 end
 
 T["manage.build_linked_map"] = new_set()
