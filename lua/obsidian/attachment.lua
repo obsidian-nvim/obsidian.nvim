@@ -44,6 +44,7 @@ M.filetypes = filetypes
 ---@param location string
 ---@return boolean
 M.is_attachment_path = function(location)
+  location = location:lower()
   if vim.endswith(location, ".md") then
     return false
   end
@@ -53,6 +54,80 @@ M.is_attachment_path = function(location)
     end
   end
   return false
+end
+
+---Checks if a path points to an existing attachment file.
+---
+---@param path string|obsidian.Path
+---@return boolean
+M.is_attachment_file = function(path)
+  if not M.is_attachment_path(tostring(path)) then
+    return false
+  end
+  local stat = vim.uv.fs_stat(tostring(path))
+  return stat ~= nil and stat.type == "file"
+end
+
+---Resolve an attachment link location to a full path if it points to a valid attachment file.
+---
+---@param location string
+---@param opts { bufnr: integer|?, source_path: string|obsidian.Path|? }|?
+---@return string|?
+M.resolve_attachment_link = function(location, opts)
+  local Path = require "obsidian.path"
+  opts = opts or {}
+  location = vim.uri_decode(vim.trim(location))
+  location = util.strip_block_links(location)
+  location = util.strip_anchor_links(location)
+
+  local is_uri, scheme = util.is_uri(location)
+  if is_uri then
+    if scheme ~= "file" then
+      return nil
+    end
+    local path = vim.uri_to_fname(location)
+    return M.is_attachment_file(path) and tostring(Path.new(path):resolve()) or nil
+  end
+
+  local candidates = {}
+  local seen = {}
+
+  ---@param path string|obsidian.Path|?
+  local function add_candidate(path)
+    if not path then
+      return
+    end
+    local resolved = Path.new(path):resolve()
+    local key = tostring(resolved)
+    if seen[key] then
+      return
+    end
+    seen[key] = true
+    candidates[#candidates + 1] = resolved
+  end
+
+  local location_path = Path.new(location)
+  if vim.startswith(location, "/") then
+    add_candidate(Obsidian.dir / location:sub(2))
+  end
+
+  if location_path:is_absolute() then
+    add_candidate(location_path)
+  else
+    local source_path = opts.source_path or vim.api.nvim_buf_get_name(opts.bufnr or 0)
+    if source_path and source_path ~= "" then
+      add_candidate(Path.new(vim.fs.dirname(tostring(source_path))) / location)
+    end
+
+    add_candidate(Obsidian.dir / location)
+    add_candidate(M.resolve_attachment_path(location, opts.bufnr))
+  end
+
+  for _, candidate in ipairs(candidates) do
+    if M.is_attachment_file(candidate) then
+      return tostring(candidate)
+    end
+  end
 end
 
 --- Resolve a basename to full path inside the vault.

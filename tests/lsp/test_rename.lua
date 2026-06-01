@@ -254,4 +254,49 @@ T["rename note with markdown link reference"] = function()
   eq(true, md_ref_result:find "%[Note B%]%(renamed%-note%.md%)" ~= nil, "Link should be updated to renamed-note.md")
 end
 
+T["rename attachment under cursor"] = function()
+  local root = child.Obsidian.dir
+  local attachments = root / "attachments"
+  attachments:mkdir()
+
+  local files = h.mock_vault_contents(root, {
+    ["note.md"] = "![[old.png]]",
+    ["attachments/old.png"] = "png",
+  })
+  local new_path = attachments / "new.png"
+
+  child.cmd("edit " .. files["note.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+
+  rename "new.png"
+  h.child_wait_for_path(child, new_path)
+  child.cmd "wa"
+
+  eq(true, new_path:exists())
+  eq(false, (attachments / "old.png"):exists())
+  eq("---\nid: note\naliases: []\ntags: []\n---\n![[new.png]]", table.concat(h.read(files["note.md"]), "\n"))
+end
+
+T["rename attachment updates markdown link text"] = function()
+  local root = child.Obsidian.dir
+  local attachments = root / "attachments"
+  attachments:mkdir()
+
+  local files = h.mock_vault_contents(root, {
+    ["note.md"] = "[old.pdf](old.pdf)",
+    ["attachments/old.pdf"] = "pdf",
+  })
+  local new_path = attachments / "new.pdf"
+
+  child.cmd("edit " .. files["note.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+
+  rename "new.pdf"
+  h.child_wait_for_path(child, new_path)
+  child.cmd "wa"
+
+  eq(true, new_path:exists())
+  eq("---\nid: note\naliases: []\ntags: []\n---\n[new.pdf](new.pdf)", table.concat(h.read(files["note.md"]), "\n"))
+end
+
 return T

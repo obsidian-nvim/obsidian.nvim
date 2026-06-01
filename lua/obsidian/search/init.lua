@@ -33,7 +33,7 @@ M.Patterns = {
   -- References
   WikiWithAlias = "%[%[[^][%|]+%|[^%]]+%]%]", -- [[xxx|yyy]]
   Wiki = "%[%[[^][%|]+%]%]", -- [[xxx]]
-  Markdown = "%[[^][]+%]%([^%)]+%)", -- [yyy](xxx)
+  Markdown = "%[[^][]*%]%([^%)]+%)", -- [yyy](xxx)
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
 }
 
