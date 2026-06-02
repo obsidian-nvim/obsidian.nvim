@@ -31,7 +31,7 @@ T["initialized dynamically registers markdown watcher"] = function()
   )
 end
 
-T["didChangeWatchedFiles normalizes create and rename events"] = function()
+T["didChangeWatchedFiles emits LSP create and delete events"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.did_change_watched_files"
     local results = {}
@@ -64,26 +64,25 @@ T["didChangeWatchedFiles normalizes create and rename events"] = function()
 
     _G.result_1 = results[1]
     _G.result_2 = results[2]
+    _G.result_3 = results[3]
   ]]
 
-  eq("renamed", child.lua_get "result_1.type")
-  eq("/tmp/old.md", child.lua_get "result_1.old_path")
-  eq(vim.uri_from_fname "/tmp/old.md", child.lua_get "result_1.old_uri")
-  eq("/tmp/new.md", child.lua_get "result_1.new_path")
-  eq(vim.uri_from_fname "/tmp/new.md", child.lua_get "result_1.new_uri")
-  eq("created", child.lua_get "result_2.type")
-  eq("/tmp/fresh.md", child.lua_get "result_2.path")
-  eq(vim.uri_from_fname "/tmp/fresh.md", child.lua_get "result_2.uri")
+  eq(vim.lsp.protocol.FileChangeType.Deleted, child.lua_get "result_1.type")
+  eq(vim.uri_from_fname "/tmp/old.md", child.lua_get "result_1.uri")
+  eq(vim.lsp.protocol.FileChangeType.Created, child.lua_get "result_2.type")
+  eq(vim.uri_from_fname "/tmp/new.md", child.lua_get "result_2.uri")
+  eq(vim.lsp.protocol.FileChangeType.Created, child.lua_get "result_3.type")
+  eq(vim.uri_from_fname "/tmp/fresh.md", child.lua_get "result_3.uri")
 end
 
-T["watchfiles dispatches normalized events to registered handlers"] = function()
+T["watchfiles dispatches LSP events to registered handlers"] = function()
   child.lua [[
     local watchfiles = require "obsidian.lsp.watchfiles"
     local changed_uri = vim.uri_from_fname "/tmp/watch.md"
 
     watchfiles.register_handler(function(events, raw_changes)
       _G.received_event_type = events[1].type
-      _G.received_event_path = events[1].path
+      _G.received_event_uri = events[1].uri
       _G.received_raw_uri = raw_changes[1].uri
     end)
 
@@ -95,13 +94,13 @@ T["watchfiles dispatches normalized events to registered handlers"] = function()
     }
 
     _G.returned_event_type = events[1].type
-    _G.returned_event_path = events[1].path
+    _G.returned_event_uri = events[1].uri
   ]]
 
-  eq("changed", child.lua_get "returned_event_type")
-  eq("/tmp/watch.md", child.lua_get "returned_event_path")
-  eq("changed", child.lua_get "received_event_type")
-  eq("/tmp/watch.md", child.lua_get "received_event_path")
+  eq(vim.lsp.protocol.FileChangeType.Changed, child.lua_get "returned_event_type")
+  eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "returned_event_uri")
+  eq(vim.lsp.protocol.FileChangeType.Changed, child.lua_get "received_event_type")
+  eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_event_uri")
   eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_raw_uri")
 end
 
