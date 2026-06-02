@@ -722,7 +722,7 @@ M.insert_template = function(template_name)
     }
   end
 
-  Obsidian.picker.pick(entries, {
+  picker.pick(entries, {
     callback = function(entry)
       insert_template(entry.filename)
     end,
@@ -772,7 +772,7 @@ local function pick_folder(callback)
     end
   end
 
-  Obsidian.picker.pick(choices, {
+  picker.pick(choices, {
     callback = function(entry)
       callback(entry.filename, entry.text)
     end,
@@ -831,7 +831,7 @@ M.merge_note = function(dst_note)
   if dst_note then
     merge_note(dst_note)
   else
-    Obsidian.picker.find_notes {
+    picker.find_notes {
       callback = function(path)
         local note = Note.from_file(path)
         merge_note(note)
