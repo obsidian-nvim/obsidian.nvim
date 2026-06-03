@@ -113,6 +113,33 @@ abcdef0123456789 Vault One
   client.run = orig_run
 end
 
+T["client.list_remote parsing"]["should parse obsidian-headless output"] = function()
+  client.invalidate_vaults_cache()
+  local stdout = [[
+Fetching vaults...
+
+Vaults:
+  abcdef0123456789  "Vault One"  (us-east)
+
+Shared vaults:
+  123456789abcdef0  "Shared Vault"  (eu)
+]]
+
+  local orig_run = client.run
+  client.run = function()
+    return { code = 0, stdout = stdout, stderr = "" }
+  end
+
+  local remotes = client.list_remote()
+  eq(2, #remotes)
+  eq("abcdef0123456789", remotes[1].hash)
+  eq("Vault One", remotes[1].name)
+  eq("123456789abcdef0", remotes[2].hash)
+  eq("Shared Vault", remotes[2].name)
+
+  client.run = orig_run
+end
+
 T["client.list_remote parsing"]["should return empty on nil stdout"] = function()
   client.invalidate_vaults_cache()
   local orig_run = client.run
@@ -122,6 +149,23 @@ T["client.list_remote parsing"]["should return empty on nil stdout"] = function(
 
   local remotes = client.list_remote()
   eq(0, #remotes)
+
+  client.run = orig_run
+end
+
+T["client.list_remote parsing"]["should cache remote vaults"] = function()
+  client.invalidate_vaults_cache()
+  local calls = 0
+  local orig_run = client.run
+  client.run = function()
+    calls = calls + 1
+    return { code = 0, stdout = "abcdef0123456789 Vault One", stderr = "" }
+  end
+
+  local remotes = client.list_remote()
+  local cached = client.list_remote()
+  eq(1, calls)
+  eq(remotes, cached)
 
   client.run = orig_run
 end
