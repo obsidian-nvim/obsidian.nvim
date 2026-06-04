@@ -45,6 +45,7 @@ local ns = vim.api.nvim_create_namespace "obsidian.image"
 ---@field rendered table<string, obsidian.image.Rendered>
 ---@field timer uv.uv_timer_t?
 ---@field force? boolean
+---@field resized table<string, obsidian.image.Size>
 
 ---@type table<integer, obsidian.image.State>
 local states = {}
@@ -113,6 +114,9 @@ end
 ---@class obsidian.image.Size
 ---@field width integer
 ---@field height integer
+
+---@class obsidian.image.ResizeOpts
+---@field step? integer Number of terminal cells to add to, or subtract from, the image's largest dimension.
 
 ---@type table<string, obsidian.image.Size>
 local image_dims = {}
@@ -434,16 +438,20 @@ function renderers.inline(match, state)
     return nil
   end
 
-  local size = image_size_cells(match.path)
-  if size then
-    size = fit_size(size, image_bounds(match, state))
+  local resized = state.resized and state.resized[match.key]
+  local size = resized
+  if not size then
+    size = image_size_cells(match.path)
+    if size then
+      size = fit_size(size, image_bounds(match, state))
+    end
   end
 
   return {
     row = pos.row + 1,
     col = pos.col,
-    width = state.opts.width or (size and size.width),
-    height = state.opts.height or (size and size.height),
+    width = resized and resized.width or state.opts.width or (size and size.width),
+    height = resized and resized.height or state.opts.height or (size and size.height),
     zindex = state.opts.zindex,
   }
 end
@@ -612,6 +620,148 @@ local function schedule_refresh(state, force)
   )
 end
 
+---@param rendered obsidian.image.Rendered?
+---@param state obsidian.image.State
+---@param match obsidian.image.Match
+---@return obsidian.image.Size?
+local function rendered_size(rendered, state, match)
+  local opts = rendered and rendered.opts
+  if rendered and type(vim.ui.img.get) == "function" then
+    local ok, img_opts = pcall(vim.ui.img.get, rendered.id)
+    if ok and img_opts then
+      opts = img_opts
+    end
+  end
+
+  if not opts then
+    local renderer = renderers[state.opts.placement or "inline"]
+    opts = renderer and renderer(match, state)
+  end
+
+  if type(opts) ~= "table" then
+    return nil
+  end
+
+  local width = type(opts.width) == "number" and opts.width or nil
+  local height = type(opts.height) == "number" and opts.height or nil
+  if not (width and height) then
+    local size = image_size_cells(match.path)
+    if size then
+      if width then
+        height = math.max(1, math.floor((width * size.height) / size.width + 0.5))
+      elseif height then
+        width = math.max(1, math.floor((height * size.width) / size.height + 0.5))
+      else
+        size = fit_size(size, image_bounds(match, state))
+        width = size.width
+        height = size.height
+      end
+    end
+  end
+
+  if not (width and height) then
+    return nil
+  end
+
+  return {
+    width = math.max(1, math.floor(width + 0.5)),
+    height = math.max(1, math.floor(height + 0.5)),
+  }
+end
+
+---@param size obsidian.image.Size
+---@param delta integer
+---@return obsidian.image.Size
+local function resize_size(size, delta)
+  local largest = math.max(size.width, size.height)
+  local next_largest = math.max(1, largest + delta)
+  local scale = next_largest / largest
+
+  return {
+    width = math.max(1, math.floor(size.width * scale + 0.5)),
+    height = math.max(1, math.floor(size.height * scale + 0.5)),
+  }
+end
+
+---Resize the image under the cursor.
+---
+---The cursor must be on an image link/embed. Returns `true` if the image was resized.
+---@param delta integer Positive values grow the image, negative values shrink it.
+---@param opts obsidian.image.ResizeOpts|?
+---@param bufnr integer|?
+---@return boolean
+function M.resize_under_cursor(delta, opts, bufnr)
+  bufnr = bufnr or 0
+  bufnr = bufnr == 0 and vim.api.nvim_get_current_buf() or bufnr
+  local state = states[bufnr]
+  if not state or not M.supported() or delta == 0 then
+    return false
+  end
+  state.resized = state.resized or {}
+
+  local win = vim.api.nvim_get_current_win()
+  if not vim.api.nvim_win_is_valid(win) or vim.api.nvim_win_get_buf(win) ~= bufnr then
+    return false
+  end
+
+  local row, col = unpack(vim.api.nvim_win_get_cursor(win))
+  local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1]
+  if not line then
+    return false
+  end
+
+  ---@type obsidian.image.Match?
+  local cursor_match
+  for _, match in ipairs(find_line_images(line, row - 1, bufnr, state.opts, win)) do
+    if match.col <= col and col < match.end_col then
+      cursor_match = match
+      break
+    end
+  end
+  if not cursor_match then
+    return false
+  end
+
+  opts = opts or {}
+  local step = math.max(1, math.floor(tonumber(opts.step) or math.abs(delta)))
+  local signed_step = delta < 0 and -step or step
+  local rendered = state.rendered[cursor_match.key]
+  local size = rendered_size(rendered, state, cursor_match)
+  if not size then
+    return false
+  end
+
+  local next_size = resize_size(size, signed_step)
+  if next_size.width == size.width and next_size.height == size.height then
+    return false
+  end
+
+  local previous_size = state.resized[cursor_match.key]
+  state.resized[cursor_match.key] = next_size
+  local next_rendered = render_match(state, cursor_match, rendered)
+  if next_rendered then
+    state.rendered[cursor_match.key] = next_rendered
+    return true
+  end
+
+  state.resized[cursor_match.key] = previous_size
+  return false
+end
+
+---Make the image under the cursor bigger.
+---@param opts obsidian.image.ResizeOpts|?
+---@return boolean
+function M.increase_size(opts)
+  return M.resize_under_cursor(1, opts)
+end
+
+---Make the image under the cursor smaller.
+---@param opts obsidian.image.ResizeOpts|?
+---@return boolean
+function M.decrease_size(opts)
+  return M.resize_under_cursor(-1, opts)
+end
+
 ---@param bufnr integer|?
 ---@param opts obsidian.image.Opts|?
 function M.attach(bufnr, opts)
@@ -631,6 +781,7 @@ function M.attach(bufnr, opts)
     group = vim.api.nvim_create_augroup("obsidian.image." .. bufnr, { clear = true }),
     opts = normalize_opts(opts),
     rendered = {},
+    resized = {},
   }
   states[bufnr] = state
 

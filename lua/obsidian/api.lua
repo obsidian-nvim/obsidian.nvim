@@ -624,6 +624,20 @@ M.get_icon = function(path)
   return nil
 end
 
+---Make the image preview under the cursor bigger.
+---@param opts obsidian.image.ResizeOpts|?
+---@return boolean resized
+M.image_bigger = function(opts)
+  return require("obsidian.image").increase_size(opts)
+end
+
+---Make the image preview under the cursor smaller.
+---@param opts obsidian.image.ResizeOpts|?
+---@return boolean resized
+M.image_smaller = function(opts)
+  return require("obsidian.image").decrease_size(opts)
+end
+
 M.resolve_attachment_path = attachment.resolve_attachment_path
 M.resolve_image_path = attachment.resolve_attachment_path
 M.is_attachment_path = attachment.is_attachment_path

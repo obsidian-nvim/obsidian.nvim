@@ -17,6 +17,27 @@ require("obsidian").setup {
 }
 ```
 
+### Resize the image under the cursor
+
+Use `obsidian.api.image_bigger()` and `obsidian.api.image_smaller()` to resize the image preview whose link/embed is under the cursor. For example, map them like Vim's number increment/decrement keys:
+
+```lua
+vim.keymap.set("n", "<C-a>", function()
+  require("obsidian.api").image_bigger()
+end, { desc = "Obsidian image bigger" })
+
+vim.keymap.set("n", "<C-x>", function()
+  require("obsidian.api").image_smaller()
+end, { desc = "Obsidian image smaller" })
+```
+
+You can pass a larger step if desired:
+
+```lua
+require("obsidian.api").image_bigger { step = 5 }
+require("obsidian.api").image_smaller { step = 5 }
+```
+
 You can also keep using [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md). For proper image path resolving, add the following snippet to your snacks config; it will only affect markdown files in your vault:
 
 (_API could could change in the future_)
