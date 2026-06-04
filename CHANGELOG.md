@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `opts.file.ignore_filters` to exclude directories completely from the plug-in.
+
+## [v3.16.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.4) - 2026-06-03
+
+### Added
+
 - Update link in buffer when creating a new note via `follow_link`.
 - Minimal `.base` support, definition, references and quick_switch will work.
 - Proper resolve `.base` file only with explicit suffix.
@@ -22,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSP completion replaces completion plugin based completion.
 - Frontmatter tag completion.
 - Unicode/CJK tag support across parsing, completion, and UI highlighting (e.g. `#café`, `#中文`).
-- Add `ignore_filters` to exclude directories completely from the plug-in.
+- Sync supports End-to-end encryption password.
 
 ### Changed
 
@@ -41,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Respect `frontmatter.sort` for notes that already have frontmatter (the parsed key order was silently overwriting the configured sort). Closes #818.
 - Skip empty list items in `tags`/`aliases` frontmatter validators so template placeholders no longer surface as `vim.NIL` validation errors. Refs #801.
 - Preserve template frontmatter when `frontmatter.enabled = false` (the strip+merge round-trip previously dropped it because `update_frontmatter` short-circuits). Closes #801.
+- Sync by default syncs core plugin settings and data for bookmarks and future compatibility support.
 
 ## [v3.16.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.3) - 2026-05-08
 

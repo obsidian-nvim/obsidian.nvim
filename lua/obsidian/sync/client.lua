@@ -78,6 +78,36 @@ end
 
 local cmd, cli
 
+---@param out vim.SystemCompleted|nil
+---@return string
+local function output_text(out)
+  if not out then
+    return ""
+  end
+  return table.concat({ out.stderr or "", out.stdout or "" }, "\n")
+end
+
+---@param out vim.SystemCompleted|nil
+---@return boolean
+local function is_not_logged_in(out)
+  if not out or out.code ~= 2 then
+    return false
+  end
+
+  local text = output_text(out):lower()
+  return text:find("no account logged in", 1, true) ~= nil or text:find('run "ob login" first', 1, true) ~= nil
+end
+
+---@param out vim.SystemCompleted|nil
+---@return boolean
+local function is_password_validation_error(out)
+  if not out or out.code ~= 2 then
+    return false
+  end
+
+  return output_text(out):lower():find("failed to validate password", 1, true) ~= nil
+end
+
 setmetatable(M, {
   __index = function(_, k)
     if k == "cmd" then
@@ -105,7 +135,7 @@ function M.run(subcmd, flags)
   end
 
   local out = M.cli:run_sync(subcmd, flags)
-  if out.code == 2 then
+  if is_not_logged_in(out) then
     if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
       local success = M.login()
       if success then
@@ -136,7 +166,7 @@ function M.run_async(subcmd, flags, sys_opts, callback, opts)
     flags,
     sys_opts,
     vim.schedule_wrap(function(out)
-      if out.code == 2 then
+      if is_not_logged_in(out) then
         if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
           local success = M.login()
           if success then
@@ -197,9 +227,24 @@ M.invalidate_vaults_cache = invalidate_cache
 
 ---@param vault string  -- vault id or name
 ---@param path string
+---@param opts { password?: string, prompt_password?: boolean }?
 ---@return vim.SystemCompleted|nil
-function M.setup(vault, path)
-  local out = M.run("sync-setup", { vault = vault, path = path })
+function M.setup(vault, path, opts)
+  opts = opts or {}
+  local args = { vault = vault, path = path }
+  if opts.password and opts.password ~= "" then
+    args.password = opts.password
+  end
+
+  local out = M.run("sync-setup", args)
+  if is_password_validation_error(out) and opts.prompt_password ~= false and not args.password then
+    local password = vim.fn.inputsecret "End-to-end encryption password: "
+    if password and password ~= "" then
+      args.password = password
+      out = M.run("sync-setup", args)
+    end
+  end
+
   if out and out.code == 0 then
     invalidate_cache()
     log.info "Vault configured successfully!"
