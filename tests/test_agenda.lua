@@ -58,15 +58,44 @@ T["integration"]["custom get_items can finish asynchronously"] = function()
   eq(true, lines:find "Async task" ~= nil)
 end
 
-T["integration"]["opens default file agenda"] = function()
+T["integration"]["opens default file agenda in quickfix"] = function()
   local agenda = require "obsidian.agenda"
   h.write("- [ ] No date", Obsidian.dir / "agenda.md")
   agenda.open { view = "todo" }
   vim.wait(1000, function()
-    return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n"):find "No date" ~= nil
+    return vim.fn.getqflist({ title = 0 }).title == "Obsidian Agenda: Todo"
   end)
-  local lines = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-  eq(true, lines:find "No date" ~= nil)
+  local qf = vim.fn.getqflist { items = 0, title = 0 }
+  eq("Obsidian Agenda: Todo", qf.title)
+  eq("No date", qf.items[1].text:match "No date")
+  eq(
+    vim.fs.normalize(tostring((Obsidian.dir / "agenda.md"):resolve())),
+    vim.fs.normalize(vim.api.nvim_buf_get_name(qf.items[1].bufnr))
+  )
+end
+
+T["integration"]["buffer renderer remains available"] = function()
+  local agenda = require "obsidian.agenda"
+  Obsidian.opts.agenda.ui.renderer = "buffer"
+  h.write("- [ ] Buffer task", Obsidian.dir / "agenda.md")
+  local bufnr = agenda.open { view = "todo" }
+  vim.wait(1000, function()
+    return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n"):find "Buffer task" ~= nil
+  end)
+  eq("obsidian-agenda", vim.bo[bufnr].filetype)
+end
+
+T["integration"]["task.resolve uses agenda file by default and allows path override"] = function()
+  local agenda = require "obsidian.agenda"
+  local default_item = agenda.task.resolve { title = "Default target" }
+  eq(vim.fs.normalize(tostring((Obsidian.dir / "agenda.md"):resolve())), vim.fs.normalize(default_item.path))
+  eq(1, default_item.lnum)
+
+  local override_item = agenda.task.resolve({ title = "Override target", path = "other.md", lnum = 7 }, {
+    default_path = Obsidian.dir / "agenda.md",
+  })
+  eq(vim.fs.normalize(tostring((Obsidian.dir / "other.md"):resolve())), vim.fs.normalize(override_item.path))
+  eq(7, override_item.lnum)
 end
 
 return T

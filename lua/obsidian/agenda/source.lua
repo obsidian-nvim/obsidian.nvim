@@ -1,11 +1,14 @@
 local Path = require "obsidian.path"
 local parser = require "obsidian.agenda.parser"
+local task = require "obsidian.agenda.task"
 
 local M = {}
 
 ---@param item obsidian.agenda.Item
+---@param default_path obsidian.Path
 ---@return obsidian.agenda.Item
-local function normalize_item(item)
+local function normalize_item(item, default_path)
+  task.resolve(item, { default_path = default_path })
   item.status = item.status or "todo"
   item.tags = item.tags or {}
   item.metadata = item.metadata or {}
@@ -18,9 +21,10 @@ end
 ---@return obsidian.agenda.Item[]
 M.normalize_items = function(items)
   local out = {}
+  local default_path = M.default_file()
   for _, item in ipairs(items or {}) do
     if item.title and item.title ~= "" then
-      out[#out + 1] = normalize_item(item)
+      out[#out + 1] = normalize_item(item, default_path)
     end
   end
   return out
@@ -40,6 +44,7 @@ end
 ---@field parse_lines fun(lines: string[], opts: table|?): obsidian.agenda.Item[]
 ---@field parse_markdown_file fun(path: string|obsidian.Path, opts: table|?): obsidian.agenda.Item[]
 ---@field default_file fun(): obsidian.Path
+---@field task { resolve: fun(item: obsidian.agenda.Item|table, opts: table|?): obsidian.agenda.Item }
 
 ---@return obsidian.agenda.SourceContext
 M.context = function()
@@ -47,6 +52,7 @@ M.context = function()
     parse_lines = parser.parse_lines,
     parse_markdown_file = parser.parse_file,
     default_file = M.default_file,
+    task = task,
   }
 end
 

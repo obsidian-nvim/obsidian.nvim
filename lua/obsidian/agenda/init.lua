@@ -8,6 +8,7 @@ local M = {}
 M.parser = require "obsidian.agenda.parser"
 M.dates = dates
 M.source = source
+M.task = require "obsidian.agenda.task"
 M.views = views
 
 local request_id = 0
@@ -29,7 +30,13 @@ M.open = function(opts)
     return 0
   end
 
-  local renderer = require "obsidian.agenda.renderers.buffer"
+  local ui = Obsidian.opts.agenda.ui or {}
+  local renderer_name = ui.renderer or "quickfix"
+  local ok_renderer, renderer = pcall(require, "obsidian.agenda.renderers." .. renderer_name)
+  if not ok_renderer then
+    log.err("Unknown agenda renderer: " .. tostring(renderer_name))
+    return 0
+  end
   local state = {
     view_name = view_name,
     base_date = opts.date or os.time(),

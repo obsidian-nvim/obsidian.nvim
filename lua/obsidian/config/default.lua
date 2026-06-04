@@ -153,7 +153,7 @@ return {
   ---@field get_items? fun(ctx: obsidian.agenda.SourceContext, done: fun(items: obsidian.agenda.Item[]|nil, err: string|nil)): obsidian.agenda.Item[]|any
   ---@field date_format? string
   ---@field views? table<string, obsidian.config.AgendaViewOpts>
-  ---@field ui? table
+  ---@field ui? { renderer?: "quickfix"|"buffer", open_strategy?: string, mappings?: table }
   agenda = {
     enabled = true,
     file = "agenda.md",
@@ -187,7 +187,7 @@ return {
       },
     },
     ui = {
-      renderer = "buffer",
+      renderer = "quickfix",
       open_strategy = "current",
       mappings = {
         open = "<CR>",
