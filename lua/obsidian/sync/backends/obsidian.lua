@@ -197,8 +197,8 @@ end
 
 ---@param workspace obsidian.Workspace
 function M.setup(workspace)
-  local local_vaults = client.list_local()
-  local remotes = client.list_remote()
+  local local_vaults = client.list_local(false)
+  local remotes = client.list_remote(false)
   select_remote(workspace, remotes, local_vaults)
 end
 

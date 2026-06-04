@@ -187,6 +187,8 @@ function M.run_async(subcmd, flags, sys_opts, callback, opts)
   )
 end
 
+local invalidate_cache
+
 ---@param email string|?
 ---@param password string|?
 ---@return boolean
@@ -202,6 +204,7 @@ function M.login(email, password)
   local out = M.run("login", { email = email, password = password })
 
   if out ~= nil and out.code == 0 then
+    invalidate_cache()
     log.info "Login successful!"
     return true
   else
@@ -218,7 +221,7 @@ M._local_vaults_cache = _local_vaults_cache
 ---@type obsidian.sync.RemoteVault[]|nil
 local _remote_vaults_cache = nil
 
-local function invalidate_cache()
+invalidate_cache = function()
   _local_vaults_cache = nil
   _remote_vaults_cache = nil
 end
@@ -353,6 +356,7 @@ function M.create_remote(name, opts)
   local out = M.run("sync-create-remote", args)
   if out and out.code == 0 and out.stdout then
     local vault_id = out.stdout:match "[Vv]ault ID:%s*([0-9a-fA-F]+)"
+    invalidate_cache()
     return { hash = assert(vault_id, "failed to parse sync-create-remote result"), name = name }
   end
 end
@@ -390,7 +394,11 @@ end
 
 ---@return vim.SystemCompleted|nil
 function M.logout()
-  return M.run("logout", {})
+  local out = M.run("logout", {})
+  if out and out.code == 0 then
+    invalidate_cache()
+  end
+  return out
 end
 
 ---@param path string?
