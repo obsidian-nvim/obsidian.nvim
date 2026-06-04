@@ -11,7 +11,7 @@ Open an orgmode-like agenda view for markdown checkbox tasks.
 :Obsidian agenda todo
 ```
 
-By default tasks are read from `agenda.md` in the vault root.
+By default tasks are read from `agenda.md` in the vault root and displayed in the quickfix list.
 
 ```md
 - [ ] Pay rent @due(2026-06-01) #home
@@ -42,6 +42,10 @@ require("obsidian").setup {
   agenda = {
     file = "agenda.md",
     default_view = "week",
+    ui = {
+      -- "quickfix" (default) or "buffer"
+      renderer = "quickfix",
+    },
   },
 }
 ```
@@ -64,7 +68,9 @@ require("obsidian").setup {
 }
 ```
 
-Each item may provide custom actions:
+Custom sources can return items with `path`/`filename`, `lnum`, and `col` to control the quickfix target. Missing paths resolve to `agenda.file`; set `path` to override it. You can also call `ctx.task.resolve(item, { default_path = ... })` (or `require("obsidian.agenda").task.resolve(item)`) yourself when building items.
+
+Each item may provide custom actions when using the `buffer` renderer:
 
 ```lua
 {
