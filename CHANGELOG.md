@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `opts.file.ignore_filters` to exclude directories completely from the plug-in.
+- Sync supports switching backend and one shot sync on file write
+  - `opts.sync.backend` -> `obsidian` / `git` (WIP)
+  - `opts.sync.trigger` -> `continuous` / `on_write` / `manual`
+  - `vim.g.obsidian_sync_on_write_debounce_ms` for `on_write` defaults to 2000 (experimental value, override in `post_setup` callback)
 
 ## [v3.16.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.4) - 2026-06-03
 

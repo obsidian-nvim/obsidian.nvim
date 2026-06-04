@@ -168,7 +168,7 @@ Workspace.set = function(workspace)
       pcall(sync.pause, previous_workspace, { silent = true })
     end
 
-    if sync.is_configured(workspace) then
+    if (options.sync.trigger or "continuous") == "continuous" and sync.is_configured(workspace) then
       sync.start(workspace, { silent = true })
     end
   end

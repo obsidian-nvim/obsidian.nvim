@@ -128,3 +128,25 @@ vim.api.nvim_create_autocmd("User", {
     util.fire_callback("pre_write_note", Obsidian.opts.callbacks.pre_write_note, Note.from_buffer(ev.buf))
   end,
 })
+
+-- One-shot sync trigger on buffer write.
+vim.api.nvim_create_autocmd("User", {
+  group = group,
+  pattern = "ObsidianNoteWritePost",
+  callback = function(ev)
+    local sync_opts = Obsidian.opts.sync
+    if not sync_opts or not sync_opts.enabled or sync_opts.trigger ~= "on_write" then
+      return
+    end
+    local fname = vim.api.nvim_buf_get_name(ev.buf or 0)
+    local ws = api.find_workspace(fname)
+    if not ws then
+      return
+    end
+    local sync = require "obsidian.sync"
+    if not sync.is_configured(ws) then
+      return
+    end
+    sync.sync_once_debounced(ws)
+  end,
+})

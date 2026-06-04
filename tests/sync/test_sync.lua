@@ -91,6 +91,7 @@ end
 T["client.list_remote parsing"] = new_set()
 
 T["client.list_remote parsing"]["should parse remote vault list"] = function()
+  client.invalidate_vaults_cache()
   local stdout = [[
 abcdef0123456789 Vault One
 123456789abcdef0 My Other Vault
@@ -113,6 +114,7 @@ abcdef0123456789 Vault One
 end
 
 T["client.list_remote parsing"]["should return empty on nil stdout"] = function()
+  client.invalidate_vaults_cache()
   local orig_run = client.run
   client.run = function()
     return { code = 0, stdout = nil, stderr = "" }
@@ -226,10 +228,10 @@ T["client.setup"]["should retry password validation failures with an E2E passwor
   vim.fn.inputsecret = orig_inputsecret
 end
 
-T["manage.build_linked_map"] = new_set()
+T["obsidian_backend.build_linked_map"] = new_set()
 
-T["manage.build_linked_map"]["should map local vaults to remote names"] = function()
-  local manage = require "obsidian.sync.manage"
+T["obsidian_backend.build_linked_map"]["should map local vaults to remote names"] = function()
+  local backend = require "obsidian.sync.backends.obsidian"
 
   local local_vaults = {
     ["/home/user/vault1"] = { hash = "abc123", host = "desktop" },
@@ -241,13 +243,13 @@ T["manage.build_linked_map"]["should map local vaults to remote names"] = functi
     { hash = "def456", name = "Work Vault" },
   }
 
-  local linked = manage.build_linked_map(local_vaults, remotes)
+  local linked = backend.build_linked_map(local_vaults, remotes)
   eq("Main Vault", linked["/home/user/vault1"])
   eq("Work Vault", linked["/home/user/vault2"])
 end
 
-T["manage.build_linked_map"]["should use hash when remote not found"] = function()
-  local manage = require "obsidian.sync.manage"
+T["obsidian_backend.build_linked_map"]["should use hash when remote not found"] = function()
+  local backend = require "obsidian.sync.backends.obsidian"
 
   local local_vaults = {
     ["/home/user/vault1"] = { hash = "abc123", host = "desktop" },
@@ -258,36 +260,36 @@ T["manage.build_linked_map"]["should use hash when remote not found"] = function
     { hash = "abc123", name = "Main Vault" },
   }
 
-  local linked = manage.build_linked_map(local_vaults, remotes)
+  local linked = backend.build_linked_map(local_vaults, remotes)
   eq("Main Vault", linked["/home/user/vault1"])
   eq("xyz999", linked["/home/user/vault2"])
 end
 
-T["manage.build_linked_map"]["should handle empty remotes"] = function()
-  local manage = require "obsidian.sync.manage"
+T["obsidian_backend.build_linked_map"]["should handle empty remotes"] = function()
+  local backend = require "obsidian.sync.backends.obsidian"
 
   local local_vaults = {
     ["/home/user/vault"] = { hash = "abc123", host = "desktop" },
   }
 
-  local linked = manage.build_linked_map(local_vaults, {})
+  local linked = backend.build_linked_map(local_vaults, {})
   eq("abc123", linked["/home/user/vault"])
 end
 
-T["manage.build_linked_map"]["should handle nil remotes"] = function()
-  local manage = require "obsidian.sync.manage"
+T["obsidian_backend.build_linked_map"]["should handle nil remotes"] = function()
+  local backend = require "obsidian.sync.backends.obsidian"
 
   local local_vaults = {
     ["/home/user/vault"] = { hash = "abc123", host = "desktop" },
   }
 
-  local linked = manage.build_linked_map(local_vaults, nil)
+  local linked = backend.build_linked_map(local_vaults, nil)
   eq("abc123", linked["/home/user/vault"])
 end
 
-T["manage.build_linked_map"]["should handle empty local vaults"] = function()
-  local manage = require "obsidian.sync.manage"
-  local linked = manage.build_linked_map({}, {})
+T["obsidian_backend.build_linked_map"]["should handle empty local vaults"] = function()
+  local backend = require "obsidian.sync.backends.obsidian"
+  local linked = backend.build_linked_map({}, {})
   eq(0, #vim.tbl_keys(linked))
 end
 
