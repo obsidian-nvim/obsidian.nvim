@@ -327,9 +327,6 @@ return {
   --- - "manual": only sync via :Obsidian sync start or explicit calls.
   ---@field trigger? "continuous"|"on_write"|"manual"
   ---
-  ---Debounce window in ms for trigger="on_write". Defaults to 2000.
-  ---@field write_debounce_ms? integer
-  ---
   ---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
   ---@field mode? "bidirectional"|"pull-only"|"mirror-remote"
   ---
@@ -354,7 +351,6 @@ return {
     enabled = false,
     backend = "obsidian",
     trigger = "continuous",
-    write_debounce_ms = 2000,
     mode = nil,
     conflict_strategy = "merge",
     file_types = { "image", "audio", "video", "pdf", "unsupported" },

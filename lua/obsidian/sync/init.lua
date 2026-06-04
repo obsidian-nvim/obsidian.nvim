@@ -125,7 +125,7 @@ local debounce_timers = {}
 function M.sync_once_debounced(workspace)
   workspace = workspace or Obsidian.workspace
   local dir = tostring(workspace.root)
-  local delay = (Obsidian.opts.sync and Obsidian.opts.sync.write_debounce_ms) or 2000
+  local delay = vim.g.obsidian_sync_on_write_debounce_ms
 
   local prev = debounce_timers[dir]
   if prev then

@@ -89,6 +89,9 @@ obsidian.setup = function(user_opts)
   -- Set global client.
   obsidian._client = client
 
+  -- experimental values don't want to expose, override in post_setup
+  vim.g.obsidian_sync_on_write_debounce_ms = 2000
+
   obsidian.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup)
 
   return client
