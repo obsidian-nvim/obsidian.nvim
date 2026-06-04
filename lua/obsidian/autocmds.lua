@@ -2,6 +2,7 @@ local api = require "obsidian.api"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
+local ignore = require "obsidian.ignore"
 local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
 -- wrapper for creating autocmd events
@@ -29,6 +30,11 @@ local function bufenter_callback(ev)
   -- Check if we're in *any* workspace.
   local workspace = api.find_workspace(ev.file)
   if not workspace then
+    return
+  end
+
+  -- Check if this file should be ignored based on file.ignore_filters.
+  if ignore.is_ignored(ev.file) then
     return
   end
 

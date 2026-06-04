@@ -27,6 +27,7 @@
 - [[Bookmarks]]
 - [[Checkbox]]
 - [[Daily-Notes]]
+- [[File]]
 - [[Footer]]
 - [[Frontmatter]]
 - [[Link]]

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Add `opts.file.ignore_filters` to exclude directories completely from the plug-in.
+
 ## [v3.16.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.4) - 2026-06-03
 
 ### Added

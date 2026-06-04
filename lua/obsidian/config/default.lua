@@ -57,6 +57,16 @@ return {
     end)(),
   },
 
+  ---@class obsidian.config.FileOpts
+  ---
+  --- A list of gitignore-style glob patterns to ignore files and directories.
+  --- Users should use simple gitignore style globs without modifiers,
+  --- and ripgrep compatibility is not guaranteed.
+  ---@field ignore_filters? string[]
+  file = {
+    ignore_filters = {},
+  },
+
   ---@class obsidian.config.FrontmatterOpts
   ---
   --- Whether to enable frontmatter, boolean for global on/off, or a function that takes filename and returns boolean.

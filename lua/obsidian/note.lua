@@ -18,6 +18,7 @@ local compat = require "obsidian.compat"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
+local ignore = require "obsidian.ignore"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
@@ -889,6 +890,10 @@ Note.should_save_frontmatter = function(self)
         return false
       end
     end
+  end
+
+  if ignore.is_ignored(tostring(self.path)) then
+    return false
   end
 
   local enabled = Obsidian.opts.frontmatter.enabled
