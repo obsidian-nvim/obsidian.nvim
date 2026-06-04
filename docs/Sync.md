@@ -144,6 +144,16 @@ If you use neovim exclusively (no Obsidian desktop app), `configs = nil` is fine
 ---
 ---@field enabled? boolean
 ---
+---Which backend to use. Built-in: "obsidian" (obsidian-headless CLI).
+---Custom backends can be added with `require("obsidian.sync").register(name, backend)`.
+---@field backend? string
+---
+---When to run a sync.
+--- - "continuous": keep a long-running sync process (default for obsidian backend).
+--- - "on_write": run a one-shot sync (debounced) after each note save.
+--- - "manual": only sync via :Obsidian sync start or explicit calls.
+---@field trigger? "continuous"|"on_write"|"manual"
+---
 ---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
 ---@field mode? "bidirectional"|"pull-only"|"mirror-remote"
 ---
@@ -166,6 +176,8 @@ If you use neovim exclusively (no Obsidian desktop app), `configs = nil` is fine
 ---@field device_name? string
 sync = {
   enabled = false,
+  backend = "obsidian",
+  trigger = "continuous",
   mode = nil,
   conflict_strategy = "merge",
   file_types = { "image", "audio", "video", "pdf", "unsupported" },
