@@ -11,6 +11,8 @@ require("obsidian").setup {
     placement = "inline",
     width = nil,
     height = nil,
+    max_width = 80,
+    max_height = 40,
   },
 }
 ```
