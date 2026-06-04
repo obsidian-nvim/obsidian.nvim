@@ -40,6 +40,7 @@
 ---@field open_notes_in? obsidian.config.OpenStrategy
 ---@field ui? obsidian.config.UIOpts
 ---@field attachments? obsidian.config.AttachmentsOpts
+---@field image? obsidian.config.ImageOpts
 ---@field callbacks? obsidian.config.CallbackConfig
 ---@field legacy_commands? boolean
 ---@field statusline? obsidian.config.StatuslineOpts
@@ -71,6 +72,7 @@
 ---@field open_notes_in obsidian.config.OpenStrategy
 ---@field ui obsidian.config.UIOpts
 ---@field attachments obsidian.config.AttachmentsOpts
+---@field image obsidian.config.ImageOpts
 ---@field callbacks obsidian.config.CallbackConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts

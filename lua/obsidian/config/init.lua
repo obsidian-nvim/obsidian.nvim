@@ -310,6 +310,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.templates = tbl_override(defaults.templates, opts.templates)
   opts.ui = tbl_override(defaults.ui, opts.ui)
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
+  opts.image = tbl_override(defaults.image, opts.image)
   opts.statusline = tbl_override(defaults.statusline, opts.statusline)
   opts.footer = tbl_override(defaults.footer, opts.footer)
   opts.open = tbl_override(defaults.open, opts.open, { schemes = true })

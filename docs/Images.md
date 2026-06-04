@@ -1,8 +1,21 @@
 ## Inline Image viewing
 
-The only image viewing backend that is well tested and supported is [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md), and for extra info there's work being done that will give neovim an native [API rendering images](https://github.com/neovim/neovim/pull/31399), so eventually we will just move to that.
+obsidian.nvim renders inline PNG images by default when Neovim's native `vim.ui.img` API is supported. Images are attached when entering a note and refreshed after writing.
 
-For proper image path resolving, add the following snippet to your snacks config, it will only effect markdown files in your vault:
+You can disable or tune this in your obsidian.nvim config:
+
+```lua
+require("obsidian").setup {
+  image = {
+    enabled = true,
+    placement = "inline",
+    width = nil,
+    height = nil,
+  },
+}
+```
+
+You can also keep using [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md). For proper image path resolving, add the following snippet to your snacks config; it will only affect markdown files in your vault:
 
 (_API could could change in the future_)
 

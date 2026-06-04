@@ -80,4 +80,11 @@ T["normalize"]["should validate link.format"] = function()
   eq(true, tostring(err):match "Invalid 'link.format' option" ~= nil)
 end
 
+T["normalize"]["should enable inline images by default"] = function()
+  local opts = normalize {}
+
+  eq(true, opts.image.enabled)
+  eq("inline", opts.image.placement)
+end
+
 return T

@@ -71,6 +71,15 @@ local function bufenter_callback(ev)
     require("obsidian.footer").start(ev.buf)
   end
 
+  if opts.image and opts.image.enabled then
+    local image = require "obsidian.image"
+    if image.is_attached(ev.buf) then
+      image.refresh(ev.buf, true)
+    else
+      image.attach(ev.buf, opts.image)
+    end
+  end
+
   exec_autocmds "ObsidianNoteEnter"
 end
 
@@ -126,6 +135,24 @@ vim.api.nvim_create_autocmd("User", {
   pattern = "ObsidianNoteWritePre",
   callback = function(ev)
     util.fire_callback("pre_write_note", Obsidian.opts.callbacks.pre_write_note, Note.from_buffer(ev.buf))
+  end,
+})
+
+-- Refresh inline images on buffer write.
+vim.api.nvim_create_autocmd("User", {
+  group = group,
+  pattern = "ObsidianNoteWritePost",
+  callback = function(ev)
+    if not Obsidian.opts.image or not Obsidian.opts.image.enabled then
+      return
+    end
+
+    local image = require "obsidian.image"
+    if image.is_attached(ev.buf) then
+      image.refresh(ev.buf, true)
+    else
+      image.attach(ev.buf, Obsidian.opts.image)
+    end
   end,
 })
 

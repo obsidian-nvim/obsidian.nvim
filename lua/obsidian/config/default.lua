@@ -273,6 +273,13 @@ return {
     template = nil,
   },
 
+  ---@class obsidian.config.ImageOpts : obsidian.image.Opts
+  ---@field enabled? boolean
+  image = {
+    enabled = true,
+    placement = "inline",
+  },
+
   ---@class obsidian.config.AttachmentsOpts
   ---
   ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
