@@ -196,7 +196,7 @@ local function find_line_images(line, row, bufnr, opts, win)
       row = row,
       col = start_col,
       end_col = end_col,
-      key = table.concat({ win or 0, row, start_col, end_col, path }, ":"),
+      key = table.concat({ row, start_col, end_col, path }, ":"),
       win = win,
     }
   end
@@ -257,11 +257,17 @@ local function find_images(state)
 
   ---@type obsidian.image.Match[]
   local matches = {}
+  local seen = {}
   for _, win in ipairs(wins) do
     local start_row, end_row = visible_range(state.buf, state.opts, win)
     local lines = vim.api.nvim_buf_get_lines(state.buf, start_row, end_row, false)
     for i, line in ipairs(lines) do
-      vim.list_extend(matches, find_line_images(line, start_row + i - 1, state.buf, state.opts, win))
+      for _, match in ipairs(find_line_images(line, start_row + i - 1, state.buf, state.opts, win)) do
+        if not seen[match.key] then
+          seen[match.key] = true
+          matches[#matches + 1] = match
+        end
+      end
     end
   end
   return matches
@@ -274,21 +280,15 @@ M.renderers = renderers
 ---@param state obsidian.image.State
 ---@return table? opts
 function renderers.inline(match, state)
-  local row = match.row + 2
-  local col = match.col + 1
-
-  if match.win and vim.api.nvim_win_is_valid(match.win) then
-    local pos = vim.fn.screenpos(match.win, match.row + 1, match.col + 1)
-    if not pos or pos.row == 0 or pos.col == 0 then
-      return nil
-    end
-    row = pos.row + 1
-    col = pos.col
-  end
-
   return {
-    row = row,
-    col = col,
+    relative = "buffer",
+    buf = state.buf,
+    -- Buffer mode uses buffer coordinates. The virt_lines are attached to this
+    -- row and rendered below it, after sign/number columns, so don't add any
+    -- screen-space offset here.
+    row = match.row + 1,
+    col = match.col + 1,
+    pad = match.col,
     width = state.opts.width,
     height = state.opts.height,
     zindex = state.opts.zindex,
@@ -325,6 +325,14 @@ end
 ---@param match obsidian.image.Match
 local function update_spacer(rendered, state, match)
   if (state.opts.placement or "inline") ~= "inline" then
+    return
+  end
+
+  if rendered.opts and rendered.opts.relative == "buffer" then
+    if rendered.spacer then
+      pcall(vim.api.nvim_buf_del_extmark, rendered.buf, ns, rendered.spacer)
+      rendered.spacer = nil
+    end
     return
   end
 
