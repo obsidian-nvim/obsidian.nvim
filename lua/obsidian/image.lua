@@ -11,6 +11,8 @@ local ns = vim.api.nvim_create_namespace "obsidian.image"
 ---@field placement? obsidian.image.Placement
 ---@field width? integer
 ---@field height? integer
+---@field max_width? integer
+---@field max_height? integer
 ---@field zindex? integer
 ---@field pad? integer
 ---@field conceal? boolean|string
@@ -27,7 +29,7 @@ local ns = vim.api.nvim_create_namespace "obsidian.image"
 ---@field col integer 0-indexed
 ---@field end_col integer 0-indexed, exclusive
 ---@field key string
----@field win? integer
+---@field win integer
 
 ---@class obsidian.image.Rendered
 ---@field id integer
@@ -53,6 +55,8 @@ local defaults = {
   visible_only = true,
   margin = 10,
   debounce = 50,
+  max_width = 80,
+  max_height = 40,
   formats = { "png" },
 }
 
@@ -104,6 +108,127 @@ local function read_file(path)
   local data = assert(fd:read "*a")
   fd:close()
   return data
+end
+
+---@class obsidian.image.Size
+---@field width integer
+---@field height integer
+
+---@type table<string, obsidian.image.Size>
+local image_dims = {}
+
+---@param path string
+---@return obsidian.image.Size
+local function png_dims(path)
+  path = vim.fs.normalize(path)
+  if image_dims[path] then
+    return image_dims[path]
+  end
+
+  local fd = assert(io.open(path, "rb"))
+  local header = assert(fd:read(24))
+  fd:close()
+
+  assert(header:sub(1, 8) == "\137PNG\r\n\26\n", "not a PNG image: " .. path)
+  image_dims[path] = {
+    width = header:byte(17) * 16777216 + header:byte(18) * 65536 + header:byte(19) * 256 + header:byte(20),
+    height = header:byte(21) * 16777216 + header:byte(22) * 65536 + header:byte(23) * 256 + header:byte(24),
+  }
+  return image_dims[path]
+end
+
+---@type obsidian.image.Size?
+local terminal_size
+
+---@return obsidian.image.Size
+local function terminal_cell_size()
+  if terminal_size then
+    return terminal_size
+  end
+
+  terminal_size = { width = 9, height = 18 }
+  local ok, ffi = pcall(require, "ffi")
+  if not ok then
+    return terminal_size
+  end
+
+  pcall(
+    ffi.cdef,
+    [[
+    typedef struct {
+      unsigned short row;
+      unsigned short col;
+      unsigned short xpixel;
+      unsigned short ypixel;
+    } winsize;
+    int ioctl(int, int, ...);
+  ]]
+  )
+
+  local tiocgwinsz
+  if vim.fn.has "linux" == 1 then
+    tiocgwinsz = 0x5413
+  elseif vim.fn.has "mac" == 1 or vim.fn.has "bsd" == 1 then
+    tiocgwinsz = 0x40087468
+  end
+  if not tiocgwinsz then
+    return terminal_size
+  end
+
+  pcall(function()
+    local sz = ffi.new "winsize"
+    if ffi.C.ioctl(1, tiocgwinsz, sz) == 0 and sz.col > 0 and sz.row > 0 and sz.xpixel > 0 and sz.ypixel > 0 then
+      terminal_size = {
+        width = sz.xpixel / sz.col,
+        height = sz.ypixel / sz.row,
+      }
+    end
+  end)
+
+  return terminal_size
+end
+
+---@param size obsidian.image.Size
+---@param bounds obsidian.image.Size
+---@return obsidian.image.Size
+local function fit_size(size, bounds)
+  if size.width <= bounds.width and size.height <= bounds.height then
+    return size
+  end
+
+  local ret = {
+    width = math.min(bounds.width, size.width),
+    height = math.min(bounds.height, size.height),
+  }
+  local scale = ret.width / ret.height
+  local image_scale = size.width / size.height
+  local fit_height = math.floor(ret.width / image_scale + 0.5)
+  local fit_width = math.floor(ret.height * image_scale + 0.5)
+
+  if image_scale > scale then
+    ret.height = fit_height
+  else
+    ret.width = fit_width
+  end
+
+  return {
+    width = math.max(1, math.ceil(ret.width)),
+    height = math.max(1, math.ceil(ret.height)),
+  }
+end
+
+---@param path string
+---@return obsidian.image.Size?
+local function image_size_cells(path)
+  local ok, dims = pcall(png_dims, path)
+  if not ok then
+    return nil
+  end
+  local cell = terminal_cell_size()
+  return {
+    width = math.max(1, math.ceil(dims.width / cell.width)),
+    height = math.max(1, math.ceil(dims.height / cell.height)),
+  }
 end
 
 ---@param target string
@@ -196,8 +321,8 @@ local function find_line_images(line, row, bufnr, opts, win)
       row = row,
       col = start_col,
       end_col = end_col,
-      key = table.concat({ row, start_col, end_col, path }, ":"),
-      win = win,
+      key = table.concat({ win or 0, row, start_col, end_col, path }, ":"),
+      win = win or 0,
     }
   end
 
@@ -278,19 +403,47 @@ M.renderers = renderers
 
 ---@param match obsidian.image.Match
 ---@param state obsidian.image.State
+---@return obsidian.image.Size
+local function image_bounds(match, state)
+  local max_width = state.opts.max_width or defaults.max_width
+  local max_height = state.opts.max_height or defaults.max_height
+
+  if match.win and vim.api.nvim_win_is_valid(match.win) then
+    local info = vim.fn.getwininfo(match.win)[1]
+    if info then
+      max_width = math.min(max_width, math.max(1, info.width - info.textoff - match.col))
+    end
+  end
+
+  return {
+    width = state.opts.width or max_width,
+    height = state.opts.height or max_height,
+  }
+end
+
+---@param match obsidian.image.Match
+---@param state obsidian.image.State
 ---@return table? opts
 function renderers.inline(match, state)
+  if not (match.win and vim.api.nvim_win_is_valid(match.win)) then
+    return nil
+  end
+
+  local pos = vim.fn.screenpos(match.win, match.row + 1, match.col + 1)
+  if not pos or pos.row == 0 or pos.col == 0 then
+    return nil
+  end
+
+  local size = image_size_cells(match.path)
+  if size then
+    size = fit_size(size, image_bounds(match, state))
+  end
+
   return {
-    relative = "buffer",
-    buf = state.buf,
-    -- Buffer mode uses buffer coordinates. The virt_lines are attached to this
-    -- row and rendered below it, after sign/number columns, so don't add any
-    -- screen-space offset here.
-    row = match.row + 1,
-    col = match.col + 1,
-    pad = match.col,
-    width = state.opts.width,
-    height = state.opts.height,
+    row = pos.row + 1,
+    col = pos.col,
+    width = state.opts.width or (size and size.width),
+    height = state.opts.height or (size and size.height),
     zindex = state.opts.zindex,
   }
 end
@@ -328,15 +481,7 @@ local function update_spacer(rendered, state, match)
     return
   end
 
-  if rendered.opts and rendered.opts.relative == "buffer" then
-    if rendered.spacer then
-      pcall(vim.api.nvim_buf_del_extmark, rendered.buf, ns, rendered.spacer)
-      rendered.spacer = nil
-    end
-    return
-  end
-
-  local height = state.opts.height
+  local height = rendered.opts and rendered.opts.height or state.opts.height
   if not height and type(vim.ui.img.get) == "function" then
     local ok, img_opts = pcall(vim.ui.img.get, rendered.id)
     if ok and img_opts then
@@ -558,22 +703,28 @@ function M.detach_all()
   end
 end
 
--- Snacks-shaped entrypoints, so callers currently doing
--- `require("snacks.image").doc.attach(buf)` can switch to this module with the
--- smallest possible diff.
-M.doc = {
-  attach = M.attach,
-  detach = M.detach,
-}
+-- -- Snacks-shaped entrypoints, so callers currently doing
+-- -- `require("snacks.image").doc.attach(buf)` can switch to this module with the
+-- -- smallest possible diff.
+-- M.doc = {
+--   attach = M.attach,
+--   detach = M.detach,
+-- }
+--
+-- M.inline = {
+--   attach = M.attach,
+--   detach = M.detach,
+--   refresh = M.refresh,
+-- }
 
-M.inline = {
-  attach = M.attach,
-  detach = M.detach,
-  refresh = M.refresh,
-}
-
-vim.api.nvim_create_autocmd("VimLeavePre", {
-  callback = M.detach_all,
+vim.api.nvim_create_autocmd({ "VimLeavePre", "VimResized" }, {
+  callback = function(ev)
+    if ev.event == "VimResized" then
+      terminal_size = nil
+    else
+      M.detach_all()
+    end
+  end,
 })
 
 return M
