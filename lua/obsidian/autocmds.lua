@@ -156,6 +156,24 @@ vim.api.nvim_create_autocmd("User", {
   end,
 })
 
+-- Refresh inline images on buffer write.
+vim.api.nvim_create_autocmd("User", {
+  group = group,
+  pattern = "ObsidianNoteWritePost",
+  callback = function(ev)
+    if not Obsidian.opts.image or not Obsidian.opts.image.enabled then
+      return
+    end
+
+    local image = require "obsidian.image"
+    if image.is_attached(ev.buf) then
+      image.refresh(ev.buf, true)
+    else
+      image.attach(ev.buf, Obsidian.opts.image)
+    end
+  end,
+})
+
 -- One-shot sync trigger on buffer write.
 vim.api.nvim_create_autocmd("User", {
   group = group,
