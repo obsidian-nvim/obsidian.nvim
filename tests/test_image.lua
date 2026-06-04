@@ -67,4 +67,60 @@ T["inline"]["renders a fitted image below the image link"] = function()
   end
 end
 
+T["inline"]["resizes the image under the cursor"] = function()
+  local image = require "obsidian.image"
+  local api = require "obsidian.api"
+  local original_img = vim.ui.img
+  local calls = {}
+
+  vim.ui.img = {
+    set = function(data_or_id, opts)
+      if type(data_or_id) == "number" then
+        calls[data_or_id].opts = opts
+        return data_or_id
+      end
+      calls[#calls + 1] = { data_or_id = data_or_id, opts = opts }
+      return #calls
+    end,
+    get = function(id)
+      return calls[id] and calls[id].opts
+    end,
+    del = function()
+      return true
+    end,
+  }
+
+  local ok, err = pcall(function()
+    local img_path = vim.fs.joinpath(tostring(Obsidian.dir), "resize.png")
+    local note_path = vim.fs.joinpath(tostring(Obsidian.dir), "resize-note.md")
+    write_png_header(img_path, 90, 45)
+    vim.api.nvim_buf_set_name(0, note_path)
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "![[resize.png]]" })
+    vim.api.nvim_win_set_cursor(0, { 1, 3 })
+
+    image.attach(0, { debounce = 0, visible_only = true, width = 10, height = 5 })
+    h.wait(function()
+      return #calls > 0
+    end)
+
+    eq(10, calls[1].opts.width)
+    eq(5, calls[1].opts.height)
+
+    eq(true, api.image_bigger())
+    eq(11, calls[1].opts.width)
+    eq(6, calls[1].opts.height)
+
+    eq(true, api.image_smaller())
+    eq(10, calls[1].opts.width)
+    eq(5, calls[1].opts.height)
+  end)
+
+  image.detach(0)
+  vim.ui.img = original_img
+
+  if not ok then
+    error(err)
+  end
+end
+
 return T
