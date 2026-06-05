@@ -217,8 +217,8 @@ M.pick = function(values, opts)
 
   local MyPreviewer = builtin.buffer_or_file:extend()
 
-  function MyPreviewer:new(o, _opts, fzf_win)
-    MyPreviewer.super.new(self, o, _opts, fzf_win)
+  function MyPreviewer:new(o, previewer_opts, fzf_win)
+    MyPreviewer.super.new(self, o, previewer_opts, fzf_win)
     setmetatable(self, MyPreviewer)
     return self
   end

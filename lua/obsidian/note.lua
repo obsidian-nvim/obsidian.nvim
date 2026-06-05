@@ -702,7 +702,8 @@ Note.from_lines = function(lines, path, opts)
 
   -- Iterate over lines in the file, collecting frontmatter and parsing the title.
   local frontmatter_lines = {}
-  local has_frontmatter, in_frontmatter, at_boundary = false, false, false
+  local has_frontmatter, in_frontmatter = false, false
+  local at_boundary
   local frontmatter_end_line = nil
   local in_code_block = false
   for line_idx, line in iter(lines):enumerate() do
@@ -834,8 +835,9 @@ Note.frontmatter_lines = function(self, current_lines)
     -- Preserve the existing frontmatter's key order only when the user hasn't
     -- configured an explicit sort. Otherwise the user's `frontmatter.sort`
     -- would be silently overwritten by the parsed order on every save.
-    local parsed_order
-    syntax_ok, _, parsed_order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
+    local parse_result = { pcall(yaml.loads, table.concat(yaml_body_lines, "\n")) }
+    syntax_ok = parse_result[1]
+    local parsed_order = parse_result[3]
     if order == nil then
       order = parsed_order
     end

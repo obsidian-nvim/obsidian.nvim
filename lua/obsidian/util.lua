@@ -349,10 +349,9 @@ util.parse_link = function(link, opts)
 
   local link_type = opts.link_type
   if link_type == nil then
-    for _, match in ipairs(search.find_refs(link)) do
-      local _, _, m_type = unpack(match)
-      link_type = m_type
-      break
+    local match = search.find_refs(link)[1]
+    if match ~= nil then
+      link_type = match[3]
     end
   end
 

@@ -19,8 +19,7 @@ local build_selection_mappings = function(mappings)
   for key, mapping in pairs(mappings) do
     actions[mapping.desc:gsub(" ", "_")] = {
       char = key,
-      func = function(...)
-        _ = ...
+      func = function()
         -- mapping.callback({ filename = path })
       end,
     }

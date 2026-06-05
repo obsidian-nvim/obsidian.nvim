@@ -15,7 +15,8 @@ M.follow_link = function(link, opts)
   opts = opts and opts or {}
   local range
   if not link then
-    link, _, range = api.cursor_link()
+    local cursor_link = { api.cursor_link() }
+    link, range = cursor_link[1], cursor_link[3]
   end
 
   if not link then
@@ -217,7 +218,7 @@ M.toggle_checkbox = function(start_lnum, end_lnum)
   ---@cast states -nil
   if viz then
     start_lnum, end_lnum = viz.csrow, viz.cerow
-  else
+  elseif start_lnum == nil or end_lnum == nil then
     local row = unpack(vim.api.nvim_win_get_cursor(0))
     start_lnum, end_lnum = row, row
   end

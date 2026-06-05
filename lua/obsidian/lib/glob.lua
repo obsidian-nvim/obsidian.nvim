@@ -338,7 +338,6 @@ function M:checkPatternWord(path, pattern, patIndex)
         end
         newPath = newPath:sub(2)
       end
-      return false
     elseif pat == "?" then
       if path == nil or path == "" then
         return false

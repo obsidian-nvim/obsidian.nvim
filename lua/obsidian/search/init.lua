@@ -37,11 +37,6 @@ M.Patterns = {
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
 }
 
----@type table<obsidian.search.RefTypes, { ignore_if_escape_prefix: boolean|? }>
-M.PatternConfig = {
-  Tag = { ignore_if_escape_prefix = true },
-}
-
 --- Find all matches of a pattern
 ---
 ---@param s string
@@ -58,7 +53,6 @@ M.find_matches = function(s, pattern_names)
   local matches = {}
   for _, pattern_name in ipairs(pattern_names) do
     local pattern = M.Patterns[pattern_name]
-    local pattern_cfg = M.PatternConfig[pattern_name]
     local search_start = 1
     while search_start < #s do
       local m_start, m_end = string.find(s, pattern, search_start)
@@ -83,17 +77,7 @@ M.find_matches = function(s, pattern_names)
             end
           end
 
-          -- Check if we should skip to an escape sequence before the pattern.
-          local skip_due_to_escape = false
-          if
-            pattern_cfg ~= nil
-            and pattern_cfg.ignore_if_escape_prefix
-            and string.sub(s, m_start - 1, m_start - 1) == [[\]]
-          then
-            skip_due_to_escape = true
-          end
-
-          if not overlap and not skip_due_to_escape then
+          if not overlap then
             local match = string.sub(s, m_start, m_end)
             matches[#matches + 1] = { m_start, m_end, pattern_name, match }
           end

@@ -127,7 +127,7 @@ end
 return function(link, opts, callback)
   local link_type
   if link then
-    _, _, link_type = util.parse_link(link)
+    link_type = select(3, util.parse_link(link))
   else
     link, link_type = cursor_ref(opts.tag)
   end

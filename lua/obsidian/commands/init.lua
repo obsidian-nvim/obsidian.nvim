@@ -194,7 +194,6 @@ M.help_complete = function(_, cmdline)
   local query = cmdline:match "^%S+%s%S+%s(.*)$" or ""
 
   local files = vim.fn.globpath(tostring(docs_dir), "*.md", true, true)
-  local completions = {}
   local basenames = vim.tbl_map(function(path)
     return vim.fn.fnamemodify(path, ":t:r")
   end, files)
@@ -203,9 +202,7 @@ M.help_complete = function(_, cmdline)
     return basenames
   end
 
-  completions = vim.fn.matchfuzzy(basenames, query, { limit = 10 })
-
-  return completions
+  return vim.fn.matchfuzzy(basenames, query, { limit = 10 })
 end
 
 ---@param _ string
@@ -295,7 +292,7 @@ M.register("backlinks", { nargs = 0, note_action = true })
 
 M.register("template", { nargs = "?", note_action = true })
 
-M.register("link_new", { mode = "v", nargs = "?", range = true, note_action = true })
+M.register("link_new", { nargs = "?", range = true, note_action = true })
 
 M.register("link", { nargs = "?", range = true, complete = M.note_complete, note_action = true })
 
@@ -309,7 +306,7 @@ M.register("rename", { nargs = "?", note_action = true })
 
 M.register("paste_img", { nargs = "?", note_action = true })
 
-M.register("extract_note", { mode = "v", nargs = "?", range = true, note_action = true })
+M.register("extract_note", { nargs = "?", range = true, note_action = true })
 
 M.register("toc", { nargs = 0, note_action = true })
 

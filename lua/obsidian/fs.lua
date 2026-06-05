@@ -6,8 +6,7 @@ local ignore = require "obsidian.ignore"
 local function parse_gitignore(dir)
   local ignore_file = vim.fs.joinpath(dir, ".gitignore")
   if not vim.uv.fs_stat(ignore_file) then
-    return function(fname)
-      _ = fname
+    return function(_fname)
       return false
     end
   end

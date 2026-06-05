@@ -56,7 +56,6 @@ function M.get_clipboard_img_type()
   local result_string = vim.fn.system(check_cmd)
   local content = vim.split(result_string, "\n")
 
-  local is_img = false
   -- See: [Data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme)
   if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
     if vim.tbl_contains(content, "text/uri-list") then
@@ -74,12 +73,12 @@ function M.get_clipboard_img_type()
 
   -- Code for non-Linux Operating systems (only supports png)
   elseif this_os == api.OSType.Darwin then
-    is_img = string.sub(content[1], 1, 9) == "iVBORw0KG" -- Magic png number in base64
+    local is_img = string.sub(content[1], 1, 9) == "iVBORw0KG" -- Magic png number in base64
     if is_img then
       return "png"
     end
   elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
-    is_img = content ~= nil
+    local is_img = content ~= nil
     if is_img then
       return "png"
     end
