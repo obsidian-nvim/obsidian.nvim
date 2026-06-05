@@ -13,6 +13,12 @@ end
 
 ---@param s string
 ---@return boolean
+local resolves_as_number = function(s)
+  return tonumber(s) ~= nil
+end
+
+---@param s string
+---@return boolean
 local should_quote = function(s)
   -- TODO: this probably doesn't cover all edge cases.
   -- See https://www.yaml.info/learn/quote.html
@@ -27,6 +33,10 @@ local should_quote = function(s)
     return true
   -- Check if it's an empty string.
   elseif s == "" or string.match(s, "^[%s]+$") then
+    return true
+  -- Numeric-looking strings are syntactically valid plain scalars, but they
+  -- resolve as numbers. Quote them to preserve string values.
+  elseif resolves_as_number(s) then
     return true
   elseif util.is_hex_color(s) then
     return true

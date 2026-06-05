@@ -7,6 +7,7 @@ T["dump"] = new_set()
 
 T["dump"]["should dump numbers"] = function()
   eq(yaml.dumps(1), "1")
+  eq(yaml.dumps(37.26498), "37.26498")
 end
 
 T["dump"]["should dump strings"] = function()
@@ -63,6 +64,16 @@ end
 T["dump"]["should not quote date-like strings"] = function()
   eq(yaml.dumps { a = "2025.5.6" }, "a: 2025.5.6")
   eq(yaml.dumps { a = "2023_11_10 13:26" }, "a: 2023_11_10 13:26")
+end
+
+T["dump"]["should quote strings parsed as numbers"] = function()
+  eq(yaml.dumps "37.26498", [["37.26498"]])
+  eq(yaml.dumps { a = "37.26498" }, [[a: "37.26498"]])
+  eq(
+    yaml.dumps { a = { "37.26498" } },
+    [[a:
+  - "37.26498"]]
+  )
 end
 
 T["dump"]["should otherwise quote strings with a colon followed by whitespace"] = function()

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `opts.sync.trigger` -> `continuous` / `on_write` / `manual`
   - `vim.g.obsidian_sync_on_write_debounce_ms` for `on_write` defaults to 2000 (experimental value, override in `post_setup` callback)
 
+### Fixed
+
+- YAML will not force quoted number strings into number.
+
 ## [v3.16.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.4) - 2026-06-03
 
 ### Added
