@@ -105,6 +105,7 @@ T["completion"]["returns unresolved wiki link targets"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[unre",
     ["source.md"] = "[[unresolved]]",
+    ["other.md"] = "another [[unresolved]] reference",
   })
 
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
@@ -113,14 +114,17 @@ T["completion"]["returns unresolved wiki link targets"] = function()
   local result = run_completion(0, 6)
   eq("table", type(result))
 
-  local found = false
-  for _, item in ipairs(result.items or {}) do
-    if item.textEdit and item.textEdit.newText == "[[unresolved]]" then
-      found = true
+  local item
+  for _, candidate in ipairs(result.items or {}) do
+    if candidate.textEdit and candidate.textEdit.newText == "[[unresolved]]" then
+      item = candidate
       break
     end
   end
-  eq(true, found)
+
+  eq("table", type(item))
+  eq(true, item.documentation.value:find "source.md:1" ~= nil)
+  eq(true, item.documentation.value:find "other.md:1" ~= nil)
 end
 
 T["completion"]["returns items for tag trigger"] = function()

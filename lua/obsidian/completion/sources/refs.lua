@@ -232,29 +232,47 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
   end
 end
 
+---@param match obsidian.BacklinkMatch
+---@return string
+local function unresolved_link_context(match)
+  local path = tostring(match.path)
+  if type(match.path) == "table" and match.path.vault_relative_path then
+    path = match.path:vault_relative_path() or path
+  end
+
+  return string.format("`%s:%d`\n\n```markdown\n%s\n```", path, match.line, match.text)
+end
+
 ---@param cc obsidian.completion.sources.refs.context
 ---@param matches obsidian.BacklinkMatch[]
 local function update_unresolved_completion_options(cc, matches)
   for _, match in ipairs(matches) do
     local label = util.parse_link(match.link)
-    assert(label, "")
-    if not cc.new_text_to_option[label] then
-      cc.new_text_to_option[label] = {
-        label = label,
-        new_text = match.link,
-        sort_text = label,
-        documentation = {
-          kind = "markdown",
-          value = string.format("Unresolved link:\n```markdown\n%s\n```\n", match.text),
-        },
-      }
+    if label then
+      local context = unresolved_link_context(match)
+      local existing = cc.new_text_to_option[label]
+      if existing then
+        existing.documentation = existing.documentation
+          or { kind = "markdown", value = "Unresolved link referenced in:" }
+        existing.documentation.value = existing.documentation.value .. "\n\n" .. context
+      else
+        cc.new_text_to_option[label] = {
+          label = label,
+          new_text = match.link,
+          sort_text = label,
+          documentation = {
+            kind = "markdown",
+            value = "Unresolved link references:\n\n" .. context,
+          },
+        }
+      end
     end
   end
 end
 
 ---@param cc obsidian.completion.sources.refs.context
 ---@param results obsidian.Note[]
----@param unresolved_links string[]|?
+---@param unresolved_links obsidian.BacklinkMatch[]|?
 local function process_search_results(cc, results, unresolved_links)
   if not cc.search then
     return
