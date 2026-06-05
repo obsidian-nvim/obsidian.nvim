@@ -47,7 +47,7 @@ M.PatternConfig = {
 ---@param s string
 ---@param pattern_names obsidian.search.RefTypes[]
 ---
----@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes }[]
+---@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes, [4]: string }[]
 M.find_matches = function(s, pattern_names)
   -- First find all inline code blocks so we can skip reference matches inside of those.
   local inline_code_blocks = {}
@@ -94,7 +94,8 @@ M.find_matches = function(s, pattern_names)
           end
 
           if not overlap and not skip_due_to_escape then
-            matches[#matches + 1] = { m_start, m_end, pattern_name }
+            local match = string.sub(s, m_start, m_end)
+            matches[#matches + 1] = { m_start, m_end, pattern_name, match }
           end
         end
 
@@ -135,11 +136,11 @@ end
 ---@param s string the string to search
 ---@param opts? { exclude: obsidian.search.RefTypes[] }
 ---
----@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes }[]
+---@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes, [4]: string }[]
 M.find_refs = function(s, opts)
   opts = opts and opts or {}
 
-  local exclude_lookup = { ["Highlight"] = true }
+  local exclude_lookup = {}
   local pattern_names = {}
 
   for _, ref_type in ipairs(opts.exclude or {}) do
@@ -152,7 +153,6 @@ M.find_refs = function(s, opts)
     "Wiki",
     "Markdown",
     "BlockID",
-    "Highlight",
   }
 
   for _, ref_type in ipairs(parse_patterns) do
@@ -535,8 +535,7 @@ M.find_links = function(note)
 
   for lnum, line in vim.iter(lines):enumerate() do
     for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID" } })) do
-      local m_start, m_end = unpack(ref_match)
-      local link = string.sub(line, m_start, m_end)
+      local m_start, m_end, _, link = unpack(ref_match)
       if not found[link] then
         local match = {
           link = link,
@@ -654,6 +653,7 @@ end
 ---@field text string The text of the line where the backlink was found.
 ---@field start integer|? The start of match (0-indexed)
 ---@field end integer|? The end of match (0-indexed)
+---@field link string actual matched link text
 
 ---@param note obsidian.Note|?
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
@@ -699,7 +699,7 @@ M.find_backlinks_async = function(note, callback, opts)
     local path = Path.new(match.path.text):resolve { strict = true }
     local line_text = util.rstrip_whitespace(match.lines.text)
     for _, ref in ipairs(M.find_refs(line_text)) do
-      local ref_start, ref_end, ref_type = unpack(ref)
+      local ref_start, ref_end, ref_type, link_match = unpack(ref)
       if _submatch_in_ref(match.submatches, ref_start, ref_end) then
         local ref_text = line_text:sub(ref_start, ref_end)
         local link_location, _, _ = util.parse_link(ref_text, { link_type = ref_type })
@@ -731,6 +731,7 @@ M.find_backlinks_async = function(note, callback, opts)
           end
           if include then
             results[#results + 1] = {
+              link = link_match,
               path = path,
               line = match.line_number,
               text = line_text,

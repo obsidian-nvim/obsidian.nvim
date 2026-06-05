@@ -158,7 +158,7 @@ M.cursor_link = function()
     return cur_col >= open and cur_col <= close
   end)
   if match then
-    return line:sub(match[1], match[2]), match[3], { match[1], match[2] }
+    return match[4], match[3], { match[1], match[2] }
   end
 end
 

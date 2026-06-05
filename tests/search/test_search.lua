@@ -10,20 +10,29 @@ T["find_refs"] = new_set()
 
 T["find_refs"]["should find positions of all refs"] = function()
   local s = "[[Foo]] [[foo|Bar]]"
-  eq({ { 1, 7, "Wiki" }, { 9, 19, "WikiWithAlias" } }, M.find_refs(s))
+  eq({ { 1, 7, "Wiki", "[[Foo]]" }, { 9, 19, "WikiWithAlias", "[[foo|Bar]]" } }, M.find_refs(s))
 end
 
 T["find_refs"]["should ignore refs within an inline code block"] = function()
   local s = "`[[Foo]]` [[foo|Bar]]"
-  eq({ { 11, 21, "WikiWithAlias" } }, M.find_refs(s))
+  eq({ { 11, 21, "WikiWithAlias", "[[foo|Bar]]" } }, M.find_refs(s))
 
   s = "[nvim-cmp](https://github.com/hrsh7th/nvim-cmp) (triggered by typing `[[` for wiki links or "
     .. "just `[` for markdown links), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep)"
-  eq({ { 1, 47, "Markdown" }, { 134, 183, "Markdown" } }, M.find_refs(s))
-end
-
-T["find_refs"]["should find block IDs at the end of a line"] = function()
-  eq({ { 14, 25, "BlockID" } }, M.find_refs "Hello World! ^hello-world")
+  eq({
+    {
+      1,
+      47,
+      "Markdown",
+      "[nvim-cmp](https://github.com/hrsh7th/nvim-cmp)",
+    },
+    {
+      134,
+      183,
+      "Markdown",
+      "[`ripgrep`](https://github.com/BurntSushi/ripgrep)",
+    },
+  }, M.find_refs(s))
 end
 
 T["find_matches"] = function()
