@@ -599,7 +599,107 @@ local function build_backlink_search_term(refs, anchor, block)
   return search_terms
 end
 
+---@param note obsidian.Note
+---@param anchor string
+---@param block string
+---@param refs string[]|? Pre-computed reference paths (skips note:get_reference_paths() if provided)
+local function build_backlink_search_term(note, anchor, block, refs)
+  return build_backlink_search_terms_from_refs(
+    refs or note:get_reference_paths { urlencode = true },
+    note.aliases,
+    anchor,
+    block
+  )
+end
+
 M._build_backlink_search_term = build_backlink_search_term
+
+---@param ref string
+---@return string[]
+local function unresolved_reference_variants(ref)
+  local refs = { ref }
+
+  if vim.endswith(ref, ".md") then
+    refs[#refs + 1] = ref:gsub("%.md$", "")
+  elseif vim.endswith(ref, ".qmd") then
+    refs[#refs + 1] = ref:gsub("%.qmd$", "")
+  elseif vim.endswith(ref, ".base") then
+    refs[#refs + 1] = ref:gsub("%.base$", "")
+  else
+    refs[#refs + 1] = ref .. ".md"
+  end
+
+  local encoded = {}
+  for _, raw_ref in ipairs(refs) do
+    vim.list_extend(
+      encoded,
+      util.tbl_unique {
+        raw_ref,
+        util.urlencode(raw_ref),
+        util.urlencode(raw_ref, { keep_path_sep = true }),
+      }
+    )
+  end
+
+  return util.tbl_unique(encoded)
+end
+
+---@param ref string
+---@param anchor string|?
+---@param block string|?
+---@return string[]
+local function build_unresolved_backlink_search_term(ref, anchor, block)
+  return build_backlink_search_terms_from_refs(unresolved_reference_variants(ref), nil, anchor, block)
+end
+
+M._build_unresolved_backlink_search_term = build_unresolved_backlink_search_term
+
+---@param location string
+---@return string
+local function normalize_reference_location(location)
+  location = location:gsub("^%./", "")
+  location = location:gsub("^/", "")
+  location = location:gsub("%.md$", "")
+  location = location:gsub("%.qmd$", "")
+  location = location:gsub("%.base$", "")
+  return string.lower(location)
+end
+
+---@param ref_text string
+---@param ref_type obsidian.search.RefTypes
+---@return string|? location
+---@return string|? anchor
+---@return string|? block
+local function parse_ref_target(ref_text, ref_type)
+  local link_location = util.parse_link(ref_text, { link_type = ref_type })
+  if not link_location then
+    return nil
+  end
+
+  local block
+  link_location, block = util.strip_block_links(link_location)
+
+  local anchor
+  link_location, anchor = util.strip_anchor_links(link_location)
+
+  return link_location, anchor, block
+end
+
+---@param submatches SubMatch[]
+---@param ref_start integer
+---@param ref_end integer
+---@return boolean
+local function submatch_in_ref(submatches, ref_start, ref_end)
+  for _, submatch in ipairs(submatches) do
+    -- Convert 0-indexed submatch positions to 1-indexed for comparison
+    local submatch_start_1idx = submatch.start + 1
+    local submatch_end_1idx = submatch["end"]
+    if submatch_start_1idx >= ref_start and submatch_end_1idx <= ref_end then
+      return true
+    end
+  end
+  return false
+end
 
 ---@param term string
 local function build_in_note_search_term(term)
@@ -655,6 +755,121 @@ end
 ---@field end integer|? The end of match (0-indexed)
 ---@field link string actual matched link text
 
+--- Find unique link targets that start with `term`, including unresolved links.
+---
+---@param term string
+---@param callback fun(targets: string[])
+---@param opts { search: obsidian.SearchOpts|?, dir: string|obsidian.Path|? }|?
+---@return vim.SystemObj handle|?
+M.find_link_targets_async = function(term, callback, opts)
+  callback = vim.schedule_wrap(callback)
+  opts = opts or {}
+  if term == nil or term == "" then
+    callback {}
+    return nil
+  end
+
+  local dir = opts.dir or Obsidian.dir
+  local term_lwr = string.lower(term)
+  local found = {}
+  local results = {}
+
+  ---@param match MatchData
+  local function on_match(match)
+    local line_text = util.rstrip_whitespace(match.lines.text)
+    for _, ref in ipairs(M.find_refs(line_text, { exclude = { "BlockID" } })) do
+      local ref_start, ref_end, ref_type = unpack(ref)
+      if submatch_in_ref(match.submatches, ref_start, ref_end) then
+        local ref_text = line_text:sub(ref_start, ref_end)
+        local location = parse_ref_target(ref_text, ref_type)
+        if location and location ~= "" and not vim.startswith(location, "#") then
+          if vim.startswith(string.lower(location), term_lwr) then
+            local key = normalize_reference_location(location)
+            if not found[key] then
+              found[key] = true
+              results[#results + 1] = location
+            end
+          end
+        end
+      end
+    end
+  end
+
+  return M.search_async(
+    dir,
+    term,
+    vim.tbl_extend("force", { fixed_strings = true, ignore_case = true }, opts.search or {}),
+    on_match,
+    function()
+      callback(results)
+    end
+  )
+end
+
+---@param ref string
+---@param callback fun(matches: obsidian.BacklinkMatch[])
+---@param opts { search: obsidian.SearchOpts|?, anchor: string|?, block: string|?, dir: string|obsidian.Path|? }|?
+---@return vim.SystemObj handle|?
+M.find_ref_backlinks_async = function(ref, callback, opts)
+  callback = vim.schedule_wrap(callback)
+  opts = opts or {}
+  if ref == nil or ref == "" then
+    callback {}
+    return nil
+  end
+
+  local dir = opts.dir or Obsidian.dir
+  local block = opts.block and util.standardize_block(opts.block) or nil
+  local anchor = opts.anchor and util.standardize_anchor(opts.anchor) or nil
+  local results = {}
+  local target_lookup = {}
+  for _, variant in ipairs(unresolved_reference_variants(ref)) do
+    target_lookup[normalize_reference_location(variant)] = true
+  end
+
+  ---@param match MatchData
+  local function on_match(match)
+    local path = Path.new(match.path.text):resolve { strict = true }
+    local line_text = util.rstrip_whitespace(match.lines.text)
+    for _, found_ref in ipairs(M.find_refs(line_text, { exclude = { "BlockID" } })) do
+      local ref_start, ref_end, ref_type = unpack(found_ref)
+      if submatch_in_ref(match.submatches, ref_start, ref_end) then
+        local ref_text = line_text:sub(ref_start, ref_end)
+        local location, matched_anchor, matched_block = parse_ref_target(ref_text, ref_type)
+        local include = location ~= nil and target_lookup[normalize_reference_location(location)] == true
+
+        if include and anchor then
+          include = matched_anchor ~= nil and util.standardize_anchor(matched_anchor) == anchor
+        end
+
+        if include and block then
+          include = matched_block ~= nil and util.standardize_block(matched_block) == block
+        end
+
+        if include then
+          results[#results + 1] = {
+            path = path,
+            line = match.line_number,
+            text = line_text,
+            start = ref_start,
+            ["end"] = ref_end,
+          }
+        end
+      end
+    end
+  end
+
+  return M.search_async(
+    dir,
+    build_unresolved_backlink_search_term(ref, anchor, block),
+    vim.tbl_extend("force", { fixed_strings = true, ignore_case = true }, opts.search or {}),
+    on_match,
+    function()
+      callback(results)
+    end
+  )
+end
+
 ---@param note obsidian.Note|?
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
 ---@param opts { search: obsidian.SearchOpts|?, anchor: string|?, block: string|?, dir: string|obsidian.Path|?, refs: string[]|? }|?
@@ -678,33 +893,16 @@ M.find_backlinks_async = function(note, callback, opts)
     vim.list_extend(results, get_in_note_backlink(note, block or anchor))
   end
 
-  ---@param submatches SubMatch[]
-  ---@param ref_start integer
-  ---@param ref_end integer
-  ---@return boolean
-  local function _submatch_in_ref(submatches, ref_start, ref_end)
-    for _, submatch in ipairs(submatches) do
-      -- Convert 0-indexed submatch positions to 1-indexed for comparison
-      local submatch_start_1idx = submatch.start + 1
-      local submatch_end_1idx = submatch["end"]
-      if submatch_start_1idx >= ref_start and submatch_end_1idx <= ref_end then
-        return true
-      end
-    end
-    return false
-  end
-
   ---@param match MatchData
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
     local line_text = util.rstrip_whitespace(match.lines.text)
     for _, ref in ipairs(M.find_refs(line_text)) do
       local ref_start, ref_end, ref_type, link_match = unpack(ref)
-      if _submatch_in_ref(match.submatches, ref_start, ref_end) then
+      if submatch_in_ref(match.submatches, ref_start, ref_end) then
         local ref_text = line_text:sub(ref_start, ref_end)
-        local link_location, _, _ = util.parse_link(ref_text, { link_type = ref_type })
+        local link_location, matched_anchor, matched_block = parse_ref_target(ref_text, ref_type)
         if link_location then
-          local _, matched_anchor = util.strip_anchor_links(link_location)
           local include = true
           if anchor and note then
             if not matched_anchor then
@@ -725,7 +923,7 @@ M.find_backlinks_async = function(note, callback, opts)
             end
           end
           if block and include then
-            if util.standardize_block(matched_anchor) ~= block then
+            if not matched_block or util.standardize_block(matched_block) ~= block then
               include = false
             end
           end

@@ -101,6 +101,28 @@ Target note content
   eq(true, found)
 end
 
+T["completion"]["returns unresolved wiki link targets"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[unre",
+    ["source.md"] = "[[unresolved]]",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 6 })
+
+  local result = run_completion(0, 6)
+  eq("table", type(result))
+
+  local found = false
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit and item.textEdit.newText == "[[unresolved]]" then
+      found = true
+      break
+    end
+  end
+  eq(true, found)
+end
+
 T["completion"]["returns items for tag trigger"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "#ta",

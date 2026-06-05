@@ -232,9 +232,45 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
   end
 end
 
+---@param target string
+---@return string new_text
+---@return string label
+local function format_unresolved_link(target)
+  if Obsidian.opts.link.style == "wiki" then
+    return string.format("[[%s]]", target), string.format("[[%s]]", target)
+  elseif Obsidian.opts.link.style == "markdown" then
+    return string.format("[%s](%s)", target, target), string.format("[%s](…)", target)
+  elseif type(Obsidian.opts.link.style) == "function" then
+    local new_text = Obsidian.opts.link.style { label = target, path = target }
+    return new_text, new_text
+  else
+    error "not implemented"
+  end
+end
+
+---@param cc obsidian.completion.sources.refs.context
+---@param targets string[]
+local function update_unresolved_completion_options(cc, targets)
+  for _, target in ipairs(targets) do
+    local new_text = format_unresolved_link(target)
+    if not cc.new_text_to_option[new_text] then
+      cc.new_text_to_option[new_text] = {
+        label = target,
+        new_text = new_text,
+        sort_text = target,
+        documentation = {
+          kind = "markdown",
+          value = string.format("Unresolved link: `%s`", new_text),
+        },
+      }
+    end
+  end
+end
+
 ---@param cc obsidian.completion.sources.refs.context
 ---@param results obsidian.Note[]
-local function process_search_results(cc, results)
+---@param unresolved_targets string[]|?
+local function process_search_results(cc, results, unresolved_targets)
   if not cc.search then
     return
   end
@@ -271,6 +307,8 @@ local function process_search_results(cc, results)
       end
     end
   end
+
+  update_unresolved_completion_options(cc, unresolved_targets or {})
 
   for _, option in pairs(cc.new_text_to_option) do
     -- TODO: need a better label, maybe just the note's display name?
@@ -346,10 +384,16 @@ function M.process_completion(completion_resolve_callback, request)
       ignore_case = true,
     }
 
+    local dir = api.resolve_workspace_dir()
     search.find_notes_async(cc.search, function(results)
-      process_search_results(cc, results)
+      search.find_link_targets_async(cc.search, function(link_targets)
+        process_search_results(cc, results, link_targets)
+      end, {
+        dir = dir,
+        search = search_opts,
+      })
     end, {
-      dir = api.resolve_workspace_dir(),
+      dir = dir,
       search = search_opts,
       notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
     })
