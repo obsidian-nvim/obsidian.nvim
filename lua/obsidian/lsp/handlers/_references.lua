@@ -30,15 +30,6 @@ local function tag_loc_to_lsp_location(tag_loc)
   }
 end
 
----@param note obsidian.Note
----@param opts { anchor: string|?, block: string|? }
----@param callback fun(locations: lsp.Location[])
-local function collect_backlinks(note, opts, callback)
-  note:backlinks_async({ anchor = opts.anchor, block = opts.block }, function(backlink_matches)
-    callback(vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
-  end)
-end
-
 ---@type table<obsidian.search.RefTypes, fun(_: string, callback: fun(locs: lsp.Location[]))|?>
 local handlers = {}
 
@@ -56,16 +47,11 @@ handlers.Markdown = function(link, callback)
   local anchor_link
   location, anchor_link = util.strip_anchor_links(location)
 
-  local opts = { anchor = anchor_link, block = block_link }
+  local opts = { anchor = anchor_link, block = block_link, refs = { location } }
 
-  search.resolve_note_async(location, function(notes)
-    if vim.tbl_isempty(notes) then
-      log.err("No notes matching '%s'", location)
-    else
-      local note = notes[1]
-      collect_backlinks(note, opts, callback)
-    end
-  end)
+  search.find_backlinks_async(nil, function(backlink_matches)
+    callback(vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
+  end, opts)
 end
 
 handlers.Wiki = handlers.Markdown
@@ -103,9 +89,9 @@ local function collect_current_note(link, link_type, callback)
     return log.err "Current buffer does not appear to be a note inside the vault"
   end
 
-  collect_backlinks(note, { anchor = anchor, block = block }, function(locations)
-    callback(nil, locations)
-  end)
+  search.find_backlinks_async(note, function(backlink_matches)
+    callback(nil, vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
+  end, { anchor = anchor, block = block })
 end
 
 ---@type obsidian.search.RefTypes[]

@@ -553,16 +553,14 @@ M.find_links = function(note)
   return matches
 end
 
----@param note obsidian.Note
----@param anchor string
----@param block string
----@param refs string[]|? Pre-computed reference paths (skips note:get_reference_paths() if provided)
-local function build_backlink_search_term(note, anchor, block, refs)
+---@param refs string[]
+---@param anchor string|?
+---@param block string|?
+local function build_backlink_search_term(refs, anchor, block)
   -- Prepare search terms.
   local search_terms = {}
-  local raw_refs = refs or note:get_reference_paths { urlencode = true }
 
-  for _, ref in ipairs(raw_refs) do
+  for _, ref in ipairs(refs) do
     if anchor == nil and block == nil then
       -- Wiki links without anchor/block.
       search_terms[#search_terms + 1] = string.format("[[%s]]", ref)
@@ -599,20 +597,6 @@ local function build_backlink_search_term(note, anchor, block, refs)
     end
   end
 
-  for alias in vim.iter(note.aliases) do
-    if anchor == nil and block == nil then
-      -- Wiki link without anchor/block.
-      search_terms[#search_terms + 1] = string.format("[[%s]]", alias)
-      -- Wiki link with anchor/block.
-      search_terms[#search_terms + 1] = string.format("[[%s#", alias)
-    elseif anchor ~= nil then
-      -- Wiki link with anchor.
-      search_terms[#search_terms + 1] = string.format("[[%s#", alias)
-    elseif block ~= nil then
-      -- Wiki link with block.
-      search_terms[#search_terms + 1] = string.format("[[%s#%s", alias, block)
-    end
-  end
   return search_terms
 end
 
@@ -671,7 +655,7 @@ end
 ---@field start integer|? The start of match (0-indexed)
 ---@field end integer|? The end of match (0-indexed)
 
----@param note obsidian.Note
+---@param note obsidian.Note|?
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
 ---@param opts { search: obsidian.SearchOpts|?, anchor: string|?, block: string|?, dir: string|obsidian.Path|?, refs: string[]|? }|?
 ---@return vim.SystemObj handle
@@ -684,13 +668,15 @@ M.find_backlinks_async = function(note, callback, opts)
   local block = opts.block and util.standardize_block(opts.block) or nil
   local anchor = opts.anchor and util.standardize_anchor(opts.anchor) or nil
   local anchor_obj
-  if anchor then
+  if anchor and note then
     anchor_obj = note:resolve_anchor_link(anchor)
   end
   ---@type obsidian.BacklinkMatch[]
   local results = {}
 
-  vim.list_extend(results, get_in_note_backlink(note, block or anchor))
+  if note then
+    vim.list_extend(results, get_in_note_backlink(note, block or anchor))
+  end
 
   ---@param submatches SubMatch[]
   ---@param ref_start integer
@@ -720,7 +706,7 @@ M.find_backlinks_async = function(note, callback, opts)
         if link_location then
           local _, matched_anchor = util.strip_anchor_links(link_location)
           local include = true
-          if anchor then
+          if anchor and note then
             if not matched_anchor then
               include = false
             else
@@ -757,9 +743,20 @@ M.find_backlinks_async = function(note, callback, opts)
     end
   end
 
+  local refs
+  if note then
+    refs = note:get_reference_paths { urlencode = true }
+  else
+    refs = opts.refs
+  end
+
+  if not refs then
+    error "no valid refs for backlinks search"
+  end
+
   return M.search_async(
     dir,
-    build_backlink_search_term(note, anchor, block, opts.refs),
+    build_backlink_search_term(refs, anchor, block),
     { fixed_strings = true, ignore_case = true },
     _on_match,
     function()
