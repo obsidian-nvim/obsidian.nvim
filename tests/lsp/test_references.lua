@@ -67,6 +67,26 @@ T["find wiki references under cursor"] = function()
   eq("[[target]]", qflist[1].text)
 end
 
+T["find unresolved wiki references under cursor"] = function()
+  local referencer = [==[
+
+[[missing]]
+
+[[missing]]
+]==]
+
+  local root = child.Obsidian.dir
+  local referencer_path = root / "referencer.md"
+  h.write(referencer, referencer_path)
+
+  child.cmd(string.format("edit %s", referencer_path))
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  local qflist = get_refs()
+  eq(2, #qflist)
+  eq("[[missing]]", qflist[1].text)
+  eq("[[missing]]", qflist[2].text)
+end
+
 T["find markdown references"] = function()
   local referencer = [==[
 
