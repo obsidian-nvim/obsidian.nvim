@@ -170,8 +170,9 @@ T["find_links"]["should find all links in a file"] = function()
   local root = child.lua_get [[tostring(Obsidian.dir)]]
   local filepath = vim.fs.joinpath(root, "test.md")
   local file = [==[
-[[link]]
+[[link]] [[link]]
   https://neovim.io <- barelinks should not work
+[other](other.md)
 ]==]
   vim.fn.writefile(vim.split(file, "\n"), filepath)
   child.lua [[
@@ -187,6 +188,21 @@ _G.res = search.find_links(note, {})
       line = 1,
       link = "[[link]]",
       start = 0,
+      type = "Wiki",
+    },
+    {
+      ["end"] = 16,
+      line = 1,
+      link = "[[link]]",
+      start = 9,
+      type = "Wiki",
+    },
+    {
+      ["end"] = 16,
+      line = 3,
+      link = "[other](other.md)",
+      start = 0,
+      type = "Markdown",
     },
   }, res)
 end

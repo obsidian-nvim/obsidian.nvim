@@ -508,31 +508,24 @@ end
 ---@field end integer 0-indexed
 ---@field type obsidian.search.RefTypes
 
--- Gather all unique links from the a note.
+-- Gather all links from a note.
 --
 ---@param note obsidian.Note
 ---@return obsidian.LinkMatch[]
 M.find_links = function(note)
   local matches = {}
-  ---@type table<string, boolean>
-  local found = {}
   local lines = io.lines(tostring(note.path))
 
   for lnum, line in vim.iter(lines):enumerate() do
     for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID" } })) do
-      local m_start, m_end, _, link = unpack(ref_match)
-      local link = string.sub(line, m_start, m_end)
-      if not found[link] then
-        local match = {
-          link = link,
-          line = lnum,
-          start = m_start - 1,
-          ["end"] = m_end - 1,
-          type = t,
-        }
-        matches[#matches + 1] = match
-        found[link] = true
-      end
+      local m_start, m_end, t, link = unpack(ref_match)
+      matches[#matches + 1] = {
+        link = link,
+        line = lnum,
+        start = m_start - 1,
+        ["end"] = m_end - 1,
+        type = t,
+      }
     end
   end
 
