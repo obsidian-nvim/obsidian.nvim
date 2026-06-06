@@ -2,89 +2,167 @@ local Note = require "obsidian.note"
 local search = require "obsidian.search"
 local util = require "obsidian.util"
 
---- Cache: path → { note_count, anchors: { anchor → count } }
----@type table<string, { note_count: integer, anchors: table<string, integer> }>
-local cache = {}
+---@param refs string[]
+---@return string[]
+local function urlencode_refs(refs)
+  local encoded = {}
+  for _, ref in ipairs(refs) do
+    vim.list_extend(
+      encoded,
+      util.tbl_unique {
+        ref,
+        util.urlencode(ref),
+        util.urlencode(ref, { keep_path_sep = true }),
+      }
+    )
+  end
+  return util.tbl_unique(encoded)
+end
 
---- Collect all backlinks to a note, split into note-level vs anchor-level counts.
----@param note obsidian.Note
----@param callback fun(result: { note_count: integer, anchors: table<string, integer> })
-local function count_backlinks_async(note, callback)
-  search.find_backlinks_async(note, function(backlinks)
-    local note_count = 0
-    ---@type table<string, integer>
-    local anchors = {}
-    for _, bl in ipairs(backlinks) do
-      if bl.text and bl.start and bl["end"] and bl.start > 0 then
-        local ref_text = bl.text:sub(bl.start, bl["end"])
-        local link_location = util.parse_link(ref_text)
-        if link_location then
-          local _, matched_anchor = util.strip_anchor_links(link_location)
-          if matched_anchor then
-            anchors[matched_anchor] = (anchors[matched_anchor] or 0) + 1
-          else
-            note_count = note_count + 1
-          end
-        end
-      else
-        note_count = note_count + 1
-      end
+---@param location string
+---@return string[]
+local function default_refs(location)
+  local refs = { location }
+
+  local without_suffix = location:gsub("%.md$", "")
+  if without_suffix ~= location then
+    refs[#refs + 1] = without_suffix
+  end
+
+  local basename = vim.fs.basename(location)
+  if basename ~= location then
+    refs[#refs + 1] = basename
+    local basename_without_suffix = basename:gsub("%.md$", "")
+    if basename_without_suffix ~= basename then
+      refs[#refs + 1] = basename_without_suffix
     end
-    local result = { note_count = note_count, anchors = anchors }
-    cache[tostring(note.path)] = result
-    callback(result)
-  end, {})
+  end
+
+  return urlencode_refs(util.tbl_unique(refs))
+end
+
+---@param location string
+---@param callback fun(refs: string[])
+local function resolve_refs(location, callback)
+  search.resolve_note_async(location, function(notes)
+    if #notes > 0 then
+      callback(notes[1]:get_reference_paths { urlencode = true })
+    else
+      callback(default_refs(location))
+    end
+  end, { notes = { max_lines = 0 } })
 end
 
 ---@param n integer
 ---@return string
 local function ref_title(n)
-  return n == 1 and "1 reference" or (n .. " references")
+  return n == 1 and "1 ref" or (n .. " refs")
 end
 
----@param headers { anchor: string, line: integer }[]
----@param result { note_count: integer, anchors: table<string, integer> }
----@param note_uri string
----@return lsp.CodeLens[]
-local function make_lenses(headers, result, note_uri)
+---@param match obsidian.LinkMatch
+---@param callback fun(lens: lsp.CodeLens|nil)
+local function backlink_count_handler(match, callback)
+  local location = util.parse_link(match.link, { link_type = match.type })
+  if not location then
+    callback(nil)
+    return
+  end
+
+  local anchor
+  local block
+  location, block = util.strip_block_links(location)
+  location, anchor = util.strip_anchor_links(location)
+
+  if location == "" then
+    callback(nil)
+    return
+  end
+
+  resolve_refs(location, function(refs)
+    if vim.tbl_isempty(refs) then
+      callback(nil)
+      return
+    end
+
+    search.find_backlinks_async(nil, function(backlinks)
+      local count = #backlinks
+      if count <= 1 then
+        callback(nil)
+      else
+        callback {
+          range = {
+            start = { line = match.line - 1, character = match.start },
+            ["end"] = { line = match.line - 1, character = match["end"] + 1 },
+          },
+          command = {
+            title = ref_title(count),
+            command = "obsidian.show_references",
+            arguments = { match.link },
+          },
+          data = {},
+        }
+      end
+    end, { refs = refs, anchor = anchor, block = block })
+  end)
+end
+
+---@type table<obsidian.search.RefTypes, fun(match: obsidian.LinkMatch, callback: fun(lens: lsp.CodeLens|nil))>
+local handlers = {}
+
+handlers.Wiki = backlink_count_handler
+handlers.WikiWithAlias = backlink_count_handler
+handlers.Markdown = backlink_count_handler
+
+---@param note obsidian.Note
+---@param callback fun(err: any, lenses: lsp.CodeLens[]?)
+local function get_lenses(note, callback)
+  local links = note:links()
+
+  local matches = vim.tbl_filter(function(link_match)
+    return handlers[link_match.type] ~= nil
+  end, links)
+
   ---@type lsp.CodeLens[]
   local lenses = {}
+  local pending = #matches
 
-  -- Note-level lens at line 0
-  if result.note_count > 0 then
-    lenses[#lenses + 1] = {
-      range = {
-        start = { line = 0, character = 0 },
-        ["end"] = { line = 0, character = 0 },
-      },
-      command = {
-        title = ref_title(result.note_count) .. " to note",
-        command = "obsidian.show_references",
-        arguments = { note_uri, -1 },
-      },
-      data = {},
-    }
+  local function done()
+    table.sort(lenses, function(a, b)
+      if a.range.start.line == b.range.start.line then
+        return a.range.start.character < b.range.start.character
+      end
+      return a.range.start.line < b.range.start.line
+    end)
+    callback(nil, lenses)
   end
 
-  -- Per-header lenses
-  for _, h in ipairs(headers) do
-    local n = result.anchors[h.anchor] or 0
-    if n > 0 then
-      lenses[#lenses + 1] = {
-        range = {
-          start = { line = h.line, character = 0 },
-          ["end"] = { line = h.line, character = 0 },
-        },
-        command = {
-          title = ref_title(n),
-          command = "obsidian.show_references",
-          arguments = { note_uri, h.line },
-        },
-        data = {},
-      }
+  if pending == 0 then
+    done()
+    return
+  end
+
+  local function finish_one()
+    pending = pending - 1
+    if pending == 0 then
+      done()
     end
   end
-  return lenses
+
+  for _, match in ipairs(matches) do
+    local ok, err = pcall(handlers[match.type], match, function(lens)
+      if lens then
+        lenses[#lenses + 1] = lens
+      end
+      finish_one()
+    end)
+
+    if not ok then
+      vim.schedule(function()
+        error(err)
+      end)
+      finish_one()
+    end
+  end
 end
 
 ---@param params lsp.CodeLensParams
@@ -94,41 +172,15 @@ return function(params, callback)
   local buf = vim.uri_to_bufnr(uri)
 
   if not vim.api.nvim_buf_is_valid(buf) then
-    return callback(nil, {})
+    callback(nil, {})
+    return
   end
 
-  local note = Note.from_buffer(buf, { collect_anchor_links = true })
+  local note = Note.from_buffer(buf)
   if not note then
-    return callback(nil, {})
+    callback(nil, {})
+    return
   end
 
-  -- Collect headers from buffer
-  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  ---@type { anchor: string, line: integer }[]
-  local headers = {}
-  for i, line in ipairs(lines) do
-    local h = util.parse_header(line)
-    if h then
-      headers[#headers + 1] = {
-        anchor = util.header_to_anchor(h.header),
-        line = i - 1, -- 0-indexed
-      }
-    end
-  end
-
-  local note_uri = vim.uri_from_fname(tostring(note.path))
-  local path_key = tostring(note.path)
-
-  -- Return cached result, refresh async for next request
-  local cached = cache[path_key]
-  if cached then
-    callback(nil, make_lenses(headers, cached, note_uri))
-    count_backlinks_async(note, function() end)
-  else
-    count_backlinks_async(note, function(result)
-      vim.schedule(function()
-        callback(nil, make_lenses(headers, result, note_uri))
-      end)
-    end)
-  end
+  get_lenses(note, callback)
 end
