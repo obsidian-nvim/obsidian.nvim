@@ -3,6 +3,57 @@ local log = require "obsidian.log"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 
+---@param refs string[]
+---@return string[]
+local function urlencode_refs(refs)
+  local encoded = {}
+  for _, ref in ipairs(refs) do
+    vim.list_extend(
+      encoded,
+      util.tbl_unique {
+        ref,
+        util.urlencode(ref),
+        util.urlencode(ref, { keep_path_sep = true }),
+      }
+    )
+  end
+  return util.tbl_unique(encoded)
+end
+
+---@param location string
+---@return string[]
+local function default_refs(location)
+  local refs = { location }
+
+  local without_suffix = location:gsub("%.md$", "")
+  if without_suffix ~= location then
+    refs[#refs + 1] = without_suffix
+  end
+
+  local basename = vim.fs.basename(location)
+  if basename ~= location then
+    refs[#refs + 1] = basename
+    local basename_without_suffix = basename:gsub("%.md$", "")
+    if basename_without_suffix ~= basename then
+      refs[#refs + 1] = basename_without_suffix
+    end
+  end
+
+  return urlencode_refs(util.tbl_unique(refs))
+end
+
+---@param location string
+---@param callback fun(refs: string[])
+local function resolve_refs(location, callback)
+  search.resolve_note_async(location, function(notes)
+    if #notes > 0 then
+      callback(notes[1]:get_reference_paths { urlencode = true })
+    else
+      callback(default_refs(location))
+    end
+  end, { notes = { max_lines = 0 } })
+end
+
 ---@param match obsidian.BacklinkMatch
 ---@return lsp.Location
 local function backlink_to_lsp_location(match)
@@ -47,11 +98,13 @@ handlers.Markdown = function(link, callback)
   local anchor_link
   location, anchor_link = util.strip_anchor_links(location)
 
-  local opts = { anchor = anchor_link, block = block_link, refs = { location } }
+  resolve_refs(location, function(refs)
+    local opts = { anchor = anchor_link, block = block_link, refs = refs }
 
-  search.find_backlinks_async(nil, function(backlink_matches)
-    callback(vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
-  end, opts)
+    search.find_backlinks_async(nil, function(backlink_matches)
+      callback(vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
+    end, opts)
+  end)
 end
 
 handlers.Wiki = handlers.Markdown

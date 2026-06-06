@@ -854,9 +854,10 @@ M.write_note = function(note)
   note:write()
 end
 
---- Show references for a header at a given line (used by codelens).
-M.show_references = function()
-  require "obsidian.lsp.handlers._references"(nil, { tag = false }, function(_, locations)
+--- Show references for a link or the reference under the cursor (used by codelens).
+---@param link string|?
+M.show_references = function(link)
+  require "obsidian.lsp.handlers._references"(link, { tag = false }, function(_, locations)
     local items = vim.lsp.util.locations_to_items(locations, "utf-8")
     if #items == 1 then
       M.open_note(items[1])
