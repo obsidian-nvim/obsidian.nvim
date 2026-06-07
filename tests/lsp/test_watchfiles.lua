@@ -104,6 +104,36 @@ T["watchfiles dispatches LSP events to registered handlers"] = function()
   eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_raw_uri")
 end
 
+T["watchfiles snapshots handlers while dispatching events"] = function()
+  child.lua [[
+    local watchfiles = require "obsidian.lsp.watchfiles"
+    local calls = {}
+    local unregister_first
+
+    unregister_first = watchfiles.register_handler(function()
+      calls[#calls + 1] = "first"
+      unregister_first()
+    end)
+
+    watchfiles.register_handler(function()
+      calls[#calls + 1] = "second"
+    end)
+
+    watchfiles.handle {
+      {
+        uri = vim.uri_from_fname "/tmp/watch.md",
+        type = vim.lsp.protocol.FileChangeType.Changed,
+      },
+    }
+
+    _G.first_call = calls[1]
+    _G.second_call = calls[2]
+  ]]
+
+  eq("first", child.lua_get "first_call")
+  eq("second", child.lua_get "second_call")
+end
+
 T["lsp.start enables dynamic watched files capability"] = function()
   child.lua [[
     local lsp = require "obsidian.lsp"

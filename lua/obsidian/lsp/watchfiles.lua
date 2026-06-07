@@ -30,7 +30,12 @@ M.handle = function(events)
     return events
   end
 
-  for _, handler in ipairs(handlers) do
+  local active_handlers = {}
+  for i, handler in ipairs(handlers) do
+    active_handlers[i] = handler
+  end
+
+  for _, handler in ipairs(active_handlers) do
     util.fire_callback("watchfiles", handler, events, events)
   end
 
