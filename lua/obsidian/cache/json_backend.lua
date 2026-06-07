@@ -82,24 +82,6 @@ function M:delete(key)
   end
 end
 
----@param old_key string
----@param new_key string
----@param patch table?
-function M:rename(old_key, new_key, patch)
-  local row = self.data.notes[old_key]
-  if not row then
-    return
-  end
-  self.data.notes[old_key] = nil
-  if patch then
-    for k, v in pairs(patch) do
-      row[k] = v
-    end
-  end
-  self.data.notes[new_key] = row
-  self.dirty = true
-end
-
 function M:flush()
   if not self.dirty then
     return

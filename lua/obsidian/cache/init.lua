@@ -6,14 +6,28 @@
 local log = require "obsidian.log"
 local watchfiles = require "obsidian.lsp.watchfiles"
 local cache_note = require "obsidian.cache.note"
-local JsonBackend = require "obsidian.cache.json_backend"
-local MemoryBackend = require "obsidian.cache.memory_backend"
 
 local M = {}
 
+---@class obsidian.cache.Backend
+---@field open fun(opts: table): obsidian.cache.Store
+
+---@class obsidian.cache.Store
+---@field close fun(self: obsidian.cache.Store)?
+---@field flush fun(self: obsidian.cache.Store)?
+---@field get fun(self: obsidian.cache.Store, key: string): table?
+---@field all fun(self: obsidian.cache.Store): table<string, table>
+---@field put fun(self: obsidian.cache.Store, key: string, row: table)
+---@field delete fun(self: obsidian.cache.Store, key: string)
+
+---@type table<string, obsidian.cache.Backend>
+local backends = {
+  json = require "obsidian.cache.json_backend",
+  memory = require "obsidian.cache.memory_backend",
+}
+
 ---@class obsidian.cache.State
----@field backend table
----@field backend_kind "json"|"memory"
+---@field backend obsidian.cache.Store
 ---@field vault string
 ---@field flush_timer uv.uv_timer_t|nil
 ---@field unregister fun()|nil
@@ -27,10 +41,7 @@ local state = nil
 local FLUSH_DEBOUNCE_MS = 2000
 
 local function schedule_flush()
-  if not state then
-    return
-  end
-  if state.backend_kind == "memory" then
+  if not state or not state.backend.flush then
     return
   end
   if state.flush_timer then
@@ -117,7 +128,8 @@ local function rename_one(old_path, new_path)
     schedule_flush()
     return
   end
-  state.backend:rename(old_path, new_path, row)
+  state.backend:delete(old_path)
+  state.backend:put(new_path, row)
   schedule_flush()
 end
 
@@ -146,20 +158,14 @@ local function initial_scan(force)
   end, { type = "file", path = state.vault, limit = math.huge })
 
   for _, abs in ipairs(files) do
-    if is_ignored(abs) then
-      goto skip_root
+    if not is_ignored(abs) then
+      found[abs] = true
+      local existing = state.backend:get(abs)
+      local stat = vim.uv.fs_stat(abs)
+      if stat and (force or not existing or existing.mtime ~= stat.mtime.sec or existing.size ~= stat.size) then
+        reindex_one(abs)
+      end
     end
-    found[abs] = true
-    local existing = state.backend:get(abs)
-    local stat = vim.uv.fs_stat(abs)
-    if not stat then
-      goto continue
-    end
-    if force or not existing or existing.mtime ~= stat.mtime.sec or existing.size ~= stat.size then
-      reindex_one(abs)
-    end
-    ::continue::
-    ::skip_root::
   end
 
   for path, _ in pairs(state.backend:all()) do
@@ -206,10 +212,30 @@ function M.is_enabled()
   return state ~= nil
 end
 
+---Register a cache backend.
+---@param name string
+---@param backend obsidian.cache.Backend
+function M.register_backend(name, backend)
+  backends[name] = backend
+end
+
+---Alias for register_backend(), matching other backend registries.
+---@param name string
+---@param backend obsidian.cache.Backend
+function M.register(name, backend)
+  M.register_backend(name, backend)
+end
+
+---@param name string?
+---@return obsidian.cache.Backend?
+function M.get_backend(name)
+  return backends[name or "json"]
+end
+
 ---@class obsidian.cache.SetupOpts
 ---@field enabled? boolean
----@field path? string  cache file path (relative to vault or absolute) — json only
----@field backend? "json"|"memory"
+---@field path? string  cache file path (relative to vault or absolute)
+---@field backend? string
 ---@field ignore_patterns? string[]  Lua patterns matched against rel_path; merged with defaults via tbl_override list_field
 
 ---@param opts obsidian.cache.SetupOpts
@@ -227,19 +253,15 @@ function M.setup(opts)
 
   local ignore_patterns = vim.deepcopy(opts.ignore_patterns or {})
 
-  local backend
-  local backend_kind = opts.backend or "json"
-  if backend_kind == "json" then
-    backend = JsonBackend.open { path = cache_path, vault = vault }
-  elseif backend_kind == "memory" then
-    backend = MemoryBackend.open { vault = vault }
-  else
-    error("cache: unknown backend '" .. tostring(opts.backend) .. "'")
+  local backend_name = opts.backend or "json"
+  local backend_impl = M.get_backend(backend_name)
+  if not backend_impl then
+    error("cache: unknown backend '" .. tostring(backend_name) .. "'")
   end
+  local backend = backend_impl.open(vim.tbl_extend("force", vim.deepcopy(opts), { path = cache_path, vault = vault }))
 
   state = {
     backend = backend,
-    backend_kind = backend_kind,
     vault = vault,
     flush_timer = nil,
     unregister = nil,
@@ -253,7 +275,7 @@ function M.setup(opts)
   end)
 
   vim.schedule(function()
-    initial_scan(backend_kind == "memory")
+    initial_scan()
     mark_ready()
   end)
 
@@ -280,7 +302,9 @@ function M.shutdown()
   end
   if state.backend then
     pcall(function()
-      state.backend:close()
+      if state.backend.close then
+        state.backend:close()
+      end
     end)
   end
   state = nil
@@ -365,7 +389,7 @@ end
 
 ---Force flush to disk (otherwise debounced).
 function M.notes.flush()
-  if state and state.backend then
+  if state and state.backend and state.backend.flush then
     state.backend:flush()
   end
 end

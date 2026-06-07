@@ -61,11 +61,30 @@ If you use `lazy.nvim`, in your configuration file add the following option:
 
 ```lua
 cache = {
-  enable = true,
+  enabled = true,
 },
 ```
 
 Read the [configuration](https://github.com/obsidian-nvim/obsidian.nvim#%EF%B8%8F-configuration) section for more information.
+
+## Custom Backends
+
+Built-in backends are `json` and `memory`. Custom backends can be registered by name before setup:
+
+```lua
+require("obsidian.cache").register("my-store", {
+  open = function(opts)
+    return store
+  end,
+})
+
+cache = {
+  enabled = true,
+  backend = "my-store",
+}
+```
+
+A store implements `get(key)`, `all()`, `put(key, row)`, and `delete(key)`. `flush()` and `close()` are optional lifecycle hooks.
 
 # Limitations
 

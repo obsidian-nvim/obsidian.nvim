@@ -439,8 +439,8 @@ return {
 
   ---@class obsidian.config.CacheOpts
   ---@field enabled? boolean
-  ---@field path? string  cache file path, relative to vault root or absolute (json backend only)
-  ---@field backend? "json"|"memory"
+  ---@field path? string  cache file path, relative to vault root or absolute
+  ---@field backend? string  Built-in: "json", "memory". Custom backends can be added with `require("obsidian.cache").register(name, backend)`.
   ---
   ---Lua patterns matched against rel_path. User entries are appended to defaults.
   ---@field ignore_patterns? string[]

@@ -31,23 +31,6 @@ function M:delete(key)
   self.data[key] = nil
 end
 
----@param old_key string
----@param new_key string
----@param patch table?
-function M:rename(old_key, new_key, patch)
-  local row = self.data[old_key]
-  if not row then
-    return
-  end
-  self.data[old_key] = nil
-  if patch then
-    for k, v in pairs(patch) do
-      row[k] = v
-    end
-  end
-  self.data[new_key] = row
-end
-
 function M:flush() end
 
 function M:close()
