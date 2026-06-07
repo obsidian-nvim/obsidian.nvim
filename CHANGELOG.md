@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `opts.sync.trigger` -> `continuous` / `on_write` / `manual`
   - `vim.g.obsidian_sync_on_write_debounce_ms` for `on_write` defaults to 2000 (experimental value, override in `post_setup` callback)
 - References/Backlinks will find unresolved links.
+- LSP filewatch capability for internal use in sync and cache.
 
 ### Fixed
 
