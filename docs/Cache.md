@@ -86,6 +86,8 @@ cache = {
 
 A store implements `get(key)`, `all()`, `put(key, row)`, and `delete(key)`. `flush()` and `close()` are optional lifecycle hooks.
 
+The cache uses `file.ignore_filters` for ignored files and directories.
+
 # Limitations
 
 - New folders which are created on Linux won't be tracked. You can solve this by restart of neovim.

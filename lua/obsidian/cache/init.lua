@@ -6,6 +6,7 @@
 local log = require "obsidian.log"
 local watchfiles = require "obsidian.lsp.watchfiles"
 local cache_note = require "obsidian.cache.note"
+local ignore = require "obsidian.ignore"
 
 local M = {}
 
@@ -31,7 +32,6 @@ local backends = {
 ---@field vault string
 ---@field flush_timer uv.uv_timer_t|nil
 ---@field unregister fun()|nil
----@field ignore_patterns string[]
 ---@field ready boolean
 ---@field pending fun()[]
 
@@ -71,17 +71,9 @@ local function is_ignored(abs_path)
   if not state then
     return true
   end
-  local root = state.vault:gsub("/+$", "")
-  local rel = abs_path
-  if vim.startswith(abs_path, root .. "/") then
-    rel = abs_path:sub(#root + 2)
-  end
-  for _, pat in ipairs(state.ignore_patterns) do
-    if rel:find(pat) then
-      return true
-    end
-  end
-  return false
+  -- TODO: if users need cache-specific ignore behavior, add an option to override
+  -- this. For now cache follows the global file.ignore_filters path.
+  return ignore.is_ignored(abs_path)
 end
 
 ---@param abs_path string
@@ -236,7 +228,6 @@ end
 ---@field enabled? boolean
 ---@field path? string  cache file path (relative to vault or absolute)
 ---@field backend? string
----@field ignore_patterns? string[]  Lua patterns matched against rel_path; merged with defaults via tbl_override list_field
 
 ---@param opts obsidian.cache.SetupOpts
 function M.setup(opts)
@@ -251,8 +242,6 @@ function M.setup(opts)
     cache_path = vault .. "/" .. cache_path
   end
 
-  local ignore_patterns = vim.deepcopy(opts.ignore_patterns or {})
-
   local backend_name = opts.backend or "json"
   local backend_impl = M.get_backend(backend_name)
   if not backend_impl then
@@ -265,7 +254,6 @@ function M.setup(opts)
     vault = vault,
     flush_timer = nil,
     unregister = nil,
-    ignore_patterns = ignore_patterns,
     ready = false,
     pending = {},
   }

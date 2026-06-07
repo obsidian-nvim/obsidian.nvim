@@ -60,6 +60,28 @@ T["cache backends"]["uses a registered backend by name"] = function()
   eq(1, cache.notes.count())
 end
 
+T["cache backends"]["uses file ignore filters"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Path.new(dir / "skip"):mkdir()
+  helpers.write("# Keep", dir / "Keep.md")
+  helpers.write("# Skip", dir / "skip" / "Skip.md")
+  Obsidian = {
+    dir = dir,
+    opts = { file = { ignore_filters = { "skip/" } } },
+  }
+  require("obsidian.ignore").clear_cache()
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  eq(tostring(dir / "Keep.md"), cache.notes.find(tostring(dir / "Keep.md")).path)
+  eq(nil, cache.notes.find(tostring(dir / "skip" / "Skip.md")))
+end
+
 T["cache backends"]["rename lifecycle uses store operations only"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }

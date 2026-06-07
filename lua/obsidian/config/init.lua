@@ -314,7 +314,8 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   opts.footer = tbl_override(defaults.footer, opts.footer)
   opts.open = tbl_override(defaults.open, opts.open, { schemes = true })
   opts.checkbox = tbl_override(defaults.checkbox, opts.checkbox)
-  opts.cache = tbl_override(defaults.cache, opts.cache, { ignore_patterns = true })
+  opts.cache = tbl_override(defaults.cache, opts.cache)
+  opts.cache.ignore_patterns = nil
   opts.comment = tbl_override(defaults.comment, opts.comment)
   opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
   opts.search = tbl_override(defaults.search, opts.search)
