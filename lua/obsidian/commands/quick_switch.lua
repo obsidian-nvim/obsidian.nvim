@@ -37,6 +37,7 @@ return function()
       return
     end
     local items = build_items()
+    -- TODO: picker.select
     vim.ui.select(items, {
       prompt = "Quick Switch",
       format_item = function(item)
