@@ -83,6 +83,13 @@ local default_actions = {
   add_attachment = {
     title = "Add attachment from folder, filepath or url",
   },
+
+  link_url = {
+    title = "Convert URL under cursor to markdown link",
+    cond = function()
+      return require("obsidian.weblink").url_at_cursor() ~= nil
+    end,
+  },
 }
 
 ---@param name string

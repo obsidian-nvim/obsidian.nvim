@@ -580,6 +580,28 @@ M.unique_link = function(timestamp)
   return link
 end
 
+---Replace the URL under the cursor with a markdown link using its fetched title.
+M.link_url = function()
+  local weblink = require "obsidian.weblink"
+  local cursor_url = weblink.url_at_cursor()
+  if not cursor_url then
+    return log.warn "No remote URL found under cursor"
+  end
+
+  local title = weblink.title_from_url(cursor_url.url)
+  local link = weblink.format_markdown_link(cursor_url.url, title)
+
+  vim.api.nvim_buf_set_text(
+    cursor_url.bufnr,
+    cursor_url.lnum - 1,
+    cursor_url.start_col,
+    cursor_url.lnum - 1,
+    cursor_url.end_col,
+    { link }
+  )
+  require("obsidian.ui").update(cursor_url.bufnr)
+end
+
 ---@param src string
 ---@param opts { insert: boolean|?, bufnr: integer|? }
 local add_attachment = function(src, opts)
