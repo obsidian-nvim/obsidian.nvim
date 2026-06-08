@@ -115,6 +115,13 @@ local default_actions = {
       return is_recording_audio() and "Stop recording audio" or "Start recording audio as attachment"
     end,
   },
+
+  link_url = {
+    title = "Convert URL under cursor to markdown link",
+    cond = function()
+      return require("obsidian.weblink").url_at_cursor() ~= nil
+    end,
+  },
 }
 
 ---@param name string

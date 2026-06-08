@@ -13,7 +13,7 @@ There are three types of links supported:
 - URI
   - `[uri](scheme:xyz)`
 
-Bare Links in the wild like `https://nevoim.io`, `mailto:example@gmail.com` and `file:///home/username/.vimrc` are not supported, , to open them, use neovim default keymaps like `gx` and `gf`, or you can enclose them in markdown links.
+Bare Links in the wild like `<https://nevoim.io`>, `mailto:example@gmail.com` and `file:///home/username/.vimrc` are not supported, , to open them, use neovim default keymaps like `gx` and `gf`, or you can enclose them in markdown links.
 
 Attachments and URIs are opened with neovim's default `vim.ui.open`, to customize the behavior, see [[Attachment#open]]
 
@@ -54,6 +54,7 @@ Available actions:
   - Insert internal link at cursor (`insert_link`)
   - Insert tag at cursor (`insert_tag`)
   - Add tag to frontmatter (`add_tag`)
+  - Convert URL under cursor to markdown link (`link_url`)
 - Visual mode:
   - Link selection as name for an existing note (`link`)
   - Link selection as name for a new note (`link_new`)
