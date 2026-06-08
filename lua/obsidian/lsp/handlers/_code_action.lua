@@ -96,6 +96,13 @@ local default_actions = {
   add_tag = {
     title = "Add tag to frontmatter",
   },
+
+  link_url = {
+    title = "Convert URL under cursor to markdown link",
+    cond = function()
+      return require("obsidian.weblink").url_at_cursor() ~= nil
+    end,
+  },
 }
 
 ---@param name string

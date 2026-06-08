@@ -45,6 +45,7 @@ Available actions:
 
 - Normal mode:
   - Add file property (`add_property`)
+  - Convert URL under cursor to markdown link (`link_url`)
   - Insert template at cursor (`insert_template`, requires templates enabled)
   - Move current note to another folder (`move_note`)
   - Merge current note into another note (`merge_note`)
