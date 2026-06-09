@@ -76,6 +76,7 @@ The default sync highlight groups are:
 - `ObsidianSyncSynced` linked to `DiagnosticOk`
 - `ObsidianSyncSyncing` linked to `DiagnosticWarn`
 - `ObsidianSyncPaused` linked to `DiagnosticInfo`
+- `ObsidianSyncError` linked to `DiagnosticError`
 
 You can override them in your config like this:
 
@@ -83,6 +84,7 @@ You can override them in your config like this:
 vim.api.nvim_set_hl(0, "ObsidianSyncSynced", { fg = "#98c379" })
 vim.api.nvim_set_hl(0, "ObsidianSyncSyncing", { fg = "#e5c07b" })
 vim.api.nvim_set_hl(0, "ObsidianSyncPaused", { fg = "#61afef" })
+vim.api.nvim_set_hl(0, "ObsidianSyncError", { fg = "#e06c75" })
 ```
 
 ## Sync Settings
