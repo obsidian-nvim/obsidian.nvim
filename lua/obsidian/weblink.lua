@@ -1,4 +1,5 @@
 local M = {}
+local Note = require "obsidian.note"
 
 ---@class obsidian.weblink.CursorUrl
 ---@field url string
@@ -49,6 +50,14 @@ local function clean_title(title)
   end
 end
 
+---
+---@return obsidian.Note|?
+M.note_from_defuddle_markdown = function(markdown)
+  local lines = vim.split(markdown, "\n")
+  local note = Note.from_lines(lines, nil, {})
+  return note
+end
+
 ---@param markdown string|nil
 ---@return string|nil
 M.title_from_defuddle_markdown = function(markdown)
@@ -56,27 +65,7 @@ M.title_from_defuddle_markdown = function(markdown)
     return nil
   end
 
-  local frontmatter = markdown:match "^%s*%-%-%-%s*\n(.-)\n%-%-%-"
-  if frontmatter then
-    for line in frontmatter:gmatch "[^\n]+" do
-      local title = line:match "^title:%s*(.-)%s*$"
-      if title then
-        title = vim.trim(title)
-        local quoted = title:match '^"(.*)"$' or title:match "^'(.*)'$"
-        if quoted then
-          title = quoted:gsub('\\"', '"'):gsub("\\'", "'")
-        end
-        return clean_title(title)
-      end
-    end
-  end
-
-  for line in markdown:gmatch "[^\n]+" do
-    local heading = line:match "^#%s+(.+)$"
-    if heading then
-      return clean_title(heading)
-    end
-  end
+  return M.note_from_defuddle_markdown(markdown).metadata.title
 end
 
 ---@param html string|nil
@@ -268,6 +257,7 @@ local function trim_url(raw)
   return url
 end
 
+-- NOTE: can not use vim.ui._get_urls since that uses treesitter, and bare urls don't work
 ---@param bufnr integer?
 ---@return obsidian.weblink.CursorUrl|nil
 M.url_at_cursor = function(bufnr)
