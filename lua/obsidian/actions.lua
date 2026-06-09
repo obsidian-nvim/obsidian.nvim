@@ -592,18 +592,31 @@ M.link_url = function()
     return log.warn "No remote URL found under cursor"
   end
 
-  local title = weblink.title_from_url(cursor_url.url)
-  local link = weblink.format_markdown_link(cursor_url.url, title)
+  return weblink.title_from_url_async(
+    cursor_url.url,
+    nil,
+    vim.schedule_wrap(function(title)
+      if not vim.api.nvim_buf_is_valid(cursor_url.bufnr) then
+        return
+      end
 
-  vim.api.nvim_buf_set_text(
-    cursor_url.bufnr,
-    cursor_url.lnum - 1,
-    cursor_url.start_col,
-    cursor_url.lnum - 1,
-    cursor_url.end_col,
-    { link }
+      local line = vim.api.nvim_buf_get_lines(cursor_url.bufnr, cursor_url.lnum - 1, cursor_url.lnum, false)[1]
+      if not line or line:sub(cursor_url.start_col + 1, cursor_url.end_col) ~= cursor_url.text then
+        return log.warn "URL changed before title fetch completed"
+      end
+
+      local link = weblink.format_markdown_link(cursor_url.url, title)
+      vim.api.nvim_buf_set_text(
+        cursor_url.bufnr,
+        cursor_url.lnum - 1,
+        cursor_url.start_col,
+        cursor_url.lnum - 1,
+        cursor_url.end_col,
+        { link }
+      )
+      require("obsidian.ui").update(cursor_url.bufnr)
+    end)
   )
-  require("obsidian.ui").update(cursor_url.bufnr)
 end
 
 ---@param src string
