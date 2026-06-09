@@ -77,18 +77,18 @@ local function preview_url(bookmark, buf)
   if url_cache[url] then
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, url_cache[url])
   else
-    vim.system(
-      { "curl", "https://defuddle.md/" .. url },
-      {},
-      vim.schedule_wrap(function(out)
+    require("obsidian.defuddle").fetch_markdown_async(
+      url,
+      nil,
+      vim.schedule_wrap(function(markdown)
         if not vim.api.nvim_buf_is_valid(buf) then
           return
         end
-        if out.code ~= 0 or not out.stdout or out.stdout == "" then
+        if not markdown or markdown == "" then
           vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Failed to fetch preview for " .. url })
           return
         end
-        local lines = vim.split(out.stdout, "\n")
+        local lines = vim.split(markdown, "\n")
         url_cache[url] = lines
         vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
       end)
