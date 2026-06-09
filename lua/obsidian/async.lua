@@ -1,5 +1,4 @@
 local log = require "obsidian.log"
-local util = require "obsidian.util"
 
 local M = {}
 
@@ -8,6 +7,7 @@ local M = {}
 ---@param on_exit function|? (integer) -> nil
 M.run_job_async = function(cmds, on_stdout, on_exit)
   local stderr_lines = false
+  local flush_stdout
 
   local on_obj = function(obj)
     --- NOTE: commands like `rg` return a non-zero exit code when there are no matches, which is okay.
@@ -17,19 +17,42 @@ M.run_job_async = function(cmds, on_stdout, on_exit)
     elseif stderr_lines then
       log.warn("Captured stderr output while running command '%s'. See logs for details.", cmds)
     end
+    if flush_stdout ~= nil then
+      flush_stdout()
+    end
     if on_exit ~= nil then
       on_exit(obj.code)
     end
   end
 
-  on_stdout = util.buffer_fn(on_stdout)
+  local stdout_buffer = ""
+  local function emit_stdout(data)
+    if on_stdout == nil then
+      return
+    end
+    stdout_buffer = stdout_buffer .. data
+    local lines = vim.split(stdout_buffer, "\n")
+    if #lines > 1 then
+      for i = 1, #lines - 1 do
+        on_stdout(lines[i])
+      end
+      stdout_buffer = lines[#lines] or ""
+    end
+  end
+
+  flush_stdout = function()
+    if on_stdout ~= nil and stdout_buffer ~= "" then
+      on_stdout(stdout_buffer)
+      stdout_buffer = ""
+    end
+  end
 
   local function stdout(err, data)
     if err ~= nil then
       return log.err("Error running command '%s'\n:%s", cmds, err)
     end
     if data ~= nil then
-      on_stdout(data)
+      emit_stdout(data)
     end
   end
 
