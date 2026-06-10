@@ -27,6 +27,8 @@ Smart-pastes the system clipboard at the cursor:
 
 An optional argument forces the kind: `:Obsidian paste html`, `:Obsidian paste url`, `:Obsidian paste text`.
 
+The insertion point is recorded when the paste is initiated, so you can keep moving the cursor and editing while titles or page content are fetched -- the result still lands where you pasted.
+
 Bind it to a key:
 
 ```lua

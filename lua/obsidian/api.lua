@@ -661,24 +661,113 @@ M.bare_url = function(text)
   return trimmed:match "^https?://%S+$"
 end
 
----@param markdown string
-local function put_markdown(markdown)
-  local lines = vim.split(markdown, "\n")
-  vim.api.nvim_put(lines, #lines == 1 and "c" or "l", true, true)
+local paste_ns = vim.api.nvim_create_namespace "obsidian.paste"
+
+---@param line string
+---@param col integer 0-indexed byte offset of the cursor character
+---@return integer col 0-indexed byte offset just past that character
+local function char_end_col(line, col)
+  local byte = line:byte(col + 1)
+  if not byte then
+    return #line
+  end
+  local len = 1
+  if byte >= 240 then -- 11110xxx: 4-byte char
+    len = 4
+  elseif byte >= 224 then -- 1110xxxx: 3-byte char
+    len = 3
+  elseif byte >= 192 then -- 110xxxxx: 2-byte char
+    len = 2
+  end
+  return math.min(col + len, #line)
 end
 
----Paste a URL at the cursor in a given form.
+---@class obsidian.api.PasteLocation
+---@field bufnr integer
+---@field extmark integer tracks the insertion point through concurrent edits
+---@field cursor [integer, integer] (1,0)-indexed cursor position at record time
+
+---Record where a paste should land, so async results are inserted at the
+---position the paste was initiated from, even if the cursor moves (or the
+---buffer is edited) while titles and pages are being fetched.
+---
+---@return obsidian.api.PasteLocation
+M.record_paste_location = function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
+  -- insert after the cursor character, like `p`
+  local insert_col = #line == 0 and 0 or char_end_col(line, col)
+  local extmark = vim.api.nvim_buf_set_extmark(bufnr, paste_ns, row - 1, insert_col, {})
+  return { bufnr = bufnr, extmark = extmark, cursor = { row, col } }
+end
+
+---Discard a recorded paste location without inserting anything.
+---
+---@param loc obsidian.api.PasteLocation|?
+M.discard_paste_location = function(loc)
+  if loc and vim.api.nvim_buf_is_valid(loc.bufnr) then
+    vim.api.nvim_buf_del_extmark(loc.bufnr, paste_ns, loc.extmark)
+  end
+end
+local discard_location = M.discard_paste_location
+
+---Insert markdown at a recorded paste location: single lines go inline at the
+---recorded column, multi-line content is inserted below the recorded line.
+---
+---@param markdown string
+---@param loc obsidian.api.PasteLocation
+local function put_markdown(markdown, loc)
+  if not vim.api.nvim_buf_is_valid(loc.bufnr) then
+    return
+  end
+
+  local mark = vim.api.nvim_buf_get_extmark_by_id(loc.bufnr, paste_ns, loc.extmark, {})
+  discard_location(loc)
+  if not mark or #mark == 0 then
+    return
+  end
+  local row, col = mark[1], mark[2]
+
+  local lines = vim.split(markdown, "\n")
+  local end_row, end_col
+  if #lines == 1 then
+    local ok = pcall(vim.api.nvim_buf_set_text, loc.bufnr, row, col, row, col, lines)
+    if not ok then
+      return log.warn "Paste target changed before the content was ready"
+    end
+    end_row, end_col = row, col + #lines[1]
+  else
+    local ok = pcall(vim.api.nvim_buf_set_lines, loc.bufnr, row + 1, row + 1, false, lines)
+    if not ok then
+      return log.warn "Paste target changed before the content was ready"
+    end
+    end_row, end_col = row + #lines, #lines[#lines]
+  end
+
+  -- follow the paste, but only if the user hasn't moved away in the meantime
+  local win = vim.api.nvim_get_current_win()
+  if vim.api.nvim_win_get_buf(win) == loc.bufnr then
+    local cur = vim.api.nvim_win_get_cursor(win)
+    if cur[1] == loc.cursor[1] and cur[2] == loc.cursor[2] then
+      pcall(vim.api.nvim_win_set_cursor, win, { end_row + 1, math.max(end_col - 1, 0) })
+    end
+  end
+end
+
+---Paste a URL in a given form.
 ---
 ---@param url string
 ---@param url_as "link"|"content"|"raw"|? defaults to "link"
----@param opts { backend: obsidian.html.Backend|? }|?
+---@param opts { backend: obsidian.html.Backend|?, location: obsidian.api.PasteLocation|? }|?
 ---@return any job
 M.paste_url = function(url, url_as, opts)
   opts = opts or {}
   url_as = url_as or "link"
+  local loc = opts.location or M.record_paste_location()
 
   if url_as == "raw" then
-    put_markdown(url)
+    put_markdown(url, loc)
     return
   end
 
@@ -689,7 +778,7 @@ M.paste_url = function(url, url_as, opts)
       url,
       nil,
       vim.schedule_wrap(function(title)
-        put_markdown(weblink.format_markdown_link(url, title))
+        put_markdown(weblink.format_markdown_link(url, title), loc)
       end)
     )
   end
@@ -697,6 +786,9 @@ M.paste_url = function(url, url_as, opts)
   -- url_as == "content": fetch the page and paste its body as markdown
   return weblink.fetch_html_async(url, nil, function(body, err)
     if not body then
+      vim.schedule(function()
+        discard_location(loc)
+      end)
       return log.err("Failed to fetch '%s': %s", url, err)
     end
 
@@ -705,9 +797,10 @@ M.paste_url = function(url, url_as, opts)
       { mode = "fragment", backend = opts.backend, url = url },
       vim.schedule_wrap(function(markdown, convert_err)
         if not markdown then
+          discard_location(loc)
           return log.err("Failed to convert '%s' to markdown: %s", url, convert_err)
         end
-        put_markdown(markdown)
+        put_markdown(markdown, loc)
       end)
     )
   end)
@@ -724,8 +817,14 @@ end
 ---
 ---HTML conversion backend override, see `Obsidian.opts.html.backend`.
 ---@field backend obsidian.html.Backend|?
+---
+---Where to insert the result, defaults to the cursor position at call time.
+---@field location obsidian.api.PasteLocation|?
 
 ---Smart paste: convert the system clipboard to markdown and insert it at the cursor.
+---
+---The insertion point is recorded up front, so the cursor is free to move
+---while content is converted or fetched.
 ---
 ---Non-interactive; see `actions.paste` for the interactive version.
 ---
@@ -748,9 +847,20 @@ M.paste = function(opts)
     end
   end
 
+  if kind == "url" then
+    local url = M.bare_url(text)
+    if not url then
+      return log.warn "No URL in clipboard"
+    end
+    return M.paste_url(url, opts.url_as, { backend = opts.backend, location = opts.location })
+  end
+
+  local loc = opts.location or M.record_paste_location()
+
   if kind == "html" then
     local content = clipboard.get_html()
     if not content then
+      discard_location(loc)
       return log.warn "No HTML content in clipboard"
     end
 
@@ -759,22 +869,18 @@ M.paste = function(opts)
       { mode = "fragment", backend = opts.backend },
       vim.schedule_wrap(function(markdown, err)
         if not markdown then
+          discard_location(loc)
           return log.err("Failed to convert clipboard HTML to markdown: %s", err)
         end
-        put_markdown(markdown)
+        put_markdown(markdown, loc)
       end)
     )
-  elseif kind == "url" then
-    local url = M.bare_url(text)
-    if not url then
-      return log.warn "No URL in clipboard"
-    end
-    return M.paste_url(url, opts.url_as, { backend = opts.backend })
   else
     if not text then
+      discard_location(loc)
       return log.warn "Clipboard is empty"
     end
-    put_markdown(text)
+    put_markdown(text, loc)
   end
 end
 

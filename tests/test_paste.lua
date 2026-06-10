@@ -66,6 +66,36 @@ T["paste"]["pastes a bare url raw"] = function()
 end
 
 if vim.fn.executable "pandoc" == 1 then
+  T["paste"]["inserts at the recorded position even if the cursor moves"] = function()
+    with_clipboard({
+      has_html = function()
+        return true
+      end,
+      get_html = function()
+        return "<em>late</em>"
+      end,
+      get_text = function()
+        return "late"
+      end,
+    }, function()
+      local buf = scratch_buf()
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "first", "second" })
+      vim.api.nvim_win_set_cursor(0, { 1, 4 }) -- on the 't' of "first"
+
+      api.paste { backend = "pandoc" }
+
+      -- move away while the conversion is in flight
+      vim.api.nvim_win_set_cursor(0, { 2, 3 })
+
+      local ok = vim.wait(10000, function()
+        return vim.deep_equal({ "first*late*", "second" }, buf_lines(buf))
+      end, 10)
+      eq(true, ok)
+      -- the cursor was not yanked back to the paste position
+      eq({ 2, 3 }, vim.api.nvim_win_get_cursor(0))
+    end)
+  end
+
   T["paste"]["converts clipboard html to markdown"] = function()
     with_clipboard({
       has_html = function()

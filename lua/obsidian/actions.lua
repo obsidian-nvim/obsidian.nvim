@@ -622,9 +622,11 @@ end
 ---Interactively paste a URL: ask how to insert it before delegating to `api.paste_url`.
 ---
 ---@param url string
----@param opts { backend: obsidian.html.Backend|? }|?
+---@param opts { backend: obsidian.html.Backend|?, location: obsidian.api.PasteLocation|? }|?
 M.paste_url = function(url, opts)
   opts = opts or {}
+  -- record up front: the cursor may move while the prompt is open
+  local location = opts.location or api.record_paste_location()
 
   local choices = {
     { label = "Paste as markdown link", url_as = "link" },
@@ -639,9 +641,10 @@ M.paste_url = function(url, opts)
     end,
   }, function(choice)
     if not choice then
+      api.discard_paste_location(location)
       return log.info "Aborted"
     end
-    api.paste_url(url, choice.url_as, { backend = opts.backend })
+    api.paste_url(url, choice.url_as, { backend = opts.backend, location = location })
   end)
 end
 
@@ -653,6 +656,7 @@ end
 ---@param opts obsidian.api.PasteOpts|?
 M.paste = function(opts)
   opts = opts or {}
+  opts.location = opts.location or api.record_paste_location()
 
   if opts.kind and opts.kind ~= "auto" then
     return api.paste(opts)
@@ -663,7 +667,7 @@ M.paste = function(opts)
   -- A bare URL is ambiguous: ask the user how to paste it.
   local url = api.bare_url(clipboard.get_text())
   if url and not clipboard.has_html() and not opts.url_as then
-    return M.paste_url(url, { backend = opts.backend })
+    return M.paste_url(url, { backend = opts.backend, location = opts.location })
   end
 
   return api.paste(opts)
