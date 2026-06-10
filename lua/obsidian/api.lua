@@ -632,16 +632,6 @@ M.paste = function(opts)
   return require("obsidian.paste").paste(opts)
 end
 
----Paste a URL in a given form ("link"|"content"|"raw").
----
----@param url string
----@param url_as "link"|"content"|"raw"|? defaults to "link"
----@param opts { backend: obsidian.html.Backend|?, location: obsidian.api.PasteLocation|? }|?
----@return any job
-M.paste_url = function(url, url_as, opts)
-  return require("obsidian.paste").paste_url(url, url_as, opts)
-end
-
 ---Whether a string is a single bare http(s) URL.
 ---
 ---@param text string|?
