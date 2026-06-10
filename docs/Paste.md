@@ -50,19 +50,23 @@ require("obsidian.api").paste { kind = "html", backend = "pandoc" }
 require("obsidian.api").paste_url("https://example.com", "content")
 ```
 
-## Drag and drop
+## Automatic paste (drag and drop, `<C-S-V>`)
 
-For terminals that stream drag-and-dropped files and URLs into the buffer (as bracketed paste), obsidian.nvim intercepts the paste in obsidian buffers:
+When an obsidian buffer attaches, `vim.paste` is wrapped so content streamed into the buffer by the terminal -- drag-and-dropped files/URLs and bracketed paste (`<C-S-V>`) -- is handled smartly:
 
-- a dropped URL prompts for how to paste it (link / content / raw)
-- a dropped file path is added as an attachment and a link to it is inserted
+- a URL prompts for how to paste it (markdown link / page content / raw)
+- a URL pointing at an attachment filetype (image, pdf, ...) is downloaded into the vault and embedded
+- a local file path (shell escaping and `file://` URIs are handled) prompts for how to handle it:
+  - `Attach`: copy into the vault, insert a link
+  - `Embed`: copy into the vault, insert an embed (`![[...]]`)
+  - `Link`: insert a `file://` link to the file in place, without copying
 
-Everything else (multi-line or ordinary text pastes) is left untouched. Disable with:
+Everything else (multi-line or ordinary text pastes) is left untouched.
+
+Guarded by `vim.g.obsidian_auto_paste`, set it to `false` (e.g. in your config, before obsidian.nvim initializes) to disable:
 
 ```lua
-paste = {
-  drag_and_drop = false,
-},
+vim.g.obsidian_auto_paste = false
 ```
 
 Image pasting is separate, see [[Images]] and `:Obsidian paste_img`.
