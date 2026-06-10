@@ -1,4 +1,4 @@
-local defuddle = require "obsidian.defuddle"
+local defuddle = require "obsidian.paste.backends.defuddle"
 local html = require "obsidian.html"
 local http = require "obsidian.http"
 local url = require "obsidian.url"

@@ -1,6 +1,6 @@
 local M = {}
 
-local defuddle = require "obsidian.defuddle"
+local defuddle = require "obsidian.paste.backends.defuddle"
 local html = require "obsidian.html"
 local url = require "obsidian.url"
 local webpage = require "obsidian.webpage"

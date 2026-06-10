@@ -6,6 +6,7 @@
 ---guarded by `vim.g.obsidian_auto_paste`.
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -125,10 +126,10 @@ end
 ---Paste a URL in a given form.
 ---
 ---@param url string
----@param url_as "link"|"content"|"raw"|? defaults to "link"
+---@param url_as "link"|"raw"|?
 ---@param opts { backend: obsidian.html.Backend|?, location: obsidian.api.PasteLocation|? }|?
 ---@return any job
-M.paste_url = function(url, url_as, opts)
+local paste_url = function(url, url_as, opts)
   opts = opts or {}
   url_as = url_as or "link"
   local loc = opts.location or M.record_location()
@@ -149,28 +150,24 @@ M.paste_url = function(url, url_as, opts)
       end)
     )
   end
+end
 
-  -- url_as == "content": fetch the page and paste its body as markdown
-  return weblink.fetch_html_async(url, nil, function(body, err)
-    if not body then
-      vim.schedule(function()
-        M.discard_location(loc)
-      end)
-      return log.err("Failed to fetch '%s': %s", url, err)
-    end
+---Interactively paste a URL: ask how to insert it before delegating to `api.paste_url`.
+---
+---@param url string
+---@param opts { backend: obsidian.html.Backend|?, location: obsidian.api.PasteLocation|? }|?
+M.paste_url = function(url, opts)
+  opts = opts or {}
+  local location = opts.location or M.record_location()
 
-    weblink.html_to_markdown_async(
-      body,
-      { mode = "fragment", backend = opts.backend, url = url },
-      vim.schedule_wrap(function(markdown, convert_err)
-        if not markdown then
-          M.discard_location(loc)
-          return log.err("Failed to convert '%s' to markdown: %s", url, convert_err)
-        end
-        put_markdown(markdown, loc)
-      end)
-    )
-  end)
+  local choice = api.confirm "Fetch link title?"
+
+  if choice == "Yes" then
+    paste_url(url, "link", { backend = opts.backend, location = location })
+  else
+    M.discard_location(location)
+    paste_url(url, "raw", { backend = opts.backend, location = location })
+  end
 end
 
 ---@class obsidian.api.PasteOpts
@@ -178,9 +175,6 @@ end
 ---What to paste from the clipboard, defaults to "auto":
 ---html content when available, else a bare URL, else plain text.
 ---@field kind "auto"|"html"|"url"|"text"|?
----
----How to paste a bare URL, defaults to "link".
----@field url_as "link"|"content"|"raw"|?
 ---
 ---HTML conversion backend override, see `Obsidian.opts.html.backend`.
 ---@field backend obsidian.html.Backend|?
@@ -201,10 +195,11 @@ M.paste = function(opts)
   opts = opts or {}
   local clipboard = require "obsidian.clipboard"
 
-  local kind = opts.kind or "auto"
+  local kind = opts.kind
   local text = clipboard.get_text()
+  local loc = opts.location or M.record_location()
 
-  if kind == "auto" then
+  if opts.kind == nil or opts.kind == "auto" then
     if clipboard.has_html() then
       kind = "html"
     elseif M.bare_url(text) then
@@ -219,10 +214,8 @@ M.paste = function(opts)
     if not url then
       return log.warn "No URL in clipboard"
     end
-    return M.paste_url(url, opts.url_as, { backend = opts.backend, location = opts.location })
+    return M.paste_url(url, { location = loc })
   end
-
-  local loc = opts.location or M.record_location()
 
   if kind == "html" then
     local content = clipboard.get_html()
@@ -295,7 +288,6 @@ end
 ---@param loc obsidian.api.PasteLocation
 ---@return boolean handled
 local function handle_path(path, loc)
-  local api = require "obsidian.api"
   local attachment = require "obsidian.attachment"
 
   local choice = api.confirm(("How to handle '%s'?"):format(vim.fs.basename(path)), "&Attach\n&Embed\n&Link")
@@ -340,12 +332,7 @@ local function smart_paste_line(line)
   end
 
   if M.bare_url(line) then
-    if require("obsidian.attachment").is_attachment_path(line) then
-      -- remote attachment (image, pdf, ...): download into the vault
-      require("obsidian.actions").add_attachment(line, { insert = true })
-    else
-      require("obsidian.actions").paste_url(line)
-    end
+    require("obsidian.actions").paste_url(line)
     return true
   end
 
