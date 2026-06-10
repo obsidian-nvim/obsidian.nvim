@@ -101,9 +101,9 @@ M.resolve_backend = function(backend)
     return backend
   end
 
-  if require("obsidian.defuddle").has_cli() then
+  if require("obsidian.paste.backends.defuddle").has_cli() then
     return "defuddle"
-  elseif require("obsidian.pandoc").available() then
+  elseif require("obsidian.paste.backends.pandoc").available() then
     return "pandoc"
   end
 
@@ -156,7 +156,7 @@ M.to_markdown_async = function(html, opts, callback)
   end
 
   if backend == "defuddle" then
-    local defuddle = require "obsidian.defuddle"
+    local defuddle = require "obsidian.paste.backends.defuddle"
     return defuddle.convert_async(html, { json = mode == "page" }, function(result, convert_err)
       if not result then
         callback(nil, convert_err)
@@ -177,7 +177,7 @@ M.to_markdown_async = function(html, opts, callback)
     end)
   end
 
-  local pandoc = require "obsidian.pandoc"
+  local pandoc = require "obsidian.paste.backends.pandoc"
   return pandoc.convert_async(html, function(markdown, convert_err)
     if not markdown then
       callback(nil, convert_err)

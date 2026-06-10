@@ -85,7 +85,7 @@ local function preview_url(bookmark, buf)
   if url_cache[url] then
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, url_cache[url])
   else
-    require("obsidian.defuddle").fetch_markdown_async(
+    require("obsidian.paste.backends.defuddle").fetch_markdown_async(
       url,
       nil,
       vim.schedule_wrap(function(markdown)
