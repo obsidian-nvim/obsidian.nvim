@@ -320,7 +320,7 @@ M.register("paste", {
   complete = function(arg)
     return vim.tbl_filter(function(s)
       return vim.startswith(s, arg)
-    end, { "auto", "html", "url", "text" })
+    end, { "auto", "html", "url", "text", "image" })
   end,
 })
 

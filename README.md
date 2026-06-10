@@ -122,7 +122,9 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian template [NAME]` - insert a template from the templates folder, selecting from a list using your preferred picker
   - [Template](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template)
 - `:Obsidian links` - get a picker list of all links in current note
-- `:Obsidian paste_img [IMGNAME]` - paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link
+- `:Obsidian paste [auto|html|url|text|image]` - smart paste clipboard content; `image` saves clipboard image data to the vault and inserts a markdown image link
+  - [Paste](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Paste)
+- `:Obsidian paste_img [IMGNAME]` - compatibility command for image paste; prefer `:Obsidian paste image` for new mappings
   - [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location)
 - `:Obsidian rename [NEWNAME]` - rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault
   - runs `:wa` before renaming, and loads every note with backlinks into your buffer-list
@@ -151,8 +153,8 @@ There's one entry point user command for this plugin: `Obsidian`
 - For completion and search features: [`ripgrep`](https://github.com/BurntSushi/ripgrep?tab=readme-ov-file#installation)
 - Additional system dependencies:
   - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:Obsidian open`.
-  - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:Obsidian paste_img`.
-  - **Linux** users need `xclip` (X11) or `wl-clipboard` (Wayland) for `:Obsidian paste_img`.
+  - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for image paste.
+  - **Linux** users need `xclip` (X11) or `wl-clipboard` (Wayland) for image paste.
 
 ### Plugin dependencies
 

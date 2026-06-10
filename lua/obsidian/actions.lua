@@ -628,7 +628,6 @@ end
 M.paste = function(opts)
   opts = opts or {}
   local paste = require "obsidian.paste"
-  opts.location = opts.location or paste.record_location()
   return paste.paste(opts)
 end
 
