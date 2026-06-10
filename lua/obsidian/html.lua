@@ -110,6 +110,25 @@ M.resolve_backend = function(backend)
   return nil, "no html backend available, install the `defuddle` CLI (npm install -g defuddle) or `pandoc`"
 end
 
+---Strip markdown images with `data:` URI sources, e.g. decorative UI icons
+---that websites inline as base64 svgs. They carry no content and most
+---previewers refuse to render data URIs anyway.
+---
+---@param markdown string
+---@return string
+M.strip_data_uri_images = function(markdown)
+  markdown = markdown:gsub("!%[[^%]]*%]%(data:[^%)]*%)", "")
+  -- collapse blank lines left behind by removed images
+  markdown = markdown:gsub("\n\n\n+", "\n\n")
+  return markdown
+end
+
+---@param markdown string
+---@return string
+local function clean_markdown(markdown)
+  return vim.trim(M.strip_data_uri_images(markdown))
+end
+
 ---@class obsidian.html.ConvertOpts
 ---@field backend obsidian.html.Backend|? defaults to `Obsidian.opts.html.backend`, else auto-detect (defuddle > pandoc)
 ---@field mode "page"|"fragment"|? defaults to "fragment"
@@ -145,7 +164,7 @@ M.to_markdown_async = function(html, opts, callback)
       end
 
       if mode ~= "page" then
-        callback(vim.trim(result.markdown), nil)
+        callback(clean_markdown(result.markdown), nil)
         return
       end
 
@@ -154,7 +173,7 @@ M.to_markdown_async = function(html, opts, callback)
         metadata.source = opts.url
       end
       local header = require("obsidian.webpage").frontmatter(metadata)
-      callback(header .. "\n\n" .. vim.trim(result.markdown), nil)
+      callback(header .. "\n\n" .. clean_markdown(result.markdown), nil)
     end)
   end
 
@@ -166,7 +185,7 @@ M.to_markdown_async = function(html, opts, callback)
     end
 
     if mode ~= "page" then
-      callback(vim.trim(markdown), nil)
+      callback(clean_markdown(markdown), nil)
       return
     end
 
@@ -175,7 +194,7 @@ M.to_markdown_async = function(html, opts, callback)
       source = opts.url,
     }
     local header = require("obsidian.webpage").frontmatter(metadata)
-    callback(header .. "\n\n" .. vim.trim(markdown), nil)
+    callback(header .. "\n\n" .. clean_markdown(markdown), nil)
   end)
 end
 

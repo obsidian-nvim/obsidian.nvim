@@ -36,6 +36,29 @@ T["frontmatter"]["always includes a created date"] = function()
   eq(true, header:find "created: %d%d%d%d%-%d%d%-%d%d" ~= nil)
 end
 
+T["strip_data_uri_images"] = function()
+  local markdown = table.concat({
+    "Some text ![24](data:image/svg+xml;base64,PHN2ZyB4bWxucz0i) here.",
+    "",
+    "![icon](data:image/png;base64,iVBORw0KG)",
+    "",
+    "A real ![image](https://example.com/a.png) stays.",
+  }, "\n")
+
+  eq(
+    table.concat({
+      "Some text  here.",
+      "",
+      "A real ![image](https://example.com/a.png) stays.",
+    }, "\n"),
+    html.strip_data_uri_images(markdown)
+  )
+end
+
+T["strip_data_uri_images collapses leftover blank lines"] = function()
+  eq("a\n\nb", html.strip_data_uri_images "a\n\n![i](data:image/png;base64,x)\n\nb")
+end
+
 T["resolve_backend"] = new_set()
 
 T["resolve_backend"]["rejects unknown backends"] = function()
