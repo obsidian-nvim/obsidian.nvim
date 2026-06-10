@@ -419,16 +419,6 @@ return {
     schemes = { "https", "http", "file", "mailto" },
   },
 
-  ---@class obsidian.config.PasteOpts
-  ---
-  ---Intercept single URLs and file paths pasted (or drag-and-dropped by the
-  ---terminal) into obsidian buffers, turning them into markdown links and
-  ---attachments instead of plain text.
-  ---@field drag_and_drop? boolean
-  paste = {
-    drag_and_drop = true,
-  },
-
   ---@class obsidian.config.HtmlOpts
   ---
   ---Backend used to convert HTML to markdown.
