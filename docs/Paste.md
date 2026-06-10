@@ -54,6 +54,7 @@ require("obsidian.api").paste_url("https://example.com", "content")
 
 When an obsidian buffer attaches, `vim.paste` is wrapped so content streamed into the buffer by the terminal -- drag-and-dropped files/URLs and bracketed paste (`<C-S-V>`) -- is handled smartly:
 
+- clipboard HTML (including multi-line selections) is converted to markdown
 - a URL prompts for how to paste it (markdown link / page content / raw)
 - a URL pointing at an attachment filetype (image, pdf, ...) is downloaded into the vault and embedded
 - a local file path (shell escaping and `file://` URIs are handled) prompts for how to handle it:
@@ -61,7 +62,7 @@ When an obsidian buffer attaches, `vim.paste` is wrapped so content streamed int
   - `Embed`: copy into the vault, insert an embed (`![[...]]`)
   - `Link`: insert a `file://` link to the file in place, without copying
 
-Everything else (multi-line or ordinary text pastes) is left untouched.
+Everything else (ordinary plain text, including multi-line plain text) is left untouched.
 
 Guarded by `vim.g.obsidian_auto_paste`, set it to `false` (e.g. in your config, before obsidian.nvim initializes) to disable:
 
