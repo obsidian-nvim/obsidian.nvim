@@ -118,4 +118,63 @@ if vim.fn.executable "pandoc" == 1 then
   end
 end
 
+T["attach"] = new_set()
+
+T["attach"]["converts multiline clipboard html"] = function()
+  local real_vim_paste = vim.paste
+  local real_clipboard = package.loaded["obsidian.clipboard"]
+  local real_html = package.loaded["obsidian.html"]
+  local real_paste = package.loaded["obsidian.paste"]
+  local real_auto_paste = vim.g.obsidian_auto_paste
+
+  local ok, err = pcall(function()
+    package.loaded["obsidian.clipboard"] = {
+      has_html = function()
+        return true
+      end,
+      get_html = function()
+        return "<p>hello</p><p>world</p>"
+      end,
+      get_text = function()
+        return "hello\nworld"
+      end,
+    }
+    package.loaded["obsidian.html"] = {
+      to_markdown_async = function(_, _, callback)
+        callback "hello\nworld"
+      end,
+    }
+    package.loaded["obsidian.paste"] = nil
+
+    local buf = scratch_buf()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "anchor" })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    vim.b.obsidian_buffer = true
+
+    local overridden_called = false
+    vim.paste = function()
+      overridden_called = true
+      return true
+    end
+
+    require("obsidian.paste").attach(buf)
+    eq(true, vim.paste({ "hello", "world" }, -1))
+
+    local converted = vim.wait(1000, function()
+      return vim.deep_equal({ "anchor", "hello", "world" }, buf_lines(buf))
+    end, 10)
+    eq(true, converted)
+    eq(false, overridden_called)
+  end)
+
+  vim.paste = real_vim_paste
+  package.loaded["obsidian.clipboard"] = real_clipboard
+  package.loaded["obsidian.html"] = real_html
+  package.loaded["obsidian.paste"] = real_paste
+  vim.g.obsidian_auto_paste = real_auto_paste
+  vim.b.obsidian_buffer = nil
+
+  assert(ok, err)
+end
+
 return T
