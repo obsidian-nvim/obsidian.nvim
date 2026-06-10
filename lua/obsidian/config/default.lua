@@ -426,6 +426,15 @@ return {
     schemes = { "https", "http", "file", "mailto" },
   },
 
+  ---@class obsidian.config.HtmlOpts
+  ---
+  ---Backend used to convert HTML to markdown.
+  ---Defaults to auto-detection: the `defuddle` CLI when executable, else `pandoc`.
+  ---@field backend? obsidian.html.Backend
+  html = {
+    backend = nil,
+  },
+
   ---@class obsidian.config.CheckboxOpts
   ---
   ---@field enabled? boolean
