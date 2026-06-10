@@ -164,9 +164,11 @@ M.paste_url = function(url, opts)
 
   if choice == "Yes" then
     paste_url(url, "link", { backend = opts.backend, location = location })
+  elseif choice == "No" then
+    paste_url(url, "raw", { backend = opts.backend, location = location })
   else
     M.discard_location(location)
-    paste_url(url, "raw", { backend = opts.backend, location = location })
+    log.info "Aborted"
   end
 end
 
@@ -178,6 +180,9 @@ end
 ---
 ---HTML conversion backend override, see `Obsidian.opts.html.backend`.
 ---@field backend obsidian.html.Backend|?
+---
+---For bare URLs, paste as a markdown link or raw URL. Defaults to prompting.
+---@field url_as "link"|"raw"|?
 ---
 ---Where to insert the result, defaults to the cursor position at call time.
 ---@field location obsidian.api.PasteLocation|?
@@ -214,7 +219,10 @@ M.paste = function(opts)
     if not url then
       return log.warn "No URL in clipboard"
     end
-    return M.paste_url(url, { location = loc })
+    if opts.url_as then
+      return paste_url(url, opts.url_as, { backend = opts.backend, location = loc })
+    end
+    return M.paste_url(url, { backend = opts.backend, location = loc })
   end
 
   if kind == "html" then
@@ -316,6 +324,35 @@ local function handle_path(path, loc)
   return true
 end
 
+---@param text string
+---@return string
+local function normalize_newlines(text)
+  return (text:gsub("\r\n", "\n"):gsub("\r", "\n"))
+end
+
+---@param a string
+---@param b string
+---@return boolean
+local function same_paste_text(a, b)
+  a = normalize_newlines(a)
+  b = normalize_newlines(b)
+  return a == b or (vim.endswith(a, "\n") and a:sub(1, -2) == b) or (vim.endswith(b, "\n") and b:sub(1, -2) == a)
+end
+
+---Handle pasted clipboard HTML using the same conversion path as `M.paste`.
+---@param lines string[]
+---@return boolean handled
+local function smart_paste_clipboard_html(lines)
+  local clipboard = require "obsidian.clipboard"
+  local text = clipboard.get_text()
+  if not text or not same_paste_text(text, table.concat(lines, "\n")) or not clipboard.has_html() then
+    return false
+  end
+
+  M.paste { kind = "html", location = M.record_location() }
+  return true
+end
+
 ---Handle a single pasted (or drag-and-dropped) line if it is a URL or a local
 ---file, returning true when it was consumed.
 ---@param line string
@@ -332,7 +369,7 @@ local function smart_paste_line(line)
   end
 
   if M.bare_url(line) then
-    require("obsidian.actions").paste_url(line)
+    M.paste_url(line, { location = M.record_location() })
     return true
   end
 
@@ -382,8 +419,13 @@ M.attach = function(_bufnr)
         end
         local complete = pending
         pending = nil
-        if #complete == 1 and should_intercept() and smart_paste_line(complete[1]) then
-          return true
+        if should_intercept() then
+          if smart_paste_clipboard_html(complete) then
+            return true
+          end
+          if #complete == 1 and smart_paste_line(complete[1]) then
+            return true
+          end
         end
         return overridden(complete, -1)
       end
@@ -396,6 +438,10 @@ M.attach = function(_bufnr)
       -- and decide once complete
       if phase == 1 then
         pending = vim.deepcopy(lines)
+        return true
+      end
+
+      if smart_paste_clipboard_html(lines) then
         return true
       end
 
