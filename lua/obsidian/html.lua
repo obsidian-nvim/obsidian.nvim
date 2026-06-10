@@ -78,4 +78,105 @@ M.title_from_html = function(html)
   return clean_title(title)
 end
 
+---@alias obsidian.html.Backend "defuddle"|"pandoc"
+
+---Resolve which conversion backend to use: explicit choice, then config, then auto-detect.
+---
+---@param backend obsidian.html.Backend|?
+---@return obsidian.html.Backend|? backend
+---@return string|? err
+M.resolve_backend = function(backend)
+  if not backend then
+    -- pcall: the Obsidian global is only available after setup
+    local ok, configured = pcall(function()
+      return Obsidian.opts.html.backend
+    end)
+    backend = ok and configured or nil
+  end
+
+  if backend then
+    if backend ~= "defuddle" and backend ~= "pandoc" then
+      return nil, ("unknown html backend '%s'"):format(backend)
+    end
+    return backend
+  end
+
+  if require("obsidian.defuddle").has_cli() then
+    return "defuddle"
+  elseif require("obsidian.pandoc").available() then
+    return "pandoc"
+  end
+
+  return nil, "no html backend available, install the `defuddle` CLI (npm install -g defuddle) or `pandoc`"
+end
+
+---@class obsidian.html.ConvertOpts
+---@field backend obsidian.html.Backend|? defaults to `Obsidian.opts.html.backend`, else auto-detect (defuddle > pandoc)
+---@field mode "page"|"fragment"|? defaults to "fragment"
+---@field url string|? source url, included in page-mode frontmatter
+
+---Convert a string of HTML to markdown.
+---
+---In "fragment" mode the result is bare markdown (no YAML header), suitable
+---for pasting into an existing note. In "page" mode the result is prefixed
+---with a YAML frontmatter header (title, source, ...), suitable for creating
+---a note from a full webpage.
+---
+---@param html string
+---@param opts obsidian.html.ConvertOpts|?
+---@param callback fun(markdown: string?, err: string?)
+---@return any job
+M.to_markdown_async = function(html, opts, callback)
+  opts = opts or {}
+  local mode = opts.mode or "fragment"
+
+  local backend, err = M.resolve_backend(opts.backend)
+  if not backend then
+    callback(nil, err)
+    return
+  end
+
+  if backend == "defuddle" then
+    local defuddle = require "obsidian.defuddle"
+    return defuddle.convert_async(html, { json = mode == "page" }, function(result, convert_err)
+      if not result then
+        callback(nil, convert_err)
+        return
+      end
+
+      if mode ~= "page" then
+        callback(vim.trim(result.markdown), nil)
+        return
+      end
+
+      local metadata = result.metadata or {}
+      if opts.url then
+        metadata.source = opts.url
+      end
+      local header = require("obsidian.webpage").frontmatter(metadata)
+      callback(header .. "\n\n" .. vim.trim(result.markdown), nil)
+    end)
+  end
+
+  local pandoc = require "obsidian.pandoc"
+  return pandoc.convert_async(html, function(markdown, convert_err)
+    if not markdown then
+      callback(nil, convert_err)
+      return
+    end
+
+    if mode ~= "page" then
+      callback(vim.trim(markdown), nil)
+      return
+    end
+
+    local metadata = {
+      title = M.title_from_html(html),
+      source = opts.url,
+    }
+    local header = require("obsidian.webpage").frontmatter(metadata)
+    callback(header .. "\n\n" .. vim.trim(markdown), nil)
+  end)
+end
+
 return M

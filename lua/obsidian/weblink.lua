@@ -20,6 +20,11 @@ M.fetch_html_async = webpage.fetch_html_async
 M.fetch_html_title_async = webpage.fetch_html_title_async
 M.title_from_url_async = webpage.title_from_url_async
 
+M.html_to_markdown_async = html.to_markdown_async
+M.resolve_html_backend = html.resolve_backend
+M.frontmatter_from_metadata = webpage.frontmatter
+M.note_from_html_async = webpage.note_from_html_async
+
 local function escape_markdown_label(label)
   return label:gsub("\\", "\\\\"):gsub("%]", "\\]"):gsub("%[", "\\[")
 end

@@ -2,10 +2,15 @@ local log = require "obsidian.log"
 
 local M = {}
 
+---@class obsidian.async.RunJobOpts
+---@field stdin string|? data written to the job's stdin
+
 ---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
-M.run_job_async = function(cmds, on_stdout, on_exit)
+---@param opts obsidian.async.RunJobOpts|?
+M.run_job_async = function(cmds, on_stdout, on_exit, opts)
+  opts = opts or {}
   local stderr_lines = false
   local flush_stdout
 
@@ -70,7 +75,7 @@ M.run_job_async = function(cmds, on_stdout, on_exit)
 
   log.debug("Initializing job '%s'", cmds)
 
-  local sys_obj = vim.system(cmds, { stdout = stdout, stderr = stderr }, on_obj)
+  local sys_obj = vim.system(cmds, { stdin = opts.stdin, stdout = stdout, stderr = stderr }, on_obj)
 
   return sys_obj
 end
