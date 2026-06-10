@@ -106,6 +106,67 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
+---Strip shell quoting some terminals apply to drag-and-dropped paths.
+---@param line string
+---@return string
+local function strip_quotes(line)
+  local unquoted = line:match "^'(.*)'$" or line:match '^"(.*)"$'
+  return unquoted or line
+end
+
+---Handle a single pasted (or drag-and-dropped) line if it is a URL or a local
+---file, returning true when it was consumed.
+---@param line string
+---@return boolean handled
+local function smart_paste_line(line)
+  line = strip_quotes(vim.trim(line))
+
+  local actions = require "obsidian.actions"
+
+  if line:match "^https?://%S+$" then
+    actions.paste_url(line)
+    return true
+  end
+
+  local path = line
+  if vim.startswith(line, "file://") then
+    local ok, fname = pcall(vim.uri_to_fname, line)
+    if not ok then
+      return false
+    end
+    path = fname
+  end
+
+  if path:match "^[~/]" and vim.uv.fs_stat(vim.fs.normalize(path)) then
+    actions.add_attachment(path, { insert = true })
+    return true
+  end
+
+  return false
+end
+
+-- Intercept paste streams in obsidian buffers, so URLs and file paths
+-- drag-and-dropped from terminals (which arrive as bracketed paste) are turned
+-- into markdown links and attachments automatically.
+if Obsidian.opts.paste.drag_and_drop then
+  vim.paste = (function(overridden)
+    ---@param lines string[]
+    ---@param phase integer
+    return function(lines, phase)
+      -- only complete, single-line pastes in obsidian buffers, outside cmdline
+      if not vim.b.obsidian_buffer or phase ~= -1 or #lines ~= 1 or vim.fn.mode():sub(1, 1) == "c" then
+        return overridden(lines, phase)
+      end
+
+      if smart_paste_line(lines[1]) then
+        return true
+      end
+
+      return overridden(lines, phase)
+    end
+  end)(vim.paste)
+end
+
 -- Run enter_note callback.
 vim.api.nvim_create_autocmd("User", {
   pattern = "ObsidianNoteEnter",

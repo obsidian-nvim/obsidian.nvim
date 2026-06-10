@@ -649,6 +649,135 @@ M.get_icon = function(path)
   return nil
 end
 
+---Whether a string is a single bare http(s) URL.
+---
+---@param text string|?
+---@return string|? url the trimmed URL
+M.bare_url = function(text)
+  if not text then
+    return nil
+  end
+  local trimmed = vim.trim(text)
+  return trimmed:match "^https?://%S+$"
+end
+
+---@param markdown string
+local function put_markdown(markdown)
+  local lines = vim.split(markdown, "\n")
+  vim.api.nvim_put(lines, #lines == 1 and "c" or "l", true, true)
+end
+
+---Paste a URL at the cursor in a given form.
+---
+---@param url string
+---@param url_as "link"|"content"|"raw"|? defaults to "link"
+---@param opts { backend: obsidian.html.Backend|? }|?
+---@return any job
+M.paste_url = function(url, url_as, opts)
+  opts = opts or {}
+  url_as = url_as or "link"
+
+  if url_as == "raw" then
+    put_markdown(url)
+    return
+  end
+
+  local weblink = require "obsidian.weblink"
+
+  if url_as == "link" then
+    return weblink.title_from_url_async(
+      url,
+      nil,
+      vim.schedule_wrap(function(title)
+        put_markdown(weblink.format_markdown_link(url, title))
+      end)
+    )
+  end
+
+  -- url_as == "content": fetch the page and paste its body as markdown
+  return weblink.fetch_html_async(url, nil, function(body, err)
+    if not body then
+      return log.err("Failed to fetch '%s': %s", url, err)
+    end
+
+    weblink.html_to_markdown_async(
+      body,
+      { mode = "fragment", backend = opts.backend, url = url },
+      vim.schedule_wrap(function(markdown, convert_err)
+        if not markdown then
+          return log.err("Failed to convert '%s' to markdown: %s", url, convert_err)
+        end
+        put_markdown(markdown)
+      end)
+    )
+  end)
+end
+
+---@class obsidian.api.PasteOpts
+---
+---What to paste from the clipboard, defaults to "auto":
+---html content when available, else a bare URL, else plain text.
+---@field kind "auto"|"html"|"url"|"text"|?
+---
+---How to paste a bare URL, defaults to "link".
+---@field url_as "link"|"content"|"raw"|?
+---
+---HTML conversion backend override, see `Obsidian.opts.html.backend`.
+---@field backend obsidian.html.Backend|?
+
+---Smart paste: convert the system clipboard to markdown and insert it at the cursor.
+---
+---Non-interactive; see `actions.paste` for the interactive version.
+---
+---@param opts obsidian.api.PasteOpts|?
+---@return any job
+M.paste = function(opts)
+  opts = opts or {}
+  local clipboard = require "obsidian.clipboard"
+
+  local kind = opts.kind or "auto"
+  local text = clipboard.get_text()
+
+  if kind == "auto" then
+    if clipboard.has_html() then
+      kind = "html"
+    elseif M.bare_url(text) then
+      kind = "url"
+    else
+      kind = "text"
+    end
+  end
+
+  if kind == "html" then
+    local content = clipboard.get_html()
+    if not content then
+      return log.warn "No HTML content in clipboard"
+    end
+
+    return require("obsidian.html").to_markdown_async(
+      content,
+      { mode = "fragment", backend = opts.backend },
+      vim.schedule_wrap(function(markdown, err)
+        if not markdown then
+          return log.err("Failed to convert clipboard HTML to markdown: %s", err)
+        end
+        put_markdown(markdown)
+      end)
+    )
+  elseif kind == "url" then
+    local url = M.bare_url(text)
+    if not url then
+      return log.warn "No URL in clipboard"
+    end
+    return M.paste_url(url, opts.url_as, { backend = opts.backend })
+  else
+    if not text then
+      return log.warn "Clipboard is empty"
+    end
+    put_markdown(text)
+  end
+end
+
 M.resolve_attachment_path = attachment.resolve_attachment_path
 M.resolve_image_path = attachment.resolve_attachment_path
 M.is_attachment_path = attachment.is_attachment_path

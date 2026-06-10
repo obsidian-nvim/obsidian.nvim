@@ -314,6 +314,16 @@ M.register("rename", { nargs = "?", note_action = true })
 
 M.register("paste_img", { nargs = "?", note_action = true })
 
+M.register("paste", {
+  nargs = "?",
+  note_action = true,
+  complete = function(arg)
+    return vim.tbl_filter(function(s)
+      return vim.startswith(s, arg)
+    end, { "auto", "html", "url", "text" })
+  end,
+})
+
 M.register("extract_note", { nargs = "?", range = true, note_action = true })
 
 M.register("toc", { nargs = 0, note_action = true })
