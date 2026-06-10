@@ -4,13 +4,34 @@ local api = require "obsidian.api"
 ---Image clipboard handling lives in obsidian.img_paste.
 local M = {}
 
----@return string|? display server, "x11"|"wayland"|nil
-local function linux_display_server()
-  local display_server = os.getenv "XDG_SESSION_TYPE"
-  if display_server == "x11" or display_server == "tty" then
+---@return "x11"|"wayland"|? display server
+local function display_server()
+  local session = os.getenv "XDG_SESSION_TYPE"
+  if session == "x11" or session == "tty" then
     return "x11"
-  elseif display_server == "wayland" then
+  elseif session == "wayland" then
     return "wayland"
+  end
+
+  -- XDG_SESSION_TYPE is often unset (e.g. under WSLg)
+  if os.getenv "WAYLAND_DISPLAY" then
+    return "wayland"
+  elseif os.getenv "DISPLAY" then
+    return "x11"
+  end
+end
+
+---Resolve the powershell executable. On WSL the Windows PATH may not be
+---appended (interop appendWindowsPath=false), so fall back to the absolute path.
+---@return string|?
+local function powershell_exe()
+  if vim.fn.executable "powershell.exe" == 1 then
+    return "powershell.exe"
+  end
+
+  local abs = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+  if api.get_os() == api.OSType.Wsl and vim.uv.fs_stat(abs) then
+    return abs
   end
 end
 
@@ -26,6 +47,38 @@ local function system(cmd)
   return out.stdout
 end
 
+---List clipboard mime types with the native (wayland/x11) tools, when both a
+---display server and the matching tool are available.
+---@return string|?
+local function native_list_types()
+  local ds = display_server()
+  if ds == "x11" and vim.fn.executable "xclip" == 1 then
+    return system { "xclip", "-selection", "clipboard", "-o", "-t", "TARGETS" }
+  elseif ds == "wayland" and vim.fn.executable "wl-paste" == 1 then
+    return system { "wl-paste", "--list-types" }
+  end
+end
+
+---Get clipboard html with the native (wayland/x11) tools.
+---@return string|?
+local function native_get_html()
+  local ds = display_server()
+  if ds == "x11" and vim.fn.executable "xclip" == 1 then
+    return system { "xclip", "-selection", "clipboard", "-o", "-t", "text/html" }
+  elseif ds == "wayland" and vim.fn.executable "wl-paste" == 1 then
+    return system { "wl-paste", "--no-newline", "--type", "text/html" }
+  end
+end
+
+---@return string|? raw CF_HTML payload
+local function powershell_get_html()
+  local exe = powershell_exe()
+  if not exe then
+    return nil
+  end
+  return system { exe, "-NoProfile", "-Command", "Get-Clipboard -TextFormatType Html" }
+end
+
 ---List the mime types / formats currently on the system clipboard.
 ---
 ---@return string[]
@@ -34,26 +87,20 @@ M.list_types = function()
   local out
 
   if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
-    local display_server = linux_display_server()
-    if display_server == "x11" then
-      out = system { "xclip", "-selection", "clipboard", "-o", "-t", "TARGETS" }
-    elseif display_server == "wayland" then
-      out = system { "wl-paste", "--list-types" }
-    end
+    out = native_list_types()
   elseif this_os == api.OSType.Darwin then
     out = system { "osascript", "-e", "clipboard info" }
   elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
-    -- powershell has no direct format listing; probe for html
-    local html = system {
-      "powershell.exe",
-      "-NoProfile",
-      "-Command",
-      "Get-Clipboard -TextFormatType Html",
-    }
-    if html and html:find "<" then
-      return { "text/html" }
+    -- WSLg ships its own wayland/x11 clipboard bridge, prefer it
+    out = native_list_types()
+    if not out then
+      -- powershell has no direct format listing; probe for html
+      local html = powershell_get_html()
+      if html and html:find "<" then
+        return { "text/html" }
+      end
+      return {}
     end
-    return {}
   end
 
   if not out then
@@ -125,22 +172,16 @@ M.get_html = function()
   local this_os = api.get_os()
 
   if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
-    local display_server = linux_display_server()
-    if display_server == "x11" then
-      return system { "xclip", "-selection", "clipboard", "-o", "-t", "text/html" }
-    elseif display_server == "wayland" then
-      return system { "wl-paste", "--no-newline", "--type", "text/html" }
-    end
+    return native_get_html()
   elseif this_os == api.OSType.Darwin then
     local out = system { "osascript", "-e", "the clipboard as «class HTML»" }
     return out and decode_osascript_html(out) or nil
   elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
-    local out = system {
-      "powershell.exe",
-      "-NoProfile",
-      "-Command",
-      "Get-Clipboard -TextFormatType Html",
-    }
+    local out = native_get_html()
+    if out then
+      return out
+    end
+    out = powershell_get_html()
     return out and decode_cf_html(out) or nil
   end
 
