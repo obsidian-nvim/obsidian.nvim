@@ -1,6 +1,6 @@
 local log = require "obsidian.log"
 
-local kinds = { "auto", "html", "url", "text" }
+local kinds = { "auto", "html", "url", "text", "image" }
 
 ---@param data obsidian.CommandArgs
 return function(data)

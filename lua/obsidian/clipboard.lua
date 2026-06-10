@@ -1,7 +1,7 @@
 local api = require "obsidian.api"
 
 ---Text-oriented system clipboard access (mime type listing, html retrieval).
----Image clipboard handling lives in obsidian.img_paste.
+---Image clipboard handling lives in obsidian.paste.
 local M = {}
 
 ---@return "x11"|"wayland"|? display server

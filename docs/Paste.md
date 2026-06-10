@@ -1,4 +1,4 @@
-Smart pasting like the Obsidian app: converts clipboard HTML to markdown, turns bare URLs into markdown links or page content, and handles file paths drag-and-dropped from terminals.
+Smart pasting like the Obsidian app: converts clipboard HTML to markdown, saves clipboard images as attachments, turns bare URLs into markdown links or page content, and handles file paths drag-and-dropped from terminals.
 
 ## HTML to markdown backends
 
@@ -21,11 +21,12 @@ When the `defuddle` CLI is available, URL fetching (e.g. `link_url`, `paste_url`
 
 Smart-pastes the system clipboard at the cursor:
 
+- clipboard contains image data: saves it as an attachment and inserts the image link
 - clipboard contains HTML (e.g. copied from a browser): converted to markdown paragraphs, no frontmatter
 - clipboard is a bare URL: prompts for how to paste it (markdown link with fetched title, page content as markdown, or raw URL)
 - otherwise: pasted as plain text
 
-An optional argument forces the kind: `:Obsidian paste html`, `:Obsidian paste url`, `:Obsidian paste text`.
+An optional argument forces the kind: `:Obsidian paste image`, `:Obsidian paste html`, `:Obsidian paste url`, `:Obsidian paste text`.
 
 The insertion point is recorded when the paste is initiated, so you can keep moving the cursor and editing while titles or page content are fetched -- the result still lands where you pasted.
 
@@ -45,6 +46,9 @@ require("obsidian.api").paste { url_as = "link" }
 
 -- force converting clipboard HTML with pandoc
 require("obsidian.api").paste { kind = "html", backend = "pandoc" }
+
+-- force saving clipboard image data as an attachment
+require("obsidian.api").paste { kind = "image" }
 
 -- paste a known URL programmatically
 require("obsidian.api").paste_url("https://example.com", "content")
@@ -70,4 +74,4 @@ Guarded by `vim.g.obsidian_auto_paste`, set it to `false` (e.g. in your config, 
 vim.g.obsidian_auto_paste = false
 ```
 
-Image pasting is separate, see [[Images]] and `:Obsidian paste_img`.
+`:Obsidian paste_img` is kept for compatibility; prefer `:Obsidian paste image` for new mappings.

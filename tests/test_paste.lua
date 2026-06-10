@@ -65,6 +65,49 @@ T["paste"]["pastes a bare url raw"] = function()
   end)
 end
 
+T["paste"]["pastes an image through general paste"] = function()
+  with_clipboard({
+    has_html = function()
+      return false
+    end,
+    get_text = function()
+      return nil
+    end,
+  }, function()
+    local real_get_os = api.get_os
+    local real_system = vim.system
+    local real_obsidian = rawget(_G, "Obsidian")
+
+    local ok, err = pcall(function()
+      _G.Obsidian = {
+        opts = {
+          attachments = {
+            confirm_img_paste = false,
+            img_text_func = require("obsidian.builtin").img_text_func,
+          },
+          link = { style = "wiki" },
+        },
+      }
+      api.get_os = function()
+        return api.OSType.Darwin
+      end
+      vim.system = function(cmd)
+        eq({ "pngpaste", "meow.png" }, cmd)
+        return { wait = function() end }
+      end
+
+      local buf = scratch_buf()
+      api.paste { kind = "image", path = "meow", img_type = "png" }
+      eq({ "![[meow.png]]" }, buf_lines(buf))
+    end)
+
+    api.get_os = real_get_os
+    vim.system = real_system
+    _G.Obsidian = real_obsidian
+    assert(ok, err)
+  end)
+end
+
 if vim.fn.executable "pandoc" == 1 then
   T["paste"]["inserts at the recorded position even if the cursor moves"] = function()
     with_clipboard({
