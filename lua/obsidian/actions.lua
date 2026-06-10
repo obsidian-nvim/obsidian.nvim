@@ -617,6 +617,56 @@ M.link_url = function()
   )
 end
 
+---Interactively paste a URL: ask how to insert it before delegating to `api.paste_url`.
+---
+---@param url string
+---@param opts { backend: obsidian.html.Backend|? }|?
+M.paste_url = function(url, opts)
+  opts = opts or {}
+
+  local choices = {
+    { label = "Paste as markdown link", url_as = "link" },
+    { label = "Paste page content as markdown", url_as = "content" },
+    { label = "Paste raw URL", url_as = "raw" },
+  }
+
+  vim.ui.select(choices, {
+    prompt = ("Paste %s as"):format(url),
+    format_item = function(item)
+      return item.label
+    end,
+  }, function(choice)
+    if not choice then
+      return log.info "Aborted"
+    end
+    api.paste_url(url, choice.url_as, { backend = opts.backend })
+  end)
+end
+
+---Smart paste, the interactive counterpart of `api.paste`.
+---
+---Converts clipboard HTML to markdown, and prompts for how to insert
+---bare URLs (markdown link, page content, or raw).
+---
+---@param opts obsidian.api.PasteOpts|?
+M.paste = function(opts)
+  opts = opts or {}
+
+  if opts.kind and opts.kind ~= "auto" then
+    return api.paste(opts)
+  end
+
+  local clipboard = require "obsidian.clipboard"
+
+  -- A bare URL is ambiguous: ask the user how to paste it.
+  local url = api.bare_url(clipboard.get_text())
+  if url and not clipboard.has_html() and not opts.url_as then
+    return M.paste_url(url, { backend = opts.backend })
+  end
+
+  return api.paste(opts)
+end
+
 ---@param src string
 ---@param opts { insert: boolean|?, bufnr: integer|? }
 local add_attachment = function(src, opts)

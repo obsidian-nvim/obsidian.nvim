@@ -34,6 +34,7 @@
 - [[Note]]
 - [[Open]]
 - [[Resolvers]]
+- [[Paste]]
 - [[Search]]
 - [[Sync]]
 - [[Tag]]
