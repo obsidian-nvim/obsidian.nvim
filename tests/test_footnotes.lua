@@ -56,9 +56,9 @@ T["insert_definition"] = function()
   footnotes.insert_definition(bufnr, "1", "the footnote")
   eq({ "claim[^1]", "", "[^1]: the footnote" }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
 
-  -- No blank line between consecutive definitions.
+  -- Add a blank line before each newly inserted definition.
   footnotes.insert_definition(bufnr, "2", "another")
-  eq({ "claim[^1]", "", "[^1]: the footnote", "[^2]: another" }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+  eq({ "claim[^1]", "", "[^1]: the footnote", "", "[^2]: another" }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
 end
 
 T["pick uses vim.ui.select with preview"] = function()

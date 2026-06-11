@@ -87,7 +87,7 @@ M.insert_definition = function(bufnr, id, text)
   local last_line = vim.api.nvim_buf_get_lines(bufnr, line_count - 1, line_count, false)[1]
 
   local new_lines = {}
-  if last_line and vim.trim(last_line) ~= "" and M.parse_definition(last_line) == nil then
+  if last_line and vim.trim(last_line) ~= "" then
     new_lines[#new_lines + 1] = ""
   end
   new_lines[#new_lines + 1] = ("[^%s]: %s"):format(id, text)
