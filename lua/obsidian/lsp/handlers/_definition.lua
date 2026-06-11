@@ -154,16 +154,7 @@ handlers.HeaderLink = function(location, callback, _)
   if not anchor_obj then
     return
   end
-  local line = anchor_obj.line - 1
-  callback {
-    {
-      uri = vim.uri_from_fname(tostring(note.path)),
-      range = {
-        start = { line = line, character = 0 },
-        ["end"] = { line = line, character = 0 },
-      },
-    },
-  }
+  callback { note:_location { anchor = location } }
 end
 
 handlers.Footnote = function(location, callback, _)
@@ -210,16 +201,7 @@ handlers.BlockLink = function(location, callback, _)
   if not block_obj then
     return
   end
-  local line = block_obj.line - 1
-  callback {
-    {
-      uri = vim.uri_from_fname(tostring(note.path)),
-      range = {
-        start = { line = line, character = 0 },
-        ["end"] = { line = line, character = 0 },
-      },
-    },
-  }
+  callback { note:_location { block = location } }
 end
 
 return {

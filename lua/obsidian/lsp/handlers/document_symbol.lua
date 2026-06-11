@@ -1,4 +1,5 @@
 local obsidian = require "obsidian"
+local Range = require "obsidian.range"
 
 ---@param _ lsp.DocumentSymbolParams
 return function(_, handler)
@@ -13,17 +14,13 @@ return function(_, handler)
 
   for _, anchor in pairs(note.anchor_links) do
     local display = string.rep("#", anchor.level) .. " " .. anchor.header
-    local rge = {
-      start = { line = anchor.line - 1, character = 0 },
-      ["end"] = { line = anchor.line - 1, character = 0 },
-    }
     if not lookup[anchor.line] then
       local symbol = {
         name = display,
         kind = 1,
         filename = note.path.filename,
-        range = rge,
-        selectionRange = rge,
+        range = Range.to_lsp(anchor.section.range),
+        selectionRange = Range.to_lsp(anchor.section.heading_range),
       }
       symbols[#symbols + 1] = symbol
       lookup[anchor.line] = true

@@ -1,7 +1,4 @@
-local HEADER_PREFIX_PATTERN = "^(#+)%s*(%S.*)$"
-local H1_UNDERLINE_PATTERN = "^(=+)$"
-local H2_UNDERLINE_PATTERN = "^(-+)$"
-local CODE_BLOCK_PATTERN = "^```[%w_-]*$"
+local Section = require "obsidian.section"
 
 local M = {}
 local H = {}
@@ -26,9 +23,9 @@ function M.resolve(lines, opts)
   end
 end
 
---- Collapses lines into a list of "sections". Each section is itself composed of two sub-sections: heading and content.
---- The heading and content sub-sections are defined using a half-open `[beg_incl, end_excl)` range. When empty, they
---- will use values such that `beg_incl == end_excl`.
+--- Collapses lines into a list of "sections" via the shared parser in `obsidian.section`. Each section is itself
+--- composed of two sub-sections: heading and content. The heading and content sub-sections are defined using a
+--- half-open `[beg_incl, end_excl)` range. When empty, they will use values such that `beg_incl == end_excl`.
 ---
 --- IMPORTANT: There will always be AT LEAST TWO sections.
 ---
@@ -42,31 +39,25 @@ end
 ---@param lines string[] The list of lines in the markdown document.
 ---@return obsidian.note.SectionDetail[] sections defining the document. There will always be at least two items.
 function H.collapse_into_sections(lines)
-  local sections = { H.new_section_detail(1, 1) }
-  local current = sections[1]
-  local current_content_empty = true
+  ---@type obsidian.note.SectionDetail[]
+  local sections = {}
 
-  for idx_incl, line_detail in ipairs(H.get_line_details(lines)) do
-    local idx_excl = idx_incl + 1
-
-    if line_detail.type == "header" then
-      table.insert(sections, H.new_section_detail(idx_incl, idx_excl, line_detail.level, line_detail.label))
-      current = sections[#sections]
-      current_content_empty = true
-    elseif line_detail.type == "header-underline" then
-      current.heading.end_excl = idx_excl
-      current.content.beg_incl = idx_excl
-      current.content.end_excl = idx_excl
-    elseif line_detail.type ~= "empty" then
-      if current_content_empty then
-        current.content.beg_incl = idx_incl
-        current_content_empty = false
-      end
-      current.content.end_excl = idx_excl
-    end
+  for _, section in ipairs(Section.parse(lines)) do
+    table.insert(sections, {
+      heading = {
+        beg_incl = section.heading_range.start_row + 1,
+        end_excl = section.heading_range.end_row + 1,
+        level = section.level or 0,
+        label = section.header or "",
+      },
+      content = {
+        beg_incl = section.content_range.start_row + 1,
+        end_excl = section.content_range.end_row + 1,
+      },
+    })
   end
 
-  local eof_excl = current.content.end_excl
+  local eof_excl = sections[#sections].content.end_excl
   table.insert(sections, H.new_section_detail(eof_excl, eof_excl))
 
   return sections
@@ -201,80 +192,10 @@ function H.is_content_empty(section)
   return not section or section.content.beg_incl == section.content.end_excl
 end
 
----@param lines string[]
----@return obsidian.note.LineDetail[]
-function H.get_line_details(lines)
-  local line_details = {}
-  local within_code_block = false
-
-  ---@param idx integer
-  ---@return obsidian.note.LineDetail
-  local function get_detail_for_idx_by_using_early_return_statements(idx)
-    local line_str = vim.trim(lines[idx])
-
-    if within_code_block then
-      within_code_block = not line_str:match(CODE_BLOCK_PATTERN)
-      return { type = "code" }
-    elseif line_str:match(CODE_BLOCK_PATTERN) then
-      within_code_block = true
-      return { type = "code" }
-    end
-
-    if line_str == "" then
-      return { type = "empty" }
-    end
-
-    local level_str, label_str = line_str:match(HEADER_PREFIX_PATTERN)
-    if level_str and label_str and level_str ~= "" and label_str ~= "" then
-      return { type = "header", level = level_str:len(), label = label_str }
-    end
-
-    local prev_line = idx > 1 and line_details[idx - 1] or { type = "empty" }
-    local level = (line_str:match(H1_UNDERLINE_PATTERN) and 1) or (line_str:match(H2_UNDERLINE_PATTERN) and 2)
-    if level and prev_line.type == "text" then
-      line_details[idx - 1] = { type = "header", level = level, label = prev_line.text }
-      return { type = "header-underline" }
-    end
-
-    return { type = "text", text = line_str }
-  end
-
-  for idx = 1, #lines do
-    line_details[idx] = get_detail_for_idx_by_using_early_return_statements(idx)
-  end
-
-  return line_details
-end
-
 ---@alias obsidian.note.OnSectionMissingHandler fun(sections: obsidian.note.SectionDetail[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_top: string[], insert_bot: string[]
 
 ---@class obsidian.note.SectionDetail
 ---@field heading? { beg_incl: integer, end_excl: integer, level: integer, label: string }
 ---@field content? { beg_incl: integer, end_excl: integer }
-
----@alias obsidian.note.LineDetail
----|obsidian.note.LineTextDetail
----|obsidian.note.LineHeaderDetail
----|obsidian.note.LineHeaderUnderlineDetail
----|obsidian.note.LineCodeDetail
----|obsidian.note.LineEmptyDetail
-
----@class obsidian.note.LineTextDetail
----@field type 'text'
----@field text string
-
----@class obsidian.note.LineHeaderDetail
----@field type 'header'
----@field level integer
----@field label string
-
----@class obsidian.note.LineHeaderUnderlineDetail
----@field type 'header-underline'
-
----@class obsidian.note.LineCodeDetail
----@field type 'code'
-
----@class obsidian.note.LineEmptyDetail
----@field type 'empty'
 
 return M

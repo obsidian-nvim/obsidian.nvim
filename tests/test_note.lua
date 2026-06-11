@@ -167,6 +167,21 @@ id: note_with_a_bunch_of_headers
 
 ## Sub header 3 A]]
 
+--- Strip the `section` references so anchors can be compared with `eq`.
+---@param anchor obsidian.note.HeaderAnchor|?
+local function anchor_fields(anchor)
+  if anchor == nil then
+    return nil
+  end
+  return {
+    anchor = anchor.anchor,
+    line = anchor.line,
+    header = anchor.header,
+    level = anchor.level,
+    parent = anchor_fields(anchor.parent),
+  }
+end
+
 T["from_lines"]["should be able to collect anchor links"] = function()
   local note = from_str(note_with_headers, "anchors.md", {
     collect_anchor_links = true,
@@ -178,53 +193,84 @@ T["from_lines"]["should be able to collect anchor links"] = function()
     line = 5,
     header = "Header 1",
     level = 1,
-  }, note.anchor_links["#header-1"])
+  }, anchor_fields(note.anchor_links["#header-1"]))
   eq({
     anchor = "#sub-header-1-a",
     line = 7,
     header = "Sub header 1 A",
     level = 2,
-    parent = note.anchor_links["#header-1"],
-  }, note.anchor_links["#sub-header-1-a"])
+    parent = anchor_fields(note.anchor_links["#header-1"]),
+  }, anchor_fields(note.anchor_links["#sub-header-1-a"]))
   eq({
     anchor = "#header-2",
     line = 9,
     header = "Header 2",
     level = 1,
-  }, note.anchor_links["#header-2"])
+  }, anchor_fields(note.anchor_links["#header-2"]))
   eq({
     anchor = "#sub-header-2-a",
     line = 11,
     header = "Sub header 2 A",
     level = 2,
-    parent = note.anchor_links["#header-2"],
-  }, note.anchor_links["#sub-header-2-a"])
+    parent = anchor_fields(note.anchor_links["#header-2"]),
+  }, anchor_fields(note.anchor_links["#sub-header-2-a"]))
   eq({
     anchor = "#sub-header-3-a",
     line = 13,
     header = "Sub header 3 A",
     level = 2,
-    parent = note.anchor_links["#header-2"],
-  }, note.anchor_links["#sub-header-3-a"])
+    parent = anchor_fields(note.anchor_links["#header-2"]),
+  }, anchor_fields(note.anchor_links["#sub-header-3-a"]))
   eq({
     anchor = "#header-2#sub-header-3-a",
     line = 13,
     header = "Sub header 3 A",
     level = 2,
-    parent = note.anchor_links["#header-2"],
-  }, note.anchor_links["#header-2#sub-header-3-a"])
+    parent = anchor_fields(note.anchor_links["#header-2"]),
+  }, anchor_fields(note.anchor_links["#header-2#sub-header-3-a"]))
   eq({
     anchor = "#header-1",
     line = 5,
     header = "Header 1",
     level = 1,
-  }, note:resolve_anchor_link "#header-1")
+  }, anchor_fields(note:resolve_anchor_link "#header-1"))
   eq({
     anchor = "#header-1",
     line = 5,
     header = "Header 1",
     level = 1,
-  }, note:resolve_anchor_link "#Header 1")
+  }, anchor_fields(note:resolve_anchor_link "#Header 1"))
+end
+
+T["from_lines"]["should collect sections with full ranges for anchors"] = function()
+  local note = from_str(note_with_headers, "anchors.md", {
+    collect_anchor_links = true,
+  })
+  not_eq(nil, note.sections)
+  -- preamble + 5 headers
+  eq(6, #note.sections)
+  eq(nil, note.sections[1].header)
+
+  local h1 = note.anchor_links["#header-1"].section
+  -- "# Header 1" (line 5) through "## Sub header 1 A" content (line 7), i.e. until "# Header 2".
+  eq({ start_row = 4, start_col = 0, end_row = 7, end_col = 0 }, h1.range)
+  eq({ start_row = 4, start_col = 0, end_row = 5, end_col = 0 }, h1.heading_range)
+
+  local h2 = note.anchor_links["#header-2"].section
+  -- "# Header 2" (line 9) through the last sub header (line 13).
+  eq({ start_row = 8, start_col = 0, end_row = 13, end_col = 0 }, h2.range)
+  eq(h2, note.anchor_links["#sub-header-2-a"].section.parent)
+end
+
+T["from_lines"]["should resolve anchor locations to full section ranges"] = function()
+  local note = from_str(note_with_headers, "anchors.md", {
+    collect_anchor_links = true,
+  })
+  local location = note:_location { anchor = "#header-2" }
+  eq({
+    start = { line = 8, character = 0 },
+    ["end"] = { line = 13, character = 0 },
+  }, location.range)
 end
 
 local note_with_blocks = [[---
@@ -242,12 +288,23 @@ T["from_lines"]["should be able to collect blocks"] = function()
     id = "^1234",
     line = 5,
     block = "This is a block ^1234",
-  }, note.blocks["^1234"])
+  }, {
+    id = note.blocks["^1234"].id,
+    line = note.blocks["^1234"].line,
+    block = note.blocks["^1234"].block,
+  })
   eq({
     id = "^hello-world",
     line = 7,
     block = "And another block ^hello-world",
-  }, note.blocks["^hello-world"])
+  }, {
+    id = note.blocks["^hello-world"].id,
+    line = note.blocks["^hello-world"].line,
+    block = note.blocks["^hello-world"].block,
+  })
+  -- Each block carries the paragraph it lives in as a section.
+  eq({ start_row = 4, start_col = 0, end_row = 5, end_col = 0 }, note.blocks["^1234"].section.range)
+  eq({ start_row = 6, start_col = 0, end_row = 7, end_col = 0 }, note.blocks["^hello-world"].section.range)
 end
 
 T["from_lines"]["should work from a file w/o frontmatter"] = function()
