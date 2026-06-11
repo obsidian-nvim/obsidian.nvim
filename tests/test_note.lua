@@ -85,6 +85,21 @@ T["create"]["should prompt for replacement filename with invalid name as default
   eq("good name", note.id)
 end
 
+T["new"]["should allow invalid filenames when global is set"] = function()
+  local orig_allow_invalid_names = vim.g.obsidian_allow_invalid_names
+  local orig_confirm = api.confirm
+  vim.g.obsidian_allow_invalid_names = true
+  api.confirm = function()
+    error "should not prompt"
+  end
+
+  local note = M.create { id = "bad:name", verbatim = true }
+
+  vim.g.obsidian_allow_invalid_names = orig_allow_invalid_names
+  api.confirm = orig_confirm
+  eq("bad:name", note.id)
+end
+
 local function from_str(str, path, opts)
   return M.from_lines(vim.iter(vim.split(str, "\n")), path, opts)
 end
