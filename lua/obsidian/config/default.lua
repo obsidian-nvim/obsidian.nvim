@@ -214,19 +214,19 @@ return {
 
   ---@class obsidian.config.UIOpts
   ---
-  ---@field enable boolean
-  ---@field enabled boolean
-  ---@field ignore_conceal_warn boolean
-  ---@field update_debounce integer
+  ---@field enable boolean|?
+  ---@field enabled boolean|?
+  ---@field ignore_conceal_warn boolean|?
+  ---@field update_debounce integer|?
   ---@field max_file_length integer|?
-  ---@field checkboxes table<string, obsidian.config.CheckboxSpec>
+  ---@field checkboxes table<string, obsidian.config.CheckboxSpec>|?
   ---@field bullets obsidian.config.UICharSpec|?
-  ---@field external_link_icon obsidian.config.UICharSpec
-  ---@field reference_text obsidian.config.UIStyleSpec
-  ---@field highlight_text obsidian.config.UIStyleSpec
-  ---@field tags obsidian.config.UIStyleSpec
-  ---@field block_ids obsidian.config.UIStyleSpec
-  ---@field hl_groups table<string, table>
+  ---@field external_link_icon obsidian.config.UICharSpec|?
+  ---@field reference_text obsidian.config.UIStyleSpec|?
+  ---@field highlight_text obsidian.config.UIStyleSpec|?
+  ---@field tags obsidian.config.UIStyleSpec|?
+  ---@field block_ids obsidian.config.UIStyleSpec|?
+  ---@field hl_groups table<string, table>|?
   ui = {
     enable = true,
     ignore_conceal_warn = false,

@@ -13,6 +13,8 @@ local plugins = {
   {
     "obsidian-nvim/obsidian.nvim",
     dir = cwd,
+    ---@module 'obsidian'
+    ---@type obsidian.config
     opts = {
       legacy_commands = false,
       workspaces = {
@@ -21,6 +23,7 @@ local plugins = {
           path = vim.fs.joinpath(cwd, ".repro", "vault"),
         },
       },
+      ui = {},
     },
   },
 
