@@ -379,6 +379,10 @@ util.parse_link = function(link, opts)
   elseif link_type == "BlockID" then
     link_location = util.standardize_block(link)
     link_name = link
+  elseif link_type == "Footnote" then
+    -- remove boundary brackets and the caret, e.g. '[^xxx]' -> 'xxx'
+    link_location = link:sub(3, #link - 1)
+    link_name = link_location
   else
     error("not implemented for " .. link_type)
   end

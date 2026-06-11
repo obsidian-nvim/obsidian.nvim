@@ -35,6 +35,26 @@ T["find_refs"]["should ignore refs within an inline code block"] = function()
   }, M.find_refs(s))
 end
 
+T["find_refs"]["should find footnote refs"] = function()
+  local s = "some claim[^1] and [^note]"
+  eq({ { 11, 14, "Footnote", "[^1]" }, { 20, 26, "Footnote", "[^note]" } }, M.find_refs(s))
+end
+
+T["find_refs"]["should find footnote refs in definition lines"] = function()
+  local s = "[^1]: the footnote text"
+  eq({ { 1, 4, "Footnote", "[^1]" } }, M.find_refs(s))
+end
+
+T["find_refs"]["should prefer footnote over markdown link"] = function()
+  local s = "claim[^fn](not a link)"
+  eq({ { 6, 10, "Footnote", "[^fn]" } }, M.find_refs(s))
+end
+
+T["find_refs"]["should not match block wiki links as footnotes"] = function()
+  local s = "[[^block]]"
+  eq({ { 1, 10, "Wiki", "[[^block]]" } }, M.find_refs(s))
+end
+
 T["find_matches"] = function()
   local matches = M.find_matches(
     [[

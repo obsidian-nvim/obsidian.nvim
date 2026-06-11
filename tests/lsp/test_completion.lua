@@ -68,7 +68,173 @@ T["tags"]["find_tags_start should accept in-progress prefixes"] = function()
   eq("foo", completion.find_tags_start "(#foo")
 end
 
+T["footnotes"] = MiniTest.new_set()
+
+T["footnotes"]["can_complete should handle footnote triggers"] = function()
+  local completion = require "obsidian.completion.footnotes"
+
+  local before = "some claim[^fo"
+  local request = {
+    cursor_before_line = before,
+    cursor_after_line = "",
+    character = string.len(before),
+  }
+
+  local can_complete, term, insert_start, insert_end = completion.can_complete(request)
+  eq(true, can_complete)
+  eq("fo", term)
+  eq(10, insert_start)
+  eq(14, insert_end)
+end
+
+T["footnotes"]["can_complete should consume a trailing closing bracket"] = function()
+  local completion = require "obsidian.completion.footnotes"
+
+  local before = "some claim[^fo"
+  local request = {
+    cursor_before_line = before,
+    cursor_after_line = "]",
+    character = string.len(before),
+  }
+
+  local can_complete, term, insert_start, insert_end = completion.can_complete(request)
+  eq(true, can_complete)
+  eq("fo", term)
+  eq(10, insert_start)
+  eq(15, insert_end)
+end
+
+T["footnotes"]["can_complete should not trigger on wiki block links"] = function()
+  local completion = require "obsidian.completion.footnotes"
+
+  local before = "[[^block"
+  local request = {
+    cursor_before_line = before,
+    cursor_after_line = "",
+    character = string.len(before),
+  }
+
+  eq(false, completion.can_complete(request))
+end
+
 T["completion"] = MiniTest.new_set()
+
+T["completion"]["triggers on [^ with new footnote first, then numeric order"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "claim[^\n\n[^10]: tenth\n[^1]: https://neovim.io\n[^2]: second",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  eq("table", type(result))
+
+  ---@type lsp.CompletionItem[]
+  local fn_items = vim.tbl_filter(function(item)
+    return item.filterText and vim.startswith(item.filterText, "[^")
+  end, result.items or {})
+  table.sort(fn_items, function(a, b)
+    return a.sortText < b.sortText
+  end)
+
+  -- New footnote with the next free numeric id comes first.
+  eq("[^11]: New footnote", fn_items[1].label)
+  eq("[^11]", fn_items[1].textEdit.newText)
+  eq("11", fn_items[1].command.arguments[1])
+  eq(nil, fn_items[1].documentation)
+  eq(child.api.nvim_get_current_buf(), fn_items[1].command.arguments[2])
+  eq({ 1, 9 }, fn_items[1].command.arguments[3])
+
+  -- Then existing footnotes in numeric order.
+  eq("[^1]: https://neovim.io", fn_items[2].label)
+  eq(nil, fn_items[2].documentation)
+  eq(5, fn_items[2].textEdit.range.start.character)
+  eq("[^2]: second", fn_items[3].label)
+  eq("[^10]: tenth", fn_items[4].label)
+end
+
+T["completion"]["truncates long footnote labels"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "claim[^\n\n[^1]: " .. string.rep("x", 100),
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.filterText == "[^1]"
+  end)
+  assert(item, "no existing footnote item found")
+  eq(80, vim.fn.strchars(item.label))
+  eq(true, vim.endswith(item.label, "…"))
+  eq(nil, item.documentation)
+end
+
+T["completion"]["suggests [^2] when [^1] exists"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "claim[^\n\n[^1]: https://neovim.io",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  eq("table", type(result))
+
+  local found = false
+  for _, item in ipairs(result.items or {}) do
+    if item.label == "[^2]: New footnote" then
+      found = true
+      eq("0", item.sortText)
+      eq("2", item.command.arguments[1])
+      break
+    end
+  end
+  eq(true, found)
+end
+
+T["completion"]["offers create item for unresolved footnote"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "claim[^new",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+
+  local result = run_completion(0, 10)
+  eq("table", type(result))
+
+  ---@type lsp.CompletionItem|?
+  local create_item
+  for _, item in ipairs(result.items or {}) do
+    if item.label == "[^new] (create)" then
+      create_item = item
+      break
+    end
+  end
+  assert(create_item, "no create item found")
+  eq("obsidian.footnote_new", create_item.command.command)
+  eq("[^new]", create_item.textEdit.newText)
+  eq("new", create_item.command.arguments[1])
+  eq(child.api.nvim_get_current_buf(), create_item.command.arguments[2])
+  eq({ 1, 10 }, create_item.command.arguments[3])
+  eq(nil, create_item.documentation)
+
+  -- Executing the action should prompt for content, insert the definition, and restore the accepted ref cursor.
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "claim[^new]" })
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+  child.lua [[
+    vim.fn.input = function()
+      return "the new footnote"
+    end
+    require("obsidian.actions").footnote_new("new", vim.api.nvim_get_current_buf(), { 1, 10 })
+  ]]
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  eq("[^new]: the new footnote", lines[#lines])
+  eq({ 1, 11 }, child.api.nvim_win_get_cursor(0))
+end
 
 T["completion"]["returns items for wiki link trigger"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
