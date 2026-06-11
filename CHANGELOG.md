@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - references finds all occurrences of the same footnote in the current note.
   - completion of existing footnotes after typing `[^`, plus a create item for unresolved ids that prompts for content and inserts the definition (`obsidian.footnote_new`).
   - `:Obsidian footnotes` to view footnotes of the current note via `vim.ui.select` with preview.
+- Checking invalid filenames on file create, rename and Note.create calls.
 
 ### Fixed
 

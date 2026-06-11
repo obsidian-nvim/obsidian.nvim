@@ -158,6 +158,10 @@ end
 ---@return boolean valid
 ---@return string? reason Human-readable error when invalid
 Note.is_valid_filename = function(name)
+  if vim.g.obsidian_allow_invalid_names then
+    return true, nil
+  end
+
   if not name or name == "" then
     return false, "cannot be empty"
   end
@@ -187,7 +191,7 @@ end
 
 ---@param invalid_name string
 ---@return string
-local function prompt_for_valid_filename(invalid_name)
+Note.prompt_for_valid_filename = function(invalid_name)
   local builtin = require "obsidian.builtin"
   local current = invalid_name
 
@@ -392,7 +396,7 @@ Note._resolve_id_path = function(opts, prompt_invalid_filename)
     if not prompt_invalid_filename then
       error(("invalid note filename %q: %s"):format(id, reason), 2)
     end
-    id = prompt_for_valid_filename(id)
+    id = Note.prompt_for_valid_filename(id)
     valid, reason = Note.is_valid_filename(id)
   end
 
