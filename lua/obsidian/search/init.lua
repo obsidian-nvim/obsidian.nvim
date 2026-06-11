@@ -21,6 +21,7 @@ M.build_grep_cmd = Ripgrep.build_grep_cmd
 ---| "Highlight"
 ---| "HeaderLink"
 ---| "BlockLink"
+---| "Footnote"
 
 M.Patterns = {
   -- Tags
@@ -35,6 +36,7 @@ M.Patterns = {
   Wiki = "%[%[[^][%|]+%]%]", -- [[xxx]]
   Markdown = "%[[^][]+%]%([^%)]+%)", -- [yyy](xxx)
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
+  Footnote = "%[%^[^%]%[%s]+%]", -- [^xxx]
 }
 
 --- Find all matches of a pattern
@@ -135,6 +137,9 @@ M.find_refs = function(s, opts)
   local parse_patterns = {
     "WikiWithAlias",
     "Wiki",
+    -- NOTE: Footnote must come before Markdown so that `[^fn](text)` is matched
+    -- as a footnote ref instead of a markdown link.
+    "Footnote",
     "Markdown",
     "BlockID",
   }

@@ -21,10 +21,12 @@ local initializeResult = {
     workspaceSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {
-      commands = { "obsidian.write_note" },
+      commands = { "obsidian.write_note", "obsidian.footnote_new" },
     },
     completionProvider = {
       resolveProvider = false,
+      -- "^" so that clients request completion right after typing "[^" (footnotes).
+      triggerCharacters = { "^" },
     },
     workspace = {
       fileOperations = {

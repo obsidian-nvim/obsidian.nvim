@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `vim.g.obsidian_sync_on_write_debounce_ms` for `on_write` defaults to 2000 (experimental value, override in `post_setup` callback)
 - References/Backlinks will find unresolved links.
 - LSP filewatch capability for internal use in sync and cache.
+- Footnote support, mirroring the Obsidian app:
+  - goto-definition on `[^1]` jumps to the `[^1]:` definition, and back to the first reference from the definition; unresolved footnotes prompt for content and insert a definition.
+  - references finds all occurrences of the same footnote in the current note.
+  - completion of existing footnotes after typing `[^`, plus a create item for unresolved ids that prompts for content and inserts the definition (`obsidian.footnote_new`).
+  - `:Obsidian footnotes` to view footnotes of the current note via `vim.ui.select` with preview.
 
 ### Fixed
 

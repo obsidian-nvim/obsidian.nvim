@@ -240,6 +240,46 @@ T["find anchor references under cursor"] = function()
   eq("[[#header]]", qflist[1].text)
 end
 
+T["find footnote references under cursor"] = function()
+  local file = [==[
+some claim[^1]
+
+another mention[^1]
+
+[^1]: the footnote
+]==]
+
+  local root = child.Obsidian.dir
+  local file_path = root / "file.md"
+  h.write(file, file_path)
+
+  child.cmd(string.format("edit %s", file_path))
+  child.api.nvim_win_set_cursor(0, { 1, 11 })
+  local qflist = get_refs()
+  eq(3, #qflist)
+  eq("some claim[^1]", qflist[1].text)
+  eq(11, qflist[1].col)
+  eq("another mention[^1]", qflist[2].text)
+  eq("[^1]: the footnote", qflist[3].text)
+end
+
+T["find footnote references from definition"] = function()
+  local file = [==[
+some claim[^1]
+
+[^1]: the footnote
+]==]
+
+  local root = child.Obsidian.dir
+  local file_path = root / "file.md"
+  h.write(file, file_path)
+
+  child.cmd(string.format("edit %s", file_path))
+  child.api.nvim_win_set_cursor(0, { 3, 0 })
+  local qflist = get_refs()
+  eq(2, #qflist)
+end
+
 T["avoid invalid patterns"] = function()
   local referencer = [==[
 

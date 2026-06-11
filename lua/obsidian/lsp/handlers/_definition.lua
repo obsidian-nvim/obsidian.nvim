@@ -166,6 +166,41 @@ handlers.HeaderLink = function(location, callback, _)
   }
 end
 
+handlers.Footnote = function(location, callback, _)
+  local footnotes = require "obsidian.footnotes"
+  local bufnr = vim.api.nvim_get_current_buf()
+  local cursor_row = vim.api.nvim_win_get_cursor(0)[1]
+
+  local def = footnotes.find_definition(bufnr, location)
+
+  if not def then
+    -- Unresolved footnote: prompt for content and insert the definition.
+    return footnotes.create(location, bufnr)
+  end
+
+  local lnum, col = def.lnum, 0
+  if def.lnum == cursor_row then
+    -- Already on the definition, jump back to the first reference.
+    local refs = vim.tbl_filter(function(ref)
+      return ref.lnum ~= def.lnum
+    end, footnotes.find_refs(bufnr, location))
+    if vim.tbl_isempty(refs) then
+      return log.info("No references found for footnote [^%s]", location)
+    end
+    lnum, col = refs[1].lnum, refs[1].start_col
+  end
+
+  callback {
+    {
+      uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(bufnr)),
+      range = {
+        start = { line = lnum - 1, character = col },
+        ["end"] = { line = lnum - 1, character = col },
+      },
+    },
+  }
+end
+
 handlers.BlockLink = function(location, callback, _)
   local note = api.current_note(0, { collect_blocks = true })
   if not note or vim.tbl_isempty(note.blocks) then

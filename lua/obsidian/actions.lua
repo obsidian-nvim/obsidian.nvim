@@ -841,6 +841,16 @@ M.merge_note = function(dst_note)
   end
 end
 
+--- Create a footnote definition, prompting for its content.
+--- Used by the completion source to create unresolved footnotes.
+---
+---@param id string|?
+---@param bufnr integer|?
+---@param restore_cursor [integer, integer]|?
+M.footnote_new = function(id, bufnr, restore_cursor)
+  require("obsidian.footnotes").create(id, bufnr, restore_cursor)
+end
+
 --- write note to disk, for lsp completion create note
 ---
 ---@param note obsidian.Note

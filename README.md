@@ -118,6 +118,7 @@ There's one entry point user command for this plugin: `Obsidian`
   - available strategies: `vsplit, hsplit, vsplit_force, hsplit_force`
   - If the link does not exist, you will be prompted to create it. If you choose to create it, the link in the buffer will be automatically updated with the new note's ID and alias.
 - `:Obsidian toc` - get a picker list of table of contents for current note
+- `:Obsidian footnotes` - get a select list of all footnotes in current note, with preview
 - `:Obsidian template [NAME]` - insert a template from the templates folder, selecting from a list using your preferred picker
   - [Template](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template)
 - `:Obsidian links` - get a picker list of all links in current note

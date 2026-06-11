@@ -1,6 +1,7 @@
 local Ref = require "obsidian.completion.sources.refs"
 local Tag = require "obsidian.completion.sources.tags"
 local NewNote = require "obsidian.completion.sources.new"
+local Footnote = require "obsidian.completion.sources.footnotes"
 
 ---@class obsidian.completion.Request
 ---@field bufnr integer
@@ -62,7 +63,7 @@ return function(params, callback, _)
   -- IMPORTANT: all pending counts must be set before starting any source, because
   -- sources that can't complete call back synchronously, which would fire the final
   -- callback before remaining sources are even registered.
-  local pending = 2 -- refs + tags always run
+  local pending = 3 -- refs + tags + footnotes always run
   if Obsidian.opts.completion.create_new then
     pending = pending + 1
   end
@@ -84,6 +85,9 @@ return function(params, callback, _)
 
   -- Tags source.
   Tag.process_completion(on_source_done, request)
+
+  -- Footnotes source.
+  Footnote.process_completion(on_source_done, request)
 
   -- New note source (only if configured).
   if Obsidian.opts.completion.create_new then

@@ -57,6 +57,27 @@ end
 handlers.Wiki = handlers.Markdown
 handlers.WikiWithAlias = handlers.Markdown
 
+handlers.Footnote = function(link, callback)
+  local footnotes = require "obsidian.footnotes"
+  local id = util.parse_link(link)
+  assert(id, "failed to parse footnote")
+
+  local bufnr = vim.api.nvim_get_current_buf()
+  local uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(bufnr))
+
+  local locations = vim.tbl_map(function(ref)
+    return {
+      uri = uri,
+      range = {
+        start = { line = ref.lnum - 1, character = ref.start_col },
+        ["end"] = { line = ref.lnum - 1, character = ref.end_col },
+      },
+    }
+  end, footnotes.find_refs(bufnr, id))
+
+  callback(locations)
+end
+
 handlers.Tag = function(tag, callback)
   search.find_tags_async(tag, function(tag_locs)
     local lsp_locs = vim.tbl_map(tag_loc_to_lsp_location, tag_locs)
@@ -100,6 +121,7 @@ local supported_reference_types = {
   WikiWithAlias = true,
   Markdown = true,
   Tag = true,
+  Footnote = true,
   -- HeaderLink
   -- BlockLink
 }
