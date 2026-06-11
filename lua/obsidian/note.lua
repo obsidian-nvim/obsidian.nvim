@@ -162,18 +162,54 @@ Note.is_valid_filename = function(name)
     return false, "cannot be empty"
   end
 
-  -- Forbidden on Windows (and / on Linux); %z matches the NUL byte
+  -- Forbidden on Windows (and / on Linux); %z matches the NUL byte.
   local forbidden = name:match '[<>:"/\\|?*%z]'
   if forbidden then
     return false, ("contains forbidden character: %q"):format(forbidden)
   end
 
-  -- Control characters 0x01-0x1F (NUL covered above)
+  -- Control characters 0x01-0x1F (NUL covered above).
   if name:match "[\1-\31]" then
     return false, "contains a control character"
   end
 
+  if name:match "[%. ]$" then
+    return false, "cannot end with a space or period"
+  end
+
+  local upper = name:upper()
+  if upper:match "^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(%..*)?$" then
+    return false, "is a reserved Windows filename"
+  end
+
   return true, nil
+end
+
+---@param invalid_name string
+---@return string
+local function prompt_for_valid_filename(invalid_name)
+  local builtin = require "obsidian.builtin"
+  local current = invalid_name
+
+  while true do
+    local choice = api.confirm("Invalid filename", "&Slug the name\n&Input a name")
+    if choice == "Slug the name" then
+      current = builtin.title_to_slug(current)
+    elseif choice == "Input a name" then
+      local input = api.input("Enter filename", { default = current, completion = "file" })
+      if not input then
+        error "Aborted"
+      end
+      current = input:gsub("%.md$", "")
+    else
+      error "Aborted"
+    end
+
+    local valid = Note.is_valid_filename(current)
+    if valid then
+      return current
+    end
+  end
 end
 
 --- Generate the file path for a new note given its ID, parent directory, and title.
@@ -270,11 +306,12 @@ end
 --- Resolves the ID, and path for a new note.
 ---
 ---@param opts obsidian.note.NoteOpts Strategy for resolving note path and title
+---@param prompt_invalid_filename boolean|? Prompt for a replacement instead of erroring when the filename is invalid.
 ---@return string id
 ---@return obsidian.Path path
 ---@return string|? title
 ---@private
-Note._resolve_id_path = function(opts)
+Note._resolve_id_path = function(opts, prompt_invalid_filename)
   local id, dir = opts.id, opts.dir
   local creation_opts = Note._get_creation_opts(opts or {})
 
@@ -351,8 +388,12 @@ Note._resolve_id_path = function(opts)
 
   -- Reject ids that would produce filenames invalid on any platform.
   local valid, reason = Note.is_valid_filename(id)
-  if not valid then
-    error(("invalid note filename %q: %s"):format(id, reason), 2)
+  while not valid do
+    if not prompt_invalid_filename then
+      error(("invalid note filename %q: %s"):format(id, reason), 2)
+    end
+    id = prompt_for_valid_filename(id)
+    valid, reason = Note.is_valid_filename(id)
   end
 
   dir = base_dir
@@ -373,7 +414,7 @@ end
 --- @return obsidian.Note
 Note.create = function(opts)
   opts = opts or {}
-  local new_id, path, title = Note._resolve_id_path(opts)
+  local new_id, path, title = Note._resolve_id_path(opts, true)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
   if opts.should_write then
     log.warn "`should_write` in Note.create is removed, call note:write instead"

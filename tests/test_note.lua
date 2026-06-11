@@ -50,6 +50,41 @@ T["create"]["should trigger create autocmd with note data"] = function()
   vim.api.nvim_del_augroup_by_id(group)
 end
 
+T["create"]["should slug invalid filenames on request"] = function()
+  local orig_confirm = api.confirm
+  local calls = {}
+  api.confirm = function(prompt, choices)
+    table.insert(calls, { prompt = prompt, choices = choices })
+    return "Slug the name"
+  end
+
+  local note = M.create { id = "bad:name", verbatim = true }
+
+  api.confirm = orig_confirm
+  eq("badname", note.id)
+  eq("Invalid filename", calls[1].prompt)
+  eq("&Slug the name\n&Input a name", calls[1].choices)
+end
+
+T["create"]["should prompt for replacement filename with invalid name as default"] = function()
+  local orig_confirm = api.confirm
+  local orig_input = api.input
+  api.confirm = function()
+    return "Input a name"
+  end
+  api.input = function(prompt, opts)
+    eq("Enter filename", prompt)
+    eq("bad:name", opts.default)
+    return "good name"
+  end
+
+  local note = M.create { id = "bad:name", verbatim = true }
+
+  api.confirm = orig_confirm
+  api.input = orig_input
+  eq("good name", note.id)
+end
+
 local function from_str(str, path, opts)
   return M.from_lines(vim.iter(vim.split(str, "\n")), path, opts)
 end
