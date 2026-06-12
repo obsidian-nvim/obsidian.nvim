@@ -238,28 +238,6 @@ M.open_buffer = function(path, opts)
   }, opts.cmd)
 end
 
-local blink_counter = 0
-
---- Briefly highlight a range in a buffer, like the Obsidian app does after
---- navigating to a heading or block link.
----
---- Uses the `ObsidianBlink` highlight group (defaults to a link to `Visual`).
----
----@param bufnr integer
----@param range obsidian.Range end-exclusive, 0-based
-local blink_range = function(bufnr, range)
-  blink_counter = blink_counter + 1
-  local ns = vim.api.nvim_create_namespace("obsidian_blink_" .. blink_counter)
-  local hl = vim.hl or vim.highlight
-  vim.api.nvim_set_hl(0, "ObsidianBlink", { link = "Visual", default = true })
-  hl.range(bufnr, ns, "ObsidianBlink", { range.start_row, range.start_col }, { range.end_row, range.end_col }, {})
-  vim.defer_fn(function()
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
-    end
-  end, 500) -- NOTE: configurable timeout?
-end
-
 ---@param range obsidian.Range|lsp.Range|?
 ---@return obsidian.Range|?
 local function normalize_range(range)
@@ -275,8 +253,8 @@ end
 ---@param entry obsidian.PickerEntry|vim.quickfix.entry
 ---@return obsidian.Range|?
 local function entry_range(entry)
-  if type(entry.user_data) == "table" and type(entry.user_data.range) == "table" then
-    return normalize_range(entry.user_data.range)
+  if type(entry.range) == "table" then
+    return normalize_range(entry.range)
   end
 
   local lnum = tonumber(entry.lnum)
@@ -325,11 +303,10 @@ M.open_note = function(entry, cmd)
   end
 
   -- Blink the target range, e.g. the full section of an anchor/block link.
-  -- Quickfix items built from lsp locations carry the location in `user_data`.
   if type(entry) == "table" then
     local range = entry_range(entry)
     if range and not Range.is_empty(range) then
-      blink_range(result_bufnr, range)
+      Range.blink(range, result_bufnr)
     end
   end
 

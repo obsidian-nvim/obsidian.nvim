@@ -68,6 +68,32 @@ Range.lsp = function(range)
   return Range.new(range.start.line, range.start.character, range["end"].line, range["end"].character)
 end
 
+local blink_counter = 0
+
+--- Briefly highlight a range in a buffer.
+---
+---@param range obsidian.Range
+---@param bufnr integer|?
+---@param opts { timeout: integer|?, hl_group: string|? }|?
+Range.blink = function(range, bufnr, opts)
+  opts = opts or {}
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  blink_counter = blink_counter + 1
+
+  local ns = vim.api.nvim_create_namespace("obsidian_blink_" .. blink_counter)
+  local hl_group = opts.hl_group or "ObsidianBlink"
+  vim.api.nvim_set_hl(0, hl_group, { link = "Visual", default = true })
+
+  local hl = vim.hl or vim.highlight
+  hl.range(bufnr, ns, hl_group, { range.start_row, range.start_col }, { range.end_row, range.end_col }, {})
+
+  vim.defer_fn(function()
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+    end
+  end, opts.timeout or 500)
+end
+
 setmetatable(Range, {
   __call = function(_, ...)
     return Range.new(...)

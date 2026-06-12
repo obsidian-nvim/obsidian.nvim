@@ -2,7 +2,6 @@ local log = require "obsidian.log"
 local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
-local Range = require "obsidian.range"
 
 local M = {}
 
@@ -43,7 +42,7 @@ local function bookmark_to_picker_entry(bookmark)
       end
 
       if section then
-        entry.user_data = vim.tbl_extend("force", entry.user_data or {}, { range = Range.to_lsp(section.range) })
+        entry.range = section.range
       end
     else
       log.err("Failed to resolve bookmark path to note: %s", note)
