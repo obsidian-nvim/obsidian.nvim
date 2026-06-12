@@ -206,6 +206,34 @@ T["fzf select preserves identity for duplicate display labels"] = function()
   eq({ first }, choices)
 end
 
+T["fzf select overrides the fzf-tmux border for builtin previews"] = function()
+  local border = assert(loadstring("return function() end", "@/tmp/fzf-tmux.lua"))()
+
+  with_modules({
+    ["fzf-lua.config"] = {
+      globals = { winopts = { preview = { border = border } } },
+    },
+    ["fzf-lua.previewer.builtin"] = {
+      buffer_or_file = {
+        extend = function()
+          return {}
+        end,
+      },
+    },
+    ["fzf-lua"] = {
+      fzf_exec = function(_, opts)
+        eq({ preview = { border = "rounded" } }, opts.winopts)
+      end,
+    },
+  }, function()
+    require("obsidian.picker.fzf").select({ "one" }, {
+      preview_item = function()
+        return { buf = vim.api.nvim_create_buf(false, true) }
+      end,
+    })
+  end)
+end
+
 T["fzf select does not infer previews from value shape"] = function()
   local value = { filename = "/vault/note.md" }
   with_modules({

@@ -26,6 +26,27 @@ end
 
 local M = {}
 
+---@return table|?
+local function builtin_previewer_winopts()
+  local ok, config = pcall(require, "fzf-lua.config")
+  if not ok or type(config.globals.winopts) ~= "table" then
+    return
+  end
+
+  local preview = config.globals.winopts.preview
+  local border = type(preview) == "table" and preview.border or nil
+  if type(border) ~= "function" then
+    return
+  end
+
+  local info = debug.getinfo(border, "S")
+  -- The fzf-tmux profile's border function only accepts native previewers.
+  -- Use a Neovim border for our builtin buffer previewer instead.
+  if info and info.source and string.find(info.source, "fzf%-tmux%.lua") then
+    return { preview = { border = "rounded" } }
+  end
+end
+
 --- Register Obsidian workspace providers with fzf-lua.
 M.setup = function()
   local fzf = require "fzf-lua"
@@ -275,6 +296,7 @@ M.select = function(values, opts, on_choice)
   require("fzf-lua").fzf_exec(entries, {
     query = opts.query,
     previewer = previewer,
+    winopts = previewer and builtin_previewer_winopts() or nil,
     prompt = format_prompt(ut.build_prompt {
       prompt_title = opts.prompt,
       query_mappings = opts.query_mappings,
