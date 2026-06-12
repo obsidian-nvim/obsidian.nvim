@@ -24,7 +24,7 @@ local CODE_BLOCK_PATTERN = "^```[%w_-]*$"
 ---@field anchor string|? standardized anchor, e.g. "#my-heading".
 ---@field range obsidian.Range full extent: heading through the content of the last descendant section. This is the range to highlight when navigating here.
 ---@field heading_range obsidian.Range the heading line(s). Empty for the preamble.
----@field content_range obsidian.Range own content (sub-sections excluded), trimmed of surrounding blank lines.
+---@field content_range obsidian.Range own content (sub-sections excluded), trimmed of leading and trailing blank lines.
 ---@field parent obsidian.Section|? the nearest section above with a lower heading level.
 
 local M = {}
@@ -103,7 +103,7 @@ M.parse = function(lines, opts)
 
   -- Working entries with 1-based [beg_incl, end_excl) line indices,
   -- mirroring the half-open ranges of the output.
-  ---@type { level: integer|?, label: string|?, h_beg: integer, h_end: integer, c_beg: integer, c_end: integer }
+  ---@type { level: integer|?, label: string|?, h_beg: integer, h_end: integer, c_beg: integer, c_end: integer, blocks: obsidian.note.Block[]|? }
   local current = { h_beg = first, h_end = first, c_beg = first, c_end = first }
   local entries = { current }
   local content_empty = true
@@ -114,10 +114,29 @@ M.parse = function(lines, opts)
   local para_beg
   ---@type obsidian.note.Block[]
   local para_blocks = {}
+  ---@type obsidian.Section|?
+  local last_para_section
+
+  ---@param entry table
+  ---@param idx integer
+  local function collect_section_block(entry, idx)
+    if not blocks then
+      return
+    end
+
+    local line = vim.trim(lines[idx])
+    local block_id = util.parse_block(line)
+    if block_id then
+      local block = { id = block_id, line = idx, block = line }
+      blocks[block_id] = block
+      entry.blocks = entry.blocks or {}
+      table.insert(entry.blocks, block)
+    end
+  end
 
   ---@param end_excl integer
   local function close_paragraph(end_excl)
-    if para_beg ~= nil and #para_blocks > 0 then
+    if para_beg ~= nil then
       local section = {
         range = Range.new(para_beg - 1, 0, end_excl - 1, 0),
         heading_range = Range.new(para_beg - 1, 0, para_beg - 1, 0),
@@ -126,6 +145,7 @@ M.parse = function(lines, opts)
       for _, block in ipairs(para_blocks) do
         block.section = section
       end
+      last_para_section = section
     end
     para_beg = nil
     para_blocks = {}
@@ -137,6 +157,7 @@ M.parse = function(lines, opts)
 
     if detail.type == "header" then
       close_paragraph(idx)
+      last_para_section = nil
       current = {
         level = detail.level,
         label = detail.label,
@@ -146,6 +167,7 @@ M.parse = function(lines, opts)
         c_end = idx_excl,
       }
       table.insert(entries, current)
+      collect_section_block(current, idx)
       content_empty = true
     elseif detail.type == "header-underline" then
       current.h_end = idx_excl
@@ -159,13 +181,17 @@ M.parse = function(lines, opts)
       current.c_end = idx_excl
 
       if blocks and detail.type == "text" then
-        para_beg = para_beg or idx
         local line = vim.trim(lines[idx])
         local block_id = util.parse_block(line)
-        if block_id then
-          local block = { id = block_id, line = idx, block = line }
-          blocks[block_id] = block
-          table.insert(para_blocks, block)
+        if block_id and line == block_id and para_beg == nil and last_para_section ~= nil then
+          blocks[block_id] = { id = block_id, line = idx, block = line, section = last_para_section }
+        else
+          para_beg = para_beg or idx
+          if block_id then
+            local block = { id = block_id, line = idx, block = line }
+            blocks[block_id] = block
+            table.insert(para_blocks, block)
+          end
         end
       else
         close_paragraph(idx)
@@ -209,6 +235,10 @@ M.parse = function(lines, opts)
           break
         end
       end
+    end
+
+    for _, block in ipairs(entry.blocks or {}) do
+      block.section = section
     end
 
     sections[i] = section

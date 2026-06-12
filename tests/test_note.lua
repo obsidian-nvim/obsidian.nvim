@@ -273,6 +273,23 @@ T["from_lines"]["should resolve anchor locations to full section ranges"] = func
   }, location.range)
 end
 
+T["from_lines"]["should collect setext header anchors"] = function()
+  local note = from_str("Title\n=====\n\nBody", "setext.md", {
+    collect_anchor_links = true,
+  })
+
+  eq({
+    anchor = "#title",
+    line = 1,
+    header = "Title",
+    level = 1,
+  }, anchor_fields(note.anchor_links["#title"]))
+  eq({
+    start = { line = 0, character = 0 },
+    ["end"] = { line = 4, character = 0 },
+  }, note:_location({ anchor = "#title" }).range)
+end
+
 local note_with_blocks = [[---
 id: note_with_a_bunch_of_blocks
 ---
@@ -305,6 +322,17 @@ T["from_lines"]["should be able to collect blocks"] = function()
   -- Each block carries the paragraph it lives in as a section.
   eq({ start_row = 4, start_col = 0, end_row = 5, end_col = 0 }, note.blocks["^1234"].section.range)
   eq({ start_row = 6, start_col = 0, end_row = 7, end_col = 0 }, note.blocks["^hello-world"].section.range)
+end
+
+T["from_lines"]["should map block ids to the referenced paragraph"] = function()
+  local note = from_str("text ^123", "block-inline.md", { collect_blocks = true })
+  eq({ start_row = 0, start_col = 0, end_row = 1, end_col = 0 }, note.blocks["^123"].section.range)
+
+  note = from_str("text\ntext2\n^123", "block-multiline.md", { collect_blocks = true })
+  eq({ start_row = 0, start_col = 0, end_row = 3, end_col = 0 }, note.blocks["^123"].section.range)
+
+  note = from_str("text\ntext2\n\n^123", "block-standalone.md", { collect_blocks = true })
+  eq({ start_row = 0, start_col = 0, end_row = 2, end_col = 0 }, note.blocks["^123"].section.range)
 end
 
 T["from_lines"]["should work from a file w/o frontmatter"] = function()

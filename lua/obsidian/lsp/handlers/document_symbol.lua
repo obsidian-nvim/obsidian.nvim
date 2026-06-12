@@ -12,9 +12,9 @@ return function(_, handler)
     return handler(nil, symbols)
   end
 
-  for _, anchor in pairs(note.anchor_links) do
-    local display = string.rep("#", anchor.level) .. " " .. anchor.header
-    if not lookup[anchor.line] then
+  for _, anchor in pairs(note.anchor_links or {}) do
+    if anchor.section and not lookup[anchor.line] then
+      local display = string.rep("#", anchor.level) .. " " .. anchor.header
       local symbol = {
         name = display,
         kind = 1,

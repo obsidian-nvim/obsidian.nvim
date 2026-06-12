@@ -237,7 +237,7 @@ M.open_buffer = function(path, opts)
   }, opts.cmd)
 end
 
-local blink_ns = vim.api.nvim_create_namespace "obsidian_blink"
+local blink_counter = 0
 
 --- Briefly highlight a range in a buffer, like the Obsidian app does after
 --- navigating to a heading or block link.
@@ -246,12 +246,14 @@ local blink_ns = vim.api.nvim_create_namespace "obsidian_blink"
 ---
 ---@param bufnr integer
 ---@param range lsp.Range end-exclusive, 0-based
-M.blink_range = function(bufnr, range)
+local blink_range = function(bufnr, range)
+  blink_counter = blink_counter + 1
+  local ns = vim.api.nvim_create_namespace("obsidian_blink_" .. blink_counter)
   local hl = vim.hl or vim.highlight
   vim.api.nvim_set_hl(0, "ObsidianBlink", { link = "Visual", default = true })
   hl.range(
     bufnr,
-    blink_ns,
+    ns,
     "ObsidianBlink",
     { range.start.line, range.start.character },
     { range["end"].line, range["end"].character },
@@ -259,9 +261,28 @@ M.blink_range = function(bufnr, range)
   )
   vim.defer_fn(function()
     if vim.api.nvim_buf_is_valid(bufnr) then
-      vim.api.nvim_buf_clear_namespace(bufnr, blink_ns, 0, -1)
+      vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
     end
-  end, vim.g.obsidian_blink_duration or 500)
+  end, 500) -- NOTE: configurable timeout?
+end
+
+---@param entry obsidian.PickerEntry|vim.quickfix.entry
+---@return lsp.Range|?
+local function entry_range(entry)
+  if type(entry.user_data) == "table" and type(entry.user_data.range) == "table" then
+    return entry.user_data.range
+  end
+
+  local lnum = tonumber(entry.lnum)
+  local col = tonumber(entry.col) or 1
+  local end_lnum = tonumber(entry.end_lnum)
+  local end_col = tonumber(entry.end_col)
+  if lnum and end_lnum and end_col then
+    return {
+      start = { line = lnum - 1, character = math.max(col - 1, 0) },
+      ["end"] = { line = end_lnum - 1, character = math.max(end_col - 1, 0) },
+    }
+  end
 end
 
 --- Open a quickfix entry in buffer, with open strategy
@@ -302,10 +323,10 @@ M.open_note = function(entry, cmd)
 
   -- Blink the target range, e.g. the full section of an anchor/block link.
   -- Quickfix items built from lsp locations carry the location in `user_data`.
-  if type(entry) == "table" and type(entry.user_data) == "table" and type(entry.user_data.range) == "table" then
-    local range = entry.user_data.range
-    if range["end"].line > range.start.line or range["end"].character > range.start.character then
-      M.blink_range(result_bufnr, range)
+  if type(entry) == "table" then
+    local range = entry_range(entry)
+    if range and (range["end"].line > range.start.line or range["end"].character > range.start.character) then
+      blink_range(result_bufnr, range)
     end
   end
 
