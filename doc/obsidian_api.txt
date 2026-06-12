@@ -13,6 +13,16 @@ Table of contents
   obsidian.Path ....................................................... |Path|
   
 ------------------------------------------------------------------------------
+                                                           *new_header_anchor()*
+               `new_header_anchor`({section}, {parent}, {anchor})
+Parameters ~
+{section} `(obsidian.Section)`
+{parent} `(obsidian.note.HeaderAnchor|)`?
+{anchor} `(string|)`?
+Return ~
+`(obsidian.note.HeaderAnchor)`
+
+------------------------------------------------------------------------------
                                                                           *Note*
                                      `Note`
 A class that represents a note within a vault.
@@ -32,6 +42,7 @@ Fields ~
 {frontmatter_end_line} `(integer|)`?
 {anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
 {blocks} `(table<string, obsidian.note.Block>?)`
+{sections} `(obsidian.Section[]|? document)`-ordered sections, the first one is always the preamble.
 {alt_alias} `(string|)`?
 {bufnr} `(integer|)`?
 {template} `(string|? Template)` name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
@@ -123,7 +134,7 @@ Return ~
                                                               *Note._location()*
                         `Note._location`({self}, {opts})
 Parameters ~
-{opts} `({ block: string|?, anchor: string|?, range: lsp.Range|? }|?-- TODO)`: vim.Range in the future
+{opts} `({ block: string|?, anchor: string|?, range: lsp.Range|obsidian.Range|? }|)`?
 Return ~
 `(lsp.Location)`
 
@@ -459,6 +470,7 @@ Fields ~
 {max_lines} `(integer|)`?
 {collect_anchor_links} `(boolean|)`?
 {collect_blocks} `(boolean|)`?
+{collect_sections} `(boolean|)`?
 
 ------------------------------------------------------------------------------
 Class ~
@@ -557,6 +569,7 @@ Fields ~
 {level} `(integer)`
 {line} `(integer)`
 {parent} `(obsidian.note.HeaderAnchor|)`?
+{section} `(obsidian.Section)` the full section this header begins.
 
 ------------------------------------------------------------------------------
 Class ~
@@ -566,6 +579,7 @@ Fields ~
 {id} `(string)`
 {line} `(integer)`
 {block} `(string)`
+{section} `(obsidian.Section)` the paragraph carrying the block identifier.
 
 
 ==============================================================================
