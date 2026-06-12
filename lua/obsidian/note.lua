@@ -250,19 +250,35 @@ Note._resolve_id_path = function(opts)
       base_dir = base_dir:resolve()
     end
   else
-    local bufpath = Path.buffer(0):resolve()
-    if
-      creation_opts.new_notes_location == "current_dir"
-      -- note is actually in the workspace.
-      and Obsidian.dir:is_parent_of(bufpath)
-      -- note is not in dailies folder
-      and (
-        Obsidian.opts.daily_notes.folder == nil
-        or not (Obsidian.dir / Obsidian.opts.daily_notes.folder):is_parent_of(bufpath)
-      )
-    then
-      base_dir = Obsidian.buf_dir or assert(bufpath:parent())
-    else
+    local function is_in_vault(path)
+      return path == Obsidian.dir or Obsidian.dir:is_parent_of(path)
+    end
+
+    local function is_in_daily_notes(path)
+      local daily_notes_folder = Obsidian.opts.daily_notes.folder
+      if daily_notes_folder == nil then
+        return false
+      end
+
+      local daily_notes_dir = Obsidian.dir / daily_notes_folder
+      return path == daily_notes_dir or daily_notes_dir:is_parent_of(path)
+    end
+
+    if creation_opts.new_notes_location == "current_dir" then
+      local bufname = vim.api.nvim_buf_get_name(0)
+      local bufpath = bufname ~= "" and Path.new(bufname):resolve() or nil
+      local cwd = Path.new(vim.fn.getcwd(0, 0)):resolve()
+
+      if bufpath ~= nil and api.path_is_note(bufpath) then
+        if not is_in_daily_notes(bufpath) then
+          base_dir = assert(bufpath:parent())
+        end
+      elseif is_in_vault(cwd) and not is_in_daily_notes(cwd) then
+        base_dir = cwd
+      end
+    end
+
+    if base_dir == nil then
       base_dir = Obsidian.dir
       if creation_opts.notes_subdir ~= nil then
         base_dir = base_dir / creation_opts.notes_subdir

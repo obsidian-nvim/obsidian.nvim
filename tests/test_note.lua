@@ -524,6 +524,65 @@ T["resolve_id_path"]["should ensure result of 'note_path_func' is always an abso
   eq(Path.new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
 end
 
+T["resolve_id_path"]["should use cwd for non-note buffers when cwd is in vault"] = function()
+  local previous_cwd = vim.fn.getcwd()
+  local notes_dir = Obsidian.dir / "notes"
+  local stale_dir = Obsidian.dir / "stale"
+  notes_dir:mkdir { exist_ok = true }
+  stale_dir:mkdir { exist_ok = true }
+
+  vim.cmd "enew!"
+  Obsidian.buf_dir = stale_dir
+  vim.cmd("cd " .. vim.fn.fnameescape(tostring(notes_dir)))
+
+  local id, path = M._resolve_id_path { id = "Foo" }
+
+  vim.cmd("cd " .. vim.fn.fnameescape(previous_cwd))
+  eq("Foo", id)
+  eq(notes_dir / "Foo.md", path)
+end
+
+T["resolve_id_path"]["should prefer current note directory over cwd"] = function()
+  local previous_cwd = vim.fn.getcwd()
+  local notes_dir = Obsidian.dir / "notes"
+  local other_dir = Obsidian.dir / "other"
+  notes_dir:mkdir { exist_ok = true }
+  other_dir:mkdir { exist_ok = true }
+
+  local current_note = notes_dir / "Current.md"
+  vim.fn.writefile({}, tostring(current_note))
+  vim.cmd("edit " .. vim.fn.fnameescape(tostring(current_note)))
+  vim.cmd("cd " .. vim.fn.fnameescape(tostring(other_dir)))
+
+  local id, path = M._resolve_id_path { id = "Foo" }
+
+  vim.cmd("cd " .. vim.fn.fnameescape(previous_cwd))
+  vim.cmd "enew!"
+  eq("Foo", id)
+  eq(notes_dir / "Foo.md", path)
+end
+
+T["resolve_id_path"]["should not use cwd when current buffer is a daily note"] = function()
+  local previous_cwd = vim.fn.getcwd()
+  Obsidian.opts.daily_notes.folder = "daily"
+  local daily_dir = Obsidian.dir / "daily"
+  local other_dir = Obsidian.dir / "other"
+  daily_dir:mkdir { exist_ok = true }
+  other_dir:mkdir { exist_ok = true }
+
+  local current_note = daily_dir / "Today.md"
+  vim.fn.writefile({}, tostring(current_note))
+  vim.cmd("edit " .. vim.fn.fnameescape(tostring(current_note)))
+  vim.cmd("cd " .. vim.fn.fnameescape(tostring(other_dir)))
+
+  local id, path = M._resolve_id_path { id = "Foo" }
+
+  vim.cmd("cd " .. vim.fn.fnameescape(previous_cwd))
+  vim.cmd "enew!"
+  eq("Foo", id)
+  eq(Obsidian.dir / "Foo.md", path)
+end
+
 T["format_link"] = new_set()
 
 T["format_link"]["should respect link.style"] = function()
