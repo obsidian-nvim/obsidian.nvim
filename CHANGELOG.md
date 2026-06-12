@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - YAML will not force quoted number strings into number.
 - Warns if workspace folder does not exist.
+- Fzf-tmux profile will work.
+- Fzf-lua multiple select will work.
 
 ### Changed
 
