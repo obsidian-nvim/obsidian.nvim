@@ -136,6 +136,8 @@ function M.run(subcmd, flags)
       end
     end
     return
+  elseif out.code ~= 0 then
+    log.error(out.stderr)
   end
   return out
 end
@@ -215,15 +217,17 @@ end
 
 ---@type table<string, obsidian.sync.LocalVault>|nil
 local _local_vaults_cache = nil
-
-M._local_vaults_cache = _local_vaults_cache
-
 ---@type obsidian.sync.RemoteVault[]|nil
 local _remote_vaults_cache = nil
+
+M._local_vaults_cache = _local_vaults_cache
+M._remote_vaults_cache = _remote_vaults_cache
 
 invalidate_cache = function()
   _local_vaults_cache = nil
   _remote_vaults_cache = nil
+  M._local_vaults_cache = nil
+  M._remote_vaults_cache = nil
 end
 
 M.invalidate_vaults_cache = invalidate_cache
@@ -316,24 +320,33 @@ function M.list_remote(use_cache)
     return _remote_vaults_cache
   end
 
-  local out = M.run "sync-list-remote"
+  local out = M.run("sync-list-remote", {})
 
-  if not out or not out.stdout then
+  if not out or out.code ~= 0 or not out.stdout then
     return {}
   end
 
   local lines = vim.split(out.stdout, "\n", { trimempty = true })
-  local pat = "^%s*([0-9a-fA-F]+)%s+([^\n]+)"
-
   local res = {}
   for _, line in ipairs(lines) do
-    local hash, name = line:match(pat)
+    local hash, quoted_name = line:match '^%s*([0-9a-fA-F]+)%s+"([^"]+)"'
+    local name
+    if hash and quoted_name then
+      name = quoted_name
+    else
+      hash, name = line:match "^%s*([0-9a-fA-F]+)%s+(.+)$"
+      if name then
+        name = vim.trim(name)
+      end
+    end
+
     if hash and name then
       table.insert(res, { hash = hash, name = name })
     end
   end
 
   _remote_vaults_cache = res
+  M._remote_vaults_cache = res
   return res
 end
 
@@ -356,8 +369,12 @@ function M.create_remote(name, opts)
   local out = M.run("sync-create-remote", args)
   if out and out.code == 0 and out.stdout then
     local vault_id = out.stdout:match "[Vv]ault ID:%s*([0-9a-fA-F]+)"
-    invalidate_cache()
-    return { hash = assert(vault_id, "failed to parse sync-create-remote result"), name = name }
+    if vault_id then
+      _remote_vaults_cache = nil
+      M._remote_vaults_cache = nil
+      return { hash = vault_id, name = name }
+    end
+    log.err "Failed to parse sync-create-remote result."
   end
 end
 

@@ -123,10 +123,11 @@ end
 
 ---@param remote obsidian.sync.RemoteVault
 ---@param workspace obsidian.Workspace
-local function connect_and_configure(remote, workspace)
+---@param setup_opts { password?: string, prompt_password?: boolean }?
+local function connect_and_configure(remote, workspace, setup_opts)
   local path = tostring(workspace.root)
 
-  local out = client.setup(remote.hash, path)
+  local out = client.setup(remote.hash, path, setup_opts)
   if not out or out.code ~= 0 then
     return
   end
@@ -147,14 +148,25 @@ local function create_and_connect(workspace)
     return
   end
 
-  local remote_create_result = client.create_remote(name)
+  local password = vim.fn.inputsecret "End-to-end encryption password (leave empty for managed encryption): "
+  local create_opts = {}
+  local setup_opts = {}
+  if password and password ~= "" then
+    create_opts.encryption = "e2ee"
+    create_opts.password = password
+    setup_opts.password = password
+  else
+    create_opts.encryption = "standard"
+  end
+
+  local remote_create_result = client.create_remote(name, create_opts)
 
   if not remote_create_result then
-    log.err "Failed to parse the newly created remote vault ID."
+    log.err "Failed to create remote vault."
     return
   end
 
-  connect_and_configure({ hash = remote_create_result.hash, name = name }, workspace)
+  connect_and_configure(remote_create_result, workspace, setup_opts)
 end
 
 local CREATE_NEW = { hash = "", name = "" }
@@ -169,7 +181,9 @@ local function select_remote(workspace, remotes, local_vaults)
   end
 
   if #remotes == 0 then
-    create_and_connect(workspace)
+    if api.confirm "No remote vaults found. Create one now?" == "Yes" then
+      create_and_connect(workspace)
+    end
     return
   end
 
