@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - YAML will not force quoted number strings into number.
 
+### Changed
+
+- Raise minimum supported version to `0.11`
+
 ## [v3.16.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.4) - 2026-06-03
 
 ### Added
