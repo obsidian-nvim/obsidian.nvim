@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Raise minimum supported version to `0.11`
+- Raise minimum supported version to `0.11`.
+- `new_notes_location` when `current_dir` but the current buffer is not valid note file, fallback to current working directory.
 
 ## [v3.16.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.4) - 2026-06-03
 
