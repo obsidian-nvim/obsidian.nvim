@@ -30,11 +30,8 @@ return function(data)
       local items = dedupe_items(t.items)
       if #items == 1 then
         api.open_note(items[1], open_strategy)
-      elseif Obsidian.picker then
-        Obsidian.picker.pick(items, { prompt_title = "Resolve link" })
       else
-        vim.fn.setqflist({}, " ", { title = t.title, items = items })
-        vim.cmd "copen"
+        Obsidian.picker.pick(items, { prompt_title = "Resolve link" })
       end
     end,
   }
