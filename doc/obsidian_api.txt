@@ -844,11 +844,6 @@ Parameters ~
 {opts} `({ mode: integer|?, parents: boolean|? }|)`?
 
 ------------------------------------------------------------------------------
-                                                                 *Path.rmtree()*
-                                `Path.rmtree`()
-Recursively remove an entire directory and its contents.
-
-------------------------------------------------------------------------------
                                                     *Path.vault_relative_path()*
                    `Path.vault_relative_path`({self}, {opts})
 Make a path relative to the vault root, if possible, return a string
