@@ -8,6 +8,7 @@ local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
 local attachment = require "obsidian.attachment"
+local Range = require "obsidian.range"
 
 M.dir = require("obsidian.fs").dir
 
@@ -237,6 +238,34 @@ M.open_buffer = function(path, opts)
   }, opts.cmd)
 end
 
+---@param range obsidian.Range|lsp.Range|?
+---@return obsidian.Range|?
+local function normalize_range(range)
+  if not range then
+    return nil
+  elseif range.start_row then
+    return range
+  elseif range.start then
+    return Range.lsp(range)
+  end
+end
+
+---@param entry obsidian.PickerEntry|vim.quickfix.entry
+---@return obsidian.Range|?
+local function entry_range(entry)
+  if type(entry.range) == "table" then
+    return normalize_range(entry.range)
+  end
+
+  local lnum = tonumber(entry.lnum)
+  local col = tonumber(entry.col) or 1
+  local end_lnum = tonumber(entry.end_lnum)
+  local end_col = tonumber(entry.end_col)
+  if lnum and end_lnum and end_col then
+    return Range.new(lnum - 1, math.max(col - 1, 0), end_lnum - 1, math.max(end_col - 1, 0))
+  end
+end
+
 --- Open a quickfix entry in buffer, with open strategy
 ---@param entry obsidian.PickerEntry|vim.quickfix.entry|string
 ---@param cmd string?
@@ -271,6 +300,14 @@ M.open_note = function(entry, cmd)
 
   if not result_bufnr then
     result_bufnr = vim.api.nvim_get_current_buf()
+  end
+
+  -- Blink the target range, e.g. the full section of an anchor/block link.
+  if type(entry) == "table" then
+    local range = entry_range(entry)
+    if range and not Range.is_empty(range) then
+      Range.blink(range, result_bufnr)
+    end
   end
 
   return result_bufnr

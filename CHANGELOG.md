@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Navigating to an anchor or block link now briefly highlights the full referenced section, like the Obsidian app. The highlight group is `ObsidianBlink` (defaults to `Visual`) and the duration is controlled by `vim.g.obsidian_blink_duration` (ms, defaults to 500).
+- `note.sections` and the `obsidian.Section` type: header anchors and blocks now carry the full section/paragraph range (`anchor.section`, `block.section`). Anchors are also collected for setext (`===`/`---` underline) headings now.
+- `obsidian.Range`, a minimal shim of the experimental `vim.range()` API (0-based, end-exclusive) used by `obsidian.Section`.
+- LSP document symbols now report real section ranges instead of zero-width ranges.
 - Add `opts.file.ignore_filters` to exclude directories completely from the plug-in.
 - Sync supports switching backend and one shot sync on file write
   - `opts.sync.backend` -> `obsidian` / `git` (WIP)

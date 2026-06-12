@@ -26,7 +26,7 @@ return function(data)
   end
 
   vim.lsp.buf.definition {
-    on_list = Obsidian.picker and function(t)
+    on_list = function(t)
       local items = dedupe_items(t.items)
       if #items == 1 then
         api.open_note(items[1], open_strategy)

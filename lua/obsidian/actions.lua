@@ -744,6 +744,7 @@ local function symbol_to_entry(symbol)
     filename = vim.uri_to_fname(symbol.location.uri),
     text = symbol.name,
     lnum = range and range.start.line + 1 or nil,
+    range = range,
     user_data = symbol.data,
   }
 end

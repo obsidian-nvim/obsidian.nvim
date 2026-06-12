@@ -29,12 +29,20 @@ local function bookmark_to_picker_entry(bookmark)
     local ok, note = pcall(Note.from_file, entry.filename)
     if ok and note then
       ---@cast note -string
+      ---@type obsidian.Section|?
+      local section
       if vim.startswith(bookmark.subpath, "#^") then
         local block = note:resolve_block(bookmark.subpath:sub(2))
-        entry.lnum = block and block.line or nil
+        section = block and block.section
+        entry.lnum = section and section.range.start_row + 1 or (block and block.line or nil)
       elseif vim.startswith(bookmark.subpath, "#") then
         local anchor = note:resolve_anchor_link(bookmark.subpath)
-        entry.lnum = anchor and anchor.line or nil
+        section = anchor and anchor.section
+        entry.lnum = section and section.range.start_row + 1 or (anchor and anchor.line or nil)
+      end
+
+      if section then
+        entry.range = section.range
       end
     else
       log.err("Failed to resolve bookmark path to note: %s", note)

@@ -18,12 +18,31 @@ local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
 local ignore = require "obsidian.ignore"
+local Section = require "obsidian.section"
+local Range = require "obsidian.range"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
 local DEFAULT_MAX_LINES = 500
 
-local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
+---@param section obsidian.Section
+---@param parent obsidian.note.HeaderAnchor|?
+---@param anchor string|?
+---@return obsidian.note.HeaderAnchor
+local function new_header_anchor(section, parent, anchor)
+  local section_anchor = assert(section.anchor, "section anchor is required")
+  local header = assert(section.header, "section header is required")
+  local level = assert(section.level, "section level is required")
+
+  return {
+    anchor = anchor or section_anchor,
+    line = section.heading_range.start_row + 1,
+    header = header,
+    level = level,
+    parent = parent,
+    section = section,
+  }
+end
 
 --- A class that represents a note within a vault.
 ---
@@ -42,6 +61,7 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field frontmatter_end_line integer|?
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
+---@field sections obsidian.Section[]|? document-ordered sections, the first one is always the preamble.
 ---@field alt_alias string|?
 ---@field bufnr integer|?
 ---@field template string|? Template name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
@@ -419,7 +439,7 @@ Note.uri = function(self)
   return vim.uri_from_fname(tostring(self.path))
 end
 
----@param opts { block: string|?, anchor: string|?, range: lsp.Range|? }|?-- TODO: vim.Range in the future
+---@param opts { block: string|?, anchor: string|?, range: lsp.Range|obsidian.Range|? }|?
 ---@return lsp.Location
 Note._location = function(self, opts)
   opts = opts or {}
@@ -428,24 +448,23 @@ Note._location = function(self, opts)
     error "can not pass both range and an block/anhor link to Note:_location()"
   end
 
-  ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
-  local line = 0
+  -- The full section the link points at: jumps land at its start and the
+  -- whole range gets a blink highlight, like the Obsidian app.
+  ---@type obsidian.Section|?
+  local section
   if opts.block then
     local block_match = self:resolve_block(opts.block)
-    if block_match then
-      line = block_match.line - 1
-    end
+    section = block_match and block_match.section
   elseif opts.anchor then
     local anchor_match = self:resolve_anchor_link(opts.anchor)
-    if anchor_match then
-      line = anchor_match.line - 1
-    end
+    section = anchor_match and anchor_match.section
   end
 
-  local range = opts.range
+  local range = opts.range and (opts.range.start_row and Range.to_lsp(opts.range) or opts.range)
+    or (section and Range.to_lsp(section.range))
     or {
-      start = { line = line, character = 0 },
-      ["end"] = { line = line, character = 0 },
+      start = { line = 0, character = 0 },
+      ["end"] = { line = 0, character = 0 },
     }
 
   return {
@@ -666,61 +685,11 @@ Note.from_lines = function(lines, path, opts)
 
   local contents = {}
 
-  ---@type table<string, obsidian.note.HeaderAnchor>|?
-  local anchor_links
-  ---@type obsidian.note.HeaderAnchor[]|?
-  local anchor_stack
-  if opts.collect_anchor_links then
-    anchor_links = {}
-    anchor_stack = {}
-  end
-
-  ---@type table<string, obsidian.note.Block>|?
-  local blocks
-  if opts.collect_blocks then
-    blocks = {}
-  end
-
-  ---@param anchor_data obsidian.note.HeaderAnchor
-  ---@return obsidian.note.HeaderAnchor|?
-  local function get_parent_anchor(anchor_data)
-    assert(anchor_links and anchor_stack, "failed to collect anchor")
-    for i = #anchor_stack, 1, -1 do
-      local parent = anchor_stack[i]
-      if parent.level < anchor_data.level then
-        return parent
-      end
-    end
-  end
-
-  ---@param anchor string
-  ---@param data obsidian.note.HeaderAnchor|?
-  local function format_nested_anchor(anchor, data)
-    local out = anchor
-    if not data then
-      return out
-    end
-
-    local parent = data.parent
-    while parent ~= nil do
-      out = parent.anchor .. out
-      data = get_parent_anchor(parent)
-      if data ~= nil then
-        parent = data.parent
-      else
-        parent = nil
-      end
-    end
-
-    return out
-  end
-
-  -- Iterate over lines in the file, collecting frontmatter and parsing the title.
+  -- Iterate over lines in the file, collecting frontmatter and contents.
   local frontmatter_lines = {}
   local has_frontmatter, in_frontmatter = false, false
   local at_boundary
   local frontmatter_end_line = nil
-  local in_code_block = false
   for line_idx, line in iter(lines):enumerate() do
     line = util.rstrip_whitespace(line)
 
@@ -736,50 +705,8 @@ Note.from_lines = function(lines, path, opts)
       at_boundary = false
     end
 
-    if string.match(line, CODE_BLOCK_PATTERN) then
-      in_code_block = not in_code_block
-    end
-
     if in_frontmatter and not at_boundary then
       table.insert(frontmatter_lines, line)
-    elseif not in_frontmatter and not at_boundary and not in_code_block then
-      -- Check for title/header and collect anchor link.
-      local header_match = util.parse_header(line)
-      if header_match then
-        -- Collect anchor link.
-        if opts.collect_anchor_links then
-          assert(anchor_links and anchor_stack, "failed to collect anchor")
-          -- We collect up to two anchor for each header. One standalone, e.g. '#header1', and
-          -- one with the parents, e.g. '#header1#header2'.
-          -- This is our standalone one:
-          ---@type obsidian.note.HeaderAnchor
-          local data = {
-            anchor = header_match.anchor,
-            line = line_idx,
-            header = header_match.header,
-            level = header_match.level,
-          }
-          data.parent = get_parent_anchor(data)
-
-          anchor_links[header_match.anchor] = data
-          table.insert(anchor_stack, data)
-
-          -- Now if there's a parent we collect the nested version. All of the data will be the same
-          -- except the anchor key.
-          if data.parent ~= nil then
-            local nested_anchor = format_nested_anchor(header_match.anchor, data)
-            anchor_links[nested_anchor] = vim.tbl_extend("force", data, { anchor = nested_anchor })
-          end
-        end
-      end
-
-      -- Check for block.
-      if opts.collect_blocks then
-        local block = util.parse_block(line)
-        if block then
-          blocks[block] = { id = block, line = line_idx, block = line }
-        end
-      end
     end
 
     -- Collect contents.
@@ -788,6 +715,43 @@ Note.from_lines = function(lines, path, opts)
     -- Check if we can stop reading lines now.
     if line_idx > max_lines then
       break
+    end
+  end
+
+  ---@type obsidian.Section[]|?, table<string, obsidian.note.Block>|?
+  local sections, blocks
+  if opts.collect_sections or opts.collect_anchor_links or opts.collect_blocks then
+    sections, blocks = Section.parse(contents, {
+      start_row = frontmatter_end_line or 0,
+      collect_blocks = opts.collect_blocks,
+    })
+  end
+
+  ---@type table<string, obsidian.note.HeaderAnchor>|?
+  local anchor_links
+  if opts.collect_anchor_links then
+    anchor_links = {}
+    ---@type table<obsidian.Section, obsidian.note.HeaderAnchor>
+    local section_to_anchor = {}
+    for _, section in ipairs(assert(sections, "sections must be parsed when collecting anchor links")) do
+      if section.header then
+        -- We collect up to two anchors for each header. One standalone, e.g. '#header1', and
+        -- one with the parents, e.g. '#header1#header2'.
+        local data = new_header_anchor(section, section.parent and section_to_anchor[section.parent], nil)
+        section_to_anchor[section] = data
+        anchor_links[section.anchor] = data
+
+        if data.parent ~= nil then
+          local nested_anchor = data.anchor
+          ---@type obsidian.note.HeaderAnchor|?
+          local parent = data.parent
+          while parent ~= nil do
+            nested_anchor = parent.anchor .. nested_anchor
+            parent = parent.parent
+          end
+          anchor_links[nested_anchor] = new_header_anchor(section, data.parent, nested_anchor)
+        end
+      end
     end
   end
 
@@ -814,6 +778,7 @@ Note.from_lines = function(lines, path, opts)
   n.contents = contents
   n.anchor_links = anchor_links
   n.blocks = blocks
+  n.sections = sections
   -- TODO: reflect the warnings in `:Obsidian check`
   return n, warnings
 end
@@ -1419,6 +1384,7 @@ end
 ---@field max_lines integer|?
 ---@field collect_anchor_links boolean|?
 ---@field collect_blocks boolean|?
+---@field collect_sections boolean|?
 
 ---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string
@@ -1500,11 +1466,13 @@ end
 ---@field level integer
 ---@field line integer
 ---@field parent obsidian.note.HeaderAnchor|?
+---@field section obsidian.Section the full section this header begins.
 
 ---@class obsidian.note.Block
 ---
 ---@field id string
 ---@field line integer
 ---@field block string
+---@field section obsidian.Section the paragraph carrying the block identifier.
 
 return Note

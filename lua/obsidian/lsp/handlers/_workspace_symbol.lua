@@ -1,11 +1,13 @@
 local search = require "obsidian.search"
 local async = require "obsidian.async"
 local util = require "obsidian.util"
+local Range = require "obsidian.range"
 local SymbolKind = vim.lsp.protocol.SymbolKind
 
 ---@class obsidian.lsp.SymbolMetadata
 ---@field note obsidian.Note
----@field section obsidian.note.HeaderAnchor -- TODO: use note.Section later when it is formalized
+---@field section obsidian.Section|?
+---@field range lsp.Range|?
 
 --- Compute the vault-relative path without the .md extension.
 ---@param abs_path string|obsidian.Path
@@ -66,68 +68,61 @@ local function note_to_symbols(note)
 end
 
 ---@param note obsidian.Note
----@param heading obsidian.note.HeaderAnchor
+---@param section obsidian.Section
 ---@return lsp.WorkspaceSymbol
-local function heading_to_symbol(note, heading)
+local function section_to_symbol(note, section)
   assert(note.path, "Note must have a path")
   local container = relative_path_no_ext(note.path)
-  local name = container .. "#" .. heading.header
+  local name = container .. "#" .. section.header
   local uri = vim.uri_from_fname(tostring(note.path))
-  local line = heading.line - 1 -- 0-indexed
+  local range = Range.to_lsp(section.range)
+
   return {
     name = name,
     kind = SymbolKind.String,
     location = {
       uri = uri,
-      range = {
-        start = { line = line, character = 0 },
-        ["end"] = { line = line, character = 0 },
-      },
+      range = range,
     },
     containerName = container,
     data = {
       note = note,
-      section = heading,
+      section = section,
+      range = range,
     },
   }
 end
 
----@param heading obsidian.note.HeaderAnchor
----@return boolean
-local function is_standalone_heading_anchor(heading)
-  return string.find(heading.anchor, "#", 2, true) == nil
-end
-
----@param heading obsidian.note.HeaderAnchor
+---@param section obsidian.Section
 ---@param query string
 ---@return boolean
-local function heading_matches_query(heading, query)
-  return query == "" or string.find(string.lower(heading.header), string.lower(query), 1, true) ~= nil
+local function section_matches_query(section, query)
+  return query == "" or string.find(string.lower(section.header or ""), string.lower(query), 1, true) ~= nil
 end
 
 ---@param note obsidian.Note
 ---@param query string
 ---@return lsp.WorkspaceSymbol[]
-local function note_heading_symbols(note, query)
-  ---@type obsidian.note.HeaderAnchor[]
-  local headings = {}
+local function note_section_symbols(note, query)
+  ---@type obsidian.Section[]
+  local sections = {}
 
-  for _, heading in pairs(note.anchor_links or {}) do
-    if is_standalone_heading_anchor(heading) and heading_matches_query(heading, query) then
-      headings[#headings + 1] = heading
+  for _, section in ipairs(note.sections or {}) do
+    if section.header and section_matches_query(section, query) then
+      sections[#sections + 1] = section
     end
   end
 
-  table.sort(headings, function(a, b)
-    if a.line ~= b.line then
-      return a.line < b.line
+  table.sort(sections, function(a, b)
+    if a.heading_range.start_row ~= b.heading_range.start_row then
+      return a.heading_range.start_row < b.heading_range.start_row
     end
-    return a.anchor < b.anchor
+    return (a.anchor or "") < (b.anchor or "")
   end)
 
-  return vim.tbl_map(function(heading)
-    return heading_to_symbol(note, heading)
-  end, headings)
+  return vim.tbl_map(function(section)
+    return section_to_symbol(note, section)
+  end, sections)
 end
 
 ---@param query string
@@ -142,12 +137,12 @@ return function(query, callback)
 
     local notes = async.await(2, search.find_notes_async, query, nil, {
       search = { ignore_case = true },
-      notes = { collect_anchor_links = true },
+      notes = { collect_sections = true },
     })
 
     for _, note in ipairs(notes) do
       vim.list_extend(symbols, note_to_symbols(note))
-      vim.list_extend(symbols, note_heading_symbols(note, query))
+      vim.list_extend(symbols, note_section_symbols(note, query))
     end
 
     callback(symbols)

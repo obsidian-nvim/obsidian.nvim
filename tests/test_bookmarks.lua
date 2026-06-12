@@ -107,4 +107,37 @@ _G.res = M.parse(src)
   eq(result[8].url, "https://chatgpt.com/")
 end
 
+T["parse"]["blinks anchor target range"] = function()
+  local dir = child.Obsidian.dir
+
+  h.mock_vault_contents(dir, {
+    ["note.md"] = "# Heading\nbody\n\n# Next\n",
+  })
+
+  local blinked = child.lua [[
+vim.ui.select = function(items, _, callback)
+  callback(items[1])
+end
+
+M.pick {
+  {
+    type = "file",
+    path = "note.md",
+    subpath = "#Heading",
+    title = "Heading",
+  },
+}
+
+local bufnr = vim.api.nvim_get_current_buf()
+for name, ns in pairs(vim.api.nvim_get_namespaces()) do
+  if name:match("^obsidian_blink_") and #vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {}) > 0 then
+    return true
+  end
+end
+return false
+]]
+
+  eq(true, blinked)
+end
+
 return T
