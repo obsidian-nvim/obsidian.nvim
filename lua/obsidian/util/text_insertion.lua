@@ -1,4 +1,5 @@
 local Section = require "obsidian.section"
+local Range = require "obsidian.range"
 
 local M = {}
 local H = {}
@@ -11,7 +12,7 @@ local H = {}
 ---@return string[] insert_top holds the lines needed _before_ the text in order to preserve the constraints.
 ---@return string[] insert_bot holds the lines needed _after_ the text in order to preserve the constraints.
 function M.resolve(lines, opts)
-  local sections = H.collapse_into_sections(lines)
+  local sections = H.parse_sections(lines)
   local chosen_idx = H.choose_section(sections, opts)
 
   if chosen_idx > 0 then
@@ -23,49 +24,43 @@ function M.resolve(lines, opts)
   end
 end
 
---- Collapses lines into a list of "sections" via the shared parser in `obsidian.section`. Each section is itself
---- composed of two sub-sections: heading and content. The heading and content sub-sections are defined using a
---- half-open `[beg_incl, end_excl)` range. When empty, they will use values such that `beg_incl == end_excl`.
+--- Parse markdown sections and append an empty EOF marker.
 ---
---- IMPORTANT: There will always be AT LEAST TWO sections.
----
---- The FIRST section is the PREAMBLE. It contains the non-empty lines _before_ the first heading. If there aren't any
---- headings, then it will contain ALL non-empty lines in the file. Otherwise, when the document is empty or when the
---- first line in the document is a heading, then the content section of the preamble will be empty.
----
---- The FINAL section is the EOF-MARKER. Both its heading and content is always empty. This section can be used to find
---- the final lines in the document.
+--- IMPORTANT: There will always be AT LEAST TWO sections:
+--- - the first is the preamble from `obsidian.section`;
+--- - the final one is an empty EOF marker used as an insertion target.
 ---
 ---@param lines string[] The list of lines in the markdown document.
----@return obsidian.note.SectionDetail[] sections defining the document. There will always be at least two items.
-function H.collapse_into_sections(lines)
-  ---@type obsidian.note.SectionDetail[]
-  local sections = {}
+---@return obsidian.Section[] sections
+function H.parse_sections(lines)
+  local sections = Section.parse(lines)
+  local eof_row = sections[#sections].content_range.end_row
+  local eof_range = Range.new(eof_row, 0, eof_row, 0)
 
-  for _, section in ipairs(Section.parse(lines)) do
-    table.insert(sections, {
-      heading = {
-        beg_incl = section.heading_range.start_row + 1,
-        end_excl = section.heading_range.end_row + 1,
-        level = section.level or 0,
-        label = section.header or "",
-      },
-      content = {
-        beg_incl = section.content_range.start_row + 1,
-        end_excl = section.content_range.end_row + 1,
-      },
-    })
-  end
-
-  local eof_excl = sections[#sections].content.end_excl
-  table.insert(sections, H.new_section_detail(eof_excl, eof_excl))
+  sections[#sections + 1] = {
+    range = eof_range,
+    heading_range = eof_range,
+    content_range = eof_range,
+  }
 
   return sections
 end
 
+---@param range obsidian.Range
+---@return integer
+local function beg_incl(range)
+  return range.start_row + 1
+end
+
+---@param range obsidian.Range
+---@return integer
+local function end_excl(range)
+  return range.end_row + 1
+end
+
 --- Chooses a section to insert new text into.
 ---
----@param sections obsidian.note.SectionDetail[] List of sections in the document. Must contain the preamble and EOF-marker.
+---@param sections obsidian.Section[] List of sections in the document. Must contain the preamble and EOF-marker.
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer chosen_idx where the new text can be inserted while maintaining the layout, or `0` if none are valid.
 function H.choose_section(sections, opts)
@@ -77,10 +72,9 @@ function H.choose_section(sections, opts)
   end
 
   for idx = 2, #sections - 1 do
-    local ith_heading = sections[idx].heading or {}
+    local section = sections[idx]
     if
-      (not header_wanted or ith_heading.label == header_wanted)
-      and (not level_wanted or ith_heading.level == level_wanted)
+      (not header_wanted or section.header == header_wanted) and (not level_wanted or section.level == level_wanted)
     then
       return idx
     end
@@ -91,7 +85,7 @@ end
 
 --- Expands the section positioned at the specified index so that it can have more text inserted into it.
 ---
----@param sections obsidian.note.SectionDetail[] List of sections in the document. Must contain the preamble and EOF-marker.
+---@param sections obsidian.Section[] List of sections in the document. Must contain the preamble and EOF-marker.
 ---@param chosen_idx integer The index where the old section is located. Must NOT be the EOF-marker (`idx = #sections`).
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer insert_idx where new text should be inserted to satisfy the constraints.
@@ -103,7 +97,8 @@ function H.expand_old_section(sections, chosen_idx, opts)
   local section_chosen = sections[chosen_idx]
   local section_after = sections[chosen_idx + 1]
 
-  local insert_idx = opts.placement == "top" and section_chosen.content.beg_incl or section_chosen.content.end_excl
+  local insert_idx = opts.placement == "top" and beg_incl(section_chosen.content_range)
+    or end_excl(section_chosen.content_range)
   local insert_top = {}
   local insert_bot = {}
 
@@ -111,7 +106,7 @@ function H.expand_old_section(sections, chosen_idx, opts)
     table.insert(insert_top, "")
   end
 
-  if not H.is_section_empty(section_after) and section_after.heading.beg_incl == insert_idx then
+  if not H.is_section_empty(section_after) and beg_incl(section_after.heading_range) == insert_idx then
     table.insert(insert_bot, "")
   end
 
@@ -120,7 +115,7 @@ end
 
 --- Inserts a new heading and section at the specified index and "pushes down" the section that is currently there.
 ---
----@param sections obsidian.note.SectionDetail[] List of sections in the document. Must contain the preamble and EOF-marker.
+---@param sections obsidian.Section[] List of sections in the document. Must contain the preamble and EOF-marker.
 ---@param chosen_idx integer The index where the new section will be inserted. Must NOT be the preamble (`idx = 1`).
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer insert_idx where new text should be inserted to satisfy the constraints.
@@ -132,11 +127,14 @@ function H.insert_new_section(sections, chosen_idx, opts)
   local section_chosen = sections[chosen_idx]
   local section_before = sections[chosen_idx - 1]
 
-  local insert_idx = section_chosen.heading.beg_incl
+  local insert_idx = beg_incl(section_chosen.heading_range)
   local insert_top = {}
   local insert_bot = {}
 
-  if (not H.is_section_empty(section_before) or opts.padding_top) and section_before.content.end_excl == insert_idx then
+  if
+    (not H.is_section_empty(section_before) or opts.padding_top)
+    and end_excl(section_before.content_range) == insert_idx
+  then
     table.insert(insert_top, "")
   end
 
@@ -168,34 +166,18 @@ H.on_section_missing_handlers = {
   end,
 }
 
----@param beg_incl integer
----@param end_excl integer
----@param level? integer
----@param label? string
----@return obsidian.note.SectionDetail
-function H.new_section_detail(beg_incl, end_excl, level, label)
-  return {
-    heading = { beg_incl = beg_incl, end_excl = end_excl, level = level or 0, label = label or "" },
-    content = { beg_incl = end_excl, end_excl = end_excl },
-  }
-end
-
----@param section? obsidian.note.SectionDetail
+---@param section? obsidian.Section
 ---@return boolean
 function H.is_section_empty(section)
-  return not section or section.heading.beg_incl == section.content.end_excl
+  return not section or beg_incl(section.heading_range) == end_excl(section.content_range)
 end
 
----@param section? obsidian.note.SectionDetail
+---@param section? obsidian.Section
 ---@return boolean
 function H.is_content_empty(section)
-  return not section or section.content.beg_incl == section.content.end_excl
+  return not section or Range.is_empty(section.content_range)
 end
 
----@alias obsidian.note.OnSectionMissingHandler fun(sections: obsidian.note.SectionDetail[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_top: string[], insert_bot: string[]
-
----@class obsidian.note.SectionDetail
----@field heading? { beg_incl: integer, end_excl: integer, level: integer, label: string }
----@field content? { beg_incl: integer, end_excl: integer }
+---@alias obsidian.note.OnSectionMissingHandler fun(sections: obsidian.Section[], opts: obsidian.note.InsertTextOpts): insert_idx: integer, insert_top: string[], insert_bot: string[]
 
 return M

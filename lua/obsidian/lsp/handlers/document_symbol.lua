@@ -5,31 +5,23 @@ local Range = require "obsidian.range"
 return function(_, handler)
   ---@type lsp.DocumentSymbol[]
   local symbols = {}
-  local lookup = {}
 
-  local note = obsidian.Note.from_buffer(0, { collect_anchor_links = true })
+  local note = obsidian.Note.from_buffer(0, { collect_sections = true })
   if not note then -- HACK: somehow DocumentSymbol gets called with no valid note
     return handler(nil, symbols)
   end
 
-  for _, anchor in pairs(note.anchor_links or {}) do
-    if anchor.section and not lookup[anchor.line] then
-      local display = string.rep("#", anchor.level) .. " " .. anchor.header
-      local symbol = {
-        name = display,
+  for _, section in ipairs(note.sections or {}) do
+    if section.header then
+      symbols[#symbols + 1] = {
+        name = string.rep("#", section.level) .. " " .. section.header,
         kind = 1,
         filename = note.path.filename,
-        range = Range.to_lsp(anchor.section.range),
-        selectionRange = Range.to_lsp(anchor.section.heading_range),
+        range = Range.to_lsp(section.range),
+        selectionRange = Range.to_lsp(section.heading_range),
       }
-      symbols[#symbols + 1] = symbol
-      lookup[anchor.line] = true
     end
   end
-
-  table.sort(symbols, function(a, b)
-    return a.range.start.line < b.range.start.line
-  end)
 
   handler(nil, symbols)
 end

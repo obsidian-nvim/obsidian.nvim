@@ -8,6 +8,7 @@ local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local config = require "obsidian.config"
 local attachment = require "obsidian.attachment"
+local Range = require "obsidian.range"
 
 M.dir = require("obsidian.fs").dir
 
@@ -245,20 +246,13 @@ local blink_counter = 0
 --- Uses the `ObsidianBlink` highlight group (defaults to a link to `Visual`).
 ---
 ---@param bufnr integer
----@param range lsp.Range end-exclusive, 0-based
+---@param range obsidian.Range end-exclusive, 0-based
 local blink_range = function(bufnr, range)
   blink_counter = blink_counter + 1
   local ns = vim.api.nvim_create_namespace("obsidian_blink_" .. blink_counter)
   local hl = vim.hl or vim.highlight
   vim.api.nvim_set_hl(0, "ObsidianBlink", { link = "Visual", default = true })
-  hl.range(
-    bufnr,
-    ns,
-    "ObsidianBlink",
-    { range.start.line, range.start.character },
-    { range["end"].line, range["end"].character },
-    {}
-  )
+  hl.range(bufnr, ns, "ObsidianBlink", { range.start_row, range.start_col }, { range.end_row, range.end_col }, {})
   vim.defer_fn(function()
     if vim.api.nvim_buf_is_valid(bufnr) then
       vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
@@ -266,11 +260,23 @@ local blink_range = function(bufnr, range)
   end, 500) -- NOTE: configurable timeout?
 end
 
+---@param range obsidian.Range|lsp.Range|?
+---@return obsidian.Range|?
+local function normalize_range(range)
+  if not range then
+    return nil
+  elseif range.start_row then
+    return range
+  elseif range.start then
+    return Range.lsp(range)
+  end
+end
+
 ---@param entry obsidian.PickerEntry|vim.quickfix.entry
----@return lsp.Range|?
+---@return obsidian.Range|?
 local function entry_range(entry)
   if type(entry.user_data) == "table" and type(entry.user_data.range) == "table" then
-    return entry.user_data.range
+    return normalize_range(entry.user_data.range)
   end
 
   local lnum = tonumber(entry.lnum)
@@ -278,10 +284,7 @@ local function entry_range(entry)
   local end_lnum = tonumber(entry.end_lnum)
   local end_col = tonumber(entry.end_col)
   if lnum and end_lnum and end_col then
-    return {
-      start = { line = lnum - 1, character = math.max(col - 1, 0) },
-      ["end"] = { line = end_lnum - 1, character = math.max(end_col - 1, 0) },
-    }
+    return Range.new(lnum - 1, math.max(col - 1, 0), end_lnum - 1, math.max(end_col - 1, 0))
   end
 end
 
@@ -325,7 +328,7 @@ M.open_note = function(entry, cmd)
   -- Quickfix items built from lsp locations carry the location in `user_data`.
   if type(entry) == "table" then
     local range = entry_range(entry)
-    if range and (range["end"].line > range.start.line or range["end"].character > range.start.character) then
+    if range and not Range.is_empty(range) then
       blink_range(result_bufnr, range)
     end
   end

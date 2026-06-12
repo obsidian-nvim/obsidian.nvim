@@ -740,11 +740,16 @@ end
 ---@return obsidian.PickerEntry
 local function symbol_to_entry(symbol)
   local range = symbol.location.range
+  local user_data = type(symbol.data) == "table" and symbol.data or {}
+  if range then
+    user_data = vim.tbl_extend("force", user_data, { range = range })
+  end
+
   return {
     filename = vim.uri_to_fname(symbol.location.uri),
     text = symbol.name,
     lnum = range and range.start.line + 1 or nil,
-    user_data = symbol.data,
+    user_data = user_data,
   }
 end
 

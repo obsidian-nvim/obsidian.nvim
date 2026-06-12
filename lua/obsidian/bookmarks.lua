@@ -2,6 +2,7 @@ local log = require "obsidian.log"
 local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
+local Range = require "obsidian.range"
 
 local M = {}
 
@@ -29,12 +30,20 @@ local function bookmark_to_picker_entry(bookmark)
     local ok, note = pcall(Note.from_file, entry.filename)
     if ok and note then
       ---@cast note -string
+      ---@type obsidian.Section|?
+      local section
       if vim.startswith(bookmark.subpath, "#^") then
         local block = note:resolve_block(bookmark.subpath:sub(2))
-        entry.lnum = block and block.line or nil
+        section = block and block.section
+        entry.lnum = section and section.range.start_row + 1 or (block and block.line or nil)
       elseif vim.startswith(bookmark.subpath, "#") then
         local anchor = note:resolve_anchor_link(bookmark.subpath)
-        entry.lnum = anchor and anchor.line or nil
+        section = anchor and anchor.section
+        entry.lnum = section and section.range.start_row + 1 or (anchor and anchor.line or nil)
+      end
+
+      if section then
+        entry.user_data = vim.tbl_extend("force", entry.user_data or {}, { range = Range.to_lsp(section.range) })
       end
     else
       log.err("Failed to resolve bookmark path to note: %s", note)

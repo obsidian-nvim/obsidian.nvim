@@ -25,6 +25,25 @@ local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.m
 
 local DEFAULT_MAX_LINES = 500
 
+---@param section obsidian.Section
+---@param parent obsidian.note.HeaderAnchor|?
+---@param anchor string|?
+---@return obsidian.note.HeaderAnchor
+local function new_header_anchor(section, parent, anchor)
+  local section_anchor = assert(section.anchor)
+  local header = assert(section.header)
+  local level = assert(section.level)
+
+  return {
+    anchor = anchor or section_anchor,
+    line = section.heading_range.start_row + 1,
+    header = header,
+    level = level,
+    parent = parent,
+    section = section,
+  }
+end
+
 --- A class that represents a note within a vault.
 ---
 ---@toc_entry obsidian.Note
@@ -420,7 +439,7 @@ Note.uri = function(self)
   return vim.uri_from_fname(tostring(self.path))
 end
 
----@param opts { block: string|?, anchor: string|?, range: lsp.Range|? }|?-- TODO: vim.Range in the future
+---@param opts { block: string|?, anchor: string|?, range: lsp.Range|obsidian.Range|? }|?
 ---@return lsp.Location
 Note._location = function(self, opts)
   opts = opts or {}
@@ -441,7 +460,7 @@ Note._location = function(self, opts)
     section = anchor_match and anchor_match.section
   end
 
-  local range = opts.range
+  local range = opts.range and (opts.range.start_row and Range.to_lsp(opts.range) or opts.range)
     or (section and Range.to_lsp(section.range))
     or {
       start = { line = 0, character = 0 },
@@ -718,26 +737,19 @@ Note.from_lines = function(lines, path, opts)
       if section.header then
         -- We collect up to two anchors for each header. One standalone, e.g. '#header1', and
         -- one with the parents, e.g. '#header1#header2'.
-        ---@type obsidian.note.HeaderAnchor
-        local data = {
-          anchor = section.anchor,
-          line = section.heading_range.start_row + 1,
-          header = section.header,
-          level = section.level,
-          parent = section.parent and section_to_anchor[section.parent],
-          section = section,
-        }
+        local data = new_header_anchor(section, section.parent and section_to_anchor[section.parent], nil)
         section_to_anchor[section] = data
         anchor_links[section.anchor] = data
 
         if data.parent ~= nil then
           local nested_anchor = data.anchor
+          ---@type obsidian.note.HeaderAnchor|?
           local parent = data.parent
           while parent ~= nil do
             nested_anchor = parent.anchor .. nested_anchor
             parent = parent.parent
           end
-          anchor_links[nested_anchor] = vim.tbl_extend("force", data, { anchor = nested_anchor })
+          anchor_links[nested_anchor] = new_header_anchor(section, data.parent, nested_anchor)
         end
       end
     end
