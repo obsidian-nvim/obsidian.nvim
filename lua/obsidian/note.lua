@@ -30,9 +30,9 @@ local DEFAULT_MAX_LINES = 500
 ---@param anchor string|?
 ---@return obsidian.note.HeaderAnchor
 local function new_header_anchor(section, parent, anchor)
-  local section_anchor = assert(section.anchor)
-  local header = assert(section.header)
-  local level = assert(section.level)
+  local section_anchor = assert(section.anchor, "section anchor is required")
+  local header = assert(section.header, "section header is required")
+  local level = assert(section.level, "section level is required")
 
   return {
     anchor = anchor or section_anchor,
