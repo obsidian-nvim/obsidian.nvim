@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - YAML will not force quoted number strings into number.
+- Warns if workspace folder does not exist.
 
 ### Changed
 

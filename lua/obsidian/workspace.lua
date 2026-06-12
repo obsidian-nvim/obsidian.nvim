@@ -78,11 +78,17 @@ Workspace.new = function(spec)
     path = spec.path
   end
 
+  if path == nil then
+    log.warn("Skipping workspace '%s': no path configured", spec.name or "<unnamed>")
+    return
+  end
+
   ---@cast path -function
   path = vim.fs.normalize(tostring(path))
   path = Path.new(path)
 
   if not path:exists() then
+    log.warn("Skipping workspace '%s': path does not exist: %s", spec.name or path.name or "<unnamed>", path)
     return
   end
 
