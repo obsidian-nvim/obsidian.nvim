@@ -28,6 +28,28 @@ local function format_keymap(keymap)
   return keymap
 end
 
+---@return table|?
+local function builtin_previewer_winopts()
+  local ok, config = pcall(require, "fzf-lua.config")
+  if not ok then
+    return
+  end
+
+  local winopts = config.globals.winopts or {}
+  local border = winopts.preview and winopts.preview.border
+  if type(border) ~= "function" then
+    return
+  end
+
+  local info = debug.getinfo(border, "S")
+  -- fzf-lua's fzf-tmux profile installs a preview border function that
+  -- asserts it is only called for fzf-native previewers. Our picker uses a
+  -- builtin previewer, so give fzf-lua a plain Neovim border instead.
+  if info and info.source and string.find(info.source, "fzf%-tmux%.lua") then
+    return { preview = { border = "rounded" } }
+  end
+end
+
 local M = {}
 
 ---@param opts { callback: fun(selection: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
@@ -183,6 +205,22 @@ M.grep = function(opts)
   end
 end
 
+---@param opts obsidian.PickerPickOpts
+---@return boolean
+local function needs_multi(opts)
+  if opts.allow_multiple then
+    return true
+  end
+
+  for _, mapping in pairs(opts.selection_mappings or {}) do
+    if mapping.allow_multiple then
+      return true
+    end
+  end
+
+  return false
+end
+
 ---@param values string[]|obsidian.PickerEntry[]
 ---@param opts obsidian.PickerPickOpts|? Options.
 M.pick = function(values, opts)
@@ -234,6 +272,8 @@ M.pick = function(values, opts)
 
   fzf.fzf_exec(entries, {
     previewer = file_preview and MyPreviewer or nil,
+    winopts = file_preview and builtin_previewer_winopts() or nil,
+    fzf_opts = needs_multi(opts) and { ["--multi"] = true } or nil,
     prompt = format_prompt(
       ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
     ),
