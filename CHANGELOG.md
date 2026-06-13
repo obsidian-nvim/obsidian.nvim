@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - YAML will not force quoted number strings into number.
 - Warns if workspace folder does not exist.
 - Picker will properly require available picker in runtime path, and fallback to native.
+- The `tags` command telescope picker searches through line contents instead of file name
 
 ### Changed
 
