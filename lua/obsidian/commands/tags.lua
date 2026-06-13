@@ -32,6 +32,7 @@ local function gather_tag_picker_list(tag_locations, tags)
           filename = tostring(tag_loc.path),
           lnum = tag_loc.line,
           col = tag_loc.tag_start,
+          text = tag_loc.text,
         }
         break
       end
