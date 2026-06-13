@@ -2,6 +2,7 @@ local M = {}
 
 local attachment = require "obsidian.attachment"
 local log = require "obsidian.log"
+local Path = require "obsidian.path"
 local util = require "obsidian.util"
 
 local ns = vim.api.nvim_create_namespace "obsidian.audio_recorder"
@@ -14,16 +15,6 @@ local state = {
   bufnr = nil,
   mark_id = nil,
   started_at = nil,
-}
-
-local audio_exts = {
-  ["3gp"] = true,
-  flac = true,
-  m4a = true,
-  mp3 = true,
-  ogg = true,
-  wav = true,
-  webm = true,
 }
 
 local function opts()
@@ -74,17 +65,8 @@ local function record_cmd(path)
 end
 
 local function recording_path()
-  local recorder_opts = opts()
-  local dir = recorder_opts.recording_dir or vim.fs.joinpath(vim.fn.stdpath "cache", "obsidian.nvim", "recordings")
-  local ext = recorder_opts.recording_ext or "wav"
-  vim.fn.mkdir(dir, "p")
-  return vim.fs.joinpath(dir, string.format("Recording %s.%s", os.date "%Y%m%d%H%M%S", ext))
-end
-
-local function is_audio_path(path)
-  local clean = path:gsub("#.*$", ""):gsub("%?.*$", "")
-  local ext = clean:match "%.([^./]+)$"
-  return ext ~= nil and audio_exts[ext:lower()] == true
+  local ext = opts().recording_ext or "wav"
+  return tostring(Path.temp { suffix = "." .. ext })
 end
 
 local function insert_link(bufnr, mark_id, link_text)
@@ -106,15 +88,7 @@ local function insert_link(bufnr, mark_id, link_text)
   return { row = row + 1, col = col }
 end
 
-local function run_callback(ctx)
-  local callback = opts().callback
-  if type(callback) ~= "function" then
-    return false
-  end
-  return util.fire_callback("audio_recorder", callback, ctx)
-end
-
-local function finish_recording(recording)
+local function finish_recording(recording, callback)
   vim.schedule(function()
     local stat = vim.uv.fs_stat(recording.temp_path)
     if not stat or stat.size == 0 then
@@ -142,15 +116,14 @@ local function finish_recording(recording)
 
     log.info("Audio recording attached as %s (recorded at %s)", audio_path, recording.temp_path)
 
-    if opts().run_callback_on_stop then
-      run_callback {
+    if type(callback) == "function" then
+      util.fire_callback("audio_recorder", callback, {
         path = audio_path,
         temp_path = recording.temp_path,
         link = link_text,
         bufnr = recording.bufnr,
         position = insert_pos,
-        manual = false,
-      }
+      })
     end
   end)
 end
@@ -220,7 +193,8 @@ M.start = function()
   log.info("Recording audio to %s", temp_path)
 end
 
-M.stop = function()
+---@param callback fun(ctx: obsidian.AudioRecorderCallbackContext)|?
+M.stop = function(callback)
   if not state.recording then
     log.info "Not recording"
     return
@@ -247,7 +221,7 @@ M.stop = function()
     recording.job:wait(opts().stop_timeout_ms or 3000)
   end
 
-  finish_recording(recording)
+  finish_recording(recording, callback)
 end
 
 M.toggle = function()
@@ -270,73 +244,6 @@ end
 
 M.is_recording = function()
   return state.recording
-end
-
-M.attachment_under_cursor = function()
-  local api = require "obsidian.api"
-  local Path = require "obsidian.path"
-  local cursor_link, link_type = api.cursor_link()
-  if not cursor_link then
-    return nil
-  end
-
-  local location = util.parse_link(cursor_link, { strip = true, link_type = link_type })
-  if not location or not is_audio_path(location) then
-    return nil
-  end
-
-  local path
-  if vim.startswith(location, "file:/") then
-    path = vim.uri_to_fname(location)
-  else
-    local bufnr = vim.api.nvim_get_current_buf()
-    local decoded = vim.uri_decode(location)
-    local candidates = {}
-
-    if Path.new(decoded):is_absolute() then
-      candidates[#candidates + 1] = decoded
-    else
-      local bufname = vim.api.nvim_buf_get_name(bufnr)
-      if bufname ~= "" then
-        candidates[#candidates + 1] = vim.fs.joinpath(vim.fs.dirname(bufname), decoded)
-      end
-      candidates[#candidates + 1] = vim.fs.joinpath(tostring(Obsidian.dir), decoded)
-      candidates[#candidates + 1] = attachment.resolve_attachment_path(decoded, bufnr)
-    end
-
-    for _, candidate in ipairs(candidates) do
-      if vim.uv.fs_stat(candidate) then
-        path = candidate
-        break
-      end
-    end
-    path = path or candidates[#candidates]
-  end
-  if not path or not is_audio_path(path) then
-    return nil
-  end
-
-  return path, cursor_link
-end
-
-M.process_attachment = function()
-  local path, cursor_link = M.attachment_under_cursor()
-  if not path then
-    log.warn "No audio attachment link under cursor"
-    return
-  end
-
-  if type(opts().callback) ~= "function" then
-    log.warn "No audio_recorder.callback configured"
-    return
-  end
-
-  run_callback {
-    path = path,
-    link = cursor_link,
-    bufnr = vim.api.nvim_get_current_buf(),
-    manual = true,
-  }
 end
 
 return M

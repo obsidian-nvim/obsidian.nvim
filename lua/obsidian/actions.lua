@@ -615,12 +615,9 @@ M.record_audio = function()
   require("obsidian.audio_recorder").start()
 end
 
-M.stop_recording = function()
-  require("obsidian.audio_recorder").stop()
-end
-
-M.process_audio_attachment = function()
-  require("obsidian.audio_recorder").process_attachment()
+---@param callback fun(ctx: obsidian.AudioRecorderCallbackContext)|?
+M.stop_recording = function(callback)
+  require("obsidian.audio_recorder").stop(callback)
 end
 
 M.add_property = function()

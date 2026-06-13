@@ -279,9 +279,6 @@ return {
 
   ---@class obsidian.config.AudioRecorderOpts
   ---
-  ---Directory for temporary recordings before they are copied into the vault attachments folder.
-  ---@field recording_dir? string
-  ---
   ---Temporary recording extension. Defaults to wav.
   ---@field recording_ext? string
   ---
@@ -294,19 +291,11 @@ return {
   ---Milliseconds to wait after stopping the recorder. Defaults to 3000.
   ---@field stop_timeout_ms? integer
   ---
-  ---Run callback automatically after a recording is stopped and attached.
-  ---@field run_callback_on_stop? boolean
-  ---
-  ---Optional hook for transcription/summary/etc. Also used by the manual processing code action.
-  ---@field callback? fun(ctx: obsidian.AudioRecorderCallbackContext)
   audio_recorder = {
-    recording_dir = nil,
     recording_ext = "wav",
     record_cmd = nil,
     stop_signal = 2,
     stop_timeout_ms = 3000,
-    run_callback_on_stop = false,
-    callback = nil,
   },
 
   ---@class obsidian.config.AttachmentsOpts

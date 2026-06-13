@@ -43,10 +43,6 @@ local function is_recording_audio()
   return require("obsidian.audio_recorder").is_recording()
 end
 
-local function is_audio_attachment_link()
-  return require("obsidian.audio_recorder").attachment_under_cursor() ~= nil
-end
-
 local default_actions = {
   add_property = {
     title = "Add file property",
@@ -117,12 +113,6 @@ local default_actions = {
     title = "Stop recording audio",
     cond = is_recording_audio,
   },
-
-  -- TODO: think in coordination with process images
-  -- process_audio_attachment = {
-  --   title = "Process audio attachment",
-  --   cond = is_audio_attachment_link,
-  -- },
 }
 
 ---@param name string

@@ -1,6 +1,6 @@
 # Audio recorder
 
-The audio recorder mirrors Obsidian's core audio recorder: start recording from a note, stop it, and obsidian.nvim attaches the audio file to the vault and inserts the attachment link at the cursor position that started the recording.
+The audio recorder mirrors Obsidian's core audio recorder: start recording from a note, stop it, then obsidian.nvim attaches the audio file to the vault and inserts the attachment link at the cursor position that started the recording.
 
 ## Code actions
 
@@ -8,7 +8,6 @@ Use your normal LSP code action mapping in a note:
 
 - `Record audio as attachment` starts recording.
 - `Stop recording` appears only while a recording is active.
-- `Process audio attachment` appears on audio attachment links and runs the optional callback.
 
 The insertion point is tracked with an extmark, so edits above the cursor while recording should not move the final link to the wrong place.
 
@@ -38,29 +37,27 @@ require("obsidian").setup {
 
 ## Storage
 
-Recordings are first written to `audio_recorder.recording_dir` and then copied with `obsidian.attachment.add()` into your configured attachments folder. The temporary file is deleted by default after it is attached.
+Recordings are first written to a temp file and then copied with `obsidian.attachment.add()` into your configured attachments folder. The temporary file is deleted by default after it is attached.
 
 obsidian.nvim logs both paths when the recording is attached.
 
 ## Callback for transcription or summaries
 
-The recorder does not include transcription or summarization. Configure a callback for that work:
+By default, stopping a recording only inserts the attachment link. To run transcription, summary, or other custom logic after the link is inserted, wrap `actions.stop_recording()`:
 
 ```lua
-require("obsidian").setup {
-  audio_recorder = {
-    run_callback_on_stop = true,
-    callback = function(ctx)
-      -- ctx.path: attached audio file in the vault
-      -- ctx.link: inserted or selected attachment link
-      -- ctx.bufnr: note buffer
-      -- ctx.manual: false after recording, true from the manual code action
-    end,
-  },
-}
-```
+local actions = require "obsidian.actions"
+local stop_recording = actions.stop_recording
 
-Set `run_callback_on_stop = false` and use `Process audio attachment` on an audio link if you prefer to run the callback manually.
+actions.stop_recording = function()
+  stop_recording(function(ctx)
+    -- ctx.path: attached audio file in the vault
+    -- ctx.link: inserted attachment link
+    -- ctx.bufnr: note buffer
+    -- ctx.position: inserted link position, if insertion succeeded
+  end)
+end
+```
 
 ### Minimal Whisper API example
 
@@ -107,10 +104,10 @@ local function transcribe_with_whisper(ctx)
   end)
 end
 
-require("obsidian").setup {
-  audio_recorder = {
-    run_callback_on_stop = true,
-    callback = transcribe_with_whisper,
-  },
-}
+local actions = require "obsidian.actions"
+local stop_recording = actions.stop_recording
+
+actions.stop_recording = function()
+  stop_recording(transcribe_with_whisper)
+end
 ```
