@@ -38,9 +38,11 @@ local function write_file(path, data)
   fd:close()
 end
 
--- 1x1 transparent PNG. Obsidian dimensions scale it up in the note.
-local png = vim.base64.decode "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lJbT2wAAAABJRU5ErkJggg=="
-write_file(vim.fs.joinpath(vault, "pixel.png"), png)
+-- 16x16 opaque red PNG. Obsidian dimensions scale it up in the note.
+local png_path = vim.fs.joinpath(vault, "red.png")
+local png =
+  vim.base64.decode "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGP4z8DwnxLMMGrAqAGjBgwXAwAwxP4QHCfkAAAAAABJRU5ErkJggg=="
+write_file(png_path, png)
 write_file(
   vim.fs.joinpath(vault, "image-test.md"),
   table.concat({
@@ -48,11 +50,11 @@ write_file(
     "",
     "Below should render with Obsidian pixel dimensions converted to cells:",
     "",
-    "![[pixel.png|180x90]]",
+    "![[red.png|180x90]]",
     "",
     "Width-only syntax preserves aspect ratio:",
     "",
-    "![[pixel.png|120]]",
+    "![[red.png|120]]",
     "",
   }, "\n")
 )
@@ -78,6 +80,12 @@ local plugins = {
   },
 }
 
+if vim.env.NVIM_IMG_FORCE_SUPPORTED == "1" then
+  vim.ui.img._supported = function()
+    return true
+  end
+end
+
 require("lazy.minit").repro { spec = plugins }
 
 vim.api.nvim_create_autocmd("User", {
@@ -88,6 +96,34 @@ vim.api.nvim_create_autocmd("User", {
     vim.notify("Loaded vim.ui.img from: " .. img_runtime, vim.log.levels.INFO)
   end,
 })
+
+vim.keymap.set("n", "<leader>id", function()
+  local supported, msg = false, nil
+  if vim.ui.img and vim.ui.img._supported then
+    supported, msg = vim.ui.img._supported { timeout = 1000 }
+  end
+  print(vim.inspect {
+    img_runtime = img_runtime,
+    vim_ui_img = vim.ui.img,
+    supported = supported,
+    msg = msg,
+    TERM = vim.env.TERM,
+    TERM_PROGRAM = vim.env.TERM_PROGRAM,
+    KITTY_WINDOW_ID = vim.env.KITTY_WINDOW_ID,
+    TMUX = vim.env.TMUX,
+  })
+end, { desc = "Debug vim.ui.img" })
+
+vim.keymap.set("n", "<leader>it", function()
+  vim.ui.img.set(vim.fn.readblob(png_path), { row = 5, col = 10, width = 20, height = 10, zindex = 90 })
+end, { desc = "Direct terminal image test" })
+
+vim.keymap.set("n", "<leader>ib", function()
+  vim.ui.img.set(
+    vim.fn.readblob(png_path),
+    { relative = "buffer", buf = 0, row = vim.fn.line ".", col = 1, width = 20, height = 10, pad = 0, zindex = 90 }
+  )
+end, { desc = "Direct buffer image test" })
 
 vim.keymap.set("n", "<leader>ir", function()
   require("obsidian.image").refresh(0, true)
