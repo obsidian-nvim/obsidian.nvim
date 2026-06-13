@@ -294,9 +294,6 @@ return {
   ---Milliseconds to wait after stopping the recorder. Defaults to 3000.
   ---@field stop_timeout_ms? integer
   ---
-  ---Delete the temporary recording after it is attached to the vault. Defaults to true.
-  ---@field delete_temp_file? boolean
-  ---
   ---Run callback automatically after a recording is stopped and attached.
   ---@field run_callback_on_stop? boolean
   ---
@@ -308,7 +305,6 @@ return {
     record_cmd = nil,
     stop_signal = 2,
     stop_timeout_ms = 3000,
-    delete_temp_file = true,
     run_callback_on_stop = false,
     callback = nil,
   },

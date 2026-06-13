@@ -136,9 +136,7 @@ local function finish_recording(recording)
       log.warn(insert_err)
     end
 
-    if audio_path ~= recording.temp_path and opts().delete_temp_file ~= false then
-      vim.fn.delete(recording.temp_path)
-    end
+    vim.fn.delete(recording.temp_path)
 
     state.processing = false
 
