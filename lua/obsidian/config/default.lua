@@ -273,6 +273,42 @@ return {
     template = nil,
   },
 
+  ---@class obsidian.config.AudioRecorderOpts
+  ---
+  ---Directory for temporary recordings before they are copied into the vault attachments folder.
+  ---@field recording_dir? string
+  ---
+  ---Temporary recording extension. Defaults to wav.
+  ---@field recording_ext? string
+  ---
+  ---Recording command. May be argv table with `{file}` placeholder or function(path): string[]. Defaults to rec/sox/arecord.
+  ---@field record_cmd? string[]|fun(path: string): string[]
+  ---
+  ---Signal used to stop the recorder. Defaults to 2 (SIGINT).
+  ---@field stop_signal? integer|string
+  ---
+  ---Milliseconds to wait after stopping the recorder. Defaults to 3000.
+  ---@field stop_timeout_ms? integer
+  ---
+  ---Delete the temporary recording after it is attached to the vault. Defaults to true.
+  ---@field delete_temp_file? boolean
+  ---
+  ---Run callback automatically after a recording is stopped and attached.
+  ---@field run_callback_on_stop? boolean
+  ---
+  ---Optional hook for transcription/summary/etc. Also used by the manual processing code action.
+  ---@field callback? fun(ctx: obsidian.AudioRecorderCallbackContext)
+  audio_recorder = {
+    recording_dir = nil,
+    recording_ext = "wav",
+    record_cmd = nil,
+    stop_signal = 2,
+    stop_timeout_ms = 3000,
+    delete_temp_file = true,
+    run_callback_on_stop = false,
+    callback = nil,
+  },
+
   ---@class obsidian.config.AttachmentsOpts
   ---
   ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
