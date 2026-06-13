@@ -48,7 +48,6 @@ Available actions:
   - Add attachment from folder, filepath or url (`add_attachment`)
   - Record audio as attachment (`record_audio`)
   - Stop recording (`stop_recording`, only while recording)
-  - Process audio attachment (`process_audio_attachment`, only on audio links)
   - Insert template at cursor (`insert_template`, requires templates enabled)
   - Move current note to another folder (`move_note`)
   - Merge current note into another note (`merge_note`)
