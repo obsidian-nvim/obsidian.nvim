@@ -16,6 +16,7 @@ local ns = vim.api.nvim_create_namespace "obsidian.image"
 ---@field zindex? integer
 ---@field pad? integer
 ---@field conceal? boolean|string
+---@field relative? "buffer"|"ui"
 ---@field formats? string[]
 ---@field visible_only? boolean
 ---@field margin? integer
@@ -30,6 +31,9 @@ local ns = vim.api.nvim_create_namespace "obsidian.image"
 ---@field end_col integer 0-indexed, exclusive
 ---@field key string
 ---@field win integer
+---@field pad integer
+---@field width_px? integer
+---@field height_px? integer
 
 ---@class obsidian.image.Rendered
 ---@field id integer
@@ -59,6 +63,7 @@ local defaults = {
   max_width = 80,
   max_height = 40,
   formats = { "png" },
+  relative = "buffer",
 }
 
 ---@param opts obsidian.image.Opts|?
@@ -73,6 +78,33 @@ end
 local function supported_format(path, formats)
   local ext = path:match "%.([^./\\]+)$"
   return ext ~= nil and vim.list_contains(formats, ext:lower())
+end
+
+---@param spec string
+---@return integer? width_px
+---@return integer? height_px
+local function parse_size_spec(spec)
+  spec = vim.trim(spec)
+  local width, height = spec:match "^(%d+)x(%d+)$"
+  if width and height then
+    return tonumber(width), tonumber(height)
+  end
+
+  width = spec:match "^(%d+)$"
+  if width then
+    return tonumber(width), nil
+  end
+end
+
+---@param target string
+---@return integer? width_px
+---@return integer? height_px
+local function parse_wiki_size(target)
+  local size_spec = target:match "|([^|]+)$"
+  if not size_spec then
+    return nil, nil
+  end
+  return parse_size_spec(size_spec)
 end
 
 ---@param path string
@@ -221,6 +253,17 @@ local function fit_size(size, bounds)
   }
 end
 
+---@param width_px number
+---@param height_px number
+---@return obsidian.image.Size
+local function px_to_cells(width_px, height_px)
+  local cell = terminal_cell_size()
+  return {
+    width = math.max(1, math.ceil(width_px / cell.width)),
+    height = math.max(1, math.ceil(height_px / cell.height)),
+  }
+end
+
 ---@param path string
 ---@return obsidian.image.Size?
 local function image_size_cells(path)
@@ -228,11 +271,7 @@ local function image_size_cells(path)
   if not ok then
     return nil
   end
-  local cell = terminal_cell_size()
-  return {
-    width = math.max(1, math.ceil(dims.width / cell.width)),
-    height = math.max(1, math.ceil(dims.height / cell.height)),
-  }
+  return px_to_cells(dims.width, dims.height)
 end
 
 ---@param target string
@@ -314,28 +353,34 @@ local function find_line_images(line, row, bufnr, opts, win)
   ---@type obsidian.image.Match[]
   local ret = {}
 
-  local function add(start_col, end_col, src)
+  local function add(start_col, end_col, src, width_px, height_px)
     local path = resolve_path(src, bufnr)
     if not path or not supported_format(path, opts.formats or defaults.formats) then
       return
     end
+    local key_win = opts.relative == "ui" and (win or 0) or 0
     ret[#ret + 1] = {
       src = src,
       path = path,
       row = row,
       col = start_col,
       end_col = end_col,
-      key = table.concat({ win or 0, row, start_col, end_col, path }, ":"),
+      key = table.concat({ key_win, row, start_col, end_col, path }, ":"),
       win = win or 0,
+      pad = util.strdisplaywidth(line:sub(1, start_col)),
+      width_px = width_px,
+      height_px = height_px,
     }
   end
 
   for start_col, body, end_pos in line:gmatch "()!%[%[([^%]]+)%]%]()" do
-    add(start_col - 1, end_pos - 1, body)
+    local width_px, height_px = parse_wiki_size(body)
+    add(start_col - 1, end_pos - 1, body, width_px, height_px)
   end
 
-  for start_col, target, end_pos in line:gmatch "()!%[[^%]]*%]%(([^%)]+)%)()" do
-    add(start_col - 1, end_pos - 1, target)
+  for start_col, alt, target, end_pos in line:gmatch "()!%[([^%]]*)%]%(([^%)]+)%)()" do
+    local width_px, height_px = parse_size_spec(alt)
+    add(start_col - 1, end_pos - 1, target, width_px, height_px)
   end
 
   return ret
@@ -426,9 +471,49 @@ local function image_bounds(match, state)
 end
 
 ---@param match obsidian.image.Match
+---@return obsidian.image.Size?
+local function embed_size_cells(match)
+  if not match.width_px then
+    return nil
+  end
+
+  local width_px = match.width_px
+  local height_px = match.height_px
+  if not height_px then
+    local ok, dims = pcall(png_dims, match.path)
+    if not ok then
+      return nil
+    end
+    height_px = width_px * dims.height / dims.width
+  end
+
+  return px_to_cells(width_px, height_px)
+end
+
+---@param match obsidian.image.Match
+---@param state obsidian.image.State
+---@return obsidian.image.Size?
+local function inline_size(match, state)
+  local resized = state.resized and state.resized[match.key]
+  if resized then
+    return resized
+  end
+
+  local embed_size = embed_size_cells(match)
+  if embed_size then
+    return embed_size
+  end
+
+  local size = image_size_cells(match.path)
+  if size then
+    return fit_size(size, image_bounds(match, state))
+  end
+end
+
+---@param match obsidian.image.Match
 ---@param state obsidian.image.State
 ---@return table? opts
-function renderers.inline(match, state)
+local function inline_ui_opts(match, state)
   if not (match.win and vim.api.nvim_win_is_valid(match.win)) then
     return nil
   end
@@ -439,20 +524,43 @@ function renderers.inline(match, state)
   end
 
   local resized = state.resized and state.resized[match.key]
-  local size = resized
-  if not size then
-    size = image_size_cells(match.path)
-    if size then
-      size = fit_size(size, image_bounds(match, state))
-    end
-  end
-
+  local embed_size = embed_size_cells(match)
+  local size = inline_size(match, state)
   return {
     row = pos.row + 1,
     col = pos.col,
-    width = resized and resized.width or state.opts.width or (size and size.width),
-    height = resized and resized.height or state.opts.height or (size and size.height),
+    width = resized and resized.width or (embed_size and embed_size.width) or state.opts.width or (size and size.width),
+    height = resized and resized.height
+      or (embed_size and embed_size.height)
+      or state.opts.height
+      or (size and size.height),
     zindex = state.opts.zindex,
+  }
+end
+
+---@param match obsidian.image.Match
+---@param state obsidian.image.State
+---@return table? opts
+function renderers.inline(match, state)
+  if state.opts.relative == "ui" then
+    return inline_ui_opts(match, state)
+  end
+
+  local resized = state.resized and state.resized[match.key]
+  local embed_size = embed_size_cells(match)
+  local size = inline_size(match, state)
+  return {
+    row = match.row + 1,
+    col = 1,
+    width = resized and resized.width or (embed_size and embed_size.width) or state.opts.width or (size and size.width),
+    height = resized and resized.height
+      or (embed_size and embed_size.height)
+      or state.opts.height
+      or (size and size.height),
+    zindex = state.opts.zindex,
+    relative = "buffer",
+    buf = state.buf,
+    pad = state.opts.pad or match.pad,
   }
 end
 
@@ -486,6 +594,10 @@ end
 ---@param match obsidian.image.Match
 local function update_spacer(rendered, state, match)
   if (state.opts.placement or "inline") ~= "inline" then
+    return
+  end
+
+  if rendered.opts and rendered.opts.relative == "buffer" then
     return
   end
 
@@ -534,6 +646,10 @@ local function render_match(state, match, rendered)
 
   if rendered then
     local ok = pcall(vim.ui.img.set, rendered.id, img_opts)
+    if not ok and img_opts.relative == "buffer" then
+      img_opts = inline_ui_opts(match, state)
+      ok = img_opts ~= nil and pcall(vim.ui.img.set, rendered.id, img_opts)
+    end
     if not ok then
       return nil
     end
@@ -548,6 +664,12 @@ local function render_match(state, match, rendered)
   end
 
   local set_ok, id = pcall(vim.ui.img.set, data, img_opts)
+  if not set_ok and img_opts.relative == "buffer" then
+    img_opts = inline_ui_opts(match, state)
+    if img_opts ~= nil then
+      set_ok, id = pcall(vim.ui.img.set, data, img_opts)
+    end
+  end
   if not set_ok then
     return nil
   end

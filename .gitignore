@@ -7,7 +7,7 @@ doc/tags
 _neovim
 _runtime
 deps/
-.repro/
+.repro*/
 node_modules/
 package-lock.json
 package.json
