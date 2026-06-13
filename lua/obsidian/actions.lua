@@ -611,6 +611,18 @@ M.add_attachment = function(src, opts)
   end)
 end
 
+M.record_audio = function()
+  require("obsidian.audio_recorder").start()
+end
+
+M.stop_recording = function()
+  require("obsidian.audio_recorder").stop()
+end
+
+M.process_audio_attachment = function()
+  require("obsidian.audio_recorder").process_attachment()
+end
+
 M.add_property = function()
   local note = assert(api.current_note(0))
 

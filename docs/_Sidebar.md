@@ -24,6 +24,7 @@
 ### Modules:
 
 - [[Attachment]]
+- [[Audio-recorder]]
 - [[Bookmarks]]
 - [[Checkbox]]
 - [[Daily-Notes]]

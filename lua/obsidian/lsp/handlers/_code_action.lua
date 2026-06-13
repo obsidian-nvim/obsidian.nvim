@@ -39,6 +39,14 @@ local function in_visual()
 end
 
 ---@type table<string, { title: string, cond: (fun(note: obsidian.Note): boolean)?, fn: function? }>
+local function is_recording_audio()
+  return require("obsidian.audio_recorder").is_recording()
+end
+
+local function is_audio_attachment_link()
+  return require("obsidian.audio_recorder").attachment_under_cursor() ~= nil
+end
+
 local default_actions = {
   add_property = {
     title = "Add file property",
@@ -97,6 +105,24 @@ local default_actions = {
   add_tag = {
     title = "Add tag to frontmatter",
   },
+
+  record_audio = {
+    title = "Start recording audio as attachment",
+    cond = function()
+      return not is_recording_audio()
+    end,
+  },
+
+  stop_recording = {
+    title = "Stop recording audio",
+    cond = is_recording_audio,
+  },
+
+  -- TODO: think in coordination with process images
+  -- process_audio_attachment = {
+  --   title = "Process audio attachment",
+  --   cond = is_audio_attachment_link,
+  -- },
 }
 
 ---@param name string
