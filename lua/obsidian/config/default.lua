@@ -277,27 +277,6 @@ return {
     template = nil,
   },
 
-  ---@class obsidian.config.AudioRecorderOpts
-  ---
-  ---Temporary recording extension. Defaults to wav.
-  ---@field recording_ext? string
-  ---
-  ---Recording command. May be argv table with `{file}` placeholder or function(path): string[]. Defaults to rec/sox/arecord.
-  ---@field record_cmd? string[]|fun(path: string): string[]
-  ---
-  ---Signal used to stop the recorder. Defaults to 2 (SIGINT).
-  ---@field stop_signal? integer|string
-  ---
-  ---Milliseconds to wait after stopping the recorder. Defaults to 3000.
-  ---@field stop_timeout_ms? integer
-  ---
-  audio_recorder = {
-    recording_ext = "wav",
-    record_cmd = nil,
-    stop_signal = 2,
-    stop_timeout_ms = 3000,
-  },
-
   ---@class obsidian.config.AttachmentsOpts
   ---
   ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location

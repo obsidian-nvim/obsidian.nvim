@@ -145,15 +145,11 @@ function M.check()
   has_executable("rg", false)
 
   start "Audio recorder"
-  if Obsidian.opts.audio_recorder and Obsidian.opts.audio_recorder.record_cmd then
-    ok "custom record_cmd configured"
-  else
-    has_one_of_executable {
-      "rec",
-      "sox",
-      "arecord",
-    }
-  end
+  has_one_of_executable {
+    "rec",
+    "sox",
+    "arecord",
+  }
 
   if os == api.OSType.Wsl then
     has_executable("wsl-open", true)
