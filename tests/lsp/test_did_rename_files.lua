@@ -8,15 +8,19 @@ T["initialize advertises didRenameFiles file operation support"] = function()
     local handler = require "obsidian.lsp.handlers.initialize"
 
     handler(vim.empty_dict(), function(_, res)
-      _G.did_rename_filter = res.capabilities.workspace.fileOperations.didRename.filters[1]
+      _G.did_rename_file_filter = res.capabilities.workspace.fileOperations.didRename.filters[1]
+      _G.did_rename_folder_filter = res.capabilities.workspace.fileOperations.didRename.filters[2]
     end, {
       notification = function() end,
     })
   ]]
 
-  eq("file", child.lua_get "did_rename_filter.scheme")
-  eq("**/*.md", child.lua_get "did_rename_filter.pattern.glob")
-  eq("file", child.lua_get "did_rename_filter.pattern.matches")
+  eq("file", child.lua_get "did_rename_file_filter.scheme")
+  eq("**/*.md", child.lua_get "did_rename_file_filter.pattern.glob")
+  eq("file", child.lua_get "did_rename_file_filter.pattern.matches")
+  eq("file", child.lua_get "did_rename_folder_filter.scheme")
+  eq("**", child.lua_get "did_rename_folder_filter.pattern.glob")
+  eq("folder", child.lua_get "did_rename_folder_filter.pattern.matches")
 end
 
 T["didRenameFiles applies reference edits without file rename"] = function()
@@ -151,6 +155,47 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
 
   eq("Update 1 reference(s) across 1 file(s) for renamed note 'new'?", child.lua_get "confirm_prompt")
   eq(false, child.lua_get "request_called")
+end
+
+T["didRenameFiles updates folder-relative links only"] = function()
+  local root = child.Obsidian.dir
+  local old_folder = root / "old"
+  local new_folder = root / "new"
+  old_folder:mkdir()
+  h.mock_vault_contents(root, {
+    ["old/index.md"] = "---\nid: index\naliases: []\ntags: []\n---",
+    ["old/other.md"] = "---\nid: other\naliases: []\ntags: []\n---",
+    ["ref.md"] = [==[
+[[old/index]] [[index]] [[old/index|old/index]]
+[Other](old/other.md) [Root](/old/index.md) [Dot](./old/index.md)
+]==],
+  })
+
+  child.lua(([[
+    vim.uv.fs_rename(%q, %q)
+    Obsidian.opts.link.auto_update = true
+    _G._obsidian_folder_rename_done = false
+    require("obsidian.lsp.handlers.did_rename_files")({
+      files = {
+        {
+          oldUri = vim.uri_from_fname(%q),
+          newUri = vim.uri_from_fname(%q),
+        },
+      },
+    }, {
+      server_request = function(_, params)
+        vim.lsp.util.apply_workspace_edit(params.edit, "utf-8")
+        _G._obsidian_folder_rename_done = true
+      end,
+    })
+  ]]):format(tostring(old_folder), tostring(new_folder), tostring(old_folder), tostring(new_folder)))
+
+  h.child_wait(child, [[return _G._obsidian_folder_rename_done == true]], { desc = "folder rename" })
+  child.cmd "wa"
+
+  local ref_text = table.concat(h.read(root / "ref.md"), "\n")
+  eq(true, ref_text:find "%[%[new/index%]%] %[%[index%]%] %[%[new/index|old/index%]%]" ~= nil)
+  eq(true, ref_text:find "%[Other%]%(new/other%.md%) %[Root%]%(/new/index%.md%) %[Dot%]%(./new/index%.md%)" ~= nil)
 end
 
 T["didRenameFiles skips confirmation when auto_update is enabled"] = function()

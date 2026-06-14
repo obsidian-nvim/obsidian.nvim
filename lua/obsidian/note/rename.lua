@@ -3,6 +3,9 @@ local M = {}
 local Path = require "obsidian.path"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
+local refs = require "obsidian.parse.refs"
+local search = require "obsidian.search"
+local util = require "obsidian.util"
 
 local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
 
@@ -12,12 +15,90 @@ local function normalize_name(new_name)
   return vim.trim(tostring(new_name)):gsub("%.md$", "", 1)
 end
 
----@param note obsidian.Note
----@param old_path string
----@return obsidian.Note
-local function build_search_note(note, old_path)
-  local search_note = vim.tbl_extend("force", {}, note, { path = Path.new(old_path) })
-  return setmetatable(search_note, getmetatable(note))
+local function strip_md_suffix(path)
+  if vim.endswith(path, ".md") then
+    return path:sub(1, #path - 3)
+  end
+  return path
+end
+
+local function add_replacement(replacements, seen, old_ref, new_ref)
+  if not old_ref or not new_ref or old_ref == "" or seen[old_ref] then
+    return
+  end
+
+  seen[old_ref] = true
+  replacements[#replacements + 1] = { old = old_ref, new = new_ref }
+end
+
+local function add_replacement_variants(replacements, seen, old_ref, new_ref)
+  add_replacement(replacements, seen, old_ref, new_ref)
+  add_replacement(replacements, seen, util.urlencode(old_ref), util.urlencode(new_ref))
+  add_replacement(
+    replacements,
+    seen,
+    util.urlencode(old_ref, { keep_path_sep = true }),
+    util.urlencode(new_ref, { keep_path_sep = true })
+  )
+end
+
+local function relative_path(path, dir)
+  if not dir then
+    return path:vault_relative_path()
+  end
+
+  local ok, relpath = pcall(path.relative_to, path, Path.new(dir))
+  return ok and tostring(relpath) or nil
+end
+
+local function path_replacements(old_path, new_path, include_stem_refs, dir)
+  old_path = Path.new(old_path)
+  new_path = Path.new(new_path)
+
+  local replacements = {}
+  local seen = {}
+
+  if include_stem_refs then
+    add_replacement_variants(replacements, seen, old_path.name, new_path.name)
+    add_replacement_variants(replacements, seen, old_path.stem, new_path.stem)
+  end
+
+  local old_relpath = relative_path(old_path, dir)
+  local new_relpath = relative_path(new_path, dir)
+  if old_relpath and new_relpath then
+    add_replacement_variants(replacements, seen, old_relpath, new_relpath)
+    add_replacement_variants(replacements, seen, strip_md_suffix(old_relpath), strip_md_suffix(new_relpath))
+  end
+
+  return replacements
+end
+
+local function target_offset(ref)
+  if ref.kind == "wiki" then
+    local brackets = ref.raw:find("[[", 1, true)
+    return brackets and brackets + 1 or nil
+  elseif ref.kind == "markdown" then
+    local close_bracket = ref.raw:find("](", 1, true)
+    return close_bracket and close_bracket + 1 or nil
+  end
+end
+
+local function find_target_replacement(ref, replacements)
+  local body_offset = 0
+  if ref.kind == "markdown" then
+    if vim.startswith(ref.target, "./") then
+      body_offset = 2
+    elseif vim.startswith(ref.target, "/") then
+      body_offset = 1
+    end
+  end
+
+  local body = ref.target:sub(body_offset + 1)
+  for _, replacement in ipairs(replacements) do
+    if body == replacement.old then
+      return body_offset, replacement
+    end
+  end
 end
 
 ---@param err string
@@ -52,20 +133,129 @@ M.validate = function(note, new_name, opts)
   end
 
   local old_path = opts.old_path or tostring(note.path)
-  for path in api.dir(api.resolve_workspace_dir(old_path)) do
-    path = Path.new(path)
-    if tostring(path) ~= old_path then
-      if new_name == path.stem then
-        return false, "Note with same name exists"
+  local new_path = opts.new_path or (vim.fs.joinpath(vim.fs.dirname(old_path), new_name) .. ".md")
+  if tostring(new_path) ~= old_path and Path.new(new_path):exists() then
+    return false, "Note with same name exists"
+  end
+
+  return true, nil
+end
+
+---@param path_pairs { old_path: string, new_path: string }[]
+---@param opts? { include_file_rename: boolean|?, include_stem_refs: boolean|?, dir: string|obsidian.Path|? }
+---@param callback fun(edit: lsp.WorkspaceEdit|nil, meta: obsidian.note.RenameMeta)
+M.build_edit_for_paths = function(path_pairs, opts, callback)
+  opts = opts or {}
+
+  local include_file_rename = opts.include_file_rename ~= false
+  local include_stem_refs = opts.include_stem_refs ~= false
+  local dir = opts.dir or (path_pairs[1] and api.resolve_workspace_dir(path_pairs[1].old_path))
+  local replacements = {}
+  local seen = {}
+  local search_refs = {}
+  local search_seen = {}
+
+  for _, pair in ipairs(path_pairs) do
+    for _, replacement in ipairs(path_replacements(pair.old_path, pair.new_path, include_stem_refs, dir)) do
+      if not seen[replacement.old] then
+        seen[replacement.old] = true
+        replacements[#replacements + 1] = replacement
       end
-      local other = Note.from_file(path)
-      if other and new_name == other.id then
-        return false, "Note with same name exists"
+      if not search_seen[replacement.old] then
+        search_seen[replacement.old] = true
+        search_refs[#search_refs + 1] = replacement.old
       end
     end
   end
 
-  return true, nil
+  table.sort(replacements, function(a, b)
+    return #a.old > #b.old
+  end)
+
+  search.find_backlinks_async(nil, function(matches)
+    local count = 0
+    local path_lookup = {}
+    local buf_list = {}
+    local documentChanges = {}
+    local file_edits = {}
+    local file_order = {}
+    local processed_lines = {}
+
+    for _, match in ipairs(matches) do
+      local match_path = tostring(match.path)
+      local line_key = match_path .. ":" .. match.line
+
+      if not processed_lines[line_key] then
+        processed_lines[line_key] = true
+
+        for _, ref in ipairs(refs.extract(match.text)) do
+          local offset = target_offset(ref)
+          local body_offset, replacement = find_target_replacement(ref, replacements)
+          if offset and body_offset and replacement then
+            local start_col = ref.range.start_col + offset + body_offset
+
+            if not file_edits[match_path] then
+              file_edits[match_path] = {}
+              file_order[#file_order + 1] = match_path
+            end
+
+            file_edits[match_path][#file_edits[match_path] + 1] = {
+              range = {
+                start = { line = match.line - 1, character = start_col },
+                ["end"] = { line = match.line - 1, character = start_col + #replacement.old },
+              },
+              newText = replacement.new,
+            }
+            count = count + 1
+          end
+        end
+      end
+    end
+
+    for _, path in ipairs(file_order) do
+      table.sort(file_edits[path], function(a, b)
+        if a.range.start.line == b.range.start.line then
+          return a.range.start.character > b.range.start.character
+        end
+        return a.range.start.line > b.range.start.line
+      end)
+
+      documentChanges[#documentChanges + 1] = {
+        textDocument = {
+          uri = vim.uri_from_fname(path),
+          version = has_nvim_0_12 and vim.NIL or nil,
+        },
+        edits = file_edits[path],
+      }
+
+      buf_list[#buf_list + 1] = vim.fn.bufnr(path, true)
+      path_lookup[path] = true
+    end
+
+    if include_file_rename then
+      for _, pair in ipairs(path_pairs) do
+        if pair.old_path ~= pair.new_path then
+          documentChanges[#documentChanges + 1] = {
+            kind = "rename",
+            oldUri = vim.uri_from_fname(pair.old_path),
+            newUri = vim.uri_from_fname(pair.new_path),
+            options = {},
+          }
+        end
+      end
+    end
+
+    local edit = #documentChanges > 0 and { documentChanges = documentChanges } or nil
+    local first = path_pairs[1]
+
+    callback(edit, {
+      count = count,
+      path_lookup = path_lookup,
+      buf_list = buf_list,
+      old_path = first and first.old_path or "",
+      new_path = first and first.new_path or "",
+    })
+  end, { refs = search_refs, dir = dir })
 end
 
 ---@param note obsidian.Note
@@ -78,126 +268,17 @@ M.build_edit = function(note, new_name, opts, callback)
 
   local old_path = opts.old_path or tostring(assert(note.path, "note path is required"))
   local new_path = opts.new_path or (vim.fs.joinpath(vim.fs.dirname(old_path), new_name) .. ".md")
-  local include_file_rename = opts.include_file_rename ~= false
-  local search_note = build_search_note(note, old_path)
-  local old_refs = search_note:get_reference_paths()
-  -- Pre-compute url-encoded refs for backlink search so backlinks() doesn't repeat get_reference_paths().
-  local search_refs = search_note:get_reference_paths { urlencode = true }
 
-  -- Sort refs by length (longest first) to match most specific reference first.
-  table.sort(old_refs, function(a, b)
-    return #a > #b
-  end)
-
-  local backlink_opts = { refs = search_refs, dir = opts.dir or api.resolve_workspace_dir(old_path) }
-  search_note:backlinks_async(backlink_opts, function(matches)
-    local count = 0
-    local path_lookup = {}
-    local buf_list = {}
-    local documentChanges = {}
-
-    -- Track which lines we've already processed to avoid duplicates.
-    local processed_lines = {}
-
-    for _, match in ipairs(matches) do
-      local match_path = tostring(match.path)
-      local line_key = match_path .. ":" .. match.line
-
-      if not processed_lines[line_key] then
-        processed_lines[line_key] = true
-
-        -- Find all occurrences of refs in this line.
-        local line_edits = {}
-
-        for _, ref in ipairs(old_refs) do
-          local search_start = 1
-          while true do
-            local offset_st, offset_ed = string.find(match.text, ref, search_start, true)
-            if not offset_st then
-              break
-            end
-
-            local new_text = new_name
-            if vim.endswith(ref, ".md") then
-              new_text = new_name .. ".md"
-            end
-
-            -- Longer refs win when matches overlap.
-            local dominated = false
-            for _, existing in ipairs(line_edits) do
-              if offset_st >= existing.start_1idx and offset_ed <= existing.end_1idx then
-                dominated = true
-                break
-              end
-            end
-
-            if not dominated then
-              line_edits[#line_edits + 1] = {
-                start_1idx = offset_st,
-                end_1idx = offset_ed,
-                -- LSP with utf-8 offset_encoding expects byte positions (0-indexed).
-                replace_st = offset_st - 1,
-                replace_ed = offset_ed,
-                new_text = new_text,
-              }
-            end
-
-            ---@cast offset_ed -nil
-            search_start = offset_ed + 1
-          end
-        end
-
-        -- Sort edits right-to-left so edits don't affect each other's positions.
-        table.sort(line_edits, function(a, b)
-          return a.start_1idx > b.start_1idx
-        end)
-
-        if #line_edits > 0 then
-          local edits_for_line = {}
-          for _, edit_info in ipairs(line_edits) do
-            edits_for_line[#edits_for_line + 1] = {
-              range = {
-                start = { line = match.line - 1, character = edit_info.replace_st },
-                ["end"] = { line = match.line - 1, character = edit_info.replace_ed },
-              },
-              newText = edit_info.new_text,
-            }
-            count = count + 1
-          end
-
-          documentChanges[#documentChanges + 1] = {
-            textDocument = {
-              uri = vim.uri_from_fname(match_path),
-              version = has_nvim_0_12 and vim.NIL or nil,
-            },
-            edits = edits_for_line,
-          }
-
-          buf_list[#buf_list + 1] = vim.fn.bufnr(match_path, true)
-          path_lookup[match_path] = true
-        end
-      end
-    end
-
-    if include_file_rename and old_path ~= new_path then
-      documentChanges[#documentChanges + 1] = {
-        kind = "rename",
-        oldUri = vim.uri_from_fname(old_path),
-        newUri = vim.uri_from_fname(new_path),
-        options = {},
-      }
-    end
-
-    local edit = #documentChanges > 0 and { documentChanges = documentChanges } or nil
-
-    callback(edit, {
-      count = count,
-      path_lookup = path_lookup,
-      buf_list = buf_list,
+  M.build_edit_for_paths({
+    {
       old_path = old_path,
       new_path = new_path,
-    })
-  end)
+    },
+  }, {
+    include_file_rename = opts.include_file_rename,
+    include_stem_refs = opts.include_stem_refs,
+    dir = opts.dir,
+  }, callback)
 end
 
 ---@param note obsidian.Note

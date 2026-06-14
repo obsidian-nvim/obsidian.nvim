@@ -1652,6 +1652,8 @@ local rename = require "obsidian.note.rename"
 ---@field old_path? string Existing path to rename from. Defaults to `note.path`.
 ---@field new_path? string Destination path. Defaults to sibling path using `new_name .. ".md"`.
 ---@field include_file_rename? boolean Include a file rename operation in the generated edit. Defaults to true.
+---@field include_stem_refs? boolean Update stem-only references. Defaults to true.
+---@field dir? string|obsidian.Path Workspace directory used to find references.
 ---@field apply? boolean Apply the workspace edit directly. Defaults to true.
 ---@field update_buffers? boolean Update the note object/frontmatter and reload buffers after applying. Defaults to true.
 ---@field check_unique? boolean Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
