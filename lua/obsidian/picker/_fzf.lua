@@ -1,12 +1,8 @@
-local fzf = require "fzf-lua"
-local fzf_actions = require "fzf-lua.actions"
-local entry_to_file = require("fzf-lua.path").entry_to_file
-
-local obsidian = require "obsidian"
-local search = obsidian.search
-local Path = obsidian.Path
-local log = obsidian.log
-local Picker = obsidian.Picker
+local api = require "obsidian.api"
+local search = require "obsidian.search"
+local Path = require "obsidian.path"
+local log = require "obsidian.log"
+local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
 
 ---@param prompt_title string|?
@@ -33,6 +29,8 @@ local M = {}
 ---@param opts { callback: fun(selection: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
 ---@param path_only? boolean HACK:
 local function get_selection_actions(opts, path_only)
+  local entry_to_file = require("fzf-lua.path").entry_to_file
+
   local actions = {
     default = function(selected, fzf_opts)
       if opts.callback then
@@ -43,7 +41,7 @@ local function get_selection_actions(opts, path_only)
           opts.callback { filename = path }
         end
       elseif not opts.no_default_mappings then
-        fzf_actions.file_edit_or_qf(selected, fzf_opts)
+        require("fzf-lua.actions").file_edit_or_qf(selected, fzf_opts)
       end
     end,
   }
@@ -131,12 +129,12 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  opts.callback = opts.callback or api.open_note
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
-  fzf.files {
+  require("fzf-lua").files {
     query = opts.query,
     cwd = tostring(dir),
     cmd = table.concat(search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown }), " "),
@@ -155,6 +153,8 @@ end
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)
   opts = opts and opts or {}
+
+  local fzf = require "fzf-lua"
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -189,7 +189,7 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  opts.callback = opts.callback or api.open_note
 
   ---@type table<string, any>
   local display_to_value_map = {}
@@ -232,7 +232,7 @@ M.pick = function(values, opts)
     }
   end
 
-  fzf.fzf_exec(entries, {
+  require("fzf-lua").fzf_exec(entries, {
     previewer = file_preview and MyPreviewer or nil,
     prompt = format_prompt(
       ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }

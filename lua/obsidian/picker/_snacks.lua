@@ -1,9 +1,7 @@
-local snacks_picker = require "snacks.picker"
-
-local obsidian = require "obsidian"
-local search = obsidian.search
-local Picker = obsidian.Picker
-local Path = obsidian.Path
+local api = require "obsidian.api"
+local search = require "obsidian.search"
+local Picker = require "obsidian.picker"
+local Path = require "obsidian.path"
 local ut = require "obsidian.picker.util"
 
 --- Build snacks pick opts (keymaps + actions) for query-style mappings. The
@@ -108,7 +106,7 @@ local M = {}
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  local callback = opts.callback or obsidian.api.open_note
+  local callback = opts.callback or api.open_note
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -137,7 +135,7 @@ M.find_files = function(opts)
       end
     end,
   })
-  snacks_picker.pick(pick_opts)
+  require("snacks.picker").pick(pick_opts)
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
@@ -148,7 +146,7 @@ M.grep = function(opts)
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local map =
     vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings), query_mappings(opts.query_mappings, true))
-  local callback = opts.callback or obsidian.api.open_note
+  local callback = opts.callback or api.open_note
 
   local args = search.build_grep_cmd()
   local cmd = table.remove(args, 1)
@@ -172,7 +170,7 @@ M.grep = function(opts)
       end
     end,
   })
-  snacks_picker.pick(pick_opts)
+  require("snacks.picker").pick(pick_opts)
 end
 
 ---@param values string[]|obsidian.PickerEntry[]
@@ -181,7 +179,7 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  local callback = opts.callback or obsidian.api.open_note
+  local callback = opts.callback or api.open_note
 
   ---@diagnostic disable-next-line: redundant-parameter
   local preview = vim.iter(values):any(function(value)
@@ -244,7 +242,7 @@ M.pick = function(values, opts)
     end,
   })
 
-  snacks_picker.pick(pick_opts)
+  require("snacks.picker").pick(pick_opts)
 end
 
 return M

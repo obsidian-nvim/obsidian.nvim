@@ -1,9 +1,8 @@
 local M = {}
 
-local obsidian = require "obsidian"
-local log = obsidian.log
-local api = obsidian.api
-local search = obsidian.search
+local log = require "obsidian.log"
+local api = require "obsidian.api"
+local search = require "obsidian.search"
 local ut = require "obsidian.picker.util"
 
 --- Pick from a list of items.
