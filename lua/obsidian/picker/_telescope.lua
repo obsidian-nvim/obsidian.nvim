@@ -1,12 +1,8 @@
-local telescope = require "telescope.builtin"
-local telescope_actions = require "telescope.actions"
-local actions_state = require "telescope.actions.state"
-
-local obsidian = require "obsidian"
-local search = obsidian.search
-local Path = obsidian.Path
-local log = obsidian.log
-local Picker = obsidian.Picker
+local api = require "obsidian.api"
+local search = require "obsidian.search"
+local Path = require "obsidian.path"
+local log = require "obsidian.log"
+local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
 
 local M = {}
@@ -15,9 +11,9 @@ local M = {}
 ---@param keep_open boolean|?
 ---@return table|?
 local function get_entry(prompt_bufnr, keep_open)
-  local entry = actions_state.get_selected_entry()
+  local entry = require("telescope.actions.state").get_selected_entry()
   if entry and not keep_open then
-    telescope_actions.close(prompt_bufnr)
+    require("telescope.actions").close(prompt_bufnr)
   end
   return entry
 end
@@ -38,7 +34,7 @@ local function get_selected(prompt_bufnr, keep_open, allow_multiple)
     }
   end
 
-  local picker = actions_state.get_current_picker(prompt_bufnr)
+  local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
   local entries = picker:get_multi_selection()
   if entries and #entries > 0 then
     if #entries > 1 and not allow_multiple then
@@ -47,7 +43,7 @@ local function get_selected(prompt_bufnr, keep_open, allow_multiple)
     end
 
     if not keep_open then
-      telescope_actions.close(prompt_bufnr)
+      require("telescope.actions").close(prompt_bufnr)
     end
 
     return vim.tbl_map(selection_to_entry, entries)
@@ -65,13 +61,13 @@ end
 ---@param initial_query string|?
 ---@return string|?
 local function get_query(prompt_bufnr, keep_open, initial_query)
-  local query = actions_state.get_current_line()
+  local query = require("telescope.actions.state").get_current_line()
   if not query or string.len(query) == 0 then
     query = initial_query
   end
   if query and string.len(query) > 0 then
     if not keep_open then
-      telescope_actions.close(prompt_bufnr)
+      require("telescope.actions").close(prompt_bufnr)
     end
     return query
   else
@@ -124,7 +120,7 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  opts.callback = opts.callback or api.open_note
 
   local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
@@ -132,7 +128,7 @@ M.find_files = function(opts)
     selection_mappings = opts.selection_mappings,
   }
 
-  telescope.find_files {
+  require("telescope.builtin").find_files {
     default_text = opts.query,
     prompt_title = prompt_title,
     cwd = opts.dir and tostring(opts.dir) or tostring(Obsidian.dir),
@@ -173,7 +169,7 @@ M.grep = function(opts)
   end
 
   if opts.query and string.len(opts.query) > 0 then
-    telescope.grep_string {
+    require("telescope.builtin").grep_string {
       prompt_title = prompt_title,
       cwd = tostring(cwd),
       vimgrep_arguments = search.build_grep_cmd(),
@@ -181,7 +177,7 @@ M.grep = function(opts)
       attach_mappings = attach_mappings,
     }
   else
-    telescope.live_grep {
+    require("telescope.builtin").live_grep {
       prompt_title = prompt_title,
       cwd = tostring(cwd),
       vimgrep_arguments = search.build_grep_cmd(),
@@ -201,7 +197,7 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  opts.callback = opts.callback or api.open_note
 
   local picker_opts = {
     attach_mappings = function(_, map)

@@ -23,7 +23,6 @@ local plugins = {
           path = vim.fs.joinpath(cwd, ".repro", "vault"),
         },
       },
-      ui = {},
     },
   },
 

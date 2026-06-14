@@ -1,8 +1,7 @@
-local mini_pick = require "mini.pick"
-local obsidian = require "obsidian"
-local search = obsidian.search
-local Path = obsidian.Path
-local Picker = obsidian.Picker
+local api = require "obsidian.api"
+local search = require "obsidian.search"
+local Path = require "obsidian.path"
+local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
 
 ---@param entry string
@@ -30,7 +29,9 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  opts.callback = opts.callback or api.open_note
+
+  local mini_pick = require "mini.pick"
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -66,6 +67,8 @@ end
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)
   opts = opts and opts or {}
+
+  local mini_pick = require "mini.pick"
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -106,7 +109,9 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
-  opts.callback = opts.callback or obsidian.api.open_note
+  opts.callback = opts.callback or api.open_note
+
+  local mini_pick = require "mini.pick"
 
   local entries = {}
   for _, value in ipairs(values) do

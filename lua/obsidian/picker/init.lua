@@ -1,4 +1,5 @@
 local api = require "obsidian.api"
+local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
 
@@ -10,6 +11,31 @@ local M = {}
 
 local state = {}
 M.state = state
+
+local picker_plugins = {
+  [string.lower(PickerName.telescope)] = { "telescope.nvim" },
+  [string.lower(PickerName.fzf_lua)] = { "fzf-lua" },
+  [string.lower(PickerName.mini)] = { "mini.nvim", "mini.pick" },
+  [string.lower(PickerName.snacks)] = { "snacks.nvim" },
+  ["snacks.pick"] = { "snacks.nvim" },
+}
+
+---@param picker_name string
+---@return boolean
+local function picker_available(picker_name)
+  local plugins = picker_plugins[string.lower(picker_name)]
+  if plugins == nil then
+    return false
+  end
+
+  for _, plugin in ipairs(plugins) do
+    if api.get_plugin_info(plugin) ~= nil then
+      return true
+    end
+  end
+
+  return false
+end
 
 -------------------------------------------------------------------
 --- Abstract methods that need to be implemented by subclasses. ---
@@ -250,27 +276,30 @@ end
 
 --- Get the default Picker.
 ---
----@param picker_name obsidian.config.Picker|?
+---@param picker_name obsidian.config.Picker
 M.get = function(picker_name)
-  picker_name = picker_name and picker_name or Obsidian.opts.picker.name
-
   local patch = function(modname)
     for name, f in pairs(require(modname)) do
       M[name] = f
     end
   end
 
+  if picker_name == false then
+    patch "obsidian.picker._default"
+    return M
+  end
+
   if picker_name then
     picker_name = string.lower(picker_name)
-  elseif picker_name == false then
-    patch "obsidian.picker._default"
-    M.state._native = true
-    return M
+    if not picker_available(picker_name) then
+      log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
+      patch "obsidian.picker._default"
+      return M
+    end
   else
     for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do
-      local ok = pcall(M.get, name)
-      if ok then
-        return M
+      if picker_available(name) then
+        return M.get(name)
       end
     end
   end

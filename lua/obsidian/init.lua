@@ -77,7 +77,7 @@ obsidian.setup = function(user_opts)
 
   log.set_level(Obsidian.opts.log_level)
 
-  Obsidian.picker = obsidian.Picker.get()
+  Obsidian.picker = obsidian.Picker.get(Obsidian.opts.picker.name)
 
   if opts.legacy_commands then
     obsidian.commands.install_legacy()
