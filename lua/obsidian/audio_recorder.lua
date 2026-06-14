@@ -6,6 +6,8 @@ local Path = require "obsidian.path"
 local util = require "obsidian.util"
 
 local ns = vim.api.nvim_create_namespace "obsidian.audio_recorder"
+local STOP_SIGNAL = 2
+local STOP_TIMEOUT_MS = 3000
 
 local state = {
   recording = false,
@@ -14,20 +16,9 @@ local state = {
   temp_path = nil,
   bufnr = nil,
   mark_id = nil,
+  temp_dir = nil,
   started_at = nil,
 }
-
-local function opts()
-  return Obsidian.opts.audio_recorder or {}
-end
-
-local function replace_file_arg(cmd, path)
-  local out = {}
-  for i, arg in ipairs(cmd) do
-    out[i] = arg == "{file}" and path or arg
-  end
-  return out
-end
 
 ---@return string|nil
 M.available_backend = function()
@@ -49,24 +40,26 @@ local function default_record_cmd(path)
   elseif backend == "arecord" then
     return { "arecord", "-q", "-f", "cd", "-t", "wav", path }
   end
-  return nil, "No recorder found. Install sox (`rec`) or arecord, or set `audio_recorder.record_cmd`."
-end
-
-local function record_cmd(path)
-  local record_cmd_opt = opts().record_cmd
-  if type(record_cmd_opt) == "function" then
-    return record_cmd_opt(path)
-  elseif type(record_cmd_opt) == "table" then
-    return replace_file_arg(record_cmd_opt, path)
-  elseif record_cmd_opt ~= nil then
-    return nil, "audio_recorder.record_cmd must be a function or argv table"
-  end
-  return default_record_cmd(path)
+  return nil, "No recorder found. Install sox (`rec`) or arecord."
 end
 
 local function recording_path()
-  local ext = opts().recording_ext or "wav"
-  return tostring(Path.temp { suffix = "." .. ext })
+  local temp_dir = tostring(Path.temp { suffix = "-obsidian-recording" })
+  vim.fn.mkdir(temp_dir, "p")
+
+  -- Use Obsidian's recording basename style. The extension stays .wav because the
+  -- built-in CLI backends write WAV/PCM, not m4a.
+  local name = string.format("Recording %s.wav", os.date "%Y%m%d%H%M%S")
+  return vim.fs.joinpath(temp_dir, name), temp_dir
+end
+
+local function cleanup(recording)
+  if recording.temp_path then
+    vim.fn.delete(recording.temp_path)
+  end
+  if recording.temp_dir then
+    vim.fn.delete(recording.temp_dir, "d")
+  end
 end
 
 local function insert_link(bufnr, mark_id, link_text)
@@ -92,6 +85,7 @@ local function finish_recording(recording, callback)
   vim.schedule(function()
     local stat = vim.uv.fs_stat(recording.temp_path)
     if not stat or stat.size == 0 then
+      cleanup(recording)
       state.processing = false
       log.err "Recording produced no audio"
       return
@@ -99,6 +93,7 @@ local function finish_recording(recording, callback)
 
     local audio_path = attachment.add(recording.temp_path, { insert = false, bufnr = recording.bufnr })
     if not audio_path then
+      cleanup(recording)
       state.processing = false
       log.err("Failed to attach recording from %s", recording.temp_path)
       return
@@ -110,7 +105,7 @@ local function finish_recording(recording, callback)
       log.warn(insert_err)
     end
 
-    vim.fn.delete(recording.temp_path)
+    cleanup(recording)
 
     state.processing = false
 
@@ -142,9 +137,10 @@ M.start = function()
     return
   end
 
-  local temp_path = recording_path()
-  local cmd, err = record_cmd(temp_path)
+  local temp_path, temp_dir = recording_path()
+  local cmd, err = default_record_cmd(temp_path)
   if not cmd then
+    cleanup { temp_path = temp_path, temp_dir = temp_dir }
     log.warn(err)
     return
   end
@@ -160,6 +156,7 @@ M.start = function()
   state.temp_path = temp_path
   state.bufnr = bufnr
   state.mark_id = mark_id
+  state.temp_dir = temp_dir
   state.started_at = vim.uv.now()
 
   local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(obj)
@@ -168,11 +165,13 @@ M.start = function()
         if state.bufnr and state.mark_id and vim.api.nvim_buf_is_valid(state.bufnr) then
           vim.api.nvim_buf_del_extmark(state.bufnr, ns, state.mark_id)
         end
+        cleanup { temp_path = state.temp_path, temp_dir = state.temp_dir }
         state.recording = false
         state.job = nil
         state.temp_path = nil
         state.bufnr = nil
         state.mark_id = nil
+        state.temp_dir = nil
         state.processing = false
         log.err("Recorder exited early: %s", vim.trim(obj.stderr or obj.stdout or ""))
       end)
@@ -184,7 +183,9 @@ M.start = function()
     state.temp_path = nil
     state.bufnr = nil
     state.mark_id = nil
+    state.temp_dir = nil
     state.started_at = nil
+    cleanup { temp_path = temp_path, temp_dir = temp_dir }
     log.err("Failed to start recorder: %s", job_or_err)
     return
   end
@@ -205,6 +206,7 @@ M.stop = function(callback)
     temp_path = state.temp_path,
     bufnr = state.bufnr,
     mark_id = state.mark_id,
+    temp_dir = state.temp_dir,
   }
 
   state.recording = false
@@ -213,12 +215,13 @@ M.stop = function(callback)
   state.temp_path = nil
   state.bufnr = nil
   state.mark_id = nil
+  state.temp_dir = nil
   state.started_at = nil
 
   log.info "Stopping audio recorder"
   if recording.job then
-    recording.job:kill(opts().stop_signal or 2)
-    recording.job:wait(opts().stop_timeout_ms or 3000)
+    recording.job:kill(STOP_SIGNAL)
+    recording.job:wait(STOP_TIMEOUT_MS)
   end
 
   finish_recording(recording, callback)

@@ -21,19 +21,7 @@ By default obsidian.nvim looks for one of:
 
 `:checkhealth obsidian` reports the available backend. Starting a recording also warns if no backend is available.
 
-You can override the command:
-
-```lua
-require("obsidian").setup {
-  audio_recorder = {
-    record_cmd = { "rec", "-q", "{file}" },
-    -- or:
-    -- record_cmd = function(path)
-    --   return { "arecord", "-q", "-f", "cd", "-t", "wav", path }
-    -- end,
-  },
-}
-```
+The temporary recording file uses a `.wav` suffix because the built-in CLI backends write WAV/PCM audio. Obsidian's app commonly records `.m4a`, but these CLI tools do not reliably encode m4a without extra codec support.
 
 ## Storage
 
