@@ -2,21 +2,24 @@ local sync_icons = {
   synced = "󰸞",
   syncing = "󰑓",
   paused = "󰏤",
+  error = "󰅙",
 }
 
 local group = {
   synced = "ObsidianSyncSynced",
   syncing = "ObsidianSyncSyncing",
   paused = "ObsidianSyncPaused",
+  error = "ObsidianSyncError",
 }
 
 local default_links = {
   ObsidianSyncSynced = "DiagnosticOk",
   ObsidianSyncSyncing = "DiagnosticWarn",
   ObsidianSyncPaused = "DiagnosticInfo",
+  ObsidianSyncError = "DiagnosticError",
 }
 
----@alias obsidian.sync.StatusKind "synced" | "syncing" | "paused"
+---@alias obsidian.sync.StatusKind "synced" | "syncing" | "paused" | "error"
 
 for group_name, link in pairs(default_links) do
   vim.api.nvim_set_hl(0, group_name, { default = true, link = link })
