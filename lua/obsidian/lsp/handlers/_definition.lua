@@ -3,6 +3,7 @@ local search = obsidian.search
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
+local Path = require "obsidian.path"
 local actions = require "obsidian.actions"
 
 local function open_uri(uri, scheme)
@@ -73,6 +74,94 @@ end
 ---@type table<obsidian.search.RefTypes, function>
 local handlers = {}
 
+local note_suffixes = {
+  [".md"] = true,
+  [".qmd"] = true,
+  [".base"] = true,
+}
+
+---@param path obsidian.Path
+---@param lookup table<string, boolean>
+---@param paths obsidian.Path[]
+local function add_note_path(path, lookup, paths)
+  if not path:is_file() then
+    return
+  end
+
+  local key = tostring(path:resolve())
+  if not lookup[key] then
+    lookup[key] = true
+    paths[#paths + 1] = path
+  end
+end
+
+---@param location string
+---@param callback fun(notes: obsidian.Note[])
+---@param opts { notes: obsidian.note.LoadOpts|? }|?
+local function resolve_note_by_basename_async(location, callback, opts)
+  callback = vim.schedule_wrap(callback)
+  opts = opts or {}
+  opts.notes = opts.notes or {}
+  if not opts.notes.max_lines then
+    opts.notes.max_lines = Obsidian.opts.search.max_lines
+  end
+
+  local Note = require "obsidian.note"
+  local lookup = {}
+  local paths = {}
+  local location_path = Path.new(location)
+  local suffix = location_path.suffix and string.lower(location_path.suffix) or nil
+  local has_note_suffix = suffix and note_suffixes[suffix]
+  local fname = has_note_suffix and location or (location .. ".md")
+  local fname_path = Path.new(fname)
+
+  local path_like = fname_path:is_absolute() or location:find "[/\\]" ~= nil
+  if path_like then
+    if fname_path:is_absolute() then
+      add_note_path(fname_path, lookup, paths)
+    else
+      if Obsidian.buf_dir ~= nil then
+        add_note_path(Obsidian.buf_dir / fname, lookup, paths)
+      end
+      add_note_path(Obsidian.dir / fname, lookup, paths)
+    end
+
+    if not vim.tbl_isempty(paths) then
+      callback(vim.tbl_map(function(path)
+        return Note.from_file(path, opts.notes)
+      end, paths))
+      return
+    end
+  end
+
+  local query_name = location_path.name or location
+  local query_stem = location_path.stem or query_name
+  local query_lwr = string.lower(has_note_suffix and query_name or query_stem)
+  local search_term = has_note_suffix and query_name or query_stem
+
+  search.find_async(
+    Obsidian.dir,
+    search_term,
+    { ignore_case = true },
+    function(path)
+      local note_path = Path.new(path)
+      if not has_note_suffix and note_path.suffix and string.lower(note_path.suffix) == ".base" then
+        return
+      end
+
+      local ref = has_note_suffix and note_path.name or note_path.stem
+      if ref and string.lower(ref) == query_lwr then
+        add_note_path(note_path, lookup, paths)
+      end
+    end,
+    vim.schedule_wrap(function()
+      callback(vim.tbl_map(function(path)
+        return Note.from_file(path, opts.notes)
+      end, paths))
+    end)
+  )
+end
+
 ---@param location string
 ---@param callback function
 ---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
@@ -85,8 +174,7 @@ local function open_note(location, callback, opts)
   location, block_link = util.strip_block_links(location)
   location, anchor_link, raw_anchor = util.strip_anchor_links(location)
 
-  search.resolve_note_async(location, function(notes)
-    -- TODO: integrate into resolve_note?
+  resolve_note_by_basename_async(location, function(notes)
     if block_link then
       notes = vim.tbl_filter(function(note)
         return not vim.tbl_isempty(note.blocks or {}) and note:resolve_block(block_link) ~= nil

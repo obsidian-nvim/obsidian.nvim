@@ -21,6 +21,100 @@ T["follow wiki links"] = function()
   h.child_wait_for_buf_name(child, files["target.md"])
 end
 
+T["wiki links resolve by basename/stem only"] = function()
+  (child.Obsidian.dir / "notes"):mkdir()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[target]]",
+    ["target.md"] = "",
+    ["notes/target.md"] = "",
+  })
+
+  child.cmd("edit " .. files["referencer.md"])
+  local locations = h.child_await(
+    child,
+    [=[
+    require("obsidian.lsp.handlers._definition").follow_link("[[target]]", function(_, result)
+      done(result)
+    end, {})
+  ]=]
+  )
+
+  eq(2, #locations)
+  local paths = vim.tbl_map(function(location)
+    return vim.fs.normalize(vim.uri_to_fname(location.uri))
+  end, locations)
+  eq(true, vim.list_contains(paths, vim.fs.normalize(files["target.md"])))
+  eq(true, vim.list_contains(paths, vim.fs.normalize(files["notes/target.md"])))
+end
+
+T["wiki links do not resolve aliases"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[Alias]]",
+    ["aliased.md"] = "---\naliases:\n  - Alias\n---\n",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "referencer.md"))
+  local result = h.child_await(
+    child,
+    [=[
+    local api = require "obsidian.api"
+    local done_called = false
+    local callback_called = false
+    api.confirm = function(prompt)
+      if not done_called then
+        done_called = true
+        done({ callback_called = callback_called, prompt = prompt })
+      end
+      return "No"
+    end
+    require("obsidian.lsp.handlers._definition").follow_link("[[Alias]]", function()
+      callback_called = true
+      if not done_called then
+        done_called = true
+        done({ callback_called = callback_called })
+      end
+    end, {})
+  ]=]
+  )
+
+  eq(false, result.callback_called)
+  eq("Create new note 'Alias'?", result.prompt)
+end
+
+T["wiki links do not resolve fuzzy matches"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[foo]]",
+    ["not-foo.md"] = "",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "referencer.md"))
+  local result = h.child_await(
+    child,
+    [=[
+    local api = require "obsidian.api"
+    local done_called = false
+    local callback_called = false
+    api.confirm = function(prompt)
+      if not done_called then
+        done_called = true
+        done({ callback_called = callback_called, prompt = prompt })
+      end
+      return "No"
+    end
+    require("obsidian.lsp.handlers._definition").follow_link("[[foo]]", function()
+      callback_called = true
+      if not done_called then
+        done_called = true
+        done({ callback_called = callback_called })
+      end
+    end, {})
+  ]=]
+  )
+
+  eq(false, result.callback_called)
+  eq("Create new note 'foo'?", result.prompt)
+end
+
 T["follow markdown links"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = [==[
