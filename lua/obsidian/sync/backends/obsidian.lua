@@ -65,6 +65,7 @@ end
 ---@return boolean?, string?
 function M.pause(dir)
   if not runner.procs[dir] then
+    runner.clear_notify_state(dir)
     status.set "paused"
     return true
   end
@@ -72,6 +73,7 @@ function M.pause(dir)
   local ok, err = pcall(function()
     runner.procs[dir]:kill(15)
     runner.procs[dir] = nil
+    runner.clear_notify_state(dir)
     status.set "paused"
   end)
   return ok, err

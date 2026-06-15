@@ -142,6 +142,17 @@ function M.run(subcmd, flags)
   return out
 end
 
+---@param lines string[]?
+---@return boolean
+local function has_error_lines(lines)
+  for _, line in ipairs(lines or {}) do
+    if line:find("Error:", 1, true) then
+      return true
+    end
+  end
+  return false
+end
+
 ---@param subcmd string
 ---@param flags table<string, string|boolean>|?
 ---@param sys_opts vim.SystemOpts|?
@@ -171,15 +182,23 @@ function M.run_async(subcmd, flags, sys_opts, callback, opts)
         return
       elseif out.code ~= 0 then
         local runner = require "obsidian.sync.runner"
-        local error_output = sys_opts.cwd
-            and runner.logs[sys_opts.cwd]
-            and table.concat(runner.logs[sys_opts.cwd], "\n")
-          or out.stderr
-        if error_output:find "Another sync instance is already running for this vault." then
+        local log_lines = sys_opts.cwd and runner.logs[sys_opts.cwd]
+        local logged_error = has_error_lines(log_lines)
+        local error_output = (log_lines and table.concat(log_lines, "\n")) or out.stderr or ""
+        local already_running = error_output:find("Another sync instance is already running for this vault.", 1, true)
+          ~= nil
+        if sys_opts.cwd and not already_running then
+          runner.append_log(
+            sys_opts.cwd,
+            string.format("obsidian sync exited with code %s: %s", out.code, out.stderr or ""),
+            { error = true, notify = false }
+          )
+        end
+        if already_running then
           if not opts.silent then
             log.info "Another sync instance is already running for this vault."
           end
-        else
+        elseif not logged_error then
           log.err("Command failed with code %s: %s", out.code, error_output)
         end
       else

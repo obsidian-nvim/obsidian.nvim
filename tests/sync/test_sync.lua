@@ -240,6 +240,46 @@ T["client.run auth handling"]["should not prompt login for password validation e
   client.login = orig_login
 end
 
+T["client.run_async"] = new_set()
+
+T["client.run_async"]["should not log generic failure after streamed errors"] = function()
+  local runner = require "obsidian.sync.runner"
+  local log = require "obsidian.log"
+
+  local orig_cli = rawget(client, "cli")
+  local orig_err = log.err
+  local errors = {}
+  local dir = "/tmp/test-vault-run-async"
+
+  client.cli = {
+    run = function(_, _, _, _, callback)
+      callback { code = 1, stdout = "", stderr = "boom" }
+      return {}
+    end,
+  }
+  log.err = function(msg, ...)
+    table.insert(errors, string.format(msg, ...))
+  end
+  runner.clear_notify_state(dir)
+  runner.logs[dir] = { "2026-01-01 00:00 - Error: boom" }
+
+  client.run_async("sync", {}, { cwd = dir }, function()
+    error "callback should not run"
+  end)
+  vim.wait(100, function()
+    return #runner.logs[dir] == 2
+  end)
+
+  eq("error", status.state.kind)
+  eq(0, #errors)
+
+  client.cli = orig_cli
+  log.err = orig_err
+  runner.clear_notify_state(dir)
+  runner.logs[dir] = nil
+  status.set "paused"
+end
+
 T["client.setup"] = new_set()
 
 T["client.setup"]["should retry password validation failures with an E2E password"] = function()
@@ -374,6 +414,7 @@ T["runner.append_log"]["should notify and set error status on error lines"] = fu
   end
 
   local dir = "/tmp/test-vault-error"
+  runner.clear_notify_state(dir)
   status.set "synced"
 
   runner.append_log(dir, "Connecting...")
@@ -393,6 +434,9 @@ T["runner.append_log"]["should notify and set error status on error lines"] = fu
   eq(1, #errors)
   eq("Sync error: Unable to connect to server.", errors[1])
 
+  runner.append_log(dir, "Retrying...")
+  eq("error", status.state.kind)
+
   -- repeated identical errors should not notify again right away
   runner.append_log(dir, "Error: Unable to connect to server.")
   eq(1, #errors)
@@ -402,7 +446,14 @@ T["runner.append_log"]["should notify and set error status on error lines"] = fu
   eq(2, #errors)
   eq("Sync error: Something else went wrong.", errors[2])
 
+  -- spacing after "Error:" should not affect deduping
+  runner.append_log(dir, "Error:Duplicate spacing.")
+  eq(3, #errors)
+  runner.append_log(dir, "Error: Duplicate spacing.")
+  eq(3, #errors)
+
   log.err = orig_err
+  runner.clear_notify_state(dir)
   runner.logs[dir] = nil
   status.set "paused"
 end
@@ -415,6 +466,7 @@ T["runner.append_log"]["should still record error and trace lines in the log"] =
   log.err = function() end
 
   local dir = "/tmp/test-vault-log"
+  runner.clear_notify_state(dir)
   runner.append_log(dir, "Error: Some failure.\n    at somewhere (file.js:1:1)")
 
   eq(2, #runner.logs[dir])
@@ -422,6 +474,62 @@ T["runner.append_log"]["should still record error and trace lines in the log"] =
   eq(true, runner.logs[dir][2]:find("at somewhere", 1, true) ~= nil)
 
   log.err = orig_err
+  runner.clear_notify_state(dir)
+  runner.logs[dir] = nil
+  status.set "paused"
+end
+
+T["runner.append_log"]["should treat process exits as errors"] = function()
+  local runner = require "obsidian.sync.runner"
+  local log = require "obsidian.log"
+
+  local orig_err = log.err
+  local errors = {}
+  log.err = function(msg, ...)
+    table.insert(errors, string.format(msg, ...))
+  end
+
+  local dir = "/tmp/test-vault-exit"
+  runner.clear_notify_state(dir)
+  status.set "synced"
+
+  runner.append_log(dir, "obsidian sync exited with code 1: boom")
+
+  eq("error", status.state.kind)
+  eq(1, #errors)
+  eq("Sync error: obsidian sync exited with code 1: boom", errors[1])
+
+  log.err = orig_err
+  runner.clear_notify_state(dir)
+  runner.logs[dir] = nil
+  status.set "paused"
+end
+
+T["runner.make_handler"] = new_set()
+
+T["runner.make_handler"]["should notify stream errors through append_log only once"] = function()
+  local runner = require "obsidian.sync.runner"
+  local log = require "obsidian.log"
+
+  local orig_err = log.err
+  local errors = {}
+  log.err = function(msg, ...)
+    table.insert(errors, string.format(msg, ...))
+  end
+
+  local dir = "/tmp/test-vault-handler"
+  runner.clear_notify_state(dir)
+  local handler = runner.make_handler(dir)
+
+  handler("Error: handler failure", nil)
+
+  eq("error", status.state.kind)
+  eq(1, #errors)
+  eq("Sync error: handler failure", errors[1])
+  eq(1, #runner.logs[dir])
+
+  log.err = orig_err
+  runner.clear_notify_state(dir)
   runner.logs[dir] = nil
   status.set "paused"
 end
