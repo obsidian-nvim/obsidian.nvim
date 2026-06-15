@@ -40,7 +40,7 @@ end
 
 ---@type table<string, { title: string, cond: (fun(note: obsidian.Note): boolean)?, fn: function? }>
 local function is_recording_audio()
-  return require("obsidian.audio_recorder").is_recording()
+  return require("obsidian.core-plugins.audio_recorder").is_recording()
 end
 
 local default_actions = {

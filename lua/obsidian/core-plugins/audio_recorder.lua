@@ -17,7 +17,6 @@ local state = {
   bufnr = nil,
   mark_id = nil,
   temp_dir = nil,
-  started_at = nil,
 }
 
 ---@return string|nil
@@ -101,7 +100,7 @@ local function finish_recording(recording, callback)
 
     local link_text = attachment.format_link(audio_path)
     local insert_pos, insert_err = insert_link(recording.bufnr, recording.mark_id, link_text)
-    if not insert_pos then
+    if not insert_pos and insert_err then
       log.warn(insert_err)
     end
 
@@ -141,7 +140,9 @@ M.start = function()
   local cmd, err = default_record_cmd(temp_path)
   if not cmd then
     cleanup { temp_path = temp_path, temp_dir = temp_dir }
-    log.warn(err)
+    if err then
+      log.warn(err)
+    end
     return
   end
 
@@ -157,7 +158,6 @@ M.start = function()
   state.bufnr = bufnr
   state.mark_id = mark_id
   state.temp_dir = temp_dir
-  state.started_at = vim.uv.now()
 
   local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(obj)
     if state.recording then
@@ -184,7 +184,6 @@ M.start = function()
     state.bufnr = nil
     state.mark_id = nil
     state.temp_dir = nil
-    state.started_at = nil
     cleanup { temp_path = temp_path, temp_dir = temp_dir }
     log.err("Failed to start recorder: %s", job_or_err)
     return
@@ -216,7 +215,6 @@ M.stop = function(callback)
   state.bufnr = nil
   state.mark_id = nil
   state.temp_dir = nil
-  state.started_at = nil
 
   log.info "Stopping audio recorder"
   if recording.job then
@@ -225,24 +223,6 @@ M.stop = function(callback)
   end
 
   finish_recording(recording, callback)
-end
-
-M.toggle = function()
-  if state.recording then
-    M.stop()
-  else
-    M.start()
-  end
-end
-
-M.state = function()
-  return {
-    recording = state.recording,
-    processing = state.processing,
-    path = state.temp_path,
-    bufnr = state.bufnr,
-    started_at = state.started_at,
-  }
 end
 
 M.is_recording = function()
