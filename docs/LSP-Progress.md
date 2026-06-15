@@ -16,6 +16,7 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [x] Prepare Rename (`textDocument/prepareRename`)
 - [x] Code Action (`textDocument/codeAction`)
 - [x] Completion Proposals (`textDocument/completion`)
+- [x] Folding Range (`textDocument/foldingRange`)
 - [ ] Hover (`textDocument/hover`)
 - [ ] Completion Item Resolve (`completionItem/resolve`)
 - [ ] Publish Diagnostics (`textDocument/publishDiagnostics`)
@@ -25,7 +26,6 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [ ] Document Highlight (`textDocument/documentHighlight`)
 - [ ] Code Lens (`textDocument/codeLens`)
 - [ ] Code Lens Refresh (`codeLens/refresh`)
-- [ ] Folding Range (`textDocument/foldingRange`)
 - [ ] Selection Range (`textDocument/selectionRange`)
 - [ ] Inlay Hint (`textDocument/inlayHint`)
 - [ ] Inlay Hint Resolve (`inlayHint/resolve`)
@@ -58,12 +58,17 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [x] Workspace Symbols (`workspace/symbol`)
 - [x] Workspace Symbol Resolve (`workspace/symbolResolve`)
 - [x] Execute Command (`workspace/executeCommand`) - runs all actions that this plugin can run in `actions.lua`
-- [ ] Will Delete Files (`workspace/willDeleteFiles`) - for implementing [[Trash]] and remove file attachments functionality
+- [x] Did Change Watched Files (`workspace/didChangeWatchedFiles`)
+  - [ ] [[Cache]] partial updates
+  - [ ] [[Sync]] `on_write` mode
+- [ ] Will Delete Files (`workspace/willDeleteFiles`)
+  - [[Trash]]
+  - Prompt to remove file attachments
 - [ ] Will Create Files (`workspace/willCreateFiles`)
 - [ ] Did Create Files (`workspace/didCreateFiles`)
+  - prompt to disambiguate existing links with same stem
 - [ ] Will Rename Files (`workspace/willRenameFiles`)
 - [ ] Did Delete Files (`workspace/didDeleteFiles`)
-- [ ] Did Change Watched Files (`workspace/didChangeWatchedFiles`)
 - Workspace Folders (`workspace/workspaceFolders`) - redundant for in-process server, already knows the workspace
 - Did Change Workspace Folders (`workspace/didChangeWorkspaceFolders`) - redundant for in-process server
 - Get Configuration (`workspace/configuration`) - redundant for in-process server, shares config directly
