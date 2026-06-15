@@ -49,6 +49,43 @@ T["follow link to non-existing note and create it"] = function()
   assert(current_buf_name:match "fixed%-id%-new note%.md$", "New note should be opened, but got " .. current_buf_name)
 end
 
+T["follow link to non-existing note and link existing note"] = function()
+  child.lua [[
+    M.confirm = function()
+      return "Link Existing Note"
+    end
+  ]]
+
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = [==[
+[[missing note]]
+]==],
+    ["existing.md"] = [==[
+# Existing
+]==],
+  })
+
+  child.cmd("edit " .. files["referencer.md"])
+  local ref_bufnr = child.api.nvim_get_current_buf()
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua(([=[
+    Obsidian.picker.find_notes = function(opts)
+      _G.picker_prompt_title = opts.prompt_title
+      _G.picker_query = opts.query
+      opts.callback(%q)
+    end
+  ]=]):format(files["existing.md"]))
+
+  child.lua "M.follow_link()"
+  h.child_wait_for_line(child, ref_bufnr, 0, "[[existing|missing note]]")
+
+  eq("Link existing note", child.lua_get "picker_prompt_title")
+  eq("missing note", child.lua_get "picker_query")
+  h.child_wait(child, [[return vim.api.nvim_buf_get_name(0):match("existing%.md$") ~= nil]], {
+    desc = "existing note buffer",
+  })
+end
+
 T["follow link with alias to non-existing note and create it"] = function()
   child.lua [[
     Obsidian.opts.note_id_func = function(title)
