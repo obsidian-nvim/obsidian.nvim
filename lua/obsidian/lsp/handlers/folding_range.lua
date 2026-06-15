@@ -1,25 +1,29 @@
 local Note = require "obsidian.note"
 
----@param _ lsp.FoldingRangeParams
-return function(_, handler)
+---@param params lsp.FoldingRangeParams
+return function(params, handler)
   ---@type lsp.FoldingRange[]
   local ranges = {}
 
-  local note = Note.from_buffer(0, { collect_sections = true })
+  local bufnr = vim.uri_to_bufnr(params.textDocument.uri)
+  local note = Note.from_buffer(bufnr, { collect_sections = true })
 
   -- Frontmatter fold.
   if note.has_frontmatter and note.frontmatter_end_line then
     local fm_end = note.frontmatter_end_line -- 1-based
     -- Build collapsedText from key: value pairs in the buffer lines.
-    local lines = vim.api.nvim_buf_get_lines(0, 0, fm_end, false)
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, fm_end, false)
     local parts = {}
     for i = 2, fm_end - 1 do
-      local key, val = lines[i] and lines[i]:match "^([%w_%-]+):%s*(.+)$"
-      if key and val then
-        parts[#parts + 1] = key .. ": " .. val
-        if #parts >= 4 then
-          parts[#parts + 1] = "…"
-          break
+      local line = lines[i]
+      if line then
+        local key, val = line:match "^([%w_%-]+):%s*(.+)$"
+        if key and val then
+          parts[#parts + 1] = key .. ": " .. val
+          if #parts >= 4 then
+            parts[#parts + 1] = "…"
+            break
+          end
         end
       end
     end
