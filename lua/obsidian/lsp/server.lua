@@ -50,7 +50,9 @@ return function(dispatchers)
   server.notify = function(method, ...)
     local handler = handlers[method]
     if not handler then
-      return false
+      -- Return true (server is active) so Neovim fires LspNotify for
+      -- notifications like textDocument/didChange which trigger fold refresh.
+      return true
     end
 
     local ok, err = pcall(handler, ..., dispatchers)

@@ -199,6 +199,18 @@ M.cursor_checkbox = function()
   return util.is_checkbox(vim.api.nvim_get_current_line())
 end
 
+M.cursor_frontmatter = function()
+  local note = M.current_note()
+  if not note then
+    return
+  end
+  if not note.has_frontmatter or not note.frontmatter_end_line then
+    return false
+  end
+  local row = unpack(vim.api.nvim_win_get_cursor(0))
+  return row <= note.frontmatter_end_line
+end
+
 ------------------
 --- buffer api ---
 ------------------
