@@ -39,7 +39,7 @@ local function in_visual()
 end
 
 local function is_recording_audio()
-  return require("obsidian.audio_recorder").is_recording()
+  return require("obsidian.core-plugins.audio_recorder").is_recording()
 end
 
 local default_actions = {
