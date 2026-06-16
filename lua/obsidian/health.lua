@@ -91,17 +91,35 @@ local function has_one_of(plugins)
   end
 end
 
----@param plugins string[]
-local function has_one_of_executable(plugins)
+---@param executables string[]
+---@return string
+local function executable_list(executables)
+  return "`" .. table.concat(executables, "`, `") .. "`"
+end
+
+---@param executables string[]
+---@param opts? { feature?: string, hint?: string }
+local function has_one_of_executable(executables, opts)
+  opts = opts or {}
   local found
-  for _, name in ipairs(plugins) do
-    if has_executable(name, true) then
-      found = true
+  local checked = {}
+  for _, name in ipairs(executables) do
+    if name and name ~= "" and not checked[name] then
+      checked[name] = true
+      if has_executable(name, true) then
+        found = true
+      end
     end
   end
-  if not found then
-    warn("It is recommended to install at least one of " .. vim.inspect(plugins))
+  if found then
+    return
   end
+
+  local msg = string.format("%s requires one of: %s", opts.feature or "optional feature", executable_list(executables))
+  if opts.hint then
+    msg = msg .. ". " .. opts.hint
+  end
+  warn(msg)
 end
 
 ---@param minimum string
@@ -144,36 +162,65 @@ function M.check()
   has_executable("rg", false)
 
   start "Audio recorder"
-  has_one_of_executable {
+  has_one_of_executable({
     "rec",
     "sox",
     "arecord",
-  }
+  }, {
+    feature = "audio recorder",
+    hint = "Install SoX (provides `rec`/`sox`) or ALSA `arecord` to record audio notes.",
+  })
 
-  if os == api.OSType.Wsl then
-    has_executable("wsl-open", true)
-  elseif os == api.OSType.Linux then
-    has_one_of_executable {
+  start "Image paste"
+  if os == api.OSType.Linux or os == api.OSType.FreeBSD then
+    has_one_of_executable({
       "xclip",
       "wl-paste",
-    }
+    }, {
+      feature = ":Obsidian paste_img",
+      hint = "Use `xclip` on X11 or `wl-clipboard` (provides `wl-paste`) on Wayland.",
+    })
   elseif os == api.OSType.Darwin then
-    has_executable("pngpaste", true)
+    has_one_of_executable({ "pngpaste" }, {
+      feature = ":Obsidian paste_img",
+      hint = "Install `pngpaste` to paste clipboard images.",
+    })
+  elseif os == api.OSType.Windows or os == api.OSType.Wsl then
+    ok_f ":Obsidian paste_img uses PowerShell clipboard support"
+  else
+    warn_f(":Obsidian paste_img is not implemented for %s", os)
+  end
+
+  if os == api.OSType.Wsl then
+    start "Open"
+    has_one_of_executable({ "wsl-open" }, {
+      feature = ":Obsidian open on WSL",
+      hint = "Install `wsl-open` to open notes in the Obsidian app from WSL.",
+    })
   end
 
   start "Sync"
-
-  local backend = Obsidian.opts.sync and Obsidian.opts.sync.backend or "obsidian"
+  local sync_opts = Obsidian.opts.sync or {}
+  local backend = sync_opts.backend or "obsidian"
   ok_f("backend: %s", backend)
+  if not sync_opts.enabled then
+    ok "disabled; obsidian-headless CLI is only needed when sync is enabled"
+  elseif backend == "obsidian" then
+    local sync_executables = { "ob" }
+    if sync_client.cmd and sync_client.cmd ~= "ob" then
+      table.insert(sync_executables, sync_client.cmd)
+    end
+    has_one_of_executable(sync_executables, {
+      feature = "sync (:Obsidian sync)",
+      hint = "Install `obsidian-headless` (`ob`) or run the local CLI install prompt.",
+    })
+  else
+    ok_f("custom backend: %s", backend)
+  end
 
-  has_one_of_executable {
-    "ob",
-    sync_client.cmd,
-  }
-
+  start "Compatibility"
   local warning = require("obsidian.lsp.util").check_completion_availability()
   if warning then
-    start "Completion"
     warn_f(warning)
   end
 end

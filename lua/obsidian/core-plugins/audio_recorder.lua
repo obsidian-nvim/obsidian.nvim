@@ -39,7 +39,7 @@ local function default_record_cmd(path)
   elseif backend == "arecord" then
     return { "arecord", "-q", "-f", "cd", "-t", "wav", path }
   end
-  return nil, "No recorder found. Install sox (`rec`) or arecord."
+  return nil, "Audio recorder requires one CLI: `rec` (SoX), `sox`, or `arecord`."
 end
 
 local function recording_path()
