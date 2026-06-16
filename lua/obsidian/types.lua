@@ -86,10 +86,3 @@
 ---@field slides obsidian.config.SlidesOpts
 
 ---@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"
-
----@class obsidian.AudioRecorderCallbackContext
----@field path string Attached audio path in the vault.
----@field temp_path? string Temporary recording path before attachment copy.
----@field link string Inserted attachment link.
----@field bufnr integer Buffer number associated with the action.
----@field position? { row: integer, col: integer } 1-indexed row and 0-indexed column where the link was inserted.

@@ -25,7 +25,7 @@ The temporary recording file uses a `.wav` suffix because the built-in CLI backe
 
 ## Storage
 
-Recordings are first written to a temp file and then copied with `obsidian.attachment.add()` into your configured attachments folder. The temporary file is deleted by default after it is attached.
+Recordings are first written to a temp file and then copied with `obsidian.attachment.add()` into your configured attachments folder using an Obsidian-style `Recording YYYYMMDDHHMMSS.wav` name. The temporary file is deleted by default after it is attached.
 
 obsidian.nvim logs both paths when the recording is attached.
 

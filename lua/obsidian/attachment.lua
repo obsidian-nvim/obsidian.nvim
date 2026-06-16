@@ -90,23 +90,38 @@ local function decoded_basename(fname)
   return basename
 end
 
+---@param name string
+---@return string|?
+---@return string|?
+local function validate_attachment_name(name)
+  name = vim.trim(name)
+  if name == "" or name == "." or name == ".." then
+    return nil, "Invalid attachment name"
+  elseif name:find "[/\\]" then
+    return nil, "Attachment name must be a basename"
+  end
+  return name
+end
+
 ---@param src string
 ---@param bufnr integer|?
+---@param new_name string|?
 ---@return string|?
 ---@return string|?
-local function get_attachment_paths(src, bufnr)
+local function get_attachment_paths(src, bufnr, new_name)
   local is_uri, scheme = util.is_uri(src)
+  local src_path, fname
+
   if is_uri then
     if scheme == "file" then
-      local src_path = vim.uri_to_fname(src)
-      local fname = vim.fs.basename(src_path)
+      src_path = vim.uri_to_fname(src)
+      fname = vim.fs.basename(src_path)
       if not fname or fname == "" then
         return nil, "Failed to resolve source filename from URI"
       end
-      return src_path, M.resolve_attachment_path(fname, bufnr)
     elseif scheme == "http" or scheme == "https" then
       local src_clean = src:gsub("#.*$", ""):gsub("%?.*$", "")
-      local fname = src_clean:match "/([^/]+)$"
+      fname = src_clean:match "/([^/]+)$"
       if not fname or fname == "" then
         return nil, "Failed to resolve attachment name from URL"
       end
@@ -114,17 +129,25 @@ local function get_attachment_paths(src, bufnr)
       if not decoded_fname then
         return nil, err
       end
+      src_path = src
       fname = decoded_fname
-      return src, M.resolve_attachment_path(fname, bufnr)
     else
       return nil, "Unsupported URI scheme '" .. tostring(scheme) .. "'"
     end
+  else
+    src_path = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(src), ":p"))
+    fname = vim.fs.basename(src_path)
+    if not fname or fname == "" then
+      return nil, "Failed to resolve source filename from path"
+    end
   end
 
-  local src_path = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(src), ":p"))
-  local fname = vim.fs.basename(src_path)
-  if not fname or fname == "" then
-    return nil, "Failed to resolve source filename from path"
+  if new_name then
+    local valid_name, name_err = validate_attachment_name(new_name)
+    if not valid_name then
+      return nil, name_err
+    end
+    fname = valid_name
   end
 
   return src_path, M.resolve_attachment_path(fname, bufnr)
@@ -182,12 +205,12 @@ local function unique_dst(dst)
 end
 
 ---@param src string
----@param opts { insert: boolean|?, bufnr: integer|? }|?
+---@param opts { insert: boolean|?, bufnr: integer|?, new_name: string|? }|?
 ---@return string|?
 M.add = function(src, opts)
   opts = opts or {}
   src = vim.trim(src)
-  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr)
+  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr, opts.new_name)
   if not resolved_src then
     log.err(resolved_dst or "Failed to resolve attachment")
     return
