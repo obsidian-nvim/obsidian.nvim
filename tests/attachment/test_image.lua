@@ -1,6 +1,7 @@
 local builtin = require "obsidian.builtin"
 local attachment = require "obsidian.attachment"
 local actions = require "obsidian.actions"
+local log = require "obsidian.log"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
 
@@ -77,6 +78,36 @@ T["add"]["relative attachment folders should resolve against target buffer"] = f
   eq(1, vim.fn.filereadable(expected))
 end
 
+T["add"]["new_name should override destination basename"] = function()
+  local src = vim.fs.joinpath(tostring(Obsidian.dir), "source.png")
+  vim.fn.writefile({ "image" }, src)
+
+  local result = attachment.add(src, { insert = false, new_name = "renamed.png" })
+  local expected = vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.folder, "renamed.png")
+
+  eq(expected, result)
+  eq(1, vim.fn.filereadable(expected))
+end
+
+T["add"]["new_name should reject paths"] = function()
+  local original_err = log.err
+  local src = vim.fs.joinpath(tostring(Obsidian.dir), "source.png")
+  vim.fn.writefile({ "image" }, src)
+  log.err = function() end
+
+  local ok, result = pcall(attachment.add, src, { insert = false, new_name = "nested/renamed.png" })
+  local expected = vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.folder, "renamed.png")
+
+  log.err = original_err
+
+  if not ok then
+    error(result)
+  end
+
+  eq(nil, result)
+  eq(0, vim.fn.filereadable(expected))
+end
+
 T["actions"] = new_set()
 
 T["actions"]["add_attachment should open picker for directory sources"] = function()
@@ -128,7 +159,7 @@ T["actions"]["add_attachment prompt should preserve target buffer"] = function()
     captured_add = { src = src, opts = opts }
   end
 
-  local ok, err = pcall(actions.add_attachment, nil, { insert = false, bufnr = bufnr })
+  local ok, err = pcall(actions.add_attachment, nil, { insert = false, bufnr = bufnr, new_name = "renamed.png" })
 
   vim.ui.input = original_input
   attachment.add = original_add
@@ -139,6 +170,7 @@ T["actions"]["add_attachment prompt should preserve target buffer"] = function()
 
   eq(false, captured_add.opts.insert)
   eq(bufnr, captured_add.opts.bufnr)
+  eq("renamed.png", captured_add.opts.new_name)
 end
 
 T["actions"]["add_attachment should use custom attachment resolver"] = function()

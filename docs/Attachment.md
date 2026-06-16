@@ -25,6 +25,7 @@ For `attachment.add(source, opts)`:
 - If `source` is a local file (or `file://` URI), the file is copied.
 - If `source` is a `http(s)` URL, the file is downloaded with `curl`.
 - The destination path is always resolved by `api.resolve_attachment_path()` and controlled by [Save location](#save-location).
+- Set `opts.new_name` to copy/download the attachment with a different destination basename.
 
 For `actions.add_attachment(source, opts)`:
 
@@ -38,6 +39,7 @@ Both functions accept the same `opts` table:
 ---@class obsidian.AttachmentAddOpts
 ---@field insert? boolean Insert the generated attachment link after adding. Defaults to true.
 ---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
+---@field new_name? string Destination attachment basename. Path separators are rejected.
 ```
 
 ## Paste from clipboard path

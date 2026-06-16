@@ -14,112 +14,15 @@ local state = {
   processing = false,
   job = nil,
   temp_path = nil,
+  name = nil,
   bufnr = nil,
   mark_id = nil,
-  temp_dir = nil,
 }
-
----@return string|nil
-M.available_backend = function()
-  if vim.fn.executable "rec" == 1 then
-    return "rec"
-  elseif vim.fn.executable "sox" == 1 then
-    return "sox"
-  elseif vim.fn.executable "arecord" == 1 then
-    return "arecord"
-  end
-end
-
-local function default_record_cmd(path)
-  local backend = M.available_backend()
-  if backend == "rec" then
-    return { "rec", "-q", "-c", "1", "-r", "16000", path }
-  elseif backend == "sox" then
-    return { "sox", "-q", "-d", "-c", "1", "-r", "16000", path }
-  elseif backend == "arecord" then
-    return { "arecord", "-q", "-f", "cd", "-t", "wav", path }
-  end
-  return nil, "Audio recorder requires one CLI: `rec` (SoX), `sox`, or `arecord`."
-end
-
-local function recording_path()
-  local temp_dir = tostring(Path.temp { suffix = "-obsidian-recording" })
-  vim.fn.mkdir(temp_dir, "p")
-
-  -- Use Obsidian's recording basename style. The extension stays .wav because the
-  -- built-in CLI backends write WAV/PCM, not m4a.
-  local name = string.format("Recording %s.wav", os.date "%Y%m%d%H%M%S")
-  return vim.fs.joinpath(temp_dir, name), temp_dir
-end
 
 local function cleanup(recording)
   if recording.temp_path then
     vim.fn.delete(recording.temp_path)
   end
-  if recording.temp_dir then
-    vim.fn.delete(recording.temp_dir, "d")
-  end
-end
-
-local function insert_link(bufnr, mark_id, link_text)
-  if not (bufnr and vim.api.nvim_buf_is_valid(bufnr)) then
-    return nil, "target buffer is no longer valid"
-  end
-  if not vim.api.nvim_get_option_value("modifiable", { buf = bufnr }) then
-    return nil, "target buffer is not modifiable"
-  end
-
-  local pos = vim.api.nvim_buf_get_extmark_by_id(bufnr, ns, mark_id, {})
-  if vim.tbl_isempty(pos) then
-    return nil, "recording insertion mark was lost"
-  end
-
-  local row, col = pos[1], pos[2]
-  vim.api.nvim_buf_set_text(bufnr, row, col, row, col, { link_text })
-  vim.api.nvim_buf_del_extmark(bufnr, ns, mark_id)
-  return { row = row + 1, col = col }
-end
-
-local function finish_recording(recording, callback)
-  vim.schedule(function()
-    local stat = vim.uv.fs_stat(recording.temp_path)
-    if not stat or stat.size == 0 then
-      cleanup(recording)
-      state.processing = false
-      log.err "Recording produced no audio"
-      return
-    end
-
-    local audio_path = attachment.add(recording.temp_path, { insert = false, bufnr = recording.bufnr })
-    if not audio_path then
-      cleanup(recording)
-      state.processing = false
-      log.err("Failed to attach recording from %s", recording.temp_path)
-      return
-    end
-
-    local link_text = attachment.format_link(audio_path)
-    local insert_pos, insert_err = insert_link(recording.bufnr, recording.mark_id, link_text)
-    if not insert_pos and insert_err then
-      log.warn(insert_err)
-    end
-
-    cleanup(recording)
-
-    state.processing = false
-
-    log.info("Audio recording attached as %s (recorded at %s)", audio_path, recording.temp_path)
-
-    if type(callback) == "function" then
-      util.fire_callback("audio_recorder", callback, {
-        path = audio_path,
-        temp_path = recording.temp_path,
-        link = link_text,
-        bufnr = recording.bufnr,
-        position = insert_pos,
-      })
-    end
-  end)
 end
 
 M.start = function()
@@ -136,13 +39,21 @@ M.start = function()
     return
   end
 
-  local temp_path, temp_dir = recording_path()
-  local cmd, err = default_record_cmd(temp_path)
-  if not cmd then
-    cleanup { temp_path = temp_path, temp_dir = temp_dir }
-    if err then
-      log.warn(err)
-    end
+  -- Use Obsidian's recording basename style for the attached file. The extension
+  -- stays .wav because the built-in CLI backends write WAV/PCM, not m4a.
+  local temp_path = tostring(Path.temp { suffix = ".wav" })
+  local name = string.format("Recording %s.wav", os.date "%Y%m%d%H%M%S")
+
+  local cmd
+  if vim.fn.executable "rec" == 1 then
+    cmd = { "rec", "-q", "-c", "1", "-r", "16000", temp_path }
+  elseif vim.fn.executable "sox" == 1 then
+    cmd = { "sox", "-q", "-d", "-c", "1", "-r", "16000", temp_path }
+  elseif vim.fn.executable "arecord" == 1 then
+    cmd = { "arecord", "-q", "-f", "cd", "-t", "wav", temp_path }
+  else
+    cleanup { temp_path = temp_path }
+    log.warn "Audio recorder requires one CLI: `rec` (SoX), `sox`, or `arecord`."
     return
   end
 
@@ -155,9 +66,9 @@ M.start = function()
   state.recording = true
   state.processing = false
   state.temp_path = temp_path
+  state.name = name
   state.bufnr = bufnr
   state.mark_id = mark_id
-  state.temp_dir = temp_dir
 
   local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(obj)
     if state.recording then
@@ -165,13 +76,13 @@ M.start = function()
         if state.bufnr and state.mark_id and vim.api.nvim_buf_is_valid(state.bufnr) then
           vim.api.nvim_buf_del_extmark(state.bufnr, ns, state.mark_id)
         end
-        cleanup { temp_path = state.temp_path, temp_dir = state.temp_dir }
+        cleanup { temp_path = state.temp_path }
         state.recording = false
         state.job = nil
         state.temp_path = nil
+        state.name = nil
         state.bufnr = nil
         state.mark_id = nil
-        state.temp_dir = nil
         state.processing = false
         log.err("Recorder exited early: %s", vim.trim(obj.stderr or obj.stdout or ""))
       end)
@@ -181,10 +92,10 @@ M.start = function()
     vim.api.nvim_buf_del_extmark(bufnr, ns, mark_id)
     state.recording = false
     state.temp_path = nil
+    state.name = nil
     state.bufnr = nil
     state.mark_id = nil
-    state.temp_dir = nil
-    cleanup { temp_path = temp_path, temp_dir = temp_dir }
+    cleanup { temp_path = temp_path }
     log.err("Failed to start recorder: %s", job_or_err)
     return
   end
@@ -192,6 +103,12 @@ M.start = function()
 
   log.info("Recording audio to %s", temp_path)
 end
+
+---@class obsidian.AudioRecorderCallbackContext
+---@field path string Attached audio path in the vault.
+---@field link string Inserted attachment link.
+---@field bufnr integer Buffer number associated with the action.
+---@field position? { row: integer, col: integer } 1-indexed row and 0-indexed column where the link was inserted.
 
 ---@param callback fun(ctx: obsidian.AudioRecorderCallbackContext)|?
 M.stop = function(callback)
@@ -203,18 +120,18 @@ M.stop = function(callback)
   local recording = {
     job = state.job,
     temp_path = state.temp_path,
+    name = state.name,
     bufnr = state.bufnr,
     mark_id = state.mark_id,
-    temp_dir = state.temp_dir,
   }
 
   state.recording = false
   state.processing = true
   state.job = nil
   state.temp_path = nil
+  state.name = nil
   state.bufnr = nil
   state.mark_id = nil
-  state.temp_dir = nil
 
   log.info "Stopping audio recorder"
   if recording.job then
@@ -222,7 +139,63 @@ M.stop = function(callback)
     recording.job:wait(STOP_TIMEOUT_MS)
   end
 
-  finish_recording(recording, callback)
+  vim.schedule(function()
+    local stat = vim.uv.fs_stat(recording.temp_path)
+    if not stat or stat.size == 0 then
+      cleanup(recording)
+      state.processing = false
+      log.err "Recording produced no audio"
+      return
+    end
+
+    local audio_path = attachment.add(recording.temp_path, {
+      insert = false,
+      bufnr = recording.bufnr,
+      new_name = recording.name,
+    })
+    if not audio_path then
+      cleanup(recording)
+      state.processing = false
+      log.err("Failed to attach recording from %s", recording.temp_path)
+      return
+    end
+
+    local link_text = attachment.format_link(audio_path)
+    local insert_pos, insert_err
+    if not (recording.bufnr and vim.api.nvim_buf_is_valid(recording.bufnr)) then
+      insert_err = "target buffer is no longer valid"
+    elseif not vim.api.nvim_get_option_value("modifiable", { buf = recording.bufnr }) then
+      insert_err = "target buffer is not modifiable"
+    else
+      local pos = vim.api.nvim_buf_get_extmark_by_id(recording.bufnr, ns, recording.mark_id, {})
+      if vim.tbl_isempty(pos) then
+        insert_err = "recording insertion mark was lost"
+      else
+        local row, col = pos[1], pos[2]
+        vim.api.nvim_buf_set_text(recording.bufnr, row, col, row, col, { link_text })
+        vim.api.nvim_buf_del_extmark(recording.bufnr, ns, recording.mark_id)
+        insert_pos = { row = row + 1, col = col }
+      end
+    end
+    if not insert_pos and insert_err then
+      log.warn(insert_err)
+    end
+
+    cleanup(recording)
+
+    state.processing = false
+
+    log.info("Audio recording attached as %s (recorded at %s)", audio_path, recording.temp_path)
+
+    if type(callback) == "function" then
+      util.fire_callback("audio_recorder", callback, {
+        path = audio_path,
+        link = link_text,
+        bufnr = recording.bufnr,
+        position = insert_pos,
+      })
+    end
+  end)
 end
 
 M.is_recording = function()
