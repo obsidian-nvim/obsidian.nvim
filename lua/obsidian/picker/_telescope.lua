@@ -248,10 +248,20 @@ M.pick = function(values, opts)
           if type(v) == "string" then
             return make_entry_from_string(v)
           else
+            local ordinal = v.ordinal
+            if ordinal == nil then
+              ordinal = ""
+              if type(v.display) == "string" then
+                ordinal = ordinal .. v.display
+              end
+              if v.filename ~= nil then
+                ordinal = ordinal .. " " .. v.filename
+              end
+            end
             return {
               value = v.user_data,
               display = displayer,
-              ordinal = v.text or v.filename,
+              ordinal = ordinal,
               filename = v.filename,
               lnum = v.lnum,
               col = v.col,
