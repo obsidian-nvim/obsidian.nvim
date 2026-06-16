@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- After `actions.move_note`, buffers can be properly saved without warning.
 - Sync will properly log cli errors.
 - YAML will not force quoted number strings into number.
 - Warns if workspace folder does not exist.

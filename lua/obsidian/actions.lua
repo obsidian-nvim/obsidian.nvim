@@ -798,7 +798,10 @@ local function move_note(directory, text)
     return log.err("Failed to move note: " .. (err or "unknown error"))
   end
   vim.api.nvim_buf_set_name(bufnr, dest)
-  vim.cmd "silent! write"
+  local write_ok, write_err = pcall(vim.cmd, "silent write!")
+  if not write_ok then
+    return log.err("Failed to save moved note: " .. (write_err or "unknown error"))
+  end
   log.info("Moved note to '%s'", text)
 end
 
