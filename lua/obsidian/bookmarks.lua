@@ -204,8 +204,7 @@ end
 
 ---@param bookmarks obsidian.Bookmark[]
 M.pick = function(bookmarks)
-  bookmarks = vim
-    .iter(bookmarks)
+  bookmarks = require "obsidian.iter"(bookmarks)
     :map(function(bm)
       if bm.path then
         bm._path = tostring(Obsidian.dir / bm.path)

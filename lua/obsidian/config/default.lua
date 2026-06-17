@@ -47,7 +47,7 @@ return {
   ---@field template string|?
   note = {
     template = (function()
-      local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
+      local root = require "obsidian.iter"(vim.api.nvim_list_runtime_paths()):find(function(path)
         return vim.endswith(path, "obsidian.nvim")
       end)
       if not root then
@@ -88,6 +88,7 @@ return {
   ---
   ---@field enabled boolean|?
   ---@field folder string|obsidian.Path|?
+  ---@field subdir? string|obsidian.Path Deprecated: use folder.
   ---@field date_format string
   ---@field time_format string
   --- A map for custom variables, the key should be the variable and the value a function.
@@ -139,6 +140,10 @@ return {
   ---@field min_chars? integer
   ---@field match_case? boolean
   ---@field create_new? boolean
+  ---@field preferred_link_style? obsidian.link.LinkStyle Deprecated: use link.style.
+  ---@field nvim_cmp? boolean Deprecated: removed.
+  ---@field blink? boolean Deprecated: removed.
+  ---@field new_notes_location? obsidian.config.NewNotesLocation Deprecated: use top-level new_notes_location.
   completion = {
     min_chars = 2,
     match_case = true,
@@ -160,6 +165,7 @@ return {
   ---@field name obsidian.config.Picker|?
   ---@field note_mappings? obsidian.config.PickerNoteMappingOpts
   ---@field tag_mappings? obsidian.config.PickerTagMappingOpts
+  ---@field mappings? obsidian.config.PickerNoteMappingOpts Deprecated: use note_mappings.
   picker = {
     name = nil,
     note_mappings = {
@@ -218,6 +224,7 @@ return {
   ---@field enabled boolean|?
   ---@field ignore_conceal_warn boolean|?
   ---@field update_debounce integer|?
+  ---@field tick? integer Deprecated: use update_debounce.
   ---@field max_file_length integer|?
   ---@field checkboxes table<string, obsidian.config.CheckboxSpec>|?
   ---@field bullets obsidian.config.UICharSpec|?

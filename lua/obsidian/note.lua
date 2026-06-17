@@ -13,7 +13,7 @@ local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local text_insertion = require "obsidian.util.text_insertion"
-local iter = vim.iter
+local iter = require "obsidian.iter"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
@@ -837,8 +837,10 @@ Note.frontmatter_lines = function(self, current_lines)
     end
   end
   if syntax_ok or not has_frontmatter then -- if parse success or there's no frontmatter (and should insert)
+    local frontmatter_func = Obsidian.opts.frontmatter.func
+    ---@cast frontmatter_func -nil
     ---@diagnostic disable-next-line: param-type-mismatch
-    local frontmatter_properties = Obsidian.opts.frontmatter.func(self)
+    local frontmatter_properties = frontmatter_func(self)
     if frontmatter_properties and not vim.tbl_isempty(frontmatter_properties) then
       return Frontmatter.dump(frontmatter_properties, order)
     else
@@ -1149,7 +1151,9 @@ Note.resolve_block = function(self, block_id)
   assert(self.path, "'note.path' is not set")
   local n = Note.from_file(self.path, { collect_blocks = true })
   self.blocks = n.blocks
-  return self.blocks[block_id]
+  local blocks = self.blocks
+  ---@cast blocks -nil
+  return blocks[block_id]
 end
 
 --- Open a note in a buffer.
@@ -1345,7 +1349,7 @@ Note.insert_text = function(self, text, opts)
         text_idx = text_idx + insert_idx + #insert_top
         local top_lines = vim.list_slice(lines, 1, insert_idx - 1)
         local bot_lines = vim.list_slice(lines, insert_idx, #lines)
-        return vim.iter({ top_lines, insert_top, text, insert_bot, bot_lines }):flatten():totable()
+        return iter({ top_lines, insert_top, text, insert_bot, bot_lines }):flatten():totable()
       end
     end,
   }))

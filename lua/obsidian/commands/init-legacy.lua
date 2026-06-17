@@ -1,6 +1,6 @@
 local util = require "obsidian.util"
 local search = require "obsidian.search"
-local iter = vim.iter
+local iter = require "obsidian.iter"
 
 local command_lookups = {
   ObsidianCheck = "obsidian.commands.check",
@@ -55,7 +55,9 @@ local M = setmetatable({
 M.register = function(name, config)
   if not config.func then
     config.func = function(data)
-      return M[name](data)
+      local handler = M[name]
+      ---@cast handler function
+      return handler(data)
     end
   end
   M.commands[name] = config

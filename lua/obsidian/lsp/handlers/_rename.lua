@@ -105,6 +105,7 @@ M.build_edit = function(note, new_name, opts, callback)
               }
             end
 
+            ---@cast offset_ed -nil
             search_start = offset_ed + 1
           end
         end

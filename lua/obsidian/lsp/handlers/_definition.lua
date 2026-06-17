@@ -103,8 +103,7 @@ local function open_note(location, callback, opts)
     elseif #notes == 1 then
       callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
     elseif #notes > 1 then
-      local locations = vim
-        .iter(notes)
+      local locations = require "obsidian.iter"(notes)
         :map(function(note)
           return note:_location { block = block_link, anchor = anchor_link }
         end)
@@ -173,7 +172,9 @@ local handle_footnote = function(location, callback, _)
     if vim.tbl_isempty(refs) then
       return log.info("No references found for footnote [^%s]", location)
     end
-    lnum, col = refs[1].lnum, refs[1].start_col
+    local ref = refs[1]
+    ---@cast ref -nil
+    lnum, col = ref.lnum, ref.start_col
   end
 
   callback {

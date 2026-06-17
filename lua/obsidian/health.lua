@@ -107,6 +107,7 @@ end
 ---@param minimum string
 ---@param recommended string
 local function neovim(minimum, recommended)
+  ---@diagnostic disable-next-line: call-non-callable
   local version = tostring(vim.version())
   if vim.fn.has("nvim-" .. minimum) == 0 then
     error_f("neovim < %s (%s)", minimum, version)

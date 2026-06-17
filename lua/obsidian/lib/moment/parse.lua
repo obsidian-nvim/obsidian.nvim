@@ -160,10 +160,12 @@ local weekday_short_2char_pattern = case_insensitive "Su"
 ----------------------------------------------------
 
 local CURRENT_YEAR = tonumber(os.date "%Y")
+---@cast CURRENT_YEAR -nil
 local YEAR_PIVOT = 68
 
 local function parse_two_digit_year(yy_str)
   local yy = tonumber(yy_str)
+  ---@cast yy -nil
   local current_year_last_two = CURRENT_YEAR % 100
   local century = math.floor(CURRENT_YEAR / 100)
 
@@ -309,7 +311,9 @@ end
 
 token_patterns["d"] = function()
   return C(R "06") / function(n)
-    return tonumber(n) + 1
+    local value = tonumber(n)
+    ---@cast value -nil
+    return value + 1
   end -- 0-6 to 1-7
 end
 
@@ -367,6 +371,8 @@ token_patterns["Z"] = function()
       local offset_sign = tz:sub(1, 1) == "+" and 1 or -1
       local offset_hours = tonumber(tz:sub(2, 3))
       local offset_mins = tonumber(tz:sub(5, 6))
+      ---@cast offset_hours -nil
+      ---@cast offset_mins -nil
       return offset_sign * (offset_hours * 60 + offset_mins) * 60
     end
   local utc_pattern = case_insensitive "Z" * Cc(0) -- UTC is 0 offset
@@ -382,6 +388,8 @@ token_patterns["ZZ"] = function()
       local offset_sign = tz:sub(1, 1) == "+" and 1 or -1
       local offset_hours = tonumber(tz:sub(2, 3))
       local offset_mins = tonumber(tz:sub(4, 5))
+      ---@cast offset_hours -nil
+      ---@cast offset_mins -nil
       return offset_sign * (offset_hours * 60 + offset_mins) * 60
     end
   local utc_pattern = case_insensitive "Z" * Cc(0) -- UTC is 0 offset
@@ -394,9 +402,12 @@ token_patterns["X"] = function()
 end
 
 token_patterns["x"] = function()
-  return C(R "09" ^ 1) / function(n)
-    return math.floor(tonumber(n) / 1000)
-  end
+  return C(R "09" ^ 1)
+    / function(n)
+      local value = tonumber(n)
+      ---@cast value -nil
+      return math.floor(value / 1000)
+    end
 end
 
 ----------------------------------------------------

@@ -22,7 +22,8 @@
   "workspace": {
     "checkThirdParty": false,
     "library": [
-      "$VIMRUNTIME"
+      "$VIMRUNTIME",
+      ".emmy"
     ],
     "ignoreGlobs": [
       "tests/test_*.lua"

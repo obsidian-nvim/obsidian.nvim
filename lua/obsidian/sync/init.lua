@@ -224,7 +224,7 @@ function M.menu(subcmd)
     return
   end
 
-  local action = vim.iter(actions):find(function(act)
+  local action = require "obsidian.iter"(actions):find(function(act)
     return act.name == subcmd
   end)
   if not action then

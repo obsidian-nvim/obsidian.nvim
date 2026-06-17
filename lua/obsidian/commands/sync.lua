@@ -5,7 +5,7 @@ local api = require "obsidian.api"
 return function(data)
   local subcmd = data.args:len() > 0 and data.args or nil
 
-  local has_configured = vim.iter(Obsidian.workspaces):any(function(ws)
+  local has_configured = require "obsidian.iter"(Obsidian.workspaces):any(function(ws)
     return sync.is_configured(ws)
   end)
 

@@ -160,7 +160,9 @@ M.paste = function(path, img_type)
     return
   end
 
-  local img_text = Obsidian.opts.attachments.img_text_func(path)
+  local img_text_func = Obsidian.opts.attachments.img_text_func
+  ---@cast img_text_func -nil
+  local img_text = img_text_func(path)
   vim.api.nvim_put({ img_text }, "c", true, false)
 end
 

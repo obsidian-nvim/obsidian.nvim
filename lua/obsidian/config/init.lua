@@ -240,21 +240,21 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   end
 
   if opts.search_max_lines ~= nil then
-    opts.search = opts.search or {}
+    opts.search = opts.search or vim.deepcopy(defaults.search)
     opts.search.max_lines = opts.search_max_lines
     opts.search_max_lines = nil
     deprecate("top-level 'search_max_lines'", "search.max_lines", "3.18")
   end
 
   if opts.sort_by ~= nil then
-    opts.search = opts.search or {}
+    opts.search = opts.search or vim.deepcopy(defaults.search)
     opts.search.sort_by = opts.sort_by
     opts.sort_by = nil
     deprecate("top-level 'sort_by'", "search.sort_by", "3.18")
   end
 
   if opts.sort_reversed ~= nil then
-    opts.search = opts.search or {}
+    opts.search = opts.search or vim.deepcopy(defaults.search)
     opts.search.sort_reversed = opts.sort_reversed
     opts.sort_reversed = nil
     deprecate("top-level 'sort_reversed'", "search.sort_reversed", "3.18")

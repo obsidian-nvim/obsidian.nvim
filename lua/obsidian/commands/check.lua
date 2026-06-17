@@ -2,7 +2,7 @@ local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
-local iter = vim.iter
+local iter = require "obsidian.iter"
 
 return function()
   local start_time = vim.uv.hrtime()

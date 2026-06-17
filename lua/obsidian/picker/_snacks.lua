@@ -182,7 +182,7 @@ M.pick = function(values, opts)
   local callback = opts.callback or api.open_note
 
   ---@diagnostic disable-next-line: redundant-parameter
-  local preview = vim.iter(values):any(function(value)
+  local preview = require "obsidian.iter"(values):any(function(value)
     return type(value) == "table" and value.filename ~= nil
   end)
 

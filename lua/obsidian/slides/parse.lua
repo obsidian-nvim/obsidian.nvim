@@ -87,6 +87,7 @@ local function collect_footnote_refs(line, refs, seen)
       seen[id] = true
       refs[#refs + 1] = id
     end
+    ---@cast m_end -nil
     init = m_end + 1
   end
 end

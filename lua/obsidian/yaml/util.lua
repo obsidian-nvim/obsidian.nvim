@@ -41,6 +41,7 @@ M.next_item = function(str, stop_chars, keep_stop_char)
     end
     if hits ~= 0 then
       local i = string.find(str, stop_char, string.len(result), true)
+      ---@cast i -nil
       if keep_stop_char then
         return result .. stop_char, string.sub(str, i + 1)
       else

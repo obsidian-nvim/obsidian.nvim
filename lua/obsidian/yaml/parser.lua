@@ -60,6 +60,7 @@ end
 ---@return string[] -- TODO: does this have to be here?
 Parser.parse = function(self, str)
   -- Collect and pre-process lines.
+  ---@type obsidian.yaml.Line[]
   local lines = {}
   local base_indent = 0
   for raw_line in str:gmatch "[^\r\n]+" do
@@ -87,6 +88,7 @@ Parser.parse = function(self, str)
   local order = {} ---@type string[]
   while i <= #lines do
     local line = lines[i]
+    ---@cast line -nil
 
     if line:is_empty() then
       -- Empty line, skip it.
@@ -115,7 +117,7 @@ Parser.parse = function(self, str)
         if type(root_value) == "table" then
           parent = root_value
         end
-      elseif vim.islist(parent) and value_type == YamlType.ArrayItem then
+      elseif parent ~= nil and vim.islist(parent) and value_type == YamlType.ArrayItem then
         -- Add value to parent array.
         parent[#parent + 1] = value
       elseif type(parent) == "table" and value_type == YamlType.Mapping then
@@ -148,11 +150,13 @@ end
 ---@return integer, any, string
 Parser._parse_next = function(self, lines, i, text)
   local line = lines[i]
+  ---@cast line -nil
   if text == nil then
     -- Skip empty lines.
     while line:is_empty() and i <= #lines do
       i = i + 1
       line = lines[i]
+      ---@cast line -nil
     end
     if line:is_empty() then
       return i, nil, YamlType.EmptyLine
@@ -224,6 +228,7 @@ local YAML_MAPPING_INLINE_REGEX = string.format("%s: (.*)", YAML_KEY_REGEX)
 ---@return boolean, integer, any
 Parser._try_parse_field = function(self, lines, i, text)
   local line = lines[i]
+  ---@cast line -nil
   text = text and text or yaml_util.strip_comments(line.content)
 
   local _, key, value
@@ -299,6 +304,7 @@ end
 ---@return boolean, integer, any
 Parser._try_parse_block_string = function(self, lines, i, text)
   local line = lines[i]
+  ---@cast line -nil
   text = text and text or yaml_util.strip_comments(line.content)
   local _, _, block_key = string.find(text, "([a-zA-Z0-9_-]+):%s?|")
   if block_key ~= nil then
@@ -333,6 +339,7 @@ end
 ---@return boolean, integer, any
 Parser._try_parse_array_item = function(self, lines, i, text)
   local line = lines[i]
+  ---@cast line -nil
   text = text and text or yaml_util.strip_comments(line.content)
   if text == "-" then
     -- Bare dash is a null array item.
@@ -359,9 +366,12 @@ end
 ---@return integer, any[]
 Parser._parse_array = function(self, lines, i)
   local out = {}
-  local item_indent = lines[i].indent
+  local first_line = lines[i]
+  ---@cast first_line -nil
+  local item_indent = first_line.indent
   while i <= #lines do
     local line = lines[i]
+    ---@cast line -nil
     if line.indent == item_indent and (line.content == "-" or vim.startswith(line.content, "- ")) then
       local is_array_item, value
       is_array_item, i, value = self:_try_parse_array_item(lines, i)
@@ -385,9 +395,12 @@ end
 ---@return integer, table
 Parser._parse_mapping = function(self, i, lines)
   local out = {}
-  local item_indent = lines[i].indent
+  local first_line = lines[i]
+  ---@cast first_line -nil
+  local item_indent = first_line.indent
   while i <= #lines do
     local line = lines[i]
+    ---@cast line -nil
     if line.indent == item_indent then
       local value, value_type
       i, value, value_type = self:_parse_next(lines, i)
@@ -424,7 +437,7 @@ Parser._parse_inline_value = function(self, i, text)
   end
 
   for parse_func_and_type in
-    vim.iter {
+    require "obsidian.iter" {
       { self._parse_number, YamlType.Scalar },
       { self._parse_null, YamlType.Scalar },
       { self._parse_boolean, YamlType.Scalar },

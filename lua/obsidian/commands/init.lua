@@ -13,8 +13,7 @@ end
 ---@return string[]
 local function get_commands_by_context(commands, is_visual, is_note)
   local choices = vim.tbl_values(commands)
-  return vim
-    .iter(choices)
+  return require "obsidian.iter"(choices)
     :filter(function(config)
       if is_visual then
         return config.range ~= nil
@@ -222,7 +221,10 @@ M.note_complete = function(_, cmdline)
   local query_results = search.find_notes(query, {})
 
   for _, note in ipairs(query_results) do
-    local note_path = assert(note.path:vault_relative_path { strict = true })
+    local path = note.path
+    ---@cast path -nil
+    local note_path = path:vault_relative_path { strict = true }
+    ---@cast note_path -nil
     table.insert(completions, note:display_name() .. "  " .. tostring(note_path))
     if not vim.tbl_isempty(note.aliases) then
       for _, alias in pairs(note.aliases) do
