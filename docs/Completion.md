@@ -25,7 +25,8 @@ require("blink.cmp").setup {
 To use completions without completion plugin, put this anywhere in your config before an obsidian buffer loads:
 
 ```lua
--- HACK: to trigger on every ASCII char, unicode will work when the upstream neovim completion respects isIncomplete field properly
+-- NOTE: you don't need this is you are on neovim 0.13 (nightly)
+-- HACK: to trigger on every ASCII char
 local chars = {}
 for i = 32, 126 do
   table.insert(chars, string.char(i))

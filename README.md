@@ -49,7 +49,7 @@ The original project has not been actively maintained for quite a while and with
 
 ## ⭐ Features
 
-▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via in-process LSP (triggered by typing `[[` for wiki and markdown links, `#` for tags)
+▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via in-process LSP (triggered by typing `[[` for wiki and markdown links, `#` for tags, `[^` for footnotes)
 
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
@@ -194,7 +194,7 @@ require("obsidian").setup {
 > [!TIP]
 > To see your installation status, run `:checkhealth obsidian`
 >
-> To try out or debug this plugin, run `nvim -u minimal.lua` to try in a clean environment
+> To try out or debug this plugin, run `nvim -u minimal.lua` in the installed root to try in a clean environment
 
 ### Using [`lazy.nvim`](https://github.com/folke/lazy.nvim)
 

@@ -25,8 +25,7 @@ local initializeResult = {
     },
     completionProvider = {
       resolveProvider = false,
-      -- "^" so that clients request completion right after typing "[^" (footnotes).
-      triggerCharacters = { "^" },
+      triggerCharacters = { "[", "#", "^" },
     },
     foldingRangeProvider = true,
     -- Needed so Neovim sends textDocument/didChange notifications, which
