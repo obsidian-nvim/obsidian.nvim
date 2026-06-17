@@ -3,6 +3,7 @@ local source = require "obsidian.agenda.source"
 local views = require "obsidian.agenda.views"
 local log = require "obsidian.log"
 
+-- TODO: special change state code actions for code actions
 local M = {}
 
 M.parser = require "obsidian.agenda.parser"
@@ -64,7 +65,7 @@ M.open = function(opts)
 
       local ok, view_or_err = pcall(views.build, view_name, items or {}, state.base_date)
       if not ok then
-        renderer.error(bufnr, tostring(view_or_err), state)
+        log.err(tostring(view_or_err))
         return
       end
       renderer.render(bufnr, view_or_err, state)
@@ -96,18 +97,6 @@ M.parse_args = function(args)
   end
 
   return view_name, date
-end
-
----@param arg_lead string
----@return string[]
-M.complete = function(arg_lead)
-  local choices = { "day", "week", "month", "year", "todo" }
-  if arg_lead == "" then
-    return choices
-  end
-  return vim.tbl_filter(function(choice)
-    return vim.startswith(choice, arg_lead)
-  end, choices)
 end
 
 return M
