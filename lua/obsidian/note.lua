@@ -25,6 +25,13 @@ local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.m
 
 local DEFAULT_MAX_LINES = 500
 
+local function is_default_note_template(template)
+  local default_template = require("obsidian.config.default").note.template
+  return template ~= nil
+    and default_template ~= nil
+    and Path.new(template):resolve() == Path.new(default_template):resolve()
+end
+
 ---@param section obsidian.Section
 ---@param parent obsidian.note.HeaderAnchor|?
 ---@param anchor string|?
@@ -904,6 +911,11 @@ Note.write = function(self, opts)
 
   -- Fall back to the template carried by the note (set at Note.create).
   local template = opts.template ~= nil and opts.template or self.template
+  local should_save_frontmatter = self:should_save_frontmatter()
+
+  if not should_save_frontmatter and is_default_note_template(template) then
+    template = nil
+  end
 
   ---@type string
   local verb
@@ -923,13 +935,13 @@ Note.write = function(self, opts)
   end
 
   local frontmatter = nil
-  if Obsidian.opts.frontmatter.func ~= nil then
+  if should_save_frontmatter and Obsidian.opts.frontmatter.func ~= nil then
     frontmatter = Obsidian.opts.frontmatter.func(self)
   end
 
   self:save {
     path = path,
-    insert_frontmatter = self:should_save_frontmatter(),
+    insert_frontmatter = should_save_frontmatter,
     frontmatter = frontmatter,
     update_content = opts.update_content,
     check_buffers = opts.check_buffers,
