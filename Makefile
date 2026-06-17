@@ -34,11 +34,7 @@ style:  ## Format the code with stylua
 
 .PHONY: types
 types: ## Type check with lua-ls
-	lua-language-server --configpath "$(LUARC)" --check lua/obsidian/
-
-.PHONY: checklua
-checklua:
-	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/obsidian/ --config .emmyrc.json
+	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/ --config .emmyrc.json
 
 .PHONY: test
 test: $(MINITEST)

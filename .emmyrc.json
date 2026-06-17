@@ -2,6 +2,8 @@
   "runtime": {
     "version": "LuaJIT",
     "requirePattern": [
+      "?.lua",
+      "?/init.lua",
       "lua/?.lua",
       "lua/?/init.lua",
       "?/lua/?.lua",
