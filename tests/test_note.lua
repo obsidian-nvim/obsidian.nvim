@@ -1,5 +1,6 @@
 local M = require "obsidian.note"
-local T = dofile("tests/helpers.lua").temp_vault
+local h = dofile "tests/helpers.lua"
+local T = h.temp_vault
 local api = require "obsidian.api"
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
@@ -130,6 +131,48 @@ T["save"]["should not error on :checktime when save path contains regex-special 
 
   vim.cmd "bwipeout!"
   vim.fn.delete(path)
+end
+
+T["write"] = new_set()
+
+T["write"]["should not add default frontmatter template when frontmatter is disabled"] = function()
+  Obsidian.opts.frontmatter.enabled = false
+
+  local note = M.create { id = "Foo", template = Obsidian.opts.note.template }
+  note:write()
+
+  local saved_note = M.from_file(note.path)
+  eq(false, saved_note.has_frontmatter)
+end
+
+T["write"]["should not call frontmatter function when frontmatter is disabled"] = function()
+  local calls = 0
+  Obsidian.opts.frontmatter.enabled = false
+  Obsidian.opts.frontmatter.func = function()
+    calls = calls + 1
+    return { id = "SHOULD_NOT_BE_WRITTEN" }
+  end
+
+  local note = M.create { id = "Foo" }
+  note:write()
+
+  eq(0, calls)
+  local saved_note = M.from_file(note.path)
+  eq(false, saved_note.has_frontmatter)
+end
+
+T["write"]["should preserve explicit template frontmatter when frontmatter is disabled"] = function()
+  Obsidian.opts.frontmatter.enabled = false
+  h.write("---\ncustom: true\n---\nBody", Obsidian.dir / "templates" / "custom.md")
+
+  local note = M.create { id = "Foo", template = "custom.md" }
+  note:write()
+
+  local lines = h.read(note.path)
+  eq("---", lines[1])
+  eq("custom: true", lines[2])
+  eq("---", lines[3])
+  eq("Body", lines[4])
 end
 
 T["add_alias"] = new_set()
