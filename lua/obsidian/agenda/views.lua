@@ -2,12 +2,16 @@ local dates = require "obsidian.agenda.dates"
 
 local M = {}
 
+---@type table<obsidian.agenda.Priority, integer>
 local priority_rank = { A = 1, B = 2, C = 3 }
 
 ---@param item obsidian.agenda.Item
 ---@return integer
 local function item_rank(item)
-  return priority_rank[item.priority or ""] or 9
+  if not item.priority then
+    return 9
+  end
+  return priority_rank[item.priority] or 9
 end
 
 ---@param a obsidian.agenda.Occurrence
@@ -100,8 +104,15 @@ local function section(title, date)
   return { title = title, date = date, items = {} }
 end
 
+---@class obsidian.agenda.PeriodSectionOpts
+---@field from integer
+---@field to integer
+---@field show_overdue? boolean
+---@field show_undated? boolean
+---@field include_empty? boolean
+
 ---@param items obsidian.agenda.Item[]
----@param opts table
+---@param opts obsidian.agenda.PeriodSectionOpts
 ---@return obsidian.agenda.Section[]
 local function build_period_sections(items, opts)
   local from, to = opts.from, opts.to
@@ -171,7 +182,7 @@ end
 ---@param base_date integer|nil
 ---@return obsidian.agenda.View
 M.week = function(items, base_date)
-  local opts = Obsidian.opts.agenda.views.week
+  local opts = (Obsidian.opts.agenda.views or {}).week or {}
   local start = dates.start_of_week(base_date or os.time(), Obsidian.opts.date.start_of_week)
   local finish = dates.add_days(start, (opts.span or 7) - 1)
   items = filter_items(items, opts.show_done)
@@ -192,7 +203,7 @@ end
 ---@param base_date integer|nil
 ---@return obsidian.agenda.View
 M.day = function(items, base_date)
-  local opts = Obsidian.opts.agenda.views.day
+  local opts = (Obsidian.opts.agenda.views or {}).day or {}
   local day = dates.start_of_day(base_date or os.time())
   items = filter_items(items, opts.show_done)
   return {
@@ -212,7 +223,7 @@ end
 ---@param items obsidian.agenda.Item[]
 ---@return obsidian.agenda.View
 M.todo = function(items)
-  local opts = Obsidian.opts.agenda.views.todo
+  local opts = (Obsidian.opts.agenda.views or {}).todo or {}
   local occs = {}
   for _, item in ipairs(filter_items(items, opts.show_done)) do
     occs[#occs + 1] = {
@@ -234,7 +245,7 @@ end
 ---@param base_date integer|nil
 ---@return obsidian.agenda.View
 M.month = function(items, base_date)
-  local opts = Obsidian.opts.agenda.views.month
+  local opts = (Obsidian.opts.agenda.views or {}).month or {}
   local start = dates.start_of_month(base_date or os.time())
   local finish = dates.add_days(start, dates.days_in_month(start) - 1)
   items = filter_items(items, opts.show_done)
@@ -255,12 +266,13 @@ end
 ---@param base_date integer|nil
 ---@return obsidian.agenda.View
 M.year = function(items, base_date)
-  local opts = Obsidian.opts.agenda.views.year
+  local opts = (Obsidian.opts.agenda.views or {}).year or {}
   local start = dates.start_of_year(base_date or os.time())
   local d = os.date("*t", start)
-  ---@cast d osdateparam
-  d.month, d.day, d.hour, d.min, d.sec = 12, 31, 12, 0, 0
-  local finish = os.time(d)
+  local finish = start
+  if type(d) == "table" then
+    finish = os.time { year = d.year, month = 12, day = 31, hour = 12, min = 0, sec = 0 }
+  end
   items = filter_items(items, opts.show_done)
   return {
     name = "year",
@@ -275,7 +287,7 @@ M.year = function(items, base_date)
   }
 end
 
----@param name string
+---@param name? obsidian.agenda.ViewName
 ---@param items obsidian.agenda.Item[]
 ---@param base_date integer|nil
 ---@return obsidian.agenda.View

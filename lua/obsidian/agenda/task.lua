@@ -13,7 +13,7 @@ local function default_path()
   if path:is_absolute() then
     return path
   end
-  return Path.new(Obsidian.dir) / file
+  return Path.new(vim.fs.joinpath(tostring(Obsidian.dir), file))
 end
 
 ---@param path string|obsidian.Path|nil
@@ -36,8 +36,8 @@ end
 ---Custom sources can set `item.path` (or `item.filename`) to override the
 ---default agenda file. If no path is present, the default agenda file is used.
 ---
----@param item obsidian.agenda.Item|table
----@param opts { default_path: string|obsidian.Path|? }|?
+---@param item obsidian.agenda.Item
+---@param opts? obsidian.agenda.ResolveOpts
 ---@return obsidian.agenda.Item
 M.resolve = function(item, opts)
   opts = opts or {}
