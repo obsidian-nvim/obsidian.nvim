@@ -147,6 +147,7 @@ end
 ---@return string? link
 ---@return obsidian.search.RefTypes? link_type
 ---@return [integer, integer]? range
+---@return boolean is_embed
 M.cursor_link = function()
   local line = vim.api.nvim_get_current_line()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
@@ -159,7 +160,7 @@ M.cursor_link = function()
     return cur_col >= open and cur_col <= close
   end)
   if match then
-    return match[4], match[3], { match[1], match[2] }
+    return match[4], match[3], { match[1], match[2] }, vim.startswith(match[4], "!")
   end
 end
 
@@ -629,6 +630,7 @@ end
 M.resolve_attachment_path = attachment.resolve_attachment_path
 M.resolve_image_path = attachment.resolve_attachment_path
 M.is_attachment_path = attachment.is_attachment_path
+M.del_attachment = attachment.del
 
 setmetatable(M, {
   __index = function(_, k)

@@ -337,6 +337,7 @@ util.parse_tags = require("obsidian.parse.tags").parse_tags
 ---@return string|? link_location
 ---@return string|? link_name
 ---@return obsidian.search.RefTypes|? link_type
+---@return boolean is_embed
 util.parse_link = function(link, opts)
   local search = require "obsidian.search"
 
@@ -353,6 +354,11 @@ util.parse_link = function(link, opts)
 
   if link_type == nil then
     return nil
+  end
+
+  local is_embed = vim.startswith(link, "!")
+  if is_embed then
+    link = link:sub(2)
   end
 
   local link_location, link_name
@@ -387,12 +393,12 @@ util.parse_link = function(link, opts)
     if vim.startswith(link_name, "#^") then
       link_name = link_name:sub(3)
     end
-    return link_location:lower(), link_name, "BlockLink" -- location is lower for lookup, name is preserved with the original case
+    return link_location:lower(), link_name, "BlockLink", is_embed -- location is lower for lookup, name is preserved with the original case
   elseif vim.startswith(link_location, "#") then
     if vim.startswith(link_name, "#") then
       link_name = link_name:sub(2)
     end
-    return link_location:lower(), link_name, "HeaderLink" -- location is lower for lookup, name is preserved with the original case
+    return link_location:lower(), link_name, "HeaderLink", is_embed -- location is lower for lookup, name is preserved with the original case
   end
 
   if opts.strip then
@@ -400,7 +406,7 @@ util.parse_link = function(link, opts)
     link_location = util.strip_block_links(link_location)
   end
 
-  return link_location, link_name, link_type
+  return link_location, link_name, link_type, is_embed
 end
 
 --- Replace references of the form '[[xxx|xxx]]', '[[xxx]]', or '[xxx](xxx)' with their title.

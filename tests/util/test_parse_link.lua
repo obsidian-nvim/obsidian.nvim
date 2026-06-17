@@ -14,6 +14,14 @@ T["should strip if specified"] = function()
   eq(location, "hi")
 end
 
+T["should parse embed links"] = function()
+  local location, name, t, is_embed = M.parse_link "![[image.png]]"
+  eq(location, "image.png")
+  eq(name, "image.png")
+  eq(t, "Wiki")
+  eq(is_embed, true)
+end
+
 T["header link"] = new_set()
 
 T["header link"]["should find in wiki link"] = function()

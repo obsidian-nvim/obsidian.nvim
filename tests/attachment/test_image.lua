@@ -77,6 +77,41 @@ T["add"]["relative attachment folders should resolve against target buffer"] = f
   eq(1, vim.fn.filereadable(expected))
 end
 
+T["del"] = new_set()
+
+T["del"]["deletes attachments resolved against target buffer"] = function()
+  Obsidian.opts.attachments.folder = "./"
+
+  local subdir = vim.fs.joinpath(tostring(Obsidian.dir), "notes")
+  vim.fn.mkdir(subdir, "p")
+  local target = vim.fs.joinpath(subdir, "image.png")
+  vim.fn.writefile({ "image" }, target)
+
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(bufnr, vim.fs.joinpath(subdir, "note.md"))
+
+  local result = attachment.del("image.png", { bufnr = bufnr })
+
+  eq(target, result)
+  eq(0, vim.fn.filereadable(target))
+end
+
+T["del"]["deletes attachments resolved against note path"] = function()
+  Obsidian.opts.attachments.folder = "./assets"
+
+  local subdir = vim.fs.joinpath(tostring(Obsidian.dir), "notes")
+  local assets = vim.fs.joinpath(subdir, "assets")
+  vim.fn.mkdir(assets, "p")
+  local target = vim.fs.joinpath(assets, "image.png")
+  vim.fn.writefile({ "image" }, target)
+
+  local note = require("obsidian.note").from_lines({}, vim.fs.joinpath(subdir, "note.md"))
+  local result = attachment.del("image.png", { note = note })
+
+  eq(target, result)
+  eq(0, vim.fn.filereadable(target))
+end
+
 T["actions"] = new_set()
 
 T["actions"]["add_attachment should open picker for directory sources"] = function()
@@ -139,6 +174,33 @@ T["actions"]["add_attachment prompt should preserve target buffer"] = function()
 
   eq(false, captured_add.opts.insert)
   eq(bufnr, captured_add.opts.bufnr)
+end
+
+T["actions"]["delete_attachment deletes embed text and file"] = function()
+  local target = vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.folder, "image.png")
+  vim.fn.mkdir(vim.fs.dirname(target), "p")
+  vim.fn.writefile({ "image" }, target)
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "before ![[image.png]] after" })
+  vim.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  actions.delete_attachment()
+
+  eq("before  after", vim.api.nvim_get_current_line())
+  eq(0, vim.fn.filereadable(target))
+end
+
+T["code actions"] = new_set()
+
+T["code actions"]["delete_attachment only appears on attachment embeds"] = function()
+  local cond = require("obsidian.lsp.handlers._code_action").actions.delete_attachment.data.cond
+
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "![[image.png]]" })
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  eq(true, cond())
+
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "[[image.png]]" })
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  eq(false, cond())
 end
 
 return T

@@ -78,6 +78,49 @@ M.resolve_attachment_path = function(src, bufnr)
   end
 end
 
+---@param basename string
+---@return string|?
+---@return string|?
+local function clean_basename(basename)
+  basename = vim.fs.basename(vim.uri_decode(vim.trim(basename)):gsub("\\", "/"))
+  if not basename or basename == "" or basename == "." or basename == ".." then
+    return nil, "Failed to resolve attachment name"
+  end
+  return basename
+end
+
+---@param opts integer|obsidian.Note|{ bufnr: integer|?, note: obsidian.Note|? }|?
+---@return { bufnr: integer|?, note: obsidian.Note|? }
+local function normalize_context(opts)
+  if type(opts) == "number" then
+    return { bufnr = opts }
+  elseif type(opts) == "table" then
+    if opts.path then
+      return { note = opts }
+    end
+    return opts
+  end
+  return {}
+end
+
+---@param basename string
+---@param opts { bufnr: integer|?, note: obsidian.Note|? }
+---@return string
+local function resolve_attachment_path_for_context(basename, opts)
+  local Path = require "obsidian.path"
+  local attachment_folder = Obsidian.opts.attachments.folder
+  local note = opts.note
+  local bufnr = opts.bufnr or (note and note.bufnr)
+
+  ---@cast attachment_folder -nil
+  if vim.startswith(attachment_folder, ".") and note and note.path then
+    local dirname = Path.new(vim.fs.dirname(tostring(note.path)))
+    return tostring(dirname / attachment_folder / basename)
+  end
+
+  return M.resolve_attachment_path(basename, bufnr)
+end
+
 ---@param fname string
 ---@return string|?
 ---@return string|?
@@ -210,6 +253,36 @@ M.add = function(src, opts)
   end
 
   return resolved_dst
+end
+
+---@param basename string
+---@param opts integer|obsidian.Note|{ bufnr: integer|?, note: obsidian.Note|? }|?
+---@return string|? path deleted attachment path
+M.del = function(basename, opts)
+  opts = normalize_context(opts)
+  local clean, clean_err = clean_basename(basename)
+  if not clean then
+    log.err(clean_err or "Failed to resolve attachment")
+    return
+  end
+
+  local path = resolve_attachment_path_for_context(clean, opts)
+  local stat = vim.uv.fs_stat(path)
+  if not stat then
+    log.err("Attachment not found: " .. path)
+    return
+  elseif stat.type == "directory" then
+    log.err("Attachment path is a directory: " .. path)
+    return
+  end
+
+  local ok, err = pcall(vim.fs.rm, path)
+  if not ok then
+    log.err("Failed to delete attachment: " .. tostring(err))
+    return
+  end
+
+  return path
 end
 
 ---@param dst string

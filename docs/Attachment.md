@@ -1,5 +1,6 @@
 - [Save location](#save-location)
 - [Add attachment](#add-attachment)
+- [Delete attachment](#delete-attachment)
 - [Paste from clipboard path](#paste-from-clipboard-path)
 - [Open](#open)
 - [Options](#options)
@@ -39,6 +40,12 @@ Both functions accept the same `opts` table:
 ---@field insert? boolean Insert the generated attachment link after adding. Defaults to true.
 ---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
 ```
+
+## Delete attachment
+
+Use `require("obsidian.attachment").del(basename, ctx)` to delete an attachment by basename. `ctx` can be a buffer number, a note, or `{ bufnr = ..., note = ... }`; it is used when `opts.attachments.folder` is relative to the note folder.
+
+The `Delete attachment under cursor` code action is only shown on attachment embed links like `![[image.png]]` or `![alt](image.png)`. It deletes the file and removes the embed text.
 
 ## Paste from clipboard path
 

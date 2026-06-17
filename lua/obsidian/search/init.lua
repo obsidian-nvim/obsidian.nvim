@@ -32,9 +32,9 @@ M.Patterns = {
   Highlight = "==[^=]+==", -- ==text==
 
   -- References
-  WikiWithAlias = "%[%[[^][%|]+%|[^%]]+%]%]", -- [[xxx|yyy]]
-  Wiki = "%[%[[^][%|]+%]%]", -- [[xxx]]
-  Markdown = "%[[^][]+%]%([^%)]+%)", -- [yyy](xxx)
+  WikiWithAlias = "!?%[%[[^][%|]+%|[^%]]+%]%]", -- [[xxx|yyy]] or ![[xxx|yyy]]
+  Wiki = "!?%[%[[^][%|]+%]%]", -- [[xxx]] or ![[xxx]]
+  Markdown = "!?%[[^][]+%]%([^%)]+%)", -- [yyy](xxx) or ![yyy](xxx)
   BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
   Footnote = "%[%^[^%]%[%s]+%]", -- [^xxx]
 }

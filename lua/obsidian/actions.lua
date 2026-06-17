@@ -635,6 +635,30 @@ M.add_attachment = function(src, opts)
   end
 end
 
+M.delete_attachment = function()
+  local link, link_type, range, is_embed = api.cursor_link()
+  if not link or not range or not is_embed then
+    log.warn "No embed link found under cursor"
+    return
+  end
+
+  local location = util.parse_link(link, { strip = true, link_type = link_type })
+  if not location or not attachment.is_attachment_path(location) then
+    log.warn "No attachment embed found under cursor"
+    return
+  end
+
+  local bufnr = vim.api.nvim_get_current_buf()
+  local basename = vim.fs.basename(vim.uri_decode(location):gsub("\\", "/"))
+  local deleted = attachment.del(basename, { bufnr = bufnr })
+  if not deleted then
+    return
+  end
+
+  local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+  vim.api.nvim_buf_set_text(bufnr, row, range[1] - 1, row, range[2], {})
+end
+
 M.add_property = function()
   local note = assert(api.current_note(0))
 

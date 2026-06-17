@@ -1,6 +1,20 @@
 ---@type table<string, lsp.CodeAction>
 local code_actions = {}
 
+local function cursor_on_attachment_embed()
+  local api = require "obsidian.api"
+  local attachment = require "obsidian.attachment"
+  local util = require "obsidian.util"
+
+  local link, link_type, _, is_embed = api.cursor_link()
+  if not link or not is_embed then
+    return false
+  end
+
+  local location = util.parse_link(link, { strip = true, link_type = link_type })
+  return location ~= nil and attachment.is_attachment_path(location)
+end
+
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
 ---@field title string text display in code action interface
@@ -82,6 +96,11 @@ local default_actions = {
 
   add_attachment = {
     title = "Add attachment from folder, filepath or url",
+  },
+
+  delete_attachment = {
+    title = "Delete attachment under cursor",
+    cond = cursor_on_attachment_embed,
   },
 }
 

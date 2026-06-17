@@ -114,6 +114,16 @@ T["cursor_link"] = function()
   end
 end
 
+T["cursor_link should include embed marker"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "![[image.png]]" })
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  local link, t, range, is_embed = unpack(child.lua_get [[{ M.cursor_link() }]])
+  eq("![[image.png]]", link)
+  eq("Wiki", t)
+  eq({ 1, 14 }, range)
+  eq(true, is_embed)
+end
+
 T["cursor_tag"] = new_set()
 
 T["cursor_tag"]["should detect inline tags"] = function()

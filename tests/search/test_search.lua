@@ -13,6 +13,11 @@ T["find_refs"]["should find positions of all refs"] = function()
   eq({ { 1, 7, "Wiki", "[[Foo]]" }, { 9, 19, "WikiWithAlias", "[[foo|Bar]]" } }, M.find_refs(s))
 end
 
+T["find_refs"]["should include embed markers"] = function()
+  local s = "![[Foo]] ![alt](foo.png)"
+  eq({ { 1, 8, "Wiki", "![[Foo]]" }, { 10, 24, "Markdown", "![alt](foo.png)" } }, M.find_refs(s))
+end
+
 T["find_refs"]["should ignore refs within an inline code block"] = function()
   local s = "`[[Foo]]` [[foo|Bar]]"
   eq({ { 11, 21, "WikiWithAlias", "[[foo|Bar]]" } }, M.find_refs(s))
