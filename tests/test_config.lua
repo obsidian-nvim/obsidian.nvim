@@ -80,4 +80,28 @@ T["normalize"]["should validate link.format"] = function()
   eq(true, tostring(err):match "Invalid 'link.format' option" ~= nil)
 end
 
+T["normalize"]["should validate agenda.default_view"] = function()
+  local ok, err = pcall(normalize, {
+    agenda = {
+      default_view = "invalid",
+    },
+  })
+
+  eq(false, ok)
+  eq(true, tostring(err):match "Invalid 'agenda.default_view' option" ~= nil)
+end
+
+T["normalize"]["should validate agenda.ui.renderer"] = function()
+  local ok, err = pcall(normalize, {
+    agenda = {
+      ui = {
+        renderer = "invalid",
+      },
+    },
+  })
+
+  eq(false, ok)
+  eq(true, tostring(err):match "Invalid 'agenda.ui.renderer' option" ~= nil)
+end
+
 return T

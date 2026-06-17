@@ -349,6 +349,30 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     error("Invalid 'date.start_of_week' option '" .. tostring(opts.date.start_of_week) .. "' in obsidian.nvim config.")
   end
 
+  local valid_agenda_views = { "day", "week", "month", "year", "todo" }
+  if opts.agenda.default_view ~= nil and not vim.tbl_contains(valid_agenda_views, opts.agenda.default_view) then
+    error(
+      "Invalid 'agenda.default_view' option '" .. tostring(opts.agenda.default_view) .. "' in obsidian.nvim config."
+    )
+  end
+
+  local valid_agenda_renderers = { "quickfix", "buffer" }
+  if opts.agenda.ui.renderer ~= nil and not vim.tbl_contains(valid_agenda_renderers, opts.agenda.ui.renderer) then
+    error("Invalid 'agenda.ui.renderer' option '" .. tostring(opts.agenda.ui.renderer) .. "' in obsidian.nvim config.")
+  end
+
+  local valid_agenda_open_strategies = { "current", "vsplit", "hsplit" }
+  if
+    opts.agenda.ui.open_strategy ~= nil
+    and not vim.tbl_contains(valid_agenda_open_strategies, opts.agenda.ui.open_strategy)
+  then
+    error(
+      "Invalid 'agenda.ui.open_strategy' option '"
+        .. tostring(opts.agenda.ui.open_strategy)
+        .. "' in obsidian.nvim config."
+    )
+  end
+
   local valid_link_styles = { "wiki", "markdown" }
   if
     opts.link ~= nil

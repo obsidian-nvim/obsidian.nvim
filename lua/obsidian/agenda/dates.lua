@@ -8,9 +8,10 @@ local SECONDS_PER_DAY = 24 * 60 * 60
 ---@return integer
 M.start_of_day = function(t)
   local d = os.date("*t", t)
-  ---@cast d osdateparam
-  d.hour, d.min, d.sec = 12, 0, 0
-  return os.time(d)
+  if type(d) ~= "table" then
+    return t
+  end
+  return os.time { year = d.year, month = d.month, day = d.day, hour = 12, min = 0, sec = 0 }
 end
 
 ---@param t integer
@@ -69,41 +70,48 @@ end
 ---@param start_of_week integer|?
 ---@return integer
 M.start_of_week = function(t, start_of_week)
-  start_of_week = start_of_week or (Obsidian and Obsidian.opts.date and Obsidian.opts.date.start_of_week) or 1
+  local week_start = start_of_week or (Obsidian and Obsidian.opts.date and Obsidian.opts.date.start_of_week) or 1
   t = M.start_of_day(t)
   local weekday = tonumber(os.date("%w", t)) or 0
-  local delta = (weekday - start_of_week) % 7
-  return M.add_days(t, -delta)
+  local delta = (weekday - week_start) % 7
+  return M.add_days(t, -math.floor(delta))
 end
 
 ---@param t integer
 ---@return integer
 M.start_of_month = function(t)
   local d = os.date("*t", t)
-  ---@cast d osdateparam
-  d.day, d.hour, d.min, d.sec = 1, 12, 0, 0
-  return os.time(d)
+  if type(d) ~= "table" then
+    return t
+  end
+  return os.time { year = d.year, month = d.month, day = 1, hour = 12, min = 0, sec = 0 }
 end
 
 ---@param t integer
 ---@return integer
 M.start_of_year = function(t)
   local d = os.date("*t", t)
-  ---@cast d osdateparam
-  d.month, d.day, d.hour, d.min, d.sec = 1, 1, 12, 0, 0
-  return os.time(d)
+  if type(d) ~= "table" then
+    return t
+  end
+  return os.time { year = d.year, month = 1, day = 1, hour = 12, min = 0, sec = 0 }
 end
 
 ---@param t integer
 ---@return integer
 M.days_in_month = function(t)
   local d = os.date("*t", t)
-  ---@cast d osdateparam
-  d.month = d.month + 1
-  d.day = 0
-  d.hour, d.min, d.sec = 12, 0, 0
-  local last = os.time(d)
-  return tonumber(os.date("%d", last)) or 31
+  if type(d) ~= "table" then
+    return 31
+  end
+  ---@type integer
+  local year = math.floor(tonumber(d.year) or 1970)
+  ---@type integer
+  local month = math.floor(d.month + 1)
+  ---@type std.osdateparam
+  local next_month_date = { year = year, month = month, day = 1, hour = 12, min = 0, sec = 0 }
+  local next_month = os.time(next_month_date)
+  return math.floor(tonumber(os.date("%d", next_month - SECONDS_PER_DAY)) or 31)
 end
 
 ---@param a integer?

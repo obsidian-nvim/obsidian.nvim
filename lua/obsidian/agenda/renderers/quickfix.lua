@@ -30,10 +30,12 @@ local function render_text(section, occ)
 end
 
 ---@param title string
----@param items vim.quickfix.entry[]
+---@param items obsidian.agenda.QuickfixEntry[]
 ---@return integer
 local function set_qflist(title, items)
-  vim.fn.setqflist({}, "r", { title = title, items = items })
+  local what = { title = title, items = items }
+  ---@cast what any
+  vim.fn.setqflist({}, "r", what)
   vim.cmd "copen"
 
   local qf = vim.fn.getqflist { winid = 0 }
@@ -43,7 +45,7 @@ local function set_qflist(title, items)
   return vim.api.nvim_get_current_buf()
 end
 
----@param _state table
+---@param _state obsidian.agenda.RendererState
 ---@return integer
 M.loading = function(_state)
   return set_qflist("Obsidian Agenda", {
@@ -53,8 +55,9 @@ end
 
 ---@param _bufnr integer
 ---@param view obsidian.agenda.View
----@param state table
+---@param state obsidian.agenda.RendererState
 M.render = function(_bufnr, view, state)
+  ---@type obsidian.agenda.QuickfixEntry[]
   local items = {}
 
   for _, section in ipairs(view.sections) do

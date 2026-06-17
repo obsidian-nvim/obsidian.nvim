@@ -21,7 +21,7 @@ local function valid_view(name)
   return name == "day" or name == "week" or name == "month" or name == "year" or name == "todo" or name == nil
 end
 
----@param opts { view: string|?, date: integer|?, bufnr: integer|? }|?
+---@param opts? obsidian.agenda.OpenOpts
 ---@return integer bufnr
 M.open = function(opts)
   opts = opts or {}
@@ -34,10 +34,12 @@ M.open = function(opts)
   local ui = Obsidian.opts.agenda.ui or {}
   local renderer_name = ui.renderer or "quickfix"
   local ok_renderer, renderer = pcall(require, "obsidian.agenda.renderers." .. renderer_name)
+  ---@cast renderer obsidian.agenda.Renderer
   if not ok_renderer then
     log.err("Unknown agenda renderer: " .. tostring(renderer_name))
     return 0
   end
+  ---@type obsidian.agenda.RendererState
   local state = {
     view_name = view_name,
     base_date = opts.date or os.time(),
@@ -59,7 +61,7 @@ M.open = function(opts)
         return
       end
       if err then
-        renderer.error(bufnr, tostring(err), state)
+        log.err(tostring(err))
         return
       end
 
@@ -68,6 +70,7 @@ M.open = function(opts)
         log.err(tostring(view_or_err))
         return
       end
+      ---@cast view_or_err obsidian.agenda.View
       renderer.render(bufnr, view_or_err, state)
     end)
   end)
@@ -78,8 +81,9 @@ M.open = function(opts)
 end
 
 ---@param args string[]
----@return string?, integer?
+---@return obsidian.agenda.ViewName?, integer?
 M.parse_args = function(args)
+  ---@type string|nil
   local view_name = args[1]
   local date_arg = args[2]
 
@@ -96,6 +100,7 @@ M.parse_args = function(args)
     end
   end
 
+  ---@cast view_name obsidian.agenda.ViewName|nil
   return view_name, date
 end
 

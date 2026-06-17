@@ -13,9 +13,11 @@ local function parse_tags(text)
 end
 
 ---@param body string
----@return string?
+---@return obsidian.agenda.Priority?
 local function parse_priority(body)
-  return body:match "%[#([ABC])%]"
+  local priority = body:match "%[#([ABC])%]"
+  ---@cast priority obsidian.agenda.Priority|nil
+  return priority
 end
 
 ---@param body string
@@ -53,7 +55,7 @@ local function clean_title(body)
 end
 
 ---@param line string
----@param opts { path: string|?, lnum: integer|?, source: string|? }|?
+---@param opts? obsidian.agenda.ParseOpts
 ---@return obsidian.agenda.Item?
 M.parse_line = function(line, opts)
   opts = opts or {}
@@ -65,10 +67,12 @@ M.parse_line = function(line, opts)
 
   ---@cast marker string
   ---@cast rest string
+  ---@type obsidian.agenda.ItemStatus
   local status = (marker == "x" or marker == "X") and "done" or "todo"
   local date, due, scheduled, done = parse_dates(rest)
-  local checkbox_col = line:find("%[" .. vim.pesc(marker) .. "%]", 1) or end_pos
+  local checkbox_col = assert(line:find("%[" .. vim.pesc(marker) .. "%]", 1) or end_pos)
 
+  ---@type obsidian.agenda.Item
   local item = {
     id = table.concat({ opts.path or "", tostring(opts.lnum or 0), rest }, ":"),
     title = clean_title(rest),
@@ -93,7 +97,7 @@ M.parse_line = function(line, opts)
 end
 
 ---@param lines string[]
----@param opts { path: string|?, source: string|? }|?
+---@param opts? obsidian.agenda.ParseOpts
 ---@return obsidian.agenda.Item[]
 M.parse_lines = function(lines, opts)
   opts = opts or {}
@@ -112,7 +116,7 @@ M.parse_lines = function(lines, opts)
 end
 
 ---@param path string|obsidian.Path
----@param opts { source: string|? }|?
+---@param opts? obsidian.agenda.ParseOpts
 ---@return obsidian.agenda.Item[]
 M.parse_file = function(path, opts)
   opts = opts or {}

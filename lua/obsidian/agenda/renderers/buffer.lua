@@ -6,6 +6,7 @@ local Path = require "obsidian.path"
 local M = {}
 
 local BUF_NAME = "Obsidian Agenda"
+---@type table<integer, obsidian.agenda.RendererState>
 local state_by_buf = {}
 
 ---@param item obsidian.agenda.Item
@@ -58,13 +59,13 @@ local function render_occurrence(occ)
 end
 
 ---@param bufnr integer
----@return table
+---@return obsidian.agenda.RendererState
 local function get_state(bufnr)
   return state_by_buf[bufnr] or vim.b[bufnr].obsidian_agenda_state or {}
 end
 
 ---@param bufnr integer
----@param state table
+---@param state obsidian.agenda.RendererState
 local function set_state(bufnr, state)
   state_by_buf[bufnr] = state
   vim.b[bufnr].obsidian_agenda_state = state
@@ -101,21 +102,29 @@ local function shift_period(amount)
     base = dates.add_days(base, amount * 7)
   elseif view == "month" then
     local d = os.date("*t", base)
-    ---@cast d osdateparam
-    d.month = d.month + amount
-    d.day, d.hour, d.min, d.sec = 1, 12, 0, 0
-    base = os.time(d)
+    if type(d) == "table" then
+      ---@type integer
+      local year = math.floor(tonumber(d.year) or 1970)
+      ---@type integer
+      local month = math.floor(d.month + amount)
+      ---@type std.osdateparam
+      local next_month = { year = year, month = month, day = 1, hour = 12, min = 0, sec = 0 }
+      base = os.time(next_month)
+    end
   elseif view == "year" then
     local d = os.date("*t", base)
-    ---@cast d osdateparam
-    d.year = d.year + amount
-    d.month, d.day, d.hour, d.min, d.sec = 1, 1, 12, 0, 0
-    base = os.time(d)
+    if type(d) == "table" then
+      ---@type integer
+      local year = math.floor((tonumber(d.year) or 1970) + amount)
+      ---@type std.osdateparam
+      local next_year = { year = year, month = 1, day = 1, hour = 12, min = 0, sec = 0 }
+      base = os.time(next_year)
+    end
   end
   require("obsidian.agenda").open { view = view, date = base, bufnr = bufnr }
 end
 
----@param view string
+---@param view obsidian.agenda.ViewName
 local function switch_view(view)
   local bufnr = vim.api.nvim_get_current_buf()
   local state = get_state(bufnr)
@@ -162,10 +171,10 @@ local function toggle_file_item(item)
   if not ok or not lines[item.lnum] then
     return false
   end
-  local line = lines[item.lnum]
+  local line = assert(lines[item.lnum])
   local new_marker = item.status == "done" and " " or "x"
   local changed = false
-  line = line:gsub("^(%s*[-*+] %)[.%](.*)$", function(prefix, rest)
+  line = line:gsub("^(%s*[-*+] )%[.%](.*)$", function(prefix, rest)
     changed = true
     return prefix .. "[" .. new_marker .. "]" .. rest
   end, 1)
@@ -198,7 +207,7 @@ end
 
 ---@param bufnr integer
 local function install_mappings(bufnr)
-  local mappings = Obsidian.opts.agenda.ui.mappings
+  local mappings = (Obsidian.opts.agenda.ui or {}).mappings or {}
   map(bufnr, mappings.open, M.open_item, "open agenda item")
   map(bufnr, mappings.toggle, M.toggle_item, "toggle agenda item")
   map(bufnr, mappings.refresh, refresh, "refresh agenda")
@@ -229,7 +238,7 @@ local function install_mappings(bufnr)
   end, "close agenda")
 end
 
----@param opts table
+---@param opts? obsidian.agenda.RendererState
 ---@return integer
 M.ensure_buffer = function(opts)
   if opts and opts.bufnr and vim.api.nvim_buf_is_valid(opts.bufnr) then
@@ -238,7 +247,7 @@ M.ensure_buffer = function(opts)
 
   for _, existing in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_valid(existing) and vim.api.nvim_buf_get_name(existing):match(vim.pesc(BUF_NAME) .. "$") then
-      local open_strategy = Obsidian.opts.agenda.ui.open_strategy or "current"
+      local open_strategy = (Obsidian.opts.agenda.ui or {}).open_strategy or "current"
       if open_strategy == "vsplit" then
         vim.cmd "vsplit"
       elseif open_strategy == "hsplit" then
@@ -256,7 +265,7 @@ M.ensure_buffer = function(opts)
   vim.bo[bufnr].swapfile = false
   vim.bo[bufnr].filetype = "obsidian-agenda"
 
-  local open_strategy = Obsidian.opts.agenda.ui.open_strategy or "current"
+  local open_strategy = (Obsidian.opts.agenda.ui or {}).open_strategy or "current"
   if open_strategy == "vsplit" then
     vim.cmd "vsplit"
   elseif open_strategy == "hsplit" then
@@ -268,7 +277,7 @@ M.ensure_buffer = function(opts)
   return bufnr
 end
 
----@param state table
+---@param state obsidian.agenda.RendererState
 ---@return integer
 M.loading = function(state)
   local bufnr = M.ensure_buffer(state)
@@ -279,7 +288,7 @@ end
 
 ---@param bufnr integer
 ---@param view obsidian.agenda.View
----@param state table
+---@param state obsidian.agenda.RendererState
 M.render = function(bufnr, view, state)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return

@@ -140,26 +140,46 @@ return {
     start_of_week = 1,
   },
 
+  ---@alias obsidian.config.AgendaRenderer "quickfix"|"buffer"
+  ---@alias obsidian.config.AgendaOpenStrategy "current"|"vsplit"|"hsplit"
+
   ---@class obsidian.config.AgendaViewOpts
-  ---@field show_done? boolean
-  ---@field show_overdue? boolean
-  ---@field show_undated? boolean
-  ---@field span? integer
+  ---@field show_done? boolean Show completed tasks in this view.
+  ---@field show_overdue? boolean Show incomplete overdue tasks.
+  ---@field show_undated? boolean Show tasks without agenda dates.
+  ---@field span? integer Number of days shown by the week view.
+
+  ---@class obsidian.config.AgendaMappings
+  ---@field open? string
+  ---@field toggle? string
+  ---@field refresh? string
+  ---@field next? string
+  ---@field prev? string
+  ---@field today? string
+  ---@field day? string
+  ---@field week? string
+  ---@field month? string
+  ---@field year? string
+  ---@field todo? string
+  ---@field quit? string
+
+  ---@class obsidian.config.AgendaUIOpts
+  ---@field renderer? obsidian.config.AgendaRenderer
+  ---@field open_strategy? obsidian.config.AgendaOpenStrategy
+  ---@field mappings? obsidian.config.AgendaMappings
 
   ---@class obsidian.config.AgendaOpts
   ---@field enabled? boolean
   ---@field file? string Agenda file, relative to vault root unless absolute.
-  ---@field default_view? "day"|"week"|"month"|"year"|"todo"
-  ---@field get_items? fun(ctx: obsidian.agenda.SourceContext, done: fun(items: obsidian.agenda.Item[]|nil, err: string|nil)): obsidian.agenda.Item[]|any
-  ---@field date_format? string
-  ---@field views? table<string, obsidian.config.AgendaViewOpts>
-  ---@field ui? { renderer?: "quickfix"|"buffer", open_strategy?: string, mappings?: table }
+  ---@field default_view? obsidian.agenda.ViewName
+  ---@field get_items? obsidian.agenda.Source
+  ---@field views? table<obsidian.agenda.ViewName, obsidian.config.AgendaViewOpts>
+  ---@field ui? obsidian.config.AgendaUIOpts
   agenda = {
     enabled = true,
     file = "agenda.md",
     default_view = "week",
     get_items = nil,
-    date_format = "YYYY-MM-DD",
     views = {
       day = {
         show_done = false,

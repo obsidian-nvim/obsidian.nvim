@@ -37,14 +37,8 @@ M.default_file = function()
   if path:is_absolute() then
     return path
   end
-  return Path.new(Obsidian.dir) / file
+  return Path.new(vim.fs.joinpath(tostring(Obsidian.dir), file))
 end
-
----@class obsidian.agenda.SourceContext
----@field parse_lines fun(lines: string[], opts: table|?): obsidian.agenda.Item[]
----@field parse_markdown_file fun(path: string|obsidian.Path, opts: table|?): obsidian.agenda.Item[]
----@field default_file fun(): obsidian.Path
----@field task { resolve: fun(item: obsidian.agenda.Item|table, opts: table|?): obsidian.agenda.Item }
 
 ---@return obsidian.agenda.SourceContext
 M.context = function()
@@ -56,16 +50,15 @@ M.context = function()
   }
 end
 
----@param done fun(items: obsidian.agenda.Item[]|nil, err: string|nil)
----@return any handle
+---@param done obsidian.agenda.SourceDone
 local function collect_default(done)
-  return vim.schedule(function()
+  vim.schedule(function()
     local items = parser.parse_file(M.default_file())
     done(M.normalize_items(items), nil)
   end)
 end
 
----@param done fun(items: obsidian.agenda.Item[]|nil, err: string|nil)
+---@param done obsidian.agenda.SourceDone
 ---@return any handle
 M.collect = function(done)
   local get_items = Obsidian.opts.agenda.get_items
