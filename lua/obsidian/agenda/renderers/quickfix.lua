@@ -81,14 +81,4 @@ M.render = function(_bufnr, view, state)
   set_qflist(view.title, items)
 end
 
----@param _bufnr integer
----@param message string
----@param _state table
-M.error = function(_bufnr, message, _state)
-  set_qflist("Obsidian Agenda", {
-    { text = "Agenda error:", valid = 0 },
-    { text = message, valid = 0 },
-  })
-end
-
 return M

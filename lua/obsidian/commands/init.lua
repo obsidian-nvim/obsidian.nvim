@@ -1,7 +1,10 @@
 local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
 
-local M = { commands = {} }
+local M = {
+  ---@type table<string, obsidian.CommandConfig>
+  commands = {},
+}
 
 local function in_note()
   return vim.bo.filetype == "markdown"
@@ -92,7 +95,7 @@ function M.show_menu(data)
 end
 
 ---@class obsidian.CommandConfig
----@field complete function|string|?
+---@field complete function|string|table?
 ---@field nargs string|integer|?
 ---@field range boolean|?
 ---@field func fun(data: obsidian.CommandArgs)?
@@ -161,6 +164,9 @@ M.get_completions = function(arg_lead, cmdline, cursor_pos)
   local obspat = "^['<,'>]*Obsidian[!]?"
   local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
   local obsidiancmd = splitcmd[2]
+  if not obsidiancmd then
+    return
+  end
   local is_visual = vim.startswith(cmdline, "'<,'>")
   local cmds = get_commands_by_context(M.commands, is_visual, in_note())
   if cmdline:match(obspat .. "%s$") then
@@ -179,6 +185,11 @@ M.get_completions = function(arg_lead, cmdline, cursor_pos)
     local complete_type = type(cmdconfig.complete)
     if complete_type == "function" then
       return cmdconfig.complete(arg_lead, cmdline, cursor_pos)
+    end
+    if complete_type == "table" then
+      return vim.tbl_filter(function(s)
+        return vim.startswith(s, arg_lead)
+      end, cmdconfig.complete)
     end
     if complete_type == "string" then
       local cmd_arg = table.concat(vim.list_slice(splitcmd, 3), " ")
@@ -257,9 +268,7 @@ M.register("dailies", { nargs = "*" })
 
 M.register("agenda", {
   nargs = "*",
-  complete = function(arg_lead)
-    return require("obsidian.agenda").complete(arg_lead)
-  end,
+  complete = { "day", "week", "month", "year", "todo" },
 })
 
 M.register("new", { nargs = "*" })
@@ -272,15 +281,9 @@ M.register("search", { nargs = "?" })
 
 M.register("sync", {
   nargs = "?",
-  complete = function(arg)
-    local choices = vim.tbl_map(function(action)
-      return action.name
-    end, require("obsidian.sync")._actions)
-
-    return vim.tbl_filter(function(s)
-      return vim.startswith(s, arg)
-    end, choices)
-  end,
+  complete = vim.tbl_map(function(action)
+    return action.name
+  end, require("obsidian.sync")._actions),
 })
 
 M.register("new_from_template", { nargs = "*" })

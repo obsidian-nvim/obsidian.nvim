@@ -309,15 +309,4 @@ M.render = function(bufnr, view, state)
   set_lines(bufnr, lines)
 end
 
----@param bufnr integer
----@param message string
----@param state table
-M.error = function(bufnr, message, state)
-  if not vim.api.nvim_buf_is_valid(bufnr) then
-    return
-  end
-  set_state(bufnr, state)
-  set_lines(bufnr, { "Agenda error:", "", message })
-end
-
 return M
