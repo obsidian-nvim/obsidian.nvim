@@ -3,12 +3,16 @@ local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local util = require "obsidian.util"
 local log = require "obsidian.log"
+local attachment = require "obsidian.attachment"
 
 ---@param path? string|obsidian.Path
-local function open_in_app(path)
+---@param opts { fragment: string|?, location: string|?, params: table<string, string>|?, query: string|? }|?
+local function open_in_app(path, opts)
+  opts = opts or {}
   local vault_name = vim.fs.basename(tostring(Obsidian.workspace.root))
+  local open = Obsidian.opts.open.func or vim.ui.open
   if not path then
-    return Obsidian.opts.open.func("obsidian://open?vault=" .. vim.uri_encode(vault_name))
+    return open("obsidian://open?vault=" .. vim.uri_encode(vault_name), opts)
   end
   path = tostring(path)
   local this_os = api.get_os()
@@ -29,7 +33,11 @@ local function open_in_app(path)
     uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
   end
 
-  Obsidian.opts.open.func(uri)
+  if opts.fragment and opts.fragment ~= "" then
+    uri = uri .. "#" .. opts.fragment
+  end
+
+  open(uri, opts)
 end
 
 ---@param data obsidian.CommandArgs
@@ -42,11 +50,30 @@ return function(data)
   else
     local link_string, _ = api.cursor_link()
     if link_string then
-      search_term = util.parse_link(link_string, { strip = true }) -- TODO: jump to exact anchor/block
+      local link_location = util.parse_link(link_string)
+      if link_location and api.is_attachment_path(link_location) then
+        search_term = link_location
+      else
+        search_term = util.parse_link(link_string, { strip = true }) -- TODO: jump to exact anchor/block
+      end
     end
   end
 
   if search_term and vim.trim(search_term) ~= "" then
+    if api.is_attachment_path(search_term) then
+      local target = attachment.parse_link_target(search_term)
+      local path = Path.new(api.resolve_attachment_path(search_term)):vault_relative_path()
+      if not path then
+        return log.err "Attachment is not inside the current vault"
+      end
+      return open_in_app(path, {
+        fragment = target.fragment,
+        location = search_term,
+        params = target.params,
+        query = target.query,
+      })
+    end
+
     search.resolve_note_async(search_term, function(notes)
       if vim.tbl_isempty(notes) then
         return log.err "Note under cursor is not resolved"

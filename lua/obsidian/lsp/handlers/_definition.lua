@@ -4,6 +4,7 @@ local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
 local actions = require "obsidian.actions"
+local attachment = require "obsidian.attachment"
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
@@ -121,7 +122,14 @@ end
 
 local function open_attachment(location)
   local path = api.resolve_attachment_path(location)
-  vim.ui.open(path)
+  local target = attachment.parse_link_target(location)
+  local open = Obsidian.opts.open.func or vim.ui.open
+  open(path, {
+    fragment = target.fragment,
+    location = location,
+    params = target.params,
+    query = target.query,
+  })
 end
 
 handlers.Wiki = function(location, callback, opts)

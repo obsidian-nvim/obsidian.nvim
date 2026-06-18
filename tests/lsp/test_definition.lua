@@ -101,7 +101,7 @@ local function test_ft(ext)
   })
 
   child.lua [[
-  vim.ui.open = function(uri)
+  Obsidian.opts.open.func = function(uri)
     _G.uri = uri
   end
   ]]
@@ -118,6 +118,30 @@ T["open attachment"] = function()
       test_ft(ft)
     end
   end
+end
+
+T["open pdf attachment with params"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = [==[
+
+[[target.pdf#page=1&selection=4,0,4,11|target, page 1]]
+]==],
+  })
+
+  child.lua [[
+  Obsidian.opts.open.func = function(uri, opts)
+    _G.uri = uri
+    _G.open_opts = opts
+  end
+  ]]
+
+  child.cmd("edit " .. files["referencer.md"])
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  child.lua "vim.lsp.buf.definition()"
+  fs_eq(tostring(child.Obsidian.dir / "attachments" / "target.pdf"), child.lua_get "uri")
+  eq("page=1&selection=4,0,4,11", child.lua_get "open_opts.fragment")
+  eq("1", child.lua_get "open_opts.params.page")
+  eq("4,0,4,11", child.lua_get "open_opts.params.selection")
 end
 
 T["follow uris"] = function()

@@ -15,6 +15,17 @@ T["img_text_func"] = function()
   eq("![](test%20file.png)", builtin.img_text_func(mock_file))
 end
 
+T["parse_link_target"] = new_set()
+
+T["parse_link_target"]["preserves pdf page and selection params"] = function()
+  local target = attachment.parse_link_target "paper.pdf#page=3&selection=4,0,4,11"
+  eq("paper.pdf", target.path)
+  eq("page=3&selection=4,0,4,11", target.fragment)
+  eq("3", target.params.page)
+  eq("4,0,4,11", target.params.selection)
+  eq(true, attachment.is_attachment_path "paper.pdf#page=3&selection=4,0,4,11")
+end
+
 T["format_link"] = new_set()
 
 T["format_link"]["markdown links should URL-encode basename"] = function()

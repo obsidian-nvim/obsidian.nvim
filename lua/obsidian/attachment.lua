@@ -39,11 +39,62 @@ local filetypes = {
 
 M.filetypes = filetypes
 
+---@param s string|?
+---@return table<string, string>
+local function parse_params(s)
+  local params = {}
+  if not s then
+    return params
+  end
+
+  for part in s:gmatch "[^&]+" do
+    local key, value = part:match "^([^=]+)=?(.*)$"
+    if key and key ~= "" then
+      params[vim.uri_decode(key)] = vim.uri_decode(value or "")
+    end
+  end
+
+  return params
+end
+
+---Parse Obsidian-style attachment link params.
+---
+---For example, `file.pdf#page=1&selection=4,0,4,11` returns `path = "file.pdf"`,
+---`fragment = "page=1&selection=4,0,4,11"`, and params with `page` and `selection`.
+---
+---@param src string
+---@return { path: string, query: string|?, fragment: string|?, params: table<string, string> }
+M.parse_link_target = function(src)
+  local path = src
+  local query
+  local fragment
+
+  local fragment_start = path:find("#", 1, true)
+  if fragment_start then
+    fragment = path:sub(fragment_start + 1)
+    path = path:sub(1, fragment_start - 1)
+  end
+
+  local query_start = path:find("?", 1, true)
+  if query_start then
+    query = path:sub(query_start + 1)
+    path = path:sub(1, query_start - 1)
+  end
+
+  local params = parse_params(query)
+  for key, value in pairs(parse_params(fragment)) do
+    params[key] = value
+  end
+
+  return { path = path, query = query, fragment = fragment, params = params }
+end
+
 ---Checks if a given string represents a valid attachment based on its suffix.
 ---
 ---@param location string
 ---@return boolean
 M.is_attachment_path = function(location)
+  location = M.parse_link_target(location).path
   if vim.endswith(location, ".md") then
     return false
   end
@@ -63,6 +114,8 @@ end
 M.resolve_attachment_path = function(src, bufnr)
   local Path = require "obsidian.path"
   local attachment_folder = Obsidian.opts.attachments.folder
+
+  src = M.parse_link_target(src).path
 
   if vim.startswith(src, "file:/") then
     return vim.uri_to_fname(src)
