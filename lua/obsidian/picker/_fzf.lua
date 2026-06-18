@@ -129,7 +129,7 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or api.open_note
+  local callback = opts.callback or api.open_note
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -142,7 +142,7 @@ M.find_files = function(opts)
     prompt = format_prompt(opts.prompt_title),
     show_details = true,
     actions = get_selection_actions({
-      callback = opts.callback,
+      callback = callback,
       no_default_mappings = opts.no_default_mappings,
       selection_mappings = opts.selection_mappings,
       query_mappings = opts.query_mappings,
@@ -189,7 +189,7 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  opts.callback = opts.callback or api.open_note
+  local callback = opts.callback or api.open_note
 
   ---@type table<string, any>
   local display_to_value_map = {}
@@ -241,7 +241,7 @@ M.pick = function(values, opts)
       ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
     ),
     actions = get_value_actions(display_to_value_map, {
-      callback = opts.callback,
+      callback = callback,
       allow_multiple = opts.allow_multiple,
       selection_mappings = opts.selection_mappings,
     }),
