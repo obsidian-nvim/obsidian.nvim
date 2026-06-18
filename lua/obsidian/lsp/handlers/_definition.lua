@@ -103,11 +103,10 @@ local function open_note(location, callback, opts)
     elseif #notes == 1 then
       callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
     elseif #notes > 1 then
-      local locations = require "obsidian.iter"(notes)
-        :map(function(note)
-          return note:_location { block = block_link, anchor = anchor_link }
-        end)
-        :totable()
+      local locations = {}
+      for _, note in ipairs(notes) do
+        locations[#locations + 1] = note:_location { block = block_link, anchor = anchor_link }
+      end
       callback(locations)
     end
   end, {

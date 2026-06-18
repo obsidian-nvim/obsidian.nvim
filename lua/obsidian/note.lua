@@ -13,7 +13,6 @@ local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local text_insertion = require "obsidian.util.text_insertion"
-local iter = require "obsidian.iter"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
@@ -343,11 +342,10 @@ Note.create = function(opts)
   opts = opts or {}
   local new_id, path, title = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
-  if opts.should_write then
+  if rawget(opts, "should_write") then
     log.warn "`should_write` in Note.create is removed, call note:write instead"
   end
 
-  --- @type string[]
   local aliases = opts.aliases
   local note = Note.new(new_id, aliases, opts.tags, path, title)
   note.template = opts.template
@@ -659,7 +657,7 @@ Note.from_buffer = function(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local path = vim.api.nvim_buf_get_name(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local note = Note.from_lines(iter(lines), path, opts)
+  local note = Note.from_lines(lines, path, opts)
   note.bufnr = bufnr
 
   ---@type obsidian.Note
@@ -685,7 +683,8 @@ end
 
 --- Initialize a note from an iterator of lines.
 ---
----@param lines string[] | fun(): string|? | Iter
+--- TODO: use vim.Iter here once the minimum Neovim runtime exposes that type.
+---@param lines any
 ---@param path string|obsidian.Path|?
 ---@param opts obsidian.note.LoadOpts|?
 ---
@@ -704,7 +703,21 @@ Note.from_lines = function(lines, path, opts)
   local has_frontmatter, in_frontmatter = false, false
   local at_boundary
   local frontmatter_end_line = nil
-  for line_idx, line in iter(lines):enumerate() do
+  local line_idx = 0
+  local next_line
+  if type(lines) == "table" and vim.islist(lines) then
+    next_line = function()
+      line_idx = line_idx + 1
+      return lines[line_idx]
+    end
+  else
+    next_line = function()
+      line_idx = line_idx + 1
+      return lines()
+    end
+  end
+
+  for line in next_line do
     line = util.rstrip_whitespace(line)
 
     if line_idx == 1 and Note._is_frontmatter_boundary(line) then
@@ -998,7 +1011,9 @@ Note.save = function(self, opts)
 
     existing_frontmatter = {}
     local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
-    for idx, line in iter(io.lines(tostring(self.path))):enumerate() do
+    local idx = 0
+    for line in io.lines(tostring(self.path)) do
+      idx = idx + 1
       if idx == 1 and Note._is_frontmatter_boundary(line) then
         at_boundary = true
         in_frontmatter = true
@@ -1349,7 +1364,17 @@ Note.insert_text = function(self, text, opts)
         text_idx = text_idx + insert_idx + #insert_top
         local top_lines = vim.list_slice(lines, 1, insert_idx - 1)
         local bot_lines = vim.list_slice(lines, insert_idx, #lines)
-        return iter({ top_lines, insert_top, text, insert_bot, bot_lines }):flatten():totable()
+        local out = {}
+        for _, group in ipairs { top_lines, insert_top, text, insert_bot, bot_lines } do
+          if type(group) == "table" then
+            for _, line in ipairs(group) do
+              out[#out + 1] = line
+            end
+          else
+            out[#out + 1] = group
+          end
+        end
+        return out
       end
     end,
   }))
@@ -1469,17 +1494,12 @@ end
 --- Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
 ---@field placement? "top"|"bot"
 
----@alias obsidian.note.insert_text.SectionChoice
---- Selects the "preamble" (i.e., all of the lines above the first heading in the note).
----|(nil     | [ nil,     nil     ] | { header: nil,    level: nil     })
---- Selects the first section with the given `header`, regardless of its `level`.
---- When `on_section_missing == "create"`, then `level` will default to `2`.
----|(string  | [ string,  nil     ] | { header: string, level: nil     })
---- Selects the first section with the given `level`, regardless of its `header`.
---- When `on_section_missing == "create"`, then `header` will default to `Untitled`.
----|(integer | [ nil,     integer ] | { header: nil,    level: integer })
---- Selects the first section with BOTH the given `header` and the given `level`.
----|(          [ string,  integer ] | { header: string, level: integer })
+--- Selects a section by preamble, header, level, or both.
+--- - `nil`, `{ header = nil, level = nil }`, or `{ nil, nil }`: preamble.
+--- - `string`, `{ header = string }`, or `{ string, nil }`: first matching header.
+--- - `integer`, `{ level = integer }`, or `{ nil, integer }`: first matching level.
+--- - `{ header = string, level = integer }` or `{ string, integer }`: first matching pair.
+---@alias obsidian.note.insert_text.SectionChoice nil|string|integer|[string?, integer?]|{header: string?, level: integer?}
 
 ---@alias obsidian.note.insert_text.OnSectionMissing
 ---| "create" Create the missing section where text will be inserted under.

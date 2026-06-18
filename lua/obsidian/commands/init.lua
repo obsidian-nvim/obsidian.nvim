@@ -12,61 +12,41 @@ end
 ---@param is_note boolean
 ---@return string[]
 local function get_commands_by_context(commands, is_visual, is_note)
-  local choices = vim.tbl_values(commands)
-  return require "obsidian.iter"(choices)
-    :filter(function(config)
-      if is_visual then
-        return config.range ~= nil
-      else
-        return config.range == nil
-      end
-    end)
-    :filter(function(config)
-      if is_note then
-        return true
-      else
-        return not config.note_action
-      end
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.templates.enabled then
-        return config.name ~= "template" and config.name ~= "new_from_template"
-      end
-      return true
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.checkbox.enabled then
-        return config.name ~= "toggle_checkbox"
-      end
-      return true
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.daily_notes.enabled then
-        return config.name ~= "dailies"
-          and config.name ~= "today"
-          and config.name ~= "tomorrow"
-          and config.name ~= "yesterday"
-      end
-      return true
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.unique_note.enabled then
-        return config.name ~= "unique_note"
-      end
-      return true
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.sync.enabled then
-        return config.name ~= "sync"
-      end
-      return true
-    end)
-    :map(function(config)
-      return config.name
-    end)
-    :totable()
+  local choices = {}
+  for _, config in ipairs(vim.tbl_values(commands)) do
+    local include = true
+    if is_visual then
+      include = config.range ~= nil
+    else
+      include = config.range == nil
+    end
+    if include and not is_note then
+      include = not config.note_action
+    end
+    if include and not Obsidian.opts.templates.enabled then
+      include = config.name ~= "template" and config.name ~= "new_from_template"
+    end
+    if include and not Obsidian.opts.checkbox.enabled then
+      include = config.name ~= "toggle_checkbox"
+    end
+    if include and not Obsidian.opts.daily_notes.enabled then
+      include = config.name ~= "dailies"
+        and config.name ~= "today"
+        and config.name ~= "tomorrow"
+        and config.name ~= "yesterday"
+    end
+    if include and not Obsidian.opts.unique_note.enabled then
+      include = config.name ~= "unique_note"
+    end
+    if include and not Obsidian.opts.sync.enabled then
+      include = config.name ~= "sync"
+    end
+    if include then
+      choices[#choices + 1] = config.name
+    end
+  end
+  return choices
 end
-
 function M.show_menu(data)
   local is_visual, is_note = data.range ~= 0, in_note()
   local choices = get_commands_by_context(M.commands, is_visual, is_note)

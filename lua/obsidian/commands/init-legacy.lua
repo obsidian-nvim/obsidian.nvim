@@ -1,6 +1,5 @@
 local util = require "obsidian.util"
 local search = require "obsidian.search"
-local iter = require "obsidian.iter"
 
 local command_lookups = {
   ObsidianCheck = "obsidian.commands.check",
@@ -111,8 +110,11 @@ M.complete_args_search = function(_, cmd_line, _)
 
   local completions = {}
   local query_lower = string.lower(query)
-  for note in iter(search.find_notes(query, {})) do
-    local note_path = assert(note.path:vault_relative_path { strict = true })
+  for _, note in ipairs(search.find_notes(query, {})) do
+    local path = note.path
+    ---@cast path -nil
+    local note_path = path:vault_relative_path { strict = true }
+    ---@cast note_path -nil
     if string.find(string.lower(note:display_name()), query_lower, 1, true) then
       table.insert(completions, note:display_name() .. "  " .. tostring(note_path))
     else

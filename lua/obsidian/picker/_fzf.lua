@@ -193,9 +193,13 @@ M.pick = function(values, opts)
 
   ---@type table<string, any>
   local display_to_value_map = {}
-  local file_preview = require "obsidian.iter"(values):any(function(v)
-    return type(v) == "table" and v.filename ~= nil
-  end)
+  local file_preview = false
+  for _, value in ipairs(values) do
+    if type(value) == "table" and value.filename ~= nil then
+      file_preview = true
+      break
+    end
+  end
 
   ---@type string[]
   local entries = {}

@@ -59,9 +59,9 @@ return function(data)
       end
       local note = notes[1]
       ---@cast note -nil
-      local path = note.path
-      ---@cast path -nil
-      open_in_app(path:vault_relative_path())
+      local note_path = note.path
+      ---@cast note_path -nil
+      open_in_app(note_path:vault_relative_path())
     end)
   else
     -- Otherwise use the pathk of the current buffer.

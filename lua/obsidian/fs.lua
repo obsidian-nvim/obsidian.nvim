@@ -18,7 +18,7 @@ end
 --- Return a iter like `vim.fs.dir` but on a dir of notes.
 ---
 ---@param dir string | obsidian.Path
----@return Iter
+---@return any
 M.dir = function(dir)
   dir = tostring(dir)
   local parser = parse_gitignore(dir)
@@ -41,17 +41,17 @@ M.dir = function(dir)
     end,
   }
 
-  return require "obsidian.iter"(vim.fs.dir(dir, dir_opts))
-    :filter(function(path)
+  return coroutine.wrap(function()
+    for path in vim.fs.dir(dir, dir_opts) do
       local is_markdown = vim.endswith(path, ".md") or vim.endswith(path, ".qmd") or vim.endswith(path, ".base")
       local not_gitignored = not is_gitignored(path)
       local not_dot = not vim.startswith(path, ".")
       local not_ignored = not ignore.is_ignored(path)
-      return is_markdown and not_gitignored and not_dot and not_ignored
-    end)
-    :map(function(path)
-      return vim.fs.joinpath(dir, path)
-    end)
+      if is_markdown and not_gitignored and not_dot and not_ignored then
+        coroutine.yield(vim.fs.joinpath(dir, path))
+      end
+    end
+  end)
 end
 
 return M

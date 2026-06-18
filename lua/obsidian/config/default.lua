@@ -47,9 +47,13 @@ return {
   ---@field template string|?
   note = {
     template = (function()
-      local root = require "obsidian.iter"(vim.api.nvim_list_runtime_paths()):find(function(path)
-        return vim.endswith(path, "obsidian.nvim")
-      end)
+      local root
+      for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
+        if vim.endswith(path, "obsidian.nvim") then
+          root = path
+          break
+        end
+      end
       if not root then
         return nil
       end

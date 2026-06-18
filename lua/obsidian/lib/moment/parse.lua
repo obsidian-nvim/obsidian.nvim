@@ -509,7 +509,7 @@ end
 ----------------------------------------------------
 
 -- Default values for unspecified fields
----@type osdateparam
+---@type std.osdate
 local DEFAULTS = {
   year = CURRENT_YEAR,
   month = 1,
@@ -522,7 +522,7 @@ local DEFAULTS = {
 
 ---@param input string
 ---@param fmt string
----@return osdateparam|nil, string|nil
+---@return std.osdate|nil, string|nil
 return function(input, fmt)
   if not input or input == "" then
     return nil, "Empty input"

@@ -7,10 +7,11 @@ local log = require "obsidian.log"
 local M = {}
 
 local function get_plugin_root()
-  local root = require "obsidian.iter"(vim.api.nvim_list_runtime_paths()):find(function(path)
-    return vim.endswith(path, "obsidian.nvim")
-  end)
-  return root
+  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
+    if vim.endswith(path, "obsidian.nvim") then
+      return path
+    end
+  end
 end
 
 ---@return string?

@@ -292,7 +292,11 @@ end
 ---
 ---@return obsidian.Path[]
 Path.parents = function(self)
-  return require "obsidian.iter"(vim.fs.parents(self.filename)):map(Path.new):totable()
+  local parents = {}
+  for parent in vim.fs.parents(self.filename) do
+    parents[#parents + 1] = Path.new(parent)
+  end
+  return parents
 end
 
 --- Check if the path is a parent of other. This is a pure path method, so it only checks by

@@ -253,8 +253,9 @@ Parser._try_parse_field = function(self, lines, i, text)
     -- Check for multi-line string here.
     local next_line = lines[j]
     if type(value) == "string" and next_line ~= nil and next_line.indent > line.indent then
-      local next_indent = next_line.indent
-      while next_line ~= nil and next_line.indent == next_indent do
+      local continuation_indent = next_line.indent
+      ---@diagnostic disable-next-line: preferred-local-alias
+      while next_line ~= nil and next_line.indent == continuation_indent do
         local next_value_str = yaml_util.strip_comments(next_line.content)
         if string.len(next_value_str) > 0 then
           local next_value = self:_parse_inline_value(j, next_line.content)
@@ -314,12 +315,13 @@ Parser._try_parse_block_string = function(self, lines, i, text)
     if next_line == nil then
       error(self:_error_msg("expected another line", i, text))
     end
-    local item_indent = next_line.indent
+    local block_indent = next_line.indent
     while j <= #lines do
       next_line = lines[j]
-      if next_line ~= nil and next_line.indent >= item_indent then
+      ---@diagnostic disable-next-line: preferred-local-alias
+      if next_line ~= nil and next_line.indent >= block_indent then
         j = j + 1
-        table.insert(block_lines, util.lstrip_whitespace(next_line.raw_content, item_indent))
+        table.insert(block_lines, util.lstrip_whitespace(next_line.raw_content, block_indent))
       else
         break
       end
@@ -436,16 +438,14 @@ Parser._parse_inline_value = function(self, i, text)
     return str, YamlType.Scalar
   end
 
-  for parse_func_and_type in
-    require "obsidian.iter" {
-      { self._parse_number, YamlType.Scalar },
-      { self._parse_null, YamlType.Scalar },
-      { self._parse_boolean, YamlType.Scalar },
-      { self._parse_inline_array, YamlType.Array },
-      { self._parse_inline_mapping, YamlType.Mapping },
-      { self._parse_string, YamlType.Scalar },
-    }
-  do
+  for _, parse_func_and_type in ipairs {
+    { self._parse_number, YamlType.Scalar },
+    { self._parse_null, YamlType.Scalar },
+    { self._parse_boolean, YamlType.Scalar },
+    { self._parse_inline_array, YamlType.Array },
+    { self._parse_inline_mapping, YamlType.Mapping },
+    { self._parse_string, YamlType.Scalar },
+  } do
     local parse_func, parse_type = unpack(parse_func_and_type)
     local ok, errmsg, res = parse_func(self, i, text)
     if ok then
