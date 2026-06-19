@@ -125,13 +125,29 @@ local function rename_one(old_path, new_path)
   schedule_flush()
 end
 
+---@param ev table
+---@return string?
+local function event_path(ev)
+  if ev.path then
+    return ev.path
+  elseif ev.uri then
+    return vim.uri_to_fname(ev.uri)
+  end
+end
+
 ---@param events table[]
 local function on_events(events)
+  local FileChangeType = vim.lsp.protocol.FileChangeType
   for _, ev in ipairs(events) do
-    if ev.type == "created" or ev.type == "changed" then
-      reindex_one(ev.path)
-    elseif ev.type == "deleted" then
-      remove_one(ev.path)
+    local path = event_path(ev)
+    if ev.type == "created" or ev.type == "changed" or ev.type == FileChangeType.Created or ev.type == FileChangeType.Changed then
+      if path then
+        reindex_one(path)
+      end
+    elseif ev.type == "deleted" or ev.type == FileChangeType.Deleted then
+      if path then
+        remove_one(path)
+      end
     elseif ev.type == "renamed" then
       rename_one(ev.old_path, ev.new_path)
     end

@@ -112,6 +112,31 @@ T["cache backends"]["stores compact rows"] = function()
   eq(nil, row.tasks)
 end
 
+T["cache backends"]["handles raw LSP watched-file events"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local note_path = tostring(dir / "Fresh.md")
+  helpers.write("# Fresh", note_path)
+  require("obsidian.lsp.handlers.did_change_watched_files") {
+    changes = {
+      {
+        uri = vim.uri_from_fname(note_path),
+        type = vim.lsp.protocol.FileChangeType.Created,
+      },
+    },
+  }
+
+  eq(true, cache.notes.find(note_path) ~= nil)
+end
+
 T["cache backends"]["rename lifecycle uses store operations only"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
