@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Checkbox auto-continuation: pressing `<CR>` in Insert mode at the end of a checkbox line or `o` in Normal mode now automatically creates a new unchecked checkbox `- [ ]` on the next line. Empty checkbox lines are cleared instead (standard markdown list behavior). Mappings are registered automatically when `opts.checkbox.enabled` is true.
+
 - LSP folding support, see `:Obsidian help Folding`.
 - Sync supports creating remote with end to end encryption password.
 - Navigating to an anchor or block link now briefly highlights the full referenced section, like the Obsidian app. The highlight group is `ObsidianBlink` (defaults to `Visual`) and the duration is controlled by `vim.g.obsidian_blink_duration` (ms, defaults to 500).
