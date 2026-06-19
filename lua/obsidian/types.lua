@@ -47,6 +47,7 @@
 ---@field open? obsidian.config.OpenOpts
 ---@field checkbox? obsidian.config.CheckboxOpts
 ---@field comment? obsidian.config.CommentOpts
+---@field outline? obsidian.config.OutlineOpts
 ---@field search? obsidian.config.SearchOpts
 ---@field note? obsidian.config.NoteOpts
 ---@field link? obsidian.config.LinkOpts
@@ -78,6 +79,7 @@
 ---@field open obsidian.config.OpenOpts
 ---@field checkbox obsidian.config.CheckboxOpts
 ---@field comment obsidian.config.CommentOpts
+---@field outline obsidian.config.OutlineOpts
 ---@field search obsidian.config.SearchOpts
 ---@field note obsidian.config.NoteOpts
 ---@field link obsidian.config.LinkOpts

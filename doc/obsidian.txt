@@ -54,6 +54,9 @@ Keymaps ~
     to set this up.
 - `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in
   the buffer.
+- `outline_continue`, when `opts.outline.enabled = true`, binds insert `<CR>`
+  and normal `o`/`O` to continue Markdown unordered, ordered, and checkbox list
+  items.
 
 For other available actions and remapping default ones, see Keymaps {11}
 

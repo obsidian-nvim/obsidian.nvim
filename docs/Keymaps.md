@@ -63,6 +63,8 @@ The plugin provides the following remappable functions:
   - If cursor is on a heading, cycle the fold of that heading
 - `nav_link ["next"|"prev"]`
   - Will navigate cursor to next valid link in the buffer
+- `outline_continue ["above"|"below"] ["i"|"n"]`
+  - Continue Markdown unordered, ordered, and checkbox list items. The default `<CR>`, `o`, and `O` mappings are only set when `opts.outline.enabled = true`.
 - `set_checkbox [state]`
   - If cursor is on a checkbox, set the state to the parameter given
   - If cursor is on a checkbox and no parameter was given, set the state to the next input

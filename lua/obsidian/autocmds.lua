@@ -63,6 +63,20 @@ local function bufenter_callback(ev)
     vim.keymap.set("n", "[o", function()
       api.nav_link "prev"
     end, { buffer = true, desc = "Obsidian Previous Link" })
+
+    if opts.outline.enabled then
+      vim.keymap.set("i", "<CR>", function()
+        api.outline_continue("below", "i")
+      end, { buffer = true, desc = "Obsidian Outline Continue" })
+
+      vim.keymap.set("n", "o", function()
+        api.outline_continue("below", "n")
+      end, { buffer = true, desc = "Obsidian Outline Continue Below" })
+
+      vim.keymap.set("n", "O", function()
+        api.outline_continue("above", "n")
+      end, { buffer = true, desc = "Obsidian Outline Continue Above" })
+    end
   end
 
   require("obsidian.lsp").start(ev.buf)

@@ -300,6 +300,12 @@ M.set_checkbox = function(state)
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
+---@param direction obsidian.outline.Direction?
+---@param mode obsidian.outline.Mode?
+M.outline_continue = function(direction, mode)
+  require("obsidian.outline").continue(direction, mode)
+end
+
 --- Calculate the byte position after a UTF-8 character at the given byte position.
 --- This is needed because visual selection cecol points to the start byte of the last
 --- selected character, but we need the position after the full character.

@@ -67,6 +67,7 @@ The original project has not been actively maintained for quite a while and with
   - If cursor is on a checkbox, toggle the checkbox, see [Checkbox.create_new](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Checkbox#create-new).
   - If cursor is on a heading, cycle the fold of that heading, see [Folding](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Folding) to set this up.
 - `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in the buffer.
+- `outline_continue`, when `opts.outline.enabled = true`, binds insert `<CR>` and normal `o`/`O` to continue Markdown unordered, ordered, and checkbox list items.
 
 For other available actions and remapping default ones, see [Keymaps](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps)
 

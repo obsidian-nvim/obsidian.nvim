@@ -428,6 +428,12 @@ return {
     enabled = false,
   },
 
+  ---@class obsidian.config.OutlineOpts
+  ---@field enabled? boolean Enable opt-in Markdown list continuation mappings for `<CR>`, `o`, and `O`.
+  outline = {
+    enabled = false,
+  },
+
   ---@class obsidian.config.SlidesOpts
   ---@field enabled? boolean
   slides = {
