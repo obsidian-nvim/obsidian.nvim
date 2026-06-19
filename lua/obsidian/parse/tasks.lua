@@ -1,4 +1,4 @@
-local Range = require "obsidian.range"
+local list_items = require "obsidian.parse.list_items"
 
 local M = {}
 
@@ -13,32 +13,20 @@ local M = {}
 ---@param opts obsidian.parse.LineOpts?
 ---@return obsidian.parse.Task[]
 function M.extract(line, opts)
-  opts = opts or {}
-  local row = opts.row or 0
-  ---@cast row integer
-
-  local indent, marker, state, text = line:match "^(%s*)([-%*%+]) %[(.)%] (.*)$"
-  if not state then
-    indent, marker, state, text = line:match "^(%s*)(%d+[%.%)]) %[(.)%] (.*)$"
-  end
-
-  if not state then
+  local item = list_items.parse(line, opts)
+  if not item or not item.checkbox_state then
     return {}
   end
-  ---@cast indent string
-  ---@cast marker string
-  ---@cast state string
-  ---@cast text string
 
   ---@type obsidian.parse.Task
   local task = {
     kind = "task",
     raw = line,
-    range = Range.new(row, 0, row, #line),
-    indent = #indent,
-    marker = marker,
-    state = state,
-    text = text,
+    range = item.range,
+    indent = item.indent,
+    marker = item.marker,
+    state = item.checkbox_state,
+    text = item.text,
   }
 
   return { task }
