@@ -3,6 +3,7 @@ local M = {}
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
+local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
 
 --- Pick from a list of items.
@@ -123,6 +124,9 @@ end
 ---
 M.find_files = function(opts)
   opts = opts or {}
+  if Picker.find_files_from_cache(opts) then
+    return
+  end
 
   local query
   if opts.query and vim.trim(opts.query) ~= "" then

@@ -106,6 +106,9 @@ local M = {}
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
+  if Picker.find_files_from_cache(opts) then
+    return
+  end
   local callback = opts.callback or api.open_note
 
   ---@type obsidian.Path
@@ -200,7 +203,7 @@ M.pick = function(values, opts)
       text = display,
       file = value.filename,
       value = value.user_data,
-      pos = value.lnum and { value.lnum, value.col and value.col - 1 or 0 }, -- from (1, 1) to (1, 0)
+      pos = value.lnum and { value.lnum, value.col and value.col or 0 },
       end_pos = value.end_lnum and { value.end_lnum, value.end_col and value.end_col - 1 or 0 },
       dir = value.filename and Path.new(value.filename):is_dir() or false,
     })

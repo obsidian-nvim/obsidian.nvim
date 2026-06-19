@@ -1,4 +1,5 @@
 local api = require "obsidian.api"
+local cache = require "obsidian.cache"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
@@ -87,6 +88,82 @@ end
 ------------------------------------------------------------------
 --- Concrete methods with a default implementation subclasses. ---
 ------------------------------------------------------------------
+
+---@param path string
+---@param root string
+---@return boolean
+local function is_subpath(path, root)
+  path = vim.fs.normalize(path)
+  root = vim.fs.normalize(root):gsub("/+$", "")
+  return path == root or vim.startswith(path, root .. "/")
+end
+
+---@param opts obsidian.PickerFindOpts|?
+---@return boolean handled
+M.find_files_from_cache = function(opts)
+  opts = opts or {}
+  if not cache.is_enabled() or opts.include_non_markdown then
+    return false
+  end
+
+  local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(Obsidian.dir))
+  if not is_subpath(dir, tostring(Obsidian.dir)) then
+    return false
+  end
+
+  cache.when_ready(function()
+    ---@type obsidian.PickerEntry[]
+    local entries = {}
+    for path, note in pairs(cache.notes.all()) do
+      if is_subpath(path, dir) then
+        local rel_path = cache.notes.rel_path(path)
+        entries[#entries + 1] = {
+          display = rel_path,
+          ordinal = rel_path,
+          filename = path,
+          lnum = 1,
+          col = 0,
+        }
+        for _, alias in ipairs(note.aliases or {}) do
+          local display = rel_path .. " | " .. alias
+          entries[#entries + 1] = {
+            display = display,
+            ordinal = rel_path .. " " .. alias,
+            filename = path,
+            lnum = 1,
+            col = 0,
+          }
+        end
+      end
+    end
+
+    table.sort(entries, function(a, b)
+      return (a.display or "") < (b.display or "")
+    end)
+
+    M.pick(entries, {
+      prompt_title = opts.prompt_title,
+      query = opts.query,
+      query_mappings = opts.query_mappings,
+      selection_mappings = opts.selection_mappings,
+      format_item = function(item)
+        return item.display or item.filename or ""
+      end,
+      callback = function(item)
+        local path = item.filename
+        if not path then
+          return
+        elseif opts.callback then
+          opts.callback(path)
+        else
+          api.open_note(path)
+        end
+      end,
+    })
+  end)
+
+  return true
+end
 
 --- Find notes by filename.
 ---
