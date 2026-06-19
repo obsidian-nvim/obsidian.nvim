@@ -5,7 +5,6 @@ local M = {}
 local handlers = {}
 
 ---@param handler fun(events: lsp.FileEvent[], raw_changes: lsp.FileEvent[])
-
 ---@return fun()
 M.register_handler = function(handler)
   handlers[#handlers + 1] = handler
