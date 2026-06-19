@@ -5,16 +5,17 @@ local cache = require "obsidian.cache"
 ---@return table[]
 local function build_items()
   local items = {}
-  for _, note in pairs(cache.notes.all()) do
+  for path, note in pairs(cache.notes.all()) do
+    local rel_path = cache.notes.rel_path(path)
     items[#items + 1] = {
-      label = note.rel_path,
-      path = note.path,
+      label = rel_path,
+      path = path,
       kind = "path",
     }
     for _, alias in ipairs(note.aliases or {}) do
       items[#items + 1] = {
-        label = note.rel_path .. " | " .. alias,
-        path = note.path,
+        label = rel_path .. " | " .. alias,
+        path = path,
         kind = "alias",
       }
     end

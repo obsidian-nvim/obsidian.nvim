@@ -4,10 +4,10 @@ local cache = require "obsidian.cache"
 ---@return table<string, string[]>
 local function collect()
   local idx = {}
-  for _, note in pairs(cache.notes.all()) do
+  for path, note in pairs(cache.notes.all()) do
     for _, t in ipairs(note.tags or {}) do
       idx[t] = idx[t] or {}
-      idx[t][#idx[t] + 1] = note.path
+      idx[t][#idx[t] + 1] = path
     end
   end
   return idx
@@ -48,9 +48,7 @@ local function paths_for_tags(idx, tags)
     end
   end
   table.sort(out, function(a, b)
-    local na = cache.notes.find(a)
-    local nb = cache.notes.find(b)
-    return (na and na.rel_path or a) < (nb and nb.rel_path or b)
+    return cache.notes.rel_path(a) < cache.notes.rel_path(b)
   end)
   return out
 end
@@ -63,9 +61,8 @@ local function pick_note(paths, tag_label)
   end
   local items = {}
   for _, p in ipairs(paths) do
-    local n = cache.notes.find(p)
     items[#items + 1] = {
-      label = n and n.rel_path or p,
+      label = cache.notes.rel_path(p),
       path = p,
     }
   end

@@ -226,7 +226,6 @@ end
 
 ---@class obsidian.cache.SetupOpts
 ---@field enabled? boolean
----@field path? string  cache file path (relative to vault or absolute)
 ---@field backend? string
 
 ---@param opts obsidian.cache.SetupOpts
@@ -236,11 +235,10 @@ function M.setup(opts)
     return
   end
 
-  local vault = tostring(Obsidian.dir)
-  local cache_path = opts.path or ".cache.json"
-  if not vim.startswith(cache_path, "/") then
-    cache_path = vault .. "/" .. cache_path
-  end
+  local vault = vim.fs.normalize(tostring(Obsidian.dir))
+  local cache_dir = vim.fs.joinpath(vim.fn.stdpath "cache", "obsidian.nvim")
+  vim.fn.mkdir(cache_dir, "p")
+  local cache_path = vim.fs.joinpath(cache_dir, vim.fn.sha256(vault):sub(1, 16) .. ".json")
 
   local backend_name = opts.backend or "json"
   local backend_impl = M.get_backend(backend_name)
@@ -341,6 +339,23 @@ function M.notes.count()
     n = n + 1
   end
   return n
+end
+
+---@param path string
+---@return string
+function M.notes.rel_path(path)
+  assert(state, "cache not initialized")
+  local root = state.vault:gsub("/+$", "")
+  if vim.startswith(path, root .. "/") then
+    return path:sub(#root + 2)
+  end
+  return path
+end
+
+---@param path string
+---@return string
+function M.notes.basename(path)
+  return vim.fn.fnamemodify(path, ":t:r")
 end
 
 ---@param row table  must include `path`

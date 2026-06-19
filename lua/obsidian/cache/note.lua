@@ -115,39 +115,11 @@ local function match_task(line)
   return nil, nil, nil
 end
 
-local function path_ext(p)
-  return vim.fn.fnamemodify(p, ":e")
-end
-
-local function path_basename(p)
-  return vim.fn.fnamemodify(p, ":t:r")
-end
-
-local function path_name(p)
-  return vim.fn.fnamemodify(p, ":t")
-end
-
----@param abs_path string
----@param vault_root string
----@return string rel_path, string folder
-local function rel_and_folder(abs_path, vault_root)
-  local root = vault_root:gsub("/+$", "")
-  local rel = abs_path
-  if vim.startswith(abs_path, root .. "/") then
-    rel = abs_path:sub(#root + 2)
-  end
-  local folder = vim.fs.dirname(rel)
-  if folder == "." or folder == rel then
-    folder = ""
-  end
-  return rel, folder
-end
-
 ---Convert obsidian.Note + stat → CacheNote row.
 ---@param abs_path string
----@param vault_root string
+---@param _vault_root string
 ---@return table? row
-function M.build(abs_path, vault_root)
+function M.build(abs_path, _vault_root)
   local stat = vim.uv.fs_stat(abs_path)
   if not stat or stat.type ~= "file" then
     return nil
@@ -169,24 +141,12 @@ function M.build(abs_path, vault_root)
     return nil
   end
 
-  local rel, folder = rel_and_folder(abs_path, vault_root)
-
   local properties = {}
   if note.metadata then
     for k, v in pairs(note.metadata) do
       properties[k] = v
     end
   end
-  if note.id ~= nil then
-    properties.id = note.id
-  end
-  if note.aliases and #note.aliases > 0 then
-    properties.aliases = note.aliases
-  end
-  if note.tags and #note.tags > 0 then
-    properties.tags = note.tags
-  end
-
   local tags_lower = {}
   for _, t in ipairs(note.tags or {}) do
     tags_lower[#tags_lower + 1] = t:lower()
@@ -210,34 +170,32 @@ function M.build(abs_path, vault_root)
           line = i,
           indent = indent,
           state = state,
-          done = state:lower() == "x",
           text = text,
         }
       end
     end
   end
 
-  return {
-    path = abs_path,
-    rel_path = rel,
-    name = path_name(abs_path),
-    basename = path_basename(abs_path),
-    ext = path_ext(abs_path),
-    folder = folder,
-    id = note.id,
-    title = note.title,
-    aliases = note.aliases or {},
-    tags = tags_lower,
-    tags_raw = note.tags or {},
-    properties = properties,
-    has_frontmatter = note.has_frontmatter or false,
-    frontmatter_end_line = note.frontmatter_end_line,
-    links_out = links_out,
-    tasks = tasks,
+  local row = {
     mtime = stat.mtime.sec,
-    ctime = (stat.birthtime and stat.birthtime.sec) or stat.ctime.sec,
     size = stat.size,
   }
+  if note.aliases and #note.aliases > 0 then
+    row.aliases = note.aliases
+  end
+  if #tags_lower > 0 then
+    row.tags = tags_lower
+  end
+  if next(properties) ~= nil then
+    row.properties = properties
+  end
+  if #links_out > 0 then
+    row.links_out = links_out
+  end
+  if #tasks > 0 then
+    row.tasks = tasks
+  end
+  return row
 end
 
 return M

@@ -3,16 +3,18 @@
 
 # What is Cache?
 
-Cache in `obsidian.nvim` is a JSON file, which stores information of each note, which are placed in the user's workspace.
+Cache in `obsidian.nvim` is a JSON file under Neovim's `stdpath("cache")`, which stores information for each note in the user's workspace.
 
-The information is stored as an array of `obsidian.cache.CacheNote` objects.
+The information is stored as a map keyed by absolute note path. Each value stores only data that is expensive to reparse or needed to detect changes:
 
-The object contains the following fields:
+- Aliases.
+- Lowercased tags.
+- Frontmatter properties.
+- Outgoing links.
+- Tasks.
+- Last modification time and file size.
 
-- Absolute path to the note.
-- Relative path to the workspace.
-- Aliases in the note.
-- The time of last modification in seconds.
+Path-derived fields like relative path, basename, extension, and folder are computed from the map key when needed instead of persisted. Empty collections are omitted.
 
 # How Works
 
@@ -49,9 +51,15 @@ Example of an entry: `Base/MongoDB Drop Field.md|MongoDB Unset Field|MongoDB Rem
 
 # How to Use
 
-## Add to Ignore
+## Location
 
-If you use git, syncthing, or other sync solutions, add the cache file (by default it's called `.cache.json`) to ignore (for git is `.gitignore` file) because the absolute paths can differ on each computer and for VCS the cache file can be too big and updated on each file change.
+The cache is stored outside the vault at:
+
+```text
+{stdpath("cache")}/obsidian.nvim/{sha256(vault_path):sub(1, 16)}.json
+```
+
+It is derived state and can be deleted at any time. The next startup or file change will rebuild it.
 
 ## Enable the Module
 

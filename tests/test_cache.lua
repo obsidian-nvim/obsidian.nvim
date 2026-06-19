@@ -46,7 +46,10 @@ T["cache backends"]["uses a registered backend by name"] = function()
   local cache = require "obsidian.cache"
   cache.register("custom-test", {
     open = function(opts)
-      opened = opts.vault == tostring(dir) and opts.path == tostring(dir / ".cache.json")
+      local vault = vim.fs.normalize(tostring(dir))
+      local expected_path =
+        vim.fs.joinpath(vim.fn.stdpath "cache", "obsidian.nvim", vim.fn.sha256(vault):sub(1, 16) .. ".json")
+      opened = opts.vault == vault and opts.path == expected_path
       return store
     end,
   })
@@ -78,8 +81,35 @@ T["cache backends"]["uses file ignore filters"] = function()
     return cache.is_ready()
   end)
 
-  eq(tostring(dir / "Keep.md"), cache.notes.find(tostring(dir / "Keep.md")).path)
+  eq(true, cache.notes.find(tostring(dir / "Keep.md")) ~= nil)
   eq(nil, cache.notes.find(tostring(dir / "skip" / "Skip.md")))
+end
+
+T["cache backends"]["stores compact rows"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Note.md")
+  helpers.write("---\ntags: [Foo]\n---\n# Note", note_path)
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local row = cache.notes.find(note_path)
+  eq({ "foo" }, row.tags)
+  eq(nil, row.path)
+  eq(nil, row.rel_path)
+  eq(nil, row.basename)
+  eq(nil, row.ext)
+  eq(nil, row.folder)
+  eq(nil, row.has_frontmatter)
+  eq(nil, row.frontmatter_end_line)
+  eq(nil, row.aliases)
+  eq(nil, row.links_out)
+  eq(nil, row.tasks)
 end
 
 T["cache backends"]["rename lifecycle uses store operations only"] = function()
@@ -125,7 +155,7 @@ T["cache backends"]["rename lifecycle uses store operations only"] = function()
   }
 
   eq(nil, cache.notes.find(tostring(old_path)))
-  eq(tostring(new_path), cache.notes.find(tostring(new_path)).path)
+  eq(true, cache.notes.find(tostring(new_path)) ~= nil)
 end
 
 return T

@@ -15,11 +15,11 @@ local function run(data)
     end
   elseif arg == "done" then
     filter = function(t)
-      return t.done
+      return t.state:lower() == "x"
     end
   elseif arg == "open" or arg == "todo" then
     filter = function(t)
-      return not t.done
+      return t.state:lower() ~= "x"
     end
   else
     local want = arg:sub(1, 1)
@@ -31,9 +31,7 @@ local function run(data)
   local items = {}
   local paths = vim.tbl_keys(cache.notes.all())
   table.sort(paths, function(a, b)
-    local na = cache.notes.find(a)
-    local nb = cache.notes.find(b)
-    return (na and na.rel_path or a) < (nb and nb.rel_path or b)
+    return cache.notes.rel_path(a) < cache.notes.rel_path(b)
   end)
 
   for _, path in ipairs(paths) do
@@ -42,7 +40,7 @@ local function run(data)
       for _, t in ipairs(n.tasks) do
         if filter(t) then
           items[#items + 1] = {
-            label = string.format("%s:%d  [%s] %s", n.rel_path, t.line, t.state, t.text),
+            label = string.format("%s:%d  [%s] %s", cache.notes.rel_path(path), t.line, t.state, t.text),
             path = path,
             line = t.line,
           }

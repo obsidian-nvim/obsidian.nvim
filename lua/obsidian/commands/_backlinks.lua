@@ -10,8 +10,10 @@ local function resolve(target, all)
   end
   local stripped = target:gsub("%.md$", "")
   local hits = {}
-  for path, n in pairs(all) do
-    if n.basename == stripped or n.rel_path == target or n.rel_path == stripped .. ".md" then
+  for path, _ in pairs(all) do
+    local basename = cache.notes.basename(path)
+    local rel_path = cache.notes.rel_path(path)
+    if basename == stripped or rel_path == target or rel_path == stripped .. ".md" then
       hits[#hits + 1] = path
     end
   end
@@ -64,9 +66,8 @@ local function run()
 
   local items = {}
   for _, h in ipairs(hits) do
-    local n = cache.notes.find(h.source)
     items[#items + 1] = {
-      label = string.format("%s:%d  %s", n and n.rel_path or h.source, h.link.line, h.link.raw),
+      label = string.format("%s:%d  %s", cache.notes.rel_path(h.source), h.link.line, h.link.raw),
       path = h.source,
       line = h.link.line,
     }

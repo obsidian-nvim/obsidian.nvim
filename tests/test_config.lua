@@ -35,14 +35,16 @@ T["normalize"]["should migrate preferred_link_style to link.style"] = function()
   eq(nil, opts.preferred_link_style)
 end
 
-T["normalize"]["should drop cache ignore_patterns"] = function()
+T["normalize"]["should drop removed cache options"] = function()
   local opts = normalize {
     cache = {
       ignore_patterns = { "foo" },
+      path = ".cache.json",
     },
   }
 
   eq(nil, opts.cache.ignore_patterns)
+  eq(nil, opts.cache.path)
 end
 
 T["normalize"]["should prefer explicit link.style over deprecated preferred_link_style"] = function()

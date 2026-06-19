@@ -439,11 +439,9 @@ return {
 
   ---@class obsidian.config.CacheOpts
   ---@field enabled? boolean
-  ---@field path? string  cache file path, relative to vault root or absolute
-  ---@field backend? string  Built-in: "json", "memory". Custom backends can be added with `require("obsidian.cache").register(name, backend)`.
+  ---@field backend? string Built-in: "json", "memory". Custom backends can be added with `require("obsidian.cache").register(name, backend)`.
   cache = {
     enabled = false,
-    path = ".cache.json",
     backend = "json",
   },
 }

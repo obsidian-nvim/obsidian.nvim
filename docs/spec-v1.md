@@ -12,7 +12,7 @@ Non-goals: full-text search index, content snapshots, attachment binaries.
 
 ## Storage
 
-- File: `<vault>/.cache.json` (configurable). Add to `.gitignore` / sync ignore.
+- File: `{stdpath("cache")}/obsidian.nvim/{sha256(vault_path):sub(1, 16)}.json`.
 - Format: JSON. UTF-8. One object, top-level `version` + `notes` map keyed by absolute path.
 - Schema version: `1`. Bump on breaking change; older files discarded and rebuilt.
 - Atomic write: temp file + rename.
@@ -28,35 +28,19 @@ Non-goals: full-text search index, content snapshots, attachment binaries.
 
 ## CacheNote
 
-One entry per markdown file under the vault. Field set chosen to satisfy [Bases](bases.md) `file.*` fields and filter/formula access without reparsing.
+One entry per markdown file under the vault. The JSON map key is the absolute path; path-derived fields are computed on demand instead of persisted.
 
 | Field | Type | Notes |
 |---|---|---|
-| `path` | string | Absolute path. Map key. |
-| `rel_path` | string | Vault-relative, POSIX separators. Powers Bases `file.path`, `file.inFolder`. |
-| `name` | string | Basename with extension. Bases `file.name`. |
-| `basename` | string | Basename without extension. Bases `file.basename`. |
-| `ext` | string | Extension without dot (e.g. `md`). Bases `file.ext`. |
-| `folder` | string | Parent folder vault-relative. Bases `file.folder`. |
-| `id` | string \| null | From frontmatter `id`. |
-| `title` | string \| null | Readable title (frontmatter, H1, or basename fallback). |
-| `aliases` | string[] | Frontmatter `aliases`, dedup, order preserved. Used for `asLink` display. |
-| `tags` | string[] | Frontmatter tags + inline `#tag`, **lowercased**, deduped. Nested separator `/` preserved (e.g. `proj/a`). |
-| `tags_raw` | string[] | Original-case tags for display. Same order as `tags`. |
-| `properties` | object | **Full** frontmatter map (incl. `id`/`aliases`/`tags`). Native YAML types preserved (string/number/bool/list/date/null). Bases `file.properties`, formula property access. |
-| `has_frontmatter` | bool | |
-| `frontmatter_end_line` | int \| null | 1-based line after closing `---`. |
-| `ctime` | int | Created, seconds since epoch. Bases `file.ctime`. |
-| `mtime` | int | Last modified, seconds since epoch. Bases `file.mtime`. |
-| `size` | int | File size in bytes. Bases `file.size` + cheap mismatch detector. |
-| `hash` | string \| null | Optional xxhash64 of contents; populated on parse. |
-| `anchors` | Anchor[] | Headings. |
-| `blocks` | Block[] | `^block-id` references. |
-| `links_out` | Link[] | Outgoing links (wiki + markdown). Bases `file.links`. |
+| `aliases` | string[] | Frontmatter `aliases`, dedup, order preserved. Used for quick switch / link display. |
+| `tags` | string[] | Tags, **lowercased**. Nested separator `/` preserved (e.g. `proj/a`). |
+| `properties` | object | Frontmatter map. Native YAML types preserved (string/number/bool/list/date/null). |
+| `links_out` | Link[] | Outgoing links (wiki + markdown). |
 | `tasks` | Task[] | Checkbox items. |
-| `parse_error` | string \| null | Last parse failure, if any. |
+| `mtime` | int | Last modified, seconds since epoch. Cheap mismatch detector. |
+| `size` | int | File size in bytes. Cheap mismatch detector. |
 
-`name`/`basename`/`ext`/`folder` derivable from `rel_path` but persisted for O(1) Bases queries.
+Derived from the map key when needed: absolute path, relative path, name, basename, extension, and folder. Empty collections are omitted.
 
 ### Property typing
 
@@ -106,15 +90,9 @@ Checkboxes (see [Checkbox.md](Checkbox.md)). One entry per `- [x]` style list it
 | Field | Type | Notes |
 |---|---|---|
 | `state` | string | Single char inside `[ ]`. Empty string = unchecked space. Matches `checkbox.order`. |
-| `done` | bool | True when state is `x` (case-insensitive) or any user-configured "done" state. |
 | `text` | string | Item text after the checkbox, trimmed. |
 | `line` | int | 1-based. |
 | `indent` | int | Leading spaces. |
-| `parent_line` | int \| null | Line of enclosing list item, for nesting. |
-| `section` | string \| null | Nearest preceding heading. |
-| `tags` | string[] | Inline tags within the task text. |
-| `links` | int[] | Indexes into `links_out` originating in this task. |
-| `due` | string \| null | ISO date if `📅 YYYY-MM-DD` or `due:` inline-field present. |
 
 ### Tag occurrence (optional, v1.1)
 
@@ -139,16 +117,16 @@ Mapping of Bases primitives to cache fields:
 
 | Bases | Source |
 |---|---|
-| `file.name` / `file.basename` / `file.ext` / `file.folder` / `file.path` | direct fields |
-| `file.size` / `file.ctime` / `file.mtime` | direct fields |
+| `file.name` / `file.basename` / `file.ext` / `file.folder` / `file.path` | derived from map key |
+| `file.size` / `file.mtime` | direct fields |
 | `file.properties` | `properties` (full frontmatter) |
 | `file.tags` | `tags` (lowercased, includes inline + nested) |
 | `file.links` | `links_out` |
 | `file.hasTag(...)` | `by_tag` + nested expansion |
 | `file.hasProperty(name)` | `properties[name] != null` / `by_property` |
 | `file.hasLink(other)` | scan `links_out` where `resolved && target == other.path` |
-| `file.inFolder(f)` | `rel_path` startswith `f/` (or `==` for root file in `f`) |
-| `file.asLink(display?)` | build from `basename` + first alias / `display` |
+| `file.inFolder(f)` | derived relative path startswith `f/` (or `==` for root file in `f`) |
+| `file.asLink(display?)` | build from derived basename + first alias / `display` |
 | `link.asFile()` | resolve via cache `path` lookup |
 | `link.linksTo(file)` | reverse via `backlinks` |
 
@@ -168,7 +146,7 @@ Consumers never touch JSON or SQL directly. Public module is `obsidian.cache` ex
 ```lua
 local cache = require("obsidian.cache")
 
-cache.setup { backend = "json", path = ".cache.json" }   -- or backend = "sqlite", path = ".cache.db"
+cache.setup { backend = "json" }   -- or backend = "sqlite"
 
 cache.notes      -- Repository<CacheNote>
 cache.tasks      -- Repository<Task>
@@ -253,8 +231,8 @@ Built-in backends:
 
 | Backend | Storage | Notes |
 |---|---|---|
-| `json` (default) | single `.cache.json`, atomic rename | Zero deps. Loads fully into memory. Good ≤ 10k notes. |
-| `sqlite` | `.cache.db` via `sqlite.lua` (optional dep) | Lazy scan, predicate pushdown, partial loads. For big vaults. |
+| `json` (default) | single JSON file under `stdpath("cache")`, atomic rename | Zero deps. Loads fully into memory. Good ≤ 10k notes. |
+| `sqlite` | database under `stdpath("cache")` via `sqlite.lua` (optional dep) | Lazy scan, predicate pushdown, partial loads. For big vaults. |
 | `memory` | in-process only | Tests + ephemeral sessions. |
 | custom | user-provided table | Register via `cache.register_backend("name", impl)`. |
 
@@ -264,21 +242,20 @@ Capability flags backend declares: `pushdown_filter`, `pushdown_order`, `partial
 
 ```sql
 CREATE TABLE notes (
-  path TEXT PRIMARY KEY, rel_path TEXT, name TEXT, basename TEXT, ext TEXT,
-  folder TEXT, id TEXT, title TEXT,
-  ctime INTEGER, mtime INTEGER, size INTEGER, hash TEXT,
-  properties JSON, has_frontmatter INTEGER
+  path TEXT PRIMARY KEY,
+  mtime INTEGER,
+  size INTEGER,
+  properties JSON
 );
 CREATE TABLE aliases   (path TEXT, alias TEXT, PRIMARY KEY(path, alias));
 CREATE TABLE tags      (path TEXT, tag TEXT, PRIMARY KEY(path, tag));
 CREATE TABLE links     (src TEXT, target TEXT, kind TEXT, anchor TEXT, block TEXT,
                         embed INTEGER, line INTEGER, col INTEGER, resolved INTEGER);
-CREATE TABLE tasks     (path TEXT, line INTEGER, state TEXT, done INTEGER,
-                        text TEXT, section TEXT, due TEXT, parent_line INTEGER,
-                        PRIMARY KEY(path, line));
+CREATE TABLE tasks     (path TEXT, line INTEGER, state TEXT, indent INTEGER,
+                        text TEXT, PRIMARY KEY(path, line));
 CREATE TABLE anchors   (path TEXT, anchor TEXT, header TEXT, level INTEGER, line INTEGER);
 CREATE TABLE blocks    (path TEXT, id TEXT, line INTEGER, PRIMARY KEY(path, id));
-CREATE INDEX ON tags(tag); CREATE INDEX ON links(target); CREATE INDEX ON notes(folder);
+CREATE INDEX ON tags(tag); CREATE INDEX ON links(target);
 ```
 
 JSON backend serializes the same logical tables under one root object; field names match.
@@ -302,7 +279,7 @@ Parsing reuses `obsidian.Note` loader plus a lightweight task/link extractor; no
 ## Concurrency
 
 - Multiple Neovim instances: last-writer-wins on the JSON file. Each instance keeps its own watcher (documented limitation in [Cache.md](Cache.md)).
-- Optional lock file `.cache.json.lock` with PID + mtime; stale > 60 s ignored.
+- Optional lock file next to the cache file with PID + mtime; stale > 60 s ignored.
 
 ## Migration
 
