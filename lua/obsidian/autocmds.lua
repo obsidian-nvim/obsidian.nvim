@@ -63,6 +63,18 @@ local function bufenter_callback(ev)
     vim.keymap.set("n", "[o", function()
       api.nav_link "prev"
     end, { buffer = true, desc = "Obsidian Previous Link" })
+
+    -- Checkbox auto-continuation mappings.
+    if Obsidian.opts.checkbox.enabled then
+      local actions = require "obsidian.actions"
+      vim.keymap.set("i", "<CR>", function()
+        actions.checkbox_continue "i"
+      end, { buffer = true, desc = "Obsidian Checkbox Continue" })
+
+      vim.keymap.set("n", "o", function()
+        actions.checkbox_continue "n"
+      end, { buffer = true, desc = "Obsidian Checkbox Continue" })
+    end
   end
 
   require("obsidian.lsp").start(ev.buf)

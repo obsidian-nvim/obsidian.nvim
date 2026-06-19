@@ -300,6 +300,104 @@ M.set_checkbox = function(state)
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
+--- Get checkbox continuation info for the current line.
+---
+---@param line string The current line content.
+---@param col number|nil Optional column (1-indexed) for end-of-line check. If nil, skips the check.
+---@return { clear: boolean, continuation: string|nil }|nil
+M._get_checkbox_continuation = function(line, col)
+  local prefix, rest = parse_list_prefix(line)
+  if not prefix or not rest then
+    return nil
+  end
+
+  local state, _, body = parse_checkbox_rest(rest)
+  if not state then
+    return nil
+  end
+
+  if col then
+    if col <= #line then
+      return nil
+    end
+  end
+
+  local indent = line:match "^(%s*)" or ""
+
+  if body == "" then
+    return { clear = true, continuation = nil }
+  end
+
+  return { clear = false, continuation = indent .. "- [ ] " }
+end
+
+--- Handle checkbox auto-continuation when creating a new line.
+---
+--- Triggered by pressing <CR> in Insert mode at end of line, or `o` in Normal mode.
+--- When the current line has a markdown checkbox (like `- [ ]`, `- [x]`, etc.),
+--- the new line will automatically prepend an unchecked checkbox `- [ ]`.
+--- If the current line contains only a checkbox with no text after it, the checkbox
+--- is cleared instead (standard markdown list behavior).
+---
+---@param mode "i"|"n" The mode in which the continuation was triggered.
+M.checkbox_continue = function(mode)
+  if not Obsidian.opts.checkbox.enabled then
+    if mode == "i" then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, true, true), "n", true)
+    else
+      vim.cmd "normal! o"
+    end
+    return
+  end
+
+  if no_checkbox() then
+    if mode == "i" then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, true, true), "n", true)
+    else
+      vim.cmd "normal! o"
+    end
+    return
+  end
+
+  local line = vim.api.nvim_get_current_line()
+
+  local col = nil
+  if mode == "i" then
+    col = vim.api.nvim_win_get_cursor(0)[2] + 1
+  end
+
+  local info = M._get_checkbox_continuation(line, col)
+  if not info then
+    if mode == "i" then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, true, true), "n", true)
+    else
+      vim.cmd "normal! o"
+    end
+    return
+  end
+
+  if info.clear then
+    -- Empty checkbox: clear it, then normal line break.
+    local prefix, rest = parse_list_prefix(line)
+    vim.api.nvim_set_current_line(prefix .. rest:gsub("^%[.%]%s*", ""))
+  end
+
+  if mode == "i" then
+    if info.clear then
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, true, true), "n", true)
+    else
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>" .. info.continuation, true, true, true), "n", true)
+    end
+  else
+    -- Normal mode: use 'o' to open a new line.
+    vim.cmd "normal! o"
+    if not info.clear then
+      vim.api.nvim_set_current_line(info.continuation)
+      vim.api.nvim_win_set_cursor(0, { vim.api.nvim_win_get_cursor(0)[1], #info.continuation })
+    end
+  end
+end
+
 --- Calculate the byte position after a UTF-8 character at the given byte position.
 --- This is needed because visual selection cecol points to the start byte of the last
 --- selected character, but we need the position after the full character.

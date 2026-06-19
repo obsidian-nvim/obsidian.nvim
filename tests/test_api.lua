@@ -226,4 +226,71 @@ T["open_note"]["should blink quickfix-style ranges"] = function()
   eq(true, result[3])
 end
 
+T["checkbox_continue"] = new_set()
+
+T["checkbox_continue"]["should create continuation for checkbox with body (normal mode)"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "- [x] foo" })
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua [[require("obsidian.actions").checkbox_continue("n")]]
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  eq(2, #lines)
+  eq("- [ ] ", lines[2])
+end
+
+T["checkbox_continue"]["should preserve indentation in continuation (normal mode)"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "    - [x] nested" })
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua [[require("obsidian.actions").checkbox_continue("n")]]
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  eq(2, #lines)
+  eq("    - [ ] ", lines[2])
+end
+
+T["checkbox_continue"]["should clear empty checkbox (normal mode)"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "- [ ]" })
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua [[require("obsidian.actions").checkbox_continue("n")]]
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  eq(2, #lines)
+  eq("- ", lines[1])
+  eq("", lines[2])
+end
+
+T["checkbox_continue"]["should clear empty checkbox with trailing spaces (normal mode)"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "- [x] " })
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua [[require("obsidian.actions").checkbox_continue("n")]]
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  eq(2, #lines)
+  eq("- ", lines[1])
+  eq("", lines[2])
+end
+
+T["checkbox_continue"]["should not continue for non-checkbox list items (normal mode)"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "- plain item" })
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua [[require("obsidian.actions").checkbox_continue("n")]]
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  eq(2, #lines)
+  eq("", lines[2])
+end
+
+T["checkbox_continue"]["should continue for star checkbox (normal mode)"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "* [!] task" })
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua [[require("obsidian.actions").checkbox_continue("n")]]
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  eq(2, #lines)
+  eq("- [ ] ", lines[2])
+end
+
+T["checkbox_continue"]["should continue for numbered list checkbox (normal mode)"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "1. [~] task" })
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua [[require("obsidian.actions").checkbox_continue("n")]]
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  eq(2, #lines)
+  eq("- [ ] ", lines[2])
+end
+
 return T
