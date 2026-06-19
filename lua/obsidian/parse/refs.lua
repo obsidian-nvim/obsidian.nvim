@@ -1,17 +1,15 @@
+local Range = require "obsidian.range"
 local search = require "obsidian.search"
 
 local M = {}
 
----@class obsidian.parse.Ref
+---@class obsidian.parse.Ref : obsidian.parse.Match
 ---@field kind "wiki"|"markdown"
----@field raw string
 ---@field target string
 ---@field label string?
 ---@field anchor string?
 ---@field block string?
 ---@field embed boolean
----@field line integer?
----@field col integer?
 
 ---@param target string
 ---@return string target
@@ -35,8 +33,9 @@ end
 ---Parse one wiki/markdown ref from raw match text.
 ---@param raw string Full match, including brackets and optional leading `!`.
 ---@param kind obsidian.search.RefTypes
+---@param range obsidian.Range
 ---@return obsidian.parse.Ref?
-function M.parse_ref(raw, kind)
+local function parse_ref(raw, kind, range)
   local embed = raw:sub(1, 1) == "!"
 
   if kind == "Wiki" or kind == "WikiWithAlias" then
@@ -57,6 +56,7 @@ function M.parse_ref(raw, kind)
     return {
       kind = "wiki",
       raw = raw,
+      range = range,
       target = target,
       label = label,
       anchor = anchor,
@@ -74,6 +74,7 @@ function M.parse_ref(raw, kind)
     return {
       kind = "markdown",
       raw = raw,
+      range = range,
       target = target,
       label = label,
       anchor = anchor,
@@ -87,25 +88,29 @@ end
 
 ---Extract outgoing wiki/markdown links from a single line.
 ---@param line string
----@param lnum integer? 1-based line number to attach to matches.
+---@param opts obsidian.parse.LineOpts?
 ---@return obsidian.parse.Ref[]
-function M.extract_links(line, lnum)
+function M.extract(line, opts)
+  opts = opts or {}
+  local row = opts.row or 0
+  ---@cast row integer
+
   local out = {}
   local matches = search.find_refs(line, { exclude = { "Tag", "BlockID", "Highlight" } })
   for _, m in ipairs(matches) do
     local m_start, m_end, kind = m[1], m[2], m[3]
+    ---@cast m_start integer
+    ---@cast m_end integer
     local lead = m_start - 1
+    ---@cast lead integer
     if lead >= 1 and line:sub(lead, lead) == "!" then
       m_start = lead
     end
 
     local raw = line:sub(m_start, m_end)
-    local parsed = M.parse_ref(raw, kind)
+    local range = Range.new(row, m_start - 1, row, m_end)
+    local parsed = parse_ref(raw, kind, range)
     if parsed then
-      if lnum ~= nil then
-        parsed.line = lnum
-      end
-      parsed.col = m_start
       out[#out + 1] = parsed
     end
   end

@@ -1,3 +1,4 @@
+local Range = require "obsidian.range"
 local M = require "obsidian.parse.tags"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
@@ -6,6 +7,24 @@ local T = new_set()
 T["should find positions of all tags"] = function()
   local s = "#TODO I have a #meeting at noon"
   eq({ { 1, 5 }, { 16, 23 } }, M.parse_tags(s))
+end
+
+T["extract returns tag matches"] = function()
+  local s = "#TODO I have a #meeting at noon"
+  eq({
+    {
+      kind = "tag",
+      raw = "#TODO",
+      range = Range.new(4, 0, 4, 5),
+      tag = "TODO",
+    },
+    {
+      kind = "tag",
+      raw = "#meeting",
+      range = Range.new(4, 15, 4, 23),
+      tag = "meeting",
+    },
+  }, M.extract(s, { row = 4 }))
 end
 
 T["should find four cases"] = function()

@@ -1,23 +1,47 @@
+local Range = require "obsidian.range"
+
 local M = {}
 
----@class obsidian.parse.Task
+---@class obsidian.parse.Task : obsidian.parse.Match
+---@field kind "task"
 ---@field indent integer
+---@field marker string
 ---@field state string
 ---@field text string
 
----Match `- [x] foo`, `* [ ] foo`, `+ [ ] foo`, `1. [ ] foo`, or `1) [ ] foo`.
 ---@param line string
----@return obsidian.parse.Task?
-function M.match_task(line)
-  local indent, state, text = line:match "^(%s*)[-%*%+] %[(.)%] (.*)$"
-  if state then
-    return { indent = #indent, state = state, text = text }
+---@param opts obsidian.parse.LineOpts?
+---@return obsidian.parse.Task[]
+function M.extract(line, opts)
+  opts = opts or {}
+  local row = opts.row or 0
+  ---@cast row integer
+
+  local indent, marker, state, text = line:match "^(%s*)([-%*%+]) %[(.)%] (.*)$"
+  if not state then
+    indent, marker, state, text = line:match "^(%s*)(%d+[%.%)]) %[(.)%] (.*)$"
   end
 
-  indent, state, text = line:match "^(%s*)%d+[%.%)] %[(.)%] (.*)$"
-  if state then
-    return { indent = #indent, state = state, text = text }
+  if not state then
+    return {}
   end
+  ---@cast indent string
+  ---@cast marker string
+  ---@cast state string
+  ---@cast text string
+
+  ---@type obsidian.parse.Task
+  local task = {
+    kind = "task",
+    raw = line,
+    range = Range.new(row, 0, row, #line),
+    indent = #indent,
+    marker = marker,
+    state = state,
+    text = text,
+  }
+
+  return { task }
 end
 
 return M
