@@ -8,7 +8,7 @@ local api = require "obsidian.api"
 M.insert_link = function(entry)
   local note = Note.from_file(entry.filename)
   local link = note:format_link()
-  vim.api.nvim_put({ link }, "", false, true)
+  vim.api.nvim_put({ link }, "", true, true)
   require("obsidian.ui").update(0)
 end
 
@@ -56,7 +56,7 @@ M.insert_tag = function(entry)
     log.err "Tag does not exist"
     return
   end
-  vim.api.nvim_put({ "#" .. tag }, "", false, true)
+  vim.api.nvim_put({ "#" .. tag }, "", true, true)
 end
 
 M.new_note = function(query)

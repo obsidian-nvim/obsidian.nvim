@@ -32,7 +32,13 @@ local function query_mappings(mapping, live)
     opts.actions[name] = function(picker)
       local query = live and picker.input.filter.search or picker.input.filter.pattern
       picker:close()
+      local saved_win = Picker.state.calling_win
+      local saved_cursor = Picker.state.calling_cursor
       vim.schedule(function()
+        if saved_win and vim.api.nvim_win_is_valid(saved_win) then
+          vim.api.nvim_set_current_win(saved_win)
+          vim.api.nvim_win_set_cursor(saved_win, saved_cursor)
+        end
         v.callback(query)
       end)
     end
@@ -70,6 +76,8 @@ local function notes_mappings(mapping)
       opts.win.input.keys[k] = { name, mode = { "n", "i" }, desc = v.desc }
       opts.actions[name] = function(picker, item)
         picker:close()
+        local saved_win = Picker.state.calling_win
+        local saved_cursor = Picker.state.calling_cursor
         if v.allow_multiple then
           local selected = picker:selected { fallback = true }
           ---@type obsidian.PickerEntry[]
@@ -81,6 +89,10 @@ local function notes_mappings(mapping)
             })
           end
           vim.schedule(function()
+            if saved_win and vim.api.nvim_win_is_valid(saved_win) then
+              vim.api.nvim_set_current_win(saved_win)
+              vim.api.nvim_win_set_cursor(saved_win, saved_cursor)
+            end
             ---@diagnostic disable-next-line: param-type-mismatch
             v.callback(unpack(entries))
           end)
@@ -91,6 +103,10 @@ local function notes_mappings(mapping)
             user_data = item.user_data or item.value or item.text,
           }
           vim.schedule(function()
+            if saved_win and vim.api.nvim_win_is_valid(saved_win) then
+              vim.api.nvim_set_current_win(saved_win)
+              vim.api.nvim_win_set_cursor(saved_win, saved_cursor)
+            end
             v.callback(entry)
           end)
         end
@@ -106,6 +122,8 @@ local M = {}
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
+  Picker.state.calling_win = vim.api.nvim_get_current_win()
+  Picker.state.calling_cursor = vim.api.nvim_win_get_cursor(0)
   local callback = opts.callback or api.open_note
 
   ---@type obsidian.Path
@@ -141,6 +159,8 @@ end
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)
   opts = opts or {}
+  Picker.state.calling_win = vim.api.nvim_get_current_win()
+  Picker.state.calling_cursor = vim.api.nvim_win_get_cursor(0)
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -177,6 +197,8 @@ end
 ---@param opts obsidian.PickerPickOpts|? Options.
 M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
+  Picker.state.calling_win = vim.api.nvim_get_current_win()
+  Picker.state.calling_cursor = vim.api.nvim_win_get_cursor(0)
 
   opts = opts or {}
   local callback = opts.callback or api.open_note
