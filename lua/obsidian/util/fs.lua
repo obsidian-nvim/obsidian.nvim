@@ -1,3 +1,5 @@
+local M = {}
+
 local function split_path(path)
   local parts = {}
   for part in path:gmatch "[^/]+" do
@@ -13,7 +15,7 @@ end
 ---@param base string
 ---@param target string
 ---@return string|?
-local function relpath(base, target)
+function M.relpath(base, target)
   base = vim.fs.normalize(vim.fs.abspath(base))
   target = vim.fs.normalize(vim.fs.abspath(target))
 
@@ -49,6 +51,29 @@ local function relpath(base, target)
   return #rel_parts > 0 and join_path(rel_parts) or "."
 end
 
-return {
-  relpath = relpath,
-}
+---@param path string
+---@param root string
+---@return boolean
+function M.is_subpath(path, root)
+  path = vim.fs.normalize(path):gsub("/+$", "")
+  root = vim.fs.normalize(root):gsub("/+$", "")
+  return path == root or vim.startswith(path, root .. "/")
+end
+
+---@param path string
+---@param contents string
+function M.atomic_write(path, contents)
+  local tmp = path .. ".tmp"
+  local f, err = io.open(tmp, "w")
+  if not f then
+    error("cannot open " .. tmp .. ": " .. tostring(err))
+  end
+  f:write(contents)
+  f:close()
+  local ok, rename_err = os.rename(tmp, path)
+  if not ok then
+    error("rename failed: " .. tostring(rename_err))
+  end
+end
+
+return M

@@ -1,7 +1,11 @@
 local ts, string, table = vim.treesitter, string, table
 local util = {}
 
-util.relpath = require("obsidian.util.fs").relpath
+local fs_util = require "obsidian.util.fs"
+
+util.relpath = fs_util.relpath
+util.is_subpath = fs_util.is_subpath
+util.atomic_write = fs_util.atomic_write
 
 setmetatable(util, {
   __index = function(_, k)
