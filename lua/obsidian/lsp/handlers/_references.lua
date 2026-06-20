@@ -2,6 +2,7 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
+local parse_block_id = require "obsidian.parse.block_id"
 
 ---@param match obsidian.BacklinkMatch
 ---@return lsp.Location
@@ -46,9 +47,21 @@ local function handle_note_ref(link, callback)
   local anchor_link
   location, anchor_link = util.strip_anchor_links(location)
 
-  local opts = { anchor = anchor_link, block = block_link, refs = { location } }
+  local note
+  local opts = { anchor = anchor_link, block = block_link }
+  if location == "" and (anchor_link or block_link) then
+    note = api.current_note(0, {
+      collect_anchor_links = anchor_link ~= nil,
+      collect_blocks = block_link ~= nil,
+    })
+    if not note then
+      return log.err "Current buffer does not appear to be a note inside the vault"
+    end
+  else
+    opts.refs = { location }
+  end
 
-  search.find_backlinks_async(nil, function(backlink_matches)
+  search.find_backlinks_async(note, function(backlink_matches)
     callback(vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
   end, opts)
 end
@@ -84,8 +97,13 @@ local function handle_tag(tag, callback)
   end)
 end
 
-local function collect_current_note(callback)
+local function collect_current_note(link, link_type, callback)
   local anchor
+  local block
+
+  if link and link_type == "block_id" then
+    block = link
+  end
 
   -- Check if cursor is on a header, if so and header parsing is enabled, use that anchor.
   if Obsidian.opts.backlinks.parse_headers then
@@ -97,6 +115,7 @@ local function collect_current_note(callback)
 
   local note = api.current_note(0, {
     collect_anchor_links = anchor ~= nil,
+    collect_blocks = block ~= nil,
   })
 
   if not note then
@@ -105,7 +124,7 @@ local function collect_current_note(callback)
 
   search.find_backlinks_async(note, function(backlink_matches)
     callback(nil, vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
-  end, { anchor = anchor })
+  end, { anchor = anchor, block = block })
 end
 
 local supported_link_kinds = {
@@ -123,7 +142,17 @@ local function cursor_ref(include_tag)
   local link, link_type = api.cursor_link()
   if link and link_type then
     return link, link_type
-  elseif include_tag ~= false then
+  end
+
+  local line = vim.api.nvim_get_current_line()
+  local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
+  for _, block in ipairs(parse_block_id.extract(line)) do
+    if block.range.start_col <= cur_col and cur_col < block.range.end_col then
+      return block.raw, "block_id"
+    end
+  end
+
+  if include_tag ~= false then
     local tag = api.cursor_tag()
     if tag then
       return tag, "tag"
@@ -151,6 +180,6 @@ return function(link, opts, callback)
   elseif link and link_type and supported_link_kinds[link_type] and handlers[link_type] then
     handlers[link_type](link, wrapped_callback)
   else
-    collect_current_note(callback)
+    collect_current_note(link, link_type, callback)
   end
 end

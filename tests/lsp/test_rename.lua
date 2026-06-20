@@ -18,6 +18,18 @@ local function rename(new_name)
   )
 end
 
+local function prepare_rename_placeholder()
+  return h.child_await(
+    child,
+    [[
+      require("obsidian.lsp.handlers.prepare_rename")(nil, function(_, result)
+        done(result.placeholder)
+      end)
+    ]],
+    { desc = "prepare rename" }
+  )
+end
+
 local target = "target.md"
 local ref = "ref.md"
 
@@ -114,6 +126,23 @@ T["rename note under cursor"] = function()
   local lines = vim.fn.readfile(tostring(new_target_path))
 
   eq(target_expected, table.concat(lines, "\n"))
+end
+
+T["prepare rename keeps fragment-only placeholders"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    [ref] = [==[
+
+[[#header]] [[#^block]]
+]==],
+  })
+
+  child.cmd("edit " .. files[ref])
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  eq("#header", prepare_rename_placeholder())
+
+  child.api.nvim_win_set_cursor(0, { 2, 13 })
+  eq("#^block", prepare_rename_placeholder())
 end
 
 local referencer2_expected = [==[

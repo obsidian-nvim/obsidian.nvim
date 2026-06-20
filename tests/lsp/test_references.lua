@@ -240,6 +240,56 @@ T["find anchor references under cursor"] = function()
   eq("[[#header]]", qflist[1].text)
 end
 
+T["find fragment-only anchor references only in current note"] = function()
+  local root = child.Obsidian.dir
+  local file_path = root / "file.md"
+  h.write(
+    [==[
+
+[[#header]]
+
+# header
+]==],
+    file_path
+  )
+  h.write(
+    [==[
+
+[[#other]]
+
+# other
+]==],
+    root / "other.md"
+  )
+
+  child.cmd(string.format("edit %s", file_path))
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  local qflist = get_refs()
+  eq(1, #qflist)
+  eq("[[#header]]", qflist[1].text)
+end
+
+T["find block references from inline block id under cursor"] = function()
+  local root = child.Obsidian.dir
+  local file_path = root / "file.md"
+  h.write(
+    [==[
+[[#^123]]
+
+block ^123
+
+[[file]]
+]==],
+    file_path
+  )
+
+  child.cmd(string.format("edit %s", file_path))
+  child.api.nvim_win_set_cursor(0, { 3, 7 })
+  local qflist = get_refs()
+  eq(1, #qflist)
+  eq("[[#^123]]", qflist[1].text)
+end
+
 T["find footnote references under cursor"] = function()
   local file = [==[
 some claim[^1]
