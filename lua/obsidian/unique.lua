@@ -135,6 +135,7 @@ function M.new_unique_note(timestamp, opts)
     template = Obsidian.opts.unique_note.template,
     dir = Obsidian.opts.unique_note.folder,
     verbatim = true,
+    scope = "unique",
   }
 
   opts = vim.tbl_extend("force", default, opts)

@@ -68,6 +68,7 @@ local _daily = function(datetime, opts)
       tags = options.daily_notes.default_tags or {},
       dir = path:parent(),
       template = options.daily_notes.template,
+      scope = "daily",
     }
 
     if alias then

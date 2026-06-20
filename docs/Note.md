@@ -1,4 +1,5 @@
 - [Default Note Template](#default-note-template)
+- [Creation Callback](#creation-callback)
 - [Note ID Presets](#note-id-presets)
 - [Options](#options)
 
@@ -28,6 +29,52 @@ require("obsidian").setup {
 
 For fields you have access to for the default template, see [[Template]].
 
+## Creation Callback
+
+`opts.note.callback` runs whenever `Note.create` builds a note object. The second argument currently contains `scope`, an arbitrary string inherited from the `Note.create` opts, defaulting to `"plain"`. Built-in explicit scopes are `"daily"` and `"unique"`; user code can pass any scope such as `"media"` or `"meeting"`.
+
+For example, whenever a unique note is created, prompt for a label, add it as an alias, update the note frontmatter, then add a labeled link to today's daily note under `## TIL` using the note text insertion API:
+
+```lua
+require("obsidian").setup {
+  note = {
+    callback = function(note, opts)
+      if opts.scope ~= "unique" then
+        return
+      end
+
+      local label = vim.trim(vim.fn.input "Title: ")
+      if label == "" then
+        return
+      end
+
+      note:add_alias(label)
+      note:write() -- persist the new alias/frontmatter
+
+      local link = note:format_link { label = label }
+      local daily = require("obsidian.daily").today()
+      if not daily:exists() then
+        daily = daily:write()
+      end
+
+      daily:insert_text({ "- " .. link }, {
+        section = { header = "TIL", level = 2 },
+        placement = "bot",
+      })
+    end,
+  },
+}
+```
+
+Plugins or scripts that call `Note.create` can set their own scope:
+
+```lua
+local note = require("obsidian.note").create {
+  id = "camera-roll",
+  scope = "media",
+}
+```
+
 ## Note ID Presets
 
 By default obsidian.nvim uses random zettel IDs.
@@ -56,6 +103,8 @@ When creating notes in a directory where the slug already exists, this preset ap
 ---Default template to use, relative to template.folder or an absolute path.
 ---
 ---@field template string|?
+--- Hook called by `Note.create` after the note object is built. `opts.scope` is inherited from the `Note.create` opts, defaulting to `"plain"`.
+---@field callback? fun(note: obsidian.Note, opts: obsidian.note.CreateCallbackOpts)
 note = {
   template = (function()
     local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)

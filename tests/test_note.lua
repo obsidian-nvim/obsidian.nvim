@@ -15,6 +15,21 @@ T["new"]["should be able to be initialize directly"] = function()
   eq(true, M.is_note_obj(note))
 end
 
+T["create"] = new_set()
+T["create"]["should run configured callback with default scope"] = function()
+  local calls = 0
+  Obsidian.opts.note.callback = function(note, opts)
+    calls = calls + 1
+    eq("plain", opts.scope)
+    note:add_tag "created"
+  end
+
+  local note = M.create { id = "Foo" }
+
+  eq(1, calls)
+  eq("created", note.tags[1])
+end
+
 local function from_str(str, path, opts)
   return M.from_lines(vim.iter(vim.split(str, "\n")), path, opts)
 end
