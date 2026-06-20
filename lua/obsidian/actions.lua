@@ -8,6 +8,7 @@ local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
+local list_items = require "obsidian.parse.list_items"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -131,17 +132,13 @@ end
 ---@return string|nil prefix
 ---@return string|nil rest
 local function parse_list_prefix(line)
-  local indent, bullet, spaces, rest = line:match "^(%s*)([-+*])(%s+)(.*)$"
-  if bullet then
-    return indent .. bullet .. spaces, rest
+  local item = list_items.parse(line)
+  if not item then
+    return nil, nil
   end
 
-  local indent2, num, delim, spaces2, rest2 = line:match "^(%s*)(%d+)([%.%)])(%s+)(.*)$"
-  if num then
-    return indent2 .. num .. delim .. spaces2, rest2
-  end
-
-  return nil, nil
+  local prefix, rest = line:match("^(%s*" .. vim.pesc(item.marker) .. "%s+)(.*)$")
+  return prefix, rest
 end
 
 ---@param rest string
