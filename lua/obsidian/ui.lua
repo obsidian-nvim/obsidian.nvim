@@ -4,6 +4,8 @@ local search = require "obsidian.search"
 local parse_refs = require "obsidian.parse.refs"
 local parse_block_id = require "obsidian.parse.block_id"
 local parse_tags = require "obsidian.parse.tags"
+local parse_tasks = require "obsidian.parse.tasks"
+local parse_list_items = require "obsidian.parse.list_items"
 
 ---@param t table
 local function iter(t)
@@ -211,16 +213,18 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_check_extmarks(marks, line, lnum, ui_opts)
-  for char, opts in pairs(ui_opts.checkboxes or {}) do
-    if string.match(line, "^%s*- %[" .. vim.pesc(char) .. "%]") then
-      local indent = util.count_indent(line)
+  local task = parse_tasks.extract(line)[1]
+  if task then
+    local opts = ui_opts.checkboxes[task.state]
+    if opts then
+      local end_col = task.indent + #task.marker + 4
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        indent,
+        task.indent,
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = indent + 5,
+          end_col = end_col,
           conceal = opts.char,
           hl_group = opts.hl_group,
         }
@@ -229,15 +233,15 @@ local function get_line_check_extmarks(marks, line, lnum, ui_opts)
     end
   end
 
-  if ui_opts.bullets ~= nil and string.match(line, "^%s*[-%*%+] ") then
-    local indent = util.count_indent(line)
+  local item = parse_list_items.parse(line)
+  if ui_opts.bullets ~= nil and item and item.marker_type == "bullet" and not item.checkbox_state then
     marks[#marks + 1] = ExtMark.new(
       nil,
       lnum,
-      indent,
+      item.indent,
       ExtMarkOpts.from_tbl {
         end_row = lnum,
-        end_col = indent + 1,
+        end_col = item.indent + #item.marker,
         conceal = ui_opts.bullets.char,
         hl_group = ui_opts.bullets.hl_group,
       }
