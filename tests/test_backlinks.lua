@@ -36,25 +36,20 @@ Multiple links: [[A]] [md](A.md#test) [md](A.md#test)
   )
 end
 
-T["detects all RefTypes"] = function()
+T["detects note ref kinds"] = function()
   local root = child.Obsidian.dir
   setup_vault(root)
   child.cmd("edit " .. tostring(root / "A.md"))
-  local search = require "obsidian.search"
+  local refs = require "obsidian.parse.refs"
   local found_types = {}
   for _, m in ipairs(get_backlinks "{}") do
-    local refs = search.find_refs(m.text)
-    for _, ref in ipairs(refs) do
-      local _, _, ref_type = unpack(ref)
-      local t = ref_type
-      if t then
-        found_types[t] = true
-      end
+    for _, ref in ipairs(refs.extract(m.text)) do
+      found_types[ref.kind] = true
     end
   end
-  local expected = { "Wiki", "WikiWithAlias", "Markdown" }
+  local expected = { "wiki", "markdown" }
   for _, t in ipairs(expected) do
-    eq(true, found_types[t] == true, "Expected to find reference type: " .. t)
+    eq(true, found_types[t] == true, "Expected to find reference kind: " .. t)
   end
 end
 

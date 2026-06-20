@@ -99,12 +99,12 @@ T["cursor_link"] = function()
   local link2 = "[[another/file.md|yet]]"
 
   local tests = {
-    { cur_col = 4, link = link1, t = "Markdown" },
-    { cur_col = 6, link = link1, t = "Markdown" },
-    { cur_col = 24, link = link1, t = "Markdown" },
-    { cur_col = 31, link = link2, t = "WikiWithAlias" },
-    { cur_col = 39, link = link2, t = "WikiWithAlias" },
-    { cur_col = 53, link = link2, t = "WikiWithAlias" },
+    { cur_col = 4, link = link1, t = "markdown" },
+    { cur_col = 6, link = link1, t = "markdown" },
+    { cur_col = 24, link = link1, t = "markdown" },
+    { cur_col = 31, link = link2, t = "wiki" },
+    { cur_col = 39, link = link2, t = "wiki" },
+    { cur_col = 53, link = link2, t = "wiki" },
   }
   for _, test in ipairs(tests) do
     child.api.nvim_win_set_cursor(0, { 1, test.cur_col })

@@ -103,7 +103,7 @@ M.includeexpr = function(fname)
   local location = fname
 
   if link then
-    local parsed_location = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
+    local parsed_location = util.parse_link(link)
     location = parsed_location or location
   end
 

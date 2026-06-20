@@ -5,10 +5,10 @@ local log = require "obsidian.log"
 local util = require "obsidian.util"
 local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
-local search = require "obsidian.search"
 local config = require "obsidian.config"
 local attachment = require "obsidian.attachment"
 local Range = require "obsidian.range"
+local parse_refs = require "obsidian.parse.refs"
 
 M.dir = require("obsidian.fs").dir
 
@@ -145,21 +145,19 @@ end
 ---Return the full link under cursor
 ---
 ---@return string? link
----@return obsidian.search.RefTypes? link_type
+---@return obsidian.parse.RefKind? link_type
 ---@return [integer, integer]? range
 M.cursor_link = function()
   local line = vim.api.nvim_get_current_line()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
-  cur_col = cur_col + 1 -- 0-indexed column to 1-indexed lua string position
 
-  local refs = search.find_refs(line)
-
-  local match = iter(refs):find(function(m)
-    local open, close = unpack(m)
-    return cur_col >= open and cur_col <= close
-  end)
-  if match then
-    return match[4], match[3], { match[1], match[2] }
+  for _, ref in ipairs(parse_refs.extract(line)) do
+    if ref.range.start_col <= cur_col and cur_col < ref.range.end_col then
+      local link_type = ref.kind
+      local link = ref.embed and ref.raw:sub(2) or ref.raw
+      local start_col = ref.range.start_col + (ref.embed and 2 or 1)
+      return link, link_type, { start_col, ref.range.end_col }
+    end
   end
 end
 

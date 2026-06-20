@@ -70,7 +70,6 @@ local function create_new_note(location, callback, opts)
   end
 end
 
----@type table<obsidian.search.RefTypes, function>
 local handlers = {}
 
 ---@param location string
@@ -124,7 +123,7 @@ local function open_attachment(location)
   vim.ui.open(path)
 end
 
-handlers.Wiki = function(location, callback, opts)
+handlers.wiki = function(location, callback, opts)
   if api.is_attachment_path(location) then
     open_attachment(location)
   else
@@ -132,9 +131,7 @@ handlers.Wiki = function(location, callback, opts)
   end
 end
 
-handlers.WikiWithAlias = handlers.Wiki
-
-handlers.Markdown = function(location, callback, opts)
+handlers.markdown = function(location, callback, opts)
   local is_uri, scheme = util.is_uri(location)
   if is_uri then
     open_uri(location, scheme)
@@ -145,7 +142,7 @@ handlers.Markdown = function(location, callback, opts)
   end
 end
 
-handlers.HeaderLink = function(location, callback, _)
+local function open_header_link(location, callback)
   local note = api.current_note(0, { collect_anchor_links = true })
   if not note or vim.tbl_isempty(note.anchor_links) then
     return
@@ -157,7 +154,7 @@ handlers.HeaderLink = function(location, callback, _)
   callback { note:_location { anchor = location } }
 end
 
-handlers.Footnote = function(location, callback, _)
+handlers.footnote = function(location, callback, _)
   local footnotes = require "obsidian.footnotes"
   local bufnr = vim.api.nvim_get_current_buf()
   local cursor_row = vim.api.nvim_win_get_cursor(0)[1]
@@ -192,7 +189,7 @@ handlers.Footnote = function(location, callback, _)
   }
 end
 
-handlers.BlockLink = function(location, callback, _)
+local function open_block_link(location, callback)
   local note = api.current_note(0, { collect_blocks = true })
   if not note or vim.tbl_isempty(note.blocks) then
     return
@@ -208,18 +205,12 @@ return {
   follow_link = function(link, callback, opts)
     opts = opts or {}
     -- TODO: write an alternative treesitter link parser that finds, markdown link, wiki link, image embed
-    local location, label, link_type = util.parse_link(link, { exclude = { "Tag", "BlockID" } })
-    location = vim.uri_decode(location)
-
+    local location, label, link_type = util.parse_link(link)
     if not location then
       return callback(nil, {})
     end
 
-    local handler = handlers[link_type]
-
-    if not handler then
-      return log.err("unsupported link format", link_type)
-    end
+    location = vim.uri_decode(location)
 
     local wrapped_callback = function(lsp_locations)
       if lsp_locations and vim.islist(lsp_locations) then
@@ -228,6 +219,14 @@ return {
     end
 
     opts.label = label
-    handler(location, wrapped_callback, opts)
+    if vim.startswith(location, "#^") then
+      open_block_link(location, wrapped_callback)
+    elseif vim.startswith(location, "#") then
+      open_header_link(location, wrapped_callback)
+    elseif handlers[link_type] then
+      handlers[link_type](location, wrapped_callback, opts)
+    else
+      return log.err("unsupported link format", link_type)
+    end
   end,
 }
