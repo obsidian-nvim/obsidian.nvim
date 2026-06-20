@@ -1,8 +1,14 @@
+local Range = require "obsidian.range"
+
 local lpeg = vim.lpeg
 local P, R, S = lpeg.P, lpeg.R, lpeg.S
 local C, Cp, Ct = lpeg.C, lpeg.Cp, lpeg.Ct
 
 local M = {}
+
+---@class obsidian.parse.Tag : obsidian.parse.Match
+---@field kind "tag"
+---@field tag string Tag text without leading `#`.
 
 -- Match exactly one UTF-8 codepoint (valid UTF-8 sequences).
 local utf8_char = R "\0\127" -- 1-byte (ASCII)
@@ -41,10 +47,11 @@ local one_tag = tag_at_bol + boundary
 local all_tags = Ct(((utf8_char - one_tag) ^ 0 * one_tag) ^ 0)
 
 --- Find Obsidian-style tags in a markdown line (Unicode-safe).
---- UTF-8 indices are 0-based and end-exclusive.
+--- Byte indices are 1-based and end-inclusive.
 ---
 --- @param line string
 --- @return { [1]: integer, [2]: integer }[]
+--- TODO: migrate callers to tags.extract() once parse primitives use obsidian.Range everywhere.
 M.parse_tags = function(line)
   if string.find(line, "<!--.*-->") ~= nil then
     return {}
@@ -57,8 +64,11 @@ M.parse_tags = function(line)
     return tonumber(tag) ~= nil
   end
 
+  ---@param start_byte_index integer
   local is_bound = function(start_byte_index)
-    local char_ahead = line:sub(start_byte_index - 1, start_byte_index - 1)
+    local prev_byte_index = start_byte_index - 1
+    ---@cast prev_byte_index integer
+    local char_ahead = line:sub(prev_byte_index, prev_byte_index)
     return start_byte_index == 1 or char_ahead == " "
   end
 
@@ -74,6 +84,31 @@ M.parse_tags = function(line)
         end_byte_index,
       }
     end
+  end
+
+  return out
+end
+
+---Find Obsidian-style tags in a markdown line.
+---@param line string
+---@param opts obsidian.parse.LineOpts?
+---@return obsidian.parse.Tag[]
+function M.extract(line, opts)
+  opts = opts or {}
+  local row = opts.row or 0
+  ---@cast row integer
+  local out = {}
+
+  for _, match in ipairs(M.parse_tags(line)) do
+    local start_byte_index, end_byte_index = match[1], match[2]
+    ---@cast start_byte_index integer
+    ---@cast end_byte_index integer
+    out[#out + 1] = {
+      kind = "tag",
+      raw = line:sub(start_byte_index, end_byte_index),
+      range = Range.new(row, start_byte_index - 1, row, end_byte_index),
+      tag = line:sub(start_byte_index + 1, end_byte_index),
+    }
   end
 
   return out

@@ -3,6 +3,7 @@ local log = require "obsidian.log"
 local search = require "obsidian.search"
 local parse_refs = require "obsidian.parse.refs"
 local parse_block_id = require "obsidian.parse.block_id"
+local parse_tags = require "obsidian.parse.tags"
 local iter = vim.iter
 
 local M = {}
@@ -414,8 +415,8 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
     inline_code_blocks[#inline_code_blocks + 1] = { m_start, m_end }
   end
 
-  for _, match in ipairs(util.parse_tags(line)) do
-    local m_start, m_end = unpack(match)
+  for _, tag_match in ipairs(parse_tags.extract(line)) do
+    local m_start, m_end = tag_match.range.start_col + 1, tag_match.range.end_col
     local inside_code_block = false
     for _, code_block_boundary in ipairs(inline_code_blocks) do
       if code_block_boundary[1] < m_start and m_end < code_block_boundary[2] then
