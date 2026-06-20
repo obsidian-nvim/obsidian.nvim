@@ -31,19 +31,21 @@ For fields you have access to for the default template, see [[Template]].
 
 ## Creation Callback
 
-`opts.note.callback` runs whenever `Note.create` builds a note object. The second argument currently contains `scope`, an arbitrary string inherited from the `Note.create` opts, defaulting to `"plain"`. Built-in explicit scopes are `"daily"` and `"unique"`; user code can pass any scope such as `"media"` or `"meeting"`.
+`opts.callbacks.create_note` runs whenever `Note.create` builds a note object. The second argument currently contains `scope`, an arbitrary string inherited from the `Note.create` opts, defaulting to `"plain"`. Built-in explicit scopes are `"daily"` and `"unique"`; user code can pass any scope like `"media"` or `"meeting"`.
+
+The same hook is also exposed as the `ObsidianNoteCreate` `User` autocmd. Its `ev.data` contains a note snapshot and opts: `{ note = note, opts = opts }`.
 
 For example, whenever a unique note is created, prompt for a label, add it as an alias, update the note frontmatter, then add a labeled link to today's daily note under `## TIL` using the note text insertion API:
 
 ```lua
 require("obsidian").setup {
-  note = {
-    callback = function(note, opts)
+  callbacks = {
+    create_note = function(note, opts)
       if opts.scope ~= "unique" then
         return
       end
 
-      local label = vim.trim(vim.fn.input "Title: ")
+      local label = vim.trim(vim.fn.input "Label: ")
       if label == "" then
         return
       end
@@ -69,15 +71,17 @@ require("obsidian").setup {
 Plugins or scripts that call `Note.create` can set their own scope:
 
 ```lua
+-- you can build your own action/command/keymap around this, and then script custom hooks in opt.callbacks.create_note
 local note = require("obsidian.note").create {
-  id = "camera-roll",
+  title = "The Wire",
+  template = "TV show.md"
   scope = "media",
 }
 ```
 
 ## Note ID Presets
 
-By default obsidian.nvim uses random zettel IDs.
+By default obsidian.nvim uses random zettel IDs. (**Legacy design decision, in 4.0.0 will be default to human readable input title**)
 
 If you want readable UTF-8 title-based IDs (works across scripts), use the built-in preset:
 
@@ -103,8 +107,6 @@ When creating notes in a directory where the slug already exists, this preset ap
 ---Default template to use, relative to template.folder or an absolute path.
 ---
 ---@field template string|?
---- Hook called by `Note.create` after the note object is built. `opts.scope` is inherited from the `Note.create` opts, defaulting to `"plain"`.
----@field callback? fun(note: obsidian.Note, opts: obsidian.note.CreateCallbackOpts)
 note = {
   template = (function()
     local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)

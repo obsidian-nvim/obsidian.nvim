@@ -45,8 +45,6 @@ return {
   ---Default template to use, relative to template.folder or an absolute path.
   ---
   ---@field template string|?
-  --- Hook called by `Note.create` after the note object is built. `opts.scope` is inherited from the `Note.create` opts, defaulting to `"plain"`.
-  ---@field callback? fun(note: obsidian.Note, opts: obsidian.note.CreateCallbackOpts)
   note = {
     template = (function()
       local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
@@ -366,6 +364,9 @@ return {
   ---
   ---Runs right after setup
   ---@field post_setup? fun()
+  ---
+  ---Runs when `Note.create` builds a note object. `opts.scope` is inherited from the `Note.create` opts, defaulting to `"plain"`.
+  ---@field create_note? fun(note: obsidian.Note, opts: obsidian.note.CreateCallbackOpts)
   ---
   ---Runs when entering a note buffer.
   ---@field enter_note? fun(note: obsidian.Note)
