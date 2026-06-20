@@ -2,6 +2,7 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
 local parse_refs = require "obsidian.parse.refs"
+local parse_block_id = require "obsidian.parse.block_id"
 local iter = vim.iter
 
 local M = {}
@@ -246,6 +247,14 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       }
     end
   end
+  for _, block in ipairs(parse_block_id.extract(line)) do
+    matches[#matches + 1] = {
+      block.range.start_col + 1,
+      block.range.end_col,
+      "block_id",
+    }
+  end
+
   for _, match in ipairs(matches) do
     local m_start, m_end, m_type, has_alias = unpack(match)
     if m_type == "wiki" and has_alias then
@@ -382,6 +391,19 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           end_row = lnum,
           end_col = m_end,
           conceal = is_uri and " " or "",
+        }
+      )
+    elseif m_type == "block_id" then
+      -- A block ID, like '^hello-world'
+      marks[#marks + 1] = ExtMark.new(
+        nil,
+        lnum,
+        m_start - 1,
+        ExtMarkOpts.from_tbl {
+          end_row = lnum,
+          end_col = m_end,
+          hl_group = ui_opts.block_ids.hl_group,
+          spell = false,
         }
       )
     end
