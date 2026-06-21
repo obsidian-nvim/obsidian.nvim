@@ -82,4 +82,55 @@ T["current_note_id"] = function()
   vim.cmd "enew"
 end
 
+T["note_path_by_id"] = function()
+  local graph = require "obsidian.core-plugins.graph"
+  local path = Obsidian.dir / "A.md"
+  helpers.write("# A", path)
+
+  MiniTest.expect.equality(tostring(path), graph.note_path_by_id "A")
+  MiniTest.expect.equality(nil, graph.note_path_by_id "missing")
+end
+
+T["open_note_by_id"] = function()
+  local graph = require "obsidian.core-plugins.graph"
+  local path = Obsidian.dir / "A.md"
+  helpers.write("# A", path)
+
+  local ok, err = graph.open_note_by_id("A", "edit")
+  MiniTest.expect.equality(true, ok)
+  MiniTest.expect.equality(nil, err)
+  vim.wait(1000, function()
+    return vim.api.nvim_buf_get_name(0) == tostring(path)
+  end)
+  MiniTest.expect.equality(tostring(path), vim.api.nvim_buf_get_name(0))
+
+  ok, err = graph.open_note_by_id("missing", "edit")
+  MiniTest.expect.equality(false, ok)
+  MiniTest.expect.equality("note not found", err)
+  vim.cmd "enew!"
+end
+
+T["live graph watches create/delete only"] = function()
+  local graph = require "obsidian.core-plugins.graph"
+  local watchfiles = require "obsidian.lsp.watchfiles"
+  local FileChangeType = vim.lsp.protocol.FileChangeType
+  local calls = {}
+  local original_schedule = graph.schedule_graph_update
+
+  graph.schedule_graph_update = function(reason)
+    calls[#calls + 1] = reason
+  end
+
+  MiniTest.expect.equality(true, graph.start_server(0))
+  watchfiles.handle { { uri = vim.uri_from_fname "/tmp/changed.md", type = FileChangeType.Changed } }
+  MiniTest.expect.equality({}, calls)
+
+  watchfiles.handle { { uri = vim.uri_from_fname "/tmp/created.md", type = FileChangeType.Created } }
+  watchfiles.handle { { uri = vim.uri_from_fname "/tmp/deleted.md", type = FileChangeType.Deleted } }
+  MiniTest.expect.equality({ "files", "files" }, calls)
+
+  graph.stop_server()
+  graph.schedule_graph_update = original_schedule
+end
+
 return T

@@ -178,6 +178,20 @@ function M.build_graph()
   return { nodes = nodes, links = links }
 end
 
+---@return string
+local function make_token()
+  return vim.fn.sha256(tostring(uv.hrtime()) .. tostring(math.random()) .. tostring {})
+end
+
+---@param client uv_tcp_t
+local function close_client(client)
+  if client and not client:is_closing() then
+    pcall(function()
+      client:close()
+    end)
+  end
+end
+
 --- Serve a single HTTP response.
 ---@param client uv_tcp_t
 ---@param status string e.g. "200 OK"
@@ -192,21 +206,276 @@ local function respond(client, status, content_type, body)
   )
 
   client:write(header .. body, function()
-    client:shutdown(function()
-      client:close()
+    if not client:is_closing() then
+      client:shutdown(function()
+        close_client(client)
+      end)
+    end
+  end)
+end
+
+---@param request string
+---@return boolean
+local function request_complete(request)
+  local header_start, header_end = request:find("\r\n\r\n", 1, true)
+  if not header_end then
+    header_start, header_end = request:find("\n\n", 1, true)
+  end
+  if not header_end then
+    return false
+  end
+
+  local head = request:sub(1, header_start - 1)
+  local content_length = tonumber(head:match "[Cc]ontent%-[Ll]ength:%s*(%d+)") or 0
+  return #request >= header_end + content_length
+end
+
+---@param request string
+---@return table req
+local function parse_request(request)
+  local header_start, header_end = request:find("\r\n\r\n", 1, true)
+  if not header_end then
+    header_start, header_end = request:find("\n\n", 1, true)
+  end
+
+  local head = request:sub(1, header_start - 1)
+  local body = request:sub(header_end + 1)
+  local lines = vim.split(head, "\n", { plain = true })
+  for i, line in ipairs(lines) do
+    lines[i] = line:gsub("\r$", "")
+  end
+  local method, raw_path = lines[1]:match "^(%S+)%s+(%S+)"
+  raw_path = raw_path or "/"
+  local headers = {}
+
+  for i = 2, #lines do
+    local key, value = lines[i]:match "^([^:]+):%s*(.*)$"
+    if key then
+      headers[key:lower()] = value
+    end
+  end
+
+  local path, query = raw_path:match "^([^?]*)%??(.*)$"
+  local params = {}
+  for pair in (query or ""):gmatch "[^&]+" do
+    local key, value = pair:match "^([^=]*)=?(.*)$"
+    if key and key ~= "" then
+      params[vim.uri_decode(key)] = vim.uri_decode(value or "")
+    end
+  end
+
+  return { method = method, path = path, query = query, params = params, headers = headers, body = body }
+end
+
+---@return string
+local function graph_page()
+  local body = (require "obsidian.core-plugins.graph.web"):gsub("__OBSIDIAN_GRAPH_TOKEN__", M._token or "")
+  return body
+end
+
+---@param id string
+---@return string|?
+function M.note_path_by_id(id)
+  if type(id) ~= "string" or id == "" then
+    return nil
+  end
+
+  for _, node in ipairs(M.build_graph().nodes) do
+    if node.id == id then
+      return node.path
+    end
+  end
+end
+
+---@param id string
+---@param open string?
+---@return boolean success
+---@return string? err
+function M.open_note_by_id(id, open)
+  local path = M.note_path_by_id(id)
+  if not path then
+    return false, "note not found"
+  end
+
+  local commands = {
+    edit = "edit",
+    split = "split",
+    vsplit = "vsplit",
+    tab = "tabedit",
+  }
+  local cmd = commands[open or "edit"] or "edit"
+
+  vim.schedule(function()
+    require("obsidian.api").open_note({ filename = path }, cmd)
+  end)
+
+  return true
+end
+
+---@param client uv_tcp_t
+---@param event table
+local function send_sse(client, event)
+  if not client or client:is_closing() then
+    return
+  end
+
+  local ok, data = pcall(vim.json.encode, event)
+  if not ok then
+    return
+  end
+
+  client:write("event: message\ndata: " .. data .. "\n\n", function(err)
+    if err then
+      if M._sse_clients then
+        M._sse_clients[client] = nil
+      end
+      close_client(client)
+    end
+  end)
+end
+
+---@param event table
+function M.broadcast(event)
+  if not M._sse_clients then
+    return
+  end
+
+  for client in pairs(M._sse_clients) do
+    send_sse(client, event)
+  end
+end
+
+---@param reason string?
+function M.broadcast_graph_update(reason)
+  if not M._sse_clients or not next(M._sse_clients) then
+    return
+  end
+
+  local ok, graph = pcall(M.build_graph)
+  if ok then
+    M.broadcast { type = "graph:update", graph = graph, reason = reason }
+  end
+end
+
+---@param reason string?
+function M.schedule_graph_update(reason)
+  if M._graph_update_timer then
+    M._graph_update_timer:stop()
+  else
+    M._graph_update_timer = uv.new_timer()
+    if M._graph_update_timer then
+      M._graph_update_timer:unref()
+    end
+  end
+
+  if not M._graph_update_timer then
+    vim.schedule(function()
+      M.broadcast_graph_update(reason)
+    end)
+    return
+  end
+
+  M._graph_update_timer:start(150, 0, function()
+    vim.schedule(function()
+      M.broadcast_graph_update(reason)
     end)
   end)
+end
+
+function M.broadcast_current_note()
+  local id = M.current_note_id()
+  if not id then
+    return
+  end
+
+  M.broadcast { type = "active:set", id = id }
+  M.broadcast { type = "local:set_root", id = id }
+end
+
+local function ensure_live_hooks()
+  if M._live_hooks_started then
+    return
+  end
+
+  M._sse_clients = M._sse_clients or {}
+  M._unregister_watchfiles = require("obsidian.lsp.watchfiles").register_handler(function(events)
+    local FileChangeType = vim.lsp.protocol.FileChangeType
+    for _, event in ipairs(events) do
+      if event.type == FileChangeType.Created or event.type == FileChangeType.Deleted then
+        M.schedule_graph_update "files"
+        return
+      end
+    end
+  end)
+
+  M._augroup = vim.api.nvim_create_augroup("obsidian_graph_live", { clear = true })
+  vim.api.nvim_create_autocmd("User", {
+    group = M._augroup,
+    pattern = "ObsidianNoteEnter",
+    callback = function()
+      M.broadcast_current_note()
+    end,
+  })
+  vim.api.nvim_create_autocmd("User", {
+    group = M._augroup,
+    pattern = "ObsidianNoteWritePost",
+    callback = function()
+      M.schedule_graph_update "write"
+    end,
+  })
+
+  M._live_hooks_started = true
+end
+
+---@param client uv_tcp_t
+local function respond_events(client)
+  local header = table.concat({
+    "HTTP/1.1 200 OK",
+    "Content-Type: text/event-stream",
+    "Cache-Control: no-cache",
+    "Connection: keep-alive",
+    "Access-Control-Allow-Origin: *",
+    "",
+    "",
+  }, "\r\n")
+
+  M._sse_clients = M._sse_clients or {}
+  M._sse_clients[client] = true
+  client:write(header)
+  client:unref()
+
+  send_sse(client, { type = "graph:update", graph = M.build_graph(), reason = "connect" })
+  local id = M.current_note_id()
+  if id then
+    send_sse(client, { type = "active:set", id = id })
+    send_sse(client, { type = "local:set_root", id = id })
+  end
+end
+
+---@param client uv_tcp_t
+---@param req table
+local function handle_open(client, req)
+  local ok, payload = pcall(vim.json.decode, req.body or "")
+  if not ok or type(payload) ~= "table" then
+    respond(client, "400 Bad Request", "text/plain", "Invalid JSON")
+    return
+  end
+
+  local success, err = M.open_note_by_id(payload.id, payload.open)
+  if not success then
+    respond(client, "404 Not Found", "text/plain", err or "Not found")
+    return
+  end
+
+  respond(client, "200 OK", "application/json", vim.json.encode { ok = true })
 end
 
 ---@param client uv_tcp_t
 ---@param request string
 local function handle_request(client, request)
-  local method, path = request:match "^(%S+)%s+(%S+)"
-  path = path and path:gsub("%?.*$", "")
+  local req = parse_request(request)
 
-  if method ~= "GET" then
-    respond(client, "405 Method Not Allowed", "text/plain", "Method not allowed")
-  elseif path == "/api/graph" then
+  if req.path == "/api/graph" and req.method == "GET" then
     local ok, body = pcall(function()
       return vim.json.encode(M.build_graph())
     end)
@@ -215,8 +484,22 @@ local function handle_request(client, request)
     else
       respond(client, "500 Internal Server Error", "text/plain", tostring(body))
     end
-  elseif path == "/" or path == "/index.html" or path == "/local" then
-    respond(client, "200 OK", "text/html; charset=utf-8", require "obsidian.core-plugins.graph.web")
+  elseif (req.path == "/" or req.path == "/index.html" or req.path == "/local") and req.method == "GET" then
+    respond(client, "200 OK", "text/html; charset=utf-8", graph_page())
+  elseif req.path == "/events" and req.method == "GET" then
+    if req.params.token ~= M._token then
+      respond(client, "403 Forbidden", "text/plain", "Forbidden")
+    else
+      respond_events(client)
+    end
+  elseif req.path == "/api/open" and req.method == "POST" then
+    if req.params.token ~= M._token then
+      respond(client, "403 Forbidden", "text/plain", "Forbidden")
+    else
+      handle_open(client, req)
+    end
+  elseif req.method ~= "GET" and req.method ~= "POST" then
+    respond(client, "405 Method Not Allowed", "text/plain", "Method not allowed")
   else
     respond(client, "404 Not Found", "text/plain", "Not found")
   end
@@ -262,7 +545,7 @@ function M.start_server(port)
 
       chunks[#chunks + 1] = data
       local request = table.concat(chunks)
-      if request:find("\r\n\r\n", 1, true) or request:find("\n\n", 1, true) then
+      if request_complete(request) then
         client:read_stop()
         handle_request(client, request)
       end
@@ -279,6 +562,9 @@ function M.start_server(port)
 
   M._server = server
   M._port = port
+  M._token = make_token()
+  M._sse_clients = {}
+  ensure_live_hooks()
   return true
 end
 
@@ -288,7 +574,32 @@ function M.stop_server()
     M._server:close()
     M._server = nil
     M._port = nil
+    M._token = nil
   end
+
+  if M._sse_clients then
+    for client in pairs(M._sse_clients) do
+      close_client(client)
+    end
+    M._sse_clients = nil
+  end
+
+  if M._graph_update_timer then
+    M._graph_update_timer:stop()
+    M._graph_update_timer:close()
+    M._graph_update_timer = nil
+  end
+
+  if M._unregister_watchfiles then
+    M._unregister_watchfiles()
+    M._unregister_watchfiles = nil
+  end
+
+  if M._augroup then
+    pcall(vim.api.nvim_del_augroup_by_id, M._augroup)
+    M._augroup = nil
+  end
+  M._live_hooks_started = nil
 end
 
 ---@param path string
