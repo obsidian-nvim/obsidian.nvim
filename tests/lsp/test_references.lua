@@ -221,6 +221,24 @@ block ^123
   eq("[[#^123]]", qflist[1].text)
 end
 
+T["find block references under cursor across target path forms"] = function()
+  local root = child.Obsidian.dir
+  local target_path = root / "target.md"
+  h.write("block ^123", target_path)
+  local referencer_path = root / "referencer.md"
+  h.write("[[target#^123]]", referencer_path)
+  h.write("[[target.md#^123]]", root / "referencer_ext.md")
+
+  child.cmd(string.format("edit %s", referencer_path))
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  local qflist = get_refs()
+  local refs = {}
+  for _, ref in ipairs(qflist) do
+    refs[ref.text] = true
+  end
+  eq({ ["[[target#^123]]"] = true, ["[[target.md#^123]]"] = true }, refs)
+end
+
 T["find anchor references under cursor"] = function()
   local file = [==[
 

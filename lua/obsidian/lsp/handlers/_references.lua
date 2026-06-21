@@ -31,8 +31,6 @@ local function tag_loc_to_lsp_location(tag_loc)
   }
 end
 
-local handlers = {}
-
 local function handle_note_ref(link, callback)
   local location = util.parse_link(link)
   assert(location, "failed to parse link")
@@ -47,29 +45,41 @@ local function handle_note_ref(link, callback)
   local anchor_link
   location, anchor_link = util.strip_anchor_links(location)
 
-  local note
   local opts = { anchor = anchor_link, block = block_link }
+
+  local function find_backlinks(note)
+    if note == nil then
+      opts.refs = { location }
+    end
+    search.find_backlinks_async(note, function(backlink_matches)
+      callback(vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
+    end, opts)
+  end
+
   if location == "" and (anchor_link or block_link) then
-    note = api.current_note(0, {
+    local note = api.current_note(0, {
       collect_anchor_links = anchor_link ~= nil,
       collect_blocks = block_link ~= nil,
     })
     if not note then
       return log.err "Current buffer does not appear to be a note inside the vault"
     end
+    find_backlinks(note)
+  elseif anchor_link or block_link then
+    search.resolve_note_async(location, function(notes)
+      find_backlinks(#notes == 1 and notes[1] or nil)
+    end, {
+      notes = {
+        collect_anchor_links = anchor_link ~= nil,
+        collect_blocks = block_link ~= nil,
+      },
+    })
   else
-    opts.refs = { location }
+    find_backlinks(nil)
   end
-
-  search.find_backlinks_async(note, function(backlink_matches)
-    callback(vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
-  end, opts)
 end
 
-handlers.markdown = handle_note_ref
-handlers.wiki = handle_note_ref
-
-handlers.footnote = function(link, callback)
+local handle_footnote = function(link, callback)
   local footnotes = require "obsidian.footnotes"
   local id = util.parse_link(link)
   assert(id, "failed to parse footnote")
@@ -127,17 +137,9 @@ local function collect_current_note(link, link_type, callback)
   end, { anchor = anchor, block = block })
 end
 
-local supported_link_kinds = {
-  wiki = true,
-  markdown = true,
-  footnote = true,
-}
-
---- TODO: api.cursor_ref
-
 ---@param include_tag boolean|?
 ---@return string|?
----@return obsidian.parse.RefKind|"tag"|?
+---@return obsidian.parse.RefKind|"tag"|"block_id"
 local function cursor_ref(include_tag)
   local link, link_type = api.cursor_link()
   if link and link_type then
@@ -175,10 +177,18 @@ return function(link, opts, callback)
     callback(nil, locations)
   end
 
-  if link and link_type == "tag" then
+  if not link then
+    return collect_current_note(nil, nil, callback)
+  end
+
+  if link_type == "markdown" or link_type == "wiki" then
+    handle_note_ref(link, wrapped_callback)
+  elseif link_type == "footnote" then
+    handle_footnote(link, wrapped_callback)
+  elseif link_type == "tag" then
     handle_tag(link, wrapped_callback)
-  elseif link and link_type and supported_link_kinds[link_type] and handlers[link_type] then
-    handlers[link_type](link, wrapped_callback)
+  elseif link_type == "block_id" then
+    collect_current_note(link, link_type, callback)
   else
     collect_current_note(link, link_type, callback)
   end
