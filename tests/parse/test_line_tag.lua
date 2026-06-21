@@ -1,4 +1,4 @@
-local M = require "obsidian.parse.tags"
+local M = require "obsidian.parse.line.tags"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
