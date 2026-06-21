@@ -70,8 +70,6 @@ local function create_new_note(location, callback, opts)
   end
 end
 
-local handlers = {}
-
 ---@param location string
 ---@param callback function
 ---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
@@ -123,7 +121,7 @@ local function open_attachment(location)
   vim.ui.open(path)
 end
 
-handlers.wiki = function(location, callback, opts)
+local handle_wiki_link = function(location, callback, opts)
   if api.is_attachment_path(location) then
     open_attachment(location)
   else
@@ -131,7 +129,7 @@ handlers.wiki = function(location, callback, opts)
   end
 end
 
-handlers.markdown = function(location, callback, opts)
+local handle_markdown_link = function(location, callback, opts)
   local is_uri, scheme = util.is_uri(location)
   if is_uri then
     open_uri(location, scheme)
@@ -154,7 +152,7 @@ local function open_header_link(location, callback)
   callback { note:_location { anchor = location } }
 end
 
-handlers.footnote = function(location, callback, _)
+local handle_footnote = function(location, callback, _)
   local footnotes = require "obsidian.footnotes"
   local bufnr = vim.api.nvim_get_current_buf()
   local cursor_row = vim.api.nvim_win_get_cursor(0)[1]
@@ -204,7 +202,6 @@ end
 return {
   follow_link = function(link, callback, opts)
     opts = opts or {}
-    -- TODO: write an alternative treesitter link parser that finds, markdown link, wiki link, image embed
     local location, label, link_type = util.parse_link(link)
     if not location then
       return callback(nil, {})
@@ -223,8 +220,12 @@ return {
       open_block_link(location, wrapped_callback)
     elseif vim.startswith(location, "#") then
       open_header_link(location, wrapped_callback)
-    elseif handlers[link_type] then
-      handlers[link_type](location, wrapped_callback, opts)
+    elseif link_type == "markdown" then
+      handle_markdown_link(location, wrapped_callback, opts)
+    elseif link_type == "wiki" then
+      handle_wiki_link(location, wrapped_callback, opts)
+    elseif link_type == "footnote" then
+      handle_footnote(location, wrapped_callback, opts)
     else
       return log.err("unsupported link format", link_type)
     end
