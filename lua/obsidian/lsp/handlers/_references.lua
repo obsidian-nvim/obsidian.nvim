@@ -187,9 +187,7 @@ return function(link, opts, callback)
     handle_footnote(link, wrapped_callback)
   elseif link_type == "tag" then
     handle_tag(link, wrapped_callback)
-  elseif link_type == "block_id" then
-    collect_current_note(link, link_type, callback)
-  else
+  else -- block id is handled here
     collect_current_note(link, link_type, callback)
   end
 end
