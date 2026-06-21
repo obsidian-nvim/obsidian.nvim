@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `opts.callbacks.create_note` and `ObsidianNoteCreate` event to run action after note creation, see `:Obsidian help Note`.
 - LSP folding support, see `:Obsidian help Folding`.
 - Sync supports creating remote with end to end encryption password.
 - Navigating to an anchor or block link now briefly highlights the full referenced section, like the Obsidian app. The highlight group is `ObsidianBlink` (defaults to `Visual`) and the duration is controlled by `vim.g.obsidian_blink_duration` (ms, defaults to 500).
