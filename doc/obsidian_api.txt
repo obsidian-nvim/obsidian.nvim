@@ -78,7 +78,7 @@ The note is NOT written to disk. Call `note:write {}` after if you want the
 file persisted; the `template` passed here is carried on the note and used
 by `note:write` unless overridden.
 
-@param opts obsidian.note.NoteOpts
+@param opts obsidian.note.NoteOpts?
 @return obsidian.Note
 
 ------------------------------------------------------------------------------
@@ -492,6 +492,13 @@ to the workspace / vault root.
 {aliases} `(string[]|? Aliases)` for the note
 {tags} `(string[]|?  Tags)` for this note
 {template} `(string|? Template)` name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
+{scope} `(string|? Arbitrary)` note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} obsidian.note.CreateCallbackOpts
+Fields ~
+{scope} `(string)` Scope inherited from the `Note.create` opts, or `"plain"` when not set.
 
 ------------------------------------------------------------------------------
 Class ~
