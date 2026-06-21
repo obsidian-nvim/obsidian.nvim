@@ -15,6 +15,41 @@ T["new"]["should be able to be initialize directly"] = function()
   eq(true, M.is_note_obj(note))
 end
 
+T["create"] = new_set()
+T["create"]["should run configured callback with default scope"] = function()
+  local calls = 0
+  Obsidian.opts.callbacks.create_note = function(note, opts)
+    calls = calls + 1
+    eq("plain", opts.scope)
+    note:add_tag "created"
+  end
+
+  local note = M.create { id = "Foo" }
+
+  eq(1, calls)
+  eq("created", note.tags[1])
+  Obsidian.opts.callbacks.create_note = nil
+end
+
+T["create"]["should trigger create autocmd with note data"] = function()
+  local calls = 0
+  local group = vim.api.nvim_create_augroup("obsidian_test_note_create", { clear = true })
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = "ObsidianNoteCreate",
+    callback = function(ev)
+      calls = calls + 1
+      eq("plain", ev.data.opts.scope)
+      eq("table", type(ev.data.note))
+    end,
+  })
+
+  M.create { id = "Foo" }
+
+  eq(1, calls)
+  vim.api.nvim_del_augroup_by_id(group)
+end
+
 local function from_str(str, path, opts)
   return M.from_lines(vim.iter(vim.split(str, "\n")), path, opts)
 end

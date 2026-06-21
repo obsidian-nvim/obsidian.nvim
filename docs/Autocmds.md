@@ -8,6 +8,7 @@ Autocmd events provide by this plugin follows following conventions:
 
 | name                    | triggered by                       | data               |
 | ----------------------- | ---------------------------------- | ------------------ |
+| `ObsidianNoteCreate`    | `Note.create`                      | `{ note, opts }`   |
 | `ObsidianNoteEnter`     | `BufEnter`                         |                    |
 | `ObsidianNoteLeave`     | `BufLeave`                         |                    |
 | `ObsidianNoteWritePost` | `BufWritePost`                     |                    |

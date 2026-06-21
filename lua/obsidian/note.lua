@@ -337,9 +337,10 @@ end
 --- file persisted; the `template` passed here is carried on the note and used
 --- by `note:write` unless overridden.
 ---
---- @param opts obsidian.note.NoteOpts
+--- @param opts obsidian.note.NoteOpts?
 --- @return obsidian.Note
 Note.create = function(opts)
+  opts = opts or {}
   local new_id, path, title = Note._resolve_id_path(opts)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
   if opts.should_write then
@@ -350,6 +351,12 @@ Note.create = function(opts)
   local aliases = opts.aliases
   local note = Note.new(new_id, aliases, opts.tags, path, title)
   note.template = opts.template
+  local callback_opts = { scope = opts.scope or "plain" }
+  util.fire_callback("create_note", Obsidian.opts.callbacks.create_note, note, callback_opts)
+  vim.api.nvim_exec_autocmds("User", {
+    pattern = "ObsidianNoteCreate",
+    data = { note = note, opts = callback_opts },
+  })
   return note
 end
 
@@ -1412,6 +1419,10 @@ end
 ---@field aliases string[]|? Aliases for the note
 ---@field tags string[]|?  Tags for this note
 ---@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
+---@field scope string|? Arbitrary note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+
+---@class (exact) obsidian.note.CreateCallbackOpts
+---@field scope string Scope inherited from the `Note.create` opts, or `"plain"` when not set.
 
 ---@class (exact) obsidian.note.NoteSaveOpts
 --- Specify a path to save to. Defaults to `self.path`.

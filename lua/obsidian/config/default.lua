@@ -365,6 +365,9 @@ return {
   ---Runs right after setup
   ---@field post_setup? fun()
   ---
+  ---Runs when `Note.create` builds a note object. `opts.scope` is inherited from the `Note.create` opts, defaulting to `"plain"`.
+  ---@field create_note? fun(note: obsidian.Note, opts: obsidian.note.CreateCallbackOpts)
+  ---
   ---Runs when entering a note buffer.
   ---@field enter_note? fun(note: obsidian.Note)
   ---
