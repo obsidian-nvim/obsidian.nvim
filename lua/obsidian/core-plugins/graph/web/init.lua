@@ -295,7 +295,7 @@ local M = [[
   }
 
   function labelFontSize(node) {
-    return clamp(8 + node.r * 0.55, 9, 22);
+    return clamp(4 + node.r * 0.7, 7, 22);
   }
 
   function drawArrow(from, to) {
@@ -357,8 +357,8 @@ local M = [[
         ctx.globalAlpha = (dimNode ? 0.18 : 1) * alpha;
         var fontSize = labelFontSize(n);
         ctx.fillStyle = "#ddd";
-        ctx.font = fontSize / transform.k + "px sans-serif";
-        ctx.fillText(n.title, n.x, n.y - n.r - (fontSize * 0.75) / transform.k);
+        ctx.font = fontSize + "px sans-serif";
+        ctx.fillText(n.title, n.x, n.y - n.r - fontSize * 0.75);
       }
       ctx.globalAlpha = 1;
     }
