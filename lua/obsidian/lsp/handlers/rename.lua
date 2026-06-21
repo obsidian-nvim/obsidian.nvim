@@ -33,8 +33,11 @@ return function(params, handler, _)
   end
 
   if cur_link then
-    local loc = util.parse_link(cur_link, { strip = true })
+    local loc = util.parse_link(cur_link)
     assert(loc, "wrong link format")
+    local stripped = util.strip_anchor_links(loc)
+    stripped = util.strip_block_links(stripped)
+    loc = stripped ~= "" and stripped or loc
     search.resolve_note_async(loc, function(notes)
       -- TODO: pick note
       if vim.tbl_isempty(notes) then

@@ -12,145 +12,35 @@ M.build_find_cmd = Ripgrep.build_find_cmd
 M.build_search_cmd = Ripgrep.build_search_cmd
 M.build_grep_cmd = Ripgrep.build_grep_cmd
 
----@alias obsidian.search.RefTypes
----| "Wiki"
----| "WikiWithAlias"
----| "Markdown"
----| "Tag"
----| "BlockID"
----| "Highlight"
----| "HeaderLink"
----| "BlockLink"
----| "Footnote"
-
 M.Patterns = {
   -- Tags
   TagCharsRequiredRg = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L}\p{N}_/-]*]],
   TagCharsOptionalRg = [[[\p{L}\p{N}_/-]*]],
-
-  -- Miscellaneous
-  Highlight = "==[^=]+==", -- ==text==
-
-  -- References
-  WikiWithAlias = "%[%[[^][%|]+%|[^%]]+%]%]", -- [[xxx|yyy]]
-  Wiki = "%[%[[^][%|]+%]%]", -- [[xxx]]
-  Markdown = "%[[^][]+%]%([^%)]+%)", -- [yyy](xxx)
-  BlockID = util.BLOCK_PATTERN .. "$", -- ^hello-world
-  Footnote = "%[%^[^%]%[%s]+%]", -- [^xxx]
 }
-
---- Find all matches of a pattern
----
----@param s string
----@param pattern_names obsidian.search.RefTypes[]
----
----@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes, [4]: string }[]
-M.find_matches = function(s, pattern_names)
-  -- First find all inline code blocks so we can skip reference matches inside of those.
-  local inline_code_blocks = {}
-  for m_start, m_end in util.gfind(s, "`[^`]*`") do
-    inline_code_blocks[#inline_code_blocks + 1] = { m_start, m_end }
-  end
-
-  local matches = {}
-  for _, pattern_name in ipairs(pattern_names) do
-    local pattern = M.Patterns[pattern_name]
-    local search_start = 1
-    while search_start < #s do
-      local m_start, m_end = string.find(s, pattern, search_start)
-      if m_start ~= nil and m_end ~= nil then
-        -- Check if we're inside a code block.
-        local inside_code_block = false
-        for _, code_block_boundary in ipairs(inline_code_blocks) do
-          if code_block_boundary[1] < m_start and m_end < code_block_boundary[2] then
-            inside_code_block = true
-            break
-          end
-        end
-
-        if not inside_code_block then
-          -- Check if this match overlaps with any others (e.g. a naked URL match would be contained in
-          -- a markdown URL).
-          local overlap = false
-          for _, match in ipairs(matches) do
-            if (match[1] <= m_start and m_start <= match[2]) or (match[1] <= m_end and m_end <= match[2]) then
-              overlap = true
-              break
-            end
-          end
-
-          if not overlap then
-            local match = string.sub(s, m_start, m_end)
-            matches[#matches + 1] = { m_start, m_end, pattern_name, match }
-          end
-        end
-
-        search_start = m_end
-      else
-        break
-      end
-    end
-  end
-
-  -- Sort results by position.
-  table.sort(matches, function(a, b)
-    return a[1] < b[1]
-  end)
-
-  return matches
-end
 
 --- Find inline highlights
 ---
 ---@param s string
 ---
----@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes }[]
+---@return { [1]: integer, [2]: integer }[]
 M.find_highlight = function(s)
   local matches = {}
-  for _, match in ipairs(M.find_matches(s, { "Highlight" })) do
-    -- Remove highlights that begin/end with whitespace
-    local match_start, match_end, _ = unpack(match)
-    local text = string.sub(s, match_start + 2, match_end - 2)
-    if vim.trim(text) == text then
-      matches[#matches + 1] = match
+  local search_start = 1
+  while search_start < #s do
+    local match_start, match_end = s:find("==[^=]+==", search_start)
+    if not match_start or not match_end then
+      break
     end
+
+    -- Remove highlights that begin/end with whitespace.
+    local text = s:sub(match_start + 2, match_end - 2)
+    if vim.trim(text) == text then
+      matches[#matches + 1] = { match_start, match_end }
+    end
+
+    search_start = match_end
   end
   return matches
-end
-
---- Find refs and URLs.
----@param s string the string to search
----@param opts? { exclude: obsidian.search.RefTypes[] }
----
----@return { [1]: integer, [2]: integer, [3]: obsidian.search.RefTypes, [4]: string }[]
-M.find_refs = function(s, opts)
-  opts = opts and opts or {}
-
-  local exclude_lookup = {}
-  local pattern_names = {}
-
-  for _, ref_type in ipairs(opts.exclude or {}) do
-    exclude_lookup[ref_type] = true
-  end
-
-  ---@type obsidian.search.RefTypes[]
-  local parse_patterns = {
-    "WikiWithAlias",
-    "Wiki",
-    -- NOTE: Footnote must come before Markdown so that `[^fn](text)` is matched
-    -- as a footnote ref instead of a markdown link.
-    "Footnote",
-    "Markdown",
-    "BlockID",
-  }
-
-  for _, ref_type in ipairs(parse_patterns) do
-    if not exclude_lookup[ref_type] then
-      pattern_names[#pattern_names + 1] = ref_type
-    end
-  end
-
-  return M.find_matches(s, pattern_names)
 end
 
 --- Find all code block boundaries in a list of lines.
@@ -522,15 +412,16 @@ M.find_links = function(note)
   local found = {}
   local lines = io.lines(tostring(note.path))
 
+  local parse_refs = require "obsidian.parse.refs"
   for lnum, line in vim.iter(lines):enumerate() do
-    for _, ref_match in ipairs(M.find_refs(line, { exclude = { "BlockID" } })) do
-      local m_start, m_end, _, link = unpack(ref_match)
+    for _, ref in ipairs(parse_refs.extract(line)) do
+      local link = ref.embed and ref.raw:sub(2) or ref.raw
       if not found[link] then
         local match = {
           link = link,
           line = lnum,
-          start = m_start - 1,
-          ["end"] = m_end - 1,
+          start = ref.range.start_col + (ref.embed and 1 or 0),
+          ["end"] = ref.range.end_col - 1,
         }
         matches[#matches + 1] = match
         found[link] = true
@@ -686,48 +577,46 @@ M.find_backlinks_async = function(note, callback, opts)
   ---@param match MatchData
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
+    local parse_refs = require "obsidian.parse.refs"
     local line_text = util.rstrip_whitespace(match.lines.text)
-    for _, ref in ipairs(M.find_refs(line_text)) do
-      local ref_start, ref_end, ref_type, link_match = unpack(ref)
+    for _, ref in ipairs(parse_refs.extract(line_text)) do
+      local ref_start = ref.range.start_col + (ref.embed and 2 or 1)
+      local ref_end = ref.range.end_col
       if _submatch_in_ref(match.submatches, ref_start, ref_end) then
-        local ref_text = line_text:sub(ref_start, ref_end)
-        local link_location, _, _ = util.parse_link(ref_text, { link_type = ref_type })
-        if link_location then
-          local _, matched_anchor = util.strip_anchor_links(link_location)
-          local include = true
-          if anchor and note then
-            if not matched_anchor then
-              include = false
-            else
-              local std_matched = util.standardize_anchor(matched_anchor)
-              local is_direct_match = std_matched == anchor
-              local is_resolved_match = false
-              if not is_direct_match and anchor_obj ~= nil then
-                local resolved = note:resolve_anchor_link(matched_anchor)
-                if resolved and resolved.header == anchor_obj.header then
-                  is_resolved_match = true
-                end
-              end
-              if not (is_direct_match or is_resolved_match) then
-                include = false
+        local matched_anchor = ref.block and ("#^" .. ref.block) or (ref.anchor and ("#" .. ref.anchor) or nil)
+        local include = true
+        if anchor and note then
+          if not matched_anchor then
+            include = false
+          else
+            local std_matched = util.standardize_anchor(matched_anchor)
+            local is_direct_match = std_matched == anchor
+            local is_resolved_match = false
+            if not is_direct_match and anchor_obj ~= nil then
+              local resolved = note:resolve_anchor_link(matched_anchor)
+              if resolved and resolved.header == anchor_obj.header then
+                is_resolved_match = true
               end
             end
-          end
-          if block and include then
-            if util.standardize_block(matched_anchor) ~= block then
+            if not (is_direct_match or is_resolved_match) then
               include = false
             end
           end
-          if include then
-            results[#results + 1] = {
-              link = link_match,
-              path = path,
-              line = match.line_number,
-              text = line_text,
-              start = ref_start,
-              ["end"] = ref_end,
-            }
+        end
+        if block and include then
+          if not matched_anchor or util.standardize_block(matched_anchor) ~= block then
+            include = false
           end
+        end
+        if include then
+          results[#results + 1] = {
+            link = ref.embed and ref.raw:sub(2) or ref.raw,
+            path = path,
+            line = match.line_number,
+            text = line_text,
+            start = ref_start,
+            ["end"] = ref_end,
+          }
         end
       end
     end

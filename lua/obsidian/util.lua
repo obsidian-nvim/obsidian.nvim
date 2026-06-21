@@ -337,22 +337,15 @@ end
 util.parse_tags = require("obsidian.parse.tags").parse_tags
 
 ---@param link string
----@param opts { strip: boolean|?, exclude: obsidian.search.RefTypes[]|?, link_type: obsidian.search.RefTypes|? }|?
 ---@return string|? link_location
 ---@return string|? link_name
----@return obsidian.search.RefTypes|? link_type
-util.parse_link = function(link, opts)
-  local search = require "obsidian.search"
-
-  opts = opts and opts or {}
-  -- vim.validate("opts.strip", opts.strip, "boolean", true)
-
-  local link_type = opts.link_type
-  if link_type == nil then
-    local match = search.find_refs(link)[1]
-    if match ~= nil then
-      link_type = match[3]
-    end
+---@return obsidian.parse.RefKind? link_type
+util.parse_link = function(link)
+  local link_type
+  for _, ref in ipairs(require("obsidian.parse.refs").extract(link)) do
+    link_type = ref.kind
+    link = ref.embed and ref.raw:sub(2) or ref.raw
+    break
   end
 
   if link_type == nil then
@@ -360,48 +353,27 @@ util.parse_link = function(link, opts)
   end
 
   local link_location, link_name
-  if link_type == "Markdown" then
+  if link_type == "markdown" then
     link_name = link:match "%[(.-)%]"
     link_location = link:match "%((.-)%)"
-  elseif link_type == "WikiWithAlias" then
+  elseif link_type == "wiki" then
     link = util.unescape_single_backslash(link)
     -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'
     link = link:sub(3, #link - 2)
-    -- split on the "|"
     local split_idx = link:find "|"
-    link_location = link:sub(1, split_idx - 1)
-    link_name = link:sub(split_idx + 1)
-  elseif link_type == "Wiki" then
-    -- remove boundary brackets, e.g. '[[YYY]]' -> 'YYY'
-    link = link:sub(3, #link - 2)
-    link_location = link
-    link_name = link
-  elseif link_type == "BlockID" then
-    link_location = util.standardize_block(link)
-    link_name = link
-  elseif link_type == "Footnote" then
+    if split_idx then
+      link_location = link:sub(1, split_idx - 1)
+      link_name = link:sub(split_idx + 1)
+    else
+      link_location = link
+      link_name = link
+    end
+  elseif link_type == "footnote" then
     -- remove boundary brackets and the caret, e.g. '[^xxx]' -> 'xxx'
     link_location = link:sub(3, #link - 1)
     link_name = link_location
   else
     error("not implemented for " .. link_type)
-  end
-
-  if vim.startswith(link_location, "#^") then
-    if vim.startswith(link_name, "#^") then
-      link_name = link_name:sub(3)
-    end
-    return link_location:lower(), link_name, "BlockLink" -- location is lower for lookup, name is preserved with the original case
-  elseif vim.startswith(link_location, "#") then
-    if vim.startswith(link_name, "#") then
-      link_name = link_name:sub(2)
-    end
-    return link_location:lower(), link_name, "HeaderLink" -- location is lower for lookup, name is preserved with the original case
-  end
-
-  if opts.strip then
-    link_location = util.strip_anchor_links(link_location)
-    link_location = util.strip_block_links(link_location)
   end
 
   return link_location, link_name, link_type

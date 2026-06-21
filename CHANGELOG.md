@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- LSP references on block ids and block links will work properly.
 - `frontmatter.enabled = false` now prevents `:Obsidian new` from writing the default frontmatter template. Closes #862.
 - Proper trigger characters for neovim native LSP completion to work.
 - After `actions.move_note`, buffers can be properly saved without warning.

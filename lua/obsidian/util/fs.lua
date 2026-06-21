@@ -70,7 +70,7 @@ function M.atomic_write(path, contents)
   end
   f:write(contents)
   f:close()
-  local ok, rename_err = os.rename(tmp, path)
+  local ok, rename_err = vim.uv.fs_rename(tmp, path)
   if not ok then
     error("rename failed: " .. tostring(rename_err))
   end

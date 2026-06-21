@@ -9,7 +9,7 @@ T["cursor_link returns range"] = function()
   child.api.nvim_win_set_cursor(0, { 1, 5 })
   local link, t, range = unpack(child.lua_get [[{ M.cursor_link() }]])
   eq("[[new note]]", link)
-  eq("Wiki", t)
+  eq("wiki", t)
   eq({ 5, 16 }, range)
 end
 

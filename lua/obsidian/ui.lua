@@ -1,6 +1,8 @@
 local util = require "obsidian.util"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
+local parse_refs = require "obsidian.parse.refs"
+local parse_block_id = require "obsidian.parse.block_id"
 local iter = vim.iter
 
 local M = {}
@@ -234,10 +236,28 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
-  local matches = search.find_refs(line)
+  local matches = {}
+  for _, ref in ipairs(parse_refs.extract(line)) do
+    if ref.kind ~= "footnote" then
+      matches[#matches + 1] = {
+        ref.range.start_col + (ref.embed and 2 or 1),
+        ref.range.end_col,
+        ref.kind,
+        ref.label ~= nil,
+      }
+    end
+  end
+  for _, block in ipairs(parse_block_id.extract(line)) do
+    matches[#matches + 1] = {
+      block.range.start_col + 1,
+      block.range.end_col,
+      "block_id",
+    }
+  end
+
   for _, match in ipairs(matches) do
-    local m_start, m_end, m_type = unpack(match)
-    if m_type == "WikiWithAlias" then
+    local m_start, m_end, m_type, has_alias = unpack(match)
+    if m_type == "wiki" and has_alias then
       -- Reference of the form [[xxx|yyy]]
       local pipe_loc = string.find(line, "|", m_start, true)
       assert(pipe_loc, "")
@@ -275,7 +295,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           conceal = "",
         }
       )
-    elseif m_type == "Wiki" then
+    elseif m_type == "wiki" then
       -- Reference of the form [[xxx]]
       -- Conceal the opening '[['
       marks[#marks + 1] = ExtMark.new(
@@ -311,7 +331,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           conceal = "",
         }
       )
-    elseif m_type == "Markdown" then
+    elseif m_type == "markdown" then
       -- Reference of the form [yyy](xxx)
       local closing_bracket_loc = string.find(line, "]", m_start, true)
       assert(closing_bracket_loc, "")
@@ -373,7 +393,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           conceal = is_uri and " " or "",
         }
       )
-    elseif m_type == "BlockID" then
+    elseif m_type == "block_id" then
       -- A block ID, like '^hello-world'
       marks[#marks + 1] = ExtMark.new(
         nil,
@@ -429,7 +449,7 @@ end
 local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
   local matches = search.find_highlight(line)
   for match in iter(matches) do
-    local m_start, m_end, _ = unpack(match)
+    local m_start, m_end = unpack(match)
     -- Conceal opening '=='
     marks[#marks + 1] = ExtMark.new(
       nil,
