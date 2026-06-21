@@ -82,12 +82,18 @@ local M = [[
 
   var params = new URLSearchParams(window.location.search);
   var localRoot = params.get("note");
+  var localMode = localRoot != null;
+  var activeId = localRoot;
+  var graphToken = "__OBSIDIAN_GRAPH_TOKEN__";
   var rawGraph = null;
   var width = 0, height = 0, dpr = 1;
   var nodes = [], links = [], byId = Object.create(null), neighbors = Object.create(null);
   var transform = { x: 0, y: 0, k: 1 };
   var mouse = { x: 0, y: 0, pan: false };
-  var hover = null, drag = null, frameStarted = false;
+  var hover = null, drag = null, controlsBound = false, framePending = false;
+  var simulationAlpha = 0;
+  var simulationAlphaMin = 0.015;
+  var simulationDecay = 0.94;
   var settings = {
     search: "",
     hideOrphans: false,
@@ -130,6 +136,22 @@ local M = [[
 
   function connected(a, b) {
     return a === b || (neighbors[a] && neighbors[a][b]);
+  }
+
+  function requestFrame() {
+    if (framePending) return;
+    framePending = true;
+    requestAnimationFrame(frame);
+  }
+
+  function stopSimulation() {
+    simulationAlpha = 0;
+    nodes.forEach(function (n) { n.vx = 0; n.vy = 0; });
+  }
+
+  function reheatSimulation(alpha) {
+    simulationAlpha = Math.max(simulationAlpha, alpha == null ? 1 : alpha);
+    requestFrame();
   }
 
   function nodeAt(sx, sy) {
@@ -204,11 +226,14 @@ local M = [[
   }
 
   function step() {
+    var alpha = drag ? Math.max(simulationAlpha, 0.08) : simulationAlpha;
+    if (alpha <= 0 && !drag) return;
+
     for (var i = 0; i < links.length; i++) {
       var l = links[i], a = l.source, b = l.target;
       var dx = b.x - a.x, dy = b.y - a.y;
       var dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      var force = (dist - settings.linkDistance) * settings.linkForce;
+      var force = (dist - settings.linkDistance) * settings.linkForce * alpha;
       var fx = dx / dist * force, fy = dy / dist * force;
       if (!a.fixed) { a.vx += fx; a.vy += fy; }
       if (!b.fixed) { b.vx -= fx; b.vy -= fy; }
@@ -220,21 +245,34 @@ local M = [[
         var m = nodes[q];
         var rx = m.x - n.x, ry = m.y - n.y;
         var r2 = Math.max(rx * rx + ry * ry, 25);
-        var repulse = Math.min(settings.repel / r2, 3.2);
+        var repulse = Math.min(settings.repel / r2, 3.2) * alpha;
         var r = Math.sqrt(r2);
         var fxr = rx / r * repulse, fyr = ry / r * repulse;
         if (!n.fixed) { n.vx -= fxr; n.vy -= fyr; }
         if (!m.fixed) { m.vx += fxr; m.vy += fyr; }
+
+        var minDist = n.r + m.r + 4;
+        if (r < minDist) {
+          var collide = (minDist - r) * 0.03 * alpha;
+          var cfx = rx / r * collide, cfy = ry / r * collide;
+          if (!n.fixed) { n.vx -= cfx; n.vy -= cfy; }
+          if (!m.fixed) { m.vx += cfx; m.vy += cfy; }
+        }
       }
     }
 
     for (var j = 0; j < nodes.length; j++) {
       var node = nodes[j];
       if (node.fixed) continue;
-      node.vx += (width / 2 - node.x) * settings.center;
-      node.vy += (height / 2 - node.y) * settings.center;
+      node.vx += (width / 2 - node.x) * settings.center * alpha;
+      node.vy += (height / 2 - node.y) * settings.center * alpha;
       node.vx *= 0.86; node.vy *= 0.86;
       node.x += node.vx; node.y += node.vy;
+    }
+
+    if (!drag) {
+      simulationAlpha *= simulationDecay;
+      if (simulationAlpha < simulationAlphaMin) stopSimulation();
     }
   }
 
@@ -303,11 +341,12 @@ local M = [[
       var n = nodes[j];
       var isHover = n === hover;
       var isRoot = localRoot && n.id === localRoot;
+      var isActive = activeId && n.id === activeId;
       var dimNode = hover && !connected(hover.id, n.id);
       ctx.globalAlpha = dimNode ? 0.18 : 1;
       ctx.fillStyle = isRoot ? "#f59e0b" : isHover ? "#c084fc" : "#7c3aed";
-      ctx.strokeStyle = isRoot ? "#fbbf24" : "#a78bfa";
-      ctx.lineWidth = isRoot ? 2.2 / transform.k : 1.5 / transform.k;
+      ctx.strokeStyle = isRoot ? "#fbbf24" : isActive ? "#38bdf8" : "#a78bfa";
+      ctx.lineWidth = (isRoot || isActive) ? 2.2 / transform.k : 1.5 / transform.k;
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
       ctx.fill();
@@ -327,9 +366,10 @@ local M = [[
   }
 
   function frame() {
-    step();
+    framePending = false;
+    if (simulationAlpha > 0 || drag) step();
     draw();
-    requestAnimationFrame(frame);
+    if (simulationAlpha > 0 || drag) requestFrame();
   }
 
   function renderGraph(graph) {
@@ -337,10 +377,12 @@ local M = [[
     if (empty) empty.remove();
     hover = null;
     tip.style.display = "none";
+    var oldById = byId;
     byId = Object.create(null);
     neighbors = Object.create(null);
 
     nodes = (graph.nodes || []).map(function (n, i) {
+      var old = oldById[n.id];
       var angle = Math.PI * 2 * i / Math.max((graph.nodes || []).length, 1);
       var radius = Math.min(width, height) * 0.25;
       var copy = {
@@ -348,10 +390,10 @@ local M = [[
         title: n.title,
         path: n.path,
         degree: 0,
-        x: width / 2 + Math.cos(angle) * radius,
-        y: height / 2 + Math.sin(angle) * radius,
-        vx: 0,
-        vy: 0,
+        x: old ? old.x : width / 2 + Math.cos(angle) * radius,
+        y: old ? old.y : height / 2 + Math.sin(angle) * radius,
+        vx: old ? old.vx : 0,
+        vy: old ? old.vy : 0,
         fixed: false,
         baseR: 5,
         r: 5
@@ -384,10 +426,7 @@ local M = [[
     }
 
     stats.textContent = nodes.length + " nodes · " + links.length + " links" + (localRoot ? " · local: " + localRoot : "");
-    if (!frameStarted) {
-      frameStarted = true;
-      frame();
-    }
+    reheatSimulation(1);
   }
 
   function rerender() {
@@ -406,25 +445,32 @@ local M = [[
     document.getElementById("text-fade").addEventListener("input", function (e) {
       settings.textFadeThreshold = Number(e.target.value);
       document.getElementById("text-fade-value").textContent = e.target.value;
+      requestFrame();
     });
     document.getElementById("show-arrows").addEventListener("change", function (e) {
       settings.arrows = e.target.checked;
+      requestFrame();
     });
     document.getElementById("node-size").addEventListener("input", function (e) {
       settings.nodeSize = Number(e.target.value);
       updateNodeRadii();
+      reheatSimulation(0.25);
     });
     document.getElementById("link-width").addEventListener("input", function (e) {
       settings.linkWidth = Number(e.target.value);
+      requestFrame();
     });
     document.getElementById("repel").addEventListener("input", function (e) {
       settings.repel = Number(e.target.value);
+      reheatSimulation(0.55);
     });
     document.getElementById("link-distance").addEventListener("input", function (e) {
       settings.linkDistance = Number(e.target.value);
+      reheatSimulation(0.55);
     });
     document.getElementById("center-force").addEventListener("input", function (e) {
       settings.center = Number(e.target.value) / 10000;
+      reheatSimulation(0.55);
     });
     depthSlider.addEventListener("input", function () {
       depthValue.textContent = depthSlider.value;
@@ -433,42 +479,93 @@ local M = [[
     });
   }
 
+  function showLocalRoot() {
+    if (!localMode) return;
+    localBlock.style.display = "block";
+    document.getElementById("root-note").textContent = localRoot || "";
+    document.title = localRoot ? "Local Graph - " + localRoot : "Local Graph";
+  }
+
   function loadGraph(graph) {
     rawGraph = graph || { nodes: [], links: [] };
-    loading.remove();
+    if (loading.parentNode) loading.remove();
     controls.style.display = "flex";
     settingsToggle.style.display = "block";
-    if (localRoot) {
-      localBlock.style.display = "block";
-      document.getElementById("root-note").textContent = localRoot;
-      document.title = "Local Graph - " + localRoot;
+    showLocalRoot();
+    if (!controlsBound) {
+      bindControls();
+      controlsBound = true;
     }
-    bindControls();
     rerender();
   }
 
-  window.addEventListener("resize", function () { resize(); draw(); });
+  function openNode(node, event) {
+    var open = "edit";
+    if (event && event.shiftKey) open = "split";
+    else if (event && (event.metaKey || event.ctrlKey)) open = "vsplit";
+    else if (event && event.altKey) open = "tab";
+
+    fetch("/api/open?token=" + encodeURIComponent(graphToken), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: node.id, open: open })
+    }).catch(function () {});
+  }
+
+  function handleEvent(message) {
+    if (!message || !message.type) return;
+    if (message.type === "graph:update") {
+      loadGraph(message.graph);
+    } else if (message.type === "active:set") {
+      activeId = message.id;
+      requestFrame();
+    } else if (message.type === "local:set_root" && localMode) {
+      localRoot = message.id;
+      activeId = message.id;
+      showLocalRoot();
+      resetView();
+      if (rawGraph) rerender();
+    }
+  }
+
+  function connectEvents() {
+    if (!window.EventSource || graphToken === "") return;
+    var source = new EventSource("/events?token=" + encodeURIComponent(graphToken));
+    source.onmessage = function (event) {
+      try { handleEvent(JSON.parse(event.data)); } catch (_) {}
+    };
+  }
+
+  window.addEventListener("resize", function () { resize(); reheatSimulation(0.35); });
   settingsToggle.addEventListener("click", function () { side.classList.toggle("open"); });
   canvas.addEventListener("wheel", function (e) {
     e.preventDefault();
     zoomBy(e.deltaY < 0 ? 1.12 : 0.88, e.clientX, e.clientY);
-    draw();
+    requestFrame();
   }, { passive: false });
 
   canvas.addEventListener("mousemove", function (e) {
     if (drag) {
+      if (Math.hypot(e.clientX - mouse.downX, e.clientY - mouse.downY) >= 4) mouse.moved = true;
       drag.x = worldX(e.clientX); drag.y = worldY(e.clientY);
       drag.vx = 0; drag.vy = 0;
+      requestFrame();
       return;
     }
     if (mouse.pan) {
+      if (Math.hypot(e.clientX - mouse.downX, e.clientY - mouse.downY) >= 4) mouse.moved = true;
       transform.x += e.clientX - mouse.x;
       transform.y += e.clientY - mouse.y;
       mouse.x = e.clientX; mouse.y = e.clientY;
+      requestFrame();
       return;
     }
 
-    hover = nodeAt(e.clientX, e.clientY);
+    var nextHover = nodeAt(e.clientX, e.clientY);
+    if (nextHover !== hover) {
+      hover = nextHover;
+      requestFrame();
+    }
     if (hover) {
       tip.style.display = "block";
       tip.style.left = (e.clientX + 12) + "px";
@@ -481,27 +578,37 @@ local M = [[
 
   canvas.addEventListener("mousedown", function (e) {
     mouse.x = e.clientX; mouse.y = e.clientY;
+    mouse.downX = e.clientX; mouse.downY = e.clientY; mouse.moved = false;
     drag = nodeAt(e.clientX, e.clientY);
+    mouse.downNode = drag;
     if (drag) {
       drag.fixed = true;
+      requestFrame();
     } else {
       mouse.pan = true;
       canvas.classList.add("dragging");
     }
   });
 
-  window.addEventListener("mouseup", function () {
-    if (drag) drag.fixed = false;
+  window.addEventListener("mouseup", function (e) {
+    var clicked = mouse.downNode && !mouse.moved && Math.hypot(e.clientX - mouse.downX, e.clientY - mouse.downY) < 4;
+    if (clicked) openNode(mouse.downNode, e);
+    if (drag) {
+      drag.fixed = false;
+      reheatSimulation(0.25);
+    }
     drag = null;
+    mouse.downNode = null;
     mouse.pan = false;
     canvas.classList.remove("dragging");
   });
 
-  document.getElementById("zin").onclick = function () { zoomBy(1.25); draw(); };
-  document.getElementById("zout").onclick = function () { zoomBy(0.8); draw(); };
-  document.getElementById("reset").onclick = function () { resetView(); draw(); };
+  document.getElementById("zin").onclick = function () { zoomBy(1.25); requestFrame(); };
+  document.getElementById("zout").onclick = function () { zoomBy(0.8); requestFrame(); };
+  document.getElementById("reset").onclick = function () { resetView(); requestFrame(); };
 
   resize();
+  connectEvents();
   fetch("/api/graph")
     .then(function (res) { if (!res.ok) throw new Error(res.statusText); return res.json(); })
     .then(loadGraph)

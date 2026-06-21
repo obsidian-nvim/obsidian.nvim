@@ -73,7 +73,6 @@ function M.get_checker()
   end
 
   local ignore_filters = Obsidian.opts.file and Obsidian.opts.file.ignore_filters
-  vim.print(ignore_filters)
   if not ignore_filters or vim.tbl_isempty(ignore_filters) then
     return nil
   end
