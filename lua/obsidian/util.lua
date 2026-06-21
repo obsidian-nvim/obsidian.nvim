@@ -338,29 +338,14 @@ util.working_day_after = function(time)
   end
 end
 
----Check if a string is a checkbox list item
----
----Supported checboox lists:
---- - [ ] foo
---- - [x] foo
---- + [x] foo
---- * [ ] foo
---- 1. [ ] foo
---- 1) [ ] foo
+---Check if a string is an Obsidian/GFM-style task list item.
 ---
 ---@param s string
 ---@return boolean
 util.is_checkbox = function(s)
-  -- - [ ] and * [ ] and + [ ]
-  if string.match(s, "%s*[-+*]%s+%[.%]") ~= nil then
-    return true
-  end
-  -- 1. [ ] and 1) [ ]
-  if string.match(s, "%s*%d+[%.%)]%s+%[.%]") ~= nil then
-    return true
-  end
-  return false
+  return require("obsidian.parse.line.tasks").extract(s)[1] ~= nil
 end
+
 
 ---@param link string
 ---@return string|? link_location

@@ -9,6 +9,7 @@ local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
 local list_items = require "obsidian.parse.list_items"
+local list_items = require "obsidian.parse.line.list_items"
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
@@ -168,8 +169,11 @@ local function parse_list_prefix(line)
     return nil, nil
   end
 
-  local prefix, rest = line:match("^(%s*" .. vim.pesc(item.marker) .. "%s+)(.*)$")
-  return prefix, rest
+  local prefix = line:sub(1, item.marker_col + #item.marker + #item.padding)
+  if item.padding == "" then
+    prefix = prefix .. " "
+  end
+  return prefix, line:sub(item.marker_col + #item.marker + #item.padding + 1)
 end
 
 ---@param rest string
