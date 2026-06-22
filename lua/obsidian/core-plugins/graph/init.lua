@@ -7,13 +7,16 @@ local Frontmatter = require "obsidian.frontmatter"
 local Path = require "obsidian.path"
 local HttpServer = require "obsidian.web.server"
 local refs = require "obsidian.parse.refs"
+local parse_tags = require("obsidian.parse.tags").parse_tags
 local api = require "obsidian.api"
+local ignore = require "obsidian.ignore"
 
 local uv = vim.uv
 
 local M = {}
 
 local SSE_HEARTBEAT_MS = 25000
+local MARKDOWN_EXTENSIONS = { md = true, qmd = true, base = true }
 
 local function strip_markdown_suffix(path)
   return path:gsub("%.md$", "")
@@ -101,20 +104,205 @@ local function normalize_string_list(value)
   return out
 end
 
+---@param target string
+---@return string?
+local function target_extension(target)
+  return (target:match "%.([^./]+)$" or ""):lower():match "^(.+)$"
+end
+
+---@param target string
+---@return "note"|"attachment"
+local function target_kind(target)
+  local ext = target_extension(target)
+  if ext and not MARKDOWN_EXTENSIONS[ext] then
+    return "attachment"
+  else
+    return "note"
+  end
+end
+
+---@param target string
+---@param kind "note"|"attachment"
+---@return string[]
+local function target_candidates(target, kind)
+  if kind == "attachment" then
+    return { target }
+  end
+
+  local ext = target_extension(target)
+  if ext and MARKDOWN_EXTENSIONS[ext] then
+    return { target }
+  end
+
+  return { target .. ".md", target .. ".qmd", target .. ".base" }
+end
+
+---@param target string
+---@param kind "note"|"attachment"
+---@return boolean
+local function target_is_ignored(target, kind)
+  for _, candidate in ipairs(target_candidates(target, kind)) do
+    if ignore.is_ignored(candidate) then
+      return true
+    end
+  end
+  return false
+end
+
+---@param target string
+---@param kind "note"|"attachment"
+---@return obsidian.Path|?
+local function target_existing_path(target, kind)
+  for _, candidate in ipairs(target_candidates(target, kind)) do
+    local path = Path.new(vim.fs.joinpath(tostring(Obsidian.dir), candidate))
+    if path:is_file() then
+      return path
+    end
+  end
+end
+
+---@param id string
+---@return string
+local function node_folder(id)
+  return id:match "^(.*)/[^/]+$" or ""
+end
+
+---@param id string
+---@return string
+local function node_title(id)
+  return id:match "([^/]+)$" or id
+end
+
+---@param tag string
+---@return string
+local function tag_node_id(tag)
+  return "tag:" .. tag
+end
+
+---@param nodes table[]
+---@param node_set table<string, boolean>
+---@param tag string
+---@return string|?
+local function ensure_tag_node(nodes, node_set, tag)
+  if vim.startswith(tag, "#") then
+    tag = tag:sub(2)
+  end
+  if tag == "" then
+    return nil
+  end
+
+  local id = tag_node_id(tag)
+  if node_set[id] then
+    return id
+  end
+
+  nodes[#nodes + 1] = {
+    id = id,
+    title = "#" .. tag,
+    folder = "",
+    aliases = {},
+    tags = {},
+    type = "tag",
+  }
+  node_set[id] = true
+  return id
+end
+
+---@param nodes table[]
+---@param node_set table<string, boolean>
+---@param target string
+---@param kind "note"|"attachment"
+---@return string|?
+local function ensure_linked_node(nodes, node_set, target, kind)
+  if target == "" or target_is_ignored(target, kind) then
+    return nil
+  end
+
+  if node_set[target] then
+    return target
+  end
+
+  local path = target_existing_path(target, kind)
+  local exists = path ~= nil
+  local node = {
+    id = target,
+    title = node_title(target),
+    folder = node_folder(target),
+    aliases = {},
+    tags = {},
+  }
+
+  if path then
+    node.path = tostring(path)
+  end
+  if not exists then
+    node.exists = false
+  end
+  if kind == "attachment" then
+    node.type = "attachment"
+    node.exists = exists
+  end
+
+  nodes[#nodes + 1] = node
+  node_set[target] = true
+  return target
+end
+
+---@param path obsidian.Path
+---@return string[]
+local function read_inline_tags(path)
+  local f = io.open(tostring(path), "r")
+  if not f then
+    return {}
+  end
+
+  local tags = {}
+  local seen = {}
+  for line in f:lines() do
+    for _, match in ipairs(parse_tags(line)) do
+      local tag = line:sub(match[1] + 1, match[2])
+      if tag ~= "" and not seen[tag] then
+        tags[#tags + 1] = tag
+        seen[tag] = true
+      end
+    end
+  end
+  f:close()
+  return tags
+end
+
+---@param tags string[]
+---@param extra string[]
+---@return string[]
+local function merge_tags(tags, extra)
+  local out = {}
+  local seen = {}
+  for _, list in ipairs { tags, extra } do
+    for _, tag in ipairs(list) do
+      if not seen[tag] then
+        out[#out + 1] = tag
+        seen[tag] = true
+      end
+    end
+  end
+  return out
+end
+
 ---@param path obsidian.Path
 ---@return string[] aliases
 ---@return string[] tags
 ---@return string? title
 local function read_note_metadata(path)
+  local inline_tags = read_inline_tags(path)
   local f = io.open(tostring(path), "r")
   if not f then
-    return {}, {}, nil
+    return {}, inline_tags, nil
   end
 
   local first = f:read "*l"
   if not first or not first:match "^%-%-%-+$" then
     f:close()
-    return {}, {}, nil
+    return {}, inline_tags, nil
   end
 
   local frontmatter_lines = {}
@@ -128,7 +316,7 @@ local function read_note_metadata(path)
 
   local info, metadata = Frontmatter.parse(frontmatter_lines, path)
   local title = type(metadata.title) == "string" and metadata.title or nil
-  return normalize_string_list(info.aliases), normalize_string_list(info.tags), title
+  return normalize_string_list(info.aliases), merge_tags(normalize_string_list(info.tags), inline_tags), title
 end
 
 ---@param target string
@@ -150,7 +338,7 @@ local function resolve_target(target, target_to_id)
 end
 
 --- Build graph data: note nodes and note-to-note links.
----@return table graph { nodes: {id:string, title:string, path:string, folder:string, aliases:string[], tags:string[]}[], links: {source:string, target:string}[] }
+---@return table graph { nodes: {id:string, title:string, path:string|?, folder:string, aliases:string[], tags:string[], type:string|?, exists:boolean|?}[], links: {source:string, target:string}[] }
 function M.build_graph()
   -- TODO: use cache
   local files = api.dir(Obsidian.dir):map(Path.new):totable()
@@ -158,23 +346,35 @@ function M.build_graph()
   local nodes = {}
   local links = {}
   local link_set = {}
+  local node_set = {}
+
+  local function add_link(source, target)
+    if not target or target == source then
+      return
+    end
+
+    local key = source .. "\0" .. target
+    if not link_set[key] then
+      link_set[key] = true
+      links[#links + 1] = { source = source, target = target }
+    end
+  end
 
   for _, filepath in ipairs(files) do
     local rel = filepath:vault_relative_path { strict = true }
     local id = strip_markdown_suffix(tostring(rel))
     local stem = filepath.stem
     local aliases, tags, title = read_note_metadata(filepath)
-    local folder = id:match "^(.*)/[^/]+$" or ""
-
     local node = {
       id = id,
       title = title or stem,
       path = tostring(filepath),
-      folder = folder,
+      folder = node_folder(id),
       aliases = aliases,
       tags = tags,
     }
     nodes[#nodes + 1] = node
+    node_set[id] = true
     target_to_id[id] = id
 
     if target_to_id[stem] == nil then
@@ -190,6 +390,10 @@ function M.build_graph()
         target_to_id[alias] = false
       end
     end
+
+    for _, tag in ipairs(tags) do
+      add_link(id, ensure_tag_node(nodes, node_set, tag))
+    end
   end
 
   for _, filepath in ipairs(files) do
@@ -198,13 +402,8 @@ function M.build_graph()
 
     for _, target in ipairs(extract_links(filepath)) do
       local resolved = resolve_target(target, target_to_id)
-      if resolved and resolved ~= source then
-        local key = source .. "\0" .. resolved
-        if not link_set[key] then
-          link_set[key] = true
-          links[#links + 1] = { source = source, target = resolved }
-        end
-      end
+      local target_id = resolved or ensure_linked_node(nodes, node_set, target, target_kind(target))
+      add_link(source, target_id)
     end
   end
 

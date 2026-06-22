@@ -47,8 +47,11 @@ local M = [[
   </div>
 
   <h2>Filters</h2>
-  <input id="search" type="text" placeholder="Search files">
-  <label><span>Hide orphans</span><input id="hide-orphans" type="checkbox"></label>
+  <input id="search" type="text" placeholder="Search graph">
+  <label><span>Tags</span><input id="show-tags" type="checkbox" checked></label>
+  <label><span>Attachments</span><input id="show-attachments" type="checkbox" checked></label>
+  <label><span>Existing files only</span><input id="existing-only" type="checkbox"></label>
+  <label><span>Orphans</span><input id="show-orphans" type="checkbox" checked></label>
 
   <h2>Display</h2>
   <label><span>Text fade <b id="text-fade-value">0</b></span><input id="text-fade" type="range" min="-3" max="3" value="0" step="0.1"></label>
@@ -62,7 +65,7 @@ local M = [[
   <label><span>Center force</span><input id="center-force" type="range" min="0" max="30" value="8" step="1"></label>
 
   <h2>About</h2>
-  <div class="muted">MVP settings only: search, orphans, text fade, arrows, sizing, and basic force tuning.</div>
+  <div class="muted">Search files and graph nodes, toggle attachments, missing files, orphans, labels, arrows, sizing, and force tuning.</div>
 </aside>
 <div id="controls"><button id="zin">+</button><button id="zout">-</button><button id="reset">&#x27F2;</button></div>
 <canvas id="graph"></canvas>
@@ -96,7 +99,10 @@ local M = [[
   var simulationDecay = 0.94;
   var settings = {
     search: "",
-    hideOrphans: false,
+    tags: true,
+    attachments: true,
+    existingOnly: false,
+    showOrphans: true,
     textFadeThreshold: 0,
     arrows: false,
     nodeSize: 1,
@@ -211,10 +217,14 @@ local M = [[
     var search = settings.search.trim().toLowerCase();
     var keep = Object.create(null);
     var outNodes = (graph.nodes || []).filter(function (n) {
-      var text = (n.title + " " + n.id + " " + (n.path || "") + " " + (n.folder || "") + " " + (n.aliases || []).join(" ") + " " + (n.tags || []).join(" ")).toLowerCase();
-      var matches = search === "" || text.indexOf(search) !== -1;
+      var nodeTags = (n.tags || []).map(function (tag) { return String(tag).toLowerCase().replace(/^#/, ""); });
+      var text = (n.title + " " + n.id + " " + (n.path || "") + " " + (n.folder || "") + " " + (n.aliases || []).join(" ") + " " + nodeTags.join(" ")).toLowerCase();
+      var matchesSearch = search === "" || text.indexOf(search) !== -1;
+      var isTag = n.type === "tag";
+      var isAttachment = n.type === "attachment";
+      var exists = n.exists !== false;
       var hasLinks = degree[n.id] > 0 || n.id === localRoot;
-      var ok = matches && (!settings.hideOrphans || hasLinks);
+      var ok = matchesSearch && (settings.tags || !isTag) && (settings.attachments || !isAttachment) && (!settings.existingOnly || exists) && (settings.showOrphans || hasLinks);
       if (ok) keep[n.id] = true;
       return ok;
     });
@@ -313,6 +323,21 @@ local M = [[
     ctx.fill();
   }
 
+  function nodeFillColor(node, isHover, isRoot) {
+    if (isRoot) return "#f59e0b";
+    if (!node.exists) return isHover ? "#9ca3af" : "#6b7280";
+    if (node.type === "tag") return isHover ? "#86efac" : "#22c55e";
+    return isHover ? "#c084fc" : "#7c3aed";
+  }
+
+  function nodeStrokeColor(node, isRoot, isActive) {
+    if (isRoot) return "#fbbf24";
+    if (!node.exists) return "#d1d5db";
+    if (node.type === "tag") return "#bbf7d0";
+    if (isActive) return "#38bdf8";
+    return "#a78bfa";
+  }
+
   function draw() {
     ctx.save();
     ctx.clearRect(0, 0, width, height);
@@ -344,8 +369,8 @@ local M = [[
       var isActive = activeId && n.id === activeId;
       var dimNode = hover && !connected(hover.id, n.id);
       ctx.globalAlpha = dimNode ? 0.18 : 1;
-      ctx.fillStyle = isRoot ? "#f59e0b" : isHover ? "#c084fc" : "#7c3aed";
-      ctx.strokeStyle = isRoot ? "#fbbf24" : isActive ? "#38bdf8" : "#a78bfa";
+      ctx.fillStyle = nodeFillColor(n, isHover, isRoot);
+      ctx.strokeStyle = nodeStrokeColor(n, isRoot, isActive);
       ctx.lineWidth = (isRoot || isActive) ? 2.2 / transform.k : 1.5 / transform.k;
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
@@ -392,6 +417,8 @@ local M = [[
         folder: n.folder || "",
         aliases: n.aliases || [],
         tags: n.tags || [],
+        type: n.type || "note",
+        exists: n.exists !== false,
         degree: 0,
         x: old ? old.x : width / 2 + Math.cos(angle) * radius,
         y: old ? old.y : height / 2 + Math.sin(angle) * radius,
@@ -441,8 +468,20 @@ local M = [[
       settings.search = e.target.value;
       rerender();
     });
-    document.getElementById("hide-orphans").addEventListener("change", function (e) {
-      settings.hideOrphans = e.target.checked;
+    document.getElementById("show-tags").addEventListener("change", function (e) {
+      settings.tags = e.target.checked;
+      rerender();
+    });
+    document.getElementById("show-attachments").addEventListener("change", function (e) {
+      settings.attachments = e.target.checked;
+      rerender();
+    });
+    document.getElementById("existing-only").addEventListener("change", function (e) {
+      settings.existingOnly = e.target.checked;
+      rerender();
+    });
+    document.getElementById("show-orphans").addEventListener("change", function (e) {
+      settings.showOrphans = e.target.checked;
       rerender();
     });
     document.getElementById("text-fade").addEventListener("input", function (e) {
@@ -503,6 +542,8 @@ local M = [[
   }
 
   function openNode(node, event) {
+    if (node.type === "tag") return;
+
     var open = "edit";
     if (event && event.shiftKey) open = "split";
     else if (event && (event.metaKey || event.ctrlKey)) open = "vsplit";
@@ -573,7 +614,7 @@ local M = [[
       tip.style.display = "block";
       tip.style.left = (e.clientX + 12) + "px";
       tip.style.top = (e.clientY + 12) + "px";
-      tip.textContent = hover.title + "\n" + hover.id + (hover.tags.length ? "\n#" + hover.tags.join(" #") : "") + "\n" + hover.degree + " links";
+      tip.textContent = hover.title + (hover.type === "tag" ? "" : "\n" + hover.id) + (hover.tags.length ? "\n#" + hover.tags.join(" #") : "") + "\n" + hover.degree + " links";
     } else {
       tip.style.display = "none";
     }

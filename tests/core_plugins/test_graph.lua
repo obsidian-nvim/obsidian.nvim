@@ -28,6 +28,42 @@ T["build_graph"]["builds note nodes and links"] = function()
   }, data.links)
 end
 
+T["build_graph"]["adds linked attachments and missing notes"] = function()
+  local graph = require "obsidian.core-plugins.graph"
+  local assets = Obsidian.dir / "assets"
+  assets:mkdir()
+
+  helpers.write("![[assets/image.png]]\n[[Missing]]", Obsidian.dir / "A.md")
+  helpers.write("png", assets / "image.png")
+
+  local data = graph.build_graph()
+  table.sort(data.nodes, function(a, b)
+    return a.id < b.id
+  end)
+  table.sort(data.links, function(a, b)
+    return a.source .. a.target < b.source .. b.target
+  end)
+
+  MiniTest.expect.equality({
+    { id = "A", title = "A", path = tostring(Obsidian.dir / "A.md"), folder = "", aliases = {}, tags = {} },
+    { id = "Missing", title = "Missing", folder = "", aliases = {}, tags = {}, exists = false },
+    {
+      id = "assets/image.png",
+      title = "image.png",
+      path = tostring(assets / "image.png"),
+      folder = "assets",
+      aliases = {},
+      tags = {},
+      type = "attachment",
+      exists = true,
+    },
+  }, data.nodes)
+  MiniTest.expect.equality({
+    { source = "A", target = "Missing" },
+    { source = "A", target = "assets/image.png" },
+  }, data.links)
+end
+
 T["build_graph"]["does not show ignored nodes"] = function()
   local graph = require "obsidian.core-plugins.graph"
   Obsidian.opts.file = {
@@ -65,7 +101,7 @@ T["build_graph"]["reads frontmatter metadata and resolves aliases"] = function()
   local nested = Obsidian.dir / "nested"
   nested:mkdir()
 
-  helpers.write("---\naliases: [Alias B]\ntags: [project, graph]\ntitle: Better B\n---\n# B", nested / "B.md")
+  helpers.write("---\naliases: [Alias B]\ntags: [project, graph]\ntitle: Better B\n---\n# B\n#inline", nested / "B.md")
   helpers.write("[[Alias B]]", Obsidian.dir / "A.md")
 
   local data = graph.build_graph()
@@ -84,10 +120,18 @@ T["build_graph"]["reads frontmatter metadata and resolves aliases"] = function()
       path = tostring(nested / "B.md"),
       folder = "nested",
       aliases = { "Alias B" },
-      tags = { "project", "graph" },
+      tags = { "project", "graph", "inline" },
     },
+    { id = "tag:graph", title = "#graph", folder = "", aliases = {}, tags = {}, type = "tag" },
+    { id = "tag:inline", title = "#inline", folder = "", aliases = {}, tags = {}, type = "tag" },
+    { id = "tag:project", title = "#project", folder = "", aliases = {}, tags = {}, type = "tag" },
   }, data.nodes)
-  MiniTest.expect.equality({ { source = "A", target = "nested/B" } }, data.links)
+  MiniTest.expect.equality({
+    { source = "A", target = "nested/B" },
+    { source = "nested/B", target = "tag:graph" },
+    { source = "nested/B", target = "tag:inline" },
+    { source = "nested/B", target = "tag:project" },
+  }, data.links)
 end
 
 T["current_note_id"] = function()
