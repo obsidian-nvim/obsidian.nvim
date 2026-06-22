@@ -3,6 +3,7 @@
 --- Scans markdown notes in the active vault, extracts internal links, and serves a
 --- small browser UI from a local HTTP server.
 
+local Frontmatter = require "obsidian.frontmatter"
 local ignore = require "obsidian.ignore"
 local Path = require "obsidian.path"
 local refs = require "obsidian.parse.refs"
@@ -10,6 +11,9 @@ local refs = require "obsidian.parse.refs"
 local uv = vim.uv or vim.loop
 
 local M = {}
+
+local MAX_REQUEST_BYTES = 1024 * 1024
+local SSE_HEARTBEAT_MS = 25000
 
 local function strip_markdown_suffix(path)
   return path:gsub("%.markdown$", ""):gsub("%.md$", "")
@@ -117,6 +121,52 @@ function M.extract_links(path)
   return links
 end
 
+---@param value any
+---@return string[]
+local function normalize_string_list(value)
+  if type(value) ~= "table" then
+    return {}
+  end
+
+  local out = {}
+  for _, item in ipairs(value) do
+    if type(item) == "string" and item ~= "" then
+      out[#out + 1] = item
+    end
+  end
+  return out
+end
+
+---@param path obsidian.Path
+---@return string[] aliases
+---@return string[] tags
+---@return string? title
+local function read_note_metadata(path)
+  local f = io.open(tostring(path), "r")
+  if not f then
+    return {}, {}, nil
+  end
+
+  local first = f:read "*l"
+  if not first or not first:match "^%-%-%-+$" then
+    f:close()
+    return {}, {}, nil
+  end
+
+  local frontmatter_lines = {}
+  for line in f:lines() do
+    if line:match "^%-%-%-+$" then
+      break
+    end
+    frontmatter_lines[#frontmatter_lines + 1] = line
+  end
+  f:close()
+
+  local info, metadata = Frontmatter.parse(frontmatter_lines, path)
+  local title = type(metadata.title) == "string" and metadata.title or nil
+  return normalize_string_list(info.aliases), normalize_string_list(info.tags), title
+end
+
 ---@param target string
 ---@param target_to_id table<string, string|false>
 ---@return string|?
@@ -136,7 +186,7 @@ local function resolve_target(target, target_to_id)
 end
 
 --- Build graph data: note nodes and note-to-note links.
----@return table graph { nodes: {id:string, title:string, path:string}[], links: {source:string, target:string}[] }
+---@return table graph { nodes: {id:string, title:string, path:string, folder:string, aliases:string[], tags:string[]}[], links: {source:string, target:string}[] }
 function M.build_graph()
   local files = M.find_notes()
   local target_to_id = {}
@@ -148,14 +198,32 @@ function M.build_graph()
     local rel = filepath:vault_relative_path { strict = true }
     local id = strip_markdown_suffix(tostring(rel))
     local stem = filepath.stem
+    local aliases, tags, title = read_note_metadata(filepath)
+    local folder = id:match "^(.*)/[^/]+$" or ""
 
-    nodes[#nodes + 1] = { id = id, title = stem, path = tostring(filepath) }
+    local node = {
+      id = id,
+      title = title or stem,
+      path = tostring(filepath),
+      folder = folder,
+      aliases = aliases,
+      tags = tags,
+    }
+    nodes[#nodes + 1] = node
     target_to_id[id] = id
 
     if target_to_id[stem] == nil then
       target_to_id[stem] = id
     elseif target_to_id[stem] ~= id then
       target_to_id[stem] = false
+    end
+
+    for _, alias in ipairs(aliases) do
+      if target_to_id[alias] == nil then
+        target_to_id[alias] = id
+      elseif target_to_id[alias] ~= id then
+        target_to_id[alias] = false
+      end
     end
   end
 
@@ -178,6 +246,42 @@ function M.build_graph()
   return { nodes = nodes, links = links }
 end
 
+function M.invalidate_graph_cache()
+  M._graph_cache = nil
+  M._graph_by_id = nil
+  M._graph_cache_dir = nil
+end
+
+---@param force boolean?
+---@return table graph
+local function get_graph(force)
+  local vault_dir = tostring(Obsidian.dir)
+  if force or not M._graph_cache or M._graph_cache_dir ~= vault_dir then
+    local graph = M.build_graph()
+    local by_id = {}
+    for _, node in ipairs(graph.nodes or {}) do
+      by_id[node.id] = node
+    end
+    M._graph_cache = graph
+    M._graph_by_id = by_id
+    M._graph_cache_dir = vault_dir
+  end
+
+  return M._graph_cache
+end
+
+---@param id string
+---@return table|?
+local function node_by_id(id)
+  get_graph(false)
+  local node = M._graph_by_id and M._graph_by_id[id] or nil
+  if not node then
+    get_graph(true)
+    node = M._graph_by_id and M._graph_by_id[id] or nil
+  end
+  return node
+end
+
 ---@return string
 local function make_token()
   return vim.fn.sha256(tostring(uv.hrtime()) .. tostring(math.random()) .. tostring {})
@@ -192,6 +296,55 @@ local function close_client(client)
   end
 end
 
+---@param client uv_tcp_t
+local function remove_sse_client(client)
+  if M._sse_clients then
+    M._sse_clients[client] = nil
+  end
+  close_client(client)
+end
+
+local function stop_sse_heartbeat()
+  if M._sse_heartbeat_timer then
+    M._sse_heartbeat_timer:stop()
+    M._sse_heartbeat_timer:close()
+    M._sse_heartbeat_timer = nil
+  end
+end
+
+local function start_sse_heartbeat()
+  if M._sse_heartbeat_timer or not uv.new_timer then
+    return
+  end
+
+  local timer = uv.new_timer()
+  if not timer then
+    return
+  end
+  timer:unref()
+  timer:start(SSE_HEARTBEAT_MS, SSE_HEARTBEAT_MS, function()
+    vim.schedule(function()
+      if not M._sse_clients or not next(M._sse_clients) then
+        stop_sse_heartbeat()
+        return
+      end
+
+      for client in pairs(M._sse_clients) do
+        if client:is_closing() then
+          M._sse_clients[client] = nil
+        else
+          client:write(": ping\n\n", function(err)
+            if err then
+              remove_sse_client(client)
+            end
+          end)
+        end
+      end
+    end)
+  end)
+  M._sse_heartbeat_timer = timer
+end
+
 --- Serve a single HTTP response.
 ---@param client uv_tcp_t
 ---@param status string e.g. "200 OK"
@@ -199,7 +352,7 @@ end
 ---@param body string
 local function respond(client, status, content_type, body)
   local header = string.format(
-    "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+    "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nConnection: close\r\n\r\n",
     status,
     content_type,
     #body
@@ -226,7 +379,7 @@ local function request_complete(request)
   end
 
   local head = request:sub(1, header_start - 1)
-  local content_length = tonumber(head:match "[Cc]ontent%-[Ll]ength:%s*(%d+)") or 0
+  local content_length = tonumber(head:lower():match "content%-length:%s*(%d+)") or 0
   return #request >= header_end + content_length
 end
 
@@ -280,11 +433,8 @@ function M.note_path_by_id(id)
     return nil
   end
 
-  for _, node in ipairs(M.build_graph().nodes) do
-    if node.id == id then
-      return node.path
-    end
-  end
+  local node = node_by_id(id)
+  return node and node.path or nil
 end
 
 ---@param id string
@@ -326,10 +476,7 @@ local function send_sse(client, event)
 
   client:write("event: message\ndata: " .. data .. "\n\n", function(err)
     if err then
-      if M._sse_clients then
-        M._sse_clients[client] = nil
-      end
-      close_client(client)
+      remove_sse_client(client)
     end
   end)
 end
@@ -351,7 +498,7 @@ function M.broadcast_graph_update(reason)
     return
   end
 
-  local ok, graph = pcall(M.build_graph)
+  local ok, graph = pcall(get_graph, true)
   if ok then
     M.broadcast { type = "graph:update", graph = graph, reason = reason }
   end
@@ -359,6 +506,7 @@ end
 
 ---@param reason string?
 function M.schedule_graph_update(reason)
+  M.invalidate_graph_cache()
   if M._graph_update_timer then
     M._graph_update_timer:stop()
   else
@@ -392,21 +540,27 @@ function M.broadcast_current_note()
   M.broadcast { type = "local:set_root", id = id }
 end
 
+---@param events lsp.FileEvent[]
+function M.handle_watchfiles(events)
+  if not M._server then
+    return
+  end
+
+  local FileChangeType = vim.lsp.protocol.FileChangeType
+  for _, event in ipairs(events) do
+    if event.type == FileChangeType.Created or event.type == FileChangeType.Deleted then
+      M.schedule_graph_update "files"
+      return
+    end
+  end
+end
+
 local function ensure_live_hooks()
   if M._live_hooks_started then
     return
   end
 
   M._sse_clients = M._sse_clients or {}
-  M._unregister_watchfiles = require("obsidian.lsp.watchfiles").register_handler(function(events)
-    local FileChangeType = vim.lsp.protocol.FileChangeType
-    for _, event in ipairs(events) do
-      if event.type == FileChangeType.Created or event.type == FileChangeType.Deleted then
-        M.schedule_graph_update "files"
-        return
-      end
-    end
-  end)
 
   M._augroup = vim.api.nvim_create_augroup("obsidian_graph_live", { clear = true })
   vim.api.nvim_create_autocmd("User", {
@@ -434,7 +588,6 @@ local function respond_events(client)
     "Content-Type: text/event-stream",
     "Cache-Control: no-cache",
     "Connection: keep-alive",
-    "Access-Control-Allow-Origin: *",
     "",
     "",
   }, "\r\n")
@@ -443,8 +596,9 @@ local function respond_events(client)
   M._sse_clients[client] = true
   client:write(header)
   client:unref()
+  start_sse_heartbeat()
 
-  send_sse(client, { type = "graph:update", graph = M.build_graph(), reason = "connect" })
+  send_sse(client, { type = "graph:update", graph = get_graph(false), reason = "connect" })
   local id = M.current_note_id()
   if id then
     send_sse(client, { type = "active:set", id = id })
@@ -476,8 +630,13 @@ local function handle_request(client, request)
   local req = parse_request(request)
 
   if req.path == "/api/graph" and req.method == "GET" then
+    if req.params.token ~= M._token then
+      respond(client, "403 Forbidden", "text/plain", "Forbidden")
+      return
+    end
+
     local ok, body = pcall(function()
-      return vim.json.encode(M.build_graph())
+      return vim.json.encode(get_graph(false))
     end)
     if ok then
       respond(client, "200 OK", "application/json", body)
@@ -534,12 +693,20 @@ function M.start_server(port)
     server:accept(client)
 
     local chunks = {}
+    local request_size = 0
     client:read_start(function(read_err, data)
       if read_err then
-        client:close()
+        close_client(client)
         return
       end
       if not data then
+        return
+      end
+
+      request_size = request_size + #data
+      if request_size > MAX_REQUEST_BYTES then
+        client:read_stop()
+        respond(client, "413 Payload Too Large", "text/plain", "Request too large")
         return
       end
 
@@ -564,6 +731,7 @@ function M.start_server(port)
   M._port = port
   M._token = make_token()
   M._sse_clients = {}
+  M.invalidate_graph_cache()
   ensure_live_hooks()
   return true
 end
@@ -590,10 +758,8 @@ function M.stop_server()
     M._graph_update_timer = nil
   end
 
-  if M._unregister_watchfiles then
-    M._unregister_watchfiles()
-    M._unregister_watchfiles = nil
-  end
+  stop_sse_heartbeat()
+  M.invalidate_graph_cache()
 
   if M._augroup then
     pcall(vim.api.nvim_del_augroup_by_id, M._augroup)

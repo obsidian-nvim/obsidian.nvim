@@ -211,7 +211,7 @@ local M = [[
     var search = settings.search.trim().toLowerCase();
     var keep = Object.create(null);
     var outNodes = (graph.nodes || []).filter(function (n) {
-      var text = (n.title + " " + n.id + " " + (n.path || "")).toLowerCase();
+      var text = (n.title + " " + n.id + " " + (n.path || "") + " " + (n.folder || "") + " " + (n.aliases || []).join(" ") + " " + (n.tags || []).join(" ")).toLowerCase();
       var matches = search === "" || text.indexOf(search) !== -1;
       var hasLinks = degree[n.id] > 0 || n.id === localRoot;
       var ok = matches && (!settings.hideOrphans || hasLinks);
@@ -389,6 +389,9 @@ local M = [[
         id: n.id,
         title: n.title,
         path: n.path,
+        folder: n.folder || "",
+        aliases: n.aliases || [],
+        tags: n.tags || [],
         degree: 0,
         x: old ? old.x : width / 2 + Math.cos(angle) * radius,
         y: old ? old.y : height / 2 + Math.sin(angle) * radius,
@@ -570,7 +573,7 @@ local M = [[
       tip.style.display = "block";
       tip.style.left = (e.clientX + 12) + "px";
       tip.style.top = (e.clientY + 12) + "px";
-      tip.textContent = hover.title + "\n" + hover.id + "\n" + hover.degree + " links";
+      tip.textContent = hover.title + "\n" + hover.id + (hover.tags.length ? "\n#" + hover.tags.join(" #") : "") + "\n" + hover.degree + " links";
     } else {
       tip.style.display = "none";
     }
@@ -609,7 +612,7 @@ local M = [[
 
   resize();
   connectEvents();
-  fetch("/api/graph")
+  fetch("/api/graph?token=" + encodeURIComponent(graphToken))
     .then(function (res) { if (!res.ok) throw new Error(res.statusText); return res.json(); })
     .then(loadGraph)
     .catch(function (err) { loading.textContent = "Failed to load graph: " + err.message; loading.style.color = "#f66"; });
