@@ -4,6 +4,16 @@ local M = {}
 
 local handlers = {}
 
+---@param events lsp.FileEvent[]
+local function handle_graph_events(events)
+  local graph = package.loaded["obsidian.core-plugins.graph"]
+  if type(graph) ~= "table" or type(graph.handle_watchfiles) ~= "function" then
+    return
+  end
+
+  util.fire_callback("watchfiles_graph", graph.handle_watchfiles, events)
+end
+
 ---@param handler fun(events: lsp.FileEvent[], raw_changes: lsp.FileEvent[])
 ---@return fun()
 M.register_handler = function(handler)
@@ -26,6 +36,8 @@ end
 ---@param events lsp.FileEvent[]
 ---@return lsp.FileEvent[]
 M.handle = function(events)
+  handle_graph_events(events)
+
   if #handlers == 0 then
     return events
   end

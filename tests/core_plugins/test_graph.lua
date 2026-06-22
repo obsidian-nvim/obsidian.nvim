@@ -55,10 +55,40 @@ T["build_graph"]["does not show ignored nodes"] = function()
   end)
 
   MiniTest.expect.equality({
-    { id = "A", title = "A", path = tostring(Obsidian.dir / "A.md") },
-    { id = "B", title = "B", path = tostring(Obsidian.dir / "B.md") },
+    { id = "A", title = "A", path = tostring(Obsidian.dir / "A.md"), folder = "", aliases = {}, tags = {} },
+    { id = "B", title = "B", path = tostring(Obsidian.dir / "B.md"), folder = "", aliases = {}, tags = {} },
   }, data.nodes)
   MiniTest.expect.equality({ { source = "A", target = "B" } }, data.links)
+end
+
+T["build_graph"]["reads frontmatter metadata and resolves aliases"] = function()
+  local graph = require "obsidian.core-plugins.graph"
+  local nested = Obsidian.dir / "nested"
+  nested:mkdir()
+
+  helpers.write("---\naliases: [Alias B]\ntags: [project, graph]\ntitle: Better B\n---\n# B", nested / "B.md")
+  helpers.write("[[Alias B]]", Obsidian.dir / "A.md")
+
+  local data = graph.build_graph()
+  table.sort(data.nodes, function(a, b)
+    return a.id < b.id
+  end)
+  table.sort(data.links, function(a, b)
+    return a.source .. a.target < b.source .. b.target
+  end)
+
+  MiniTest.expect.equality({
+    { id = "A", title = "A", path = tostring(Obsidian.dir / "A.md"), folder = "", aliases = {}, tags = {} },
+    {
+      id = "nested/B",
+      title = "Better B",
+      path = tostring(nested / "B.md"),
+      folder = "nested",
+      aliases = { "Alias B" },
+      tags = { "project", "graph" },
+    },
+  }, data.nodes)
+  MiniTest.expect.equality({ { source = "A", target = "nested/B" } }, data.links)
 end
 
 T["extract_links"] = function()

@@ -104,6 +104,29 @@ T["watchfiles dispatches LSP events to registered handlers"] = function()
   eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_raw_uri")
 end
 
+T["watchfiles forwards events to loaded graph plugin"] = function()
+  child.lua [[
+    local watchfiles = require "obsidian.lsp.watchfiles"
+    package.loaded["obsidian.core-plugins.graph"] = {
+      handle_watchfiles = function(events)
+        _G.graph_event_type = events[1].type
+        _G.graph_event_uri = events[1].uri
+      end,
+    }
+
+    local uri = vim.uri_from_fname "/tmp/created.md"
+    watchfiles.handle {
+      {
+        uri = uri,
+        type = vim.lsp.protocol.FileChangeType.Created,
+      },
+    }
+  ]]
+
+  eq(vim.lsp.protocol.FileChangeType.Created, child.lua_get "graph_event_type")
+  eq(vim.uri_from_fname "/tmp/created.md", child.lua_get "graph_event_uri")
+end
+
 T["watchfiles snapshots handlers while dispatching events"] = function()
   child.lua [[
     local watchfiles = require "obsidian.lsp.watchfiles"
