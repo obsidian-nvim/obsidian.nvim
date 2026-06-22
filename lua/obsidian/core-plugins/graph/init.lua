@@ -4,7 +4,6 @@
 --- small browser UI from a local HTTP server.
 
 local Frontmatter = require "obsidian.frontmatter"
-local ignore = require "obsidian.ignore"
 local Path = require "obsidian.path"
 local refs = require "obsidian.parse.refs"
 local api = require "obsidian.api"
@@ -502,21 +501,6 @@ function M.broadcast_current_note()
 
   M.broadcast { type = "active:set", id = id }
   M.broadcast { type = "local:set_root", id = id }
-end
-
----@param events lsp.FileEvent[]
-function M.handle_watchfiles(events)
-  if not M._server then
-    return
-  end
-
-  local FileChangeType = vim.lsp.protocol.FileChangeType
-  for _, event in ipairs(events) do
-    if event.type == FileChangeType.Created or event.type == FileChangeType.Deleted then
-      M.schedule_graph_update "files"
-      return
-    end
-  end
 end
 
 local function ensure_live_hooks()
