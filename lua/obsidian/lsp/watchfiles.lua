@@ -26,17 +26,20 @@ end
 ---@param events lsp.FileEvent[]
 ---@return lsp.FileEvent[]
 M.handle = function(events)
-  if #handlers == 0 then
-    return events
+  if #handlers > 0 then
+    local active_handlers = {}
+    for i, handler in ipairs(handlers) do
+      active_handlers[i] = handler
+    end
+
+    for _, handler in ipairs(active_handlers) do
+      util.fire_callback("watchfiles", handler, events, events)
+    end
   end
 
-  local active_handlers = {}
-  for i, handler in ipairs(handlers) do
-    active_handlers[i] = handler
-  end
-
-  for _, handler in ipairs(active_handlers) do
-    util.fire_callback("watchfiles", handler, events, events)
+  local graph = package.loaded["obsidian.core-plugins.graph"]
+  if type(graph) == "table" and type(graph.handle_watchfiles) == "function" then
+    util.fire_callback("watchfiles.graph", graph.handle_watchfiles, events, events)
   end
 
   return events

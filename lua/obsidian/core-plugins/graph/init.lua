@@ -5,6 +5,7 @@
 
 local Frontmatter = require "obsidian.frontmatter"
 local Path = require "obsidian.path"
+local HttpServer = require "obsidian.web.server"
 local refs = require "obsidian.parse.refs"
 local api = require "obsidian.api"
 
@@ -12,7 +13,6 @@ local uv = vim.uv
 
 local M = {}
 
-local MAX_REQUEST_BYTES = 1024 * 1024
 local SSE_HEARTBEAT_MS = 25000
 
 local function strip_markdown_suffix(path)
@@ -34,6 +34,8 @@ local function current_note_id()
   end
   return id
 end
+
+M.current_note_id = current_note_id
 
 local function normalize_target(target)
   target = vim.trim(target or "")
@@ -252,11 +254,7 @@ end
 
 ---@param client uv_tcp_t
 local function close_client(client)
-  if client and not client:is_closing() then
-    pcall(function()
-      client:close()
-    end)
-  end
+  HttpServer.close_client(client)
 end
 
 ---@param client uv_tcp_t
@@ -314,73 +312,7 @@ end
 ---@param content_type string
 ---@param body string
 local function respond(client, status, content_type, body)
-  local header = string.format(
-    "HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nConnection: close\r\n\r\n",
-    status,
-    content_type,
-    #body
-  )
-
-  client:write(header .. body, function()
-    if not client:is_closing() then
-      client:shutdown(function()
-        close_client(client)
-      end)
-    end
-  end)
-end
-
----@param request string
----@return boolean
-local function request_complete(request)
-  local header_start, header_end = request:find("\r\n\r\n", 1, true)
-  if not header_end then
-    header_start, header_end = request:find("\n\n", 1, true)
-  end
-  if not header_end then
-    return false
-  end
-
-  local head = request:sub(1, header_start - 1)
-  local content_length = tonumber(head:lower():match "content%-length:%s*(%d+)") or 0
-  return #request >= header_end + content_length
-end
-
----@param request string
----@return table req
-local function parse_request(request)
-  local header_start, header_end = request:find("\r\n\r\n", 1, true)
-  if not header_end then
-    header_start, header_end = request:find("\n\n", 1, true)
-  end
-
-  local head = request:sub(1, header_start - 1)
-  local body = request:sub(header_end + 1)
-  local lines = vim.split(head, "\n", { plain = true })
-  for i, line in ipairs(lines) do
-    lines[i] = line:gsub("\r$", "")
-  end
-  local method, raw_path = lines[1]:match "^(%S+)%s+(%S+)"
-  raw_path = raw_path or "/"
-  local headers = {}
-
-  for i = 2, #lines do
-    local key, value = lines[i]:match "^([^:]+):%s*(.*)$"
-    if key then
-      headers[key:lower()] = value
-    end
-  end
-
-  local path, query = raw_path:match "^([^?]*)%??(.*)$"
-  local params = {}
-  for pair in (query or ""):gmatch "[^&]+" do
-    local key, value = pair:match "^([^=]*)=?(.*)$"
-    if key and key ~= "" then
-      params[vim.uri_decode(key)] = vim.uri_decode(value or "")
-    end
-  end
-
-  return { method = method, path = path, query = query, params = params, headers = headers, body = body }
+  HttpServer.respond(client, status, content_type, body)
 end
 
 ---@return string
@@ -503,6 +435,21 @@ function M.broadcast_current_note()
   M.broadcast { type = "local:set_root", id = id }
 end
 
+---@param events lsp.FileEvent[]
+function M.handle_watchfiles(events)
+  if not M._server then
+    return
+  end
+
+  local FileChangeType = vim.lsp.protocol.FileChangeType
+  for _, event in ipairs(events) do
+    if event.type == FileChangeType.Created or event.type == FileChangeType.Deleted then
+      M.schedule_graph_update "files"
+      return
+    end
+  end
+end
+
 local function ensure_live_hooks()
   if M._live_hooks_started then
     return
@@ -573,10 +520,8 @@ local function handle_open(client, req)
 end
 
 ---@param client uv_tcp_t
----@param request string
-local function handle_request(client, request)
-  local req = parse_request(request)
-
+---@param req obsidian.web.Request
+local function handle_request(client, req)
   if req.path == "/api/graph" and req.method == "GET" then
     if req.params.token ~= M._token then
       respond(client, "403 Forbidden", "text/plain", "Forbidden")
@@ -616,67 +561,22 @@ end
 ---@param port integer
 ---@return boolean success
 function M.start_server(port)
-  local server = uv.new_tcp()
-  if not server then
-    return false
-  end
-
-  local ok = server:bind("127.0.0.1", port)
-  if not ok then
-    server:close()
-    return false
-  end
-
-  ok = server:listen(128, function(err)
-    if err then
+  local server = HttpServer.new {
+    port = port,
+    on_error = function(err)
       vim.notify("Graph server error: " .. tostring(err), vim.log.levels.ERROR)
-      return
-    end
+    end,
+    on_request = function(_, client, req)
+      handle_request(client, req)
+    end,
+  }
 
-    local client = uv.new_tcp()
-    if not client then
-      return
-    end
-
-    server:accept(client)
-
-    local chunks = {}
-    local request_size = 0
-    client:read_start(function(read_err, data)
-      if read_err then
-        close_client(client)
-        return
-      end
-      if not data then
-        return
-      end
-
-      request_size = request_size + #data
-      if request_size > MAX_REQUEST_BYTES then
-        client:read_stop()
-        respond(client, "413 Payload Too Large", "text/plain", "Request too large")
-        return
-      end
-
-      chunks[#chunks + 1] = data
-      local request = table.concat(chunks)
-      if request_complete(request) then
-        client:read_stop()
-        handle_request(client, request)
-      end
-    end)
-  end)
-
-  if not ok then
-    server:close()
+  if not server:start() then
     return false
   end
-
-  -- Do not keep headless Neovim alive just because the graph server is open.
-  server:unref()
 
   M._server = server
-  M._port = port
+  M._port = server.port
   M._token = make_token()
   M._sse_clients = {}
   M.invalidate_graph_cache()
@@ -687,7 +587,7 @@ end
 --- Stop the graph server.
 function M.stop_server()
   if M._server then
-    M._server:close()
+    M._server:stop()
     M._server = nil
     M._port = nil
     M._token = nil
@@ -720,7 +620,7 @@ end
 ---@return boolean
 local function open_url(path)
   if M._server then
-    local url = "http://127.0.0.1:" .. M._port .. path
+    local url = M._server:url(path)
     vim.notify("Graph view already running on " .. url)
     vim.ui.open(url)
     return true
@@ -728,7 +628,7 @@ local function open_url(path)
 
   for port = 49876, 49885 do
     if M.start_server(port) then
-      local url = "http://127.0.0.1:" .. port .. path
+      local url = M._server:url(path)
       vim.notify("Graph view at " .. url)
       vim.ui.open(url)
       return true
