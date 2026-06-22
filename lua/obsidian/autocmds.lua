@@ -74,6 +74,18 @@ local function bufenter_callback(ev)
   exec_autocmds "ObsidianNoteEnter"
 end
 
+vim.api.nvim_create_autocmd({ "BufReadPost" }, {
+  group = group,
+  pattern = "*.canvas",
+  callback = function(ev)
+    vim.schedule(function()
+      if vim.api.nvim_buf_is_valid(ev.buf) then
+        require("obsidian.core-plugins.canvas").open_file(vim.api.nvim_buf_get_name(ev.buf))
+      end
+    end)
+  end,
+})
+
 vim.api.nvim_create_autocmd("FileType", {
   group = group,
   pattern = { "markdown", "quarto" },

@@ -278,6 +278,8 @@ M.register("graph", { nargs = 0 })
 
 M.register("graph_local", { nargs = 0 })
 
+M.register("canvas", { nargs = 0 })
+
 M.register("workspace", { nargs = "?" })
 
 M.register("help", { nargs = "?", complete = M.help_complete })
