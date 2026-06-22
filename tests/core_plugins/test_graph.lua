@@ -91,15 +91,6 @@ T["build_graph"]["reads frontmatter metadata and resolves aliases"] = function()
   MiniTest.expect.equality({ { source = "A", target = "nested/B" } }, data.links)
 end
 
-T["extract_links"] = function()
-  local graph = require "obsidian.core-plugins.graph"
-  local path = Path.temp { suffix = ".md" }
-  helpers.write("[[A|label]] [B](B.md) `[[ignored]]` [site](https://example.com)", path)
-
-  MiniTest.expect.equality({ "A", "B" }, graph.extract_links(path))
-  vim.fn.delete(tostring(path))
-end
-
 T["current_note_id"] = function()
   local graph = require "obsidian.core-plugins.graph"
   local nested = Obsidian.dir / "nested"

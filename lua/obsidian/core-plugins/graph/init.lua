@@ -7,8 +7,9 @@ local Frontmatter = require "obsidian.frontmatter"
 local ignore = require "obsidian.ignore"
 local Path = require "obsidian.path"
 local refs = require "obsidian.parse.refs"
+local api = require "obsidian.api"
 
-local uv = vim.uv or vim.loop
+local uv = vim.uv
 
 local M = {}
 
@@ -16,11 +17,11 @@ local MAX_REQUEST_BYTES = 1024 * 1024
 local SSE_HEARTBEAT_MS = 25000
 
 local function strip_markdown_suffix(path)
-  return path:gsub("%.markdown$", ""):gsub("%.md$", "")
+  return path:gsub("%.md$", "")
 end
 
 ---@return string|?
-function M.current_note_id()
+local function current_note_id()
   local ok, rel = pcall(function()
     return Path.buffer(0):vault_relative_path { strict = true }
   end)
@@ -56,50 +57,12 @@ local function normalize_target(target)
   return strip_markdown_suffix(target)
 end
 
---- Collect all markdown notes in the vault recursively.
----@return obsidian.Path[]
-function M.find_notes()
-  local files = {}
-
-  local function walk(dir)
-    local h = uv.fs_scandir(dir)
-    if not h then
-      return
-    end
-
-    while true do
-      local name, type = uv.fs_scandir_next(h)
-      if not name then
-        break
-      end
-
-      local full = Path.new(dir) / name
-      if type == "directory" then
-        if not vim.startswith(name, ".") and name ~= "node_modules" and not ignore.is_ignored(tostring(full)) then
-          walk(tostring(full))
-        end
-      elseif
-        type == "file"
-        and (name:match "%.md$" or name:match "%.markdown$")
-        and not ignore.is_ignored(tostring(full))
-      then
-        files[#files + 1] = full
-      end
-    end
-  end
-
-  walk(tostring(Obsidian.dir))
-  table.sort(files, function(a, b)
-    return tostring(a) < tostring(b)
-  end)
-
-  return files
-end
+-- TODO: use cache
 
 --- Extract internal link targets from a note.
 ---@param path obsidian.Path
 ---@return string[]
-function M.extract_links(path)
+local function extract_links(path)
   local links = {}
   local f = io.open(tostring(path), "r")
   if not f then
@@ -188,7 +151,8 @@ end
 --- Build graph data: note nodes and note-to-note links.
 ---@return table graph { nodes: {id:string, title:string, path:string, folder:string, aliases:string[], tags:string[]}[], links: {source:string, target:string}[] }
 function M.build_graph()
-  local files = M.find_notes()
+  -- TODO: use cache
+  local files = api.dir(Obsidian.dir):map(Path.new):totable()
   local target_to_id = {}
   local nodes = {}
   local links = {}
@@ -231,7 +195,7 @@ function M.build_graph()
     local rel = filepath:vault_relative_path { strict = true }
     local source = strip_markdown_suffix(tostring(rel))
 
-    for _, target in ipairs(M.extract_links(filepath)) do
+    for _, target in ipairs(extract_links(filepath)) do
       local resolved = resolve_target(target, target_to_id)
       if resolved and resolved ~= source then
         local key = source .. "\0" .. resolved
@@ -531,7 +495,7 @@ function M.schedule_graph_update(reason)
 end
 
 function M.broadcast_current_note()
-  local id = M.current_note_id()
+  local id = current_note_id()
   if not id then
     return
   end
@@ -599,7 +563,7 @@ local function respond_events(client)
   start_sse_heartbeat()
 
   send_sse(client, { type = "graph:update", graph = get_graph(false), reason = "connect" })
-  local id = M.current_note_id()
+  local id = current_note_id()
   if id then
     send_sse(client, { type = "active:set", id = id })
     send_sse(client, { type = "local:set_root", id = id })
@@ -798,7 +762,7 @@ end
 
 --- Main entry point: start the server and open a local graph for the current note.
 function M.open_graph_local()
-  local note_id = M.current_note_id()
+  local note_id = current_note_id()
   if not note_id then
     vim.notify("Current buffer is not a markdown note in the vault", vim.log.levels.ERROR)
     return
