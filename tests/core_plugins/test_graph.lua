@@ -1,6 +1,5 @@
 local helpers = require "tests.helpers"
 local ignore = require "obsidian.ignore"
-local Path = require "obsidian.path"
 
 local T = helpers.temp_vault
 
