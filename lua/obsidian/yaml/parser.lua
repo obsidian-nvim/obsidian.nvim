@@ -568,11 +568,20 @@ end
 ---@param text string
 ---@return boolean, string|?, string
 Parser._parse_string = function(_, _, text)
+  text = vim.trim(text)
   if vim.startswith(text, [["]]) and vim.endswith(text, [["]]) then
-    -- when the text is enclosed with double-quotes we need to un-escape certain characters.
+    -- When the text is enclosed with double quotes, un-escape the escapes this
+    -- dumper emits.
+    text = yaml_util.strip_enclosing_chars(text)
     text = string.gsub(text, vim.pesc [[\"]], [["]])
+  elseif vim.startswith(text, [[']]) and vim.endswith(text, [[']]) then
+    -- YAML single-quoted strings escape a single quote as two single quotes.
+    text = yaml_util.strip_enclosing_chars(text)
+    text = string.gsub(text, "''", "'")
+  else
+    text = yaml_util.strip_enclosing_chars(text)
   end
-  return true, nil, yaml_util.strip_enclosing_chars(vim.trim(text))
+  return true, nil, text
 end
 
 ---Parse a string value.

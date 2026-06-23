@@ -22,6 +22,10 @@ T["should parse strings with escaped quotes"] = function()
   eq([["foo"]], parser:parse_string [["\"foo\""]])
 end
 
+T["should parse single quoted strings with escaped single quotes"] = function()
+  eq("It's me", parser:parse_string [['It''s me']])
+end
+
 T["should parse numbers while trimming whitespace"] = function()
   eq(1, parser:parse_number " 1")
   eq(1.5, parser:parse_number " 1.5")
