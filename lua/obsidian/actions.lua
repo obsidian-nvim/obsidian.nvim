@@ -585,7 +585,7 @@ M.unique_link = function(timestamp)
 end
 
 ---@param src string
----@param opts { insert: boolean|?, bufnr: integer|?, new_name: string|? }
+---@param opts obsidian.AddAttachmentOpts
 local add_attachment = function(src, opts)
   opts = opts or {}
   src = vim.trim(src)
@@ -617,11 +617,17 @@ local add_attachment = function(src, opts)
 end
 
 ---@param src string?
----@param opts { insert: boolean|?, bufnr: integer|?, new_name: string|? }|?
+---@param opts obsidian.AddAttachmentOpts|?
 M.add_attachment = function(src, opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-  local add_opts = { insert = opts.insert, bufnr = bufnr, new_name = opts.new_name }
+  local add_opts = {
+    insert = opts.insert,
+    bufnr = bufnr,
+    new_name = opts.new_name,
+    position = opts.position,
+    scope = opts.scope or "actions.add_attachment",
+  }
   if not vim.b[bufnr].obsidian_buffer then
     log.warn "Not in an obsidian buffer"
     return
@@ -647,9 +653,8 @@ M.record_audio = function()
   require("obsidian.core-plugins.audio_recorder").start()
 end
 
----@param callback fun(ctx: obsidian.AudioRecorderCallbackContext)|?
-M.stop_recording = function(callback)
-  require("obsidian.core-plugins.audio_recorder").stop(callback)
+M.stop_recording = function()
+  require("obsidian.core-plugins.audio_recorder").stop()
 end
 
 M.add_property = function()

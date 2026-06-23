@@ -31,28 +31,14 @@ obsidian.nvim logs both paths when the recording is attached.
 
 ## Callback for transcription or summaries
 
-By default, stopping a recording only inserts the attachment link. To run transcription, summary, or other custom logic after the link is inserted, wrap `actions.stop_recording()`:
-
-```lua
-local actions = require "obsidian.actions"
-local stop_recording = actions.stop_recording
-
-actions.stop_recording = function()
-  stop_recording(function(ctx)
-    -- ctx.path: attached audio file in the vault
-    -- ctx.link: inserted attachment link
-    -- ctx.bufnr: note buffer
-    -- ctx.position: inserted link position, if insertion succeeded
-  end)
-end
-```
+Stopping a recording adds the audio through the normal attachment pipeline. Use `callbacks.add_attachment` or the `ObsidianAttachmentAdded` user autocmd to run transcription, summary, or other custom logic after the link is inserted.
 
 ### Minimal Whisper API example
 
-This callback sends the audio file to OpenAI's Whisper API and appends the transcript below the note:
+This callback sends recorded audio files to OpenAI's Whisper API and appends the transcript below the note:
 
 ```lua
-local function transcribe_with_whisper(ctx)
+local function transcribe_with_whisper(path, ctx)
   local key = vim.env.OPENAI_API_KEY
   if not key or key == "" then
     vim.notify("OPENAI_API_KEY is not set", vim.log.levels.ERROR)
@@ -68,7 +54,7 @@ local function transcribe_with_whisper(ctx)
     "-F",
     "model=whisper-1",
     "-F",
-    "file=@" .. ctx.path,
+    "file=@" .. tostring(path),
   }, { text = true }, function(obj)
     vim.schedule(function()
       if obj.code ~= 0 then
@@ -82,7 +68,7 @@ local function transcribe_with_whisper(ctx)
         return
       end
 
-      vim.api.nvim_buf_set_lines(ctx.bufnr, -1, -1, false, {
+      vim.api.nvim_buf_set_lines(ctx.buffer, -1, -1, false, {
         "",
         "## Transcript",
         "",
@@ -92,10 +78,13 @@ local function transcribe_with_whisper(ctx)
   end)
 end
 
-local actions = require "obsidian.actions"
-local stop_recording = actions.stop_recording
-
-actions.stop_recording = function()
-  stop_recording(transcribe_with_whisper)
-end
+require("obsidian").setup {
+  callbacks = {
+    add_attachment = function(path, ctx)
+      if ctx.scope == "audio_recorder" then
+        transcribe_with_whisper(path, ctx)
+      end
+    end,
+  },
+}
 ```

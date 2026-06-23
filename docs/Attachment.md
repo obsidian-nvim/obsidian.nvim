@@ -36,10 +36,36 @@ For `actions.add_attachment(source, opts)`:
 Both functions accept the same `opts` table:
 
 ```lua
----@class obsidian.AttachmentAddOpts
+---@class obsidian.AddAttachmentOpts
 ---@field insert? boolean Insert the generated attachment link after adding. Defaults to true.
 ---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
 ---@field new_name? string Destination attachment basename. Path separators are rejected.
+---@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
+---@field scope? string Context passed to callbacks as `ctx.scope`.
+```
+
+## Hook after adding attachments
+
+Use `callbacks.add_attachment` or the `ObsidianAttachmentAdded` user autocmd:
+
+```lua
+require("obsidian").setup {
+  callbacks = {
+    add_attachment = function(path, ctx)
+      -- path: full path to the attached file in the vault
+      -- ctx.scope: context where the attachment was added
+      -- ctx.buffer: target buffer
+    end,
+  },
+}
+
+vim.api.nvim_create_autocmd("User", {
+  pattern = "ObsidianAttachmentAdded",
+  callback = function(ev)
+    local path = ev.data.path
+    local ctx = ev.data.ctx
+  end,
+})
 ```
 
 ## Paste from clipboard path
