@@ -204,8 +204,45 @@ local function unique_dst(dst)
   return dst
 end
 
+---@class obsidian.AttachmentPosition
+---@field row integer 1-indexed row.
+---@field col integer 0-indexed column.
+
+---@class obsidian.AddAttachmentContext
+---@field scope string Context where the attachment was added.
+---@field bufnr integer Buffer associated with the action.
+
+---@class obsidian.AddAttachmentOpts
+---@field insert? boolean Insert the generated attachment link. Defaults to true.
+---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
+---@field new_name? string Destination attachment basename. Path separators are rejected.
+---@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
+---@field scope? string Context where the attachment is added.
+
+---@param pos obsidian.AttachmentPosition|integer[]|?
+---@return obsidian.AttachmentPosition|?
+local function normalize_position(pos)
+  if not pos then
+    return nil
+  elseif pos.row and pos.col then
+    return { row = pos.row, col = pos.col }
+  elseif pos[1] and pos[2] then
+    return { row = pos[1], col = pos[2] }
+  end
+end
+
+---@param path string
+---@param ctx obsidian.AddAttachmentContext
+local function fire_add_attachment(path, ctx)
+  util.fire_callback("add_attachment", Obsidian.opts.callbacks.add_attachment, path, ctx)
+  vim.api.nvim_exec_autocmds("User", {
+    pattern = "ObsidianAttachmentAdded",
+    data = { path = path, ctx = ctx },
+  })
+end
+
 ---@param src string
----@param opts { insert: boolean|?, bufnr: integer|?, new_name: string|? }|?
+---@param opts obsidian.AddAttachmentOpts|?
 ---@return string|?
 M.add = function(src, opts)
   opts = opts or {}
@@ -224,13 +261,34 @@ M.add = function(src, opts)
     return
   end
 
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+
   if opts.insert ~= false then
     local link_text = M.format_link(resolved_dst)
-    local bufnr = opts.bufnr or 0
-    vim.api.nvim_buf_call(bufnr, function()
-      vim.api.nvim_put({ link_text }, "c", true, true)
-    end)
+    local insert_pos = normalize_position(opts.position)
+    if insert_pos then
+      vim.api.nvim_buf_set_text(
+        bufnr,
+        insert_pos.row - 1,
+        insert_pos.col,
+        insert_pos.row - 1,
+        insert_pos.col,
+        { link_text }
+      )
+    else
+      vim.api.nvim_buf_call(bufnr, function()
+        vim.api.nvim_put({ link_text }, "c", true, true)
+      end)
+    end
   end
+
+  fire_add_attachment(resolved_dst, {
+    scope = opts.scope or "attachment.add",
+    bufnr = bufnr,
+  })
 
   return resolved_dst
 end

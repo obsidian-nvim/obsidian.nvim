@@ -6,14 +6,15 @@ Autocmd events provide by this plugin follows following conventions:
 
 ## Events
 
-| name                    | triggered by                       | data               |
-| ----------------------- | ---------------------------------- | ------------------ |
-| `ObsidianNoteEnter`     | `BufEnter`                         |                    |
-| `ObsidianNoteLeave`     | `BufLeave`                         |                    |
-| `ObsidianNoteWritePost` | `BufWritePost`                     |                    |
-| `ObsidianNoteWritePre`  | `BufWritePre`                      |                    |
-| `ObsidianWorkspaceSet`  | When you enter or switch workspace | `workspace` object |
-| `ObsidianSyncChanged`   | When obsidian sync changes status  |                    |
+| name                      | triggered by                       | data                 |
+| ------------------------- | ---------------------------------- | -------------------- |
+| `ObsidianNoteEnter`       | `BufEnter`                         |                      |
+| `ObsidianNoteLeave`       | `BufLeave`                         |                      |
+| `ObsidianNoteWritePost`   | `BufWritePost`                     |                      |
+| `ObsidianNoteWritePre`    | `BufWritePre`                      |                      |
+| `ObsidianAttachmentAdded` | After adding an attachment         | `{ path, ctx }`      |
+| `ObsidianWorkspaceSet`    | When you enter or switch workspace | `workspace` object   |
+| `ObsidianSyncChanged`     | When obsidian sync changes status  |                      |
 
 ## How to use
 
