@@ -192,27 +192,21 @@ end
 ---@param invalid_name string
 ---@return string
 Note.prompt_for_valid_filename = function(invalid_name)
-  local builtin = require "obsidian.builtin"
   local current = invalid_name
 
   while true do
-    local choice = api.confirm("Invalid filename", "&Slug the name\n&Input a name")
-    if choice == "Slug the name" then
-      current = builtin.title_to_slug(current)
-    elseif choice == "Input a name" then
-      local input = api.input("Enter filename", { default = current, completion = "file" })
-      if not input then
-        error "Aborted"
-      end
-      current = input:gsub("%.md$", "")
-    else
+    local input = api.input("Enter filename", { default = current, completion = "file" })
+    if not input then
       error "Aborted"
     end
 
-    local valid = Note.is_valid_filename(current)
+    current = input:gsub("%.md$", "")
+    local valid, reason = Note.is_valid_filename(current)
     if valid then
       return current
     end
+
+    log.err(("Invalid filename %q: %s"):format(current, reason))
   end
 end
 

@@ -31,16 +31,16 @@ T["initialized dynamically registers markdown watcher"] = function()
   )
 end
 
-T["didCreateFiles prompts for invalid filenames and renames to slug"] = function()
+T["didCreateFiles prompts for a replacement invalid filename"] = function()
   child.lua [[
     local api = require "obsidian.api"
     local handler = require "obsidian.lsp.handlers.did_create_files"
     local uri = vim.uri_from_fname(vim.fs.joinpath(tostring(Obsidian.dir), "bad:name.md"))
 
-    api.confirm = function(prompt, choices)
-      _G.confirm_prompt = prompt
-      _G.confirm_choices = choices
-      return "Slug the name"
+    api.input = function(prompt, opts)
+      _G.input_prompt = prompt
+      _G.input_default = opts.default
+      return "good name"
     end
 
     handler({ files = { { uri = uri } } }, {
@@ -52,12 +52,12 @@ T["didCreateFiles prompts for invalid filenames and renames to slug"] = function
     })
   ]]
 
-  eq("Invalid filename", child.lua_get "confirm_prompt")
-  eq("&Slug the name\n&Input a name", child.lua_get "confirm_choices")
+  eq("Enter filename", child.lua_get "input_prompt")
+  eq("bad:name", child.lua_get "input_default")
   eq("workspace/applyEdit", child.lua_get "request_method")
   eq("Rename invalid filename", child.lua_get "request_label")
   eq("rename", child.lua_get "document_change.kind")
-  eq(vim.uri_from_fname(tostring(child.Obsidian.dir / "badname.md")), child.lua_get "document_change.newUri")
+  eq(vim.uri_from_fname(tostring(child.Obsidian.dir / "good name.md")), child.lua_get "document_change.newUri")
 end
 
 T["didCreateFiles allows invalid filenames when global is set"] = function()
@@ -67,7 +67,7 @@ T["didCreateFiles allows invalid filenames when global is set"] = function()
     local handler = require "obsidian.lsp.handlers.did_create_files"
     local uri = vim.uri_from_fname(vim.fs.joinpath(tostring(Obsidian.dir), "bad:name.md"))
 
-    api.confirm = function()
+    api.input = function()
       error "should not prompt"
     end
 
