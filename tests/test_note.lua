@@ -74,6 +74,22 @@ T["create"]["should allow invalid filenames when global is set"] = function()
   eq("bad:name", note.id)
 end
 
+T["rename"] = new_set()
+T["rename"]["should reject invalid filenames"] = function()
+  local note = M.new("Foo", {}, {}, Obsidian.dir / "Foo.md")
+  local log = require "obsidian.log"
+  local orig_err = log.err
+  local got_err
+  log.err = function() end
+
+  note:rename("bad:name", { apply = false }, function(err)
+    got_err = err
+  end)
+
+  log.err = orig_err
+  eq('Invalid filename "bad:name": contains forbidden character: ":"', got_err)
+end
+
 local function from_str(str, path, opts)
   return M.from_lines(vim.iter(vim.split(str, "\n")), path, opts)
 end
