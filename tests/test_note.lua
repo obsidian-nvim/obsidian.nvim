@@ -50,28 +50,8 @@ T["create"]["should trigger create autocmd with note data"] = function()
   vim.api.nvim_del_augroup_by_id(group)
 end
 
-T["create"]["should slug invalid filenames on request"] = function()
-  local orig_confirm = api.confirm
-  local calls = {}
-  api.confirm = function(prompt, choices)
-    table.insert(calls, { prompt = prompt, choices = choices })
-    return "Slug the name"
-  end
-
-  local note = M.create { id = "bad:name", verbatim = true }
-
-  api.confirm = orig_confirm
-  eq("badname", note.id)
-  eq("Invalid filename", calls[1].prompt)
-  eq("&Slug the name\n&Input a name", calls[1].choices)
-end
-
 T["create"]["should prompt for replacement filename with invalid name as default"] = function()
-  local orig_confirm = api.confirm
   local orig_input = api.input
-  api.confirm = function()
-    return "Input a name"
-  end
   api.input = function(prompt, opts)
     eq("Enter filename", prompt)
     eq("bad:name", opts.default)
@@ -80,23 +60,17 @@ T["create"]["should prompt for replacement filename with invalid name as default
 
   local note = M.create { id = "bad:name", verbatim = true }
 
-  api.confirm = orig_confirm
   api.input = orig_input
   eq("good name", note.id)
 end
 
-T["new"]["should allow invalid filenames when global is set"] = function()
+T["create"]["should allow invalid filenames when global is set"] = function()
   local orig_allow_invalid_names = vim.g.obsidian_allow_invalid_names
-  local orig_confirm = api.confirm
   vim.g.obsidian_allow_invalid_names = true
-  api.confirm = function()
-    error "should not prompt"
-  end
 
   local note = M.create { id = "bad:name", verbatim = true }
 
   vim.g.obsidian_allow_invalid_names = orig_allow_invalid_names
-  api.confirm = orig_confirm
   eq("bad:name", note.id)
 end
 

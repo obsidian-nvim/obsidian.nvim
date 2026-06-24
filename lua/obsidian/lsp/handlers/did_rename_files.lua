@@ -14,13 +14,6 @@ local function rename_note(file, dispatchers)
   -- invalid file never persists on disk (and never gets picked up by Obsidian Sync).
   local valid, reason = Note.is_valid_filename(new_name)
   if not valid then
-    local old_path = vim.uri_to_fname(file.oldUri)
-
-    local old_buf = vim.fn.bufnr(old_path)
-    if old_buf ~= -1 then
-      vim.api.nvim_buf_delete(old_buf, { force = true })
-    end
-
     log.err(("Invalid filename %q: %s — reverting rename"):format(new_name, reason))
     dispatchers.server_request("workspace/applyEdit", {
       label = "Revert invalid filename",
