@@ -35,17 +35,6 @@ local initializeResult = {
     },
     workspace = {
       fileOperations = {
-        didCreate = {
-          filters = {
-            {
-              scheme = "file",
-              pattern = {
-                glob = "**/*.md",
-                matches = "file",
-              },
-            },
-          },
-        },
         didRename = {
           filters = {
             {

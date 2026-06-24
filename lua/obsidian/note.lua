@@ -157,7 +157,7 @@ end
 ---@param name string Filename stem (without extension)
 ---@return boolean valid
 ---@return string? reason Human-readable error when invalid
-Note.is_valid_filename = function(name)
+local function is_valid_filename(name)
   if vim.g.obsidian_allow_invalid_names then
     return true, nil
   end
@@ -191,7 +191,7 @@ end
 
 ---@param invalid_name string
 ---@return string
-Note.prompt_for_valid_filename = function(invalid_name)
+local function prompt_for_valid_filename(invalid_name)
   local current = invalid_name
 
   while true do
@@ -201,7 +201,7 @@ Note.prompt_for_valid_filename = function(invalid_name)
     end
 
     current = input:gsub("%.md$", "")
-    local valid, reason = Note.is_valid_filename(current)
+    local valid, reason = is_valid_filename(current)
     if valid then
       return current
     end
@@ -209,6 +209,9 @@ Note.prompt_for_valid_filename = function(invalid_name)
     log.err(("Invalid filename %q: %s"):format(current, reason))
   end
 end
+
+Note.is_valid_filename = is_valid_filename
+Note.prompt_for_valid_filename = prompt_for_valid_filename
 
 --- Generate the file path for a new note given its ID, parent directory, and title.
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
@@ -385,13 +388,13 @@ Note._resolve_id_path = function(opts, prompt_invalid_filename)
   end
 
   -- Reject ids that would produce filenames invalid on any platform.
-  local valid, reason = Note.is_valid_filename(id)
+  local valid, reason = is_valid_filename(id)
   while not valid do
     if not prompt_invalid_filename then
       error(("invalid note filename %q: %s"):format(id, reason), 2)
     end
-    id = Note.prompt_for_valid_filename(id)
-    valid, reason = Note.is_valid_filename(id)
+    id = prompt_for_valid_filename(id)
+    valid, reason = is_valid_filename(id)
   end
 
   dir = base_dir
@@ -1568,5 +1571,27 @@ end
 ---@field line integer
 ---@field block string
 ---@field section obsidian.Section the paragraph carrying the block identifier.
+
+local rename = require "obsidian.note.rename"
+
+---@class obsidian.note.RenameMeta
+---@field count integer Number of reference replacements.
+---@field path_lookup table<string, boolean> Files with reference replacements.
+---@field buf_list integer[] Buffers touched by reference replacements.
+---@field old_path string Original note path.
+---@field new_path string New note path.
+
+---@class (exact) obsidian.note.RenameOpts
+---@field old_path? string Existing path to rename from. Defaults to `note.path`.
+---@field new_path? string Destination path. Defaults to sibling path using `new_name .. ".md"`.
+---@field include_file_rename? boolean Include a file rename operation in the generated edit. Defaults to true.
+---@field apply? boolean Apply the workspace edit directly. Defaults to true.
+---@field update_buffers? boolean Update the note object/frontmatter and reload buffers after applying. Defaults to true.
+---@field check_unique? boolean Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
+---@field offset_encoding? string Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
+
+Note.build_rename_edit = rename.build_edit
+Note.rename = rename.rename
+Note.validate_rename = rename.validate
 
 return Note

@@ -9,10 +9,8 @@ local lsp_util = require "obsidian.lsp.util"
 lsp.start = function(buf)
   local capabilities = vim.lsp.protocol.make_client_capabilities()
   capabilities.workspace = capabilities.workspace or {}
-  capabilities.workspace.fileOperations = vim.tbl_extend("force", capabilities.workspace.fileOperations or {}, {
-    didRename = true,
-    didCreate = true,
-  })
+  capabilities.workspace.fileOperations =
+    vim.tbl_extend("force", capabilities.workspace.fileOperations or {}, { didRename = true })
   -- manually enable dynamic registration for file watching, since neovim turns off this capability by default on linux and BSD
   capabilities.workspace.didChangeWatchedFiles = {
     dynamicRegistration = true,
