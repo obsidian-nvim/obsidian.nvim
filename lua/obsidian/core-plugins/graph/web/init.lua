@@ -85,7 +85,8 @@ local M = [[
 
   var params = new URLSearchParams(window.location.search);
   var localRoot = params.get("note");
-  var localMode = localRoot != null;
+  var localFolder = params.get("folder");
+  var localMode = localRoot != null || localFolder != null;
   var activeId = localRoot;
   var graphToken = "__OBSIDIAN_GRAPH_TOKEN__";
   var rawGraph = null;
@@ -205,8 +206,40 @@ local M = [[
     };
   }
 
+  function filterFolder(graph, folder) {
+    var allNodes = Object.create(null);
+    var sourceNodes = Object.create(null);
+    var keep = Object.create(null);
+    var keptLinks = [];
+    folder = String(folder || "").replace(/\/+$/, "");
+
+    (graph.nodes || []).forEach(function (n) {
+      allNodes[n.id] = n;
+      var inFolder = n.folder === folder || String(n.folder || "").indexOf(folder + "/") === 0;
+      if (!n.type && n.path && inFolder) {
+        sourceNodes[n.id] = true;
+        keep[n.id] = true;
+      }
+    });
+
+    (graph.links || []).forEach(function (l) {
+      if (sourceNodes[l.source]) {
+        keptLinks.push(l);
+        keep[l.source] = true;
+        keep[l.target] = true;
+      }
+    });
+
+    return {
+      nodes: Object.keys(keep).map(function (id) { return allNodes[id]; }).filter(Boolean),
+      links: keptLinks
+    };
+  }
+
   function filteredGraph() {
-    var graph = localRoot ? filterLocal(rawGraph, localRoot, Number(depthSlider.value)) : rawGraph;
+    var graph = localRoot
+      ? filterLocal(rawGraph, localRoot, Number(depthSlider.value))
+      : (localFolder ? filterFolder(rawGraph, localFolder) : rawGraph);
     var degree = Object.create(null);
     (graph.nodes || []).forEach(function (n) { degree[n.id] = 0; });
     (graph.links || []).forEach(function (l) {
@@ -524,8 +557,9 @@ local M = [[
   function showLocalRoot() {
     if (!localMode) return;
     localBlock.style.display = "block";
-    document.getElementById("root-note").textContent = localRoot || "";
-    document.title = localRoot ? "Local Graph - " + localRoot : "Local Graph";
+    document.getElementById("root-note").textContent = localRoot || localFolder || "";
+    depthSlider.parentNode.style.display = localRoot ? "flex" : "none";
+    document.title = localRoot ? "Local Graph - " + localRoot : "Folder Graph - " + localFolder;
   }
 
   function loadGraph(graph) {
@@ -563,12 +597,9 @@ local M = [[
     } else if (message.type === "active:set") {
       activeId = message.id;
       requestFrame();
-    } else if (message.type === "local:set_root" && localMode) {
-      localRoot = message.id;
+    } else if (message.type === "local:set_root" && localRoot && !localFolder) {
       activeId = message.id;
-      showLocalRoot();
-      resetView();
-      if (rawGraph) rerender();
+      requestFrame();
     }
   }
 

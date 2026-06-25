@@ -134,6 +134,24 @@ T["build_graph"]["reads frontmatter metadata and resolves aliases"] = function()
   }, data.links)
 end
 
+T["resolve_graph_arg"] = function()
+  local graph = require "obsidian.core-plugins.graph"
+  local nested = Obsidian.dir / "nested"
+  nested:mkdir()
+  local path = nested / "A.md"
+  helpers.write("# A", path)
+
+  local scope = graph.resolve_graph_arg(tostring(path))
+  MiniTest.expect.equality({ kind = "note", id = "nested/A" }, scope)
+  scope = graph.resolve_graph_arg "nested"
+  MiniTest.expect.equality({ kind = "folder", folder = "nested" }, scope)
+
+  vim.cmd.edit(vim.fn.fnameescape(tostring(path)))
+  scope = graph.resolve_graph_arg "%"
+  MiniTest.expect.equality({ kind = "note", id = "nested/A" }, scope)
+  vim.cmd "enew"
+end
+
 T["current_note_id"] = function()
   local graph = require "obsidian.core-plugins.graph"
   local nested = Obsidian.dir / "nested"

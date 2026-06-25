@@ -22,6 +22,12 @@ local function strip_markdown_suffix(path)
   return path:gsub("%.md$", "")
 end
 
+---@param rel string
+---@return string
+local function note_id_from_relative_path(rel)
+  return strip_markdown_suffix(rel:gsub("\\", "/"))
+end
+
 ---@return string|?
 local function current_note_id()
   local ok, rel = pcall(function()
@@ -31,7 +37,7 @@ local function current_note_id()
     return nil
   end
 
-  local id = strip_markdown_suffix(tostring(rel))
+  local id = note_id_from_relative_path(tostring(rel))
   if id == tostring(rel) then
     return nil
   end
@@ -362,7 +368,7 @@ function M.build_graph()
 
   for _, filepath in ipairs(files) do
     local rel = filepath:vault_relative_path { strict = true }
-    local id = strip_markdown_suffix(tostring(rel))
+    local id = note_id_from_relative_path(tostring(rel))
     local stem = filepath.stem
     local aliases, tags, title = read_note_metadata(filepath)
     local node = {
@@ -398,7 +404,7 @@ function M.build_graph()
 
   for _, filepath in ipairs(files) do
     local rel = filepath:vault_relative_path { strict = true }
-    local source = strip_markdown_suffix(tostring(rel))
+    local source = note_id_from_relative_path(tostring(rel))
 
     for _, target in ipairs(extract_links(filepath)) do
       local resolved = resolve_target(target, target_to_id)
@@ -815,6 +821,69 @@ function M.stop_server()
   M._live_hooks_started = nil
 end
 
+---@param arg string?
+---@return { kind: "note", id: string }|{ kind: "folder", folder: string }|nil scope
+---@return string? err
+local function resolve_graph_arg(arg)
+  arg = vim.trim(arg or "")
+  if arg == "" then
+    return nil, nil
+  end
+
+  local expanded = vim.fn.expand(arg)
+  if expanded == "" then
+    expanded = arg
+  end
+
+  local raw_path = Path.new(expanded)
+  local candidates
+  if raw_path:is_absolute() then
+    candidates = { raw_path }
+  else
+    candidates = { Path.new(vim.fs.joinpath(tostring(Obsidian.dir), expanded)), raw_path }
+  end
+
+  local root = Obsidian.dir:resolve { strict = true }
+  for _, candidate in ipairs(candidates) do
+    local ok, resolved = pcall(function()
+      return candidate:resolve { strict = true }
+    end)
+    if ok then
+      local rel
+      if tostring(resolved) == tostring(root) then
+        rel = ""
+      else
+        local rel_ok, rel_path = pcall(function()
+          return resolved:relative_to(root)
+        end)
+        if rel_ok then
+          rel = tostring(rel_path):gsub("\\", "/")
+        end
+      end
+
+      if rel then
+        if resolved:is_dir() then
+          rel = rel:gsub("/+$", "")
+          if rel == "" then
+            return nil, nil
+          end
+          return { kind = "folder", folder = rel }, nil
+        elseif resolved:is_file() then
+          local ext = target_extension(rel)
+          if not (ext and MARKDOWN_EXTENSIONS[ext]) then
+            return nil, "Graph target must be a markdown file or vault folder"
+          end
+          return { kind = "note", id = note_id_from_relative_path(rel) }, nil
+        end
+      end
+    end
+  end
+
+  return nil, "Graph target not found in vault: " .. arg
+end
+
+M.resolve_graph_arg = resolve_graph_arg
+
 ---@param path string
 ---@return boolean
 local function open_url(path)
@@ -838,20 +907,22 @@ local function open_url(path)
   return false
 end
 
---- Main entry point: start the server and open the global graph.
-function M.open_graph()
-  open_url "/"
-end
-
---- Main entry point: start the server and open a local graph for the current note.
-function M.open_graph_local()
-  local note_id = current_note_id()
-  if not note_id then
-    vim.notify("Current buffer is not a markdown note in the vault", vim.log.levels.ERROR)
+--- Main entry point: start the server and open the graph.
+---@param target string?
+function M.open_graph(target)
+  local scope, err = resolve_graph_arg(target)
+  if err then
+    vim.notify(err, vim.log.levels.ERROR)
     return
   end
 
-  open_url("/local?note=" .. vim.uri_encode(note_id))
+  if not scope then
+    open_url "/"
+  elseif scope.kind == "note" then
+    open_url("/local?note=" .. vim.uri_encode(scope.id))
+  elseif scope.kind == "folder" then
+    open_url("/local?folder=" .. vim.uri_encode(scope.folder))
+  end
 end
 
 return M

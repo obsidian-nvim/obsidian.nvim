@@ -274,9 +274,7 @@ M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
-M.register("graph", { nargs = 0 })
-
-M.register("graph_local", { nargs = 0 })
+M.register("graph", { nargs = "*", complete = "file" })
 
 M.register("workspace", { nargs = "?" })
 
