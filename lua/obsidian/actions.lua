@@ -872,6 +872,7 @@ end
 M.insert_link = function(query)
   picker.find_files {
     query = query,
+    no_default_mappings = true,
     callback = function(path)
       local note = Note.from_file(path)
       local link = note:format_link()
