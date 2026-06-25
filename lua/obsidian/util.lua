@@ -47,6 +47,36 @@ util.tbl_unique = function(t)
   return vim.tbl_keys(found)
 end
 
+-------------------------
+--- Collision helpers ---
+-------------------------
+
+---Find the first value that does not collide.
+---
+---@generic T
+---@param initial T
+---@param exists fun(value: T): boolean True when `value` is already taken.
+---@param next_value fun(value: T, attempt: integer): T
+---@param max_attempts integer|?
+---@return T|?
+util.find_unique = function(initial, exists, next_value, max_attempts)
+  local value = initial
+  local attempt = 0
+
+  while max_attempts == nil or attempt <= max_attempts do
+    if not exists(value) then
+      return value
+    end
+
+    attempt = attempt + 1
+    if max_attempts ~= nil and attempt > max_attempts then
+      break
+    end
+
+    value = next_value(value, attempt)
+  end
+end
+
 --------------------
 --- String Tools ---
 --------------------
