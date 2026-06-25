@@ -148,27 +148,15 @@ return {
   ---@class obsidian.config.PickerNoteMappingOpts
   ---
   ---@field new? string
-  ---@field insert_link? string
-
-  ---@class obsidian.config.PickerTagMappingOpts
-  ---
-  ---@field tag_note? string
-  ---@field insert_tag? string
 
   ---@class obsidian.config.PickerOpts
   ---
   ---@field name obsidian.config.Picker|?
   ---@field note_mappings? obsidian.config.PickerNoteMappingOpts
-  ---@field tag_mappings? obsidian.config.PickerTagMappingOpts
   picker = {
     name = nil,
     note_mappings = {
       new = "<C-x>",
-      insert_link = "<C-l>",
-    },
-    tag_mappings = {
-      tag_note = "<C-x>",
-      insert_tag = "<C-l>",
     },
   },
 

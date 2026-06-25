@@ -1,5 +1,15 @@
 See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP interface.
 
+## Action-first picker model
+
+Pickers are now thin selection UIs. Prefer choosing the action first, then selecting an item if needed:
+
+- use `Obsidian insert_link` to open a note picker that inserts the selected note as a link;
+- use `Obsidian quick_switch` to open a note picker that opens the selected note;
+- use `Obsidian search_tags`, `Obsidian insert_tag`, or `Obsidian add_tag` for tag workflows.
+
+Legacy query mappings are only kept for creating a note from typed picker text (`picker.note_mappings.new`, default `<C-x>`) and only for `telescope.nvim` and `fzf-lua`. Selection mappings such as `picker.note_mappings.insert_link` and `picker.tag_mappings` were removed; use the action commands above instead.
+
 | name                 | mode     | description                            | arguments            |
 | -------------------- | -------- | -------------------------------------- | -------------------- |
 | `follow_link`        | `n`      | Open the link under the cursor.        | `link`               |

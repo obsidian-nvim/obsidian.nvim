@@ -101,6 +101,21 @@ config.normalize = function(opts, defaults)
     end
   end
 
+  if opts.picker and opts.picker.mappings and not opts.picker.note_mappings then
+    opts.picker.note_mappings = opts.picker.mappings
+    opts.picker.mappings = nil
+  end
+
+  if opts.picker and opts.picker.note_mappings and opts.picker.note_mappings.insert_link ~= nil then
+    opts.picker.note_mappings.insert_link = nil
+    log.warn_once "picker.note_mappings.insert_link is no longer supported. Use the action-first `Obsidian insert_link` command instead."
+  end
+
+  if opts.picker and opts.picker.tag_mappings ~= nil then
+    opts.picker.tag_mappings = nil
+    log.warn_once "picker.tag_mappings is no longer supported. Use action-first commands: `Obsidian search_tags`, `Obsidian insert_tag`, or `Obsidian add_tag`."
+  end
+
   if opts.completion ~= nil and opts.completion.preferred_link_style ~= nil then
     opts.link = opts.link or {}
     if opts.link.style == nil then
