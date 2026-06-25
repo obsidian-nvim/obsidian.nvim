@@ -70,8 +70,8 @@ M.resolve_attachment_path = function(src, bufnr_or_filename)
 
   ---@cast attachment_folder -nil
   if vim.startswith(attachment_folder, ".") then
-    local fname = type(bufnr_or_filename) == "number" and vim.api.nvim_buf_get_name(bufnr_or_filename or 0)
-      or bufnr_or_filename
+    local fname = type(bufnr_or_filename) == "string" and bufnr_or_filename
+      or vim.api.nvim_buf_get_name(bufnr_or_filename or 0)
     ---@cast fname -nil
     ---TODO: verify is obsidian buffer
     local dirname = Path.new(vim.fs.dirname(fname))
