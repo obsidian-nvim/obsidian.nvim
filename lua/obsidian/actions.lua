@@ -794,6 +794,43 @@ M.move_note = function()
   pick_folder(move_note)
 end
 
+M.delete_note = function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local note = api.current_note(bufnr)
+  if not note then
+    log.info "Not in an obsidian buffer"
+    return
+  end
+
+  local path = assert(note.path, "note has no path")
+  local prompt = ("Delete '%s'? This removes it from disk and closes the buffer."):format(note:display_name())
+  if vim.bo[bufnr].modified then
+    prompt = prompt .. "\nUnsaved buffer changes will be lost."
+  end
+  if api.confirm(prompt) ~= "Yes" then
+    return
+  end
+
+  local ok, result = pcall(function()
+    return note:delete()
+  end)
+  if not ok then
+    return log.err("Failed to delete note: " .. tostring(result))
+  end
+  if result.cancelled then
+    return
+  end
+  if not result.deleted then
+    return log.err("Failed to delete note: " .. tostring(path))
+  end
+
+  local wipe_ok, wipe_err = pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+  if not wipe_ok then
+    return log.err("Deleted note, but failed to close buffer: " .. tostring(wipe_err))
+  end
+  log.info("Deleted note '%s'", note:display_name())
+end
+
 ---@param dst_note obsidian.Note
 local function merge_note(dst_note)
   local current_note = api.current_note()
