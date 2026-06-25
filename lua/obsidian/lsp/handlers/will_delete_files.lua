@@ -1,15 +1,6 @@
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 
----@param path string
----@param dir string
----@return boolean
-local function path_is_in_dir(path, dir)
-  path = tostring(Path.new(path))
-  dir = tostring(Path.new(dir))
-  return path == dir or vim.startswith(path, dir .. "/")
-end
-
 ---@param abs_path string
 local function delete_note(abs_path)
   -- TODO: Handle direct deletion of attachment files by prompting for backlinks
@@ -36,9 +27,8 @@ return function(params, callback)
   local vault_root = tostring(Obsidian.dir)
   for _, entry in ipairs(params.files) do
     local abs_path = tostring(Path.new(vim.uri_to_fname(entry.uri)))
-    if path_is_in_dir(abs_path, vault_root) then
-      delete_note(abs_path)
-    end
+    -- if path_is_in_dir(abs_path, vault_root) then
+    delete_note(abs_path)
   end
 
   callback(nil, {})
