@@ -381,6 +381,15 @@ return {
   ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
   callbacks = {},
 
+  ---@class obsidian.config.ResolverConfig
+  ---
+  ---Resolve an attachment source before `actions.add_attachment` copies/downloads it.
+  ---@field attachment? obsidian.Resolver
+  ---
+  ---Resolve a date before date-based actions, such as `daily.pick`, continue.
+  ---@field date? obsidian.Resolver
+  resolvers = {},
+
   ---@class obsidian.config.FooterOpts
   ---
   ---@field enabled? boolean

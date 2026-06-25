@@ -41,6 +41,7 @@
 ---@field ui? obsidian.config.UIOpts
 ---@field attachments? obsidian.config.AttachmentsOpts
 ---@field callbacks? obsidian.config.CallbackConfig
+---@field resolvers? obsidian.config.ResolverConfig
 ---@field legacy_commands? boolean
 ---@field statusline? obsidian.config.StatuslineOpts
 ---@field footer? obsidian.config.FooterOpts
@@ -73,6 +74,7 @@
 ---@field ui obsidian.config.UIOpts
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig
+---@field resolvers obsidian.config.ResolverConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
 ---@field footer obsidian.config.FooterOpts

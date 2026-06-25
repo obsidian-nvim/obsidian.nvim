@@ -65,45 +65,49 @@ local paste_from_path = function()
 end
 ```
 
-To customize attachment resolution, override `require("obsidian.actions").add_attachment`.
-For example, pick with a terminal file manager (yazi in a centered float):
+To customize attachment selection without replacing the whole action, use `opts.resolvers.attachment`.
+For example, pick with a terminal file manager:
 
 ```lua
-local actions = require "obsidian.actions"
-local attachment = require "obsidian.attachment"
+require("obsidian").setup {
+  resolvers = {
+    attachment = function(ctx, done)
+      local tmp = vim.fn.tempname()
+      local buf = vim.api.nvim_create_buf(false, true)
+      local width = math.floor(vim.o.columns * 0.8)
+      local height = math.floor(vim.o.lines * 0.8)
+      local win = vim.api.nvim_open_win(buf, true, {
+        relative = "editor",
+        row = math.floor((vim.o.lines - height) / 2),
+        col = math.floor((vim.o.columns - width) / 2),
+        width = width,
+        height = height,
+        style = "minimal",
+        border = "rounded",
+      })
 
-actions.add_attachment = function(_, opts)
-  opts = opts or {}
-  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-  local tmp = vim.fn.tempname()
-  local buf = vim.api.nvim_create_buf(false, true)
-  local width = math.floor(vim.o.columns * 0.8)
-  local height = math.floor(vim.o.lines * 0.8)
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = "editor",
-    row = math.floor((vim.o.lines - height) / 2),
-    col = math.floor((vim.o.columns - width) / 2),
-    width = width,
-    height = height,
-    style = "minimal",
-    border = "rounded",
-  })
-  vim.fn.jobstart({ "yazi", "--chooser-file=" .. tmp }, {
-    term = true,
-    on_exit = function()
-      vim.api.nvim_win_close(win, true)
-      vim.api.nvim_buf_delete(buf, { force = true })
-      if vim.uv.fs_stat(tmp) then
-        local lines = vim.fn.readfile(tmp)
-        if lines[1] then
-          attachment.add(lines[1], { insert = opts.insert, bufnr = bufnr })
-        end
-      end
+      vim.fn.jobstart({ "yazi", "--chooser-file=" .. tmp }, {
+        term = true,
+        on_exit = function()
+          vim.api.nvim_win_close(win, true)
+          vim.api.nvim_buf_delete(buf, { force = true })
+          if vim.uv.fs_stat(tmp) then
+            local lines = vim.fn.readfile(tmp)
+            if lines[1] then
+              done { path = lines[1] }
+              return
+            end
+          end
+          done(nil)
+        end,
+      })
+      vim.cmd "startinsert"
     end,
-  })
-  vim.cmd "startinsert"
-end
+  },
+}
 ```
+
+See [[Resolvers]] for the full resolver contract.
 
 ## Open
 
