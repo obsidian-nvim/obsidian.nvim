@@ -17,9 +17,18 @@ local function open_uri(uri, scheme)
   end
 end
 
+---@class obsidian.lsp.DefinitionOpts
+---@field range [integer, integer]|?
+---@field label string|?
+---@field bufnr integer|?
+---@field cursor_row integer|?
+---@field anchor string|?
+---@field block string|?
+---@field add_to_jumplist boolean|?
+
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
+---@param opts obsidian.lsp.DefinitionOpts|?
 ---@return lsp.Location?
 local function create_new_note(location, callback, opts)
   opts = opts or {}
@@ -72,7 +81,7 @@ end
 
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
+---@param opts obsidian.lsp.DefinitionOpts|?
 local function open_note(location, callback, opts)
   opts = opts or {}
   opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -137,6 +146,38 @@ local handle_markdown_link = function(location, callback, opts)
     open_attachment(location)
   else
     open_note(location, callback, opts)
+  end
+end
+
+---@param lsp_locations lsp.Location[]
+local function add_single_in_buffer_location_to_jumplist(lsp_locations)
+  if #lsp_locations ~= 1 then
+    return
+  end
+
+  local location = lsp_locations[1]
+  if not location.uri or not location.range then
+    return
+  end
+
+  local ok, fname = pcall(vim.uri_to_fname, location.uri)
+  if not ok or vim.fs.normalize(fname) ~= vim.fs.normalize(vim.api.nvim_buf_get_name(0)) then
+    return
+  end
+
+  local row = location.range.start.line + 1
+  local col = location.range.start.character
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  if cursor[1] == row and cursor[2] == col then
+    return
+  end
+
+  -- HACK: vim.lsp's same-buffer jump uses nvim_win_set_cursor(), which does
+  -- not create a jumplist entry. Do an equivalent Normal-mode line jump first
+  -- so <C-o> returns to the link location, then put the cursor on the exact
+  -- target column.
+  if pcall(vim.cmd, ("normal! %dG"):format(row)) then
+    pcall(vim.api.nvim_win_set_cursor, 0, { row, col })
   end
 end
 
@@ -211,6 +252,9 @@ return {
 
     local wrapped_callback = function(lsp_locations)
       if lsp_locations and vim.islist(lsp_locations) then
+        if opts.add_to_jumplist then
+          add_single_in_buffer_location_to_jumplist(lsp_locations)
+        end
         callback(nil, lsp_locations)
       end
     end

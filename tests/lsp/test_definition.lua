@@ -7,6 +7,12 @@ local fs_eq = function(a, b)
   eq(normalize(a), normalize(b))
 end
 
+local feed_ctrl_o = function()
+  child.lua [[
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-o>", true, false, true), "nx", false)
+  ]]
+end
+
 T["follow wiki links"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = [==[
@@ -74,6 +80,28 @@ more text
   end, { desc = "cursor on footnote definition" })
 end
 
+T["goto footnote definition can jump back"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["note.md"] = [==[
+some claim[^1]
+
+more text
+
+[^1]: the footnote
+]==],
+  })
+  child.cmd("edit " .. files["note.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 11 })
+  child.lua "vim.lsp.buf.definition()"
+  h.wait(function()
+    return vim.deep_equal(child.api.nvim_win_get_cursor(0), { 5, 0 })
+  end, { desc = "cursor on footnote definition" })
+  feed_ctrl_o()
+  h.wait(function()
+    return vim.deep_equal(child.api.nvim_win_get_cursor(0), { 1, 11 })
+  end, { desc = "cursor back on footnote reference" })
+end
+
 T["goto first footnote reference from definition"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["note.md"] = [==[
@@ -88,6 +116,27 @@ some claim[^1]
   h.wait(function()
     return vim.deep_equal(child.api.nvim_win_get_cursor(0), { 1, 10 })
   end, { desc = "cursor on first footnote reference" })
+end
+
+T["follow in-buffer header link can jump back"] = function()
+  local src = [==[
+## Target
+
+[link](#Target)
+]==]
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = src,
+  })
+  child.cmd("edit " .. files["test.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 0 })
+  child.lua "vim.lsp.buf.definition()"
+  h.wait(function()
+    return vim.deep_equal(child.api.nvim_win_get_cursor(0), { 1, 0 })
+  end, { desc = "cursor on header" })
+  feed_ctrl_o()
+  h.wait(function()
+    return vim.deep_equal(child.api.nvim_win_get_cursor(0), { 3, 0 })
+  end, { desc = "cursor back on header link" })
 end
 
 local filetypes = require("obsidian.attachment").filetypes

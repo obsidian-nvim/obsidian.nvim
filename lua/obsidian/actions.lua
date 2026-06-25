@@ -31,7 +31,7 @@ M.follow_link = function(link, opts)
     else
       Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
     end
-  end, { range = range })
+  end, { range = range, add_to_jumplist = true })
 end
 
 ---@param direction "next" | "prev"

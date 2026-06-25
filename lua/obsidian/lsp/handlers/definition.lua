@@ -8,5 +8,5 @@ return function(_, handler)
   if not link then
     return handler(nil, {})
   end
-  require("obsidian.lsp.handlers._definition").follow_link(link, handler, { range = range })
+  require("obsidian.lsp.handlers._definition").follow_link(link, handler, { range = range, add_to_jumplist = true })
 end
