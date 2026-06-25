@@ -26,4 +26,29 @@ T["atomic_write"] = function()
   vim.fn.delete(path)
 end
 
+T["find_unique"] = function()
+  local taken = {
+    foo = true,
+    ["foo-1"] = true,
+  }
+
+  eq(
+    "foo-2",
+    M.find_unique("foo", function(value)
+      return taken[value] == true
+    end, function(_, attempt)
+      return "foo-" .. attempt
+    end)
+  )
+
+  eq(
+    nil,
+    M.find_unique("foo", function()
+      return true
+    end, function(_, attempt)
+      return "foo-" .. attempt
+    end, 2)
+  )
+end
+
 return T
