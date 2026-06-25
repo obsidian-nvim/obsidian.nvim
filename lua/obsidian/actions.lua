@@ -987,7 +987,7 @@ end
 
 M.insert_tag = function()
   pick_tags(function(tag)
-    vim.api.nvim_put({ "#" .. tag }, "", false, true)
+    vim.api.nvim_put({ "#" .. tag }, "", true, true)
   end, "Tag to insert")
 end
 
