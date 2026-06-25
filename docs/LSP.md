@@ -49,6 +49,9 @@ Available actions:
   - Move current note to another folder (`move_note`)
   - Merge current note into another note (`merge_note`)
   - Start presentation (`start_presentation`, requires slides enabled)
+  - Insert internal link at cursor (`insert_link`)
+  - Insert tag at cursor (`insert_tag`)
+  - Add tag to frontmatter (`add_tag`)
 - Visual mode:
   - Link selection as name for an existing note (`link`)
   - Link selection as name for a new note (`link_new`)

@@ -6,6 +6,7 @@ local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
+local search = require "obsidian.search"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -866,6 +867,149 @@ M.write_note = function(note)
     note.path = setmetatable(note.path, Path)
   end
   note:write()
+end
+
+M.insert_link = function(query)
+  picker.find_files {
+    query = query,
+    no_default_mappings = true,
+    callback = function(path)
+      local note = Note.from_file(path)
+      local link = note:format_link()
+      vim.api.nvim_put({ link }, "", true, true)
+      require("obsidian.ui").update(0)
+    end,
+  }
+end
+
+---@param tag_locations obsidian.TagLocation[]
+---@return string[]
+local list_tags = function(tag_locations)
+  local tags = {}
+  for _, tag_loc in ipairs(tag_locations) do
+    local tag = tag_loc.tag
+    if not tags[tag] then
+      tags[tag] = true
+    end
+  end
+  return vim.tbl_keys(tags)
+end
+
+---@param tag_locations obsidian.TagLocation[]
+---@param tags string[]
+local function gather_tag_picker_list(tag_locations, tags)
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for _, tag_loc in ipairs(tag_locations) do
+    for _, tag in ipairs(tags) do
+      if tag_loc.tag:lower() == tag:lower() or vim.startswith(tag_loc.tag:lower(), tag:lower() .. "/") then
+        local display = string.format("%s [%s] %s", tag_loc.note:display_name(), tag_loc.line, tag_loc.text)
+        entries[#entries + 1] = {
+          value = { path = tag_loc.path, line = tag_loc.line, col = tag_loc.tag_start },
+          display = display,
+          ordinal = display,
+          filename = tostring(tag_loc.path),
+          lnum = tag_loc.line,
+          col = tag_loc.tag_start,
+        }
+        break
+      end
+    end
+  end
+  if vim.tbl_isempty(entries) then
+    if #tags == 1 then
+      log.warn "Tag not found"
+    else
+      log.warn "Tags not found"
+    end
+    return
+  end
+
+  vim.schedule(function()
+    picker.pick(entries, { prompt_title = "#" .. table.concat(tags, ", #") })
+  end)
+end
+
+local function list_tags_async(callback)
+  local dir = api.resolve_workspace_dir()
+
+  search.find_tags_async("", function(tag_locations)
+    local tags = list_tags(tag_locations)
+    callback(tags, tag_locations)
+  end, { dir = dir })
+end
+
+local function pick_tags(callback, title)
+  list_tags_async(function(tags)
+    vim.ui.select(tags, {
+      prompt = title,
+    }, function(entry)
+      if entry then
+        callback(entry)
+      end
+    end)
+  end)
+end
+
+---@param tags string[]|?
+M.search_tags = function(tags)
+  tags = tags or {}
+  if vim.tbl_isempty(tags) then
+    local tag = api.cursor_tag()
+    if tag then
+      tags = { tag }
+    end
+  end
+
+  local dir = api.resolve_workspace_dir()
+
+  if not vim.tbl_isempty(tags) then
+    search.find_tags_async(tags, function(tag_locations)
+      return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
+    end, { dir = dir })
+  else
+    list_tags_async(function(entries, tag_locations)
+      vim.schedule(function()
+        picker.pick(entries, {
+          callback = function(...)
+            tags = vim.tbl_map(function(v)
+              return v.user_data or v.value
+            end, { ... })
+            gather_tag_picker_list(tag_locations, tags)
+          end,
+          selection_mappings = picker._tag_selection_mappings(),
+          allow_multiple = true,
+        })
+      end)
+    end)
+  end
+end
+
+M.insert_tag = function()
+  pick_tags(function(tag)
+    vim.api.nvim_put({ "#" .. tag }, "", true, true)
+  end, "Tag to insert")
+end
+
+---@param tag string
+local tag_note = function(tag)
+  local note = api.current_note()
+  if not note then
+    log.warn "No note to insert tag"
+    return
+  end
+
+  if note:add_tag(tag) then
+    note:update_frontmatter(note.bufnr)
+  else
+    log.info "No tags added"
+  end
+end
+
+M.add_tag = function()
+  pick_tags(function(...)
+    tag_note(...)
+  end, "Add tags to current note")
 end
 
 return M

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added code action `insert_link`, `insert_tag`, `add_tag`.
+- Added `actions.search_tags` that powers `:Obsidian tags`.
+
 ## [v3.16.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.5) - 2026-06-25
 
 ### Added

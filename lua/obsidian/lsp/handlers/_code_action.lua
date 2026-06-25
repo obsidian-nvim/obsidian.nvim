@@ -83,6 +83,19 @@ local default_actions = {
   add_attachment = {
     title = "Add attachment from folder, filepath or url",
   },
+
+  insert_link = {
+    title = "Insert internal link at cursor",
+  },
+
+  insert_tag = {
+    title = "Insert tag at cursor",
+  },
+
+  --- TODO: add_alias
+  add_tag = {
+    title = "Add tag to frontmatter",
+  },
 }
 
 ---@param name string
