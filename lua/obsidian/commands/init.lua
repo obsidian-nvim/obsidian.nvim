@@ -276,6 +276,8 @@ M.register("quick_switch", { nargs = "?" })
 
 M.register("graph", { nargs = "*", complete = "file" })
 
+M.register("kanban", { nargs = 0, note_action = true })
+
 M.register("workspace", { nargs = "?" })
 
 M.register("help", { nargs = "?", complete = M.help_complete })
