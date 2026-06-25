@@ -51,6 +51,10 @@ local default_actions = {
     title = "Move current note to another folder",
   },
 
+  delete_note = {
+    title = "Delete current note",
+  },
+
   link = {
     title = "Link selection as name for a existing note",
     cond = in_visual,
