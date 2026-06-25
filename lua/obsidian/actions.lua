@@ -803,9 +803,12 @@ M.delete_note = function()
   end
 
   local path = assert(note.path, "note has no path")
-  local prompt = ("Delete '%s'? This removes it from disk and closes the buffer."):format(note:display_name())
-  if vim.bo[bufnr].modified then
-    prompt = prompt .. "\nUnsaved buffer changes will be lost."
+  local prompt = ("Are you sure you want to delete '%s'?"):format(note:display_name())
+  if Obsidian.opts.file.trash == "local" then
+    prompt = prompt
+      .. '\nIt will be moved to your Obsidian trash, which is located in the ".trash" hidden folder in your vault'
+  else
+    prompt = prompt .. "The file will be permenantly deleted"
   end
   if api.confirm(prompt) ~= "Yes" then
     return
