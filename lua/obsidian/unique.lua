@@ -1,6 +1,7 @@
 local moment = require "obsidian.lib.moment"
 local Note = require "obsidian.note"
 local api = require "obsidian.api"
+local util = require "obsidian.util"
 
 local M = {}
 
@@ -68,15 +69,14 @@ end
 ---@return string id The unique note ID
 ---@return integer timestamp The final timestamp used
 local function generate_unique_id(timestamp, fmt, existing_stems)
-  timestamp = timestamp or os.time()
-  local date_id = moment.format(timestamp, fmt)
+  timestamp = util.find_unique(timestamp or os.time(), function(candidate)
+    return existing_stems[moment.format(candidate, fmt)] == true
+  end, function(candidate, _)
+    return increment_timestamp(candidate, fmt)
+  end)
+  assert(timestamp, "failed to find unique note id")
 
-  while existing_stems[date_id] do
-    timestamp = increment_timestamp(timestamp, fmt)
-    date_id = moment.format(timestamp, fmt)
-  end
-
-  return date_id, timestamp
+  return moment.format(timestamp, fmt), timestamp
 end
 
 ---@param timestamp integer?

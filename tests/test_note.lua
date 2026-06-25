@@ -168,6 +168,79 @@ T["save"]["should not error on :checktime when save path contains regex-special 
   vim.fn.delete(path)
 end
 
+T["delete"] = new_set()
+
+T["delete"]["should delete the note file by default"] = function()
+  local note = M.create { id = "delete-me", verbatim = true }
+  note:write()
+  local path = tostring(note.path)
+
+  local result = note:delete { confirm_backlinks = false, confirm_attachments = false }
+
+  eq(true, result.deleted)
+  eq(nil, vim.uv.fs_stat(path))
+end
+
+T["delete"]["should support apply=false for callers that delete the file"] = function()
+  Obsidian.opts.file.trash = "local"
+  local note = M.create { id = "keep-me", verbatim = true }
+  note:write()
+  local path = tostring(note.path)
+
+  local result = note:delete { apply = false, confirm_backlinks = false, confirm_attachments = false }
+
+  eq(false, result.deleted)
+  eq(true, vim.uv.fs_stat(path) ~= nil)
+  eq(tostring(Obsidian.dir / ".trash" / "keep-me.md"), result.trashed_path)
+  eq(true, vim.uv.fs_stat(result.trashed_path) ~= nil)
+end
+
+T["delete"]["should abort when backlink confirmation is declined"] = function()
+  local old_confirm = api.confirm
+  local prompt
+  local note = M.create { id = "target", verbatim = true }
+  note:write()
+  h.write("[[target]]", Obsidian.dir / "ref.md")
+
+  api.confirm = function(p)
+    prompt = p
+    return "No"
+  end
+
+  local result = note:delete { confirm_attachments = false }
+
+  api.confirm = old_confirm
+  eq(true, result.cancelled)
+  eq(true, note.path:exists())
+  eq("'target' is referenced in 1 place(s). Delete anyway?", prompt)
+end
+
+T["delete"]["should prompt for linked attachments"] = function()
+  local old_confirm = api.confirm
+  local attachments_dir = Obsidian.dir / "attachments"
+  attachments_dir:mkdir()
+  local attachment_path = attachments_dir / "image.png"
+  h.write("image", attachment_path)
+  h.write("![[image.png]]", Obsidian.dir / "with-attachment.md")
+  local note = M.from_file(Obsidian.dir / "with-attachment.md")
+  local prompt
+
+  api.confirm = function(p)
+    prompt = p
+    return "Yes"
+  end
+
+  local result = note:delete { confirm_backlinks = false }
+
+  api.confirm = old_confirm
+  eq(true, result.deleted)
+  eq("Note contains attachment 'image.png'. Delete it too?", prompt)
+  eq(1, #result.attachments)
+  eq(true, result.attachments[1].deleted)
+  eq(false, attachment_path:exists())
+  eq(false, note.path:exists())
+end
+
 T["write"] = new_set()
 
 T["write"]["should not add default frontmatter template when frontmatter is disabled"] = function()

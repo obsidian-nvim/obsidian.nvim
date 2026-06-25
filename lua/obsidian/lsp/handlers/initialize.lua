@@ -35,7 +35,19 @@ local initializeResult = {
     },
     workspace = {
       fileOperations = {
+        willDelete = {
+          filters = {
+            {
+              scheme = "file",
+              pattern = {
+                glob = "**/*.md",
+                matches = "file",
+              },
+            },
+          },
+        },
         didRename = {
+          -- TODO: for folders
           filters = {
             {
               scheme = "file",

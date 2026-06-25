@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Prompt to confirm deletion for notes that have backlinks and attachments.
+- Set `opts.file.trash = "local"` to default delete file to `.trash` folder like obsidian app
+
 ## [v3.16.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.5) - 2026-06-25
 
 ### Added

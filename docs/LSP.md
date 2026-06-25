@@ -47,6 +47,7 @@ Available actions:
   - Add file property (`add_property`)
   - Insert template at cursor (`insert_template`, requires templates enabled)
   - Move current note to another folder (`move_note`)
+  - Delete current note (`delete_note`)
   - Merge current note into another note (`merge_note`)
   - Start presentation (`start_presentation`, requires slides enabled)
 - Visual mode:
