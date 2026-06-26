@@ -150,6 +150,69 @@ local function generate_id(base_id, path, id_func)
   return new_id
 end
 
+--- Check whether a filename stem is valid across all platforms (Windows + Linux/macOS).
+---
+--- https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
+---
+---@param name string Filename stem (without extension)
+---@return boolean valid
+---@return string? reason Human-readable error when invalid
+local function is_valid_filename(name)
+  if vim.g.obsidian_allow_invalid_names then
+    return true, nil
+  end
+
+  if not name or name == "" then
+    return false, "cannot be empty"
+  end
+
+  -- Forbidden on Windows (and / on Linux); %z matches the NUL byte.
+  local forbidden = name:match '[<>:"/\\|?*%z]'
+  if forbidden then
+    return false, ("contains forbidden character: %q"):format(forbidden)
+  end
+
+  -- Control characters 0x01-0x1F (NUL covered above).
+  if name:match "[\1-\31]" then
+    return false, "contains a control character"
+  end
+
+  if name:match "[%. ]$" then
+    return false, "cannot end with a space or period"
+  end
+
+  local upper = name:upper()
+  if upper:match "^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(%..*)?$" then
+    return false, "is a reserved Windows filename"
+  end
+
+  return true, nil
+end
+
+---@param invalid_name string
+---@return string
+local function prompt_for_valid_filename(invalid_name)
+  local current = invalid_name
+
+  while true do
+    local input = api.input("Enter filename", { default = current, completion = "file" })
+    if not input then
+      error "Aborted"
+    end
+
+    current = input:gsub("%.md$", "")
+    local valid, reason = is_valid_filename(current)
+    if valid then
+      return current
+    end
+
+    log.err(("Invalid filename %q: %s"):format(current, reason))
+  end
+end
+
+Note.is_valid_filename = is_valid_filename
+Note.prompt_for_valid_filename = prompt_for_valid_filename
+
 --- Generate the file path for a new note given its ID, parent directory, and title.
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 --- `note_opts.dir / (note_opts.id .. ".md")`.
@@ -244,11 +307,12 @@ end
 --- Resolves the ID, and path for a new note.
 ---
 ---@param opts obsidian.note.NoteOpts Strategy for resolving note path and title
+---@param prompt_invalid_filename boolean|? Prompt for a replacement instead of erroring when the filename is invalid.
 ---@return string id
 ---@return obsidian.Path path
 ---@return string|? title
 ---@private
-Note._resolve_id_path = function(opts)
+Note._resolve_id_path = function(opts, prompt_invalid_filename)
   local id, dir = opts.id, opts.dir
   local creation_opts = Note._get_creation_opts(opts or {})
 
@@ -323,6 +387,16 @@ Note._resolve_id_path = function(opts)
     id = generate_id(id, base_dir, creation_opts.note_id_func)
   end
 
+  -- Reject ids that would produce filenames invalid on any platform.
+  local valid, reason = is_valid_filename(id)
+  while not valid do
+    if not prompt_invalid_filename then
+      error(("invalid note filename %q: %s"):format(id, reason), 2)
+    end
+    id = prompt_for_valid_filename(id)
+    valid, reason = is_valid_filename(id)
+  end
+
   dir = base_dir
 
   -- Generate path.
@@ -341,7 +415,7 @@ end
 --- @return obsidian.Note
 Note.create = function(opts)
   opts = opts or {}
-  local new_id, path, title = Note._resolve_id_path(opts)
+  local new_id, path, title = Note._resolve_id_path(opts, true)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
   if opts.should_write then
     log.warn "`should_write` in Note.create is removed, call note:write instead"
@@ -1497,5 +1571,27 @@ end
 ---@field line integer
 ---@field block string
 ---@field section obsidian.Section the paragraph carrying the block identifier.
+
+local rename = require "obsidian.note.rename"
+
+---@class obsidian.note.RenameMeta
+---@field count integer Number of reference replacements.
+---@field path_lookup table<string, boolean> Files with reference replacements.
+---@field buf_list integer[] Buffers touched by reference replacements.
+---@field old_path string Original note path.
+---@field new_path string New note path.
+
+---@class (exact) obsidian.note.RenameOpts
+---@field old_path? string Existing path to rename from. Defaults to `note.path`.
+---@field new_path? string Destination path. Defaults to sibling path using `new_name .. ".md"`.
+---@field include_file_rename? boolean Include a file rename operation in the generated edit. Defaults to true.
+---@field apply? boolean Apply the workspace edit directly. Defaults to true.
+---@field update_buffers? boolean Update the note object/frontmatter and reload buffers after applying. Defaults to true.
+---@field check_unique? boolean Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
+---@field offset_encoding? string Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
+
+Note.build_rename_edit = rename.build_edit
+Note.rename = rename.rename
+Note.validate_rename = rename.validate
 
 return Note

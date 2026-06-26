@@ -50,6 +50,46 @@ T["create"]["should trigger create autocmd with note data"] = function()
   vim.api.nvim_del_augroup_by_id(group)
 end
 
+T["create"]["should prompt for replacement filename with invalid name as default"] = function()
+  local orig_input = api.input
+  api.input = function(prompt, opts)
+    eq("Enter filename", prompt)
+    eq("bad:name", opts.default)
+    return "good name"
+  end
+
+  local note = M.create { id = "bad:name", verbatim = true }
+
+  api.input = orig_input
+  eq("good name", note.id)
+end
+
+T["create"]["should allow invalid filenames when global is set"] = function()
+  local orig_allow_invalid_names = vim.g.obsidian_allow_invalid_names
+  vim.g.obsidian_allow_invalid_names = true
+
+  local note = M.create { id = "bad:name", verbatim = true }
+
+  vim.g.obsidian_allow_invalid_names = orig_allow_invalid_names
+  eq("bad:name", note.id)
+end
+
+T["rename"] = new_set()
+T["rename"]["should reject invalid filenames"] = function()
+  local note = M.new("Foo", {}, {}, Obsidian.dir / "Foo.md")
+  local log = require "obsidian.log"
+  local orig_err = log.err
+  local got_err
+  log.err = function() end
+
+  note:rename("bad:name", { apply = false }, function(err)
+    got_err = err
+  end)
+
+  log.err = orig_err
+  eq('Invalid filename "bad:name": contains forbidden character: ":"', got_err)
+end
+
 local function from_str(str, path, opts)
   return M.from_lines(vim.iter(vim.split(str, "\n")), path, opts)
 end
