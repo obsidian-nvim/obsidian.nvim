@@ -83,6 +83,7 @@ T["watchfiles dispatches LSP events to registered handlers"] = function()
     watchfiles.register_handler(function(events, raw_changes)
       _G.received_event_type = events[1].type
       _G.received_event_uri = events[1].uri
+      _G.received_event_path = events[1].path
       _G.received_raw_uri = raw_changes[1].uri
     end)
 
@@ -95,13 +96,42 @@ T["watchfiles dispatches LSP events to registered handlers"] = function()
 
     _G.returned_event_type = events[1].type
     _G.returned_event_uri = events[1].uri
+    _G.returned_event_path = events[1].path
   ]]
 
   eq(vim.lsp.protocol.FileChangeType.Changed, child.lua_get "returned_event_type")
   eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "returned_event_uri")
+  eq("/tmp/watch.md", child.lua_get "returned_event_path")
   eq(vim.lsp.protocol.FileChangeType.Changed, child.lua_get "received_event_type")
   eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_event_uri")
+  eq("/tmp/watch.md", child.lua_get "received_event_path")
   eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_raw_uri")
+end
+
+T["watchfiles normalizes URI paths"] = function()
+  child.lua [[
+    local watchfiles = require "obsidian.lsp.watchfiles"
+    local uri = "file:///C:/tmp/watch.md"
+
+    watchfiles.register_handler(function(events, raw_changes)
+      _G.received_path = events[1].path
+      _G.raw_has_path = raw_changes[1].path ~= nil
+    end)
+
+    local events = watchfiles.handle {
+      {
+        uri = uri,
+        type = vim.lsp.protocol.FileChangeType.Changed,
+      },
+    }
+
+    _G.expected_path = vim.fs.normalize(vim.uri_to_fname(uri))
+    _G.returned_path = events[1].path
+  ]]
+
+  eq(child.lua_get "expected_path", child.lua_get "returned_path")
+  eq(child.lua_get "expected_path", child.lua_get "received_path")
+  eq(false, child.lua_get "raw_has_path")
 end
 
 T["watchfiles snapshots handlers while dispatching events"] = function()
