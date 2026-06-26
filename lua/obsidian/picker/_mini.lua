@@ -29,9 +29,6 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  if Picker.find_files_from_cache(opts) then
-    return
-  end
   opts.callback = opts.callback or api.open_note
 
   local mini_pick = require "mini.pick"

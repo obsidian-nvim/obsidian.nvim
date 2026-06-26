@@ -301,7 +301,17 @@ end
 M.get = function(picker_name)
   local patch = function(modname)
     for name, f in pairs(require(modname)) do
-      M[name] = f
+      if name == "find_files" then
+        M[name] = function(opts)
+          opts = opts or {}
+          if M.find_files_from_cache(opts) then
+            return
+          end
+          return f(opts)
+        end
+      else
+        M[name] = f
+      end
     end
   end
 
