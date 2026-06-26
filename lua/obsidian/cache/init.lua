@@ -39,6 +39,14 @@ local backends = {
 local state = nil
 
 local FLUSH_DEBOUNCE_MS = 2000
+local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = true }
+
+---@param path string
+---@return boolean
+local function is_markdown_note(path)
+  local ext = (path:match "%.([^./]+)$" or ""):lower()
+  return MARKDOWN_EXTENSIONS[ext] == true
+end
 
 local function schedule_flush()
   if not state or not state.backend.flush then
@@ -81,7 +89,7 @@ local function reindex_one(abs_path)
   if not state then
     return
   end
-  if not vim.endswith(abs_path, ".md") then
+  if not is_markdown_note(abs_path) then
     return
   end
   if is_ignored(abs_path) then
@@ -109,7 +117,7 @@ local function rename_one(old_path, new_path)
   if not state then
     return
   end
-  if not vim.endswith(new_path, ".md") then
+  if not is_markdown_note(new_path) then
     state.backend:delete(old_path)
     schedule_flush()
     return
@@ -140,7 +148,12 @@ local function on_events(events)
   local FileChangeType = vim.lsp.protocol.FileChangeType
   for _, ev in ipairs(events) do
     local path = event_path(ev)
-    if ev.type == "created" or ev.type == "changed" or ev.type == FileChangeType.Created or ev.type == FileChangeType.Changed then
+    if
+      ev.type == "created"
+      or ev.type == "changed"
+      or ev.type == FileChangeType.Created
+      or ev.type == FileChangeType.Changed
+    then
       if path then
         reindex_one(path)
       end
@@ -159,7 +172,7 @@ end
 local function initial_scan(force)
   local found = {}
   local files = vim.fs.find(function(name, dir)
-    if not name:match "%.md$" then
+    if not is_markdown_note(name) then
       return false
     end
     return not is_ignored(dir .. "/" .. name)

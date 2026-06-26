@@ -89,7 +89,7 @@ T["cache backends"]["stores compact rows"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   local note_path = tostring(dir / "Note.md")
-  helpers.write("---\ntags: [Foo]\n---\n# Note", note_path)
+  helpers.write("---\ntags: [Foo]\n---\n# Note\n#Inline", note_path)
   Obsidian = { dir = dir }
 
   local cache = require "obsidian.cache"
@@ -99,7 +99,7 @@ T["cache backends"]["stores compact rows"] = function()
   end)
 
   local row = cache.notes.find(note_path)
-  eq({ "foo" }, row.tags)
+  eq({ "foo", "inline" }, row.tags)
   eq(nil, row.path)
   eq(nil, row.rel_path)
   eq(nil, row.basename)
@@ -110,6 +110,27 @@ T["cache backends"]["stores compact rows"] = function()
   eq(nil, row.aliases)
   eq(nil, row.links_out)
   eq(nil, row.tasks)
+end
+
+T["cache backends"]["indexes markdown-like extensions"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  helpers.write("# Note", dir / "Note.md")
+  helpers.write("# Page", dir / "Page.markdown")
+  helpers.write("# Query", dir / "Query.qmd")
+  helpers.write("# Base", dir / "Base.base")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  eq(4, cache.notes.count())
+  eq(true, cache.notes.find(tostring(dir / "Page.markdown")) ~= nil)
+  eq(true, cache.notes.find(tostring(dir / "Query.qmd")) ~= nil)
+  eq(true, cache.notes.find(tostring(dir / "Base.base")) ~= nil)
 end
 
 T["cache backends"]["handles raw LSP watched-file events"] = function()
@@ -125,7 +146,7 @@ T["cache backends"]["handles raw LSP watched-file events"] = function()
 
   local note_path = tostring(dir / "Fresh.md")
   helpers.write("# Fresh", note_path)
-  require("obsidian.lsp.handlers.did_change_watched_files") {
+  require "obsidian.lsp.handlers.did_change_watched_files" {
     changes = {
       {
         uri = vim.uri_from_fname(note_path),

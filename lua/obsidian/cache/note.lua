@@ -1,5 +1,6 @@
 local Note = require "obsidian.note"
 local search = require "obsidian.search"
+local parse_tags = require("obsidian.parse.tags").parse_tags
 
 local M = {}
 
@@ -148,8 +149,16 @@ function M.build(abs_path, _vault_root)
     end
   end
   local tags_lower = {}
+  local tags_seen = {}
+  local function add_tag(tag)
+    tag = tag:lower()
+    if tag ~= "" and not tags_seen[tag] then
+      tags_lower[#tags_lower + 1] = tag
+      tags_seen[tag] = true
+    end
+  end
   for _, t in ipairs(note.tags or {}) do
-    tags_lower[#tags_lower + 1] = t:lower()
+    add_tag(t)
   end
 
   local fm_end = note.frontmatter_end_line or 0
@@ -163,6 +172,9 @@ function M.build(abs_path, _vault_root)
     elseif not in_code_block then
       for _, l in ipairs(extract_links(line, i)) do
         links_out[#links_out + 1] = l
+      end
+      for _, tag in ipairs(parse_tags(line)) do
+        add_tag(line:sub(tag[1] + 1, tag[2]))
       end
       local indent, state, text = match_task(line)
       if indent ~= nil then
