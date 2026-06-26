@@ -5,6 +5,12 @@ local T, child = h.child_vault {
   pre_case = [[M = require"obsidian.api"]],
 }
 
+T["state"] = new_set()
+
+T["state"]["should expose picker module for backwards compatibility"] = function()
+  eq(true, child.lua [[return Obsidian["picker"] == require("obsidian.picker")]])
+end
+
 T["toggle_checkbox"] = new_set()
 
 T["toggle_checkbox"]["should toggle between default states with - lists"] = function()

@@ -115,7 +115,8 @@ T["parse"]["blinks anchor target range"] = function()
   })
 
   local blinked = child.lua [[
-Obsidian.picker.select = function(items, _, callback)
+local picker = require "obsidian.picker"
+picker.select = function(items, _, callback)
   callback { items[1] }
 end
 
