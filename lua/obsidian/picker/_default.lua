@@ -8,42 +8,40 @@ local ut = require "obsidian.picker.util"
 --- Pick from a list of items.
 ---
 ---@param values string[]|obsidian.PickerEntry[] Items to pick from.
----@param opts obsidian.PickerPickOpts|? Options.
+---@param opts obsidian.PickerSelectOpts|? Options.
+---@param on_choice fun(choices: any[])|?
 ---
 --- Options:
----  `prompt_title`: Title for the prompt window.
----  `callback`: Callback to run with the selected item(s).
+---  `prompt`: Title for the prompt window.
+---  `format_item`: Function to format an item for display.
+---  `preview_item`: Function to preview an item.
 ---  `allow_multiple`: Allow multiple selections to pass to the callback.
----  `query_mappings`: Mappings that run with the query prompt.
----  `selection_mappings`: Mappings that run with the current selection.
 ---
-M.pick = function(values, opts)
+M.select = function(values, opts, on_choice)
   opts = opts or {}
-  local callback = opts.callback or api.open_note
+  on_choice = on_choice or function() end
 
-  if opts.callback then
-    vim.ui.select(values, {
-      prompt = opts.prompt_title,
-      format_item = opts.format_item or function(value)
-        if type(value) == "string" then
-          return value
-        elseif type(value) == "table" then
-          return ut.make_display(value)
-        end
-      end,
-    }, function(item)
-      if item then
-        if type(item) == "string" then
-          item = { user_data = item }
-        end
-        callback(item)
+  vim.ui.select(values, {
+    prompt = opts.prompt,
+    kind = opts.kind,
+    allow_multiple = opts.allow_multiple,
+    preview_item = opts.preview_item,
+    format_item = opts.format_item or function(value)
+      if type(value) == "string" then
+        return value
+      elseif type(value) == "table" then
+        return ut.make_display(value)
       end
-    end)
-  else
-    ---@diagnostic disable-next-line: param-type-mismatch
-    vim.fn.setqflist(values)
-    vim.cmd "copen"
-  end
+    end,
+  }, function(choice_or_choices, idx)
+    if choice_or_choices == nil then
+      on_choice {}
+    elseif idx == nil and type(choice_or_choices) == "table" then
+      on_choice(choice_or_choices)
+    else
+      on_choice { choice_or_choices }
+    end
+  end)
 end
 
 ---@param match MatchData
