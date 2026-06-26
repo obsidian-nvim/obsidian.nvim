@@ -283,7 +283,18 @@ M.select = function(values, opts, on_choice)
   }
 
   local previewer
-  if vim.iter(values):any(function(value)
+  if opts.preview_item then
+    previewer = require("telescope.previewers").new_buffer_previewer {
+      define_preview = function(self, entry)
+        local spec = opts.preview_item(entry.obsidian_item)
+        vim.schedule(function()
+          if self.state and self.state.winid then
+            ut.show_preview_spec(self.state.winid, spec)
+          end
+        end)
+      end,
+    }
+  elseif vim.iter(values):any(function(value)
     return type(value) == "table" and value.filename ~= nil
   end) then
     previewer = conf.values.grep_previewer(picker_opts)
