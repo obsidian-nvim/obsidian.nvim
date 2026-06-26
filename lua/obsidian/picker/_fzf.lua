@@ -66,7 +66,7 @@ local function get_selection_actions(opts, path_only)
 end
 
 ---@param display_to_value_map table<string, any>
----@param opts { callback: fun(path: string)|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+---@param opts { callback: fun(path: string)|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
 local function get_value_actions(display_to_value_map, opts)
   ---@param allow_multiple boolean|?
   ---@return any[]|?
@@ -119,14 +119,6 @@ local function get_value_actions(display_to_value_map, opts)
         end
 
         mapping.callback(unpack(values))
-      end
-    end
-  end
-
-  if opts.query_mappings then
-    for key, mapping in pairs(opts.query_mappings) do
-      actions[format_keymap(key)] = function(_, fzf_opts)
-        mapping.callback(fzf_opts.query)
       end
     end
   end
@@ -248,7 +240,6 @@ M.pick = function(values, opts)
       callback = opts.callback,
       allow_multiple = opts.allow_multiple,
       selection_mappings = opts.selection_mappings,
-      query_mappings = opts.query_mappings,
     }),
   })
 end

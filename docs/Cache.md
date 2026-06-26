@@ -1,7 +1,3 @@
-[!Warning]
-
-> The cache is under development, so it can have bugs and the functionality might be changed in the future.
-
 # What is Cache?
 
 Cache in `obsidian.nvim` is a JSON file under Neovim's `stdpath("cache")`, which stores information for each note in the user's workspace.
