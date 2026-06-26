@@ -43,7 +43,7 @@ M.filetypes = filetypes
 ---
 ---@param location string
 ---@return boolean
-M.is_attachment_path = function(location)
+M.is_attachment_filetype = function(location)
   if vim.endswith(location, ".md") then
     return false
   end
@@ -58,9 +58,9 @@ end
 --- Resolve a basename to full path inside the vault.
 ---
 ---@param src string
----@param bufnr integer|?
+---@param bufnr_or_file integer|string|?
 ---@return string
-M.resolve_attachment_path = function(src, bufnr)
+M.resolve_attachment_path = function(src, bufnr_or_file)
   local Path = require "obsidian.path"
   local attachment_folder = Obsidian.opts.attachments.folder
 
@@ -70,8 +70,8 @@ M.resolve_attachment_path = function(src, bufnr)
 
   ---@cast attachment_folder -nil
   if vim.startswith(attachment_folder, ".") then
-    bufnr = bufnr or 0
-    local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)))
+    local path = type(bufnr_or_file) == "string" and bufnr_or_file or vim.api.nvim_buf_get_name(bufnr_or_file or 0)
+    local dirname = Path.new(vim.fs.dirname(path))
     return tostring(dirname / attachment_folder / src)
   else
     return tostring(Obsidian.dir / attachment_folder / src)

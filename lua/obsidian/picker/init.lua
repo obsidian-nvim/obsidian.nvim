@@ -1,8 +1,8 @@
 local util = require "obsidian.util"
-local ut = require "obsidian.picker.util"
 local api = require "obsidian.api"
 local cache = require "obsidian.cache"
 local attachment = require "obsidian.attachment"
+local icons = require "obsidian.icons"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
@@ -102,7 +102,7 @@ end
 ---@param target string
 ---@return boolean
 local function is_attachment_target(target)
-  return attachment.is_attachment_path(target:lower())
+  return attachment.is_attachment_filetype(target:lower())
 end
 
 ---@param target string?
@@ -156,24 +156,31 @@ local function target_exists(target, lookup)
 end
 
 ---@param target string
+---@param is_attachment boolean
+---@param path string
 ---@return string?
-local function missing_target_path(target)
+local function missing_target_path(target, is_attachment, path)
   if is_external_target(target) then
     return nil
   end
 
   target = normalize_link_target(target)
+
+  if is_attachment then
+    return attachment.resolve_attachment_path(target, path)
+  end
+
   if not link_target_has_extension(target) then
     target = target .. ".md"
   end
   return vim.fs.normalize(vim.fs.joinpath(tostring(Obsidian.dir), target))
 end
 
----@param attachment boolean
+---@param is_attachment boolean
 ---@param missing boolean
 ---@return obsidian.PickerEntryUserData
-local function entry_user_data(attachment, missing)
-  return { attachment = attachment, missing = missing }
+local function entry_user_data(is_attachment, missing)
+  return { attachment = is_attachment, missing = missing }
 end
 
 ---@param opts obsidian.PickerFindOpts|?
@@ -226,22 +233,19 @@ M.find_files_from_cache = function(opts)
     end
 
     if not show_existing_only then
-      for _, note in pairs(all) do
+      for path, note in pairs(all) do
         for _, link in ipairs(note.links_out or {}) do
           local target = link.target
           if not is_external_target(target) and not target_exists(target, lookup) then
             local missing_is_attachment = is_attachment_target(target)
             if show_attachments or not missing_is_attachment then
-              local path = missing_target_path(target)
-              if path and util.is_subpath(path, dir) and not seen_missing[path] then
-                seen_missing[path] = true
+              local target_path = missing_target_path(target, missing_is_attachment, path)
+              if target_path and util.is_subpath(target_path, dir) and not seen_missing[target_path] then
+                seen_missing[target_path] = true
                 local text = normalize_link_target(target)
-                if not missing_is_attachment then
-                  text = text .. " (create)"
-                end
                 entries[#entries + 1] = {
                   text = text,
-                  filename = path,
+                  filename = target_path,
                   user_data = entry_user_data(missing_is_attachment, true),
                 }
               end
@@ -256,7 +260,7 @@ M.find_files_from_cache = function(opts)
       query = opts.query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
-      format_item = ut.make_display,
+      format_item = icons.format_picker_entry,
       callback = function(item)
         local path = item["filename"]
         if not path then
@@ -265,7 +269,10 @@ M.find_files_from_cache = function(opts)
           opts.callback(path)
         else
           local data = item.user_data or {}
-          if data.attachment then
+          local is_missing_attachment = data.attachment and data.missing
+          if is_missing_attachment then
+            -- TODO: add attachment in item.filename
+          elseif data.attachment then
             vim.ui.open(path)
           elseif data.missing then
             local location = item.text or vim.fn.fnamemodify(path, ":t:r")

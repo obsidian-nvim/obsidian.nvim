@@ -90,8 +90,10 @@ T["quick switch"]["cache picker filters attachments and missing links"] = functi
   local picker = require "obsidian.picker"
   local original_pick = picker.pick
   local entries
-  picker.pick = function(values)
+  local pick_opts
+  picker.pick = function(values, opts)
     entries = values
+    pick_opts = opts
   end
 
   picker.find_files_from_cache { use_cache = true }
@@ -123,6 +125,23 @@ T["quick switch"]["cache picker filters attachments and missing links"] = functi
   eq({ attachment = false, missing = true }, attachment_seen["Missing"])
   eq({ attachment = true, missing = false }, attachment_seen["Image.png"])
   eq({ attachment = true, missing = true }, attachment_seen["Missing.pdf"])
+
+  local icons = require "obsidian.icons"
+  eq(
+    icons.get_icon { user_data = { missing = true } } .. " Missing",
+    pick_opts.format_item {
+      text = "Missing",
+      user_data = { missing = true },
+    }
+  )
+  eq(
+    icons.get_icon { filename = "Image.png" } .. " Image.png",
+    pick_opts.format_item {
+      text = "Image.png",
+      filename = "Image.png",
+      user_data = { attachment = true },
+    }
+  )
 
   picker.pick = original_pick
 end
