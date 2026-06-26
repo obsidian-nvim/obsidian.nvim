@@ -274,14 +274,6 @@ M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
-M.register("_quick_switch", { nargs = "?" })
-
-M.register("_tags", { nargs = "?" })
-
-M.register("_backlinks", { nargs = 0 })
-
-M.register("_tasks", { nargs = "?" })
-
 M.register("workspace", { nargs = "?" })
 
 M.register("help", { nargs = "?", complete = M.help_complete })
