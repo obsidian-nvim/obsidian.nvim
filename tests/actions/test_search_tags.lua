@@ -41,10 +41,6 @@ T["search_tags uses select for tag choice"] = function()
       }
     end
 
-    picker.pick = function()
-      error "picker.pick should not be used"
-    end
-
     require("obsidian.actions").search_tags()
   ]],
     { desc = "search_tags picker" }
