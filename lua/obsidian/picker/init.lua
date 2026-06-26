@@ -316,11 +316,11 @@ M.find_files_from_cache = function(opts)
               local path = missing_target_path(target)
               if path and util.is_subpath(path, dir) and not seen_missing[path] then
                 seen_missing[path] = true
-                add_entry(
-                  normalize_link_target(target),
-                  path,
-                  entry_user_data(missing_is_attachment, true)
-                )
+                local text = normalize_link_target(target)
+                if not missing_is_attachment then
+                  text = text .. " (create)"
+                end
+                add_entry(text, path, entry_user_data(missing_is_attachment, true))
               end
             end
           end
