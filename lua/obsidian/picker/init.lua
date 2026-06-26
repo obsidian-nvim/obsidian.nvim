@@ -3,10 +3,10 @@ local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
 local cache = require "obsidian.cache"
 local attachment = require "obsidian.attachment"
+local icons = require "obsidian.icons"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
-local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 
@@ -170,7 +170,7 @@ end
 ---@param target string
 ---@return boolean
 local function is_attachment_target(target)
-  return attachment.is_attachment_path(target:lower())
+  return attachment.is_attachment_filetype(target:lower())
 end
 
 ---@param target string?
@@ -224,24 +224,31 @@ local function target_exists(target, lookup)
 end
 
 ---@param target string
+---@param is_attachment boolean
+---@param path string
 ---@return string?
-local function missing_target_path(target)
+local function missing_target_path(target, is_attachment, path)
   if is_external_target(target) then
     return nil
   end
 
   target = normalize_link_target(target)
+
+  if is_attachment then
+    return attachment.resolve_attachment_path(target, path)
+  end
+
   if not link_target_has_extension(target) then
     target = target .. ".md"
   end
   return vim.fs.normalize(vim.fs.joinpath(tostring(Obsidian.dir), target))
 end
 
----@param attachment boolean
+---@param is_attachment boolean
 ---@param missing boolean
 ---@return obsidian.PickerEntryUserData
-local function entry_user_data(attachment, missing)
-  return { attachment = attachment, missing = missing }
+local function entry_user_data(is_attachment, missing)
+  return { attachment = is_attachment, missing = missing }
 end
 
 ---@param opts obsidian.PickerFindOpts|?
@@ -307,20 +314,17 @@ M.find_files_from_cache = function(opts)
     end
 
     if not show_existing_only then
-      for _, note in pairs(all) do
+      for path, note in pairs(all) do
         for _, link in ipairs(note.links_out or {}) do
           local target = link.target
           if not is_external_target(target) and not target_exists(target, lookup) then
             local missing_is_attachment = is_attachment_target(target)
             if show_attachments or not missing_is_attachment then
-              local path = missing_target_path(target)
-              if path and util.is_subpath(path, dir) and not seen_missing[path] then
-                seen_missing[path] = true
+              local target_path = missing_target_path(target, missing_is_attachment, path)
+              if target_path and util.is_subpath(target_path, dir) and not seen_missing[target_path] then
+                seen_missing[target_path] = true
                 local text = normalize_link_target(target)
-                if not missing_is_attachment then
-                  text = text .. " (create)"
-                end
-                add_entry(text, path, entry_user_data(missing_is_attachment, true))
+                add_entry(text, target_path, entry_user_data(missing_is_attachment, true))
               end
             end
           end
@@ -343,10 +347,7 @@ M.find_files_from_cache = function(opts)
       selection_mappings = transform_selection_mappings(opts.selection_mappings, function(item)
         return item.filename
       end),
-      format_item = function(item)
-        local icon = icons.get_path_icon(item.filename)
-        return icon .. " " .. item.text
-      end,
+      format_item = icons.format_picker_entry,
       preview_item = function(item)
         return util.preview_path(item.filename)
       end,
@@ -368,7 +369,10 @@ M.find_files_from_cache = function(opts)
       for _, item in ipairs(items) do
         local path = item.filename
         local data = item.user_data or {}
-        if path and data.attachment then
+        local is_missing_attachment = data.attachment and data.missing
+        if path and is_missing_attachment then
+          -- TODO: add attachment in item.filename
+        elseif path and data.attachment then
           vim.ui.open(path)
         elseif path and data.missing then
           local location = item.text or vim.fn.fnamemodify(path, ":t:r")
