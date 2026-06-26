@@ -34,7 +34,7 @@ M.follow_link = function(link, opts)
       picker.select(items, { prompt = "Resolve link" }, function(choices)
         local entry = choices and choices[1]
         if entry then
-          api.open_note(entry)
+          api.open_note(entry, cmd)
         end
       end)
     end
@@ -931,7 +931,7 @@ local function gather_tag_picker_list(tag_locations, tags)
     picker.select(entries, {
       prompt = "#" .. table.concat(tags, ", #"),
       format_item = function(entry)
-        return entry.display
+        return entry.text
       end,
       preview_item = preview_item,
     }, function(items)
