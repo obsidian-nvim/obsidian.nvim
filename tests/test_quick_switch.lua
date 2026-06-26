@@ -81,7 +81,10 @@ T["quick switch"]["cache picker filters attachments and missing links"] = functi
   dir:mkdir { parents = true }
   helpers.write("# Note\n[[Missing]]\n![[Image.png]]\n![[Missing.pdf]]", dir / "Note.md")
   helpers.write("attachment", dir / "Image.png")
-  Obsidian = { dir = dir }
+  Obsidian = {
+    dir = dir,
+    opts = { attachments = { folder = "attachments" } },
+  }
 
   local cache = require "obsidian.cache"
   cache.setup { enabled = true, backend = "memory" }
@@ -92,8 +95,10 @@ T["quick switch"]["cache picker filters attachments and missing links"] = functi
   local picker = require "obsidian.picker"
   local original_select = picker.select
   local entries
-  picker.select = function(values)
+  local pick_opts
+  picker.select = function(values, opts)
     entries = values
+    pick_opts = opts
   end
 
   picker.find_files_from_cache { use_cache = true }
@@ -125,6 +130,23 @@ T["quick switch"]["cache picker filters attachments and missing links"] = functi
   eq({ attachment = false, missing = true }, attachment_seen["Missing"])
   eq({ attachment = true, missing = false }, attachment_seen["Image.png"])
   eq({ attachment = true, missing = true }, attachment_seen["Missing.pdf"])
+
+  local icons = require "obsidian.icons"
+  eq(
+    icons.get_icon { user_data = { missing = true } } .. " Missing",
+    pick_opts.format_item {
+      text = "Missing",
+      user_data = { missing = true },
+    }
+  )
+  eq(
+    icons.get_icon { filename = "Image.png" } .. " Image.png",
+    pick_opts.format_item {
+      text = "Image.png",
+      filename = "Image.png",
+      user_data = { attachment = true },
+    }
+  )
 
   picker.select = original_select
 end
