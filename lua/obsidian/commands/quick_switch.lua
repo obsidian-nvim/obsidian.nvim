@@ -2,6 +2,6 @@
 return function(data)
   Obsidian.picker.find_notes {
     prompt_title = "Quick Switch",
-    query = data.args,
+    query = data.args ~= "" and data.args or nil,
   }
 end

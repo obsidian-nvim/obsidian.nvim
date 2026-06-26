@@ -436,4 +436,12 @@ return {
   slides = {
     enabled = true,
   },
+
+  ---@class obsidian.config.CacheOpts
+  ---@field enabled? boolean
+  ---@field backend? string Built-in: "json", "memory". Custom backends can be added with `require("obsidian.cache").register(name, backend)`.
+  cache = {
+    enabled = false,
+    backend = "json",
+  },
 }

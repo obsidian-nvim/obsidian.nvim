@@ -1,4 +1,6 @@
+local util = require "obsidian.util"
 local api = require "obsidian.api"
+local cache = require "obsidian.cache"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
@@ -61,6 +63,7 @@ end
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field include_non_markdown boolean|?
+---@field use_cache boolean|?
 
 ---@class obsidian.PickerGrepOpts
 ---
@@ -87,6 +90,63 @@ end
 ------------------------------------------------------------------
 --- Concrete methods with a default implementation subclasses. ---
 ------------------------------------------------------------------
+
+---@param opts obsidian.PickerFindOpts|?
+---@return boolean handled
+M.find_files_from_cache = function(opts)
+  opts = opts or {}
+  if not opts.use_cache or not cache.is_enabled() or opts.include_non_markdown then
+    return false
+  end
+
+  local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(Obsidian.dir))
+  if not util.is_subpath(dir, tostring(Obsidian.dir)) then
+    return false
+  end
+
+  cache.when_ready(function()
+    ---@type obsidian.PickerEntry[]
+    local entries = {}
+    for path, note in pairs(cache.notes.all()) do
+      if util.is_subpath(path, dir) then
+        local rel_path = cache.notes.rel_path(path)
+        entries[#entries + 1] = {
+          text = rel_path,
+          filename = path,
+        }
+        for _, alias in ipairs(note.aliases or {}) do
+          local text = rel_path .. " | " .. alias
+          entries[#entries + 1] = {
+            text = text,
+            filename = path,
+          }
+        end
+      end
+    end
+
+    M.pick(entries, {
+      prompt_title = opts.prompt_title,
+      query = opts.query,
+      query_mappings = opts.query_mappings,
+      selection_mappings = opts.selection_mappings,
+      format_item = function(item)
+        return item["text"] or item["filename"] or ""
+      end,
+      callback = function(item)
+        local path = item["filename"]
+        if not path then
+          return
+        elseif opts.callback then
+          opts.callback(path)
+        else
+          api.open_note(path)
+        end
+      end,
+    })
+  end)
+
+  return true
+end
 
 --- Find notes by filename.
 ---
@@ -118,6 +178,7 @@ M.find_notes = function(opts)
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
+    use_cache = true,
   }
 end
 
@@ -232,7 +293,17 @@ end
 M.get = function(picker_name)
   local patch = function(modname)
     for name, f in pairs(require(modname)) do
-      M[name] = f
+      if name == "find_files" then
+        M[name] = function(opts)
+          opts = opts or {}
+          if M.find_files_from_cache(opts) then
+            return
+          end
+          return f(opts)
+        end
+      else
+        M[name] = f
+      end
     end
   end
 

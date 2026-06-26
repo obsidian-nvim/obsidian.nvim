@@ -1,89 +1,89 @@
-> [!Warning]
-> The cache is under development, so it can have bugs and the functionality might be changed in the future.
+# Cache
 
-# What is Cache?
-
-Cache in `obsidian.nvim` is a JSON file, which stores information of each note, which are placed in the user's workspace.
-
-The information is stored as an array of `obsidian.cache.CacheNote` objects.
-
-The object contains the following fields:
-
-- Absolute path to the note.
-- Relative path to the workspace.
-- Aliases in the note.
-- The time of last modification in seconds.
-
-# How Works
-
-TLDR:
-
-- The cache file is used by pickers.
-- The cache file is updated by event handlers from libuv library and on the startup, comparing the last modification time of the notes.
-
-The following sections describe the functionality in more details.
-
-## File Handles
-
-Using the `libuv` library, the `filewatch` module creates single `uv.uv_fs_event_t` handle on Windows and on macOS for the root folder, and a handle for the root folder and one handle for each sub folder on Linux.
-
-Several handles on Linux are used, due to limitation of `UV_FS_EVENT_RECURSIVE` flag. Read the [libuv documentation](https://docs.libuv.org/en/v1.x/fs_event.html) for more.
-
-## Change Events
-
-The created handles fire a change event when a file in the watched folders is changed. This allows us to see all changes which occur in the user's workspace using Neovim or other programs.
-
-The events are filtered and sent to the `cache` module only after 500 milliseconds.
-This is done to reduce the overhead of updates of the cache file. For instance, the `rename` command can touch multiple notes and without the delay we would update the cache file for each updated note.
-
-## Updates When Neovim is not Active.
-
-Notes can be updated by programs like like git, syncthing or any cloud storage providers when neovim was not active. For this case, during the startup all notes are checked for last modification time. If the time is different from the time in the cache file, then the file is checked for changes.
-
-## How Pickers use the Cache File
-
-The functionality of the `quick_switch` command was changed in the following way:
-the `find_files` uses the cache file as the source, instead of using `rg`.
-Aliases, which are placed in the cache file are concatenated after the relative file path with `|` sign.
-Example of an entry: `Base/MongoDB Drop Field.md|MongoDB Unset Field|MongoDB Remove Field`
-
-# How to Use
-
-## Add to Ignore
-
-If you use git, syncthing, or other sync solutions, add the cache file (by default it's called `.cache.json`) to ignore (for git is `.gitignore` file) because the absolute paths can differ on each computer and for VCS the cache file can be too big and updated on each file change.
-
-## Enable the Module
-
-By default, the cache module is disabled.
-
-If you use `lazy.nvim`, in your configuration file add the following option:
+The cache is disabled by default. To use it, enable it in your `obsidian.nvim` config:
 
 ```lua
-cache = {
-  enable = true,
-},
+require("obsidian").setup {
+  cache = {
+    enabled = true,
+  },
+}
 ```
 
-Read the [configuration](https://github.com/obsidian-nvim/obsidian.nvim#%EF%B8%8F-configuration) section for more information.
+The default backend is `json`. It writes a cache file under Neovim's cache directory and reuses it between sessions. You do not need to set `backend = "json"` unless you want to be explicit.
 
-# Limitations
+At the moment, the cache is used for `:Obsidian quick_switch`. When enabled, quick switch reads note names and aliases from the cache instead of asking the picker to scan the vault each time.
 
-- New folders which are created on Linux won't be tracked. You can solve this by restart of neovim.
-- Several instances of neovim can conflict with each other, because each creates it's own file watch handles.
-- Only telescope can read the contents of the cache file at the moment.
+## What Gets Cached
 
-# Why
+The cache stores note metadata that helps `quick_switch` build picker entries:
 
-## Why not ripgrep?
+- note path
+- aliases
+- tags
+- frontmatter properties
+- outgoing links
+- tasks
+- file modification time and size
 
-To add aliases to the `quick_switch`, I thought about either using ripgrep or saving the aliases to a file or a database (`sqlite`).
-But I decided that performance of the ripgrep will subtly degrade over time as the amount of notes increases, but I don't have any metrics to prove this.
+The cache is derived data. You can delete it at any time; `obsidian.nvim` will rebuild it on the next startup or file change.
 
-But for me it was more intuitive to choose caching, because using already founded aliases is much more quicker than searching them all through the workspace, even though it's performed asynchronously.
+## Enable the Cache
 
-## Why JSON
+You can also set the backend explicitly:
 
-Using SQLite forces the user to install more dependencies. For example, [kkharji/sqlite.lua](https://github.com/kkharji/sqlite.lua) needs both the plugin and SQLite installed on the user's machine.
+```lua
+require("obsidian").setup {
+  cache = {
+    enabled = true,
+    backend = "memory",
+  },
+}
+```
 
-JSON is not as fast as the SQLite, but it is simple to use and is not depended on 3-rd party packages.
+## Cache Location
+
+With the default `json` backend, the cache file is stored at:
+
+```text
+{stdpath("cache")}/obsidian.nvim/{sha256(vault_path):sub(1, 16)}.json
+```
+
+Each vault gets its own cache file.
+
+## How Updates Work
+
+On startup, `obsidian.nvim` checks the vault for supported Markdown files and updates entries whose modification time or size changed.
+
+While Neovim is running, file watch events update the cache when notes are created, changed, deleted, or renamed.
+
+The cache follows your existing `file.ignore_filters` setting.
+
+## Backends
+
+Built-in backends:
+
+- `json`: default, persists between sessions
+- `memory`: in-memory only, useful for tests or temporary sessions
+
+Custom backends can be registered before setup:
+
+```lua
+require("obsidian.cache").register("my-store", {
+  open = function(opts)
+    return store
+  end,
+})
+
+cache = {
+  enabled = true,
+  backend = "my-store",
+}
+```
+
+A store implements `get(key)`, `all()`, `put(key, row)`, and `delete(key)`. `flush()` and `close()` are optional.
+
+## Limitations
+
+- The cache currently powers `:Obsidian quick_switch` only.
+- Running several Neovim instances on the same vault can cause cache updates to race.

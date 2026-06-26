@@ -53,6 +53,7 @@
 ---@field unique_note? obsidian.config.UniqueNoteOpts
 ---@field sync? obsidian.config.SyncOpts
 ---@field slides? obsidian.config.SlidesOpts
+---@field cache? obsidian.config.CacheOpts
 
 ---@class obsidian.config.Internal
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
@@ -84,5 +85,6 @@
 ---@field unique_note obsidian.config.UniqueNoteOpts
 ---@field sync obsidian.config.SyncOpts
 ---@field slides obsidian.config.SlidesOpts
+---@field cache obsidian.config.CacheOpts
 
 ---@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"

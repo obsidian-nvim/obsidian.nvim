@@ -86,6 +86,9 @@ obsidian.setup = function(user_opts)
   -- Register autocmds for keymaps, options and custom callbacks
   require "obsidian.autocmds"
 
+  -- Setup the cache (no-op when disabled).
+  require("obsidian.cache").setup(Obsidian.opts.cache)
+
   -- Set global client.
   obsidian._client = client
 
