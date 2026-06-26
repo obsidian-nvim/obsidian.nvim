@@ -34,7 +34,7 @@ M.pick = function(values, opts)
     }, function(item)
       if item then
         if type(item) == "string" then
-          item = { value = item }
+          item = { user_data = item }
         end
         callback(item)
       end

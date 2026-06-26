@@ -905,9 +905,7 @@ local function gather_tag_picker_list(tag_locations, tags)
       if tag_loc.tag:lower() == tag:lower() or vim.startswith(tag_loc.tag:lower(), tag:lower() .. "/") then
         local display = string.format("%s [%s] %s", tag_loc.note:display_name(), tag_loc.line, tag_loc.text)
         entries[#entries + 1] = {
-          value = { path = tag_loc.path, line = tag_loc.line, col = tag_loc.tag_start },
-          display = display,
-          ordinal = display,
+          text = display,
           filename = tostring(tag_loc.path),
           lnum = tag_loc.line,
           col = tag_loc.tag_start,
@@ -973,7 +971,7 @@ M.search_tags = function(tags)
         picker.pick(entries, {
           callback = function(...)
             tags = vim.tbl_map(function(v)
-              return v.user_data or v.value
+              return v.user_data
             end, { ... })
             gather_tag_picker_list(tag_locations, tags)
           end,

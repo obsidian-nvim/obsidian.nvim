@@ -125,9 +125,7 @@ M.pick = function(values, opts)
       ---@diagnostic disable-next-line: inject-field
       value.path = value.filename -- HACK:
     end
-    if value.valid ~= false then
-      entries[#entries + 1] = value
-    end
+    entries[#entries + 1] = value
   end
 
   local entry = mini_pick.start {
