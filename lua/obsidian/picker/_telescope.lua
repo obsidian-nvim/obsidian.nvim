@@ -26,6 +26,18 @@ end
 local function get_selected(prompt_bufnr, keep_open, allow_multiple)
   ---@return obsidian.PickerEntry
   local function selection_to_entry(selection)
+    if selection.obsidian_item ~= nil then
+      if type(selection.obsidian_item) == "table" then
+        return selection.obsidian_item
+      else
+        return {
+          value = selection.obsidian_item,
+          user_data = selection.obsidian_item,
+          text = tostring(selection.obsidian_item),
+        }
+      end
+    end
+
     local raw = selection.raw
     local value = selection.value
     local filename = selection.path or selection.filename
@@ -212,46 +224,68 @@ M.grep = function(opts)
   end
 end
 
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param values any[]
+---@param opts obsidian.PickerSelectOpts|? Options.
+---@param on_choice fun(choices: any[])|?
+M.select = function(values, opts, on_choice)
   local pickers = require "telescope.pickers"
   local finders = require "telescope.finders"
   local conf = require "telescope.config"
-  local make_entry = require "telescope.make_entry"
 
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
-  local callback = opts.callback or function(value, ...)
-    api.open_note(value, ...)
+  on_choice = on_choice or function() end
+
+  ---@param prompt_bufnr integer
+  ---@return any[]?
+  local function get_selected_values(prompt_bufnr)
+    local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
+    local entries = picker:get_multi_selection()
+    if not entries or #entries == 0 then
+      local entry = get_entry(prompt_bufnr, false)
+      entries = entry and { entry } or {}
+    elseif #entries > 1 and not opts.allow_multiple then
+      log.err "This mapping does not allow multiple entries"
+      return
+    else
+      require("telescope.actions").close(prompt_bufnr)
+    end
+
+    return vim.tbl_map(function(entry)
+      return entry.obsidian_item
+    end, entries)
   end
 
   local picker_opts = {
     default_text = opts.query,
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
-        callback = callback,
-        allow_multiple = opts.allow_multiple,
+
         query_mappings = opts.query_mappings,
         selection_mappings = opts.selection_mappings,
       })
+
+      map({ "i", "n" }, "<CR>", function(prompt_bufnr)
+        local choices = get_selected_values(prompt_bufnr)
+        if choices then
+          on_choice(choices)
+        end
+      end)
       return true
     end,
   }
 
-  local displayer = function(entry)
-    return opts.format_item and opts.format_item(entry.raw) or ut.make_display(entry.raw)
-  end
-
   local prompt_title = ut.build_prompt {
-    prompt_title = opts.prompt_title,
+    prompt_title = opts.prompt,
     query_mappings = opts.query_mappings,
     selection_mappings = opts.selection_mappings,
   }
 
   local previewer
-  if type(values[1]) == "table" then
+  if vim.iter(values):any(function(value)
+    return type(value) == "table" and value.filename ~= nil
+  end) then
     previewer = conf.values.grep_previewer(picker_opts)
     -- Get theme to use.
     if conf.pickers then
@@ -266,34 +300,39 @@ M.pick = function(values, opts)
     end
   end
 
-  local make_entry_from_string = make_entry.gen_from_string(picker_opts)
-
   pickers
     .new(picker_opts, {
       prompt_title = prompt_title,
       finder = finders.new_table {
         results = values,
         entry_maker = function(v)
-          if type(v) == "string" then
-            return make_entry_from_string(v)
+          local display
+          if opts.format_item then
+            display = opts.format_item(v)
+          elseif type(v) == "string" then
+            display = v
           else
-            local ordinal = ""
-            if type(v.text) == "string" then
-              ordinal = ordinal .. v.text
-            end
-            if v.filename ~= nil then
-              ordinal = ordinal .. " " .. v.filename
-            end
-            return {
-              value = v.user_data,
-              display = displayer,
-              ordinal = ordinal,
-              filename = v.filename,
-              lnum = v.lnum,
-              col = v.col,
-              raw = v,
-            }
+            display = ut.make_display(v)
           end
+
+          local ordinal = display
+          if type(v) == "table" and v.ordinal ~= nil then
+            ordinal = v.ordinal
+          elseif type(v) == "table" and v.filename ~= nil then
+            ordinal = ordinal .. " " .. v.filename
+          end
+
+          return {
+            value = type(v) == "table" and v.user_data or v,
+            display = function()
+              return display
+            end,
+            ordinal = ordinal,
+            filename = type(v) == "table" and v.filename or nil,
+            lnum = type(v) == "table" and v.lnum or nil,
+            col = type(v) == "table" and v.col or nil,
+            obsidian_item = v,
+          }
         end,
       },
       sorter = conf.values.generic_sorter(picker_opts),

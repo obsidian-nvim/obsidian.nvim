@@ -8,6 +8,7 @@ local Mappings = require "obsidian.picker.mappings"
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
+---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
 local M = {}
 
@@ -77,19 +78,57 @@ end
 
 ---@alias obsidian.PickerEntry vim.quickfix.entry
 
----@class obsidian.PickerPickOpts
+---@class obsidian.PickerSelectOpts
+---
+---@field prompt string|?
+---@field kind string|?
+---@field allow_multiple boolean|?
+---@field no_default_mappings boolean|?
+---@field query_mappings obsidian.PickerMappingTable|?
+---@field selection_mappings obsidian.PickerMappingTable|?
+---@field format_item (fun(value: any): string)|?
+---@field preview_item (fun(value: any): {buf?: integer, pos?: [integer, integer], pos_end?: [integer, integer]})|?
+---@field query string|?
+---
+---@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts
 ---
 ---@field prompt_title string|?
 ---@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
----@field allow_multiple boolean|?
----@field query_mappings obsidian.PickerMappingTable|?
----@field selection_mappings obsidian.PickerMappingTable|?
----@field format_item (fun(value: obsidian.PickerEntry): string)|?
----@field query string|?
 
 ------------------------------------------------------------------
 --- Concrete methods with a default implementation subclasses. ---
 ------------------------------------------------------------------
+
+--- Backwards-compatible shim for the old picker API.
+---
+---@param values string[]|obsidian.PickerEntry[] Items to pick from.
+---@param opts obsidian.PickerPickOpts|? Options.
+M.pick = function(values, opts)
+  opts = opts or {}
+
+  local select_opts = vim.tbl_extend("force", {}, opts, {
+    prompt = opts.prompt or opts.prompt_title,
+    callback = nil,
+    prompt_title = nil,
+  })
+
+  local callback = opts.callback or api.open_note
+  return M.select(values, select_opts, function(choices)
+    if not choices or #choices == 0 then
+      return
+    end
+
+    choices = vim.tbl_map(function(choice)
+      if type(choice) == "string" then
+        return { value = choice, user_data = choice, text = choice }
+      else
+        return choice
+      end
+    end, choices)
+
+    callback(unpack(choices))
+  end)
+end
 
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
@@ -214,6 +253,58 @@ M.grep_notes = function(opts)
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
   }
+end
+
+--- Open picker with a list of notes.
+---
+---@param notes obsidian.Note[]
+---@param opts { prompt_title: string|?, callback: fun(note: obsidian.Note, ...: obsidian.Note), allow_multiple: boolean|?, no_default_mappings: boolean|? }|? Options.
+---
+--- Options:
+---  `prompt_title`: Title for the prompt window.
+---  `callback`: Callback to run with the selected note(s).
+---  `allow_multiple`: Allow multiple selections to pass to the callback.
+---  `no_default_mappings`: Don't apply picker's default mappings.
+M.pick_note = function(notes, opts)
+  state.calling_bufnr = vim.api.nvim_get_current_buf()
+
+  opts = opts or {}
+
+  local query_mappings
+  local selection_mappings
+  if not opts.no_default_mappings then
+    query_mappings = M._note_query_mappings()
+    selection_mappings = M._note_selection_mappings()
+  end
+
+  -- Launch picker with results.
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for _, note in ipairs(notes) do
+    assert(note.path, "note has no path")
+    local rel_path = assert(note.path:vault_relative_path { strict = true })
+    local display_name = note:display_name()
+    entries[#entries + 1] = {
+      value = note,
+      display = display_name,
+      ordinal = rel_path .. " " .. display_name,
+      filename = tostring(note.path),
+    }
+  end
+
+  M.select(entries, {
+    prompt = opts.prompt_title or "Notes",
+    allow_multiple = opts.allow_multiple,
+    no_default_mappings = opts.no_default_mappings,
+    query_mappings = query_mappings,
+    selection_mappings = selection_mappings,
+  }, function(choices)
+    if #choices > 0 then
+      opts.callback(unpack(vim.tbl_map(function(v)
+        return v.user_data or v.value
+      end, choices)))
+    end
+  end)
 end
 
 --------------------------------

@@ -69,7 +69,7 @@ local function get_selection_actions(opts, path_only)
 end
 
 ---@param display_to_value_map table<string, any>
----@param opts { callback: (fun(value: obsidian.PickerEntry|string, ...: obsidian.PickerEntry|string))|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
+---@param opts { on_choice: fun(choices: any[])|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
 local function get_value_actions(display_to_value_map, opts)
   ---@param allow_multiple boolean|?
   ---@return any[]|?
@@ -100,7 +100,7 @@ local function get_value_actions(display_to_value_map, opts)
 
   local actions = {
     default = function(selected)
-      if not opts.callback then
+      if not opts.on_choice then
         return
       end
 
@@ -109,7 +109,7 @@ local function get_value_actions(display_to_value_map, opts)
         return
       end
 
-      opts.callback(unpack(values))
+      opts.on_choice(values)
     end,
   }
 
@@ -120,6 +120,14 @@ local function get_value_actions(display_to_value_map, opts)
         if not values then
           return
         end
+
+        values = vim.tbl_map(function(value)
+          if type(value) == "string" then
+            return { value = value, user_data = value, text = value }
+          else
+            return value
+          end
+        end, values)
 
         mapping.callback(unpack(values))
       end
@@ -188,15 +196,14 @@ M.grep = function(opts)
   end
 end
 
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param values any[]
+---@param opts obsidian.PickerSelectOpts|? Options.
+---@param on_choice fun(choices: any[])|?
+M.select = function(values, opts, on_choice)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  local callback = opts.callback or function(value, ...)
-    api.open_note(value, ...)
-  end
+  on_choice = on_choice or function() end
 
   ---@type table<string, any>
   local display_to_value_map = {}
@@ -214,12 +221,13 @@ M.pick = function(values, opts)
     local display
     if type(value) == "string" then
       display = value
-      value = { user_data = value }
     else
       display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
-    display_to_value_map[display] = value
-    entries[#entries + 1] = display
+    if type(value) ~= "table" or value.valid ~= false then
+      display_to_value_map[display] = value
+      entries[#entries + 1] = display
+    end
   end
 
   local builtin = require "fzf-lua.previewer.builtin"
@@ -245,10 +253,11 @@ M.pick = function(values, opts)
     query = opts.query,
     previewer = file_preview and MyPreviewer or nil,
     prompt = format_prompt(
-      ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
+      ut.build_prompt { prompt_title = opts.prompt, selection_mappings = opts.selection_mappings }
     ),
+    multi = opts.allow_multiple or nil,
     actions = get_value_actions(display_to_value_map, {
-      callback = callback,
+      on_choice = on_choice,
       allow_multiple = opts.allow_multiple,
       selection_mappings = opts.selection_mappings,
     }),
