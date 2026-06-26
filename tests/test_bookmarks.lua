@@ -115,8 +115,8 @@ T["parse"]["blinks anchor target range"] = function()
   })
 
   local blinked = child.lua [[
-vim.ui.select = function(items, _, callback)
-  callback(items[1])
+Obsidian.picker.select = function(items, _, callback)
+  callback { items[1] }
 end
 
 M.pick {

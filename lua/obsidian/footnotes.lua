@@ -1,5 +1,6 @@
 local api = require "obsidian.api"
 local log = require "obsidian.log"
+local picker = require "obsidian.picker"
 
 local M = {}
 
@@ -134,7 +135,7 @@ M.create = function(id, bufnr, restore_cursor)
   restore_completion_cursor()
 end
 
----Show all footnotes of the current note via `vim.ui.select`.
+---Show all footnotes of the current note via picker.
 ---
 ---@param bufnr integer|?
 M.pick = function(bufnr)
@@ -162,15 +163,15 @@ M.pick = function(bufnr)
     return ("[^%s]: %s"):format(def.id, def.text)
   end
 
-  vim.ui.select(defs, {
-    prompt_title = "Footnotes",
+  picker.select(defs, {
+    prompt = "Footnotes",
     format_item = format_footnote,
     preview_item = preview_footnote,
-  }, function(def)
-    if not def then
-      return
+  }, function(items)
+    local def = items[1]
+    if def then
+      vim.api.nvim_win_set_cursor(0, { def.lnum, 0 })
     end
-    vim.api.nvim_win_set_cursor(0, { def.lnum, 0 })
   end)
 end
 
