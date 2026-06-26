@@ -915,8 +915,25 @@ local function gather_tag_picker_list(tag_locations, tags)
     return
   end
 
+  local function preview_item(entry)
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(entry.filename))
+    vim.bo[buf].filetype = "markdown"
+    return { buf = buf, pos = { entry.lnum or 1, entry.col and math.max(entry.col - 1, 0) or 0 } }
+  end
+
   vim.schedule(function()
-    picker.pick(entries, { prompt_title = "#" .. table.concat(tags, ", #") })
+    picker.select(entries, {
+      prompt = "#" .. table.concat(tags, ", #"),
+      format_item = function(entry)
+        return entry.display
+      end,
+      preview_item = preview_item,
+    }, function(items)
+      if not vim.tbl_isempty(items) then
+        api.open_note(items[1])
+      end
+    end)
   end)
 end
 
@@ -929,13 +946,17 @@ local function list_tags_async(callback)
   end, { dir = dir })
 end
 
+---@param callback fun(tags: string[], tag_locations: obsidian.TagLocation[])
+---@param title string|?
 local function pick_tags(callback, title)
-  list_tags_async(function(tags)
-    vim.ui.select(tags, {
+  list_tags_async(function(tags, tag_locations)
+    picker.select(tags, {
       prompt = title,
-    }, function(entry)
-      if entry then
-        callback(entry)
+      allow_multiple = true,
+      selection_mappings = picker._tag_selection_mappings(),
+    }, function(items)
+      if not vim.tbl_isempty(items) then
+        callback(items, tag_locations)
       end
     end)
   end)
@@ -958,26 +979,21 @@ M.search_tags = function(tags)
       return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
     end, { dir = dir })
   else
-    list_tags_async(function(entries, tag_locations)
-      vim.schedule(function()
-        picker.pick(entries, {
-          callback = function(...)
-            tags = vim.tbl_map(function(v)
-              return v.user_data
-            end, { ... })
-            gather_tag_picker_list(tag_locations, tags)
-          end,
-          selection_mappings = picker._tag_selection_mappings(),
-          allow_multiple = true,
-        })
-      end)
+    pick_tags(function(selected_tags, tag_locations)
+      gather_tag_picker_list(tag_locations, selected_tags)
     end)
   end
 end
 
 M.insert_tag = function()
-  pick_tags(function(tag)
-    vim.api.nvim_put({ "#" .. tag }, "", true, true)
+  pick_tags(function(tags)
+    for i, tag in ipairs(tags) do
+      local put_text = "#" .. tag
+      if i ~= #tags then
+        put_text = put_text .. " "
+      end
+      vim.api.nvim_put({ put_text }, "", true, true)
+    end
   end, "Tag to insert")
 end
 
@@ -997,8 +1013,10 @@ local tag_note = function(tag)
 end
 
 M.add_tag = function()
-  pick_tags(function(...)
-    tag_note(...)
+  pick_tags(function(tags)
+    for _, tag in ipairs(tags) do
+      tag_note(tag)
+    end
   end, "Add tags to current note")
 end
 

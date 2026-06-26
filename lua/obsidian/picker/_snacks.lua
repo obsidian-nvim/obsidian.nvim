@@ -174,13 +174,14 @@ M.grep = function(opts)
   require("snacks.picker").pick(pick_opts)
 end
 
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param values any[]
+---@param opts obsidian.PickerSelectOpts|? Options.
+---@param on_choice fun(choices: any[])|?
+M.select = function(values, opts, on_choice)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  local callback = opts.callback or api.open_note
+  on_choice = on_choice or function() end
 
   ---@diagnostic disable-next-line: redundant-parameter
   local preview = false
@@ -196,19 +197,29 @@ M.pick = function(values, opts)
     local display
     if type(value) == "string" then
       display = value
-      value = { user_data = value }
     else
       display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
-    ---@cast value obsidian.PickerEntry
-    table.insert(entries, {
-      text = display,
-      file = value.filename,
-      value = value.user_data,
-      pos = value.lnum and { value.lnum, value.col and value.col - 1 or 0 }, -- from (1, 1) to (1, 0)
-      end_pos = value.end_lnum and { value.end_lnum, value.end_col and value.end_col - 1 or 0 },
-      dir = value.filename and Path.new(value.filename):is_dir() or false,
-    })
+    if type(value) ~= "table" or value.valid ~= false then
+      ---@type obsidian.PickerEntry|string
+      local picker_value = value
+      table.insert(entries, {
+        text = display,
+        file = type(picker_value) == "table" and picker_value.filename or nil,
+        value = type(picker_value) == "table" and picker_value.user_data or picker_value,
+        pos = type(picker_value) == "table" and picker_value.lnum and {
+          picker_value.lnum,
+          picker_value.col and picker_value.col - 1 or 0,
+        } or nil, -- from (1, 1) to (1, 0)
+        end_pos = type(picker_value) == "table" and picker_value.end_lnum and {
+          picker_value.end_lnum,
+          picker_value.end_col and picker_value.end_col - 1 or 0,
+        } or nil,
+        dir = type(picker_value) == "table" and picker_value.filename and Path.new(picker_value.filename):is_dir()
+          or false,
+        obsidian_item = picker_value,
+      })
+    end
   end
 
   local map = vim.tbl_deep_extend(
@@ -219,7 +230,7 @@ M.pick = function(values, opts)
   )
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
-    title = opts.prompt_title,
+    title = opts.prompt,
     pattern = opts.query,
     items = entries,
     layout = {
@@ -228,23 +239,11 @@ M.pick = function(values, opts)
     },
     format = "text",
     confirm = function(picker, item)
+      local selected = opts.allow_multiple and picker:selected { fallback = true } or (item and { item } or {})
       picker:close()
-      if item then
-        if item.file then
-          callback {
-            filename = item.file,
-            col = item.pos and item.pos[2] + 1,
-            lnum = item.pos and item.pos[1],
-            text = item.text,
-            user_data = item.value,
-          }
-        else
-          callback {
-            text = item.text,
-            user_data = item.value,
-          }
-        end
-      end
+      on_choice(vim.tbl_map(function(selected_item)
+        return selected_item.obsidian_item
+      end, selected))
     end,
   })
 

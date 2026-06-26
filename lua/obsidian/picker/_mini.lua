@@ -111,43 +111,49 @@ M.grep = function(opts)
   end
 end
 
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param values any[]
+---@param opts obsidian.PickerSelectOpts|? Options.
+---@param on_choice fun(choices: any[])|?
+M.select = function(values, opts, on_choice)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
-  local callback = opts.callback or function(value, ...)
-    api.open_note(value, ...)
-  end
+  on_choice = on_choice or function() end
 
   local mini_pick = require "mini.pick"
 
   local entries = {}
   for _, value in ipairs(values) do
+    local entry
     if type(value) == "string" then
-      value = {
-        user_data = value,
+      entry = {
         text = value,
+        obsidian_item = value,
       }
     else
-      value.text = opts.format_item and opts.format_item(value) or ut.make_display(value)
-      ---@diagnostic disable-next-line: inject-field
-      value.path = value.filename -- HACK:
+      entry = vim.tbl_extend("force", {}, value, {
+        text = opts.format_item and opts.format_item(value) or ut.make_display(value),
+        path = value.filename, -- HACK:
+        obsidian_item = value,
+      })
     end
-    entries[#entries + 1] = value
+    if type(value) ~= "table" or value.valid ~= false then
+      entries[#entries + 1] = entry
+    end
   end
 
   local entry = mini_pick.start {
     source = {
-      name = opts.prompt_title,
+      name = opts.prompt,
       items = entries,
       choose = function() end,
     },
   }
 
   if entry then
-    callback(entry)
+    on_choice { entry.obsidian_item or entry }
+  else
+    on_choice {}
   end
 end
 
