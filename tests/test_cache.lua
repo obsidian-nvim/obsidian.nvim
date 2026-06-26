@@ -133,6 +133,53 @@ T["cache backends"]["indexes markdown-like extensions"] = function()
   eq(true, cache.notes.find(tostring(dir / "Base.base")) ~= nil)
 end
 
+T["cache backends"]["indexes attachment filetypes"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+
+  local seen = {}
+  local paths = {}
+  for _, ext in ipairs(require("obsidian.attachment").filetypes) do
+    if not seen[ext] then
+      seen[ext] = true
+      local path = dir / ("File." .. ext)
+      helpers.write(ext == "md" and "# File" or "attachment", path)
+      paths[#paths + 1] = tostring(path)
+    end
+  end
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  eq(#paths, cache.notes.count())
+  for _, path in ipairs(paths) do
+    eq(true, cache.notes.find(path) ~= nil)
+  end
+end
+
+T["cache backends"]["file watcher registers attachment filetypes"] = function()
+  local captured
+  require "obsidian.lsp.handlers.initialized"(nil, {
+    server_request = function(_, registration)
+      captured = registration
+    end,
+  })
+
+  local watched = {}
+  for _, watcher in ipairs(captured.registrations[1].registerOptions.watchers) do
+    local ext = watcher.globPattern:match "%.([^%.]+)$"
+    watched[ext] = true
+  end
+
+  for _, ext in ipairs(require("obsidian.attachment").filetypes) do
+    eq(true, watched[ext])
+  end
+end
+
 T["cache backends"]["handles raw LSP watched-file events"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }

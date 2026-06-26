@@ -12,21 +12,35 @@ require("obsidian").setup {
 
 The default backend is `json`. It writes a cache file under Neovim's cache directory and reuses it between sessions. You do not need to set `backend = "json"` unless you want to be explicit.
 
-At the moment, the cache is used for `:Obsidian quick_switch`. When enabled, quick switch reads note names and aliases from the cache instead of asking the picker to scan the vault each time.
+At the moment, the cache is used for `:Obsidian quick_switch`. When enabled, quick switch reads note names, aliases, attachments, and missing-link targets from the cache instead of asking the picker to scan the vault each time.
 
 ## What Gets Cached
 
-The cache stores note metadata that helps `quick_switch` build picker entries:
+The cache stores note and attachment metadata that helps `quick_switch` build picker entries:
 
-- note path
+- file path
 - aliases
 - tags
 - frontmatter properties
 - outgoing links
 - tasks
 - file modification time and size
+- attachment entries
 
 The cache is derived data. You can delete it at any time; `obsidian.nvim` will rebuild it on the next startup or file change.
+
+## Quick Switch Options
+
+By default quick switch only shows existing notes, not attachments. With the cache enabled you can opt into missing links and attachments:
+
+```lua
+require("obsidian").setup {
+  quick_switch = {
+    show_existing_only = false,
+    show_attachments = true,
+  },
+}
+```
 
 ## Enable the Cache
 
@@ -53,7 +67,7 @@ Each vault gets its own cache file.
 
 ## How Updates Work
 
-On startup, `obsidian.nvim` checks the vault for supported Markdown files and updates entries whose modification time or size changed.
+On startup, `obsidian.nvim` checks the vault for supported Markdown files and attachment types and updates entries whose modification time or size changed.
 
 While Neovim is running, file watch events update the cache when notes are created, changed, deleted, or renamed.
 
