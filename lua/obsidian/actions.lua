@@ -31,7 +31,12 @@ M.follow_link = function(link, opts)
     if #items == 1 then
       api.open_note(items[1], cmd)
     else
-      Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
+      Obsidian.picker.select(items, { prompt = "Resolve link" }, function(choices)
+        local entry = choices and choices[1]
+        if entry then
+          api.open_note(entry)
+        end
+      end)
     end
   end, { range = range })
 end
@@ -709,11 +714,12 @@ M.insert_template = function(template_name)
     }
   end
 
-  Obsidian.picker.pick(entries, {
-    callback = function(entry)
+  Obsidian.picker.select(entries, {}, function(items)
+    local entry = items[1]
+    if entry then
       insert_template(entry.filename)
-    end,
-  })
+    end
+  end)
 end
 
 ---@param buf integer|?
@@ -741,7 +747,16 @@ M.workspace_symbol = function(query, callback)
   query = query or ""
   require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
     local entries = vim.tbl_map(symbol_to_entry, symbols)
-    Obsidian.picker.pick(entries, { prompt_title = "Workspace Symbols", callback = callback })
+    Obsidian.picker.select(entries, { prompt = "Workspace Symbols" }, function(items)
+      local entry = items and items[1]
+      if not entry then
+        return
+      elseif callback then
+        callback(unpack(items))
+      else
+        api.open_note(entry)
+      end
+    end)
   end)
 end
 
@@ -761,16 +776,16 @@ local function pick_folder(callback)
     end
   end
 
-  Obsidian.picker.pick(choices, {
-    callback = function(entry)
-      if entry.filename and entry.text then
-        callback(entry.filename, entry.text)
-      end
-    end,
+  Obsidian.picker.select(choices, {
     format_item = function(v)
       return tostring(v.text)
     end,
-  })
+  }, function(items)
+    local entry = items[1]
+    if entry and entry.filename and entry.text then
+      callback(entry.filename, entry.text)
+    end
+  end)
 end
 
 ---@param directory string
