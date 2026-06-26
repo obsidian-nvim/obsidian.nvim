@@ -53,7 +53,7 @@ T["saving an attached note emits didSave"] = function()
   eq({ "two" }, child.lua_get "did_save_tags")
 end
 
-T["initialized dynamically registers markdown watcher"] = function()
+T["initialized dynamically registers file watchers"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.initialized"
 
@@ -62,20 +62,29 @@ T["initialized dynamically registers markdown watcher"] = function()
         _G.request_method = method
         _G.request_id = params.registrations[1].id
         _G.request_watch_method = params.registrations[1].method
-        _G.request_watch_glob = params.registrations[1].registerOptions.watchers[1].globPattern
-        _G.request_watch_kind = params.registrations[1].registerOptions.watchers[1].kind
+        _G.request_watchers = params.registrations[1].registerOptions.watchers
         return vim.NIL, nil
       end,
     })
   ]]
 
   eq("client/registerCapability", child.lua_get "request_method")
-  eq("obsidian-watch-markdown", child.lua_get "request_id")
+  eq("obsidian-watch-files", child.lua_get "request_id")
   eq("workspace/didChangeWatchedFiles", child.lua_get "request_watch_method")
-  eq("**/*.md", child.lua_get "request_watch_glob")
+
+  local watchers = child.lua_get "request_watchers"
+  local glob_to_kind = {}
+  for _, watcher in ipairs(watchers) do
+    glob_to_kind[watcher.globPattern] = watcher.kind
+  end
+
   eq(
     vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete,
-    child.lua_get "request_watch_kind"
+    glob_to_kind["**/*.md"]
+  )
+  eq(
+    vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete,
+    glob_to_kind["**/*.png"]
   )
 end
 
