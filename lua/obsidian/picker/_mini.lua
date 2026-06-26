@@ -142,12 +142,23 @@ M.select = function(values, opts, on_choice)
     end
   end
 
+  local source = {
+    name = opts.prompt,
+    items = entries,
+    choose = function() end,
+  }
+
+  if opts.preview_item then
+    source.preview = function(buf_id, item)
+      local winid = vim.fn.bufwinid(buf_id)
+      if winid ~= -1 then
+        ut.show_preview_spec(winid, opts.preview_item(item.obsidian_item or item))
+      end
+    end
+  end
+
   local entry = mini_pick.start {
-    source = {
-      name = opts.prompt,
-      items = entries,
-      choose = function() end,
-    },
+    source = source,
   }
 
   if entry then

@@ -231,27 +231,42 @@ M.select = function(values, opts, on_choice)
   end
 
   local builtin = require "fzf-lua.previewer.builtin"
+  local previewer
 
-  local MyPreviewer = builtin.buffer_or_file:extend()
+  if opts.preview_item then
+    previewer = builtin.buffer_or_file:extend()
 
-  function MyPreviewer:new(o, previewer_opts, fzf_win)
-    MyPreviewer.super.new(self, o, previewer_opts, fzf_win)
-    setmetatable(self, MyPreviewer)
-    return self
-  end
+    function previewer:new(o, previewer_opts, fzf_win)
+      previewer.super.new(self, o, previewer_opts, fzf_win)
+      setmetatable(self, previewer)
+      return self
+    end
 
-  function MyPreviewer.parse_entry(_self, entry_str)
-    local entry = display_to_value_map[entry_str]
-    return {
-      path = entry.filename,
-      line = entry.lnum,
-      col = entry.col,
-    }
+    function previewer.parse_entry(_self, entry_str)
+      return ut.preview_spec_to_fzf_entry(opts.preview_item(display_to_value_map[entry_str]))
+    end
+  elseif file_preview then
+    previewer = builtin.buffer_or_file:extend()
+
+    function previewer:new(o, previewer_opts, fzf_win)
+      previewer.super.new(self, o, previewer_opts, fzf_win)
+      setmetatable(self, previewer)
+      return self
+    end
+
+    function previewer.parse_entry(_self, entry_str)
+      local entry = display_to_value_map[entry_str]
+      return {
+        path = entry.filename,
+        line = entry.lnum,
+        col = entry.col and entry.col + 1,
+      }
+    end
   end
 
   require("fzf-lua").fzf_exec(entries, {
     query = opts.query,
-    previewer = file_preview and MyPreviewer or nil,
+    previewer = previewer,
     prompt = format_prompt(
       ut.build_prompt { prompt_title = opts.prompt, selection_mappings = opts.selection_mappings }
     ),

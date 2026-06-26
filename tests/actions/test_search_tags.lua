@@ -34,7 +34,7 @@ T["search_tags uses select for tag choice"] = function()
           count = #items,
           prompt = opts.prompt,
           formatted = opts.format_item(items[1]),
-          display = items[1].display,
+          text = items[1].text,
           preview_pos = preview.pos,
           preview_line = vim.api.nvim_buf_get_lines(preview.buf, preview.pos[1] - 1, preview.pos[1], false)[1],
         },
@@ -52,7 +52,7 @@ T["search_tags uses select for tag choice"] = function()
   eq(true, result.tag_select.has_selection_mappings)
   eq(2, result.result_select.count)
   eq("#alpha", result.result_select.prompt)
-  eq(result.result_select.display, result.result_select.formatted)
+  eq(result.result_select.text, result.result_select.formatted)
   eq({ 1, 0 }, result.result_select.preview_pos)
   eq(true, vim.startswith(result.result_select.preview_line, "#alpha"))
 end

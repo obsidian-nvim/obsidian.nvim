@@ -184,13 +184,10 @@ M.select = function(values, opts, on_choice)
   on_choice = on_choice or function() end
 
   ---@diagnostic disable-next-line: redundant-parameter
-  local preview = false
-  for _, value in ipairs(values) do
-    if type(value) == "table" and value.filename ~= nil then
-      preview = true
-      break
-    end
-  end
+  local has_preview = opts.preview_item ~= nil
+    or vim.iter(values):any(function(value)
+      return type(value) == "table" and value.filename ~= nil
+    end)
 
   local entries = {}
   for _, value in ipairs(values) do
@@ -229,12 +226,32 @@ M.select = function(values, opts, on_choice)
     query_mappings(opts.query_mappings, false)
   )
 
+  local previewer
+  if opts.preview_item then
+    previewer = function(ctx)
+      ctx.preview:reset()
+      local spec = opts.preview_item(ctx.item.obsidian_item)
+      if not ut.valid_preview_spec(spec) then
+        ctx.preview:notify("no preview available", "warn", { item = false })
+        return
+      end
+      ctx.item.buf = spec.buf
+      ctx.item.pos = spec.pos
+      ctx.item.end_pos = spec.pos_end
+      ctx.preview:set_title(ctx.item.text)
+      ctx.preview:set_buf(spec.buf)
+      ctx.preview:highlight { buf = spec.buf }
+      ctx.preview:loc()
+    end
+  end
+
   local pick_opts = vim.tbl_extend("force", map or {}, {
     title = opts.prompt,
     pattern = opts.query,
     items = entries,
+    preview = previewer,
     layout = {
-      preview = preview,
+      preview = has_preview,
       preset = "default",
     },
     format = "text",
