@@ -25,12 +25,25 @@ end
 local function get_selected(prompt_bufnr, keep_open, allow_multiple)
   ---@return obsidian.PickerEntry
   local function selection_to_entry(selection)
+    local raw = selection.raw
+    local value = selection.value
+    local filename = selection.path or selection.filename
+    if filename == nil and type(value) == "table" then
+      filename = value.path or value.filename
+    end
+    local user_data
+    if raw and raw.user_data ~= nil then
+      user_data = raw.user_data
+    elseif filename == nil then
+      user_data = value
+    end
+
     return {
-      filename = selection.path or selection.filename or selection.value.path,
+      filename = filename,
       lnum = selection.lnum,
       col = selection.col,
-      user_data = selection.value,
-      text = selection.raw and selection.raw.text or selection[1],
+      user_data = user_data,
+      text = raw and raw.text or selection.text or selection[1],
     }
   end
 
@@ -248,15 +261,12 @@ M.pick = function(values, opts)
           if type(v) == "string" then
             return make_entry_from_string(v)
           else
-            local ordinal = v.ordinal
-            if ordinal == nil then
-              ordinal = ""
-              if type(v.display) == "string" then
-                ordinal = ordinal .. v.display
-              end
-              if v.filename ~= nil then
-                ordinal = ordinal .. " " .. v.filename
-              end
+            local ordinal = ""
+            if type(v.text) == "string" then
+              ordinal = ordinal .. v.text
+            end
+            if v.filename ~= nil then
+              ordinal = ordinal .. " " .. v.filename
             end
             return {
               value = v.user_data,

@@ -207,10 +207,8 @@ M.pick = function(values, opts)
     else
       display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
-    if value.valid ~= false then
-      display_to_value_map[display] = value
-      entries[#entries + 1] = display
-    end
+    display_to_value_map[display] = value
+    entries[#entries + 1] = display
   end
 
   local builtin = require "fzf-lua.previewer.builtin"

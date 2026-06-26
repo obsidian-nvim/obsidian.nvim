@@ -72,7 +72,7 @@ end
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 
----@class obsidian.PickerEntry: vim.quickfix.entry
+---@alias obsidian.PickerEntry vim.quickfix.entry
 
 ---@class obsidian.PickerPickOpts
 ---
@@ -179,12 +179,10 @@ M.pick_note = function(notes, opts)
   local entries = {}
   for _, note in ipairs(notes) do
     assert(note.path, "note has no path")
-    local rel_path = assert(note.path:vault_relative_path { strict = true })
     local display_name = note:display_name()
     entries[#entries + 1] = {
-      value = note,
-      display = display_name,
-      ordinal = rel_path .. " " .. display_name,
+      user_data = note,
+      text = display_name,
       filename = tostring(note.path),
     }
   end

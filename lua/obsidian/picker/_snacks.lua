@@ -76,8 +76,8 @@ local function notes_mappings(mapping)
           local entries = {}
           for _, sel in ipairs(selected) do
             table.insert(entries, {
-              filename = sel._path,
-              user_data = sel.user_data or sel.value or sel.text,
+              filename = sel._path or sel.file,
+              user_data = sel.value,
             })
           end
           vim.schedule(function()
@@ -87,8 +87,8 @@ local function notes_mappings(mapping)
         else
           ---@type obsidian.PickerEntry
           local entry = {
-            filename = item._path,
-            user_data = item.user_data or item.value or item.text,
+            filename = item._path or item.file,
+            user_data = item.value,
           }
           vim.schedule(function()
             v.callback(entry)
@@ -191,7 +191,7 @@ M.pick = function(values, opts)
     local display
     if type(value) == "string" then
       display = value
-      value = { value = value }
+      value = { user_data = value }
     else
       display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
@@ -235,7 +235,7 @@ M.pick = function(values, opts)
         else
           callback {
             text = item.text,
-            user_data = item.value or item.text,
+            user_data = item.value,
           }
         end
       end
