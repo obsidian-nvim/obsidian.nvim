@@ -14,12 +14,12 @@ return function(data)
         filename = tostring(ws.path),
       }
     end, Obsidian.workspaces)
-    Obsidian.picker.pick(items, {
-      prompt_title = "Obsidian Workspace",
-      callback = function(entry)
+    Obsidian.picker.select(items, { prompt = "Obsidian Workspace" }, function(choices)
+      local entry = choices[1]
+      if entry then
         Workspace.set(entry.user_data)
-      end,
-    })
+      end
+    end)
   else
     Workspace.set(data.args)
   end

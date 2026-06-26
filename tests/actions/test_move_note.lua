@@ -15,8 +15,8 @@ T["move_note saves moved buffer without E13"] = function()
 
   child.lua(([[
     vim.b.obsidian_buffer = true
-    Obsidian.picker.pick = function(_, opts)
-      opts.callback({ filename = %q, text = "folder/" })
+    Obsidian.picker.select = function(_, _, on_choice)
+      on_choice { { filename = %q, text = "folder/" } }
     end
     require("obsidian.actions").move_note()
   ]]):format(tostring(folder)))

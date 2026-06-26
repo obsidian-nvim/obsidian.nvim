@@ -6,7 +6,12 @@ return function()
     if #items == 1 then
       obsidian.api.open_note(items[1])
     else
-      Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
+      Obsidian.picker.select(items, { prompt = "Resolve link" }, function(choices)
+        local entry = choices and choices[1]
+        if entry then
+          obsidian.api.open_note(entry)
+        end
+      end)
     end
   end)
 end
