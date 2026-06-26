@@ -36,6 +36,7 @@
 ---@field backlinks? obsidian.config.BacklinkOpts
 ---@field completion? obsidian.config.CompletionOpts
 ---@field picker? obsidian.config.PickerOpts
+---@field quick_switch? obsidian.config.QuickSwitchOpts
 ---@field daily_notes? obsidian.config.DailyNotesOpts
 ---@field open_notes_in? obsidian.config.OpenStrategy
 ---@field ui? obsidian.config.UIOpts
@@ -68,6 +69,7 @@
 ---@field backlinks obsidian.config.BacklinkOpts
 ---@field completion obsidian.config.CompletionOpts
 ---@field picker obsidian.config.PickerOpts
+---@field quick_switch obsidian.config.QuickSwitchOpts
 ---@field daily_notes obsidian.config.DailyNotesOpts
 ---@field open_notes_in obsidian.config.OpenStrategy
 ---@field ui obsidian.config.UIOpts

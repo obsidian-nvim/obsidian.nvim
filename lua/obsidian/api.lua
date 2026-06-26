@@ -276,6 +276,66 @@ local function entry_range(entry)
   end
 end
 
+--- Open an attachment with the system default application.
+---@param location string|obsidian.Path Attachment path or link target.
+M.open_attachment = function(location)
+  local path = M.resolve_attachment_path(location)
+  vim.ui.open(path)
+end
+
+--- Prompt to create a new note when a link target does not exist.
+---
+---@param location string Note id or path.
+---@param callback (fun(locations: lsp.Location[]|nil)|nil)?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|?, anchor: string|?, block: string|? }|?
+M.create_new_note = function(location, callback, opts)
+  opts = opts or {}
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  local cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
+
+  local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
+  local has_unique = Obsidian.opts.unique_note.enabled
+
+  local options = { "&Yes" }
+  if has_template then
+    table.insert(options, "Yes with &Template")
+  end
+  if has_unique then
+    table.insert(options, "Yes as &Unique Note")
+  end
+  table.insert(options, "&No")
+
+  local format_options = table.concat(options, "\n")
+
+  local function update_link(note)
+    if opts.range and vim.api.nvim_buf_is_valid(bufnr) then
+      local new_link = note:format_link { label = opts.label or location, anchor = opts.anchor, block = opts.block }
+      vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
+    end
+  end
+
+  local function on_created(note)
+    update_link(note)
+    if callback then
+      callback { note:_location() }
+    end
+  end
+
+  local confirm = M.confirm(("Create new note '%s'?"):format(location), format_options)
+  if confirm == "Yes" then
+    require("obsidian.actions").new(location, on_created)
+  elseif confirm == "Yes with Template" then
+    require("obsidian.actions").new_from_template(location, nil, on_created)
+  elseif confirm == "Yes as Unique Note" then
+    local note = require("obsidian.unique").new_unique_note(nil, { title = location })
+    if note then
+      on_created(note)
+    end
+  else
+    return log.warn "Aborted"
+  end
+end
+
 --- Open a quickfix entry in buffer, with open strategy
 ---@param entry obsidian.PickerEntry|vim.quickfix.entry|string
 ---@param cmd string?

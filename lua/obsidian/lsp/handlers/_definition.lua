@@ -3,7 +3,6 @@ local search = obsidian.search
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
-local actions = require "obsidian.actions"
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
@@ -14,59 +13,6 @@ local function open_uri(uri, scheme)
     if choice == "Yes" then
       vim.ui.open(uri)
     end
-  end
-end
-
----@param location string
----@param callback function
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
----@return lsp.Location?
-local function create_new_note(location, callback, opts)
-  opts = opts or {}
-  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-  local cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
-
-  local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
-  local has_unique = Obsidian.opts.unique_note.enabled
-
-  local options = { "&Yes" }
-  if has_template then
-    table.insert(options, "Yes with &Template")
-  end
-  if has_unique then
-    table.insert(options, "Yes as &Unique Note")
-  end
-  table.insert(options, "&No")
-
-  local format_options = table.concat(options, "\n")
-
-  local function update_link(note)
-    if opts.range and vim.api.nvim_buf_is_valid(bufnr) then
-      local new_link = note:format_link { label = opts.label or location, anchor = opts.anchor, block = opts.block }
-      vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
-    end
-  end
-
-  local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
-  if confirm == "Yes" then
-    actions.new(location, function(note)
-      update_link(note)
-      callback { note:_location() }
-    end)
-  elseif confirm == "Yes with Template" then
-    actions.new_from_template(location, nil, function(note)
-      update_link(note)
-      callback { note:_location() }
-    end)
-    return
-  elseif confirm == "Yes as Unique Note" then
-    local note = require("obsidian.unique").new_unique_note(nil, { title = location })
-    if note then
-      update_link(note)
-      callback { note:_location() }
-    end
-  else
-    return log.warn "Aborted"
   end
 end
 
@@ -99,7 +45,7 @@ local function open_note(location, callback, opts)
     if vim.tbl_isempty(notes) then
       opts.anchor = raw_anchor
       opts.block = block_link
-      create_new_note(location, callback, opts)
+      api.create_new_note(location, callback, opts)
     elseif #notes == 1 then
       callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
     elseif #notes > 1 then
@@ -116,14 +62,9 @@ local function open_note(location, callback, opts)
   })
 end
 
-local function open_attachment(location)
-  local path = api.resolve_attachment_path(location)
-  vim.ui.open(path)
-end
-
 local handle_wiki_link = function(location, callback, opts)
   if api.is_attachment_path(location) then
-    open_attachment(location)
+    api.open_attachment(location)
   else
     open_note(location, callback, opts)
   end
@@ -134,7 +75,7 @@ local handle_markdown_link = function(location, callback, opts)
   if is_uri then
     open_uri(location, scheme)
   elseif api.is_attachment_path(location) then
-    open_attachment(location)
+    api.open_attachment(location)
   else
     open_note(location, callback, opts)
   end

@@ -1,6 +1,7 @@
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local cache = require "obsidian.cache"
+local attachment = require "obsidian.attachment"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
@@ -64,6 +65,8 @@ end
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field include_non_markdown boolean|?
 ---@field use_cache boolean|?
+---@field show_existing_only boolean|?
+---@field show_attachments boolean|?
 
 ---@class obsidian.PickerGrepOpts
 ---
@@ -76,6 +79,10 @@ end
 ---@field selection_mappings obsidian.PickerMappingTable|?
 
 ---@alias obsidian.PickerEntry vim.quickfix.entry
+
+---@class obsidian.PickerEntryUserData
+---@field attachment boolean|?
+---@field missing boolean|?
 
 ---@class obsidian.PickerPickOpts
 ---
@@ -91,6 +98,83 @@ end
 --- Concrete methods with a default implementation subclasses. ---
 ------------------------------------------------------------------
 
+---@param target string
+---@return boolean
+local function is_attachment_target(target)
+  return attachment.is_attachment_path(target:lower())
+end
+
+---@param target string?
+---@return boolean
+local function is_external_target(target)
+  return target == nil or target == "" or target:match "^%a[%w+.-]*:" ~= nil
+end
+
+---@param target string
+---@return string
+local function normalize_link_target(target)
+  target = vim.uri_decode(target):gsub("\\", "/")
+  while vim.startswith(target, "./") do
+    target = target:sub(3)
+  end
+  return (target:gsub("^/+", ""))
+end
+
+---@param target string
+---@return boolean
+local function link_target_has_extension(target)
+  return target:match "%.([^/%.]+)$" ~= nil
+end
+
+---@param path string
+---@param lookup table<string, boolean>
+local function add_lookup_path(path, lookup)
+  local rel_path = cache.notes.rel_path(path)
+  local basename = vim.fn.fnamemodify(path, ":t")
+  for _, key in ipairs {
+    rel_path,
+    rel_path:gsub("%.md$", ""),
+    basename,
+    vim.fn.fnamemodify(path, ":t:r"),
+  } do
+    lookup[key:lower()] = true
+  end
+end
+
+---@param target string
+---@param lookup table<string, boolean>
+---@return boolean
+local function target_exists(target, lookup)
+  local normalized = normalize_link_target(target)
+  for _, key in ipairs { normalized, normalized:gsub("%.md$", ""), normalized .. ".md" } do
+    if lookup[key:lower()] then
+      return true
+    end
+  end
+  return false
+end
+
+---@param target string
+---@return string?
+local function missing_target_path(target)
+  if is_external_target(target) then
+    return nil
+  end
+
+  target = normalize_link_target(target)
+  if not link_target_has_extension(target) then
+    target = target .. ".md"
+  end
+  return vim.fs.normalize(vim.fs.joinpath(tostring(Obsidian.dir), target))
+end
+
+---@param attachment boolean
+---@param missing boolean
+---@return obsidian.PickerEntryUserData
+local function entry_user_data(attachment, missing)
+  return { attachment = attachment, missing = missing }
+end
+
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
 M.find_files_from_cache = function(opts)
@@ -99,6 +183,8 @@ M.find_files_from_cache = function(opts)
     return false
   end
 
+  local show_existing_only = opts.show_existing_only ~= false
+  local show_attachments = opts.show_attachments == true
   local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(Obsidian.dir))
   if not util.is_subpath(dir, tostring(Obsidian.dir)) then
     return false
@@ -107,19 +193,55 @@ M.find_files_from_cache = function(opts)
   cache.when_ready(function()
     ---@type obsidian.PickerEntry[]
     local entries = {}
-    for path, note in pairs(cache.notes.all()) do
-      if util.is_subpath(path, dir) then
+    local lookup = {}
+    local seen_missing = {}
+    local all = cache.notes.all()
+
+    for path, note in pairs(all) do
+      add_lookup_path(path, lookup)
+      for _, alias in ipairs(note.aliases or {}) do
+        lookup[alias:lower()] = true
+      end
+    end
+
+    for path, note in pairs(all) do
+      local is_attachment = note.attachment == true or is_attachment_target(path)
+      if util.is_subpath(path, dir) and (show_attachments or not is_attachment) then
         local rel_path = cache.notes.rel_path(path)
         entries[#entries + 1] = {
           text = rel_path,
           filename = path,
+          user_data = entry_user_data(is_attachment, false),
         }
         for _, alias in ipairs(note.aliases or {}) do
           local text = rel_path .. " | " .. alias
           entries[#entries + 1] = {
             text = text,
             filename = path,
+            user_data = entry_user_data(is_attachment, false),
           }
+        end
+      end
+    end
+
+    if not show_existing_only then
+      for _, note in pairs(all) do
+        for _, link in ipairs(note.links_out or {}) do
+          local target = link.target
+          if not is_external_target(target) and not target_exists(target, lookup) then
+            local missing_is_attachment = is_attachment_target(target)
+            if show_attachments or not missing_is_attachment then
+              local path = missing_target_path(target)
+              if path and util.is_subpath(path, dir) and not seen_missing[path] then
+                seen_missing[path] = true
+                entries[#entries + 1] = {
+                  text = normalize_link_target(target),
+                  filename = path,
+                  user_data = entry_user_data(missing_is_attachment, true),
+                }
+              end
+            end
+          end
         end
       end
     end
@@ -139,7 +261,19 @@ M.find_files_from_cache = function(opts)
         elseif opts.callback then
           opts.callback(path)
         else
-          api.open_note(path)
+          local data = item.user_data or {}
+          if data.attachment then
+            vim.ui.open(path)
+          elseif data.missing then
+            local location = item.text or vim.fn.fnamemodify(path, ":t:r")
+            api.create_new_note(location, function(locations)
+              if locations and locations[1] then
+                api.open_note(vim.uri_to_fname(locations[1].uri))
+              end
+            end)
+          else
+            api.open_note(path)
+          end
         end
       end,
     })
@@ -150,7 +284,7 @@ end
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|?, dir: obsidian.Path|?, show_existing_only: boolean|?, show_attachments: boolean|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -179,6 +313,8 @@ M.find_notes = function(opts)
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
     use_cache = true,
+    show_existing_only = opts.show_existing_only,
+    show_attachments = opts.show_attachments,
   }
 end
 
