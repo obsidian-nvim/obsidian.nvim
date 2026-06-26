@@ -231,6 +231,7 @@ M.pick = function(values, opts)
   end
 
   require("fzf-lua").fzf_exec(entries, {
+    query = opts.query,
     previewer = file_preview and MyPreviewer or nil,
     prompt = format_prompt(
       ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }

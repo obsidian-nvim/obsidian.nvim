@@ -215,6 +215,7 @@ M.pick = function(values, opts)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
     title = opts.prompt_title,
+    pattern = opts.query,
     items = entries,
     layout = {
       preview = preview,
