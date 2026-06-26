@@ -238,6 +238,9 @@ M.find_files = function(opts)
                   data.references[#data.references + 1] = reference
                 else
                   local text = normalize_link_target(target)
+                  if not missing_is_attachment then
+                    text = text .. " (create)"
+                  end
                   local added = add_entry(
                     text,
                     target_path,
