@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic cache system, see `:Obsidian help Cache`
 - `:Obsidian quick_switch` now works with aliases.
 
+### Fixed
+
+- Properly normalize cached paths.
+
 ## [v3.16.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.5) - 2026-06-25
 
 ### Added
