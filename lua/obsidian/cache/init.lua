@@ -89,6 +89,7 @@ local function reindex_one(abs_path)
   if not state then
     return
   end
+  abs_path = vim.fs.normalize(abs_path)
   if not is_markdown_note(abs_path) then
     return
   end
@@ -107,7 +108,7 @@ local function remove_one(abs_path)
   if not state then
     return
   end
-  state.backend:delete(abs_path)
+  state.backend:delete(vim.fs.normalize(abs_path))
   schedule_flush()
 end
 
@@ -117,6 +118,8 @@ local function rename_one(old_path, new_path)
   if not state then
     return
   end
+  old_path = vim.fs.normalize(old_path)
+  new_path = vim.fs.normalize(new_path)
   if not is_markdown_note(new_path) or is_ignored(new_path) then
     state.backend:delete(old_path)
     schedule_flush()
@@ -137,9 +140,9 @@ end
 ---@return string?
 local function event_path(ev)
   if ev.path then
-    return ev.path
+    return vim.fs.normalize(ev.path)
   elseif ev.uri then
-    return vim.uri_to_fname(ev.uri)
+    return vim.fs.normalize(vim.uri_to_fname(ev.uri))
   end
 end
 
@@ -180,6 +183,7 @@ local function initial_scan(force)
 
   for _, abs in ipairs(files) do
     if not is_ignored(abs) then
+      abs = vim.fs.normalize(abs)
       found[abs] = true
       local existing = state.backend:get(abs)
       local stat = vim.uv.fs_stat(abs)
@@ -190,8 +194,10 @@ local function initial_scan(force)
   end
 
   for path, _ in pairs(state.backend:all()) do
-    if not found[path] then
-      remove_one(path)
+    local normalized = vim.fs.normalize(path)
+    if not found[normalized] then
+      state.backend:delete(path)
+      schedule_flush()
     end
   end
 end
@@ -343,7 +349,7 @@ M.notes = {}
 ---@return table
 function M.notes.get(path)
   assert(state, "cache not initialized")
-  local row = state.backend:get(path)
+  local row = state.backend:get(vim.fs.normalize(path))
   if not row then
     error("cache: no note at " .. path)
   end
@@ -356,7 +362,7 @@ function M.notes.find(path)
   if not state then
     return nil
   end
-  return state.backend:get(path)
+  return state.backend:get(vim.fs.normalize(path))
 end
 
 ---@return table<string, table>
@@ -398,7 +404,7 @@ end
 function M.notes.upsert(row)
   assert(state, "cache not initialized")
   assert(row.path, "row.path required")
-  state.backend:put(row.path, row)
+  state.backend:put(vim.fs.normalize(row.path), row)
   schedule_flush()
 end
 
@@ -406,6 +412,7 @@ end
 ---@param patch table
 function M.notes.update(path, patch)
   assert(state, "cache not initialized")
+  path = vim.fs.normalize(path)
   local row = state.backend:get(path)
   if not row then
     error("cache: no note at " .. path)
@@ -422,7 +429,7 @@ function M.notes.delete(path)
   if not state then
     return
   end
-  state.backend:delete(path)
+  state.backend:delete(vim.fs.normalize(path))
   schedule_flush()
 end
 
