@@ -11,7 +11,7 @@ T["search_tags uses select for tag choice"] = function()
   local result = h.child_await(
     child,
     [[
-    local picker = Obsidian.picker
+    local picker = require "obsidian.picker"
     local tag_select
 
     picker.select = function(items, opts, on_choice)

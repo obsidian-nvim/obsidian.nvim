@@ -1,4 +1,5 @@
 local api = require "obsidian.api"
+local picker = require "obsidian.picker"
 
 --- Deduplicate items by filename (multiple LSP clients may return same file)
 ---@param items table[]
@@ -34,7 +35,7 @@ return function(data)
       if #items == 1 then
         api.open_note(items[1], open_strategy)
       else
-        Obsidian.picker.select(items, { prompt = "Resolve link" }, function(choices)
+        picker.select(items, { prompt = "Resolve link" }, function(choices)
           local entry = choices and choices[1]
           if entry then
             api.open_note(entry)

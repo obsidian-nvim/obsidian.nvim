@@ -31,7 +31,7 @@ M.follow_link = function(link, opts)
     if #items == 1 then
       api.open_note(items[1], cmd)
     else
-      Obsidian.picker.select(items, { prompt = "Resolve link" }, function(choices)
+      picker.select(items, { prompt = "Resolve link" }, function(choices)
         local entry = choices and choices[1]
         if entry then
           api.open_note(entry)
@@ -408,7 +408,7 @@ M.link = function()
 
   local query = viz.selection
 
-  Obsidian.picker.find_notes {
+  picker.find_notes {
     prompt_title = "Select note to link",
     query = query,
     callback = function(path)
@@ -531,7 +531,7 @@ M.new_from_template = function(id, template, callback)
     return
   end
 
-  Obsidian.picker.find_files {
+  picker.find_files {
     prompt_title = "Templates",
     dir = templates_dir,
     no_default_mappings = true,
@@ -714,7 +714,7 @@ M.insert_template = function(template_name)
     }
   end
 
-  Obsidian.picker.select(entries, {}, function(items)
+  picker.select(entries, {}, function(items)
     local entry = items[1]
     if entry then
       insert_template(entry.filename)
@@ -747,7 +747,7 @@ M.workspace_symbol = function(query, callback)
   query = query or ""
   require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
     local entries = vim.tbl_map(symbol_to_entry, symbols)
-    Obsidian.picker.select(entries, { prompt = "Workspace Symbols" }, function(items)
+    picker.select(entries, { prompt = "Workspace Symbols" }, function(items)
       local entry = items and items[1]
       if not entry then
         return
@@ -776,7 +776,7 @@ local function pick_folder(callback)
     end
   end
 
-  Obsidian.picker.select(choices, {
+  picker.select(choices, {
     format_item = function(v)
       return tostring(v.text)
     end,
@@ -842,7 +842,7 @@ M.merge_note = function(dst_note)
   if dst_note then
     merge_note(dst_note)
   else
-    Obsidian.picker.find_notes {
+    picker.find_notes {
       callback = function(path)
         local note = Note.from_file(path)
         merge_note(note)

@@ -1,4 +1,5 @@
 local Workspace = require "obsidian.workspace"
+local picker = require "obsidian.picker"
 
 ---@param data obsidian.CommandArgs
 return function(data)
@@ -14,7 +15,7 @@ return function(data)
         filename = tostring(ws.path),
       }
     end, Obsidian.workspaces)
-    Obsidian.picker.select(items, { prompt = "Obsidian Workspace" }, function(choices)
+    picker.select(items, { prompt = "Obsidian Workspace" }, function(choices)
       local entry = choices[1]
       if entry then
         Workspace.set(entry.user_data)
