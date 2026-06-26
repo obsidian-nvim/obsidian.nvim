@@ -47,7 +47,7 @@ obsidian.register_command = require("obsidian.commands").register
 ---@return obsidian.Client
 obsidian.setup = function(user_opts)
   ---@class obsidian.state
-  ---@field picker obsidian.Picker Picker to use.
+  ---@field picker obsidian.Picker Deprecated. Use `require "obsidian.picker"`.
   ---@field workspace obsidian.Workspace Current workspace.
   ---@field workspaces obsidian.Workspace[] All workspaces.
   ---@field dir obsidian.Path Root of the vault for the current workspace.
@@ -55,7 +55,13 @@ obsidian.setup = function(user_opts)
   ---@field opts obsidian.config.Internal Current options.
   ---@field _opts obsidian.config.Internal User input options.
   ---@diagnostic disable-next-line: global-in-non-module
-  Obsidian = {}
+  Obsidian = setmetatable({}, {
+    __index = function(_, key)
+      if key == "picker" then
+        return obsidian.Picker
+      end
+    end,
+  })
 
   local opts = obsidian.config.normalize(user_opts)
 
@@ -79,7 +85,7 @@ obsidian.setup = function(user_opts)
 
   log.set_level(Obsidian.opts.log_level)
 
-  Obsidian.picker = obsidian.Picker.get(Obsidian.opts.picker.name)
+  obsidian.Picker.get(Obsidian.opts.picker.name)
 
   if opts.legacy_commands then
     obsidian.commands.install_legacy()

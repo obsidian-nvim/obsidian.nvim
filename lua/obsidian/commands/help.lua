@@ -1,4 +1,5 @@
 local log = require "obsidian.log"
+local picker = require "obsidian.picker"
 
 return function(data)
   local query = vim.trim(data.args or "")
@@ -28,7 +29,7 @@ return function(data)
     end
   end
 
-  Obsidian.picker.find_notes {
+  picker.find_notes {
     prompt_title = "Obsidian Help",
     dir = dir,
     query = query,

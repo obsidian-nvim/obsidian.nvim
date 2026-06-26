@@ -1,4 +1,5 @@
 local log = require "obsidian.log"
+local picker = require "obsidian.picker"
 
 return function(data)
   local query = data.args
@@ -9,7 +10,7 @@ return function(data)
     return
   end
 
-  Obsidian.picker.grep {
+  picker.grep {
     prompt_title = "Quick Switch",
     dir = dir,
     query = query,

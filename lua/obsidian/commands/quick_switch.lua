@@ -1,6 +1,8 @@
+local picker = require "obsidian.picker"
+
 ---@param data obsidian.CommandArgs
 return function(data)
-  Obsidian.picker.find_notes {
+  picker.find_notes {
     prompt_title = "Quick Switch",
     query = data.args ~= "" and data.args or nil,
   }
