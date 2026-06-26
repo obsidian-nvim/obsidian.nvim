@@ -117,7 +117,7 @@ local function rename_one(old_path, new_path)
   if not state then
     return
   end
-  if not is_markdown_note(new_path) then
+  if not is_markdown_note(new_path) or is_ignored(new_path) then
     state.backend:delete(old_path)
     schedule_flush()
     return
@@ -261,8 +261,11 @@ end
 function M.setup(opts)
   opts = opts or {}
   if opts.enabled == false then
+    M.shutdown()
     return
   end
+
+  M.shutdown()
 
   local vault = vim.fs.normalize(tostring(Obsidian.dir))
   local cache_dir = vim.fs.joinpath(vim.fn.stdpath "cache", "obsidian.nvim")
@@ -289,7 +292,11 @@ function M.setup(opts)
     on_events(events)
   end)
 
+  local setup_state = state
   vim.schedule(function()
+    if state ~= setup_state then
+      return
+    end
     initial_scan()
     mark_ready()
   end)

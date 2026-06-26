@@ -204,4 +204,81 @@ T["cache backends"]["rename lifecycle uses store operations only"] = function()
   eq(true, cache.notes.find(tostring(new_path)) ~= nil)
 end
 
+T["cache backends"]["rename into ignored path removes old entry only"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Path.new(dir / "skip"):mkdir()
+  local old_path = dir / "Old.md"
+  local new_path = dir / "skip" / "New.md"
+  helpers.write("# Old", old_path)
+  Obsidian = {
+    dir = dir,
+    opts = { file = { ignore_filters = { "skip/" } } },
+  }
+  require("obsidian.ignore").clear_cache()
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  helpers.write("# New", new_path)
+  vim.fn.delete(tostring(old_path))
+  require("obsidian.lsp.watchfiles").handle {
+    { type = "renamed", old_path = tostring(old_path), new_path = tostring(new_path) },
+  }
+
+  eq(nil, cache.notes.find(tostring(old_path)))
+  eq(nil, cache.notes.find(tostring(new_path)))
+end
+
+T["cache backends"]["setup is idempotent and disabled tears down"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+
+  local puts = 0
+  local store = { data = {} }
+  function store:get(key)
+    return self.data[key]
+  end
+  function store:all()
+    return self.data
+  end
+  function store:put(key, row)
+    puts = puts + 1
+    self.data[key] = row
+  end
+  function store:delete(key)
+    self.data[key] = nil
+  end
+  function store:flush() end
+  function store:close() end
+
+  local cache = require "obsidian.cache"
+  cache.register("idempotent-test", {
+    open = function()
+      return store
+    end,
+  })
+
+  cache.setup { enabled = true, backend = "idempotent-test" }
+  cache.setup { enabled = true, backend = "idempotent-test" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local note_path = tostring(dir / "Fresh.md")
+  helpers.write("# Fresh", note_path)
+  require("obsidian.lsp.watchfiles").handle {
+    { type = "created", path = note_path },
+  }
+
+  eq(1, puts)
+
+  cache.setup { enabled = false }
+  eq(false, cache.is_enabled())
+end
+
 return T

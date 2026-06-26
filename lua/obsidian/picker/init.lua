@@ -63,6 +63,7 @@ end
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field include_non_markdown boolean|?
+---@field use_cache boolean|?
 
 ---@class obsidian.PickerGrepOpts
 ---
@@ -94,7 +95,7 @@ end
 ---@return boolean handled
 M.find_files_from_cache = function(opts)
   opts = opts or {}
-  if not cache.is_enabled() or opts.include_non_markdown then
+  if not opts.use_cache or not cache.is_enabled() or opts.include_non_markdown then
     return false
   end
 
@@ -129,10 +130,10 @@ M.find_files_from_cache = function(opts)
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
       format_item = function(item)
-        return item.text or item.filename or ""
+        return item["text"] or item["filename"] or ""
       end,
       callback = function(item)
-        local path = item.filename
+        local path = item["filename"]
         if not path then
           return
         elseif opts.callback then
@@ -177,6 +178,7 @@ M.find_notes = function(opts)
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
+    use_cache = true,
   }
 end
 

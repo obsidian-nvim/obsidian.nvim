@@ -1,7 +1,7 @@
+---@param data obsidian.CommandArgs
 return function(data)
-  Obsidian.picker.find_files {
+  Obsidian.picker.find_notes {
     prompt_title = "Quick Switch",
-    dir = Obsidian.dir,
-    query = data and data.args ~= "" and data.args or nil,
+    query = data.args ~= "" and data.args or nil,
   }
 end
