@@ -112,16 +112,12 @@ M.find_files_from_cache = function(opts)
         entries[#entries + 1] = {
           text = rel_path,
           filename = path,
-          lnum = 1,
-          col = 0,
         }
         for _, alias in ipairs(note.aliases or {}) do
           local text = rel_path .. " | " .. alias
           entries[#entries + 1] = {
             text = text,
             filename = path,
-            lnum = 1,
-            col = 0,
           }
         end
       end
