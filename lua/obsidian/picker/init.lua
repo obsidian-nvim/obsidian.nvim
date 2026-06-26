@@ -110,17 +110,15 @@ M.find_files_from_cache = function(opts)
       if util.is_subpath(path, dir) then
         local rel_path = cache.notes.rel_path(path)
         entries[#entries + 1] = {
-          display = rel_path,
-          ordinal = rel_path,
+          text = rel_path,
           filename = path,
           lnum = 1,
           col = 0,
         }
         for _, alias in ipairs(note.aliases or {}) do
-          local display = rel_path .. " | " .. alias
+          local text = rel_path .. " | " .. alias
           entries[#entries + 1] = {
-            display = display,
-            ordinal = rel_path .. " " .. alias,
+            text = text,
             filename = path,
             lnum = 1,
             col = 0,
@@ -129,17 +127,13 @@ M.find_files_from_cache = function(opts)
       end
     end
 
-    table.sort(entries, function(a, b)
-      return (a.display or "") < (b.display or "")
-    end)
-
     M.pick(entries, {
       prompt_title = opts.prompt_title,
       query = opts.query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
       format_item = function(item)
-        return item.display or item.filename or ""
+        return item.text or item.filename or ""
       end,
       callback = function(item)
         local path = item.filename
