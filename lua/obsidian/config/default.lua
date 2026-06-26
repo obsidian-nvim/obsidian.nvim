@@ -277,6 +277,19 @@ return {
     template = nil,
   },
 
+  ---@class obsidian.config.QuickSwitchOpts
+  ---
+  ---Whether quick switch only shows files that already exist. When false and cache is enabled,
+  ---links to missing notes are included.
+  ---@field show_existing_only? boolean
+  ---
+  ---Whether quick switch includes attachments when cache is enabled.
+  ---@field show_attachments? boolean
+  quick_switch = {
+    show_existing_only = true,
+    show_attachments = false,
+  },
+
   ---@class obsidian.config.AttachmentsOpts
   ---
   ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location

@@ -6,6 +6,7 @@
 local log = require "obsidian.log"
 local watchfiles = require "obsidian.lsp.watchfiles"
 local cache_note = require "obsidian.cache.note"
+local attachment = require "obsidian.attachment"
 local ignore = require "obsidian.ignore"
 
 local M = {}
@@ -40,12 +41,50 @@ local state = nil
 
 local FLUSH_DEBOUNCE_MS = 2000
 local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = true }
+local ATTACHMENT_EXTENSIONS = {}
+for _, ext in ipairs(attachment.filetypes) do
+  ATTACHMENT_EXTENSIONS[ext] = true
+end
+
+---@param path string
+---@return string
+local function file_ext(path)
+  return (path:match "%.([^./]+)$" or ""):lower()
+end
 
 ---@param path string
 ---@return boolean
 local function is_markdown_note(path)
-  local ext = (path:match "%.([^./]+)$" or ""):lower()
-  return MARKDOWN_EXTENSIONS[ext] == true
+  return MARKDOWN_EXTENSIONS[file_ext(path)] == true
+end
+
+---@param path string
+---@return boolean
+local function is_cacheable_file(path)
+  local ext = file_ext(path)
+  return MARKDOWN_EXTENSIONS[ext] == true or (ext ~= "md" and ATTACHMENT_EXTENSIONS[ext] == true)
+end
+
+---@param abs_path string
+---@return table?
+local function build_row(abs_path)
+  if not state then
+    return nil
+  end
+
+  if is_markdown_note(abs_path) then
+    return cache_note.build(abs_path, state.vault)
+  end
+
+  local stat = vim.uv.fs_stat(abs_path)
+  if not stat or stat.type ~= "file" then
+    return nil
+  end
+  return {
+    mtime = stat.mtime.sec,
+    size = stat.size,
+    attachment = true,
+  }
 end
 
 local function schedule_flush()
@@ -90,13 +129,13 @@ local function reindex_one(abs_path)
     return
   end
   abs_path = vim.fs.normalize(abs_path)
-  if not is_markdown_note(abs_path) then
+  if not is_cacheable_file(abs_path) then
     return
   end
   if is_ignored(abs_path) then
     return
   end
-  local row = cache_note.build(abs_path, state.vault)
+  local row = build_row(abs_path)
   if row then
     state.backend:put(abs_path, row)
     schedule_flush()
@@ -120,12 +159,12 @@ local function rename_one(old_path, new_path)
   end
   old_path = vim.fs.normalize(old_path)
   new_path = vim.fs.normalize(new_path)
-  if not is_markdown_note(new_path) or is_ignored(new_path) then
+  if not is_cacheable_file(new_path) or is_ignored(new_path) then
     state.backend:delete(old_path)
     schedule_flush()
     return
   end
-  local row = cache_note.build(new_path, state.vault)
+  local row = build_row(new_path)
   if not row then
     state.backend:delete(old_path)
     schedule_flush()
@@ -170,7 +209,7 @@ local function on_events(events)
   end
 end
 
----Walk vault, populate cache for all `.md` files. Skips notes whose mtime/size match.
+---Walk vault, populate cache for all supported notes and attachments. Skips entries whose mtime/size match.
 ---@param force boolean? rebuild every entry regardless of stat
 local function initial_scan(force)
   if not state then
@@ -179,7 +218,7 @@ local function initial_scan(force)
   local scan_state = state
   local found = {}
   local files = vim.fs.find(function(name, dir)
-    if not is_markdown_note(name) then
+    if not is_cacheable_file(name) then
       return false
     end
     return not is_ignored(dir .. "/" .. name)
