@@ -2,6 +2,7 @@ local fs_util = require "obsidian.util.fs"
 local attachment = require "obsidian.attachment"
 local link = require "obsidian.link"
 local api = require "obsidian.api"
+local icons = require "obsidian.icons"
 local picker_util = require "obsidian.picker.util"
 
 local M = {}
@@ -238,9 +239,6 @@ M.find_files = function(opts)
                   data.references[#data.references + 1] = reference
                 else
                   local text = normalize_link_target(target)
-                  if not missing_is_attachment then
-                    text = text .. " (create)"
-                  end
                   local added = add_entry(
                     text,
                     target_path,
@@ -272,6 +270,7 @@ M.find_files = function(opts)
       query = pick_query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
+      format_item = icons.format_picker_entry,
       preview_item = preview_picker_entry,
     }, function(items)
       local paths = vim.tbl_filter(
