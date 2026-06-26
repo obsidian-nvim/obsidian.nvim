@@ -12,10 +12,10 @@ return function()
     return match.link
   end, note:links())
 
-  Obsidian.picker.pick(entries, {
-    prompt_title = "Links",
-    callback = function(entry)
-      actions.follow_link(entry.user_data)
-    end,
-  })
+  Obsidian.picker.select(entries, { prompt = "Links" }, function(items)
+    local link = items[1]
+    if link then
+      api.follow_link(link)
+    end
+  end)
 end
