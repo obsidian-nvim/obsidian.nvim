@@ -58,6 +58,9 @@ M.is_attachment_path = function(location)
   return false
 end
 
+-- Compatibility alias for callers using the filetype name.
+M.is_attachment_filetype = M.is_attachment_path
+
 --- Resolve the configured destination for a new attachment.
 ---
 --- The returned path does not need to exist.

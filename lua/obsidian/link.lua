@@ -31,7 +31,7 @@ M.resolve_link_path = function(location)
     return
   end
 
-  if attachment.is_attachment_path(location) then
+  if attachment.is_attachment_filetype(location) then
     return tostring(normalize_path(attachment.resolve_attachment_path(location)))
   end
 

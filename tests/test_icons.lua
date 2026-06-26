@@ -8,7 +8,7 @@ T["picker entry icons"]["missing user data wins over filetype"] = function()
   local icons = require "obsidian.icons"
 
   eq(
-    icons.kinds.missing_attachment,
+    icons.kinds.missing_attachment.icon,
     icons.get_icon {
       filename = "Missing.pdf",
       user_data = { attachment = true, missing = true },
@@ -16,7 +16,7 @@ T["picker entry icons"]["missing user data wins over filetype"] = function()
   )
 
   eq(
-    icons.kinds.missing,
+    icons.kinds.missing.icon,
     icons.get_icon {
       filename = "Missing.md",
       user_data = { missing = true },
@@ -33,7 +33,7 @@ T["picker entry icons"]["covers obsidian note filetypes"] = function()
     assert(icon ~= "", "missing icon for " .. ext)
   end
 
-  eq(icons.kinds.base, icons.get_icon { filename = "note.base" })
+  eq(icons.kinds.base.icon, icons.get_icon { filename = "note.base" })
 end
 
 T["picker entry icons"]["covers cache attachment filetypes"] = function()
@@ -49,9 +49,9 @@ end
 T["picker entry icons"]["provides bookmark icons"] = function()
   local icons = require "obsidian.icons"
 
-  eq(icons.kinds.bookmark, icons.get_bookmark_icon { type = "group" })
-  eq(icons.kinds.url, icons.get_bookmark_icon { type = "url" })
-  eq(icons.kinds.search, icons.get_bookmark_icon { type = "search" })
+  eq(icons.kinds.bookmark.icon, icons.get_bookmark_icon { type = "group" })
+  eq(icons.kinds.url.icon, icons.get_bookmark_icon { type = "url" })
+  eq(icons.kinds.search.icon, icons.get_bookmark_icon { type = "search" })
 end
 
 return T
