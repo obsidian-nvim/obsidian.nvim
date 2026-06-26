@@ -1,3 +1,5 @@
+local util = require "obsidian.util"
+
 ---@class obsidian.cache.JsonBackend
 ---@field path string
 ---@field data table
@@ -15,20 +17,6 @@ local function read_file(path)
   local s = f:read "*a"
   f:close()
   return s
-end
-
-local function atomic_write(path, contents)
-  local tmp = path .. ".tmp"
-  local f, err = io.open(tmp, "w")
-  if not f then
-    error("cache: cannot open " .. tmp .. ": " .. tostring(err))
-  end
-  f:write(contents)
-  f:close()
-  local ok, rerr = os.rename(tmp, path)
-  if not ok then
-    error("cache: rename failed: " .. tostring(rerr))
-  end
 end
 
 ---@param opts { path: string, vault: string }
@@ -88,7 +76,7 @@ function M:flush()
   end
   self.data.generated_at = os.time()
   local encoded = vim.json.encode(self.data)
-  atomic_write(self.path, encoded)
+  util.atomic_write(self.path, encoded)
   self.dirty = false
 end
 

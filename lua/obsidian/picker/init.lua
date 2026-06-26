@@ -1,3 +1,4 @@
+local util = require "obsidian.util"
 local api = require "obsidian.api"
 local cache = require "obsidian.cache"
 local log = require "obsidian.log"
@@ -89,15 +90,6 @@ end
 --- Concrete methods with a default implementation subclasses. ---
 ------------------------------------------------------------------
 
----@param path string
----@param root string
----@return boolean
-local function is_subpath(path, root)
-  path = vim.fs.normalize(path)
-  root = vim.fs.normalize(root):gsub("/+$", "")
-  return path == root or vim.startswith(path, root .. "/")
-end
-
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
 M.find_files_from_cache = function(opts)
@@ -107,7 +99,7 @@ M.find_files_from_cache = function(opts)
   end
 
   local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(Obsidian.dir))
-  if not is_subpath(dir, tostring(Obsidian.dir)) then
+  if not util.is_subpath(dir, tostring(Obsidian.dir)) then
     return false
   end
 
@@ -115,7 +107,7 @@ M.find_files_from_cache = function(opts)
     ---@type obsidian.PickerEntry[]
     local entries = {}
     for path, note in pairs(cache.notes.all()) do
-      if is_subpath(path, dir) then
+      if util.is_subpath(path, dir) then
         local rel_path = cache.notes.rel_path(path)
         entries[#entries + 1] = {
           display = rel_path,

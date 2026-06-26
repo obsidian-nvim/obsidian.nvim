@@ -1,78 +1,8 @@
 local Note = require "obsidian.note"
-local search = require "obsidian.search"
+local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require("obsidian.parse.tags").parse_tags
 
 local M = {}
-
----Parse one wiki/markdown ref from raw match text.
----@param raw string  full match incl. brackets
----@param kind obsidian.search.RefTypes
----@return { kind: "wiki"|"markdown", raw: string, target: string, label: string?, anchor: string?, block: string?, embed: boolean }?
-local function parse_ref(raw, kind)
-  local embed = false
-  if raw:sub(1, 1) == "!" then
-    embed = true
-  end
-
-  if kind == "Wiki" or kind == "WikiWithAlias" then
-    local body = raw:match "^!?%[%[(.+)%]%]$"
-    if not body then
-      return nil
-    end
-    local target_part, label = body, nil
-    local pipe = body:find("|", 1, true)
-    if pipe then
-      target_part = body:sub(1, pipe - 1)
-      label = body:sub(pipe + 1)
-    end
-    local anchor, block
-    local hash = target_part:find("#", 1, true)
-    if hash then
-      local frag = target_part:sub(hash + 1)
-      target_part = target_part:sub(1, hash - 1)
-      if frag:sub(1, 1) == "^" then
-        block = frag:sub(2)
-      else
-        anchor = frag
-      end
-    end
-    return {
-      kind = "wiki",
-      raw = raw,
-      target = target_part,
-      label = label,
-      anchor = anchor,
-      block = block,
-      embed = embed,
-    }
-  elseif kind == "Markdown" then
-    local label, target_part = raw:match "^!?%[([^%]]+)%]%(([^%)]+)%)$"
-    if not target_part then
-      return nil
-    end
-    local anchor, block
-    local hash = target_part:find("#", 1, true)
-    if hash then
-      local frag = target_part:sub(hash + 1)
-      target_part = target_part:sub(1, hash - 1)
-      if frag:sub(1, 1) == "^" then
-        block = frag:sub(2)
-      else
-        anchor = frag
-      end
-    end
-    return {
-      kind = "markdown",
-      raw = raw,
-      target = target_part,
-      label = label,
-      anchor = anchor,
-      block = block,
-      embed = embed,
-    }
-  end
-  return nil
-end
 
 ---Extract outgoing links from a single line.
 ---@param line string
@@ -80,20 +10,19 @@ end
 ---@return table[]
 local function extract_links(line, lnum)
   local out = {}
-  local matches = search.find_refs(line, { exclude = { "Tag", "BlockID", "Highlight" } })
-  for _, m in ipairs(matches) do
-    local m_start, m_end, kind = m[1], m[2], m[3]
-    -- include leading `!` if present (embed)
-    local lead = m_start - 1
-    if lead >= 1 and line:sub(lead, lead) == "!" then
-      m_start = lead
-    end
-    local raw = line:sub(m_start, m_end)
-    local parsed = parse_ref(raw, kind)
-    if parsed then
-      parsed.line = lnum
-      parsed.col = m_start
-      out[#out + 1] = parsed
+  for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1 })) do
+    if ref.kind == "wiki" or ref.kind == "markdown" then
+      out[#out + 1] = {
+        kind = ref.kind,
+        raw = ref.raw,
+        target = ref.target,
+        label = ref.label,
+        anchor = ref.anchor,
+        block = ref.block,
+        embed = ref.embed,
+        line = lnum,
+        col = ref.range.start_col + 1,
+      }
     end
   end
   return out
