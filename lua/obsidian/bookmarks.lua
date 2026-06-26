@@ -217,11 +217,13 @@ M.pick = function(bookmarks)
   end
   bookmarks = filtered
 
-  vim.ui.select(bookmarks, {
-    prompt_title = "Bookmarks",
+  picker.select(bookmarks, {
+    prompt = "Bookmarks",
     format_item = format_bookmark,
     preview_item = preview_bookmark,
-  }, open_bookmark)
+  }, function(items)
+    open_bookmark(items[1])
+  end)
 end
 
 return M
