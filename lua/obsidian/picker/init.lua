@@ -82,6 +82,7 @@ end
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field format_item (fun(value: obsidian.PickerEntry): string)|?
+---@field query string|?
 
 ------------------------------------------------------------------
 --- Concrete methods with a default implementation subclasses. ---

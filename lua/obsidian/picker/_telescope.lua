@@ -213,6 +213,7 @@ M.pick = function(values, opts)
   opts.callback = opts.callback or api.open_note
 
   local picker_opts = {
+    default_text = opts.query,
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
         callback = opts.callback,
