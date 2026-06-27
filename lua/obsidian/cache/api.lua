@@ -9,6 +9,12 @@ local M = {}
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
+local function format_picker_entry(entry)
+  local icon = icons.get_icon(entry)
+  local text = entry.text or ""
+  return icon .. " " .. text
+end
+
 local function preview_picker_entry(entry)
   local cache = require "obsidian.cache"
   local buf = vim.api.nvim_create_buf(false, true)
@@ -270,7 +276,7 @@ M.find_files = function(opts)
       query = pick_query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
-      format_item = icons.format_picker_entry,
+      format_item = format_picker_entry,
       preview_item = preview_picker_entry,
     }, function(items)
       local paths = vim.tbl_filter(
