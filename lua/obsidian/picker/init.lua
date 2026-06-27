@@ -337,6 +337,16 @@ M.find_files_from_cache = function(opts)
       pick_query = nil
     end
 
+    ---@param entry obsidian.PickerEntry
+    ---@return string
+    local format_picker_entry = function(entry)
+      local icon = icons.get_icon(entry)
+      local text = entry.text or ""
+      return icon .. " " .. text
+    end
+
+    -- TODO: preview_item
+
     M.select(entries, {
       prompt = opts.prompt_title,
       allow_multiple = true,
@@ -347,7 +357,7 @@ M.find_files_from_cache = function(opts)
       selection_mappings = transform_selection_mappings(opts.selection_mappings, function(item)
         return item.filename
       end),
-      format_item = icons.format_picker_entry,
+      format_item = format_picker_entry,
       preview_item = function(item)
         return util.preview_path(item.filename)
       end,
