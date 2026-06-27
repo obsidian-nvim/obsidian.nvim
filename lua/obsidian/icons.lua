@@ -65,28 +65,6 @@ local function extension(path)
 end
 
 ---@param entry obsidian.PickerEntry|string
----@return string|?
-local function entry_path(entry)
-  if type(entry) == "string" then
-    return entry
-  end
-
-  if entry.filename then
-    return entry.filename
-  end
-
-  local text = entry.text
-  if type(text) == "string" then
-    text = text:gsub("%s+|%s+.*$", ""):gsub("%s+%(create%)$", "")
-    return text
-  end
-
-  if type(entry.user_data) == "string" then
-    return entry.user_data
-  end
-end
-
----@param entry obsidian.PickerEntry|string
 ---@return string icon
 ---@return string|? hl_group
 M.get_icon = function(entry)
@@ -101,7 +79,7 @@ M.get_icon = function(entry)
     end
   end
 
-  local path = entry_path(entry)
+  local path = entry.filename
   local spec = path and by_filetype[extension(path)]
   if not spec and type(entry) == "table" then
     local user_data = entry.user_data
@@ -112,17 +90,6 @@ M.get_icon = function(entry)
   spec = spec or M.kinds.file
 
   return spec.icon, spec.hl_group
-end
-
----@param entry obsidian.PickerEntry
----@return string
-M.format_picker_entry = function(entry)
-  local icon = M.get_icon(entry)
-  local text = entry.text or entry.filename or ""
-  if text == "" then
-    return icon
-  end
-  return icon .. " " .. text
 end
 
 return M

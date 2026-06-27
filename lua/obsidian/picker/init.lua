@@ -166,7 +166,6 @@ local function missing_target_path(target, is_attachment, path)
 
   target = normalize_link_target(target)
 
-  print(target, is_attachment, path)
   if is_attachment then
     return attachment.resolve_attachment_path(target, path)
   end
@@ -256,12 +255,22 @@ M.find_files_from_cache = function(opts)
       end
     end
 
+    ---@param entry obsidian.PickerEntry
+    ---@return string
+    local format_picker_entry = function(entry)
+      local icon = icons.get_icon(entry)
+      local text = entry.text or ""
+      return icon .. " " .. text
+    end
+
+    -- TODO: preview_item
+
     M.pick(entries, {
       prompt_title = opts.prompt_title,
       query = opts.query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
-      format_item = icons.format_picker_entry,
+      format_item = format_picker_entry,
       callback = function(item)
         local path = item["filename"]
         if not path then
