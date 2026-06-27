@@ -7,7 +7,7 @@ local M = {}
 ---Extract outgoing links from a single line.
 ---@param line string
 ---@param lnum integer  1-based
----@return table[]
+---@return obsidian.cache.LinkRow[]
 local function extract_links(line, lnum)
   local out = {}
   for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1 })) do
@@ -48,7 +48,7 @@ end
 ---Convert obsidian.Note + stat → CacheNote row.
 ---@param abs_path string
 ---@param _vault_root string
----@return table? row
+---@return obsidian.cache.NoteRow? row
 function M.build(abs_path, _vault_root)
   local stat = vim.uv.fs_stat(abs_path)
   if not stat or stat.type ~= "file" then
@@ -71,12 +71,14 @@ function M.build(abs_path, _vault_root)
     return nil
   end
 
+  ---@type table<string, any>
   local properties = {}
   if note.metadata then
     for k, v in pairs(note.metadata) do
       properties[k] = v
     end
   end
+  ---@type string[]
   local tags_lower = {}
   local tags_seen = {}
   local function add_tag(tag)
@@ -103,7 +105,9 @@ function M.build(abs_path, _vault_root)
   end
 
   local fm_end = note.frontmatter_end_line or 0
+  ---@type obsidian.cache.LinkRow[]
   local links_out = {}
+  ---@type obsidian.cache.TaskRow[]
   local tasks = {}
   local in_code_block = false
   for i = fm_end + 1, #lines do
@@ -118,7 +122,7 @@ function M.build(abs_path, _vault_root)
         add_tag(tag_match.tag)
       end
       local indent, state, text = match_task(line)
-      if indent ~= nil then
+      if indent ~= nil and state ~= nil and text ~= nil then
         tasks[#tasks + 1] = {
           line = i,
           indent = indent,
@@ -129,6 +133,7 @@ function M.build(abs_path, _vault_root)
     end
   end
 
+  ---@type obsidian.cache.NoteRow
   local row = {
     mtime = stat.mtime.sec,
     mtime_nsec = stat.mtime.nsec,

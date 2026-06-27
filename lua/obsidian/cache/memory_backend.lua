@@ -1,9 +1,10 @@
----@class obsidian.cache.MemoryBackend
----@field data table<string, table>
+---@class obsidian.cache.MemoryBackend : obsidian.cache.Store, obsidian.cache.Backend
+---@field data table<string, obsidian.cache.NoteRow>
 local M = {}
 M.__index = M
 
----@param _opts { vault: string }
+---@param _opts obsidian.cache.OpenOpts
+---@return obsidian.cache.MemoryBackend
 function M.open(_opts)
   local self = setmetatable({}, M)
   self.data = {}
@@ -11,17 +12,18 @@ function M.open(_opts)
 end
 
 ---@param key string
+---@return obsidian.cache.NoteRow?
 function M:get(key)
   return self.data[key]
 end
 
----@return table<string, table>
+---@return table<string, obsidian.cache.NoteRow>
 function M:all()
   return self.data
 end
 
 ---@param key string
----@param row table
+---@param row obsidian.cache.NoteRow
 function M:put(key, row)
   self.data[key] = row
 end
