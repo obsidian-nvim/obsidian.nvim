@@ -326,7 +326,7 @@ local function cache_value_matches(value, term)
 end
 
 ---@param path string
----@param row table
+---@param row obsidian.cache.NoteRow
 ---@param term string
 ---@return boolean
 local function cache_row_matches(path, row, term)

@@ -10,15 +10,51 @@ local ignore = require "obsidian.ignore"
 
 local M = {}
 
+---@alias obsidian.cache.LinkKind "wiki"|"markdown"
+
+---@class obsidian.cache.LinkRow
+---@field kind obsidian.cache.LinkKind
+---@field raw string
+---@field target string
+---@field label? string
+---@field anchor? string
+---@field block? string
+---@field embed boolean
+---@field line integer 1-based line number.
+---@field col integer 1-based byte column.
+
+---@class obsidian.cache.TaskRow
+---@field line integer 1-based line number.
+---@field indent integer Leading whitespace length.
+---@field state string Checkbox state character.
+---@field text string Task text.
+
+---@class obsidian.cache.NoteRow
+---@field mtime integer File mtime seconds.
+---@field size integer File size in bytes.
+---@field id? string Explicit note ID, omitted when it matches the filename stem.
+---@field aliases? string[]
+---@field tags? string[] Lowercase tag names.
+---@field properties? table<string, any> Frontmatter properties.
+---@field links_out? obsidian.cache.LinkRow[] Outgoing wiki/markdown links.
+---@field tasks? obsidian.cache.TaskRow[] Markdown task list items.
+
+---@class obsidian.cache.NoteRowWithPath : obsidian.cache.NoteRow
+---@field path string Absolute path used as the cache key by `notes.upsert()`.
+
+---@class obsidian.cache.OpenOpts
+---@field path string Cache file path.
+---@field vault string Vault root.
+
 ---@class obsidian.cache.Backend
----@field open fun(opts: table): obsidian.cache.Store
+---@field open fun(opts: obsidian.cache.OpenOpts): obsidian.cache.Store
 
 ---@class obsidian.cache.Store
 ---@field close fun(self: obsidian.cache.Store)?
 ---@field flush fun(self: obsidian.cache.Store)?
----@field get fun(self: obsidian.cache.Store, key: string): table?
----@field all fun(self: obsidian.cache.Store): table<string, table>
----@field put fun(self: obsidian.cache.Store, key: string, row: table)
+---@field get fun(self: obsidian.cache.Store, key: string): obsidian.cache.NoteRow?
+---@field all fun(self: obsidian.cache.Store): table<string, obsidian.cache.NoteRow>
+---@field put fun(self: obsidian.cache.Store, key: string, row: obsidian.cache.NoteRow)
 ---@field delete fun(self: obsidian.cache.Store, key: string)
 
 ---@type table<string, obsidian.cache.Backend>
@@ -346,7 +382,7 @@ end
 M.notes = {}
 
 ---@param path string  absolute path
----@return table
+---@return obsidian.cache.NoteRow
 function M.notes.get(path)
   assert(state, "cache not initialized")
   local row = state.backend:get(vim.fs.normalize(path))
@@ -357,7 +393,7 @@ function M.notes.get(path)
 end
 
 ---@param path string
----@return table?
+---@return obsidian.cache.NoteRow?
 function M.notes.find(path)
   if not state then
     return nil
@@ -365,7 +401,7 @@ function M.notes.find(path)
   return state.backend:get(vim.fs.normalize(path))
 end
 
----@return table<string, table>
+---@return table<string, obsidian.cache.NoteRow>
 function M.notes.all()
   assert(state, "cache not initialized")
   return state.backend:all()
@@ -400,7 +436,7 @@ function M.notes.basename(path)
   return vim.fn.fnamemodify(path, ":t:r")
 end
 
----@param row table  must include `path`
+---@param row obsidian.cache.NoteRowWithPath
 function M.notes.upsert(row)
   assert(state, "cache not initialized")
   assert(row.path, "row.path required")
@@ -409,7 +445,7 @@ function M.notes.upsert(row)
 end
 
 ---@param path string
----@param patch table
+---@param patch table<string, any>
 function M.notes.update(path, patch)
   assert(state, "cache not initialized")
   path = vim.fs.normalize(path)

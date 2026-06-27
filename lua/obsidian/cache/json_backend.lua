@@ -1,8 +1,14 @@
 local util = require "obsidian.util"
 
----@class obsidian.cache.JsonBackend
+---@class obsidian.cache.JsonData
+---@field version integer
+---@field vault string
+---@field generated_at integer
+---@field notes table<string, obsidian.cache.NoteRow>
+
+---@class obsidian.cache.JsonBackend : obsidian.cache.Store, obsidian.cache.Backend
 ---@field path string
----@field data table
+---@field data obsidian.cache.JsonData
 ---@field dirty boolean
 local M = {}
 M.__index = M
@@ -19,13 +25,15 @@ local function read_file(path)
   return s
 end
 
----@param opts { path: string, vault: string }
+---@param opts obsidian.cache.OpenOpts
+---@return obsidian.cache.JsonBackend
 function M.open(opts)
   local self = setmetatable({}, M)
   self.path = opts.path
   self.dirty = false
 
   local raw = read_file(opts.path)
+  ---@type obsidian.cache.JsonData?
   local parsed
   if raw and #raw > 0 then
     local ok, decoded = pcall(vim.json.decode, raw)
@@ -46,17 +54,18 @@ function M.open(opts)
 end
 
 ---@param key string  primary key (absolute path)
+---@return obsidian.cache.NoteRow?
 function M:get(key)
   return self.data.notes[key]
 end
 
----@return table<string, table>
+---@return table<string, obsidian.cache.NoteRow>
 function M:all()
   return self.data.notes
 end
 
 ---@param key string
----@param row table
+---@param row obsidian.cache.NoteRow
 function M:put(key, row)
   self.data.notes[key] = row
   self.dirty = true
