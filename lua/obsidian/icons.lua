@@ -160,15 +160,4 @@ M.get_icon = function(entry)
   return spec.icon, spec.hl_group
 end
 
----@param entry obsidian.PickerEntry
----@return string
-M.format_picker_entry = function(entry)
-  local icon = M.get_icon(entry)
-  local text = entry.text or entry.filename or ""
-  if text == "" then
-    return icon
-  end
-  return icon .. " " .. text
-end
-
 return M
