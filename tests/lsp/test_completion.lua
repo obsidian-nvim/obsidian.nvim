@@ -294,16 +294,14 @@ Cached note content
   eq("table", type(result))
   eq(true, result.isIncomplete)
 
-  local found_id = false
   local found_alias = false
   for _, item in ipairs(result.items or {}) do
     if item.textEdit and item.textEdit.newText == "[[note|cached-id]]" then
-      found_id = true
+      error "cache completion should not use historical id"
     elseif item.textEdit and item.textEdit.newText == "[[note|Friendly Alias]]" then
       found_alias = true
     end
   end
-  eq(true, found_id)
   eq(true, found_alias)
 end
 
@@ -370,6 +368,34 @@ Subdir note content
     end
   end
   eq(true, found_basename)
+end
+
+T["completion"]["fuzzy-matches cache paths"] = function()
+  child.lua [[(Obsidian.dir / "subdir"):mkdir()]]
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[td",
+    ["subdir/test.md"] = "Subdir note content",
+  })
+
+  child.lua [[
+    local cache = require "obsidian.cache"
+    cache.setup { enabled = true, backend = "memory" }
+    vim.wait(1000, function()
+      return cache.is_ready()
+    end)
+  ]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local found = false
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit and item.textEdit.newText == "[[test]]" then
+      found = true
+      break
+    end
+  end
+  eq(true, found)
 end
 
 T["completion"]["returns items for tag trigger"] = function()

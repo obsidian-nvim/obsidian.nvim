@@ -325,11 +325,10 @@ end
 ---@param term string
 ---@return boolean
 local function cache_value_matches(value, term)
-  if value == nil then
+  if value == nil or term == "" then
     return false
   end
-  -- return tostring(value):lower():find(term, 1, true) ~= nil
-  return vim.startswith(tostring(value):lower(), term) -- TODO: fuzzy match?
+  return #vim.fn.matchfuzzy({ tostring(value):lower() }, term) > 0
 end
 
 ---@param path string
@@ -359,25 +358,29 @@ local function find_notes_from_cache(cc)
     local dir = vim.fs.normalize(tostring(api.resolve_workspace_dir()))
     local term = cc.search:lower()
     local paths = {}
+    local rows = {}
 
     for path, row in pairs(cache.notes.all()) do
       if util.is_subpath(path, dir) and cache_row_matches(path, row, term) then
         paths[#paths + 1] = path
+        rows[path] = row
       end
     end
     table.sort(paths)
 
-    -- TODO: no from_file, Note.from_cache?
-
     local Note = require "obsidian.note"
-    local note_opts = {
-      max_lines = Obsidian.opts.search.max_lines,
-      collect_anchor_links = cc.anchor_link ~= nil,
-      collect_blocks = cc.block_link ~= nil,
-    }
     local results = {}
     for _, path in ipairs(paths) do
-      local ok, note = pcall(Note.from_file, path, note_opts)
+      local ok, note
+      if cc.anchor_link ~= nil or cc.block_link ~= nil then
+        ok, note = pcall(Note.from_file, path, {
+          max_lines = Obsidian.opts.search.max_lines,
+          collect_anchor_links = cc.anchor_link ~= nil,
+          collect_blocks = cc.block_link ~= nil,
+        })
+      else
+        ok, note = pcall(Note.from_cache, path, rows[path])
+      end
       if ok then
         results[#results + 1] = note
       end
