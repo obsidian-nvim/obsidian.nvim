@@ -15,6 +15,21 @@ T["new"]["should be able to be initialize directly"] = function()
   eq(true, M.is_note_obj(note))
 end
 
+T["from_cache"] = new_set()
+T["from_cache"]["uses path stem and cached metadata without reading contents"] = function()
+  local note = M.from_cache(Obsidian.dir / "dir" / "test.md", {
+    aliases = { "Alias" },
+    tags = { "tag" },
+    properties = { custom = "value" },
+  })
+
+  eq("test", note.id)
+  eq("Alias", note.aliases[1])
+  eq("tag", note.tags[1])
+  eq("value", note.metadata.custom)
+  eq(nil, rawget(note, "contents"))
+end
+
 T["create"] = new_set()
 T["create"]["should run configured callback with default scope"] = function()
   local calls = 0
