@@ -3,6 +3,7 @@ local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
+local cache = require "obsidian.cache"
 
 ---@class obsidian.completion.sources.refs.options
 ---@field label string|?
@@ -314,6 +315,73 @@ local function process_search_results(cc, results)
   }
 end
 
+---@param value string|number|nil
+---@param term string
+---@return boolean
+local function cache_value_matches(value, term)
+  if value == nil then
+    return false
+  end
+  return tostring(value):lower():find(term, 1, true) ~= nil
+end
+
+---@param path string
+---@param row table
+---@param term string
+---@return boolean
+local function cache_row_matches(path, row, term)
+  if cache_value_matches(cache.notes.basename(path), term) or cache_value_matches(cache.notes.rel_path(path), term) then
+    return true
+  end
+  if cache_value_matches(row.id, term) then
+    return true
+  end
+  for _, alias in ipairs(row.aliases or {}) do
+    if cache_value_matches(alias, term) then
+      return true
+    end
+  end
+  return false
+end
+
+---@param cc obsidian.completion.sources.refs.context
+---@return boolean handled
+local function find_notes_from_cache(cc)
+  if not cache.is_enabled() or not cc.search then
+    return false
+  end
+
+  cache.when_ready(function()
+    local dir = vim.fs.normalize(tostring(api.resolve_workspace_dir()))
+    local term = cc.search:lower()
+    local paths = {}
+
+    for path, row in pairs(cache.notes.all()) do
+      if util.is_subpath(path, dir) and cache_row_matches(path, row, term) then
+        paths[#paths + 1] = path
+      end
+    end
+    table.sort(paths)
+
+    local Note = require "obsidian.note"
+    local note_opts = {
+      max_lines = Obsidian.opts.search.max_lines,
+      collect_anchor_links = cc.anchor_link ~= nil,
+      collect_blocks = cc.block_link ~= nil,
+    }
+    local results = {}
+    for _, path in ipairs(paths) do
+      local ok, note = pcall(Note.from_file, path, note_opts)
+      if ok then
+        results[#results + 1] = note
+      end
+    end
+    process_search_results(cc, results)
+  end)
+
+  return true
+end
+
 ---@param completion_resolve_callback function
 ---@param request obsidian.completion.Request
 function M.process_completion(completion_resolve_callback, request)
@@ -340,6 +408,10 @@ function M.process_completion(completion_resolve_callback, request)
       cc.completion_resolve_callback(EMPTY_RESPONSE)
     end
   else
+    if find_notes_from_cache(cc) then
+      return
+    end
+
     local search_opts = {
       sort = false,
       include_templates = false,

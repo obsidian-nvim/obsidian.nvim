@@ -121,6 +121,10 @@ function M.build(abs_path, _vault_root)
     mtime = stat.mtime.sec,
     size = stat.size,
   }
+  local default_id = note.path and note.path.stem or vim.fn.fnamemodify(abs_path, ":t:r")
+  if note.id and tostring(note.id) ~= tostring(default_id) then
+    row.id = note.id
+  end
   if note.aliases and #note.aliases > 0 then
     row.aliases = note.aliases
   end

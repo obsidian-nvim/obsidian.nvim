@@ -267,6 +267,46 @@ Target note content
   eq(true, found)
 end
 
+T["completion"]["returns cached ref items when cache is enabled"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ca",
+    ["note.md"] = [==[
+---
+id: cached-id
+aliases:
+  - Friendly Alias
+---
+Cached note content
+]==],
+  })
+
+  child.lua [[
+    local cache = require "obsidian.cache"
+    cache.setup { enabled = true, backend = "memory" }
+    vim.wait(1000, function()
+      return cache.is_ready()
+    end)
+  ]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  eq("table", type(result))
+  eq(true, result.isIncomplete)
+
+  local found_id = false
+  local found_alias = false
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit and item.textEdit.newText == "[[note|cached-id]]" then
+      found_id = true
+    elseif item.textEdit and item.textEdit.newText == "[[note|Friendly Alias]]" then
+      found_alias = true
+    end
+  end
+  eq(true, found_id)
+  eq(true, found_alias)
+end
+
 T["completion"]["returns items for tag trigger"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "#ta",
