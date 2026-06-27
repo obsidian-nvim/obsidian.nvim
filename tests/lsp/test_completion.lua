@@ -269,7 +269,7 @@ end
 
 T["completion"]["returns cached ref items when cache is enabled"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
-    ["test.md"] = "[[ca",
+    ["test.md"] = "[[Fr",
     ["note.md"] = [==[
 ---
 id: cached-id
@@ -305,6 +305,71 @@ Cached note content
   end
   eq(true, found_id)
   eq(true, found_alias)
+end
+
+T["completion"]["returns subdir note basename from rg path match"] = function()
+  child.lua [[(Obsidian.dir / "subdir"):mkdir()]]
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[te",
+    ["test.md"] = "Root note content",
+    ["subdir/test.md"] = [==[
+---
+id: explicit-id
+aliases:
+  - Friendly Alias
+---
+Subdir note content
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local found_basename = false
+  for _, item in ipairs(result.items or {}) do
+    local new_text = item.textEdit and item.textEdit.newText
+    if new_text == "[[subdir/test|test]]" then
+      found_basename = true
+    end
+  end
+  eq(true, found_basename)
+end
+
+T["completion"]["returns subdir note basename from cache path match"] = function()
+  child.lua [[(Obsidian.dir / "subdir"):mkdir()]]
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[te",
+    ["test.md"] = "Root note content",
+    ["subdir/test.md"] = [==[
+---
+id: explicit-id
+aliases:
+  - Friendly Alias
+---
+Subdir note content
+]==],
+  })
+
+  child.lua [[
+    local cache = require "obsidian.cache"
+    cache.setup { enabled = true, backend = "memory" }
+    vim.wait(1000, function()
+      return cache.is_ready()
+    end)
+  ]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local found_basename = false
+  for _, item in ipairs(result.items or {}) do
+    local new_text = item.textEdit and item.textEdit.newText
+    if new_text == "[[subdir/test|test]]" then
+      found_basename = true
+    end
+  end
+  eq(true, found_basename)
 end
 
 T["completion"]["returns items for tag trigger"] = function()

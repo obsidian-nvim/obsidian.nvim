@@ -250,8 +250,14 @@ local function process_search_results(cc, results)
     if cc.in_buffer_only then
       update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
     else
-      -- Collect all valid aliases for the note, including ID, title, and filename.
-      local aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
+      -- Collect all valid aliases for the note, including ID, title, aliases, and filename stem.
+      -- Don't include the filename with extension: `[[path/to/note|note.md]]` is not a useful Obsidian link.
+      local aliases = { tostring(note.id), note:display_name() }
+      if note.path then
+        aliases[#aliases + 1] = note.path.stem
+      end
+      vim.list_extend(aliases, note.aliases)
+      aliases = util.tbl_unique(aliases)
 
       for _, alias in ipairs(aliases) do
         update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
