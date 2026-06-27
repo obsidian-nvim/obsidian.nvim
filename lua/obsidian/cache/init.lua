@@ -430,12 +430,6 @@ function M.notes.rel_path(path)
   return path
 end
 
----@param path string
----@return string
-function M.notes.basename(path)
-  return vim.fn.fnamemodify(path, ":t:r")
-end
-
 ---@param row obsidian.cache.NoteRowWithPath
 function M.notes.upsert(row)
   assert(state, "cache not initialized")

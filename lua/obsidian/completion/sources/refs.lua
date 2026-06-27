@@ -322,7 +322,8 @@ local function cache_value_matches(value, term)
   if value == nil then
     return false
   end
-  return tostring(value):lower():find(term, 1, true) ~= nil
+  -- return tostring(value):lower():find(term, 1, true) ~= nil
+  return vim.startswith(tostring(value):lower(), term) -- TODO: fuzzy match?
 end
 
 ---@param path string
@@ -330,10 +331,7 @@ end
 ---@param term string
 ---@return boolean
 local function cache_row_matches(path, row, term)
-  if cache_value_matches(cache.notes.basename(path), term) or cache_value_matches(cache.notes.rel_path(path), term) then
-    return true
-  end
-  if cache_value_matches(row.id, term) then
+  if cache_value_matches(vim.fs.basename(path), term) or cache_value_matches(cache.notes.rel_path(path), term) then
     return true
   end
   for _, alias in ipairs(row.aliases or {}) do
@@ -362,6 +360,8 @@ local function find_notes_from_cache(cc)
       end
     end
     table.sort(paths)
+
+    -- TODO: no from_file, Note.from_cache?
 
     local Note = require "obsidian.note"
     local note_opts = {
