@@ -32,7 +32,6 @@ local M = {}
 ---@class obsidian.cache.NoteRow
 ---@field mtime integer File mtime seconds.
 ---@field size integer File size in bytes.
----@field id? string Explicit note ID, omitted when it matches the filename stem.
 ---@field aliases? string[]
 ---@field tags? string[] Lowercase tag names.
 ---@field properties? table<string, any> Frontmatter properties.
