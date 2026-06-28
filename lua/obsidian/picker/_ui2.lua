@@ -1,7 +1,6 @@
 local M = {}
 
 local api = require "obsidian.api"
-local log = require "obsidian.log"
 local Path = require "obsidian.path"
 local Picker = require "obsidian.picker"
 local QuickSwitch = require "obsidian.completion.sources.quick_switch"
@@ -69,23 +68,33 @@ local function close_current()
 end
 
 ---@param picker table
----@param callback function
----@param ... any
-local function close_and_call(picker, callback, ...)
-  local args = { ... }
-  close_picker(picker, true)
-  callback(unpack(args))
-end
-
----@param picker table
 ---@param entry obsidian.PickerEntry
 local function choose(picker, entry)
-  local arg = entry
-  if picker.default_callback and entry.filename == nil and entry.user_data ~= nil then
-    arg = entry.user_data
+  close_picker(picker, true)
+
+  if picker.callback then
+    picker.callback(entry.filename)
+  else
+    api.open_note(entry)
+  end
+end
+
+---@param bufnr integer
+---@param label string
+---@return boolean handled
+function M.accept_completion(bufnr, label)
+  local picker = current
+  if not picker or picker.closed or picker.buf ~= bufnr then
+    return false
   end
 
-  close_and_call(picker, picker.callback, arg)
+  local entry = QuickSwitch.resolve_label(bufnr, label)
+  if not entry then
+    return false
+  end
+
+  choose(picker, entry)
+  return true
 end
 
 ---@param picker table
@@ -112,7 +121,7 @@ local function resolve_line(picker)
     return nil
   end
 
-  return QuickSwitch.resolve_completed(picker.buf, { word = line, abbr = line })
+  return QuickSwitch.resolve_label(picker.buf, line)
 end
 
 local function confirm_current()
@@ -132,6 +141,15 @@ local function confirm_current()
   else
     complete(picker)
   end
+end
+
+---@param picker table
+---@param callback function
+---@param ... any
+local function close_and_call(picker, callback, ...)
+  local args = { ... }
+  close_picker(picker, true)
+  callback(unpack(args))
 end
 
 ---@param picker table
@@ -191,97 +209,6 @@ local function start_lsp_completion(picker)
   end
 end
 
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
-  Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts or {}
-  if vim.tbl_isempty(values) then
-    return log.info "No results"
-  end
-
-  if current then
-    close_picker(current, false)
-  end
-
-  local origin_win = vim.api.nvim_get_current_win()
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_name(buf, vim.fn.tempname() .. ".md")
-  set_buf_opts(buf)
-
-  local row, col, width = layout()
-  local title = opts.prompt_title or "Quick Switch"
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = "editor",
-    row = row,
-    col = col,
-    width = width,
-    height = 1,
-    style = "minimal",
-    border = "rounded",
-    title = " " .. title .. " ",
-    title_pos = "left",
-  })
-
-  set_win_opts(win)
-
-  local default_callback = opts.callback == nil
-  local picker = {
-    buf = buf,
-    win = win,
-    origin_win = origin_win,
-    callback = opts.callback or api.open_note,
-    default_callback = default_callback,
-    query_mappings = opts.query_mappings,
-  }
-  current = picker
-
-  QuickSwitch.register(buf, values, opts)
-  vim.b[buf].obsidian_completion_source = "quick_switch"
-
-  if opts.query and opts.query ~= "" then
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { opts.query })
-  else
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "" })
-  end
-
-  vim.api.nvim_create_autocmd("CompleteDone", {
-    buffer = buf,
-    callback = function()
-      if picker.closed then
-        return
-      end
-
-      local entry = QuickSwitch.resolve_completed(buf, vim.v.completed_item or {})
-      if entry then
-        vim.schedule(function()
-          choose(picker, entry)
-        end)
-      end
-    end,
-  })
-
-  vim.api.nvim_create_autocmd("BufWipeout", {
-    buffer = buf,
-    callback = function()
-      QuickSwitch.unregister(buf)
-    end,
-  })
-
-  set_mappings(picker)
-  start_lsp_completion(picker)
-
-  vim.schedule(function()
-    if not picker.closed and vim.api.nvim_win_is_valid(win) then
-      vim.api.nvim_set_current_win(win)
-      local query = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or ""
-      vim.api.nvim_win_set_cursor(win, { 1, #query })
-      vim.cmd "startinsert!"
-    end
-  end)
-end
-
 --- Find notes from a floating markdown input buffer backed by LSP completion.
 ---
 ---@param opts obsidian.PickerFindOpts|? Options.
@@ -321,14 +248,7 @@ M.find_files = function(opts)
     buf = buf,
     win = win,
     origin_win = origin_win,
-    callback = function(entry)
-      if opts.callback then
-        opts.callback(entry.filename)
-      else
-        api.open_note(entry)
-      end
-    end,
-    default_callback = false,
+    callback = opts.callback,
     query_mappings = opts.query_mappings,
   }
   current = picker
@@ -341,20 +261,6 @@ M.find_files = function(opts)
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "" })
   end
-
-  vim.api.nvim_create_autocmd("CompleteDone", {
-    buffer = buf,
-    callback = function()
-      if picker.closed then
-        return
-      end
-
-      local entry = QuickSwitch.resolve_completed(buf, vim.v.completed_item or {})
-      if entry then
-        choose(picker, entry)
-      end
-    end,
-  })
 
   vim.api.nvim_create_autocmd("BufWipeout", {
     buffer = buf,
@@ -375,6 +281,8 @@ M.find_files = function(opts)
     end
   end)
 end
+
+M.pick = require("obsidian.picker._default").pick
 
 -- Grep is intentionally the native implementation for now.
 M.grep = require("obsidian.picker._default").grep

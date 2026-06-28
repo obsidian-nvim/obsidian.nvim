@@ -21,7 +21,7 @@ local initializeResult = {
     workspaceSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {
-      commands = { "obsidian.write_note", "obsidian.footnote_new" },
+      commands = { "obsidian.write_note", "obsidian.footnote_new", "obsidian.quick_switch_select" },
     },
     completionProvider = {
       resolveProvider = true,
@@ -67,5 +67,8 @@ return function(_, handler, dispatchers)
       f(unpack(params.arguments or {}))
     end)
   end
+  vim.lsp.commands["obsidian.quick_switch_select"] = vim.schedule_wrap(function(params)
+    require("obsidian.picker._ui2").accept_completion(unpack(params.arguments or {}))
+  end)
   send_progress(dispatchers, "end", "Obsidian LSP server loaded.", 100)
 end
