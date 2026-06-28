@@ -211,7 +211,7 @@ T["open_note"]["should blink quickfix-style ranges"] = function()
   local result = child.lua [[
     local path = tostring(Obsidian.dir / "blink.md")
     vim.fn.writefile({ "# Heading", "body" }, path)
-    local bufnr = M.open_note({ filename = path, lnum = 1, col = 0, end_lnum = 2, end_col = 5 })
+    local bufnr = M.open_note({ filename = path, lnum = 1, col = 1, end_lnum = 2, end_col = 5 })
     local blinked = false
     for name, ns in pairs(vim.api.nvim_get_namespaces()) do
       if name:match("^obsidian_blink_") and #vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {}) > 0 then

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Properly normalize cached paths.
+- `api.open_note` off by 1 jumping.
 
 ## [v3.16.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.5) - 2026-06-25
 

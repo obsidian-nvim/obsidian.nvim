@@ -8,7 +8,7 @@ local ut = require "obsidian.picker.util"
 ---@return string, integer?, integer?
 local function clean_path(entry)
   local parts = vim.split(entry, "\0", { plain = true })
-  return parts[1], tonumber(parts[2]), tonumber(parts[3]) - 1
+  return parts[1], tonumber(parts[2]), tonumber(parts[3])
 end
 
 local M = {}

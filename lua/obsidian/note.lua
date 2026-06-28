@@ -1163,7 +1163,7 @@ Note.open = function(self, opts)
     local bufnr = api.open_note({
       filename = tostring(self.path),
       lnum = opts.line,
-      col = opts.col,
+      col = opts.col and opts.col + 1,
     }, open_cmd)
     vim.b[bufnr].note = self
     if opts.callback then

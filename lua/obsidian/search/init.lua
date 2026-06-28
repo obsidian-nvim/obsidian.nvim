@@ -580,9 +580,10 @@ M.find_backlinks_async = function(note, callback, opts)
     local parse_refs = require "obsidian.parse.refs"
     local line_text = util.rstrip_whitespace(match.lines.text)
     for _, ref in ipairs(parse_refs.extract(line_text)) do
-      local ref_start = ref.range.start_col + (ref.embed and 2 or 1)
+      local ref_start_1idx = ref.range.start_col + (ref.embed and 2 or 1)
+      local ref_start = ref_start_1idx - 1
       local ref_end = ref.range.end_col
-      if _submatch_in_ref(match.submatches, ref_start, ref_end) then
+      if _submatch_in_ref(match.submatches, ref_start_1idx, ref_end) then
         local matched_anchor = ref.block and ("#^" .. ref.block) or (ref.anchor and ("#" .. ref.anchor) or nil)
         local include = true
         if anchor and note then

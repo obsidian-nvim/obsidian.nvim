@@ -163,7 +163,7 @@ M.grep = function(opts)
       if item then
         callback {
           filename = item._path or item.filename,
-          col = item.pos and item.pos[2],
+          col = item.pos and item.pos[2] + 1,
           lnum = item.pos and item.pos[1],
           user_data = item.value,
         }
@@ -228,7 +228,7 @@ M.pick = function(values, opts)
         if item.file then
           callback {
             filename = item.file,
-            col = item.pos and item.pos[2],
+            col = item.pos and item.pos[2] + 1,
             lnum = item.pos and item.pos[1],
             text = item.text,
             user_data = item.value,
