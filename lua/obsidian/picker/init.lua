@@ -446,6 +446,44 @@ end
 
 local function patch(modname)
   local picker = require(modname)
+
+  if picker.select then
+    M.select = picker.select
+  elseif picker.pick then
+    M.select = function(values, opts, on_choice)
+      opts = opts or {}
+      on_choice = on_choice or function() end
+
+      local string_values = {}
+      for _, value in ipairs(values) do
+        if type(value) == "string" then
+          string_values[value] = true
+        end
+      end
+
+      local picker_opts = vim.tbl_extend("force", {}, opts, {
+        prompt_title = opts.prompt,
+        callback = function(...)
+          local choices = { ... }
+          for idx, choice in ipairs(choices) do
+            if
+              type(choice) == "table"
+              and choice.filename == nil
+              and choice.user_data ~= nil
+              and string_values[choice.user_data]
+            then
+              choices[idx] = choice.user_data
+            end
+          end
+          on_choice(choices)
+        end,
+      })
+      picker.pick(values, picker_opts)
+    end
+  else
+    M.select = require("obsidian.picker._default").select
+  end
+
   if picker.find_files then
     M.find_files = function(opts)
       opts = opts or {}
@@ -459,7 +497,7 @@ local function patch(modname)
   end
 
   for name, f in pairs(picker) do
-    if name ~= "pick" and name ~= "find_files" then
+    if name ~= "pick" and name ~= "select" and name ~= "find_files" then
       M[name] = f
     end
   end
@@ -497,8 +535,8 @@ local function resolve_picker()
       return
     end
     if not picker_available(picker_name) then
-      log.warn_once('Configured picker "%s" is not available; falling back to builtin picker', picker_name)
-      patch "obsidian.picker._ui"
+      log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
+      patch "obsidian.picker._default"
       state.picker_resolved = true
       return
     end
