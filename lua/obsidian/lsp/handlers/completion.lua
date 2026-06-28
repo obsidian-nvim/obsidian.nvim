@@ -2,6 +2,7 @@ local Ref = require "obsidian.completion.sources.refs"
 local Tag = require "obsidian.completion.sources.tags"
 local NewNote = require "obsidian.completion.sources.new"
 local Footnote = require "obsidian.completion.sources.footnotes"
+local QuickSwitch = require "obsidian.completion.sources.quick_switch"
 
 ---@class obsidian.completion.Request
 ---@field bufnr integer
@@ -58,6 +59,13 @@ end
 ---@param callback fun(err: any, result: lsp.CompletionList)
 return function(params, callback, _)
   local request = build_request(params)
+
+  if vim.b[request.bufnr].obsidian_completion_source == "quick_switch" then
+    QuickSwitch.process_completion(function(result)
+      callback(nil, result)
+    end, request)
+    return
+  end
 
   -- Collect results from up to 3 sources and merge before calling the LSP callback.
   -- IMPORTANT: all pending counts must be set before starting any source, because

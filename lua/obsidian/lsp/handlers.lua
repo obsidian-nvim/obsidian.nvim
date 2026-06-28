@@ -13,5 +13,6 @@ return {
   ["textDocument/documentSymbol"] = require "obsidian.lsp.handlers.document_symbol",
   ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
   ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",
+  ["completionItem/resolve"] = require "obsidian.lsp.handlers.completion_item_resolve",
   ["textDocument/foldingRange"] = require "obsidian.lsp.handlers.folding_range",
 }

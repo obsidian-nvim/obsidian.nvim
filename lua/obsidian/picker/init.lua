@@ -22,6 +22,14 @@ local picker_plugins = {
   ["snacks.pick"] = { "snacks.nvim" },
 }
 
+local builtin_picker_names = {
+  [string.lower(PickerName.ui)] = "obsidian.picker._ui",
+  [string.lower(PickerName.ui2)] = "obsidian.picker._ui2",
+  builtin = "obsidian.picker._ui",
+  ["obsidian.ui"] = "obsidian.picker._ui",
+  ["obsidian.ui2"] = "obsidian.picker._ui2",
+}
+
 ---@param picker_name string
 ---@return boolean
 local function picker_available(picker_name)
@@ -314,9 +322,13 @@ M.get = function(picker_name)
 
   if picker_name then
     picker_name = string.lower(picker_name)
+    if builtin_picker_names[picker_name] then
+      patch(builtin_picker_names[picker_name])
+      return M
+    end
     if not picker_available(picker_name) then
-      log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
-      patch "obsidian.picker._default"
+      log.warn_once('Configured picker "%s" is not available; falling back to builtin picker', picker_name)
+      patch "obsidian.picker._ui"
       return M
     end
   else
@@ -325,6 +337,8 @@ M.get = function(picker_name)
         return M.get(name)
       end
     end
+    patch "obsidian.picker._ui"
+    return M
   end
 
   if picker_name == string.lower(PickerName.telescope) then
@@ -337,7 +351,7 @@ M.get = function(picker_name)
   elseif picker_name == string.lower(PickerName.snacks) or picker_name == "snacks.pick" then
     patch "obsidian.picker._snacks"
   else
-    patch "obsidian.picker._default"
+    patch "obsidian.picker._ui"
   end
   return M
 end
