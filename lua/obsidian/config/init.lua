@@ -20,6 +20,8 @@ config.SortBy = {
 
 ---@enum obsidian.config.Picker
 config.Picker = {
+  ui = "ui",
+  ui2 = "ui2",
   telescope = "telescope.nvim",
   fzf_lua = "fzf-lua",
   mini = "mini.pick",

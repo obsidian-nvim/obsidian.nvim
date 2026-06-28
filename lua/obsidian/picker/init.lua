@@ -27,6 +27,14 @@ local picker_plugins = {
   ["snacks.pick"] = { "snacks.nvim" },
 }
 
+local builtin_picker_names = {
+  [string.lower(PickerName.ui)] = "obsidian.picker._ui",
+  [string.lower(PickerName.ui2)] = "obsidian.picker._ui2",
+  builtin = "obsidian.picker._ui",
+  ["obsidian.ui"] = "obsidian.picker._ui",
+  ["obsidian.ui2"] = "obsidian.picker._ui2",
+}
+
 ---@param picker_name string
 ---@return boolean
 local function picker_available(picker_name)
@@ -460,7 +468,9 @@ end
 ---@param picker_name obsidian.config.Picker|?
 ---@return string
 local function picker_module(picker_name)
-  if picker_name == string.lower(PickerName.telescope) then
+  if builtin_picker_names[picker_name] then
+    return builtin_picker_names[picker_name]
+  elseif picker_name == string.lower(PickerName.telescope) then
     return "obsidian.picker._telescope"
   elseif picker_name == string.lower(PickerName.mini) then
     return "obsidian.picker._mini"
@@ -470,7 +480,7 @@ local function picker_module(picker_name)
   elseif picker_name == string.lower(PickerName.snacks) or picker_name == "snacks.pick" then
     return "obsidian.picker._snacks"
   else
-    return "obsidian.picker._default"
+    return "obsidian.picker._ui"
   end
 end
 
@@ -481,9 +491,14 @@ local function resolve_picker()
 
   local picker_name = state.picker_name
   if picker_name then
+    if builtin_picker_names[picker_name] then
+      patch(builtin_picker_names[picker_name])
+      state.picker_resolved = true
+      return
+    end
     if not picker_available(picker_name) then
-      log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
-      patch "obsidian.picker._default"
+      log.warn_once('Configured picker "%s" is not available; falling back to builtin picker', picker_name)
+      patch "obsidian.picker._ui"
       state.picker_resolved = true
       return
     end

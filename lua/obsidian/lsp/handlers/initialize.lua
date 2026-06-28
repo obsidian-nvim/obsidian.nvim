@@ -24,7 +24,7 @@ local initializeResult = {
       commands = { "obsidian.write_note", "obsidian.footnote_new" },
     },
     completionProvider = {
-      resolveProvider = false,
+      resolveProvider = true,
       triggerCharacters = { "[", "#", "^" },
     },
     foldingRangeProvider = true,
