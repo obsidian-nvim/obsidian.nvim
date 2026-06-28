@@ -13,12 +13,13 @@ T["follow wiki links"] = function()
 
 [[target]]
 ]==],
-    ["target.md"] = "",
+    ["target.md"] = "[[existing]]",
   })
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
   h.child_wait_for_buf_name(child, files["target.md"])
+  eq({ 1, 0 }, child.api.nvim_win_get_cursor(0))
 end
 
 T["follow markdown links"] = function()

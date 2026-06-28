@@ -244,7 +244,7 @@ M.open_buffer = function(path, opts)
   return M.open_note({
     filename = tostring(path),
     lnum = opts.line,
-    col = opts.col,
+    col = opts.col and opts.col + 1,
   }, opts.cmd)
 end
 
@@ -305,7 +305,8 @@ M.open_note = function(entry, cmd)
 
   vim.cmd(string.format("%s %s", cmd, vim.fn.fnameescape(tostring(path))))
   if type(entry) == "table" and entry.lnum then
-    vim.api.nvim_win_set_cursor(0, { tonumber(entry.lnum), entry.col and entry.col or 0 })
+    local col = tonumber(entry.col) or 1
+    vim.api.nvim_win_set_cursor(0, { tonumber(entry.lnum), math.max(col - 1, 0) })
   end
 
   if not result_bufnr then

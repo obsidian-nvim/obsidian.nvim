@@ -226,7 +226,7 @@ M.pick = function(values, opts)
     return {
       path = entry.filename,
       line = entry.lnum,
-      col = entry.col and entry.col + 1,
+      col = entry.col,
     }
   end
 
