@@ -608,8 +608,9 @@ M.add_attachment = function(src, opts)
     new_name = opts.new_name,
     position = opts.position,
     scope = opts.scope or "actions.add_attachment",
+    dst = opts.dst,
   }
-  if not vim.b[bufnr].obsidian_buffer then
+  if opts.insert ~= false and not vim.b[bufnr].obsidian_buffer then
     log.warn "Not in an obsidian buffer"
     return
   end

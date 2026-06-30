@@ -149,6 +149,7 @@ M.child_lsp_request = function(child_neovim, client_name, method, params_lua, op
 end
 
 ---Return test set and child instance
+---@param hooks { pre_case: string|?, post_case: string|? }|?
 M.child_vault = function(hooks)
   hooks = hooks or {}
   return MiniTest.new_set {
@@ -159,6 +160,10 @@ M.child_vault = function(hooks)
 local Path = require "obsidian.path"
 local dir = Path.temp { suffix = "-obsidian" }
 dir:mkdir { parents = true }
+local obsidian_dir = dir / ".obsidian"
+obsidian_dir:mkdir()
+local templates_dir = dir / "templates"
+templates_dir:mkdir()
 require("obsidian").setup {
   legacy_commands = false,
   workspaces = { {
@@ -182,7 +187,14 @@ require("obsidian").setup {
         child.Obsidian.dir = Path.new(child.lua_get("Obsidian.dir").filename)
       end,
       post_case = function()
-        child.lua [[vim.fn.delete(tostring(Obsidian.dir), "rf")]]
+        if hooks.post_case then
+          child.lua(hooks.post_case)
+        end
+        child.lua [[
+if Obsidian and Obsidian.dir then
+  vim.fn.delete(tostring(Obsidian.dir), "rf")
+end
+        ]]
         child.stop()
       end,
     },
@@ -228,10 +240,36 @@ M.mock_vault_contents = function(dir, contents)
   local files = {}
   for rel_path, content in pairs(contents) do
     local path = dir / rel_path
+    local parent = path:parent()
+    if parent then
+      parent:mkdir { parents = true }
+    end
     files[rel_path] = tostring(path)
     M.write(content, path)
   end
   return files
+end
+
+M.child_mock_vault_contents = function(child_neovim, contents)
+  return M.mock_vault_contents(child_neovim.Obsidian.dir, contents)
+end
+
+M.child_setup_cache = function(child_neovim, opts)
+  opts = opts or { enabled = true, backend = "memory" }
+  child_neovim.lua(
+    [[
+local opts = ...
+local cache = require "obsidian.cache"
+cache.setup(opts)
+if opts.enabled ~= false then
+  local ok = vim.wait(3000, function()
+    return cache.is_ready()
+  end, 20, false)
+  assert(ok, "Timed out after 3000ms waiting for cache ready")
+end
+    ]],
+    { opts }
+  )
 end
 
 return M
