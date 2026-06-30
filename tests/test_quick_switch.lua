@@ -1,42 +1,24 @@
-local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
+local eq = MiniTest.expect.equality
 
-local Path = require "obsidian.path"
-local helpers = require "tests.helpers"
+local h = dofile "tests/helpers.lua"
 
-local T = new_set {
-  hooks = {
-    post_case = function()
-      pcall(function()
-        require("obsidian.cache").shutdown()
-      end)
-      if Obsidian and Obsidian.dir then
-        vim.fn.delete(tostring(Obsidian.dir), "rf")
-      end
-      Obsidian = nil
-      require("obsidian.lsp.watchfiles").reset_handlers()
-    end,
-  },
-}
+local T, child = h.child_vault()
 
-T["quick switch"] = new_set()
+T["quick switch"] = MiniTest.new_set()
 
 T["quick switch"]["passes config to find notes"] = function()
-  local captured
-  Obsidian = {
-    opts = {
-      quick_switch = {
-        show_existing_only = false,
-        show_attachments = true,
-      },
-    },
-    picker = {
-      find_notes = function(opts)
-        captured = opts
-      end,
-    },
-  }
-
-  require "obsidian.commands.quick_switch" { args = "foo" }
+  local captured = child.lua [[
+local captured
+local original = Obsidian.picker.find_notes
+Obsidian.opts.quick_switch.show_existing_only = false
+Obsidian.opts.quick_switch.show_attachments = true
+Obsidian.picker.find_notes = function(opts)
+  captured = opts
+end
+require "obsidian.commands.quick_switch" { args = "foo" }
+Obsidian.picker.find_notes = original
+return captured
+  ]]
 
   eq("Quick Switch", captured.prompt_title)
   eq("foo", captured.query)
@@ -45,29 +27,21 @@ T["quick switch"]["passes config to find notes"] = function()
 end
 
 T["quick switch"]["find notes passes options to find files"] = function()
-  local dir = Path.temp { suffix = "-obsidian-cache" }
-  dir:mkdir { parents = true }
-  Obsidian = {
-    dir = dir,
-    opts = {
-      picker = { note_mappings = {} },
-    },
-  }
-
-  local picker = require "obsidian.picker"
-  local original_find_files = picker.find_files
-  local captured
-  picker.find_files = function(opts)
-    captured = opts
-  end
-
-  picker.find_notes {
-    no_default_mappings = true,
-    show_existing_only = false,
-    show_attachments = true,
-  }
-
-  picker.find_files = original_find_files
+  local captured = child.lua [[
+local picker = require "obsidian.picker"
+local captured
+local original = picker.find_files
+picker.find_files = function(opts)
+  captured = opts
+end
+picker.find_notes {
+  no_default_mappings = true,
+  show_existing_only = false,
+  show_attachments = true,
+}
+picker.find_files = original
+return captured
+  ]]
 
   eq(false, captured.show_existing_only)
   eq(true, captured.show_attachments)
@@ -75,75 +49,109 @@ T["quick switch"]["find notes passes options to find files"] = function()
 end
 
 T["quick switch"]["cache picker filters attachments and missing links"] = function()
-  local dir = Path.temp { suffix = "-obsidian-cache" }
-  dir:mkdir { parents = true }
-  helpers.write("# Note\n[[Missing]]\n![[Image.png]]\n![[Missing.pdf]]", dir / "Note.md")
-  helpers.write("attachment", dir / "Image.png")
-  Obsidian = { dir = dir }
+  h.child_mock_vault_contents(child, {
+    ["Note.md"] = "# Note\n[[Missing]]\n![[Image.png]]\n![[Missing.pdf]]",
+    ["Image.png"] = "attachment",
+  })
+  h.child_setup_cache(child)
 
-  local cache = require "obsidian.cache"
-  cache.setup { enabled = true, backend = "memory" }
-  vim.wait(1000, function()
-    return cache.is_ready()
-  end)
+  local result = child.lua [[
+local picker = require "obsidian.picker"
+local icons = require "obsidian.icons"
+local original_pick = picker.pick
+local snapshots = {}
+local pick_opts
 
-  local picker = require "obsidian.picker"
-  local original_pick = picker.pick
-  local entries
-  local pick_opts
-  picker.pick = function(values, opts)
-    entries = values
-    pick_opts = opts
+local function seen(values)
+  local out = {}
+  for _, entry in ipairs(values) do
+    out[entry.text] = true
   end
+  return out
+end
 
-  picker.find_files_from_cache { use_cache = true }
-  local default_seen = {}
-  for _, entry in ipairs(entries) do
-    default_seen[entry.text] = true
+local function user_data_by_text(values)
+  local out = {}
+  for _, entry in ipairs(values) do
+    out[entry.text] = entry.user_data
   end
-  eq(true, default_seen["Note.md"])
-  eq(nil, default_seen["Image.png"])
-  eq(nil, default_seen["Missing"])
-  eq(nil, default_seen["Missing.pdf"])
+  return out
+end
 
-  picker.find_files_from_cache { use_cache = true, show_existing_only = false }
-  local missing_seen = {}
-  for _, entry in ipairs(entries) do
-    missing_seen[entry.text] = true
+picker.pick = function(values, opts)
+  pick_opts = opts
+  if #snapshots < 2 then
+    snapshots[#snapshots + 1] = seen(values)
+  else
+    snapshots[#snapshots + 1] = user_data_by_text(values)
   end
-  eq(true, missing_seen["Note.md"])
-  eq(true, missing_seen["Missing"])
-  eq(nil, missing_seen["Image.png"])
-  eq(nil, missing_seen["Missing.pdf"])
+end
 
-  picker.find_files_from_cache { use_cache = true, show_existing_only = false, show_attachments = true }
-  local attachment_seen = {}
-  for _, entry in ipairs(entries) do
-    attachment_seen[entry.text] = entry.user_data
-  end
-  eq({ attachment = false, missing = false }, attachment_seen["Note.md"])
-  eq({ attachment = false, missing = true }, attachment_seen["Missing"])
-  eq({ attachment = true, missing = false }, attachment_seen["Image.png"])
-  eq({ attachment = true, missing = true }, attachment_seen["Missing.pdf"])
+picker.find_files_from_cache { use_cache = true }
+picker.find_files_from_cache { use_cache = true, show_existing_only = false }
+picker.find_files_from_cache { use_cache = true, show_existing_only = false, show_attachments = true }
 
-  local icons = require "obsidian.icons"
-  eq(
-    icons.get_icon { user_data = { missing = true } } .. " Missing",
-    pick_opts.format_item {
-      text = "Missing",
-      user_data = { missing = true },
-    }
-  )
-  eq(
-    icons.get_icon { filename = "Image.png" } .. " Image.png",
-    pick_opts.format_item {
-      text = "Image.png",
-      filename = "Image.png",
-      user_data = { attachment = true },
-    }
-  )
+local formatted_missing = pick_opts.format_item {
+  text = "Missing",
+  user_data = { missing = true },
+}
+local formatted_image = pick_opts.format_item {
+  text = "Image.png",
+  filename = "Image.png",
+  user_data = { attachment = true },
+}
 
-  picker.pick = original_pick
+local actions = require "obsidian.actions"
+local attachment = require "obsidian.attachment"
+local original_add_attachment = actions.add_attachment
+local captured_add_attachment
+local expected_missing_attachment_path = attachment.resolve_attachment_path(
+  "Missing.pdf",
+  vim.fs.joinpath(tostring(Obsidian.dir), "Note.md")
+)
+actions.add_attachment = function(src, opts)
+  captured_add_attachment = { src = src, opts = opts }
+end
+pick_opts.callback {
+  text = "Missing.pdf",
+  filename = expected_missing_attachment_path,
+  user_data = { attachment = true, missing = true },
+}
+actions.add_attachment = original_add_attachment
+picker.pick = original_pick
+
+return {
+  default_seen = snapshots[1],
+  missing_seen = snapshots[2],
+  attachment_seen = snapshots[3],
+  formatted_missing = formatted_missing,
+  formatted_image = formatted_image,
+  expected_missing = icons.get_icon { user_data = { missing = true } } .. " Missing",
+  expected_image = icons.get_icon { filename = "Image.png" } .. " Image.png",
+  captured_add_attachment = captured_add_attachment,
+  expected_missing_attachment_path = expected_missing_attachment_path,
+}
+  ]]
+
+  eq(true, result.default_seen["Note.md"])
+  eq(nil, result.default_seen["Image.png"])
+  eq(nil, result.default_seen["Missing"])
+  eq(nil, result.default_seen["Missing.pdf"])
+
+  eq(true, result.missing_seen["Note.md"])
+  eq(true, result.missing_seen["Missing"])
+  eq(nil, result.missing_seen["Image.png"])
+  eq(nil, result.missing_seen["Missing.pdf"])
+
+  eq({ attachment = false, missing = false }, result.attachment_seen["Note.md"])
+  eq({ attachment = false, missing = true }, result.attachment_seen["Missing"])
+  eq({ attachment = true, missing = false }, result.attachment_seen["Image.png"])
+  eq({ attachment = true, missing = true }, result.attachment_seen["Missing.pdf"])
+  eq(result.expected_missing, result.formatted_missing)
+  eq(result.expected_image, result.formatted_image)
+  eq(nil, result.captured_add_attachment.src)
+  eq(false, result.captured_add_attachment.opts.insert)
+  eq(result.expected_missing_attachment_path, result.captured_add_attachment.opts.dst)
 end
 
 return T

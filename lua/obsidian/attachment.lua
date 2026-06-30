@@ -90,11 +90,56 @@ local function decoded_basename(fname)
   return basename
 end
 
+---@param dst string
+---@return string|?
+---@return string|?
+local function resolve_declared_dst(dst)
+  local Path = require "obsidian.path"
+  dst = vim.trim(dst)
+  if dst == "" then
+    return nil, "Attachment destination cannot be empty"
+  end
+
+  local is_uri, scheme = util.is_uri(dst)
+  if is_uri then
+    if scheme ~= "file" then
+      return nil, "Attachment destination must be a file path"
+    end
+    dst = vim.uri_to_fname(dst)
+  end
+
+  local dst_path = Path.new(dst)
+  if not dst_path:is_absolute() then
+    dst = tostring(Obsidian.dir / dst)
+  end
+  dst = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(dst), ":p"))
+
+  local vault_dir = vim.fs.normalize(vim.fn.fnamemodify(tostring(Obsidian.dir), ":p"))
+  if not util.is_subpath(dst, vault_dir) then
+    return nil, "Attachment destination must be inside vault: " .. dst
+  end
+
+  return dst
+end
+
+---@param fname string
+---@param bufnr integer|?
+---@param dst string|?
+---@return string|?
+---@return string|?
+local function resolve_dst(fname, bufnr, dst)
+  if dst then
+    return resolve_declared_dst(dst)
+  end
+  return M.resolve_attachment_path(fname, bufnr)
+end
+
 ---@param src string
 ---@param bufnr integer|?
+---@param dst string|?
 ---@return string|?
 ---@return string|?
-local function get_attachment_paths(src, bufnr)
+local function get_attachment_paths(src, bufnr, dst)
   local is_uri, scheme = util.is_uri(src)
   if is_uri then
     if scheme == "file" then
@@ -103,7 +148,11 @@ local function get_attachment_paths(src, bufnr)
       if not fname or fname == "" then
         return nil, "Failed to resolve source filename from URI"
       end
-      return src_path, M.resolve_attachment_path(fname, bufnr)
+      local resolved_dst, dst_err = resolve_dst(fname, bufnr, dst)
+      if not resolved_dst then
+        return nil, dst_err
+      end
+      return src_path, resolved_dst
     elseif scheme == "http" or scheme == "https" then
       local src_clean = src:gsub("#.*$", ""):gsub("%?.*$", "")
       local fname = src_clean:match "/([^/]+)$"
@@ -115,7 +164,11 @@ local function get_attachment_paths(src, bufnr)
         return nil, err
       end
       fname = decoded_fname
-      return src, M.resolve_attachment_path(fname, bufnr)
+      local resolved_dst, dst_err = resolve_dst(fname, bufnr, dst)
+      if not resolved_dst then
+        return nil, dst_err
+      end
+      return src, resolved_dst
     else
       return nil, "Unsupported URI scheme '" .. tostring(scheme) .. "'"
     end
@@ -129,7 +182,11 @@ local function get_attachment_paths(src, bufnr)
     return nil, "Failed to resolve source filename from path"
   end
 
-  return src_path, M.resolve_attachment_path(fname, bufnr)
+  local resolved_dst, dst_err = resolve_dst(fname, bufnr, dst)
+  if not resolved_dst then
+    return nil, dst_err
+  end
+  return src_path, resolved_dst
 end
 
 ---@param src string
@@ -184,19 +241,21 @@ local function unique_dst(dst)
 end
 
 ---@param src string
----@param opts { insert: boolean|?, bufnr: integer|? }|?
+---@param opts { insert: boolean|?, bufnr: integer|?, dst: string|? }|?
 ---@return string|?
 M.add = function(src, opts)
   opts = opts or {}
   src = vim.trim(src)
-  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr)
+  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr, opts.dst)
   if not resolved_src then
     log.err(resolved_dst or "Failed to resolve attachment")
     return
   end
 
   ---@cast resolved_dst -nil
-  resolved_dst = unique_dst(resolved_dst)
+  if not opts.dst then
+    resolved_dst = unique_dst(resolved_dst)
+  end
   local err = copy_attachment(resolved_src, resolved_dst)
   if err then
     log.err(err)
