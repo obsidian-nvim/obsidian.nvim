@@ -9,6 +9,7 @@ local config = require "obsidian.config"
 local attachment = require "obsidian.attachment"
 local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
+local parse_tags = require "obsidian.parse.tags"
 
 M.dir = require("obsidian.fs").dir
 
@@ -166,12 +167,10 @@ end
 M.cursor_tag = function()
   local current_line = vim.api.nvim_get_current_line()
   local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
-  cur_col = cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
 
-  for _, match in ipairs(util.parse_tags(current_line)) do
-    local open, close, _ = unpack(match)
-    if open <= cur_col and cur_col <= close then
-      return string.sub(current_line, open + 1, close)
+  for _, tag in ipairs(parse_tags.extract(current_line)) do
+    if tag.range.start_col <= cur_col and cur_col < tag.range.end_col then
+      return tag.tag
     end
   end
 

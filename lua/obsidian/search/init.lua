@@ -806,10 +806,17 @@ M.find_tags_async = function(term, callback, opts)
     local n_matches = 0
 
     -- check for tag in the wild of the form '#{tag}'
-    for _, match in ipairs(util.parse_tags(line)) do
-      local m_start, m_end, _ = unpack(match)
-      local tag = string.sub(line, m_start + 1, m_end)
-      add_match(tag, path, note, match_data.line_number, line, m_start, m_end)
+    local parse_tags = require "obsidian.parse.tags"
+    for _, tag_match in ipairs(parse_tags.extract(line)) do
+      add_match(
+        tag_match.tag,
+        path,
+        note,
+        match_data.line_number,
+        line,
+        tag_match.range.start_col + 1,
+        tag_match.range.end_col
+      )
       n_matches = n_matches + 1
     end
 

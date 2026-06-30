@@ -1,6 +1,6 @@
 local Note = require "obsidian.note"
 local parse_refs = require "obsidian.parse.refs"
-local parse_tags = require("obsidian.parse.tags").parse_tags
+local parse_tags = require "obsidian.parse.tags"
 
 local M = {}
 
@@ -102,8 +102,8 @@ function M.build(abs_path, _vault_root)
       for _, l in ipairs(extract_links(line, i)) do
         links_out[#links_out + 1] = l
       end
-      for _, tag in ipairs(parse_tags(line)) do
-        add_tag(line:sub(tag[1] + 1, tag[2]))
+      for _, tag_match in ipairs(parse_tags.extract(line, { row = i - 1 })) do
+        add_tag(tag_match.tag)
       end
       local indent, state, text = match_task(line)
       if indent ~= nil then

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic cache system, see `:Obsidian help Cache`
 - `:Obsidian quick_switch` now works with aliases.
 - `opts.resolvers` to allow better way to add/pick dates/attachment and other future primitives.
+- Dedicated line tag parser.
 
 ### Fixed
 
