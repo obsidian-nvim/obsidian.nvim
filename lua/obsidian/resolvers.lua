@@ -7,10 +7,7 @@ local M = {}
 
 ---@class obsidian.resolver.AttachmentCtx
 ---@field bufnr integer
----@field insert boolean|?
 ---@field source string|?
----@field cwd string
----@field vault_dir string
 ---@field intent string
 
 ---@class obsidian.resolver.AttachmentResult
