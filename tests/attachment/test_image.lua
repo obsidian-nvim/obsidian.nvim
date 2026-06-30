@@ -77,6 +77,39 @@ T["add"]["relative attachment folders should resolve against target buffer"] = f
   eq(1, vim.fn.filereadable(expected))
 end
 
+T["add"]["declared destination should be used exactly inside vault"] = function()
+  local src = vim.fs.joinpath(tostring(Obsidian.dir), "source.png")
+  local dst = vim.fs.joinpath(tostring(Obsidian.dir), "attachments", "missing.png")
+  vim.fn.mkdir(vim.fs.dirname(dst), "p")
+  vim.fn.writefile({ "new" }, src)
+  vim.fn.writefile({ "old" }, dst)
+
+  local result = attachment.add(src, { insert = false, dst = dst })
+
+  eq(dst, result)
+  eq({ "new" }, vim.fn.readfile(dst))
+  eq(0, vim.fn.filereadable(vim.fs.joinpath(tostring(Obsidian.dir), "attachments", "missing (1).png")))
+end
+
+T["add"]["declared destination must stay inside vault"] = function()
+  local log = require "obsidian.log"
+  local original_err = log.err
+  local src = vim.fs.joinpath(tostring(Obsidian.dir), "source.png")
+  local dst = vim.fs.joinpath(vim.fs.dirname(tostring(Obsidian.dir)), "outside.png")
+  vim.fn.writefile({ "image" }, src)
+  log.err = function() end
+
+  local ok, result = pcall(attachment.add, src, { insert = false, dst = dst })
+
+  log.err = original_err
+  if not ok then
+    error(result)
+  end
+
+  eq(nil, result)
+  eq(0, vim.fn.filereadable(dst))
+end
+
 T["actions"] = new_set()
 
 T["actions"]["add_attachment should open picker for directory sources"] = function()
@@ -119,6 +152,7 @@ T["actions"]["add_attachment prompt should preserve target buffer"] = function()
   local original_add = attachment.add
   local captured_add
   local bufnr = vim.api.nvim_create_buf(false, true)
+  local dst = vim.fs.joinpath(tostring(Obsidian.dir), "attachments", "missing.png")
   vim.b[bufnr].obsidian_buffer = true
 
   vim.ui.input = function(_, callback)
@@ -128,7 +162,7 @@ T["actions"]["add_attachment prompt should preserve target buffer"] = function()
     captured_add = { src = src, opts = opts }
   end
 
-  local ok, err = pcall(actions.add_attachment, nil, { insert = false, bufnr = bufnr })
+  local ok, err = pcall(actions.add_attachment, nil, { insert = false, bufnr = bufnr, dst = dst })
 
   vim.ui.input = original_input
   attachment.add = original_add
@@ -139,6 +173,7 @@ T["actions"]["add_attachment prompt should preserve target buffer"] = function()
 
   eq(false, captured_add.opts.insert)
   eq(bufnr, captured_add.opts.bufnr)
+  eq(dst, captured_add.opts.dst)
 end
 
 return T

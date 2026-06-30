@@ -24,7 +24,8 @@ For `attachment.add(source, opts)`:
 
 - If `source` is a local file (or `file://` URI), the file is copied.
 - If `source` is a `http(s)` URL, the file is downloaded with `curl`.
-- The destination path is always resolved by `api.resolve_attachment_path()` and controlled by [Save location](#save-location).
+- By default, the destination path is resolved by `api.resolve_attachment_path()` and controlled by [Save location](#save-location).
+- Pass `opts.dst` to copy to an exact vault-local destination path instead; destinations outside the vault are rejected.
 
 For `actions.add_attachment(source, opts)`:
 
@@ -38,6 +39,7 @@ Both functions accept the same `opts` table:
 ---@class obsidian.AttachmentAddOpts
 ---@field insert? boolean Insert the generated attachment link after adding. Defaults to true.
 ---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
+---@field dst? string Exact destination path for the copied attachment. Must be inside the vault.
 ```
 
 ## Paste from clipboard path
@@ -96,7 +98,7 @@ actions.add_attachment = function(_, opts)
       if vim.uv.fs_stat(tmp) then
         local lines = vim.fn.readfile(tmp)
         if lines[1] then
-          attachment.add(lines[1], { insert = opts.insert, bufnr = bufnr })
+          attachment.add(lines[1], { insert = opts.insert, bufnr = bufnr, dst = opts.dst })
         end
       end
     end,

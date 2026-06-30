@@ -8,10 +8,18 @@ T["picker entry icons"]["missing user data wins over filetype"] = function()
   local icons = require "obsidian.icons"
 
   eq(
-    icons.kinds.missing.icon,
+    icons.kinds.missing_attachment.icon,
     icons.get_icon {
       filename = "Missing.pdf",
       user_data = { attachment = true, missing = true },
+    }
+  )
+
+  eq(
+    icons.kinds.missing.icon,
+    icons.get_icon {
+      filename = "Missing.md",
+      user_data = { missing = true },
     }
   )
 end

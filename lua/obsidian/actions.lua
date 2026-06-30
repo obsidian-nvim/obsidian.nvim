@@ -582,7 +582,7 @@ M.unique_link = function(timestamp)
 end
 
 ---@param src string
----@param opts { insert: boolean|?, bufnr: integer|? }
+---@param opts { insert: boolean|?, bufnr: integer|?, dst: string|? }
 local add_attachment = function(src, opts)
   opts = opts or {}
   src = vim.trim(src)
@@ -614,12 +614,12 @@ local add_attachment = function(src, opts)
 end
 
 ---@param src string?
----@param opts { insert: boolean|?, bufnr: integer|? }|?
+---@param opts { insert: boolean|?, bufnr: integer|?, dst: string|? }|?
 M.add_attachment = function(src, opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-  local add_opts = { insert = opts.insert, bufnr = bufnr }
-  if not vim.b[bufnr].obsidian_buffer then
+  local add_opts = { insert = opts.insert, bufnr = bufnr, dst = opts.dst }
+  if opts.insert and not vim.b[bufnr].obsidian_buffer then
     log.warn "Not in an obsidian buffer"
     return
   end

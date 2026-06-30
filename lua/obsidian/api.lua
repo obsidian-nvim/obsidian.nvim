@@ -276,13 +276,6 @@ local function entry_range(entry)
   end
 end
 
---- Open an attachment with the system default application.
----@param location string|obsidian.Path Attachment path or link target.
-M.open_attachment = function(location)
-  local path = M.resolve_attachment_path(location)
-  vim.ui.open(path)
-end
-
 --- Prompt to create a new note when a link target does not exist.
 ---
 ---@param location string Note id or path.
