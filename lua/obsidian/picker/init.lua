@@ -381,7 +381,11 @@ M.find_files_from_cache = function(opts)
         local data = item.user_data or {}
         local is_missing_attachment = data.attachment and data.missing
         if path and is_missing_attachment then
-          -- TODO: add attachment in item.filename
+          require("obsidian.actions").add_attachment(nil, {
+            insert = false,
+            bufnr = state.calling_bufnr,
+            dst = path,
+          })
         elseif path and data.attachment then
           vim.ui.open(path)
         elseif path and data.missing then

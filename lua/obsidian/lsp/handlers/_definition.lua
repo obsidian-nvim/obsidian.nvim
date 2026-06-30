@@ -1,8 +1,8 @@
-local obsidian = require "obsidian"
-local search = obsidian.search
-local util = obsidian.util
-local log = obsidian.log
-local api = obsidian.api
+local search = require "obsidian.search"
+local util = require "obsidian.util"
+local log = require "obsidian.log"
+local api = require "obsidian.api"
+local attachment = require "obsidian.attachment"
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
@@ -23,6 +23,13 @@ end
 ---@field cursor_row integer|?
 ---@field anchor string|?
 ---@field block string|?
+
+--- Open an attachment with the system default application.
+---@param location string|obsidian.Path Attachment path or link target.
+local function open_attachment(location, bufnr)
+  local path = attachment.resolve_attachment_path(location, bufnr)
+  vim.ui.open(path)
+end
 
 ---@param location string
 ---@param callback function
@@ -74,8 +81,8 @@ local function open_note(location, callback, opts)
 end
 
 local handle_wiki_link = function(location, callback, opts)
-  if api.is_attachment_path(location) then
-    api.open_attachment(location, opts and opts.bufnr or nil)
+  if attachment.is_attachment_filetype(location) then
+    open_attachment(location, opts and opts.bufnr or nil)
   else
     open_note(location, callback, opts)
   end
@@ -85,8 +92,8 @@ local handle_markdown_link = function(location, callback, opts)
   local is_uri, scheme = util.is_uri(location)
   if is_uri then
     open_uri(location, scheme)
-  elseif api.is_attachment_path(location) then
-    api.open_attachment(location, opts and opts.bufnr or nil)
+  elseif attachment.is_attachment_filetype(location) then
+    open_attachment(location, opts and opts.bufnr or nil)
   else
     open_note(location, callback, opts)
   end

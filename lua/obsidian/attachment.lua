@@ -73,7 +73,7 @@ M.resolve_attachment_path = function(src, bufnr_or_file)
     local dirname = Path.new(vim.fs.dirname(path))
     return tostring(dirname / attachment_folder / src)
   else
-    local bufname = vim.api.nvim_buf_get_name(bufnr or 0)
+    local bufname = type(bufnr_or_file) == "string" and bufnr_or_file or vim.api.nvim_buf_get_name(bufnr_or_file or 0)
     local workspace_dir = require("obsidian.api").resolve_workspace_dir(bufname ~= "" and bufname or nil)
     return tostring(workspace_dir / attachment_folder / src)
   end
@@ -104,12 +104,57 @@ local function validate_attachment_name(name)
   return name
 end
 
+---@param dst string
+---@return string|?
+---@return string|?
+local function resolve_declared_dst(dst)
+  local Path = require "obsidian.path"
+  dst = vim.trim(dst)
+  if dst == "" then
+    return nil, "Attachment destination cannot be empty"
+  end
+
+  local is_uri, scheme = util.is_uri(dst)
+  if is_uri then
+    if scheme ~= "file" then
+      return nil, "Attachment destination must be a file path"
+    end
+    dst = vim.uri_to_fname(dst)
+  end
+
+  local dst_path = Path.new(dst)
+  if not dst_path:is_absolute() then
+    dst = tostring(Obsidian.dir / dst)
+  end
+  dst = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(dst), ":p"))
+
+  local vault_dir = vim.fs.normalize(vim.fn.fnamemodify(tostring(Obsidian.dir), ":p"))
+  if not util.is_subpath(dst, vault_dir) then
+    return nil, "Attachment destination must be inside vault: " .. dst
+  end
+
+  return dst
+end
+
+---@param fname string
+---@param bufnr integer|?
+---@param dst string|?
+---@return string|?
+---@return string|?
+local function resolve_dst(fname, bufnr, dst)
+  if dst then
+    return resolve_declared_dst(dst)
+  end
+  return M.resolve_attachment_path(fname, bufnr)
+end
+
 ---@param src string
 ---@param bufnr integer|?
 ---@param new_name string|?
+---@param dst string|?
 ---@return string|?
 ---@return string|?
-local function get_attachment_paths(src, bufnr, new_name)
+local function get_attachment_paths(src, bufnr, new_name, dst)
   local is_uri, scheme = util.is_uri(src)
   local src_path, fname
 
@@ -152,7 +197,11 @@ local function get_attachment_paths(src, bufnr, new_name)
     fname = validated_name
   end
 
-  return src_path, M.resolve_attachment_path(fname, bufnr)
+  local resolved_dst, dst_err = resolve_dst(fname, bufnr, dst)
+  if not resolved_dst then
+    return nil, dst_err
+  end
+  return src_path, resolved_dst
 end
 
 ---@param src string
@@ -219,6 +268,7 @@ end
 ---@field insert? boolean Insert the generated attachment link. Defaults to true.
 ---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
 ---@field new_name? string Destination attachment basename. Path separators are rejected.
+---@field dst? string Exact destination path. Must be inside the vault.
 ---@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
 ---@field scope? string Context where the attachment is added.
 
@@ -250,14 +300,16 @@ end
 M.add = function(src, opts)
   opts = opts or {}
   src = vim.trim(src)
-  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr, opts.new_name)
+  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr, opts.new_name, opts.dst)
   if not resolved_src then
     log.err(resolved_dst or "Failed to resolve attachment")
     return
   end
 
   ---@cast resolved_dst -nil
-  resolved_dst = unique_dst(resolved_dst)
+  if not opts.dst then
+    resolved_dst = unique_dst(resolved_dst)
+  end
   local err = copy_attachment(resolved_src, resolved_dst)
   if err then
     log.err(err)
