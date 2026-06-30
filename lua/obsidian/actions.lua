@@ -595,10 +595,7 @@ M.add_attachment = function(src, opts)
 
   resolvers.resolve("attachment", {
     bufnr = bufnr,
-    insert = opts.insert,
     source = src,
-    cwd = vim.uv.cwd(),
-    vault_dir = tostring(Obsidian.dir),
     intent = "add_attachment",
   }, function(result, err)
     if err then

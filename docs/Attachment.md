@@ -65,7 +65,7 @@ local paste_from_path = function()
 end
 ```
 
-To customize attachment selection without replacing the whole action, use `opts.resolvers.attachment`.
+To customize how attachment is resolved, use `opts.resolvers.attachment`.
 For example, pick with a terminal file manager:
 
 ```lua
