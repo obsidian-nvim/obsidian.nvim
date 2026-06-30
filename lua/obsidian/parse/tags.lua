@@ -46,13 +46,12 @@ local one_tag = tag_at_bol + boundary
 -- (skip 1 UTF-8 char at a time until a match is found; repeat)
 local all_tags = Ct(((utf8_char - one_tag) ^ 0 * one_tag) ^ 0)
 
---- Find Obsidian-style tags in a markdown line (Unicode-safe).
+--- Find Obsidian-style tag ranges in a markdown line (Unicode-safe).
 --- Byte indices are 1-based and end-inclusive.
 ---
---- @param line string
---- @return { [1]: integer, [2]: integer }[]
---- TODO: migrate callers to tags.extract() once parse primitives use obsidian.Range everywhere.
-M.parse_tags = function(line)
+---@param line string
+---@return { [1]: integer, [2]: integer }[]
+local function collect_tag_ranges(line)
   if string.find(line, "<!--.*-->") ~= nil then
     return {}
   end
@@ -99,7 +98,7 @@ function M.extract(line, opts)
   ---@cast row integer
   local out = {}
 
-  for _, match in ipairs(M.parse_tags(line)) do
+  for _, match in ipairs(collect_tag_ranges(line)) do
     local start_byte_index, end_byte_index = match[1], match[2]
     ---@cast start_byte_index integer
     ---@cast end_byte_index integer

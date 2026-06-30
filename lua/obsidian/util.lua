@@ -334,8 +334,6 @@ util.is_checkbox = function(s)
   return false
 end
 
-util.parse_tags = require("obsidian.parse.tags").parse_tags
-
 ---@param link string
 ---@return string|? link_location
 ---@return string|? link_name
