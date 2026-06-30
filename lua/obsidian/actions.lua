@@ -7,6 +7,7 @@ local Path = require "obsidian.path"
 local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 local search = require "obsidian.search"
+local resolvers = require "obsidian.resolvers"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -581,38 +582,6 @@ M.unique_link = function(timestamp)
   return link
 end
 
----@param src string
----@param opts { insert: boolean|?, bufnr: integer|? }
-local add_attachment = function(src, opts)
-  opts = opts or {}
-  src = vim.trim(src)
-
-  local is_uri, scheme = util.is_uri(src)
-  if is_uri and scheme then
-    if scheme == "http" or scheme == "https" then
-      attachment.add(src, opts)
-    elseif scheme == "file" then
-      attachment.add(vim.uri_to_fname(src), opts)
-    else
-      log.err "Unknown URI format"
-    end
-  else
-    local path = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(src), ":p"))
-    local stat = vim.uv.fs_stat(path)
-    if stat and stat.type == "directory" then
-      picker.find_files {
-        dir = path,
-        include_non_markdown = true,
-        callback = function(p)
-          attachment.add(p, opts)
-        end,
-      }
-    else
-      attachment.add(path, opts)
-    end
-  end
-end
-
 ---@param src string?
 ---@param opts { insert: boolean|?, bufnr: integer|? }|?
 M.add_attachment = function(src, opts)
@@ -623,17 +592,21 @@ M.add_attachment = function(src, opts)
     log.warn "Not in an obsidian buffer"
     return
   end
-  if src ~= nil and vim.trim(src) ~= "" then
-    add_attachment(src, add_opts)
-  else
-    vim.ui.input({ prompt = "Url or filepath", completion = "file" }, function(input)
-      if not input then
-        log.info "Aborted"
-        return
-      end
-      add_attachment(input, add_opts)
-    end)
-  end
+
+  resolvers.resolve("attachment", {
+    bufnr = bufnr,
+    source = src,
+    intent = "add_attachment",
+  }, function(result, err)
+    if err then
+      return
+    end
+    if not result or not result.path then
+      log.info "Aborted"
+      return
+    end
+    attachment.add(result.path, add_opts)
+  end)
 end
 
 M.add_property = function()

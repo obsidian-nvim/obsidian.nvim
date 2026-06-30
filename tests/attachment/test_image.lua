@@ -141,4 +141,32 @@ T["actions"]["add_attachment prompt should preserve target buffer"] = function()
   eq(bufnr, captured_add.opts.bufnr)
 end
 
+T["actions"]["add_attachment should use custom attachment resolver"] = function()
+  local original_add = attachment.add
+  local captured_add
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.b[bufnr].obsidian_buffer = true
+
+  Obsidian.opts.resolvers.attachment = function(ctx, done)
+    eq(bufnr, ctx.bufnr)
+    eq("add_attachment", ctx.intent)
+    done { path = "/tmp/from-resolver.png" }
+  end
+  attachment.add = function(src, opts)
+    captured_add = { src = src, opts = opts }
+  end
+
+  local ok, err = pcall(actions.add_attachment, nil, { insert = false, bufnr = bufnr })
+
+  attachment.add = original_add
+
+  if not ok then
+    error(err)
+  end
+
+  eq("/tmp/from-resolver.png", captured_add.src)
+  eq(false, captured_add.opts.insert)
+  eq(bufnr, captured_add.opts.bufnr)
+end
+
 return T

@@ -58,4 +58,20 @@ T["dailies"]["don't be effected by `note_id_func`"] = function()
   eq(note.id, os.date "%Y-%m-%d")
 end
 
+T["dailies"]["pick should use custom date resolver"] = function()
+  local timestamp = os.time { year = 2026, month = 6, day = 25, hour = 12 }
+  Obsidian.opts.resolvers.date = function(ctx, done)
+    eq("open_daily", ctx.intent)
+    eq("daily", ctx.cadence)
+    done { timestamp = timestamp, precision = "day" }
+  end
+
+  local picked
+  M.pick(-5, 0, function(note)
+    picked = note
+  end)
+
+  eq("2026-06-25", picked.id)
+end
+
 return T

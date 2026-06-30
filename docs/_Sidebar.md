@@ -33,6 +33,7 @@
 - [[Link]]
 - [[Note]]
 - [[Open]]
+- [[Resolvers]]
 - [[Search]]
 - [[Sync]]
 - [[Tag]]
