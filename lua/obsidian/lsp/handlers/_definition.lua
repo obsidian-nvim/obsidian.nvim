@@ -29,6 +29,13 @@ end
 ---@field anchor string|?
 ---@field block string|?
 
+--- Open an attachment with the system default application.
+---@param location string|obsidian.Path Attachment path or link target.
+local function open_attachment(location, bufnr)
+  local path = attachment.resolve_attachment_path(location, bufnr)
+  vim.ui.open(path)
+end
+
 ---@param location string
 ---@param callback function
 ---@param opts obsidian.lsp.DefinitionCreateOpts|?
