@@ -3,7 +3,7 @@
 local M = {}
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local iter, string, table = require "obsidian.iter", string, table
+local iter, string, table = vim.iter, string, table
 local Path = require "obsidian.path"
 local config = require "obsidian.config"
 local attachment = require "obsidian.attachment"
