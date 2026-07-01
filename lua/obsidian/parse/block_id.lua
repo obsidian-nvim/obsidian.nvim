@@ -5,8 +5,8 @@ local M = {}
 
 ---Extract a naked block ID from the end of a single line.
 ---@param line string
----@param opts obsidian.parse.LineOpts?
----@return obsidian.parse.Match[]
+---@param opts obsidian.parse.line.LineOpts?
+---@return obsidian.parse.line.Match[]
 function M.extract(line, opts)
   opts = opts or {}
   local row = opts.row or 0
