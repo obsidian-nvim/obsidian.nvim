@@ -680,7 +680,7 @@ end
 
 M.resolve_attachment_path = attachment.resolve_attachment_path
 M.resolve_image_path = attachment.resolve_attachment_path
-M.is_attachment_filetype = attachment.is_attachment_filetype
+M.is_attachment_path = attachment.is_attachment_path
 
 setmetatable(M, {
   __index = function(_, k)

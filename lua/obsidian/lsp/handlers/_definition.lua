@@ -70,7 +70,7 @@ local function open_note(location, callback, opts)
 end
 
 local handle_wiki_link = function(location, callback, opts)
-  if attachment.is_attachment_filetype(location) then
+  if attachment.is_attachment_path(location) then
     open_attachment(location)
   else
     open_note(location, callback, opts)
@@ -81,7 +81,7 @@ local handle_markdown_link = function(location, callback, opts)
   local is_uri, scheme = util.is_uri(location)
   if is_uri then
     open_uri(location, scheme)
-  elseif api.is_attachment_filetype(location) then
+  elseif api.is_attachment_path(location) then
     open_attachment(location)
   else
     open_note(location, callback, opts)
