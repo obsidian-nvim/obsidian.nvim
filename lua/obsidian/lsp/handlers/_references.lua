@@ -7,11 +7,13 @@ local parse_block_id = require "obsidian.parse.block_id"
 ---@param match obsidian.BacklinkMatch
 ---@return lsp.Location
 local function backlink_to_lsp_location(match)
+  local start_col = match.start or 0
+  local end_col = match["end"] or start_col
   return {
     uri = vim.uri_from_fname(tostring(match.path)),
     range = {
-      start = { line = match.line - 1, character = match.start },
-      ["end"] = { line = match.line - 1, character = match["end"] },
+      start = { line = match.line - 1, character = start_col },
+      ["end"] = { line = match.line - 1, character = end_col },
     },
   }
 end
@@ -52,7 +54,7 @@ local function handle_note_ref(link, callback)
       opts.refs = { location }
     end
     search.find_backlinks_async(note, function(backlink_matches)
-      callback(vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
+      callback(vim.tbl_map(backlink_to_lsp_location, backlink_matches))
     end, opts)
   end
 
@@ -133,13 +135,13 @@ local function collect_current_note(link, link_type, callback)
   end
 
   search.find_backlinks_async(note, function(backlink_matches)
-    callback(nil, vim.iter(backlink_matches):map(backlink_to_lsp_location):totable())
+    callback(nil, vim.tbl_map(backlink_to_lsp_location, backlink_matches))
   end, { anchor = anchor, block = block })
 end
 
 ---@param include_tag boolean|?
 ---@return string|?
----@return obsidian.parse.RefKind|"tag"|"block_id"
+---@return obsidian.parse.RefKind|"tag"|"block_id"|?
 local function cursor_ref(include_tag)
   local link, link_type = api.cursor_link()
   if link and link_type then

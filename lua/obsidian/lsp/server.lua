@@ -39,6 +39,7 @@ return function(dispatchers)
       return true, id
     end
 
+    ---@diagnostic disable-next-line: param-type-mismatch
     local ok, call_err = pcall(handler, params, deliver, dispatchers)
     if not ok then
       deliver({ code = -32603, message = "internal error: " .. tostring(call_err) }, nil)
@@ -55,6 +56,7 @@ return function(dispatchers)
       return true
     end
 
+    ---@diagnostic disable-next-line: param-type-mismatch,assign-type-mismatch
     local ok, err = pcall(handler, ..., dispatchers)
     if not ok then
       log.err("[obsidian-ls] notify handler error (" .. method .. "): " .. tostring(err))
