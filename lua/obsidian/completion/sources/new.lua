@@ -128,6 +128,14 @@ function M.process_completion(callback, request)
       },
     }
 
+    ---@type lsp.Command
+    local command = {
+      command = "obsidian.write_note",
+      title = "Obsidian write note",
+      ---@diagnostic disable-next-line: assign-type-mismatch
+      arguments = { new_note },
+    }
+
     ---@type lsp.CompletionItem
     local item = {
       documentation = documentation,
@@ -135,11 +143,7 @@ function M.process_completion(callback, request)
       filterText = completion.get_filter_text(new_note_opts.label),
       label = label,
       kind = vim.lsp.protocol.CompletionItemKind.Reference,
-      command = {
-        command = "obsidian.write_note",
-        title = "Obsidian write note",
-        arguments = { new_note },
-      },
+      command = command,
       -- NOTE: for [[new_note@template future expansion
       -- command = {
       --   command = "obsidian.new_from_template",

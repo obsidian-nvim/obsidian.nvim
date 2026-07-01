@@ -57,7 +57,7 @@ local function schedule_flush()
     state.flush_timer:close()
   end
   state.flush_timer = vim.uv.new_timer()
-  state.flush_timer:start(
+  assert(state.flush_timer):start(
     FLUSH_DEBOUNCE_MS,
     0,
     vim.schedule_wrap(function()
@@ -173,19 +173,23 @@ end
 ---Walk vault, populate cache for all `.md` files. Skips notes whose mtime/size match.
 ---@param force boolean? rebuild every entry regardless of stat
 local function initial_scan(force)
+  if not state then
+    return
+  end
+  local scan_state = state
   local found = {}
   local files = vim.fs.find(function(name, dir)
     if not is_markdown_note(name) then
       return false
     end
     return not is_ignored(dir .. "/" .. name)
-  end, { type = "file", path = state.vault, limit = math.huge })
+  end, { type = "file", path = scan_state.vault, limit = math.huge })
 
   for _, abs in ipairs(files) do
     if not is_ignored(abs) then
       abs = vim.fs.normalize(abs)
       found[abs] = true
-      local existing = state.backend:get(abs)
+      local existing = scan_state.backend:get(abs)
       local stat = vim.uv.fs_stat(abs)
       if stat and (force or not existing or existing.mtime ~= stat.mtime.sec or existing.size ~= stat.size) then
         reindex_one(abs)
@@ -193,10 +197,10 @@ local function initial_scan(force)
     end
   end
 
-  for path, _ in pairs(state.backend:all()) do
+  for path, _ in pairs(scan_state.backend:all()) do
     local normalized = vim.fs.normalize(path)
     if not found[normalized] then
-      state.backend:delete(path)
+      scan_state.backend:delete(path)
       schedule_flush()
     end
   end
@@ -274,7 +278,9 @@ function M.setup(opts)
   M.shutdown()
 
   local vault = vim.fs.normalize(tostring(Obsidian.dir))
-  local cache_dir = vim.fs.joinpath(vim.fn.stdpath "cache", "obsidian.nvim")
+  local stdpath_cache = vim.fn.stdpath "cache"
+  ---@cast stdpath_cache string
+  local cache_dir = vim.fs.joinpath(stdpath_cache, "obsidian.nvim")
   vim.fn.mkdir(cache_dir, "p")
   local cache_path = vim.fs.joinpath(cache_dir, vim.fn.sha256(vault):sub(1, 16) .. ".json")
 

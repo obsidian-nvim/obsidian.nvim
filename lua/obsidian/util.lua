@@ -31,7 +31,7 @@ end
 
 ---@param t table
 util.flatten = function(t)
-  ---@diagnostic disable-next-line: redundant-parameter
+  ---@diagnostic disable-next-line: redundant-parameter, call-non-callable
   return vim.iter(t):flatten():totable()
 end
 
@@ -220,7 +220,7 @@ end
 util.format_date = function(time, fmt)
   if fmt:find "%%" then
     local time_string = os.date(fmt, time)
-    ---@cast time_string -osdate
+    ---@cast time_string string
     return time_string
   end
   return require("obsidian.lib.moment").format(time, fmt)
@@ -230,7 +230,7 @@ end
 ---
 ---@param str string
 ---@param fmt string|?
----@return osdateparam|? date as os.date table
+---@return std.osdate? date as os.date table
 ---@return string|? error
 util.parse_date = function(str, fmt)
   -- Try common date formats

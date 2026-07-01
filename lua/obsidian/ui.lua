@@ -4,7 +4,12 @@ local search = require "obsidian.search"
 local parse_refs = require "obsidian.parse.refs"
 local parse_block_id = require "obsidian.parse.block_id"
 local parse_tags = require "obsidian.parse.tags"
-local iter = vim.iter
+
+---@param t table
+local function iter(t)
+  ---@diagnostic disable-next-line: call-non-callable
+  return vim.iter(t)
+end
 
 local M = {}
 
@@ -19,7 +24,7 @@ end
 
 ---@param ui_opts obsidian.config.UIOpts
 local function install_hl_groups(ui_opts)
-  for group_name, opts in pairs(ui_opts.hl_groups) do
+  for group_name, opts in pairs(ui_opts.hl_groups or {}) do
     vim.api.nvim_set_hl(0, group_name, opts)
   end
 end
@@ -29,6 +34,7 @@ end
 -- For example, "󰄱" is turned into "1\1\15".
 -- TODO: if we knew how to un-mangle the conceal char we wouldn't need the cache.
 
+---@type table<integer, table<integer, table<integer, ExtMark>>>
 M._buf_mark_cache = vim.defaulttable()
 
 ---@param bufnr integer
@@ -205,7 +211,7 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_check_extmarks(marks, line, lnum, ui_opts)
-  for char, opts in pairs(ui_opts.checkboxes) do
+  for char, opts in pairs(ui_opts.checkboxes or {}) do
     if string.match(line, "^%s*- %[" .. vim.pesc(char) .. "%]") then
       local indent = util.count_indent(line)
       marks[#marks + 1] = ExtMark.new(
@@ -246,6 +252,10 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
+  local reference_text = assert(ui_opts.reference_text)
+  local external_link_icon = assert(ui_opts.external_link_icon)
+  local block_ids = assert(ui_opts.block_ids)
+  local tags = assert(ui_opts.tags)
   local matches = {}
   for _, ref in ipairs(parse_refs.extract(line)) do
     if ref.kind ~= "footnote" then
@@ -290,7 +300,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = to_int(m_end - 2),
-          hl_group = ui_opts.reference_text.hl_group,
+          hl_group = reference_text.hl_group,
           spell = false,
         }
       )
@@ -326,7 +336,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = to_int(m_end - 2),
-          hl_group = ui_opts.reference_text.hl_group,
+          hl_group = reference_text.hl_group,
           spell = false,
         }
       )
@@ -365,7 +375,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = to_int(closing_bracket_loc - 1),
-          hl_group = ui_opts.reference_text.hl_group,
+          hl_group = reference_text.hl_group,
           spell = false,
         }
       )
@@ -388,8 +398,8 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = to_int(m_end - 1),
-          conceal = is_uri and ui_opts.external_link_icon.char or "",
-          hl_group = ui_opts.external_link_icon.hl_group,
+          conceal = is_uri and external_link_icon.char or "",
+          hl_group = external_link_icon.hl_group,
         }
       )
       -- Conceal the closing ')'
@@ -412,7 +422,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = to_int(m_end),
-          hl_group = ui_opts.block_ids.hl_group,
+          hl_group = block_ids.hl_group,
           spell = false,
         }
       )
@@ -442,7 +452,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = to_int(m_end),
-          hl_group = ui_opts.tags.hl_group,
+          hl_group = tags.hl_group,
           spell = false,
         }
       )
@@ -457,6 +467,7 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
+  local highlight_text = assert(ui_opts.highlight_text)
   local matches = search.find_highlight(line)
   for match in iter(matches) do
     local m_start, m_end = unpack(match)
@@ -479,7 +490,7 @@ local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
       ExtMarkOpts.from_tbl {
         end_row = lnum,
         end_col = to_int(m_end - 2),
-        hl_group = ui_opts.highlight_text.hl_group,
+        hl_group = highlight_text.hl_group,
         spell = false,
       }
     )
@@ -613,7 +624,7 @@ local function get_extmarks_autocmd_callback(ui_opts, throttle)
   end
 
   if throttle then
-    return require("obsidian.async").throttle(callback, ui_opts.update_debounce)
+    return require("obsidian.async").throttle(callback, ui_opts.update_debounce or 200)
   else
     return callback
   end

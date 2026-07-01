@@ -61,14 +61,27 @@ local function end_excl(range)
   return range.end_row + 1
 end
 
+---@param choice obsidian.note.insert_text.SectionChoice
+---@return { header: string?, level: integer? }
+local function normalize_section_choice(choice)
+  if type(choice) == "table" then
+    return { header = choice.header or choice[1], level = choice.level or choice[2] }
+  elseif type(choice) == "string" then
+    return { header = choice }
+  elseif type(choice) == "number" then
+    return { level = choice }
+  else
+    return {}
+  end
+end
+
 --- Chooses a section to insert new text into.
 ---
 ---@param sections obsidian.Section[] List of sections in the document. Must contain the preamble and EOF-marker.
 ---@param opts obsidian.note.InsertTextOpts Constrains where text can be inserted.
 ---@return integer chosen_idx where the new text can be inserted while maintaining the layout, or `0` if none are valid.
 function H.choose_section(sections, opts)
-  ---@type { header: string?, level: integer? }
-  local section_opts = opts.section
+  local section_opts = normalize_section_choice(opts.section)
   local header_wanted = section_opts.header
   local level_wanted = section_opts.level
 
@@ -148,8 +161,7 @@ function H.insert_new_section(sections, chosen_idx, opts)
     table.insert(insert_top, "")
   end
 
-  ---@type { header: string?, level: integer? }
-  local section_opts = opts.section
+  local section_opts = normalize_section_choice(opts.section)
   table.insert(insert_top, string.rep("#", section_opts.level or 2) .. " " .. (section_opts.header or "Untitled"))
   table.insert(insert_top, "")
 
@@ -167,8 +179,7 @@ H.on_section_missing_handlers = {
   end,
 
   error = function(_, opts)
-    ---@type { header: string?, level: integer? }
-    local section_opts = opts.section
+    local section_opts = normalize_section_choice(opts.section)
     error("Failed to find section: " .. vim.inspect { header = section_opts.header, level = section_opts.level })
   end,
 

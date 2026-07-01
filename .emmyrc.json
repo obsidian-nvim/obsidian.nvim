@@ -26,7 +26,8 @@
       ".emmy"
     ],
     "ignoreGlobs": [
-      "tests/test_*.lua"
+      "tests/test_*.lua",
+      "obsidian/lib/glob.lua"
     ]
   }
 }

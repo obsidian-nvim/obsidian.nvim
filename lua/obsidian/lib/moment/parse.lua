@@ -468,11 +468,11 @@ local token_pattern = token "YYYY"
   + token "x"
   + token "L"
 
-local literal = P "[" * C((1 - P "]") ^ 0) * P "]" / function(s)
+local literal = P "[" * C((P(1) - P "]") ^ 0) * P "]" / function(s)
   return { type = "literal", value = s }
 end
 
-local text = C(1) / function(s)
+local text = C(P(1)) / function(s)
   return { type = "text", value = s }
 end
 
@@ -509,7 +509,7 @@ end
 ----------------------------------------------------
 
 -- Default values for unspecified fields
----@type std.osdate
+---@type table<string, any>
 local DEFAULTS = {
   year = CURRENT_YEAR,
   month = 1,
@@ -639,7 +639,9 @@ return function(input, fmt)
   -- Handle Unix timestamp (overrides everything else)
   if unix_timestamp then
     local date = os.date("*t", unix_timestamp)
+    ---@cast date std.osdate
     if timezone_offset then
+      ---@diagnostic disable-next-line: assign-type-mismatch
       date.hour = date.hour + math.floor(timezone_offset / 3600)
     end
     return date
@@ -663,6 +665,7 @@ return function(input, fmt)
 
   -- Apply timezone offset if provided
   if timezone_offset then
+    ---@diagnostic disable-next-line: assign-type-mismatch
     result.hour = result.hour - math.floor(timezone_offset / 3600)
   end
 

@@ -1,4 +1,5 @@
 local api = require "obsidian.api"
+local actions = require "obsidian.actions"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
@@ -54,14 +55,14 @@ local function bufenter_callback(ev)
 
   -- Register keymap.
   if vim.g.obsidian_default_keymap ~= false then -- NOTE: not in config since not sure whether the confusion and the small interface is worth it, might remove in major release
-    vim.keymap.set("n", "<CR>", api.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
+    vim.keymap.set("n", "<CR>", actions.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
 
     vim.keymap.set("n", "]o", function()
-      api.nav_link "next"
+      actions.nav_link "next"
     end, { buffer = true, desc = "Obsidian Next Link" })
 
     vim.keymap.set("n", "[o", function()
-      api.nav_link "prev"
+      actions.nav_link "prev"
     end, { buffer = true, desc = "Obsidian Previous Link" })
   end
 
