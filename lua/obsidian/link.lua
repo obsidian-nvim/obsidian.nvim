@@ -12,6 +12,82 @@ local function normalize_path(path)
   return Path.new(path):resolve()
 end
 
+---@param target string
+---@return string
+local function normalize_link_target(target)
+  target = vim.uri_decode(target):gsub("\\", "/")
+  while vim.startswith(target, "./") do
+    target = target:sub(3)
+  end
+  return (target:gsub("^/+", ""))
+end
+
+---@param location string
+---@param source_file string|?
+---@return string|?
+local function missing_attachment_path(location, source_file)
+  local target = normalize_link_target(location)
+  if target == "" then
+    return nil
+  end
+
+  if target:find("/", 1, true) then
+    local source_dir = source_file and source_file ~= "" and Path.new(vim.fs.dirname(source_file)) or nil
+    local candidates = {}
+    if source_dir then
+      candidates[#candidates + 1] = source_dir / target
+    end
+    candidates[#candidates + 1] = Obsidian.dir / target
+
+    for _, candidate in ipairs(candidates) do
+      local abs = vim.fs.normalize(tostring(candidate:resolve()))
+      if util.is_subpath(abs, tostring(Obsidian.dir)) then
+        return abs
+      end
+    end
+    return nil
+  end
+
+  return vim.fs.normalize(attachment.resolve_attachment_path(target, source_file))
+end
+
+---@param location string
+---@return string|?
+local function missing_note_path(location)
+  local target = normalize_link_target(location)
+  if target == "" then
+    return nil
+  end
+
+  local Note = require "obsidian.note"
+  local note = Note.create { id = target }
+  return vim.fs.normalize(tostring(note.path))
+end
+
+--- Expected absolute path for a link target that does not exist yet.
+---
+---@param location string
+---@param source_file string|? Absolute path to the note containing the link.
+---@return string|?
+M.missing_link_path = function(location, source_file)
+  if util.is_uri(location) then
+    return nil
+  end
+
+  location = util.strip_block_links(location)
+  location = util.strip_anchor_links(location)
+
+  if location == "" then
+    return
+  end
+
+  if attachment.is_attachment_path(location) then
+    return missing_attachment_path(location, source_file)
+  end
+
+  return missing_note_path(location)
+end
+
 --- TODO: use in definition handler later,
 
 ---@param location string
@@ -29,8 +105,8 @@ M.resolve_link_path = function(location)
     return
   end
 
-  if attachment.is_attachment_filetype(location) then
-    return tostring(normalize_path(attachment.resolve_attachment_path(location)))
+  if attachment.is_attachment_path(location) then
+    return M.missing_link_path(location, vim.api.nvim_buf_get_name(0))
   end
 
   local location_path = Path.new(location)
