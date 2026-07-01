@@ -5,7 +5,7 @@ local M = {}
 
 ---@alias obsidian.parse.RefKind "wiki"|"markdown"|"footnote"
 
----@class obsidian.parse.Ref : obsidian.parse.Match
+---@class obsidian.parse.Ref : obsidian.parse.line.Match
 ---@field kind obsidian.parse.RefKind
 ---@field target string
 ---@field label string?
@@ -173,7 +173,7 @@ local patterns = {
 
 ---Extract outgoing wiki/markdown/footnote refs from a single line.
 ---@param line string
----@param opts obsidian.parse.LineOpts?
+---@param opts obsidian.parse.line.LineOpts?
 ---@return obsidian.parse.Ref[]
 function M.extract(line, opts)
   opts = opts or {}

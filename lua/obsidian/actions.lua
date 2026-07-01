@@ -8,7 +8,6 @@ local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
-local list_items = require "obsidian.parse.list_items"
 local list_items = require "obsidian.parse.line.list_items"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.

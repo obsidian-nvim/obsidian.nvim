@@ -1,6 +1,6 @@
 local Note = require "obsidian.note"
 local parse_refs = require "obsidian.parse.refs"
-local parse_tags = require("obsidian.parse.tags").parse_tags
+local parse_tags = require("obsidian.parse.line.tags").parse_tags
 
 local M = {}
 
