@@ -635,6 +635,7 @@ M.get_icon = function(path)
     return "󰉋"
   else
     local ok, res = pcall(function()
+      ---@diagnostic disable-next-line: unresolved-require
       local icon, hl_group = require("nvim-web-devicons").get_icon(path, nil, { default = true })
       return { icon, hl_group }
     end)

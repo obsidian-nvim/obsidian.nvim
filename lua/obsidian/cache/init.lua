@@ -265,10 +265,6 @@ function M.get_backend(name)
   return backend
 end
 
----@class obsidian.cache.SetupOpts
----@field enabled? boolean
----@field backend? string
-
 ---@param opts obsidian.config.CacheOpts
 function M.setup(opts)
   opts = opts or {}
