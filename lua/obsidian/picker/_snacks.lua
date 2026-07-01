@@ -1,3 +1,4 @@
+---@diagnostic disable: unresolved-require
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Picker = require "obsidian.picker"
