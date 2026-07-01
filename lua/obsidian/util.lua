@@ -671,4 +671,22 @@ util.strdisplaywidth = (function()
   end
 end)()
 
+--- HACK: because LazyVim and some users by default sets vim.deprecate to no-op
+--- Shows a deprecation message to the user.
+---
+---@param name        string     Deprecated feature (function, API, etc.).
+---@param alternative string|nil Suggested alternative feature.
+---@param version     string     Version when the deprecated function will be removed.
+---
+util.deprecate = function(name, alternative, version)
+  vim.validate("name", name, "string")
+  vim.validate("alternative", alternative, "string", true)
+  vim.validate("version", version, "string", true)
+
+  local msg = ("%s is deprecated"):format(name)
+  msg = alternative and ("%s, use %s instead."):format(msg, alternative) or (msg .. ".")
+  msg = ("%s\nFeature will be removed in %s %s"):format(msg, "obsidian.nvim", version)
+  vim.notify_once(msg, vim.log.levels.WARN)
+end
+
 return util
