@@ -1,4 +1,4 @@
-local stats = require("obsidian.stats").collect {
+require("obsidian.stats").collect_async({
   include_backlinks = true,
   topics = {
     { name = "Projects", path_prefix = "projects/" },
@@ -10,5 +10,7 @@ local stats = require("obsidian.stats").collect {
       end,
     },
   },
-}
-print(require("obsidian.stats").format(stats, "markdown"))
+}, function(stats)
+  vim.print(stats)
+  -- print(require("obsidian.stats").format(stats, "markdown"))
+end)
