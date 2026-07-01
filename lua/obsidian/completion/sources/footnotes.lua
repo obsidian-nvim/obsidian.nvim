@@ -17,6 +17,7 @@ local function next_numeric_id(defs)
   for _, def in ipairs(defs) do
     local n = tonumber(def.id)
     if n and n > max then
+      ---@cast n integer
       max = n
     end
   end

@@ -159,12 +159,13 @@ end
 ---Toggle the checkbox on a lnum
 ---
 ---@param states string[] Optional table containing checkbox states (e.g., {" ", "x"}).
----@param lnum number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
+---@param lnum integer|nil Optional line number to toggle the checkbox on. Defaults to the current line.
 M._toggle_checkbox = function(states, lnum)
   if no_checkbox() then
     return
   end
   lnum = lnum or unpack(vim.api.nvim_win_get_cursor(0))
+  ---@cast lnum integer
   local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1]
 
   if not line then
@@ -251,7 +252,7 @@ M.set_checkbox = function(state)
   end
 
   local found = false
-  for _, value in ipairs(Obsidian.opts.checkbox.order) do
+  for _, value in ipairs(Obsidian.opts.checkbox.order or {}) do
     if value == state then
       found = true
     end
@@ -270,7 +271,7 @@ M.set_checkbox = function(state)
   local cur_line = vim.api.nvim_get_current_line()
 
   local prefix, rest = parse_list_prefix(cur_line)
-  if prefix then
+  if prefix and rest then
     local cur_state, ws, body = parse_checkbox_rest(rest)
     if state == "" then
       if cur_state then
@@ -299,6 +300,7 @@ M.set_checkbox = function(state)
   end
 
   local line_num = vim.fn.getpos(".")[2]
+  ---@cast line_num integer
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
@@ -739,6 +741,7 @@ local function pick_folder(callback)
   local root = tostring(Obsidian.workspace.root)
   local choices = { { filename = root, text = "/" } }
 
+  ---@diagnostic disable-next-line: param-type-mismatch
   for path, t in vim.fs.dir(root, { depth = math.huge }) do
     if t == "directory" then
       choices[#choices + 1] = {
@@ -750,7 +753,9 @@ local function pick_folder(callback)
 
   Obsidian.picker.pick(choices, {
     callback = function(entry)
-      callback(entry.filename, entry.text)
+      if entry.filename and entry.text then
+        callback(entry.filename, entry.text)
+      end
     end,
     format_item = function(v)
       return tostring(v.text)
@@ -772,7 +777,9 @@ local function move_note(directory, text)
     return log.err("Failed to move note: " .. (err or "unknown error"))
   end
   vim.api.nvim_buf_set_name(bufnr, dest)
-  local write_ok, write_err = pcall(vim.cmd, "silent write!")
+  local write_ok, write_err = pcall(function()
+    vim.cmd "silent write!"
+  end)
   if not write_ok then
     return log.err("Failed to save moved note: " .. (write_err or "unknown error"))
   end

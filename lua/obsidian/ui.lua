@@ -10,6 +10,13 @@ local M = {}
 
 local NAMESPACE = "ObsidianUI"
 
+---@param n number
+---@return integer
+local function to_int(n)
+  ---@cast n integer
+  return n
+end
+
 ---@param ui_opts obsidian.config.UIOpts
 local function install_hl_groups(ui_opts)
   for group_name, opts in pairs(ui_opts.hl_groups) do
@@ -164,9 +171,11 @@ ExtMark.collect = function(bufnr, ns_id, region_start, region_end)
     local mark = ExtMark.new(data[1], data[2], data[3], ExtMarkOpts.from_tbl(data[4]))
     -- NOTE: since the conceal char we get back from `nvim_buf_get_extmarks()` is mangled, e.g.
     -- "󰄱" is turned into "1\1\15", we used the cached version.
-    local cached_mark = cache_get(bufnr, ns_id, mark.id)
-    if cached_mark ~= nil then
-      mark.opts.conceal = cached_mark.opts.conceal
+    if mark.id ~= nil then
+      local cached_mark = cache_get(bufnr, ns_id, mark.id)
+      if cached_mark ~= nil then
+        mark.opts.conceal = cached_mark.opts.conceal
+      end
     end
     cache_set(bufnr, ns_id, mark)
     marks[#marks + 1] = mark
@@ -266,7 +275,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start - 1,
+        to_int(m_start - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = pipe_loc,
@@ -280,7 +289,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         pipe_loc,
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end - 2,
+          end_col = to_int(m_end - 2),
           hl_group = ui_opts.reference_text.hl_group,
           spell = false,
         }
@@ -289,10 +298,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_end - 2,
+        to_int(m_end - 2),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end,
+          end_col = to_int(m_end),
           conceal = "",
         }
       )
@@ -302,10 +311,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start - 1,
+        to_int(m_start - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_start + 1,
+          end_col = to_int(m_start + 1),
           conceal = "",
         }
       )
@@ -313,10 +322,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start + 1,
+        to_int(m_start + 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end - 2,
+          end_col = to_int(m_end - 2),
           hl_group = ui_opts.reference_text.hl_group,
           spell = false,
         }
@@ -325,10 +334,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_end - 2,
+        to_int(m_end - 2),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end,
+          end_col = to_int(m_end),
           conceal = "",
         }
       )
@@ -336,15 +345,15 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       -- Reference of the form [yyy](xxx)
       local closing_bracket_loc = string.find(line, "]", m_start, true)
       assert(closing_bracket_loc, "")
-      local is_uri = util.is_uri(string.sub(line, closing_bracket_loc + 2, m_end - 1))
+      local is_uri = util.is_uri(string.sub(line, to_int(closing_bracket_loc + 2), to_int(m_end - 1)))
       -- Conceal the opening '['
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start - 1,
+        to_int(m_start - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_start,
+          end_col = to_int(m_start),
           conceal = "",
         }
       )
@@ -352,10 +361,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start,
+        to_int(m_start),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = closing_bracket_loc - 1,
+          end_col = to_int(closing_bracket_loc - 1),
           hl_group = ui_opts.reference_text.hl_group,
           spell = false,
         }
@@ -364,10 +373,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        closing_bracket_loc - 1,
+        to_int(closing_bracket_loc - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = closing_bracket_loc + 1,
+          end_col = to_int(closing_bracket_loc + 1),
           conceal = is_uri and " " or "",
         }
       )
@@ -375,10 +384,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        closing_bracket_loc + 1,
+        to_int(closing_bracket_loc + 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end - 1,
+          end_col = to_int(m_end - 1),
           conceal = is_uri and ui_opts.external_link_icon.char or "",
           hl_group = ui_opts.external_link_icon.hl_group,
         }
@@ -387,10 +396,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_end - 1,
+        to_int(m_end - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end,
+          end_col = to_int(m_end),
           conceal = is_uri and " " or "",
         }
       )
@@ -399,10 +408,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start - 1,
+        to_int(m_start - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end,
+          end_col = to_int(m_end),
           hl_group = ui_opts.block_ids.hl_group,
           spell = false,
         }
@@ -429,10 +438,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start - 1,
+        to_int(m_start - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end,
+          end_col = to_int(m_end),
           hl_group = ui_opts.tags.hl_group,
           spell = false,
         }
@@ -455,10 +464,10 @@ local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
     marks[#marks + 1] = ExtMark.new(
       nil,
       lnum,
-      m_start - 1,
+      to_int(m_start - 1),
       ExtMarkOpts.from_tbl {
         end_row = lnum,
-        end_col = m_start + 1,
+        end_col = to_int(m_start + 1),
         conceal = "",
       }
     )
@@ -466,10 +475,10 @@ local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
     marks[#marks + 1] = ExtMark.new(
       nil,
       lnum,
-      m_start + 1,
+      to_int(m_start + 1),
       ExtMarkOpts.from_tbl {
         end_row = lnum,
-        end_col = m_end - 2,
+        end_col = to_int(m_end - 2),
         hl_group = ui_opts.highlight_text.hl_group,
         spell = false,
       }
@@ -478,7 +487,7 @@ local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
     marks[#marks + 1] = ExtMark.new(
       nil,
       lnum,
-      m_end - 2,
+      to_int(m_end - 2),
       ExtMarkOpts.from_tbl {
         end_row = lnum,
         end_col = m_end,

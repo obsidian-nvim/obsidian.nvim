@@ -271,7 +271,15 @@ local function entry_range(entry)
   local end_lnum = tonumber(entry.end_lnum)
   local end_col = tonumber(entry.end_col)
   if lnum and end_lnum and end_col then
-    return Range.new(lnum - 1, math.max(col - 1, 0), end_lnum - 1, math.max(end_col - 1, 0))
+    local start_row = lnum - 1
+    local start_col = math.max(col - 1, 0)
+    local end_row = end_lnum - 1
+    local normalized_end_col = math.max(end_col - 1, 0)
+    ---@cast start_row integer
+    ---@cast start_col integer
+    ---@cast end_row integer
+    ---@cast normalized_end_col integer
+    return Range.new(start_row, start_col, end_row, normalized_end_col)
   end
 end
 
@@ -304,8 +312,11 @@ M.open_note = function(entry, cmd)
 
   vim.cmd(string.format("%s %s", cmd, vim.fn.fnameescape(tostring(path))))
   if type(entry) == "table" and entry.lnum then
-    local col = tonumber(entry.col) or 1
-    vim.api.nvim_win_set_cursor(0, { tonumber(entry.lnum), math.max(col - 1, 0) })
+    local lnum = tonumber(entry.lnum)
+    local col = math.max((tonumber(entry.col) or 1) - 1, 0)
+    ---@cast lnum integer
+    ---@cast col integer
+    vim.api.nvim_win_set_cursor(0, { lnum, col })
   end
 
   if not result_bufnr then
