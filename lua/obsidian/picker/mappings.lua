@@ -6,6 +6,9 @@ local api = require "obsidian.api"
 
 ---@param entry obsidian.PickerEntry
 M.insert_link = function(entry)
+  if not entry.filename then
+    return
+  end
   local note = Note.from_file(entry.filename)
   local link = note:format_link()
   vim.api.nvim_put({ link }, "", false, true)
@@ -63,7 +66,7 @@ M.new_note = function(query)
   if not query or vim.trim(query) == "" then
     return
   end
-  ---@diagnostic disable-next-line: missing-fields
+  ---@diagnostic disable-next-line: missing-fields,param-type-mismatch
   require "obsidian.commands.new" { args = query }
 end
 

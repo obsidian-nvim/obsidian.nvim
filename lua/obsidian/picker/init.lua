@@ -207,7 +207,9 @@ M.grep_notes = function(opts)
     prompt_title = opts.prompt_title or "Grep notes",
     dir = opts.dir or Obsidian.dir,
     query = opts.query,
-    callback = opts.callback or api.open_note,
+    callback = opts.callback or function(entry)
+      api.open_note(entry)
+    end,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
@@ -234,8 +236,9 @@ M._note_query_mappings = function()
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
-  if key_is_set(Obsidian.opts.picker.note_mappings.new) then
-    mappings[Obsidian.opts.picker.note_mappings.new] = {
+  local note_mappings = Obsidian.opts.picker.note_mappings or {}
+  if key_is_set(note_mappings.new) then
+    mappings[note_mappings.new] = {
       desc = "new",
       callback = Mappings.new_note,
     }
@@ -250,8 +253,9 @@ M._note_selection_mappings = function()
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
-  if key_is_set(Obsidian.opts.picker.note_mappings.insert_link) then
-    mappings[Obsidian.opts.picker.note_mappings.insert_link] = {
+  local note_mappings = Obsidian.opts.picker.note_mappings or {}
+  if key_is_set(note_mappings.insert_link) then
+    mappings[note_mappings.insert_link] = {
       desc = "insert link",
       callback = Mappings.insert_link,
     }
@@ -266,8 +270,9 @@ M._tag_selection_mappings = function()
   ---@type obsidian.PickerMappingTable
   local mappings = {}
 
-  if key_is_set(Obsidian.opts.picker.tag_mappings.tag_note) then
-    mappings[Obsidian.opts.picker.tag_mappings.tag_note] = {
+  local tag_mappings = Obsidian.opts.picker.tag_mappings or {}
+  if key_is_set(tag_mappings.tag_note) then
+    mappings[tag_mappings.tag_note] = {
       desc = "tag note",
       callback = Mappings.tag_note,
       fallback_to_query = true,
@@ -276,8 +281,8 @@ M._tag_selection_mappings = function()
     }
   end
 
-  if key_is_set(Obsidian.opts.picker.tag_mappings.insert_tag) then
-    mappings[Obsidian.opts.picker.tag_mappings.insert_tag] = {
+  if key_is_set(tag_mappings.insert_tag) then
+    mappings[tag_mappings.insert_tag] = {
       desc = "insert tag",
       callback = Mappings.insert_tag,
       fallback_to_query = true,
@@ -289,7 +294,7 @@ end
 
 --- Get the default Picker.
 ---
----@param picker_name obsidian.config.Picker
+---@param picker_name obsidian.config.Picker|false|?
 M.get = function(picker_name)
   local patch = function(modname)
     for name, f in pairs(require(modname)) do
@@ -312,10 +317,11 @@ M.get = function(picker_name)
     return M
   end
 
+  local selected_picker_name
   if picker_name then
-    picker_name = string.lower(picker_name)
-    if not picker_available(picker_name) then
-      log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
+    selected_picker_name = string.lower(picker_name)
+    if not picker_available(selected_picker_name) then
+      log.warn_once('Configured picker "%s" is not available; falling back to native picker', selected_picker_name)
       patch "obsidian.picker._default"
       return M
     end
@@ -327,14 +333,14 @@ M.get = function(picker_name)
     end
   end
 
-  if picker_name == string.lower(PickerName.telescope) then
+  if selected_picker_name == string.lower(PickerName.telescope) then
     patch "obsidian.picker._telescope"
-  elseif picker_name == string.lower(PickerName.mini) then
+  elseif selected_picker_name == string.lower(PickerName.mini) then
     patch "obsidian.picker._mini"
-  elseif picker_name == string.lower(PickerName.fzf_lua) then
+  elseif selected_picker_name == string.lower(PickerName.fzf_lua) then
     patch "obsidian.picker._fzf"
     -- or statement added for backwards compatibility
-  elseif picker_name == string.lower(PickerName.snacks) or picker_name == "snacks.pick" then
+  elseif selected_picker_name == string.lower(PickerName.snacks) or selected_picker_name == "snacks.pick" then
     patch "obsidian.picker._snacks"
   else
     patch "obsidian.picker._default"

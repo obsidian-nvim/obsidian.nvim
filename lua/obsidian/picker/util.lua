@@ -4,7 +4,7 @@ local api = require "obsidian.api"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 
----@param opts { prompt_title: string, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
+---@param opts { prompt_title: string|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
 ---@return string
 M.build_prompt = function(opts)
   opts = opts or {}
@@ -56,7 +56,9 @@ M.make_display = function(entry)
     buf[#buf + 1] = icon
     buf[#buf + 1] = " "
     if icon_hl then
-      highlights[#highlights + 1] = { { 0, util.strdisplaywidth(icon) }, icon_hl }
+      local icon_width = util.strdisplaywidth(icon)
+      ---@cast icon_width integer
+      highlights[#highlights + 1] = { { 0, icon_width }, icon_hl }
     end
   end
 
