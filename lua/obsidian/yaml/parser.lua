@@ -6,6 +6,8 @@ local m = {}
 
 ---@class obsidian.yaml.ParserOpts
 ---@field luanil boolean
+---@field default? fun(): obsidian.yaml.ParserOpts
+---@field normalize? fun(opts: table): obsidian.yaml.ParserOpts
 local ParserOpts = {}
 
 m.ParserOpts = ParserOpts
@@ -122,6 +124,7 @@ Parser.parse = function(self, str)
         parent[#parent + 1] = value
       elseif type(parent) == "table" and value_type == YamlType.Mapping then
         -- Add value to parent mapping.
+        ---@cast value table
         for key, item in pairs(value) do
           -- Check for duplicate keys.
           if parent[key] ~= nil then

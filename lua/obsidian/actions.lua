@@ -11,7 +11,7 @@ local resolvers = require "obsidian.resolvers"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
----@param link string
+---@param link string?
 ---@param opts { open_strategy: obsidian.config.OpenStrategy|? }|?
 M.follow_link = function(link, opts)
   opts = opts and opts or {}
@@ -534,7 +534,7 @@ M.new_from_template = function(id, template, callback)
       if id == nil or id == "" then
         -- Must use pcall in case of KeyboardInterrupt
         -- We cannot place `title` where `safe_title` is because it would be redeclaring it
-        local success, safe_title = pcall(util.input, "Enter title or path (optional): ", { completion = "file" })
+        local success, safe_title = pcall(api.input, "Enter title or path (optional): ", { completion = "file" })
         id = safe_title
         if not success or not safe_title then
           log.warn "Aborted"
@@ -844,7 +844,9 @@ M.write_note = function(note)
   -- If it gets serialized by server commands, it will lose its metatable.
   if not Note.is_note_obj(note) then
     note = setmetatable(note, Note)
-    note.path = setmetatable(note.path, Path)
+    if note.path then
+      note.path = setmetatable(note.path, Path)
+    end
   end
   note:write()
 end

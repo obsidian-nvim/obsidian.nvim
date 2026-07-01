@@ -5,6 +5,8 @@ local util = require "obsidian.util"
 
 local M = {}
 
+---@alias obsidian.ImageType "avif"|"bmp"|"gif"|"jpeg"|"png"|"webp"
+
 local img_types = {
   ["image/jpeg"] = "jpeg",
   ["image/png"] = "png",
@@ -35,6 +37,8 @@ local function get_clip_check_command(this_os)
   return check_cmd
 end
 
+---@param content string[]
+---@return obsidian.ImageType?
 local function get_image_type(content)
   for _, line in ipairs(content) do
     if img_types[line] ~= nil then
@@ -46,7 +50,7 @@ end
 
 --- Get the type of image on the clipboard.
 ---
----@return "png"|"jpeg"|nil
+---@return obsidian.ImageType?
 function M.get_clipboard_img_type()
   local this_os = api.get_os()
   local check_cmd = get_clip_check_command(this_os)
@@ -73,7 +77,8 @@ function M.get_clipboard_img_type()
 
   -- Code for non-Linux Operating systems (only supports png)
   elseif this_os == api.OSType.Darwin then
-    local is_img = string.sub(content[1], 1, 9) == "iVBORw0KG" -- Magic png number in base64
+    local first_line = content[1] or ""
+    local is_img = string.sub(first_line, 1, 9) == "iVBORw0KG" -- Magic png number in base64
     if is_img then
       return "png"
     end
@@ -92,7 +97,7 @@ end
 
 --- Save image from clipboard to `path`.
 ---@param path string
----@param img_type "png" | "jpeg"
+---@param img_type obsidian.ImageType
 ---
 ---@return boolean|? result
 local function save_clipboard_image(path, img_type)
@@ -114,7 +119,7 @@ local function save_clipboard_image(path, img_type)
       .. string.format("(get-clipboard -format image).save('%s', 'png')", string.gsub(path, "/", "\\"))
       .. '"'
     local ret = os.execute(cmd) -- TODO:
-    return ret
+    return ret == true or ret == 0
   elseif this_os == api.OSType.Darwin then
     return vim.system({ "pngpaste", path }):wait() ~= 0
   else

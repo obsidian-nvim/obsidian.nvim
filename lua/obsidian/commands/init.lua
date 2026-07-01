@@ -1,6 +1,8 @@
 local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
 
+---@class obsidian.CommandsModule
+---@field commands table<string, obsidian.CommandConfig>
 local M = { commands = {} }
 
 local function in_note()
@@ -95,6 +97,7 @@ M.handle_command = function(data)
   data.args = table.concat(data.fargs, " ")
   local nargs = #data.fargs
 
+  ---@type obsidian.CommandConfig?
   local cmdconfig = M.commands[cmd]
   if cmdconfig == nil then
     log.err("Command '" .. cmd .. "' not found")
@@ -124,7 +127,8 @@ M.handle_command = function(data)
     return
   end
 
-  cmdconfig.func(data)
+  local func = assert(cmdconfig.func, "command missing function")
+  func(data)
 end
 
 ---@param arg_lead string
@@ -144,6 +148,7 @@ M.get_completions = function(arg_lead, cmdline, cursor_pos)
       return s:sub(1, #obsidiancmd) == obsidiancmd
     end, cmds)
   end
+  ---@type obsidian.CommandConfig?
   local cmdconfig = M.commands[obsidiancmd]
   if cmdconfig == nil then
     return

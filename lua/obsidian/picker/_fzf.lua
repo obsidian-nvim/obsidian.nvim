@@ -53,7 +53,6 @@ local function get_selection_actions(opts, path_only)
         mapping.callback { filename = path }
       end
     end
-
   end
 
   if opts.query_mappings then

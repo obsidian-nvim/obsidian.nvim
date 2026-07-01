@@ -105,7 +105,8 @@ M.strip_comments = function(str)
   if vim.startswith(str, "# ") then
     return ""
   elseif not M.has_enclosing_chars(str) then
-    return select(1, string.gsub(str, [[%s+#%s.*$]], ""))
+    local stripped = select(1, string.gsub(str, [[%s+#%s.*$]], ""))
+    return stripped
   else
     return str
   end

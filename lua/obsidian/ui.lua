@@ -252,10 +252,10 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
-  local reference_text = assert(ui_opts.reference_text)
-  local external_link_icon = assert(ui_opts.external_link_icon)
-  local block_ids = assert(ui_opts.block_ids)
-  local tags = assert(ui_opts.tags)
+  local reference_text = assert(ui_opts.reference_text, "ui reference_text options are required")
+  local external_link_icon = assert(ui_opts.external_link_icon, "ui external_link_icon options are required")
+  local block_ids = assert(ui_opts.block_ids, "ui block_ids options are required")
+  local tags = assert(ui_opts.tags, "ui tags options are required")
   local matches = {}
   for _, ref in ipairs(parse_refs.extract(line)) do
     if ref.kind ~= "footnote" then
@@ -467,7 +467,7 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
-  local highlight_text = assert(ui_opts.highlight_text)
+  local highlight_text = assert(ui_opts.highlight_text, "ui highlight_text options are required")
   local matches = search.find_highlight(line)
   for match in iter(matches) do
     local m_start, m_end = unpack(match)

@@ -23,7 +23,7 @@ M.daily_note_path = function(datetime)
     path = Path.new(vim.fs.joinpath(tostring(path), options.notes_subdir))
   end
 
-  local date_format = assert(options.daily_notes.date_format)
+  local date_format = assert(options.daily_notes.date_format, "daily notes date_format is required")
   local id = tostring(util.format_date(datetime, date_format))
 
   path = Path.new(vim.fs.joinpath(tostring(path), id .. ".md"))

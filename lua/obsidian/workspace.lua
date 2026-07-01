@@ -6,7 +6,7 @@ local api = require "obsidian.api"
 
 ---@class obsidian.workspace.WorkspaceSpec
 ---
----@field path string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path)
+---@field path? string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path)
 ---@field name string|?
 ---@field strict boolean|? If true, the workspace root will be fixed to 'path' instead of the vault root (if different).
 ---@field overrides obsidian.config?
@@ -65,21 +65,21 @@ end
 ---
 ---@return obsidian.Workspace?
 Workspace.new = function(spec)
-  spec = spec and spec or {}
+  local workspace_spec = spec or {}
 
   local path
 
-  if type(spec.path) == "function" then
-    path = spec.path()
+  if type(workspace_spec.path) == "function" then
+    path = workspace_spec.path()
     if not path then
       return
     end
   else
-    path = spec.path
+    path = workspace_spec.path
   end
 
   if path == nil then
-    log.warn("Skipping workspace '%s': no path configured", spec.name or "<unnamed>")
+    log.warn("Skipping workspace '%s': no path configured", workspace_spec.name or "<unnamed>")
     return
   end
 
@@ -88,17 +88,19 @@ Workspace.new = function(spec)
   path = Path.new(path)
 
   if not path:exists() then
-    log.warn("Skipping workspace '%s': path does not exist: %s", spec.name or path.name or "<unnamed>", path)
+    log.warn("Skipping workspace '%s': path does not exist: %s", workspace_spec.name or path.name or "<unnamed>", path)
     return
   end
 
   local self = {}
   self.path = path:resolve { strict = true }
-  self.name =
-    assert(spec.name or self.path.name, ("failed to find a valid name for workspace %s"):format(tostring(self.path)))
-  self.overrides = spec.overrides
+  self.name = assert(
+    workspace_spec.name or self.path.name,
+    ("failed to find a valid name for workspace %s"):format(tostring(self.path))
+  )
+  self.overrides = workspace_spec.overrides
 
-  if spec.strict then
+  if workspace_spec.strict then
     self.root = self.path
   else
     local vault_root = find_vault_root(self.path)
@@ -135,7 +137,9 @@ Workspace.set = function(workspace)
   end
 
   local dir = workspace.root
-  local options = config.normalize(workspace.overrides or {}, Obsidian._opts)
+  local overrides = workspace.overrides or {}
+  ---@cast overrides obsidian.config
+  local options = config.normalize(overrides, Obsidian._opts)
 
   local previous_workspace = Obsidian.workspace
   Obsidian.workspace = workspace

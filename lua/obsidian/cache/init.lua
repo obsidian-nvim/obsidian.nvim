@@ -21,7 +21,7 @@ local M = {}
 ---@field put fun(self: obsidian.cache.Store, key: string, row: table)
 ---@field delete fun(self: obsidian.cache.Store, key: string)
 
----@type table<string, obsidian.cache.Backend>
+---@type table<string, any>
 local backends = {
   json = require "obsidian.cache.json_backend",
   memory = require "obsidian.cache.memory_backend",
@@ -57,7 +57,7 @@ local function schedule_flush()
     state.flush_timer:close()
   end
   state.flush_timer = vim.uv.new_timer()
-  assert(state.flush_timer):start(
+  assert(state.flush_timer, "failed to create cache flush timer"):start(
     FLUSH_DEBOUNCE_MS,
     0,
     vim.schedule_wrap(function()
@@ -260,14 +260,16 @@ end
 ---@param name string?
 ---@return obsidian.cache.Backend?
 function M.get_backend(name)
-  return backends[name or "json"]
+  local backend = backends[name or "json"]
+  ---@cast backend obsidian.cache.Backend?
+  return backend
 end
 
 ---@class obsidian.cache.SetupOpts
 ---@field enabled? boolean
 ---@field backend? string
 
----@param opts obsidian.cache.SetupOpts
+---@param opts obsidian.config.CacheOpts
 function M.setup(opts)
   opts = opts or {}
   if opts.enabled == false then

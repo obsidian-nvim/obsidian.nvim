@@ -272,8 +272,9 @@ M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    return M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
+    M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
   end, opts.timeout)
+  ---@cast result obsidian.Note[]?
   return result or {}
 end
 
@@ -397,8 +398,9 @@ M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    return M.resolve_note_async(query, cb, { notes = opts.notes })
+    M.resolve_note_async(query, cb, { notes = opts.notes })
   end, opts.timeout)
+  ---@cast result obsidian.Note[]?
   return result or {}
 end
 
@@ -658,12 +660,13 @@ M.find_backlinks = function(note, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    return M.find_backlinks_async(
+    M.find_backlinks_async(
       note,
       cb,
       { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
     )
   end, opts.timeout)
+  ---@cast result obsidian.BacklinkMatch[]?
   return result or {}
 end
 
@@ -686,8 +689,9 @@ M.find_tags = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    return M.find_tags_async(term, cb, { search = opts.search, dir = opts.dir })
+    M.find_tags_async(term, cb, { search = opts.search, dir = opts.dir })
   end, opts.timeout)
+  ---@cast result obsidian.TagLocation[]?
   return result or {}
 end
 

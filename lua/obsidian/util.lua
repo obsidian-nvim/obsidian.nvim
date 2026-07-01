@@ -350,31 +350,29 @@ util.parse_link = function(link)
     return nil
   end
 
-  local link_location, link_name
   if link_type == "markdown" then
-    link_name = link:match "%[(.-)%]"
-    link_location = link:match "%((.-)%)"
+    local link_name = link:match "%[(.-)%]"
+    local link_location = link:match "%((.-)%)"
+    return link_location, link_name, "markdown"
   elseif link_type == "wiki" then
     link = util.unescape_single_backslash(link)
     -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'
     link = link:sub(3, #link - 2)
     local split_idx = link:find "|"
     if split_idx then
-      link_location = link:sub(1, split_idx - 1)
-      link_name = link:sub(split_idx + 1)
+      local link_location = link:sub(1, split_idx - 1)
+      local link_name = link:sub(split_idx + 1)
+      return link_location, link_name, "wiki"
     else
-      link_location = link
-      link_name = link
+      return link, link, "wiki"
     end
   elseif link_type == "footnote" then
     -- remove boundary brackets and the caret, e.g. '[^xxx]' -> 'xxx'
-    link_location = link:sub(3, #link - 1)
-    link_name = link_location
+    local link_location = link:sub(3, #link - 1)
+    return link_location, link_location, "footnote"
   else
     error("not implemented for " .. link_type)
   end
-
-  return link_location, link_name, link_type
 end
 
 --- Replace references of the form '[[xxx|xxx]]', '[[xxx]]', or '[xxx](xxx)' with their title.

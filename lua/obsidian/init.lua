@@ -30,11 +30,12 @@ obsidian._client = nil
 ---Get the current obsidian client.
 ---@return obsidian.Client
 obsidian.get_client = function()
-  if obsidian._client == nil then
+  ---@type obsidian.Client?
+  local client = rawget(obsidian, "_client")
+  if client == nil then
     error "Obsidian client has not been set! Did you forget to call 'setup()'?"
-  else
-    return obsidian._client
   end
+  return client
 end
 
 obsidian.register_command = require("obsidian.commands").register
@@ -53,6 +54,7 @@ obsidian.setup = function(user_opts)
   ---@field buf_dir obsidian.Path|? Parent directory of the current buffer.
   ---@field opts obsidian.config.Internal Current options.
   ---@field _opts obsidian.config.Internal User input options.
+  ---@diagnostic disable-next-line: global-in-non-module
   Obsidian = {}
 
   local opts = obsidian.config.normalize(user_opts)
