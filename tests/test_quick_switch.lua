@@ -133,17 +133,17 @@ return {
 }
   ]]
 
-  eq(true, result.default_seen["Note.md"])
+  eq(true, result.default_seen["Note"])
   eq(nil, result.default_seen["Image.png"])
   eq(nil, result.default_seen["Missing"])
   eq(nil, result.default_seen["Missing.pdf"])
 
-  eq(true, result.missing_seen["Note.md"])
+  eq(true, result.missing_seen["Note"])
   eq(true, result.missing_seen["Missing"])
   eq(nil, result.missing_seen["Image.png"])
   eq(nil, result.missing_seen["Missing.pdf"])
 
-  eq({ attachment = false, missing = false }, result.attachment_seen["Note.md"])
+  eq({ attachment = false, missing = false }, result.attachment_seen["Note"])
   eq({ attachment = false, missing = true }, result.attachment_seen["Missing"])
   eq({ attachment = true, missing = false }, result.attachment_seen["Image.png"])
   eq({ attachment = true, missing = true }, result.attachment_seen["Missing.pdf"])
