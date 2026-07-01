@@ -124,7 +124,7 @@ M.parse = function(lines, opts)
       return
     end
 
-    local line = vim.trim(lines[idx])
+    local line = vim.trim(lines[idx] or "")
     local block_id = util.parse_block(line)
     if block_id then
       local block = { id = block_id, line = idx, block = line }

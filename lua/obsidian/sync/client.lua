@@ -138,7 +138,7 @@ function M.run(subcmd, flags)
     end
     return
   elseif out.code ~= 0 then
-    log.error(out.stderr)
+    log.error(out.stderr or "")
   end
   return out
 end

@@ -111,7 +111,11 @@ M.includeexpr = function(fname)
     return
   end
 
-  location = vim.uri_decode(location) or location
+  local decoded = vim.uri_decode(location)
+  if decoded then
+    ---@cast decoded string
+    location = decoded
+  end
   return M.resolve_link_path(location)
 end
 

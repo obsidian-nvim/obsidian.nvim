@@ -274,14 +274,15 @@ local function process_search_results(cc, results)
 
   for _, option in pairs(cc.new_text_to_option) do
     -- TODO: need a better label, maybe just the note's display name?
+    local option_label = option.label or ""
     ---@type string
     local label
     if Obsidian.opts.link.style == "wiki" then
-      label = string.format("[[%s]]", option.label)
+      label = string.format("[[%s]]", option_label)
     elseif Obsidian.opts.link.style == "markdown" then
-      label = string.format("[%s](…)", option.label)
+      label = string.format("[%s](…)", option_label)
     elseif type(Obsidian.opts.link.style) == "function" then
-      label = Obsidian.opts.link.style { label = option.label or "", path = "" }
+      label = Obsidian.opts.link.style { label = option_label, path = "" }
     else
       error "not implemented"
     end
@@ -289,7 +290,7 @@ local function process_search_results(cc, results)
     table.insert(completion_items, {
       documentation = option.documentation,
       sortText = option.sort_text,
-      filterText = completion.get_filter_text(option.label),
+      filterText = completion.get_filter_text(option_label),
       label = label,
       kind = vim.lsp.protocol.CompletionItemKind.Reference,
       textEdit = {

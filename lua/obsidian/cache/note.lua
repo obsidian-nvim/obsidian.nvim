@@ -95,7 +95,7 @@ function M.build(abs_path, _vault_root)
   local tasks = {}
   local in_code_block = false
   for i = fm_end + 1, #lines do
-    local line = lines[i]
+    local line = lines[i] or ""
     if line:match "^%s*```" then
       in_code_block = not in_code_block
     elseif not in_code_block then

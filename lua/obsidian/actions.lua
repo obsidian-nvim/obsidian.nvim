@@ -665,7 +665,7 @@ M.add_property = function()
   note:update_frontmatter(0)
 end
 
----@param template_name string
+---@param template_name string|?
 M.insert_template = function(template_name)
   local templates_dir = api.templates_dir()
   if not templates_dir then
