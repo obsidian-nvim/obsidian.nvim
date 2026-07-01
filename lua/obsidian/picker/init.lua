@@ -3,6 +3,7 @@ local api = require "obsidian.api"
 local cache = require "obsidian.cache"
 local attachment = require "obsidian.attachment"
 local icons = require "obsidian.icons"
+local link = require "obsidian.link"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
@@ -102,7 +103,7 @@ end
 ---@param target string
 ---@return boolean
 local function is_attachment_target(target)
-  return attachment.is_attachment_filetype(target:lower())
+  return attachment.is_attachment_path(target:lower())
 end
 
 ---@param target string?
@@ -119,12 +120,6 @@ local function normalize_link_target(target)
     target = target:sub(3)
   end
   return (target:gsub("^/+", ""))
-end
-
----@param target string
----@return boolean
-local function link_target_has_extension(target)
-  return target:match "%.([^/%.]+)$" ~= nil
 end
 
 ---@param path string
@@ -153,27 +148,6 @@ local function target_exists(target, lookup)
     end
   end
   return false
-end
-
----@param target string
----@param is_attachment boolean
----@param path string
----@return string?
-local function missing_target_path(target, is_attachment, path)
-  if is_external_target(target) then
-    return nil
-  end
-
-  target = normalize_link_target(target)
-
-  if is_attachment then
-    return attachment.resolve_attachment_path(target, path)
-  end
-
-  if not link_target_has_extension(target) then
-    target = target .. ".md"
-  end
-  return vim.fs.normalize(vim.fs.joinpath(tostring(Obsidian.dir), target))
 end
 
 ---@param is_attachment boolean
@@ -234,12 +208,12 @@ M.find_files_from_cache = function(opts)
 
     if not show_existing_only then
       for path, note in pairs(all) do
-        for _, link in ipairs(note.links_out or {}) do
-          local target = link.target
+        for _, outgoing in ipairs(note.links_out or {}) do
+          local target = outgoing.target
           if not is_external_target(target) and not target_exists(target, lookup) then
             local missing_is_attachment = is_attachment_target(target)
             if show_attachments or not missing_is_attachment then
-              local target_path = missing_target_path(target, missing_is_attachment, path)
+              local target_path = link.missing_link_path(target, path)
               if target_path and util.is_subpath(target_path, dir) and not seen_missing[target_path] then
                 seen_missing[target_path] = true
                 local text = normalize_link_target(target)
@@ -289,7 +263,7 @@ M.find_files_from_cache = function(opts)
           elseif data.attachment then
             vim.ui.open(path)
           elseif data.missing then
-            local location = item.text or vim.fn.fnamemodify(path, ":t:r")
+            local location = cache.notes.rel_path(path):gsub("%.md$", "")
             api.create_new_note(location, function(locations)
               if locations and locations[1] then
                 api.open_note(vim.uri_to_fname(locations[1].uri))
