@@ -185,6 +185,7 @@ M.select = function(values, opts, on_choice)
 
   ---@diagnostic disable-next-line: redundant-parameter
   local has_preview = opts.preview_item ~= nil
+    ---@diagnostic disable-next-line: call-non-callable
     or vim.iter(values):any(function(value)
       return type(value) == "table" and value.filename ~= nil
     end)
