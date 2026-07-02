@@ -395,8 +395,6 @@ local function handle_path(path, loc)
 end
 
 ---Forward declaration: defined after the image-paste section.
----@param opts table
----@return any
 local paste_image_from_clipboard
 
 ---Route a classification to the right converter and insert the result.
