@@ -1,3 +1,4 @@
+---@diagnostic disable: unresolved-require
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Path = require "obsidian.path"
@@ -88,7 +89,7 @@ local function get_query(prompt_bufnr, keep_open, initial_query)
   end
 end
 
----@param opts { callback: fun(entry: obsidian.PickerEntry)|?, allow_multiple: boolean|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, initial_query: string|? }
+---@param opts { callback: (fun(entry: obsidian.PickerEntry, ...: obsidian.PickerEntry))|?, allow_multiple: boolean|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, initial_query: string|? }
 local function attach_picker_mappings(map, opts)
   -- Docs for telescope actions:
   -- https://github.com/nvim-telescope/telescope.nvim/blob/master/lua/telescope/actions/init.lua
@@ -109,7 +110,11 @@ local function attach_picker_mappings(map, opts)
       map({ "i", "n" }, key, function(prompt_bufnr)
         local entries = get_selected(prompt_bufnr, mapping.keep_open, mapping.allow_multiple)
         if entries then
-          mapping.callback(unpack(entries))
+          local entry = entries[1]
+          if entry then
+            ---@diagnostic disable-next-line: param-type-mismatch
+            mapping.callback(entry, unpack(entries, 2))
+          end
         elseif mapping.fallback_to_query then
           local query = get_query(prompt_bufnr, mapping.keep_open)
           if query then
@@ -124,7 +129,11 @@ local function attach_picker_mappings(map, opts)
     map({ "i", "n" }, "<CR>", function(prompt_bufnr)
       local entries = get_selected(prompt_bufnr, false, opts.allow_multiple)
       if entries then
-        opts.callback(unpack(entries))
+        local entry = entries[1]
+        if entry then
+          ---@diagnostic disable-next-line: param-type-mismatch
+          opts.callback(entry, unpack(entries, 2))
+        end
       end
     end)
   end
@@ -133,7 +142,9 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or api.open_note
+  local callback = opts.callback or function(path)
+    api.open_note(path)
+  end
 
   local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
@@ -149,7 +160,9 @@ M.find_files = function(opts)
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
         callback = function(entry)
-          opts.callback(entry.filename)
+          if entry.filename then
+            callback(entry.filename)
+          end
         end,
         query_mappings = opts.query_mappings,
         selection_mappings = opts.selection_mappings,
@@ -210,13 +223,15 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
-  opts.callback = opts.callback or api.open_note
+  local callback = opts.callback or function(value, ...)
+    api.open_note(value, ...)
+  end
 
   local picker_opts = {
     default_text = opts.query,
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
-        callback = opts.callback,
+        callback = callback,
         allow_multiple = opts.allow_multiple,
         query_mappings = opts.query_mappings,
         selection_mappings = opts.selection_mappings,

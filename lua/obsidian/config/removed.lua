@@ -1,0 +1,229 @@
+---@diagnostic disable: undefined-field, inject-field
+local log = require "obsidian.log"
+local util = require "obsidian.util"
+
+---@param user_opts obsidian.config
+---@param defaults obsidian.config.Internal
+return function(user_opts, defaults)
+  local opts = vim.deepcopy(user_opts)
+  -------------------------------------------------------------------------------------
+  -- Rename old fields for backwards compatibility and warn about deprecated fields. --
+  -------------------------------------------------------------------------------------
+
+  if opts.ui and opts.ui.tick then
+    opts.ui.update_debounce = opts.ui.tick
+    opts.ui.tick = nil
+  end
+
+  if not opts.picker then
+    opts.picker = {}
+    if opts.finder then
+      opts.picker.name = opts.finder
+      opts.finder = nil
+    end
+    if opts.finder_mappings then
+      opts.picker.note_mappings = opts.finder_mappings
+      opts.finder_mappings = nil
+    end
+    if opts.picker.mappings and not opts.picker.note_mappings then
+      opts.picker.note_mappings = opts.picker.mappings
+      opts.picker.mappings = nil
+    end
+  end
+
+  if opts.completion ~= nil and opts.completion.preferred_link_style ~= nil then
+    opts.link = opts.link or {}
+    if opts.link.style == nil then
+      opts.link.style = opts.completion.preferred_link_style
+    end
+    opts.completion.preferred_link_style = nil
+    util.deprecate("completion.preferred_link_style", "link.style", "3.18")
+  end
+
+  if opts.preferred_link_style ~= nil then
+    opts.link = opts.link or {}
+    if opts.link.style == nil then
+      opts.link.style = opts.preferred_link_style
+    end
+    opts.preferred_link_style = nil
+    util.deprecate("preferred_link_style", "link.style", "3.18")
+  end
+
+  if opts.completion ~= nil and opts.completion.nvim_cmp ~= nil then
+    opts.completion.nvim_cmp = nil
+    util.deprecate(
+      "completion.nvim_cmp",
+      "removing it from your config. Completion is now provided via the built-in obsidian-ls LSP server",
+      "4.0"
+    )
+  end
+
+  if opts.completion ~= nil and opts.completion.blink ~= nil then
+    opts.completion.blink = nil
+    util.deprecate(
+      "completion.blink",
+      "removing it from your config. Completion is now provided via the built-in obsidian-ls LSP server",
+      "4.0"
+    )
+  end
+
+  if opts.completion ~= nil and opts.completion.new_notes_location ~= nil then
+    opts.new_notes_location = opts.completion.new_notes_location
+    opts.completion.new_notes_location = nil
+    log.warn_once(
+      "The config option 'completion.new_notes_location' is deprecated, please use the top-level "
+        .. "'new_notes_location' instead."
+    )
+  end
+
+  if opts.detect_cwd ~= nil then
+    opts.detect_cwd = nil
+    log.warn_once(
+      "The 'detect_cwd' field is deprecated and no longer has any affect.\n"
+        .. "See https://github.com/epwalsh/obsidian.nvim/pull/366 for more details."
+    )
+  end
+
+  if opts.open_app_foreground ~= nil then
+    opts.open_app_foreground = nil
+    log.warn_once [[The config option 'open_app_foreground' is deprecated, please use the `func` field in `open` module:
+
+```lua
+{
+  open = {
+    func = function(uri)
+      vim.ui.open(uri, { cmd = { "open", "-a", "/Applications/Obsidian.app" } })
+    end
+  }
+}
+```]]
+  end
+
+  if opts.use_advanced_uri ~= nil then
+    opts.open = opts.open or {}
+    opts.open.use_advanced_uri = opts.use_advanced_uri
+    opts.use_advanced_uri = nil
+    log.warn_once [[The config option 'use_advanced_uri' is deprecated, please use in `open` module instead]]
+  end
+
+  if opts.overwrite_mappings ~= nil then
+    log.warn_once "The 'overwrite_mappings' config option is deprecated and no longer has any affect."
+    opts.overwrite_mappings = nil
+  end
+
+  ---@diagnostic disable-next-line: undefined-field
+  if opts.mappings ~= nil then
+    log.warn_once [[The 'mappings' config option is deprecated and no longer has any affect.
+See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
+    opts.overwrite_mappings = nil
+  end
+
+  if opts.tags ~= nil then
+    log.warn_once "The 'tags' config option is deprecated and no longer has any affect."
+    opts.tags = nil
+  end
+
+  if opts.templates and opts.templates.subdir then
+    opts.templates.folder = opts.templates.subdir
+    opts.templates.subdir = nil
+  end
+
+  if opts.ui and opts.ui.checkboxes then
+    log.warn_once [[The 'ui.checkboxes' no longer effect the way checkboxes are ordered, use `checkbox.order`. See: https://github.com/obsidian-nvim/obsidian.nvim/issues/262]]
+  end
+
+  if opts.image_name_func then
+    if opts.attachments == nil then
+      opts.attachments = {}
+    end
+    opts.attachments.img_name_func = opts.image_name_func
+    opts.image_name_func = nil
+  end
+
+  if opts.statusline and opts.statusline.enabled then
+    util.deprecate(
+      "statusline.{enabled,format} and vim.g.obsidian",
+      "footer.{enabled,format}, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Statusline",
+      "4.0"
+    )
+  end
+
+  if opts.note_frontmatter_func then
+    opts.frontmatter = opts.frontmatter or {}
+    opts.frontmatter.func = opts.note_frontmatter_func
+    opts.note_frontmatter_func = nil
+    util.deprecate("note_frontmatter_func", "frontmatter.func", "4.0")
+  end
+
+  if opts.disable_frontmatter ~= nil then
+    opts.frontmatter = opts.frontmatter or {}
+    local disable_frontmatter = opts.disable_frontmatter
+    if type(disable_frontmatter) == "boolean" then
+      opts.frontmatter.enabled = not disable_frontmatter
+    elseif type(disable_frontmatter) == "function" then
+      opts.frontmatter.enabled = function(fname)
+        return not disable_frontmatter(fname)
+      end
+    end
+    opts.disable_frontmatter = nil
+    util.deprecate("disable_frontmatter", "frontmatter.enabled", "4.0")
+  end
+
+  if opts.search_max_lines ~= nil then
+    opts.search = opts.search or vim.deepcopy(defaults.search)
+    opts.search.max_lines = opts.search_max_lines
+    opts.search_max_lines = nil
+    util.deprecate("top-level 'search_max_lines'", "search.max_lines", "3.18")
+  end
+
+  if opts.sort_by ~= nil then
+    opts.search = opts.search or vim.deepcopy(defaults.search)
+    opts.search.sort_by = opts.sort_by
+    opts.sort_by = nil
+    util.deprecate("top-level 'sort_by'", "search.sort_by", "3.18")
+  end
+
+  if opts.sort_reversed ~= nil then
+    opts.search = opts.search or vim.deepcopy(defaults.search)
+    opts.search.sort_reversed = opts.sort_reversed
+    opts.sort_reversed = nil
+    util.deprecate("top-level 'sort_reversed'", "search.sort_reversed", "3.18")
+  end
+
+  if opts.attachments and opts.attachments.img_folder then
+    ---@diagnostic disable-next-line: undefined-field
+    opts.attachments.folder = opts.attachments.img_folder
+    opts.attachments.img_folder = nil
+    util.deprecate("attachments.img_folder", "attachments.folder", "3.18")
+  end
+
+  if opts.follow_url_func then
+    opts.follow_url_func = nil
+    util.deprecate(
+      "follow_url_func",
+      "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
+      "3.18"
+    )
+  end
+
+  if opts.follow_img_func then
+    opts.follow_img_func = nil
+    util.deprecate(
+      "follow_img_func",
+      "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
+      "3.18"
+    )
+  end
+
+  if opts.wiki_link_func then
+    opts.wiki_link_func = nil
+    util.deprecate("wiki_link_func", "link.style, see `:Obsidian help Link`", "3.18")
+  end
+
+  if opts.markdown_link_func then
+    opts.link = opts.link or {}
+    opts.markdown_link_func = nil
+    util.deprecate("markdown_link_func", "link.style, see `:Obsidian help Link`", "3.18")
+  end
+  return opts
+end

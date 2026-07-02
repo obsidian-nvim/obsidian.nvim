@@ -1,3 +1,4 @@
+---@diagnostic disable: unresolved-require
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Path = require "obsidian.path"
@@ -8,7 +9,12 @@ local ut = require "obsidian.picker.util"
 ---@return string, integer?, integer?
 local function clean_path(entry)
   local parts = vim.split(entry, "\0", { plain = true })
-  return parts[1], tonumber(parts[2]), tonumber(parts[3])
+  local path = parts[1] or ""
+  local lnum = tonumber(parts[2])
+  local col = tonumber(parts[3])
+  ---@cast lnum integer?
+  ---@cast col integer?
+  return path, lnum, col
 end
 
 local M = {}
@@ -29,7 +35,9 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or api.open_note
+  local callback = opts.callback or function(path)
+    api.open_note(path)
+  end
 
   local mini_pick = require "mini.pick"
 
@@ -50,7 +58,7 @@ M.find_files = function(opts)
       name = opts.prompt_title,
       cwd = tostring(dir),
       choose = function(chosen_path)
-        if opts.callback then
+        if callback then
           return
         elseif not opts.no_default_mappings then
           mini_pick.default_choose(chosen_path)
@@ -59,8 +67,8 @@ M.find_files = function(opts)
     },
   })
 
-  if path and opts.callback then
-    opts.callback(tostring(dir / path))
+  if path then
+    callback(tostring(dir / path))
   end
 end
 
@@ -109,7 +117,9 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts and opts or {}
-  opts.callback = opts.callback or api.open_note
+  local callback = opts.callback or function(value, ...)
+    api.open_note(value, ...)
+  end
 
   local mini_pick = require "mini.pick"
 
@@ -136,8 +146,8 @@ M.pick = function(values, opts)
     },
   }
 
-  if entry and opts.callback then
-    opts.callback(entry)
+  if entry then
+    callback(entry)
   end
 end
 

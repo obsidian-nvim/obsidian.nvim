@@ -50,13 +50,17 @@ end
 ---@param level integer|?
 log.log = function(msg, level, ...)
   if level == nil or log._log_level == nil or level >= log._log_level then
-    msg = string.format(tostring(msg), unpack(message_args(msg, ...)))
+    ---@type string
+    local notify_msg = string.format(tostring(msg), unpack(message_args(msg, ...)))
+    ---@type integer?
+    local notify_level = level
     if vim.in_fast_event() then
       vim.schedule(function()
-        vim.notify(msg, level, { title = "Obsidian.nvim" })
+        ---@diagnostic disable-next-line: param-type-mismatch
+        vim.notify(notify_msg, notify_level, { title = "Obsidian.nvim" })
       end)
     else
-      vim.notify(msg, level, { title = "Obsidian.nvim" })
+      vim.notify(notify_msg, notify_level, { title = "Obsidian.nvim" })
     end
   end
 end
@@ -67,13 +71,17 @@ end
 ---@param level integer|?
 log.log_once = function(msg, level, ...)
   if level == nil or log._log_level == nil or level >= log._log_level then
-    msg = string.format(tostring(msg), unpack(message_args(msg, ...)))
+    ---@type string
+    local notify_msg = string.format(tostring(msg), unpack(message_args(msg, ...)))
+    ---@type integer?
+    local notify_level = level
     if vim.in_fast_event() then
       vim.schedule(function()
-        vim.notify_once(msg, level, { title = "Obsidian.nvim" })
+        ---@diagnostic disable-next-line: param-type-mismatch
+        vim.notify_once(notify_msg, notify_level, { title = "Obsidian.nvim" })
       end)
     else
-      vim.notify_once(msg, level, { title = "Obsidian.nvim" })
+      vim.notify_once(notify_msg, notify_level, { title = "Obsidian.nvim" })
     end
   end
 end

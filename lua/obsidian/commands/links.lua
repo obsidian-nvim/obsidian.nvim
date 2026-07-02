@@ -1,4 +1,5 @@
 local log = require "obsidian.log"
+local actions = require "obsidian.actions"
 local api = require "obsidian.api"
 
 return function()
@@ -14,7 +15,7 @@ return function()
   Obsidian.picker.pick(entries, {
     prompt_title = "Links",
     callback = function(entry)
-      api.follow_link(entry.user_data)
+      actions.follow_link(entry.user_data)
     end,
   })
 end

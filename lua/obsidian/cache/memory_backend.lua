@@ -31,7 +31,7 @@ function M:delete(key)
   self.data[key] = nil
 end
 
-function M:flush() end
+function M.flush() end
 
 function M:close()
   self.data = {}

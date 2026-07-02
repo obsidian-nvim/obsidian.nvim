@@ -46,6 +46,18 @@ M.pick = function(values, opts)
   end
 end
 
+---@param match MatchData
+---@return vim.quickfix.entry
+local function match_data_to_qfitem(match)
+  local filename = match.path.text
+  return {
+    filename = filename,
+    lnum = match.line_number,
+    col = match.submatches[1] and match.submatches[1].start + 1,
+    text = match.lines.text,
+  }
+end
+
 --- Grep for a string.
 ---
 ---@param opts obsidian.PickerGrepOpts|? Options.
@@ -62,33 +74,23 @@ end
 M.grep = function(opts)
   opts = opts or {}
 
-  ---@param match MatchData
-  ---@return vim.quickfix.entry
-  local function match_data_to_qfitem(match)
-    local filename = match.path.text
-    return {
-      filename = filename,
-      lnum = match.line_number,
-      col = match.submatches[1] and match.submatches[1].start + 1,
-      text = match.lines.text,
-    }
-  end
-
   local query
   if opts.query and vim.trim(opts.query) ~= "" then
     query = opts.query
   else
-    query = api.input(opts.prompt_title)
+    query = api.input(opts.prompt_title or "Grep")
   end
 
   if not query then
     return
   end
 
+  local dir = opts.dir or api.resolve_workspace_dir()
+
   local items = {}
 
   search.search_async(
-    opts.dir,
+    dir,
     query,
     {},
     function(match)
@@ -128,7 +130,7 @@ M.find_files = function(opts)
   if opts.query and vim.trim(opts.query) ~= "" then
     query = opts.query
   else
-    query = api.input(opts.prompt_title)
+    query = api.input(opts.prompt_title or "Find files")
   end
 
   if not query then
@@ -137,8 +139,10 @@ M.find_files = function(opts)
 
   local paths = {}
 
+  local dir = opts.dir or api.resolve_workspace_dir()
+
   search.find_async(
-    opts.dir,
+    dir,
     query,
     { include_non_markdown = opts.include_non_markdown },
     function(path)
@@ -172,7 +176,7 @@ M.find_files = function(opts)
               return item.text
             end,
           }, function(item)
-            if item then
+            if item and item.filename then
               opts.callback(item.filename)
             end
           end)

@@ -1,6 +1,8 @@
 local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
 
+---@class obsidian.CommandsModule
+---@field commands table<string, obsidian.CommandConfig>
 local M = { commands = {} }
 
 local function in_note()
@@ -13,6 +15,7 @@ end
 ---@return string[]
 local function get_commands_by_context(commands, is_visual, is_note)
   local choices = vim.tbl_values(commands)
+  ---@diagnostic disable-next-line: call-non-callable
   return vim
     .iter(choices)
     :filter(function(config)
@@ -67,7 +70,6 @@ local function get_commands_by_context(commands, is_visual, is_note)
     end)
     :totable()
 end
-
 function M.show_menu(data)
   local is_visual, is_note = data.range ~= 0, in_note()
   local choices = get_commands_by_context(M.commands, is_visual, is_note)
@@ -116,6 +118,7 @@ M.handle_command = function(data)
   data.args = table.concat(data.fargs, " ")
   local nargs = #data.fargs
 
+  ---@type obsidian.CommandConfig?
   local cmdconfig = M.commands[cmd]
   if cmdconfig == nil then
     log.err("Command '" .. cmd .. "' not found")
@@ -145,7 +148,8 @@ M.handle_command = function(data)
     return
   end
 
-  cmdconfig.func(data)
+  local func = assert(cmdconfig.func, "command missing function")
+  func(data)
 end
 
 ---@param arg_lead string
@@ -165,6 +169,7 @@ M.get_completions = function(arg_lead, cmdline, cursor_pos)
       return s:sub(1, #obsidiancmd) == obsidiancmd
     end, cmds)
   end
+  ---@type obsidian.CommandConfig?
   local cmdconfig = M.commands[obsidiancmd]
   if cmdconfig == nil then
     return
@@ -222,7 +227,10 @@ M.note_complete = function(_, cmdline)
   local query_results = search.find_notes(query, {})
 
   for _, note in ipairs(query_results) do
-    local note_path = assert(note.path:vault_relative_path { strict = true })
+    local path = note.path
+    ---@cast path -nil
+    local note_path = path:vault_relative_path { strict = true }
+    ---@cast note_path -nil
     table.insert(completions, note:display_name() .. "  " .. tostring(note_path))
     if not vim.tbl_isempty(note.aliases) then
       for _, alias in pairs(note.aliases) do

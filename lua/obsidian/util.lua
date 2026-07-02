@@ -31,7 +31,7 @@ end
 
 ---@param t table
 util.flatten = function(t)
-  ---@diagnostic disable-next-line: redundant-parameter
+  ---@diagnostic disable-next-line: redundant-parameter, call-non-callable
   return vim.iter(t):flatten():totable()
 end
 
@@ -220,7 +220,7 @@ end
 util.format_date = function(time, fmt)
   if fmt:find "%%" then
     local time_string = os.date(fmt, time)
-    ---@cast time_string -osdate
+    ---@cast time_string string
     return time_string
   end
   return require("obsidian.lib.moment").format(time, fmt)
@@ -230,7 +230,7 @@ end
 ---
 ---@param str string
 ---@param fmt string|?
----@return osdateparam|? date as os.date table
+---@return std.osdate? date as os.date table
 ---@return string|? error
 util.parse_date = function(str, fmt)
   -- Try common date formats
@@ -350,31 +350,29 @@ util.parse_link = function(link)
     return nil
   end
 
-  local link_location, link_name
   if link_type == "markdown" then
-    link_name = link:match "%[(.-)%]"
-    link_location = link:match "%((.-)%)"
+    local link_name = link:match "%[(.-)%]"
+    local link_location = link:match "%((.-)%)"
+    return link_location, link_name, "markdown"
   elseif link_type == "wiki" then
     link = util.unescape_single_backslash(link)
     -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'
     link = link:sub(3, #link - 2)
     local split_idx = link:find "|"
     if split_idx then
-      link_location = link:sub(1, split_idx - 1)
-      link_name = link:sub(split_idx + 1)
+      local link_location = link:sub(1, split_idx - 1)
+      local link_name = link:sub(split_idx + 1)
+      return link_location, link_name, "wiki"
     else
-      link_location = link
-      link_name = link
+      return link, link, "wiki"
     end
   elseif link_type == "footnote" then
     -- remove boundary brackets and the caret, e.g. '[^xxx]' -> 'xxx'
-    link_location = link:sub(3, #link - 1)
-    link_name = link_location
+    local link_location = link:sub(3, #link - 1)
+    return link_location, link_location, "footnote"
   else
     error("not implemented for " .. link_type)
   end
-
-  return link_location, link_name, link_type
 end
 
 --- Replace references of the form '[[xxx|xxx]]', '[[xxx]]', or '[xxx](xxx)' with their title.
@@ -672,5 +670,23 @@ util.strdisplaywidth = (function()
     return fallback
   end
 end)()
+
+--- HACK: because LazyVim and some users by default sets vim.deprecate to no-op
+--- Shows a deprecation message to the user.
+---
+---@param name        string     Deprecated feature (function, API, etc.).
+---@param alternative string|nil Suggested alternative feature.
+---@param version     string     Version when the deprecated function will be removed.
+---
+util.deprecate = function(name, alternative, version)
+  vim.validate("name", name, "string")
+  vim.validate("alternative", alternative, "string", true)
+  vim.validate("version", version, "string", true)
+
+  local msg = ("%s is deprecated"):format(name)
+  msg = alternative and ("%s, use %s instead."):format(msg, alternative) or (msg .. ".")
+  msg = ("%s\nFeature will be removed in %s %s"):format(msg, "obsidian.nvim", version)
+  vim.notify_once(msg, vim.log.levels.WARN)
+end
 
 return util

@@ -1,3 +1,4 @@
+---@diagnostic disable: unresolved-require
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Picker = require "obsidian.picker"
@@ -182,9 +183,13 @@ M.pick = function(values, opts)
   local callback = opts.callback or api.open_note
 
   ---@diagnostic disable-next-line: redundant-parameter
-  local preview = vim.iter(values):any(function(value)
-    return type(value) == "table" and value.filename ~= nil
-  end)
+  local preview = false
+  for _, value in ipairs(values) do
+    if type(value) == "table" and value.filename ~= nil then
+      preview = true
+      break
+    end
+  end
 
   local entries = {}
   for _, value in ipairs(values) do

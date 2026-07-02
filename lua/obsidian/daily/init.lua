@@ -18,14 +18,15 @@ M.daily_note_path = function(datetime)
   local options = Obsidian.opts
 
   if options.daily_notes.folder ~= nil then
-    path = path / options.daily_notes.folder
+    path = Path.new(vim.fs.joinpath(tostring(path), options.daily_notes.folder))
   elseif options.notes_subdir ~= nil then
-    path = path / options.notes_subdir
+    path = Path.new(vim.fs.joinpath(tostring(path), options.notes_subdir))
   end
 
-  local id = tostring(util.format_date(datetime, options.daily_notes.date_format))
+  local date_format = assert(options.daily_notes.date_format, "daily notes date_format is required")
+  local id = tostring(util.format_date(datetime, date_format))
 
-  path = path / (id .. ".md")
+  path = Path.new(vim.fs.joinpath(tostring(path), id .. ".md"))
 
   -- ID may contain additional path components, so make sure we use the stem.
   id = path.stem

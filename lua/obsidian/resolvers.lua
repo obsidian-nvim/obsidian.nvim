@@ -52,7 +52,9 @@ local function resolve_attachment_source(src, done)
     return
   end
 
-  local path = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(src), ":p"))
+  local expanded = vim.fn.expand(src)
+  ---@cast expanded string
+  local path = vim.fs.normalize(vim.fn.fnamemodify(expanded, ":p"))
   local stat = vim.uv.fs_stat(path)
   if stat and stat.type == "directory" then
     picker.find_files {
@@ -95,7 +97,10 @@ local function daily_note_path(datetime)
     path = path / options.notes_subdir
   end
 
-  return path / (tostring(util.format_date(datetime, options.daily_notes.date_format)) .. ".md")
+  local date_format = assert(options.daily_notes.date_format, "daily notes date_format is required")
+  local daily_path = path / (tostring(util.format_date(datetime, date_format)) .. ".md")
+  ---@cast daily_path obsidian.Path
+  return daily_path
 end
 
 ---@type obsidian.Resolver

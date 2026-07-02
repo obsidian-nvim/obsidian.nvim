@@ -6,7 +6,7 @@ local api = obsidian.api
 local actions = require "obsidian.actions"
 
 local function open_uri(uri, scheme)
-  if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
+  if vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
     vim.ui.open(uri)
   else
     local choice = api.confirm(("Open external link? %s"):format(uri))
@@ -17,9 +17,17 @@ local function open_uri(uri, scheme)
   end
 end
 
+---@class obsidian.lsp.DefinitionCreateOpts
+---@field range [integer, integer]|?
+---@field label string|?
+---@field bufnr integer|?
+---@field cursor_row integer|?
+---@field anchor string|?
+---@field block string|?
+
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
+---@param opts obsidian.lsp.DefinitionCreateOpts|?
 ---@return lsp.Location?
 local function create_new_note(location, callback, opts)
   opts = opts or {}
@@ -72,7 +80,7 @@ end
 
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
+---@param opts obsidian.lsp.DefinitionCreateOpts|?
 local function open_note(location, callback, opts)
   opts = opts or {}
   opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -103,12 +111,10 @@ local function open_note(location, callback, opts)
     elseif #notes == 1 then
       callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
     elseif #notes > 1 then
-      local locations = vim
-        .iter(notes)
-        :map(function(note)
-          return note:_location { block = block_link, anchor = anchor_link }
-        end)
-        :totable()
+      local locations = {}
+      for _, note in ipairs(notes) do
+        locations[#locations + 1] = note:_location { block = block_link, anchor = anchor_link }
+      end
       callback(locations)
     end
   end, {
@@ -142,7 +148,7 @@ end
 
 local function open_header_link(location, callback)
   local note = api.current_note(0, { collect_anchor_links = true })
-  if not note or vim.tbl_isempty(note.anchor_links) then
+  if not note or vim.tbl_isempty(note.anchor_links or {}) then
     return
   end
   local anchor_obj = note:resolve_anchor_link(location)
@@ -173,7 +179,9 @@ local handle_footnote = function(location, callback, _)
     if vim.tbl_isempty(refs) then
       return log.info("No references found for footnote [^%s]", location)
     end
-    lnum, col = refs[1].lnum, refs[1].start_col
+    local ref = refs[1]
+    ---@cast ref -nil
+    lnum, col = ref.lnum, ref.start_col
   end
 
   callback {
@@ -189,7 +197,7 @@ end
 
 local function open_block_link(location, callback)
   local note = api.current_note(0, { collect_blocks = true })
-  if not note or vim.tbl_isempty(note.blocks) then
+  if not note or vim.tbl_isempty(note.blocks or {}) then
     return
   end
   local block_obj = note:resolve_block(location)
@@ -207,7 +215,11 @@ return {
       return callback(nil, {})
     end
 
-    location = vim.uri_decode(location)
+    local decoded_location = vim.uri_decode(location)
+    if decoded_location then
+      ---@cast decoded_location string
+      location = decoded_location
+    end
 
     local wrapped_callback = function(lsp_locations)
       if lsp_locations and vim.islist(lsp_locations) then

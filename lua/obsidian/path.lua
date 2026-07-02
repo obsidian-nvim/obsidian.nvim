@@ -109,6 +109,9 @@ end
 Path.__eq = function(a, b)
   return a.filename == b.filename
 end
+---@param self obsidian.Path
+---@param other string|obsidian.Path
+---@return obsidian.Path
 Path.__div = function(self, other)
   return Path.new(vim.fs.joinpath(self.filename, tostring(other)))
 end
@@ -219,7 +222,7 @@ Path.with_suffix = function(self, suffix, should_append)
   end
 
   if parent then
-    return parent / new_name
+    return Path.new(vim.fs.joinpath(parent.filename, new_name))
   else
     return Path.new(new_name)
   end
@@ -292,7 +295,11 @@ end
 ---
 ---@return obsidian.Path[]
 Path.parents = function(self)
-  return vim.iter(vim.fs.parents(self.filename)):map(Path.new):totable()
+  local parents = {}
+  for parent in vim.fs.parents(self.filename) do
+    parents[#parents + 1] = Path.new(parent)
+  end
+  return parents
 end
 
 --- Check if the path is a parent of other. This is a pure path method, so it only checks by
@@ -330,12 +337,12 @@ end
 ---
 ---@return obsidian.Path
 Path.resolve = function(self, opts)
-  opts = opts or {}
+  local resolve_opts = opts or {}
 
   local realpath = self:abspath()
   if realpath then
     return Path.new(realpath)
-  elseif opts.strict then
+  elseif resolve_opts.strict then
     error("FileNotFoundError: " .. self.filename)
   end
 

@@ -198,27 +198,24 @@ local function open_bookmark(bookmark)
     api.open_note(bookmark_to_picker_entry(bookmark))
   elseif bookmark.type == "folder" then
     local entry = bookmark_to_picker_entry(bookmark)
-    vim.cmd("edit " .. vim.fn.fnameescape(entry.filename))
+    if entry.filename then
+      vim.cmd("edit " .. vim.fn.fnameescape(entry.filename))
+    end
   end
 end
 
 ---@param bookmarks obsidian.Bookmark[]
 M.pick = function(bookmarks)
-  bookmarks = vim
-    .iter(bookmarks)
-    :map(function(bm)
-      if bm.path then
-        bm._path = tostring(Obsidian.dir / bm.path)
-      end
-      return bm
-    end)
-    :filter(function(bm)
-      if bm.path then
-        return vim.uv.fs_stat(bm._path) ~= nil
-      end
-      return true
-    end)
-    :totable()
+  local filtered = {}
+  for _, bm in ipairs(bookmarks) do
+    if bm.path then
+      bm._path = tostring(Obsidian.dir / bm.path)
+    end
+    if not bm.path or vim.uv.fs_stat(bm._path) ~= nil then
+      filtered[#filtered + 1] = bm
+    end
+  end
+  bookmarks = filtered
 
   vim.ui.select(bookmarks, {
     prompt_title = "Bookmarks",

@@ -35,9 +35,10 @@ local add = function(opts)
 end
 
 local function in_visual()
-  return vim.api.nvim_get_mode().mode:find "v" ~= nil
+  return (vim.api.nvim_get_mode().mode:find "v") ~= nil
 end
 
+---@type table<string, { title: string, cond: (fun(note: obsidian.Note): boolean)?, fn: function? }>
 local default_actions = {
   add_property = {
     title = "Add file property",
@@ -69,14 +70,14 @@ local default_actions = {
   insert_template = {
     title = "Insert template at cursor",
     cond = function()
-      return Obsidian.opts.templates.enabled
+      return Obsidian.opts.templates.enabled == true
     end,
   },
 
   start_presentation = {
     title = "Start presentation",
     cond = function()
-      return Obsidian.opts.slides.enabled
+      return Obsidian.opts.slides.enabled == true
     end,
   },
 
@@ -104,8 +105,9 @@ local del = function(name)
 end
 
 for name, opts in pairs(default_actions) do
-  opts.name = name
-  add(opts)
+  ---@type obsidian.lsp.CodeActionOpts
+  local action_opts = vim.tbl_extend("force", opts, { name = name })
+  add(action_opts)
 end
 
 return {

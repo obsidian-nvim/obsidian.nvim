@@ -20,14 +20,17 @@ end
 return function(data)
   local open_strategy
   if data.args and string.len(data.args) > 0 then
-    open_strategy = api.get_open_strategy(data.args)
+    local strategy = data.args
+    ---@cast strategy obsidian.config.OpenStrategy
+    open_strategy = api.get_open_strategy(strategy)
   else
     open_strategy = api.get_open_strategy(Obsidian.opts.open_notes_in)
   end
 
+  ---@diagnostic disable-next-line: missing-fields,param-type-mismatch
   vim.lsp.buf.definition {
     on_list = function(t)
-      local items = dedupe_items(t.items)
+      local items = dedupe_items(t.items or {})
       if #items == 1 then
         api.open_note(items[1], open_strategy)
       else

@@ -73,8 +73,9 @@ local update_footer = vim.schedule_wrap(function(buf, update_backlinks)
 
         render_footer(buf, display_text)
 
-        if Obsidian.opts.statusline.enabled then
-          note_status(buf, Obsidian.opts.statusline.format, true, function(res)
+        local statusline_format = Obsidian.opts.statusline.format
+        if Obsidian.opts.statusline.enabled and statusline_format then
+          note_status(buf, statusline_format, true, function(res)
             pcall(function()
               if res and vim.api.nvim_buf_is_valid(buf) then
                 vim.b[buf].obsidian_status = res

@@ -121,7 +121,9 @@ local function get_attachment_paths(src, bufnr)
     end
   end
 
-  local src_path = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(src), ":p"))
+  local expanded = vim.fn.expand(src)
+  ---@cast expanded string
+  local src_path = vim.fs.normalize(vim.fn.fnamemodify(expanded, ":p"))
   local fname = vim.fs.basename(src_path)
   if not fname or fname == "" then
     return nil, "Failed to resolve source filename from path"

@@ -98,6 +98,7 @@ M.clone_template = function(ctx)
   end
 
   for line in template_file:lines "L" do
+    ---@cast line string
     line = M.substitute_template_variables(line, ctx)
     note_file:write(line)
   end
@@ -141,6 +142,7 @@ M.insert_template = function(ctx)
   if template_file then
     local lines = template_file:lines()
     for line in lines do
+      ---@cast line string
       local new_lines = M.substitute_template_variables(line, ctx)
       if string.find(new_lines, "[\r\n]") then
         local line_start = 1

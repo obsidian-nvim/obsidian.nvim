@@ -128,6 +128,8 @@ function M.process_completion(callback, request)
       },
     }
 
+    ---@cast new_note table new_note metatable gets lost anyway
+
     ---@type lsp.CompletionItem
     local item = {
       documentation = documentation,

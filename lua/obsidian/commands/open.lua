@@ -7,8 +7,10 @@ local log = require "obsidian.log"
 ---@param path? string|obsidian.Path
 local function open_in_app(path)
   local vault_name = vim.fs.basename(tostring(Obsidian.workspace.root))
+  local open_func = Obsidian.opts.open.func
+  ---@cast open_func -nil
   if not path then
-    return Obsidian.opts.open.func("obsidian://open?vault=" .. vim.uri_encode(vault_name))
+    return open_func("obsidian://open?vault=" .. vim.uri_encode(vault_name))
   end
   path = tostring(path)
   local this_os = api.get_os()
@@ -29,7 +31,7 @@ local function open_in_app(path)
     uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
   end
 
-  Obsidian.opts.open.func(uri)
+  open_func(uri)
 end
 
 ---@param data obsidian.CommandArgs
@@ -56,7 +58,10 @@ return function(data)
         return log.err "Note under cursor is not resolved"
       end
       local note = notes[1]
-      open_in_app(note.path:vault_relative_path())
+      ---@cast note -nil
+      local note_path = note.path
+      ---@cast note_path -nil
+      open_in_app(note_path:vault_relative_path())
     end)
   else
     -- Otherwise use the pathk of the current buffer.

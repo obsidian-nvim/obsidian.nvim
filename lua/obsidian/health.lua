@@ -10,21 +10,21 @@ local ok = vim.health.ok
 local function error_f(...)
   local t = { ... }
   local format = table.remove(t, 1)
-  local str = #t == 0 and format or string.format(format, unpack(t))
+  local str = #t == 0 and tostring(format) or string.format(tostring(format), unpack(t))
   return error(str)
 end
 
 local function warn_f(...)
   local t = { ... }
   local format = table.remove(t, 1)
-  local str = #t == 0 and format or string.format(format, unpack(t))
+  local str = #t == 0 and tostring(format) or string.format(tostring(format), unpack(t))
   return warn(str)
 end
 
 local function ok_f(...)
   local t = { ... }
   local format = table.remove(t, 1)
-  local str = #t == 0 and format or string.format(format, unpack(t))
+  local str = #t == 0 and tostring(format) or string.format(tostring(format), unpack(t))
   return ok(str)
 end
 
@@ -107,6 +107,7 @@ end
 ---@param minimum string
 ---@param recommended string
 local function neovim(minimum, recommended)
+  ---@diagnostic disable-next-line: call-non-callable
   local version = tostring(vim.version())
   if vim.fn.has("nvim-" .. minimum) == 0 then
     error_f("neovim < %s (%s)", minimum, version)

@@ -224,9 +224,13 @@ function M.menu(subcmd)
     return
   end
 
-  local action = vim.iter(actions):find(function(act)
-    return act.name == subcmd
-  end)
+  local action
+  for _, act in ipairs(actions) do
+    if act.name == subcmd then
+      action = act
+      break
+    end
+  end
   if not action then
     log.err("Unknown sync subcommand: " .. subcmd)
     return

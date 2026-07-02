@@ -1,3 +1,4 @@
+---@diagnostic disable: unresolved-require
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Path = require "obsidian.path"
@@ -26,7 +27,7 @@ end
 
 local M = {}
 
----@param opts { callback: fun(selection: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+---@param opts { callback: (fun(selection: obsidian.PickerEntry|string))|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
 ---@param path_only? boolean HACK:
 local function get_selection_actions(opts, path_only)
   local entry_to_file = require("fzf-lua.path").entry_to_file
@@ -53,7 +54,9 @@ local function get_selection_actions(opts, path_only)
         mapping.callback { filename = path }
       end
     end
+  end
 
+  if opts.query_mappings then
     for key, mapping in pairs(opts.query_mappings) do
       actions[format_keymap(key)] = function(_, fzf_opts)
         local query = fzf_opts.query
@@ -66,7 +69,7 @@ local function get_selection_actions(opts, path_only)
 end
 
 ---@param display_to_value_map table<string, any>
----@param opts { callback: fun(path: string)|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
+---@param opts { callback: (fun(value: obsidian.PickerEntry|string, ...: obsidian.PickerEntry|string))|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
 local function get_value_actions(display_to_value_map, opts)
   ---@param allow_multiple boolean|?
   ---@return any[]|?
@@ -129,7 +132,9 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  opts.callback = opts.callback or api.open_note
+  local callback = opts.callback or function(path)
+    api.open_note(path)
+  end
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -142,7 +147,7 @@ M.find_files = function(opts)
     prompt = format_prompt(opts.prompt_title),
     show_details = true,
     actions = get_selection_actions({
-      callback = opts.callback,
+      callback = callback,
       no_default_mappings = opts.no_default_mappings,
       selection_mappings = opts.selection_mappings,
       query_mappings = opts.query_mappings,
@@ -189,13 +194,19 @@ M.pick = function(values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  opts.callback = opts.callback or api.open_note
+  local callback = opts.callback or function(value, ...)
+    api.open_note(value, ...)
+  end
 
   ---@type table<string, any>
   local display_to_value_map = {}
-  local file_preview = vim.iter(values):any(function(v)
-    return type(v) == "table" and v.filename ~= nil
-  end)
+  local file_preview = false
+  for _, value in ipairs(values) do
+    if type(value) == "table" and value.filename ~= nil then
+      file_preview = true
+      break
+    end
+  end
 
   ---@type string[]
   local entries = {}
@@ -237,7 +248,7 @@ M.pick = function(values, opts)
       ut.build_prompt { prompt_title = opts.prompt_title, selection_mappings = opts.selection_mappings }
     ),
     actions = get_value_actions(display_to_value_map, {
-      callback = opts.callback,
+      callback = callback,
       allow_multiple = opts.allow_multiple,
       selection_mappings = opts.selection_mappings,
     }),

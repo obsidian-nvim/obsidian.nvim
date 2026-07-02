@@ -1,3 +1,4 @@
+---@diagnostic disable: unresolved-require
 local M = {}
 
 ---@return string|?

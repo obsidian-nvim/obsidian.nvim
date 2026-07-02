@@ -3,7 +3,7 @@
 local M = {}
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local iter, string, table = vim.iter, string, table
+local string, table = string, table
 local Path = require "obsidian.path"
 local config = require "obsidian.config"
 local attachment = require "obsidian.attachment"
@@ -35,7 +35,8 @@ M.templates_dir = function(workspace)
   local opts = Obsidian.opts
 
   if workspace and workspace ~= Obsidian.workspace then
-    opts = config.normalize(workspace.overrides, Obsidian._opts)
+    ---@diagnostic disable-next-line: param-type-mismatch
+    opts = config.normalize(workspace.overrides or {}, Obsidian._opts)
   end
 
   if (not opts.templates.enabled) or opts.templates == nil or opts.templates.folder == nil then
@@ -90,9 +91,11 @@ end
 ---@param path string|obsidian.Path
 ---@return obsidian.Workspace|?
 M.find_workspace = function(path)
-  return iter(Obsidian.workspaces):find(function(ws)
-    return M.path_is_note(path, ws)
-  end)
+  for _, ws in ipairs(Obsidian.workspaces) do
+    if M.path_is_note(path, ws) then
+      return ws
+    end
+  end
 end
 
 ---@param path string|obsidian.Path|?
@@ -176,6 +179,9 @@ M.cursor_tag = function()
 
   local Note = require "obsidian.note"
   local cword = vim.fn.expand "<cWORD>"
+  if type(cword) ~= "string" then
+    return nil
+  end
   local note = Note.from_buffer(0, { max_lines = 100 })
   if note and vim.list_contains(note.tags, cword) then
     return cword
@@ -262,8 +268,9 @@ end
 ---@param entry obsidian.PickerEntry|vim.quickfix.entry
 ---@return obsidian.Range|?
 local function entry_range(entry)
-  if type(entry.range) == "table" then
-    return normalize_range(entry.range)
+  local range = rawget(entry, "range")
+  if type(range) == "table" then
+    return normalize_range(range)
   end
 
   local lnum = tonumber(entry.lnum)
@@ -271,7 +278,15 @@ local function entry_range(entry)
   local end_lnum = tonumber(entry.end_lnum)
   local end_col = tonumber(entry.end_col)
   if lnum and end_lnum and end_col then
-    return Range.new(lnum - 1, math.max(col - 1, 0), end_lnum - 1, math.max(end_col - 1, 0))
+    local start_row = lnum - 1
+    local start_col = math.max(col - 1, 0)
+    local end_row = end_lnum - 1
+    local normalized_end_col = math.max(end_col - 1, 0)
+    ---@cast start_row integer
+    ---@cast start_col integer
+    ---@cast end_row integer
+    ---@cast normalized_end_col integer
+    return Range.new(start_row, start_col, end_row, normalized_end_col)
   end
 end
 
@@ -304,8 +319,11 @@ M.open_note = function(entry, cmd)
 
   vim.cmd(string.format("%s %s", cmd, vim.fn.fnameescape(tostring(path))))
   if type(entry) == "table" and entry.lnum then
-    local col = tonumber(entry.col) or 1
-    vim.api.nvim_win_set_cursor(0, { tonumber(entry.lnum), math.max(col - 1, 0) })
+    local lnum = tonumber(entry.lnum)
+    local col = math.max((tonumber(entry.col) or 1) - 1, 0)
+    ---@cast lnum integer
+    ---@cast col integer
+    vim.api.nvim_win_set_cursor(0, { lnum, col })
   end
 
   if not result_bufnr then
@@ -386,10 +404,10 @@ M.get_visual_selection = function(opts)
   -- for some odd reason. So change that to what they should be here. See ':h getpos' for more info.
   local maxcol = vim.api.nvim_get_vvar "maxcol"
   if cscol == maxcol then
-    cscol = vim.fn.strlen(lines[1])
+    cscol = vim.fn.strlen(lines[1] or "")
   end
   if cecol == maxcol then
-    cecol = vim.fn.strlen(lines[#lines])
+    cecol = vim.fn.strlen(lines[#lines] or "")
   end
 
   -- Use nvim_buf_get_text which properly handles UTF-8 byte positions
@@ -488,9 +506,11 @@ end
 ---@param name string
 ---@return string|?
 local get_src_root = function(name)
-  return iter(vim.api.nvim_list_runtime_paths()):find(function(path)
-    return vim.endswith(path, name)
-  end)
+  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
+    if vim.endswith(path, name) then
+      return path
+    end
+  end
 end
 
 --- Get info about a plugin.
@@ -506,7 +526,7 @@ M.get_plugin_info = function(name)
   local out = { path = src_root }
   local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
   if obj.code == 0 then
-    out.commit = vim.trim(obj.stdout)
+    out.commit = vim.trim(obj.stdout or "")
   else
     out.commit = "unknown"
   end
@@ -570,6 +590,7 @@ M.OSType = {
   FreeBSD = "FreeBSD",
 }
 
+---@type OSType?
 M._current_os = nil
 
 ---Get the running operating system.
@@ -577,9 +598,11 @@ M._current_os = nil
 ---@return OSType
 M.get_os = function()
   if M._current_os ~= nil then
+    ---@diagnostic disable-next-line: return-type-mismatch
     return M._current_os
   end
 
+  ---@type OSType
   local this_os
   if vim.fn.has "win32" == 1 then
     this_os = M.OSType.Windows
@@ -589,6 +612,7 @@ M.get_os = function()
     if sysname:lower() == "linux" and string.find(release, "microsoft") then
       this_os = M.OSType.Wsl
     else
+      ---@cast sysname OSType
       this_os = sysname
     end
   end
@@ -611,6 +635,7 @@ M.get_icon = function(path)
     return "󰉋"
   else
     local ok, res = pcall(function()
+      ---@diagnostic disable-next-line: unresolved-require
       local icon, hl_group = require("nvim-web-devicons").get_icon(path, nil, { default = true })
       return { icon, hl_group }
     end)

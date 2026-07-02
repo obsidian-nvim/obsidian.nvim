@@ -5,6 +5,12 @@ local async = require "obsidian.async"
 
 local M = {}
 
+---@param t table|function
+local function iter(t)
+  ---@diagnostic disable-next-line: call-non-callable
+  return vim.iter(t)
+end
+
 local Opts = require "obsidian.search.opts" -- general class to handle options
 local Ripgrep = require "obsidian.search.ripgrep" -- could have other backends in the future...
 
@@ -266,8 +272,9 @@ M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    return M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
+    M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
   end, opts.timeout)
+  ---@cast result obsidian.Note[]?
   return result or {}
 end
 
@@ -391,8 +398,9 @@ M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    return M.resolve_note_async(query, cb, { notes = opts.notes })
+    M.resolve_note_async(query, cb, { notes = opts.notes })
   end, opts.timeout)
+  ---@cast result obsidian.Note[]?
   return result or {}
 end
 
@@ -413,7 +421,7 @@ M.find_links = function(note)
   local lines = io.lines(tostring(note.path))
 
   local parse_refs = require "obsidian.parse.refs"
-  for lnum, line in vim.iter(lines):enumerate() do
+  for lnum, line in iter(lines):enumerate() do
     for _, ref in ipairs(parse_refs.extract(line)) do
       local link = ref.embed and ref.raw:sub(2) or ref.raw
       if not found[link] then
@@ -646,7 +654,7 @@ M.find_backlinks_async = function(note, callback, opts)
 end
 
 ---@param note obsidian.Note
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?
+---@param opts { search: obsidian.SearchOpts?, anchor: string?, block: string?, timeout: integer?, dir: string|obsidian.Path?, refs: string[]? }?
 ---@return obsidian.BacklinkMatch[] matches always returns a list (empty on timeout)
 M.find_backlinks = function(note, opts)
   opts = opts or {}
@@ -658,6 +666,7 @@ M.find_backlinks = function(note, opts)
       { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
     )
   end, opts.timeout)
+  ---@cast result obsidian.BacklinkMatch[]?
   return result or {}
 end
 
@@ -680,8 +689,9 @@ M.find_tags = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    return M.find_tags_async(term, cb, { search = opts.search, dir = opts.dir })
+    M.find_tags_async(term, cb, { search = opts.search, dir = opts.dir })
   end, opts.timeout)
+  ---@cast result obsidian.TagLocation[]?
   return result or {}
 end
 
@@ -713,13 +723,13 @@ M.find_tags_async = function(term, callback, opts)
   terms = util.tbl_unique(terms)
 
   -- Maps paths to tag locations.
-  ---@type table<obsidian.Path, obsidian.TagLocation[]>
+  ---@type table<string, obsidian.TagLocation[]>
   local path_to_tag_loc = {}
   -- Caches note objects.
-  ---@type table<obsidian.Path, obsidian.Note>
+  ---@type table<string, obsidian.Note>
   local path_to_note = {}
   -- Caches code block locations.
-  ---@type table<obsidian.Path, { [1]: integer, [2]: integer []}>
+  ---@type table<string, { [1]: integer, [2]: integer }[]>
   local path_to_code_blocks = {}
   -- Keeps track of the order of the paths.
   ---@type table<string, integer>
@@ -741,10 +751,11 @@ M.find_tags_async = function(term, callback, opts)
     if vim.startswith(tag, "#") then
       tag = string.sub(tag, 2)
     end
-    if not path_to_tag_loc[path] then
-      path_to_tag_loc[path] = {}
+    local path_key = tostring(path)
+    if not path_to_tag_loc[path_key] then
+      path_to_tag_loc[path_key] = {}
     end
-    path_to_tag_loc[path][#path_to_tag_loc[path] + 1] = {
+    path_to_tag_loc[path_key][#path_to_tag_loc[path_key] + 1] = {
       tag = tag,
       path = path,
       note = note,
@@ -771,20 +782,21 @@ M.find_tags_async = function(term, callback, opts)
   local on_match = function(match_data)
     local path = Path.new(match_data.path.text):resolve { strict = true }
 
-    if path_order[path] == nil then
+    local path_key = tostring(path)
+    if path_order[path_key] == nil then
       num_paths = num_paths + 1
-      path_order[path] = num_paths
+      path_order[path_key] = num_paths
     end
 
     -- Load note.
-    local note = path_to_note[path]
-    local code_blocks = path_to_code_blocks[path]
+    local note = path_to_note[path_key]
+    local code_blocks = path_to_code_blocks[path_key]
     if not note or not code_blocks then
       local ok, res = pcall(load_note, path)
       if ok then
         note, code_blocks = unpack(res)
-        path_to_note[path] = note
-        path_to_code_blocks[path] = code_blocks
+        path_to_note[path_key] = note
+        path_to_code_blocks[path_key] = code_blocks
       else
         err_count = err_count + 1
         if first_err == nil then

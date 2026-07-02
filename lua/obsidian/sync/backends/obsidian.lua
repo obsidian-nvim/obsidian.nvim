@@ -76,7 +76,11 @@ function M.pause(dir)
     runner.clear_notify_state(dir)
     status.set "paused"
   end)
-  return ok, err
+  if ok then
+    return true, nil
+  else
+    return false, tostring(err)
+  end
 end
 
 ---@param dir string
