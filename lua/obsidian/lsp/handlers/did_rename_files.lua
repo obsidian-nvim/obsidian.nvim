@@ -3,6 +3,7 @@ local Note = obsidian.Note
 local Path = obsidian.Path
 local api = obsidian.api
 local rename = require "obsidian.note.rename"
+local watchfiles = require "obsidian.lsp.watchfiles"
 
 local function apply_reference_edit(edit, meta, kind, name, dispatchers)
   if not edit then
@@ -84,6 +85,7 @@ return function(params, dispatchers)
     return
   end
 
+  local events = {}
   for _, file in ipairs(params.files) do
     local new_path = Path.new(vim.uri_to_fname(file.newUri))
     if new_path:is_dir() then
@@ -91,5 +93,11 @@ return function(params, dispatchers)
     else
       rename_note(file, dispatchers)
     end
+    events[#events + 1] = {
+      type = "renamed",
+      old_path = vim.uri_to_fname(file.oldUri),
+      new_path = vim.uri_to_fname(file.newUri),
+    }
   end
+  watchfiles.handle(events)
 end
