@@ -258,8 +258,9 @@ Return ~
                    `Note.from_lines`({lines}, {path}, {opts})
 Initialize a note from an iterator of lines.
 
+TODO: use vim.Iter here once the minimum Neovim runtime exposes that type.
 Parameters ~
-{lines} `(string[] | fun(): string|? | Iter)`
+{lines} `(any)`
 {path} `(string|obsidian.Path|)`?
 {opts} `(obsidian.note.LoadOpts|)`?
 
@@ -385,7 +386,7 @@ Parameters ~
                                                               *Note.backlinks()*
                         `Note.backlinks`({self}, {opts})
 Parameters ~
-{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }?)`
+{opts} `({ search: obsidian.SearchOpts?, anchor: string?, block: string?, timeout: integer?, dir: string|obsidian.Path?, refs: string[]? }?)`
 Return ~
 `(obsidian.BacklinkMatch[])`
 
@@ -393,7 +394,7 @@ Return ~
                                                         *Note.backlinks_async()*
                `Note.backlinks_async`({self}, {opts}, {callback})
 Parameters ~
-{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, dir: string|obsidian.Path, refs: string[]|? }?)`
+{opts} `({ search: obsidian.SearchOpts?, anchor: string?, block: string?, dir: string|obsidian.Path?, refs: string[]? }?)`
 {callback} `(fun(matches: obsidian.BacklinkMatch[]))`
 
 ------------------------------------------------------------------------------
@@ -476,8 +477,8 @@ Fields ~
 Class ~
 {(exact)} obsidian.note.NoteCreationOpts
 Fields ~
-{notes_subdir} `(string)`
-{note_id_func} `(fun())`
+{notes_subdir} `(string?)`
+{note_id_func} `(fun(title: string|?, path: obsidian.Path|?): string)`
 {new_notes_location} `(obsidian.config.NewNotesLocation)`
 
 ------------------------------------------------------------------------------
@@ -551,15 +552,11 @@ Specifies where the text should be inserted relative to the section or preamble.
 {placement} `(optional)` "`(top)`"|"bot"
 
 ------------------------------------------------------------------------------
-    | [ nil,     nil     ] | { header: nil,    level: nil     })
-Selects the first section with the given `header`, regardless of its `level`.
-When `on_section_missing == "create"`, then `level` will default to `2`.
- | [ string,  nil     ] | { header: string, level: nil     })
-Selects the first section with the given `level`, regardless of its `header`.
-When `on_section_missing == "create"`, then `header` will default to `Untitled`.
-| [ nil,     integer ] | { header: nil,    level: integer })
-Selects the first section with BOTH the given `header` and the given `level`.
-         [ string,  integer ] | { header: string, level: integer })
+Selects a section by preamble, header, level, or both.
+- `nil`, `{ header = nil, level = nil }`, or `{ nil, nil }`: preamble.
+- `string`, `{ header = string }`, or `{ string, nil }`: first matching header.
+- `integer`, `{ level = integer }`, or `{ nil, integer }`: first matching level.
+- `{ header = string, level = integer }` or `{ string, integer }`: first matching pair.
 
 ------------------------------------------------------------------------------
 "create" Create the missing section where text will be inserted under.
@@ -576,7 +573,7 @@ Fields ~
 {level} `(integer)`
 {line} `(integer)`
 {parent} `(obsidian.note.HeaderAnchor|)`?
-{section} `(obsidian.Section)` the full section this header begins.
+{section} `(optional)` `(obsidian.Section)` the full section this header begins.
 
 ------------------------------------------------------------------------------
 Class ~
@@ -586,7 +583,7 @@ Fields ~
 {id} `(string)`
 {line} `(integer)`
 {block} `(string)`
-{section} `(obsidian.Section)` the paragraph carrying the block identifier.
+{section} `(optional)` `(obsidian.Section)` the paragraph carrying the block identifier.
 
 
 ==============================================================================
@@ -595,7 +592,7 @@ Class ~
 {obsidian.workspace.WorkspaceSpec}
 
 Fields ~
-{path} `(string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path))`
+{path} `(optional)` `(string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path))`
 {name} `(string|)`?
 {strict} `(boolean|? If)` true, the workspace root will be fixed to 'path' instead of the vault root (if different).
 {overrides} `(obsidian.config?)`
@@ -694,6 +691,15 @@ Fields ~
 {suffixes} `(string[])` A list of all of the path's extensions.
 {stem} `(string)` The final path component, without its suffix.
 div(string|obsidian.Path): obsidian.Path
+
+------------------------------------------------------------------------------
+                                                                  *Path.__div()*
+                         `Path.__div`({self}, {other})
+Parameters ~
+{self} `(obsidian.Path)`
+{other} `(string|obsidian.Path)`
+Return ~
+`(obsidian.Path)`
 
 ------------------------------------------------------------------------------
                                                             *Path.is_path_obj()*
