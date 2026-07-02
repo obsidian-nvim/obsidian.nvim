@@ -47,7 +47,7 @@ obsidian.register_command = require("obsidian.commands").register
 ---@return obsidian.Client
 obsidian.setup = function(user_opts)
   ---@class obsidian.state
-  ---@field picker obsidian.Picker Deprecated. Use `require "obsidian.picker"`.
+  ---@field picker obsidian.Picker Picker to use.
   ---@field workspace obsidian.Workspace Current workspace.
   ---@field workspaces obsidian.Workspace[] All workspaces.
   ---@field dir obsidian.Path Root of the vault for the current workspace.

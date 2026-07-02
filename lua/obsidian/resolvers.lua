@@ -140,18 +140,16 @@ M.builtin.date = function(ctx, done)
     }
   end
 
-  Obsidian.picker.pick(dailies, {
-    prompt_title = "Dailies",
-    callback = function(entry)
-      ---@cast entry { user_data: { timestamp: integer, label: string, offset: integer } }
-      done {
-        timestamp = entry.user_data.timestamp,
-        precision = "day",
-        label = entry.user_data.label,
-        offset = entry.user_data.offset,
-      }
-    end,
-  })
+  Obsidian.picker.select(dailies, { prompt = "Dailies" }, function(entries)
+    local entry = entries[1]
+    ---@cast entry { user_data: { timestamp: integer, label: string, offset: integer } }
+    done {
+      timestamp = entry.user_data.timestamp,
+      precision = "day",
+      label = entry.user_data.label,
+      offset = entry.user_data.offset,
+    }
+  end)
 end
 
 ---@param name string

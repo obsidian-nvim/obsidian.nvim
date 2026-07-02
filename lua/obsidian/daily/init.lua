@@ -2,7 +2,6 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local resolvers = require "obsidian.resolvers"
 local util = require "obsidian.util"
-local picker = require "obsidian.picker"
 local M = {}
 
 --- Get the path to a daily note.

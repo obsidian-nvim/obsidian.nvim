@@ -1,5 +1,4 @@
 local log = require "obsidian.log"
-local actions = require "obsidian.actions"
 local api = require "obsidian.api"
 local actions = require "obsidian.actions"
 local picker = require "obsidian.picker"
