@@ -660,7 +660,7 @@ M.find_backlinks = function(note, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    M.find_backlinks_async(
+    return M.find_backlinks_async(
       note,
       cb,
       { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
