@@ -2,6 +2,7 @@ local obsidian = require "obsidian"
 local Note = obsidian.Note
 local api = obsidian.api
 local rename = require "obsidian.lsp.handlers._rename"
+local watchfiles = require "obsidian.lsp.watchfiles"
 
 ---@param file lsp.FileRename
 ---@param dispatchers table
@@ -44,7 +45,14 @@ return function(params, dispatchers)
     return
   end
 
+  local events = {}
   for _, file in ipairs(params.files) do
     rename_note(file, dispatchers)
+    events[#events + 1] = {
+      type = "renamed",
+      old_path = vim.uri_to_fname(file.oldUri),
+      new_path = vim.uri_to_fname(file.newUri),
+    }
   end
+  watchfiles.handle(events)
 end

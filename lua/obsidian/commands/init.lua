@@ -282,6 +282,8 @@ M.register("new_from_template", { nargs = "*" })
 
 M.register("quick_switch", { nargs = "?" })
 
+M.register("graph", { nargs = "*", complete = "file" })
+
 M.register("workspace", { nargs = "?" })
 
 M.register("help", { nargs = "?", complete = M.help_complete })
