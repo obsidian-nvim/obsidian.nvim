@@ -1,4 +1,5 @@
 local util = require "obsidian.util"
+local ut = require "obsidian.picker.util"
 local api = require "obsidian.api"
 local cache = require "obsidian.cache"
 local log = require "obsidian.log"
@@ -129,9 +130,7 @@ M.find_files_from_cache = function(opts)
       query = opts.query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
-      format_item = function(item)
-        return item["text"] or item["filename"] or ""
-      end,
+      format_item = ut.make_display,
       callback = function(item)
         local path = item["filename"]
         if not path then

@@ -1,8 +1,7 @@
-local M = {}
-
-local api = require "obsidian.api"
-local util = require "obsidian.util"
+local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
+
+local M = {}
 
 ---@param opts { prompt_title: string|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
 ---@return string
@@ -40,26 +39,14 @@ end
 
 ---@param entry obsidian.PickerEntry
 ---
----@return string, { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
+---@return string
 M.make_display = function(entry)
   local buf = {}
-  ---@type { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
-  local highlights = {}
-
-  local icon, icon_hl
-
-  if entry.filename then
-    icon, icon_hl = api.get_icon(entry.filename)
-  end
+  local icon = icons.get_icon(entry)
 
   if icon then
     buf[#buf + 1] = icon
     buf[#buf + 1] = " "
-    if icon_hl then
-      local icon_width = util.strdisplaywidth(icon)
-      ---@cast icon_width integer
-      highlights[#highlights + 1] = { { 0, icon_width }, icon_hl }
-    end
   end
 
   if entry.filename then
@@ -84,7 +71,7 @@ M.make_display = function(entry)
     buf[#buf + 1] = tostring(entry.user_data)
   end
 
-  return table.concat(buf, ""), highlights
+  return table.concat(buf, "")
 end
 
 return M
