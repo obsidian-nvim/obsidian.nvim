@@ -25,6 +25,15 @@ util.write_file = function(file, contents)
   fd:close()
 end
 
+---@param file string
+---@return string
+util.read_file = function(file)
+  local fd = assert(io.open(file, "r"))
+  local str = fd:read "*a"
+  fd:close()
+  return str
+end
+
 ---@param path string|obsidian.Path
 ---@return obsidian.ui_select_preview_spec
 util.preview_path = function(path)
