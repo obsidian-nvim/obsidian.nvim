@@ -292,59 +292,95 @@ M._tag_selection_mappings = function()
   return mappings
 end
 
---- Get the default Picker.
----
----@param picker_name obsidian.config.Picker|false|?
-M.get = function(picker_name)
-  local patch = function(modname)
-    for name, f in pairs(require(modname)) do
-      if name == "find_files" then
-        M[name] = function(opts)
-          opts = opts or {}
-          if M.find_files_from_cache(opts) then
-            return
-          end
-          return f(opts)
+local function patch(modname)
+  for name, f in pairs(require(modname)) do
+    if name == "find_files" then
+      M[name] = function(opts)
+        opts = opts or {}
+        if M.find_files_from_cache(opts) then
+          return
         end
-      else
-        M[name] = f
+        return f(opts)
       end
+    else
+      M[name] = f
     end
   end
+end
 
-  if picker_name == false then
-    patch "obsidian.picker._default"
-    return M
+---@param picker_name obsidian.config.Picker|?
+---@return string
+local function picker_module(picker_name)
+  if picker_name == string.lower(PickerName.telescope) then
+    return "obsidian.picker._telescope"
+  elseif picker_name == string.lower(PickerName.mini) then
+    return "obsidian.picker._mini"
+  elseif picker_name == string.lower(PickerName.fzf_lua) then
+    return "obsidian.picker._fzf"
+    -- or statement added for backwards compatibility
+  elseif picker_name == string.lower(PickerName.snacks) or picker_name == "snacks.pick" then
+    return "obsidian.picker._snacks"
+  else
+    return "obsidian.picker._default"
+  end
+end
+
+local function resolve_picker()
+  if state.picker_resolved then
+    return
   end
 
-  local selected_picker_name
+  local picker_name = state.picker_name
   if picker_name then
-    selected_picker_name = string.lower(picker_name)
-    if not picker_available(selected_picker_name) then
-      log.warn_once('Configured picker "%s" is not available; falling back to native picker', selected_picker_name)
+    if not picker_available(picker_name) then
+      log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
       patch "obsidian.picker._default"
-      return M
+      state.picker_resolved = true
+      return
     end
   else
     for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do
       if picker_available(name) then
-        return M.get(name)
+        picker_name = string.lower(name)
+        break
       end
     end
   end
 
-  if selected_picker_name == string.lower(PickerName.telescope) then
-    patch "obsidian.picker._telescope"
-  elseif selected_picker_name == string.lower(PickerName.mini) then
-    patch "obsidian.picker._mini"
-  elseif selected_picker_name == string.lower(PickerName.fzf_lua) then
-    patch "obsidian.picker._fzf"
-    -- or statement added for backwards compatibility
-  elseif selected_picker_name == string.lower(PickerName.snacks) or selected_picker_name == "snacks.pick" then
-    patch "obsidian.picker._snacks"
-  else
-    patch "obsidian.picker._default"
+  patch(picker_module(picker_name))
+  state.picker_resolved = true
+end
+
+---@param method string
+---@return function
+local function lazy_picker_method(method)
+  return function(...)
+    resolve_picker()
+    return M[method](...)
   end
+end
+
+--- Get the default Picker.
+---
+---@param picker_name obsidian.config.Picker|false|?
+M.get = function(picker_name)
+  state.picker_resolved = false
+  state.picker_name = nil
+
+  if picker_name == false then
+    patch "obsidian.picker._default"
+    state.picker_resolved = true
+    return M
+  end
+
+  if picker_name then
+    state.picker_name = string.lower(picker_name)
+  end
+
+  M.find_files = lazy_picker_method "find_files"
+  M.grep = lazy_picker_method "grep"
+  M.pick = lazy_picker_method "pick"
+
   return M
 end
 
