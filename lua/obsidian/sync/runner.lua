@@ -73,7 +73,6 @@ function M.append_log(dir, message, opts)
     M.logs[dir] = {}
   end
 
-  local ts = os.date "%Y-%m-%d %H:%M"
   local lines = vim.split(message, "\n")
 
   for _, line in ipairs(lines) do
@@ -91,8 +90,12 @@ function M.append_log(dir, message, opts)
         -- stack-trace/progress lines after an error should not clear the error state.
         status.set "syncing"
       end
-      local entry = string.format("%s - %s", ts, line)
-      table.insert(M.logs[dir], entry)
+      -- Keep only recent process output for error suppression/status tests.
+      -- The durable log is written by obsidian-headless itself and opened by :Obsidian sync log.
+      table.insert(M.logs[dir], line)
+      if #M.logs[dir] > 200 then
+        table.remove(M.logs[dir], 1)
+      end
     end
   end
 end
@@ -121,11 +124,24 @@ function M.open_log_buf(dir)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, M.logs[dir] or {})
   vim.bo[buf].modifiable = false
-  vim.api.nvim_buf_set_name(buf, ("Obsidian Sync Log %s"):format(dir))
+  vim.api.nvim_buf_set_name(buf, ("Obsidian Sync Recent Output %s"):format(dir))
   vim.api.nvim_set_current_buf(buf)
   vim.keymap.set("n", "q", function()
     vim.api.nvim_buf_delete(buf, { force = true })
   end, { buffer = buf, silent = true })
+  return { buf = buf }
+end
+
+---@param path string
+---@return { buf: integer }
+function M.open_log_file(path)
+  if vim.fn.filereadable(path) == 0 then
+    log.info("Sync log has not been created yet: %s", path)
+  end
+  vim.cmd.edit(vim.fn.fnameescape(path))
+  local buf = vim.api.nvim_get_current_buf()
+  vim.bo[buf].readonly = true
+  vim.bo[buf].filetype = "log"
   return { buf = buf }
 end
 

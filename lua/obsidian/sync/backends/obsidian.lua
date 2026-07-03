@@ -121,7 +121,12 @@ end
 
 ---@param dir string
 function M.log(dir)
-  runner.open_log_buf(dir)
+  local path = client.sync_log_path(dir)
+  if not path then
+    log.err("No obsidian-headless sync log found for %s. Run :Obsidian sync setup first.", dir)
+    return
+  end
+  runner.open_log_file(path)
 end
 
 ---------------

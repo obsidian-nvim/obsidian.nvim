@@ -88,6 +88,27 @@ T["client.list_local parsing"]["should return empty on nil stdout"] = function()
   client.run = orig_run
 end
 
+T["client.sync_log_path"] = new_set()
+
+T["client.sync_log_path"]["should point at obsidian-headless sync log for a configured vault"] = function()
+  local vaults = {
+    ["/home/user/vault"] = { hash = "abcdef0123456789", host = "desktop" },
+  }
+
+  eq(
+    vim.fs.joinpath(client.config_home(), "sync", "abcdef0123456789", "sync.log"),
+    client.sync_log_path("/home/user/vault", vaults)
+  )
+end
+
+T["client.sync_log_path"]["should return nil for unconfigured vault"] = function()
+  local vaults = {
+    ["/home/user/other"] = { hash = "abcdef0123456789", host = "desktop" },
+  }
+
+  eq(nil, client.sync_log_path("/home/user/vault", vaults))
+end
+
 T["client.list_remote parsing"] = new_set()
 
 T["client.list_remote parsing"]["should parse remote vault list"] = function()
