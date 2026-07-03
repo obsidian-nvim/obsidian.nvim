@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Properly normalize cached paths.
 - `api.open_note` off by 1 jumping.
 - Github work flows will use `emmylua_check`.
+- Picker integration will resolve when first invoked, to avoid lazy loading issues.
 
 ## [v3.16.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.5) - 2026-06-25
 
