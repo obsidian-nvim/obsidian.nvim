@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obsidian Graph View</title>
+<style>
+__OBSIDIAN_GRAPH_CSS__
+</style>
+</head>
+<body>
+<div id="loading">Loading graph...</div>
+<div id="stats"></div>
+<div id="tip"></div>
+<button id="settings-toggle">☰</button>
+<aside id="side" class="open">
+  <h1>Graph view</h1>
+  <div id="local-block" style="display:none">
+    <div class="muted">Local graph</div>
+    <div class="pill" id="root-note"></div>
+    <h2>Local</h2>
+    <label><span>Depth <b id="depth-value">1</b></span><input id="depth" type="range" min="1" max="5" value="1"></label>
+  </div>
+
+  <h2>Filters</h2>
+  <input id="search" type="text" placeholder="Search graph">
+  <label><span>Tags</span><input id="show-tags" type="checkbox" checked></label>
+  <label><span>Attachments</span><input id="show-attachments" type="checkbox" checked></label>
+  <label><span>Existing files only</span><input id="existing-only" type="checkbox"></label>
+  <label><span>Orphans</span><input id="show-orphans" type="checkbox" checked></label>
+
+  <h2>Display</h2>
+  <label><span>Text fade <b id="text-fade-value">0</b></span><input id="text-fade" type="range" min="-3" max="3" value="0" step="0.1"></label>
+  <label><span>Arrows</span><input id="show-arrows" type="checkbox"></label>
+  <label><span>Node size</span><input id="node-size" type="range" min="0.5" max="2" value="1" step="0.1"></label>
+  <label><span>Link width</span><input id="link-width" type="range" min="0.5" max="3" value="1" step="0.1"></label>
+
+  <h2>Forces</h2>
+  <label><span>Repel force</span><input id="repel" type="range" min="100" max="1800" value="700" step="50"></label>
+  <label><span>Link distance</span><input id="link-distance" type="range" min="40" max="240" value="105" step="5"></label>
+  <label><span>Center force</span><input id="center-force" type="range" min="0" max="30" value="8" step="1"></label>
+
+  <h2>About</h2>
+  <div class="muted">Search files and graph nodes, toggle attachments, missing files, orphans, labels, arrows, sizing, and force tuning.</div>
+</aside>
+<div id="controls"><button id="zin">+</button><button id="zout">-</button><button id="reset">&#x27F2;</button></div>
+<canvas id="graph"></canvas>
+<script>
+__OBSIDIAN_GRAPH_JS__
+</script>
+</body>
+</html>

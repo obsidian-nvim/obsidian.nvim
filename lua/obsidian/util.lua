@@ -14,6 +14,64 @@ util.write_file = function(file, contents)
   fd:close()
 end
 
+---@param file string
+---@return string
+util.read_file = function(file)
+  local fd = assert(io.open(file, "r"))
+  local str = fd:read "*a"
+  fd:close()
+  return str
+end
+
+---@param path string|obsidian.Path
+---@return obsidian.ui_select_preview_spec
+util.preview_path = function(path)
+  path = tostring(path)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
+
+  local stat = vim.uv.fs_stat(path)
+  if stat and stat.type == "directory" then
+    local entries = {}
+    for name, t in vim.fs.dir(path) do
+      entries[#entries + 1] = name .. (t == "directory" and "/" or "")
+    end
+    table.sort(entries)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
+    vim.bo[buf].filetype = "directory"
+  else
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
+    local ft = vim.filetype.match { filename = path }
+    if ft then
+      vim.bo[buf].filetype = ft
+    end
+  end
+
+  return { buf = buf }
+end
+
+-------------------
+--- Table tools ---
+-------------------
+
+---@param t table
+util.flatten = function(t)
+  ---@diagnostic disable-next-line: redundant-parameter, call-non-callable
+  return vim.iter(t):flatten():totable()
+end
+
+---Return a new list table with only the unique values of the original table.
+---
+---@param t table
+---@return any[]
+util.tbl_unique = function(t)
+  local found = {}
+  for _, val in pairs(t) do
+    found[val] = true
+  end
+  return vim.tbl_keys(found)
+end
+
 --------------------
 --- String Tools ---
 --------------------
