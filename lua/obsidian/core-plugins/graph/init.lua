@@ -500,8 +500,7 @@ end
 
 ---@return string
 local function graph_page()
-  local body = (require "obsidian.core-plugins.graph.web"):gsub("__OBSIDIAN_GRAPH_TOKEN__", M._token or "")
-  return body
+  return require("obsidian.core-plugins.graph.web").render { token = M._token or "" }
 end
 
 ---@param id string

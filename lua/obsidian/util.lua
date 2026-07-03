@@ -25,6 +25,15 @@ util.write_file = function(file, contents)
   fd:close()
 end
 
+---@param file string
+---@return string
+util.read_file = function(file)
+  local fd = assert(io.open(file, "r"))
+  local str = fd:read "*a"
+  fd:close()
+  return str
+end
+
 -------------------
 --- Table tools ---
 -------------------
