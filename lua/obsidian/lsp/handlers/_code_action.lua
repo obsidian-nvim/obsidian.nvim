@@ -69,6 +69,13 @@ local default_actions = {
     cond = in_visual,
   },
 
+  link_suggestion = {
+    title = "Link unlinked mention",
+    cond = function()
+      return require("obsidian.cache").is_enabled()
+    end,
+  },
+
   link_new = {
     title = "Link selection as name for a new note",
     cond = in_visual,
