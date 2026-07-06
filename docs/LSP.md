@@ -46,8 +46,7 @@ Available actions:
 - Normal mode:
   - Add file property (`add_property`)
   - Add attachment from folder, filepath or url (`add_attachment`)
-  - Record audio as attachment (`record_audio`)
-  - Stop recording (`stop_recording`, only while recording)
+  - Start/stop recording audio as attachment (`toggle_recording`, title changes with recording state)
   - Insert template at cursor (`insert_template`, requires templates enabled)
   - Move current note to another folder (`move_note`)
   - Merge current note into another note (`merge_note`)
@@ -68,7 +67,7 @@ API:
 
 - `require("obsidian").code_action.add(opts)`, and `opts` field have following fields:
   - `name`: command id (snake_case recommended).
-  - `title`: text shown in the code action picker.
+  - `title`: text shown in the code action picker, or a function that receives the current note and returns the text.
   - `fn`: function invoked when the action is executed.
   - `cond` (optional): a filter function that gets the current note object, determines whether actions is listed.
 - `require("obsidian").code_action.del(name)` removes a previously registered action.

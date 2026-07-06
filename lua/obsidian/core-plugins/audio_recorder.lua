@@ -50,6 +50,19 @@ local function clear_recording(recording)
   end
 end
 
+---@param bufnr integer
+---@param row integer 0-indexed row.
+---@param col integer 0-indexed column.
+---@return integer col 0-indexed column after the cursor character.
+local function cursor_insert_col_after(bufnr, row, col)
+  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
+  if col >= #line then
+    return #line
+  end
+
+  return vim.str_byteindex(line, vim.str_utfindex(line, col) + 1)
+end
+
 ---@param recording obsidian.AudioRecorderRecording
 ---@return obsidian.AttachmentPosition? position
 ---@return string? error
@@ -109,9 +122,15 @@ M.start = function()
     temp_path = temp_path,
     name = name,
     bufnr = bufnr,
-    mark_id = vim.api.nvim_buf_set_extmark(bufnr, ns, cursor[1] - 1, cursor[2], {
-      right_gravity = false,
-    }),
+    mark_id = vim.api.nvim_buf_set_extmark(
+      bufnr,
+      ns,
+      cursor[1] - 1,
+      cursor_insert_col_after(bufnr, cursor[1] - 1, cursor[2]),
+      {
+        right_gravity = false,
+      }
+    ),
   }
   state.recording = recording
   state.processing = false
@@ -203,6 +222,14 @@ end
 
 M.is_recording = function()
   return state.recording ~= nil
+end
+
+M.toggle = function()
+  if M.is_recording() then
+    M.stop()
+  else
+    M.start()
+  end
 end
 
 return M

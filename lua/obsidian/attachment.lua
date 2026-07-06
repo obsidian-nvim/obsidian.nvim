@@ -142,12 +142,12 @@ local function get_attachment_paths(src, bufnr, new_name)
     end
   end
 
-  local expanded = vim.fn.expand(src)
-  ---@cast expanded string
-  local src_path = vim.fs.normalize(vim.fn.fnamemodify(expanded, ":p"))
-  local fname = vim.fs.basename(src_path)
-  if not fname or fname == "" then
-    return nil, "Failed to resolve source filename from path"
+  if new_name then
+    local validated_name, err = validate_attachment_name(new_name)
+    if not validated_name then
+      return nil, err
+    end
+    fname = validated_name
   end
 
   return src_path, M.resolve_attachment_path(fname, bufnr)
@@ -210,7 +210,8 @@ end
 
 ---@class obsidian.AddAttachmentContext
 ---@field scope string Context where the attachment was added.
----@field bufnr integer Buffer associated with the action.
+---@field buffer integer Buffer associated with the action.
+---@field bufnr integer Deprecated alias for `buffer`.
 
 ---@class obsidian.AddAttachmentOpts
 ---@field insert? boolean Insert the generated attachment link. Defaults to true.
@@ -287,6 +288,7 @@ M.add = function(src, opts)
 
   fire_add_attachment(resolved_dst, {
     scope = opts.scope or "attachment.add",
+    buffer = bufnr,
     bufnr = bufnr,
   })
 

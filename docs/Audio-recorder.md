@@ -6,8 +6,8 @@ The audio recorder mirrors Obsidian's core audio recorder: start recording from 
 
 Use your normal LSP code action mapping in a note:
 
-- `Record audio as attachment` starts recording.
-- `Stop recording` appears only while a recording is active.
+- `Start recording audio as attachment` starts recording.
+- The same action changes to `Stop recording audio` while a recording is active.
 
 The insertion point is tracked with an extmark, so edits above the cursor while recording should not move the final link to the wrong place.
 

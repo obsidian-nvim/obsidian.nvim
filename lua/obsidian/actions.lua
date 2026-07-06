@@ -649,12 +649,8 @@ M.add_attachment = function(src, opts)
   end)
 end
 
-M.record_audio = function()
-  require("obsidian.core-plugins.audio_recorder").start()
-end
-
-M.stop_recording = function()
-  require("obsidian.core-plugins.audio_recorder").stop()
+M.toggle_recording = function()
+  require("obsidian.core-plugins.audio_recorder").toggle()
 end
 
 M.add_property = function()
