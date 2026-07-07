@@ -182,7 +182,6 @@ T["delete"]["should delete the note file by default"] = function()
 end
 
 T["delete"]["should support apply=false for callers that delete the file"] = function()
-  Obsidian.opts.file.trash = "local"
   local note = M.create { id = "keep-me", verbatim = true }
   note:write()
   local path = tostring(note.path)
@@ -191,8 +190,6 @@ T["delete"]["should support apply=false for callers that delete the file"] = fun
 
   eq(false, result.deleted)
   eq(true, vim.uv.fs_stat(path) ~= nil)
-  eq(tostring(Obsidian.dir / ".trash" / "keep-me.md"), result.trashed_path)
-  eq(true, vim.uv.fs_stat(result.trashed_path) ~= nil)
 end
 
 T["delete"]["should abort when backlink confirmation is declined"] = function()

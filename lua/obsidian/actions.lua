@@ -803,13 +803,7 @@ M.delete_note = function()
   end
 
   local path = assert(note.path, "note has no path")
-  local prompt = ("Are you sure you want to delete '%s'?"):format(note:display_name())
-  if Obsidian.opts.file.trash == "local" then
-    prompt = prompt
-      .. '\nIt will be moved to your Obsidian trash, which is located in the ".trash" hidden folder in your vault'
-  else
-    prompt = prompt .. "The file will be permenantly deleted"
-  end
+  local prompt = ("Are you sure you want to permanently delete '%s'?"):format(note:display_name())
   if api.confirm(prompt) ~= "Yes" then
     return
   end

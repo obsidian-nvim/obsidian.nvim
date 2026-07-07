@@ -16,7 +16,6 @@ local text_insertion = require "obsidian.util.text_insertion"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
-local attachment = require "obsidian.attachment"
 local ignore = require "obsidian.ignore"
 local Section = require "obsidian.section"
 local Range = require "obsidian.range"
@@ -1482,8 +1481,6 @@ end
 ---@class (exact) obsidian.note.DeleteOpts
 --- Whether to delete the note file. Defaults to true. Set false when another caller will remove the file.
 ---@field apply? boolean
---- Trash behavior. Defaults to `Obsidian.opts.file.trash`.
----@field trash? "local"|false
 --- Whether to prompt when backlinks exist. Defaults to true.
 ---@field confirm_backlinks? boolean
 --- Whether to prompt for linked attachments. Defaults to true.
@@ -1492,12 +1489,10 @@ end
 ---@class (exact) obsidian.note.DeleteAttachmentResult
 ---@field path string
 ---@field deleted boolean
----@field trashed_path string|?
 
 ---@class (exact) obsidian.note.DeleteResult
 ---@field deleted boolean
 ---@field cancelled boolean
----@field trashed_path string|?
 ---@field attachments obsidian.note.DeleteAttachmentResult[]
 
 ---@class (exact) obsidian.note.NoteSaveOpts

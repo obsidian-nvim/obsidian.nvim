@@ -24,7 +24,6 @@ T["willDeleteFiles runs note delete flow without deleting the note"] = function(
     local handler = require "obsidian.lsp.handlers.will_delete_files"
     local note_path = tostring(Obsidian.dir / "deleteme.md")
     vim.fn.writefile({ "# delete me" }, note_path)
-    Obsidian.opts.file.trash = "local"
 
     handler({
       files = {
@@ -36,12 +35,10 @@ T["willDeleteFiles runs note delete flow without deleting the note"] = function(
     end)
 
     _G.note_exists_after_will_delete = vim.uv.fs_stat(note_path) ~= nil
-    _G.trash_exists_after_will_delete = vim.uv.fs_stat(tostring(Obsidian.dir / ".trash" / "deleteme.md")) ~= nil
   ]]
 
   eq(vim.NIL, child.lua_get "delete_err")
   eq(true, child.lua_get "note_exists_after_will_delete")
-  eq(true, child.lua_get "trash_exists_after_will_delete")
 end
 
 return T

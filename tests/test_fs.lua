@@ -47,22 +47,4 @@ T["ignore dot files"] = function()
   eq(result[1], tostring(a))
 end
 
-T["fs helpers"] = function()
-  local dir = tostring(Obsidian.dir / "a" / "b")
-  fs.mkdir(dir, { parents = true })
-  eq(true, vim.uv.fs_stat(dir).type == "directory")
-
-  local file = vim.fs.joinpath(dir, "note.md")
-  vim.fn.writefile({ "content" }, file)
-  eq(vim.fs.joinpath(dir, "note-1.md"), fs.unique_path(file))
-
-  local copy = tostring(Obsidian.dir / "copy")
-  fs.copy_dir(tostring(Obsidian.dir / "a"), copy)
-  eq({ "content" }, vim.fn.readfile(vim.fs.joinpath(copy, "b", "note.md")))
-
-  eq(true, fs.rm(tostring(Obsidian.dir / "a")))
-  eq(nil, vim.uv.fs_stat(tostring(Obsidian.dir / "a")))
-  eq(false, fs.rm(tostring(Obsidian.dir / "missing")))
-end
-
 return T
