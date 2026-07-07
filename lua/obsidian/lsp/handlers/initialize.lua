@@ -54,7 +54,6 @@ local initializeResult = {
           },
         },
         didRename = {
-          -- TODO: for folders
           filters = {
             {
               scheme = "file",
