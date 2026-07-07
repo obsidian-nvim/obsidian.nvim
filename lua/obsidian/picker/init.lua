@@ -136,11 +136,16 @@ M.find_files_from_cache = function(opts)
       end
     end
 
+    local pick_query = opts.query
+    if query and #entries > 0 then
+      pick_query = nil
+    end
+
     M.pick(entries, {
       prompt_title = opts.prompt_title,
       -- The cache has already applied the initial query case-insensitively.
       -- Don't pass it through, since some pickers would filter again case-sensitively.
-      query = query and #entries > 0 and nil or opts.query,
+      query = pick_query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
       format_item = function(item)
