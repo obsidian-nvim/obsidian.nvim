@@ -105,28 +105,42 @@ M.find_files_from_cache = function(opts)
   end
 
   cache.when_ready(function()
+    local query = opts.query and vim.trim(opts.query) or nil
+    if query == "" then
+      query = nil
+    end
+    local query_lower = query and string.lower(query) or nil
+
     ---@type obsidian.PickerEntry[]
     local entries = {}
+
+    ---@param text string
+    ---@param path string
+    local function add_entry(text, path)
+      if query_lower and not string.find(string.lower(text), query_lower, 1, true) then
+        return
+      end
+      entries[#entries + 1] = {
+        text = text,
+        filename = path,
+      }
+    end
+
     for path, note in pairs(cache.notes.all()) do
       if util.is_subpath(path, dir) then
         local rel_path = cache.notes.rel_path(path)
-        entries[#entries + 1] = {
-          text = rel_path,
-          filename = path,
-        }
+        add_entry(rel_path, path)
         for _, alias in ipairs(note.aliases or {}) do
-          local text = rel_path .. " | " .. alias
-          entries[#entries + 1] = {
-            text = text,
-            filename = path,
-          }
+          add_entry(rel_path .. " | " .. alias, path)
         end
       end
     end
 
     M.pick(entries, {
       prompt_title = opts.prompt_title,
-      query = opts.query,
+      -- The cache has already applied the initial query case-insensitively.
+      -- Don't pass it through, since some pickers would filter again case-sensitively.
+      query = query and #entries > 0 and nil or opts.query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
       format_item = function(item)

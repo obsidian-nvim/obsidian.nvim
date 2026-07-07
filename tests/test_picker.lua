@@ -1,9 +1,24 @@
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
-local T = new_set()
+local T = new_set {
+  hooks = {
+    post_case = function()
+      pcall(function()
+        require("obsidian.cache").shutdown()
+      end)
+      if Obsidian and Obsidian.dir then
+        vim.fn.delete(tostring(Obsidian.dir), "rf")
+      end
+      Obsidian = nil
+      require("obsidian.lsp.watchfiles").reset_handlers()
+    end,
+  },
+}
 
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
+local Path = require "obsidian.path"
+local helpers = require "tests.helpers"
 
 local function with_picker_stubs(stubs, fn)
   local original_get_plugin_info = api.get_plugin_info
@@ -90,6 +105,36 @@ T["get uses configured picker if it becomes available before first picker call"]
     eq(1, calls)
     eq(2, invoked)
   end)
+end
+
+T["find_files_from_cache applies initial query case-insensitively"] = function()
+  local dir = Path.temp { suffix = "-obsidian-picker" }
+  dir:mkdir { parents = true }
+  helpers.write("# Agenda", dir / "Agenda.md")
+  helpers.write("# Other", dir / "Other.md")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local picked_values
+  local picked_opts
+  local original_pick = picker.pick
+  picker.pick = function(values, opts)
+    picked_values = values
+    picked_opts = opts
+  end
+
+  eq(true, picker.find_files_from_cache { use_cache = true, query = "agenda" })
+
+  picker.pick = original_pick
+
+  eq(1, #picked_values)
+  eq("Agenda.md", picked_values[1].text)
+  eq(nil, picked_opts.query)
 end
 
 return T
