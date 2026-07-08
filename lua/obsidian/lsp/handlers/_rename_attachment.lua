@@ -1,13 +1,11 @@
 local M = {}
 
-local obsidian = require "obsidian"
-local Path = obsidian.Path
-local log = obsidian.log
-local util = obsidian.util
-local search = obsidian.search
+local Path = require "obsidian.path"
+local log = require "obsidian.log"
+local util = require "obsidian.util"
+local search = require "obsidian.search"
 local attachment = require "obsidian.attachment"
-
-local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
+local rename = require "obsidian.lsp.handlers._rename"
 
 ---@param path string|obsidian.Path
 ---@return string[]
@@ -126,6 +124,26 @@ local function resolve_new_path(old_path, new_name)
   return assert(old_path:parent()) / new_name
 end
 
+---@param location string
+---@param bufnr integer|?
+---@return string|?
+local function resolve_link(location, bufnr)
+  location = vim.uri_decode(vim.trim(location))
+  location = util.strip_block_links(location)
+  location = util.strip_anchor_links(location)
+  if location == "" then
+    return nil
+  end
+
+  local is_uri = util.is_uri(location)
+  if is_uri or Path.new(location):is_absolute() then
+    return nil
+  end
+
+  local path = tostring(Path.new(attachment.resolve_attachment_path(location, bufnr)):resolve())
+  return attachment.is_attachment_path(path) and vim.uv.fs_stat(path) ~= nil and path or nil
+end
+
 ---@param old_path string|obsidian.Path
 ---@param new_name string
 ---@param opts? { include_file_rename: boolean|? }
@@ -156,31 +174,30 @@ M.build_edit = function(old_path, new_name, opts, callback)
     end,
     function()
       vim.schedule(function()
-        local count = 0
-        local path_lookup = {}
-        local buf_list = {}
-        local documentChanges = {}
-        local seen_lines = {}
-
-        for _, match in ipairs(processed_lines) do
-          local match_path = tostring(Path.new(match.path.text):resolve { strict = true })
-          local line_key = match_path .. ":" .. match.line_number
-          if not seen_lines[line_key] then
-            seen_lines[line_key] = true
-            local line_text = util.rstrip_whitespace(match.lines.text)
+        local parse_refs = require "obsidian.parse.refs"
+        local edit, meta = rename.build_workspace_edit(processed_lines, {
+          old_path = tostring(old_path),
+          new_path = tostring(new_path),
+          include_file_rename = include_file_rename,
+          match_path = function(match)
+            return tostring(Path.new(match.path.text):resolve { strict = true })
+          end,
+          match_line = function(match)
+            return match.line_number
+          end,
+          match_text = function(match)
+            return util.rstrip_whitespace(match.lines.text)
+          end,
+          line_edits = function(_, ctx)
             local line_edits = {}
 
-            local parse_refs = require "obsidian.parse.refs"
-            for _, ref in ipairs(parse_refs.extract(line_text)) do
+            for _, ref in ipairs(parse_refs.extract(ctx.text)) do
               if ref.kind == "wiki" or ref.kind == "markdown" then
                 local ref_start = ref.range.start_col + (ref.embed and 2 or 1)
                 local ref_text = ref.embed and ref.raw:sub(2) or ref.raw
                 local link_type = ref.kind == "wiki" and ref.label and "wiki_alias" or ref.kind
                 local location, name = util.parse_link(ref_text)
-                if
-                  location
-                  and attachment.resolve_attachment_link(location, { source_path = match_path }) == tostring(old_path)
-                then
+                if location and resolve_link(location, vim.fn.bufnr(ctx.path, true)) == tostring(old_path) then
                   vim.list_extend(
                     line_edits,
                     ref_edits(ref_start, ref_text, link_type, location, name or "", old_path, new_path.name)
@@ -189,52 +206,11 @@ M.build_edit = function(old_path, new_name, opts, callback)
               end
             end
 
-            table.sort(line_edits, function(a, b)
-              return a.start_1idx > b.start_1idx
-            end)
-
-            if #line_edits > 0 then
-              local edits_for_line = {}
-              for _, edit in ipairs(line_edits) do
-                edits_for_line[#edits_for_line + 1] = {
-                  range = {
-                    start = { line = match.line_number - 1, character = edit.start_1idx - 1 },
-                    ["end"] = { line = match.line_number - 1, character = edit.end_1idx },
-                  },
-                  newText = edit.new_text,
-                }
-                count = count + 1
-              end
-
-              documentChanges[#documentChanges + 1] = {
-                textDocument = {
-                  uri = vim.uri_from_fname(match_path),
-                  version = has_nvim_0_12 and vim.NIL or nil,
-                },
-                edits = edits_for_line,
-              }
-              buf_list[#buf_list + 1] = vim.fn.bufnr(match_path, true)
-              path_lookup[match_path] = true
-            end
-          end
-        end
-
-        if include_file_rename and tostring(old_path) ~= tostring(new_path) then
-          documentChanges[#documentChanges + 1] = {
-            kind = "rename",
-            oldUri = vim.uri_from_fname(tostring(old_path)),
-            newUri = vim.uri_from_fname(tostring(new_path)),
-            options = {},
-          }
-        end
-
-        callback(#documentChanges > 0 and { documentChanges = documentChanges } or nil, {
-          count = count,
-          path_lookup = path_lookup,
-          buf_list = buf_list,
-          old_path = tostring(old_path),
-          new_path = tostring(new_path),
+            return line_edits
+          end,
         })
+
+        callback(edit, meta)
       end)
     end
   )
@@ -274,10 +250,6 @@ M.rename = function(old_path, new_name, callback)
   end)
 end
 
----@param location string
----@return string|?
-M.resolve_link = function(location)
-  return attachment.resolve_attachment_link(location)
-end
+M.resolve_link = resolve_link
 
 return M

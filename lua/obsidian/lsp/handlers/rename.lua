@@ -1,9 +1,7 @@
-local obsidian = require "obsidian"
-
-local search = obsidian.search
-local log = obsidian.log
-local api = obsidian.api
-local util = obsidian.util
+local search = require "obsidian.search"
+local log = require "obsidian.log"
+local api = require "obsidian.api"
+local util = require "obsidian.util"
 local attachment_rename = require "obsidian.lsp.handlers._rename_attachment"
 
 local M = require "obsidian.lsp.handlers._rename"
