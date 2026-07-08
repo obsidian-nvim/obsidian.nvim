@@ -263,6 +263,7 @@ function M.find(lines, opts)
               text = line:sub(start_col, end_col),
               new_text = Note.from_file(symbol.target_path):format_link {
                 label = line:sub(start_col, end_col),
+                format = "absolute",
               },
               symbol = symbol.text,
               target_path = symbol.target_path,
