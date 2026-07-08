@@ -261,7 +261,9 @@ function M.find(lines, opts)
             suggestions[#suggestions + 1] = {
               range = Range.new(row0, start0, row0, end0),
               text = line:sub(start_col, end_col),
-              new_text = Note.from_file(symbol.target_path):format_link(),
+              new_text = Note.from_file(symbol.target_path):format_link {
+                label = line:sub(start_col, end_col),
+              },
               symbol = symbol.text,
               target_path = symbol.target_path,
               target_name = symbol.target_name,
