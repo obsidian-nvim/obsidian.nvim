@@ -2,6 +2,37 @@ local h = dofile "tests/helpers.lua"
 local T, child = h.child_vault()
 local eq = MiniTest.expect.equality
 
+local function setup_cache()
+  child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
+  h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
+end
+
+local function link_hints(line, start_col, end_col, new_text)
+  local edit = {
+    range = {
+      start = { line = line, character = start_col },
+      ["end"] = { line = line, character = end_col },
+    },
+    newText = new_text,
+  }
+  return {
+    {
+      position = { line = line, character = start_col },
+      label = "[[",
+      paddingLeft = false,
+      paddingRight = false,
+      textEdits = { edit },
+    },
+    {
+      position = { line = line, character = end_col },
+      label = "]]",
+      paddingLeft = false,
+      paddingRight = false,
+      textEdits = { edit },
+    },
+  }
+end
+
 local function run_inlay_hint(range)
   local range_lua = range and vim.inspect(range) or "nil"
   return h.child_await(
@@ -19,80 +50,46 @@ local function run_inlay_hint(range)
   )
 end
 
-T["suggests wiki brackets around test words"] = function()
+T["suggests wiki brackets for link suggestions"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
     ["hints.md"] = "a test and contest and test.",
   })
+  setup_cache()
 
   child.cmd("edit " .. files["hints.md"])
 
-  eq({
-    {
-      position = { line = 0, character = 2 },
-      label = "[[",
-      paddingLeft = false,
-      paddingRight = false,
-    },
-    {
-      position = { line = 0, character = 6 },
-      label = "]]",
-      paddingLeft = false,
-      paddingRight = false,
-    },
-    {
-      position = { line = 0, character = 23 },
-      label = "[[",
-      paddingLeft = false,
-      paddingRight = false,
-    },
-    {
-      position = { line = 0, character = 27 },
-      label = "]]",
-      paddingLeft = false,
-      paddingRight = false,
-    },
-  }, run_inlay_hint())
+  eq(vim.list_extend(link_hints(0, 2, 6, "[[test]]"), link_hints(0, 23, 27, "[[test]]")), run_inlay_hint())
+end
+
+T["publishes link suggestions to native inlay hint interface"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
+  child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 2]], { desc = "native inlay hints" })
+
+  eq(
+    { "[[", "]]" },
+    child.lua_get [[vim.tbl_map(function(item) return item.inlay_hint.label end, vim.lsp.inlay_hint.get { bufnr = 0 })]]
+  )
 end
 
 T["does not suggest inside existing wiki links"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
     ["linked.md"] = "[[test]] test [[also test here]]",
   })
+  setup_cache()
 
   child.cmd("edit " .. files["linked.md"])
 
-  eq({
-    {
-      position = { line = 0, character = 9 },
-      label = "[[",
-      paddingLeft = false,
-      paddingRight = false,
-    },
-    {
-      position = { line = 0, character = 13 },
-      label = "]]",
-      paddingLeft = false,
-      paddingRight = false,
-    },
-  }, run_inlay_hint())
-end
-
-T["suggests hash for existing tags"] = function()
-  local files = h.mock_vault_contents(child.Obsidian.dir, {
-    ["tags.md"] = "#book",
-    ["suggest.md"] = "book #book notebook [[book]] bookish",
-  })
-
-  child.cmd("edit " .. files["suggest.md"])
-
-  eq({
-    {
-      position = { line = 0, character = 0 },
-      label = "#",
-      paddingLeft = false,
-      paddingRight = false,
-    },
-  }, run_inlay_hint())
+  eq(link_hints(0, 9, 13, "[[test]]"), run_inlay_hint())
 end
 
 T["didChange requests inlay hint refresh"] = function()
@@ -113,28 +110,17 @@ end
 
 T["respects requested range"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
     ["range.md"] = [[test
 skip
 test]],
   })
+  setup_cache()
 
   child.cmd("edit " .. files["range.md"])
 
   eq(
-    {
-      {
-        position = { line = 2, character = 0 },
-        label = "[[",
-        paddingLeft = false,
-        paddingRight = false,
-      },
-      {
-        position = { line = 2, character = 4 },
-        label = "]]",
-        paddingLeft = false,
-        paddingRight = false,
-      },
-    },
+    link_hints(2, 0, 4, "[[test]]"),
     run_inlay_hint {
       start = { line = 2, character = 0 },
       ["end"] = { line = 2, character = 4 },

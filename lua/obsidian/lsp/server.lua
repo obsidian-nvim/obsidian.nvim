@@ -26,7 +26,7 @@ return function(dispatchers)
       end
       responded = true
       vim.schedule(function()
-        callback(err, result)
+        callback(err, result, id)
         if notify_reply_callback then
           notify_reply_callback(id)
         end
