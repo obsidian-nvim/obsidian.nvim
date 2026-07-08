@@ -1240,6 +1240,8 @@ Note.links = function(self)
   return search.find_links(self)
 end
 
+Note.delete = require("obsidian.note.delete").delete
+
 ---@param path obsidian.Path vault-relative-path
 ---@param style obsidian.link.LinkFormat?
 ---@return string foramted_path
@@ -1475,6 +1477,23 @@ end
 
 ---@class (exact) obsidian.note.CreateCallbackOpts
 ---@field scope string Scope inherited from the `Note.create` opts, or `"plain"` when not set.
+
+---@class (exact) obsidian.note.DeleteOpts
+--- Whether to delete the note file. Defaults to true. Set false when another caller will remove the file.
+---@field apply? boolean
+--- Whether to prompt when backlinks exist. Defaults to true.
+---@field confirm_backlinks? boolean
+--- Whether to prompt for linked attachments. Defaults to true.
+---@field confirm_attachments? boolean
+
+---@class (exact) obsidian.note.DeleteAttachmentResult
+---@field path string
+---@field deleted boolean
+
+---@class (exact) obsidian.note.DeleteResult
+---@field deleted boolean
+---@field cancelled boolean
+---@field attachments obsidian.note.DeleteAttachmentResult[]
 
 ---@class (exact) obsidian.note.NoteSaveOpts
 --- Specify a path to save to. Defaults to `self.path`.
