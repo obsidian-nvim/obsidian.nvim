@@ -1,16 +1,8 @@
 local search = require "obsidian.search"
 
----@param word string
----@return boolean
-local function is_suggestion(word)
-  return word == "test"
-end
-
----@param char string
----@return boolean
-local function is_word_char(char)
-  return char:match "[%w_]" ~= nil
-end
+local suggesters = {
+  require "obsidian.lsp.inlay_hints.link",
+}
 
 ---@param char string
 ---@return boolean
@@ -27,14 +19,6 @@ local function is_match(line, start_idx, end_idx, is_boundary_char)
   local before = start_idx > 1 and line:sub(start_idx - 1, start_idx - 1) or ""
   local after = end_idx < #line and line:sub(end_idx + 1, end_idx + 1) or ""
   return not is_boundary_char(before) and not is_boundary_char(after)
-end
-
----@param line string
----@param start_idx integer 1-indexed byte offset
----@param end_idx integer 1-indexed byte offset
----@return boolean
-local function is_word_match(line, start_idx, end_idx)
-  return is_match(line, start_idx, end_idx, is_word_char)
 end
 
 ---@param line string
@@ -123,49 +107,10 @@ local function add_tag_hints(hints, line, line_nr, tags)
   end
 end
 
----@param hints lsp.InlayHint[]
----@param line string
----@param line_nr integer
-local function add_link_hints(hints, line, line_nr)
-  local search_start = 1
-
-  while true do
-    local start_idx, end_idx = line:find("test", search_start, true)
-    if not start_idx or not end_idx then
-      break
-    end
-
-    if
-      is_word_match(line, start_idx, end_idx)
-      and not is_in_wiki_link(line, start_idx, end_idx)
-      and is_suggestion(line:sub(start_idx, end_idx))
-    then
-      local start_col = start_idx - 1
-      local end_col = end_idx
-
-      hints[#hints + 1] = {
-        position = { line = line_nr, character = start_col },
-        label = "[[",
-        paddingLeft = false,
-        paddingRight = false,
-      }
-      hints[#hints + 1] = {
-        position = { line = line_nr, character = end_col },
-        label = "]]",
-        paddingLeft = false,
-        paddingRight = false,
-      }
-    end
-
-    search_start = end_idx + 1
-  end
-end
-
 ---@param bufnr integer
 ---@param range lsp.Range|?
----@param tags string[]
----@return lsp.InlayHint[]
-local function get_hints(bufnr, range, tags)
+---@return string[], integer
+local function lines_for_range(bufnr, range)
   local line_count = vim.api.nvim_buf_line_count(bufnr)
   local start_line = range and range.start.line or 0
   local end_line = range and range["end"].line or (line_count - 1)
@@ -174,17 +119,27 @@ local function get_hints(bufnr, range, tags)
   end_line = math.min(end_line, line_count - 1)
 
   if end_line < start_line then
-    return {}
+    return {}, start_line
   end
 
-  local lines = vim.api.nvim_buf_get_lines(bufnr, start_line, end_line + 1, false)
+  return vim.api.nvim_buf_get_lines(bufnr, start_line, end_line + 1, false), start_line
+end
+
+---@param bufnr integer
+---@param range lsp.Range|?
+---@param tags string[]
+---@return lsp.InlayHint[]
+local function get_hints(bufnr, range, tags)
+  local lines, start_line = lines_for_range(bufnr, range)
 
   ---@type lsp.InlayHint[]
   local hints = {}
 
   for offset, line in ipairs(lines) do
     local line_nr = start_line + offset - 1
-    add_link_hints(hints, line, line_nr)
+    for _, suggest in ipairs(suggesters) do
+      suggest(hints, line, line_nr)
+    end
     add_tag_hints(hints, line, line_nr, tags)
   end
 
