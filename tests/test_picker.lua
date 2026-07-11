@@ -46,7 +46,7 @@ T["get defers configured picker availability check until first picker call"] = f
 
   with_picker_stubs({
     default = {
-      pick = function()
+      select = function()
         invoked = invoked + 1
         return "default"
       end,
@@ -71,6 +71,33 @@ T["get defers configured picker availability check until first picker call"] = f
   end)
 end
 
+T["get lazy-resolves select when it is the first picker call"] = function()
+  local calls = 0
+  local invoked = 0
+
+  with_picker_stubs({
+    default = {
+      select = function()
+        invoked = invoked + 1
+        return "default"
+      end,
+    },
+  }, function()
+    api.get_plugin_info = function(name)
+      calls = calls + 1
+      eq("telescope.nvim", name)
+      return nil
+    end
+
+    picker.get "telescope.nvim"
+    eq(0, calls)
+
+    eq("default", picker.select {})
+    eq(1, calls)
+    eq(1, invoked)
+  end)
+end
+
 T["get uses configured picker if it becomes available before first picker call"] = function()
   local available = false
   local calls = 0
@@ -78,7 +105,7 @@ T["get uses configured picker if it becomes available before first picker call"]
 
   with_picker_stubs({
     telescope = {
-      pick = function()
+      select = function()
         invoked = invoked + 1
         return "telescope"
       end,

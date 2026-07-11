@@ -103,7 +103,7 @@ end
 ---
 ---@param values string[]|obsidian.PickerEntry[] Items to pick from.
 ---@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+local pick = function(values, opts)
   opts = opts or {}
 
   local select_opts = vim.tbl_extend("force", {}, opts, {
@@ -129,6 +129,8 @@ M.pick = function(values, opts)
     callback(unpack(choices))
   end)
 end
+
+M.pick = pick
 
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
@@ -412,7 +414,7 @@ local function patch(modname)
         end
         return f(opts)
       end
-    else
+    elseif name ~= "pick" then
       M[name] = f
     end
   end
@@ -464,10 +466,16 @@ end
 ---@param method string
 ---@return function
 local function lazy_picker_method(method)
-  return function(...)
+  local lazy_method
+  lazy_method = function(...)
     resolve_picker()
-    return M[method](...)
+    local resolved_method = M[method]
+    if resolved_method == lazy_method then
+      error(string.format("picker method '%s' is not implemented", method))
+    end
+    return resolved_method(...)
   end
+  return lazy_method
 end
 
 --- Get the default Picker.
@@ -476,6 +484,7 @@ end
 M.get = function(picker_name)
   state.picker_resolved = false
   state.picker_name = nil
+  M.pick = pick
 
   if picker_name == false then
     patch "obsidian.picker._default"
@@ -489,7 +498,7 @@ M.get = function(picker_name)
 
   M.find_files = lazy_picker_method "find_files"
   M.grep = lazy_picker_method "grep"
-  M.pick = lazy_picker_method "pick"
+  M.select = lazy_picker_method "select"
 
   return M
 end
