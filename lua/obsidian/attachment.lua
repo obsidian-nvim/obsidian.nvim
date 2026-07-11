@@ -90,23 +90,38 @@ local function decoded_basename(fname)
   return basename
 end
 
+---@param name string
+---@return string|?
+---@return string|?
+local function validate_attachment_name(name)
+  name = vim.trim(name)
+  if name == "" or name == "." or name == ".." then
+    return nil, "Invalid attachment name"
+  elseif name:find "[/\\]" then
+    return nil, "Attachment name must be a basename"
+  end
+  return name
+end
+
 ---@param src string
 ---@param bufnr integer|?
+---@param new_name string|?
 ---@return string|?
 ---@return string|?
-local function get_attachment_paths(src, bufnr)
+local function get_attachment_paths(src, bufnr, new_name)
   local is_uri, scheme = util.is_uri(src)
+  local src_path, fname
+
   if is_uri then
     if scheme == "file" then
-      local src_path = vim.uri_to_fname(src)
-      local fname = vim.fs.basename(src_path)
+      src_path = vim.uri_to_fname(src)
+      fname = vim.fs.basename(src_path)
       if not fname or fname == "" then
         return nil, "Failed to resolve source filename from URI"
       end
-      return src_path, M.resolve_attachment_path(fname, bufnr)
     elseif scheme == "http" or scheme == "https" then
       local src_clean = src:gsub("#.*$", ""):gsub("%?.*$", "")
-      local fname = src_clean:match "/([^/]+)$"
+      fname = src_clean:match "/([^/]+)$"
       if not fname or fname == "" then
         return nil, "Failed to resolve attachment name from URL"
       end
@@ -114,19 +129,26 @@ local function get_attachment_paths(src, bufnr)
       if not decoded_fname then
         return nil, err
       end
+      src_path = src
       fname = decoded_fname
-      return src, M.resolve_attachment_path(fname, bufnr)
     else
       return nil, "Unsupported URI scheme '" .. tostring(scheme) .. "'"
     end
+  else
+    local expanded = vim.fn.expand(src) --[[@as string]]
+    src_path = vim.fs.normalize(vim.fn.fnamemodify(expanded, ":p"))
+    fname = vim.fs.basename(src_path)
+    if not fname or fname == "" then
+      return nil, "Failed to resolve source filename from path"
+    end
   end
 
-  local expanded = vim.fn.expand(src)
-  ---@cast expanded string
-  local src_path = vim.fs.normalize(vim.fn.fnamemodify(expanded, ":p"))
-  local fname = vim.fs.basename(src_path)
-  if not fname or fname == "" then
-    return nil, "Failed to resolve source filename from path"
+  if new_name then
+    local validated_name, err = validate_attachment_name(new_name)
+    if not validated_name then
+      return nil, err
+    end
+    fname = validated_name
   end
 
   return src_path, M.resolve_attachment_path(fname, bufnr)
@@ -183,13 +205,51 @@ local function unique_dst(dst)
   return dst
 end
 
+---@class obsidian.AttachmentPosition
+---@field row integer 1-indexed row.
+---@field col integer 0-indexed column.
+
+---@class obsidian.AddAttachmentContext
+---@field scope string Context where the attachment was added.
+---@field buffer integer Buffer associated with the action.
+---@field bufnr integer Deprecated alias for `buffer`.
+
+---@class obsidian.AddAttachmentOpts
+---@field insert? boolean Insert the generated attachment link. Defaults to true.
+---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
+---@field new_name? string Destination attachment basename. Path separators are rejected.
+---@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
+---@field scope? string Context where the attachment is added.
+
+---@param pos obsidian.AttachmentPosition|integer[]|?
+---@return obsidian.AttachmentPosition|?
+local function normalize_position(pos)
+  if not pos then
+    return nil
+  elseif pos.row and pos.col then
+    return { row = pos.row, col = pos.col }
+  elseif pos[1] and pos[2] then
+    return { row = pos[1], col = pos[2] }
+  end
+end
+
+---@param path string
+---@param ctx obsidian.AddAttachmentContext
+local function fire_add_attachment(path, ctx)
+  util.fire_callback("add_attachment", Obsidian.opts.callbacks.add_attachment, path, ctx)
+  vim.api.nvim_exec_autocmds("User", {
+    pattern = "ObsidianAttachmentAdded",
+    data = { path = path, ctx = ctx },
+  })
+end
+
 ---@param src string
----@param opts { insert: boolean|?, bufnr: integer|? }|?
+---@param opts obsidian.AddAttachmentOpts|?
 ---@return string|?
 M.add = function(src, opts)
   opts = opts or {}
   src = vim.trim(src)
-  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr)
+  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr, opts.new_name)
   if not resolved_src then
     log.err(resolved_dst or "Failed to resolve attachment")
     return
@@ -203,13 +263,35 @@ M.add = function(src, opts)
     return
   end
 
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+
   if opts.insert ~= false then
     local link_text = M.format_link(resolved_dst)
-    local bufnr = opts.bufnr or 0
-    vim.api.nvim_buf_call(bufnr, function()
-      vim.api.nvim_put({ link_text }, "c", true, true)
-    end)
+    local insert_pos = normalize_position(opts.position)
+    if insert_pos then
+      vim.api.nvim_buf_set_text(
+        bufnr,
+        insert_pos.row - 1,
+        insert_pos.col,
+        insert_pos.row - 1,
+        insert_pos.col,
+        { link_text }
+      )
+    else
+      vim.api.nvim_buf_call(bufnr, function()
+        vim.api.nvim_put({ link_text }, "c", true, true)
+      end)
+    end
   end
+
+  fire_add_attachment(resolved_dst, {
+    scope = opts.scope or "attachment.add",
+    buffer = bufnr,
+    bufnr = bufnr,
+  })
 
   return resolved_dst
 end

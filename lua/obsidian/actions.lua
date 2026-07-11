@@ -585,11 +585,17 @@ M.unique_link = function(timestamp)
 end
 
 ---@param src string?
----@param opts { insert: boolean|?, bufnr: integer|? }|?
+---@param opts obsidian.AddAttachmentOpts|?
 M.add_attachment = function(src, opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-  local add_opts = { insert = opts.insert, bufnr = bufnr }
+  local add_opts = {
+    insert = opts.insert,
+    bufnr = bufnr,
+    new_name = opts.new_name,
+    position = opts.position,
+    scope = opts.scope or "actions.add_attachment",
+  }
   if not vim.b[bufnr].obsidian_buffer then
     log.warn "Not in an obsidian buffer"
     return
@@ -609,6 +615,10 @@ M.add_attachment = function(src, opts)
     end
     attachment.add(result.path, add_opts)
   end)
+end
+
+M.toggle_recording = function()
+  require("obsidian.core-plugins.audio_recorder").toggle()
 end
 
 M.add_property = function()

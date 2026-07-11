@@ -1,9 +1,16 @@
----@type table<string, lsp.CodeAction>
+---@class obsidian.lsp.CodeActionData
+---@field title string|fun(note: obsidian.Note): string
+---@field cond fun(note: obsidian.Note): boolean
+
+---@class obsidian.lsp.CodeAction : lsp.CodeAction
+---@field data obsidian.lsp.CodeActionData
+
+---@type table<string, obsidian.lsp.CodeAction>
 local code_actions = {}
 
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
----@field title string text display in code action interface
+---@field title string|fun(note: obsidian.Note): string text display in code action interface
 ---@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
 ---@field fn? function
 
@@ -11,14 +18,16 @@ local code_actions = {}
 ---@param opts obsidian.lsp.CodeActionOpts
 local add = function(opts)
   -- TODO: validate
+  local title = type(opts.title) == "string" and opts.title or ""
   local action = {
-    title = opts.title,
+    title = title,
     command = {
-      title = opts.title,
+      title = title,
       command = "obsidian." .. opts.name,
       -- TODO: kind
     },
     data = {
+      title = opts.title,
       cond = opts.cond or function()
         return true
       end,
@@ -38,7 +47,10 @@ local function in_visual()
   return (vim.api.nvim_get_mode().mode:find "v") ~= nil
 end
 
----@type table<string, { title: string, cond: (fun(note: obsidian.Note): boolean)?, fn: function? }>
+local function is_recording_audio()
+  return require("obsidian.core-plugins.audio_recorder").is_recording()
+end
+
 local default_actions = {
   add_property = {
     title = "Add file property",
@@ -96,6 +108,12 @@ local default_actions = {
   --- TODO: add_alias
   add_tag = {
     title = "Add tag to frontmatter",
+  },
+
+  toggle_recording = {
+    title = function()
+      return is_recording_audio() and "Stop recording audio" or "Start recording audio as attachment"
+    end,
   },
 }
 

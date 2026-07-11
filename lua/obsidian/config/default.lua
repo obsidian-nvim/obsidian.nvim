@@ -381,6 +381,9 @@ return {
   ---Runs right before writing a note buffer.
   ---@field pre_write_note? fun(note: obsidian.Note)
   ---
+  ---Runs after adding an attachment.
+  ---@field add_attachment? fun(path: string, ctx: obsidian.AddAttachmentContext)
+  ---
   ---Runs anytime the workspace is set/changed.
   ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
   callbacks = {},
