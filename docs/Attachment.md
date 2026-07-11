@@ -1,5 +1,6 @@
 - [Save location](#save-location)
 - [Add attachment](#add-attachment)
+- [Hook after adding attachments](#hook-after-adding-attachments)
 - [Paste from clipboard path](#paste-from-clipboard-path)
 - [Open](#open)
 - [Options](#options)
