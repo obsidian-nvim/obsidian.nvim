@@ -135,7 +135,8 @@ local function get_attachment_paths(src, bufnr, new_name)
       return nil, "Unsupported URI scheme '" .. tostring(scheme) .. "'"
     end
   else
-    src_path = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(src), ":p"))
+    local expanded = vim.fn.expand(src) --[[@as string]]
+    src_path = vim.fs.normalize(vim.fn.fnamemodify(expanded, ":p"))
     fname = vim.fs.basename(src_path)
     if not fname or fname == "" then
       return nil, "Failed to resolve source filename from path"

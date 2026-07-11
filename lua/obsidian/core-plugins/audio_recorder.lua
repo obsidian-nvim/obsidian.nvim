@@ -8,16 +8,12 @@ local ns = vim.api.nvim_create_namespace "obsidian.audio_recorder"
 local STOP_SIGNAL = 2
 local STOP_TIMEOUT_MS = 3000
 
----@class obsidian.AudioRecorderJob
----@field kill fun(self: obsidian.AudioRecorderJob, signal?: integer)
----@field wait fun(self: obsidian.AudioRecorderJob, timeout?: integer): any
-
 ---@class obsidian.AudioRecorderRecording
 ---@field temp_path string Temporary recording path.
 ---@field name string Destination attachment basename.
 ---@field bufnr integer Target buffer for link insertion.
 ---@field mark_id integer Extmark tracking the insertion point.
----@field job? obsidian.AudioRecorderJob Recording process handle.
+---@field job? vim.SystemObj Recording process handle.
 
 ---@class obsidian.AudioRecorderState
 ---@field recording obsidian.AudioRecorderRecording|nil Active recording, if any.
@@ -60,7 +56,7 @@ local function cursor_insert_col_after(bufnr, row, col)
     return #line
   end
 
-  return vim.str_byteindex(line, vim.str_utfindex(line, col) + 1)
+  return vim.str_byteindex(line, "utf-8", vim.str_utfindex(line, "utf-8", col) + 1)
 end
 
 ---@param recording obsidian.AudioRecorderRecording
@@ -156,7 +152,6 @@ M.start = function()
     log.err("Failed to start recorder: %s", job_or_err)
     return
   end
-  ---@cast job_or_err obsidian.AudioRecorderJob
   recording.job = job_or_err
 
   log.info("Recording audio to %s", temp_path)
