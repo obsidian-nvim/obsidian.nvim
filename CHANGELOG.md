@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Github work flows will use `emmylua_check`.
 - Picker integration will resolve when first invoked, to avoid lazy loading issues.
 - Cache based quick_switch will match case insensitively.
+- Guard against checking frontmatter tags when no frontmatter exists.
 
 ## [v3.16.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.5) - 2026-06-25
 

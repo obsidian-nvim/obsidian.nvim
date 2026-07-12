@@ -836,6 +836,7 @@ M.find_tags_async = function(term, callback, opts)
     if
       n_matches == 0
       and note.has_frontmatter
+      and note.frontmatter_end_line ~= nil
       and match_data.line_number < note.frontmatter_end_line
       and note.tags ~= nil
       and (vim.startswith(line, "tags:") or string.match(line, "%s*- "))
