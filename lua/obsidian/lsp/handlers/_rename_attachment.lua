@@ -1,5 +1,7 @@
 local M = {}
 
+-- TODO: move to attachment.lua
+
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
@@ -73,23 +75,23 @@ local function new_location(old_location, new_basename, link_type)
   return prefix .. replaced .. (anchor or "")
 end
 
----@param ref_start integer 1-indexed
+---@param ref obsidian.parse.Ref
 ---@param ref_text string
----@param link_type "wiki"|"wiki_alias"|"markdown"
 ---@param location string
 ---@param name string
 ---@param old_path obsidian.Path
 ---@param new_basename string
 ---@return table[]
-local function ref_edits(ref_start, ref_text, link_type, location, name, old_path, new_basename)
+local function ref_edits(ref, ref_text, location, name, old_path, new_basename)
+  local ref_start = ref.range.start_col + (ref.embed and 2 or 1)
   local edits = {}
-  local replacement = new_location(location, new_basename, link_type)
+  local replacement = new_location(location, new_basename, ref.kind)
 
-  if link_type == "wiki" then
-    edits[#edits + 1] = { start_1idx = ref_start + 2, end_1idx = ref_start + #ref_text - 3, new_text = replacement }
-  elseif link_type == "wiki_alias" then
+  if ref.kind == "wiki" and ref.label then
     edits[#edits + 1] = { start_1idx = ref_start + 2, end_1idx = ref_start + 1 + #location, new_text = replacement }
-  elseif link_type == "markdown" then
+  elseif ref.kind == "wiki" then
+    edits[#edits + 1] = { start_1idx = ref_start + 2, end_1idx = ref_start + #ref_text - 3, new_text = replacement }
+  elseif ref.kind == "markdown" then
     local loc_start = ref_start + #name + 3
     edits[#edits + 1] = { start_1idx = loc_start, end_1idx = loc_start + #location - 1, new_text = replacement }
 
@@ -126,7 +128,7 @@ end
 
 ---@param location string
 ---@param bufnr integer|?
----@return string|?
+---@return obsidian.Path|?
 local function resolve_link(location, bufnr)
   location = vim.uri_decode(vim.trim(location))
   location = util.strip_block_links(location)
@@ -140,8 +142,8 @@ local function resolve_link(location, bufnr)
     return nil
   end
 
-  local path = tostring(Path.new(attachment.resolve_attachment_path(location, bufnr)):resolve())
-  return attachment.is_attachment_path(path) and vim.uv.fs_stat(path) ~= nil and path or nil
+  local path = Path.new(attachment.resolve_attachment_path(location, bufnr)):resolve()
+  return attachment.is_attachment_path(tostring(path)) and path:exists() and path or nil
 end
 
 ---@param old_path string|obsidian.Path
@@ -193,15 +195,12 @@ M.build_edit = function(old_path, new_name, opts, callback)
 
             for _, ref in ipairs(parse_refs.extract(ctx.text)) do
               if ref.kind == "wiki" or ref.kind == "markdown" then
-                local ref_start = ref.range.start_col + (ref.embed and 2 or 1)
                 local ref_text = ref.embed and ref.raw:sub(2) or ref.raw
-                local link_type = ref.kind == "wiki" and ref.label and "wiki_alias" or ref.kind
                 local location, name = util.parse_link(ref_text)
-                if location and resolve_link(location, vim.fn.bufnr(ctx.path, true)) == tostring(old_path) then
-                  vim.list_extend(
-                    line_edits,
-                    ref_edits(ref_start, ref_text, link_type, location, name or "", old_path, new_path.name)
-                  )
+                ---@cast location -nil
+                local resolved = location and resolve_link(location, vim.fn.bufnr(ctx.path, true))
+                if resolved and tostring(resolved) == tostring(old_path) then
+                  vim.list_extend(line_edits, ref_edits(ref, ref_text, location, name or "", old_path, new_path.name))
                 end
               end
             end
@@ -216,11 +215,15 @@ M.build_edit = function(old_path, new_name, opts, callback)
   )
 end
 
----@param old_path string|obsidian.Path
+---@param loc string
 ---@param new_name string
 ---@param callback function
-M.rename = function(old_path, new_name, callback)
-  old_path = Path.new(old_path):resolve { strict = true }
+---@return boolean success
+M.rename = function(loc, new_name, callback)
+  local old_path = resolve_link(loc)
+  if not old_path then
+    return false
+  end
   local new_path = resolve_new_path(old_path, new_name)
   if not new_path then
     log.info "Invalid attachment name"
@@ -230,7 +233,7 @@ M.rename = function(old_path, new_name, callback)
     log.info "Identical name"
     return callback(nil, {})
   end
-  if vim.uv.fs_stat(tostring(new_path)) then
+  if new_path:exists() then
     log.info "Attachment with same name exists"
     return callback(nil, {})
   end
@@ -248,8 +251,7 @@ M.rename = function(old_path, new_name, callback)
       )
     end)
   end)
+  return true
 end
-
-M.resolve_link = resolve_link
 
 return M

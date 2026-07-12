@@ -35,9 +35,8 @@ return function(params, handler, _)
     local loc = util.parse_link(cur_link)
     assert(loc, "wrong link format")
 
-    local attachment_path = attachment_rename.resolve_link(loc)
-    if attachment_path then
-      return attachment_rename.rename(attachment_path, new_name, handler)
+    if attachment_rename.rename(loc, new_name, handler) then
+      return
     end
 
     local stripped = util.strip_anchor_links(loc)
