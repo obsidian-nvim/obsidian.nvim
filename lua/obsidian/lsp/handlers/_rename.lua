@@ -1,11 +1,11 @@
 local M = {}
 
-local obsidian = require "obsidian"
-local Note = obsidian.Note
-local Path = obsidian.Path
-local log = obsidian.log
-local api = obsidian.api
+local Note = require "obsidian.note"
+local Path = require "obsidian.path"
+local log = require "obsidian.log"
+local api = require "obsidian.api"
 
+-- TODO: only reject same folder duplicate name
 ---@param name string
 ---@return boolean
 M.validate = function(name)
@@ -31,8 +31,17 @@ local function build_search_note(note, old_path)
   return setmetatable(search_note, getmetatable(note))
 end
 
+---@class (private) obsidian.build_workspace_edit_opts
+---@field old_path string
+---@field new_path string
+---@field match_path? fun(match: table): string|?
+---@field match_line? fun(match: table): integer|?
+---@field match_text? fun(match: table): string|?
+---@field include_file_rename boolean|?
+---@field line_edits fun(match: table, ctx: { path: string, line: integer, text: string }): table[]
+
 ---@param matches table[]
----@param opts { old_path: string, new_path: string, include_file_rename: boolean|?, line_edits: fun(match: table, ctx: { path: string, line: integer, text: string }): table[], match_path: fun(match: table): string|?, match_line: fun(match: table): integer|?, match_text: fun(match: table): string|? }
+---@param opts obsidian.build_workspace_edit_opts
 ---@return lsp.WorkspaceEdit|?
 ---@return { count: integer, path_lookup: table<string, boolean>, buf_list: integer[], old_path: string, new_path: string }
 M.build_workspace_edit = function(matches, opts)

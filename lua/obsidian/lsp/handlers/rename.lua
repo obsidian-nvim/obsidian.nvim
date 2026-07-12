@@ -42,7 +42,6 @@ return function(params, handler, _)
     local stripped = util.strip_anchor_links(loc)
     stripped = util.strip_block_links(stripped)
     loc = stripped ~= "" and stripped or loc
-
     search.resolve_note_async(loc, function(notes)
       -- TODO: pick note
       if vim.tbl_isempty(notes) then
