@@ -1451,6 +1451,10 @@ Note.merge = function(self, other)
   return self
 end
 
+Note.link_suggestions = function(note, opts)
+  return require("obsidian.note.link_suggestion").find(note, opts)
+end
+
 ---@class (exact) obsidian.note.LoadOpts
 ---@field max_lines integer|?
 ---@field collect_anchor_links boolean|?

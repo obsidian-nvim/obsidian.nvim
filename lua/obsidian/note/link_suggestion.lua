@@ -1,6 +1,5 @@
 local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
-local log = require "obsidian.log"
 local Note = require "obsidian.note"
 
 local M = {}
@@ -200,35 +199,21 @@ local function skipped_inline_ranges(line, row)
   return ranges
 end
 
----@param lines string[]
----@return integer frontmatter_end_row 0-based exclusive end row, 0 if none
-local function frontmatter_end_row(lines)
-  if lines[1] ~= "---" then
-    return 0
-  end
-  for i = 2, #lines do
-    if lines[i] == "---" or lines[i] == "..." then
-      return i
-    end
-  end
-  return 0
-end
-
----@param lines string[]
+---@param note obsidian.Note
 ---@param opts { current_path: string|?, include_current: boolean?, symbols: obsidian.LinkSuggestionSymbol[]? }?
 ---@return obsidian.LinkSuggestion[]
-function M.find(lines, opts)
+function M.find(note, opts)
   opts = opts or {}
   local symbols = opts.symbols or M.symbols { current_path = opts.current_path, include_current = opts.include_current }
-  if #symbols == 0 or #lines == 0 then
+  if #symbols == 0 or #note.contents == 0 then
     return {}
   end
 
   local suggestions = {}
-  local fm_end = frontmatter_end_row(lines)
+  local fm_end = note.frontmatter_end_line or 0
   local in_code_block = false
 
-  for row, line in ipairs(lines) do
+  for row, line in ipairs(note.contents) do
     local row0 = row - 1
     local search_line = row > fm_end and not in_code_block
 
@@ -291,70 +276,6 @@ function M.find(lines, opts)
 end
 
 ---@param bufnr integer
----@param opts { current_path: string|?, include_current: boolean? }?
----@return obsidian.LinkSuggestion[]
-function M.find_buffer(bufnr, opts)
-  opts = opts or {}
-  bufnr = bufnr or 0
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  opts.current_path = opts.current_path or vim.api.nvim_buf_get_name(bufnr)
-  return M.find(lines, opts)
-end
-
----@param suggestion obsidian.LinkSuggestion
----@param row integer
----@param col integer 0-based byte index
----@return boolean
-local function contains_cursor(suggestion, row, col)
-  local range = suggestion.range
-  return range.start_row == row and range.start_col <= col and col <= range.end_col
-end
-
----@param bufnr integer?
----@param win integer?
----@return obsidian.LinkSuggestion[]
-function M.at_cursor(bufnr, win)
-  bufnr = bufnr or 0
-  win = win or 0
-  local cursor = vim.api.nvim_win_get_cursor(win)
-  local row = cursor[1] - 1
-  local col = cursor[2]
-  local out = {}
-
-  for _, suggestion in ipairs(M.find_buffer(bufnr)) do
-    if contains_cursor(suggestion, row, col) then
-      out[#out + 1] = suggestion
-    end
-  end
-
-  return out
-end
-
----@param suggestion obsidian.LinkSuggestion
----@param filename string
----@return obsidian.PickerEntry
-local function picker_entry(suggestion, filename)
-  local line = suggestion.range.start_row + 1
-  local col = suggestion.range.start_col + 1
-
-  return {
-    filename = filename,
-    lnum = line,
-    col = col,
-    end_lnum = suggestion.range.end_row + 1,
-    end_col = suggestion.range.end_col + 1,
-    text = string.format("%s -> %s", suggestion.text, suggestion.new_text),
-    user_data = suggestion,
-  }
-end
-
----@param entry obsidian.PickerEntry
----@return string
-local function format_entry(entry)
-  return entry.text or ""
-end
-
----@param bufnr integer
 ---@param suggestion obsidian.LinkSuggestion
 function M.apply(bufnr, suggestion)
   bufnr = bufnr or 0
@@ -374,45 +295,6 @@ function M.apply(bufnr, suggestion)
     { suggestion.new_text }
   )
   require("obsidian.ui").update(bufnr)
-end
-
----@param bufnr integer?
-function M.pick(bufnr)
-  bufnr = bufnr or 0
-  local cache = require "obsidian.cache"
-  if not cache.is_enabled() then
-    log.warn "Link suggestions require the Obsidian cache"
-    return
-  end
-
-  local function open_picker()
-    local filename = vim.api.nvim_buf_get_name(bufnr)
-    local entries = vim.tbl_map(function(suggestion)
-      return picker_entry(suggestion, filename)
-    end, M.find_buffer(bufnr))
-
-    if #entries == 0 then
-      log.warn "No unlinked mentions found"
-      return
-    end
-
-    Obsidian.picker.pick(entries, {
-      prompt_title = "Unlinked mentions",
-      format_item = format_entry,
-      callback = function(entry)
-        local suggestion = entry.user_data
-        if suggestion then
-          M.apply(bufnr, suggestion)
-        end
-      end,
-    })
-  end
-
-  if cache.is_ready() then
-    open_picker()
-  else
-    cache.when_ready(open_picker)
-  end
 end
 
 return M

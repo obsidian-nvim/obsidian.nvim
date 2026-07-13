@@ -442,10 +442,6 @@ M.link = function()
   }
 end
 
-M.link_suggestion = function()
-  require("obsidian.link_suggestion").pick(0)
-end
-
 ---@param label string?
 M.link_new = function(label)
   local viz = api.get_visual_selection()

@@ -1,5 +1,5 @@
 local Range = require "obsidian.range"
-local link_suggestion = require "obsidian.link_suggestion"
+local api = require "obsidian.api"
 
 -- TODO: extract to range class?
 ---@param range lsp.Range|?
@@ -52,7 +52,12 @@ end
 ---@param range lsp.Range|?
 ---@return lsp.InlayHint[]
 local function get_hints(bufnr, range)
-  local suggestions = link_suggestion.find_buffer(bufnr)
+  local note = api.current_note(bufnr)
+  if not note then
+    return {}
+  end
+
+  local suggestions = note:link_suggestions()
   local seen_suggestion_ranges = {}
 
   ---@type lsp.InlayHint[]
