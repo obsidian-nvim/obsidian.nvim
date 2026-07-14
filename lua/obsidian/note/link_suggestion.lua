@@ -66,15 +66,6 @@ local function add_symbol(symbols, seen, text, target_path, target_name, kind)
   }
 end
 
-local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = true }
-
----@param path string
----@return boolean
-local function is_markdown_note(path)
-  local ext = (path:match "%.([^./]+)$" or ""):lower()
-  return MARKDOWN_EXTENSIONS[ext] == true
-end
-
 ---@param path string
 ---@param dir string?
 ---@return boolean
@@ -87,35 +78,6 @@ local function path_in_dir(path, dir)
   path = vim.fs.normalize(path)
   return path == dir or vim.startswith(path, dir .. "/")
 end
-
--- ---@param dir string|obsidian.Path
--- ---@return table<string, table>
--- local function scan_rows(dir)
---   dir = vim.fs.normalize(tostring(dir))
---   if not vim.uv.fs_stat(dir) then
---     return {}
---   end
---
---   local cache_note = require "obsidian.cache.note"
---   local ignore = require "obsidian.ignore"
---   local rows = {}
---   local files = vim.fs.find(function(name, parent)
---     if not is_markdown_note(name) then
---       return false
---     end
---     return not ignore.is_ignored(parent .. "/" .. name)
---   end, { type = "file", path = dir, limit = math.huge })
---
---   for _, path in ipairs(files) do
---     path = vim.fs.normalize(path)
---     local row = cache_note.build(path, dir)
---     if row then
---       rows[path] = row
---     end
---   end
---
---   return rows
--- end
 
 ---Build mention symbols from notes in the requested workspace.
 ---@param path string

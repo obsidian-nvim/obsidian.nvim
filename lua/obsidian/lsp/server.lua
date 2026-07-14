@@ -10,7 +10,7 @@ return function(dispatchers)
   --- Handlers receive (params, callback) and invoke callback(err, result).
   ---@param method string
   ---@param params table?
-  ---@param callback fun(err: lsp.ResponseError?, result: any)
+  ---@param callback fun(err: lsp.ResponseError?, result: any, id: integer)
   ---@param notify_reply_callback fun(message_id: integer)?
   ---@return boolean success
   ---@return integer? id
