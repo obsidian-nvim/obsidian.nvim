@@ -92,6 +92,46 @@ T["does not suggest inside existing wiki links"] = function()
   eq(link_hints(0, 9, 13, "[[test]]"), run_inlay_hint())
 end
 
+-- TODO: once cache is auto per vault
+-- T["uses the workspace that owns the buffer for link suggestions"] = function()
+--   h.mock_vault_contents(child.Obsidian.dir, {
+--     ["local.md"] = "# wrong workspace",
+--   })
+--   setup_cache()
+--
+--   local ws2 = child.lua [[
+--     local Path = require "obsidian.path"
+--     local Workspace = require "obsidian.workspace"
+--     local dir = Path.temp { suffix = "-obsidian-ws2" }
+--     dir:mkdir { parents = true }
+--     table.insert(Obsidian.workspaces, Workspace.new { path = tostring(dir), name = "ws2" })
+--     vim.fn.mkdir(tostring(dir / "folder"), "p")
+--     vim.fn.writefile({ "# local" }, tostring(dir / "folder" / "local.md"))
+--     vim.fn.writefile({ "a local" }, tostring(dir / "hints.md"))
+--     return { dir = tostring(dir), hints = tostring(dir / "hints.md") }
+--   ]]
+--
+--   child.cmd("edit " .. ws2.hints)
+--
+--   eq(link_hints(0, 2, 7, "[[folder/local|local]]"), run_inlay_hint())
+--   child.lua(([[vim.fn.delete(%q, "rf")]]):format(ws2.dir))
+-- end
+
+T["skips stale link suggestions after target rename"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  child.lua [[
+    vim.uv.fs_rename(tostring(Obsidian.dir / "test.md"), tostring(Obsidian.dir / "renamed.md"))
+  ]]
+
+  eq({}, run_inlay_hint())
+end
+
 T["didChange requests inlay hint refresh"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.did_change"

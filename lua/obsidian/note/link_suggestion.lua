@@ -1,6 +1,7 @@
 local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
 local Note = require "obsidian.note"
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -9,6 +10,7 @@ local M = {}
 ---@field text_lower string
 ---@field target_path string
 ---@field target_name string
+---@field kind "stem"|"alias"
 
 ---@class obsidian.LinkSuggestion
 ---@field range obsidian.Range
@@ -64,32 +66,106 @@ local function add_symbol(symbols, seen, text, target_path, target_name, kind)
   }
 end
 
----Build mention symbols from the note cache.
----@param opts { current_path: string|?, include_current: boolean? }?
+local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = true }
+
+---@param path string
+---@return boolean
+local function is_markdown_note(path)
+  local ext = (path:match "%.([^./]+)$" or ""):lower()
+  return MARKDOWN_EXTENSIONS[ext] == true
+end
+
+---@param path string
+---@param dir string?
+---@return boolean
+local function path_in_dir(path, dir)
+  if not dir then
+    return true
+  end
+
+  dir = vim.fs.normalize(dir):gsub("/+$", "")
+  path = vim.fs.normalize(path)
+  return path == dir or vim.startswith(path, dir .. "/")
+end
+
+-- ---@param dir string|obsidian.Path
+-- ---@return table<string, table>
+-- local function scan_rows(dir)
+--   dir = vim.fs.normalize(tostring(dir))
+--   if not vim.uv.fs_stat(dir) then
+--     return {}
+--   end
+--
+--   local cache_note = require "obsidian.cache.note"
+--   local ignore = require "obsidian.ignore"
+--   local rows = {}
+--   local files = vim.fs.find(function(name, parent)
+--     if not is_markdown_note(name) then
+--       return false
+--     end
+--     return not ignore.is_ignored(parent .. "/" .. name)
+--   end, { type = "file", path = dir, limit = math.huge })
+--
+--   for _, path in ipairs(files) do
+--     path = vim.fs.normalize(path)
+--     local row = cache_note.build(path, dir)
+--     if row then
+--       rows[path] = row
+--     end
+--   end
+--
+--   return rows
+-- end
+
+---Build mention symbols from notes in the requested workspace.
+---@param path string
+---@param opts { include_current: boolean?, dir: string|obsidian.Path|? }?
 ---@return obsidian.LinkSuggestionSymbol[]
-function M.symbols(opts)
+function M.symbols(path, opts)
   opts = opts or {}
   local cache = require "obsidian.cache"
   if not cache.is_enabled() then
     return {}
   end
 
-  local ok, rows = pcall(cache.notes.all)
-  if not ok then
-    return {}
+  local dir = opts.dir and tostring(opts.dir) or nil
+  local current_path = vim.fs.normalize(path) or nil
+  local rows = {}
+  local ok, cached_rows = pcall(cache.notes.all)
+  if ok then
+    for p, row in pairs(cached_rows) do
+      p = vim.fs.normalize(p)
+      if path_in_dir(p, dir) and vim.uv.fs_stat(p) then
+        rows[p] = row
+      end
+    end
   end
 
-  local current_path = opts.current_path and vim.fs.normalize(opts.current_path) or nil
+  -- local has_symbol_source = false
+  -- for p, _ in pairs(rows) do
+  --   if opts.include_current or vim.fs.normalize(p) ~= current_path then
+  --     has_symbol_source = true
+  --     break
+  --   end
+  -- end
+
+  -- -- The cache is currently scoped to the active workspace. If this buffer belongs
+  -- -- to a different workspace, build symbols by scanning that workspace instead of
+  -- -- falling back to Obsidian.workspace.
+  -- if dir and not has_symbol_source then
+  --   rows = scan_rows(dir)
+  -- end
+
   local symbols = {}
   local seen = {}
 
-  for path, row in pairs(rows) do
-    path = vim.fs.normalize(path)
-    if opts.include_current or path ~= current_path then
-      local name = basename(path)
-      add_symbol(symbols, seen, name, path, name, "stem")
+  for p, row in pairs(rows) do
+    p = vim.fs.normalize(p)
+    if opts.include_current or p ~= current_path then
+      local name = basename(p)
+      add_symbol(symbols, seen, name, p, name, "stem")
       for _, alias in ipairs(row.aliases or {}) do
-        add_symbol(symbols, seen, alias, path, name, "alias")
+        add_symbol(symbols, seen, alias, p, name, "alias")
       end
     end
   end
@@ -200,11 +276,16 @@ local function skipped_inline_ranges(line, row)
 end
 
 ---@param note obsidian.Note
----@param opts { current_path: string|?, include_current: boolean?, symbols: obsidian.LinkSuggestionSymbol[]? }?
+---@param opts { include_current: boolean? }?
 ---@return obsidian.LinkSuggestion[]
 function M.find(note, opts)
   opts = opts or {}
-  local symbols = opts.symbols or M.symbols { current_path = opts.current_path, include_current = opts.include_current }
+  local current_path = note.path and tostring(note.path)
+  if not current_path then
+    return {}
+  end
+  local dir = current_path and api.resolve_workspace_dir(current_path) or nil
+  local symbols = M.symbols(current_path, { include_current = opts.include_current, dir = dir })
   if #symbols == 0 or #note.contents == 0 then
     return {}
   end
@@ -243,17 +324,24 @@ function M.find(note, opts)
             and not overlaps_ranges(skip_ranges, row0, start0, end0)
             and not overlaps_existing_suggestion(suggestions, row0, start0, end0)
           then
-            suggestions[#suggestions + 1] = {
-              range = Range.new(row0, start0, row0, end0),
-              text = line:sub(start_col, end_col),
-              new_text = Note.from_file(symbol.target_path):format_link {
-                label = line:sub(start_col, end_col),
+            local label = line:sub(start_col, end_col)
+            local ok_link, new_text = pcall(function()
+              return Note.new(symbol.target_name, nil, nil, symbol.target_path):format_link {
+                label = label,
                 format = "absolute",
-              },
-              symbol = symbol.text,
-              target_path = symbol.target_path,
-              target_name = symbol.target_name,
-            }
+              }
+            end)
+
+            if ok_link then
+              suggestions[#suggestions + 1] = {
+                range = Range.new(row0, start0, row0, end0),
+                text = label,
+                new_text = new_text,
+                symbol = symbol.text,
+                target_path = symbol.target_path,
+                target_name = symbol.target_name,
+              }
+            end
           end
 
           search_start = end_col + 1
@@ -273,28 +361,6 @@ function M.find(note, opts)
   end)
 
   return suggestions
-end
-
----@param bufnr integer
----@param suggestion obsidian.LinkSuggestion
-function M.apply(bufnr, suggestion)
-  bufnr = bufnr or 0
-  local range = suggestion.range
-  local lines = vim.api.nvim_buf_get_text(bufnr, range.start_row, range.start_col, range.end_row, range.end_col, {})
-  local current_text = table.concat(lines, "\n")
-  if current_text == "" then
-    current_text = suggestion.text
-  end
-
-  vim.api.nvim_buf_set_text(
-    bufnr,
-    range.start_row,
-    range.start_col,
-    range.end_row,
-    range.end_col,
-    { suggestion.new_text }
-  )
-  require("obsidian.ui").update(bufnr)
 end
 
 return M

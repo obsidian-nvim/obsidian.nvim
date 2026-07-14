@@ -57,7 +57,11 @@ local function get_hints(bufnr, range)
     return {}
   end
 
-  local suggestions = note:link_suggestions()
+  local bufname = vim.api.nvim_buf_get_name(bufnr)
+  local suggestions = note:link_suggestions {
+    current_path = bufname,
+    dir = api.resolve_workspace_dir(bufname),
+  }
   local seen_suggestion_ranges = {}
 
   ---@type lsp.InlayHint[]

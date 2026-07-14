@@ -23,6 +23,12 @@ return function(params, callback)
   local range = params and params.range or nil
 
   require("obsidian.cache").when_ready(function()
-    callback(nil, get_hints(bufnr, range))
+    local ok, hints = pcall(get_hints, bufnr, range)
+    if ok then
+      callback(nil, hints)
+    else
+      require("obsidian.log").warn("failed to build inlay hints: %s", hints)
+      callback(nil, {})
+    end
   end)
 end
