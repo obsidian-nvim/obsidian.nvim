@@ -27,9 +27,11 @@ lsp.start = function(buf)
     root_dir = tostring(api.resolve_workspace_dir(vim.api.nvim_buf_get_name(buf))),
   }
 
-  local warning = lsp_util.check_completion_availability()
-  if warning then
-    log.warn_once(warning)
+  if vim.bo[buf].filetype ~= "obsidian-base" then
+    local warning = lsp_util.check_completion_availability()
+    if warning then
+      log.warn_once(warning)
+    end
   end
 
   local client_id = vim.lsp.start(lsp_config, { bufnr = buf, silent = false })

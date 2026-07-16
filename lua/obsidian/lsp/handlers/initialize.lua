@@ -37,6 +37,7 @@ local initializeResult = {
     -- Needed so Neovim sends textDocument/didChange notifications, which
     -- triggers LspNotify and causes foldingRange to be re-requested on edits.
     textDocumentSync = {
+      openClose = true,
       change = 1, -- Full
       save = true,
     },

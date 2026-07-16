@@ -25,6 +25,7 @@
 
 - [[Attachment]]
 - [[Audio-recorder]]
+- [[Bases]]
 - [[Bookmarks]]
 - [[Checkbox]]
 - [[Daily-Notes]]

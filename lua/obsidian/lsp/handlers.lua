@@ -1,5 +1,5 @@
----@type table<vim.lsp.protocol.Method, function>
-return {
+---@type table<string, function>
+local handlers = {
   ["initialize"] = require "obsidian.lsp.handlers.initialize",
   ["initialized"] = require "obsidian.lsp.handlers.initialized",
   ["workspace/didChangeWatchedFiles"] = require "obsidian.lsp.handlers.did_change_watched_files",
@@ -17,3 +17,24 @@ return {
   ["textDocument/foldingRange"] = require "obsidian.lsp.handlers.folding_range",
   ["textDocument/inlayHint"] = require "obsidian.lsp.handlers.inlay_hint",
 }
+
+local base_lsp = require "obsidian.base.lsp"
+local function route(base_handler, markdown_handler)
+  return function(params, ...)
+    if base_lsp.is_base_params(params) then
+      return base_handler(params, ...)
+    end
+    return markdown_handler(params, ...)
+  end
+end
+
+for method, base_handler in pairs(base_lsp.handlers) do
+  local markdown_handler = handlers[method]
+  if markdown_handler == nil then
+    handlers[method] = base_handler
+  else
+    handlers[method] = route(base_handler, markdown_handler)
+  end
+end
+
+return handlers

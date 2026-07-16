@@ -7,6 +7,15 @@ local ignore = require "obsidian.ignore"
 local Workspace = require "obsidian.workspace"
 local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
+vim.filetype.add {
+  extension = {
+    base = "obsidian-base",
+  },
+}
+if vim.treesitter.language and vim.treesitter.language.register then
+  pcall(vim.treesitter.language.register, "yaml", "obsidian-base")
+end
+
 -- wrapper for creating autocmd events
 ---@param pattern string
 local function exec_autocmds(pattern)
@@ -108,6 +117,30 @@ vim.api.nvim_create_autocmd("FileType", {
       end
       exec_autocmds "ObsidianNoteWritePost"
     end)
+  end,
+})
+
+-- Bases are YAML query documents, not notes. Attach the in-process server but
+-- intentionally skip note frontmatter callbacks, Markdown keymaps, and UI.
+vim.api.nvim_create_autocmd("FileType", {
+  group = group,
+  pattern = "obsidian-base",
+  callback = function(args)
+    vim.bo[args.buf].syntax = "yaml"
+    vim.bo[args.buf].commentstring = "# %s"
+
+    local function attach(ev)
+      local workspace = api.find_workspace(ev.file)
+      if workspace == nil or ignore.is_ignored(ev.file) then
+        return
+      end
+      vim.b[ev.buf].obsidian_buffer = true
+      vim.b[ev.buf].obsidian_base = true
+      require("obsidian.lsp").start(ev.buf)
+    end
+
+    create_autocmd("BufEnter", args.buf, attach)
+    attach { buf = args.buf, file = vim.api.nvim_buf_get_name(args.buf) }
   end,
 })
 

@@ -185,6 +185,45 @@ T["should parse a top-level list"] = function()
   eq({ 1, 2, 3 }, result)
 end
 
+T["should parse mapping-style list items"] = function()
+  local result = parser:parse(table.concat({
+    "views:",
+    "  - type: table",
+    "    name: Table",
+    "    filters:",
+    "      and:",
+    [[        - file.inFolder("Areas/Music/pop")]],
+    [[        - file.hasTag("k-hiphop")]],
+    "    order:",
+    "      - file.name",
+    "      - label",
+    "      - debuted",
+    "      - hangul",
+    "    sort:",
+    "      - property: debuted",
+    "        direction: ASC",
+    "    columnSize:",
+    "      note.debuted: 93",
+  }, "\n"))
+  eq({
+    views = {
+      {
+        type = "table",
+        name = "Table",
+        filters = {
+          ["and"] = {
+            'file.inFolder("Areas/Music/pop")',
+            'file.hasTag("k-hiphop")',
+          },
+        },
+        order = { "file.name", "label", "debuted", "hangul" },
+        sort = { { property = "debuted", direction = "ASC" } },
+        columnSize = { ["note.debuted"] = 93 },
+      },
+    },
+  }, result)
+end
+
 T["should parse nested mapping"] = function()
   local result = parser:parse(table.concat({
     "foo:",

@@ -220,9 +220,15 @@ Parser._error_msg = function(_, msg, line_num, line_text)
   return full_msg
 end
 
-local YAML_KEY_REGEX = "([a-zA-Z0-9_-()/]+[a-zA-Z0-9_()/ -]*)"
-local YAML_MAPPING_START_REGEX = string.format("%s:$", YAML_KEY_REGEX)
-local YAML_MAPPING_INLINE_REGEX = string.format("%s: (.*)", YAML_KEY_REGEX)
+local YAML_KEY_REGEX = "([a-zA-Z0-9_.%-()/]+[a-zA-Z0-9_./() %-]*)"
+local YAML_MAPPING_START_REGEX = string.format("^%s:$", YAML_KEY_REGEX)
+local YAML_MAPPING_INLINE_REGEX = string.format("^%s: (.*)", YAML_KEY_REGEX)
+
+---@param text string
+---@return boolean
+local is_mapping = function(text)
+  return string.find(text, YAML_MAPPING_START_REGEX) ~= nil or string.find(text, YAML_MAPPING_INLINE_REGEX) ~= nil
+end
 
 ---@param self obsidian.yaml.Parser
 ---@param i integer
@@ -261,6 +267,11 @@ Parser._try_parse_field = function(self, lines, i, text)
       while next_line ~= nil and next_line.indent == continuation_indent do
         local next_value_str = yaml_util.strip_comments(next_line.content)
         if string.len(next_value_str) > 0 then
+          -- A mapping at this indentation may be another field in a mapping-style array item,
+          -- rather than a continuation of the scalar on the line containing the dash.
+          if is_mapping(next_value_str) then
+            break
+          end
           local next_value = self:_parse_inline_value(j, next_line.content)
           if type(next_value) ~= "string" then
             error(self:_error_msg("expected a string, found " .. type(next_value), j, next_line.content))
@@ -357,7 +368,22 @@ Parser._try_parse_array_item = function(self, lines, i, text)
       value = self:_new_null()
       i = i + 1
     else
-      i, value = self:_parse_next(lines, i, array_item_str)
+      local value_type
+      i, value, value_type = self:_parse_next(lines, i, array_item_str)
+
+      -- In a mapping-style array item, the first field starts on the same line as the dash,
+      -- while its sibling fields start on subsequent, more-indented lines.
+      local next_line = lines[i]
+      if value_type == YamlType.Mapping and next_line ~= nil and next_line.indent > line.indent then
+        local mapping
+        i, mapping = self:_parse_mapping(i, lines)
+        for key, item in pairs(mapping) do
+          if value[key] ~= nil then
+            error(self:_error_msg("duplicate key '" .. key .. "' found in table", i))
+          end
+          value[key] = item
+        end
+      end
     end
     return true, i, value
   else
