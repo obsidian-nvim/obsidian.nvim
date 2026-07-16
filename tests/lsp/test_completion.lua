@@ -2,6 +2,11 @@ local h = dofile "tests/helpers.lua"
 local T, child = h.child_vault()
 local eq = MiniTest.expect.equality
 
+local function enable_cache()
+  child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
+  h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "completion cache" })
+end
+
 local function run_completion(line, character)
   return h.child_await(
     child,
@@ -300,6 +305,106 @@ T["completion"]["isIncomplete is true"] = function()
   eq(true, is_incomplete)
 end
 
+T["completion"]["completes cached frontmatter property keys"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "---\nsta\n---\n",
+    ["properties.md"] = "---\nstatus: draft\ntags: [work]\n---\n",
+  })
+
+  enable_cache()
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 2, 3 })
+
+  local result = run_completion(1, 3)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "status"
+  end)
+  assert(item, "no cached status property found")
+  eq("status: ", item.textEdit.newText)
+  eq(0, item.textEdit.range.start.character)
+  eq(3, item.textEdit.range["end"].character)
+end
+
+T["completion"]["completes cached scalar frontmatter values for their property"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "---\nstatus: dr\n---\n",
+    ["draft.md"] = "---\nstatus: draft\ncategory: unrelated\n---\n",
+    ["done.md"] = "---\nstatus: done\n---\n",
+  })
+
+  enable_cache()
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 2, 10 })
+
+  local result = run_completion(1, 10)
+  local draft = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "draft"
+  end)
+  assert(draft, "no cached draft status found")
+  eq(8, draft.textEdit.range.start.character)
+  eq(10, draft.textEdit.range["end"].character)
+
+  local unrelated = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "unrelated"
+  end)
+  eq(nil, unrelated)
+end
+
+T["completion"]["completes cached inline-list values"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = '---\ntags: [other, "ta"]\n---\n',
+    ["tagged.md"] = "---\ntags: [task]\n---\n",
+  })
+
+  enable_cache()
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 2, 17 })
+
+  local result = run_completion(1, 17)
+  local task = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "task"
+  end)
+  assert(task, "no cached inline-list value found")
+  eq(14, task.textEdit.range.start.character)
+  eq(18, task.textEdit.range["end"].character)
+end
+
+T["completion"]["quotes cached frontmatter values when YAML requires it"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "---\nmarker: #p\n---\n",
+    ["property.md"] = '---\nmarker: "#project"\n---\n',
+  })
+
+  enable_cache()
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 2, 10 })
+
+  local result = run_completion(1, 10)
+  local marker = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == [["#project"]]
+  end)
+  assert(marker, "no safely quoted marker value found")
+end
+
+T["completion"]["tag source does not complete inside frontmatter"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "---\nstatus: #ta\n---\n",
+  })
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+
+  local can_complete = child.lua [[
+    local before = "status: #ta"
+    return require("obsidian.completion.tags").can_complete {
+      bufnr = vim.api.nvim_get_current_buf(),
+      line = 1,
+      cursor_before_line = before,
+      cursor_after_line = "",
+      character = #before,
+    }
+  ]]
+  eq(false, can_complete)
+end
+
 T["completion"]["completes tag inside frontmatter tags: list"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "---\ntags:\n  - ta\n---\n",
@@ -312,6 +417,7 @@ tags:
 ]==],
   })
 
+  enable_cache()
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   -- Line 3 (1-indexed) "  - ta", cursor after "ta" at byte 6.
   child.api.nvim_win_set_cursor(0, { 3, 6 })
@@ -370,6 +476,7 @@ tags:
 ]==],
   })
 
+  enable_cache()
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   child.api.nvim_win_set_cursor(0, { 3, 7 })
 
@@ -427,6 +534,7 @@ tags:
 ]==],
   })
 
+  enable_cache()
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   -- byte len of "  - 中" = 4 + 3 = 7
   child.api.nvim_win_set_cursor(0, { 3, 7 })

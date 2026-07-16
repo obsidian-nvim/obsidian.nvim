@@ -2,6 +2,16 @@
 
 This plugin provides plugin-agnostic completion via in-process LSP, you only need to make sure you are triggering LSP completions in markdown buffers.
 
+Completion is available for note references, inline `#tags`, footnotes, and cached frontmatter properties. With the [[Cache|cache]] enabled, typing a top-level frontmatter key or a value after a property suggests keys and values already used throughout the vault. Scalar values, inline lists, and block lists are supported. The `tags` property uses this general frontmatter completion; `#tag` completion is reserved for inline tags in the note body.
+
+```lua
+require("obsidian").setup {
+  cache = {
+    enabled = true,
+  },
+}
+```
+
 For blink.cmp, if you have a dedicated `per_filetype` config for markdown, LSP completion will not attach, use:
 
 ```lua

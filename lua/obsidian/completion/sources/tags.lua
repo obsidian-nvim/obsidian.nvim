@@ -14,7 +14,7 @@ local EMPTY_RESPONSE = {
 ---@param callback fun(resp: lsp.CompletionList)
 ---@param request obsidian.completion.Request
 function M.process_completion(callback, request)
-  local can_complete, term, in_frontmatter = completion.can_complete(request)
+  local can_complete, term = completion.can_complete(request)
 
   if not (can_complete and term ~= nil and #term >= Obsidian.opts.completion.min_chars) then
     callback(EMPTY_RESPONSE)
@@ -31,36 +31,23 @@ function M.process_completion(callback, request)
 
     local items = {}
     for tag, count in pairs(tags) do
-      -- Generate context-appropriate text
-      local insert_text, label_text
-      if in_frontmatter then
-        -- Frontmatter: insert tag without # (YAML format)
-        insert_text = tag
-        label_text = "Tag: " .. tag
-      else
-        -- Document body: insert tag with # (Obsidian format)
-        insert_text = "#" .. tag
-        label_text = "Tag: #" .. tag
-      end
-
-      -- Calculate the range to replace (the entire #tag pattern)
+      -- Calculate the range to replace (the entire #tag pattern).
       local cursor_before = request.cursor_before_line
-      local hash_start = string.find(cursor_before, "#[^%s]*$")
-      local _, dash_end = string.find(cursor_before, "%-%s")
-      local insert_start = hash_start and (hash_start - 1) or dash_end
+      local hash_start = assert(string.find(cursor_before, "#[^%s]*$"))
+      local insert_start = hash_start - 1
       local insert_end = #cursor_before
 
       items[#items + 1] = {
         sortText = tag,
-        filterText = hash_start and "#" .. tag or tag,
-        label = label_text,
+        filterText = "#" .. tag,
+        label = "Tag: #" .. tag,
         kind = vim.lsp.protocol.CompletionItemKind.Keyword,
         documentation = {
           kind = "markdown",
           value = string.format("`#%s` — %d occurrence%s", tag, count, count == 1 and "" or "s"),
         },
         textEdit = {
-          newText = insert_text,
+          newText = "#" .. tag,
           range = {
             ["start"] = {
               line = request.line,

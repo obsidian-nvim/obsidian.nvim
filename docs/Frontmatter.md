@@ -7,6 +7,8 @@
 
 obsidian.nvim reads YAML frontmatter at the top of a note (between `---` lines). It validates a small set of keys used by the plugin and leaves any other fields untouched as metadata.
 
+When the [[Cache|cache]] is enabled, completion suggests top-level property names and previously used scalar or list values. `tags` is completed through the same property completion as every other frontmatter field; dedicated tag completion is only used for inline `#tags` in the note body.
+
 ## Special keys
 
 - `id`: string or number

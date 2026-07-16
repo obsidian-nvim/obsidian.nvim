@@ -1,6 +1,7 @@
 local Note = require "obsidian.note"
 local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
+local yaml = require "obsidian.yaml"
 
 local M = {}
 
@@ -71,12 +72,18 @@ function M.build(abs_path, _vault_root)
     return nil
   end
 
+  -- Keep the complete, raw frontmatter mapping for property completion. Note.metadata
+  -- excludes fields managed by the plugin (id, aliases, and tags), so it is not enough
+  -- on its own.
   local properties = {}
-  if note.metadata then
-    for k, v in pairs(note.metadata) do
-      properties[k] = v
+  if note.frontmatter_end_line then
+    local frontmatter = table.concat(lines, "\n", 2, note.frontmatter_end_line - 1)
+    local parsed_ok, parsed = pcall(yaml.loads, frontmatter)
+    if parsed_ok and type(parsed) == "table" and not vim.islist(parsed) then
+      properties = parsed
     end
   end
+
   local tags_lower = {}
   local tags_seen = {}
   local function add_tag(tag)

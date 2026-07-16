@@ -100,6 +100,7 @@ T["cache backends"]["stores compact rows"] = function()
 
   local row = cache.notes.find(note_path)
   eq({ "foo", "inline" }, row.tags)
+  eq({ tags = { "Foo" } }, row.properties)
   eq(nil, row.path)
   eq(nil, row.rel_path)
   eq(nil, row.basename)
@@ -110,6 +111,33 @@ T["cache backends"]["stores compact rows"] = function()
   eq(nil, row.aliases)
   eq(nil, row.links_out)
   eq(nil, row.tasks)
+end
+
+T["cache backends"]["stores all frontmatter fields and original value types"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Note.md")
+  helpers.write(
+    "---\nid: custom-id\naliases: [Alias]\ntags: [MixedCase]\nstatus: draft\npriority: 2\npublished: true\n---\n",
+    note_path
+  )
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local row = cache.notes.get(note_path)
+  eq({
+    id = "custom-id",
+    aliases = { "Alias" },
+    tags = { "MixedCase" },
+    status = "draft",
+    priority = 2,
+    published = true,
+  }, row.properties)
 end
 
 T["cache backends"]["indexes markdown-like extensions"] = function()

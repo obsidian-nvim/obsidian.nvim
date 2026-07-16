@@ -25,7 +25,7 @@ local initializeResult = {
     },
     completionProvider = {
       resolveProvider = false,
-      triggerCharacters = { "[", "#", "^" },
+      triggerCharacters = { "[", "#", "^", ":", "-" },
     },
     foldingRangeProvider = true,
     -- Needed so Neovim sends textDocument/didChange notifications, which

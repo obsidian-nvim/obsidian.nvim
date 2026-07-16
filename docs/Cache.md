@@ -12,16 +12,16 @@ require("obsidian").setup {
 
 The default backend is `json`. It writes a cache file under Neovim's cache directory and reuses it between sessions. You do not need to set `backend = "json"` unless you want to be explicit.
 
-At the moment, the cache is used for `:Obsidian quick_switch`. When enabled, quick switch reads note names and aliases from the cache instead of asking the picker to scan the vault each time.
+The cache powers `:Obsidian quick_switch` and frontmatter completion. When enabled, quick switch reads note names and aliases from the cache instead of asking the picker to scan the vault each time, and completion suggests property names and previously used values from cached notes.
 
 ## What Gets Cached
 
-The cache stores note metadata that helps `quick_switch` build picker entries:
+The cache stores note metadata used by picker and completion features:
 
 - note path
 - aliases
 - tags
-- frontmatter properties
+- all top-level frontmatter properties, including `id`, `aliases`, and `tags`, with their original value types
 - outgoing links
 - tasks
 - file modification time and size
@@ -85,5 +85,6 @@ A store implements `get(key)`, `all()`, `put(key, row)`, and `delete(key)`. `flu
 
 ## Limitations
 
-- The cache currently powers `:Obsidian quick_switch` only.
+- Frontmatter completion is only available when the cache is enabled.
+- Nested mappings are cached but only top-level property names and scalar or list values are completed.
 - Running several Neovim instances on the same vault can cause cache updates to race.
