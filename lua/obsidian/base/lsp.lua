@@ -12,7 +12,7 @@ end
 ---@return boolean
 function M.is_base_params(params)
   local uri = params_uri(params)
-  return uri ~= nil and uri:lower():match "%.base$" ~= nil
+  return uri ~= nil and vim.endswith(uri, ".base")
 end
 
 ---@param uri string
@@ -74,6 +74,9 @@ end
 ---@param params table
 ---@param dispatchers table
 local function publish_diagnostics(params, dispatchers)
+  if not M.is_base_params(params) then
+    return
+  end
   local uri = assert(params_uri(params), "missing text document URI")
   local source = params_source(params)
   local _, diagnostics = base.parse(source)
