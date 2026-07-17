@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `opts.templater` integration — automatically detects JavaScript-based Templater syntax in templates (`<% ... %>`, `<%= ... %>`, or leading ` ```js ` code blocks) and executes them via an external templater command instead of built-in substitution. See `:Obsidian help Templater`.
 - Added `opts.callbacks.create_note` and `ObsidianNoteCreate` event to run action after note creation, see `:Obsidian help Note`.
 - LSP folding support, see `:Obsidian help Folding`.
 - Sync supports creating remote with end to end encryption password.

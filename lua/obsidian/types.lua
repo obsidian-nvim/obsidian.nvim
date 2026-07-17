@@ -29,6 +29,7 @@
 ---@field notes_subdir? string
 ---@field file? obsidian.config.FileOpts
 ---@field templates? obsidian.config.TemplateOpts
+---@field templater? obsidian.config.TemplaterOpts
 ---@field new_notes_location? obsidian.config.NewNotesLocation
 ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
@@ -54,12 +55,29 @@
 ---@field sync? obsidian.config.SyncOpts
 ---@field slides? obsidian.config.SlidesOpts
 
+---@class obsidian.config.TemplaterOpts
+--- When enabled, obsidian.nvim will automatically detect templates containing JavaScript
+--- (Templater syntax) and execute them via the templater integration instead of using
+--- the built-in {{{ variable substitution.
+---
+---@field enabled boolean|?
+--- The command to use to execute templater.
+---@field cmd string
+--- Additional command-line arguments to pass when invoking templater.
+---@field args? string[]
+--- Environment variables to set when running templater.
+---@field env? table<string, string>
+--- When `true`, the template content is piped to `cmd` via stdin (default).
+--- When `false`, the template file path is appended as the last argument.
+---@field pipe_stdin? boolean
+
 ---@class obsidian.config.Internal
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
 ---@field log_level integer
 ---@field notes_subdir string|?
 ---@field file obsidian.config.FileOpts
 ---@field templates obsidian.config.TemplateOpts
+---@field templater obsidian.config.TemplaterOpts
 ---@field new_notes_location obsidian.config.NewNotesLocation
 ---@field note_id_func (fun(id: string|?, path: obsidian.Path|?): string)
 ---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)

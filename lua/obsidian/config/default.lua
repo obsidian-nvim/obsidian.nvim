@@ -127,6 +127,21 @@ return {
     customizations = {},
   },
 
+  ---@class obsidian.config.TemplaterOpts
+  ---
+  ---@field enabled boolean|?
+  ---@field cmd string
+  ---@field args? string[]
+  ---@field env? table<string, string>
+  ---@field pipe_stdin? boolean
+  templater = {
+    enabled = false,
+    cmd = "templater",
+    args = { "--stdin" },
+    env = {},
+    pipe_stdin = true,
+  },
+
   ---@class obsidian.config.BacklinkOpts
   ---
   ---@field parse_headers boolean
