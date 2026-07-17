@@ -480,12 +480,16 @@ function M.notes.flush()
   end
 end
 
----Force full rebuild from vault.
-function M.notes.reindex()
+---Reindex one note, or force a full rebuild when `path` is omitted.
+---@param path string|obsidian.Path|nil
+function M.notes.reindex(path)
   if not state then
     return
+  elseif path then
+    reindex_one(tostring(path))
+  else
+    initial_scan(true)
   end
-  initial_scan(true)
 end
 
 return M

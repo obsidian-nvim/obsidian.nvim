@@ -121,6 +121,57 @@ T["open attachment"] = function()
   end
 end
 
+T["creating a missing definition refreshes its diagnostic"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[target]]",
+  })
+  child.lua [[
+    local cache = require "obsidian.cache"
+    cache.setup { enabled = true, backend = "memory" }
+    assert(vim.wait(1000, function()
+      return cache.is_ready()
+    end))
+  ]]
+  child.cmd("edit " .. files["referencer.md"])
+  child.lua "_G.referencer_buf = vim.api.nvim_get_current_buf()"
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
+  h.child_wait(
+    child,
+    [[
+    for _, diagnostic in ipairs(vim.diagnostic.get(_G.referencer_buf)) do
+      if diagnostic.code == "broken-link" then
+        return true
+      end
+    end
+    return false
+  ]],
+    { desc = "broken-link diagnostic" }
+  )
+
+  child.lua [=[
+    Obsidian.opts.note_id_func = require("obsidian.builtin").title_id
+    require("obsidian.api").confirm = function() return "Yes" end
+    require("obsidian.lsp.handlers._definition").follow_link("[[target]]", function()
+      _G.definition_created = true
+    end, { bufnr = _G.referencer_buf, cursor_row = 1 })
+  ]=]
+
+  h.child_wait(child, "return _G.definition_created == true", { desc = "definition creation" })
+  h.child_wait_for_path(child, child.Obsidian.dir / "target.md")
+  h.child_wait(
+    child,
+    [[
+    for _, diagnostic in ipairs(vim.diagnostic.get(_G.referencer_buf)) do
+      if diagnostic.code == "broken-link" then
+        return false
+      end
+    end
+    return true
+  ]],
+    { desc = "broken-link diagnostic to clear" }
+  )
+end
+
 T["follow uris"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = ([==[

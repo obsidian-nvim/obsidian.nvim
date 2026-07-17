@@ -55,23 +55,25 @@ local function create_new_note(location, callback, opts)
     end
   end
 
+  local function on_created(note)
+    update_link(note)
+    if note.path then
+      require("obsidian.cache").notes.reindex(note.path)
+    end
+    require("obsidian.lsp.diagnostics").refresh(bufnr)
+    callback { note:_location() }
+  end
+
   local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
-    actions.new(location, function(note)
-      update_link(note)
-      callback { note:_location() }
-    end)
+    actions.new(location, on_created)
   elseif confirm == "Yes with Template" then
-    actions.new_from_template(location, nil, function(note)
-      update_link(note)
-      callback { note:_location() }
-    end)
+    actions.new_from_template(location, nil, on_created)
     return
   elseif confirm == "Yes as Unique Note" then
     local note = require("obsidian.unique").new_unique_note(nil, { title = location })
     if note then
-      update_link(note)
-      callback { note:_location() }
+      on_created(note)
     end
   else
     return log.warn "Aborted"

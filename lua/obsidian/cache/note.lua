@@ -66,7 +66,11 @@ function M.build(abs_path, _vault_root)
   end
   fh:close()
 
-  local ok, note = pcall(Note.from_lines, lines, abs_path, {})
+  local ok, note = pcall(Note.from_lines, lines, abs_path, {
+    collect_anchor_links = true,
+    collect_blocks = true,
+    collect_sections = true,
+  })
   if not ok or not note then
     return nil
   end
@@ -122,6 +126,9 @@ function M.build(abs_path, _vault_root)
     mtime_nsec = stat.mtime.nsec,
     size = stat.size,
   }
+  if note.path and note.id ~= note.path.stem then
+    row.id = note.id
+  end
   if note.aliases and #note.aliases > 0 then
     row.aliases = note.aliases
   end
@@ -130,6 +137,24 @@ function M.build(abs_path, _vault_root)
   end
   if next(properties) ~= nil then
     row.properties = properties
+  end
+  local anchors = {}
+  for _, section in ipairs(note.sections or {}) do
+    if section.anchor then
+      anchors[section.anchor] = (anchors[section.anchor] or 0) + 1
+    end
+  end
+  for anchor in pairs(note.anchor_links or {}) do
+    anchors[anchor] = anchors[anchor] or 1
+  end
+  if next(anchors) ~= nil then
+    row.anchors = anchors
+  end
+  if note.blocks and next(note.blocks) ~= nil then
+    row.blocks = {}
+    for block in pairs(note.blocks) do
+      row.blocks[block] = true
+    end
   end
   if #links_out > 0 then
     row.links_out = links_out

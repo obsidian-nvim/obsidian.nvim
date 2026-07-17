@@ -15,4 +15,7 @@ return {
   ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
   ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",
   ["textDocument/foldingRange"] = require "obsidian.lsp.handlers.folding_range",
+  ["textDocument/didOpen"] = require "obsidian.lsp/handlers.did_open",
+  ["textDocument/didChange"] = require "obsidian.lsp/handlers.did_change",
+  ["textDocument/didClose"] = require "obsidian.lsp/handlers.did_close",
 }

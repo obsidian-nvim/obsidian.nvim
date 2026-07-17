@@ -89,7 +89,7 @@ T["cache backends"]["stores compact rows"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   local note_path = tostring(dir / "Note.md")
-  helpers.write("---\ntags: [Foo]\n---\n# Note\n#Inline", note_path)
+  helpers.write("---\nid: custom-id\ntags: [Foo]\n---\n# Note\n# Note\ntext ^block\n#Inline", note_path)
   Obsidian = { dir = dir }
 
   local cache = require "obsidian.cache"
@@ -101,6 +101,9 @@ T["cache backends"]["stores compact rows"] = function()
   local row = cache.notes.find(note_path)
   eq({ "foo", "inline" }, row.tags)
   eq("number", type(row.mtime_nsec))
+  eq("custom-id", row.id)
+  eq(2, row.anchors["#note"])
+  eq(true, row.blocks["^block"])
   eq(nil, row.path)
   eq(nil, row.rel_path)
   eq(nil, row.basename)
@@ -298,6 +301,25 @@ T["cache backends"]["handles raw LSP watched-file events"] = function()
   }
 
   eq(true, cache.notes.find(note_path) ~= nil)
+end
+
+T["cache backends"]["reindexes one note directly"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local note_path = dir / "Fresh.md"
+  helpers.write("# Fresh", note_path)
+  cache.notes.reindex(note_path)
+
+  eq(1, cache.notes.count())
+  eq(1, cache.notes.get(tostring(note_path)).anchors["#fresh"])
 end
 
 T["cache backends"]["rename lifecycle uses store operations only"] = function()
