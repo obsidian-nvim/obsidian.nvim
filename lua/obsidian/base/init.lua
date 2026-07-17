@@ -3,6 +3,8 @@ local parser = require "obsidian.base.parser"
 local M = {
   expression = require "obsidian.base.expression",
   property = require "obsidian.base.property",
+  query = require "obsidian.base.query",
+  renderer = require "obsidian.base.renderer",
   parse = parser.parse,
 }
 

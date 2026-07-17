@@ -111,4 +111,18 @@
 ---@field config table<string, any> Unknown top-level keys, preserved for extensions.
 ---@field raw table<string, any>
 
+---@class obsidian.base.Column
+---@field key string Canonical property name.
+---@field label string
+
+---@class obsidian.base.Row
+---@field path string Absolute note path.
+---@field values table<string, any> Values keyed by canonical property name.
+
+---@class obsidian.base.ViewModel
+---@field type string
+---@field name string?
+---@field columns obsidian.base.Column[]
+---@field rows obsidian.base.Row[]
+
 return {}

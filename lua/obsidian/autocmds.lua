@@ -93,6 +93,7 @@ vim.api.nvim_create_autocmd("FileType", {
   group = group,
   pattern = { "markdown", "quarto" },
   callback = function(args)
+    require("obsidian.embed").start(args.buf)
     create_autocmd("BufEnter", args.buf, bufenter_callback)
     create_autocmd("BufLeave", args.buf, function(ev)
       if not vim.b[ev.buf].obsidian_buffer then

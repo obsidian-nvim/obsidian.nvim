@@ -5,7 +5,9 @@ obsidian.nvim has an experimental, renderer-independent foundation for Obsidian
 in-process LSP server and provides validation, document symbols, and a quick fix
 for adding a missing table view.
 
-This layer does not query the vault or render a view yet.
+The initial query layer supports common note and file properties, basic
+expressions, filters, formulas, sorting, and limits. Table and list views can be
+rendered as Markdown and previewed through embedded `.base` links.
 
 ## Public API
 
@@ -79,17 +81,31 @@ only when the resulting constraint is implied by the complete filter AST.
 
 ## Rendering
 
-A dedicated rendering subsystem is useful; a dedicated table-buffer format is
-not required for the first implementation. The initial renderer should generate
-Markdown tables for table views and Markdown lists for list views in scratch
-buffers. This reuses Markdown concealment, links, syntax, and existing renderer
-plugins while keeping generated text out of the `.base` source buffer.
+Renderers consume a shared view model and register by view type. The built-in
+renderers generate Markdown tables for table views and Markdown lists for list
+views. Cards, maps, and plugin-defined views report that no renderer is installed
+without changing parsing or query semantics.
 
-Renderers should consume a shared view model and register by view type. This
-allows table and list support to ship first, while cards, maps, and plugin-defined
-views can report that no renderer is installed without changing parsing or query
-semantics. Selection and editing state belong to a controller above the renderer,
-not in AST nodes.
+Embed a Base in a Markdown note to show the rendered output as Neovim virtual
+lines:
+
+```markdown
+![[Projects.base]]
+![[Projects.base#List]]
+```
+
+The first form selects the first view. The second selects the view named `List`.
+The original embed remains editable in the buffer and the generated output is
+not written to the note.
+
+Embedding is provided by the generic `obsidian.embed` subsystem. It also renders
+whole Markdown notes, heading sections, and block references such as
+`![[Note.md]]`, `![[Note.md#Heading]]`, and `![[Note.md#^block]]`. Providers can
+be added with `require("obsidian.embed").register(provider)`.
+
+The first query implementation intentionally leaves grouping, summaries, and
+most Bases functions for later. Unsupported functions and view types are shown
+as inline preview errors rather than being evaluated approximately.
 
 The format and expression semantics follow Obsidian's
 [Bases syntax](https://help.obsidian.md/bases/syntax) and

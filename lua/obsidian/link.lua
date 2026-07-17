@@ -15,8 +15,10 @@ end
 --- TODO: use in definition handler later,
 
 ---@param location string
+---@param opts? { source_path: string }
 ---@return string|?
-M.resolve_link_path = function(location)
+M.resolve_link_path = function(location, opts)
+  opts = opts or {}
   local is_uri = util.is_uri(location)
   if is_uri then
     return nil
@@ -34,7 +36,7 @@ M.resolve_link_path = function(location)
   end
 
   local location_path = Path.new(location)
-  local current_path = vim.api.nvim_buf_get_name(0)
+  local current_path = opts.source_path or vim.api.nvim_buf_get_name(0)
   local current_dir = current_path ~= "" and Path.new(vim.fs.dirname(current_path)) or nil
   local workspace_dir = api.resolve_workspace_dir(current_path ~= "" and current_path or nil)
 

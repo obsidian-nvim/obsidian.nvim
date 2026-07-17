@@ -165,6 +165,7 @@ end
 ---@param events table[]
 local function on_events(events)
   local FileChangeType = vim.lsp.protocol.FileChangeType
+  local changed_paths = {}
   for _, ev in ipairs(events) do
     local path = event_path(ev)
     if
@@ -175,14 +176,25 @@ local function on_events(events)
     then
       if path then
         reindex_one(path)
+        changed_paths[#changed_paths + 1] = path
       end
     elseif ev.type == "deleted" or ev.type == FileChangeType.Deleted then
       if path then
         remove_one(path)
+        changed_paths[#changed_paths + 1] = path
       end
     elseif ev.type == "renamed" then
       rename_one(ev.old_path, ev.new_path)
+      changed_paths[#changed_paths + 1] = vim.fs.normalize(ev.old_path)
+      changed_paths[#changed_paths + 1] = vim.fs.normalize(ev.new_path)
     end
+  end
+
+  if #changed_paths > 0 then
+    vim.api.nvim_exec_autocmds("User", {
+      pattern = "ObsidianCacheChanged",
+      data = { paths = changed_paths },
+    })
   end
 end
 
