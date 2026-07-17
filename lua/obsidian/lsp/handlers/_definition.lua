@@ -1,8 +1,7 @@
-local obsidian = require "obsidian"
-local search = obsidian.search
-local util = obsidian.util
-local log = obsidian.log
-local api = obsidian.api
+local search = require "obsidian.search"
+local util = require "obsidian.util"
+local log = require "obsidian.log"
+local api = require "obsidian.api"
 local actions = require "obsidian.actions"
 
 local function open_uri(uri, scheme)

@@ -483,8 +483,9 @@ function M.schedule(params, dispatchers)
 end
 
 ---Refresh diagnostics for an open buffer without requiring a text change.
----@param bufnr integer
+---@param bufnr integer?
 function M.refresh(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end

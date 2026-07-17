@@ -908,6 +908,8 @@ M.write_note = function(note)
     end
   end
   note:write()
+  require("obsidian.cache").notes.reindex(note.path)
+  require("obsidian.lsp.diagnostics").refresh()
 end
 
 M.insert_link = function(query)
