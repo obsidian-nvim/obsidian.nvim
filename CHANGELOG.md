@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Warns if workspace folder does not exist.
 - Picker will properly require available picker in runtime path, and fallback to native.
 - Bring back the ordinal fallback to the display and filename in the telescope picker.
+- `[[` completion no longer lists the "(create)" item above an existing note match; existing-note results now always sort before create-new-note items, regardless of which completion source resolves first.
 
 ### Changed
 
