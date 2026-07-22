@@ -1,4 +1,6 @@
 local Ref = require "obsidian.completion.sources.refs"
+local Anchor = require "obsidian.completion.sources.anchors"
+local Block = require "obsidian.completion.sources.blocks"
 local Tag = require "obsidian.completion.sources.tags"
 local NewNote = require "obsidian.completion.sources.new"
 local Footnote = require "obsidian.completion.sources.footnotes"
@@ -59,11 +61,9 @@ end
 return function(params, callback, _)
   local request = build_request(params)
 
-  -- Collect results from up to 3 sources and merge before calling the LSP callback.
-  -- IMPORTANT: all pending counts must be set before starting any source, because
-  -- sources that can't complete call back synchronously, which would fire the final
-  -- callback before remaining sources are even registered.
-  local pending = 3 -- refs + tags + footnotes always run
+  -- IMPORTANT: the count is set before starting any source, because sources that
+  -- can't complete call back synchronously.
+  local pending = 5 -- refs + anchors + blocks + tags + footnotes always run
   if Obsidian.opts.completion.create_new then
     pending = pending + 1
   end
@@ -80,8 +80,10 @@ return function(params, callback, _)
     end
   end
 
-  -- Refs source.
+  -- Link sources run independently: note first, then anchor or block after '#'.
   Ref.process_completion(on_source_done, request)
+  Anchor.process_completion(on_source_done, request)
+  Block.process_completion(on_source_done, request)
 
   -- Tags source.
   Tag.process_completion(on_source_done, request)

@@ -249,6 +249,10 @@ T["header_to_anchor"]["should remove punctuation"] = function()
   eq("#hello-world", M.header_to_anchor "# Hello, World!")
 end
 
+T["header_to_anchor"]["should remove literal hashes from heading text"] = function()
+  eq("#naked", M.header_to_anchor "# `#NAKED`")
+end
+
 T["header_to_anchor"]["should keep numbers"] = function()
   eq("#hello-world-123", M.header_to_anchor "# Hello, World! 123")
 end

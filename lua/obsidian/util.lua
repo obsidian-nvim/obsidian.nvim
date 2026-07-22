@@ -519,8 +519,10 @@ end
 ---
 ---@return string
 util.header_to_anchor = function(header)
-  -- Remove leading '#' and strip whitespace.
+  -- Remove heading markers and literal hashes from the heading text. Hashes in a
+  -- standardized anchor are reserved for separating nested headings.
   local anchor = vim.trim(string.gsub(header, [[^#+%s+]], ""))
+  anchor = anchor:gsub("#", "")
   return util.standardize_anchor("#" .. anchor)
 end
 

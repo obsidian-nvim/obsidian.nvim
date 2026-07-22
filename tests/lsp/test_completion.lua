@@ -267,6 +267,55 @@ Target note content
   eq(true, found)
 end
 
+T["completion"]["ref items commit '#' and leave the cursor inside the link"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = "Target note content",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[target$0]]"
+  end)
+
+  assert(item, "no target ref item found")
+  eq({ "#" }, item.commitCharacters)
+  eq(vim.lsp.protocol.InsertTextFormat.Snippet, item.insertTextFormat)
+end
+
+T["completion"]["anchors complete after a resolved ref"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[target#]]",
+    ["target.md"] = "# Heading\n\nText ^block-id",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  local result = run_completion(0, 9)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[target#heading]]"
+  end)
+
+  assert(item, "no target anchor item found")
+  eq(0, item.textEdit.range.start.character)
+  eq(11, item.textEdit.range["end"].character)
+end
+
+T["completion"]["blocks complete separately after '#^'"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[target#^]]",
+    ["target.md"] = "# Heading\n\nText ^block-id",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  local result = run_completion(0, 10)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[target#^block-id]]"
+  end)
+
+  assert(item, "no target block item found")
+end
+
 T["completion"]["returns items for tag trigger"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "#ta",

@@ -27,46 +27,6 @@ function M.process_completion(callback, request)
 
   term = util.lstrip_whitespace(term)
 
-  ---@type string|?
-  local block_link
-  term, block_link = util.strip_block_links(term)
-
-  ---@type string|?
-  local anchor_link
-  term, anchor_link = util.strip_anchor_links(term)
-
-  -- If block link is incomplete, do nothing.
-  if not block_link and vim.endswith(term, "#^") then
-    callback(EMPTY_RESPONSE)
-    return
-  end
-
-  -- If anchor link is incomplete, do nothing.
-  if not anchor_link and vim.endswith(term, "#") then
-    callback(EMPTY_RESPONSE)
-    return
-  end
-
-  -- Probably just a block/anchor link within current note.
-  if string.len(term) == 0 then
-    callback(EMPTY_RESPONSE)
-    return
-  end
-
-  -- Create a mock block.
-  ---@type obsidian.note.Block|?
-  local block
-  if block_link then
-    block = { block = "", id = util.standardize_block(block_link), line = 1 }
-  end
-
-  -- Create a mock anchor.
-  ---@type obsidian.note.HeaderAnchor|?
-  local anchor
-  if anchor_link then
-    anchor = { anchor = anchor_link, header = string.sub(anchor_link, 2), level = 1, line = 1 }
-  end
-
   ---@type { label: string, note: obsidian.Note }[]
   local new_notes_opts = {}
 
@@ -104,11 +64,7 @@ function M.process_completion(callback, request)
       error "not implemented"
     end
 
-    local new_text = new_note:format_link {
-      label = new_note_opts.label,
-      anchor = anchor,
-      block = block,
-    }
+    local new_text = new_note:format_link { label = new_note_opts.label }
     local documentation = {
       kind = "markdown",
       value = new_note:display_info {
