@@ -444,6 +444,39 @@ tags:
   eq(true, found)
 end
 
+T["completion"]["existing note match sorts before create item for the same title"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[Title",
+    ["Title.md"] = [==[
+---
+id: Title
+aliases: []
+tags: []
+---
+Existing note content
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  eq("table", type(result))
+
+  local existing_idx, create_idx
+  for i, item in ipairs(result.items or {}) do
+    if item.command and item.command.command == "obsidian.write_note" then
+      create_idx = i
+    elseif item.label == "[[Title]]" then
+      existing_idx = i
+    end
+  end
+
+  assert(existing_idx, "no existing-note item found")
+  assert(create_idx, "no create item found")
+  assert(existing_idx < create_idx, "existing note item should sort before create item")
+end
+
 T["completion"]["create_new emits write_note command that writes file"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[brandnewnote",
