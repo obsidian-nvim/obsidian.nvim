@@ -1,21 +1,3 @@
-local suggesters = {
-  require "obsidian.lsp.inlay_hints.link",
-}
-
----@param bufnr integer
----@param range lsp.Range|?
----@return lsp.InlayHint[]
-local function get_hints(bufnr, range)
-  ---@type lsp.InlayHint[]
-  local hints = {}
-
-  for _, suggest in ipairs(suggesters) do
-    vim.list_extend(hints, suggest(bufnr, range))
-  end
-
-  return hints
-end
-
 ---@param params lsp.InlayHintParams
 ---@param callback fun(_: any, hints: lsp.InlayHint[])
 return function(params, callback)
@@ -23,7 +5,7 @@ return function(params, callback)
   local range = params and params.range or nil
 
   require("obsidian.cache").when_ready(function()
-    local ok, hints = pcall(get_hints, bufnr, range)
+    local ok, hints = pcall(require("obsidian.inlay_hints").collect, bufnr, range)
     if ok then
       callback(nil, hints)
     else

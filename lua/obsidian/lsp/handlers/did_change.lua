@@ -1,8 +1,12 @@
 local refresh_pending = false
 
----@param _ lsp.DidChangeTextDocumentParams
+---@param params lsp.DidChangeTextDocumentParams
 ---@param dispatchers table
-return function(_, dispatchers)
+return function(params, dispatchers)
+  if params and params.textDocument and params.textDocument.uri then
+    require("obsidian.inlay_hints").clear(vim.uri_to_bufnr(params.textDocument.uri))
+  end
+
   if refresh_pending or not dispatchers or not dispatchers.server_request then
     return
   end

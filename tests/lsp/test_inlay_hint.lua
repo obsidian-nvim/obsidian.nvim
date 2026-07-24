@@ -148,6 +148,70 @@ T["didChange requests inlay hint refresh"] = function()
   eq(true, child.lua_get "inlay_hint_refresh_params_is_nil")
 end
 
+T["accepts link suggestion text edits under cursor"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  run_inlay_hint()
+  child.lua [[
+    vim.api.nvim_win_set_cursor(0, { 1, 3 })
+    require("obsidian.inlay_hints").accept_under_cursor()
+  ]]
+
+  eq("a [[test]]", child.lua_get [[vim.api.nvim_get_current_line()]])
+end
+
+T["registers line scanners with command hints"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["ipa.md"] = "  say /ˌɒnəmatəˈpiːə/ now",
+  })
+  setup_cache()
+
+  child.lua [[
+
+local Range = require("obsidian.range")
+require("obsidian").inlay_hints.register({
+   name = "ipa-test",
+   scan = function(ctx)
+      local leading, ipa = ctx.line:match("(%s+)/([^/]+)/")
+      if not ipa then
+         return
+      end
+
+      local start_col = #leading + 1
+      local end_col = #leading + #ipa + 2
+      local range = Range.new(ctx.row, start_col - 1, ctx.row, end_col)
+      ctx.add({
+         range = range,
+         position = { line = ctx.row, character = end_col },
+         label = " ▶",
+         command = function()
+            _G.spoken_ipa = ipa
+         end,
+      })
+   end,
+})
+  ]]
+
+  child.cmd("edit " .. files["ipa.md"])
+  local hints = run_inlay_hint()
+
+  eq(1, #hints)
+  eq({ line = 0, character = 23 }, hints[1].position)
+  eq(" ▶", hints[1].label[1].value)
+  eq("obsidian.inlay_hint_command", hints[1].label[1].command.command)
+
+  child.lua [[
+    vim.api.nvim_win_set_cursor(0, { 1, 10 })
+    require("obsidian.inlay_hints").accept_under_cursor()
+  ]]
+  eq("ˌɒnəmatəˈpiːə", child.lua_get [[_G.spoken_ipa]])
+end
+
 T["respects requested range"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",

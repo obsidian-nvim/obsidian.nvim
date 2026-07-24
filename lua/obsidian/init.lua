@@ -11,6 +11,7 @@ obsidian.commands = require "obsidian.commands"
 obsidian.config = require "obsidian.config"
 obsidian.log = log
 obsidian.img_paste = require "obsidian.img_paste"
+obsidian.inlay_hints = require "obsidian.inlay_hints"
 obsidian.Note = require "obsidian.note"
 obsidian.Path = require "obsidian.path"
 obsidian.Picker = require "obsidian.picker"
