@@ -8,6 +8,11 @@
 ---@type table<string, obsidian.lsp.CodeAction>
 local code_actions = {}
 
+---@class obsidian.lsp.ResolvedCodeAction
+---@field name string
+---@field title string
+---@field action obsidian.lsp.CodeAction
+
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
 ---@field title string|fun(note: obsidian.Note): string text display in code action interface
@@ -122,6 +127,42 @@ local del = function(name)
   code_actions[name] = nil
 end
 
+---@param title string|fun(note: obsidian.Note): string
+---@param note obsidian.Note
+---@return string
+local function eval_title(title, note)
+  if type(title) == "function" then
+    return title(note)
+  end
+  return title
+end
+
+---Resolve all actions that are available in the current context.
+---@param note obsidian.Note
+---@return obsidian.lsp.ResolvedCodeAction[]
+local function resolve(note)
+  local out = {}
+  for name, code_action in pairs(code_actions) do
+    local data = code_action.data
+    if data.cond(note) then
+      local title = eval_title(data.title, note)
+      local command = vim.tbl_extend("force", code_action.command or {}, { title = title })
+      out[#out + 1] = {
+        name = name,
+        title = title,
+        action = vim.tbl_extend("force", code_action, { title = title, command = command }),
+      }
+    end
+  end
+  table.sort(out, function(a, b)
+    if a.title == b.title then
+      return a.name < b.name
+    end
+    return a.title < b.title
+  end)
+  return out
+end
+
 for name, opts in pairs(default_actions) do
   ---@type obsidian.lsp.CodeActionOpts
   local action_opts = vim.tbl_extend("force", opts, { name = name })
@@ -132,4 +173,5 @@ return {
   actions = code_actions,
   add = add,
   del = del,
+  resolve = resolve,
 }

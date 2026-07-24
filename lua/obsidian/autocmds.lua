@@ -106,6 +106,15 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
+vim.api.nvim_create_autocmd("MenuPopup", {
+  group = group,
+  pattern = "*",
+  desc = "Add contextual Obsidian actions to the popup menu",
+  callback = function(ev)
+    require("obsidian.popup").refresh(ev.buf)
+  end,
+})
+
 -- Run enter_note callback.
 vim.api.nvim_create_autocmd("User", {
   pattern = "ObsidianNoteEnter",

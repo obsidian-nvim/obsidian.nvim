@@ -59,6 +59,12 @@ Available actions:
   - Link selection as name for a new note (`link_new`)
   - Extract selected text to a new note (`extract_note`)
 
+In Obsidian buffers, these actions are also added directly to Neovim's
+right-click popup menu using their internal action names. The entries preserve
+Neovim's default popup actions and are rebuilt for the current mode, so
+conditions and custom actions use the same behavior as the LSP code-action
+picker.
+
 ### Code Action API
 
 You can register custom code actions via `require("obsidian").code_action` module.
