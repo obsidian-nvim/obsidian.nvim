@@ -146,6 +146,12 @@ Workspace.set = function(workspace)
   Obsidian.dir = dir
   Obsidian.opts = options
 
+  -- setup() initializes the first workspace's cache after Workspace.setup().
+  -- Subsequent workspace changes need to switch the cache to the new vault.
+  if previous_workspace and previous_workspace ~= workspace then
+    require("obsidian.cache").setup(options.cache)
+  end
+
   -- Ensure directories exist.
   dir:mkdir { parents = true }
 

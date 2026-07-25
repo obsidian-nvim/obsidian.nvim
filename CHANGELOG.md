@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `opts.resolvers` to allow better way to add/pick dates/attachment and other future primitives.
 - Dedicated line tag parser.
 - Added code action `toggle_recording` to add recordings to your vault as attachment, see `:Obsidian help Audio-recorder`
+- Cache-backed attachment completion for `[[` links when `cache.enabled = true`.
 
 ### Fixed
 

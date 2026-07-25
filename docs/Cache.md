@@ -12,7 +12,7 @@ require("obsidian").setup {
 
 The default backend is `json`. It writes a cache file under Neovim's cache directory and reuses it between sessions. You do not need to set `backend = "json"` unless you want to be explicit.
 
-At the moment, the cache is used for `:Obsidian quick_switch`. When enabled, quick switch reads note names and aliases from the cache instead of asking the picker to scan the vault each time.
+The cache is used for `:Obsidian quick_switch` and attachment completion. When enabled, quick switch reads note names and aliases from the cache instead of asking the picker to scan the vault each time. Typing an attachment name inside `[[` also completes supported attachments without invoking `ripgrep`.
 
 ## What Gets Cached
 
@@ -25,6 +25,10 @@ The cache stores note metadata that helps `quick_switch` build picker entries:
 - outgoing links
 - tasks
 - file modification time and size
+
+It also stores lightweight entries for supported attachments, including images,
+audio, video, canvases, and PDFs. Attachment content is never read into the
+cache.
 
 The cache is derived data. You can delete it at any time; `obsidian.nvim` will rebuild it on the next startup or file change.
 
@@ -53,11 +57,14 @@ Each vault gets its own cache file.
 
 ## How Updates Work
 
-On startup, `obsidian.nvim` checks the vault for supported Markdown files and updates entries whose modification time or size changed.
+On startup, `obsidian.nvim` checks the vault for supported Markdown files and
+attachments, then updates entries whose modification time or size changed.
 
-While Neovim is running, file watch events update the cache when notes are created, changed, deleted, or renamed.
+While Neovim is running, file watch events update the cache when notes or supported attachments are created, changed, deleted, or renamed.
 
 The cache follows your existing `file.ignore_filters` setting.
+Vault configuration files under `.obsidian` and Git internals under `.git` are
+always excluded.
 
 ## Backends
 
@@ -85,5 +92,5 @@ A store implements `get(key)`, `all()`, `put(key, row)`, and `delete(key)`. `flu
 
 ## Limitations
 
-- The cache currently powers `:Obsidian quick_switch` only.
+- Attachment completion currently requires the cache. A non-cache fallback is planned.
 - Running several Neovim instances on the same vault can cause cache updates to race.

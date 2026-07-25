@@ -7,7 +7,7 @@ local util = require "obsidian.util"
 local M = {}
 M.__index = M
 
-local SCHEMA_VERSION = 1
+local SCHEMA_VERSION = 2
 
 local function read_file(path)
   local f = io.open(path, "r")
@@ -39,33 +39,36 @@ function M.open(opts)
       version = SCHEMA_VERSION,
       vault = opts.vault,
       generated_at = os.time(),
-      notes = {},
+      entries = {},
     }
+  if raw and not parsed then
+    self.dirty = true
+  end
   self.data.vault = opts.vault
   return self
 end
 
 ---@param key string  primary key (absolute path)
 function M:get(key)
-  return self.data.notes[key]
+  return self.data.entries[key]
 end
 
 ---@return table<string, table>
 function M:all()
-  return self.data.notes
+  return self.data.entries
 end
 
 ---@param key string
 ---@param row table
 function M:put(key, row)
-  self.data.notes[key] = row
+  self.data.entries[key] = row
   self.dirty = true
 end
 
 ---@param key string
 function M:delete(key)
-  if self.data.notes[key] ~= nil then
-    self.data.notes[key] = nil
+  if self.data.entries[key] ~= nil then
+    self.data.entries[key] = nil
     self.dirty = true
   end
 end

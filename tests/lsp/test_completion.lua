@@ -22,6 +22,15 @@ local function run_completion(line, character)
   )
 end
 
+local function enable_memory_cache()
+  child.lua [[
+    require("obsidian.cache").setup { enabled = true, backend = "memory" }
+    assert(vim.wait(1000, function()
+      return require("obsidian.cache").is_ready()
+    end), "cache did not become ready")
+  ]]
+end
+
 T["refs"] = MiniTest.new_set()
 
 T["refs"]["can_complete should handle wiki links with text"] = function()
@@ -265,6 +274,111 @@ Target note content
     end
   end
   eq(true, found)
+end
+
+T["completion"]["returns cache-backed attachment items"] = function()
+  vim.fn.mkdir(tostring(child.Obsidian.dir / "attachments"), "p")
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[pho",
+    ["attachments/Photo.PNG"] = "image",
+  })
+  enable_memory_cache()
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+
+  local result = run_completion(0, 5)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.kind == vim.lsp.protocol.CompletionItemKind.File
+  end)
+  assert(item, "no attachment completion item found")
+  eq("[[Photo.PNG]]", item.textEdit.newText)
+  eq("attachments/Photo.PNG", item.detail)
+  eq(0, item.textEdit.range.start.character)
+  eq(5, item.textEdit.range["end"].character)
+end
+
+T["completion"]["preserves a typed attachment embed marker"] = function()
+  vim.fn.mkdir(tostring(child.Obsidian.dir / "attachments"), "p")
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "![[pho",
+    ["attachments/photo.png"] = "image",
+  })
+  enable_memory_cache()
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 6 })
+
+  local result = run_completion(0, 6)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.kind == vim.lsp.protocol.CompletionItemKind.File
+  end)
+  assert(item, "no attachment completion item found")
+  eq("[[photo.png]]", item.textEdit.newText)
+  eq(1, item.textEdit.range.start.character)
+end
+
+T["completion"]["disambiguates duplicate attachment basenames"] = function()
+  vim.fn.mkdir(tostring(child.Obsidian.dir / "a"), "p")
+  vim.fn.mkdir(tostring(child.Obsidian.dir / "b"), "p")
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[image",
+    ["a/image.png"] = "first",
+    ["b/image.png"] = "second",
+  })
+  enable_memory_cache()
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  local texts = {}
+  for _, item in ipairs(result.items or {}) do
+    if item.kind == vim.lsp.protocol.CompletionItemKind.File then
+      texts[#texts + 1] = item.textEdit.newText
+    end
+  end
+  table.sort(texts)
+  eq({ "[[a/image.png|image.png]]", "[[b/image.png|image.png]]" }, texts)
+end
+
+T["completion"]["uses a vault path outside the configured attachment folder"] = function()
+  vim.fn.mkdir(tostring(child.Obsidian.dir / "assets"), "p")
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[diagram",
+    ["assets/diagram.png"] = "image",
+  })
+  enable_memory_cache()
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 9 })
+
+  local result = run_completion(0, 9)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.kind == vim.lsp.protocol.CompletionItemKind.File
+  end)
+  assert(item, "no attachment completion item found")
+  eq("[[assets/diagram.png|diagram.png]]", item.textEdit.newText)
+end
+
+T["completion"]["URL-encodes markdown attachment paths"] = function()
+  vim.fn.mkdir(tostring(child.Obsidian.dir / "attachments"), "p")
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[space",
+    ["attachments/space image.png"] = "image",
+  })
+  child.lua [[Obsidian.opts.link.style = "markdown"]]
+  enable_memory_cache()
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.kind == vim.lsp.protocol.CompletionItemKind.File
+  end)
+  assert(item, "no attachment completion item found")
+  eq("[space image.png](space%20image.png)", item.textEdit.newText)
 end
 
 T["completion"]["returns items for tag trigger"] = function()

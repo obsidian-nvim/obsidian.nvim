@@ -1,81 +1,83 @@
 local M = {}
 local util = require "obsidian.util"
 local log = require "obsidian.log"
+local filetypes = require "obsidian.filetypes"
 
 ---@enum obsidian.attachment.ft
-local filetypes = {
+local legacy_filetypes = {
   -- markdown
   "md",
-  -- json canvas
-  "canvas",
-  -- images
-  "avif",
-  "bmp",
-  "gif",
-  "jpg",
-  "jpeg",
-  "png",
-  "svg",
-  "webp",
-  -- audio
-  "flac",
-  "m4a",
-  "mp3",
-  "ogg",
-  "wav",
-  "webm",
-  "3gp",
-  -- video
-  "mkv",
-  "mov",
-  "mp4",
-  "ogv",
-  "webm",
-  -- pdf
-  "pdf",
 }
+vim.list_extend(legacy_filetypes, filetypes.attachment_extensions)
 
 -- TODO: file extension to mime type and vice versa
 
-M.filetypes = filetypes
+M.filetypes = legacy_filetypes
+M.extensions = filetypes.attachment_extensions
 
 ---Checks if a given string represents a valid attachment based on its suffix.
 ---
 ---@param location string
 ---@return boolean
 M.is_attachment_path = function(location)
-  if vim.endswith(location, ".md") then
-    return false
-  end
-  for _, ext in ipairs(filetypes) do
-    if vim.endswith(location, "." .. ext) then
-      return true
-    end
-  end
-  return false
+  return filetypes.is_attachment(location)
 end
 
---- Resolve a basename to full path inside the vault.
+---@param src string
+---@param bufnr integer|?
+---@return string
+local function configured_attachment_path(src, bufnr)
+  local Path = require "obsidian.path"
+  local attachment_folder = Obsidian.opts.attachments.folder
+  bufnr = bufnr or 0
+  local bufname = vim.api.nvim_buf_get_name(bufnr)
+  local current_dir = bufname ~= "" and vim.fs.dirname(bufname) or nil
+
+  ---@cast attachment_folder -nil
+  if vim.startswith(attachment_folder, ".") then
+    local dirname = Path.new(current_dir or tostring(Obsidian.dir))
+    return vim.fs.normalize(tostring(dirname / attachment_folder / src))
+  end
+  return vim.fs.normalize(tostring(Obsidian.dir / attachment_folder / src))
+end
+
+--- Resolve an attachment reference to a full path inside the vault.
 ---
 ---@param src string
 ---@param bufnr integer|?
 ---@return string
 M.resolve_attachment_path = function(src, bufnr)
-  local Path = require "obsidian.path"
-  local attachment_folder = Obsidian.opts.attachments.folder
-
   if vim.startswith(src, "file:/") then
     return vim.uri_to_fname(src)
   end
 
-  ---@cast attachment_folder -nil
-  if vim.startswith(attachment_folder, ".") then
-    bufnr = bufnr or 0
-    local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)))
-    return tostring(dirname / attachment_folder / src)
-  else
-    return tostring(Obsidian.dir / attachment_folder / src)
+  src = vim.uri_decode(src) or src
+  ---@cast src string
+  if require("obsidian.path").new(src):is_absolute() then
+    return vim.fs.normalize(src)
   end
+
+  bufnr = bufnr or 0
+  local bufname = vim.api.nvim_buf_get_name(bufnr)
+  local current_dir = bufname ~= "" and vim.fs.dirname(bufname) or nil
+
+  local candidates = {}
+  if current_dir then
+    candidates[#candidates + 1] = vim.fs.joinpath(current_dir, src)
+  end
+  candidates[#candidates + 1] = vim.fs.joinpath(tostring(Obsidian.dir), src)
+  candidates[#candidates + 1] = configured_attachment_path(src, bufnr)
+
+  for _, candidate in ipairs(candidates) do
+    candidate = vim.fs.normalize(candidate)
+    if vim.uv.fs_stat(candidate) then
+      return candidate
+    end
+  end
+
+  -- Preserve the historical behavior for callers resolving a destination that
+  -- does not exist yet, such as attachment.add().
+  return configured_attachment_path(src, bufnr)
 end
 
 ---@param fname string
@@ -151,7 +153,7 @@ local function get_attachment_paths(src, bufnr, new_name)
     fname = validated_name
   end
 
-  return src_path, M.resolve_attachment_path(fname, bufnr)
+  return src_path, configured_attachment_path(fname, bufnr)
 end
 
 ---@param src string
@@ -296,19 +298,134 @@ M.add = function(src, opts)
   return resolved_dst
 end
 
+---@class obsidian.AttachmentMatch
+---@field path string
+---@field rel_path string
+---@field basename string
+---@field ambiguous boolean
+
+---Find attachments from the active vault cache.
+---
+---This intentionally has no filesystem/ripgrep fallback yet. When the cache is
+---disabled, the callback receives an empty list.
+---@param term string
+---@param callback fun(matches: obsidian.AttachmentMatch[])
+function M.find_async(term, callback)
+  local cache = require "obsidian.cache"
+  if not cache.is_enabled() then
+    callback {}
+    return
+  end
+
+  cache.when_ready(function()
+    if not cache.is_enabled() then
+      callback {}
+      return
+    end
+
+    local query = string.lower(vim.trim(term))
+    local rows = cache.attachments.all()
+    local basename_counts = {}
+    for path in pairs(rows) do
+      local basename = cache.attachments.basename(path)
+      local key = string.lower(basename)
+      basename_counts[key] = (basename_counts[key] or 0) + 1
+    end
+
+    ---@type obsidian.AttachmentMatch[]
+    local matches = {}
+    for path in pairs(rows) do
+      local basename = cache.attachments.basename(path)
+      local rel_path = cache.attachments.rel_path(path)
+      if
+        query == ""
+        or string.find(string.lower(basename), query, 1, true)
+        or string.find(string.lower(rel_path), query, 1, true)
+      then
+        matches[#matches + 1] = {
+          path = path,
+          rel_path = rel_path,
+          basename = basename,
+          ambiguous = basename_counts[string.lower(basename)] > 1,
+        }
+      end
+    end
+
+    table.sort(matches, function(a, b)
+      local a_name, b_name = string.lower(a.basename), string.lower(b.basename)
+      if a_name == b_name then
+        return string.lower(a.rel_path) < string.lower(b.rel_path)
+      end
+      return a_name < b_name
+    end)
+    callback(matches)
+  end)
+end
+
+---@class obsidian.AttachmentLinkOpts
+---@field bufnr? integer
+---@field embed? boolean
+---@field format? obsidian.link.LinkFormat
+---@field label? string
+---@field style? obsidian.link.LinkStyle
+
+---@param dst string
+---@param format obsidian.link.LinkFormat
+---@param bufnr integer
+---@return string
+local function format_path(dst, format, bufnr)
+  if format == "absolute" then
+    local Path = require "obsidian.path"
+    return assert(Path.new(dst):vault_relative_path { strict = true })
+  elseif format == "relative" then
+    local bufname = vim.api.nvim_buf_get_name(bufnr)
+    local base_dir = bufname ~= "" and vim.fs.dirname(bufname) or tostring(Obsidian.dir)
+    local rel_path = util.relpath(base_dir, dst)
+    assert(rel_path, "failed to resolve attachment path against current note")
+    return rel_path
+  end
+  return vim.fs.basename(dst)
+end
+
+---Format a reference to an existing attachment.
+---@param dst string
+---@param opts obsidian.AttachmentLinkOpts?
+---@return string
+function M.format_reference(dst, opts)
+  opts = opts or {}
+  local bufnr = opts.bufnr or 0
+  local format = opts.format or Obsidian.opts.link.format
+  ---@cast format obsidian.link.LinkFormat
+  local style = opts.style or Obsidian.opts.link.style
+  local path = format_path(dst, format, bufnr)
+  local label = opts.label or ""
+  local link
+
+  if style == "wiki" or style == nil then
+    link = require("obsidian.builtin").wiki_link { path = path, label = label }
+  elseif style == "markdown" then
+    link = require("obsidian.builtin").markdown_link { path = path, label = label }
+  elseif type(style) == "function" then
+    link = style {
+      path = path,
+      label = label,
+      style = style,
+      format = format,
+    }
+  else
+    error(string.format("Invalid link style '%s'", style))
+  end
+
+  if opts.embed and not vim.startswith(link, "!") then
+    link = "!" .. link
+  end
+  return link
+end
+
 ---@param dst string
 ---@return string
 M.format_link = function(dst)
-  local basename = vim.fs.basename(dst)
-  local style = Obsidian.opts.link.style
-  if style == "wiki" then
-    return "![[" .. basename .. "]]"
-  elseif style == "markdown" then
-    return "![](" .. util.urlencode(basename) .. ")"
-  elseif type(style) == "function" then
-    return style { path = basename }
-  end
-  return "![[" .. basename .. "]]"
+  return M.format_reference(dst, { embed = true, format = "shortest" })
 end
 
 return M

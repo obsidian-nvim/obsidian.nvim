@@ -22,4 +22,12 @@ T["format_link"]["markdown links should URL-encode basename"] = function()
   eq("![](test%20file%20%281%29.png)", attachment.format_link(mock_file))
 end
 
+T["format_link"]["formats non-embedded absolute attachment references"] = function()
+  local path = vim.fs.joinpath(tostring(Obsidian.dir), "assets", "diagram.png")
+  eq(
+    "[[assets/diagram.png|diagram.png]]",
+    attachment.format_reference(path, { embed = false, format = "absolute", label = "diagram.png" })
+  )
+end
+
 return T

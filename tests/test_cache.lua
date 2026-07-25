@@ -133,6 +133,68 @@ T["cache backends"]["indexes markdown-like extensions"] = function()
   eq(true, cache.notes.find(tostring(dir / "Base.base")) ~= nil)
 end
 
+T["cache backends"]["indexes typed attachments and excludes internal files"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Path.new(dir / "media"):mkdir()
+  Path.new(dir / ".obsidian" / "plugins" / "example"):mkdir { parents = true }
+  Path.new(dir / ".git"):mkdir()
+  helpers.write("# Note", dir / "Note.md")
+  helpers.write("image", dir / "media" / "Photo.PNG")
+  helpers.write("document", dir / "Document.pdf")
+  helpers.write("internal", dir / ".obsidian" / "plugins" / "example" / "icon.png")
+  helpers.write("internal", dir / ".git" / "logo.png")
+  helpers.write("unsupported", dir / "archive.zip")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  eq(1, cache.notes.count())
+  eq(2, cache.attachments.count())
+  eq(true, cache.attachments.find(tostring(dir / "media" / "Photo.PNG")) ~= nil)
+  eq("media/Photo.PNG", cache.attachments.rel_path(tostring(dir / "media" / "Photo.PNG")))
+  eq(nil, cache.notes.find(tostring(dir / "media" / "Photo.PNG")))
+  eq(nil, cache.attachments.find(tostring(dir / ".obsidian" / "plugins" / "example" / "icon.png")))
+end
+
+T["cache backends"]["updates attachments from watched-file events"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local old_path = tostring(dir / "Old.png")
+  local new_path = tostring(dir / "New.pdf")
+  helpers.write("old", old_path)
+  require("obsidian.lsp.watchfiles").handle {
+    { type = "created", path = old_path },
+  }
+  eq(true, cache.attachments.find(old_path) ~= nil)
+
+  helpers.write("new", new_path)
+  vim.fn.delete(old_path)
+  require("obsidian.lsp.watchfiles").handle {
+    { type = "renamed", old_path = old_path, new_path = new_path },
+  }
+  eq(nil, cache.attachments.find(old_path))
+  eq(true, cache.attachments.find(new_path) ~= nil)
+
+  vim.fn.delete(new_path)
+  require("obsidian.lsp.watchfiles").handle {
+    { type = "deleted", path = new_path },
+  }
+  eq(nil, cache.attachments.find(new_path))
+end
+
 T["cache backends"]["handles raw LSP watched-file events"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }

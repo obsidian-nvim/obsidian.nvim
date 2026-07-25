@@ -5,30 +5,55 @@ local T, child = h.child_vault [[
 package.loaded["obsidian.lsp.watchfiles"] = nil
 ]]
 
-T["initialized dynamically registers markdown watcher"] = function()
+T["initialized dynamically registers note and attachment watchers"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.initialized"
+    Obsidian.opts.cache.enabled = true
 
     handler(vim.empty_dict(), {
       server_request = function(method, params)
         _G.request_method = method
         _G.request_id = params.registrations[1].id
         _G.request_watch_method = params.registrations[1].method
-        _G.request_watch_glob = params.registrations[1].registerOptions.watchers[1].globPattern
-        _G.request_watch_kind = params.registrations[1].registerOptions.watchers[1].kind
+        _G.request_watchers = params.registrations[1].registerOptions.watchers
         return vim.NIL, nil
       end,
     })
   ]]
 
   eq("client/registerCapability", child.lua_get "request_method")
-  eq("obsidian-watch-markdown", child.lua_get "request_id")
+  eq("obsidian-watch-vault-files", child.lua_get "request_id")
   eq("workspace/didChangeWatchedFiles", child.lua_get "request_watch_method")
-  eq("**/*.md", child.lua_get "request_watch_glob")
+  eq("**/*.{md,markdown,qmd,base}", child.lua_get "request_watchers[1].globPattern")
+  eq(
+    "**/*.{canvas,avif,bmp,gif,jpg,jpeg,png,svg,webp,flac,m4a,mp3,ogg,wav,webm,3gp,mkv,mov,mp4,ogv,pdf}",
+    child.lua_get "request_watchers[2].globPattern"
+  )
   eq(
     vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete,
-    child.lua_get "request_watch_kind"
+    child.lua_get "request_watchers[1].kind"
   )
+  eq(
+    vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete,
+    child.lua_get "request_watchers[2].kind"
+  )
+end
+
+T["initialized skips the attachment watcher when cache is disabled"] = function()
+  child.lua [[
+    local handler = require "obsidian.lsp.handlers.initialized"
+    Obsidian.opts.cache.enabled = false
+
+    handler(vim.empty_dict(), {
+      server_request = function(_, params)
+        _G.request_watchers = params.registrations[1].registerOptions.watchers
+        return vim.NIL, nil
+      end,
+    })
+  ]]
+
+  eq(1, child.lua_get "#request_watchers")
+  eq("**/*.{md,markdown,qmd,base}", child.lua_get "request_watchers[1].globPattern")
 end
 
 T["didChangeWatchedFiles emits LSP create and delete events"] = function()
