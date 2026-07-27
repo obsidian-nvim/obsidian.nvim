@@ -148,6 +148,13 @@ M.select = function(values, opts, on_choice)
     choose = function() end,
   }
 
+  local marked_entries
+  if opts.allow_multiple then
+    source.choose_marked = function(items)
+      marked_entries = items
+    end
+  end
+
   if opts.preview_item then
     source.preview = function(buf_id, item)
       local winid = vim.fn.bufwinid(buf_id)
@@ -161,11 +168,10 @@ M.select = function(values, opts, on_choice)
     source = source,
   }
 
-  if entry then
-    on_choice { entry.obsidian_item or entry }
-  else
-    on_choice {}
-  end
+  local selected = marked_entries or (entry and { entry }) or {}
+  on_choice(vim.tbl_map(function(item)
+    return item.obsidian_item or item
+  end, selected))
 end
 
 return M

@@ -37,6 +37,7 @@ T["search_tags uses select for tag choice"] = function()
           text = items[1].text,
           preview_pos = preview.pos,
           preview_line = vim.api.nvim_buf_get_lines(preview.buf, preview.pos[1] - 1, preview.pos[1], false)[1],
+          preview_bufhidden = vim.bo[preview.buf].bufhidden,
         },
       }
     end
@@ -55,6 +56,7 @@ T["search_tags uses select for tag choice"] = function()
   eq(result.result_select.text, result.result_select.formatted)
   eq({ 1, 0 }, result.result_select.preview_pos)
   eq(true, vim.startswith(result.result_select.preview_line, "#alpha"))
+  eq("wipe", result.result_select.preview_bufhidden)
 end
 
 return T

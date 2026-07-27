@@ -1,4 +1,4 @@
-local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
+local new_set, eq, has_error = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.error
 
 local T = new_set {
   hooks = {
@@ -132,6 +132,12 @@ T["get uses configured picker if it becomes available before first picker call"]
     eq(1, calls)
     eq(2, invoked)
   end)
+end
+
+T["pick_note raises a removal error"] = function()
+  has_error(function()
+    picker.pick_note()
+  end, "picker.pick_note has been removed; use picker.select instead")
 end
 
 T["find_files_from_cache applies initial query case-insensitively"] = function()

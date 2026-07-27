@@ -932,6 +932,7 @@ local function gather_tag_picker_list(tag_locations, tags)
 
   local function preview_item(entry)
     local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "wipe"
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(entry.filename))
     vim.bo[buf].filetype = "markdown"
     return { buf = buf, pos = { entry.lnum or 1, entry.col and math.max(entry.col - 1, 0) or 0 } }

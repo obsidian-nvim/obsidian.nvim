@@ -278,56 +278,9 @@ M.grep_notes = function(opts)
   }
 end
 
---- Open picker with a list of notes.
----
----@param notes obsidian.Note[]
----@param opts { prompt_title: string|?, callback: fun(note: obsidian.Note, ...: obsidian.Note), allow_multiple: boolean|?, no_default_mappings: boolean|? }|? Options.
----
---- Options:
----  `prompt_title`: Title for the prompt window.
----  `callback`: Callback to run with the selected note(s).
----  `allow_multiple`: Allow multiple selections to pass to the callback.
----  `no_default_mappings`: Don't apply picker's default mappings.
-M.pick_note = function(notes, opts)
-  state.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts or {}
-
-  local query_mappings
-  local selection_mappings
-  if not opts.no_default_mappings then
-    query_mappings = M._note_query_mappings()
-    selection_mappings = M._note_selection_mappings()
-  end
-
-  -- Launch picker with results.
-  ---@type obsidian.PickerEntry[]
-  local entries = {}
-  for _, note in ipairs(notes) do
-    assert(note.path, "note has no path")
-    local rel_path = assert(note.path:vault_relative_path { strict = true })
-    local display_name = note:display_name()
-    entries[#entries + 1] = {
-      value = note,
-      display = display_name,
-      ordinal = rel_path .. " " .. display_name,
-      filename = tostring(note.path),
-    }
-  end
-
-  M.select(entries, {
-    prompt = opts.prompt_title or "Notes",
-    allow_multiple = opts.allow_multiple,
-    no_default_mappings = opts.no_default_mappings,
-    query_mappings = query_mappings,
-    selection_mappings = selection_mappings,
-  }, function(choices)
-    if #choices > 0 then
-      opts.callback(unpack(vim.tbl_map(function(v)
-        return v.user_data or v.value
-      end, choices)))
-    end
-  end)
+--- Removed picker API. Use `picker.select` directly.
+M.pick_note = function()
+  error "picker.pick_note has been removed; use picker.select instead"
 end
 
 --------------------------------
