@@ -23,7 +23,6 @@ local filetypes = {
   "mp3",
   "ogg",
   "wav",
-  "webm",
   "3gp",
   -- video
   "mkv",
