@@ -100,11 +100,18 @@ end
 ---@field preview_item (fun(value: any): obsidian.ui_select_preview_spec)?
 ---@field query string|?
 ---
----@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts
-
 ---@class obsidian.PickerEntryUserData
 ---@field attachment boolean|?
 ---@field missing boolean|?
+---@field references obsidian.PickerMissingReference[]|?
+---
+---@class obsidian.PickerMissingReference
+---@field path string
+---@field lnum integer
+---@field col integer
+---@field raw string
+---
+---@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts
 ---
 ---@field prompt_title string|?
 ---@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
@@ -194,10 +201,11 @@ end
 ---@param lookup table<string, boolean>
 local function add_lookup_path(path, lookup)
   local rel_path = cache.notes.rel_path(path)
+  local rel_path_no_ext = rel_path:gsub("%.md$", "")
   local basename = vim.fn.fnamemodify(path, ":t")
   for _, key in ipairs {
     rel_path,
-    rel_path:gsub("%.md$", ""),
+    rel_path_no_ext,
     basename,
     vim.fn.fnamemodify(path, ":t:r"),
   } do
@@ -210,7 +218,8 @@ end
 ---@return boolean
 local function target_exists(target, lookup)
   local normalized = normalize_link_target(target)
-  for _, key in ipairs { normalized, normalized:gsub("%.md$", ""), normalized .. ".md" } do
+  local normalized_no_ext = normalized:gsub("%.md$", "")
+  for _, key in ipairs { normalized, normalized_no_ext, normalized .. ".md" } do
     if lookup[key:lower()] then
       return true
     end
@@ -220,9 +229,10 @@ end
 
 ---@param is_attachment boolean
 ---@param missing boolean
+---@param references obsidian.PickerMissingReference[]|?
 ---@return obsidian.PickerEntryUserData
-local function entry_user_data(is_attachment, missing)
-  return { attachment = is_attachment, missing = missing }
+local function entry_user_data(is_attachment, missing, references)
+  return { attachment = is_attachment, missing = missing, references = references }
 end
 
 ---@param opts obsidian.PickerFindOpts|?
@@ -251,21 +261,25 @@ M.find_files_from_cache = function(opts)
     ---@type obsidian.PickerEntry[]
     local entries = {}
     local lookup = {}
-    local seen_missing = {}
+    ---@type table<string, obsidian.PickerEntry>
+    local missing_entries = {}
     local all = cache.notes.all()
 
     ---@param text string
     ---@param path string
     ---@param user_data obsidian.PickerEntryUserData
+    ---@return obsidian.PickerEntry?
     local function add_entry(text, path, user_data)
       if query_lower and not string.find(string.lower(text), query_lower, 1, true) then
         return
       end
-      entries[#entries + 1] = {
+      local entry = {
         text = text,
         filename = path,
         user_data = user_data,
       }
+      entries[#entries + 1] = entry
+      return entry
     end
 
     for path, note in pairs(all) do
@@ -295,10 +309,26 @@ M.find_files_from_cache = function(opts)
             local missing_is_attachment = is_attachment_target(target)
             if show_attachments or not missing_is_attachment then
               local target_path = link.missing_link_path(target, path)
-              if target_path and util.is_subpath(target_path, dir) and not seen_missing[target_path] then
-                seen_missing[target_path] = true
-                local text = normalize_link_target(target)
-                add_entry(text, target_path, entry_user_data(missing_is_attachment, true))
+              if target_path and util.is_subpath(target_path, dir) then
+                local missing_key = missing_is_attachment and target_path or normalize_link_target(target):lower()
+                local reference = {
+                  path = path,
+                  lnum = outgoing.line or 1,
+                  col = outgoing.col or 1,
+                  raw = outgoing.raw or target,
+                }
+                local entry = missing_entries[missing_key]
+                if entry then
+                  local data = entry.user_data
+                  data.references[#data.references + 1] = reference
+                else
+                  local text = normalize_link_target(target)
+                  local added =
+                    add_entry(text, target_path, entry_user_data(missing_is_attachment, true, { reference }))
+                  if added then
+                    missing_entries[missing_key] = added
+                  end
+                end
               end
             end
           end
@@ -319,7 +349,56 @@ M.find_files_from_cache = function(opts)
       return icon .. " " .. text
     end
 
-    -- TODO: preview_item
+    ---@param entry obsidian.PickerEntry
+    ---@return obsidian.ui_select_preview_spec
+    local function preview_picker_entry(entry)
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.bo[buf].bufhidden = "wipe"
+
+      local data = entry.user_data or {}
+      if data.missing then
+        local references = vim.deepcopy(data.references or {})
+        table.sort(references, function(a, b)
+          local a_path = cache.notes.rel_path(a.path)
+          local b_path = cache.notes.rel_path(b.path)
+          if a_path ~= b_path then
+            return a_path < b_path
+          elseif a.lnum ~= b.lnum then
+            return a.lnum < b.lnum
+          else
+            return a.col < b.col
+          end
+        end)
+
+        local lines = {}
+        for i, reference in ipairs(references) do
+          if i > 1 then
+            lines[#lines + 1] = ""
+          end
+          lines[#lines + 1] = ("%s:%d:%d"):format(cache.notes.rel_path(reference.path), reference.lnum, reference.col)
+          lines[#lines + 1] = ""
+          lines[#lines + 1] = "```markdown"
+          lines[#lines + 1] = reference.raw
+          lines[#lines + 1] = "```"
+        end
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+        vim.bo[buf].filetype = "markdown"
+      elseif entry.filename then
+        local ok, lines = pcall(vim.fn.readfile, entry.filename, "", 1000)
+        if not ok then
+          lines = { entry.filename }
+        end
+        if not pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, lines) then
+          vim.api.nvim_buf_set_lines(buf, 0, -1, false, { entry.filename })
+        end
+        local filetype = vim.filetype.match { filename = entry.filename }
+        if filetype then
+          vim.bo[buf].filetype = filetype
+        end
+      end
+
+      return { buf = buf }
+    end
 
     M.select(entries, {
       prompt = opts.prompt_title,
@@ -332,9 +411,7 @@ M.find_files_from_cache = function(opts)
         return item.filename
       end),
       format_item = format_picker_entry,
-      preview_item = function(item)
-        return util.preview_path(item.filename)
-      end,
+      preview_item = preview_picker_entry,
     }, function(items)
       local paths = vim.tbl_filter(
         function(path)
