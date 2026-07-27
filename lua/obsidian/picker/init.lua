@@ -4,6 +4,7 @@ local cache = require "obsidian.cache"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
+local icons = require "obsidian.icons"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
@@ -128,7 +129,7 @@ M.find_files_from_cache = function(opts)
 
     for path, note in pairs(cache.notes.all()) do
       if util.is_subpath(path, dir) then
-        local rel_path = cache.notes.rel_path(path)
+        local rel_path = cache.notes.rel_path(path):gsub("%.md$", "")
         add_entry(rel_path, path)
         for _, alias in ipairs(note.aliases or {}) do
           add_entry(rel_path .. " | " .. alias, path)
@@ -149,7 +150,8 @@ M.find_files_from_cache = function(opts)
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
       format_item = function(item)
-        return item["text"] or item["filename"] or ""
+        local icon = icons.get_path_icon(item.filename)
+        return icon .. " " .. item.text
       end,
       callback = function(item)
         local path = item["filename"]

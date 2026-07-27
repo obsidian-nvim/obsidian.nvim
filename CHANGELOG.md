@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Added separate icons module to support obsidian related filetypes and usecases.
+
 ## [v3.16.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.6) - 2026-07-25
 
 ### Added

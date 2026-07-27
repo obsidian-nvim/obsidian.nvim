@@ -621,32 +621,13 @@ M.get_os = function()
   return this_os
 end
 
---- Get a nice icon for a file or URL, if possible.
+--- Get the icon associated with a path.
 ---
+---@deprecated use `require("obsidian.icons").get_path_icon` instead.
 ---@param path string
----
----@return string|?, string|? (icon, hl_group) The icon and highlight group.
+---@return string icon
 M.get_icon = function(path)
-  if util.is_uri(path) then
-    local icon = ""
-    local _, hl_group = M.get_icon "blah.html"
-    return icon, hl_group
-  elseif Path.new(path):is_dir() then
-    return "󰉋"
-  else
-    local ok, res = pcall(function()
-      ---@diagnostic disable-next-line: unresolved-require
-      local icon, hl_group = require("nvim-web-devicons").get_icon(path, nil, { default = true })
-      return { icon, hl_group }
-    end)
-    if ok and type(res) == "table" then
-      local icon, hlgroup = unpack(res)
-      return icon, hlgroup
-    elseif vim.endswith(path, ".md") then
-      return ""
-    end
-  end
-  return nil
+  return require("obsidian.icons").get_path_icon(path)
 end
 
 M.resolve_attachment_path = attachment.resolve_attachment_path
