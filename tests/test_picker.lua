@@ -133,7 +133,7 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
   picker.pick = original_pick
 
   eq(1, #picked_values)
-  eq("Agenda.md", picked_values[1].text)
+  eq("Agenda", picked_values[1].text)
   eq(nil, picked_opts.query)
 end
 

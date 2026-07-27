@@ -425,7 +425,7 @@ M.get_visual_selection = function(opts)
     if byte then
       -- Determine UTF-8 character byte length
       local char_bytes = 1
-      if byte >= 240 then     -- 11110xxx: 4-byte char
+      if byte >= 240 then -- 11110xxx: 4-byte char
         char_bytes = 4
       elseif byte >= 224 then -- 1110xxxx: 3-byte char
         char_bytes = 3
@@ -440,9 +440,9 @@ M.get_visual_selection = function(opts)
 
   local selection_lines = vim.api.nvim_buf_get_text(
     bufnr,
-    csrow - 1,                  -- start row (convert to 0-indexed)
-    cscol - 1,                  -- start col in bytes (convert to 0-indexed)
-    cerow - 1,                  -- end row (convert to 0-indexed)
+    csrow - 1, -- start row (convert to 0-indexed)
+    cscol - 1, -- start col in bytes (convert to 0-indexed)
+    cerow - 1, -- end row (convert to 0-indexed)
     end_col_for_extraction - 1, -- end col: exclusive, convert to 0-indexed
     {}
   )

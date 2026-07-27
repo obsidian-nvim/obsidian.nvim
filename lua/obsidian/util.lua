@@ -100,7 +100,7 @@ end
 
 util.is_hex_color = function(s)
   return (s:match "^#%x%x%x$" or s:match "^#%x%x%x%x$" or s:match "^#%x%x%x%x%x%x$" or s:match "^#%x%x%x%x%x%x%x%x$")
-      ~= nil
+    ~= nil
 end
 
 ---Match the case of 'key' to the given 'prefix' of the key.
