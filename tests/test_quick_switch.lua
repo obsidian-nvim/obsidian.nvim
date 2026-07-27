@@ -51,7 +51,7 @@ end
 
 T["quick switch"]["cache picker filters attachments and missing links"] = function()
   h.child_mock_vault_contents(child, {
-    ["Note.md"] = "# Note\n[[Missing]]\n![[Image.png]]\n![[Missing.pdf]]",
+    ["Note.md"] = "# Note\n[[Missing]]\n![[Image.png]]\n![[Missing.pdf]]\nA [[Missing|label]]",
     ["Image.png"] = "attachment",
   })
   h.child_setup_cache(child)
@@ -62,7 +62,8 @@ local icons = require "obsidian.icons"
 local original_select = picker.select
 local snapshots = {}
 local pick_opts
-local select_callback
+local selected_entries
+local on_choice
 
 local function seen(values)
   local out = {}
@@ -80,13 +81,14 @@ local function user_data_by_text(values)
   return out
 end
 
-picker.select = function(values, opts, on_choice)
+picker.select = function(values, opts, callback)
   pick_opts = opts
-  select_callback = on_choice
+  on_choice = callback
   if #snapshots < 2 then
     snapshots[#snapshots + 1] = seen(values)
   else
     snapshots[#snapshots + 1] = user_data_by_text(values)
+    selected_entries = values
   end
 end
 
@@ -104,6 +106,19 @@ local formatted_image = pick_opts.format_item {
   user_data = { attachment = true },
 }
 
+local function find_entry(text)
+  for _, entry in ipairs(selected_entries) do
+    if entry.text == text then
+      return entry
+    end
+  end
+end
+
+local missing_preview = pick_opts.preview_item(find_entry "Missing")
+local existing_preview = pick_opts.preview_item(find_entry "Note")
+local missing_preview_lines = vim.api.nvim_buf_get_lines(missing_preview.buf, 0, -1, false)
+local existing_preview_lines = vim.api.nvim_buf_get_lines(existing_preview.buf, 0, -1, false)
+
 local actions = require "obsidian.actions"
 local attachment = require "obsidian.attachment"
 local original_add_attachment = actions.add_attachment
@@ -115,7 +130,7 @@ local expected_missing_attachment_path = attachment.resolve_attachment_path(
 actions.add_attachment = function(src, opts)
   captured_add_attachment = { src = src, opts = opts }
 end
-select_callback {
+on_choice {
   {
     text = "Missing.pdf",
     filename = expected_missing_attachment_path,
@@ -135,6 +150,11 @@ return {
   expected_image = icons.get_icon { filename = "Image.png" } .. " Image.png",
   captured_add_attachment = captured_add_attachment,
   expected_missing_attachment_path = expected_missing_attachment_path,
+  missing_preview_lines = missing_preview_lines,
+  missing_preview_filetype = vim.bo[missing_preview.buf].filetype,
+  missing_preview_bufhidden = vim.bo[missing_preview.buf].bufhidden,
+  existing_preview_lines = existing_preview_lines,
+  existing_preview_filetype = vim.bo[existing_preview.buf].filetype,
 }
   ]]
 
@@ -149,14 +169,40 @@ return {
   eq(nil, result.missing_seen["Missing.pdf"])
 
   eq({ attachment = false, missing = false }, result.attachment_seen["Note"])
-  eq({ attachment = false, missing = true }, result.attachment_seen["Missing"])
+  eq(false, result.attachment_seen["Missing"].attachment)
+  eq(true, result.attachment_seen["Missing"].missing)
+  eq(2, #result.attachment_seen["Missing"].references)
   eq({ attachment = true, missing = false }, result.attachment_seen["Image.png"])
-  eq({ attachment = true, missing = true }, result.attachment_seen["Missing.pdf"])
+  eq(true, result.attachment_seen["Missing.pdf"].attachment)
+  eq(true, result.attachment_seen["Missing.pdf"].missing)
   eq(result.expected_missing, result.formatted_missing)
   eq(result.expected_image, result.formatted_image)
   eq(nil, result.captured_add_attachment.src)
   eq(false, result.captured_add_attachment.opts.insert)
   eq(result.expected_missing_attachment_path, result.captured_add_attachment.opts.dst)
+  eq({
+    "Note.md:2:1",
+    "",
+    "```markdown",
+    "[[Missing]]",
+    "```",
+    "",
+    "Note.md:5:3",
+    "",
+    "```markdown",
+    "[[Missing|label]]",
+    "```",
+  }, result.missing_preview_lines)
+  eq("markdown", result.missing_preview_filetype)
+  eq("wipe", result.missing_preview_bufhidden)
+  eq({
+    "# Note",
+    "[[Missing]]",
+    "![[Image.png]]",
+    "![[Missing.pdf]]",
+    "A [[Missing|label]]",
+  }, result.existing_preview_lines)
+  eq("markdown", result.existing_preview_filetype)
 end
 
 return T
