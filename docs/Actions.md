@@ -17,6 +17,7 @@ See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP inte
 | `start_presentation` | `n`      | Start slide presentation.              | `buf`                |
 | `workspace_symbol`   | `n`      | Search notes, aliases, and headings.   | `query`              |
 | `insert_link`        | `n`      | Pick a note and insert its link.        | `query`              |
+| `copy_link`          | `n`      | Copy link to note, heading, or paragraph. | `opts`             |
 | `search_tags`        | `n`      | Search notes by tag.                   | `tags`               |
 | `insert_tag`         | `n`      | Pick and insert a tag.                 |                      |
 | `add_tag`            | `n`      | Pick and add tag to current note.       |                      |

@@ -101,6 +101,10 @@ local default_actions = {
     title = "Insert internal link at cursor",
   },
 
+  copy_link = {
+    title = "Copy link to current location",
+  },
+
   insert_tag = {
     title = "Insert tag at cursor",
   },

@@ -52,6 +52,7 @@ Available actions:
   - Merge current note into another note (`merge_note`)
   - Start presentation (`start_presentation`, requires slides enabled)
   - Insert internal link at cursor (`insert_link`)
+  - Copy a link to the current note, heading, or paragraph (`copy_link`)
   - Insert tag at cursor (`insert_tag`)
   - Add tag to frontmatter (`add_tag`)
 - Visual mode:
