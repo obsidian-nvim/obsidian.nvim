@@ -1,5 +1,4 @@
 ---@diagnostic disable: unresolved-require
-local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
@@ -101,7 +100,7 @@ local function get_query(prompt_bufnr, keep_open, initial_query)
   end
 end
 
----@param opts { callback: (fun(entry: obsidian.PickerEntry, ...: obsidian.PickerEntry))|?, allow_multiple: boolean|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, initial_query: string|? }
+---@param opts { callback: (fun(entries: obsidian.PickerEntry[]))|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, initial_query: string|? }
 local function attach_picker_mappings(map, opts)
   -- Docs for telescope actions:
   -- https://github.com/nvim-telescope/telescope.nvim/blob/master/lua/telescope/actions/init.lua
@@ -139,13 +138,9 @@ local function attach_picker_mappings(map, opts)
 
   if opts.callback then
     map({ "i", "n" }, "<CR>", function(prompt_bufnr)
-      local entries = get_selected(prompt_bufnr, false, opts.allow_multiple)
-      if entries then
-        local entry = entries[1]
-        if entry then
-          ---@diagnostic disable-next-line: param-type-mismatch
-          opts.callback(entry, unpack(entries, 2))
-        end
+      local entries = get_selected(prompt_bufnr, false, true)
+      if entries and #entries > 0 then
+        opts.callback(entries)
       end
     end)
   end
@@ -154,9 +149,7 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  local callback = opts.callback or function(path)
-    api.open_note(path)
-  end
+  local callback = opts.callback or ut.open_notes
 
   local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
@@ -171,10 +164,10 @@ M.find_files = function(opts)
     find_command = search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown }),
     attach_mappings = function(_, map)
       attach_picker_mappings(map, {
-        callback = function(entry)
-          if entry.filename then
-            callback(entry.filename)
-          end
+        callback = function(entries)
+          callback(vim.tbl_map(function(entry)
+            return entry.filename
+          end, entries))
         end,
         query_mappings = opts.query_mappings,
         selection_mappings = opts.selection_mappings,
@@ -198,7 +191,7 @@ M.grep = function(opts)
 
   local attach_mappings = function(_, map)
     attach_picker_mappings(map, {
-      callback = opts.callback,
+      callback = opts.callback or ut.open_notes,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
       initial_query = opts.query,

@@ -140,6 +140,94 @@ T["pick_note raises a removal error"] = function()
   end, "picker.pick_note has been removed; use picker.select instead")
 end
 
+T["pick passes every selection to the default note opener"] = function()
+  local original_select = picker.select
+  local picker_util = require "obsidian.picker.util"
+  local original_open_notes = picker_util.open_notes
+  local first = "/vault/one.md"
+  local second = { filename = "/vault/two.md" }
+  local opened
+
+  local ok, err = pcall(function()
+    picker.select = function(_, _, on_choice)
+      on_choice { first, second }
+    end
+    picker_util.open_notes = function(entries)
+      opened = entries
+    end
+
+    picker.pick({ first, second }, { allow_multiple = true })
+  end)
+
+  picker.select = original_select
+  picker_util.open_notes = original_open_notes
+  if not ok then
+    error(err)
+  end
+
+  eq({ first, second }, opened)
+end
+
+T["pick preserves varargs for custom multiple-selection callbacks"] = function()
+  local original_select = picker.select
+  local first = { filename = "/vault/one.md" }
+  local second = { filename = "/vault/two.md" }
+  local choices
+
+  local ok, err = pcall(function()
+    picker.select = function(_, _, on_choice)
+      on_choice { first, second }
+    end
+
+    picker.pick({ first, second }, {
+      allow_multiple = true,
+      callback = function(...)
+        choices = { ... }
+      end,
+    })
+  end)
+
+  picker.select = original_select
+  if not ok then
+    error(err)
+  end
+
+  eq({ first, second }, choices)
+end
+
+T["open_notes opens a single result directly"] = function()
+  local picker_util = require "obsidian.picker.util"
+  local original_open_note = api.open_note
+  local entry = { filename = "/vault/one.md", lnum = 2 }
+  local opened
+
+  api.open_note = function(value)
+    opened = value
+  end
+  picker_util.open_notes { entry }
+  api.open_note = original_open_note
+
+  eq(entry, opened)
+end
+
+T["open_notes sends multiple results to quickfix"] = function()
+  local picker_util = require "obsidian.picker.util"
+  picker_util.open_notes {
+    { filename = "/vault/one.md", lnum = 2, col = 3 },
+    { filename = "/vault/one.md", lnum = 4, col = 5 },
+  }
+
+  local items = vim.fn.getqflist()
+  eq(2, #items)
+  eq("/vault/one.md", vim.fn.bufname(items[1].bufnr))
+  eq(2, items[1].lnum)
+  eq(3, items[1].col)
+  eq("/vault/one.md", vim.fn.bufname(items[2].bufnr))
+  eq(4, items[2].lnum)
+  eq(5, items[2].col)
+  vim.cmd "cclose"
+end
+
 T["find_files_from_cache applies initial query case-insensitively"] = function()
   local dir = Path.temp { suffix = "-obsidian-picker" }
   dir:mkdir { parents = true }
@@ -155,18 +243,19 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
 
   local picked_values
   local picked_opts
-  local original_pick = picker.pick
-  picker.pick = function(values, opts)
+  local original_select = picker.select
+  picker.select = function(values, opts)
     picked_values = values
     picked_opts = opts
   end
 
   eq(true, picker.find_files_from_cache { use_cache = true, query = "agenda" })
 
-  picker.pick = original_pick
+  picker.select = original_select
 
   eq(1, #picked_values)
   eq("Agenda", picked_values[1].text)
+  eq(true, picked_opts.allow_multiple)
   eq(nil, picked_opts.query)
 end
 

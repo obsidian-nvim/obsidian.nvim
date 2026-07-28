@@ -99,6 +99,27 @@ M.preview_spec_to_fzf_entry = function(spec)
   }
 end
 
+---Open one picker result directly, or put multiple results in the quickfix list.
+---@param entries (string|obsidian.PickerEntry)[]
+M.open_notes = function(entries)
+  if #entries == 0 then
+    return
+  elseif #entries == 1 then
+    api.open_note(entries[1])
+    return
+  end
+
+  local items = vim.tbl_map(function(entry)
+    if type(entry) == "string" then
+      return { filename = entry }
+    else
+      return entry
+    end
+  end, entries)
+  vim.fn.setqflist(items, "r")
+  vim.cmd "copen"
+end
+
 ---@param entry obsidian.PickerEntry
 ---
 ---@return string

@@ -1,5 +1,4 @@
 ---@diagnostic disable: unresolved-require
-local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
@@ -27,20 +26,30 @@ end
 
 local M = {}
 
----@param opts { callback: (fun(selection: obsidian.PickerEntry|string))|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+---@param opts { callback: (fun(selections: any[]))|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
 ---@param path_only? boolean HACK:
 local function get_selection_actions(opts, path_only)
   local entry_to_file = require("fzf-lua.path").entry_to_file
 
+  local function get_entries(selected, fzf_opts, paths_only)
+    return vim.tbl_map(function(selection)
+      local file = entry_to_file(selection, fzf_opts)
+      if paths_only then
+        return file.path
+      else
+        return {
+          filename = file.path,
+          lnum = file.line and file.line > 0 and file.line or nil,
+          col = file.col and file.col > 0 and file.col or nil,
+        }
+      end
+    end, selected or {})
+  end
+
   local actions = {
     default = function(selected, fzf_opts)
       if opts.callback then
-        local path = entry_to_file(selected[1], fzf_opts).path
-        if path_only then
-          opts.callback(path)
-        else
-          opts.callback { filename = path }
-        end
+        opts.callback(get_entries(selected, fzf_opts, path_only))
       elseif not opts.no_default_mappings then
         require("fzf-lua.actions").file_edit_or_qf(selected, fzf_opts)
       end
@@ -50,8 +59,12 @@ local function get_selection_actions(opts, path_only)
   if opts.selection_mappings then
     for key, mapping in pairs(opts.selection_mappings) do
       actions[format_keymap(key)] = function(selected, fzf_opts)
-        local path = entry_to_file(selected[1], fzf_opts).path
-        mapping.callback { filename = path }
+        local entries = get_entries(selected, fzf_opts, false)
+        if #entries > 1 and not mapping.allow_multiple then
+          log.err "This mapping does not allow multiple entries"
+          return
+        end
+        mapping.callback(unpack(entries))
       end
     end
   end
@@ -68,9 +81,9 @@ local function get_selection_actions(opts, path_only)
   return actions
 end
 
----@param display_to_value_map table<string, any>
+---@param entry_to_value_map table<string, any>
 ---@param opts { on_choice: fun(choices: any[])|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
-local function get_value_actions(display_to_value_map, opts)
+local function get_value_actions(entry_to_value_map, opts)
   ---@param allow_multiple boolean|?
   ---@return any[]|?
   local function get_values(selected, allow_multiple)
@@ -79,7 +92,7 @@ local function get_value_actions(display_to_value_map, opts)
     end
 
     local values = vim.tbl_map(function(k)
-      return display_to_value_map[k]
+      return entry_to_value_map[k]
     end, selected)
 
     values = vim.tbl_filter(function(v)
@@ -140,9 +153,7 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  local callback = opts.callback or function(path)
-    api.open_note(path)
-  end
+  local callback = opts.callback or ut.open_notes
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -173,6 +184,7 @@ M.grep = function(opts)
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local cmd = table.concat(search.build_grep_cmd(), " ")
   local actions = get_selection_actions {
+    callback = opts.callback or ut.open_notes,
     no_default_mappings = opts.no_default_mappings,
     selection_mappings = opts.selection_mappings,
     query_mappings = opts.query_mappings,
@@ -196,6 +208,22 @@ M.grep = function(opts)
   end
 end
 
+---@param opts obsidian.PickerSelectOpts
+---@return boolean
+local function needs_multi(opts)
+  if opts.allow_multiple then
+    return true
+  end
+
+  for _, mapping in pairs(opts.selection_mappings or {}) do
+    if mapping.allow_multiple then
+      return true
+    end
+  end
+
+  return false
+end
+
 ---@param values any[]
 ---@param opts obsidian.PickerSelectOpts|? Options.
 ---@param on_choice fun(choices: any[])|?
@@ -206,7 +234,7 @@ M.select = function(values, opts, on_choice)
   on_choice = on_choice or function() end
 
   ---@type table<string, any>
-  local display_to_value_map = {}
+  local entry_to_value_map = {}
   local file_preview = false
   for _, value in ipairs(values) do
     if type(value) == "table" and value.filename ~= nil then
@@ -217,7 +245,7 @@ M.select = function(values, opts, on_choice)
 
   ---@type string[]
   local entries = {}
-  for _, value in ipairs(values) do
+  for idx, value in ipairs(values) do
     local display
     if type(value) == "string" then
       display = value
@@ -225,8 +253,9 @@ M.select = function(values, opts, on_choice)
       display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
     if type(value) ~= "table" or value.valid ~= false then
-      display_to_value_map[display] = value
-      entries[#entries + 1] = display
+      local entry = ("%d\t%s"):format(idx, display)
+      entry_to_value_map[entry] = value
+      entries[#entries + 1] = entry
     end
   end
 
@@ -243,7 +272,7 @@ M.select = function(values, opts, on_choice)
     end
 
     function previewer.parse_entry(_self, entry_str)
-      return ut.preview_spec_to_fzf_entry(opts.preview_item(display_to_value_map[entry_str]))
+      return ut.preview_spec_to_fzf_entry(opts.preview_item(entry_to_value_map[entry_str]))
     end
   elseif file_preview then
     previewer = builtin.buffer_or_file:extend()
@@ -255,7 +284,7 @@ M.select = function(values, opts, on_choice)
     end
 
     function previewer.parse_entry(_self, entry_str)
-      local entry = display_to_value_map[entry_str]
+      local entry = entry_to_value_map[entry_str]
       return {
         path = entry.filename,
         line = entry.lnum,
@@ -264,14 +293,20 @@ M.select = function(values, opts, on_choice)
     end
   end
 
+  local allow_multiple = needs_multi(opts)
   require("fzf-lua").fzf_exec(entries, {
     query = opts.query,
     previewer = previewer,
     prompt = format_prompt(
       ut.build_prompt { prompt_title = opts.prompt, selection_mappings = opts.selection_mappings }
     ),
-    multi = opts.allow_multiple or nil,
-    actions = get_value_actions(display_to_value_map, {
+    fzf_opts = {
+      ["--delimiter"] = "\t",
+      ["--with-nth"] = "2..",
+      ["--multi"] = allow_multiple,
+      ["--no-multi"] = not allow_multiple,
+    },
+    actions = get_value_actions(entry_to_value_map, {
       on_choice = on_choice,
       allow_multiple = opts.allow_multiple,
       selection_mappings = opts.selection_mappings,

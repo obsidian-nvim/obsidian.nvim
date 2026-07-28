@@ -60,8 +60,10 @@ local function resolve_attachment_source(src, done)
     picker.find_files {
       dir = path,
       include_non_markdown = true,
-      callback = function(p)
-        done { path = p }
+      callback = function(paths)
+        if paths[1] then
+          done { path = paths[1] }
+        end
       end,
     }
   else

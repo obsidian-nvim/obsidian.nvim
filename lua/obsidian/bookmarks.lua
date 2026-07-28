@@ -149,6 +149,7 @@ end
 ---@return obsidian.ui.select_preview_spec
 local function preview_bookmark(bookmark)
   local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
   if bookmark.type == "url" then
     return preview_url(bookmark, buf)
   elseif bookmark.type == "group" then

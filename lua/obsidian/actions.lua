@@ -411,7 +411,11 @@ M.link = function()
   picker.find_notes {
     prompt_title = "Select note to link",
     query = query,
-    callback = function(path)
+    callback = function(paths)
+      local path = paths[1]
+      if not path then
+        return
+      end
       local note = require("obsidian.note").from_file(path)
       replace_selection(viz, note:format_link { label = query })
     end,
@@ -535,7 +539,11 @@ M.new_from_template = function(id, template, callback)
     prompt_title = "Templates",
     dir = templates_dir,
     no_default_mappings = true,
-    callback = function(template_name)
+    callback = function(template_names)
+      local template_name = template_names[1]
+      if not template_name then
+        return
+      end
       if id == nil or id == "" then
         -- Must use pcall in case of KeyboardInterrupt
         -- We cannot place `title` where `safe_title` is because it would be redeclaring it
@@ -843,7 +851,11 @@ M.merge_note = function(dst_note)
     merge_note(dst_note)
   else
     picker.find_notes {
-      callback = function(path)
+      callback = function(paths)
+        local path = paths[1]
+        if not path then
+          return
+        end
         local note = Note.from_file(path)
         merge_note(note)
       end,
@@ -880,7 +892,11 @@ M.insert_link = function(query)
   picker.find_files {
     query = query,
     no_default_mappings = true,
-    callback = function(path)
+    callback = function(paths)
+      local path = paths[1]
+      if not path then
+        return
+      end
       local note = Note.from_file(path)
       local link = note:format_link()
       vim.api.nvim_put({ link }, "", true, true)

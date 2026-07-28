@@ -152,6 +152,7 @@ M.pick = function(bufnr)
   ---@return obsidian.ui.select_preview_spec
   local function preview_footnote(def)
     local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "wipe"
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, note_lines)
     vim.bo[buf].filetype = "markdown"
     return { buf = buf, pos = { def.lnum, 0 } }

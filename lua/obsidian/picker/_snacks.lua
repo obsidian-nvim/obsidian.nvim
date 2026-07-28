@@ -1,5 +1,4 @@
 ---@diagnostic disable: unresolved-require
-local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Picker = require "obsidian.picker"
 local Path = require "obsidian.path"
@@ -107,7 +106,7 @@ local M = {}
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  local callback = opts.callback or api.open_note
+  local callback = opts.callback or ut.open_notes
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -129,11 +128,12 @@ M.find_files = function(opts)
     cwd = tostring(dir),
     cmd = cmd,
     args = args,
-    confirm = function(picker, item)
+    confirm = function(picker)
+      local selected = picker:selected { fallback = true }
       picker:close()
-      if item then
-        callback(item._path)
-      end
+      callback(vim.tbl_map(function(item)
+        return item._path
+      end, selected))
     end,
   })
   require("snacks.picker").pick(pick_opts)
@@ -147,7 +147,7 @@ M.grep = function(opts)
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local map =
     vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings), query_mappings(opts.query_mappings, true))
-  local callback = opts.callback or api.open_note
+  local callback = opts.callback or ut.open_notes
 
   local args = search.build_grep_cmd()
   local cmd = table.remove(args, 1)
@@ -159,16 +159,17 @@ M.grep = function(opts)
     cwd = tostring(dir),
     cmd = cmd,
     args = args,
-    confirm = function(picker, item)
+    confirm = function(picker)
+      local selected = picker:selected { fallback = true }
       picker:close()
-      if item then
-        callback {
+      callback(vim.tbl_map(function(item)
+        return {
           filename = item._path or item.filename,
           col = item.pos and item.pos[2] + 1,
           lnum = item.pos and item.pos[1],
           user_data = item.value,
         }
-      end
+      end, selected))
     end,
   })
   require("snacks.picker").pick(pick_opts)

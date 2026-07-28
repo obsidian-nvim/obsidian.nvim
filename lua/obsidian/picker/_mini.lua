@@ -1,5 +1,4 @@
 ---@diagnostic disable: unresolved-require
-local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Path = require "obsidian.path"
 local Picker = require "obsidian.picker"
@@ -35,9 +34,7 @@ end
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  local callback = opts.callback or function(path)
-    api.open_note(path)
-  end
+  local callback = opts.callback or ut.open_notes
 
   local mini_pick = require "mini.pick"
 
@@ -50,6 +47,7 @@ M.find_files = function(opts)
     mappings = build_selection_mappings(opts.selection_mappings)
   end
 
+  local selected
   local path = mini_pick.builtin.cli({
     command = search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown }),
     mappings = mappings,
@@ -58,37 +56,43 @@ M.find_files = function(opts)
       name = opts.prompt_title,
       cwd = tostring(dir),
       choose = function(chosen_path)
-        if callback then
-          return
-        elseif not opts.no_default_mappings then
-          mini_pick.default_choose(chosen_path)
-        end
+        selected = { chosen_path }
+      end,
+      choose_marked = function(chosen_paths)
+        selected = chosen_paths
       end,
     },
   })
 
-  if path then
-    callback(tostring(dir / path))
+  selected = selected or (path and { path }) or {}
+  if #selected > 0 then
+    callback(vim.tbl_map(function(chosen_path)
+      return tostring(dir / chosen_path)
+    end, selected))
   end
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)
   opts = opts and opts or {}
+  local callback = opts.callback or ut.open_notes
 
   local mini_pick = require "mini.pick"
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
 
+  ---@type string[]|?
+  local selected
   local pick_opts = {
     source = {
       name = opts.prompt_title,
       cwd = tostring(dir),
-      choose = function(path)
-        if not opts.no_default_mappings then
-          mini_pick.default_choose(path)
-        end
+      choose = function(item)
+        selected = { item }
+      end,
+      choose_marked = function(items)
+        selected = items
       end,
     },
   }
@@ -101,13 +105,16 @@ M.grep = function(opts)
     result = mini_pick.builtin.grep_live({}, pick_opts)
   end
 
-  if result and opts.callback then
-    local path, lnum, col = clean_path(result)
-    opts.callback {
-      filename = tostring(dir / path),
-      lnum = lnum,
-      col = col,
-    }
+  selected = selected or (result and { result }) or {}
+  if #selected > 0 then
+    callback(vim.tbl_map(function(item)
+      local path, lnum, col = clean_path(item)
+      return {
+        filename = tostring(dir / path),
+        lnum = lnum,
+        col = col,
+      }
+    end, selected))
   end
 end
 

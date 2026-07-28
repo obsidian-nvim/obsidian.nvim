@@ -11,6 +11,31 @@ local function with_module(name, module, fn)
   end
 end
 
+local function with_modules(modules, fn)
+  local originals = {}
+  for name, module in pairs(modules) do
+    originals[name] = package.loaded[name] or false
+    package.loaded[name] = module
+  end
+  local ok, err = pcall(fn)
+  for name in pairs(modules) do
+    package.loaded[name] = originals[name] or nil
+  end
+  if not ok then
+    error(err)
+  end
+end
+
+local function with_obsidian(obsidian, fn)
+  local original = Obsidian
+  Obsidian = obsidian
+  local ok, err = pcall(fn)
+  Obsidian = original
+  if not ok then
+    error(err)
+  end
+end
+
 local function with_select(select_impl, fn)
   local original_select = vim.ui.select
   vim.ui.select = select_impl
@@ -74,6 +99,175 @@ T["mini select returns all marked items when multiple selections are allowed"] =
   end)
 
   eq({ "one", "two" }, choices)
+end
+
+T["fzf select explicitly enables multiple selections and returns all choices"] = function()
+  local choices
+
+  with_modules({
+    ["fzf-lua.previewer.builtin"] = {},
+    ["fzf-lua"] = {
+      fzf_exec = function(entries, opts)
+        eq({ "1\tone", "2\ttwo" }, entries)
+        eq({
+          ["--delimiter"] = "\t",
+          ["--with-nth"] = "2..",
+          ["--multi"] = true,
+          ["--no-multi"] = false,
+        }, opts.fzf_opts)
+        opts.actions.default(entries)
+      end,
+    },
+  }, function()
+    require("obsidian.picker._fzf").select({ "one", "two" }, { allow_multiple = true }, function(selected)
+      choices = selected
+    end)
+  end)
+
+  eq({ "one", "two" }, choices)
+end
+
+T["fzf select explicitly disables unsupported multiple selections"] = function()
+  with_modules({
+    ["fzf-lua.previewer.builtin"] = {},
+    ["fzf-lua"] = {
+      fzf_exec = function(_, opts)
+        eq({
+          ["--delimiter"] = "\t",
+          ["--with-nth"] = "2..",
+          ["--multi"] = false,
+          ["--no-multi"] = true,
+        }, opts.fzf_opts)
+      end,
+    },
+  }, function()
+    require("obsidian.picker._fzf").select({ "one", "two" }, {}, function() end)
+  end)
+end
+
+T["fzf select enables multiple selections for mappings that accept them"] = function()
+  with_modules({
+    ["fzf-lua.previewer.builtin"] = {},
+    ["fzf-lua"] = {
+      fzf_exec = function(_, opts)
+        eq({
+          ["--delimiter"] = "\t",
+          ["--with-nth"] = "2..",
+          ["--multi"] = true,
+          ["--no-multi"] = false,
+        }, opts.fzf_opts)
+      end,
+    },
+  }, function()
+    require("obsidian.picker._fzf").select({ "one", "two" }, {
+      selection_mappings = {
+        ["<C-t>"] = { desc = "test", allow_multiple = true, callback = function() end },
+      },
+    }, function() end)
+  end)
+end
+
+T["fzf select preserves identity for duplicate display labels"] = function()
+  local first = { id = 1 }
+  local second = { id = 2 }
+  local choices
+  local previewed = {}
+
+  with_modules({
+    ["fzf-lua.previewer.builtin"] = {
+      buffer_or_file = {
+        extend = function()
+          return {}
+        end,
+      },
+    },
+    ["fzf-lua"] = {
+      fzf_exec = function(entries, opts)
+        eq({ "1\tduplicate", "2\tduplicate" }, entries)
+        opts.previewer.parse_entry(nil, entries[1])
+        opts.previewer.parse_entry(nil, entries[2])
+        opts.actions.default { entries[1] }
+      end,
+    },
+  }, function()
+    require("obsidian.picker._fzf").select({ first, second }, {
+      format_item = function()
+        return "duplicate"
+      end,
+      preview_item = function(value)
+        previewed[#previewed + 1] = value
+        return { buf = vim.api.nvim_create_buf(false, true) }
+      end,
+    }, function(selected)
+      choices = selected
+    end)
+  end)
+
+  eq({ first, second }, previewed)
+  eq({ first }, choices)
+end
+
+T["fzf find and grep callbacks receive every selected entry"] = function()
+  local found = {}
+  local mapped = {}
+  local grepped = {}
+
+  with_obsidian({ opts = { search = { sort_by = false, sort_reversed = false } } }, function()
+    with_modules({
+      ["fzf-lua.path"] = {
+        entry_to_file = function(entry)
+          if entry == "one" then
+            return { path = "/vault/one.md", line = 2, col = 3 }
+          else
+            return { path = "/vault/two.md", line = 0, col = 0 }
+          end
+        end,
+      },
+      ["fzf-lua"] = {
+        files = function(opts)
+          opts.actions.default({ "one", "two" }, {})
+          opts.actions["ctrl-l"]({ "one", "two" }, {})
+        end,
+        grep = function(opts)
+          opts.actions.default({ "one", "two" }, {})
+        end,
+      },
+    }, function()
+      local fzf = require "obsidian.picker._fzf"
+      fzf.find_files {
+        dir = "/vault",
+        callback = function(paths)
+          found = paths
+        end,
+        selection_mappings = {
+          ["<C-l>"] = {
+            desc = "map",
+            allow_multiple = true,
+            callback = function(...)
+              mapped = { ... }
+            end,
+          },
+        },
+      }
+      fzf.grep {
+        dir = "/vault",
+        query = "query",
+        callback = function(entries)
+          grepped = entries
+        end,
+      }
+    end)
+  end)
+
+  eq({ "/vault/one.md", "/vault/two.md" }, found)
+  eq({
+    { filename = "/vault/one.md", lnum = 2, col = 3 },
+    { filename = "/vault/two.md" },
+  }, mapped)
+  eq({
+    { filename = "/vault/one.md", lnum = 2, col = 3 },
+    { filename = "/vault/two.md" },
+  }, grepped)
 end
 
 return T

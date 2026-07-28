@@ -1,4 +1,5 @@
 local util = require "obsidian.util"
+local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
 local cache = require "obsidian.cache"
 local log = require "obsidian.log"
@@ -59,7 +60,7 @@ end
 ---
 ---@field prompt_title string|?
 ---@field dir string|obsidian.Path|?
----@field callback fun(path: string)|?
+---@field callback fun(paths: string[])|?
 ---@field no_default_mappings boolean|?
 ---@field query string|?
 ---@field query_mappings obsidian.PickerMappingTable|?
@@ -72,7 +73,7 @@ end
 ---@field prompt_title string|?
 ---@field dir string|obsidian.Path|?
 ---@field query string|?
----@field callback fun(entry: obsidian.PickerEntry)|?
+---@field callback fun(entries: obsidian.PickerEntry[])|?
 ---@field no_default_mappings boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
@@ -113,21 +114,23 @@ local pick = function(values, opts)
     prompt_title = nil,
   })
 
-  local callback = opts.callback or api.open_note
   return M.select(values, select_opts, function(choices)
     if not choices or #choices == 0 then
       return
     end
 
-    choices = vim.tbl_map(function(choice)
-      if type(choice) == "string" then
-        return { value = choice, user_data = choice, text = choice }
-      else
-        return choice
-      end
-    end, choices)
-
-    callback(unpack(choices))
+    if opts.callback then
+      choices = vim.tbl_map(function(choice)
+        if type(choice) == "string" then
+          return { value = choice, user_data = choice, text = choice }
+        else
+          return choice
+        end
+      end, choices)
+      opts.callback(unpack(choices))
+    else
+      picker_util.open_notes(choices)
+    end
   end)
 end
 
@@ -183,8 +186,9 @@ M.find_files_from_cache = function(opts)
       pick_query = nil
     end
 
-    M.pick(entries, {
-      prompt_title = opts.prompt_title,
+    M.select(entries, {
+      prompt = opts.prompt_title,
+      allow_multiple = true,
       -- The cache has already applied the initial query case-insensitively.
       -- Don't pass it through, since some pickers would filter again case-sensitively.
       query = pick_query,
@@ -194,17 +198,18 @@ M.find_files_from_cache = function(opts)
         local icon = icons.get_path_icon(item.filename)
         return icon .. " " .. item.text
       end,
-      callback = function(item)
-        local path = item["filename"]
-        if not path then
-          return
-        elseif opts.callback then
-          opts.callback(path)
-        else
-          api.open_note(path)
-        end
-      end,
-    })
+    }, function(items)
+      local paths = vim.tbl_filter(
+        function(path)
+          return path ~= nil
+        end,
+        vim.tbl_map(function(item)
+          return item["filename"]
+        end, items)
+      )
+      local callback = opts.callback or picker_util.open_notes
+      callback(paths)
+    end)
   end)
 
   return true
@@ -212,11 +217,11 @@ end
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(paths: string[])|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
----  `callback`: Callback to run with the selected note path.
+---  `callback`: Callback to run with the selected note paths.
 ---  `no_default_mappings`: Don't apply picker's default mappings.
 M.find_notes = function(opts)
   state.calling_bufnr = vim.api.nvim_get_current_buf()
@@ -246,12 +251,12 @@ end
 
 --- Grep search in notes.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(entry: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(entries: obsidian.PickerEntry[])|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
 ---  `query`: Initial query to grep for.
----  `callback`: Callback to run with the selected path.
+---  `callback`: Callback to run with the selected entries.
 ---  `no_default_mappings`: Don't apply picker's default mappings.
 M.grep_notes = function(opts)
   state.calling_bufnr = vim.api.nvim_get_current_buf()
@@ -269,9 +274,7 @@ M.grep_notes = function(opts)
     prompt_title = opts.prompt_title or "Grep notes",
     dir = opts.dir or Obsidian.dir,
     query = opts.query,
-    callback = opts.callback or function(entry)
-      api.open_note(entry)
-    end,
+    callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
