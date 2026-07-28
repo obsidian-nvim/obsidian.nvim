@@ -101,13 +101,7 @@ end
 ---@class obsidian.PickerEntryUserData
 ---@field attachment boolean|?
 ---@field missing boolean|?
----@field references obsidian.PickerMissingReference[]|?
----
----@class obsidian.PickerMissingReference
----@field path string
----@field lnum integer
----@field col integer
----@field raw string
+---@field references obsidian.PickerEntry[]|?
 ---
 ---@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts
 ---
@@ -207,7 +201,7 @@ end
 
 ---@param is_attachment boolean
 ---@param missing boolean
----@param references obsidian.PickerMissingReference[]|?
+---@param references obsidian.PickerEntry[]?
 ---@return obsidian.PickerEntryUserData
 local function entry_user_data(is_attachment, missing, references)
   return { attachment = is_attachment, missing = missing, references = references }
@@ -289,7 +283,7 @@ M.find_files_from_cache = function(opts)
               if target_path and util.is_subpath(target_path, dir) then
                 local missing_key = missing_is_attachment and target_path or normalize_link_target(target):lower()
                 local reference = {
-                  path = path,
+                  filename = path,
                   lnum = outgoing.line or 1,
                   col = outgoing.col or 1,
                   raw = outgoing.raw or target,
@@ -336,8 +330,8 @@ M.find_files_from_cache = function(opts)
       if data.missing then
         local references = vim.deepcopy(data.references or {})
         table.sort(references, function(a, b)
-          local a_path = cache.notes.rel_path(a.path)
-          local b_path = cache.notes.rel_path(b.path)
+          local a_path = cache.notes.rel_path(a.filename)
+          local b_path = cache.notes.rel_path(b.filename)
           if a_path ~= b_path then
             return a_path < b_path
           elseif a.lnum ~= b.lnum then
@@ -352,7 +346,11 @@ M.find_files_from_cache = function(opts)
           if i > 1 then
             lines[#lines + 1] = ""
           end
-          lines[#lines + 1] = ("%s:%d:%d"):format(cache.notes.rel_path(reference.path), reference.lnum, reference.col)
+          lines[#lines + 1] = ("%s:%d:%d"):format(
+            cache.notes.rel_path(reference.filename),
+            reference.lnum,
+            reference.col
+          )
           lines[#lines + 1] = ""
           lines[#lines + 1] = "```markdown"
           lines[#lines + 1] = reference.raw
@@ -415,12 +413,19 @@ M.find_files_from_cache = function(opts)
         elseif path and data.attachment then
           vim.ui.open(path)
         elseif path and data.missing then
-          local location = cache.notes.rel_path(path):gsub("%.md$", "")
-          api.create_new_note(location, function(locations)
-            if locations and locations[1] then
-              api.open_note(vim.uri_to_fname(locations[1].uri))
-            end
-          end)
+          local choice = api.confirm("How to handle missing reference?", "&Create New Note\n&Open References")
+          if choice == "Create New Note" then
+            local location = cache.notes.rel_path(path):gsub("%.md$", "")
+            api.create_new_note(location, function(locations)
+              if locations and locations[1] then
+                api.open_note(vim.uri_to_fname(locations[1].uri))
+              end
+            end)
+          elseif choice == "Open References" then
+            M.select(data.references, {}, function(choices)
+              picker_util.open_notes(choices)
+            end)
+          end
         elseif path then
           notes[#notes + 1] = item
         end
