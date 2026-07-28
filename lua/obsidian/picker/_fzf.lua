@@ -224,6 +224,24 @@ local function needs_multi(opts)
   return false
 end
 
+---@param spec obsidian.ui_select_preview_spec|?
+---@return table
+local preview_spec_to_fzf_entry = function(spec)
+  if not spec then
+    return {}
+  end
+
+  local pos = spec.pos or { 1, 0 }
+  local pos_end = spec.pos_end
+  return {
+    _scratch_buf = spec.buf,
+    line = pos[1] or 1,
+    col = (pos[2] or 0) + 1,
+    end_line = pos_end and pos_end[1] or nil,
+    end_col = pos_end and (pos_end[2] or 0) + 1 or nil,
+  }
+end
+
 ---@param values any[]
 ---@param opts obsidian.PickerSelectOpts|? Options.
 ---@param on_choice fun(choices: any[])|?
@@ -272,7 +290,7 @@ M.select = function(values, opts, on_choice)
     end
 
     function previewer.parse_entry(_self, entry_str)
-      return ut.preview_spec_to_fzf_entry(opts.preview_item(entry_to_value_map[entry_str]))
+      return preview_spec_to_fzf_entry(opts.preview_item(entry_to_value_map[entry_str]))
     end
   elseif file_preview then
     previewer = builtin.buffer_or_file:extend()

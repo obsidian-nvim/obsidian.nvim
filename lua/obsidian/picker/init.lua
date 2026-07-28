@@ -80,6 +80,8 @@ end
 
 ---@alias obsidian.PickerEntry vim.quickfix.entry
 
+---@alias obsidian.ui_select_preview_spec { buf: integer, pos: [integer,integer]?, pos_end: [integer,integer]? }
+
 ---@class obsidian.PickerSelectOpts
 ---
 ---@field prompt string|?
@@ -89,7 +91,7 @@ end
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field format_item (fun(value: any): string)|?
----@field preview_item (fun(value: any): {buf?: integer, pos?: [integer, integer], pos_end?: [integer, integer]})|?
+---@field preview_item (fun(value: any): obsidian.ui_select_preview_spec)?
 ---@field query string|?
 ---
 ---@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts

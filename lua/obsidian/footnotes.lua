@@ -149,7 +149,7 @@ M.pick = function(bufnr)
   local note_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
   ---@param def obsidian.footnote.Definition
-  ---@return obsidian.ui.select_preview_spec
+  ---@return obsidian.ui_select_preview_spec
   local function preview_footnote(def)
     local buf = vim.api.nvim_create_buf(false, true)
     vim.bo[buf].bufhidden = "wipe"

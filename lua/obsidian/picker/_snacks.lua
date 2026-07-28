@@ -233,10 +233,6 @@ M.select = function(values, opts, on_choice)
     previewer = function(ctx)
       ctx.preview:reset()
       local spec = opts.preview_item(ctx.item.obsidian_item)
-      if not ut.valid_preview_spec(spec) then
-        ctx.preview:notify("no preview available", "warn", { item = false })
-        return
-      end
       ctx.item.buf = spec.buf
       ctx.item.pos = spec.pos
       ctx.item.end_pos = spec.pos_end

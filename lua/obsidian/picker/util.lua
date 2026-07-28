@@ -39,17 +39,11 @@ M.build_prompt = function(opts)
   return prompt
 end
 
----@param spec obsidian.ui.select_preview_spec|?
----@return boolean
-M.valid_preview_spec = function(spec)
-  return type(spec) == "table" and type(spec.buf) == "number" and vim.api.nvim_buf_is_valid(spec.buf)
-end
-
 ---@param winid integer
----@param spec obsidian.ui.select_preview_spec|?
+---@param spec obsidian.ui_select_preview_spec|?
 ---@return boolean
 M.show_preview_spec = function(winid, spec)
-  if not M.valid_preview_spec(spec) or not vim.api.nvim_win_is_valid(winid) then
+  if not spec or not vim.api.nvim_win_is_valid(winid) then
     return false
   end
 
@@ -79,24 +73,6 @@ M.show_preview_spec = function(winid, spec)
   end
 
   return true
-end
-
----@param spec obsidian.ui.select_preview_spec|?
----@return table
-M.preview_spec_to_fzf_entry = function(spec)
-  if not M.valid_preview_spec(spec) then
-    return {}
-  end
-
-  local pos = spec.pos or { 1, 0 }
-  local pos_end = spec.pos_end
-  return {
-    _scratch_buf = spec.buf,
-    line = pos[1] or 1,
-    col = (pos[2] or 0) + 1,
-    end_line = pos_end and pos_end[1] or nil,
-    end_col = pos_end and (pos_end[2] or 0) + 1 or nil,
-  }
 end
 
 ---Open one picker result directly, or put multiple results in the quickfix list.
