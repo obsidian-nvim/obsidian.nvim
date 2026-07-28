@@ -422,10 +422,96 @@ local function replace_selection(viz, new_text, opts)
   return text_edit
 end
 
-M.link = function()
-  local viz = api.get_visual_selection()
+---@param line string
+---@param byte_pos integer 1-indexed byte position
+---@return integer
+local function utf8_char_start(line, byte_pos)
+  while byte_pos > 1 do
+    local byte = line:byte(byte_pos)
+    if not byte or byte < 128 or byte >= 192 then
+      break
+    end
+    byte_pos = byte_pos - 1
+  end
+  return byte_pos
+end
+
+---@param range lsp.Range
+---@param bufnr integer
+---@return obsidian.selection?
+local function selection_from_range(range, bufnr)
+  if range.start.line == range["end"].line and range.start.character == range["end"].character then
+    return
+  end
+
+  local text = vim.api.nvim_buf_get_text(
+    bufnr,
+    range.start.line,
+    range.start.character,
+    range["end"].line,
+    range["end"].character,
+    {}
+  )
+  local end_line = vim.api.nvim_buf_get_lines(bufnr, range["end"].line, range["end"].line + 1, false)[1] or ""
+  return {
+    lines = text,
+    selection = table.concat(text, "\n"),
+    csrow = range.start.line + 1,
+    cscol = range.start.character + 1,
+    cerow = range["end"].line + 1,
+    cecol = utf8_char_start(end_line, range["end"].character),
+  }
+end
+
+---@param bufnr integer
+---@return obsidian.selection?
+local function current_word_selection(bufnr)
+  local word = vim.fn.expand "<cword>"
+  if type(word) ~= "string" or word == "" then
+    return
+  end
+
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
+  local search_from = 1
+  while true do
+    local start_col, end_col = line:find(word, search_from, true)
+    if not start_col then
+      return
+    end
+    if start_col - 1 <= col and col < end_col then
+      return {
+        lines = { line },
+        selection = word,
+        csrow = row,
+        cscol = start_col,
+        cerow = row,
+        cecol = utf8_char_start(line, assert(end_col, "word end is required")),
+      }
+    end
+    search_from = assert(end_col, "word end is required") + 1
+  end
+end
+
+---@param context obsidian.selection|lsp.Range|?
+---@param bufnr integer|?
+---@return obsidian.selection?
+local function link_selection(context, bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if context and context.csrow then
+    return context
+  elseif context then
+    return selection_from_range(context, bufnr) or current_word_selection(bufnr)
+  end
+  return api.get_visual_selection { strict = true } or current_word_selection(bufnr)
+end
+
+---@param context obsidian.selection|lsp.Range|?
+---@param bufnr integer|?
+M.link = function(context, bufnr)
+  local viz = link_selection(context, bufnr)
   if not viz then
-    log.err "`Obsidian link` must be called in visual mode"
+    log.err "No text under cursor to link"
     return
   elseif #viz.lines ~= 1 then
     log.err "Only in-line visual selections allowed"
@@ -448,11 +534,24 @@ M.link = function()
   }
 end
 
----@param label string?
-M.link_new = function(label)
-  local viz = api.get_visual_selection()
+---@param label string|obsidian.selection|lsp.Range|?
+---@param context obsidian.selection|lsp.Range|integer|?
+---@param bufnr integer|?
+M.link_new = function(label, context, bufnr)
+  ---@type obsidian.selection|lsp.Range|?
+  local selection_context
+  if type(label) == "table" then
+    selection_context = label
+    bufnr = type(context) == "number" and context or bufnr
+    label = nil
+  elseif type(context) == "table" then
+    selection_context = context
+  end
+  ---@cast label string?
+
+  local viz = link_selection(selection_context, bufnr)
   if not viz then
-    log.err "`Obsidian link_new` must be called in visual mode"
+    log.err "No text under cursor to link"
     return
   elseif #viz.lines ~= 1 then
     log.err "Only in-line visual selections allowed"
