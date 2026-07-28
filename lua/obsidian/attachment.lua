@@ -1,6 +1,7 @@
 local M = {}
 local util = require "obsidian.util"
 local log = require "obsidian.log"
+local Path = require "obsidian.path"
 
 ---@enum obsidian.attachment.ft
 local filetypes = {
@@ -293,6 +294,50 @@ M.add = function(src, opts)
   })
 
   return resolved_dst
+end
+
+---@class obsidian.DelAttachmentOpts
+---@field bufnr? integer Buffer used for relative attachment resolution. Defaults to current buffer.
+
+---@param src string
+---@param opts obsidian.DelAttachmentOpts|?
+---@return string|?
+M.del = function(src, opts)
+  vim.validate("src", src, "string")
+  opts = opts or {}
+  src = vim.trim(src)
+  if src == "" then
+    log.err "Invalid attachment path"
+    return
+  end
+
+  local direct = src
+  if vim.startswith(direct, "file:/") then
+    direct = vim.uri_to_fname(direct)
+  end
+
+  local path = Path.new(direct)
+  if not (path:is_absolute() and path:exists()) then
+    local decoded = vim.uri_decode(src)
+    if decoded then
+      ---@cast decoded string
+      src = decoded
+    end
+    path = Path.new(M.resolve_attachment_path(src, opts.bufnr))
+  end
+
+  if not path:exists() then
+    log.err("Attachment not found: %s", tostring(path))
+    return
+  end
+
+  local ok, err = pcall(vim.fs.rm, tostring(path))
+  if not ok then
+    log.err("Failed to delete attachment: %s", tostring(err))
+    return
+  end
+
+  return tostring(path)
 end
 
 ---@param dst string

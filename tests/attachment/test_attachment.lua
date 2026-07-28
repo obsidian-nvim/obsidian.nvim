@@ -135,6 +135,30 @@ T["add"]["position option should insert at exact buffer position"] = function()
   eq("hel![[source.png]]lo", line)
 end
 
+T["del"] = new_set()
+
+T["del"]["should remove absolute existing path"] = function()
+  local path = vim.fs.joinpath(tostring(Obsidian.dir), "source.png")
+  vim.fn.writefile({ "image" }, path)
+
+  local result = attachment.del(path)
+
+  eq(path, result)
+  eq(0, vim.fn.filereadable(path))
+end
+
+T["del"]["should resolve basename before removing"] = function()
+  local dir = vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.folder)
+  local path = vim.fs.joinpath(dir, "source.png")
+  vim.fn.mkdir(dir, "p")
+  vim.fn.writefile({ "image" }, path)
+
+  local result = attachment.del "source.png"
+
+  eq(path, result)
+  eq(0, vim.fn.filereadable(path))
+end
+
 T["actions"] = new_set()
 
 T["actions"]["add_attachment should open picker for directory sources"] = function()
@@ -204,6 +228,57 @@ T["actions"]["add_attachment prompt should preserve target buffer"] = function()
   eq(bufnr, captured_add.opts.bufnr)
   eq("renamed.png", captured_add.opts.new_name)
   eq("actions.add_attachment", captured_add.opts.scope)
+end
+
+T["actions"]["delete_attachment should delete attachment under cursor"] = function()
+  Obsidian.opts.link.style = "markdown"
+  local dir = vim.fs.joinpath(tostring(Obsidian.dir), Obsidian.opts.attachments.folder)
+  local path = vim.fs.joinpath(dir, "source.png")
+  vim.fn.mkdir(dir, "p")
+  vim.fn.writefile({ "image" }, path)
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  local original_buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "![](source.png)" })
+  vim.api.nvim_set_current_buf(bufnr)
+  vim.api.nvim_win_set_cursor(0, { 1, 1 })
+
+  local ok, err = pcall(actions.delete_attachment)
+
+  vim.api.nvim_set_current_buf(original_buf)
+
+  if not ok then
+    error(err)
+  end
+
+  eq(0, vim.fn.filereadable(path))
+end
+
+T["actions"]["code action should be shown on attachment link"] = function()
+  local handler = require "obsidian.lsp.handlers.code_action"
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  local original_buf = vim.api.nvim_get_current_buf()
+  local note_path = vim.fs.joinpath(tostring(Obsidian.dir), "note.md")
+  vim.api.nvim_buf_set_name(bufnr, note_path)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "![](source.png)" })
+  vim.api.nvim_set_current_buf(bufnr)
+  vim.api.nvim_win_set_cursor(0, { 1, 1 })
+
+  local result
+  handler({ textDocument = { uri = vim.uri_from_fname(note_path) } }, function(_, res)
+    result = res
+  end)
+
+  vim.api.nvim_set_current_buf(original_buf)
+
+  local found = false
+  for _, action in ipairs(result or {}) do
+    if action.command and action.command.command == "obsidian.delete_attachment" then
+      found = true
+      break
+    end
+  end
+
+  eq(true, found)
 end
 
 return T

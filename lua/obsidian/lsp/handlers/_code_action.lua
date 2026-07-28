@@ -51,6 +51,40 @@ local function is_recording_audio()
   return require("obsidian.core-plugins.audio_recorder").is_recording()
 end
 
+---@return string?
+local function cursor_attachment_location()
+  local api = require "obsidian.api"
+  local util = require "obsidian.util"
+  local attachment = require "obsidian.attachment"
+
+  local link = api.cursor_link()
+  if not link then
+    return
+  end
+
+  local location = util.parse_link(link)
+  if not location then
+    return
+  end
+
+  location = util.strip_block_links(location)
+  location = util.strip_anchor_links(location)
+
+  local decoded_location = vim.uri_decode(location)
+  if decoded_location then
+    ---@cast decoded_location string
+    location = decoded_location
+  end
+
+  if attachment.is_attachment_path(location) then
+    return location
+  end
+end
+
+local function on_attachment_link()
+  return cursor_attachment_location() ~= nil
+end
+
 local default_actions = {
   add_property = {
     title = "Add file property",
@@ -95,6 +129,15 @@ local default_actions = {
 
   add_attachment = {
     title = "Add attachment from folder, filepath or url",
+  },
+
+  delete_attachment = {
+    title = function()
+      local location = cursor_attachment_location()
+      local basename = location and vim.fs.basename(location) or nil
+      return basename and ("Delete attachment " .. basename) or "Delete attachment"
+    end,
+    cond = on_attachment_link,
   },
 
   insert_link = {

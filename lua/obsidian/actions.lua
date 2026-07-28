@@ -630,6 +630,47 @@ M.add_attachment = function(src, opts)
   end)
 end
 
+---@return string?
+local function cursor_attachment_location()
+  local link = api.cursor_link()
+  if not link then
+    return
+  end
+
+  local location = util.parse_link(link)
+  if not location then
+    return
+  end
+
+  location = util.strip_block_links(location)
+  location = util.strip_anchor_links(location)
+
+  local decoded_location = vim.uri_decode(location)
+  if decoded_location then
+    ---@cast decoded_location string
+    location = decoded_location
+  end
+
+  if not attachment.is_attachment_path(location) then
+    return
+  end
+
+  return location
+end
+
+M.delete_attachment = function()
+  local location = cursor_attachment_location()
+  if not location then
+    log.warn "No attachment link found under cursor"
+    return
+  end
+
+  local deleted = attachment.del(location, { bufnr = vim.api.nvim_get_current_buf() })
+  if deleted then
+    log.info("Deleted attachment: %s", deleted)
+  end
+end
+
 M.toggle_recording = function()
   require("obsidian.core-plugins.audio_recorder").toggle()
 end

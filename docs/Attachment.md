@@ -1,5 +1,6 @@
 - [Save location](#save-location)
 - [Add attachment](#add-attachment)
+- [Delete attachment](#delete-attachment)
 - [Hook after adding attachments](#hook-after-adding-attachments)
 - [Paste from clipboard path](#paste-from-clipboard-path)
 - [Open](#open)
@@ -44,6 +45,12 @@ Both functions accept the same `opts` table:
 ---@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
 ---@field scope? string Context passed to callbacks as `ctx.scope`.
 ```
+
+## Delete attachment
+
+Use `require("obsidian.attachment").del(path, opts)` to remove an attachment file.
+If `path` is not an existing absolute path, it is resolved with `api.resolve_attachment_path()` first.
+The LSP code action `delete_attachment` invokes this for the attachment link under the cursor.
 
 ## Hook after adding attachments
 

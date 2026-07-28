@@ -46,6 +46,7 @@ Available actions:
 - Normal mode:
   - Add file property (`add_property`)
   - Add attachment from folder, filepath or url (`add_attachment`)
+  - Delete attachment under cursor (`delete_attachment`, only on attachment links)
   - Start/stop recording audio as attachment (`toggle_recording`, title changes with recording state)
   - Insert template at cursor (`insert_template`, requires templates enabled)
   - Move current note to another folder (`move_note`)
