@@ -3,26 +3,21 @@ local util = require "obsidian.util"
 
 local M = {}
 
----@class obsidian.IconSpec
----@field icon string
----@field hl_group string|?
-
----@type table<string, obsidian.IconSpec>
 M.kinds = {
-  missing = { icon = "󰝒", hl_group = "ObsidianMissingIcon" },
-  missing_attachment = { icon = "󱫄" },
-  bookmark = { icon = "" },
-  note = { icon = "" },
-  base = { icon = "󰆼" },
-  canvas = { icon = "󰛟" },
-  image = { icon = "󰋩" },
-  audio = { icon = "󰎆" },
-  video = { icon = "󰕧" },
-  pdf = { icon = "" },
-  folder = { icon = "󰉋" },
-  search = { icon = "󰍉" },
-  url = { icon = "" },
-  file = { icon = "󰈙" },
+  missing = "󰝒",
+  missing_attachment = "󱫄",
+  bookmark = "",
+  note = "",
+  base = "󰆼",
+  canvas = "󰛟",
+  image = "󰋩",
+  audio = "󰎆",
+  video = "󰕧",
+  pdf = "",
+  folder = "󰉋",
+  search = "󰍉",
+  url = "",
+  file = "󰈙",
 }
 
 ---@type table<string, string[]>
@@ -36,10 +31,10 @@ M.extensions = {
   pdf = { "pdf" },
 }
 
----@type table<string, obsidian.IconSpec>
+---@type table<string, string>
 M.by_extension = {}
 
----@type table<string, obsidian.IconSpec>
+---@type table<string, string>
 M.by_bookmark_type = {
   group = M.kinds.bookmark,
   search = M.kinds.search,
@@ -84,7 +79,7 @@ local function is_dir(path)
 end
 
 ---@param path string
----@return obsidian.IconSpec
+---@return string
 local spec_for_path = function(path)
   local is_uri = util.is_uri(path)
   if is_uri then
@@ -97,7 +92,7 @@ local spec_for_path = function(path)
 end
 
 ---@param bookmark obsidian.Bookmark
----@return obsidian.IconSpec
+---@return string
 local spec_for_bookmark = function(bookmark)
   if bookmark.type == "file" and (bookmark._path or bookmark.path) then
     return spec_for_path(bookmark._path or bookmark.path)
@@ -107,7 +102,7 @@ local spec_for_bookmark = function(bookmark)
 end
 
 ---@param entry obsidian.PickerEntry|string
----@return obsidian.IconSpec
+---@return string
 local spec_for_entry = function(entry)
   if type(entry) == "string" then
     return spec_for_path(entry)
@@ -138,26 +133,20 @@ end
 
 ---@param path string
 ---@return string icon
----@return string|? hl_group
 M.get_path_icon = function(path)
-  local spec = spec_for_path(path)
-  return spec.icon, spec.hl_group
+  return spec_for_path(path)
 end
 
 ---@param bookmark obsidian.Bookmark
 ---@return string icon
----@return string|? hl_group
 M.get_bookmark_icon = function(bookmark)
-  local spec = spec_for_bookmark(bookmark)
-  return spec.icon, spec.hl_group
+  return spec_for_bookmark(bookmark)
 end
 
 ---@param entry obsidian.PickerEntry|string
 ---@return string icon
----@return string|? hl_group
 M.get_icon = function(entry)
-  local spec = spec_for_entry(entry)
-  return spec.icon, spec.hl_group
+  return spec_for_entry(entry)
 end
 
 return M
