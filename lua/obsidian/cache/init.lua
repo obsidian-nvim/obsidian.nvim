@@ -10,6 +10,7 @@ local attachment = require "obsidian.attachment"
 local ignore = require "obsidian.ignore"
 
 local M = {}
+M.find_files = require("obsidian.cache.api").find_files
 
 ---@class obsidian.cache.Backend
 ---@field open fun(opts: table): obsidian.cache.Store
