@@ -22,6 +22,6 @@ See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP inte
 | `add_tag`            | `n`      | Pick and add tag to current note.       |                      |
 | `toggle_checkbox`    | `n`, `v` | Toggle (cycle) checkbox state.         | `start_lnum`, `end_lnum` |
 | `set_checkbox`       | `n`, `v` | Set to specific checkbox state.        | `state`              |
-| `link`               | `v`      | Link selection to an existing note.    |                      |
-| `link_new`           | `v`      | Create a new note and link selection.  | `title`              |
+| `link`               | `n`, `v` | Link cursor word or selection to an existing note. | `range`, `bufnr` |
+| `link_new`           | `n`, `v` | Create a note and link cursor word or selection. | `title`         |
 | `extract_note`       | `v`      | Move selection to a new note.          | `title`              |

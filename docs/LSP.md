@@ -54,6 +54,8 @@ Available actions:
   - Insert internal link at cursor (`insert_link`)
   - Insert tag at cursor (`insert_tag`)
   - Add tag to frontmatter (`add_tag`)
+  - Link word under cursor to an existing note (`link`)
+  - Link word under cursor to a new note (`link_new`)
 - Visual mode:
   - Link selection as name for an existing note (`link`)
   - Link selection as name for a new note (`link_new`)

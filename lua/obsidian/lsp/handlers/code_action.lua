@@ -12,14 +12,18 @@ end
 
 ---@param code_actions table<string, obsidian.lsp.CodeAction>
 ---@param note obsidian.Note
+---@param params lsp.CodeActionParams
 ---@return lsp.CodeAction[]
-local function get_commands_by_context(code_actions, note)
+local function get_commands_by_context(code_actions, note, params)
   local out = {}
   for _, code_action in ipairs(vim.tbl_values(code_actions)) do
     local data = code_action.data
     if data.cond(note) then
       local title = eval_title(data.title, note)
-      local command = vim.tbl_extend("force", code_action.command or {}, { title = title })
+      local command = vim.tbl_extend("force", code_action.command or {}, {
+        title = title,
+        arguments = data.arguments and data.arguments(params, note) or nil,
+      })
       out[#out + 1] = vim.tbl_extend("force", code_action, { title = title, command = command })
     end
   end
@@ -30,6 +34,6 @@ end
 return function(params, handler)
   local buf = vim.uri_to_bufnr(params.textDocument.uri)
   local note = require("obsidian.note").from_buffer(buf)
-  local res = get_commands_by_context(actions, note)
+  local res = get_commands_by_context(actions, note, params)
   handler(nil, res)
 end
