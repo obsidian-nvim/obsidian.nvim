@@ -1,6 +1,7 @@
 ---@class obsidian.lsp.CodeActionData
 ---@field title string|fun(note: obsidian.Note): string
 ---@field cond fun(note: obsidian.Note): boolean
+---@field arguments? fun(params: lsp.CodeActionParams, note: obsidian.Note): any[]
 
 ---@class obsidian.lsp.CodeAction : lsp.CodeAction
 ---@field data obsidian.lsp.CodeActionData
@@ -12,6 +13,7 @@ local code_actions = {}
 ---@field name string unique name
 ---@field title string|fun(note: obsidian.Note): string text display in code action interface
 ---@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
+---@field arguments? fun(params: lsp.CodeActionParams, note: obsidian.Note): any[] command arguments
 ---@field fn? function
 
 ---Register a new command.
@@ -31,6 +33,7 @@ local add = function(opts)
       cond = opts.cond or function()
         return true
       end,
+      arguments = opts.arguments,
       -- TODO: preview?
     },
   }
@@ -69,13 +72,17 @@ local default_actions = {
   },
 
   link = {
-    title = "Link selection as name for a existing note",
-    cond = in_visual,
+    title = "Link cursor text to an existing note",
+    arguments = function(params)
+      return { params.range, vim.uri_to_bufnr(params.textDocument.uri) }
+    end,
   },
 
   link_new = {
-    title = "Link selection as name for a new note",
-    cond = in_visual,
+    title = "Link cursor text to a new note",
+    arguments = function(params)
+      return { params.range, vim.uri_to_bufnr(params.textDocument.uri) }
+    end,
   },
 
   extract_note = {
