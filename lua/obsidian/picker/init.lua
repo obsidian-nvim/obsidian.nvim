@@ -1,4 +1,5 @@
 local util = require "obsidian.util"
+local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
 local cache = require "obsidian.cache"
 local log = require "obsidian.log"
@@ -9,6 +10,7 @@ local icons = require "obsidian.icons"
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
+---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
 local M = {}
 
@@ -58,7 +60,7 @@ end
 ---
 ---@field prompt_title string|?
 ---@field dir string|obsidian.Path|?
----@field callback fun(path: string)|?
+---@field callback fun(paths: string[])|?
 ---@field no_default_mappings boolean|?
 ---@field query string|?
 ---@field query_mappings obsidian.PickerMappingTable|?
@@ -71,26 +73,70 @@ end
 ---@field prompt_title string|?
 ---@field dir string|obsidian.Path|?
 ---@field query string|?
----@field callback fun(entry: obsidian.PickerEntry)|?
+---@field callback fun(entries: obsidian.PickerEntry[])|?
 ---@field no_default_mappings boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 
 ---@alias obsidian.PickerEntry vim.quickfix.entry
 
----@class obsidian.PickerPickOpts
+---@alias obsidian.ui_select_preview_spec { buf: integer, pos: [integer,integer]?, pos_end: [integer,integer]? }
+
+---@class obsidian.PickerSelectOpts
+---
+---@field prompt string|?
+---@field kind string|?
+---@field allow_multiple boolean|?
+---@field no_default_mappings boolean|?
+---@field query_mappings obsidian.PickerMappingTable|?
+---@field selection_mappings obsidian.PickerMappingTable|?
+---@field format_item (fun(value: any): string)|?
+---@field preview_item (fun(value: any): obsidian.ui_select_preview_spec)?
+---@field query string|?
+---
+---@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts
 ---
 ---@field prompt_title string|?
 ---@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
----@field allow_multiple boolean|?
----@field query_mappings obsidian.PickerMappingTable|?
----@field selection_mappings obsidian.PickerMappingTable|?
----@field format_item (fun(value: obsidian.PickerEntry): string)|?
----@field query string|?
 
 ------------------------------------------------------------------
 --- Concrete methods with a default implementation subclasses. ---
 ------------------------------------------------------------------
+
+--- Backwards-compatible shim for the old picker API.
+---
+---@param values string[]|obsidian.PickerEntry[] Items to pick from.
+---@param opts obsidian.PickerPickOpts|? Options.
+local pick = function(values, opts)
+  opts = opts or {}
+
+  local select_opts = vim.tbl_extend("force", {}, opts, {
+    prompt = opts.prompt or opts.prompt_title,
+    callback = nil,
+    prompt_title = nil,
+  })
+
+  return M.select(values, select_opts, function(choices)
+    if not choices or #choices == 0 then
+      return
+    end
+
+    if opts.callback then
+      choices = vim.tbl_map(function(choice)
+        if type(choice) == "string" then
+          return { value = choice, user_data = choice, text = choice }
+        else
+          return choice
+        end
+      end, choices)
+      opts.callback(unpack(choices))
+    else
+      picker_util.open_notes(choices)
+    end
+  end)
+end
+
+M.pick = pick
 
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
@@ -142,8 +188,9 @@ M.find_files_from_cache = function(opts)
       pick_query = nil
     end
 
-    M.pick(entries, {
-      prompt_title = opts.prompt_title,
+    M.select(entries, {
+      prompt = opts.prompt_title,
+      allow_multiple = true,
       -- The cache has already applied the initial query case-insensitively.
       -- Don't pass it through, since some pickers would filter again case-sensitively.
       query = pick_query,
@@ -153,17 +200,18 @@ M.find_files_from_cache = function(opts)
         local icon = icons.get_path_icon(item.filename)
         return icon .. " " .. item.text
       end,
-      callback = function(item)
-        local path = item["filename"]
-        if not path then
-          return
-        elseif opts.callback then
-          opts.callback(path)
-        else
-          api.open_note(path)
-        end
-      end,
-    })
+    }, function(items)
+      local paths = vim.tbl_filter(
+        function(path)
+          return path ~= nil
+        end,
+        vim.tbl_map(function(item)
+          return item["filename"]
+        end, items)
+      )
+      local callback = opts.callback or picker_util.open_notes
+      callback(paths)
+    end)
   end)
 
   return true
@@ -171,11 +219,11 @@ end
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(path: string)|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(paths: string[])|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
----  `callback`: Callback to run with the selected note path.
+---  `callback`: Callback to run with the selected note paths.
 ---  `no_default_mappings`: Don't apply picker's default mappings.
 M.find_notes = function(opts)
   state.calling_bufnr = vim.api.nvim_get_current_buf()
@@ -205,12 +253,12 @@ end
 
 --- Grep search in notes.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(entry: obsidian.PickerEntry)|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(entries: obsidian.PickerEntry[])|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
 ---  `query`: Initial query to grep for.
----  `callback`: Callback to run with the selected path.
+---  `callback`: Callback to run with the selected entries.
 ---  `no_default_mappings`: Don't apply picker's default mappings.
 M.grep_notes = function(opts)
   state.calling_bufnr = vim.api.nvim_get_current_buf()
@@ -228,13 +276,16 @@ M.grep_notes = function(opts)
     prompt_title = opts.prompt_title or "Grep notes",
     dir = opts.dir or Obsidian.dir,
     query = opts.query,
-    callback = opts.callback or function(entry)
-      api.open_note(entry)
-    end,
+    callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
   }
+end
+
+--- Removed picker API. Use `picker.select` directly.
+M.pick_note = function()
+  error "picker.pick_note has been removed; use picker.select instead"
 end
 
 --------------------------------
@@ -323,7 +374,7 @@ local function patch(modname)
         end
         return f(opts)
       end
-    else
+    elseif name ~= "pick" then
       M[name] = f
     end
   end
@@ -375,10 +426,16 @@ end
 ---@param method string
 ---@return function
 local function lazy_picker_method(method)
-  return function(...)
+  local lazy_method
+  lazy_method = function(...)
     resolve_picker()
-    return M[method](...)
+    local resolved_method = M[method]
+    if resolved_method == lazy_method then
+      error(string.format("picker method '%s' is not implemented", method))
+    end
+    return resolved_method(...)
   end
+  return lazy_method
 end
 
 --- Get the default Picker.
@@ -387,6 +444,7 @@ end
 M.get = function(picker_name)
   state.picker_resolved = false
   state.picker_name = nil
+  M.pick = pick
 
   if picker_name == false then
     patch "obsidian.picker._default"
@@ -400,7 +458,7 @@ M.get = function(picker_name)
 
   M.find_files = lazy_picker_method "find_files"
   M.grep = lazy_picker_method "grep"
-  M.pick = lazy_picker_method "pick"
+  M.select = lazy_picker_method "select"
 
   return M
 end

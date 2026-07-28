@@ -1,3 +1,5 @@
+local preview_ns = vim.api.nvim_create_namespace "obsidian.picker.preview"
+
 local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
 
@@ -35,6 +37,63 @@ M.build_prompt = function(opts)
   end
 
   return prompt
+end
+
+---@param winid integer
+---@param spec obsidian.ui_select_preview_spec|?
+---@return boolean
+M.show_preview_spec = function(winid, spec)
+  if not spec or not vim.api.nvim_win_is_valid(winid) then
+    return false
+  end
+
+  local buf = spec.buf
+  vim.api.nvim_win_set_buf(winid, buf)
+  vim.api.nvim_buf_clear_namespace(buf, preview_ns, 0, -1)
+
+  if spec.pos then
+    local lnum = math.max(spec.pos[1] or 1, 1)
+    local col = math.max(spec.pos[2] or 0, 0)
+    pcall(vim.api.nvim_win_set_cursor, winid, { lnum, col })
+    pcall(vim.api.nvim_win_call, winid, function()
+      vim.cmd "normal! zt"
+    end)
+
+    if spec.pos_end then
+      pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, col, {
+        end_row = math.max(spec.pos_end[1] or lnum, 1) - 1,
+        end_col = math.max(spec.pos_end[2] or col + 1, 0),
+        hl_group = "Visual",
+      })
+    else
+      pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, 0, {
+        line_hl_group = "CursorLine",
+      })
+    end
+  end
+
+  return true
+end
+
+---Open one picker result directly, or put multiple results in the quickfix list.
+---@param entries (string|obsidian.PickerEntry)[]
+M.open_notes = function(entries)
+  if #entries == 0 then
+    return
+  elseif #entries == 1 then
+    require("obsidian.api").open_note(entries[1])
+    return
+  end
+
+  local items = vim.tbl_map(function(entry)
+    if type(entry) == "string" then
+      return { filename = entry }
+    else
+      return entry
+    end
+  end, entries)
+  vim.fn.setqflist(items, "r")
+  vim.cmd "copen"
 end
 
 ---@param entry obsidian.PickerEntry

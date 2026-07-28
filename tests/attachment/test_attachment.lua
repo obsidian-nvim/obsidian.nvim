@@ -150,7 +150,7 @@ T["actions"]["add_attachment should open picker for directory sources"] = functi
 
   picker.find_files = function(opts)
     captured_picker_opts = opts
-    opts.callback "picked.png"
+    opts.callback { "picked.png" }
   end
   attachment.add = function(src, opts)
     captured_add = { src = src, opts = opts }

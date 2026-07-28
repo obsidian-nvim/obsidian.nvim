@@ -70,11 +70,9 @@ local function format_bookmark(bookmark)
   return bookmark.title
 end
 
----@alias obsidian.ui.select_preview_spec {buf?:integer, pos?:[integer,integer], pos_end?:[integer,integer]}
-
 ---@param bookmark obsidian.Bookmark
 ---@param buf integer
----@return obsidian.ui.select_preview_spec
+---@return obsidian.ui_select_preview_spec
 local function preview_url(bookmark, buf)
   local url = bookmark.url
   if not url then
@@ -107,7 +105,7 @@ end
 
 ---@param bookmark obsidian.Bookmark
 ---@param buf integer
----@return obsidian.ui.select_preview_spec
+---@return obsidian.ui_select_preview_spec
 local function preview_group(bookmark, buf)
   vim.bo[buf].filetype = "markdown"
   local lines = vim.tbl_map(function(bm)
@@ -121,7 +119,7 @@ end
 --
 ---@param bookmark obsidian.Bookmark
 ---@param buf integer
----@return obsidian.ui.select_preview_spec
+---@return obsidian.ui_select_preview_spec
 local function preview_query(bookmark, buf)
   vim.bo[buf].filetype = "markdown"
   local lines = { "query: " .. bookmark.query }
@@ -131,7 +129,7 @@ end
 
 ---@param bookmark obsidian.Bookmark
 ---@param buf integer
----@return obsidian.ui.select_preview_spec
+---@return obsidian.ui_select_preview_spec
 local function preview_file(bookmark, buf)
   if not bookmark.path then
     return { buf = buf }
@@ -146,9 +144,10 @@ local function preview_file(bookmark, buf)
 end
 
 ---@param bookmark obsidian.Bookmark
----@return obsidian.ui.select_preview_spec
+---@return obsidian.ui_select_preview_spec
 local function preview_bookmark(bookmark)
   local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
   if bookmark.type == "url" then
     return preview_url(bookmark, buf)
   elseif bookmark.type == "group" then
@@ -217,11 +216,13 @@ M.pick = function(bookmarks)
   end
   bookmarks = filtered
 
-  vim.ui.select(bookmarks, {
-    prompt_title = "Bookmarks",
+  picker.select(bookmarks, {
+    prompt = "Bookmarks",
     format_item = format_bookmark,
     preview_item = preview_bookmark,
-  }, open_bookmark)
+  }, function(items)
+    open_bookmark(items[1])
+  end)
 end
 
 return M

@@ -60,8 +60,10 @@ local function resolve_attachment_source(src, done)
     picker.find_files {
       dir = path,
       include_non_markdown = true,
-      callback = function(p)
-        done { path = p }
+      callback = function(paths)
+        if paths[1] then
+          done { path = paths[1] }
+        end
       end,
     }
   else
@@ -140,18 +142,20 @@ M.builtin.date = function(ctx, done)
     }
   end
 
-  Obsidian.picker.pick(dailies, {
-    prompt_title = "Dailies",
-    callback = function(entry)
-      ---@cast entry { user_data: { timestamp: integer, label: string, offset: integer } }
-      done {
-        timestamp = entry.user_data.timestamp,
-        precision = "day",
-        label = entry.user_data.label,
-        offset = entry.user_data.offset,
-      }
-    end,
-  })
+  picker.select(dailies, { prompt = "Dailies" }, function(entries)
+    if not entries or #entries == 0 then
+      done(nil)
+      return
+    end
+    local entry = entries[1]
+    ---@cast entry { user_data: { timestamp: integer, label: string, offset: integer } }
+    done {
+      timestamp = entry.user_data.timestamp,
+      precision = "day",
+      label = entry.user_data.label,
+      offset = entry.user_data.offset,
+    }
+  end)
 end
 
 ---@param name string

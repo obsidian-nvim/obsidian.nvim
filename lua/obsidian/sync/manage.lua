@@ -1,4 +1,5 @@
 local log = require "obsidian.log"
+local picker = require "obsidian.picker"
 
 local M = {}
 
@@ -32,10 +33,11 @@ function M.setup()
 
   local format_item = get_formatter(backend)
 
-  vim.ui.select(workspaces, {
+  picker.select(workspaces, {
     prompt = "Select workspace to set up sync for",
     format_item = format_item,
-  }, function(ws)
+  }, function(items)
+    local ws = items[1]
     if ws then
       backend.setup(ws)
     end
@@ -65,10 +67,11 @@ function M.disconnect()
 
   local format_item = get_formatter(backend)
 
-  vim.ui.select(linked, {
+  picker.select(linked, {
     prompt = "Select workspace to unlink",
     format_item = format_item,
-  }, function(ws)
+  }, function(items)
+    local ws = items[1]
     if ws then
       backend.disconnect(ws)
     end

@@ -1,5 +1,4 @@
 ---@diagnostic disable: unresolved-require
-local api = require "obsidian.api"
 local search = require "obsidian.search"
 local Picker = require "obsidian.picker"
 local Path = require "obsidian.path"
@@ -107,7 +106,7 @@ local M = {}
 ---@param opts obsidian.PickerFindOpts|? Options.
 M.find_files = function(opts)
   opts = opts or {}
-  local callback = opts.callback or api.open_note
+  local callback = opts.callback or ut.open_notes
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
@@ -129,11 +128,12 @@ M.find_files = function(opts)
     cwd = tostring(dir),
     cmd = cmd,
     args = args,
-    confirm = function(picker, item)
+    confirm = function(picker)
+      local selected = picker:selected { fallback = true }
       picker:close()
-      if item then
-        callback(item._path)
-      end
+      callback(vim.tbl_map(function(item)
+        return item._path
+      end, selected))
     end,
   })
   require("snacks.picker").pick(pick_opts)
@@ -147,7 +147,7 @@ M.grep = function(opts)
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
   local map =
     vim.tbl_deep_extend("force", {}, notes_mappings(opts.selection_mappings), query_mappings(opts.query_mappings, true))
-  local callback = opts.callback or api.open_note
+  local callback = opts.callback or ut.open_notes
 
   local args = search.build_grep_cmd()
   local cmd = table.remove(args, 1)
@@ -159,56 +159,66 @@ M.grep = function(opts)
     cwd = tostring(dir),
     cmd = cmd,
     args = args,
-    confirm = function(picker, item)
+    confirm = function(picker)
+      local selected = picker:selected { fallback = true }
       picker:close()
-      if item then
-        callback {
+      callback(vim.tbl_map(function(item)
+        return {
           filename = item._path or item.filename,
           col = item.pos and item.pos[2] + 1,
           lnum = item.pos and item.pos[1],
           user_data = item.value,
         }
-      end
+      end, selected))
     end,
   })
   require("snacks.picker").pick(pick_opts)
 end
 
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param values any[]
+---@param opts obsidian.PickerSelectOpts|? Options.
+---@param on_choice fun(choices: any[])|?
+M.select = function(values, opts, on_choice)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
-  local callback = opts.callback or api.open_note
+  on_choice = on_choice or function() end
 
   ---@diagnostic disable-next-line: redundant-parameter
-  local preview = false
-  for _, value in ipairs(values) do
-    if type(value) == "table" and value.filename ~= nil then
-      preview = true
-      break
-    end
-  end
+  local has_preview = opts.preview_item ~= nil
+    ---@diagnostic disable-next-line: call-non-callable
+    or vim.iter(values):any(function(value)
+      return type(value) == "table" and value.filename ~= nil
+    end)
 
   local entries = {}
   for _, value in ipairs(values) do
     local display
     if type(value) == "string" then
       display = value
-      value = { user_data = value }
     else
       display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     end
-    ---@cast value obsidian.PickerEntry
-    table.insert(entries, {
-      text = display,
-      file = value.filename,
-      value = value.user_data,
-      pos = value.lnum and { value.lnum, value.col and value.col - 1 or 0 }, -- from (1, 1) to (1, 0)
-      end_pos = value.end_lnum and { value.end_lnum, value.end_col and value.end_col - 1 or 0 },
-      dir = value.filename and Path.new(value.filename):is_dir() or false,
-    })
+    if type(value) ~= "table" or value.valid ~= false then
+      ---@type obsidian.PickerEntry|string
+      local picker_value = value
+      table.insert(entries, {
+        text = display,
+        file = type(picker_value) == "table" and picker_value.filename or nil,
+        value = type(picker_value) == "table" and picker_value.user_data or picker_value,
+        pos = type(picker_value) == "table" and picker_value.lnum and {
+          picker_value.lnum,
+          picker_value.col and picker_value.col - 1 or 0,
+        } or nil, -- from (1, 1) to (1, 0)
+        end_pos = type(picker_value) == "table" and picker_value.end_lnum and {
+          picker_value.end_lnum,
+          picker_value.end_col and picker_value.end_col - 1 or 0,
+        } or nil,
+        dir = type(picker_value) == "table" and picker_value.filename and Path.new(picker_value.filename):is_dir()
+          or false,
+        obsidian_item = picker_value,
+      })
+    end
   end
 
   local map = vim.tbl_deep_extend(
@@ -218,33 +228,37 @@ M.pick = function(values, opts)
     query_mappings(opts.query_mappings, false)
   )
 
+  local previewer
+  if opts.preview_item then
+    previewer = function(ctx)
+      ctx.preview:reset()
+      local spec = opts.preview_item(ctx.item.obsidian_item)
+      ctx.item.buf = spec.buf
+      ctx.item.pos = spec.pos
+      ctx.item.end_pos = spec.pos_end
+      ctx.preview:set_title(ctx.item.text)
+      ctx.preview:set_buf(spec.buf)
+      ctx.preview:highlight { buf = spec.buf }
+      ctx.preview:loc()
+    end
+  end
+
   local pick_opts = vim.tbl_extend("force", map or {}, {
-    title = opts.prompt_title,
+    title = opts.prompt,
     pattern = opts.query,
     items = entries,
+    preview = previewer,
     layout = {
-      preview = preview,
+      preview = has_preview,
       preset = "default",
     },
     format = "text",
     confirm = function(picker, item)
+      local selected = opts.allow_multiple and picker:selected { fallback = true } or (item and { item } or {})
       picker:close()
-      if item then
-        if item.file then
-          callback {
-            filename = item.file,
-            col = item.pos and item.pos[2] + 1,
-            lnum = item.pos and item.pos[1],
-            text = item.text,
-            user_data = item.value,
-          }
-        else
-          callback {
-            text = item.text,
-            user_data = item.value,
-          }
-        end
-      end
+      on_choice(vim.tbl_map(function(selected_item)
+        return selected_item.obsidian_item
+      end, selected))
     end,
   })
 

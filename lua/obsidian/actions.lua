@@ -31,7 +31,12 @@ M.follow_link = function(link, opts)
     if #items == 1 then
       api.open_note(items[1], cmd)
     else
-      Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
+      picker.select(items, { prompt = "Resolve link" }, function(choices)
+        local entry = choices and choices[1]
+        if entry then
+          api.open_note(entry, cmd)
+        end
+      end)
     end
   end, { range = range })
 end
@@ -403,10 +408,14 @@ M.link = function()
 
   local query = viz.selection
 
-  Obsidian.picker.find_notes {
+  picker.find_notes {
     prompt_title = "Select note to link",
     query = query,
-    callback = function(path)
+    callback = function(paths)
+      local path = paths[1]
+      if not path then
+        return
+      end
       local note = require("obsidian.note").from_file(path)
       replace_selection(viz, note:format_link { label = query })
     end,
@@ -526,11 +535,15 @@ M.new_from_template = function(id, template, callback)
     return
   end
 
-  Obsidian.picker.find_files {
+  picker.find_files {
     prompt_title = "Templates",
     dir = templates_dir,
     no_default_mappings = true,
-    callback = function(template_name)
+    callback = function(template_names)
+      local template_name = template_names[1]
+      if not template_name then
+        return
+      end
       if id == nil or id == "" then
         -- Must use pcall in case of KeyboardInterrupt
         -- We cannot place `title` where `safe_title` is because it would be redeclaring it
@@ -709,11 +722,12 @@ M.insert_template = function(template_name)
     }
   end
 
-  Obsidian.picker.pick(entries, {
-    callback = function(entry)
+  picker.select(entries, {}, function(items)
+    local entry = items[1]
+    if entry then
       insert_template(entry.filename)
-    end,
-  })
+    end
+  end)
 end
 
 ---@param buf integer|?
@@ -741,7 +755,16 @@ M.workspace_symbol = function(query, callback)
   query = query or ""
   require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
     local entries = vim.tbl_map(symbol_to_entry, symbols)
-    Obsidian.picker.pick(entries, { prompt_title = "Workspace Symbols", callback = callback })
+    picker.select(entries, { prompt = "Workspace Symbols" }, function(items)
+      local entry = items and items[1]
+      if not entry then
+        return
+      elseif callback then
+        callback(unpack(items))
+      else
+        api.open_note(entry)
+      end
+    end)
   end)
 end
 
@@ -761,16 +784,16 @@ local function pick_folder(callback)
     end
   end
 
-  Obsidian.picker.pick(choices, {
-    callback = function(entry)
-      if entry.filename and entry.text then
-        callback(entry.filename, entry.text)
-      end
-    end,
+  picker.select(choices, {
     format_item = function(v)
       return tostring(v.text)
     end,
-  })
+  }, function(items)
+    local entry = items[1]
+    if entry and entry.filename and entry.text then
+      callback(entry.filename, entry.text)
+    end
+  end)
 end
 
 ---@param directory string
@@ -827,8 +850,12 @@ M.merge_note = function(dst_note)
   if dst_note then
     merge_note(dst_note)
   else
-    Obsidian.picker.find_notes {
-      callback = function(path)
+    picker.find_notes {
+      callback = function(paths)
+        local path = paths[1]
+        if not path then
+          return
+        end
         local note = Note.from_file(path)
         merge_note(note)
       end,
@@ -865,7 +892,11 @@ M.insert_link = function(query)
   picker.find_files {
     query = query,
     no_default_mappings = true,
-    callback = function(path)
+    callback = function(paths)
+      local path = paths[1]
+      if not path then
+        return
+      end
       local note = Note.from_file(path)
       local link = note:format_link()
       vim.api.nvim_put({ link }, "", true, true)
@@ -915,8 +946,26 @@ local function gather_tag_picker_list(tag_locations, tags)
     return
   end
 
+  local function preview_item(entry)
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "wipe"
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(entry.filename))
+    vim.bo[buf].filetype = "markdown"
+    return { buf = buf, pos = { entry.lnum or 1, entry.col and math.max(entry.col - 1, 0) or 0 } }
+  end
+
   vim.schedule(function()
-    picker.pick(entries, { prompt_title = "#" .. table.concat(tags, ", #") })
+    picker.select(entries, {
+      prompt = "#" .. table.concat(tags, ", #"),
+      format_item = function(entry)
+        return entry.text
+      end,
+      preview_item = preview_item,
+    }, function(items)
+      if not vim.tbl_isempty(items) then
+        api.open_note(items[1])
+      end
+    end)
   end)
 end
 
@@ -929,13 +978,17 @@ local function list_tags_async(callback)
   end, { dir = dir })
 end
 
+---@param callback fun(tags: string[], tag_locations: obsidian.TagLocation[])
+---@param title string|?
 local function pick_tags(callback, title)
-  list_tags_async(function(tags)
-    vim.ui.select(tags, {
+  list_tags_async(function(tags, tag_locations)
+    picker.select(tags, {
       prompt = title,
-    }, function(entry)
-      if entry then
-        callback(entry)
+      allow_multiple = true,
+      selection_mappings = picker._tag_selection_mappings(),
+    }, function(items)
+      if not vim.tbl_isempty(items) then
+        callback(items, tag_locations)
       end
     end)
   end)
@@ -958,26 +1011,21 @@ M.search_tags = function(tags)
       return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
     end, { dir = dir })
   else
-    list_tags_async(function(entries, tag_locations)
-      vim.schedule(function()
-        picker.pick(entries, {
-          callback = function(...)
-            tags = vim.tbl_map(function(v)
-              return v.user_data
-            end, { ... })
-            gather_tag_picker_list(tag_locations, tags)
-          end,
-          selection_mappings = picker._tag_selection_mappings(),
-          allow_multiple = true,
-        })
-      end)
+    pick_tags(function(selected_tags, tag_locations)
+      gather_tag_picker_list(tag_locations, selected_tags)
     end)
   end
 end
 
 M.insert_tag = function()
-  pick_tags(function(tag)
-    vim.api.nvim_put({ "#" .. tag }, "", true, true)
+  pick_tags(function(tags)
+    for i, tag in ipairs(tags) do
+      local put_text = "#" .. tag
+      if i ~= #tags then
+        put_text = put_text .. " "
+      end
+      vim.api.nvim_put({ put_text }, "", true, true)
+    end
   end, "Tag to insert")
 end
 
@@ -997,8 +1045,10 @@ local tag_note = function(tag)
 end
 
 M.add_tag = function()
-  pick_tags(function(...)
-    tag_note(...)
+  pick_tags(function(tags)
+    for _, tag in ipairs(tags) do
+      tag_note(tag)
+    end
   end, "Add tags to current note")
 end
 

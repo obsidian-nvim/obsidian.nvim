@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added separate icons module to support obsidian related filetypes and usecases.
 
+### Fixed
+
+- Fzf-lua picker selections now honor multi-select consistently across files, grep, and list pickers.
+
+### Changed
+
+- **Breaking:** `find_files`, `find_notes`, `grep`, and `grep_notes` callbacks now receive a list of selected results. Multiple results use the quickfix list by default.
+- Deprecate old `picker.pick`, internally use `picker.select` with better multi-select and preview_item support.
+
 ## [v3.16.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.6) - 2026-07-25
 
 ### Added

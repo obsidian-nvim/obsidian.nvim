@@ -8,42 +8,40 @@ local ut = require "obsidian.picker.util"
 --- Pick from a list of items.
 ---
 ---@param values string[]|obsidian.PickerEntry[] Items to pick from.
----@param opts obsidian.PickerPickOpts|? Options.
+---@param opts obsidian.PickerSelectOpts|? Options.
+---@param on_choice fun(choices: any[])|?
 ---
 --- Options:
----  `prompt_title`: Title for the prompt window.
----  `callback`: Callback to run with the selected item(s).
+---  `prompt`: Title for the prompt window.
+---  `format_item`: Function to format an item for display.
+---  `preview_item`: Function to preview an item.
 ---  `allow_multiple`: Allow multiple selections to pass to the callback.
----  `query_mappings`: Mappings that run with the query prompt.
----  `selection_mappings`: Mappings that run with the current selection.
 ---
-M.pick = function(values, opts)
+M.select = function(values, opts, on_choice)
   opts = opts or {}
-  local callback = opts.callback or api.open_note
+  on_choice = on_choice or function() end
 
-  if opts.callback then
-    vim.ui.select(values, {
-      prompt = opts.prompt_title,
-      format_item = opts.format_item or function(value)
-        if type(value) == "string" then
-          return value
-        elseif type(value) == "table" then
-          return ut.make_display(value)
-        end
-      end,
-    }, function(item)
-      if item then
-        if type(item) == "string" then
-          item = { user_data = item }
-        end
-        callback(item)
+  vim.ui.select(values, {
+    prompt = opts.prompt,
+    kind = opts.kind,
+    allow_multiple = opts.allow_multiple,
+    preview_item = opts.preview_item,
+    format_item = opts.format_item or function(value)
+      if type(value) == "string" then
+        return value
+      elseif type(value) == "table" then
+        return ut.make_display(value)
       end
-    end)
-  else
-    ---@diagnostic disable-next-line: param-type-mismatch
-    vim.fn.setqflist(values)
-    vim.cmd "copen"
-  end
+    end,
+  }, function(choice_or_choices, idx)
+    if choice_or_choices == nil then
+      on_choice {}
+    elseif idx == nil and type(choice_or_choices) == "table" then
+      on_choice(choice_or_choices)
+    else
+      on_choice { choice_or_choices }
+    end
+  end)
 end
 
 ---@param match MatchData
@@ -66,7 +64,7 @@ end
 ---  `prompt_title`: Title for the prompt window.
 ---  `dir`: Directory to search in.
 ---  `query`: Initial query to grep for.
----  `callback`: Callback to run with the selected path.
+---  `callback`: Callback to run with the selected entries.
 ---  `no_default_mappings`: Don't apply picker's default mappings.
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
@@ -101,12 +99,9 @@ M.grep = function(opts)
 
       if vim.tbl_isempty(items) then
         return log.info "Failed to Grep"
-      elseif #items == 1 then
-        return api.open_note(items[1])
-      else
-        vim.fn.setqflist(items)
-        vim.cmd "copen"
       end
+      local callback = opts.callback or ut.open_notes
+      callback(items)
     end)
   )
 end
@@ -118,7 +113,7 @@ end
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
 ---  `dir`: Directory to search in.
----  `callback`: Callback to run with the selected entry.
+---  `callback`: Callback to run with the selected paths.
 ---  `no_default_mappings`: Don't apply picker's default mappings.
 ---  `query_mappings`: Mappings that run with the query prompt.
 ---  `selection_mappings`: Mappings that run with the current selection.
@@ -151,39 +146,14 @@ M.find_files = function(opts)
     vim.schedule_wrap(function()
       if vim.tbl_isempty(paths) then
         return log.info "Search result empty"
-      elseif #paths == 1 then
-        if opts.callback then
-          return opts.callback(paths[1])
-        else
-          return api.open_note { filename = paths[1] }
-        end
-      elseif #paths > 1 then
-        ---@type vim.quickfix.entry[]
-        local items = {}
-        for _, path in ipairs(paths) do
-          items[#items + 1] = {
-            filename = path,
-            lnum = 1,
-            col = 0,
-            text = ut.make_display {
-              filename = path,
-            },
-          }
-        end
-        if opts.callback then
-          vim.ui.select(items, {
-            format_item = function(item)
-              return item.text
-            end,
-          }, function(item)
-            if item and item.filename then
-              opts.callback(item.filename)
-            end
-          end)
-        else
-          vim.fn.setqflist(items)
-          vim.cmd "copen"
-        end
+      elseif #paths == 1 or not opts.callback then
+        local callback = opts.callback or ut.open_notes
+        callback(paths)
+      else
+        M.select(paths, {
+          prompt = opts.prompt_title,
+          allow_multiple = true,
+        }, opts.callback)
       end
     end)
   )

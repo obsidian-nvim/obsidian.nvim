@@ -1,5 +1,6 @@
 local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
+local picker = require "obsidian.picker"
 
 ---@class obsidian.CommandsModule
 ---@field commands table<string, obsidian.CommandConfig>
@@ -74,10 +75,11 @@ function M.show_menu(data)
   local is_visual, is_note = data.range ~= 0, in_note()
   local choices = get_commands_by_context(M.commands, is_visual, is_note)
 
-  vim.ui.select(
+  picker.select(
     choices,
     { prompt = "Obsidian Commands" },
-    vim.schedule_wrap(function(item)
+    vim.schedule_wrap(function(items)
+      local item = items[1]
       if item then
         return vim.cmd.Obsidian(item)
       else

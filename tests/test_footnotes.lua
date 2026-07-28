@@ -61,7 +61,7 @@ T["insert_definition"] = function()
   eq({ "claim[^1]", "", "[^1]: the footnote", "", "[^2]: another" }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
 end
 
-T["pick uses vim.ui.select with preview"] = function()
+T["pick uses picker.select with preview"] = function()
   local bufnr = make_buf {
     "claim[^1]",
     "",
@@ -69,14 +69,16 @@ T["pick uses vim.ui.select with preview"] = function()
   }
   vim.api.nvim_set_current_buf(bufnr)
 
+  local picker = require "obsidian.picker"
+  local original_select = picker.select
   local select_items, select_opts
-  ---@diagnostic disable-next-line: duplicate-set-field
-  vim.ui.select = function(items, opts, on_choice)
+  picker.select = function(items, opts, on_choice)
     select_items, select_opts = items, opts
-    on_choice(items[1])
+    on_choice { items[1] }
   end
 
   footnotes.pick(bufnr)
+  picker.select = original_select
 
   eq(1, #select_items)
   eq("[^1]: the footnote", select_opts.format_item(select_items[1]))
@@ -84,6 +86,7 @@ T["pick uses vim.ui.select with preview"] = function()
   local preview = select_opts.preview_item(select_items[1])
   eq({ 3, 0 }, preview.pos)
   eq("[^1]: the footnote", vim.api.nvim_buf_get_lines(preview.buf, 2, 3, false)[1])
+  eq("wipe", vim.bo[preview.buf].bufhidden)
 
   -- Selecting jumps to the definition line.
   eq({ 3, 0 }, vim.api.nvim_win_get_cursor(0))
