@@ -142,7 +142,7 @@ M.builtin.date = function(ctx, done)
     }
   end
 
-  Obsidian.picker.select(dailies, { prompt = "Dailies" }, function(entries)
+  picker.select(dailies, { prompt = "Dailies" }, function(entries)
     if not entries or #entries == 0 then
       done(nil)
       return
