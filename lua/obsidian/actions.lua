@@ -8,6 +8,7 @@ local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
+local parse_refs = require "obsidian.parse.refs"
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
@@ -595,6 +596,120 @@ M.unique_link = function(timestamp)
   end
   vim.api.nvim_put({ link }, "c", true, true)
   return link
+end
+
+---@class obsidian.actions.CursorUrl
+---@field url string
+---@field bufnr integer
+---@field row integer 0-indexed
+---@field start_col integer 0-indexed
+---@field end_col integer 0-indexed, exclusive
+
+---@param line string
+---@param start_col integer 1-indexed
+---@param end_col integer 1-indexed
+---@return boolean
+local function inside_inline_code(line, start_col, end_col)
+  for code_start, code_end in util.gfind(line, "`[^`]*`") do
+    if code_start < start_col and end_col < code_end then
+      return true
+    end
+  end
+  return false
+end
+
+---Return the HTTP URL under the cursor and its buffer range.
+---@return obsidian.actions.CursorUrl?
+M._cursor_url = function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local row, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
+  local line = vim.api.nvim_get_current_line()
+  local fenced = false
+  for _, buffer_line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, row, false)) do
+    if buffer_line:match "^%s*```" then
+      fenced = not fenced
+    end
+  end
+  if fenced then
+    return
+  end
+
+  for _, ref in ipairs(parse_refs.extract(line, { row = row - 1 })) do
+    local is_uri, scheme = util.is_uri(ref.target)
+    if
+      ref.range.start_col <= cursor_col
+      and cursor_col < ref.range.end_col
+      and is_uri
+      and (scheme == "http" or scheme == "https")
+    then
+      return {
+        url = ref.target,
+        bufnr = bufnr,
+        row = row - 1,
+        start_col = ref.range.start_col,
+        end_col = ref.range.end_col,
+      }
+    end
+  end
+
+  local search_from = 1
+  while true do
+    local start_col, end_col = line:find("https?://%S+", search_from)
+    if not start_col or not end_col then
+      return
+    end
+    while end_col >= start_col and line:sub(end_col, end_col):match "[%)%]%}>,%.;:!?`]" do
+      end_col = end_col - 1
+    end
+    local range_start = start_col - 1
+    local range_end = end_col
+    if line:sub(start_col - 1, start_col - 1) == "<" and line:sub(end_col + 1, end_col + 1) == ">" then
+      range_start = range_start - 1
+      range_end = range_end + 1
+    end
+    if range_start <= cursor_col and cursor_col < range_end and not inside_inline_code(line, start_col, end_col) then
+      return {
+        url = line:sub(start_col, end_col),
+        bufnr = bufnr,
+        row = row - 1,
+        start_col = range_start,
+        end_col = range_end,
+      }
+    end
+    search_from = end_col + 1
+  end
+end
+
+---@class obsidian.actions.DownloadUrlOpts
+---@field new_name string|? destination attachment basename
+
+---Download the URL under the cursor and replace it with an attachment link.
+---@param opts obsidian.actions.DownloadUrlOpts|?
+---@return string? path
+M.download_url_attachment = function(opts)
+  opts = opts or {}
+  local ctx = M._cursor_url()
+  if not ctx then
+    return log.info "No URL under cursor"
+  end
+  if not vim.b[ctx.bufnr].obsidian_buffer then
+    return log.warn "Not in an obsidian buffer"
+  end
+
+  local path = attachment.add(ctx.url, {
+    bufnr = ctx.bufnr,
+    insert = false,
+    new_name = opts.new_name,
+    scope = "actions.download_url_attachment",
+  })
+  if not path then
+    return
+  end
+
+  local link = attachment.format_link(path)
+  vim.api.nvim_buf_set_text(ctx.bufnr, ctx.row, ctx.start_col, ctx.row, ctx.end_col, { link })
+  require("obsidian.ui").update(ctx.bufnr)
+  return path
 end
 
 ---@param src string?

@@ -10,6 +10,7 @@ See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP inte
 | `unique_note`        | `n`      | Create a unique note.                  | `timestamp`          |
 | `unique_link`        | `n`      | Create and insert a unique note link.  | `timestamp`          |
 | `add_property`       | `n`      | Add frontmatter property.              |                      |
+| `download_url_attachment` | `n` | Download URL under cursor and replace it with an attachment link. | `opts` |
 | `insert_template`    | `n`      | Insert a template at cursor.           | `name`               |
 | `rename`             | `n`      | Rename current note.                   | `name`               |
 | `move_note`          | `n`      | Move current note to another folder.   |                      |

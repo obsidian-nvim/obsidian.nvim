@@ -97,6 +97,13 @@ local default_actions = {
     title = "Add attachment from folder, filepath or url",
   },
 
+  download_url_attachment = {
+    title = "Download URL under cursor as attachment",
+    cond = function()
+      return require("obsidian.actions")._cursor_url() ~= nil
+    end,
+  },
+
   insert_link = {
     title = "Insert internal link at cursor",
   },

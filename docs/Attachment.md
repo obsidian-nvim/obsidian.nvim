@@ -34,7 +34,15 @@ For `actions.add_attachment(source, opts)`:
 - If `source` is missing or empty, obsidian.nvim prompts for a URL or file path.
 - The target `bufnr` must be an obsidian buffer.
 
-Both functions accept the same `opts` table:
+The `download_url_attachment` action is available when the cursor is on a raw HTTP URL or an external Markdown link. It downloads the URL and replaces the original text with the generated attachment link:
+
+```lua
+require("obsidian.actions").download_url_attachment {
+  new_name = "local-name.png", -- optional
+}
+```
+
+Both add functions accept the same `opts` table:
 
 ```lua
 ---@class obsidian.AddAttachmentOpts
