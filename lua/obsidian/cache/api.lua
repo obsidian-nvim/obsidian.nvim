@@ -257,7 +257,9 @@ M.find_files = function(opts)
       return { buf = buf }
     end
 
-    require("obsidian.picker").select(entries, {
+    local picker = require "obsidian.picker"
+
+    picker.select(entries, {
       prompt = opts.prompt_title,
       allow_multiple = true,
       -- The cache has already applied the initial query case-insensitively.
@@ -306,7 +308,7 @@ M.find_files = function(opts)
               end
             end)
           elseif choice == "Open References" then
-            M.select(data.references, {}, function(choices)
+            picker.select(data.references, { prompt = "Unresolved References" }, function(choices)
               picker_util.open_notes(choices)
             end)
           end
