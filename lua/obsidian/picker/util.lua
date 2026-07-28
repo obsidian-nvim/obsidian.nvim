@@ -105,7 +105,7 @@ M.open_notes = function(entries)
   if #entries == 0 then
     return
   elseif #entries == 1 then
-    api.open_note(entries[1])
+    require("obsidian.api").open_note(entries[1])
     return
   end
 
