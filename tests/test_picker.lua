@@ -219,10 +219,10 @@ T["open_notes sends multiple results to quickfix"] = function()
 
   local items = vim.fn.getqflist()
   eq(2, #items)
-  eq("/vault/one.md", vim.fn.bufname(items[1].bufnr))
+  eq(vim.fs.normalize "/vault/one.md", vim.fs.normalize(vim.fn.bufname(items[1].bufnr)))
   eq(2, items[1].lnum)
   eq(3, items[1].col)
-  eq("/vault/one.md", vim.fn.bufname(items[2].bufnr))
+  eq(vim.fs.normalize "/vault/one.md", vim.fs.normalize(vim.fn.bufname(items[2].bufnr)))
   eq(4, items[2].lnum)
   eq(5, items[2].col)
   vim.cmd "cclose"
