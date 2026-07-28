@@ -233,6 +233,27 @@ T["cache backends"]["rename into ignored path removes old entry only"] = functio
   eq(nil, cache.notes.find(tostring(new_path)))
 end
 
+T["cache backends"]["rebuild command reparses unchanged file stats"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Note.md")
+  helpers.write("#one", note_path)
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  eq({ "one" }, cache.notes.get(note_path).tags)
+  helpers.write("#two", note_path)
+
+  require "obsidian.commands.rebuild_cache"()
+
+  eq({ "two" }, cache.notes.get(note_path).tags)
+end
+
 T["cache backends"]["setup is idempotent and disabled tears down"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
