@@ -7,6 +7,44 @@ local picker_util = require "obsidian.picker.util"
 
 local M = {}
 
+---@class obsidian.cache.ResolveTagsOpts
+---@field dir string|obsidian.Path|?
+
+---Resolve unique cached tags using a case-insensitive fuzzy query.
+---
+---@param query string
+---@param opts obsidian.cache.ResolveTagsOpts|?
+---@return string[]
+M.resolve_tags = function(query, opts)
+  local cache = require "obsidian.cache"
+  assert(cache.is_ready(), "cache not ready")
+
+  opts = opts or {}
+  local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
+  local query_lower = vim.trim(query):lower():gsub("^#", "")
+  if query_lower == "" then
+    return {}
+  end
+
+  local tag = require "obsidian.tag"
+  local seen = {}
+  local matches = {}
+  for path, row in pairs(cache.notes.all()) do
+    if fs_util.is_subpath(path, dir) then
+      for _, value in ipairs(row.tags or {}) do
+        local normalized = tag.normalize(tostring(value))
+        if normalized ~= "" and not seen[normalized] then
+          seen[normalized] = true
+          matches[#matches + 1] = normalized
+        end
+      end
+    end
+  end
+
+  table.sort(matches)
+  return vim.fn.matchfuzzy(matches, query_lower)
+end
+
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
 local function format_picker_entry(entry)
