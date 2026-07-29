@@ -100,7 +100,8 @@ end
 ---@class obsidian.PickerEntryUserData
 ---@field attachment boolean|?
 ---@field missing boolean|?
----@field references obsidian.PickerEntry[]|?
+---@field references obsidian.NoteCreationReference[]|?
+---@field target string|?
 ---
 ---@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts
 ---
@@ -345,7 +346,7 @@ local function patch(modname)
     if require("obsidian.cache").find_files(opts) then
       return
     end
-    return picker_find_files(opts)
+    picker_find_files(opts)
   end
 
   for name, f in pairs(picker) do
