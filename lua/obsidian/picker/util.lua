@@ -96,10 +96,14 @@ M.open_notes = function(entries)
   vim.cmd "copen"
 end
 
----@param entry obsidian.PickerEntry
+---@param entry obsidian.PickerEntry|string
 ---
 ---@return string
 M.make_display = function(entry)
+  if type(entry) == "string" then
+    return entry
+  end
+
   local buf = {}
   local icon = icons.get_icon(entry)
 

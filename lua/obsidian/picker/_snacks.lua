@@ -193,12 +193,7 @@ M.select = function(values, opts, on_choice)
 
   local entries = {}
   for _, value in ipairs(values) do
-    local display
-    if type(value) == "string" then
-      display = value
-    else
-      display = opts.format_item and opts.format_item(value) or ut.make_display(value)
-    end
+    local display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     if type(value) ~= "table" or value.valid ~= false then
       ---@type obsidian.PickerEntry|string
       local picker_value = value

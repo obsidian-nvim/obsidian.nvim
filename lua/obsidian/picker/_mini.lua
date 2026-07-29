@@ -134,7 +134,7 @@ M.select = function(values, opts, on_choice)
     local entry
     if type(value) == "string" then
       entry = {
-        text = value,
+        text = opts.format_item and opts.format_item(value) or ut.make_display(value),
         obsidian_item = value,
       }
     else

@@ -313,8 +313,6 @@ M.select = function(values, opts, on_choice)
           local display
           if opts.format_item then
             display = opts.format_item(v)
-          elseif type(v) == "string" then
-            display = v
           else
             display = ut.make_display(v)
           end

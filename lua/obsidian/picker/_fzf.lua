@@ -264,12 +264,7 @@ M.select = function(values, opts, on_choice)
   ---@type string[]
   local entries = {}
   for idx, value in ipairs(values) do
-    local display
-    if type(value) == "string" then
-      display = value
-    else
-      display = opts.format_item and opts.format_item(value) or ut.make_display(value)
-    end
+    local display = opts.format_item and opts.format_item(value) or ut.make_display(value)
     if type(value) ~= "table" or value.valid ~= false then
       local entry = ("%d\t%s"):format(idx, display)
       entry_to_value_map[entry] = value

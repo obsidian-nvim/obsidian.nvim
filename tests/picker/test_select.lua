@@ -52,6 +52,7 @@ T["default select wraps current vim.ui.select result in a list"] = function()
 
   with_select(function(items, opts, on_choice)
     eq("Pick", opts.prompt)
+    eq("one", opts.format_item(items[1]))
     on_choice(items[2], 2)
   end, function()
     picker.select({ "one", "two" }, { prompt = "Pick" }, function(selected)
@@ -60,6 +61,21 @@ T["default select wraps current vim.ui.select result in a list"] = function()
   end)
 
   eq({ "two" }, choices)
+end
+
+T["default select passes custom string formatting to vim.ui.select"] = function()
+  local picker = require "obsidian.picker._default"
+
+  with_select(function(items, opts, on_choice)
+    eq("display:one", opts.format_item(items[1]))
+    on_choice()
+  end, function()
+    picker.select({ "one" }, {
+      format_item = function(value)
+        return "display:" .. value
+      end,
+    })
+  end)
 end
 
 T["default select accepts proposed list result"] = function()
@@ -101,6 +117,20 @@ T["mini select returns all marked items when multiple selections are allowed"] =
   eq({ "one", "two" }, choices)
 end
 
+T["mini select applies custom formatting to string values"] = function()
+  with_module("mini.pick", {
+    start = function(opts)
+      eq("display:one", opts.source.items[1].text)
+    end,
+  }, function()
+    require("obsidian.picker._mini").select({ "one" }, {
+      format_item = function(value)
+        return "display:" .. value
+      end,
+    })
+  end)
+end
+
 T["fzf select explicitly enables multiple selections and returns all choices"] = function()
   local choices
 
@@ -125,6 +155,23 @@ T["fzf select explicitly enables multiple selections and returns all choices"] =
   end)
 
   eq({ "one", "two" }, choices)
+end
+
+T["fzf select applies custom formatting to string values"] = function()
+  with_modules({
+    ["fzf-lua.previewer.builtin"] = {},
+    ["fzf-lua"] = {
+      fzf_exec = function(entries)
+        eq({ "1\tdisplay:one" }, entries)
+      end,
+    },
+  }, function()
+    require("obsidian.picker._fzf").select({ "one" }, {
+      format_item = function(value)
+        return "display:" .. value
+      end,
+    })
+  end)
 end
 
 T["fzf select explicitly disables unsupported multiple selections"] = function()
@@ -205,6 +252,52 @@ T["fzf select preserves identity for duplicate display labels"] = function()
 
   eq({ first, second }, previewed)
   eq({ first }, choices)
+end
+
+T["snacks select applies custom formatting to string values"] = function()
+  with_module("snacks.picker", {
+    pick = function(opts)
+      eq("display:one", opts.items[1].text)
+      eq("one", opts.items[1].obsidian_item)
+    end,
+  }, function()
+    require("obsidian.picker._snacks").select({ "one" }, {
+      format_item = function(value)
+        return "display:" .. value
+      end,
+    })
+  end)
+end
+
+T["telescope select applies custom formatting to string values"] = function()
+  with_modules({
+    ["telescope.pickers"] = {
+      new = function(_, opts)
+        local entry = opts.finder.entry_maker(opts.finder.results[1])
+        eq("display:one", entry.display())
+        eq("one", entry.obsidian_item)
+        return { find = function() end }
+      end,
+    },
+    ["telescope.finders"] = {
+      new_table = function(opts)
+        return opts
+      end,
+    },
+    ["telescope.config"] = {
+      values = {
+        generic_sorter = function()
+          return {}
+        end,
+      },
+    },
+  }, function()
+    require("obsidian.picker._telescope").select({ "one" }, {
+      format_item = function(value)
+        return "display:" .. value
+      end,
+    })
+  end)
 end
 
 T["fzf find and grep callbacks receive every selected entry"] = function()

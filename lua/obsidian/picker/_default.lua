@@ -26,13 +26,7 @@ M.select = function(values, opts, on_choice)
     kind = opts.kind,
     allow_multiple = opts.allow_multiple,
     preview_item = opts.preview_item,
-    format_item = opts.format_item or function(value)
-      if type(value) == "string" then
-        return value
-      elseif type(value) == "table" then
-        return ut.make_display(value)
-      end
-    end,
+    format_item = opts.format_item or ut.make_display,
   }, function(choice_or_choices, idx)
     if choice_or_choices == nil then
       on_choice {}
