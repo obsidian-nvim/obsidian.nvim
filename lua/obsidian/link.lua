@@ -83,7 +83,7 @@ local function missing_note_path(location, source_file)
   end
 
   local Note = require "obsidian.note"
-  local _, path = Note._resolve_id_path(opts)
+  local path = Note.resolve_creation_path(opts)
   return vim.fs.normalize(tostring(path))
 end
 

@@ -17,8 +17,6 @@ local T = new_set {
 
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
-local Path = require "obsidian.path"
-local helpers = require "tests.helpers"
 
 local function with_picker_stubs(stubs, fn)
   local original_get_plugin_info = api.get_plugin_info
