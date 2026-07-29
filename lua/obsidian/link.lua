@@ -60,8 +60,8 @@ local function missing_note_path(location)
   end
 
   local Note = require "obsidian.note"
-  local note = Note.create { id = target }
-  return vim.fs.normalize(tostring(note.path))
+  local path = Note.resolve_creation_path { id = target }
+  return vim.fs.normalize(tostring(path))
 end
 
 --- Expected absolute path for a link target that does not exist yet.

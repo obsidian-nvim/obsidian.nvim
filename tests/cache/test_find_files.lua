@@ -20,13 +20,29 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
 
   local picked_values
   local picked_opts
+  local mapped
   local original_select = picker.select
   picker.select = function(values, opts)
     picked_values = values
     picked_opts = opts
   end
 
-  eq(true, cache.find_files { use_cache = true, query = "agenda" })
+  eq(
+    true,
+    cache.find_files {
+      use_cache = true,
+      query = "agenda",
+      selection_mappings = {
+        ["<C-l>"] = {
+          desc = "map",
+          callback = function(path)
+            mapped = path
+          end,
+        },
+      },
+    }
+  )
+  picked_opts.selection_mappings["<C-l>"].callback(picked_values[1])
 
   picker.select = original_select
 
@@ -34,6 +50,10 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
   eq("Agenda", picked_values[1].text)
   eq(true, picked_opts.allow_multiple)
   eq(nil, picked_opts.query)
+  eq(tostring(dir / "Agenda.md"), mapped)
+  local preview = picked_opts.preview_item(picked_values[1])
+  eq({ "# Agenda" }, vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false))
+  vim.api.nvim_buf_delete(preview.buf, { force = true })
 end
 
 return T
