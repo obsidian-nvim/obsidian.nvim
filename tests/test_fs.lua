@@ -93,6 +93,28 @@ T["find_files supports hidden files, predicates, pruning, and stable sorting"] =
   eq(fs.find_files(dir, opts), { hidden, a, b })
 end
 
+T["find_files resolves relative vault roots and applies configured ignores"] = function()
+  local dir = Obsidian.dir
+  local kept = tostring(dir / "kept.md")
+  local ignored = tostring(dir / "ignored.md")
+  vim.fn.writefile({}, kept)
+  vim.fn.writefile({}, ignored)
+  Obsidian.opts.file = { ignore_filters = { "ignored.md" } }
+  require("obsidian.ignore").clear_cache()
+
+  local previous_cwd = assert(vim.uv.cwd())
+  local ok, result = pcall(function()
+    assert(vim.uv.chdir(tostring(dir)))
+    return fs.find_files "."
+  end)
+  assert(vim.uv.chdir(previous_cwd))
+  if not ok then
+    error(result)
+  end
+
+  eq(result, { kept })
+end
+
 T["walk can enumerate directories with a depth limit"] = function()
   local dir = Obsidian.dir
   local one = dir / "one"

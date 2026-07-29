@@ -257,7 +257,7 @@ end
 --- Find files using the shared filesystem iterator and present them with the active picker.
 ---
 ---@param opts obsidian.PickerFindOpts?
-M.find_files = function(opts)
+local find_files = function(opts)
   opts = opts or {}
   if M.find_files_from_cache(opts) then
     return
@@ -295,6 +295,8 @@ M.find_files = function(opts)
     end)
   end)
 end
+
+M.find_files = find_files
 
 --- Find notes by filename.
 ---
@@ -444,7 +446,20 @@ M._tag_selection_mappings = function()
 end
 
 local function patch(modname)
-  for name, f in pairs(require(modname)) do
+  local picker = require(modname)
+  if picker.find_files then
+    M.find_files = function(opts)
+      opts = opts or {}
+      if M.find_files_from_cache(opts) then
+        return
+      end
+      picker.find_files(opts)
+    end
+  else
+    M.find_files = find_files
+  end
+
+  for name, f in pairs(picker) do
     if name ~= "pick" and name ~= "find_files" then
       M[name] = f
     end
@@ -527,6 +542,7 @@ M.get = function(picker_name)
     state.picker_name = string.lower(picker_name)
   end
 
+  M.find_files = lazy_picker_method "find_files"
   M.grep = lazy_picker_method "grep"
   M.select = lazy_picker_method "select"
 

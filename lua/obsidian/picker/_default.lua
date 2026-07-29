@@ -100,4 +100,47 @@ M.grep = function(opts)
   )
 end
 
+--- Find files in a directory.
+---
+---@param opts obsidian.PickerFindOpts|? Options.
+M.find_files = function(opts)
+  opts = opts or {}
+
+  local query
+  if opts.query and vim.trim(opts.query) ~= "" then
+    query = opts.query
+  else
+    query = api.input(opts.prompt_title or "Find files")
+  end
+
+  if not query then
+    return
+  end
+
+  local paths = {}
+  local dir = opts.dir or api.resolve_workspace_dir()
+
+  search.find_async(
+    dir,
+    query,
+    { include_non_markdown = opts.include_non_markdown },
+    function(path)
+      paths[#paths + 1] = path
+    end,
+    vim.schedule_wrap(function()
+      if vim.tbl_isempty(paths) then
+        return log.info "Search result empty"
+      elseif #paths == 1 or not opts.callback then
+        local callback = opts.callback or ut.open_notes
+        callback(paths)
+      else
+        M.select(paths, {
+          prompt = opts.prompt_title,
+          allow_multiple = true,
+        }, opts.callback)
+      end
+    end)
+  )
+end
+
 return M

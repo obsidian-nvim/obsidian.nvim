@@ -343,31 +343,101 @@ T["find_files presents filesystem paths without a shell command"] = function()
   local picked_values
   local picked_opts
   local selected
-  local original_select = picker.select
-  picker.select = function(values, opts, on_choice)
-    picked_values = values
-    picked_opts = opts
-    on_choice(values)
-  end
+  with_picker_stubs({
+    telescope = {
+      select = function(values, opts, on_choice)
+        picked_values = values
+        picked_opts = opts
+        on_choice(values)
+      end,
+    },
+  }, function()
+    api.get_plugin_info = function()
+      return { path = "/tmp/telescope.nvim" }
+    end
+    picker.get "telescope.nvim"
+    picker.find_files {
+      dir = dir,
+      query = "initial",
+      callback = function(paths)
+        selected = paths
+      end,
+    }
 
-  picker.find_files {
-    dir = dir,
-    query = "initial",
-    callback = function(paths)
-      selected = paths
-    end,
-  }
-
-  vim.wait(1000, function()
-    return selected ~= nil
+    vim.wait(1000, function()
+      return selected ~= nil
+    end)
   end)
-  picker.select = original_select
 
   eq({ tostring(dir / "a.md"), tostring(dir / "b.md") }, picked_values)
   eq(true, vim.endswith(picked_opts.format_item(picked_values[1]), "a.md"))
   eq(true, vim.endswith(picked_opts.format_item(picked_values[2]), "b.md"))
   eq("initial", picked_opts.query)
   eq({ tostring(dir / "a.md"), tostring(dir / "b.md") }, selected)
+end
+
+T["default find_files uses a supplied query and prompts when it is absent"] = function()
+  local dir = Path.temp { suffix = "-obsidian-picker" }
+  dir:mkdir { parents = true }
+  Obsidian = {
+    dir = dir,
+    opts = {
+      file = { ignore_filters = {} },
+      search = { sort_by = "path", sort_reversed = false },
+    },
+  }
+
+  local search = require "obsidian.search"
+  local original_find_async = search.find_async
+  local original_input = api.input
+  local queries = {}
+  local prompts = {}
+  local selected = {}
+
+  local ok, err = pcall(function()
+    api.input = function(prompt)
+      prompts[#prompts + 1] = prompt
+      return "prompted"
+    end
+    search.find_async = function(_, query, _, on_match, on_exit)
+      queries[#queries + 1] = query
+      on_match(tostring(dir / (query .. ".md")))
+      on_exit(0)
+      return function() end
+    end
+
+    picker.get(false)
+    picker.find_files {
+      dir = dir,
+      query = "supplied",
+      callback = function(paths)
+        selected[#selected + 1] = paths
+      end,
+    }
+    picker.find_files {
+      dir = dir,
+      prompt_title = "Find a note",
+      callback = function(paths)
+        selected[#selected + 1] = paths
+      end,
+    }
+
+    vim.wait(1000, function()
+      return #selected == 2
+    end)
+  end)
+
+  search.find_async = original_find_async
+  api.input = original_input
+  picker.get(false)
+  if not ok then
+    error(err)
+  end
+
+  eq({ "supplied", "prompted" }, queries)
+  eq({ "Find a note" }, prompts)
+  eq({ tostring(dir / "supplied.md") }, selected[1])
+  eq({ tostring(dir / "prompted.md") }, selected[2])
 end
 
 return T
