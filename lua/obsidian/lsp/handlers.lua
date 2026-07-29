@@ -10,6 +10,7 @@ return {
   ["textDocument/prepareRename"] = require "obsidian.lsp.handlers.prepare_rename",
   ["textDocument/references"] = require "obsidian.lsp.handlers.references",
   ["textDocument/definition"] = require "obsidian.lsp.handlers.definition",
+  ["textDocument/didSave"] = require "obsidian.lsp.handlers.did_save",
   ["textDocument/documentSymbol"] = require "obsidian.lsp.handlers.document_symbol",
   ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
   ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",

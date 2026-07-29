@@ -100,6 +100,7 @@ T["cache backends"]["stores compact rows"] = function()
 
   local row = cache.notes.find(note_path)
   eq({ "foo", "inline" }, row.tags)
+  eq("number", type(row.mtime_nsec))
   eq(nil, row.path)
   eq(nil, row.rel_path)
   eq(nil, row.basename)
@@ -110,6 +111,147 @@ T["cache backends"]["stores compact rows"] = function()
   eq(nil, row.aliases)
   eq(nil, row.links_out)
   eq(nil, row.tasks)
+end
+
+T["cache backends"]["detects same-size edits within one second"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Note.md")
+  helpers.write("#one", note_path)
+  Obsidian = { dir = dir }
+
+  local store = { data = {} }
+  function store:get(key)
+    return self.data[key]
+  end
+  function store:all()
+    return self.data
+  end
+  function store:put(key, row)
+    self.data[key] = row
+  end
+  function store:delete(key)
+    self.data[key] = nil
+  end
+  function store:flush() end
+  function store:close() end
+
+  local cache = require "obsidian.cache"
+  cache.register("freshness-test", {
+    open = function()
+      return store
+    end,
+  })
+
+  cache.setup { enabled = true, backend = "freshness-test" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+  eq({ "one" }, cache.notes.find(note_path).tags)
+
+  local old_stat = assert(vim.uv.fs_stat(note_path))
+  helpers.write("#two", note_path)
+  local target_nsec = old_stat.mtime.nsec < 500000000 and 750000000 or 250000000
+  assert(vim.uv.fs_utime(note_path, old_stat.atime.sec, old_stat.mtime.sec + target_nsec / 1000000000))
+  local new_stat = assert(vim.uv.fs_stat(note_path))
+  eq(old_stat.mtime.sec, new_stat.mtime.sec)
+  eq(true, old_stat.mtime.nsec ~= new_stat.mtime.nsec)
+  eq(old_stat.size, new_stat.size)
+
+  cache.setup { enabled = true, backend = "freshness-test" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+  eq({ "two" }, cache.notes.find(note_path).tags)
+end
+
+T["cache backends"]["hides persisted rows until startup validation finishes"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Note.md")
+  helpers.write("#fresh", note_path)
+  Obsidian = { dir = dir }
+
+  local store = { data = { [vim.fs.normalize(note_path)] = { tags = { "stale" } } } }
+  function store:get(key)
+    return self.data[key]
+  end
+  function store:all()
+    return self.data
+  end
+  function store:put(key, row)
+    self.data[key] = row
+  end
+  function store:delete(key)
+    self.data[key] = nil
+  end
+  function store:flush() end
+  function store:close() end
+
+  local cache = require "obsidian.cache"
+  cache.register("validation-test", {
+    open = function()
+      return store
+    end,
+  })
+
+  cache.setup { enabled = true, backend = "validation-test" }
+  eq(nil, cache.notes.find(note_path))
+  eq(0, cache.notes.count())
+
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+  eq({ "fresh" }, cache.notes.find(note_path).tags)
+end
+
+T["cache backends"]["refreshes directly on LSP didSave"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Note.md")
+  helpers.write("#one", note_path)
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+  eq({ "one" }, cache.notes.find(note_path).tags)
+
+  helpers.write("#two", note_path)
+  require "obsidian.lsp.handlers.did_save" {
+    textDocument = { uri = vim.uri_from_fname(note_path) },
+  }
+
+  eq({ "two" }, cache.notes.find(note_path).tags)
+end
+
+T["cache backends"]["removes stale data when parsing fails"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Note.md")
+  helpers.write("#one", note_path)
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+  eq({ "one" }, cache.notes.find(note_path).tags)
+
+  local Note = require "obsidian.note"
+  local from_lines = Note.from_lines
+  Note.from_lines = function()
+    error "parse failed"
+  end
+  require("obsidian.lsp.watchfiles").handle {
+    { type = "changed", path = note_path },
+  }
+  Note.from_lines = from_lines
+
+  eq(nil, cache.notes.find(note_path))
 end
 
 T["cache backends"]["indexes markdown-like extensions"] = function()

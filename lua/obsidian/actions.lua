@@ -809,6 +809,7 @@ local function move_note(directory, text)
   if not ok then
     return log.err("Failed to move note: " .. (err or "unknown error"))
   end
+  require("obsidian.cache").notes.rename(src, dest)
   vim.api.nvim_buf_set_name(bufnr, dest)
   local write_ok, write_err = pcall(function()
     vim.cmd "silent write!"
@@ -842,6 +843,7 @@ local function merge_note(dst_note)
     dst_note:merge(current_note)
     dst_note:open { sync = true }
     vim.fs.rm(tostring(current_note.path))
+    require("obsidian.cache").notes.delete(tostring(current_note.path))
   end
 end
 
