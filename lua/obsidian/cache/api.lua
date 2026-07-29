@@ -62,10 +62,11 @@ end
 
 ---@param is_attachment boolean
 ---@param missing boolean
----@param references obsidian.PickerEntry[]?
+---@param references obsidian.NoteCreationReference[]?
+---@param target string?
 ---@return obsidian.PickerEntryUserData
-local function entry_user_data(is_attachment, missing, references)
-  return { attachment = is_attachment, missing = missing, references = references }
+local function entry_user_data(is_attachment, missing, references, target)
+  return { attachment = is_attachment, missing = missing, references = references, target = target }
 end
 
 ---@param opts obsidian.PickerFindOpts|?
@@ -144,6 +145,7 @@ M.find_files = function(opts)
               local target_path = link.missing_link_path(target, path)
               if target_path and util.is_subpath(target_path, dir) then
                 local missing_key = missing_is_attachment and target_path or normalize_link_target(target):lower()
+                ---@type obsidian.NoteCreationReference
                 local reference = {
                   filename = path,
                   lnum = outgoing.line or 1,
@@ -156,8 +158,11 @@ M.find_files = function(opts)
                   data.references[#data.references + 1] = reference
                 else
                   local text = normalize_link_target(target)
-                  local added =
-                    add_entry(text, target_path, entry_user_data(missing_is_attachment, true, { reference }))
+                  local added = add_entry(
+                    text,
+                    target_path,
+                    entry_user_data(missing_is_attachment, true, { reference }, normalize_link_target(target))
+                  )
                   if added then
                     missing_entries[missing_key] = added
                   end
@@ -279,12 +284,12 @@ M.find_files = function(opts)
         elseif path and data.missing then
           local choice = api.confirm("How to handle missing reference?", "&Create New Note\n&Open References")
           if choice == "Create New Note" then
-            local location = cache.notes.rel_path(path):gsub("%.md$", "")
+            local location = data.target or cache.notes.rel_path(path):gsub("%.md$", "")
             api.create_new_note(location, function(locations)
               if locations and locations[1] then
                 api.open_note(vim.uri_to_fname(locations[1].uri))
               end
-            end)
+            end, { references = data.references })
           elseif choice == "Open References" then
             picker.select(data.references, { prompt = "Unresolved References" }, function(choices)
               picker_util.open_notes(choices)

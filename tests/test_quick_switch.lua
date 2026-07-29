@@ -205,4 +205,88 @@ return {
   eq("markdown", result.existing_preview_filetype)
 end
 
+T["quick switch"]["creating a missing note updates its cached references"] = function()
+  h.child_mock_vault_contents(child, {
+    ["Note.md"] = "[[Missing]]\nA [[Missing|label]]\n![[PHOTO.PNG]]",
+  })
+
+  child.lua [[
+Obsidian.opts.note_id_func = function(title)
+  return "generated-" .. title
+end
+  ]]
+  h.child_setup_cache(child)
+
+  local result = child.lua [[
+local api = require "obsidian.api"
+local picker = require "obsidian.picker"
+local cache = require "obsidian.cache"
+local create_calls = 0
+local enumeration_create_calls
+local predicted_path
+local uppercase_attachment
+
+Obsidian.opts.callbacks.create_note = function()
+  create_calls = create_calls + 1
+end
+
+local original_select = picker.select
+local original_confirm = api.confirm
+local original_open_note = api.open_note
+picker.select = function(values, _, callback)
+  local missing
+  for _, entry in ipairs(values) do
+    if entry.text == "Missing" then
+      missing = entry
+      predicted_path = entry.filename
+    elseif entry.text == "PHOTO.PNG" then
+      uppercase_attachment = entry
+    end
+  end
+  enumeration_create_calls = create_calls
+  callback { missing }
+end
+api.confirm = function(prompt)
+  if prompt == "How to handle missing reference?" then
+    return "Create New Note"
+  end
+  return "Yes"
+end
+api.open_note = function() end
+
+cache.find_files {
+  use_cache = true,
+  show_existing_only = false,
+  show_attachments = true,
+}
+
+picker.select = original_select
+api.confirm = original_confirm
+api.open_note = original_open_note
+
+local note_path = tostring(Obsidian.dir / "generated-Missing.md")
+return {
+  enumeration_create_calls = enumeration_create_calls,
+  create_calls = create_calls,
+  predicted_path = predicted_path,
+  note_exists = vim.uv.fs_stat(note_path) ~= nil,
+  source_lines = vim.fn.readfile(tostring(Obsidian.dir / "Note.md")),
+  uppercase_attachment = uppercase_attachment,
+}
+  ]]
+
+  eq(0, result.enumeration_create_calls)
+  eq(1, result.create_calls)
+  eq(true, vim.endswith(result.predicted_path, "generated-Missing.md"))
+  eq(true, result.note_exists)
+  eq({
+    "[[generated-Missing|Missing]]",
+    "A [[generated-Missing|label]]",
+    "![[PHOTO.PNG]]",
+  }, result.source_lines)
+  eq(true, result.uppercase_attachment.user_data.attachment)
+  eq(true, result.uppercase_attachment.user_data.missing)
+  eq(true, vim.endswith(result.uppercase_attachment.filename, "PHOTO.PNG"))
+end
+
 return T

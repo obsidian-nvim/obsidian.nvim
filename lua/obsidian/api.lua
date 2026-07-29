@@ -290,11 +290,17 @@ local function entry_range(entry)
   end
 end
 
+---@class obsidian.NoteCreationReference
+---@field filename string
+---@field lnum integer
+---@field col integer
+---@field raw string
+
 --- Prompt to create a new note when a link target does not exist.
 ---
 ---@param location string Note id or path.
 ---@param callback (fun(locations: lsp.Location[]|nil)|nil)?
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|?, anchor: string|?, block: string|? }|?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|?, anchor: string|?, block: string|?, references: obsidian.NoteCreationReference[]|? }|?
 M.create_new_note = function(location, callback, opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -321,8 +327,107 @@ M.create_new_note = function(location, callback, opts)
     end
   end
 
+  ---@param note obsidian.Note
+  ---@param reference obsidian.NoteCreationReference
+  ---@return string?
+  local function format_reference(note, reference)
+    local parsed = parse_refs.extract(reference.raw or "")[1]
+    if not parsed or (parsed.kind ~= "wiki" and parsed.kind ~= "markdown") then
+      return nil
+    end
+
+    -- Relative links must be formatted from the referencing note's directory,
+    -- which may not be the current buffer when creation starts from a picker.
+    local previous_buf_dir = Obsidian.buf_dir
+    local reference_dir = vim.fs.dirname(reference.filename)
+    if reference_dir then
+      Obsidian.buf_dir = Path.new(reference_dir)
+    end
+    local ok, new_link = pcall(note.format_link, note, {
+      label = parsed.label or location,
+      anchor = parsed.anchor,
+      block = parsed.block,
+      style = parsed.kind,
+    })
+    Obsidian.buf_dir = previous_buf_dir
+    if not ok then
+      log.err(new_link)
+      return nil
+    end
+
+    return (parsed.embed and "!" or "") .. new_link
+  end
+
+  ---@param note obsidian.Note
+  local function update_references(note)
+    local references = vim.deepcopy(opts.references or {})
+    table.sort(references, function(a, b)
+      if a.filename ~= b.filename then
+        return a.filename < b.filename
+      elseif a.lnum ~= b.lnum then
+        return a.lnum > b.lnum
+      else
+        return a.col > b.col
+      end
+    end)
+
+    local buffers = {}
+    for _, reference in ipairs(references) do
+      local filename = reference.filename
+      local lnum = tonumber(reference.lnum)
+      local col = tonumber(reference.col)
+      local raw = reference.raw
+      ---@cast lnum integer
+      ---@cast col integer
+      if filename and lnum and col and type(raw) == "string" then
+        local state = buffers[filename]
+        if not state then
+          local existing_bufnr = vim.fn.bufnr(filename)
+          local was_loaded = existing_bufnr ~= -1 and vim.api.nvim_buf_is_loaded(existing_bufnr)
+          state = {
+            bufnr = was_loaded and existing_bufnr or nil,
+            lines = not was_loaded and vim.fn.readfile(filename) or nil,
+            changed = false,
+          }
+          buffers[filename] = state
+        end
+
+        local line
+        if state.bufnr then
+          line = vim.api.nvim_buf_get_lines(state.bufnr, lnum - 1, lnum, false)[1]
+        else
+          line = state.lines[lnum]
+        end
+        local start_col = col - 1
+        if line and line:sub(col, col + #raw - 1) == raw then
+          local new_link = format_reference(note, reference)
+          if new_link then
+            if state.bufnr then
+              vim.api.nvim_buf_set_text(state.bufnr, lnum - 1, start_col, lnum - 1, start_col + #raw, { new_link })
+            else
+              state.lines[lnum] = line:sub(1, start_col) .. new_link .. line:sub(col + #raw)
+            end
+            state.changed = true
+          end
+        else
+          log.warn("Could not update stale reference at %s:%d:%d", filename, lnum, col)
+        end
+      end
+    end
+
+    -- Preserve the usual unsaved-buffer behavior for open notes. Rewrite
+    -- unloaded files directly so buffer write hooks do not add unrelated
+    -- frontmatter or other generated content.
+    for filename, state in pairs(buffers) do
+      if state.changed and not state.bufnr then
+        vim.fn.writefile(state.lines, filename)
+      end
+    end
+  end
+
   local function on_created(note)
     update_link(note)
+    update_references(note)
     if callback then
       callback { note:_location() }
     end
