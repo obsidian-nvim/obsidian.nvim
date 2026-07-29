@@ -539,9 +539,9 @@ M.new_from_template = function(id, template, callback)
     prompt_title = "Templates",
     dir = templates_dir,
     no_default_mappings = true,
-    callback = function(template_names)
-      local template_name = template_names[1]
-      if not template_name then
+    callback = function(template_paths)
+      local template_path = template_paths[1]
+      if not template_path then
         return
       end
       if id == nil or id == "" then
@@ -557,13 +557,13 @@ M.new_from_template = function(id, template, callback)
         end
       end
 
-      if template_name == nil or template_name == "" then
+      if template_path == nil or template_path == "" then
         log.warn "Aborted"
         return
       end
 
       ---@type obsidian.Note
-      local note = Note.create { id = id, template = template_name }
+      local note = Note.create { id = id, template = template_path }
       note:write()
 
       if callback then
@@ -713,21 +713,15 @@ M.insert_template = function(template_name)
     return
   end
 
-  ---@type obsidian.PickerEntry[]
-  local entries = {}
-  for path in api.dir(tostring(templates_dir)) do
-    entries[#entries + 1] = {
-      filename = path,
-      text = vim.fs.basename(path),
-    }
-  end
-
-  picker.select(entries, {}, function(items)
-    local entry = items[1]
-    if entry then
-      insert_template(entry.filename)
-    end
-  end)
+  picker.find_files {
+    dir = templates_dir,
+    callback = function(paths)
+      local path = paths[1]
+      if path then
+        insert_template(path)
+      end
+    end,
+  }
 end
 
 ---@param buf integer|?
