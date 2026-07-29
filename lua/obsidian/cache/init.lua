@@ -1,7 +1,7 @@
 --- Obsidian cache: ORM-style repository over swappable backend.
 ---
 --- v1 ships JSON backend + notes repository CRUD only (no query layer).
---- Wired to LSP `workspace/didChangeWatchedFiles` events for live updates.
+--- Wired to LSP document-save and watched-file events for live updates.
 
 local log = require "obsidian.log"
 local watchfiles = require "obsidian.lsp.watchfiles"
@@ -48,6 +48,16 @@ local function is_markdown_note(path)
   return MARKDOWN_EXTENSIONS[ext] == true
 end
 
+---@param abs_path string
+---@return boolean
+local function is_in_vault(abs_path)
+  if not state then
+    return false
+  end
+  local root = state.vault:gsub("/+$", "")
+  return abs_path == root or vim.startswith(abs_path, root .. "/")
+end
+
 local function schedule_flush()
   if not state or not state.backend.flush then
     return
@@ -90,17 +100,23 @@ local function reindex_one(abs_path)
     return
   end
   abs_path = vim.fs.normalize(abs_path)
-  if not is_markdown_note(abs_path) then
+  if not is_in_vault(abs_path) then
     return
   end
-  if is_ignored(abs_path) then
+  if not is_markdown_note(abs_path) or is_ignored(abs_path) then
+    state.backend:delete(abs_path)
+    schedule_flush()
     return
   end
   local row = cache_note.build(abs_path, state.vault)
   if row then
     state.backend:put(abs_path, row)
-    schedule_flush()
+  else
+    -- A missing or malformed file must not leave structured data from an older
+    -- version of the file visible through the cache.
+    state.backend:delete(abs_path)
   end
+  schedule_flush()
 end
 
 ---@param abs_path string
@@ -170,6 +186,13 @@ local function on_events(events)
   end
 end
 
+---@param row table
+---@param stat uv.fs_stat.result
+---@return boolean
+local function stat_matches(row, stat)
+  return row.mtime == stat.mtime.sec and row.mtime_nsec == stat.mtime.nsec and row.size == stat.size
+end
+
 ---Walk vault, populate cache for all `.md` files. Skips notes whose mtime/size match.
 ---@param force boolean? rebuild every entry regardless of stat
 local function initial_scan(force)
@@ -191,7 +214,7 @@ local function initial_scan(force)
       found[abs] = true
       local existing = scan_state.backend:get(abs)
       local stat = vim.uv.fs_stat(abs)
-      if stat and (force or not existing or existing.mtime ~= stat.mtime.sec or existing.size ~= stat.size) then
+      if stat and (force or not existing or not stat_matches(existing, stat)) then
         reindex_one(abs)
       end
     end
@@ -352,7 +375,7 @@ M.notes = {}
 ---@param path string  absolute path
 ---@return table
 function M.notes.get(path)
-  assert(state, "cache not initialized")
+  assert(state and state.ready, "cache not ready")
   local row = state.backend:get(vim.fs.normalize(path))
   if not row then
     error("cache: no note at " .. path)
@@ -363,7 +386,7 @@ end
 ---@param path string
 ---@return table?
 function M.notes.find(path)
-  if not state then
+  if not state or not state.ready then
     return nil
   end
   return state.backend:get(vim.fs.normalize(path))
@@ -371,13 +394,13 @@ end
 
 ---@return table<string, table>
 function M.notes.all()
-  assert(state, "cache not initialized")
+  assert(state and state.ready, "cache not ready")
   return state.backend:all()
 end
 
 ---@return integer
 function M.notes.count()
-  if not state then
+  if not state or not state.ready then
     return 0
   end
   local n = 0
@@ -435,6 +458,19 @@ function M.notes.delete(path)
   end
   state.backend:delete(vim.fs.normalize(path))
   schedule_flush()
+end
+
+---Refresh one note directly from disk.
+---@param path string
+function M.notes.refresh(path)
+  reindex_one(path)
+end
+
+---Replace a cached note path after a successful filesystem rename.
+---@param old_path string
+---@param new_path string
+function M.notes.rename(old_path, new_path)
+  rename_one(old_path, new_path)
 end
 
 ---Force flush to disk (otherwise debounced).

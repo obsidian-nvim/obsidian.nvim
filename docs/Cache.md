@@ -53,9 +53,10 @@ Each vault gets its own cache file.
 
 ## How Updates Work
 
-On startup, `obsidian.nvim` checks the vault for supported Markdown files and updates entries whose modification time or size changed.
+On startup, `obsidian.nvim` checks the vault for supported Markdown files and updates entries whose modification time (including nanoseconds) or size changed.
+Persisted entries are not exposed to queries until this validation finishes.
 
-While Neovim is running, file watch events update the cache when notes are created, changed, deleted, or renamed.
+LSP `textDocument/didSave` notifications refresh saved notes immediately. Plugin-initiated moves, renames, and deletes update the cache directly, while file watch events cover external changes.
 
 The cache follows your existing `file.ignore_filters` setting.
 

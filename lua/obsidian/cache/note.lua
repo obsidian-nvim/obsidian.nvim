@@ -119,6 +119,7 @@ function M.build(abs_path, _vault_root)
 
   local row = {
     mtime = stat.mtime.sec,
+    mtime_nsec = stat.mtime.nsec,
     size = stat.size,
   }
   if note.aliases and #note.aliases > 0 then

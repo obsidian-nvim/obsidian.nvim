@@ -32,6 +32,7 @@ local initializeResult = {
     -- triggers LspNotify and causes foldingRange to be re-requested on edits.
     textDocumentSync = {
       change = 1, -- Full
+      save = true,
     },
     workspace = {
       fileOperations = {

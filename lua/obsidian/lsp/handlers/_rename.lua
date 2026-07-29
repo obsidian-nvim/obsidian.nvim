@@ -199,6 +199,7 @@ M.rename = function(note, new_name, callback, opts)
       note:save_to_buffer { bufnr = note.bufnr }
 
       vim.cmd "silent! wall"
+      require("obsidian.cache").notes.rename(old_path, new_path)
       if current_file == old_path then
         vim.cmd("edit " .. vim.fn.fnameescape(new_path))
       else

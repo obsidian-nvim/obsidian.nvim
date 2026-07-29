@@ -5,6 +5,54 @@ local T, child = h.child_vault [[
 package.loaded["obsidian.lsp.watchfiles"] = nil
 ]]
 
+T["initialize advertises didSave synchronization"] = function()
+  child.lua [[
+    require("obsidian.lsp.handlers.initialize")({}, function(_, result)
+      _G.did_save_sync = result.capabilities.textDocumentSync.save
+    end, {
+      notification = function() end,
+    })
+  ]]
+
+  eq(true, child.lua_get "did_save_sync")
+end
+
+T["saving an attached note emits didSave"] = function()
+  child.lua [[
+    local path = vim.fs.joinpath(tostring(Obsidian.dir), "saved.md")
+    vim.fn.writefile({ "#one" }, path)
+
+    local cache = require "obsidian.cache"
+    cache.setup { enabled = true, backend = "memory" }
+    assert(vim.wait(1000, cache.is_ready))
+
+    local refresh = cache.notes.refresh
+    local refreshes = 0
+    cache.notes.refresh = function(saved_path)
+      refreshes = refreshes + 1
+      refresh(saved_path)
+    end
+
+    vim.cmd("edit " .. vim.fn.fnameescape(path))
+    assert(vim.wait(1000, function()
+      local clients = vim.lsp.get_clients { bufnr = 0, name = "obsidian-ls" }
+      return clients[1] ~= nil and clients[1].initialized
+    end))
+
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "#two" })
+    vim.cmd "write"
+    assert(vim.wait(1000, function()
+      return refreshes > 0
+    end))
+
+    _G.did_save_refreshes = refreshes
+    _G.did_save_tags = cache.notes.find(path).tags
+  ]]
+
+  eq(1, child.lua_get "did_save_refreshes")
+  eq({ "two" }, child.lua_get "did_save_tags")
+end
+
 T["initialized dynamically registers markdown watcher"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.initialized"
