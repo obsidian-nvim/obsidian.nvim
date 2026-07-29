@@ -138,40 +138,6 @@ local function attach_picker_mappings(map, opts)
   end
 end
 
----@param opts obsidian.PickerFindOpts|? Options.
-M.find_files = function(opts)
-  opts = opts or {}
-  local callback = opts.callback or ut.open_notes
-
-  local prompt_title = ut.build_prompt {
-    prompt_title = opts.prompt_title,
-    query_mappings = opts.query_mappings,
-    selection_mappings = opts.selection_mappings,
-  }
-
-  require("telescope.builtin").find_files {
-    default_text = opts.query,
-    prompt_title = prompt_title,
-    cwd = opts.dir and tostring(opts.dir) or tostring(Obsidian.dir),
-    find_command = search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown }),
-    attach_mappings = function(_, map)
-      attach_picker_mappings(map, {
-        callback = function(entries)
-          callback(vim.tbl_map(function(entry)
-            return entry.filename
-          end, entries))
-        end,
-        query_mappings = opts.query_mappings,
-        selection_mappings = opts.selection_mappings,
-        selection_value = function(entry)
-          return entry.filename
-        end,
-      })
-      return true
-    end,
-  }
-end
-
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)
   opts = opts or {}

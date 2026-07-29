@@ -82,7 +82,7 @@ local function get_selection_actions(opts, path_only)
 end
 
 ---@param entry_to_value_map table<string, any>
----@param opts { on_choice: fun(choices: any[])|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|? }
+---@param opts { on_choice: fun(choices: any[])|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
 local function get_value_actions(entry_to_value_map, opts)
   ---@param allow_multiple boolean|?
   ---@return any[]|?
@@ -139,31 +139,15 @@ local function get_value_actions(entry_to_value_map, opts)
     end
   end
 
+  if opts.query_mappings then
+    for key, mapping in pairs(opts.query_mappings) do
+      actions[format_keymap(key)] = function(_, fzf_opts)
+        mapping.callback(fzf_opts.query)
+      end
+    end
+  end
+
   return actions
-end
-
----@param opts obsidian.PickerFindOpts|? Options.
-M.find_files = function(opts)
-  opts = opts or {}
-  local callback = opts.callback or ut.open_notes
-
-  ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
-
-  require("fzf-lua").files {
-    query = opts.query,
-    cwd = tostring(dir),
-    cmd = table.concat(search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown }), " "),
-    cwd_prompt = false,
-    prompt = format_prompt(opts.prompt_title),
-    show_details = true,
-    actions = get_selection_actions({
-      callback = callback,
-      no_default_mappings = opts.no_default_mappings,
-      selection_mappings = opts.selection_mappings,
-      query_mappings = opts.query_mappings,
-    }, true),
-  }
 end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
@@ -276,9 +260,11 @@ M.select = function(values, opts, on_choice)
   require("fzf-lua").fzf_exec(entries, {
     query = opts.query,
     previewer = previewer,
-    prompt = format_prompt(
-      ut.build_prompt { prompt_title = opts.prompt, selection_mappings = opts.selection_mappings }
-    ),
+    prompt = format_prompt(ut.build_prompt {
+      prompt_title = opts.prompt,
+      query_mappings = opts.query_mappings,
+      selection_mappings = opts.selection_mappings,
+    }),
     fzf_opts = {
       ["--delimiter"] = "\t",
       ["--with-nth"] = "2..",
@@ -289,6 +275,7 @@ M.select = function(values, opts, on_choice)
       on_choice = on_choice,
       allow_multiple = opts.allow_multiple,
       selection_mappings = opts.selection_mappings,
+      query_mappings = opts.query_mappings,
     }),
   })
 end

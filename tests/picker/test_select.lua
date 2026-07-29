@@ -401,10 +401,8 @@ T["telescope select does not infer fields or previews from value shape"] = funct
   end)
 end
 
-T["fzf find and grep mappings receive paths"] = function()
-  local found = {}
-  local find_mapped = {}
-  local grep_mapped = {}
+T["fzf grep confirmation retains entries and mappings receive paths"] = function()
+  local mapped = {}
   local grepped = {}
 
   with_obsidian({ opts = { search = { sort_by = false, sort_reversed = false } } }, function()
@@ -419,10 +417,6 @@ T["fzf find and grep mappings receive paths"] = function()
         end,
       },
       ["fzf-lua"] = {
-        files = function(opts)
-          opts.actions.default({ "one", "two" }, {})
-          opts.actions["ctrl-l"]({ "one", "two" }, {})
-        end,
         grep = function(opts)
           opts.actions.default({ "one", "two" }, {})
           opts.actions["ctrl-l"]({ "one", "two" }, {})
@@ -430,21 +424,6 @@ T["fzf find and grep mappings receive paths"] = function()
       },
     }, function()
       local fzf = require "obsidian.picker._fzf"
-      fzf.find_files {
-        dir = "/vault",
-        callback = function(paths)
-          found = paths
-        end,
-        selection_mappings = {
-          ["<C-l>"] = {
-            desc = "map",
-            allow_multiple = true,
-            callback = function(...)
-              find_mapped = { ... }
-            end,
-          },
-        },
-      }
       fzf.grep {
         dir = "/vault",
         query = "query",
@@ -456,7 +435,7 @@ T["fzf find and grep mappings receive paths"] = function()
             desc = "map",
             allow_multiple = true,
             callback = function(...)
-              grep_mapped = { ... }
+              mapped = { ... }
             end,
           },
         },
@@ -464,9 +443,7 @@ T["fzf find and grep mappings receive paths"] = function()
     end)
   end)
 
-  eq({ "/vault/one.md", "/vault/two.md" }, found)
-  eq({ "/vault/one.md", "/vault/two.md" }, find_mapped)
-  eq({ "/vault/one.md", "/vault/two.md" }, grep_mapped)
+  eq({ "/vault/one.md", "/vault/two.md" }, mapped)
   eq({
     { filename = "/vault/one.md", lnum = 2, col = 3 },
     { filename = "/vault/two.md" },

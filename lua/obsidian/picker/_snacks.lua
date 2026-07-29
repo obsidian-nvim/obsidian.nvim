@@ -92,44 +92,6 @@ end
 
 local M = {}
 
----@param opts obsidian.PickerFindOpts|? Options.
-M.find_files = function(opts)
-  opts = opts or {}
-  local callback = opts.callback or ut.open_notes
-
-  ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
-
-  local map = vim.tbl_deep_extend(
-    "force",
-    {},
-    notes_mappings(opts.selection_mappings, function(item)
-      return item._path
-    end),
-    query_mappings(opts.query_mappings, false)
-  )
-
-  local args = search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown })
-  local cmd = table.remove(args, 1)
-
-  local pick_opts = vim.tbl_extend("force", map or {}, {
-    pattern = opts.query,
-    source = "files",
-    title = opts.prompt_title,
-    cwd = tostring(dir),
-    cmd = cmd,
-    args = args,
-    confirm = function(picker)
-      local selected = picker:selected { fallback = true }
-      picker:close()
-      callback(vim.tbl_map(function(item)
-        return item._path
-      end, selected))
-    end,
-  })
-  require("snacks.picker").pick(pick_opts)
-end
-
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)
   opts = opts or {}

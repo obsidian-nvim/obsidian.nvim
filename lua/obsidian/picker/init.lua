@@ -6,6 +6,8 @@ local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
 local icons = require "obsidian.icons"
+local fs = require "obsidian.fs"
+local Path = require "obsidian.path"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
@@ -168,6 +170,32 @@ local function transform_selection_mappings(mappings, transform)
   return transformed
 end
 
+--- Present a collected path list with the active picker.
+---
+---@param paths string[]
+---@param opts obsidian.PickerFindOpts?
+M.select_paths = function(paths, opts)
+  opts = opts or {}
+  local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
+
+  M.select(paths, {
+    prompt = opts.prompt_title,
+    allow_multiple = true,
+    query = opts.query,
+    query_mappings = opts.query_mappings,
+    selection_mappings = opts.selection_mappings,
+    format_item = function(path)
+      return icons.get_path_icon(path) .. " " .. tostring(Path.new(path):relative_to(dir))
+    end,
+    preview_item = function(path)
+      return preview_path(path)
+    end,
+  }, function(items)
+    local callback = opts.callback or picker_util.open_notes
+    callback(items)
+  end)
+end
+
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
 M.find_files_from_cache = function(opts)
@@ -250,6 +278,29 @@ M.find_files_from_cache = function(opts)
   end)
 
   return true
+end
+
+--- Find files using the shared filesystem iterator and present them with the
+--- active picker. Fuzzy query matching remains picker-side.
+---
+---@param opts obsidian.PickerFindOpts?
+M.find_files = function(opts)
+  opts = opts or {}
+  if M.find_files_from_cache(opts) then
+    return
+  end
+
+  local dir = opts.dir or Obsidian.dir
+  local markdown_extensions = { md = true, qmd = true, base = true }
+  return fs.find_files_async(dir, {
+    sort_by = Obsidian.opts.search.sort_by,
+    sort_reversed = Obsidian.opts.search.sort_reversed,
+    predicate = function(path)
+      return opts.include_non_markdown or markdown_extensions[vim.fn.fnamemodify(path, ":e"):lower()] == true
+    end,
+  }, function(paths)
+    M.select_paths(paths, vim.tbl_extend("force", {}, opts, { dir = dir }))
+  end)
 end
 
 --- Find notes by filename.
@@ -401,15 +452,7 @@ end
 
 local function patch(modname)
   for name, f in pairs(require(modname)) do
-    if name == "find_files" then
-      M[name] = function(opts)
-        opts = opts or {}
-        if M.find_files_from_cache(opts) then
-          return
-        end
-        return f(opts)
-      end
-    elseif name ~= "pick" then
+    if name ~= "pick" and name ~= "find_files" then
       M[name] = f
     end
   end
@@ -491,7 +534,6 @@ M.get = function(picker_name)
     state.picker_name = string.lower(picker_name)
   end
 
-  M.find_files = lazy_picker_method "find_files"
   M.grep = lazy_picker_method "grep"
   M.select = lazy_picker_method "select"
 

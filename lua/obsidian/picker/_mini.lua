@@ -1,5 +1,4 @@
 ---@diagnostic disable: unresolved-require
-local search = require "obsidian.search"
 local Path = require "obsidian.path"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
@@ -17,60 +16,6 @@ local function clean_path(entry)
 end
 
 local M = {}
-
-local build_selection_mappings = function(mappings)
-  local actions = {}
-  for key, mapping in pairs(mappings) do
-    actions[mapping.desc:gsub(" ", "_")] = {
-      char = key,
-      func = function()
-        -- mapping.callback({ filename = path })
-      end,
-    }
-  end
-  return actions
-end
-
----@param opts obsidian.PickerFindOpts|? Options.
-M.find_files = function(opts)
-  opts = opts or {}
-  local callback = opts.callback or ut.open_notes
-
-  local mini_pick = require "mini.pick"
-
-  ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
-
-  local mappings
-
-  if not opts.no_default_mappings then
-    mappings = build_selection_mappings(opts.selection_mappings)
-  end
-
-  local selected
-  local path = mini_pick.builtin.cli({
-    command = search.build_find_cmd(nil, nil, { include_non_markdown = opts.include_non_markdown }),
-    mappings = mappings,
-  }, {
-    source = {
-      name = opts.prompt_title,
-      cwd = tostring(dir),
-      choose = function(chosen_path)
-        selected = { chosen_path }
-      end,
-      choose_marked = function(chosen_paths)
-        selected = chosen_paths
-      end,
-    },
-  })
-
-  selected = selected or (path and { path }) or {}
-  if #selected > 0 then
-    callback(vim.tbl_map(function(chosen_path)
-      return tostring(dir / chosen_path)
-    end, selected))
-  end
-end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)

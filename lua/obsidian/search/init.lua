@@ -2,6 +2,8 @@ local Path = require "obsidian.path"
 local util = require "obsidian.util"
 local log = require "obsidian.log"
 local async = require "obsidian.async"
+local fs = require "obsidian.fs"
+local gitignore = require("obsidian.lib.glob").gitignore
 
 local M = {}
 
@@ -14,7 +16,6 @@ end
 local Opts = require "obsidian.search.opts" -- general class to handle options
 local Ripgrep = require "obsidian.search.ripgrep" -- could have other backends in the future...
 
-M.build_find_cmd = Ripgrep.build_find_cmd
 M.build_search_cmd = Ripgrep.build_search_cmd
 M.build_grep_cmd = Ripgrep.build_grep_cmd
 
@@ -120,20 +121,46 @@ M.search_async = function(dir, term, opts, on_match, on_exit)
   end)
 end
 
---- Find markdown files in a directory matching a given term. Each matching path is passed to the `on_match` callback.
+--- Find files in a directory matching a given term. Each matching path is
+--- passed to the `on_match` callback.
 ---
 ---@param dir string|obsidian.Path
----@param term string
+---@param term string?
 ---@param opts obsidian.search.SearchOpts|?
 ---@param on_match fun(path: string)
 ---@param on_exit fun(exit_code: integer)|?
----@return vim.SystemObj handle
+---@return fun() cancel
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
-  local cmd = M.build_find_cmd(tostring(norm_dir), term, opts)
-  return async.run_job_async(cmd, on_match, function(code)
+  opts = opts or {}
+
+  local query = term and string.lower(term) or nil
+  local exclude = opts.exclude and gitignore(opts.exclude, { ignoreCase = true }) or nil
+  local markdown_extensions = { [".md"] = true, [".qmd"] = true, [".base"] = true }
+
+  return fs.find_files_async(norm_dir, {
+    sort_by = opts.sort_by,
+    sort_reversed = opts.sort_reversed,
+    ignore = function(path)
+      if not exclude then
+        return false
+      end
+      local relative_path = tostring(Path.new(path):relative_to(norm_dir))
+      return exclude:check(relative_path)
+    end,
+    predicate = function(path)
+      local extension = "." .. vim.fn.fnamemodify(path, ":e"):lower()
+      if not opts.include_non_markdown and not markdown_extensions[extension] then
+        return false
+      end
+      return not query or string.find(string.lower(vim.fs.basename(path)), query, 1, true) ~= nil
+    end,
+  }, function(paths)
+    for _, path in ipairs(paths) do
+      on_match(path)
+    end
     if on_exit ~= nil then
-      on_exit(code)
+      on_exit(0)
     end
   end)
 end

@@ -316,4 +316,51 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
   vim.api.nvim_buf_delete(preview.buf, { force = true })
 end
 
+T["find_files presents filesystem paths without a shell command"] = function()
+  local dir = Path.temp { suffix = "-obsidian-picker" }
+  dir:mkdir { parents = true }
+  helpers.write("# A", dir / "a.md")
+  helpers.write("# B", dir / "b.md")
+  helpers.write("text", dir / "other.txt")
+  Obsidian = {
+    dir = dir,
+    opts = {
+      file = { ignore_filters = {} },
+      search = { sort_by = "path", sort_reversed = false },
+    },
+  }
+
+  local picked_values
+  local picked_opts
+  local selected
+  local original_select = picker.select
+  picker.select = function(values, opts, on_choice)
+    picked_values = values
+    picked_opts = opts
+    on_choice(values)
+  end
+
+  picker.find_files {
+    dir = dir,
+    query = "initial",
+    callback = function(paths)
+      selected = paths
+    end,
+  }
+
+  vim.wait(1000, function()
+    return selected ~= nil
+  end)
+  picker.select = original_select
+
+  eq(
+    { "a.md", "b.md" },
+    vim.tbl_map(function(item)
+      return item.text
+    end, picked_values)
+  )
+  eq("initial", picked_opts.query)
+  eq({ tostring(dir / "a.md"), tostring(dir / "b.md") }, selected)
+end
+
 return T
