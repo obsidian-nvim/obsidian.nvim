@@ -676,6 +676,19 @@ Note.from_file = function(path, opts)
   return note
 end
 
+--- Initialize a note from a cache row without reading the file.
+---
+---@param path string|obsidian.Path
+---@param row table
+---
+---@return obsidian.Note
+Note.from_cache = function(path, row)
+  path = Path.new(path):resolve()
+  local note = Note.new(path.stem, vim.deepcopy(row.aliases or {}), vim.deepcopy(row.tags or {}), path)
+  note.metadata = vim.deepcopy(row.properties or {})
+  return note
+end
+
 --- Initialize a note from a buffer.
 ---
 ---@param bufnr integer|?

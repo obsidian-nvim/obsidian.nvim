@@ -470,4 +470,54 @@ T["cache backends"]["setup is idempotent and disabled tears down"] = function()
   eq(false, cache.is_enabled())
 end
 
+T["resolve notes"] = new_set()
+
+T["resolve notes"]["matches only filename stems and aliases"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Path.new(dir / "nested"):mkdir()
+  helpers.write(
+    "---\nid: historical-id\naliases:\n  - Friendly Alias\n---\nBody-only phrase\n# Heading",
+    dir / "nested" / "Project Roadmap.md"
+  )
+  helpers.write("attachment", dir / "Friendly Alias.png")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local stem_matches = cache.resolve_notes "prm"
+  eq(1, #stem_matches)
+  eq("Project Roadmap", stem_matches[1].id)
+
+  local alias_matches = cache.resolve_notes "friendly"
+  eq(1, #alias_matches)
+  eq({ "Friendly Alias" }, alias_matches[1].aliases)
+
+  eq(0, #cache.resolve_notes "historical-id")
+  eq(0, #cache.resolve_notes "body-only")
+  eq(0, #cache.resolve_notes "nested")
+end
+
+T["resolve notes"]["loads requested anchors without changing cached identity"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  helpers.write("---\nid: historical-id\naliases:\n  - Friendly Alias\n---\n# Heading", dir / "Project Roadmap.md")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local notes = cache.resolve_notes("friendly", { notes = { collect_anchor_links = true } })
+  eq(1, #notes)
+  eq("Project Roadmap", notes[1].id)
+  eq("Heading", notes[1].anchor_links["#heading"].header)
+end
+
 return T

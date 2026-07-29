@@ -267,6 +267,36 @@ Target note content
   eq(true, found)
 end
 
+T["completion"]["uses cache note resolution when cache is enabled"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[Fr",
+    ["note.md"] = [==[
+---
+id: historical-id
+aliases:
+  - Friendly Alias
+---
+Cached note content
+]==],
+  })
+  h.child_setup_cache(child)
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local found_alias = false
+  for _, item in ipairs(result.items or {}) do
+    local new_text = item.textEdit and item.textEdit.newText
+    if new_text == "[[note|historical-id]]" then
+      error "cache completion should not use a frontmatter id"
+    elseif new_text == "[[note|Friendly Alias]]" then
+      found_alias = true
+    end
+  end
+  eq(true, found_alias)
+end
+
 T["completion"]["returns items for tag trigger"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "#ta",

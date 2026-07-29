@@ -3,6 +3,7 @@ local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
+local cache = require "obsidian.cache"
 
 ---@class obsidian.completion.sources.refs.options
 ---@field label string|?
@@ -249,8 +250,13 @@ local function process_search_results(cc, results)
     if cc.in_buffer_only then
       update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
     else
-      -- Collect all valid aliases for the note, including ID, title, and filename.
-      local aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
+      -- Collect all valid aliases for the note, including ID, title, aliases, and filename stem.
+      local aliases = { tostring(note.id), note:display_name() }
+      if note.path then
+        aliases[#aliases + 1] = note.path.stem
+      end
+      vim.list_extend(aliases, note.aliases)
+      aliases = util.tbl_unique(aliases)
 
       for _, alias in ipairs(aliases) do
         update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
@@ -340,6 +346,21 @@ function M.process_completion(completion_resolve_callback, request)
     else
       cc.completion_resolve_callback(EMPTY_RESPONSE)
     end
+  elseif cache.is_enabled() then
+    local dir = api.resolve_workspace_dir()
+    cache.when_ready(function()
+      process_search_results(
+        cc,
+        cache.resolve_notes(cc.search, {
+          dir = dir,
+          notes = {
+            max_lines = Obsidian.opts.search.max_lines,
+            collect_anchor_links = cc.anchor_link ~= nil,
+            collect_blocks = cc.block_link ~= nil,
+          },
+        })
+      )
+    end)
   else
     local search_opts = {
       sort = false,

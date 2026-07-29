@@ -7,6 +7,110 @@ local picker_util = require "obsidian.picker.util"
 
 local M = {}
 
+---@class obsidian.cache.ResolveNotesOpts
+---@field dir string|obsidian.Path|?
+---@field include_templates boolean|?
+---@field notes obsidian.note.LoadOpts|?
+
+---@param value string
+---@param query string
+---@return boolean
+local function fuzzy_matches(value, query)
+  return #vim.fn.matchfuzzy({ value:lower() }, query) > 0
+end
+
+---@param path string
+---@param row table
+---@param query string
+---@return boolean
+local function note_matches(path, row, query)
+  local stem = vim.fn.fnamemodify(path, ":t:r")
+  if fuzzy_matches(stem, query) then
+    return true
+  end
+
+  for _, alias in ipairs(row.aliases or {}) do
+    if fuzzy_matches(tostring(alias), query) then
+      return true
+    end
+  end
+
+  return false
+end
+
+---@param path string
+---@param row table
+---@param load_opts obsidian.note.LoadOpts
+---@return obsidian.Note
+local function note_from_cache(path, row, load_opts)
+  local Note = require "obsidian.note"
+  local note = Note.from_cache(path, row)
+
+  if load_opts.collect_anchor_links or load_opts.collect_blocks or load_opts.collect_sections then
+    local loaded = Note.from_file(path, load_opts)
+    note.anchor_links = loaded.anchor_links
+    note.blocks = loaded.blocks
+    note.sections = loaded.sections
+  end
+
+  return note
+end
+
+---Resolve cached notes using fuzzy matches against filename stems and aliases.
+---
+---The cache must be ready before calling this function. Use `cache.when_ready()`
+---when calling it from an asynchronous UI flow.
+---
+---@param query string
+---@param opts obsidian.cache.ResolveNotesOpts|?
+---@return obsidian.Note[]
+M.resolve_notes = function(query, opts)
+  local cache = require "obsidian.cache"
+  assert(cache.is_ready(), "cache not ready")
+
+  opts = opts or {}
+  local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
+  local query_lower = vim.trim(query):lower()
+  if query_lower == "" then
+    return {}
+  end
+
+  local templates_dir
+  if
+    opts.include_templates ~= true
+    and Obsidian.opts
+    and Obsidian.opts.templates
+    and Obsidian.opts.templates.folder
+  then
+    templates_dir = api.templates_dir()
+  end
+
+  local rows = {}
+  local paths = {}
+  for path, row in pairs(cache.notes.all()) do
+    if
+      row.attachment ~= true
+      and util.is_subpath(path, dir)
+      and (templates_dir == nil or not util.is_subpath(path, tostring(templates_dir)))
+      and note_matches(path, row, query_lower)
+    then
+      paths[#paths + 1] = path
+      rows[path] = row
+    end
+  end
+  table.sort(paths)
+
+  local notes = {}
+  local load_opts = opts.notes or {}
+  for _, path in ipairs(paths) do
+    local ok, note = pcall(note_from_cache, path, rows[path], load_opts)
+    if ok then
+      notes[#notes + 1] = note
+    end
+  end
+  return notes
+end
+
 ---@param target string
 ---@return boolean
 local function is_attachment_target(target)
