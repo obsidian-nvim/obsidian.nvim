@@ -4,23 +4,21 @@ local Note = require "obsidian.note"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 
----@param entry obsidian.PickerEntry
-M.insert_link = function(entry)
-  if not entry.filename then
+---@param path string
+M.insert_link = function(path)
+  if not path or path == "" then
     return
   end
-  local note = Note.from_file(entry.filename)
+  local note = Note.from_file(path)
   local link = note:format_link()
   vim.api.nvim_put({ link }, "", false, true)
   require("obsidian.ui").update(0)
 end
 
----@param ... obsidian.PickerEntry
+---@param ... string
 M.tag_note = function(...)
   local calling_bufnr = require("obsidian.picker").state.calling_bufnr
-  local tags = vim.tbl_map(function(value)
-    return value.user_data
-  end, { ... })
+  local tags = { ... }
 
   local note = api.current_note(calling_bufnr)
   if not note then
@@ -52,9 +50,8 @@ M.tag_note = function(...)
   end
 end
 
----@param entry obsidian.PickerEntry
-M.insert_tag = function(entry)
-  local tag = entry.user_data
+---@param tag string
+M.insert_tag = function(tag)
   if tag == nil then
     log.err "Tag does not exist"
     return

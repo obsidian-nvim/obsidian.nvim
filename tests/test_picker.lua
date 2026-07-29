@@ -228,6 +228,43 @@ T["open_notes sends multiple results to quickfix"] = function()
   vim.cmd "cclose"
 end
 
+T["note and tag mappings accept string values"] = function()
+  local mappings = require "obsidian.picker.mappings"
+  local Note = require "obsidian.note"
+  local ui = require "obsidian.ui"
+  local original_from_file = Note.from_file
+  local original_put = vim.api.nvim_put
+  local original_update = ui.update
+  local inserted = {}
+
+  local ok, err = pcall(function()
+    Note.from_file = function(path)
+      eq("/vault/note.md", path)
+      return {
+        format_link = function()
+          return "[[note]]"
+        end,
+      }
+    end
+    vim.api.nvim_put = function(lines)
+      inserted[#inserted + 1] = lines[1]
+    end
+    ui.update = function() end
+
+    mappings.insert_link "/vault/note.md"
+    mappings.insert_tag "project"
+  end)
+
+  Note.from_file = original_from_file
+  vim.api.nvim_put = original_put
+  ui.update = original_update
+  if not ok then
+    error(err)
+  end
+
+  eq({ "[[note]]", "#project" }, inserted)
+end
+
 T["find_files_from_cache applies initial query case-insensitively"] = function()
   local dir = Path.temp { suffix = "-obsidian-picker" }
   dir:mkdir { parents = true }
@@ -243,13 +280,29 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
 
   local picked_values
   local picked_opts
+  local mapped
   local original_select = picker.select
   picker.select = function(values, opts)
     picked_values = values
     picked_opts = opts
   end
 
-  eq(true, picker.find_files_from_cache { use_cache = true, query = "agenda" })
+  eq(
+    true,
+    picker.find_files_from_cache {
+      use_cache = true,
+      query = "agenda",
+      selection_mappings = {
+        ["<C-l>"] = {
+          desc = "map",
+          callback = function(path)
+            mapped = path
+          end,
+        },
+      },
+    }
+  )
+  picked_opts.selection_mappings["<C-l>"].callback(picked_values[1])
 
   picker.select = original_select
 
@@ -257,6 +310,10 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
   eq("Agenda", picked_values[1].text)
   eq(true, picked_opts.allow_multiple)
   eq(nil, picked_opts.query)
+  eq(tostring(dir / "Agenda.md"), mapped)
+  local preview = picked_opts.preview_item(picked_values[1])
+  eq({ "# Agenda" }, vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false))
+  vim.api.nvim_buf_delete(preview.buf, { force = true })
 end
 
 return T

@@ -21,20 +21,12 @@ end
 ---@param prompt_bufnr integer
 ---@param keep_open boolean|?
 ---@param allow_multiple boolean|?
----@return obsidian.PickerEntry[]?
+---@return any[]?
 local function get_selected(prompt_bufnr, keep_open, allow_multiple)
-  ---@return obsidian.PickerEntry
+  ---@return any
   local function selection_to_entry(selection)
     if selection.obsidian_item ~= nil then
-      if type(selection.obsidian_item) == "table" then
-        return selection.obsidian_item
-      else
-        return {
-          value = selection.obsidian_item,
-          user_data = selection.obsidian_item,
-          text = tostring(selection.obsidian_item),
-        }
-      end
+      return selection.obsidian_item
     end
 
     local raw = selection.raw
@@ -100,7 +92,7 @@ local function get_query(prompt_bufnr, keep_open, initial_query)
   end
 end
 
----@param opts { callback: (fun(entries: obsidian.PickerEntry[]))|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, initial_query: string|? }
+---@param opts { callback: (fun(entries: obsidian.PickerEntry[]))|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, selection_value: (fun(entry: any): string)|?, initial_query: string|? }
 local function attach_picker_mappings(map, opts)
   -- Docs for telescope actions:
   -- https://github.com/nvim-telescope/telescope.nvim/blob/master/lua/telescope/actions/init.lua
@@ -121,10 +113,10 @@ local function attach_picker_mappings(map, opts)
       map({ "i", "n" }, key, function(prompt_bufnr)
         local entries = get_selected(prompt_bufnr, mapping.keep_open, mapping.allow_multiple)
         if entries then
-          local entry = entries[1]
-          if entry then
-            ---@diagnostic disable-next-line: param-type-mismatch
-            mapping.callback(entry, unpack(entries, 2))
+          local values = opts.selection_value and vim.tbl_map(opts.selection_value, entries) or entries
+          local value = values[1]
+          if value then
+            mapping.callback(value, unpack(values, 2))
           end
         elseif mapping.fallback_to_query then
           local query = get_query(prompt_bufnr, mapping.keep_open)
@@ -171,6 +163,9 @@ M.find_files = function(opts)
         end,
         query_mappings = opts.query_mappings,
         selection_mappings = opts.selection_mappings,
+        selection_value = function(entry)
+          return entry.filename
+        end,
       })
       return true
     end,
@@ -194,6 +189,9 @@ M.grep = function(opts)
       callback = opts.callback or ut.open_notes,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
+      selection_value = function(entry)
+        return entry.filename
+      end,
       initial_query = opts.query,
     })
     return true
@@ -287,21 +285,6 @@ M.select = function(values, opts, on_choice)
         end)
       end,
     }
-  elseif vim.iter(values):any(function(value)
-    return type(value) == "table" and value.filename ~= nil
-  end) then
-    previewer = conf.values.grep_previewer(picker_opts)
-    -- Get theme to use.
-    if conf.pickers then
-      for _, picker_name in ipairs { "grep_string", "live_grep", "find_files" } do
-        local picker_conf = conf.pickers[picker_name]
-        if picker_conf and picker_conf.theme then
-          picker_opts =
-            vim.tbl_extend("force", picker_opts, require("telescope.themes")["get_" .. picker_conf.theme] {})
-          break
-        end
-      end
-    end
   end
 
   pickers
@@ -317,22 +300,12 @@ M.select = function(values, opts, on_choice)
             display = ut.make_display(v)
           end
 
-          local ordinal = display
-          if type(v) == "table" and v.ordinal ~= nil then
-            ordinal = v.ordinal
-          elseif type(v) == "table" and v.filename ~= nil then
-            ordinal = ordinal .. " " .. v.filename
-          end
-
           return {
-            value = type(v) == "table" and v.user_data or v,
+            value = v,
             display = function()
               return display
             end,
-            ordinal = ordinal,
-            filename = type(v) == "table" and v.filename or nil,
-            lnum = type(v) == "table" and v.lnum or nil,
-            col = type(v) == "table" and v.col or nil,
+            ordinal = display,
             obsidian_item = v,
           }
         end,

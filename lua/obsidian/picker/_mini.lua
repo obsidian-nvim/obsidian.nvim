@@ -131,22 +131,10 @@ M.select = function(values, opts, on_choice)
 
   local entries = {}
   for _, value in ipairs(values) do
-    local entry
-    if type(value) == "string" then
-      entry = {
-        text = opts.format_item and opts.format_item(value) or ut.make_display(value),
-        obsidian_item = value,
-      }
-    else
-      entry = vim.tbl_extend("force", {}, value, {
-        text = opts.format_item and opts.format_item(value) or ut.make_display(value),
-        path = value.filename, -- HACK:
-        obsidian_item = value,
-      })
-    end
-    if type(value) ~= "table" or value.valid ~= false then
-      entries[#entries + 1] = entry
-    end
+    entries[#entries + 1] = {
+      text = opts.format_item and opts.format_item(value) or ut.make_display(value),
+      obsidian_item = value,
+    }
   end
 
   local source = {

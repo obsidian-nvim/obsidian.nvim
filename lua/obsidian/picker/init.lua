@@ -49,7 +49,7 @@ end
 ---@class obsidian.PickerMappingOpts
 ---
 ---@field desc string
----@field callback fun(...: obsidian.PickerEntry|string)
+---@field callback fun(...: any)
 ---@field fallback_to_query boolean|?
 ---@field keep_open boolean|?
 ---@field allow_multiple boolean|?
@@ -138,6 +138,36 @@ end
 
 M.pick = pick
 
+---@param path string
+---@return obsidian.ui_select_preview_spec
+local function preview_path(path)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
+  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].filetype = "markdown"
+  return { buf = buf }
+end
+
+---@param mappings obsidian.PickerMappingTable|?
+---@param transform fun(value: any): string
+---@return obsidian.PickerMappingTable|?
+local function transform_selection_mappings(mappings, transform)
+  if not mappings then
+    return nil
+  end
+
+  local transformed = {}
+  for key, mapping in pairs(mappings) do
+    local callback = mapping.callback
+    transformed[key] = vim.tbl_extend("force", {}, mapping, {
+      callback = function(...)
+        callback(unpack(vim.tbl_map(transform, { ... })))
+      end,
+    })
+  end
+  return transformed
+end
+
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
 M.find_files_from_cache = function(opts)
@@ -195,10 +225,15 @@ M.find_files_from_cache = function(opts)
       -- Don't pass it through, since some pickers would filter again case-sensitively.
       query = pick_query,
       query_mappings = opts.query_mappings,
-      selection_mappings = opts.selection_mappings,
+      selection_mappings = transform_selection_mappings(opts.selection_mappings, function(item)
+        return item.filename
+      end),
       format_item = function(item)
         local icon = icons.get_path_icon(item.filename)
         return icon .. " " .. item.text
+      end,
+      preview_item = function(item)
+        return preview_path(item.filename)
       end,
     }, function(items)
       local paths = vim.tbl_filter(
