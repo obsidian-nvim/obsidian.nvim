@@ -96,7 +96,8 @@ end
 ---@class obsidian.PickerEntryUserData
 ---@field attachment boolean|?
 ---@field missing boolean|?
----@field references obsidian.PickerEntry[]|?
+---@field references obsidian.NoteCreationReference[]|?
+---@field target string|?
 ---
 ---@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts
 ---

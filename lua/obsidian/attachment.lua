@@ -43,6 +43,7 @@ M.filetypes = filetypes
 ---@param location string
 ---@return boolean
 M.is_attachment_path = function(location)
+  location = location:lower()
   if vim.endswith(location, ".md") then
     return false
   end
