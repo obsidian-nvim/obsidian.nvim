@@ -6,6 +6,11 @@ local T = new_set()
 
 -- TODO: standardize three ways of passing in options
 
+T["find_cmd works"] = function()
+  local out = vim.system(M.build_find_cmd(assert(vim.uv.cwd()), { sort_by = false })):wait()
+  eq(out.code, 0)
+end
+
 T["search_cmd works"] = function()
   local out = vim.system(M.build_search_cmd(assert(vim.uv.cwd()), "obsidian", {})):wait()
   eq(out.code, 0)

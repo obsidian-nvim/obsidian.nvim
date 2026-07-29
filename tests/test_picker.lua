@@ -304,8 +304,18 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
   )
   picked_opts.selection_mappings["<C-l>"].callback(picked_values[1])
 
+  local search = require "obsidian.search"
+  local original_find_async = search.find_async
+  local filesystem_calls = 0
+  search.find_async = function()
+    filesystem_calls = filesystem_calls + 1
+  end
+  picker.find_files { use_cache = true, query = "agenda" }
+  search.find_async = original_find_async
+
   picker.select = original_select
 
+  eq(0, filesystem_calls)
   eq(1, #picked_values)
   eq("Agenda", picked_values[1].text)
   eq(true, picked_opts.allow_multiple)
@@ -353,12 +363,9 @@ T["find_files presents filesystem paths without a shell command"] = function()
   end)
   picker.select = original_select
 
-  eq(
-    { "a.md", "b.md" },
-    vim.tbl_map(function(item)
-      return item.text
-    end, picked_values)
-  )
+  eq({ tostring(dir / "a.md"), tostring(dir / "b.md") }, picked_values)
+  eq(true, vim.endswith(picked_opts.format_item(picked_values[1]), "a.md"))
+  eq(true, vim.endswith(picked_opts.format_item(picked_values[2]), "b.md"))
   eq("initial", picked_opts.query)
   eq({ tostring(dir / "a.md"), tostring(dir / "b.md") }, selected)
 end

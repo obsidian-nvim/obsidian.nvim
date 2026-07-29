@@ -110,7 +110,7 @@ T["walk can enumerate directories with a depth limit"] = function()
   eq(vim.tbl_contains(result, tostring(two)), false)
 end
 
-T["find_async matches literal filenames without ripgrep"] = function()
+T["find_async filesystem fallback matches literal filenames"] = function()
   local dir = Obsidian.dir
   local markdown = tostring(dir / "literal-{query}.md")
   local text = tostring(dir / "literal-{query}.txt")
@@ -119,15 +119,97 @@ T["find_async matches literal filenames without ripgrep"] = function()
 
   local result = {}
   local exit_code
+  local original_has_ripgrep = search._has_ripgrep
+  search._has_ripgrep = function()
+    return false
+  end
   search.find_async(dir, "{query}", {}, function(path)
     result[#result + 1] = path
   end, function(code)
     exit_code = code
   end)
+  search._has_ripgrep = original_has_ripgrep
 
   vim.wait(1000, function()
     return exit_code ~= nil
   end)
+  eq(result, { markdown })
+  eq(exit_code, 0)
+end
+
+T["find_async uses ripgrep when it is available"] = function()
+  local dir = Obsidian.dir
+  local markdown = tostring(dir / "fast.md")
+  vim.fn.writefile({}, markdown)
+
+  local original_has_ripgrep = search._has_ripgrep
+  local original_system = vim.system
+  local command
+  search._has_ripgrep = function()
+    return true
+  end
+  vim.system = function(cmd, _, callback)
+    command = cmd
+    vim.schedule(function()
+      callback { code = 0, stdout = markdown .. "\n", stderr = "" }
+    end)
+    return {
+      kill = function() end,
+    }
+  end
+
+  local result = {}
+  local exit_code
+  search.find_async(dir, nil, {}, function(path)
+    result[#result + 1] = path
+  end, function(code)
+    exit_code = code
+  end)
+
+  search._has_ripgrep = original_has_ripgrep
+  vim.system = original_system
+  vim.wait(1000, function()
+    return exit_code ~= nil
+  end)
+
+  eq(command[1], "rg")
+  eq(result, { markdown })
+  eq(exit_code, 0)
+end
+
+T["find_async falls back when ripgrep execution fails"] = function()
+  local dir = Obsidian.dir
+  local markdown = tostring(dir / "fallback.md")
+  vim.fn.writefile({}, markdown)
+
+  local original_has_ripgrep = search._has_ripgrep
+  local original_system = vim.system
+  search._has_ripgrep = function()
+    return true
+  end
+  vim.system = function(_, _, callback)
+    vim.schedule(function()
+      callback { code = 2, stdout = "", stderr = "failed" }
+    end)
+    return {
+      kill = function() end,
+    }
+  end
+
+  local result = {}
+  local exit_code
+  search.find_async(dir, nil, {}, function(path)
+    result[#result + 1] = path
+  end, function(code)
+    exit_code = code
+  end)
+
+  search._has_ripgrep = original_has_ripgrep
+  vim.system = original_system
+  vim.wait(1000, function()
+    return exit_code ~= nil
+  end)
+
   eq(result, { markdown })
   eq(exit_code, 0)
 end

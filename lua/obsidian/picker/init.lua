@@ -6,8 +6,8 @@ local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
 local icons = require "obsidian.icons"
-local fs = require "obsidian.fs"
 local Path = require "obsidian.path"
+local search = require "obsidian.search"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
@@ -170,32 +170,6 @@ local function transform_selection_mappings(mappings, transform)
   return transformed
 end
 
---- Present a collected path list with the active picker.
----
----@param paths string[]
----@param opts obsidian.PickerFindOpts?
-M.select_paths = function(paths, opts)
-  opts = opts or {}
-  local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
-
-  M.select(paths, {
-    prompt = opts.prompt_title,
-    allow_multiple = true,
-    query = opts.query,
-    query_mappings = opts.query_mappings,
-    selection_mappings = opts.selection_mappings,
-    format_item = function(path)
-      return icons.get_path_icon(path) .. " " .. tostring(Path.new(path):relative_to(dir))
-    end,
-    preview_item = function(path)
-      return preview_path(path)
-    end,
-  }, function(items)
-    local callback = opts.callback or picker_util.open_notes
-    callback(items)
-  end)
-end
-
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
 M.find_files_from_cache = function(opts)
@@ -280,8 +254,7 @@ M.find_files_from_cache = function(opts)
   return true
 end
 
---- Find files using the shared filesystem iterator and present them with the
---- active picker. Fuzzy query matching remains picker-side.
+--- Find files using the shared filesystem iterator and present them with the active picker.
 ---
 ---@param opts obsidian.PickerFindOpts?
 M.find_files = function(opts)
@@ -290,16 +263,36 @@ M.find_files = function(opts)
     return
   end
 
-  local dir = opts.dir or Obsidian.dir
-  local markdown_extensions = { md = true, qmd = true, base = true }
-  return fs.find_files_async(dir, {
+  local dir = opts.dir or api.resolve_workspace_dir()
+  local paths = {}
+  search.find_async(dir, nil, {
     sort_by = Obsidian.opts.search.sort_by,
     sort_reversed = Obsidian.opts.search.sort_reversed,
-    predicate = function(path)
-      return opts.include_non_markdown or markdown_extensions[vim.fn.fnamemodify(path, ":e"):lower()] == true
-    end,
-  }, function(paths)
-    M.select_paths(paths, vim.tbl_extend("force", {}, opts, { dir = dir }))
+    include_non_markdown = opts.include_non_markdown,
+  }, function(path)
+    paths[#paths + 1] = path
+  end, function(code)
+    if code ~= 0 then
+      log.err("Failed to enumerate files in '%s'", dir)
+      return
+    end
+
+    M.select(paths, {
+      prompt = opts.prompt_title,
+      allow_multiple = true,
+      query = opts.query,
+      query_mappings = opts.query_mappings,
+      selection_mappings = opts.selection_mappings,
+      format_item = function(path)
+        return icons.get_path_icon(path) .. " " .. tostring(Path.new(path):relative_to(dir))
+      end,
+      preview_item = function(path)
+        return preview_path(path)
+      end,
+    }, function(items)
+      local callback = opts.callback or picker_util.open_notes
+      callback(items)
+    end)
   end)
 end
 

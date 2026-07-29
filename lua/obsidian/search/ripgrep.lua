@@ -13,6 +13,7 @@ local BASE_CMD = {
 }
 
 local SEARCH_CMD = util.flatten { BASE_CMD, "--type=md", "--json" }
+local FIND_CMD = util.flatten { BASE_CMD, "--files" }
 
 ---@param opts obsidian.search.SearchOpts
 ---@return string[]
@@ -88,6 +89,34 @@ M.build_search_cmd = function(dir, term, opts)
   }
 end
 
+---@param path string?
+---@param opts obsidian.search.SearchOpts?
+---@return string[]
+M.build_find_cmd = function(path, opts)
+  opts = opts or {}
+  local search_opts = Obsidian and Obsidian.opts and Obsidian.opts.search or {}
+  opts = vim.tbl_extend("keep", opts, {
+    sort_by = search_opts.sort_by,
+    sort_reversed = search_opts.sort_reversed,
+    ignore_case = true,
+  })
+
+  local additional_opts = {}
+  if not opts.include_non_markdown then
+    additional_opts[#additional_opts + 1] = "--type=md"
+  end
+
+  if path ~= nil and path ~= "." then
+    additional_opts[#additional_opts + 1] = path
+  end
+
+  return util.flatten {
+    FIND_CMD,
+    generate_args(opts),
+    additional_opts,
+  }
+end
+
 --- Build the 'rg' grep command for pickers.
 ---
 ---@param opts obsidian.search.SearchOpts|?
@@ -95,10 +124,11 @@ end
 ---@return string[]
 M.build_grep_cmd = function(opts)
   opts = opts and opts or {}
+  local search_opts = Obsidian and Obsidian.opts and Obsidian.opts.search or {}
 
   opts = vim.tbl_extend("keep", opts, {
-    sort_by = Obsidian.opts.search.sort_by,
-    sort_reversed = Obsidian.opts.search.sort_reversed,
+    sort_by = search_opts.sort_by,
+    sort_reversed = search_opts.sort_reversed,
     smart_case = true,
     fixed_strings = true,
   })

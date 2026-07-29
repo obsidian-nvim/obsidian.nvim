@@ -16,8 +16,11 @@ end
 local Opts = require "obsidian.search.opts" -- general class to handle options
 local Ripgrep = require "obsidian.search.ripgrep" -- could have other backends in the future...
 
-M.build_search_cmd = Ripgrep.build_search_cmd
 M.build_grep_cmd = Ripgrep.build_grep_cmd
+
+M._has_ripgrep = function()
+  return vim.fn.executable "rg" == 1
+end
 
 M.Patterns = {
   -- Tags
@@ -107,7 +110,7 @@ end
 ---@param on_exit fun(exit_code: integer)|?
 ---@return vim.SystemObj handle
 M.search_async = function(dir, term, opts, on_match, on_exit)
-  local cmd = M.build_search_cmd(dir, term, opts)
+  local cmd = Ripgrep.build_search_cmd(dir, term, opts)
   return async.run_job_async(cmd, function(line)
     local data = vim.json.decode(line)
     if data["type"] == "match" then
@@ -132,37 +135,97 @@ end
 ---@return fun() cancel
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
-  opts = opts or {}
+  opts = vim.deepcopy(opts or {})
+
+  if Obsidian and Obsidian.dir and Obsidian.opts and util.is_subpath(tostring(norm_dir), tostring(Obsidian.dir)) then
+    local ignore_filters = Obsidian.opts.file and Obsidian.opts.file.ignore_filters or {}
+    opts.exclude = opts.exclude or {}
+    for _, pattern in ipairs(ignore_filters) do
+      if not vim.tbl_contains(opts.exclude, pattern) then
+        opts.exclude[#opts.exclude + 1] = pattern
+      end
+    end
+  end
 
   local query = term and string.lower(term) or nil
   local exclude = opts.exclude and gitignore(opts.exclude, { ignoreCase = true }) or nil
   local markdown_extensions = { [".md"] = true, [".qmd"] = true, [".base"] = true }
 
-  return fs.find_files_async(norm_dir, {
-    sort_by = opts.sort_by,
-    sort_reversed = opts.sort_reversed,
-    ignore = function(path)
-      if not exclude then
-        return false
-      end
-      local relative_path = tostring(Path.new(path):relative_to(norm_dir))
-      return exclude:check(relative_path)
-    end,
-    predicate = function(path)
-      local extension = "." .. vim.fn.fnamemodify(path, ":e"):lower()
-      if not opts.include_non_markdown and not markdown_extensions[extension] then
-        return false
-      end
-      return not query or string.find(string.lower(vim.fs.basename(path)), query, 1, true) ~= nil
-    end,
-  }, function(paths)
+  local cancelled = false
+  local cancel_backend
+
+  local function finish(paths, code)
+    if cancelled then
+      return
+    end
     for _, path in ipairs(paths) do
-      on_match(path)
+      on_match(vim.fs.normalize(path))
     end
     if on_exit ~= nil then
-      on_exit(0)
+      on_exit(code)
     end
-  end)
+  end
+
+  local function find_with_fs()
+    cancel_backend = fs.find_files_async(norm_dir, {
+      sort_by = opts.sort_by,
+      sort_reversed = opts.sort_reversed,
+      ignore = function(path)
+        if not exclude then
+          return false
+        end
+        local relative_path = tostring(Path.new(path):relative_to(norm_dir))
+        return exclude:check(relative_path)
+      end,
+      predicate = function(path)
+        local extension = "." .. vim.fn.fnamemodify(path, ":e"):lower()
+        if not opts.include_non_markdown and not markdown_extensions[extension] then
+          return false
+        end
+        return not query or string.find(string.lower(vim.fs.basename(path)), query, 1, true) ~= nil
+      end,
+    }, function(paths)
+      finish(paths, 0)
+    end)
+  end
+
+  if M._has_ripgrep() then
+    local handle = vim.system(Ripgrep.build_find_cmd(tostring(norm_dir), opts), { text = true }, function(result)
+      vim.schedule(function()
+        if cancelled then
+          return
+        elseif result.code ~= 0 then
+          find_with_fs()
+          return
+        end
+
+        local paths = vim
+          .iter(vim.split(result.stdout or "", "\n", { plain = true, trimempty = true }))
+          :filter(function(path)
+            if query then
+              return string.find(string.lower(vim.fs.basename(path)), query, 1, true) ~= nil
+            else
+              return true
+            end
+          end)
+          :totable()
+
+        finish(paths, result.code)
+      end)
+    end)
+    cancel_backend = function()
+      handle:kill(15)
+    end
+  else
+    find_with_fs()
+  end
+
+  return function()
+    cancelled = true
+    if cancel_backend then
+      cancel_backend()
+    end
+  end
 end
 
 ---@param term string
