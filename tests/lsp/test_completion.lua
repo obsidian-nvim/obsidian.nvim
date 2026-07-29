@@ -287,6 +287,32 @@ tags:
   eq("table", type(result))
 end
 
+T["completion"]["uses fuzzy cached tags when cache is enabled"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "#prm",
+    ["tagged.md"] = [==[
+---
+tags:
+  - project-roadmap
+---
+]==],
+  })
+  h.child_setup_cache(child)
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local found = false
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit and item.textEdit.newText == "#project-roadmap" then
+      found = true
+      break
+    end
+  end
+  eq(true, found)
+end
+
 T["completion"]["isIncomplete is true"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[fo",

@@ -328,4 +328,44 @@ T["cache backends"]["setup is idempotent and disabled tears down"] = function()
   eq(false, cache.is_enabled())
 end
 
+T["resolve tags"] = new_set()
+
+T["resolve tags"]["returns unique fuzzy matches from cached notes"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Path.new(dir / "nested"):mkdir()
+  helpers.write("---\ntags: [project, product]\n---\n#framework", dir / "One.md")
+  helpers.write("---\ntags: [project, personal]\n---", dir / "nested" / "Two.md")
+  helpers.write("attachment", dir / "project.png")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  eq({ "product", "project" }, cache.resolve_tags "PRT")
+  eq({ "project" }, cache.resolve_tags "#project")
+  eq({ "product", "project", "personal", "framework" }, cache.resolve_tags "r")
+  eq({}, cache.resolve_tags "")
+end
+
+T["resolve tags"]["limits matches to the requested directory"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Path.new(dir / "nested"):mkdir()
+  helpers.write("---\ntags: [root-tag]\n---", dir / "Root.md")
+  helpers.write("---\ntags: [nested-tag]\n---", dir / "nested" / "Nested.md")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  eq({ "nested-tag" }, cache.resolve_tags("tag", { dir = dir / "nested" }))
+end
+
 return T

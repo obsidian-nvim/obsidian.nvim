@@ -7,6 +7,47 @@ local picker_util = require "obsidian.picker.util"
 
 local M = {}
 
+---@class obsidian.cache.ResolveTagsOpts
+---@field dir string|obsidian.Path|?
+
+---Resolve unique cached tags using a case-insensitive fuzzy query.
+---
+---The cache must be ready before calling this function. Use `cache.when_ready()`
+---when calling it from an asynchronous UI flow.
+---
+---@param query string
+---@param opts obsidian.cache.ResolveTagsOpts|?
+---@return string[]
+M.resolve_tags = function(query, opts)
+  local cache = require "obsidian.cache"
+  assert(cache.is_ready(), "cache not ready")
+
+  opts = opts or {}
+  local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
+  local query_lower = vim.trim(query):lower():gsub("^#", "")
+  if query_lower == "" then
+    return {}
+  end
+
+  local seen = {}
+  local tags = {}
+  for path, row in pairs(cache.notes.all()) do
+    if row.attachment ~= true and util.is_subpath(path, dir) then
+      for _, tag in ipairs(row.tags or {}) do
+        tag = tostring(tag):lower()
+        if not seen[tag] then
+          seen[tag] = true
+          tags[#tags + 1] = tag
+        end
+      end
+    end
+  end
+
+  -- Give matchfuzzy stable input so tags with equal scores have deterministic order.
+  table.sort(tags)
+  return vim.fn.matchfuzzy(tags, query_lower)
+end
+
 ---@param target string
 ---@return boolean
 local function is_attachment_target(target)

@@ -1,6 +1,7 @@
 local completion = require "obsidian.completion.tags"
 local search = require "obsidian.search"
 local api = require "obsidian.api"
+local cache = require "obsidian.cache"
 
 local M = {}
 
@@ -9,6 +10,70 @@ local EMPTY_RESPONSE = {
   isIncomplete = true,
   items = {},
 }
+
+---@param tags table<string, integer|boolean>
+---@param in_frontmatter boolean|?
+---@param request obsidian.completion.Request
+---@return lsp.CompletionList
+local function completion_response(tags, in_frontmatter, request)
+  local items = {}
+  for tag, count in pairs(tags) do
+    -- Generate context-appropriate text
+    local insert_text, label_text
+    if in_frontmatter then
+      -- Frontmatter: insert tag without # (YAML format)
+      insert_text = tag
+      label_text = "Tag: " .. tag
+    else
+      -- Document body: insert tag with # (Obsidian format)
+      insert_text = "#" .. tag
+      label_text = "Tag: #" .. tag
+    end
+
+    -- Calculate the range to replace (the entire #tag pattern)
+    local cursor_before = request.cursor_before_line
+    local hash_start = string.find(cursor_before, "#[^%s]*$")
+    local _, dash_end = string.find(cursor_before, "%-%s")
+    local insert_start = hash_start and (hash_start - 1) or dash_end
+    local insert_end = #cursor_before
+
+    local documentation
+    if type(count) == "number" then
+      documentation = string.format("`#%s` — %d occurrence%s", tag, count, count == 1 and "" or "s")
+    else
+      documentation = string.format("`#%s`", tag)
+    end
+
+    items[#items + 1] = {
+      sortText = tag,
+      filterText = hash_start and "#" .. tag or tag,
+      label = label_text,
+      kind = vim.lsp.protocol.CompletionItemKind.Keyword,
+      documentation = {
+        kind = "markdown",
+        value = documentation,
+      },
+      textEdit = {
+        newText = insert_text,
+        range = {
+          ["start"] = {
+            line = request.line,
+            character = insert_start,
+          },
+          ["end"] = {
+            line = request.line,
+            character = insert_end,
+          },
+        },
+      },
+    }
+  end
+
+  return {
+    isIncomplete = true,
+    items = items,
+  }
+end
 
 --- Runs a generalized version of the complete (nvim_cmp) or get_completions (blink) methods
 ---@param callback fun(resp: lsp.CompletionList)
@@ -23,62 +88,24 @@ function M.process_completion(callback, request)
 
   ---@cast term -nil
 
+  if cache.is_enabled() then
+    cache.when_ready(function()
+      local tags = {}
+      for _, tag in ipairs(cache.resolve_tags(term, { dir = api.resolve_workspace_dir() })) do
+        tags[tag] = true
+      end
+      callback(completion_response(tags, in_frontmatter, request))
+    end)
+    return
+  end
+
   search.find_tags_async(term, function(tag_locs)
     local tags = {}
     for _, tag_loc in ipairs(tag_locs) do
       tags[tag_loc.tag] = (tags[tag_loc.tag] or 0) + 1
     end
 
-    local items = {}
-    for tag, count in pairs(tags) do
-      -- Generate context-appropriate text
-      local insert_text, label_text
-      if in_frontmatter then
-        -- Frontmatter: insert tag without # (YAML format)
-        insert_text = tag
-        label_text = "Tag: " .. tag
-      else
-        -- Document body: insert tag with # (Obsidian format)
-        insert_text = "#" .. tag
-        label_text = "Tag: #" .. tag
-      end
-
-      -- Calculate the range to replace (the entire #tag pattern)
-      local cursor_before = request.cursor_before_line
-      local hash_start = string.find(cursor_before, "#[^%s]*$")
-      local _, dash_end = string.find(cursor_before, "%-%s")
-      local insert_start = hash_start and (hash_start - 1) or dash_end
-      local insert_end = #cursor_before
-
-      items[#items + 1] = {
-        sortText = tag,
-        filterText = hash_start and "#" .. tag or tag,
-        label = label_text,
-        kind = vim.lsp.protocol.CompletionItemKind.Keyword,
-        documentation = {
-          kind = "markdown",
-          value = string.format("`#%s` — %d occurrence%s", tag, count, count == 1 and "" or "s"),
-        },
-        textEdit = {
-          newText = insert_text,
-          range = {
-            ["start"] = {
-              line = request.line,
-              character = insert_start,
-            },
-            ["end"] = {
-              line = request.line,
-              character = insert_end,
-            },
-          },
-        },
-      }
-    end
-
-    callback {
-      isIncomplete = true,
-      items = items,
-    }
+    callback(completion_response(tags, in_frontmatter, request))
   end, { dir = api.resolve_workspace_dir() })
 end
 
