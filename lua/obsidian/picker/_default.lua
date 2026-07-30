@@ -4,6 +4,7 @@ local log = require "obsidian.log"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local ut = require "obsidian.picker.util"
+local util = require "obsidian.util"
 
 --- Pick from a list of items.
 ---
@@ -137,6 +138,7 @@ M.find_files = function(opts)
         M.select(paths, {
           prompt = opts.prompt_title,
           allow_multiple = true,
+          preview_item = util.preview_path,
         }, opts.callback)
       end
     end)

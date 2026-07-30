@@ -140,16 +140,6 @@ end
 
 M.pick = pick
 
----@param path string
----@return obsidian.ui_select_preview_spec
-local function preview_path(path)
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
-  vim.bo[buf].bufhidden = "wipe"
-  vim.bo[buf].filetype = "markdown"
-  return { buf = buf }
-end
-
 ---@param mappings obsidian.PickerMappingTable|?
 ---@param transform fun(value: any): string
 ---@return obsidian.PickerMappingTable|?
@@ -235,7 +225,7 @@ M.find_files_from_cache = function(opts)
         return icon .. " " .. item.text
       end,
       preview_item = function(item)
-        return preview_path(item.filename)
+        return util.preview_path(item.filename)
       end,
     }, function(items)
       local paths = vim.tbl_filter(
@@ -286,9 +276,7 @@ local find_files = function(opts)
       format_item = function(path)
         return icons.get_path_icon(path) .. " " .. tostring(Path.new(path):relative_to(dir))
       end,
-      preview_item = function(path)
-        return preview_path(path)
-      end,
+      preview_item = util.preview_path,
     }, function(items)
       local callback = opts.callback or picker_util.open_notes
       callback(items)

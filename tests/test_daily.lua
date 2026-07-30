@@ -74,4 +74,42 @@ T["dailies"]["pick should use custom date resolver"] = function()
   eq("2026-06-25", picked.id)
 end
 
+T["dailies"]["picker previews existing notes and prompts to create missing notes"] = function()
+  local today = M.daily_note_path()
+  h.write("# Today", today)
+
+  local picker = require "obsidian.picker"
+  local original_select = picker.select
+  local existing_lines, missing_lines, bufhidden
+  picker.select = function(items, opts, on_choice)
+    for _, item in ipairs(items) do
+      local preview = opts.preview_item(item)
+      local lines = vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false)
+      if vim.uv.fs_stat(item.filename) then
+        existing_lines = lines
+      else
+        missing_lines = lines
+      end
+      bufhidden = vim.bo[preview.buf].bufhidden
+      vim.api.nvim_buf_delete(preview.buf, { force = true })
+    end
+    on_choice {}
+  end
+
+  local ok, err = pcall(function()
+    require("obsidian.resolvers").builtin.date({
+      offset_start = 0,
+      offset_end = 1,
+    }, function() end)
+  end)
+  picker.select = original_select
+  if not ok then
+    error(err)
+  end
+
+  eq({ "# Today" }, existing_lines)
+  eq({ "Select to create this daily note." }, missing_lines)
+  eq("wipe", bufhidden)
+end
+
 return T

@@ -1,7 +1,26 @@
 local M = require "obsidian.util"
+local Path = require "obsidian.path"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
+
+T["preview_path"] = new_set()
+
+T["preview_path"]["lists directory contents and marks folders"] = function()
+  local dir = Path.temp { suffix = "-obsidian-preview" }
+  dir:mkdir { parents = true }
+  local folder = dir / "folder1"
+  folder:mkdir()
+  M.write_file(tostring(dir / "file1.md"), "# file1")
+  M.write_file(tostring(dir / "file2.lua"), "return {}")
+
+  local preview = M.preview_path(dir)
+  eq({ "file1.md", "file2.lua", "folder1/" }, vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false))
+  eq("wipe", vim.bo[preview.buf].bufhidden)
+
+  vim.api.nvim_buf_delete(preview.buf, { force = true })
+  vim.fn.delete(tostring(dir), "rf")
+end
 
 T["tbl_unique"] = function()
   eq(#M.tbl_unique { "hi", "hey", "hi", "hi" }, 2)

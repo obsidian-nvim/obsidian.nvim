@@ -2,6 +2,7 @@ local log = require "obsidian.log"
 local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
+local util = require "obsidian.util"
 
 local M = {}
 
@@ -128,24 +129,29 @@ local function preview_query(bookmark, buf)
 end
 
 ---@param bookmark obsidian.Bookmark
----@param buf integer
 ---@return obsidian.ui_select_preview_spec
-local function preview_file(bookmark, buf)
-  if not bookmark.path then
+local function preview_file(bookmark)
+  if not bookmark.path or not bookmark._path then
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "wipe"
     return { buf = buf }
   end
   local entry = bookmark_to_picker_entry(bookmark)
   if not entry.filename then
-    return { buf = buf }
+    return util.preview_path(bookmark._path)
   end
-  local lines = vim.fn.readfile(entry.filename)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  return { buf = buf, pos = entry.lnum and { entry.lnum, 0 } or nil }
+  local preview = util.preview_path(entry.filename)
+  preview.pos = entry.lnum and { entry.lnum, 0 } or nil
+  return preview
 end
 
 ---@param bookmark obsidian.Bookmark
 ---@return obsidian.ui_select_preview_spec
 local function preview_bookmark(bookmark)
+  if bookmark.type == "file" or bookmark.type == "folder" then
+    return preview_file(bookmark)
+  end
+
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = "wipe"
   if bookmark.type == "url" then
@@ -154,8 +160,6 @@ local function preview_bookmark(bookmark)
     return preview_group(bookmark, buf)
   elseif bookmark.type == "search" then
     return preview_query(bookmark, buf)
-  elseif bookmark.type == "file" then
-    return preview_file(bookmark, buf)
   else
     return { buf = buf }
   end

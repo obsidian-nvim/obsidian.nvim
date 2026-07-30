@@ -9,6 +9,23 @@ local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
 
+---@param entry obsidian.PickerEntry
+---@return obsidian.ui_select_preview_spec
+local function preview_entry(entry)
+  local filename = entry.filename
+  ---@cast filename -nil
+  local preview = util.preview_path(filename)
+  local range = rawget(entry, "range")
+  ---@cast range lsp.Range?
+  if range then
+    preview.pos = { range.start.line + 1, range.start.character }
+    preview.pos_end = { range["end"].line + 1, range["end"].character }
+  elseif entry.lnum then
+    preview.pos = { entry.lnum, entry.col and math.max(entry.col - 1, 0) or 0 }
+  end
+  return preview
+end
+
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
 ---@param link string?
@@ -31,7 +48,10 @@ M.follow_link = function(link, opts)
     if #items == 1 then
       api.open_note(items[1], cmd)
     else
-      picker.select(items, { prompt = "Resolve link" }, function(choices)
+      picker.select(items, {
+        prompt = "Resolve link",
+        preview_item = preview_entry,
+      }, function(choices)
         local entry = choices and choices[1]
         if entry then
           api.open_note(entry, cmd)
@@ -749,7 +769,10 @@ M.workspace_symbol = function(query, callback)
   query = query or ""
   require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
     local entries = vim.tbl_map(symbol_to_entry, symbols)
-    picker.select(entries, { prompt = "Workspace Symbols" }, function(items)
+    picker.select(entries, {
+      prompt = "Workspace Symbols",
+      preview_item = preview_entry,
+    }, function(items)
       local entry = items and items[1]
       if not entry then
         return
@@ -781,6 +804,9 @@ local function pick_folder(callback)
   picker.select(choices, {
     format_item = function(v)
       return tostring(v.text)
+    end,
+    preview_item = function(entry)
+      return util.preview_path(entry.filename)
     end,
   }, function(items)
     local entry = items[1]
@@ -942,21 +968,13 @@ local function gather_tag_picker_list(tag_locations, tags)
     return
   end
 
-  local function preview_item(entry)
-    local buf = vim.api.nvim_create_buf(false, true)
-    vim.bo[buf].bufhidden = "wipe"
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(entry.filename))
-    vim.bo[buf].filetype = "markdown"
-    return { buf = buf, pos = { entry.lnum or 1, entry.col and math.max(entry.col - 1, 0) or 0 } }
-  end
-
   vim.schedule(function()
     picker.select(entries, {
       prompt = "#" .. table.concat(tags, ", #"),
       format_item = function(entry)
         return entry.text
       end,
-      preview_item = preview_item,
+      preview_item = preview_entry,
     }, function(items)
       if not vim.tbl_isempty(items) then
         api.open_note(items[1])
