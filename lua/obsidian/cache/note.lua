@@ -130,9 +130,12 @@ function M.build(abs_path, _vault_root)
   end
 
   local row = {
-    mtime = stat.mtime.sec,
-    mtime_nsec = stat.mtime.nsec,
-    size = stat.size,
+    kind = "note",
+    stat = {
+      mtime_sec = stat.mtime.sec,
+      mtime_nsec = stat.mtime.nsec,
+      size = stat.size,
+    },
   }
   local basename = vim.fn.fnamemodify(abs_path, ":t:r")
   if tostring(note.id) ~= basename then

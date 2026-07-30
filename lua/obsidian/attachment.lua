@@ -4,58 +4,25 @@ local fs_util = require "obsidian.util.fs"
 local link_parser = require "obsidian.link.parser"
 local uri = require "obsidian.uri"
 local log = require "obsidian.log"
+local filetypes = require "obsidian.filetypes"
 
 ---@enum obsidian.attachment.ft
-local filetypes = {
+local supported_filetypes = {
   -- markdown
   "md",
-  -- json canvas
-  "canvas",
-  -- images
-  "avif",
-  "bmp",
-  "gif",
-  "jpg",
-  "jpeg",
-  "png",
-  "svg",
-  "webp",
-  -- audio
-  "flac",
-  "m4a",
-  "mp3",
-  "ogg",
-  "wav",
-  "3gp",
-  -- video
-  "mkv",
-  "mov",
-  "mp4",
-  "ogv",
-  "webm",
-  -- pdf
-  "pdf",
 }
+vim.list_extend(supported_filetypes, filetypes.attachment_extensions)
 
 -- TODO: file extension to mime type and vice versa
 
-M.filetypes = filetypes
+M.filetypes = supported_filetypes
 
 ---Checks if a given string represents a valid attachment based on its suffix.
 ---
 ---@param location string
 ---@return boolean
 M.is_attachment_path = function(location)
-  location = location:lower()
-  if vim.endswith(location, ".md") then
-    return false
-  end
-  for _, ext in ipairs(filetypes) do
-    if vim.endswith(location, "." .. ext) then
-      return true
-    end
-  end
-  return false
+  return filetypes.is_attachment(location)
 end
 
 -- Compatibility alias for callers using the filetype name.
