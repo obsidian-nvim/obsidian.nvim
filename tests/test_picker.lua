@@ -332,6 +332,8 @@ T["find_files presents filesystem paths without a shell command"] = function()
   helpers.write("# A", dir / "a.md")
   helpers.write("# B", dir / "b.md")
   helpers.write("text", dir / "other.txt")
+  local resolved_dir = dir:resolve { strict = true }
+  local expected_paths = { tostring(resolved_dir / "a.md"), tostring(resolved_dir / "b.md") }
   Obsidian = {
     dir = dir,
     opts = {
@@ -369,11 +371,11 @@ T["find_files presents filesystem paths without a shell command"] = function()
     end)
   end)
 
-  eq({ tostring(dir / "a.md"), tostring(dir / "b.md") }, picked_values)
+  eq(expected_paths, picked_values)
   eq(true, vim.endswith(picked_opts.format_item(picked_values[1]), "a.md"))
   eq(true, vim.endswith(picked_opts.format_item(picked_values[2]), "b.md"))
   eq("initial", picked_opts.query)
-  eq({ tostring(dir / "a.md"), tostring(dir / "b.md") }, selected)
+  eq(expected_paths, selected)
 end
 
 T["default find_files uses a supplied query and prompts when it is absent"] = function()

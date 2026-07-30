@@ -253,7 +253,10 @@ local find_files = function(opts)
     return
   end
 
-  local dir = opts.dir or api.resolve_workspace_dir()
+  -- search.find_async() resolves its root before enumerating files. Use the
+  -- same canonical root here so aliases such as macOS's /var -> /private/var
+  -- and Windows short paths remain relative to the picker directory.
+  local dir = Path.new(opts.dir or api.resolve_workspace_dir()):resolve { strict = true }
   local paths = {}
   search.find_async(dir, nil, {
     sort_by = Obsidian.opts.search.sort_by,
