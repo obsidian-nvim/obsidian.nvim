@@ -65,6 +65,7 @@ end
 T["initialized dynamically registers file watchers"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.initialized"
+    Obsidian.opts.cache.enabled = true
 
     handler(vim.empty_dict(), {
       server_request = function(method, params)

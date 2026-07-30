@@ -1,12 +1,12 @@
 --- Obsidian cache: ORM-style repository over swappable backend.
 ---
---- v1 ships JSON backend + notes repository CRUD only (no query layer).
+--- v2 stores typed note and attachment rows behind separate repositories.
 --- Wired to LSP document-save and watched-file events for live updates.
 
 local log = require "obsidian.log"
 local watchfiles = require "obsidian.lsp.watchfiles"
 local cache_note = require "obsidian.cache.note"
-local attachment = require "obsidian.attachment"
+local filetypes = require "obsidian.filetypes"
 local ignore = require "obsidian.ignore"
 
 local M = {}
@@ -22,6 +22,27 @@ M.find_files = require("obsidian.cache.api").find_files
 ---@field all fun(self: obsidian.cache.Store): table<string, table>
 ---@field put fun(self: obsidian.cache.Store, key: string, row: table)
 ---@field delete fun(self: obsidian.cache.Store, key: string)
+
+---@class obsidian.cache.FileStat
+---@field size integer
+---@field mtime_sec integer
+---@field mtime_nsec integer
+
+---@class obsidian.cache.NoteRow
+---@field kind "note"
+---@field stat obsidian.cache.FileStat
+---@field aliases? string[]
+---@field tags? string[]
+---@field properties? table<string, any>
+---@field links_out? table[]
+---@field tasks? table[]
+
+---@class obsidian.cache.AttachmentRow
+---@field kind "attachment"
+---@field stat obsidian.cache.FileStat
+---@field extension string
+
+---@alias obsidian.cache.Row obsidian.cache.NoteRow|obsidian.cache.AttachmentRow
 
 ---@type table<string, any>
 local backends = {
@@ -41,39 +62,16 @@ local backends = {
 local state = nil
 
 local FLUSH_DEBOUNCE_MS = 2000
-local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = true }
-local ATTACHMENT_EXTENSIONS = {}
-for _, ext in ipairs(attachment.filetypes) do
-  ATTACHMENT_EXTENSIONS[ext] = true
-end
-
----@param path string
----@return string
-local function file_ext(path)
-  return (path:match "%.([^./]+)$" or ""):lower()
-end
-
----@param path string
----@return boolean
-local function is_markdown_note(path)
-  return MARKDOWN_EXTENSIONS[file_ext(path)] == true
-end
-
----@param path string
----@return boolean
-local function is_cacheable_file(path)
-  local ext = file_ext(path)
-  return MARKDOWN_EXTENSIONS[ext] == true or (ext ~= "md" and ATTACHMENT_EXTENSIONS[ext] == true)
-end
 
 ---@param abs_path string
----@return table?
-local function build_row(abs_path)
+---@param kind "note"|"attachment"
+---@return obsidian.cache.Row?
+local function build_row(abs_path, kind)
   if not state then
     return nil
   end
 
-  if is_markdown_note(abs_path) then
+  if kind == "note" then
     return cache_note.build(abs_path, state.vault)
   end
 
@@ -82,10 +80,13 @@ local function build_row(abs_path)
     return nil
   end
   return {
-    mtime = stat.mtime.sec,
-    mtime_nsec = stat.mtime.nsec,
-    size = stat.size,
-    attachment = true,
+    kind = "attachment",
+    stat = {
+      mtime_sec = stat.mtime.sec,
+      mtime_nsec = stat.mtime.nsec,
+      size = stat.size,
+    },
+    extension = filetypes.extension(abs_path),
   }
 end
 
@@ -97,6 +98,23 @@ local function is_in_vault(abs_path)
   end
   local root = state.vault:gsub("/+$", "")
   return abs_path == root or vim.startswith(abs_path, root .. "/")
+end
+
+---@param abs_path string
+---@return boolean
+local function is_internal(abs_path)
+  if not state then
+    return true
+  end
+  local root = state.vault:gsub("/+$", "")
+  local rel = abs_path
+  if vim.startswith(abs_path, root .. "/") then
+    rel = abs_path:sub(#root + 2)
+  end
+  local first = rel:match "^([^/\\]+)"
+  local opts = Obsidian.opts or {}
+  local config_dir = opts.sync and opts.sync.config_dir or ".obsidian"
+  return first == config_dir or first == ".git"
 end
 
 local function schedule_flush()
@@ -144,12 +162,13 @@ local function reindex_one(abs_path)
   if not is_in_vault(abs_path) then
     return
   end
-  if not is_cacheable_file(abs_path) or is_ignored(abs_path) then
+  local kind = filetypes.kind(abs_path)
+  if not kind or is_internal(abs_path) or is_ignored(abs_path) then
     state.backend:delete(abs_path)
     schedule_flush()
     return
   end
-  local row = build_row(abs_path)
+  local row = build_row(abs_path, kind)
   if row then
     state.backend:put(abs_path, row)
   else
@@ -177,12 +196,13 @@ local function rename_one(old_path, new_path)
   end
   old_path = vim.fs.normalize(old_path)
   new_path = vim.fs.normalize(new_path)
-  if not is_in_vault(new_path) or not is_cacheable_file(new_path) or is_ignored(new_path) then
+  local kind = filetypes.kind(new_path)
+  if not is_in_vault(new_path) or not kind or is_internal(new_path) or is_ignored(new_path) then
     state.backend:delete(old_path)
     schedule_flush()
     return
   end
-  local row = build_row(new_path)
+  local row = build_row(new_path, kind)
   if not row then
     state.backend:delete(old_path)
     schedule_flush()
@@ -227,11 +247,27 @@ local function on_events(events)
   end
 end
 
----@param row table
+---@param row obsidian.cache.Row
 ---@param stat uv.fs_stat.result
 ---@return boolean
 local function stat_matches(row, stat)
-  return row.mtime == stat.mtime.sec and row.mtime_nsec == stat.mtime.nsec and row.size == stat.size
+  local cached = row.stat
+  return cached ~= nil
+    and cached.mtime_sec == stat.mtime.sec
+    and cached.mtime_nsec == stat.mtime.nsec
+    and cached.size == stat.size
+end
+
+---@param row obsidian.cache.Row?
+---@param path string
+---@param stat uv.fs_stat.result
+---@return boolean
+local function entry_matches(row, path, stat)
+  local kind = filetypes.kind(path)
+  if type(row) ~= "table" or not kind or row.kind ~= kind or not stat_matches(row, stat) then
+    return false
+  end
+  return kind ~= "attachment" or row.extension == filetypes.extension(path)
 end
 
 ---Walk vault, populate cache for all supported notes and attachments. Skips entries whose mtime/size match.
@@ -243,19 +279,20 @@ local function initial_scan(force)
   local scan_state = state
   local found = {}
   local files = vim.fs.find(function(name, dir)
-    if not is_cacheable_file(name) then
+    if not filetypes.kind(name) then
       return false
     end
-    return not is_ignored(dir .. "/" .. name)
+    local path = dir .. "/" .. name
+    return not is_internal(path) and not is_ignored(path)
   end, { type = "file", path = scan_state.vault, limit = math.huge })
 
   for _, abs in ipairs(files) do
-    if not is_ignored(abs) then
+    if not is_internal(abs) and not is_ignored(abs) then
       abs = vim.fs.normalize(abs)
       found[abs] = true
       local existing = scan_state.backend:get(abs)
       local stat = vim.uv.fs_stat(abs)
-      if stat and (force or not existing or not stat_matches(existing, stat)) then
+      if stat and (force or not entry_matches(existing, abs, stat)) then
         reindex_one(abs)
       end
     end
@@ -342,16 +379,20 @@ function M.setup(opts)
   local vault = vim.fs.normalize(tostring(Obsidian.dir))
   local stdpath_cache = vim.fn.stdpath "cache"
   ---@cast stdpath_cache string
-  local cache_dir = vim.fs.joinpath(stdpath_cache, "obsidian.nvim")
-  vim.fn.mkdir(cache_dir, "p")
-  local cache_path = vim.fs.joinpath(cache_dir, vim.fn.sha256(vault):sub(1, 16) .. ".json")
+  local cache_root = vim.fs.joinpath(stdpath_cache, "obsidian.nvim", vim.fn.sha256(vault):sub(1, 16))
+  local cache_path = vim.fs.joinpath(cache_root, "index.json")
 
   local backend_name = opts.backend or "json"
+  if backend_name == "json" then
+    vim.fn.mkdir(cache_root, "p")
+  end
   local backend_impl = M.get_backend(backend_name)
   if not backend_impl then
     error("cache: unknown backend '" .. tostring(backend_name) .. "'")
   end
-  local backend = backend_impl.open(vim.tbl_extend("force", vim.deepcopy(opts), { path = cache_path, vault = vault }))
+  local backend = backend_impl.open(
+    vim.tbl_extend("force", vim.deepcopy(opts), { path = cache_path, root = cache_root, vault = vault })
+  )
 
   state = {
     backend = backend,
@@ -413,53 +454,91 @@ end
 ---@class obsidian.cache.NotesRepo
 M.notes = {}
 
----@param path string  absolute path
----@return table
-function M.notes.get(path)
-  assert(state and state.ready, "cache not ready")
-  local row = state.backend:get(vim.fs.normalize(path))
-  if not row then
-    error("cache: no note at " .. path)
-  end
-  return row
+---@param row obsidian.cache.Row?
+---@return boolean
+local function is_note_row(row)
+  return row ~= nil and row.kind == "note"
 end
 
----@param path string
----@return table?
-function M.notes.find(path)
-  if not state or not state.ready then
-    return nil
-  end
-  return state.backend:get(vim.fs.normalize(path))
+---@param row obsidian.cache.Row?
+---@return boolean
+local function is_attachment_row(row)
+  return row ~= nil and row.kind == "attachment"
 end
 
----@return table<string, table>
-function M.notes.all()
-  assert(state and state.ready, "cache not ready")
-  return state.backend:all()
-end
-
+---@param predicate fun(row: obsidian.cache.Row?): boolean
 ---@return integer
-function M.notes.count()
+local function count_rows(predicate)
   if not state or not state.ready then
     return 0
   end
-  local n = 0
-  for _ in pairs(state.backend:all()) do
-    n = n + 1
+  local count = 0
+  for _, row in pairs(state.backend:all()) do
+    if predicate(row) then
+      count = count + 1
+    end
   end
-  return n
+  return count
 end
 
 ---@param path string
 ---@return string
-function M.notes.rel_path(path)
+local function rel_path(path)
   assert(state, "cache not initialized")
   local root = state.vault:gsub("/+$", "")
   if vim.startswith(path, root .. "/") then
     return path:sub(#root + 2)
   end
   return path
+end
+
+---@param path string  absolute path
+---@return obsidian.cache.NoteRow
+function M.notes.get(path)
+  assert(state and state.ready, "cache not ready")
+  local row = state.backend:get(vim.fs.normalize(path))
+  if not is_note_row(row) then
+    error("cache: no note at " .. path)
+  end
+  ---@cast row obsidian.cache.NoteRow
+  return row
+end
+
+---@param path string
+---@return obsidian.cache.NoteRow?
+function M.notes.find(path)
+  if not state or not state.ready then
+    return nil
+  end
+  local row = state.backend:get(vim.fs.normalize(path))
+  if is_note_row(row) then
+    ---@cast row obsidian.cache.NoteRow
+    return row
+  end
+end
+
+---@return table<string, obsidian.cache.NoteRow>
+function M.notes.all()
+  assert(state and state.ready, "cache not ready")
+  local rows = {}
+  for path, row in pairs(state.backend:all()) do
+    if is_note_row(row) then
+      ---@cast row obsidian.cache.NoteRow
+      rows[path] = row
+    end
+  end
+  return rows
+end
+
+---@return integer
+function M.notes.count()
+  return count_rows(is_note_row)
+end
+
+---@param path string
+---@return string
+function M.notes.rel_path(path)
+  return rel_path(path)
 end
 
 ---@param path string
@@ -472,7 +551,11 @@ end
 function M.notes.upsert(row)
   assert(state, "cache not initialized")
   assert(row.path, "row.path required")
-  state.backend:put(vim.fs.normalize(row.path), row)
+  local path = vim.fs.normalize(row.path)
+  row = vim.deepcopy(row)
+  row.path = nil
+  row.kind = "note"
+  state.backend:put(path, row)
   schedule_flush()
 end
 
@@ -482,12 +565,14 @@ function M.notes.update(path, patch)
   assert(state, "cache not initialized")
   path = vim.fs.normalize(path)
   local row = state.backend:get(path)
-  if not row then
+  if not is_note_row(row) then
     error("cache: no note at " .. path)
   end
+  ---@cast row obsidian.cache.NoteRow
   for k, v in pairs(patch) do
     row[k] = v
   end
+  row.kind = "note"
   state.backend:put(path, row)
   schedule_flush()
 end
@@ -497,8 +582,11 @@ function M.notes.delete(path)
   if not state then
     return
   end
-  state.backend:delete(vim.fs.normalize(path))
-  schedule_flush()
+  path = vim.fs.normalize(path)
+  if is_note_row(state.backend:get(path)) then
+    state.backend:delete(path)
+    schedule_flush()
+  end
 end
 
 ---Refresh one note directly from disk.
@@ -527,6 +615,68 @@ function M.notes.reindex()
     return
   end
   initial_scan(true)
+end
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Attachments repository (read-only)
+-- ──────────────────────────────────────────────────────────────────────────────
+
+---@class obsidian.cache.AttachmentsRepo
+M.attachments = {}
+
+---@param path string
+---@return obsidian.cache.AttachmentRow
+function M.attachments.get(path)
+  assert(state and state.ready, "cache not ready")
+  local row = state.backend:get(vim.fs.normalize(path))
+  if not is_attachment_row(row) then
+    error("cache: no attachment at " .. path)
+  end
+  ---@cast row obsidian.cache.AttachmentRow
+  return row
+end
+
+---@param path string
+---@return obsidian.cache.AttachmentRow?
+function M.attachments.find(path)
+  if not state or not state.ready then
+    return nil
+  end
+  local row = state.backend:get(vim.fs.normalize(path))
+  if is_attachment_row(row) then
+    ---@cast row obsidian.cache.AttachmentRow
+    return row
+  end
+end
+
+---@return table<string, obsidian.cache.AttachmentRow>
+function M.attachments.all()
+  assert(state and state.ready, "cache not ready")
+  local rows = {}
+  for path, row in pairs(state.backend:all()) do
+    if is_attachment_row(row) then
+      ---@cast row obsidian.cache.AttachmentRow
+      rows[path] = row
+    end
+  end
+  return rows
+end
+
+---@return integer
+function M.attachments.count()
+  return count_rows(is_attachment_row)
+end
+
+---@param path string
+---@return string
+function M.attachments.rel_path(path)
+  return rel_path(path)
+end
+
+---@param path string
+---@return string
+function M.attachments.basename(path)
+  return vim.fs.basename(path)
 end
 
 return M

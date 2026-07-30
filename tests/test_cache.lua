@@ -19,6 +19,60 @@ local T = new_set {
 }
 
 T["cache backends"] = new_set()
+T["json backend"] = new_set()
+
+T["json backend"]["persists schema v2 entries"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache-json" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+  local path = tostring(dir / "index.json")
+  local vault = vim.fs.normalize(tostring(dir / "vault"))
+  local backend_module = require "obsidian.cache.json_backend"
+  local backend = backend_module.open { path = path, vault = vault }
+  local note_path = vim.fs.joinpath(vault, "Note.md")
+  backend:put(note_path, {
+    kind = "note",
+    stat = { mtime_sec = 1, mtime_nsec = 2, size = 3 },
+  })
+  backend:flush()
+
+  local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
+  eq(2, decoded.schema_version)
+  eq(1, decoded.indexer_version)
+  eq(vault, decoded.vault)
+  eq("note", decoded.entries[note_path].kind)
+  eq(nil, decoded.notes)
+
+  local reopened = backend_module.open { path = path, vault = vault }
+  eq("note", reopened:get(note_path).kind)
+end
+
+T["json backend"]["rebuilds incompatible cache envelopes"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache-json" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+  local path = tostring(dir / "index.json")
+  local vault = vim.fs.normalize(tostring(dir / "vault"))
+  vim.fn.writefile({
+    vim.json.encode {
+      version = 1,
+      vault = vault,
+      notes = {
+        [vim.fs.joinpath(vault, "Stale.md")] = { tags = { "stale" } },
+      },
+    },
+  }, path)
+
+  local backend = require("obsidian.cache.json_backend").open { path = path, vault = vault }
+  eq({}, backend:all())
+  backend:flush()
+
+  local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
+  eq(2, decoded.schema_version)
+  eq(1, decoded.indexer_version)
+  eq(nil, decoded.version)
+  eq(nil, decoded.notes)
+end
 
 T["cache backends"]["uses a registered backend by name"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
@@ -47,9 +101,9 @@ T["cache backends"]["uses a registered backend by name"] = function()
   cache.register("custom-test", {
     open = function(opts)
       local vault = vim.fs.normalize(tostring(dir))
-      local expected_path =
-        vim.fs.joinpath(vim.fn.stdpath "cache", "obsidian.nvim", vim.fn.sha256(vault):sub(1, 16) .. ".json")
-      opened = opts.vault == vault and opts.path == expected_path
+      local expected_root = vim.fs.joinpath(vim.fn.stdpath "cache", "obsidian.nvim", vim.fn.sha256(vault):sub(1, 16))
+      local expected_path = vim.fs.joinpath(expected_root, "index.json")
+      opened = opts.vault == vault and opts.root == expected_root and opts.path == expected_path
       return store
     end,
   })
@@ -85,7 +139,7 @@ T["cache backends"]["uses file ignore filters"] = function()
   eq(nil, cache.notes.find(tostring(dir / "skip" / "Skip.md")))
 end
 
-T["cache backends"]["stores compact rows"] = function()
+T["cache backends"]["stores typed compact note rows"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   local note_path = tostring(dir / "Note.md")
@@ -100,7 +154,10 @@ T["cache backends"]["stores compact rows"] = function()
 
   local row = cache.notes.find(note_path)
   eq({ "foo", "inline" }, row.tags)
-  eq("number", type(row.mtime_nsec))
+  eq("note", row.kind)
+  eq("number", type(row.stat.mtime_nsec))
+  eq("number", type(row.stat.mtime_sec))
+  eq("number", type(row.stat.size))
   eq(nil, row.path)
   eq(nil, row.rel_path)
   eq(nil, row.basename)
@@ -172,7 +229,20 @@ T["cache backends"]["hides persisted rows until startup validation finishes"] = 
   helpers.write("#fresh", note_path)
   Obsidian = { dir = dir }
 
-  local store = { data = { [vim.fs.normalize(note_path)] = { tags = { "stale" } } } }
+  local stat = assert(vim.uv.fs_stat(note_path))
+  local store = {
+    data = {
+      [vim.fs.normalize(note_path)] = {
+        kind = "attachment",
+        extension = "md",
+        stat = {
+          mtime_sec = stat.mtime.sec,
+          mtime_nsec = stat.mtime.nsec,
+          size = stat.size,
+        },
+      },
+    },
+  }
   function store:get(key)
     return self.data[key]
   end
@@ -275,21 +345,19 @@ T["cache backends"]["indexes markdown-like extensions"] = function()
   eq(true, cache.notes.find(tostring(dir / "Base.base")) ~= nil)
 end
 
-T["cache backends"]["indexes attachment filetypes"] = function()
+T["cache backends"]["indexes typed attachment rows separately from notes"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   Obsidian = { dir = dir }
 
-  local seen = {}
   local paths = {}
-  for _, ext in ipairs(require("obsidian.attachment").filetypes) do
-    if not seen[ext] then
-      seen[ext] = true
-      local path = dir / ("File." .. ext)
-      helpers.write(ext == "md" and "# File" or "attachment", path)
-      paths[#paths + 1] = tostring(path)
-    end
+  for _, ext in ipairs(require("obsidian.filetypes").attachment_extensions) do
+    local path = dir / ("File." .. ext)
+    helpers.write("attachment", path)
+    paths[#paths + 1] = tostring(path)
   end
+  local note_path = tostring(dir / "Note.md")
+  helpers.write("# Note", note_path)
 
   local cache = require "obsidian.cache"
   cache.setup { enabled = true, backend = "memory" }
@@ -297,13 +365,23 @@ T["cache backends"]["indexes attachment filetypes"] = function()
     return cache.is_ready()
   end)
 
-  eq(#paths, cache.notes.count())
+  eq(1, cache.notes.count())
+  eq(#paths, cache.attachments.count())
+  eq(true, cache.notes.find(note_path) ~= nil)
+  eq(nil, cache.attachments.find(note_path))
   for _, path in ipairs(paths) do
-    eq(true, cache.notes.find(path) ~= nil)
+    local row = cache.attachments.find(path)
+    eq("attachment", row.kind)
+    eq(require("obsidian.filetypes").extension(path), row.extension)
+    eq("number", type(row.stat.mtime_nsec))
+    eq(nil, cache.notes.find(path))
   end
+  cache.notes.delete(paths[1])
+  eq(true, cache.attachments.find(paths[1]) ~= nil)
 end
 
-T["cache backends"]["file watcher registers attachment filetypes"] = function()
+T["cache backends"]["file watcher registers attachments only when cache is enabled"] = function()
+  Obsidian = { opts = { cache = { enabled = false } } }
   local captured
   require "obsidian.lsp.handlers.initialized"(nil, {
     server_request = function(_, registration)
@@ -317,9 +395,82 @@ T["cache backends"]["file watcher registers attachment filetypes"] = function()
     watched[ext] = true
   end
 
-  for _, ext in ipairs(require("obsidian.attachment").filetypes) do
+  eq(true, watched.md)
+  eq(nil, watched.png)
+
+  Obsidian.opts.cache.enabled = true
+  require "obsidian.lsp.handlers.initialized"(nil, {
+    server_request = function(_, registration)
+      captured = registration
+    end,
+  })
+
+  watched = {}
+  for _, watcher in ipairs(captured.registrations[1].registerOptions.watchers) do
+    local ext = watcher.globPattern:match "%.([^%.]+)$"
+    watched[ext] = true
+  end
+  for _, ext in ipairs(require("obsidian.filetypes").attachment_extensions) do
     eq(true, watched[ext])
   end
+end
+
+T["cache backends"]["excludes vault internals"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Path.new(dir / ".obsidian" / "plugins" / "example"):mkdir { parents = true }
+  Path.new(dir / ".git"):mkdir()
+  helpers.write("# Note", dir / "Note.md")
+  helpers.write("image", dir / "Photo.png")
+  helpers.write("# Internal", dir / ".obsidian" / "plugins" / "example" / "README.md")
+  helpers.write("internal", dir / ".git" / "logo.png")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  eq(1, cache.notes.count())
+  eq(1, cache.attachments.count())
+  eq(nil, cache.notes.find(tostring(dir / ".obsidian" / "plugins" / "example" / "README.md")))
+  eq(nil, cache.attachments.find(tostring(dir / ".git" / "logo.png")))
+end
+
+T["cache backends"]["updates typed attachments from watched-file events"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local old_path = tostring(dir / "Old.PNG")
+  local new_path = tostring(dir / "New.pdf")
+  helpers.write("old", old_path)
+  require("obsidian.lsp.watchfiles").handle {
+    { type = "created", path = old_path },
+  }
+  eq("png", cache.attachments.get(old_path).extension)
+  eq(nil, cache.notes.find(old_path))
+
+  helpers.write("new attachment", new_path)
+  vim.fn.delete(old_path)
+  require("obsidian.lsp.watchfiles").handle {
+    { type = "renamed", old_path = old_path, new_path = new_path },
+  }
+  eq(nil, cache.attachments.find(old_path))
+  eq("pdf", cache.attachments.get(new_path).extension)
+
+  vim.fn.delete(new_path)
+  require("obsidian.lsp.watchfiles").handle {
+    { type = "deleted", path = new_path },
+  }
+  eq(nil, cache.attachments.find(new_path))
 end
 
 T["cache backends"]["handles raw LSP watched-file events"] = function()

@@ -1,12 +1,18 @@
 local log = require "obsidian.log"
-local attachment = require "obsidian.attachment"
+local filetypes = require "obsidian.filetypes"
 
 local WatchKind = vim.lsp.protocol.WatchKind
 
 local function watched_filetypes()
-  local seen = { markdown = true, qmd = true, base = true }
-  for _, ext in ipairs(attachment.filetypes) do
+  local seen = {}
+  for _, ext in ipairs(filetypes.note_extensions) do
     seen[ext] = true
+  end
+  local opts = Obsidian and Obsidian.opts or {}
+  if opts.cache and opts.cache.enabled then
+    for _, ext in ipairs(filetypes.attachment_extensions) do
+      seen[ext] = true
+    end
   end
   local exts = vim.tbl_keys(seen)
   table.sort(exts)

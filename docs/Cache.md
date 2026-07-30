@@ -16,7 +16,7 @@ At the moment, the cache is used for `:Obsidian quick_switch`. When enabled, qui
 
 ## What Gets Cached
 
-The cache stores note and attachment metadata that helps `quick_switch` build picker entries:
+The cache stores typed note and attachment entries that help `quick_switch` build picker entries:
 
 - file path
 - aliases
@@ -25,7 +25,9 @@ The cache stores note and attachment metadata that helps `quick_switch` build pi
 - outgoing links
 - tasks
 - file modification time and size
-- attachment entries
+- attachment extension and file statistics
+
+Attachment content is not stored in the metadata cache.
 
 The cache is derived data. You can delete it at any time; `obsidian.nvim` will rebuild it on the next startup or file change.
 
@@ -60,19 +62,24 @@ require("obsidian").setup {
 With the default `json` backend, the cache file is stored at:
 
 ```text
-{stdpath("cache")}/obsidian.nvim/{sha256(vault_path):sub(1, 16)}.json
+{stdpath("cache")}/obsidian.nvim/{sha256(vault_path):sub(1, 16)}/index.json
 ```
 
-Each vault gets its own cache file.
+Each vault gets its own cache directory. This leaves room for optional derived
+artifacts without putting large content in `index.json`.
 
 ## How Updates Work
 
 On startup, `obsidian.nvim` checks the vault for supported Markdown files and attachment types and updates entries whose modification time (including nanoseconds) or size changed.
 Persisted entries are not exposed to queries until this validation finishes.
 
+The JSON backend uses a versioned schema. Incompatible cache data is discarded
+and rebuilt from the vault rather than migrated in place.
+
 LSP `textDocument/didSave` notifications refresh saved notes immediately. Plugin-initiated moves, renames, and deletes update the cache directly, while file watch events cover external changes.
 
-The cache follows your existing `file.ignore_filters` setting.
+The cache follows your existing `file.ignore_filters` setting. Vault
+configuration files and Git internals are excluded.
 
 ## Backends
 

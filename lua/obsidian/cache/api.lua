@@ -117,7 +117,8 @@ M.find_files = function(opts)
     local lookup = {}
     ---@type table<string, obsidian.PickerEntry>
     local missing_entries = {}
-    local all = cache.notes.all()
+    local notes = cache.notes.all()
+    local attachments = cache.attachments.all()
 
     ---@param text string
     ---@param path string
@@ -136,27 +137,36 @@ M.find_files = function(opts)
       return entry
     end
 
-    for path, note in pairs(all) do
+    for path, note in pairs(notes) do
       add_lookup_path(path, lookup)
       for _, alias in ipairs(note.aliases or {}) do
         lookup[alias:lower()] = true
       end
     end
+    for path in pairs(attachments) do
+      add_lookup_path(path, lookup)
+    end
 
-    for path, note in pairs(all) do
-      local is_attachment = note.attachment == true or is_attachment_target(path)
-      if util.is_subpath(path, dir) and (show_attachments or not is_attachment) then
+    for path, note in pairs(notes) do
+      if util.is_subpath(path, dir) then
         local rel_path = cache.notes.rel_path(path):gsub("%.md$", "")
-        local user_data = entry_user_data(is_attachment, false)
+        local user_data = entry_user_data(false, false)
         add_entry(rel_path, path, user_data)
         for _, alias in ipairs(note.aliases or {}) do
           add_entry(rel_path .. " | " .. alias, path, user_data)
         end
       end
     end
+    if show_attachments then
+      for path in pairs(attachments) do
+        if util.is_subpath(path, dir) then
+          add_entry(cache.attachments.rel_path(path), path, entry_user_data(true, false))
+        end
+      end
+    end
 
     if not show_existing_only then
-      for path, note in pairs(all) do
+      for path, note in pairs(notes) do
         for _, outgoing in ipairs(note.links_out or {}) do
           local target = outgoing.target
           if not is_external_target(target) and not target_exists(target, lookup) then
@@ -290,7 +300,7 @@ M.find_files = function(opts)
         return
       end
 
-      local notes = {}
+      local selected_notes = {}
       for _, item in ipairs(items) do
         local path = item.filename
         local data = item.user_data or {}
@@ -318,10 +328,10 @@ M.find_files = function(opts)
             end)
           end
         elseif path then
-          notes[#notes + 1] = item
+          selected_notes[#selected_notes + 1] = item
         end
       end
-      picker_util.open_notes(notes)
+      picker_util.open_notes(selected_notes)
     end)
   end)
 

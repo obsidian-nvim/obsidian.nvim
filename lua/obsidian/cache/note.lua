@@ -118,9 +118,12 @@ function M.build(abs_path, _vault_root)
   end
 
   local row = {
-    mtime = stat.mtime.sec,
-    mtime_nsec = stat.mtime.nsec,
-    size = stat.size,
+    kind = "note",
+    stat = {
+      mtime_sec = stat.mtime.sec,
+      mtime_nsec = stat.mtime.nsec,
+      size = stat.size,
+    },
   }
   if note.aliases and #note.aliases > 0 then
     row.aliases = note.aliases
