@@ -1,5 +1,6 @@
 local api = require "obsidian.api"
 local picker = require "obsidian.picker"
+local util = require "obsidian.util"
 
 --- Deduplicate items by filename (multiple LSP clients may return same file)
 ---@param items table[]
@@ -35,7 +36,17 @@ return function(data)
       if #items == 1 then
         api.open_note(items[1], open_strategy)
       else
-        picker.select(items, { prompt = "Resolve link" }, function(choices)
+        picker.select(items, {
+          prompt = "Resolve link",
+          preview_item = function(entry)
+            ---@cast entry obsidian.PickerEntry
+            local filename = entry.filename
+            ---@cast filename -nil
+            local preview = util.preview_path(filename)
+            preview.pos = { entry.lnum or 1, entry.col and math.max(entry.col - 1, 0) or 0 }
+            return preview
+          end,
+        }, function(choices)
           local entry = choices and choices[1]
           if entry then
             api.open_note(entry)

@@ -1,5 +1,6 @@
 local log = require "obsidian.log"
 local picker = require "obsidian.picker"
+local util = require "obsidian.util"
 
 local M = {}
 
@@ -36,6 +37,9 @@ function M.setup()
   picker.select(workspaces, {
     prompt = "Select workspace to set up sync for",
     format_item = format_item,
+    preview_item = function(ws)
+      return util.preview_path(ws.root)
+    end,
   }, function(items)
     local ws = items[1]
     if ws then
@@ -70,6 +74,9 @@ function M.disconnect()
   picker.select(linked, {
     prompt = "Select workspace to unlink",
     format_item = format_item,
+    preview_item = function(ws)
+      return util.preview_path(ws.root)
+    end,
   }, function(items)
     local ws = items[1]
     if ws then

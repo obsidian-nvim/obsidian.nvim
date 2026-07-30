@@ -193,25 +193,34 @@ T["fzf select explicitly disables unsupported multiple selections"] = function()
 end
 
 T["fzf select enables multiple selections for mappings that accept them"] = function()
+  local mapped
   with_modules({
     ["fzf-lua.previewer.builtin"] = {},
     ["fzf-lua"] = {
-      fzf_exec = function(_, opts)
+      fzf_exec = function(entries, opts)
         eq({
           ["--delimiter"] = "\t",
           ["--with-nth"] = "2..",
           ["--multi"] = true,
           ["--no-multi"] = false,
         }, opts.fzf_opts)
+        opts.actions["ctrl-t"](entries)
       end,
     },
   }, function()
     require("obsidian.picker._fzf").select({ "one", "two" }, {
       selection_mappings = {
-        ["<C-t>"] = { desc = "test", allow_multiple = true, callback = function() end },
+        ["<C-t>"] = {
+          desc = "test",
+          allow_multiple = true,
+          callback = function(...)
+            mapped = { ... }
+          end,
+        },
       },
     }, function() end)
   end)
+  eq({ "one", "two" }, mapped)
 end
 
 T["fzf select preserves identity for duplicate display labels"] = function()
@@ -254,6 +263,30 @@ T["fzf select preserves identity for duplicate display labels"] = function()
   eq({ first }, choices)
 end
 
+T["fzf select does not infer previews from value shape"] = function()
+  local value = { filename = "/vault/note.md" }
+  with_modules({
+    ["fzf-lua.previewer.builtin"] = {
+      buffer_or_file = {
+        extend = function()
+          error "unexpected inferred preview"
+        end,
+      },
+    },
+    ["fzf-lua"] = {
+      fzf_exec = function(_, opts)
+        eq(nil, opts.previewer)
+      end,
+    },
+  }, function()
+    require("obsidian.picker._fzf").select({ value }, {
+      format_item = function()
+        return "note"
+      end,
+    })
+  end)
+end
+
 T["snacks select applies custom formatting to string values"] = function()
   with_module("snacks.picker", {
     pick = function(opts)
@@ -267,6 +300,38 @@ T["snacks select applies custom formatting to string values"] = function()
       end,
     })
   end)
+end
+
+T["snacks select preserves opaque values for mappings"] = function()
+  local value = { filename = "/vault/note.md" }
+  local mapped
+  with_module("snacks.picker", {
+    pick = function(opts)
+      eq(nil, opts.items[1].file)
+      eq(false, opts.layout.preview)
+      opts.actions.map({
+        close = function() end,
+      }, opts.items[1])
+    end,
+  }, function()
+    require("obsidian.picker._snacks").select({ value }, {
+      format_item = function()
+        return "note"
+      end,
+      selection_mappings = {
+        ["<C-l>"] = {
+          desc = "map",
+          callback = function(selected)
+            mapped = selected
+          end,
+        },
+      },
+    })
+    vim.wait(1000, function()
+      return mapped ~= nil
+    end)
+  end)
+  eq(value, mapped)
 end
 
 T["telescope select applies custom formatting to string values"] = function()
@@ -300,8 +365,43 @@ T["telescope select applies custom formatting to string values"] = function()
   end)
 end
 
-T["fzf find and grep callbacks receive every selected entry"] = function()
-  local found = {}
+T["telescope select does not infer fields or previews from value shape"] = function()
+  local value = { filename = "/vault/note.md" }
+  with_modules({
+    ["telescope.pickers"] = {
+      new = function(_, opts)
+        local entry = opts.finder.entry_maker(opts.finder.results[1])
+        eq(value, entry.value)
+        eq(nil, entry.filename)
+        eq(nil, opts.previewer)
+        return { find = function() end }
+      end,
+    },
+    ["telescope.finders"] = {
+      new_table = function(opts)
+        return opts
+      end,
+    },
+    ["telescope.config"] = {
+      values = {
+        generic_sorter = function()
+          return {}
+        end,
+        grep_previewer = function()
+          error "unexpected inferred preview"
+        end,
+      },
+    },
+  }, function()
+    require("obsidian.picker._telescope").select({ value }, {
+      format_item = function()
+        return "note"
+      end,
+    })
+  end)
+end
+
+T["fzf grep confirmation retains entries and mappings receive paths"] = function()
   local mapped = {}
   local grepped = {}
 
@@ -317,20 +417,18 @@ T["fzf find and grep callbacks receive every selected entry"] = function()
         end,
       },
       ["fzf-lua"] = {
-        files = function(opts)
-          opts.actions.default({ "one", "two" }, {})
-          opts.actions["ctrl-l"]({ "one", "two" }, {})
-        end,
         grep = function(opts)
           opts.actions.default({ "one", "two" }, {})
+          opts.actions["ctrl-l"]({ "one", "two" }, {})
         end,
       },
     }, function()
       local fzf = require "obsidian.picker._fzf"
-      fzf.find_files {
+      fzf.grep {
         dir = "/vault",
-        callback = function(paths)
-          found = paths
+        query = "query",
+        callback = function(entries)
+          grepped = entries
         end,
         selection_mappings = {
           ["<C-l>"] = {
@@ -342,25 +440,87 @@ T["fzf find and grep callbacks receive every selected entry"] = function()
           },
         },
       }
-      fzf.grep {
-        dir = "/vault",
-        query = "query",
-        callback = function(entries)
-          grepped = entries
-        end,
-      }
     end)
   end)
 
-  eq({ "/vault/one.md", "/vault/two.md" }, found)
-  eq({
-    { filename = "/vault/one.md", lnum = 2, col = 3 },
-    { filename = "/vault/two.md" },
-  }, mapped)
+  eq({ "/vault/one.md", "/vault/two.md" }, mapped)
   eq({
     { filename = "/vault/one.md", lnum = 2, col = 3 },
     { filename = "/vault/two.md" },
   }, grepped)
+end
+
+T["telescope grep mappings receive paths"] = function()
+  local mapped
+  with_obsidian({ opts = { search = { sort_by = false, sort_reversed = false } } }, function()
+    with_modules({
+      ["telescope.actions"] = {
+        close = function() end,
+      },
+      ["telescope.actions.state"] = {
+        get_current_picker = function()
+          return {
+            get_multi_selection = function()
+              return { { filename = "/vault/note.md", lnum = 2, col = 3 } }
+            end,
+          }
+        end,
+      },
+      ["telescope.builtin"] = {
+        grep_string = function(opts)
+          local mappings = {}
+          opts.attach_mappings(1, function(_, key, callback)
+            mappings[key] = callback
+          end)
+          mappings["<C-l>"](1)
+        end,
+      },
+    }, function()
+      require("obsidian.picker._telescope").grep {
+        dir = "/vault",
+        query = "query",
+        selection_mappings = {
+          ["<C-l>"] = {
+            desc = "map",
+            callback = function(path)
+              mapped = path
+            end,
+          },
+        },
+      }
+    end)
+  end)
+  eq("/vault/note.md", mapped)
+end
+
+T["snacks grep mappings receive paths"] = function()
+  local mapped
+  with_obsidian({ opts = { search = { sort_by = false, sort_reversed = false } } }, function()
+    with_module("snacks.picker", {
+      pick = function(opts)
+        opts.actions.map({
+          close = function() end,
+        }, { _path = "/vault/note.md" })
+      end,
+    }, function()
+      require("obsidian.picker._snacks").grep {
+        dir = "/vault",
+        query = "query",
+        selection_mappings = {
+          ["<C-l>"] = {
+            desc = "map",
+            callback = function(path)
+              mapped = path
+            end,
+          },
+        },
+      }
+      vim.wait(1000, function()
+        return mapped ~= nil
+      end)
+    end)
+  end)
+  eq("/vault/note.md", mapped)
 end
 
 return T

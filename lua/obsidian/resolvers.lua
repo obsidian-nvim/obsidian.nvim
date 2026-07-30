@@ -142,7 +142,20 @@ M.builtin.date = function(ctx, done)
     }
   end
 
-  picker.select(dailies, { prompt = "Dailies" }, function(entries)
+  picker.select(dailies, {
+    prompt = "Dailies",
+    preview_item = function(entry)
+      if vim.uv.fs_stat(entry.filename) then
+        return util.preview_path(entry.filename)
+      end
+
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.bo[buf].bufhidden = "wipe"
+      vim.bo[buf].filetype = "markdown"
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Select to create this daily note." })
+      return { buf = buf }
+    end,
+  }, function(entries)
     if not entries or #entries == 0 then
       done(nil)
       return

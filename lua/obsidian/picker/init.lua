@@ -6,6 +6,8 @@ local log = require "obsidian.log"
 local PickerName = require("obsidian.config").Picker
 local Mappings = require "obsidian.picker.mappings"
 local icons = require "obsidian.icons"
+local Path = require "obsidian.path"
+local search = require "obsidian.search"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
@@ -49,7 +51,7 @@ end
 ---@class obsidian.PickerMappingOpts
 ---
 ---@field desc string
----@field callback fun(...: obsidian.PickerEntry|string)
+---@field callback fun(...: any)
 ---@field fallback_to_query boolean|?
 ---@field keep_open boolean|?
 ---@field allow_multiple boolean|?
@@ -138,6 +140,26 @@ end
 
 M.pick = pick
 
+---@param mappings obsidian.PickerMappingTable|?
+---@param transform fun(value: any): string
+---@return obsidian.PickerMappingTable|?
+local function transform_selection_mappings(mappings, transform)
+  if not mappings then
+    return nil
+  end
+
+  local transformed = {}
+  for key, mapping in pairs(mappings) do
+    local callback = mapping.callback
+    transformed[key] = vim.tbl_extend("force", {}, mapping, {
+      callback = function(...)
+        callback(unpack(vim.tbl_map(transform, { ... })))
+      end,
+    })
+  end
+  return transformed
+end
+
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
 M.find_files_from_cache = function(opts)
@@ -195,10 +217,15 @@ M.find_files_from_cache = function(opts)
       -- Don't pass it through, since some pickers would filter again case-sensitively.
       query = pick_query,
       query_mappings = opts.query_mappings,
-      selection_mappings = opts.selection_mappings,
+      selection_mappings = transform_selection_mappings(opts.selection_mappings, function(item)
+        return item.filename
+      end),
       format_item = function(item)
         local icon = icons.get_path_icon(item.filename)
         return icon .. " " .. item.text
+      end,
+      preview_item = function(item)
+        return util.preview_path(item.filename)
       end,
     }, function(items)
       local paths = vim.tbl_filter(
@@ -216,6 +243,51 @@ M.find_files_from_cache = function(opts)
 
   return true
 end
+
+--- Find files using the shared filesystem iterator and present them with the active picker.
+---
+---@param opts obsidian.PickerFindOpts?
+local find_files = function(opts)
+  opts = opts or {}
+  if M.find_files_from_cache(opts) then
+    return
+  end
+
+  -- search.find_async() resolves its root before enumerating files. Use the
+  -- same canonical root here so aliases such as macOS's /var -> /private/var
+  -- and Windows short paths remain relative to the picker directory.
+  local dir = Path.new(opts.dir or api.resolve_workspace_dir()):resolve { strict = true }
+  local paths = {}
+  search.find_async(dir, nil, {
+    sort_by = Obsidian.opts.search.sort_by,
+    sort_reversed = Obsidian.opts.search.sort_reversed,
+    include_non_markdown = opts.include_non_markdown,
+  }, function(path)
+    paths[#paths + 1] = path
+  end, function(code)
+    if code ~= 0 then
+      log.err("Failed to enumerate files in '%s'", dir)
+      return
+    end
+
+    M.select(paths, {
+      prompt = opts.prompt_title,
+      allow_multiple = true,
+      query = opts.query,
+      query_mappings = opts.query_mappings,
+      selection_mappings = opts.selection_mappings,
+      format_item = function(path)
+        return icons.get_path_icon(path) .. " " .. tostring(Path.new(path):relative_to(dir))
+      end,
+      preview_item = util.preview_path,
+    }, function(items)
+      local callback = opts.callback or picker_util.open_notes
+      callback(items)
+    end)
+  end)
+end
+
+M.find_files = find_files
 
 --- Find notes by filename.
 ---
@@ -365,16 +437,21 @@ M._tag_selection_mappings = function()
 end
 
 local function patch(modname)
-  for name, f in pairs(require(modname)) do
-    if name == "find_files" then
-      M[name] = function(opts)
-        opts = opts or {}
-        if M.find_files_from_cache(opts) then
-          return
-        end
-        return f(opts)
+  local picker = require(modname)
+  if picker.find_files then
+    M.find_files = function(opts)
+      opts = opts or {}
+      if M.find_files_from_cache(opts) then
+        return
       end
-    elseif name ~= "pick" then
+      picker.find_files(opts)
+    end
+  else
+    M.find_files = find_files
+  end
+
+  for name, f in pairs(picker) do
+    if name ~= "pick" and name ~= "find_files" then
       M[name] = f
     end
   end
