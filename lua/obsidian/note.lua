@@ -1263,26 +1263,6 @@ Note.links = function(self)
   return search.find_links(self)
 end
 
----@param path obsidian.Path vault-relative-path
----@param style obsidian.link.LinkFormat?
----@param base_dir string|obsidian.Path?
----@return string foramted_path
-local function format_path(path, style, base_dir)
-  if style == "absolute" then
-    return assert(path:vault_relative_path {})
-  elseif style == "relative" then
-    base_dir = base_dir or Obsidian.buf_dir or api.resolve_workspace_dir()
-    if base_dir == nil then
-      return assert(path:vault_relative_path {})
-    end
-
-    local relpath =
-      assert(util.relpath(tostring(base_dir), tostring(path)), "failed to resolve link path against current note")
-    return relpath
-  else
-    return vim.fs.basename(tostring(path))
-  end
-end
 
 ---@class obsidian.note.FormatLinkOpts : obsidian.link.LinkCreationOpts
 ---@field dir? string|obsidian.Path Base directory for relative links.
@@ -1298,23 +1278,15 @@ Note.format_link = function(self, opts)
   local link_format = opts.format or Obsidian.opts.link.format
 
   local new_opts = {
-    path = format_path(self.path, link_format, opts.dir),
+    path = tostring(self.path),
     label = label,
     anchor = opts.anchor,
     block = opts.block,
     style = link_style,
     format = link_format,
+    dir = opts.dir,
   }
-
-  if link_style == "markdown" then
-    return require("obsidian.builtin").markdown_link(new_opts)
-  elseif link_style == "wiki" or link_style == nil then
-    return require("obsidian.builtin").wiki_link(new_opts)
-  elseif type(link_style) == "function" then
-    return link_style(new_opts)
-  else
-    error(string.format("Invalid link style '%s'", link_style))
-  end
+  return api.format_link(new_opts)
 end
 
 -- HACK: make backlink search lazy before we have proper cache

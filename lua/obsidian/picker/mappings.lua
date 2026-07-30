@@ -9,8 +9,13 @@ M.insert_link = function(path)
   if not path or path == "" then
     return
   end
-  local note = Note.from_file(path)
-  local link = note:format_link()
+  local link
+  if not vim.uv.fs_stat(path) then
+    link = api.format_link { path = path }
+  else
+    local note = Note.from_file(path)
+    link = note:format_link()
+  end
   vim.api.nvim_put({ link }, "", false, true)
   require("obsidian.ui").update(0)
 end

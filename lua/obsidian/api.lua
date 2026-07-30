@@ -97,6 +97,50 @@ M.path_is_note = function(path, workspace)
   return true
 end
 
+---@param path string
+---@param style obsidian.link.LinkFormat?
+---@param base_dir string|obsidian.Path?
+---@return string formatted_path
+local function format_path(path, style, base_dir)
+  local rel_path = Path.new(path):vault_relative_path()
+  if rel_path == nil then
+    error "failed to resolve link path relative to vault"
+  end
+
+  if style == "absolute" then
+    return rel_path
+  elseif style == "relative" then
+    base_dir = base_dir or Obsidian.buf_dir or M.resolve_workspace_dir()
+    if base_dir == nil then
+      return rel_path
+    end
+
+    local relpath = assert(util.relpath(tostring(base_dir), path), "failed to resolve link path against current note")
+    return relpath
+  else
+    return vim.fs.basename(path)
+  end
+end
+
+---@class obsidian.link.FormatLinkOpts : obsidian.link.LinkCreationOpts
+---@field path string
+---@field dir? string|obsidian.Path Base directory for relative links.
+
+---@param opts obsidian.link.FormatLinkOpts
+---@return string
+M.format_link = function(opts)
+  opts.path = format_path(opts.path, opts.format, opts.dir)
+  if opts.style == "markdown" then
+    return require("obsidian.builtin").markdown_link(opts)
+  elseif opts.style == "wiki" or opts.style == nil then
+    return require("obsidian.builtin").wiki_link(opts)
+  elseif type(opts.style) == "function" then
+    return opts.style(opts)
+  else
+    error(string.format("Invalid link style '%s'", opts.style))
+  end
+end
+
 ---Find the most specific workspace containing a path.
 ---@param path string|obsidian.Path
 ---@return obsidian.Workspace|?

@@ -233,11 +233,15 @@ T["note and tag mappings accept string values"] = function()
   local Note = require "obsidian.note"
   local ui = require "obsidian.ui"
   local original_from_file = Note.from_file
+  local original_fs_stat = vim.uv.fs_stat
   local original_put = vim.api.nvim_put
   local original_update = ui.update
   local inserted = {}
 
   local ok, err = pcall(function()
+    vim.uv.fs_stat = function()
+      return {}
+    end
     Note.from_file = function(path)
       eq("/vault/note.md", path)
       return {
@@ -256,6 +260,7 @@ T["note and tag mappings accept string values"] = function()
   end)
 
   Note.from_file = original_from_file
+  vim.uv.fs_stat = original_fs_stat
   vim.api.nvim_put = original_put
   ui.update = original_update
   if not ok then
