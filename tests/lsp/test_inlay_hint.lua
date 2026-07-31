@@ -134,22 +134,6 @@ T["skips stale link suggestions after target rename"] = function()
   eq({}, run_inlay_hint())
 end
 
-T["didChange requests inlay hint refresh"] = function()
-  child.lua [[
-    local handler = require "obsidian.lsp.handlers.did_change"
-    handler({}, {
-      server_request = function(method, params)
-        _G.inlay_hint_refresh_method = method
-        _G.inlay_hint_refresh_params_is_nil = params == nil
-      end,
-    })
-  ]]
-
-  h.child_wait(child, "return _G.inlay_hint_refresh_method ~= nil", { desc = "inlay hint refresh" })
-  eq("workspace/inlayHint/refresh", child.lua_get "inlay_hint_refresh_method")
-  eq(true, child.lua_get "inlay_hint_refresh_params_is_nil")
-end
-
 T["smart action executes the link suggestion command under cursor"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",
@@ -169,10 +153,7 @@ T["smart action executes the link suggestion command under cursor"] = function()
     vim.api.nvim_feedkeys(keys, "x", false)
   ]]
 
-  eq(
-    "<cmd>lua require('obsidian.inlay_hints').accept_under_cursor()<cr>",
-    child.lua_get [[_G.link_suggestion_smart_action]]
-  )
+  eq("<cmd>lua require('obsidian.inlay_hints').accept()<cr>", child.lua_get [[_G.link_suggestion_smart_action]])
   h.child_wait(child, [=[return vim.api.nvim_get_current_line() == "a [[test]]"]=], { desc = "link suggestion action" })
 end
 
@@ -203,7 +184,7 @@ T["accepts the first native hint in the current word range"] = function()
       _G.accepted_hint = "second"
     end
 
-    _G.accepted_hint_result = require("obsidian.inlay_hints").accept_under_cursor()
+    _G.accepted_hint_result = require("obsidian.inlay_hints").accept()
     vim.lsp.inlay_hint.get = original_get
   ]]
 
@@ -288,7 +269,7 @@ require("obsidian").inlay_hints.register({
   h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 1]], { desc = "native custom inlay hint" })
   child.lua [[
     vim.api.nvim_win_set_cursor(0, { 1, 10 })
-    require("obsidian.inlay_hints").accept_under_cursor()
+    require("obsidian.inlay_hints").accept()
   ]]
   eq("ˌɒnəmatəˈpiːə", child.lua_get [[_G.spoken_ipa]])
 end

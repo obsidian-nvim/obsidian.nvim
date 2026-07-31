@@ -897,15 +897,6 @@ M.footnote_new = function(id, bufnr, restore_cursor)
   require("obsidian.footnotes").create(id, bufnr, restore_cursor)
 end
 
--- ---@param id integer
--- M.inlay_hint_command = function(id, ...)
---   require("obsidian.inlay_hints").execute_command(id, ...)
--- end
---
--- M.inlay_hint_action = function()
---   require("obsidian.inlay_hints").accept_under_cursor()
--- end
---
 ---@param bufnr integer
 ---@param suggestion obsidian.LinkSuggestion
 ---@param candidate obsidian.LinkSuggestionCandidate

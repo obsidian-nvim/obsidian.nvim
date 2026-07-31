@@ -98,21 +98,6 @@ function M.symbols(path, opts)
     end
   end
 
-  -- local has_symbol_source = false
-  -- for p, _ in pairs(rows) do
-  --   if opts.include_current or vim.fs.normalize(p) ~= current_path then
-  --     has_symbol_source = true
-  --     break
-  --   end
-  -- end
-
-  -- -- The cache is currently scoped to the active workspace. If this buffer belongs
-  -- -- to a different workspace, build symbols by scanning that workspace instead of
-  -- -- falling back to Obsidian.workspace.
-  -- if dir and not has_symbol_source then
-  --   rows = scan_rows(dir)
-  -- end
-
   ---@type table<string, obsidian.LinkSuggestionSymbol>
   local symbols_by_text = {}
 
@@ -236,6 +221,65 @@ local function skipped_inline_ranges(line, row)
   return ranges
 end
 
+---@param line string
+---@param row integer 1-indexed row number
+---@param symbols obsidian.LinkSuggestionSymbol[]
+function M.find_in_line(line, row, symbols)
+  ---@type obsidian.LinkSuggestion[]
+  local suggestions = {}
+  local row0 = row - 1
+
+  local skip_ranges = skipped_inline_ranges(line, row0)
+  local line_lower = line:lower()
+
+  for _, symbol in ipairs(symbols) do
+    local search_start = 1
+    while search_start <= #line do
+      local start_col, end_col = line_lower:find(symbol.text_lower, search_start, true)
+      if not start_col or not end_col then
+        break
+      end
+
+      ---@cast start_col integer
+      ---@cast end_col integer
+      local start0 = start_col - 1
+      local end0 = end_col
+      if
+        boundary_ok(line, start0, end0, symbol.text)
+        and not overlaps_ranges(skip_ranges, row0, start0, end0)
+        and not overlaps_existing_suggestion(suggestions, row0, start0, end0)
+      then
+        local label = line:sub(start_col, end_col)
+        local candidates = {}
+        for _, path in ipairs(symbol.target_paths) do
+          local ok_link, new_text = pcall(function()
+            return Note.new(basename(path), nil, nil, path):format_link { label = label }
+          end)
+
+          if ok_link then
+            candidates[#candidates + 1] = {
+              new_text = new_text,
+              symbol = symbol.text,
+              target_path = path,
+            }
+          end
+        end
+
+        if #candidates > 0 then
+          suggestions[#suggestions + 1] = {
+            range = Range.new(row0, start0, row0, end0),
+            text = label,
+            candidates = candidates,
+          }
+        end
+      end
+
+      search_start = end_col + 1
+    end
+  end
+  return suggestions
+end
+
 ---@param note obsidian.Note
 ---@param opts { include_current: boolean? }?
 ---@return obsidian.LinkSuggestion[]
@@ -251,73 +295,19 @@ function M.find(note, opts)
     return {}
   end
 
-  ---@type obsidian.LinkSuggestion[]
   local suggestions = {}
-  local fm_end = note.frontmatter_end_line or 0
-  local in_code_block = false
 
-  for row, line in ipairs(note.contents) do
-    local row0 = row - 1
-    local search_line = row > fm_end and not in_code_block
+  local fm_end = note.frontmatter_end_line or 1
+  for row = fm_end, #note.contents do
+    local line = note.contents[row]
+    local in_code_block = true
 
     if line:match "^%s*```" then
       in_code_block = not in_code_block
-      search_line = false
     end
 
-    if search_line then
-      local skip_ranges = skipped_inline_ranges(line, row0)
-      local line_lower = line:lower()
-
-      for _, symbol in ipairs(symbols) do
-        local search_start = 1
-        while search_start <= #line do
-          local start_col, end_col = line_lower:find(symbol.text_lower, search_start, true)
-          if not start_col or not end_col then
-            break
-          end
-
-          ---@cast start_col integer
-          ---@cast end_col integer
-          local start0 = start_col - 1
-          local end0 = end_col
-          if
-            boundary_ok(line, start0, end0, symbol.text)
-            and not overlaps_ranges(skip_ranges, row0, start0, end0)
-            and not overlaps_existing_suggestion(suggestions, row0, start0, end0)
-          then
-            local label = line:sub(start_col, end_col)
-            local candidates = {}
-            for _, path in ipairs(symbol.target_paths) do
-              local ok_link, new_text = pcall(function()
-                return Note.new(basename(path), nil, nil, path):format_link {
-                  label = label,
-                  format = "absolute",
-                }
-              end)
-
-              if ok_link then
-                candidates[#candidates + 1] = {
-                  new_text = new_text,
-                  symbol = symbol.text,
-                  target_path = path,
-                }
-              end
-            end
-
-            if #candidates > 0 then
-              suggestions[#suggestions + 1] = {
-                range = Range.new(row0, start0, row0, end0),
-                text = label,
-                candidates = candidates,
-              }
-            end
-          end
-
-          search_start = end_col + 1
-        end
-      end
-    end
+    local results = M.find_in_line(line, row, symbols)
+    vim.list_extend(suggestions, results)
   end
 
   table.sort(suggestions, function(a, b)
