@@ -1,5 +1,5 @@
-local Range = require "obsidian.range"
 local api = require "obsidian.api"
+local Range = require "obsidian.range"
 
 -- TODO: extract to range class?
 ---@param range lsp.Range|?
@@ -12,14 +12,25 @@ local function line_in_range(range, line_nr)
   return range.start.line <= line_nr and line_nr <= range["end"].line
 end
 
----@param suggestion obsidian.LinkSuggestion
----@return lsp.TextEdit[]
-local function text_edits_for_suggestion(suggestion)
+---@param value string
+---@param position lsp.Position
+---@param range lsp.Range
+---@return lsp.InlayHint
+local function link_suggestion_hint(value, position, range)
   return {
-    {
-      range = Range.to_lsp(suggestion.range),
-      newText = suggestion.new_text,
+    position = position,
+    label = {
+      {
+        value = value,
+        command = {
+          title = "Apply link suggestion",
+          command = "obsidian.link_suggestion",
+        },
+      },
     },
+    paddingLeft = false,
+    paddingRight = false,
+    data = { range = range },
   }
 end
 
@@ -31,21 +42,9 @@ local function add_link_suggestion_hints(hints, suggestion)
     return
   end
 
-  local text_edits = text_edits_for_suggestion(suggestion)
-  hints[#hints + 1] = {
-    position = { line = range.start_row, character = range.start_col },
-    label = "[[",
-    paddingLeft = false,
-    paddingRight = false,
-    textEdits = text_edits,
-  }
-  hints[#hints + 1] = {
-    position = { line = range.end_row, character = range.end_col },
-    label = "]]",
-    paddingLeft = false,
-    paddingRight = false,
-    textEdits = text_edits,
-  }
+  local lsp_range = Range.to_lsp(range)
+  hints[#hints + 1] = link_suggestion_hint("[[", { line = range.start_row, character = range.start_col }, lsp_range)
+  hints[#hints + 1] = link_suggestion_hint("]]", { line = range.end_row, character = range.end_col }, lsp_range)
 end
 
 ---@param bufnr integer

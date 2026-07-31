@@ -22,7 +22,12 @@ local initializeResult = {
     workspaceSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {
-      commands = { "obsidian.write_note", "obsidian.footnote_new", "obsidian.inlay_hint_command" },
+      commands = {
+        "obsidian.write_note",
+        "obsidian.footnote_new",
+        "obsidian.inlay_hint_command",
+        "obsidian.link_suggestion",
+      },
     },
     completionProvider = {
       resolveProvider = false,

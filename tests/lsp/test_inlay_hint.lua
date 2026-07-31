@@ -7,29 +7,31 @@ local function setup_cache()
   h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
 end
 
-local function link_hints(line, start_col, end_col, new_text)
-  local edit = {
-    range = {
-      start = { line = line, character = start_col },
-      ["end"] = { line = line, character = end_col },
-    },
-    newText = new_text,
+local function link_hints(line, start_col, end_col)
+  local range = {
+    start = { line = line, character = start_col },
+    ["end"] = { line = line, character = end_col },
   }
+  local function hint(value, character)
+    return {
+      position = { line = line, character = character },
+      label = {
+        {
+          value = value,
+          command = {
+            title = "Apply link suggestion",
+            command = "obsidian.link_suggestion",
+          },
+        },
+      },
+      paddingLeft = false,
+      paddingRight = false,
+      data = { range = range },
+    }
+  end
   return {
-    {
-      position = { line = line, character = start_col },
-      label = "[[",
-      paddingLeft = false,
-      paddingRight = false,
-      textEdits = { edit },
-    },
-    {
-      position = { line = line, character = end_col },
-      label = "]]",
-      paddingLeft = false,
-      paddingRight = false,
-      textEdits = { edit },
-    },
+    hint("[[", start_col),
+    hint("]]", end_col),
   }
 end
 
@@ -59,7 +61,7 @@ T["suggests wiki brackets for link suggestions"] = function()
 
   child.cmd("edit " .. files["hints.md"])
 
-  eq(vim.list_extend(link_hints(0, 2, 6, "[[test]]"), link_hints(0, 23, 27, "[[test]]")), run_inlay_hint())
+  eq(vim.list_extend(link_hints(0, 2, 6), link_hints(0, 23, 27)), run_inlay_hint())
 end
 
 T["publishes link suggestions to native inlay hint interface"] = function()
@@ -76,7 +78,7 @@ T["publishes link suggestions to native inlay hint interface"] = function()
 
   eq(
     { "[[", "]]" },
-    child.lua_get [[vim.tbl_map(function(item) return item.inlay_hint.label end, vim.lsp.inlay_hint.get { bufnr = 0 })]]
+    child.lua_get [[vim.tbl_map(function(item) return item.inlay_hint.label[1].value end, vim.lsp.inlay_hint.get { bufnr = 0 })]]
   )
 end
 
@@ -89,7 +91,7 @@ T["does not suggest inside existing wiki links"] = function()
 
   child.cmd("edit " .. files["linked.md"])
 
-  eq(link_hints(0, 9, 13, "[[test]]"), run_inlay_hint())
+  eq(link_hints(0, 9, 13), run_inlay_hint())
 end
 
 -- TODO: once cache is auto per vault
@@ -148,7 +150,7 @@ T["didChange requests inlay hint refresh"] = function()
   eq(true, child.lua_get "inlay_hint_refresh_params_is_nil")
 end
 
-T["accepts link suggestion text edits under cursor"] = function()
+T["smart action executes the link suggestion command under cursor"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",
     ["hints.md"] = "a test",
@@ -159,10 +161,45 @@ T["accepts link suggestion text edits under cursor"] = function()
   run_inlay_hint()
   child.lua [[
     vim.api.nvim_win_set_cursor(0, { 1, 3 })
-    require("obsidian.inlay_hints").accept_under_cursor()
+    local action = require("obsidian.actions").smart_action()
+    _G.link_suggestion_smart_action = action
+    local keys = vim.api.nvim_replace_termcodes(action, true, false, true)
+    vim.api.nvim_feedkeys(keys, "x", false)
   ]]
 
-  eq("a [[test]]", child.lua_get [[vim.api.nvim_get_current_line()]])
+  eq(
+    "<cmd>lua require('obsidian.inlay_hints').accept_under_cursor()<cr>",
+    child.lua_get [[_G.link_suggestion_smart_action]]
+  )
+  h.child_wait(child, [=[return vim.api.nvim_get_current_line() == "a [[test]]"]=], { desc = "link suggestion action" })
+end
+
+T["selects between multiple link suggestion candidates"] = function()
+  local one_dir = child.Obsidian.dir / "one"
+  local two_dir = child.Obsidian.dir / "two"
+  one_dir:mkdir()
+  two_dir:mkdir()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["one/test.md"] = "# one",
+    ["two/test.md"] = "# two",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  child.lua [[
+    vim.api.nvim_win_set_cursor(0, { 1, 3 })
+    Obsidian.picker.pick = function(options, opts)
+      _G.link_suggestion_options = vim.tbl_map(function(option)
+        return option.text
+      end, options)
+      opts.callback(options[2])
+    end
+    require("obsidian.actions").link_suggestion()
+  ]]
+
+  eq({ "[[one/test|test]]", "[[two/test|test]]" }, child.lua_get [[_G.link_suggestion_options]])
+  eq("a [[two/test|test]]", child.lua_get [[vim.api.nvim_get_current_line()]])
 end
 
 T["registers line scanners with command hints"] = function()
@@ -224,7 +261,7 @@ test]],
   child.cmd("edit " .. files["range.md"])
 
   eq(
-    link_hints(2, 0, 4, "[[test]]"),
+    link_hints(2, 0, 4),
     run_inlay_hint {
       start = { line = 2, character = 0 },
       ["end"] = { line = 2, character = 4 },

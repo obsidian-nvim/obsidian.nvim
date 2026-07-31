@@ -5,20 +5,20 @@ local api = require "obsidian.api"
 
 local M = {}
 
----@class obsidian.LinkSuggestionSymbol
----@field text string
----@field text_lower string
----@field target_path string
----@field target_name string
----@field kind "stem"|"alias"
-
 ---@class obsidian.LinkSuggestion
 ---@field range obsidian.Range
 ---@field text string
+---@field candidates obsidian.LinkSuggestionCandidate[]
+
+---@class obsidian.LinkSuggestionCandidate
 ---@field new_text string
 ---@field symbol string
 ---@field target_path string
----@field target_name string
+
+---@class obsidian.LinkSuggestionSymbol
+---@field text string
+---@field text_lower string
+---@field target_paths string[]
 
 ---@param path string
 ---@return string
@@ -39,31 +39,26 @@ local function normalize_symbol_text(s)
   return s
 end
 
----@param symbols obsidian.LinkSuggestionSymbol[]
----@param seen table<string, boolean>
+---@param symbols table<string, obsidian.LinkSuggestionSymbol>
 ---@param text string?
 ---@param target_path string
----@param target_name string
----@param kind "stem"|"alias"
-local function add_symbol(symbols, seen, text, target_path, target_name, kind)
+local function add_symbol(symbols, text, target_path)
   text = normalize_symbol_text(text)
   if not text then
     return
   end
 
-  local key = target_path .. "\0" .. text:lower()
-  if seen[key] then
-    return
+  local text_lower = text:lower()
+  local symbol = symbols[text_lower]
+  if not symbol then
+    symbols[text_lower] = {
+      text = text,
+      text_lower = text_lower,
+      target_paths = { target_path },
+    }
+  elseif not vim.tbl_contains(symbol.target_paths, target_path) then
+    symbol.target_paths[#symbol.target_paths + 1] = target_path
   end
-  seen[key] = true
-
-  symbols[#symbols + 1] = {
-    text = text,
-    text_lower = text:lower(),
-    target_path = target_path,
-    target_name = target_name,
-    kind = kind,
-  }
 end
 
 ---@param path string
@@ -118,25 +113,29 @@ function M.symbols(path, opts)
   --   rows = scan_rows(dir)
   -- end
 
-  local symbols = {}
-  local seen = {}
+  ---@type table<string, obsidian.LinkSuggestionSymbol>
+  local symbols_by_text = {}
 
   for p, row in pairs(rows) do
     p = vim.fs.normalize(p)
     if opts.include_current or p ~= current_path then
       local name = basename(p)
-      add_symbol(symbols, seen, name, p, name, "stem")
+      add_symbol(symbols_by_text, name, p)
       for _, alias in ipairs(row.aliases or {}) do
-        add_symbol(symbols, seen, alias, p, name, "alias")
+        add_symbol(symbols_by_text, alias, p)
       end
     end
   end
 
+  local symbols = vim.tbl_values(symbols_by_text)
+  for _, symbol in ipairs(symbols) do
+    table.sort(symbol.target_paths)
+  end
   table.sort(symbols, function(a, b)
     if #a.text ~= #b.text then
       return #a.text > #b.text
     end
-    return a.text < b.text
+    return a.text_lower < b.text_lower
   end)
 
   return symbols
@@ -252,6 +251,7 @@ function M.find(note, opts)
     return {}
   end
 
+  ---@type obsidian.LinkSuggestion[]
   local suggestions = {}
   local fm_end = note.frontmatter_end_line or 0
   local in_code_block = false
@@ -287,21 +287,29 @@ function M.find(note, opts)
             and not overlaps_existing_suggestion(suggestions, row0, start0, end0)
           then
             local label = line:sub(start_col, end_col)
-            local ok_link, new_text = pcall(function()
-              return Note.new(symbol.target_name, nil, nil, symbol.target_path):format_link {
-                label = label,
-                format = "absolute",
-              }
-            end)
+            local candidates = {}
+            for _, path in ipairs(symbol.target_paths) do
+              local ok_link, new_text = pcall(function()
+                return Note.new(basename(path), nil, nil, path):format_link {
+                  label = label,
+                  format = "absolute",
+                }
+              end)
 
-            if ok_link then
+              if ok_link then
+                candidates[#candidates + 1] = {
+                  new_text = new_text,
+                  symbol = symbol.text,
+                  target_path = path,
+                }
+              end
+            end
+
+            if #candidates > 0 then
               suggestions[#suggestions + 1] = {
                 range = Range.new(row0, start0, row0, end0),
                 text = label,
-                new_text = new_text,
-                symbol = symbol.text,
-                target_path = symbol.target_path,
-                target_name = symbol.target_name,
+                candidates = candidates,
               }
             end
           end
@@ -319,7 +327,7 @@ function M.find(note, opts)
     if a.range.start_col ~= b.range.start_col then
       return a.range.start_col < b.range.start_col
     end
-    return a.target_name < b.target_name
+    return a.text < b.text
   end)
 
   return suggestions
