@@ -375,7 +375,6 @@ M.accept = function(bufnr)
 
   local item = assert(items[1])
   local hint = item.inlay_hint
-  vim.print(hint)
   if hint.textEdits and #hint.textEdits > 0 then
     local client = vim.lsp.get_client_by_id(item.client_id)
     vim.lsp.util.apply_text_edits(hint.textEdits, bufnr, client and client.offset_encoding or "utf-8")
