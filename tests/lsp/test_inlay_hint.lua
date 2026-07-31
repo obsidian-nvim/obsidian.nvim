@@ -158,7 +158,9 @@ T["smart action executes the link suggestion command under cursor"] = function()
   setup_cache()
 
   child.cmd("edit " .. files["hints.md"])
-  run_inlay_hint()
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
+  child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 2]], { desc = "native inlay hints" })
   child.lua [[
     vim.api.nvim_win_set_cursor(0, { 1, 3 })
     local action = require("obsidian.actions").smart_action()
@@ -172,6 +174,45 @@ T["smart action executes the link suggestion command under cursor"] = function()
     child.lua_get [[_G.link_suggestion_smart_action]]
   )
   h.child_wait(child, [=[return vim.api.nvim_get_current_line() == "a [[test]]"]=], { desc = "link suggestion action" })
+end
+
+T["accepts the first native hint in the current word range"] = function()
+  child.lua [[
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "a test here" })
+    vim.api.nvim_win_set_cursor(0, { 1, 3 })
+
+    local original_get = vim.lsp.inlay_hint.get
+    vim.lsp.inlay_hint.get = function(filter)
+      _G.accept_hint_filter = filter
+      local function item(command)
+        return {
+          bufnr = filter.bufnr,
+          client_id = -1,
+          inlay_hint = {
+            position = { line = 0, character = 2 },
+            label = { { value = command, command = { title = command, command = command } } },
+          },
+        }
+      end
+      return { item("test.first_hint"), item("test.second_hint") }
+    end
+    vim.lsp.commands["test.first_hint"] = function()
+      _G.accepted_hint = "first"
+    end
+    vim.lsp.commands["test.second_hint"] = function()
+      _G.accepted_hint = "second"
+    end
+
+    _G.accepted_hint_result = require("obsidian.inlay_hints").accept_under_cursor()
+    vim.lsp.inlay_hint.get = original_get
+  ]]
+
+  eq(true, child.lua_get [[_G.accepted_hint_result]])
+  eq("first", child.lua_get [[_G.accepted_hint]])
+  eq({
+    start = { line = 0, character = 2 },
+    ["end"] = { line = 0, character = 6 },
+  }, child.lua_get [[_G.accept_hint_filter.range]])
 end
 
 T["selects between multiple link suggestion candidates"] = function()
@@ -242,6 +283,9 @@ require("obsidian").inlay_hints.register({
   eq(" ▶", hints[1].label[1].value)
   eq("obsidian.inlay_hint_command", hints[1].label[1].command.command)
 
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
+  child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 1]], { desc = "native custom inlay hint" })
   child.lua [[
     vim.api.nvim_win_set_cursor(0, { 1, 10 })
     require("obsidian.inlay_hints").accept_under_cursor()

@@ -102,8 +102,8 @@ end
 -- If cursor is on a heading, cycle the fold of that heading
 M.smart_action = function()
   local legacy = Obsidian.opts.legacy_commands
-  if require("obsidian.inlay_hints").get_under_cursor() then
-    return "<cmd>lua require('obsidian.inlay_hints').accept_under_cursor()<cr>"
+  if not vim.tbl_isempty(require("obsidian.inlay_hints").get()) then
+    return "<cmd>lua require('obsidian.inlay_hints').accept()<cr>"
   elseif api.cursor_link() then
     return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
   elseif api.cursor_tag() then
@@ -897,15 +897,15 @@ M.footnote_new = function(id, bufnr, restore_cursor)
   require("obsidian.footnotes").create(id, bufnr, restore_cursor)
 end
 
----@param id integer
-M.inlay_hint_command = function(id, ...)
-  require("obsidian.inlay_hints").execute_command(id, ...)
-end
-
-M.inlay_hint_action = function()
-  require("obsidian.inlay_hints").accept_under_cursor()
-end
-
+-- ---@param id integer
+-- M.inlay_hint_command = function(id, ...)
+--   require("obsidian.inlay_hints").execute_command(id, ...)
+-- end
+--
+-- M.inlay_hint_action = function()
+--   require("obsidian.inlay_hints").accept_under_cursor()
+-- end
+--
 ---@param bufnr integer
 ---@param suggestion obsidian.LinkSuggestion
 ---@param candidate obsidian.LinkSuggestionCandidate
@@ -929,7 +929,7 @@ local function apply_link_suggestion(bufnr, suggestion, candidate)
     range.end_col,
     { candidate.new_text }
   )
-  require("obsidian.inlay_hints").clear(bufnr)
+  -- require("obsidian.inlay_hints").clear(bufnr)
   require("obsidian.ui").update(bufnr)
 end
 
