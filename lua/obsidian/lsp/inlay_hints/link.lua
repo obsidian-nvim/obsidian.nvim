@@ -14,9 +14,9 @@ end
 
 ---@param value string
 ---@param position lsp.Position
----@param range lsp.Range
+---@param suggestion obsidian.LinkSuggestion
 ---@return lsp.InlayHint
-local function link_suggestion_hint(value, position, range)
+local function link_suggestion_hint(value, position, suggestion)
   return {
     position = position,
     label = {
@@ -25,12 +25,12 @@ local function link_suggestion_hint(value, position, range)
         command = {
           title = "Apply link suggestion",
           command = "obsidian.link_suggestion",
+          arguments = { suggestion },
         },
       },
     },
     paddingLeft = false,
     paddingRight = false,
-    data = { range = range },
   }
 end
 
@@ -42,9 +42,8 @@ local function add_link_suggestion_hints(hints, suggestion)
     return
   end
 
-  local lsp_range = Range.to_lsp(range)
-  hints[#hints + 1] = link_suggestion_hint("[[", { line = range.start_row, character = range.start_col }, lsp_range)
-  hints[#hints + 1] = link_suggestion_hint("]]", { line = range.end_row, character = range.end_col }, lsp_range)
+  hints[#hints + 1] = link_suggestion_hint("[[", { line = range.start_row, character = range.start_col }, suggestion)
+  hints[#hints + 1] = link_suggestion_hint("]]", { line = range.end_row, character = range.end_col }, suggestion)
 end
 
 ---@param bufnr integer

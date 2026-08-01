@@ -82,6 +82,40 @@ T["publishes link suggestions to native inlay hint interface"] = function()
   )
 end
 
+T["resolves native hints before accepting them"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
+  child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 2]], { desc = "native inlay hints" })
+  child.lua [[
+    require("obsidian.lsp.handlers")["inlayHint/resolve"] = function(hint, callback)
+      _G.resolved_inlay_hint = true
+      local resolved = vim.deepcopy(hint)
+      resolved.label = "resolved"
+      resolved.textEdits = { {
+        range = {
+          start = { line = 0, character = 2 },
+          ["end"] = { line = 0, character = 6 },
+        },
+        newText = "resolved",
+      } }
+      callback(nil, resolved)
+    end
+    vim.api.nvim_win_set_cursor(0, { 1, 3 })
+    _G.accepted_resolved_inlay_hint = require("obsidian.inlay_hints").accept()
+  ]]
+
+  eq(true, child.lua_get [[_G.accepted_resolved_inlay_hint]])
+  eq(true, child.lua_get [[_G.resolved_inlay_hint]])
+  eq("a resolved", child.lua_get [[vim.api.nvim_get_current_line()]])
+end
+
 T["does not suggest inside existing wiki links"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",

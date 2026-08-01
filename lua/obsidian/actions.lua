@@ -918,55 +918,56 @@ local function apply_link_suggestion(bufnr, suggestion, candidate)
     range.end_col,
     { candidate.new_text }
   )
-  -- require("obsidian.inlay_hints").clear(bufnr)
   require("obsidian.ui").update(bufnr)
 end
 
 --- Apply the link suggestion under the cursor, selecting a target when the
 --- matched note name or alias belongs to more than one note.
-M.link_suggestion = function()
+---@param suggestion obsidian.LinkSuggestion|?
+M.link_suggestion = function(suggestion)
   local bufnr = vim.api.nvim_get_current_buf()
   local note = api.current_note(bufnr)
   if not note then
     return
   end
 
-  local cursor = vim.api.nvim_win_get_cursor(0)
-  local row, col = cursor[1] - 1, cursor[2]
-  local suggestion
-  for _, current in ipairs(note:link_suggestions()) do
-    local range = current.range
-    if
-      range.start_row <= row
-      and row <= range.end_row
-      and (row ~= range.start_row or range.start_col <= col)
-      and (row ~= range.end_row or col < range.end_col)
-    then
-      suggestion = current
-      break
+  if not suggestion then
+    -- TODO: a find_cursor
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local row, col = cursor[1] - 1, cursor[2]
+    for _, current in ipairs(note:link_suggestions()) do
+      local range = current.range
+      if
+        range.start_row <= row
+        and row <= range.end_row
+        and (row ~= range.start_row or range.start_col <= col)
+        and (row ~= range.end_row or col < range.end_col)
+      then
+        suggestion = current
+        break
+      end
     end
+    return
   end
 
-  if not suggestion or #suggestion.candidates == 0 then
+  if #suggestion.candidates == 0 then
+    log.info "No Link Suggestion Candidates"
     return
   elseif #suggestion.candidates == 1 then
     return apply_link_suggestion(bufnr, suggestion, suggestion.candidates[1])
   end
 
-  ---@type obsidian.PickerEntry[]
-  local options = {}
-  for _, candidate in ipairs(suggestion.candidates) do
-    options[#options + 1] = { filename = candidate.target_path, text = candidate.new_text, user_data = candidate }
-  end
-
-  picker.pick(options, {
-    prompt_title = "Select link target",
-    callback = function(option)
-      if option and option.user_data then
-        apply_link_suggestion(bufnr, suggestion, option.user_data)
-      end
+  picker.select(suggestion.candidates, {
+    prompt = "Select link target",
+    format_item = function(candidate)
+      return candidate.new_text
     end,
-  })
+    preview_item = function(candidate)
+      return util.preview_path(candidate.target_path)
+    end,
+  }, function(candidates)
+    apply_link_suggestion(bufnr, suggestion, candidates[1])
+  end)
 end
 
 --- write note to disk, for lsp completion create note
