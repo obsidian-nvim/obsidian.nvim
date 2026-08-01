@@ -62,7 +62,7 @@ local initializeResult = {
   },
 }
 
----@param _ lsp.InitializeParams
+---@param _       lsp.InitializeParams
 ---@param handler fun(_: any, res: lsp.InitializeResult)
 return function(_, handler, dispatchers)
   send_progress(dispatchers, "begin", "Initializing obsidian LSP server...", 0)

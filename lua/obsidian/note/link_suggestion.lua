@@ -253,7 +253,10 @@ function M.find_in_line(line, row, symbols)
         local candidates = {}
         for _, path in ipairs(symbol.target_paths) do
           local ok_link, new_text = pcall(function()
-            return Note.new(basename(path), nil, nil, path):format_link { label = label }
+            return Note.new(basename(path), nil, nil, path):format_link {
+              label = label,
+              format = #symbol.target_paths > 1 and "absolute" or nil,
+            }
           end)
 
           if ok_link then
@@ -298,16 +301,21 @@ function M.find(note, opts)
   local suggestions = {}
 
   local fm_end = note.frontmatter_end_line or 1
+  local code_fence
   for row = fm_end, #note.contents do
     local line = note.contents[row]
-    local in_code_block = true
+    local fence = line:match "^%s*(```+)" or line:match "^%s*(~~~+)"
 
-    if line:match "^%s*```" then
-      in_code_block = not in_code_block
+    if fence then
+      if not code_fence then
+        code_fence = fence
+      elseif fence:sub(1, 1) == code_fence:sub(1, 1) and #fence >= #code_fence then
+        code_fence = nil
+      end
+    elseif not code_fence then
+      local results = M.find_in_line(line, row, symbols)
+      vim.list_extend(suggestions, results)
     end
-
-    local results = M.find_in_line(line, row, symbols)
-    vim.list_extend(suggestions, results)
   end
 
   table.sort(suggestions, function(a, b)

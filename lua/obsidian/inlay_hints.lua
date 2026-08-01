@@ -2,49 +2,44 @@ local Range = require "obsidian.range"
 
 local M = {}
 
----@alias obsidian.InlayHintCommandSpec lsp.Command|fun(entry: obsidian.InlayHintEntry, ...: any)
+---@alias obsidian.InlayHintCommandSpec lsp.Command | fun(entry: obsidian.InlayHintEntry, ...: any)
 
 ---@class obsidian.InlayHintSpec
----@field position? lsp.Position|integer Position for the rendered hint. An integer is treated as the column on the current line.
----@field range? obsidian.Range|lsp.Range Range that should trigger this hint's action when the cursor is inside it.
----@field hinted_range? obsidian.Range|lsp.Range Deprecated alias for `range`.
----@field label string|lsp.InlayHintLabelPart[]
----@field kind? lsp.InlayHintKind|integer
----@field textEdits? lsp.TextEdit[]
----@field text_edits? lsp.TextEdit[] Alias for `textEdits`.
----@field tooltip? string|lsp.MarkupContent
----@field paddingLeft? boolean
----@field paddingRight? boolean
----@field padding_left? boolean Alias for `paddingLeft`.
----@field padding_right? boolean Alias for `paddingRight`.
----@field data? any
----@field command? obsidian.InlayHintCommandSpec Command to execute for this hint. Function commands are stored internally and exposed as an LSP command.
----@field command_title? string
+---@field position?      lsp.Position | integer            Position for the rendered hint. An integer is treated as the column on the current line.
+---@field range?         obsidian.Range | lsp.Range        Range that should trigger this hint's action when the cursor is inside it.
+---@field hinted_range?  obsidian.Range | lsp.Range        Deprecated alias for `range`.
+---@field label          string | lsp.InlayHintLabelPart[]
+---@field kind?          lsp.InlayHintKind | integer
+---@field textEdits?     lsp.TextEdit[]
+---@field text_edits?    lsp.TextEdit[]                    Alias for `textEdits`.
+---@field tooltip?       string | lsp.MarkupContent
+---@field paddingLeft?   boolean
+---@field paddingRight?  boolean
+---@field padding_left?  boolean                           Alias for `paddingLeft`.
+---@field padding_right? boolean                           Alias for `paddingRight`.
+---@field data?          any
 
 ---@class obsidian.InlayHintContext
----@field bufnr integer
----@field row integer 0-based row being scanned.
----@field line string Line text.
----@field lsp_range lsp.Range|nil Requested LSP range.
----@field add fun(spec: obsidian.InlayHintSpec): lsp.InlayHint Add a hint for the current line.
+---@field bufnr     integer
+---@field row       integer                                          0-based row being scanned.
+---@field line      string                                           Line text.
+---@field lsp_range lsp.Range | nil                                  Requested LSP range.
+---@field add       fun(spec: obsidian.InlayHintSpec): lsp.InlayHint Add a hint for the current line.
 
 ---@class obsidian.InlayHintProvider
 ---@field name? string
----@field scan fun(ctx: obsidian.InlayHintContext): obsidian.InlayHintSpec[]|nil Called once for each scanned line.
+---@field scan  fun(ctx: obsidian.InlayHintContext): obsidian.InlayHintSpec[] | nil Called once for each scanned line.
 
 ---@class obsidian.InlayHintEntry
----@field bufnr integer
----@field range obsidian.Range
----@field hint lsp.InlayHint
----@field command? lsp.Command
----@field command_id? integer
+---@field bufnr       integer
+---@field range       obsidian.Range
+---@field hint        lsp.InlayHint
 
 ---@type obsidian.InlayHintProvider[]
 local providers = {}
 
 ---@type table<integer, { bufnr: integer, command: fun(...) }>
 local function_commands = {}
-local next_command_id = 0
 local next_provider_id = 0
 
 local function line_in_range(range, line_nr)
@@ -58,8 +53,8 @@ local function is_lsp_range(range)
   return type(range) == "table" and range.start ~= nil and range["end"] ~= nil
 end
 
----@param range obsidian.Range|lsp.Range|nil
----@return obsidian.Range|nil
+---@param range obsidian.Range | lsp.Range | nil
+---@return obsidian.Range | nil
 local function normalize_range(range)
   if not range then
     return nil
@@ -73,8 +68,8 @@ local function normalize_range(range)
 end
 
 ---@param bufnr integer
----@param spec obsidian.InlayHintSpec
----@param row integer
+---@param spec  obsidian.InlayHintSpec
+---@param row   integer
 ---@return lsp.InlayHint
 ---@return obsidian.InlayHintEntry
 local function spec_to_hint(bufnr, spec, row)
@@ -91,49 +86,9 @@ local function spec_to_hint(bufnr, spec, row)
     end
   end
 
-  local command = spec.command
-  local command_id
-  ---@type lsp.Command|nil
-  local lsp_command
-  ---@type fun(entry: obsidian.InlayHintEntry, ...: any)|nil
-  local command_fn
-  if type(command) == "function" then
-    command_fn = command
-    ---@cast command_fn fun(entry: obsidian.InlayHintEntry, ...: any)
-    next_command_id = next_command_id + 1
-    command_id = next_command_id
-    lsp_command = {
-      title = spec.command_title or "Obsidian inlay hint",
-      command = "obsidian.inlay_hint_command",
-      arguments = { command_id },
-    }
-  elseif type(command) == "table" then
-    lsp_command = command
-  end
-
   local label = spec.label
-  if lsp_command then
-    if type(label) == "string" then
-      label = { { value = label, command = lsp_command } }
-    elseif type(label) == "table" and #label > 0 then
-      local has_command = false
-      for _, part in ipairs(label) do
-        if type(part) == "table" and part.command then
-          has_command = true
-          break
-        end
-      end
-      if not has_command then
-        if type(label[#label]) == "table" then
-          label[#label].command = lsp_command
-        else
-          label[#label] = { value = tostring(label[#label]), command = lsp_command }
-        end
-      end
-    end
-  end
 
-  ---@type lsp.InlayHint|table
+  ---@type lsp.InlayHint | table
   local hint = {
     position = position,
     label = label,
@@ -160,23 +115,17 @@ local function spec_to_hint(bufnr, spec, row)
     end
   end
 
-  ---@type obsidian.InlayHintEntry
-  local entry = {
-    bufnr = bufnr,
-    range = hint_range,
-    hint = hint,
-    command = lsp_command,
-    command_id = command_id,
-  }
-
-  if command_id and command_fn then
-    function_commands[command_id] = {
-      bufnr = bufnr,
-      command = function(...)
-        return command_fn(entry, ...)
-      end,
-    }
+  -- `range` is an Obsidian extension that describes where the hint action is
+  -- active. Keep it in LSP `data` so it survives the server/client round trip.
+  if type(hint.data) == "table" then
+    hint.data = vim.deepcopy(hint.data)
+    hint.data.range = hint.data.range or Range.to_lsp(hint_range)
+  elseif hint.data == nil then
+    hint.data = { range = Range.to_lsp(hint_range) }
   end
+
+  ---@type obsidian.InlayHintEntry
+  local entry = { bufnr = bufnr, range = hint_range, hint = hint }
 
   return hint, entry
 end
@@ -194,17 +143,24 @@ local function current_word_range(bufnr, row, col)
       if start_col == -1 or start_col > col then
         return nil
       elseif start_col <= col and col < end_col then
-        return {
-          start = { line = row, character = start_col },
-          ["end"] = { line = row, character = end_col },
-        }
+        return { start = { line = row, character = start_col }, ["end"] = { line = row, character = end_col } }
       end
       offset = end_col
     end
   end)
 end
 
----@param provider obsidian.InlayHintProvider|fun(ctx: obsidian.InlayHintContext): obsidian.InlayHintSpec[]|nil
+---@param range lsp.Range
+---@param row   integer
+---@param col   integer
+---@return boolean
+local function range_contains_position(range, row, col)
+  local starts_before = range.start.line < row or (range.start.line == row and range.start.character <= col)
+  local ends_after = range["end"].line > row or (range["end"].line == row and col < range["end"].character)
+  return starts_before and ends_after
+end
+
+---@param provider obsidian.InlayHintProvider | fun(ctx: obsidian.InlayHintContext): obsidian.InlayHintSpec[] | nil
 ---@return fun() unregister
 M.register = function(provider)
   if type(provider) == "function" then
@@ -229,24 +185,13 @@ M.unregister = function(name)
       table.remove(providers, i)
     end
   end
-  M.clear()
-end
-
----@param bufnr integer|nil
-M.clear = function(bufnr)
-  for id, command in pairs(function_commands) do
-    if not bufnr or command.bufnr == bufnr then
-      function_commands[id] = nil
-    end
-  end
 end
 
 ---@param bufnr integer
----@param range lsp.Range|nil
+---@param range lsp.Range | nil
 ---@return lsp.InlayHint[]
 M.collect = function(bufnr, range)
   bufnr = bufnr or 0
-  M.clear(bufnr)
 
   ---@type lsp.InlayHint[]
   local hints = {}
@@ -297,36 +242,42 @@ M.collect = function(bufnr, range)
   return hints
 end
 
----@param bufnr integer|nil
+---@param bufnr integer | nil
 ---@return vim.lsp.inlay_hint.get.ret[]
 M.get = function(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-
-  local range = current_word_range(bufnr, row - 1, col)
-  if not range then
+  if not vim.lsp.inlay_hint or type(vim.lsp.inlay_hint.get) ~= "function" then
     return {}
   end
 
-  return vim.lsp.inlay_hint.get { bufnr = bufnr, range = range }
-end
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  row = row - 1
+  ---@cast row integer
+  ---@cast col integer
+  local word_range = current_word_range(bufnr, row, col)
+  local matches = {}
 
----@param id integer
-M.execute_command = function(id, ...)
-  local registered = function_commands[id]
-  if not registered then
-    require("obsidian.log").warn("inlay hint command not found: %s", tostring(id))
-    return
+  for _, item in ipairs(vim.lsp.inlay_hint.get { bufnr = bufnr }) do
+    local hint = item.inlay_hint
+    local data_range = type(hint.data) == "table" and hint.data.range or nil
+    local matches_cursor
+    if is_lsp_range(data_range) then
+      ---@cast data_range lsp.Range
+      matches_cursor = range_contains_position(data_range, row, col)
+    elseif word_range then
+      matches_cursor = range_contains_position(word_range, hint.position.line, hint.position.character)
+    end
+
+    if matches_cursor then
+      matches[#matches + 1] = item
+    end
   end
 
-  local ok, err = pcall(registered.command, ...)
-  if not ok then
-    require("obsidian.log").err("inlay hint command failed: %s", err)
-  end
+  return matches
 end
 
 ---@param hint lsp.InlayHint
----@return lsp.Command|nil
+---@return lsp.Command | nil
 local function command_from_hint(hint)
   local hint_table = hint --[[@as table]]
   if hint_table.command then
@@ -342,15 +293,6 @@ end
 
 ---@param command lsp.Command
 local function execute_lsp_command(command)
-  if command.command == "obsidian.inlay_hint_command" then
-    local args = command.arguments or {}
-    ---@cast args any[]
-    if args[1] then
-      return M.execute_command(args[1] --[[@as integer]], unpack(args, 2))
-    end
-    return
-  end
-
   local handler = vim.lsp.commands[command.command]
   if handler then
     return handler(command, {})
@@ -364,7 +306,7 @@ end
 
 -- TODO: will be unnecessary once something like https://github.com/neovim/neovim/pull/36219 lands
 
----@param bufnr integer|nil
+---@param bufnr integer | nil
 ---@return boolean accepted
 M.accept = function(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
@@ -373,7 +315,7 @@ M.accept = function(bufnr)
     return false
   end
 
-  local item = assert(items[1])
+  local item = assert(items[1], "expected at least one inlay hint under the cursor")
   local hint = item.inlay_hint
   if hint.textEdits and #hint.textEdits > 0 then
     local client = vim.lsp.get_client_by_id(item.client_id)

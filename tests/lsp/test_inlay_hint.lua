@@ -94,6 +94,22 @@ T["does not suggest inside existing wiki links"] = function()
   eq(link_hints(0, 9, 13), run_inlay_hint())
 end
 
+T["does not suggest inside fenced code blocks"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["fenced.md"] = [=[before test
+```lua
+test
+```
+after test]=],
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["fenced.md"])
+
+  eq(vim.list_extend(link_hints(0, 7, 11), link_hints(4, 6, 10)), run_inlay_hint())
+end
+
 -- TODO: once cache is auto per vault
 -- T["uses the workspace that owns the buffer for link suggestions"] = function()
 --   h.mock_vault_contents(child.Obsidian.dir, {
@@ -157,31 +173,60 @@ T["smart action executes the link suggestion command under cursor"] = function()
   h.child_wait(child, [=[return vim.api.nvim_get_current_line() == "a [[test]]"]=], { desc = "link suggestion action" })
 end
 
-T["accepts the first native hint in the current word range"] = function()
+T["smart action falls back when inlay hint lookup is unavailable"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["linked.md"] = "[[test]]",
+  })
+  child.cmd("edit " .. files["linked.md"])
   child.lua [[
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "a test here" })
     vim.api.nvim_win_set_cursor(0, { 1, 3 })
+    local original_get = vim.lsp.inlay_hint.get
+    vim.lsp.inlay_hint.get = nil
+    _G.smart_action_without_hint_get = require("obsidian.actions").smart_action()
+    _G.hints_without_hint_get = require("obsidian.inlay_hints").get()
+    vim.lsp.inlay_hint.get = original_get
+  ]]
+
+  eq("<cmd>Obsidian follow_link<cr>", child.lua_get [[_G.smart_action_without_hint_get]])
+  eq({}, child.lua_get [[_G.hints_without_hint_get]])
+end
+
+T["accepts a native hint when cursor is inside its declared range"] = function()
+  child.lua [[
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "a three word note here" })
+    vim.api.nvim_win_set_cursor(0, { 1, 9 })
 
     local original_get = vim.lsp.inlay_hint.get
     vim.lsp.inlay_hint.get = function(filter)
       _G.accept_hint_filter = filter
-      local function item(command)
+      local function item(command, position, range)
         return {
           bufnr = filter.bufnr,
           client_id = -1,
           inlay_hint = {
-            position = { line = 0, character = 2 },
+            position = { line = 0, character = position },
             label = { { value = command, command = { title = command, command = command } } },
+            data = { range = range },
           },
         }
       end
-      return { item("test.first_hint"), item("test.second_hint") }
+      return {
+        item("test.outside_hint", 0, {
+          start = { line = 0, character = 0 },
+          ["end"] = { line = 0, character = 1 },
+        }),
+        item("test.inside_hint", 2, {
+          start = { line = 0, character = 2 },
+          ["end"] = { line = 0, character = 17 },
+        }),
+      }
     end
-    vim.lsp.commands["test.first_hint"] = function()
-      _G.accepted_hint = "first"
+    vim.lsp.commands["test.outside_hint"] = function()
+      _G.accepted_hint = "outside"
     end
-    vim.lsp.commands["test.second_hint"] = function()
-      _G.accepted_hint = "second"
+    vim.lsp.commands["test.inside_hint"] = function()
+      _G.accepted_hint = "inside"
     end
 
     _G.accepted_hint_result = require("obsidian.inlay_hints").accept()
@@ -189,11 +234,8 @@ T["accepts the first native hint in the current word range"] = function()
   ]]
 
   eq(true, child.lua_get [[_G.accepted_hint_result]])
-  eq("first", child.lua_get [[_G.accepted_hint]])
-  eq({
-    start = { line = 0, character = 2 },
-    ["end"] = { line = 0, character = 6 },
-  }, child.lua_get [[_G.accept_hint_filter.range]])
+  eq("inside", child.lua_get [[_G.accepted_hint]])
+  eq(true, child.lua_get [[_G.accept_hint_filter.range == nil]])
 end
 
 T["selects between multiple link suggestion candidates"] = function()
