@@ -19,8 +19,6 @@ local M = {}
 ---@type obsidian.InlayHintProvider[]
 local providers = {}
 
-local next_provider_id = 0
-
 local function line_in_range(range, line_nr)
   if not range then
     return true
@@ -106,7 +104,6 @@ M.collect = function(bufnr, range)
         if line then
           for _, provider in ipairs(providers) do
             local function add(hint)
-              -- local hint = spec_to_hint(bufnr, spec, row)
               hints[#hints + 1] = hint
               return hint
             end
@@ -189,11 +186,6 @@ local function execute_lsp_command(command)
   if handler then
     return handler(command, {})
   end
-
-  -- Fall back to the LSP client. This is useful for commands implemented by
-  -- another client and keeps the stored command table LSP-shaped.
-  ---@diagnostic disable-next-line: undefined-field
-  return vim.lsp.buf.execute_command(command)
 end
 
 -- TODO: will be unnecessary once something like https://github.com/neovim/neovim/pull/36219 lands in neovim core
