@@ -87,4 +87,43 @@ T["find"]["find and resolve workspace based on dirs"] = function()
   eq(wss[1], workspace.find(subdir, wss))
 end
 
+T["autocmds"] = new_set()
+
+T["autocmds"]["should switch current workspace when entering a note from another workspace"] = function()
+  local vault_a = Path.temp { suffix = "-obsidian-a" }
+  local vault_b = Path.temp { suffix = "-obsidian-b" }
+  vault_a:mkdir()
+  vault_b:mkdir()
+  local vault_a_config = vault_a / ".obsidian"
+  local vault_b_config = vault_b / ".obsidian"
+  vault_a_config:mkdir()
+  vault_b_config:mkdir()
+
+  local note = vault_b / "note.md"
+  vim.fn.writefile({ "[[target]]" }, tostring(note))
+
+  require("obsidian").setup {
+    legacy_commands = false,
+    workspaces = {
+      {
+        name = "vault-a",
+        path = tostring(vault_a),
+      },
+      {
+        name = "vault-b",
+        path = tostring(vault_b),
+      },
+    },
+    footer = {
+      enabled = false,
+    },
+  }
+
+  eq("vault-a", Obsidian.workspace.name)
+  vim.cmd.edit(tostring(note))
+  vim.bo.filetype = "markdown"
+  vim.cmd.doautocmd "BufEnter"
+  eq("vault-b", Obsidian.workspace.name)
+end
+
 return T

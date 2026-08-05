@@ -34,6 +34,10 @@ local function bufenter_callback(ev)
     return
   end
 
+  if workspace ~= Obsidian.workspace then
+    require("obsidian.workspace").set(workspace)
+  end
+
   -- Check if this file should be ignored based on file.ignore_filters.
   if ignore.is_ignored(ev.file) then
     return
