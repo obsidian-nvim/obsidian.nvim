@@ -18,7 +18,8 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [x] Completion Proposals (`textDocument/completion`)
 - [x] Folding Range (`textDocument/foldingRange`)
 - [x] Inlay Hint (`textDocument/inlayHint`) - adds virtual text link suggestions
-- [x] Inlay Hint Refresh (`workspace/inlayHint/refresh`)
+- [x] Inlay Hint Refresh (`workspace/inlayHint/refresh`) - refreshes hints after a note is saved
+- [ ] Inlay Hint Resolve (`inlayHint/resolve`)
 - [ ] Hover (`textDocument/hover`)
 - [ ] Completion Item Resolve (`completionItem/resolve`)
 - [ ] Publish Diagnostics (`textDocument/publishDiagnostics`)

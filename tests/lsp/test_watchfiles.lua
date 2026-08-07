@@ -28,9 +28,15 @@ T["saving an attached note emits didSave"] = function()
 
     local refresh = cache.notes.refresh
     local refreshes = 0
+    local inlay_refreshes = 0
     cache.notes.refresh = function(saved_path)
       refreshes = refreshes + 1
       refresh(saved_path)
+    end
+    local original_inlay_refresh = vim.lsp.handlers["workspace/inlayHint/refresh"]
+    vim.lsp.handlers["workspace/inlayHint/refresh"] = function()
+      inlay_refreshes = inlay_refreshes + 1
+      return vim.NIL
     end
 
     vim.cmd("edit " .. vim.fn.fnameescape(path))
@@ -42,14 +48,17 @@ T["saving an attached note emits didSave"] = function()
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { "#two" })
     vim.cmd "write"
     assert(vim.wait(1000, function()
-      return refreshes > 0
+      return refreshes > 0 and inlay_refreshes > 0
     end))
 
+    vim.lsp.handlers["workspace/inlayHint/refresh"] = original_inlay_refresh
     _G.did_save_refreshes = refreshes
+    _G.did_save_inlay_refreshes = inlay_refreshes
     _G.did_save_tags = cache.notes.find(path).tags
   ]]
 
   eq(1, child.lua_get "did_save_refreshes")
+  eq(1, child.lua_get "did_save_inlay_refreshes")
   eq({ "two" }, child.lua_get "did_save_tags")
 end
 
