@@ -35,6 +35,10 @@ local function link_hints(line, start_col, end_col)
   }
 end
 
+local function link_hint(value, line, start_col, end_col)
+  return link_hints(line, start_col, end_col)[value == "[[" and 1 or 2]
+end
+
 local function run_inlay_hint(range)
   local range_lua = range and vim.inspect(range) or "nil"
   return h.child_await(
@@ -45,6 +49,13 @@ local function run_inlay_hint(range)
         textDocument = { uri = vim.uri_from_bufnr(0) },
         range = %s,
       }, function(_, res)
+        for _, hint in ipairs(res) do
+          for _, part in ipairs(type(hint.label) == "table" and hint.label or {}) do
+            if part.command then
+              part.command.arguments = nil
+            end
+          end
+        end
         done(res)
       end)
     ]]):format(range_lua),
@@ -94,6 +105,8 @@ T["resolves native hints before accepting them"] = function()
   child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
   h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 2]], { desc = "native inlay hints" })
   child.lua [[
+    local client = vim.lsp.get_clients({ name = "obsidian-ls" })[1]
+    client.server_capabilities.inlayHintProvider = { resolveProvider = true }
     require("obsidian.lsp.handlers")["inlayHint/resolve"] = function(hint, callback)
       _G.resolved_inlay_hint = true
       local resolved = vim.deepcopy(hint)
@@ -207,6 +220,60 @@ T["smart action executes the link suggestion command under cursor"] = function()
   h.child_wait(child, [=[return vim.api.nvim_get_current_line() == "a [[test]]"]=], { desc = "link suggestion action" })
 end
 
+T["smart action accepts a multi-word suggestion from its middle word"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["three word note.md"] = "# target",
+    ["hints.md"] = "a three word note here",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
+  child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 2]], { desc = "native inlay hints" })
+  child.lua [[
+    vim.api.nvim_win_set_cursor(0, { 1, 9 })
+    local action = require("obsidian.actions").smart_action()
+    local keys = vim.api.nvim_replace_termcodes(action, true, false, true)
+    vim.api.nvim_feedkeys(keys, "x", false)
+  ]]
+
+  h.child_wait(child, [=[return vim.api.nvim_get_current_line() == "a [[three word note]] here"]=], {
+    desc = "multi-word link suggestion action",
+  })
+end
+
+T["smart action ignores hints from other LSP clients"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["linked.md"] = "[[test]]",
+  })
+  child.cmd("edit " .. files["linked.md"])
+  child.lua [[
+    vim.api.nvim_win_set_cursor(0, { 1, 3 })
+    local original_hint_get = vim.lsp.inlay_hint.get
+    local original_client_get = vim.lsp.get_client_by_id
+    vim.lsp.inlay_hint.get = function(filter)
+      return { {
+        bufnr = filter.bufnr,
+        client_id = 99,
+        inlay_hint = {
+          position = { line = 0, character = 2 },
+          label = { { value = "foreign", command = { title = "foreign", command = "foreign.command" } } },
+        },
+      } }
+    end
+    vim.lsp.get_client_by_id = function(id)
+      return id == 99 and { name = "foreign-ls" } or nil
+    end
+    _G.smart_action_with_foreign_hint = require("obsidian.actions").smart_action()
+    vim.lsp.inlay_hint.get = original_hint_get
+    vim.lsp.get_client_by_id = original_client_get
+  ]]
+
+  eq("<cmd>Obsidian follow_link<cr>", child.lua_get [[_G.smart_action_with_foreign_hint]])
+end
+
 T["smart action falls back when inlay hint lookup is unavailable"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",
@@ -287,11 +354,11 @@ T["selects between multiple link suggestion candidates"] = function()
   child.cmd("edit " .. files["hints.md"])
   child.lua [[
     vim.api.nvim_win_set_cursor(0, { 1, 3 })
-    Obsidian.picker.pick = function(options, opts)
-      _G.link_suggestion_options = vim.tbl_map(function(option)
-        return option.text
-      end, options)
-      opts.callback(options[2])
+    require("obsidian.picker").select = function(candidates, _, callback)
+      _G.link_suggestion_options = vim.tbl_map(function(candidate)
+        return candidate.new_text
+      end, candidates)
+      callback({ candidates[2] })
     end
     require("obsidian.actions").link_suggestion()
   ]]
@@ -300,36 +367,63 @@ T["selects between multiple link suggestion candidates"] = function()
   eq("a [[two/test|test]]", child.lua_get [[vim.api.nvim_get_current_line()]])
 end
 
-T["registers line scanners with command hints"] = function()
+T["does nothing when link suggestion selection is cancelled"] = function()
+  local one_dir = child.Obsidian.dir / "one"
+  local two_dir = child.Obsidian.dir / "two"
+  one_dir:mkdir()
+  two_dir:mkdir()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["one/test.md"] = "# one",
+    ["two/test.md"] = "# two",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  child.lua [[
+    vim.api.nvim_win_set_cursor(0, { 1, 3 })
+    require("obsidian.picker").select = function(_, _, callback)
+      callback({})
+    end
+    require("obsidian.actions").link_suggestion()
+  ]]
+
+  eq("a test", child.lua_get [[vim.api.nvim_get_current_line()]])
+end
+
+T["uses a custom hints resolver with an LSP command"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["ipa.md"] = "  say /ˌɒnəmatəˈpiːə/ now",
   })
   setup_cache()
 
   child.lua [[
-
-local Range = require("obsidian.range")
-require("obsidian").inlay_hints.register({
-   name = "ipa-test",
-   scan = function(ctx)
-      local leading, ipa = ctx.line:match("(%s+)/([^/]+)/")
-      if not ipa then
-         return
-      end
-
-      local start_col = #leading + 1
-      local end_col = #leading + #ipa + 2
-      local range = Range.new(ctx.row, start_col - 1, ctx.row, end_col)
-      ctx.add({
-         range = range,
-         position = { line = ctx.row, character = end_col },
-         label = " ▶",
-         command = function()
-            _G.spoken_ipa = ipa
-         end,
-      })
-   end,
-})
+require("obsidian.actions").speak_ipa = function(ipa)
+  _G.spoken_ipa = ipa
+end
+Obsidian.opts.resolvers.hints = function(ctx, done)
+  local line = ctx.note.contents[1]
+  local leading, ipa = line:match("(%s+)/([^/]+)/")
+  local start_col = #leading
+  local end_col = #leading + #ipa + 2
+  done({ {
+    position = { line = 0, character = end_col },
+    label = { {
+      value = " ▶",
+      command = {
+        title = "Speak IPA",
+        command = "obsidian.speak_ipa",
+        arguments = { ipa },
+      },
+    } },
+    data = {
+      range = {
+        start = { line = 0, character = start_col },
+        ["end"] = { line = 0, character = end_col },
+      },
+    },
+  } })
+end
   ]]
 
   child.cmd("edit " .. files["ipa.md"])
@@ -338,7 +432,7 @@ require("obsidian").inlay_hints.register({
   eq(1, #hints)
   eq({ line = 0, character = 23 }, hints[1].position)
   eq(" ▶", hints[1].label[1].value)
-  eq("obsidian.inlay_hint_command", hints[1].label[1].command.command)
+  eq("obsidian.speak_ipa", hints[1].label[1].command.command)
 
   h.child_wait_for_lsp_client(child, "obsidian-ls")
   child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
@@ -362,12 +456,65 @@ test]],
   child.cmd("edit " .. files["range.md"])
 
   eq(
-    link_hints(2, 0, 4),
+    { link_hint("[[", 2, 0, 4) },
     run_inlay_hint {
       start = { line = 2, character = 0 },
       ["end"] = { line = 2, character = 4 },
     }
   )
+end
+
+T["honors character bounds in requested ranges"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["range.md"] = "a test test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["range.md"])
+
+  eq(
+    { link_hint("]]", 0, 2, 6), link_hint("[[", 0, 7, 11) },
+    run_inlay_hint {
+      start = { line = 0, character = 3 },
+      ["end"] = { line = 0, character = 8 },
+    }
+  )
+  eq(
+    {},
+    run_inlay_hint {
+      start = { line = 0, character = 0 },
+      ["end"] = { line = 0, character = 0 },
+    }
+  )
+end
+
+T["loads and scans requested lines beyond the search limit"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["long.md"] = string.rep("skip\n", 1001) .. "test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["long.md"])
+  child.lua [[
+    local suggestions = require "obsidian.note.link_suggestion"
+    local original_find_in_line = suggestions.find_in_line
+    _G.scanned_link_suggestion_lines = 0
+    suggestions.find_in_line = function(...)
+      _G.scanned_link_suggestion_lines = _G.scanned_link_suggestion_lines + 1
+      return original_find_in_line(...)
+    end
+  ]]
+
+  eq(
+    link_hints(1001, 0, 4),
+    run_inlay_hint {
+      start = { line = 1001, character = 0 },
+      ["end"] = { line = 1001, character = 5 },
+    }
+  )
+  eq(1, child.lua_get [[_G.scanned_link_suggestion_lines]])
 end
 
 return T

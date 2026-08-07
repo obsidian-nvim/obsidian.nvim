@@ -112,7 +112,7 @@ util.urlencode = function(str, opts)
   opts = opts or {}
   local url = str
   url = url:gsub("\n", "\r\n")
-  url = url:gsub("([%(%)%*%?%[%]%$\"':<>|\\'{}])", char_to_hex)
+  url = url:gsub("([%(%)%*%?%[%]%$\"':<>|\\'{}&])", char_to_hex)
   if not opts.keep_path_sep then
     url = url:gsub("/", char_to_hex)
   end

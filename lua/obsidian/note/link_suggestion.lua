@@ -92,7 +92,7 @@ function M.symbols(path, opts)
   if ok then
     for p, row in pairs(cached_rows) do
       p = vim.fs.normalize(p)
-      if path_in_dir(p, dir) and vim.uv.fs_stat(p) then
+      if path_in_dir(p, dir) then
         rows[p] = row
       end
     end
@@ -224,7 +224,11 @@ end
 ---@param line string
 ---@param row integer 1-indexed row number
 ---@param symbols obsidian.LinkSuggestionSymbol[]
-function M.find_in_line(line, row, symbols)
+---@param path_exists fun(path: string): boolean|nil
+function M.find_in_line(line, row, symbols, path_exists)
+  path_exists = path_exists or function(path)
+    return vim.uv.fs_stat(path) ~= nil
+  end
   ---@type obsidian.LinkSuggestion[]
   local suggestions = {}
   local row0 = row - 1
@@ -249,13 +253,14 @@ function M.find_in_line(line, row, symbols)
         and not overlaps_ranges(skip_ranges, row0, start0, end0)
         and not overlaps_existing_suggestion(suggestions, row0, start0, end0)
       then
+        local target_paths = vim.tbl_filter(path_exists, symbol.target_paths)
         local label = line:sub(start_col, end_col)
         local candidates = {}
-        for _, path in ipairs(symbol.target_paths) do
+        for _, path in ipairs(target_paths) do
           local ok_link, new_text = pcall(function()
             return Note.new(basename(path), nil, nil, path):format_link {
               label = label,
-              format = #symbol.target_paths > 1 and "absolute" or nil,
+              format = #target_paths > 1 and "absolute" or nil,
             }
           end)
 
@@ -284,7 +289,7 @@ function M.find_in_line(line, row, symbols)
 end
 
 ---@param note obsidian.Note
----@param opts { include_current: boolean? }?
+---@param opts { include_current: boolean?, range: obsidian.Range? }?
 ---@return obsidian.LinkSuggestion[]
 function M.find(note, opts)
   opts = opts or {}
@@ -301,9 +306,23 @@ function M.find(note, opts)
   local suggestions = {}
 
   local fm_end = note.frontmatter_end_line or 1
+  local start_line = opts.range and math.max(fm_end, opts.range.start_row + 1) or fm_end
+  local end_line = #note.contents
+  if opts.range then
+    end_line = math.min(end_line, opts.range["end_row"] + (opts.range.end_col > 0 and 1 or 0))
+  end
+  ---@cast end_line integer
   local code_fence
-  for row = fm_end, #note.contents do
+  local path_status = {}
+  local function path_exists(path)
+    if path_status[path] == nil then
+      path_status[path] = vim.uv.fs_stat(path) ~= nil
+    end
+    return path_status[path]
+  end
+  for row = fm_end, end_line do
     local line = note.contents[row]
+    ---@cast line string
     local fence = line:match "^%s*(```+)" or line:match "^%s*(~~~+)"
 
     if fence then
@@ -312,8 +331,8 @@ function M.find(note, opts)
       elseif fence:sub(1, 1) == code_fence:sub(1, 1) and #fence >= #code_fence then
         code_fence = nil
       end
-    elseif not code_fence then
-      local results = M.find_in_line(line, row, symbols)
+    elseif not code_fence and row >= start_line then
+      local results = M.find_in_line(line, row, symbols, path_exists)
       vim.list_extend(suggestions, results)
     end
   end

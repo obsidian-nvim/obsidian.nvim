@@ -25,7 +25,6 @@ local initializeResult = {
       commands = {
         "obsidian.write_note",
         "obsidian.footnote_new",
-        "obsidian.inlay_hint_command",
         "obsidian.link_suggestion",
       },
     },

@@ -1,31 +1,5 @@
 local M = {}
 
----@class obsidian.InlayHintContext
----@field bufnr     integer
----@field row       integer                                          0-based row being scanned.
----@field line      string                                           Line text.
----@field lsp_range lsp.Range | nil                                  Requested LSP range.
----@field add       fun(spec: lsp.InlayHint): lsp.InlayHint Add a hint for the current line.
-
----@class obsidian.InlayHintProvider
----@field name string
----@field scan  fun(ctx: obsidian.InlayHintContext): lsp.InlayHint[] | nil Called once for each scanned line.
-
----@class obsidian.InlayHintEntry
----@field bufnr       integer
----@field range       obsidian.Range
----@field hint        lsp.InlayHint
-
----@type obsidian.InlayHintProvider[]
-local providers = {}
-
-local function line_in_range(range, line_nr)
-  if not range then
-    return true
-  end
-  return range.start.line <= line_nr and line_nr <= range["end"].line
-end
-
 local function is_lsp_range(range)
   return type(range) == "table" and range.start ~= nil and range["end"] ~= nil
 end
@@ -58,77 +32,6 @@ local function range_contains_position(range, row, col)
   local starts_before = range.start.line < row or (range.start.line == row and range.start.character <= col)
   local ends_after = range["end"].line > row or (range["end"].line == row and col < range["end"].character)
   return starts_before and ends_after
-end
-
----@param provider obsidian.InlayHintProvider
-M.register = function(provider)
-  vim.validate("provider", provider, "table")
-  vim.validate("provider.scan", provider.scan, "function")
-  vim.validate("provider.name", provider.name, "string")
-  providers[#providers + 1] = provider
-end
-
----@param name string
-M.unregister = function(name)
-  for i = #providers, 1, -1 do
-    if providers[i].name == name then
-      table.remove(providers, i)
-    end
-  end
-end
-
----@param bufnr integer
----@param range lsp.Range | nil
----@return lsp.InlayHint[]
-M.collect = function(bufnr, range)
-  bufnr = bufnr or 0
-
-  ---@type lsp.InlayHint[]
-  local hints = {}
-
-  -- Built-in link suggestions.
-  for _, hint in ipairs(require "obsidian.lsp.inlay_hints.link"(bufnr, range)) do
-    hints[#hints + 1] = hint
-  end
-
-  if #providers > 0 then
-    local line_count = vim.api.nvim_buf_line_count(bufnr)
-    local start_row = range and range.start.line or 0
-    local end_row = range and range["end"].line or (line_count - 1)
-    start_row = math.max(0, start_row)
-    end_row = math.min(line_count - 1, end_row)
-
-    for row = start_row, end_row do
-      if line_in_range(range, row) then
-        local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
-        if line then
-          for _, provider in ipairs(providers) do
-            local function add(hint)
-              hints[#hints + 1] = hint
-              return hint
-            end
-
-            local ok, result = pcall(provider.scan, {
-              bufnr = bufnr,
-              row = row,
-              line = line,
-              lsp_range = range,
-              add = add,
-            })
-            if ok then
-              for _, spec in ipairs(result or {}) do
-                add(spec)
-              end
-            else
-              require("obsidian.log").warn("inlay hint provider '%s' failed: %s", provider.name, result)
-            end
-          end
-        end
-      end
-    end
-  end
-
-  return hints
 end
 
 ---@param bufnr integer | nil
@@ -188,7 +91,52 @@ local function execute_lsp_command(command)
   end
 end
 
+---@param client vim.lsp.Client|nil
+---@return boolean
+local function can_resolve_hint(client)
+  if not client then
+    return false
+  end
+  local capabilities = client.server_capabilities or {}
+  local provider = capabilities.inlayHintProvider
+  return type(provider) == "table" and provider.resolveProvider == true
+end
+
+---@param item vim.lsp.inlay_hint.get.ret
+---@return boolean
+local function is_actionable_obsidian_hint(item)
+  local client = vim.lsp.get_client_by_id(item.client_id)
+  if not client or client.name ~= "obsidian-ls" then
+    return false
+  end
+
+  local hint = item.inlay_hint
+  return (hint.textEdits ~= nil and #hint.textEdits > 0) or command_from_hint(hint) ~= nil or can_resolve_hint(client)
+end
+
+---@param bufnr integer | nil
+---@return vim.lsp.inlay_hint.get.ret[]
+M.get_actionable_obsidian = function(bufnr)
+  return vim.tbl_filter(is_actionable_obsidian_hint, M.get(bufnr))
+end
+
 -- TODO: will be unnecessary once something like https://github.com/neovim/neovim/pull/36219 lands in neovim core
+
+---@param bufnr integer
+---@param item vim.lsp.inlay_hint.get.ret
+---@param hint lsp.InlayHint
+local function apply_hint(bufnr, item, hint)
+  local client = vim.lsp.get_client_by_id(item.client_id)
+  if hint.textEdits and #hint.textEdits > 0 then
+    vim.lsp.util.apply_text_edits(hint.textEdits, bufnr, client and client.offset_encoding or "utf-8")
+    require("obsidian.ui").update(bufnr)
+  end
+
+  local command = command_from_hint(hint)
+  if command then
+    execute_lsp_command(command)
+  end
+end
 
 ---@param bufnr integer | nil
 ---@return boolean accepted
@@ -199,19 +147,29 @@ M.accept = function(bufnr)
     return false
   end
 
-  local item = assert(items[1], "expected at least one inlay hint under the cursor")
+  local item
+  for _, current in ipairs(items) do
+    if is_actionable_obsidian_hint(current) then
+      item = current
+      break
+    end
+  end
+  item = item or assert(items[1], "expected at least one inlay hint under the cursor")
   local hint = item.inlay_hint
-  if hint.textEdits and #hint.textEdits > 0 then
-    local client = vim.lsp.get_client_by_id(item.client_id)
-    vim.lsp.util.apply_text_edits(hint.textEdits, bufnr, client and client.offset_encoding or "utf-8")
-    require("obsidian.ui").update(bufnr)
+  local client = vim.lsp.get_client_by_id(item.client_id)
+  if client and can_resolve_hint(client) then
+    local sent = client:request("inlayHint/resolve", hint, function(err, resolved)
+      if err then
+        require("obsidian.log").warn("failed to resolve inlay hint: %s", err.message or tostring(err))
+      end
+      apply_hint(bufnr, item, resolved or hint)
+    end, bufnr)
+    if sent then
+      return true
+    end
   end
 
-  local command = command_from_hint(hint)
-  if command then
-    execute_lsp_command(command)
-  end
-
+  apply_hint(bufnr, item, hint)
   return true
 end
 

@@ -395,6 +395,9 @@ return {
   ---
   ---Resolve a date before date-based actions, such as `daily.pick`, continue.
   ---@field date? obsidian.Resolver
+  ---
+  ---Build serializable LSP inlay hints for a note.
+  ---@field hints? obsidian.resolver.Hints
   resolvers = {},
 
   ---@class obsidian.config.FooterOpts

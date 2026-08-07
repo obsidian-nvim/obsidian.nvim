@@ -105,7 +105,7 @@ M.smart_action = function()
   if
     vim.lsp.inlay_hint
     and type(vim.lsp.inlay_hint.get) == "function"
-    and not vim.tbl_isempty(require("obsidian.inlay_hints").get())
+    and not vim.tbl_isempty(require("obsidian.inlay_hints").get_actionable_obsidian())
   then
     return "<cmd>lua require('obsidian.inlay_hints').accept()<cr>"
   elseif api.cursor_link() then
@@ -926,7 +926,7 @@ end
 ---@param suggestion obsidian.LinkSuggestion|?
 M.link_suggestion = function(suggestion)
   local bufnr = vim.api.nvim_get_current_buf()
-  local note = api.current_note(bufnr)
+  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
   if not note then
     return
   end
@@ -947,7 +947,9 @@ M.link_suggestion = function(suggestion)
         break
       end
     end
-    return
+    if not suggestion then
+      return
+    end
   end
 
   if #suggestion.candidates == 0 then
@@ -966,6 +968,9 @@ M.link_suggestion = function(suggestion)
       return util.preview_path(candidate.target_path)
     end,
   }, function(candidates)
+    if not candidates or not candidates[1] then
+      return
+    end
     apply_link_suggestion(bufnr, suggestion, candidates[1])
   end)
 end

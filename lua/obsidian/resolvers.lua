@@ -26,6 +26,14 @@ local M = {}
 ---@field label string|?
 ---@field offset integer|?
 
+---@class obsidian.resolver.HintsCtx
+---@field bufnr integer
+---@field note obsidian.Note
+---@field range lsp.Range|?
+
+---@alias obsidian.resolver.HintsResult lsp.InlayHint[]
+---@alias obsidian.resolver.Hints fun(ctx: obsidian.resolver.HintsCtx, done: fun(result: obsidian.resolver.HintsResult|?, err: string|?))
+
 ---@alias obsidian.Resolver fun(ctx: table, done: fun(result: table|?, err: string|?))
 
 ---@type table<string, obsidian.Resolver>
@@ -169,6 +177,11 @@ M.builtin.date = function(ctx, done)
       offset = entry.user_data.offset,
     }
   end)
+end
+
+---@type obsidian.Resolver
+M.builtin.hints = function(ctx, done)
+  done(require "obsidian.lsp.inlay_hints.link"(ctx.note, ctx.range))
 end
 
 ---@param name string

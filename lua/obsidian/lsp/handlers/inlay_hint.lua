@@ -5,12 +5,18 @@ return function(params, callback)
   local range = params and params.range or nil
 
   require("obsidian.cache").when_ready(function()
-    local ok, hints = pcall(require("obsidian.inlay_hints").collect, bufnr, range)
-    if ok then
-      callback(nil, hints)
-    else
-      require("obsidian.log").warn("failed to build inlay hints: %s", hints)
+    local note = require("obsidian.api").current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+    if not note then
       callback(nil, {})
+      return
     end
+
+    require("obsidian.resolvers").resolve("hints", {
+      bufnr = bufnr,
+      note = note,
+      range = range,
+    }, function(hints, err)
+      callback(nil, err and {} or hints or {})
+    end)
   end)
 end

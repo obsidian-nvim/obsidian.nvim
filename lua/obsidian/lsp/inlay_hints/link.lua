@@ -1,15 +1,17 @@
-local api = require "obsidian.api"
 local Range = require "obsidian.range"
 
--- TODO: extract to range class?
 ---@param range lsp.Range|?
----@param line_nr integer
+---@param position lsp.Position
 ---@return boolean
-local function line_in_range(range, line_nr)
+local function position_in_range(range, position)
   if not range then
     return true
   end
-  return range.start.line <= line_nr and line_nr <= range["end"].line
+  local starts_before = range.start.line < position.line
+    or (range.start.line == position.line and range.start.character <= position.character)
+  local ends_after = range["end"].line > position.line
+    or (range["end"].line == position.line and position.character < range["end"].character)
+  return starts_before and ends_after
 end
 
 ---@param value string
@@ -17,48 +19,59 @@ end
 ---@param suggestion obsidian.LinkSuggestion
 ---@return lsp.InlayHint
 local function link_suggestion_hint(value, position, suggestion)
+  ---@type lsp.Command
+  local command = {
+    title = "Apply link suggestion",
+    command = "obsidian.link_suggestion",
+    arguments = {
+      suggestion --[[@as lsp.LSPAny]],
+    },
+  }
+  ---@type lsp.InlayHintLabelPart[]
+  local label = {
+    {
+      value = value,
+      command = command,
+    },
+  }
   return {
     position = position,
-    label = {
-      {
-        value = value,
-        command = {
-          title = "Apply link suggestion",
-          command = "obsidian.link_suggestion",
-          arguments = { suggestion },
-        },
-      },
-    },
+    label = label,
     paddingLeft = false,
     paddingRight = false,
+    data = { range = Range.to_lsp(suggestion.range) },
   }
 end
 
 ---@param hints lsp.InlayHint[]
 ---@param suggestion obsidian.LinkSuggestion
-local function add_link_suggestion_hints(hints, suggestion)
+---@param requested_range lsp.Range|?
+local function add_link_suggestion_hints(hints, suggestion, requested_range)
   local range = suggestion.range
   if range.start_row ~= range.end_row then
     return
   end
 
-  hints[#hints + 1] = link_suggestion_hint("[[", { line = range.start_row, character = range.start_col }, suggestion)
-  hints[#hints + 1] = link_suggestion_hint("]]", { line = range.end_row, character = range.end_col }, suggestion)
+  local start_position = { line = range.start_row, character = range.start_col }
+  local end_position = { line = range.end_row, character = range.end_col }
+  if position_in_range(requested_range, start_position) then
+    hints[#hints + 1] = link_suggestion_hint("[[", start_position, suggestion)
+  end
+  if position_in_range(requested_range, end_position) then
+    hints[#hints + 1] = link_suggestion_hint("]]", end_position, suggestion)
+  end
 end
 
----@param bufnr integer
+---@param note obsidian.Note
 ---@param range lsp.Range|?
 ---@return lsp.InlayHint[]
-local function get_hints(bufnr, range)
-  local note = api.current_note(bufnr)
-  if not note then
+local function get_hints(note, range)
+  if not note.path then
     return {}
   end
 
-  local bufname = vim.api.nvim_buf_get_name(bufnr)
   local suggestions = note:link_suggestions {
-    current_path = bufname,
-    dir = api.resolve_workspace_dir(bufname),
+    range = range and Range.lsp(range) or nil,
   }
   local seen_suggestion_ranges = {}
 
@@ -75,8 +88,8 @@ local function get_hints(bufnr, range)
       suggestion_range.end_col
     )
 
-    if line_in_range(range, suggestion_range.start_row) and not seen_suggestion_ranges[key] then
-      add_link_suggestion_hints(hints, suggestion)
+    if not seen_suggestion_ranges[key] then
+      add_link_suggestion_hints(hints, suggestion, range)
       seen_suggestion_ranges[key] = true
     end
   end

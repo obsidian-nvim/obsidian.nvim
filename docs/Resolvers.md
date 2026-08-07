@@ -17,6 +17,10 @@ require("obsidian").setup {
     date = function(ctx, done)
       done { timestamp = os.time(), precision = "day" }
     end,
+
+    hints = function(ctx, done)
+      done {}
+    end,
   },
 }
 ```
@@ -94,3 +98,38 @@ require("obsidian").setup {
 ```
 
 The built-in resolver keeps the default `:Obsidian dailies` picker UI.
+
+## Hints resolver
+
+`opts.resolvers.hints` builds the inlay hints for a note. Replacing it overrides the built-in link-suggestion hints.
+
+```lua
+---@class obsidian.resolver.HintsCtx
+---@field bufnr integer
+---@field note obsidian.Note
+---@field range lsp.Range|?
+
+---@alias obsidian.resolver.HintsResult lsp.InlayHint[]
+```
+
+The returned hints must be valid, serializable LSP inlay hints. Function-valued commands are not supported. To make a hint actionable, add the action to `lua/obsidian/actions.lua` and return a normal LSP command whose name is prefixed with `obsidian.`:
+
+```lua
+resolvers = {
+  hints = function(ctx, done)
+    done { {
+      position = { line = 0, character = 4 },
+      label = { {
+        value = " ▶",
+        command = {
+          title = "Run hint action",
+          command = "obsidian.my_hint_action",
+          arguments = { "argument" },
+        },
+      } },
+    } }
+  end,
+}
+```
+
+The built-in resolver returns link-suggestion hints for the requested range.
