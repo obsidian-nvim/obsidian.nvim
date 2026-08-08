@@ -76,6 +76,12 @@ T["parser"]["uses implicit AND before OR and supports negated groups"] = functio
   eq("or", ast.kind)
   eq("and", ast.left.kind)
   eq("and", ast.right.kind)
+  eq(
+    { "meetings/work.md", "personal/meetup.md" },
+    vim.tbl_map(function(result)
+      return result.document.relative_path
+    end, Query.search_ast(documents, ast))
+  )
 
   eq({ "meetings/work.md", "archive.md" }, paths "work -(old missing)")
   eq({ "meetings/work.md" }, paths "work -(old notes)")

@@ -430,4 +430,98 @@ _G.t_note = action.data.title()
   eq(child.lua_get [[t_note]], "Bookmark current note")
 end
 
+T["parse"]["resolves search bookmarks with Obsidian query syntax"] = function()
+  local dir = child.Obsidian.dir
+  h.mock_vault_contents(dir, {
+    ["draft.md"] = "---\nstatus: Draft\ntags: [work]\n---\n# Draft\nneedle\n",
+    ["done.md"] = "---\nstatus: Done\ntags: [work]\n---\n# Done\nneedle\n",
+    ["personal.md"] = "# Personal\n#friends\n",
+  })
+
+  local result = h.child_await(
+    child,
+    [[
+local api = require "obsidian.api"
+local picker = require "obsidian.picker"
+local picker_calls = 0
+local resolved
+
+picker.select = function(items, opts, callback)
+  picker_calls = picker_calls + 1
+  if picker_calls == 1 then
+    callback { items[1] }
+    return
+  end
+
+  resolved = {
+    count = #items,
+    prompt = opts.prompt,
+    allow_multiple = opts.allow_multiple,
+    filename = items[1].filename,
+    lnum = items[1].lnum,
+    col = items[1].col,
+  }
+  callback { items[1] }
+end
+
+api.open_note = function(entry)
+  resolved.opened = entry.filename
+  done(resolved)
+end
+
+M.pick {
+  {
+    type = "search",
+    query = "tag:#work -[status:Done]",
+    title = "Open work",
+  },
+}
+]],
+    { desc = "bookmark query results" }
+  )
+
+  local expected = vim.fs.joinpath(tostring(dir), "draft.md")
+  eq(1, result.count)
+  eq("Search: Open work", result.prompt)
+  eq(true, result.allow_multiple)
+  eq(vim.fs.normalize(expected), vim.fs.normalize(result.filename))
+  eq(1, result.lnum)
+  eq(1, result.col)
+  eq(vim.fs.normalize(expected), vim.fs.normalize(result.opened))
+end
+
+T["parse"]["rejects invalid bookmark queries before indexing"] = function()
+  local result = h.child_await(
+    child,
+    [[
+local index = require "obsidian.search.index"
+local log = require "obsidian.log"
+local picker = require "obsidian.picker"
+local indexed = false
+
+index.index_async = function()
+  indexed = true
+end
+log.err = function(fmt, ...)
+  done { indexed = indexed, message = string.format(fmt, ...) }
+end
+picker.select = function(items, _, callback)
+  callback { items[1] }
+end
+
+M.pick {
+  {
+    type = "search",
+    query = '"unfinished',
+    title = "Broken",
+  },
+}
+]],
+    { desc = "invalid bookmark query error" }
+  )
+
+  eq(false, result.indexed)
+  eq("Invalid bookmark search query: Unclosed phrase at column 1", result.message)
+end
+
 return T
