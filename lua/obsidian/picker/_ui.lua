@@ -2,9 +2,9 @@ local M = {}
 
 local api = require "obsidian.api"
 local log = require "obsidian.log"
-local search = require "obsidian.search"
 local Path = require "obsidian.path"
 local Picker = require "obsidian.picker"
+local PickerSearch = require "obsidian.picker.search"
 local ut = require "obsidian.picker.util"
 
 local ns = vim.api.nvim_create_namespace "obsidian_picker_ui"
@@ -26,9 +26,9 @@ local function entry_search_text(entry)
   return table.concat(parts, " ")
 end
 
----@param value string|obsidian.PickerEntry
----@param opts obsidian.PickerPickOpts
----@param idx integer
+---@param value string | obsidian.PickerEntry
+---@param opts  obsidian.PickerPickOpts
+---@param idx   integer
 ---@return table
 local function make_item(value, opts, idx)
   ---@type obsidian.PickerEntry
@@ -45,17 +45,12 @@ local function make_item(value, opts, idx)
 
   display = tostring(display or "")
 
-  return {
-    entry = entry,
-    display = display,
-    search = display .. " " .. entry_search_text(entry),
-    idx = idx,
-  }
+  return { entry = entry, display = display, search = display .. " " .. entry_search_text(entry), idx = idx }
 end
 
 ---@param items table[]
 local function sort_items(items)
-  table.sort(items, function(a, b)
+  table.sort(items, function (a, b)
     local ad = string.lower(a.display)
     local bd = string.lower(b.display)
     if ad == bd then
@@ -66,10 +61,63 @@ local function sort_items(items)
   end)
 end
 
+---@param mappings obsidian.PickerMappingTable |?
+---@return obsidian.PickerMappingTable |?
+local function filename_selection_mappings(mappings)
+  if not mappings then
+    return nil
+  end
+
+  local transformed = {}
+  for key, mapping in pairs(mappings) do
+    local callback = mapping.callback
+    transformed[key] = vim.tbl_extend("force", {}, mapping, {
+      callback = function (...)
+        callback(unpack(vim.tbl_map(function (entry)
+          return entry.filename
+        end, { ... })))
+      end
+    })
+  end
+  return transformed
+end
+
+---@param documents    obsidian.picker.SearchDocument[]
+---@param query        string
+---@param picker_items table[]
+---@param show_context boolean
+---@return table[]
+local function search_picker_items(documents, query, picker_items, show_context)
+  local item_by_path = {}
+  for _, item in ipairs(picker_items) do
+    item_by_path[item.entry.filename] = item
+  end
+
+  local matches = PickerSearch.search(documents, query, { allow_incomplete = true })
+  local filtered = {}
+  for _, match in ipairs(matches) do
+    local item = item_by_path[match.filename]
+    if item then
+      item.entry.lnum = match.lnum
+      item.entry.col = match.col
+      item.entry.text = show_context and match.context or match.text
+      item.display = match.text
+      if show_context and match.context and vim.trim(match.context) ~= "" then
+        item.display = string.format("%s:%d  %s", match.text, match.lnum, vim.trim(match.context))
+      end
+      filtered[#filtered + 1] = item
+    end
+  end
+  return filtered
+end
+
 ---@param picker table
 ---@return table[]
 local function filtered_items(picker)
   local query = picker.query
+  if picker.search then
+    return picker.search(query or "", picker.items)
+  end
   if query == nil or query == "" then
     return picker.items
   end
@@ -113,8 +161,8 @@ local function restore_focus(picker)
   end
 end
 
----@param picker table
----@param restore boolean|?
+---@param picker  table
+---@param restore boolean |?
 local function close_picker(picker, restore)
   if picker.closed then
     return
@@ -175,7 +223,8 @@ local function render(picker)
 
   local lines = {}
   for i = 1, limit do
-    lines[#lines + 1] = (i == picker.selection and "❯ " or "  ") .. picker.matches[i].display
+    local match = assert(picker.matches[i], "picker match is missing")
+    lines[#lines + 1] = (i == picker.selection and "❯ " or "  ") .. match.display
   end
   if #lines == 0 then
     lines[1] = "  No results"
@@ -185,14 +234,14 @@ local function render(picker)
   vim.api.nvim_buf_set_lines(picker.results_buf, 0, -1, false, lines)
   vim.api.nvim_buf_clear_namespace(picker.results_buf, ns, 0, -1)
   if #picker.matches > 0 then
-    vim.api.nvim_buf_set_extmark(picker.results_buf, ns, picker.selection - 1, 0, {
+    vim.api.nvim_buf_set_extmark(picker.results_buf, ns, math.floor(picker.selection - 1), 0, {
       hl_group = "Visual",
-      hl_eol = true,
+      hl_eol = true
     })
   else
     vim.api.nvim_buf_set_extmark(picker.results_buf, ns, 0, 0, {
       hl_group = "Comment",
-      hl_eol = true,
+      hl_eol = true
     })
   end
   vim.api.nvim_set_option_value("modifiable", false, { buf = picker.results_buf })
@@ -223,7 +272,7 @@ local function move_selection(delta)
 end
 
 ---@param picker table
----@return obsidian.PickerEntry|?
+---@return obsidian.PickerEntry |?
 local function selected_entry(picker)
   if not picker.matches or #picker.matches == 0 then
     return nil
@@ -232,9 +281,9 @@ local function selected_entry(picker)
   return item and item.entry or nil
 end
 
----@param picker table
+---@param picker   table
 ---@param callback function
----@param ... any
+---@param ...      any
 local function close_and_call(picker, callback, ...)
   local args = { ... }
   close_picker(picker, true)
@@ -309,7 +358,7 @@ local function run_selection_mapping(mapping)
 end
 
 ---@param buf integer
----@param lhs string|?
+---@param lhs string |?
 ---@param rhs function
 local function map(buf, lhs, rhs)
   if lhs == nil or lhs == "" then
@@ -324,41 +373,41 @@ local function set_mappings(picker)
     map(buf, "<CR>", confirm_current)
     map(buf, "<Esc>", close_current)
     map(buf, "<C-c>", close_current)
-    map(buf, "<Down>", function()
+    map(buf, "<Down>", function ()
       move_selection(1)
     end)
-    map(buf, "<C-n>", function()
+    map(buf, "<C-n>", function ()
       move_selection(1)
     end)
-    map(buf, "<Tab>", function()
+    map(buf, "<Tab>", function ()
       move_selection(1)
     end)
-    map(buf, "<Up>", function()
+    map(buf, "<Up>", function ()
       move_selection(-1)
     end)
-    map(buf, "<C-p>", function()
+    map(buf, "<C-p>", function ()
       move_selection(-1)
     end)
-    map(buf, "<S-Tab>", function()
+    map(buf, "<S-Tab>", function ()
       move_selection(-1)
     end)
     vim.keymap.set("n", "q", close_current, { buffer = buf, nowait = true, silent = true })
 
     for key, mapping in pairs(picker.query_mappings or {}) do
-      map(buf, key, function()
+      map(buf, key, function ()
         run_query_mapping(mapping)
       end)
     end
 
     for key, mapping in pairs(picker.selection_mappings or {}) do
-      map(buf, key, function()
+      map(buf, key, function ()
         run_selection_mapping(mapping)
       end)
     end
   end
 end
 
----@param prompt_title string|?
+---@param prompt_title string |?
 ---@return integer, integer, integer, integer
 local function layout(prompt_title)
   local columns = vim.o.columns
@@ -378,9 +427,9 @@ local function layout(prompt_title)
   return row, col, width, height
 end
 
----@param values string[]|obsidian.PickerEntry[]
----@param opts obsidian.PickerPickOpts|? Options.
-M.pick = function(values, opts)
+---@param values string[] | obsidian.PickerEntry[]
+---@param opts   obsidian.PickerPickOpts |?        Options.
+M.pick = function (values, opts)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
   opts = opts or {}
@@ -411,7 +460,7 @@ M.pick = function(values, opts)
     style = "minimal",
     border = "rounded",
     title = " " .. title .. " ",
-    title_pos = "left",
+    title_pos = "left"
   })
 
   local results_win = vim.api.nvim_open_win(results_buf, false, {
@@ -421,7 +470,7 @@ M.pick = function(values, opts)
     width = width,
     height = height,
     style = "minimal",
-    border = "rounded",
+    border = "rounded"
   })
 
   set_common_win_opts(input_win)
@@ -451,7 +500,8 @@ M.pick = function(values, opts)
     matches = {},
     selection = 1,
     query = opts.query or "",
-    max_results = height,
+    search = opts.search,
+    max_results = height
   }
 
   current = picker
@@ -464,20 +514,20 @@ M.pick = function(values, opts)
 
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     buffer = input_buf,
-    callback = function()
-      vim.schedule(function()
+    callback = function ()
+      vim.schedule(function ()
         if current == picker and not picker.closed then
           picker.selection = 1
           render(picker)
         end
       end)
-    end,
+    end
   })
 
   set_mappings(picker)
   render(picker)
 
-  vim.schedule(function()
+  vim.schedule(function ()
     if not picker.closed and vim.api.nvim_win_is_valid(input_win) then
       vim.api.nvim_set_current_win(input_win)
       local query = vim.api.nvim_buf_get_lines(input_buf, 0, 1, false)[1] or ""
@@ -489,66 +539,99 @@ end
 
 --- Find files in a directory.
 ---
----@param opts obsidian.PickerFindOpts|? Options.
-M.find_files = function(opts)
+---@param opts obsidian.PickerFindOpts |? Options.
+M.find_files = function (opts)
   opts = opts or {}
 
   ---@type obsidian.Path
   local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
-  local paths = {}
+  PickerSearch.index_async(dir, { include_non_markdown = opts.include_non_markdown }, function (documents)
+    if vim.tbl_isempty(documents) then
+      return log.info "Search result empty"
+    end
 
-  search.find_async(
-    dir,
-    nil,
-    { include_non_markdown = opts.include_non_markdown },
-    function(path)
-      paths[#paths + 1] = path
-    end,
-    vim.schedule_wrap(function()
-      if vim.tbl_isempty(paths) then
-        return log.info "Search result empty"
-      elseif #paths == 1 and opts.query and vim.trim(opts.query) ~= "" then
+    ---@type obsidian.PickerEntry[]
+    local items = {}
+    for _, document in ipairs(documents) do
+      items[#items + 1] = {
+        filename = document.path,
+        lnum = 1,
+        col = 0,
+        text = document.relative_path,
+        user_data = document
+      }
+    end
+
+    M.pick(items, {
+      prompt_title = opts.prompt_title,
+      query = opts.query,
+      query_mappings = opts.query_mappings,
+      selection_mappings = filename_selection_mappings(opts.selection_mappings),
+      search = function (query, picker_items)
+        return search_picker_items(documents, query, picker_items, false)
+      end,
+      format_item = function (item)
+        return item.text or item.filename or ""
+      end,
+      callback = function (item)
         if opts.callback then
-          return opts.callback(paths[1])
+          opts.callback { item.filename }
         else
-          return api.open_note { filename = paths[1] }
+          api.open_note(item)
         end
       end
-
-      ---@type obsidian.PickerEntry[]
-      local items = {}
-      for _, path in ipairs(paths) do
-        items[#items + 1] = {
-          filename = path,
-          lnum = 1,
-          col = 0,
-          text = ut.make_display {
-            filename = path,
-          },
-        }
-      end
-
-      M.pick(items, {
-        prompt_title = opts.prompt_title,
-        query = opts.query,
-        query_mappings = opts.query_mappings,
-        selection_mappings = opts.selection_mappings,
-        format_item = function(item)
-          return item.text or item.filename or ""
-        end,
-        callback = function(item)
-          if opts.callback then
-            opts.callback(item.filename)
-          else
-            api.open_note(item)
-          end
-        end,
-      })
-    end)
-  )
+    })
+  end)
 end
 
--- Grep is intentionally the native implementation for now.
-M.grep = require("obsidian.picker._default").grep
+--- Search notes with Obsidian's search query syntax.
+---
+---@param opts obsidian.PickerGrepOpts |? Options.
+M.grep = function (opts)
+  opts = opts or {}
+
+  ---@type obsidian.Path
+  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
+  PickerSearch.index_async(dir, {}, function (documents)
+    if vim.tbl_isempty(documents) then
+      return log.info "Search result empty"
+    end
+
+    ---@type obsidian.PickerEntry[]
+    local items = {}
+    for _, document in ipairs(documents) do
+      items[#items + 1] = {
+        filename = document.path,
+        lnum = 1,
+        col = 1,
+        text = document.relative_path,
+        user_data = document
+      }
+    end
+
+    M.pick(items, {
+      prompt_title = opts.prompt_title or "Search",
+      query = opts.query,
+      query_mappings = opts.query_mappings,
+      selection_mappings = filename_selection_mappings(opts.selection_mappings),
+      search = function (query, picker_items)
+        return search_picker_items(documents, query, picker_items, true)
+      end,
+      format_item = function (item)
+        return item.text or item.filename or ""
+      end,
+      callback = function (item)
+        local entry = {
+          filename = item.filename,
+          lnum = item.lnum,
+          col = item.col,
+          text = item.text
+        }
+        local callback = opts.callback or ut.open_notes
+        callback { entry }
+      end
+    })
+  end)
+end
 
 return M

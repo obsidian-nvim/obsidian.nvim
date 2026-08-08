@@ -1,7 +1,7 @@
 local MAX_PREVIEW_LINES = 80
 
 ---@param path string
----@return string|?
+---@return string |?
 local function read_preview(path)
   if vim.fn.filereadable(path) ~= 1 then
     return nil
@@ -25,18 +25,15 @@ local function read_preview(path)
   return value
 end
 
----@param item lsp.CompletionItem
+---@param item    lsp.CompletionItem
 ---@param handler fun(_: any, res: lsp.CompletionItem)
-return function(item, handler)
+return function (item, handler)
   local data = item.data
   local path = type(data) == "table" and data.obsidian_preview_path or nil
   if type(path) == "string" then
     local preview = read_preview(path)
     if preview then
-      item.documentation = {
-        kind = "markdown",
-        value = preview,
-      }
+      item.documentation = { kind = "markdown", value = preview }
     end
   end
 

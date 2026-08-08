@@ -108,6 +108,7 @@ end
 ---
 ---@field prompt_title string|?
 ---@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
+---@field search (fun(query: string, items: table[]): table[])|?
 
 ------------------------------------------------------------------
 --- Concrete methods with a default implementation subclasses. ---
@@ -353,7 +354,7 @@ M.grep_notes = function(opts)
   end
 
   M.grep {
-    prompt_title = opts.prompt_title or "Grep notes",
+    prompt_title = opts.prompt_title or "Search notes",
     dir = opts.dir or Obsidian.dir,
     query = opts.query,
     callback = opts.callback,
