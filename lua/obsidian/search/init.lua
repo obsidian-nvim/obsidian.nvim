@@ -97,7 +97,7 @@ end
 ---
 ---@field path MatchPath
 ---@field lines MatchText
----@field line_number integer 0-indexed
+---@field line_number integer 1-indexed
 ---@field absolute_offset integer
 ---@field submatches SubMatch[]
 

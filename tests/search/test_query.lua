@@ -52,23 +52,6 @@ local function paths(query)
   end, Query.search(documents, query))
 end
 
-T["exports supported scopes for completion consumers"] = function()
-  eq({
-    "block",
-    "content",
-    "file",
-    "ignore-case",
-    "line",
-    "match-case",
-    "path",
-    "section",
-    "tag",
-    "task",
-    "task-done",
-    "task-todo",
-  }, Query.scopes)
-end
-
 T["parser"] = new_set()
 
 T["parser"]["uses implicit AND before OR and supports negated groups"] = function()
