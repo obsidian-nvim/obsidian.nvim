@@ -647,17 +647,9 @@ local function evaluate(node, document, context)
 end
 
 ---@param documents obsidian.search.QueryDocument[]
----@param query     string
----@param opts      { allow_incomplete: boolean |? } |?
+---@param ast       obsidian.search.QueryNode
 ---@return obsidian.search.QueryResult[]
----@return string |?
-function M.search(documents, query, opts)
-  opts = opts or {}
-  local ast, err = M.parse(query, { allow_incomplete = opts.allow_incomplete == true })
-  if not ast then
-    return {}, err
-  end
-
+function M.search_ast(documents, ast)
   local results = {}
   for _, document in ipairs(documents) do
     local match = evaluate(ast, document, {})
@@ -678,6 +670,20 @@ function M.search(documents, query, opts)
     return a.score > b.score
   end)
   return results
+end
+
+---@param documents obsidian.search.QueryDocument[]
+---@param query     string
+---@param opts      { allow_incomplete: boolean |? } |?
+---@return obsidian.search.QueryResult[]
+---@return string |?
+function M.search(documents, query, opts)
+  opts = opts or {}
+  local ast, err = M.parse(query, { allow_incomplete = opts.allow_incomplete == true })
+  if not ast then
+    return {}, err
+  end
+  return M.search_ast(documents, ast)
 end
 
 return M
