@@ -3,6 +3,7 @@ local Tag = require "obsidian.completion.sources.tags"
 local NewNote = require "obsidian.completion.sources.new"
 local Footnote = require "obsidian.completion.sources.footnotes"
 local QuickSwitch = require "obsidian.completion.sources.quick_switch"
+local Search = require "obsidian.completion.sources.search"
 
 ---@class obsidian.completion.Request
 ---@field bufnr integer
@@ -82,6 +83,13 @@ return function(params, callback, _)
 
   if vim.b[request.bufnr].obsidian_completion_source == "quick_switch" then
     QuickSwitch.process_completion(function(result)
+      callback(nil, result)
+    end, request)
+    return
+  end
+
+  if vim.b[request.bufnr].obsidian_completion_source == "search_query" then
+    Search.process_completion(function (result)
       callback(nil, result)
     end, request)
     return

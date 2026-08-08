@@ -256,6 +256,12 @@ local function move_selection(delta)
   if not current or current.closed then
     return
   end
+
+  if vim.fn.pumvisible() == 1 and vim.api.nvim_get_current_buf() == current.input_buf then
+    local key = delta > 0 and "<C-n>" or "<C-p>"
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(key, true, false, true), "n", false)
+    return
+  end
   local limit = math.min(current.max_results, #current.matches)
   if limit == 0 then
     return
@@ -293,6 +299,11 @@ end
 local function confirm_current()
   local picker = current
   if not picker or picker.closed then
+    return
+  end
+
+  if vim.fn.pumvisible() == 1 and vim.api.nvim_get_current_buf() == picker.input_buf then
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-y>", true, false, true), "n", false)
     return
   end
 
@@ -407,6 +418,42 @@ local function set_mappings(picker)
   end
 end
 
+---@param picker table
+local function start_completion(picker)
+  if not picker.completion_source or not Obsidian then
+    return
+  end
+
+  if vim.api.nvim_buf_get_name(picker.input_buf) == "" then
+    vim.api.nvim_buf_set_name(picker.input_buf, vim.fn.tempname() .. ".md")
+  end
+  vim.api.nvim_set_option_value("filetype", "markdown", { buf = picker.input_buf })
+  vim.b[picker.input_buf].obsidian_completion_source = picker.completion_source
+
+  local client_id = require("obsidian.lsp").start(picker.input_buf)
+  if not client_id then
+    return
+  end
+
+  local client = vim.lsp.get_client_by_id(client_id)
+  local capabilities = client and client.server_capabilities
+  local provider = capabilities and capabilities.completionProvider
+  if type(provider) == "table" then
+    local chars = {}
+    for i = 32, 126 do
+      chars[#chars + 1] = string.char(i)
+    end
+    provider.triggerCharacters = chars
+  end
+
+  pcall(vim.api.nvim_set_option_value, "completeopt", "menuone,fuzzy", { buf = picker.input_buf })
+  vim.api.nvim_set_option_value("omnifunc", "v:lua.vim.lsp.omnifunc", { buf = picker.input_buf })
+
+  if vim.lsp.completion and vim.lsp.completion.enable then
+    pcall(vim.lsp.completion.enable, true, client_id, picker.input_buf, { autotrigger = true })
+  end
+end
+
 ---@param prompt_title string |?
 ---@return integer, integer, integer, integer
 local function layout(prompt_title)
@@ -501,6 +548,7 @@ M.pick = function (values, opts)
     selection = 1,
     query = opts.query or "",
     search = opts.search,
+    completion_source = opts.completion_source,
     max_results = height
   }
 
@@ -525,6 +573,7 @@ M.pick = function (values, opts)
   })
 
   set_mappings(picker)
+  start_completion(picker)
   render(picker)
 
   vim.schedule(function ()
@@ -567,6 +616,7 @@ M.find_files = function (opts)
       query = opts.query,
       query_mappings = opts.query_mappings,
       selection_mappings = filename_selection_mappings(opts.selection_mappings),
+      completion_source = "search_query",
       search = function (query, picker_items)
         return search_picker_items(documents, query, picker_items, false)
       end,
@@ -614,6 +664,7 @@ M.grep = function (opts)
       query = opts.query,
       query_mappings = opts.query_mappings,
       selection_mappings = filename_selection_mappings(opts.selection_mappings),
+      completion_source = "search_query",
       search = function (query, picker_items)
         return search_picker_items(documents, query, picker_items, true)
       end,

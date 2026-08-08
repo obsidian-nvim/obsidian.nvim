@@ -109,6 +109,7 @@ end
 ---@field prompt_title string|?
 ---@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
 ---@field search (fun(query: string, items: table[]): table[])|?
+---@field completion_source string|?
 
 ------------------------------------------------------------------
 --- Concrete methods with a default implementation subclasses. ---

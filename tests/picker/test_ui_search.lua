@@ -49,6 +49,7 @@ T["grep uses the Obsidian query engine and preserves grep callbacks"] = function
     eq(2, #pick_values)
     eq("Search", pick_opts.prompt_title)
     eq("content:needle", pick_opts.query)
+    eq("search_query", pick_opts.completion_source)
 
     local picker_items = vim.tbl_map(function(entry)
       return { entry = entry, display = entry.text }
@@ -63,17 +64,14 @@ T["grep uses the Obsidian query engine and preserves grep callbacks"] = function
     eq("/vault/work.md", mapped_path)
 
     pick_opts.callback(matches[1].entry)
-    eq(
+    eq({
       {
-        {
-          filename = "/vault/work.md",
-          lnum = 2,
-          col = 1,
-          text = "needle here",
-        },
+        filename = "/vault/work.md",
+        lnum = 2,
+        col = 1,
+        text = "needle here",
       },
-      callback_entries
-    )
+    }, callback_entries)
   end)
 
   PickerSearch.index_async = original_index_async
@@ -99,6 +97,44 @@ T["the ui picker dispatches search to its builtin grep implementation"] = functi
 
   Ui.grep = original_grep
   picker.get(false)
+  if not ok then
+    error(err, 0)
+  end
+end
+
+T["pick attaches the configured completion source to its prompt buffer"] = function()
+  local lsp = require "obsidian.lsp"
+  local original_start = lsp.start
+  local original_obsidian = Obsidian
+  local prompt_buf
+
+  local ok, err = pcall(function()
+    Obsidian = {}
+    lsp.start = function(bufnr)
+      prompt_buf = bufnr
+      return nil
+    end
+
+    Ui.pick({ { filename = "/vault/work.md", text = "work.md" } }, {
+      completion_source = "search_query",
+      format_item = function(item)
+        return item.text
+      end,
+    })
+
+    eq("search_query", vim.b[prompt_buf].obsidian_completion_source)
+    eq("markdown", vim.bo[prompt_buf].filetype)
+    eq(true, vim.endswith(vim.api.nvim_buf_get_name(prompt_buf), ".md"))
+
+    local escape = vim.iter(vim.api.nvim_buf_get_keymap(prompt_buf, "i")):find(function(mapping)
+      return mapping.lhs == "<Esc>"
+    end)
+    assert(escape and escape.callback, "picker escape mapping is missing")
+    escape.callback()
+  end)
+
+  lsp.start = original_start
+  Obsidian = original_obsidian
   if not ok then
     error(err, 0)
   end
