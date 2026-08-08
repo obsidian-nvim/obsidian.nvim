@@ -22,17 +22,17 @@ local helpers = require "tests.helpers"
 
 local function with_picker_stubs(stubs, fn)
   local original_get_plugin_info = api.get_plugin_info
-  local original_default = package.loaded["obsidian.picker._default"]
-  local original_telescope = package.loaded["obsidian.picker._telescope"]
+  local original_default = package.loaded["obsidian.picker.default"]
+  local original_telescope = package.loaded["obsidian.picker.telescope"]
 
-  package.loaded["obsidian.picker._default"] = stubs.default
-  package.loaded["obsidian.picker._telescope"] = stubs.telescope
+  package.loaded["obsidian.picker.default"] = stubs.default
+  package.loaded["obsidian.picker.telescope"] = stubs.telescope
 
   local ok, err = pcall(fn)
 
   api.get_plugin_info = original_get_plugin_info
-  package.loaded["obsidian.picker._default"] = original_default
-  package.loaded["obsidian.picker._telescope"] = original_telescope
+  package.loaded["obsidian.picker.default"] = original_default
+  package.loaded["obsidian.picker.telescope"] = original_telescope
   picker.get(false)
 
   if not ok then

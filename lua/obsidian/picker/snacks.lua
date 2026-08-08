@@ -3,6 +3,7 @@ local search = require "obsidian.search"
 local Picker = require "obsidian.picker"
 local Path = require "obsidian.path"
 local ut = require "obsidian.picker.util"
+local Integration = require "obsidian.picker.integration"
 
 --- Build snacks pick opts (keymaps + actions) for query-style mappings. The
 --- callback receives the currently typed query string, mirroring the behavior
@@ -91,6 +92,53 @@ local function notes_mappings(mapping, selection_value)
 end
 
 local M = {}
+
+---@class obsidian.picker.snacks.SetupOpts
+---@field find_files? table Options merged into the `obsidian_files` Snacks source.
+---@field grep? table Options merged into the `obsidian_grep` Snacks source.
+
+--- Register Obsidian workspace sources with snacks.picker.
+---
+--- This is intentionally opt-in. Requiring obsidian.nvim does not alter Snacks'
+--- source registry or its `vim.ui.select` implementation.
+---@param opts obsidian.picker.snacks.SetupOpts|?
+M.setup = function(opts)
+  opts = opts or {}
+  local sources = require "snacks.picker.config.sources"
+
+  ---@param name string
+  ---@param defaults table
+  ---@param overrides table|?
+  local function register(name, defaults, overrides)
+    local source = Integration.merge_opts(defaults, overrides)
+    local configure = source.config
+    source.config = function(source_opts)
+      if configure then
+        source_opts = configure(source_opts) or source_opts
+      end
+      source_opts.cwd = Integration.workspace_dir()
+      return source_opts
+    end
+    sources[name] = source
+  end
+
+  register("obsidian_files", {
+    title = "Obsidian Files",
+    finder = "files",
+    format = "file",
+    show_empty = true,
+    supports_live = true,
+  }, opts.find_files)
+
+  register("obsidian_grep", {
+    title = "Obsidian Grep",
+    finder = "grep",
+    format = "file",
+    show_empty = true,
+    live = true,
+    supports_live = true,
+  }, opts.grep)
+end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)

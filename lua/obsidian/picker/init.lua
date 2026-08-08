@@ -461,16 +461,16 @@ end
 ---@return string
 local function picker_module(picker_name)
   if picker_name == string.lower(PickerName.telescope) then
-    return "obsidian.picker._telescope"
+    return "obsidian.picker.telescope"
   elseif picker_name == string.lower(PickerName.mini) then
-    return "obsidian.picker._mini"
+    return "obsidian.picker.mini"
   elseif picker_name == string.lower(PickerName.fzf_lua) then
-    return "obsidian.picker._fzf"
+    return "obsidian.picker.fzf"
     -- or statement added for backwards compatibility
   elseif picker_name == string.lower(PickerName.snacks) or picker_name == "snacks.pick" then
-    return "obsidian.picker._snacks"
+    return "obsidian.picker.snacks"
   else
-    return "obsidian.picker._default"
+    return "obsidian.picker.default"
   end
 end
 
@@ -483,7 +483,7 @@ local function resolve_picker()
   if picker_name then
     if not picker_available(picker_name) then
       log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
-      patch "obsidian.picker._default"
+      patch "obsidian.picker.default"
       state.picker_resolved = true
       return
     end
@@ -524,7 +524,7 @@ M.get = function(picker_name)
   M.pick = pick
 
   if picker_name == false then
-    patch "obsidian.picker._default"
+    patch "obsidian.picker.default"
     state.picker_resolved = true
     return M
   end

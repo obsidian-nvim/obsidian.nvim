@@ -2,6 +2,7 @@
 local Path = require "obsidian.path"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
+local Integration = require "obsidian.picker.integration"
 
 ---@param entry string
 ---@return string, integer?, integer?
@@ -16,6 +17,33 @@ local function clean_path(entry)
 end
 
 local M = {}
+
+local integration_opts = {}
+
+---@class obsidian.picker.mini.SetupOpts
+---@field find_files? table mini.pick local options for the `obsidian_files` registry entry.
+---@field grep? table mini.pick local options for the `obsidian_grep` registry entry.
+
+--- Register Obsidian workspace entries with MiniPick.registry.
+---@param opts obsidian.picker.mini.SetupOpts|?
+M.setup = function(opts)
+  integration_opts = vim.deepcopy(opts or {})
+  local mini_pick = require "mini.pick"
+
+  mini_pick.registry.obsidian_files = function(call_opts)
+    local local_opts = Integration.merge_opts(integration_opts.find_files, call_opts)
+    return mini_pick.builtin.files(local_opts, {
+      source = { cwd = Integration.workspace_dir(), name = "Obsidian Files" },
+    })
+  end
+
+  mini_pick.registry.obsidian_grep = function(call_opts)
+    local local_opts = Integration.merge_opts(integration_opts.grep, call_opts)
+    return mini_pick.builtin.grep_live(local_opts, {
+      source = { cwd = Integration.workspace_dir(), name = "Obsidian Grep" },
+    })
+  end
+end
 
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)

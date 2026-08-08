@@ -46,19 +46,36 @@ local function with_select(select_impl, fn)
   end
 end
 
-T["default select passes custom string formatting to vim.ui.select"] = function()
-  local picker = require "obsidian.picker._default"
+T["default select wraps current vim.ui.select result in a list"] = function()
+  local picker = require "obsidian.picker.default"
+  local choices
 
   with_select(function(items, opts, on_choice)
-    eq("display:one", opts.format_item(items[1]))
-    on_choice()
+    eq("Pick", opts.prompt)
+    eq("one", opts.format_item(items[1]))
+    on_choice(items[2], 2)
   end, function()
-    picker.select({ "one" }, {
-      format_item = function(value)
-        return "display:" .. value
-      end,
-    })
+    picker.select({ "one", "two" }, { prompt = "Pick" }, function(selected)
+      choices = selected
+    end)
   end)
+
+  eq({ "two" }, choices)
+end
+
+T["default select accepts proposed list result"] = function()
+  local picker = require "obsidian.picker.default"
+  local choices
+
+  with_select(function(items, _, on_choice)
+    on_choice { items[1], items[2] }
+  end, function()
+    picker.select({ "one", "two" }, { allow_multiple = true }, function(selected)
+      choices = selected
+    end)
+  end)
+
+  eq({ "one", "two" }, choices)
 end
 
 T["mini select returns all marked items when multiple selections are allowed"] = function()
@@ -73,7 +90,7 @@ T["mini select returns all marked items when multiple selections are allowed"] =
       return opts.source.items[2]
     end,
   }, function()
-    require("obsidian.picker._mini").select(
+    require("obsidian.picker.mini").select(
       { "one", "two" },
       { prompt = "Pick", allow_multiple = true },
       function(selected)
@@ -91,7 +108,7 @@ T["mini select applies custom formatting to string values"] = function()
       eq("display:one", opts.source.items[1].text)
     end,
   }, function()
-    require("obsidian.picker._mini").select({ "one" }, {
+    require("obsidian.picker.mini").select({ "one" }, {
       format_item = function(value)
         return "display:" .. value
       end,
@@ -117,7 +134,7 @@ T["fzf select explicitly enables multiple selections and returns all choices"] =
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ "one", "two" }, { allow_multiple = true }, function(selected)
+    require("obsidian.picker.fzf").select({ "one", "two" }, { allow_multiple = true }, function(selected)
       choices = selected
     end)
   end)
@@ -134,7 +151,7 @@ T["fzf select applies custom formatting to string values"] = function()
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ "one" }, {
+    require("obsidian.picker.fzf").select({ "one" }, {
       format_item = function(value)
         return "display:" .. value
       end,
@@ -156,7 +173,7 @@ T["fzf select explicitly disables unsupported multiple selections"] = function()
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ "one", "two" }, {}, function() end)
+    require("obsidian.picker.fzf").select({ "one", "two" }, {}, function() end)
   end)
 end
 
@@ -176,7 +193,7 @@ T["fzf select enables multiple selections for mappings that accept them"] = func
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ "one", "two" }, {
+    require("obsidian.picker.fzf").select({ "one", "two" }, {
       selection_mappings = {
         ["<C-t>"] = {
           desc = "test",
@@ -214,7 +231,7 @@ T["fzf select preserves identity for duplicate display labels"] = function()
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ first, second }, {
+    require("obsidian.picker.fzf").select({ first, second }, {
       format_item = function()
         return "duplicate"
       end,
@@ -247,7 +264,7 @@ T["fzf select does not infer previews from value shape"] = function()
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ value }, {
+    require("obsidian.picker.fzf").select({ value }, {
       format_item = function()
         return "note"
       end,
@@ -262,7 +279,7 @@ T["snacks select applies custom formatting to string values"] = function()
       eq("one", opts.items[1].obsidian_item)
     end,
   }, function()
-    require("obsidian.picker._snacks").select({ "one" }, {
+    require("obsidian.picker.snacks").select({ "one" }, {
       format_item = function(value)
         return "display:" .. value
       end,
@@ -282,7 +299,7 @@ T["snacks select preserves opaque values for mappings"] = function()
       }, opts.items[1])
     end,
   }, function()
-    require("obsidian.picker._snacks").select({ value }, {
+    require("obsidian.picker.snacks").select({ value }, {
       format_item = function()
         return "note"
       end,
@@ -325,7 +342,7 @@ T["telescope select applies custom formatting to string values"] = function()
       },
     },
   }, function()
-    require("obsidian.picker._telescope").select({ "one" }, {
+    require("obsidian.picker.telescope").select({ "one" }, {
       format_item = function(value)
         return "display:" .. value
       end,
@@ -361,7 +378,7 @@ T["telescope select does not infer fields or previews from value shape"] = funct
       },
     },
   }, function()
-    require("obsidian.picker._telescope").select({ value }, {
+    require("obsidian.picker.telescope").select({ value }, {
       format_item = function()
         return "note"
       end,
@@ -391,7 +408,7 @@ T["fzf grep confirmation retains entries and mappings receive paths"] = function
         end,
       },
     }, function()
-      local fzf = require "obsidian.picker._fzf"
+      local fzf = require "obsidian.picker.fzf"
       fzf.grep {
         dir = "/vault",
         query = "query",
@@ -444,7 +461,7 @@ T["telescope grep mappings receive paths"] = function()
         end,
       },
     }, function()
-      require("obsidian.picker._telescope").grep {
+      require("obsidian.picker.telescope").grep {
         dir = "/vault",
         query = "query",
         selection_mappings = {
@@ -471,7 +488,7 @@ T["snacks grep mappings receive paths"] = function()
         }, { _path = "/vault/note.md" })
       end,
     }, function()
-      require("obsidian.picker._snacks").grep {
+      require("obsidian.picker.snacks").grep {
         dir = "/vault",
         query = "query",
         selection_mappings = {
@@ -489,6 +506,173 @@ T["snacks grep mappings receive paths"] = function()
     end)
   end)
   eq("/vault/note.md", mapped)
+end
+
+T["snacks setup registers workspace sources"] = function()
+  local sources = {}
+  local integration = require "obsidian.picker.integration"
+  local original_workspace_dir = integration.workspace_dir
+  local configured
+
+  local ok, err = pcall(function()
+    integration.workspace_dir = function()
+      return "/vault/current"
+    end
+    with_module("snacks.picker.config.sources", sources, function()
+      require("obsidian.picker.snacks").setup {
+        find_files = { hidden = true },
+        grep = { regex = false },
+      }
+      configured = sources.obsidian_files.config {}
+    end)
+  end)
+
+  integration.workspace_dir = original_workspace_dir
+  if not ok then
+    error(err)
+  end
+
+  eq("files", sources.obsidian_files.finder)
+  eq(true, sources.obsidian_files.hidden)
+  eq("/vault/current", configured.cwd)
+  eq("grep", sources.obsidian_grep.finder)
+  eq(false, sources.obsidian_grep.regex)
+end
+
+T["fzf setup registers workspace providers"] = function()
+  local integration = require "obsidian.picker.integration"
+  local original_workspace_dir = integration.workspace_dir
+  local files_opts
+  local grep_opts
+  local fzf = {
+    files = function(opts)
+      files_opts = opts
+    end,
+    live_grep = function(opts)
+      grep_opts = opts
+    end,
+  }
+  fzf.register_extension = function(name, callback)
+    fzf[name] = callback
+  end
+
+  local ok, err = pcall(function()
+    integration.workspace_dir = function()
+      return "/vault/current"
+    end
+    with_module("fzf-lua", fzf, function()
+      require("obsidian.picker.fzf").setup {
+        find_files = { hidden = true },
+        grep = { no_ignore = true },
+      }
+      fzf.obsidian_files { follow = true, cwd = "/ignored" }
+      fzf.obsidian_grep { search = "needle" }
+    end)
+  end)
+
+  integration.workspace_dir = original_workspace_dir
+  if not ok then
+    error(err)
+  end
+
+  eq({ cwd = "/vault/current", follow = true, hidden = true }, files_opts)
+  eq("/vault/current", grep_opts.cwd)
+  eq(true, grep_opts.no_ignore)
+  eq("needle", grep_opts.search)
+end
+
+T["mini setup registers workspace pickers"] = function()
+  local integration = require "obsidian.picker.integration"
+  local original_workspace_dir = integration.workspace_dir
+  local files_local_opts
+  local files_opts
+  local grep_local_opts
+  local grep_opts
+  local mini = {
+    registry = {},
+    builtin = {
+      files = function(local_opts, opts)
+        files_local_opts = local_opts
+        files_opts = opts
+      end,
+      grep_live = function(local_opts, opts)
+        grep_local_opts = local_opts
+        grep_opts = opts
+      end,
+    },
+  }
+
+  local ok, err = pcall(function()
+    integration.workspace_dir = function()
+      return "/vault/current"
+    end
+    with_module("mini.pick", mini, function()
+      require("obsidian.picker.mini").setup {
+        find_files = { tool = "rg" },
+        grep = { globs = { "*.md" } },
+      }
+      mini.registry.obsidian_files { hidden = true }
+      mini.registry.obsidian_grep { pattern = "needle" }
+    end)
+  end)
+
+  integration.workspace_dir = original_workspace_dir
+  if not ok then
+    error(err)
+  end
+
+  eq({ hidden = true, tool = "rg" }, files_local_opts)
+  eq({ source = { cwd = "/vault/current", name = "Obsidian Files" } }, files_opts)
+  eq({ globs = { "*.md" }, pattern = "needle" }, grep_local_opts)
+  eq({ source = { cwd = "/vault/current", name = "Obsidian Grep" } }, grep_opts)
+end
+
+T["telescope setup loads extension and exports workspace pickers"] = function()
+  local integration = require "obsidian.picker.integration"
+  local original_workspace_dir = integration.workspace_dir
+  local loaded
+  local files_opts
+  local grep_opts
+
+  local ok, err = pcall(function()
+    integration.workspace_dir = function()
+      return "/vault/current"
+    end
+    with_modules({
+      telescope = {
+        load_extension = function(name)
+          loaded = name
+        end,
+      },
+      ["telescope.builtin"] = {
+        find_files = function(opts)
+          files_opts = opts
+        end,
+        live_grep = function(opts)
+          grep_opts = opts
+        end,
+      },
+    }, function()
+      local telescope = require "obsidian.picker.telescope"
+      telescope.setup {
+        find_files = { hidden = true },
+        grep = { additional_args = { "--hidden" } },
+      }
+      telescope.workspace_files { follow = true }
+      telescope.workspace_grep { default_text = "needle" }
+    end)
+  end)
+
+  integration.workspace_dir = original_workspace_dir
+  if not ok then
+    error(err)
+  end
+
+  eq("obsidian", loaded)
+  eq({ cwd = "/vault/current", follow = true, hidden = true }, files_opts)
+  eq("/vault/current", grep_opts.cwd)
+  eq({ "--hidden" }, grep_opts.additional_args)
+  eq("needle", grep_opts.default_text)
 end
 
 return T
