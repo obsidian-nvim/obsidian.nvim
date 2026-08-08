@@ -533,7 +533,7 @@ M.get = function(picker_name)
     state.picker_name = string.lower(picker_name)
   end
 
-  M.find_files = lazy_picker_method "find_files"
+  M.find_files = find_files
   M.grep = lazy_picker_method "grep"
   M.select = lazy_picker_method "select"
 

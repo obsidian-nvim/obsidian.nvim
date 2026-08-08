@@ -4,40 +4,10 @@ local log = require "obsidian.log"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local ut = require "obsidian.picker.util"
-local util = require "obsidian.util"
 
 --- Pick from a list of items.
 ---
----@param values string[]|obsidian.PickerEntry[] Items to pick from.
----@param opts obsidian.PickerSelectOpts|? Options.
----@param on_choice fun(choices: any[])|?
----
---- Options:
----  `prompt`: Title for the prompt window.
----  `format_item`: Function to format an item for display.
----  `preview_item`: Function to preview an item.
----  `allow_multiple`: Allow multiple selections to pass to the callback.
----
-M.select = function(values, opts, on_choice)
-  opts = opts or {}
-  on_choice = on_choice or function() end
-
-  vim.ui.select(values, {
-    prompt = opts.prompt,
-    kind = opts.kind,
-    allow_multiple = opts.allow_multiple,
-    preview_item = opts.preview_item,
-    format_item = opts.format_item or ut.make_display,
-  }, function(choice_or_choices, idx)
-    if choice_or_choices == nil then
-      on_choice {}
-    elseif idx == nil and type(choice_or_choices) == "table" then
-      on_choice(choice_or_choices)
-    else
-      on_choice { choice_or_choices }
-    end
-  end)
-end
+M.select = require("obsidian.picker.ui").select
 
 ---@param match MatchData
 ---@return vim.quickfix.entry
@@ -97,50 +67,6 @@ M.grep = function(opts)
       end
       local callback = opts.callback or ut.open_notes
       callback(items)
-    end)
-  )
-end
-
---- Find files in a directory.
----
----@param opts obsidian.PickerFindOpts|? Options.
-M.find_files = function(opts)
-  opts = opts or {}
-
-  local query
-  if opts.query and vim.trim(opts.query) ~= "" then
-    query = opts.query
-  else
-    query = api.input(opts.prompt_title or "Find files")
-  end
-
-  if not query then
-    return
-  end
-
-  local paths = {}
-  local dir = opts.dir or api.resolve_workspace_dir()
-
-  search.find_async(
-    dir,
-    query,
-    { include_non_markdown = opts.include_non_markdown },
-    function(path)
-      paths[#paths + 1] = path
-    end,
-    vim.schedule_wrap(function()
-      if vim.tbl_isempty(paths) then
-        return log.info "Search result empty"
-      elseif #paths == 1 or not opts.callback then
-        local callback = opts.callback or ut.open_notes
-        callback(paths)
-      else
-        M.select(paths, {
-          prompt = opts.prompt_title,
-          allow_multiple = true,
-          preview_item = util.preview_path,
-        }, opts.callback)
-      end
     end)
   )
 end
