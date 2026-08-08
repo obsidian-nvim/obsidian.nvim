@@ -1,6 +1,9 @@
 local log = require "obsidian.log"
 local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
+local picker_util = require "obsidian.picker.util"
+local Query = require "obsidian.search.query"
+local SearchIndex = require "obsidian.search.index"
 local api = require "obsidian.api"
 local util = require "obsidian.util"
 
@@ -116,8 +119,6 @@ local function preview_group(bookmark, buf)
   return { buf = buf }
 end
 
---  TODO: proper obsidian search term parser, like the explain search term feature
---
 ---@param bookmark obsidian.Bookmark
 ---@param buf integer
 ---@return obsidian.ui_select_preview_spec
@@ -183,6 +184,52 @@ M.parse = function(src)
   return obj.items
 end
 
+---@param result obsidian.search.QueryResult
+---@return obsidian.PickerEntry
+local function query_result_to_picker_entry(result)
+  return {
+    filename = result.document.path,
+    lnum = result.line,
+    col = result.col,
+    text = result.context,
+    user_data = result.document,
+  }
+end
+
+---@param entry obsidian.PickerEntry
+---@return obsidian.ui_select_preview_spec
+local function preview_query_result(entry)
+  local preview = util.preview_path(assert(entry.filename, "query result is missing its filename"))
+  preview.pos = { entry.lnum or 1, math.max(0, (entry.col or 1) - 1) }
+  return preview
+end
+
+---@param bookmark obsidian.Bookmark
+local function open_query_bookmark(bookmark)
+  local ast, err = Query.parse(bookmark.query)
+  if not ast then
+    log.err("Invalid bookmark search query: %s", err)
+    return
+  end
+
+  SearchIndex.index_async(Obsidian.dir, {}, function(documents)
+    local results = Query.search_ast(documents, ast)
+    if vim.tbl_isempty(results) then
+      log.info("No results for bookmark search: %s", bookmark.query)
+      return
+    end
+
+    local entries = vim.tbl_map(query_result_to_picker_entry, results)
+    picker.select(entries, {
+      prompt = "Search: " .. (bookmark.title or bookmark.query),
+      allow_multiple = true,
+      preview_item = preview_query_result,
+    }, function(items)
+      picker_util.open_notes(items)
+    end)
+  end)
+end
+
 ---@param bookmark obsidian.Bookmark?
 local function open_bookmark(bookmark)
   if not bookmark then
@@ -193,10 +240,7 @@ local function open_bookmark(bookmark)
   elseif bookmark.type == "group" then
     M.pick(bookmark.items)
   elseif bookmark.type == "search" and bookmark.query then
-    -- TODO: proper obsidian search term parser and search
-    picker.grep {
-      query = bookmark.query,
-    }
+    open_query_bookmark(bookmark)
   elseif bookmark.type == "file" then
     api.open_note(bookmark_to_picker_entry(bookmark))
   elseif bookmark.type == "folder" then
