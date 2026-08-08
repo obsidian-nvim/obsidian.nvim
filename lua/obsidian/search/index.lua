@@ -5,14 +5,6 @@ local yaml = require "obsidian.yaml"
 
 local M = {}
 
----@class obsidian.search.QueryDocument
----@field path          string
----@field relative_path string
----@field filename      string
----@field lines         string[]
----@field properties    table<string, any>
----@field tags          { text: string, line: integer }[]
-
 ---@param value any
 ---@param out   string[]
 local function flatten(value, out)

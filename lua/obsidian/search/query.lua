@@ -1,6 +1,6 @@
 local M = {}
 
-M.scopes = {
+local scope_list = {
   "block",
   "content",
   "file",
@@ -16,7 +16,7 @@ M.scopes = {
 }
 
 local scopes = {}
-for _, scope in ipairs(M.scopes) do
+for _, scope in ipairs(scope_list) do
   scopes[scope] = true
 end
 
@@ -35,10 +35,18 @@ end
 ---@field right obsidian.search.QueryNode |?
 ---@field key   obsidian.search.QueryNode |?
 
+---@class obsidian.search.QueryDocument
+---@field path          string
+---@field relative_path string
+---@field filename      string
+---@field lines         string[]
+---@field properties    table<string, any>
+---@field tags          { text: string, line: integer } []
+
 ---@class obsidian.search.QueryResult
 ---@field document obsidian.search.QueryDocument
----@field line     integer 1-indexed
----@field col      integer 1-indexed
+---@field line     integer                       1-indexed
+---@field col      integer                       1-indexed
 ---@field score    integer
 ---@field context  string |?
 
