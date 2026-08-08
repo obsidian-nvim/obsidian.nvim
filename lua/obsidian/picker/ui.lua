@@ -5,10 +5,8 @@ local M = {}
 local highlight_ns = vim.api.nvim_create_namespace "obsidian_picker_ui"
 local default_max_results = 12
 local current
-local next_item_id = 0
 
 ---@class obsidian.picker.ui.Item
----@field id      integer
 ---@field value   any
 ---@field display string
 ---@field search  string
@@ -91,15 +89,12 @@ end
 ---@param opts  obsidian.picker.ui.Opts
 ---@return obsidian.picker.ui.Item
 local function make_item(value, opts)
-  next_item_id = next_item_id + 1
   local display = opts.format_item and opts.format_item(value) or picker_util.make_display(value)
   display = tostring(display or ""):gsub("[\r\n]+", " ")
   return {
-    id = next_item_id,
     value = value,
     display = display,
-    search = display -- TODO: ordinal
-    -- .. " " .. value_search_text(value),
+    search = display, -- TODO: ordinal?
   }
 end
 
@@ -107,7 +102,7 @@ end
 ---@param opts   obsidian.picker.ui.Opts
 ---@return obsidian.picker.ui.Item[]
 local function make_items(values, opts)
-  return vim.tbl_map(function (value)
+  return vim.tbl_map(function(value)
     return make_item(value, opts)
   end, values)
 end
@@ -119,7 +114,8 @@ local function filter_items(picker)
     return picker.items
   end
 
-  local ok, matches = pcall(vim.fn.matchfuzzy, picker.items, picker.query, { key = "search" })
+  local items = vim.deepcopy(picker.items)
+  local ok, matches = pcall(vim.fn.matchfuzzy, items, picker.query, { key = "search" })
   if ok then
     return matches
   end
@@ -172,7 +168,7 @@ local function calculate_layout(picker, match_count)
       input_width = input_width,
       body_height = body_height,
       results_col = col,
-      results_width = input_width
+      results_width = input_width,
     }
   end
 
@@ -188,7 +184,7 @@ local function calculate_layout(picker, match_count)
     results_col = col,
     results_width = math.max(1, results_outer_width - 2),
     preview_col = col + results_outer_width + gap,
-    preview_width = math.max(1, preview_outer_width - 2)
+    preview_width = math.max(1, preview_outer_width - 2),
   }
 end
 
@@ -206,7 +202,7 @@ local function resize(picker, match_count)
       row = layout.row,
       col = layout.col,
       width = layout.input_width,
-      height = 1
+      height = 1,
     })
   end
   if vim.api.nvim_win_is_valid(picker.results_win) then
@@ -215,7 +211,7 @@ local function resize(picker, match_count)
       row = layout.row + 3,
       col = layout.results_col,
       width = layout.results_width,
-      height = layout.body_height
+      height = layout.body_height,
     })
   end
   if picker.preview_win and vim.api.nvim_win_is_valid(picker.preview_win) then
@@ -224,7 +220,7 @@ local function resize(picker, match_count)
       row = layout.row + 3,
       col = assert(layout.preview_col, "preview column is missing"),
       width = assert(layout.preview_width, "preview width is missing"),
-      height = layout.body_height
+      height = layout.body_height,
     })
   end
 end
@@ -301,7 +297,7 @@ local function render(picker)
   vim.api.nvim_buf_clear_namespace(picker.results_buf, highlight_ns, 0, -1)
   vim.api.nvim_buf_set_extmark(picker.results_buf, highlight_ns, picker.matches[1] and picker.selection - 1 or 0, 0, {
     hl_group = picker.matches[1] and "Visual" or "Comment",
-    hl_eol = true
+    hl_eol = true,
   })
   vim.api.nvim_set_option_value("modifiable", false, { buf = picker.results_buf })
 
@@ -361,46 +357,46 @@ end
 ---@param picker obsidian.picker.ui.Picker
 local function set_mappings(picker)
   for _, buf in ipairs { picker.input_buf, picker.results_buf } do
-    map(buf, "<CR>", function ()
+    map(buf, "<CR>", function()
       picker:confirm()
     end)
-    map(buf, "<Esc>", function ()
+    map(buf, "<Esc>", function()
       picker:cancel()
     end)
-    map(buf, "<C-c>", function ()
+    map(buf, "<C-c>", function()
       picker:cancel()
     end)
-    nmap(buf, "q", function ()
+    nmap(buf, "q", function()
       picker:cancel()
     end)
-    map(buf, "<Down>", function ()
+    map(buf, "<Down>", function()
       picker:move(1)
     end)
-    map(buf, "<C-n>", function ()
+    map(buf, "<C-n>", function()
       picker:move(1)
     end)
-    map(buf, "<Tab>", function ()
+    map(buf, "<Tab>", function()
       picker:move(1)
     end)
-    nmap(buf, "j", function ()
+    nmap(buf, "j", function()
       picker:move(1)
     end)
-    map(buf, "<Up>", function ()
+    map(buf, "<Up>", function()
       picker:move(-1)
     end)
-    map(buf, "<C-p>", function ()
+    map(buf, "<C-p>", function()
       picker:move(-1)
     end)
-    map(buf, "<S-Tab>", function ()
+    map(buf, "<S-Tab>", function()
       picker:move(-1)
     end)
-    nmap(buf, "k", function ()
+    nmap(buf, "k", function()
       picker:move(-1)
     end)
 
     for lhs, mapping in pairs(picker.opts.query_mappings or {}) do
       local query_mapping = mapping
-      map(buf, lhs, function ()
+      map(buf, lhs, function()
         picker:run_query_mapping(query_mapping)
       end)
     end
@@ -514,13 +510,13 @@ function M.select(values, opts, on_choice)
     preview_buf = preview_buf,
     origin_win = vim.api.nvim_get_current_win(),
     opts = opts,
-    on_choice = on_choice or function () end,
+    on_choice = on_choice or function() end,
     items = make_items(values, opts),
     matches = {},
     selection = 1,
     max_results = math.max(1, opts.max_results or default_max_results),
     query = opts.query or "",
-    closed = false
+    closed = false,
   }, PickerUi)
   ---@cast picker obsidian.picker.ui.Picker
 
@@ -539,7 +535,7 @@ function M.select(values, opts, on_choice)
     style = "minimal",
     border = "rounded",
     title = " " .. title .. " ",
-    title_pos = "left"
+    title_pos = "left",
   })
   picker.results_win = vim.api.nvim_open_win(results_buf, false, {
     relative = "editor",
@@ -548,7 +544,7 @@ function M.select(values, opts, on_choice)
     width = layout.results_width,
     height = layout.body_height,
     style = "minimal",
-    border = "rounded"
+    border = "rounded",
   })
   if preview_buf then
     picker.preview_win = vim.api.nvim_open_win(preview_buf, false, {
@@ -560,7 +556,7 @@ function M.select(values, opts, on_choice)
       style = "minimal",
       border = "rounded",
       title = " Preview ",
-      title_pos = "left"
+      title_pos = "left",
     })
   end
 
@@ -573,28 +569,28 @@ function M.select(values, opts, on_choice)
   current = picker
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     buffer = input_buf,
-    callback = function ()
-      vim.schedule(function ()
+    callback = function()
+      vim.schedule(function()
         if not picker.closed then
           picker.selection = 1
           render(picker)
         end
       end)
-    end
+    end,
   })
   picker.resize_autocmd = vim.api.nvim_create_autocmd("VimResized", {
-    callback = function ()
-      vim.schedule(function ()
+    callback = function()
+      vim.schedule(function()
         if not picker.closed then
           render(picker)
         end
       end)
-    end
+    end,
   })
 
   set_mappings(picker)
   render(picker)
-  vim.schedule(function ()
+  vim.schedule(function()
     if not picker.closed and vim.api.nvim_win_is_valid(picker.input_win) then
       vim.api.nvim_set_current_win(picker.input_win)
       vim.api.nvim_win_set_cursor(picker.input_win, { 1, #picker.query })
