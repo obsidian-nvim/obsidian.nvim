@@ -12,14 +12,11 @@ local current
 ---@field search  string
 
 ---@class obsidian.picker.ui.Layout
----@field row           integer
----@field col           integer
----@field input_width   integer
----@field body_height   integer
----@field results_col   integer
----@field results_width integer
----@field preview_col   integer | nil
----@field preview_width integer | nil
+---@field row            integer
+---@field col            integer
+---@field width          integer
+---@field body_height    integer
+---@field preview_height integer | nil
 
 ---@class obsidian.picker.ui.Opts
 ---@field prompt         string | nil
@@ -146,45 +143,32 @@ local function calculate_layout(picker, match_count)
   local has_preview = picker.opts.preview_item ~= nil
   local width_ratio = has_preview and 0.8 or 0.6
   local minimum_width = has_preview and 64 or 40
-  -- A preview layout needs room for two one-column windows, their borders, and
-  -- the gap between them. Neovim's practical minimum width is larger than
-  -- this, but keeping the invariant here makes resize handling predictable.
-  local maximum_outer_width = math.max(has_preview and 7 or 3, columns - 2)
+  local maximum_outer_width = math.max(3, columns - 2)
   local desired_outer_width = math.max(minimum_width, math.floor(columns * width_ratio))
   local title_width = vim.fn.strdisplaywidth(picker.opts.prompt or "Select") + 4
   local outer_width = math.min(maximum_outer_width, math.max(desired_outer_width, title_width))
-  local input_width = math.max(1, outer_width - 2)
+  local width = math.max(1, outer_width - 2)
 
-  local maximum_body_height = math.max(1, available_lines - 5)
-  local body_height = math.max(1, math.min(picker.max_results, match_count, maximum_body_height))
+  -- All windows share the same width in a vertical stack:
+  --   input (3 rows) -> results (body_height + 2) -> preview (preview_height + 2)
+  -- Neighbouring windows overlap one border row so they connect seamlessly.
+  local max_total_inner = math.max(1, math.floor(available_lines * 0.75))
+  local body_height = math.max(1, math.min(picker.max_results, match_count, max_total_inner))
+  local preview_height = nil
   local total_outer_height = body_height + 5
+  if has_preview then
+    preview_height = math.max(3, max_total_inner - body_height)
+    total_outer_height = body_height + preview_height + 5
+  end
   local row = math.max(0, math.floor((available_lines - total_outer_height) / 2))
   local col = math.max(0, math.floor((columns - outer_width) / 2))
 
-  if not has_preview then
-    return {
-      row = row,
-      col = col,
-      input_width = input_width,
-      body_height = body_height,
-      results_col = col,
-      results_width = input_width,
-    }
-  end
-
-  local gap = 1
-  local results_outer_width = math.max(3, math.floor((outer_width - gap) * 0.4))
-  results_outer_width = math.min(results_outer_width, outer_width - gap - 3)
-  local preview_outer_width = outer_width - gap - results_outer_width
   return {
     row = row,
     col = col,
-    input_width = input_width,
+    width = width,
     body_height = body_height,
-    results_col = col,
-    results_width = math.max(1, results_outer_width - 2),
-    preview_col = col + results_outer_width + gap,
-    preview_width = math.max(1, preview_outer_width - 2),
+    preview_height = preview_height,
   }
 end
 
@@ -201,26 +185,26 @@ local function resize(picker, match_count)
       relative = "editor",
       row = layout.row,
       col = layout.col,
-      width = layout.input_width,
+      width = layout.width,
       height = 1,
     })
   end
   if vim.api.nvim_win_is_valid(picker.results_win) then
     vim.api.nvim_win_set_config(picker.results_win, {
       relative = "editor",
-      row = layout.row + 3,
-      col = layout.results_col,
-      width = layout.results_width,
+      row = layout.row + 2,
+      col = layout.col,
+      width = layout.width,
       height = layout.body_height,
     })
   end
   if picker.preview_win and vim.api.nvim_win_is_valid(picker.preview_win) then
     vim.api.nvim_win_set_config(picker.preview_win, {
       relative = "editor",
-      row = layout.row + 3,
-      col = assert(layout.preview_col, "preview column is missing"),
-      width = assert(layout.preview_width, "preview width is missing"),
-      height = layout.body_height,
+      row = layout.row + layout.body_height + 3,
+      col = layout.col,
+      width = layout.width,
+      height = layout.preview_height,
     })
   end
 end
@@ -286,7 +270,7 @@ local function render(picker)
   local lines = {}
   for i = 1, visible_count do
     local item = assert(picker.matches[i], "picker match is missing")
-    lines[#lines + 1] = (i == picker.selection and "❯ " or "  ") .. item.display
+    lines[#lines + 1] = " " .. item.display
   end
   if #lines == 0 then
     lines[1] = "  No results"
@@ -294,15 +278,16 @@ local function render(picker)
 
   vim.api.nvim_set_option_value("modifiable", true, { buf = picker.results_buf })
   vim.api.nvim_buf_set_lines(picker.results_buf, 0, -1, false, lines)
-  vim.api.nvim_buf_clear_namespace(picker.results_buf, highlight_ns, 0, -1)
-  vim.api.nvim_buf_set_extmark(picker.results_buf, highlight_ns, picker.matches[1] and picker.selection - 1 or 0, 0, {
-    hl_group = picker.matches[1] and "Visual" or "Comment",
-    hl_eol = true,
-  })
   vim.api.nvim_set_option_value("modifiable", false, { buf = picker.results_buf })
+
+  -- Place cursor on the selected line so cursorline highlights it.
+  if picker.matches[1] and vim.api.nvim_win_is_valid(picker.results_win) then
+    vim.api.nvim_win_set_cursor(picker.results_win, { picker.selection, 0 })
+  end
 
   resize(picker, #lines)
   update_preview(picker)
+  vim.api.nvim_set_option_value("number", true, { win = picker.preview_win })
 end
 
 ---@param picker obsidian.picker.ui.Picker
@@ -526,35 +511,46 @@ function M.select(values, opts, on_choice)
   local layout = calculate_layout(picker, initial_height)
   local title = opts.prompt or "Select"
 
+  -- Border shapes for a vertical stack where neighbouring windows share
+  -- a border row: rounded top on input, rounded bottom on the last window,
+  -- T-junctions (├┤) everywhere else so the panels connect seamlessly.
+  ---@type string[]
+  local input_border = { "╭", "─", "╮", "│", "┤", "─", "├", "│" }
+  ---@type string[]
+  local results_border = preview_buf and { "├", "─", "┤", "│", "┤", "─", "├", "│" } -- top + bottom T-junctions
+    or { "├", "─", "┤", "│", "╯", "─", "╰", "│" } -- top T, bottom rounded
+  ---@type string[]
+  local preview_border = { "├", "─", "┤", "│", "╯", "─", "╰", "│" } -- top T, bottom rounded
+
   picker.input_win = vim.api.nvim_open_win(input_buf, true, {
     relative = "editor",
     row = layout.row,
     col = layout.col,
-    width = layout.input_width,
+    width = layout.width,
     height = 1,
     style = "minimal",
-    border = "rounded",
+    border = input_border,
     title = " " .. title .. " ",
     title_pos = "left",
   })
   picker.results_win = vim.api.nvim_open_win(results_buf, false, {
     relative = "editor",
-    row = layout.row + 3,
-    col = layout.results_col,
-    width = layout.results_width,
+    row = layout.row + 2,
+    col = layout.col,
+    width = layout.width,
     height = layout.body_height,
     style = "minimal",
-    border = "rounded",
+    border = results_border,
   })
   if preview_buf then
     picker.preview_win = vim.api.nvim_open_win(preview_buf, false, {
       relative = "editor",
-      row = layout.row + 3,
-      col = assert(layout.preview_col, "preview column is missing"),
-      width = assert(layout.preview_width, "preview width is missing"),
-      height = layout.body_height,
+      row = layout.row + layout.body_height + 3,
+      col = layout.col,
+      width = layout.width,
+      height = layout.preview_height,
       style = "minimal",
-      border = "rounded",
+      border = preview_border,
       title = " Preview ",
       title_pos = "left",
     })
@@ -562,6 +558,7 @@ function M.select(values, opts, on_choice)
 
   set_float_win_opts(picker.input_win)
   set_float_win_opts(picker.results_win)
+  vim.api.nvim_set_option_value("cursorline", true, { win = picker.results_win })
   if picker.preview_win then
     set_float_win_opts(picker.preview_win)
   end
