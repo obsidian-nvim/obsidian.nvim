@@ -7,20 +7,15 @@ local ut = require "obsidian.picker.util"
 
 local M = {}
 
-local integration_opts = {}
 local extension_loaded = false
 
----@class obsidian.picker.telescope.SetupOpts
----@field find_files? table telescope.builtin.find_files options.
----@field grep? table telescope.builtin.live_grep options.
-
 --- Register the `obsidian` Telescope extension.
----@param opts obsidian.picker.telescope.SetupOpts|?
-M.setup = function(opts)
-  integration_opts = vim.deepcopy(opts or {})
+M.setup = function()
   if not extension_loaded then
     ---@diagnostic disable-next-line: undefined-field
-    require("telescope").load_extension "obsidian"
+    require("telescope").load_extension "obsidian_files"
+    ---@diagnostic disable-next-line: undefined-field
+    require("telescope").load_extension "obsidian_grep"
     extension_loaded = true
   end
 end
