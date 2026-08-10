@@ -196,13 +196,11 @@ M.find_files_from_cache = function(opts)
       }
     end
 
-    for path, note in pairs(cache.notes.all()) do
-      if util.is_subpath(path, dir) then
-        local rel_path = cache.notes.rel_path(path):gsub("%.md$", "")
-        add_entry(rel_path, path)
-        for _, alias in ipairs(note.aliases or {}) do
-          add_entry(rel_path .. " | " .. alias, path)
-        end
+    for _, note in ipairs(cache.notes.entries { dir = dir }) do
+      local rel_path = note.relative_path:gsub("%.[^./]+$", "")
+      add_entry(rel_path, note.path)
+      for _, alias in ipairs(note.aliases or {}) do
+        add_entry(rel_path .. " | " .. alias, note.path)
       end
     end
 
