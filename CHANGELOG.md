@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fzf-lua picker selections now honor multi-select consistently across files, grep, and list pickers.
 - Picker will apply `format_item` consistently.
 - Cache will be triggered by buffer writes.
+- Fixed `attempt to index local 'pos' (a nil value)` error in `:Obsidian toc` by dropping redundant `pos` passing to `vim.lsp.buf.document_symbol`.
 
 ### Changed
 
