@@ -442,9 +442,13 @@ T["parse"]["resolves search bookmarks with Obsidian query syntax"] = function()
     child,
     [[
 local api = require "obsidian.api"
+local cache = require "obsidian.cache"
 local picker = require "obsidian.picker"
 local picker_calls = 0
 local resolved
+
+cache.setup { enabled = true, backend = "memory" }
+cache.when_ready(function()
 
 picker.select = function(items, opts, callback)
   picker_calls = picker_calls + 1
@@ -476,6 +480,7 @@ M.pick {
     title = "Open work",
   },
 }
+end)
 ]],
     { desc = "bookmark query results" }
   )
@@ -494,16 +499,11 @@ T["parse"]["rejects invalid bookmark queries before indexing"] = function()
   local result = h.child_await(
     child,
     [[
-local index = require "obsidian.search.index"
 local log = require "obsidian.log"
 local picker = require "obsidian.picker"
-local indexed = false
 
-index.index_async = function()
-  indexed = true
-end
 log.err = function(fmt, ...)
-  done { indexed = indexed, message = string.format(fmt, ...) }
+  done { message = string.format(fmt, ...) }
 end
 picker.select = function(items, _, callback)
   callback { items[1] }
@@ -520,7 +520,6 @@ M.pick {
     { desc = "invalid bookmark query error" }
   )
 
-  eq(false, result.indexed)
   eq("Invalid bookmark search query: Unclosed phrase at column 1", result.message)
 end
 

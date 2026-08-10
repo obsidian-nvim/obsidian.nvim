@@ -8,6 +8,7 @@ local watchfiles = require "obsidian.lsp.watchfiles"
 local cache_note = require "obsidian.cache.note"
 local filetypes = require "obsidian.filetypes"
 local ignore = require "obsidian.ignore"
+local search_files = require "obsidian.search.files"
 
 local M = {}
 M.find_files = require("obsidian.cache.api").find_files
@@ -57,13 +58,14 @@ local backends = {
 ---@field unregister fun()|nil
 ---@field ready boolean
 ---@field pending fun()[]
+---@field generation integer
+---@field symbol_index obsidian.cache.SymbolIndex
 
 ---@type obsidian.cache.State?
 local state = nil
 local generation = 0
 
 local FLUSH_DEBOUNCE_MS = 2000
-
 ---@param abs_path string
 ---@param kind "note"|"attachment"
 ---@return obsidian.cache.Row?
@@ -80,7 +82,7 @@ local function build_row(abs_path, kind)
   if not stat or stat.type ~= "file" then
     return nil
   end
-  return {
+  local row = {
     kind = "attachment",
     stat = {
       mtime_sec = stat.mtime.sec,
@@ -89,6 +91,141 @@ local function build_row(abs_path, kind)
     },
     extension = filetypes.extension(abs_path),
   }
+  if row.extension == "canvas" then
+    row.search_kind = "canvas"
+    row.relative_path = vim.fs.normalize(abs_path):sub(#state.vault + 2)
+    row.filename = vim.fs.basename(abs_path)
+    row.basename = vim.fn.fnamemodify(row.filename, ":r")
+  end
+  return row
+end
+
+---@class obsidian.cache.SymbolIndex
+---@field by_path table<string, table>
+---@field by_key table<string, string[]>
+---@field keys_by_path table<string, string[]>
+
+local function empty_symbol_index()
+  return { by_path = {}, by_key = {}, keys_by_path = {} }
+end
+
+---@param path string
+---@param row table
+---@return table
+local function symbol_entry(path, row)
+  return {
+    path = path,
+    relative_path = row.relative_path,
+    basename = row.basename,
+    filename = row.filename,
+    extension = row.extension,
+    id = row.id,
+    title = row.title,
+    aliases = vim.deepcopy(row.aliases or {}),
+  }
+end
+
+---@param path string
+local function remove_symbol(path)
+  if not state then
+    return
+  end
+  local index = state.symbol_index
+  for _, key in ipairs(index.keys_by_path[path] or {}) do
+    local paths = index.by_key[key]
+    if paths then
+      for i = #paths, 1, -1 do
+        if paths[i] == path then
+          table.remove(paths, i)
+        end
+      end
+      if #paths == 0 then
+        index.by_key[key] = nil
+      end
+    end
+  end
+  index.keys_by_path[path] = nil
+  index.by_path[path] = nil
+end
+
+---@param path string
+---@param row table
+local function add_symbol(path, row)
+  if not state then
+    return
+  end
+  remove_symbol(path)
+  if row.kind ~= "note" then
+    return
+  end
+  local entry = symbol_entry(path, row)
+  state.symbol_index.by_path[path] = entry
+
+  local seen = {}
+  local keys = {}
+  local function add(value)
+    value = value and tostring(value) or nil
+    if not value or value == "" then
+      return
+    end
+    local key = value:lower()
+    if seen[key] then
+      return
+    end
+    seen[key] = true
+    keys[#keys + 1] = key
+    local paths = state.symbol_index.by_key[key] or {}
+    paths[#paths + 1] = path
+    table.sort(paths, function(a, b)
+      return a:lower() < b:lower()
+    end)
+    state.symbol_index.by_key[key] = paths
+  end
+
+  add(row.relative_path)
+  if row.relative_path then
+    add(row.relative_path:gsub("%.[^./]+$", ""))
+  end
+  add(row.basename)
+  add(row.id)
+  add(row.title)
+  for _, alias in ipairs(row.aliases or {}) do
+    add(alias)
+  end
+  state.symbol_index.keys_by_path[path] = keys
+end
+
+local function rebuild_symbol_index()
+  if not state then
+    return
+  end
+  state.symbol_index = empty_symbol_index()
+  for path, row in pairs(state.backend:all()) do
+    add_symbol(vim.fs.normalize(path), row)
+  end
+end
+
+---@param path string
+---@param row table
+local function put_row(path, row)
+  if not state then
+    return
+  end
+  path = vim.fs.normalize(path)
+  state.backend:put(path, row)
+  add_symbol(path, row)
+  state.generation = state.generation + 1
+end
+
+---@param path string
+local function delete_row(path)
+  if not state then
+    return
+  end
+  path = vim.fs.normalize(path)
+  state.backend:delete(path)
+  remove_symbol(path)
+  state.generation = state.generation + 1
 end
 
 ---@param abs_path string
@@ -169,17 +306,17 @@ local function reindex_one(abs_path)
   end
   local kind = filetypes.kind(abs_path)
   if not kind or is_internal(abs_path) or is_ignored(abs_path) then
-    state.backend:delete(abs_path)
+    delete_row(abs_path)
     schedule_flush()
     return
   end
   local row = build_row(abs_path, kind)
   if row then
-    state.backend:put(abs_path, row)
+    put_row(abs_path, row)
   else
     -- A missing or malformed file must not leave structured data from an older
     -- version of the file visible through the cache.
-    state.backend:delete(abs_path)
+    delete_row(abs_path)
   end
   schedule_flush()
 end
@@ -189,7 +326,7 @@ local function remove_one(abs_path)
   if not state then
     return
   end
-  state.backend:delete(vim.fs.normalize(abs_path))
+  delete_row(abs_path)
   schedule_flush()
 end
 
@@ -203,18 +340,18 @@ local function rename_one(old_path, new_path)
   new_path = vim.fs.normalize(new_path)
   local kind = filetypes.kind(new_path)
   if not is_in_vault(new_path) or not kind or is_internal(new_path) or is_ignored(new_path) then
-    state.backend:delete(old_path)
+    delete_row(old_path)
     schedule_flush()
     return
   end
   local row = build_row(new_path, kind)
   if not row then
-    state.backend:delete(old_path)
+    delete_row(old_path)
     schedule_flush()
     return
   end
-  state.backend:delete(old_path)
-  state.backend:put(new_path, row)
+  delete_row(old_path)
+  put_row(new_path, row)
   schedule_flush()
 end
 
@@ -306,10 +443,11 @@ local function initial_scan(force)
   for path, _ in pairs(scan_state.backend:all()) do
     local normalized = vim.fs.normalize(path)
     if not found[normalized] then
-      scan_state.backend:delete(path)
+      delete_row(path)
       schedule_flush()
     end
   end
+  rebuild_symbol_index()
 end
 
 local function mark_ready()
@@ -331,12 +469,22 @@ end
 ---@param fn fun()
 function M.when_ready(fn)
   if not state then
-    return fn()
+    fn()
+    return function() end
   end
   if state.ready then
-    return fn()
+    fn()
+    return function() end
   end
-  state.pending[#state.pending + 1] = fn
+  local cancelled = false
+  state.pending[#state.pending + 1] = function()
+    if not cancelled then
+      fn()
+    end
+  end
+  return function()
+    cancelled = true
+  end
 end
 
 ---@return boolean
@@ -412,6 +560,8 @@ function M.setup(opts)
     unregister = nil,
     ready = false,
     pending = {},
+    generation = 0,
+    symbol_index = empty_symbol_index(),
   }
 
   state.unregister = watchfiles.register_handler(function(events)
@@ -475,6 +625,92 @@ end
 ---@return boolean
 local function is_attachment_row(row)
   return row ~= nil and row.kind == "attachment"
+end
+
+---@class obsidian.cache.NoteSnapshot
+---@field vault string
+---@field generation integer
+---@field rows table<string, table>
+
+---@return obsidian.cache.NoteSnapshot
+function M.notes.snapshot()
+  assert(state and state.ready, "cache not ready")
+  local rows = {}
+  for path, row in pairs(state.backend:all()) do
+    rows[path] = vim.deepcopy(row)
+  end
+  return { vault = state.vault, generation = generation, rows = rows }
+end
+
+---@param path string
+---@param dir string
+---@return boolean
+local function is_under(path, dir)
+  dir = vim.fs.normalize(dir):gsub("/+$", "")
+  path = vim.fs.normalize(path)
+  return path == dir or vim.startswith(path, dir .. "/")
+end
+
+---@param opts table|nil
+---@return table[]
+function M.notes.entries(opts)
+  assert(state and state.ready, "cache not ready")
+  opts = opts or {}
+  local entries = {}
+  for path, entry in pairs(state.symbol_index.by_path) do
+    local accepted = (not opts.dir or is_under(path, tostring(opts.dir)))
+      and (not opts.exclude_path or vim.fs.normalize(opts.exclude_path) ~= path)
+      and (not opts.extensions or opts.extensions[entry.extension] == true)
+    if accepted then
+      entries[#entries + 1] = vim.deepcopy(entry)
+    end
+  end
+  table.sort(entries, function(a, b)
+    return a.relative_path:lower() < b.relative_path:lower()
+  end)
+  return entries
+end
+
+---@param opts table|nil
+---@return table[]
+function M.notes.symbols(opts)
+  assert(state and state.ready, "cache not ready")
+  opts = opts or {}
+  local query = opts.query and tostring(opts.query):lower() or nil
+  if not query or query == "" then
+    return M.notes.entries(opts)
+  end
+
+  local matched_paths = {}
+  if opts.exact then
+    for _, path in ipairs(state.symbol_index.by_key[query] or {}) do
+      matched_paths[path] = true
+    end
+  else
+    for key, paths in pairs(state.symbol_index.by_key) do
+      if key:find(query, 1, true) then
+        for _, path in ipairs(paths) do
+          matched_paths[path] = true
+        end
+      end
+    end
+  end
+
+  local entries = {}
+  for path in pairs(matched_paths) do
+    local entry = state.symbol_index.by_path[path]
+    local accepted = entry
+      and (not opts.dir or is_under(path, tostring(opts.dir)))
+      and (not opts.exclude_path or vim.fs.normalize(opts.exclude_path) ~= path)
+      and (not opts.extensions or opts.extensions[entry.extension] == true)
+    if accepted then
+      entries[#entries + 1] = vim.deepcopy(entry)
+    end
+  end
+  table.sort(entries, function(a, b)
+    return a.relative_path:lower() < b.relative_path:lower()
+  end)
+  return entries
 end
 
 ---@param predicate fun(row: obsidian.cache.Row?): boolean
@@ -623,10 +859,10 @@ function M.notes.upsert(row)
   assert(state, "cache not initialized")
   assert(row.path, "row.path required")
   local path = vim.fs.normalize(row.path)
-  row = vim.deepcopy(row)
-  row.path = nil
-  row.kind = "note"
-  state.backend:put(path, row)
+  local stored = vim.deepcopy(row)
+  stored.path = nil
+  stored.kind = "note"
+  put_row(path, stored)
   schedule_flush()
 end
 
@@ -640,11 +876,12 @@ function M.notes.update(path, patch)
     error("cache: no note at " .. path)
   end
   ---@cast row obsidian.cache.NoteRow
+  row = vim.deepcopy(row)
   for k, v in pairs(patch) do
     row[k] = v
   end
   row.kind = "note"
-  state.backend:put(path, row)
+  put_row(path, row)
   schedule_flush()
 end
 
@@ -655,7 +892,7 @@ function M.notes.delete(path)
   end
   path = vim.fs.normalize(path)
   if is_note_row(state.backend:get(path)) then
-    state.backend:delete(path)
+    delete_row(path)
     schedule_flush()
   end
 end

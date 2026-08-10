@@ -1,55 +1,101 @@
-local Index = require "obsidian.search.index"
 local Query = require "obsidian.search.query"
+local Path = require "obsidian.path"
 local h = require "tests.helpers"
 
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
-local T = new_set()
+local root
 
-local documents = {
-  Index.from_lines("/vault/meetings/work.md", {
-    "---",
-    "status: Draft",
-    "duration: 3",
-    "aliases: []",
-    'empty_quotes: ""',
-    "tags: [work]",
-    "---",
-    "# Weekly Meeting",
-    "mix the flour today",
-    "",
-    "call Alice about HappyCat",
-    "- [ ] email Bob",
-    "- [x] publish notes",
-    "",
-    "```",
-    "#hidden",
-    "```",
-  }, { root = "/vault" }),
-  Index.from_lines("/vault/personal/meetup.md", {
-    "---",
-    "status: Published",
-    "rating:",
-    "---",
-    "# Personal Meetup",
-    "mix slowly",
-    "flour tomorrow",
-    "#friends",
-    "",
-    "## Plans",
-    "bring dog treats",
-    "",
-    "## Other",
-    "ask about cat food",
-    "- [ ] call Carol",
-  }, { root = "/vault" }),
-  Index.from_lines("/vault/archive.md", { "old work notes" }, { root = "/vault" }),
+local T = new_set {
+  hooks = {
+    pre_case = function()
+      root = Path.temp { suffix = "-query-search" }
+      root:mkdir { parents = true }
+      local meetings = root / "meetings"
+      local personal = root / "personal"
+      meetings:mkdir()
+      personal:mkdir()
+      h.write(
+        table.concat({
+          "---",
+          "status: Draft",
+          "duration: 3",
+          "aliases: []",
+          'empty_quotes: ""',
+          "tags: [work]",
+          "---",
+          "# Weekly Meeting",
+          "mix the flour today",
+          "",
+          "call Alice about HappyCat",
+          "- [ ] email Bob",
+          "- [x] publish notes",
+          "",
+          "```",
+          "#hidden",
+          "```",
+        }, "\n"),
+        root / "meetings" / "work.md"
+      )
+      h.write(
+        table.concat({
+          "---",
+          "status: Published",
+          "rating:",
+          "---",
+          "# Personal Meetup",
+          "mix slowly",
+          "flour tomorrow",
+          "#friends",
+          "",
+          "## Plans",
+          "bring dog treats",
+          "",
+          "## Other",
+          "ask about cat food",
+          "- [ ] call Carol",
+          "~~~",
+          "#alsohidden",
+          "~~~",
+        }, "\n"),
+        root / "personal" / "meetup.md"
+      )
+      h.write("old work notes", root / "archive.md")
+      Obsidian = { dir = root }
+      local cache = require "obsidian.cache"
+      cache.setup { enabled = true, backend = "memory" }
+      h.wait(function()
+        return cache.is_ready()
+      end, { desc = "query cache" })
+    end,
+    post_case = function()
+      require("obsidian.cache").shutdown()
+      vim.fn.delete(tostring(root), "rf")
+      Obsidian = nil
+      require("obsidian.lsp.watchfiles").reset_handlers()
+    end,
+  },
 }
+
+---@param query string
+---@param opts table|nil
+---@return obsidian.search.QueryResult[]
+local function search(query, opts)
+  local results, query_error
+  Query.search(query, vim.tbl_extend("force", { root = root }, opts or {}), function(items, err)
+    results, query_error = items, err
+  end)
+  h.wait(function()
+    return results ~= nil
+  end, { desc = "query results" })
+  assert(not query_error, query_error)
+  return results
+end
 
 local function paths(query)
   return vim.tbl_map(function(result)
     return result.document.relative_path
-  end, Query.search(documents, query))
+  end, search(query))
 end
 
 T["parser"] = new_set()
@@ -59,13 +105,7 @@ T["parser"]["uses implicit AND before OR and supports negated groups"] = functio
   eq("or", ast.kind)
   eq("and", ast.left.kind)
   eq("and", ast.right.kind)
-  eq(
-    { "meetings/work.md", "personal/meetup.md" },
-    vim.tbl_map(function(result)
-      return result.document.relative_path
-    end, Query.search_ast(documents, ast))
-  )
-
+  eq({ "meetings/work.md", "personal/meetup.md" }, paths "meeting work OR meetup personal")
   eq({ "meetings/work.md", "archive.md" }, paths "work -(old missing)")
   eq({ "meetings/work.md" }, paths "work -(old notes)")
 end
@@ -104,6 +144,7 @@ T["operators"]["matches exact tags outside code blocks"] = function()
   eq({ "meetings/work.md" }, paths "tag:#work")
   eq({ "personal/meetup.md" }, paths "tag:friends")
   eq({}, paths "tag:hidden")
+  eq({}, paths "tag:alsohidden")
   eq({}, paths "tag:friend")
 end
 
@@ -133,41 +174,59 @@ end
 
 T["results are ranked by match quality and then by path"] = function()
   eq({ "meetings/work.md", "archive.md" }, paths "work")
-  local results = Query.search(documents, "HappyCat")
+  local results = search "HappyCat"
   eq(11, results[1].line)
   eq(18, results[1].col)
   eq(26, results[1].end_col)
 end
 
-T["index_async indexes notes and canvases before returning"] = function()
-  local Path = require "obsidian.path"
-  local dir = Path.temp { suffix = "-query-search" }
-  dir:mkdir { parents = true }
-  vim.fn.writefile({ "needle in a note" }, tostring(dir / "note.md"))
-  vim.fn.writefile({ '{"text":"needle in a canvas"}' }, tostring(dir / "board.canvas"))
-  vim.fn.writefile({ "needle in plain text" }, tostring(dir / "ignored.txt"))
+T["cache universe includes notes and canvases"] = function()
+  local note_path = root / "note.md"
+  local canvas_path = root / "board.canvas"
+  h.write("needle in a note", note_path)
+  h.write('{"text":"needle in a canvas"}', canvas_path)
+  h.write("needle in plain text", root / "ignored.txt")
+  local cache = require "obsidian.cache"
+  cache.notes.refresh(tostring(note_path))
+  cache.notes.refresh(tostring(canvas_path))
 
-  local indexed
-  Index.index_async(dir, {}, function(result)
-    indexed = result
-  end)
-  h.wait(function()
-    return indexed ~= nil
-  end, { desc = "query document index" })
-  eq(
-    { "board.canvas", "note.md" },
-    vim.tbl_map(function(document)
-      return document.relative_path
-    end, indexed)
-  )
   eq(
     { "board.canvas", "note.md" },
     vim.tbl_map(function(result)
       return result.document.relative_path
-    end, Query.search(indexed, "needle"))
+    end, search "needle")
   )
+end
 
-  vim.fn.delete(tostring(dir), "rf")
+T["does not execute without the cache"] = function()
+  require("obsidian.cache").shutdown()
+  local results, err
+  Query.search("work", { root = root }, function(items, search_error)
+    results, err = items, search_error
+  end)
+  eq({}, results)
+  eq(true, err:find("cache", 1, true) ~= nil)
+end
+
+T["metadata-only queries do not start ripgrep"] = function()
+  local Ripgrep = require "obsidian.search.ripgrep"
+  local original = Ripgrep.read_lines_async
+  local calls = 0
+  Ripgrep.read_lines_async = function(...)
+    calls = calls + 1
+    return original(...)
+  end
+
+  local ok, err = pcall(function()
+    eq({ "meetings/work.md" }, paths "[status:Draft]")
+    eq(0, calls)
+    eq({ "meetings/work.md" }, paths "content:HappyCat")
+    eq(1, calls)
+  end)
+  Ripgrep.read_lines_async = original
+  if not ok then
+    error(err)
+  end
 end
 
 return T

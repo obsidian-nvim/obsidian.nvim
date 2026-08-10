@@ -17,23 +17,37 @@ require("obsidian").setup {
 
 The default backend is `json`. It writes a cache file under Neovim's cache directory and reuses it between sessions. You do not need to set `backend = "json"` unless you want to be explicit.
 
-The cache is used for `:Obsidian quick_switch`, ordinary note-reference completion (`[[query`), and vault-wide heading completion (`[[##query`). When enabled, these features query cached metadata instead of scanning and parsing the vault for each request. Quick switch reads note names, aliases, attachments, and missing-link targets from the cache; ordinary reference completion sends cached note candidates to your completion engine for filtering.
+The cache powers `:Obsidian quick_switch`, note-symbol lookup and completion, Obsidian bookmark queries, the built-in query picker, and vault-wide heading completion (`[[##query`). Quick switch reads note names, aliases, attachments, and missing-link targets from the cache. Query execution requires an enabled cache; content predicates use ripgrep against the file set already validated by the cache, while metadata-only predicates do not start ripgrep.
 
 ## What Gets Cached
 
-The cache stores typed note and attachment entries that help `quick_switch` build picker entries:
+The cache stores typed note and attachment rows with derived facts used by symbol lookup, query evaluation, and picker entries:
 
 - note/file path
 - note ID and aliases
 - headings (original text, normalized anchor, level, and line)
 - tags
 - frontmatter properties
+- normalized and vault-relative note paths, filenames, extensions, IDs, titles, and aliases
+- normalized tags plus their original spelling and locations
 - outgoing links
-- tasks
+- task state, text, original line, and location
+- heading, section, and block ranges
+- line count and file kind (`markdown` or `canvas`)
 - file modification time and size
 - attachment extension and file statistics
 
 Attachment content is not stored in the metadata cache.
+
+Complete note contents and complete line arrays are not cached. When query semantics require content, `obsidian.search.query` obtains complete-line evidence through ripgrep and evaluates the existing query AST in Lua.
+
+The searchable extension set is shared by cache scanning and ripgrep:
+
+- `.md`
+- `.markdown`
+- `.qmd`
+- `.base`
+- `.canvas`
 
 The cache is derived data. You can delete it at any time; `obsidian.nvim` will rebuild it on the next startup or file change.
 
@@ -98,7 +112,7 @@ artifacts without putting large content in `index.json`.
 
 ## How Updates Work
 
-On startup, `obsidian.nvim` checks the vault for supported Markdown files and attachment types and updates entries whose modification time (including nanoseconds) or size changed.
+On startup, `obsidian.nvim` checks the vault for supported note and attachment types, including searchable Markdown-like and canvas files, and updates entries whose modification time (including nanoseconds) or size changed.
 Persisted entries are not exposed to queries until this validation finishes.
 
 The JSON backend uses a versioned schema. Incompatible cache data is discarded
@@ -116,6 +130,8 @@ To force a full rescan after external changes or suspected stale data, run:
 ```
 
 The command reparses every supported note, removes entries for missing files, and flushes the rebuilt cache immediately.
+
+Every cache mutation also updates a shared in-memory symbol index and increments a generation counter. Long-running queries use a stable snapshot and will retry or reject results if the generation changes before publication.
 
 ## Backends
 
@@ -143,7 +159,8 @@ A store implements `get(key)`, `all()`, `put(key, row)`, and `delete(key)`. `flu
 
 ## Limitations
 
-- The cache currently powers `:Obsidian quick_switch`, ordinary note-reference completion, and vault-wide heading completion.
+- Obsidian query execution requires an enabled cache and the `rg` executable for content predicates.
+- Query roots outside the active cached vault are rejected instead of falling back to a filesystem scan.
 - Heading and block completion remain query-filtered instead of sending every heading or block to the completion engine.
 - Running several Neovim instances on the same vault can cause cache updates to race.
 
