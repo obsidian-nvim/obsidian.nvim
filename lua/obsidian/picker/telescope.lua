@@ -7,6 +7,19 @@ local ut = require "obsidian.picker.util"
 
 local M = {}
 
+local extension_loaded = false
+
+--- Register the `obsidian` Telescope extension.
+M.setup = function()
+  if not extension_loaded then
+    ---@diagnostic disable-next-line: undefined-field
+    require("telescope").load_extension "obsidian_files"
+    ---@diagnostic disable-next-line: undefined-field
+    require("telescope").load_extension "obsidian_grep"
+    extension_loaded = true
+  end
+end
+
 ---@param prompt_bufnr integer
 ---@param keep_open boolean|?
 ---@return table|?

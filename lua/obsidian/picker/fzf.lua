@@ -26,6 +26,24 @@ end
 
 local M = {}
 
+--- Register Obsidian workspace providers with fzf-lua.
+M.setup = function()
+  local fzf = require "fzf-lua"
+  local api = require "obsidian.api"
+
+  fzf.register_extension("obsidian_files", function(opts)
+    opts = opts or {}
+    opts.cwd = tostring(api.resolve_workspace_dir())
+    return fzf.files(opts)
+  end, {}, true)
+
+  fzf.register_extension("obsidian_grep", function(opts)
+    opts = opts or {}
+    opts.cwd = tostring(api.resolve_workspace_dir())
+    return fzf.live_grep(opts)
+  end, {}, true)
+end
+
 ---@param opts { callback: (fun(selections: any[]))|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
 ---@param path_only? boolean HACK:
 local function get_selection_actions(opts, path_only)

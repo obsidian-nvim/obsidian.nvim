@@ -17,6 +17,24 @@ end
 
 local M = {}
 
+--- Register Obsidian workspace entries with MiniPick.registry.
+M.setup = function()
+  local mini_pick = require "mini.pick"
+  local api = require "obsidian.api"
+
+  mini_pick.registry.obsidian_files = function(call_opts)
+    return mini_pick.builtin.files(call_opts, {
+      source = { cwd = tostring(api.resolve_workspace_dir()), name = "Obsidian Files" },
+    })
+  end
+
+  mini_pick.registry.obsidian_grep = function(call_opts)
+    return mini_pick.builtin.grep_live(call_opts, {
+      source = { cwd = tostring(api.resolve_workspace_dir()), name = "Obsidian Grep" },
+    })
+  end
+end
+
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)
   opts = opts and opts or {}

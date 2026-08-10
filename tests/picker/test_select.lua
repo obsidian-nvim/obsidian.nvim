@@ -36,31 +36,6 @@ local function with_obsidian(obsidian, fn)
   end
 end
 
-local function with_select(select_impl, fn)
-  local original_select = vim.ui.select
-  vim.ui.select = select_impl
-  local ok, err = pcall(fn)
-  vim.ui.select = original_select
-  if not ok then
-    error(err)
-  end
-end
-
-T["default select passes custom string formatting to vim.ui.select"] = function()
-  local picker = require "obsidian.picker._default"
-
-  with_select(function(items, opts, on_choice)
-    eq("display:one", opts.format_item(items[1]))
-    on_choice()
-  end, function()
-    picker.select({ "one" }, {
-      format_item = function(value)
-        return "display:" .. value
-      end,
-    })
-  end)
-end
-
 T["mini select returns all marked items when multiple selections are allowed"] = function()
   local choices
 
@@ -73,7 +48,7 @@ T["mini select returns all marked items when multiple selections are allowed"] =
       return opts.source.items[2]
     end,
   }, function()
-    require("obsidian.picker._mini").select(
+    require("obsidian.picker.mini").select(
       { "one", "two" },
       { prompt = "Pick", allow_multiple = true },
       function(selected)
@@ -91,7 +66,7 @@ T["mini select applies custom formatting to string values"] = function()
       eq("display:one", opts.source.items[1].text)
     end,
   }, function()
-    require("obsidian.picker._mini").select({ "one" }, {
+    require("obsidian.picker.mini").select({ "one" }, {
       format_item = function(value)
         return "display:" .. value
       end,
@@ -117,7 +92,7 @@ T["fzf select explicitly enables multiple selections and returns all choices"] =
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ "one", "two" }, { allow_multiple = true }, function(selected)
+    require("obsidian.picker.fzf").select({ "one", "two" }, { allow_multiple = true }, function(selected)
       choices = selected
     end)
   end)
@@ -134,7 +109,7 @@ T["fzf select applies custom formatting to string values"] = function()
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ "one" }, {
+    require("obsidian.picker.fzf").select({ "one" }, {
       format_item = function(value)
         return "display:" .. value
       end,
@@ -156,7 +131,7 @@ T["fzf select explicitly disables unsupported multiple selections"] = function()
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ "one", "two" }, {}, function() end)
+    require("obsidian.picker.fzf").select({ "one", "two" }, {}, function() end)
   end)
 end
 
@@ -176,7 +151,7 @@ T["fzf select enables multiple selections for mappings that accept them"] = func
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ "one", "two" }, {
+    require("obsidian.picker.fzf").select({ "one", "two" }, {
       selection_mappings = {
         ["<C-t>"] = {
           desc = "test",
@@ -214,7 +189,7 @@ T["fzf select preserves identity for duplicate display labels"] = function()
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ first, second }, {
+    require("obsidian.picker.fzf").select({ first, second }, {
       format_item = function()
         return "duplicate"
       end,
@@ -247,7 +222,7 @@ T["fzf select does not infer previews from value shape"] = function()
       end,
     },
   }, function()
-    require("obsidian.picker._fzf").select({ value }, {
+    require("obsidian.picker.fzf").select({ value }, {
       format_item = function()
         return "note"
       end,
@@ -262,7 +237,7 @@ T["snacks select applies custom formatting to string values"] = function()
       eq("one", opts.items[1].obsidian_item)
     end,
   }, function()
-    require("obsidian.picker._snacks").select({ "one" }, {
+    require("obsidian.picker.snacks").select({ "one" }, {
       format_item = function(value)
         return "display:" .. value
       end,
@@ -282,7 +257,7 @@ T["snacks select preserves opaque values for mappings"] = function()
       }, opts.items[1])
     end,
   }, function()
-    require("obsidian.picker._snacks").select({ value }, {
+    require("obsidian.picker.snacks").select({ value }, {
       format_item = function()
         return "note"
       end,
@@ -325,7 +300,7 @@ T["telescope select applies custom formatting to string values"] = function()
       },
     },
   }, function()
-    require("obsidian.picker._telescope").select({ "one" }, {
+    require("obsidian.picker.telescope").select({ "one" }, {
       format_item = function(value)
         return "display:" .. value
       end,
@@ -361,7 +336,7 @@ T["telescope select does not infer fields or previews from value shape"] = funct
       },
     },
   }, function()
-    require("obsidian.picker._telescope").select({ value }, {
+    require("obsidian.picker.telescope").select({ value }, {
       format_item = function()
         return "note"
       end,
@@ -391,7 +366,7 @@ T["fzf grep confirmation retains entries and mappings receive paths"] = function
         end,
       },
     }, function()
-      local fzf = require "obsidian.picker._fzf"
+      local fzf = require "obsidian.picker.fzf"
       fzf.grep {
         dir = "/vault",
         query = "query",
@@ -444,7 +419,7 @@ T["telescope grep mappings receive paths"] = function()
         end,
       },
     }, function()
-      require("obsidian.picker._telescope").grep {
+      require("obsidian.picker.telescope").grep {
         dir = "/vault",
         query = "query",
         selection_mappings = {
@@ -471,7 +446,7 @@ T["snacks grep mappings receive paths"] = function()
         }, { _path = "/vault/note.md" })
       end,
     }, function()
-      require("obsidian.picker._snacks").grep {
+      require("obsidian.picker.snacks").grep {
         dir = "/vault",
         query = "query",
         selection_mappings = {

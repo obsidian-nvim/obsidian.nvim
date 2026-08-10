@@ -92,6 +92,46 @@ end
 
 local M = {}
 
+--- Register Obsidian workspace sources with snacks.picker.
+---
+--- This is intentionally opt-in. Requiring obsidian.nvim does not alter Snacks'
+--- source registry or its `vim.ui.select` implementation.
+M.setup = function()
+  local sources = require "snacks.picker.config.sources"
+  local api = require "obsidian.api"
+
+  ---@param name string
+  ---@param source table
+  local function register(name, source)
+    local configure = source.config
+    source.config = function(source_opts)
+      if configure then
+        source_opts = configure(source_opts) or source_opts
+      end
+      source_opts.cwd = tostring(api.resolve_workspace_dir())
+      return source_opts
+    end
+    sources[name] = source
+  end
+
+  register("obsidian_files", {
+    title = "Obsidian Files",
+    finder = "files",
+    format = "file",
+    show_empty = true,
+    supports_live = true,
+  })
+
+  register("obsidian_grep", {
+    title = "Obsidian Grep",
+    finder = "grep",
+    format = "file",
+    show_empty = true,
+    live = true,
+    supports_live = true,
+  })
+end
+
 ---@param opts obsidian.PickerGrepOpts|? Options.
 M.grep = function(opts)
   opts = opts or {}
