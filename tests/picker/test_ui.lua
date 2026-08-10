@@ -136,7 +136,8 @@ T["recenters and resizes every window on VimResized"] = function()
   -- may be equal when item count or max_results caps both, so we only
   -- assert that width grows and that heights are non-decreasing.
   local function picker_geometry(cols, lines)
-    return child.lua(string.format([[
+    return child.lua(string.format(
+      [[
 vim.o.columns = %d
 vim.o.lines = %d
 
@@ -180,7 +181,10 @@ local geom = {
 }
 picker:cancel()
 return geom
-    ]], cols, lines))
+    ]],
+      cols,
+      lines
+    ))
   end
 
   local small = picker_geometry(120, 40)

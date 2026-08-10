@@ -2,7 +2,6 @@ local picker_util = require "obsidian.picker.util"
 
 local M = {}
 
-local highlight_ns = vim.api.nvim_create_namespace "obsidian_picker_ui"
 local default_max_results = 12
 local current
 
