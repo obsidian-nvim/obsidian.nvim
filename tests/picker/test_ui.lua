@@ -306,13 +306,25 @@ end
 
 T["search streams Obsidian query results"] = function()
   local result = child.lua [[
-local Index = require "obsidian.search.index"
-local original = Index.index_async
-local document = Index.from_lines("/vault/work.md", {
-  "---", "tags: [work]", "---", "needle",
-}, { root = "/vault" })
-Index.index_async = function(_, _, callback)
-  callback { document }
+local Query = require "obsidian.search.query"
+local original = Query.search
+Query.search = function(_, _, callback)
+  callback({ {
+    document = {
+      path = "/vault/work.md",
+      relative_path = "work.md",
+      filename = "work.md",
+      lines = { "---", "tags: [work]", "---", "needle" },
+      properties = { tags = { "work" } },
+      tags = { { text = "#work", line = 2 } },
+      tasks = {},
+    },
+    line = 4,
+    col = 1,
+    end_col = 7,
+    score = 10,
+    context = "needle",
+  } })
   return function() end
 end
 
@@ -339,7 +351,7 @@ local out = {
   text = value.text,
 }
 picker:cancel()
-Index.index_async = original
+Query.search = original
 return out
   ]]
 

@@ -63,6 +63,40 @@ T["cache backends"]["uses a registered backend by name"] = function()
   eq(1, cache.notes.count())
 end
 
+T["cache backends"]["round trips query metadata through JSON"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache-json" }
+  dir:mkdir { parents = true }
+  local cache_path = tostring(dir / "cache.json")
+  local backend = require "obsidian.cache.json_backend"
+  local store = backend.open { path = cache_path, vault = tostring(dir) }
+  store:put("/vault/Note.md", {
+    frontmatter = {
+      present = true,
+      values = {
+        empty_list = {},
+        empty_string = "",
+        explicit_null = vim.NIL,
+        flag = false,
+        number = 3,
+      },
+    },
+    tag_locations = { { text = "#Work", normalized = "#work", line = 4, col = 2 } },
+    tasks = { { line = 5, col = 7, state = " ", text = "todo", raw = "- [ ] todo" } },
+  })
+  store:flush()
+
+  local reopened = backend.open { path = cache_path, vault = tostring(dir) }
+  local row = reopened:get "/vault/Note.md"
+  eq(vim.NIL, row.frontmatter.values.explicit_null)
+  eq("", row.frontmatter.values.empty_string)
+  eq({}, row.frontmatter.values.empty_list)
+  eq(false, row.frontmatter.values.flag)
+  eq(3, row.frontmatter.values.number)
+  eq("#Work", row.tag_locations[1].text)
+  eq("- [ ] todo", row.tasks[1].raw)
+  vim.fn.delete(tostring(dir), "rf")
+end
+
 T["cache backends"]["uses file ignore filters"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
@@ -85,7 +119,7 @@ T["cache backends"]["uses file ignore filters"] = function()
   eq(nil, cache.notes.find(tostring(dir / "skip" / "Skip.md")))
 end
 
-T["cache backends"]["stores compact rows"] = function()
+T["cache backends"]["stores searchable rows"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   local note_path = tostring(dir / "Note.md")
@@ -102,8 +136,16 @@ T["cache backends"]["stores compact rows"] = function()
   eq({ "foo", "inline" }, row.tags)
   eq("number", type(row.mtime_nsec))
   eq(nil, row.path)
-  eq(nil, row.rel_path)
-  eq(nil, row.basename)
+  eq("Note.md", row.relative_path)
+  eq("Note.md", row.filename)
+  eq("Note", row.basename)
+  eq("md", row.extension)
+  eq("markdown", row.kind)
+  eq(5, row.line_count)
+  eq(true, row.frontmatter.present)
+  eq({ "Foo" }, row.frontmatter.values.tags)
+  eq("#Inline", row.tag_locations[2].text)
+  eq(5, row.tag_locations[2].line)
   eq(nil, row.ext)
   eq(nil, row.folder)
   eq(nil, row.has_frontmatter)
@@ -316,6 +358,7 @@ T["cache backends"]["indexes markdown-like extensions"] = function()
   helpers.write("# Page", dir / "Page.markdown")
   helpers.write("# Query", dir / "Query.qmd")
   helpers.write("# Base", dir / "Base.base")
+  helpers.write('{"nodes":[]}', dir / "Board.canvas")
   Obsidian = { dir = dir }
 
   local cache = require "obsidian.cache"
@@ -324,10 +367,37 @@ T["cache backends"]["indexes markdown-like extensions"] = function()
     return cache.is_ready()
   end)
 
-  eq(4, cache.notes.count())
+  eq(5, cache.notes.count())
   eq(true, cache.notes.find(tostring(dir / "Page.markdown")) ~= nil)
   eq(true, cache.notes.find(tostring(dir / "Query.qmd")) ~= nil)
   eq(true, cache.notes.find(tostring(dir / "Base.base")) ~= nil)
+  eq("canvas", cache.notes.find(tostring(dir / "Board.canvas")).kind)
+end
+
+T["cache backends"]["publishes snapshots and indexed symbols"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Project.md")
+  helpers.write("---\nid: project-id\naliases: [Roadmap]\n---\n# Project", note_path)
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local snapshot = cache.notes.snapshot()
+  eq(true, snapshot.generation > 0)
+  eq("Project.md", snapshot.rows[note_path].relative_path)
+  eq(note_path, cache.notes.symbols({ query = "road" })[1].path)
+  eq(note_path, cache.notes.symbols({ query = "project-id", exact = true })[1].path)
+
+  helpers.write("---\naliases: [Launch]\n---\n# Project", note_path)
+  cache.notes.refresh(note_path)
+  eq(0, #cache.notes.symbols { query = "Roadmap" })
+  eq(note_path, cache.notes.symbols({ query = "Launch" })[1].path)
+  eq(true, cache.generation() > snapshot.generation)
 end
 
 T["cache backends"]["handles raw LSP watched-file events"] = function()

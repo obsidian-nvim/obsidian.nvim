@@ -760,11 +760,11 @@ function M.search(opts)
   opts.preview_item = opts.preview_item or preview_entry
 
   return live_select(opts, function(query, emit)
-    return require("obsidian.search.index").index_async(dir, {
-      include_non_markdown = opts.include_non_markdown,
-      concurrency = opts.concurrency,
-    }, function(documents)
-      local results = require("obsidian.search.query").search(documents, query, { allow_incomplete = true })
+    return require("obsidian.search.query").search(query, {
+      root = dir,
+      allow_incomplete = true,
+      include_canvas = opts.include_non_markdown ~= false,
+    }, function(results)
       for _, result in ipairs(results) do
         emit {
           filename = result.document.path,

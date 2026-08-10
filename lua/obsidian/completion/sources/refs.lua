@@ -852,6 +852,7 @@ function M.process_completion(completion_resolve_callback, request)
       dir = api.resolve_workspace_dir(source_path),
       search = search_opts,
       notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
+      symbols_only = true,
     })
   end
 end
