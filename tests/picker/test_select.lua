@@ -36,16 +36,6 @@ local function with_obsidian(obsidian, fn)
   end
 end
 
-local function with_select(select_impl, fn)
-  local original_select = vim.ui.select
-  vim.ui.select = select_impl
-  local ok, err = pcall(fn)
-  vim.ui.select = original_select
-  if not ok then
-    error(err)
-  end
-end
-
 T["mini select returns all marked items when multiple selections are allowed"] = function()
   local choices
 
