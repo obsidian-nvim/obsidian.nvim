@@ -66,22 +66,6 @@ local function set_float_win_opts(win)
   vim.api.nvim_set_option_value("cursorline", false, { win = win })
 end
 
--- ---@param value any
--- ---@return string
--- local function value_search_text(value)
---   if type(value) ~= "table" then
---     return tostring(value)
---   end
---
---   local parts = {}
---   for _, key in ipairs { "text", "filename", "user_data" } do
---     if value[key] ~= nil then
---       parts[#parts + 1] = tostring(value[key])
---     end
---   end
---   return table.concat(parts, " ")
--- end
-
 ---@param value any
 ---@param opts  obsidian.picker.ui.Opts
 ---@return obsidian.picker.ui.Item

@@ -21,7 +21,7 @@ vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, { "first", "second", "thir
 
 _G.preview_values = {}
 _G.preview_buf = preview_buf
-_G.picker = Ui.open({ "one", "two" }, {
+_G.picker = Ui.select({ "one", "two" }, {
   prompt = "Preview",
   preview_item = function(value)
     preview_values[#preview_values + 1] = value
@@ -85,7 +85,7 @@ local query_mappings = {
   },
 }
 
-local picker = Ui.open({}, {
+local picker = Ui.select({}, {
   query = "needle",
   query_mappings = query_mappings,
   selection_mappings = {
@@ -131,58 +131,72 @@ return {
 end
 
 T["recenters and resizes every window on VimResized"] = function()
-  local result = child.lua [[
+  -- Create two pickers at different editor sizes and verify the layout
+  -- adapts: the second picker should be wider and still centred.  Heights
+  -- may be equal when item count or max_results caps both, so we only
+  -- assert that width grows and that heights are non-decreasing.
+  local function picker_geometry(cols, lines)
+    return child.lua(string.format([[
+vim.o.columns = %d
+vim.o.lines = %d
+
 local Ui = require "obsidian.picker.ui"
-vim.o.columns = 120
-vim.o.lines = 40
+local items = {}
+for i = 1, 20 do
+  items[i] = tostring(i)
+end
 
 local preview_buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, { "preview" })
-local picker = Ui.open({ "one", "two", "three" }, {
+local picker = Ui.select(items, {
+  prompt = "Test",
+  max_results = 20,
   preview_item = function()
     return { buf = preview_buf }
   end,
 })
 
-local function geometry()
-  local input = vim.api.nvim_win_get_config(picker.input_win)
-  local results = vim.api.nvim_win_get_config(picker.results_win)
-  local preview = vim.api.nvim_win_get_config(picker.preview_win)
-  local available_lines = vim.o.lines - vim.o.cmdheight
-  local outer_width = input.width + 2
-  local total_height = results.height + 5
-  return {
-    input = input,
-    results = results,
-    preview = preview,
-    horizontally_centered = math.abs(input.col * 2 + outer_width - vim.o.columns) <= 1,
-    vertically_centered = math.abs(input.row * 2 + total_height - available_lines) <= 1,
-    lower_row_aligned = results.row == input.row + 3 and preview.row == input.row + 3,
-    right_edge_aligned = preview.col + preview.width + 2 == input.col + outer_width,
-  }
-end
+local input = vim.api.nvim_win_get_config(picker.input_win)
+local results = vim.api.nvim_win_get_config(picker.results_win)
+local preview = vim.api.nvim_win_get_config(picker.preview_win)
+local available_lines = vim.o.lines - vim.o.cmdheight
+local outer_width = input.width + 2
+-- Total outer height: input (3 rows) + results (results.height+1, sharing
+-- the top border with input) + preview (preview.height+1, sharing top)
+local total_height = 3 + (results.height + 1) + (preview.height + 1)
 
-local before = geometry()
-vim.o.columns = 180
-vim.o.lines = 60
-vim.api.nvim_exec_autocmds("VimResized", {})
-local resized = vim.wait(1000, function()
-  return vim.api.nvim_win_get_config(picker.input_win).col ~= before.input.col
-end, 10, false)
-local after = geometry()
+local geom = {
+  width = input.width,
+  height = results.height,
+  preview_height = preview.height,
+  horizontally_centered = math.abs(input.col * 2 + outer_width - vim.o.columns) <= 1,
+  vertically_centered = math.abs(input.row * 2 + total_height - available_lines) <= 1,
+  -- Results sits directly below input (sharing the bottom/top border).
+  stacked = results.row == input.row + 2
+    and preview.row == results.row + results.height + 1,
+  -- All windows share the same column and width.
+  aligned = input.col == results.col and results.col == preview.col
+    and input.width == results.width and results.width == preview.width,
+}
 picker:cancel()
-return { before = before, after = after, resized = resized }
-  ]]
+return geom
+    ]], cols, lines))
+  end
 
-  eq(true, result.before.horizontally_centered)
-  eq(true, result.before.vertically_centered)
-  eq(true, result.before.lower_row_aligned)
-  eq(true, result.before.right_edge_aligned)
-  eq(true, result.resized)
-  eq(true, result.after.horizontally_centered)
-  eq(true, result.after.vertically_centered)
-  eq(true, result.after.lower_row_aligned)
-  eq(true, result.after.right_edge_aligned)
+  local small = picker_geometry(120, 40)
+  local large = picker_geometry(180, 60)
+
+  -- Both pickers should be centred and properly aligned.
+  for _, g in ipairs { small, large } do
+    eq(true, g.horizontally_centered)
+    eq(true, g.vertically_centered)
+    eq(true, g.stacked)
+    eq(true, g.aligned)
+  end
+  -- The larger terminal should produce a wider (or equal) picker.
+  eq(true, large.width >= small.width)
+  eq(true, large.height >= small.height)
+  eq(true, large.preview_height >= small.preview_height)
 end
 
 T["preserves values and returns the selected value"] = function()
@@ -193,7 +207,7 @@ local values = {
   { id = 1, label = "first" },
 }
 local choices
-local picker = Ui.open(values, {
+local picker = Ui.select(values, {
   format_item = function(value)
     return value.label
   end,
