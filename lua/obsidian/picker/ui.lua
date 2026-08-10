@@ -287,7 +287,6 @@ local function render(picker)
 
   resize(picker, #lines)
   update_preview(picker)
-  vim.api.nvim_set_option_value("number", true, { win = picker.preview_win })
 end
 
 ---@param picker obsidian.picker.ui.Picker
