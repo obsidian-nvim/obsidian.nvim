@@ -135,6 +135,8 @@ T["results are ranked by match quality and then by path"] = function()
   eq({ "meetings/work.md", "archive.md" }, paths "work")
   local results = Query.search(documents, "HappyCat")
   eq(11, results[1].line)
+  eq(18, results[1].col)
+  eq(26, results[1].end_col)
 end
 
 T["index_async indexes notes and canvases before returning"] = function()

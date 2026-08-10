@@ -24,6 +24,10 @@ local current
 ---@field format_item    (fun(value: any): string) | nil
 ---@field preview_item   (fun(value: any): obsidian.ui_select_preview_spec | nil) | nil
 ---@field query_mappings obsidian.PickerMappingTable | nil
+---@field filter         boolean | nil
+---@field debounce       integer | nil
+---@field on_query_change (fun(query: string, picker: obsidian.picker.ui.Picker)) | nil Internal.
+---@field cleanup        function | nil Internal.
 
 ---@class obsidian.picker.ui.Picker
 ---@field input_buf      integer
@@ -90,7 +94,7 @@ end
 ---@param picker obsidian.picker.ui.Picker
 ---@return obsidian.picker.ui.Item[]
 local function filter_items(picker)
-  if picker.query == "" then
+  if picker.opts.filter == false or picker.query == "" then
     return picker.items
   end
 
@@ -292,6 +296,10 @@ local function close_windows(picker)
     pcall(vim.api.nvim_del_autocmd, picker.resize_autocmd)
     picker.resize_autocmd = nil
   end
+  if picker.opts.cleanup then
+    pcall(picker.opts.cleanup)
+    picker.opts.cleanup = nil
+  end
 
   for _, win in ipairs { picker.results_win, picker.input_win, picker.preview_win } do
     if win and vim.api.nvim_win_is_valid(win) then
@@ -445,6 +453,15 @@ function PickerUi:set_items(values)
   render(self)
 end
 
+---@param values any[]
+function PickerUi:append_items(values)
+  if self.closed or #values == 0 then
+    return
+  end
+  vim.list_extend(self.items, make_items(values, self.opts))
+  render(self)
+end
+
 ---@return string
 function PickerUi:get_query()
   sync_query(self)
@@ -552,7 +569,12 @@ function M.select(values, opts, on_choice)
       vim.schedule(function()
         if not picker.closed then
           picker.selection = 1
-          render(picker)
+          if picker.opts.on_query_change then
+            sync_query(picker)
+            picker.opts.on_query_change(picker.query, picker)
+          else
+            render(picker)
+          end
         end
       end)
     end,
@@ -578,6 +600,183 @@ function M.select(values, opts, on_choice)
   end)
 
   return picker
+end
+
+---@param handle any
+local function cancel_handle(handle)
+  if type(handle) == "function" then
+    pcall(handle)
+  elseif handle and type(handle.kill) == "function" then
+    pcall(handle.kill, handle, 15)
+  end
+end
+
+---@class obsidian.picker.ui.LiveOpts: obsidian.picker.ui.Opts
+---@field prompt_title       string | nil
+---@field dir                string | obsidian.Path | nil
+---@field callback           (fun(entries: obsidian.PickerEntry[])) | nil
+---@field search_opts        obsidian.search.SearchOpts | nil
+---@field include_non_markdown boolean | nil
+---@field concurrency        integer | nil
+
+---@param opts   obsidian.picker.ui.LiveOpts
+---@param source fun(query: string, emit: fun(value: any)): any Returns a cancellable handle.
+---@return obsidian.picker.ui.Picker
+local function live_select(opts, source)
+  local generation = 0
+  local active_handle
+  local timer
+  local picker
+
+  local function stop_active()
+    generation = generation + 1
+    if timer then
+      timer:stop()
+    end
+    local handle = active_handle
+    active_handle = nil
+    cancel_handle(handle)
+  end
+
+  local function update(query)
+    if not picker or picker.closed then
+      return
+    end
+
+    stop_active()
+    picker:set_items {}
+    query = vim.trim(query)
+    if query == "" then
+      return
+    end
+
+    local query_generation = generation
+    timer = timer or assert(vim.uv.new_timer())
+    timer:start(
+      math.max(0, opts.debounce or 100),
+      0,
+      vim.schedule_wrap(function()
+        if picker.closed or generation ~= query_generation then
+          return
+        end
+
+        local pending = {}
+        local flush_scheduled = false
+        local function emit(value)
+          if picker.closed or generation ~= query_generation then
+            return
+          end
+          pending[#pending + 1] = value
+          if flush_scheduled then
+            return
+          end
+          flush_scheduled = true
+          vim.schedule(function()
+            flush_scheduled = false
+            if picker.closed or generation ~= query_generation or #pending == 0 then
+              pending = {}
+              return
+            end
+            local values = pending
+            pending = {}
+            picker:append_items(values)
+          end)
+        end
+
+        active_handle = source(query, emit)
+      end)
+    )
+  end
+
+  local callback = opts.callback or picker_util.open_notes
+  local select_opts = vim.tbl_extend("force", {}, opts, {
+    prompt = opts.prompt or opts.prompt_title,
+    filter = false,
+    on_query_change = function(query)
+      update(query)
+    end,
+    cleanup = function()
+      stop_active()
+      if timer and not timer:is_closing() then
+        timer:close()
+      end
+      timer = nil
+    end,
+  })
+  picker = M.select({}, select_opts, function(items)
+    callback(items)
+  end)
+  update(picker:get_query())
+  return picker
+end
+
+---@param entry obsidian.PickerEntry
+---@return obsidian.ui_select_preview_spec
+local function preview_entry(entry)
+  local spec = require("obsidian.util").preview_path(assert(entry.filename, "picker result is missing its filename"))
+  local lnum = entry.lnum or 1
+  spec.pos = { lnum, math.max(0, (entry.col or 1) - 1) }
+  if entry.end_col then
+    spec.pos_end = { entry.end_lnum or lnum, math.max(spec.pos[2] + 1, entry.end_col - 1) }
+  end
+  return spec
+end
+
+---Start a live ripgrep picker. Results are appended as ripgrep produces them.
+---@param opts obsidian.picker.ui.LiveOpts | nil
+---@return obsidian.picker.ui.Picker
+function M.live_grep(opts)
+  opts = vim.tbl_extend("force", {}, opts or {})
+  local dir = opts.dir or require("obsidian.api").resolve_workspace_dir()
+  opts.prompt = opts.prompt or opts.prompt_title or "Grep"
+  opts.preview_item = opts.preview_item or preview_entry
+
+  return live_select(opts, function(query, emit)
+    local search_opts = vim.tbl_extend("keep", opts.search_opts or {}, {
+      fixed_strings = true,
+      smart_case = true,
+    })
+    return require("obsidian.search").search_async(dir, query, search_opts, function(match)
+      local submatch = match.submatches[1]
+      emit {
+        filename = match.path.text,
+        lnum = match.line_number,
+        col = submatch and submatch.start + 1 or 1,
+        end_lnum = submatch and match.line_number or nil,
+        end_col = submatch and submatch["end"] + 1 or nil,
+        text = (match.lines.text or ""):gsub("[\r\n]+$", ""),
+      }
+    end)
+  end)
+end
+
+---Start a live picker backed by the Obsidian query parser and evaluator.
+---@param opts obsidian.picker.ui.LiveOpts | nil
+---@return obsidian.picker.ui.Picker
+function M.search(opts)
+  opts = vim.tbl_extend("force", {}, opts or {})
+  local dir = opts.dir or require("obsidian.api").resolve_workspace_dir()
+  opts.prompt = opts.prompt or opts.prompt_title or "Search"
+  opts.preview_item = opts.preview_item or preview_entry
+
+  return live_select(opts, function(query, emit)
+    return require("obsidian.search.index").index_async(dir, {
+      include_non_markdown = opts.include_non_markdown,
+      concurrency = opts.concurrency,
+    }, function(documents)
+      local results = require("obsidian.search.query").search(documents, query, { allow_incomplete = true })
+      for _, result in ipairs(results) do
+        emit {
+          filename = result.document.path,
+          lnum = result.line,
+          col = result.col,
+          end_lnum = result.end_col and result.line or nil,
+          end_col = result.end_col,
+          text = result.context,
+        }
+      end
+    end)
+  end)
 end
 
 return M
