@@ -4,7 +4,6 @@ local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
-local Integration = require "obsidian.picker.integration"
 
 local M = {}
 
@@ -24,18 +23,6 @@ M.setup = function(opts)
     require("telescope").load_extension "obsidian"
     extension_loaded = true
   end
-end
-
---- Find files in the workspace active at invocation time.
----@param opts table|?
-M.workspace_files = function(opts)
-  return require("telescope.builtin").find_files(Integration.workspace_opts(integration_opts.find_files, opts))
-end
-
---- Live-grep files in the workspace active at invocation time.
----@param opts table|?
-M.workspace_grep = function(opts)
-  return require("telescope.builtin").live_grep(Integration.workspace_opts(integration_opts.grep, opts))
 end
 
 ---@param prompt_bufnr integer

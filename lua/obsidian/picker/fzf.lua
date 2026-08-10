@@ -4,7 +4,6 @@ local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
-local Integration = require "obsidian.picker.integration"
 
 ---@param prompt_title string|?
 ---@return string|?
@@ -27,25 +26,22 @@ end
 
 local M = {}
 
-local integration_opts = {}
-
----@class obsidian.picker.fzf.SetupOpts
----@field find_files? table fzf-lua options for the `obsidian_files` provider.
----@field grep? table fzf-lua options for the `obsidian_grep` provider.
-
 --- Register Obsidian workspace providers with fzf-lua.
----@param opts obsidian.picker.fzf.SetupOpts|?
-M.setup = function(opts)
-  integration_opts = vim.deepcopy(opts or {})
+M.setup = function()
   local fzf = require "fzf-lua"
+  local api = require "obsidian.api"
 
-  fzf.register_extension("obsidian_files", function(call_opts)
-    return fzf.files(Integration.workspace_opts(integration_opts.find_files, call_opts))
-  end, integration_opts.find_files or {}, true)
+  fzf.register_extension("obsidian_files", function(opts)
+    opts = opts or {}
+    opts.cwd = tostring(api.resolve_workspace_dir())
+    return fzf.files(opts)
+  end, {}, true)
 
-  fzf.register_extension("obsidian_grep", function(call_opts)
-    return fzf.live_grep(Integration.workspace_opts(integration_opts.grep, call_opts))
-  end, integration_opts.grep or {}, true)
+  fzf.register_extension("obsidian_grep", function(opts)
+    opts = opts or {}
+    opts.cwd = tostring(api.resolve_workspace_dir())
+    return fzf.live_grep(opts)
+  end, {}, true)
 end
 
 ---@param opts { callback: (fun(selections: any[]))|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
