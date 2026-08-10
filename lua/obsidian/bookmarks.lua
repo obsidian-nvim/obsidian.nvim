@@ -3,7 +3,6 @@ local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
 local picker_util = require "obsidian.picker.util"
 local Query = require "obsidian.search.query"
-local SearchIndex = require "obsidian.search.index"
 local api = require "obsidian.api"
 local util = require "obsidian.util"
 
@@ -206,14 +205,11 @@ end
 
 ---@param bookmark obsidian.Bookmark
 local function open_query_bookmark(bookmark)
-  local ast, err = Query.parse(bookmark.query)
-  if not ast then
-    log.err("Invalid bookmark search query: %s", err)
-    return
-  end
-
-  SearchIndex.index_async(Obsidian.dir, {}, function(documents)
-    local results = Query.search_ast(documents, ast)
+  Query.search(bookmark.query, { root = Obsidian.dir }, function(results, err)
+    if err then
+      log.err("Invalid bookmark search query: %s", err)
+      return
+    end
     if vim.tbl_isempty(results) then
       log.info("No results for bookmark search: %s", bookmark.query)
       return

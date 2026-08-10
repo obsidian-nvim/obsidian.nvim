@@ -1,5 +1,8 @@
 local M = {}
 
+local cache = require "obsidian.cache"
+local Ripgrep = require "obsidian.search.ripgrep"
+
 local scope_list = {
   "block",
   "content",
@@ -42,6 +45,7 @@ end
 ---@field lines         string[]
 ---@field properties    table<string, any>
 ---@field tags          { text: string, line: integer } []
+---@field tasks         { raw: string, line: integer, state: string } []
 
 ---@class obsidian.search.QueryResult
 ---@field document obsidian.search.QueryDocument
@@ -642,8 +646,10 @@ local function evaluate(node, document, context)
       groups[#groups + 1] = section
     end
   else
-    for line_number, line in ipairs(document.lines) do
-      local status = line:match "^%s*[-*+]%s+%[(.)%]%s+"
+    for _, task in ipairs(document.tasks or {}) do
+      local line = task.raw
+      local line_number = task.line
+      local status = task.state
       local is_task = status ~= nil
       local accepted = scope == "task"
         or (scope == "task-done" and status and status:lower() == "x")
@@ -667,7 +673,7 @@ end
 ---@param documents obsidian.search.QueryDocument[]
 ---@param ast       obsidian.search.QueryNode
 ---@return obsidian.search.QueryResult[]
-function M.search_ast(documents, ast)
+local function search_ast(documents, ast)
   local results = {}
   for _, document in ipairs(documents) do
     local match = evaluate(ast, document, {})
@@ -691,18 +697,180 @@ function M.search_ast(documents, ast)
   return results
 end
 
----@param documents obsidian.search.QueryDocument[]
----@param query     string
----@param opts      { allow_incomplete: boolean |? } |?
----@return obsidian.search.QueryResult[]
----@return string |?
-function M.search(documents, query, opts)
-  opts = opts or {}
-  local ast, err = M.parse(query, { allow_incomplete = opts.allow_incomplete == true })
-  if not ast then
-    return {}, err
+---@param node obsidian.search.QueryNode
+---@param has_text_context boolean
+---@return boolean
+local function requires_content(node, has_text_context)
+  if node.kind == "all" then
+    return false
+  elseif node.kind == "term" then
+    return not has_text_context
+  elseif node.kind == "not" then
+    return requires_content(assert(node.child, "not node is missing its child"), has_text_context)
+  elseif node.kind == "and" or node.kind == "or" then
+    return requires_content(assert(node.left, node.kind .. " node is missing its left child"), has_text_context)
+      or requires_content(assert(node.right, node.kind .. " node is missing its right child"), has_text_context)
+  elseif node.kind == "property" then
+    return (node.child and requires_content(node.child, true)) or false
   end
-  return M.search_ast(documents, ast)
+
+  local scope = assert(node.scope, "scope node is missing its name")
+  if scope == "content" or scope == "line" or scope == "block" or scope == "section" then
+    return true
+  elseif scope == "match-case" or scope == "ignore-case" then
+    return requires_content(assert(node.child, "case scope is missing its child"), has_text_context)
+  else
+    return requires_content(assert(node.child, "scope node is missing its child"), true)
+  end
+end
+
+---@param path string
+---@param row table
+---@param lines string[]|nil
+---@return obsidian.search.QueryDocument
+local function document_from_row(path, row, lines)
+  local tags = vim.deepcopy(row.tag_locations or {})
+  if #tags == 0 then
+    for _, tag in ipairs(row.tags or {}) do
+      tags[#tags + 1] = { text = vim.startswith(tag, "#") and tag or "#" .. tag, line = 1 }
+    end
+  end
+  return {
+    path = path,
+    relative_path = row.relative_path,
+    filename = row.filename,
+    lines = lines or {},
+    properties = vim.deepcopy((row.frontmatter and row.frontmatter.values) or row.properties or {}),
+    tags = tags,
+    tasks = vim.deepcopy(row.tasks or {}),
+  }
+end
+
+---@param path string
+---@param root string
+---@return boolean
+local function is_under(path, root)
+  root = vim.fs.normalize(root):gsub("/+$", "")
+  path = vim.fs.normalize(path)
+  return path == root or vim.startswith(path, root .. "/")
+end
+
+---@class obsidian.search.QueryOpts
+---@field root string|obsidian.Path|nil
+---@field allow_incomplete boolean|nil
+---@field include_canvas boolean|nil
+
+---Execute an Obsidian query against the validated cache universe. File content
+---is obtained only through ripgrep when the AST requires it.
+---@param query string
+---@param opts obsidian.search.QueryOpts|nil
+---@param callback fun(items: obsidian.search.QueryResult[], err: string|nil)
+---@return fun() cancel
+function M.search(query, opts, callback)
+  opts = opts or {}
+  local ast, parse_error = M.parse(query, { allow_incomplete = opts.allow_incomplete == true })
+  local cancelled = false
+  local completed = false
+  local cancel_ready
+  local cancel_ripgrep
+
+  local function finish(items, err)
+    if cancelled or completed then
+      return
+    end
+    completed = true
+    callback(items, err)
+  end
+
+  if not ast then
+    finish({}, parse_error)
+    return function()
+      cancelled = true
+    end
+  end
+  if not cache.is_enabled() then
+    finish({}, "Obsidian query search requires the cache to be enabled")
+    return function()
+      cancelled = true
+    end
+  end
+
+  local function execute(attempt)
+    if cancelled then
+      return
+    end
+    local snapshot = cache.notes.snapshot()
+    local root = vim.fs.normalize(tostring(opts.root or snapshot.vault))
+    if not is_under(root, snapshot.vault) then
+      finish({}, "Query root is outside the cached vault")
+      return
+    end
+
+    local paths = {}
+    local rows = {}
+    for path, row in pairs(snapshot.rows) do
+      path = vim.fs.normalize(path)
+      if is_under(path, root) and (opts.include_canvas ~= false or row.kind ~= "canvas") then
+        paths[#paths + 1] = path
+        rows[path] = row
+      end
+    end
+    table.sort(paths, function(a, b)
+      return a:lower() < b:lower()
+    end)
+
+    local function publish(lines_by_path)
+      if cancelled then
+        return
+      end
+      if cache.generation() ~= snapshot.generation then
+        if attempt == 0 then
+          execute(1)
+        else
+          finish({}, "Cache changed while the query was running")
+        end
+        return
+      end
+      local documents = {}
+      for _, path in ipairs(paths) do
+        documents[#documents + 1] = document_from_row(path, rows[path], lines_by_path and lines_by_path[path])
+      end
+      finish(search_ast(documents, ast), nil)
+    end
+
+    if not requires_content(ast, false) then
+      publish(nil)
+      return
+    end
+    if vim.fn.executable "rg" ~= 1 then
+      finish({}, "Obsidian query search requires ripgrep for content queries")
+      return
+    end
+    cancel_ripgrep = Ripgrep.read_lines_async(paths, function(result, err)
+      if err then
+        finish({}, err)
+      else
+        publish(assert(result).lines)
+      end
+    end)
+  end
+
+  cancel_ready = cache.when_ready(function()
+    execute(0)
+  end)
+
+  return function()
+    if cancelled then
+      return
+    end
+    cancelled = true
+    if cancel_ready then
+      cancel_ready()
+    end
+    if cancel_ripgrep then
+      cancel_ripgrep()
+    end
+  end
 end
 
 return M

@@ -226,7 +226,7 @@ M.note_complete = function(_, cmdline)
   end
 
   -- if there's already partial query that ended with a space, then we should search for the query instead of note names
-  local query_results = search.find_notes(query, {})
+  local query_results = search.find_notes(query, { symbols_only = true })
 
   for _, note in ipairs(query_results) do
     local path = note.path

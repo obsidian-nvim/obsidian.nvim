@@ -80,7 +80,7 @@ M.resolve_link_path = function(location)
     end
   end
 
-  local notes = search.find_notes(location, {})
+  local notes = search.find_notes(location, { symbols_only = true })
   if not vim.endswith(location:lower(), ".base") then
     notes = vim.tbl_filter(function(note)
       return not vim.endswith(tostring(note.path), ".base")

@@ -281,7 +281,7 @@ end
 ---
 ---@param term string The term to search for
 ---@param callback fun(notes: obsidian.Note[])
----@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|? }|?
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, symbols_only: boolean|nil }|?
 M.find_notes_async = function(term, callback, opts)
   callback = vim.schedule_wrap(callback)
   async.run(function()
@@ -318,9 +318,24 @@ M.find_notes_async = function(term, callback, opts)
     end
 
     local paths_found = {} ---@type string[]
-    async.await(6, _search_async, term, opts.dir, opts.search, nil, function(path)
-      paths_found[#paths_found + 1] = path
-    end)
+    local cache = require "obsidian.cache"
+    if opts.symbols_only and cache.is_enabled() then
+      async.await(1, cache.when_ready)
+      local extensions = require("obsidian.search.files").markdown_extensions
+      for _, entry in
+        ipairs(cache.notes.symbols {
+          query = term,
+          dir = opts.dir,
+          extensions = extensions,
+        })
+      do
+        paths_found[#paths_found + 1] = entry.path
+      end
+    else
+      async.await(6, _search_async, term, opts.dir, opts.search, nil, function(path)
+        paths_found[#paths_found + 1] = path
+      end)
+    end
 
     async.join(
       10,
@@ -356,13 +371,18 @@ end
 --- (`includeexpr`, command-completion `customlist` functions).
 ---
 ---@param term string The term to search for
----@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|? }
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|?, symbols_only: boolean|nil }
 ---@return obsidian.Note[] notes always returns a list (empty on timeout)
 M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
+    M.find_notes_async(term, cb, {
+      search = opts.search,
+      notes = opts.notes,
+      dir = opts.dir,
+      symbols_only = opts.symbols_only,
+    })
   end, opts.timeout)
   ---@cast result obsidian.Note[]?
   return result or {}
@@ -478,7 +498,7 @@ M.resolve_note_async = function(query, callback, opts)
     else
       callback(fuzzy_matches)
     end
-  end, { search = { ignore_case = true }, notes = opts.notes })
+  end, { search = { ignore_case = true }, notes = opts.notes, symbols_only = true })
 end
 
 ---@param query string
