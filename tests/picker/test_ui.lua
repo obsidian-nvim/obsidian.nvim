@@ -25,20 +25,34 @@ _G.picker = Ui.select({ "one", "two" }, {
   prompt = "Preview",
   preview_item = function(value)
     preview_values[#preview_values + 1] = value
-    return { buf = preview_buf, pos = { value == "one" and 2 or 3, 0 } }
+    local line = value == "one" and 2 or 3
+    return { buf = preview_buf, pos = { line, 0 }, pos_end = { line, #value } }
   end,
 })
+
+local function highlights()
+  local result = {}
+  local ns = vim.api.nvim_create_namespace "obsidian.picker.preview"
+  for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(preview_buf, ns, 0, -1, { details = true })) do
+    local details = mark[4]
+    result.line = result.line or details.line_hl_group == "CursorLine"
+    result.word = result.word or details.hl_group == "IncSearch"
+  end
+  return result
+end
 
 return {
   values = preview_values,
   shown_buf = vim.api.nvim_win_get_buf(picker.preview_win),
   cursor = vim.api.nvim_win_get_cursor(picker.preview_win),
+  highlights = highlights(),
 }
   ]]
 
   eq({ "one" }, initial.values)
   eq(child.lua_get "preview_buf", initial.shown_buf)
   eq({ 2, 0 }, initial.cursor)
+  eq({ line = true, word = true }, initial.highlights)
 
   local moved = child.lua [[
 picker:move(1)
@@ -226,6 +240,110 @@ return { first = first, choices = choices }
 
   eq({ id = 2, label = "second" }, result.first)
   eq({ { id = 1, label = "first" } }, result.choices)
+end
+
+T["live_grep cancels stale jobs and streams only the latest results"] = function()
+  local result = child.lua [[
+local Search = require "obsidian.search"
+local original = Search.search_async
+local jobs = {}
+Search.search_async = function(_, query, _, on_match)
+  local job = { query = query, on_match = on_match, killed = false }
+  function job:kill()
+    self.killed = true
+  end
+  jobs[#jobs + 1] = job
+  return job
+end
+
+local preview_buf = vim.api.nvim_create_buf(false, true)
+local Util = require "obsidian.util"
+local original_preview_path = Util.preview_path
+Util.preview_path = function()
+  return { buf = preview_buf }
+end
+local picker = require("obsidian.picker.ui").live_grep {
+  dir = ".",
+  query = "old",
+  debounce = 0,
+  format_item = function(entry)
+    return entry.text
+  end,
+}
+assert(vim.wait(1000, function() return #jobs == 1 end, 10))
+vim.api.nvim_buf_set_lines(picker.input_buf, 0, -1, false, { "new" })
+vim.api.nvim_exec_autocmds("TextChanged", { buffer = picker.input_buf })
+assert(vim.wait(1000, function() return #jobs == 2 end, 10))
+
+jobs[1].on_match {
+  path = { text = "old.md" }, line_number = 1,
+  lines = { text = "old result\n" }, submatches = { { start = 0, ["end"] = 3 } },
+}
+jobs[2].on_match {
+  path = { text = "new.md" }, line_number = 2,
+  lines = { text = "new result\n" }, submatches = { { start = 4, ["end"] = 7 } },
+}
+assert(vim.wait(1000, function() return #picker.items == 1 end, 10))
+local value = picker.items[1].value
+local preview_spec = picker.opts.preview_item(value)
+local out = {
+  old_killed = jobs[1].killed,
+  queries = { jobs[1].query, jobs[2].query },
+  value = value,
+  preview = { pos = preview_spec.pos, pos_end = preview_spec.pos_end },
+}
+picker:cancel()
+Search.search_async = original
+Util.preview_path = original_preview_path
+return out
+  ]]
+
+  eq(true, result.old_killed)
+  eq({ "old", "new" }, result.queries)
+  eq({ filename = "new.md", lnum = 2, col = 5, end_lnum = 2, end_col = 8, text = "new result" }, result.value)
+  eq({ pos = { 2, 4 }, pos_end = { 2, 7 } }, result.preview)
+end
+
+T["search streams Obsidian query results"] = function()
+  local result = child.lua [[
+local Index = require "obsidian.search.index"
+local original = Index.index_async
+local document = Index.from_lines("/vault/work.md", {
+  "---", "tags: [work]", "---", "needle",
+}, { root = "/vault" })
+Index.index_async = function(_, _, callback)
+  callback { document }
+  return function() end
+end
+
+local preview_buf = vim.api.nvim_create_buf(false, true)
+local picker = require("obsidian.picker.ui").search {
+  dir = "/vault",
+  query = "content:needle",
+  debounce = 0,
+  format_item = function(entry)
+    return entry.filename
+  end,
+  preview_item = function()
+    return { buf = preview_buf }
+  end,
+}
+assert(vim.wait(1000, function() return #picker.items == 1 end, 10))
+local value = picker.items[1].value
+local out = {
+  filename = value.filename,
+  lnum = value.lnum,
+  col = value.col,
+  end_lnum = value.end_lnum,
+  end_col = value.end_col,
+  text = value.text,
+}
+picker:cancel()
+Index.index_async = original
+return out
+  ]]
+
+  eq({ filename = "/vault/work.md", lnum = 4, col = 1, end_lnum = 4, end_col = 7, text = "needle" }, result)
 end
 
 return T
