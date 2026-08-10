@@ -47,6 +47,7 @@ end
 ---@field document obsidian.search.QueryDocument
 ---@field line     integer                       1-indexed
 ---@field col      integer                       1-indexed
+---@field end_col  integer |?                    Quickfix-style end column (1-indexed, exclusive after normalization).
 ---@field score    integer
 ---@field context  string |?
 
@@ -406,15 +407,17 @@ end
 ---@field exact          boolean |?
 
 ---@class obsidian.search.QueryMatch
----@field score integer
----@field line  integer
----@field col   integer
+---@field score   integer
+---@field line    integer
+---@field col     integer 0-indexed start column.
+---@field end_col integer 0-indexed exclusive end column.
 
 ---@param text           string
 ---@param node           obsidian.search.QueryNode
 ---@param case_sensitive boolean
 ---@param exact          boolean |?
----@return integer |?
+---@return integer |? start_col 0-indexed.
+---@return integer |? end_col 0-indexed, exclusive.
 local function find_term(text, node, case_sensitive, exact)
   local value = node.value or ""
   if node.regex then
@@ -422,9 +425,10 @@ local function find_term(text, node, case_sensitive, exact)
     if not ok then
       return nil
     end
-    local start = regex:match_str(text)
-    return start
+    return regex:match_str(text)
   end
+
+  local original_text, original_value = text, value
   if not case_sensitive then
     text = string.lower(text)
     value = string.lower(value)
@@ -432,10 +436,14 @@ local function find_term(text, node, case_sensitive, exact)
   if exact then
     text = text:gsub("^#", "")
     value = value:gsub("^#", "")
-    return text == value and 0 or nil
+    if text ~= value then
+      return nil
+    end
+    local start = vim.startswith(original_text, "#") and not vim.startswith(original_value, "#") and 1 or 0
+    return start, #original_text
   end
   local start = string.find(text, value, 1, true)
-  return start and start - 1 or nil
+  return start and start - 1 or nil, start and start - 1 + #value or nil
 end
 
 ---@param document obsidian.search.QueryDocument
@@ -458,18 +466,18 @@ end
 ---@return obsidian.search.QueryMatch |?
 local function evaluate(node, document, context)
   if node.kind == "all" then
-    return { score = 0, line = 0, col = 0 }
+    return { score = 0, line = 0, col = 0, end_col = 0 }
   elseif node.kind == "term" then
     local best
     for _, candidate in ipairs(default_texts(document, context)) do
-      local col = find_term(candidate.text, node, context.case_sensitive == true, context.exact)
+      local col, end_col = find_term(candidate.text, node, context.case_sensitive == true, context.exact)
       if col then
         local score = candidate.line == 0 and 50 or 10
         if candidate.line == 0 and col == 0 then
           score = #(node.value or "") == #candidate.text and 100 or 70
         end
         if not best or score > best.score then
-          best = { score = score, line = candidate.line, col = col }
+          best = { score = score, line = candidate.line, col = col, end_col = end_col or col }
         end
       end
     end
@@ -478,7 +486,7 @@ local function evaluate(node, document, context)
     if evaluate(assert(node.child, "not node is missing its child"), document, context) then
       return nil
     end
-    return { score = 0, line = 0, col = 0 }
+    return { score = 0, line = 0, col = 0, end_col = 0 }
   elseif node.kind == "and" then
     local left = evaluate(assert(node.left, "and node is missing its left child"), document, context)
     if not left then
@@ -488,10 +496,12 @@ local function evaluate(node, document, context)
     if not right then
       return nil
     end
+    local located = left.line > 0 and left or right
     return {
       score = left.score + right.score,
-      line = left.line > 0 and left.line or right.line,
-      col = left.line > 0 and left.col or right.col,
+      line = located.line,
+      col = located.col,
+      end_col = located.end_col,
     }
   elseif node.kind == "or" then
     local left = evaluate(assert(node.left, "or node is missing its left child"), document, context)
@@ -511,7 +521,7 @@ local function evaluate(node, document, context)
       })
       if key_match then
         if not node.child then
-          return { score = 20, line = 0, col = 0 }
+          return { score = 20, line = 0, col = 0, end_col = 0 }
         end
 
         local child = node.child
@@ -519,7 +529,7 @@ local function evaluate(node, document, context)
         local is_empty = value == vim.NIL or value == nil
         if child.kind == "term" and not child.regex and string.lower(child.value or "") == "null" then
           if is_empty then
-            return { score = 25, line = 0, col = 0 }
+            return { score = 25, line = 0, col = 0, end_col = 0 }
           end
         else
           local values = {}
@@ -551,7 +561,7 @@ local function evaluate(node, document, context)
               }) ~= nil
             end
             if matched then
-              return { score = 25, line = 0, col = 0 }
+              return { score = 25, line = 0, col = 0, end_col = 0 }
             end
           end
         end
@@ -666,6 +676,7 @@ function M.search_ast(documents, ast)
         document = document,
         line = math.max(1, match.line),
         col = match.col + 1,
+        end_col = match.line > 0 and match.end_col + 1 or nil,
         score = match.score,
         context = match.line > 0 and document.lines[match.line] or nil,
       }
