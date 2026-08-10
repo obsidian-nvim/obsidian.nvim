@@ -3,8 +3,6 @@ local picker = require "obsidian.picker"
 local util = require "obsidian.util"
 
 return function()
-  local pos = vim.pos and vim.pos.cursor and vim.pos.cursor(0)
-  ---@cast pos -nil
   vim.lsp.buf.document_symbol {
     on_list = picker and function(t)
       picker.select(t.items, {
@@ -24,6 +22,5 @@ return function()
         end
       end)
     end,
-    pos = pos,
   }
 end
