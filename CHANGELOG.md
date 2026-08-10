@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added separate icons module to support obsidian related filetypes and usecases.
 - Fallback libuv-based fs walker that makes `ripgrep` optional in file finding.
+- Fallback interactive UI for `picker.select`.
 
 ### Fixed
 

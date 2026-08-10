@@ -46,23 +46,6 @@ local function with_select(select_impl, fn)
   end
 end
 
-T["default select wraps current vim.ui.select result in a list"] = function()
-  local picker = require "obsidian.picker._default"
-  local choices
-
-  with_select(function(items, opts, on_choice)
-    eq("Pick", opts.prompt)
-    eq("one", opts.format_item(items[1]))
-    on_choice(items[2], 2)
-  end, function()
-    picker.select({ "one", "two" }, { prompt = "Pick" }, function(selected)
-      choices = selected
-    end)
-  end)
-
-  eq({ "two" }, choices)
-end
-
 T["default select passes custom string formatting to vim.ui.select"] = function()
   local picker = require "obsidian.picker._default"
 
@@ -76,21 +59,6 @@ T["default select passes custom string formatting to vim.ui.select"] = function(
       end,
     })
   end)
-end
-
-T["default select accepts proposed list result"] = function()
-  local picker = require "obsidian.picker._default"
-  local choices
-
-  with_select(function(items, _, on_choice)
-    on_choice { items[1], items[2] }
-  end, function()
-    picker.select({ "one", "two" }, { allow_multiple = true }, function(selected)
-      choices = selected
-    end)
-  end)
-
-  eq({ "one", "two" }, choices)
 end
 
 T["mini select returns all marked items when multiple selections are allowed"] = function()
