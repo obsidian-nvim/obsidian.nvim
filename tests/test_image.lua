@@ -31,6 +31,9 @@ T["inline"]["renders a fitted image below the image link"] = function()
     del = function()
       return true
     end,
+    _supported = function()
+      error "terminal support checks must not block buffer loading"
+    end,
   }
 
   local ok, err = pcall(function()
@@ -48,12 +51,20 @@ T["inline"]["renders a fitted image below the image link"] = function()
       return #calls > 0
     end)
 
-    eq("buffer", calls[1].opts.relative)
-    eq(1, calls[1].opts.row)
-    eq(1, calls[1].opts.col)
-    eq(pos.col - 1, calls[1].opts.pad)
+    eq("ui", calls[1].opts.relative)
+    eq(pos.row + 1, calls[1].opts.row)
+    eq(pos.col, calls[1].opts.col)
     assert(calls[1].opts.width <= 10, "image width should fit max_width")
     assert(calls[1].opts.height <= 5, "image height should fit max_height")
+
+    local ns = vim.api.nvim_get_namespaces()["obsidian.image"]
+    local marks = vim.api.nvim_buf_get_extmarks(0, ns, 0, -1, { details = true })
+    eq(1, #marks)
+    eq(calls[1].opts.height, #marks[1][4].virt_lines)
+    eq({ { " ", "Normal" } }, marks[1][4].virt_lines[1])
+
+    image.refresh(0)
+    eq(1, #calls)
   end)
 
   image.detach(0)
@@ -95,7 +106,7 @@ T["inline"]["uses Obsidian embed dimensions"] = function()
     end)
 
     assert(calls[1].opts.width > 1, "embed width should override max_width")
-    eq("buffer", calls[1].opts.relative)
+    eq("ui", calls[1].opts.relative)
   end)
 
   image.detach(0)
@@ -143,15 +154,15 @@ T["inline"]["resizes the image under the cursor"] = function()
     end)
 
     eq(10, calls[1].opts.width)
-    eq(5, calls[1].opts.height)
+    eq(3, calls[1].opts.height)
 
     eq(true, api.image_bigger())
     eq(11, calls[1].opts.width)
-    eq(6, calls[1].opts.height)
+    eq(3, calls[1].opts.height)
 
     eq(true, api.image_smaller())
     eq(10, calls[1].opts.width)
-    eq(5, calls[1].opts.height)
+    eq(3, calls[1].opts.height)
   end)
 
   image.detach(0)
