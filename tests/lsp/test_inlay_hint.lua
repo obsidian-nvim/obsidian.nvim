@@ -141,6 +141,45 @@ T["does not suggest inside existing wiki links"] = function()
   eq(link_hints(0, 9, 13), run_inlay_hint())
 end
 
+T["does not suggest inside tags"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["project.md"] = "# project",
+    ["tagged.md"] = "#project project",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["tagged.md"])
+
+  eq(link_hints(0, 9, 16), run_inlay_hint())
+end
+
+T["formats relative suggestions from the source note directory"] = function()
+  local source_dir = child.Obsidian.dir / "source"
+  local other_dir = child.Obsidian.dir / "other"
+  source_dir:mkdir()
+  other_dir:mkdir()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["target.md"] = "# target",
+    ["source/hints.md"] = "a target",
+  })
+  setup_cache()
+
+  child.lua(([[
+    Obsidian.opts.link.format = "relative"
+    Obsidian.buf_dir = require("obsidian.path").new(%q)
+  ]]):format(tostring(other_dir)))
+  child.cmd("edit " .. files["source/hints.md"])
+  child.lua(([[Obsidian.buf_dir = require("obsidian.path").new(%q)]]):format(tostring(other_dir)))
+
+  eq(
+    "[[../target|target]]",
+    child.lua_get [[
+      require("obsidian.api").current_note(0, { max_lines = vim.api.nvim_buf_line_count(0) })
+        :link_suggestions()[1].candidates[1].new_text
+    ]]
+  )
+end
+
 T["does not suggest inside fenced code blocks"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",
@@ -337,6 +376,37 @@ T["accepts a native hint when cursor is inside its declared range"] = function()
   eq(true, child.lua_get [[_G.accepted_hint_result]])
   eq("inside", child.lua_get [[_G.accepted_hint]])
   eq(true, child.lua_get [[_G.accept_hint_filter.range == nil]])
+end
+
+T["accepts a suffix hint without private range data"] = function()
+  child.lua [[
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "word" })
+    vim.api.nvim_win_set_cursor(0, { 1, 2 })
+
+    local original_get = vim.lsp.inlay_hint.get
+    vim.lsp.inlay_hint.get = function(filter)
+      return { {
+        bufnr = filter.bufnr,
+        client_id = -1,
+        inlay_hint = {
+          position = { line = 0, character = 4 },
+          label = { {
+            value = " suffix",
+            command = { title = "suffix", command = "test.suffix_hint" },
+          } },
+        },
+      } }
+    end
+    vim.lsp.commands["test.suffix_hint"] = function()
+      _G.accepted_suffix_hint = true
+    end
+
+    _G.accepted_suffix_hint_result = require("obsidian.inlay_hints").accept()
+    vim.lsp.inlay_hint.get = original_get
+  ]]
+
+  eq(true, child.lua_get [[_G.accepted_suffix_hint_result]])
+  eq(true, child.lua_get [[_G.accepted_suffix_hint]])
 end
 
 T["selects between multiple link suggestion candidates"] = function()

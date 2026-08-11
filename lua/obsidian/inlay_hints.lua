@@ -34,6 +34,16 @@ local function range_contains_position(range, row, col)
   return starts_before and ends_after
 end
 
+---@param range lsp.Range
+---@param row integer
+---@param col integer
+---@return boolean
+local function range_contains_position_inclusive(range, row, col)
+  local starts_before = range.start.line < row or (range.start.line == row and range.start.character <= col)
+  local ends_after = range["end"].line > row or (range["end"].line == row and col <= range["end"].character)
+  return starts_before and ends_after
+end
+
 ---@param bufnr integer | nil
 ---@return vim.lsp.inlay_hint.get.ret[]
 M.get = function(bufnr)
@@ -57,7 +67,7 @@ M.get = function(bufnr)
       ---@cast data_range lsp.Range
       matches_cursor = range_contains_position(data_range, row, col)
     elseif word_range then
-      matches_cursor = range_contains_position(word_range, hint.position.line, hint.position.character)
+      matches_cursor = range_contains_position_inclusive(word_range, hint.position.line, hint.position.character)
     end
 
     if matches_cursor then

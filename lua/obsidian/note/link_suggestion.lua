@@ -1,5 +1,6 @@
 local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
+local parse_tags = require "obsidian.parse.tags"
 local Note = require "obsidian.note"
 local api = require "obsidian.api"
 
@@ -210,6 +211,9 @@ local function skipped_inline_ranges(line, row)
       ranges[#ranges + 1] = ref.range
     end
   end
+  for _, tag in ipairs(parse_tags.extract(line, { row = row })) do
+    ranges[#ranges + 1] = tag.range
+  end
 
   add_pattern_ranges(ranges, line, row, "`[^`]*`")
   -- Markdown autolinks like <https://example.com/foo>.
@@ -225,7 +229,8 @@ end
 ---@param row integer 1-indexed row number
 ---@param symbols obsidian.LinkSuggestionSymbol[]
 ---@param path_exists fun(path: string): boolean|nil
-function M.find_in_line(line, row, symbols, path_exists)
+---@param source_dir string|obsidian.Path|nil
+function M.find_in_line(line, row, symbols, path_exists, source_dir)
   path_exists = path_exists or function(path)
     return vim.uv.fs_stat(path) ~= nil
   end
@@ -261,6 +266,7 @@ function M.find_in_line(line, row, symbols, path_exists)
             return Note.new(basename(path), nil, nil, path):format_link {
               label = label,
               format = #target_paths > 1 and "absolute" or nil,
+              dir = source_dir,
             }
           end)
 
@@ -314,6 +320,7 @@ function M.find(note, opts)
   ---@cast end_line integer
   local code_fence
   local path_status = {}
+  local source_dir = vim.fs.dirname(current_path)
   local function path_exists(path)
     if path_status[path] == nil then
       path_status[path] = vim.uv.fs_stat(path) ~= nil
@@ -332,7 +339,7 @@ function M.find(note, opts)
         code_fence = nil
       end
     elseif not code_fence and row >= start_line then
-      local results = M.find_in_line(line, row, symbols, path_exists)
+      local results = M.find_in_line(line, row, symbols, path_exists, source_dir)
       vim.list_extend(suggestions, results)
     end
   end

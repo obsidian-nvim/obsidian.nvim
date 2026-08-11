@@ -1242,12 +1242,13 @@ end
 
 ---@param path obsidian.Path vault-relative-path
 ---@param style obsidian.link.LinkFormat?
+---@param base_dir string|obsidian.Path?
 ---@return string foramted_path
-local function format_path(path, style)
+local function format_path(path, style, base_dir)
   if style == "absolute" then
     return assert(path:vault_relative_path {})
   elseif style == "relative" then
-    local base_dir = Obsidian.buf_dir or Obsidian.dir
+    base_dir = base_dir or Obsidian.buf_dir or Obsidian.dir
     if base_dir == nil then
       return assert(path:vault_relative_path {})
     end
@@ -1260,9 +1261,12 @@ local function format_path(path, style)
   end
 end
 
+---@class obsidian.note.FormatLinkOpts : obsidian.link.LinkCreationOpts
+---@field dir? string|obsidian.Path Base directory for relative links.
+
 --- Create a formatted markdown / wiki link for a note.
 ---
----@param opts obsidian.link.LinkCreationOpts?
+---@param opts obsidian.note.FormatLinkOpts?
 ---@return string
 Note.format_link = function(self, opts)
   opts = opts or {}
@@ -1271,7 +1275,7 @@ Note.format_link = function(self, opts)
   local link_format = opts.format or Obsidian.opts.link.format
 
   local new_opts = {
-    path = format_path(self.path, link_format),
+    path = format_path(self.path, link_format, opts.dir),
     label = label,
     anchor = opts.anchor,
     block = opts.block,
