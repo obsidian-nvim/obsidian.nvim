@@ -1,7 +1,7 @@
 local obsidian = require "obsidian"
 
-local search = obsidian.search
 local log = obsidian.log
+local link_resolver = require "obsidian.link"
 local api = obsidian.api
 local util = obsidian.util
 
@@ -17,7 +17,7 @@ return function(params, handler, _)
     return log.err(err and err or "failed writing all buffers before renaming, abort")
   end
 
-  local cur_link = api.cursor_link()
+  local cur_link, cur_link_type = api.cursor_link()
 
   local function do_rename(note)
     local old_stem = note.path and note.path.stem or nil
@@ -33,18 +33,22 @@ return function(params, handler, _)
   end
 
   if cur_link then
+    if cur_link_type ~= "wiki" and cur_link_type ~= "markdown" then
+      return
+    end
+    ---@cast cur_link_type "wiki"|"markdown"
     local loc = util.parse_link(cur_link)
     assert(loc, "wrong link format")
     local stripped = util.strip_anchor_links(loc)
     stripped = util.strip_block_links(stripped)
     loc = stripped ~= "" and stripped or loc
-    search.resolve_note_async(loc, function(notes)
-      -- TODO: pick note
-      if vim.tbl_isempty(notes) then
+    link_resolver.resolve_async(loc, function(result)
+      local notes = result.notes or {}
+      if result.status ~= "resolved" or #notes ~= 1 then
         return
       end
       do_rename(notes[1])
-    end)
+    end, { source_path = vim.api.nvim_buf_get_name(0), link_type = cur_link_type })
   else
     do_rename(assert(api.current_note(0)))
   end

@@ -2,6 +2,7 @@ local api = require "obsidian.api"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local util = require "obsidian.util"
+local link_resolver = require "obsidian.link"
 local log = require "obsidian.log"
 
 ---@param path? string|obsidian.Path
@@ -38,12 +39,16 @@ end
 return function(data)
   ---@type string|?
   local search_term, path
+  local from_cursor_link = false
+  local cursor_link_type
 
   if data.args and data.args:len() > 0 then
     search_term = data.args
   else
-    local link_string, _ = api.cursor_link()
+    local link_string
+    link_string, cursor_link_type = api.cursor_link()
     if link_string then
+      from_cursor_link = true
       search_term = util.parse_link(link_string) -- TODO: jump to exact anchor/block
       if search_term then
         search_term = util.strip_anchor_links(search_term)
@@ -53,16 +58,27 @@ return function(data)
   end
 
   if search_term and vim.trim(search_term) ~= "" then
-    search.resolve_note_async(search_term, function(notes)
-      if vim.tbl_isempty(notes) then
+    local function open_note(note)
+      if not note then
         return log.err "Note under cursor is not resolved"
       end
-      local note = notes[1]
-      ---@cast note -nil
       local note_path = note.path
       ---@cast note_path -nil
       open_in_app(note_path:vault_relative_path())
-    end)
+    end
+
+    if from_cursor_link and (cursor_link_type == "wiki" or cursor_link_type == "markdown") then
+      ---@cast cursor_link_type "wiki"|"markdown"
+      link_resolver.resolve_async(search_term, function(result)
+        local notes = result.notes or {}
+        open_note(result.status == "resolved" and #notes == 1 and notes[1] or nil)
+      end, { source_path = vim.api.nvim_buf_get_name(0), link_type = cursor_link_type })
+    else
+      -- Free-form command arguments intentionally keep fuzzy search behavior.
+      search.resolve_note_async(search_term, function(notes)
+        open_note(notes[1])
+      end)
+    end
   else
     -- Otherwise use the pathk of the current buffer.
     local bufname = vim.api.nvim_buf_get_name(0)

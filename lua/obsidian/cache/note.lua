@@ -121,6 +121,7 @@ function M.build(abs_path, _vault_root)
     mtime = stat.mtime.sec,
     mtime_nsec = stat.mtime.nsec,
     size = stat.size,
+    reference_ids = note:reference_ids(),
   }
   if note.aliases and #note.aliases > 0 then
     row.aliases = note.aliases

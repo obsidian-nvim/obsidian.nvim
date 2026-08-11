@@ -1,9 +1,9 @@
 local obsidian = require "obsidian"
-local search = obsidian.search
 local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
 local actions = require "obsidian.actions"
+local link_resolver = require "obsidian.link"
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
@@ -24,6 +24,7 @@ end
 ---@field cursor_row integer|?
 ---@field anchor string|?
 ---@field block string|?
+---@field link_type "wiki"|"markdown"|?
 
 ---@param location string
 ---@param callback function
@@ -81,69 +82,64 @@ end
 ---@param location string
 ---@param callback function
 ---@param opts obsidian.lsp.DefinitionCreateOpts|?
-local function open_note(location, callback, opts)
+local function open_target(location, callback, opts)
   opts = opts or {}
   opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
   opts.cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
 
-  local block_link, anchor_link, raw_anchor
-  location, block_link = util.strip_block_links(location)
-  location, anchor_link, raw_anchor = util.strip_anchor_links(location)
-
-  search.resolve_note_async(location, function(notes)
-    -- TODO: integrate into resolve_note?
-    if block_link then
-      notes = vim.tbl_filter(function(note)
-        return not vim.tbl_isempty(note.blocks or {}) and note:resolve_block(block_link) ~= nil
-      end, notes)
-    end
-
-    if anchor_link then
-      notes = vim.tbl_filter(function(note)
-        return not vim.tbl_isempty(note.anchor_links or {}) and note:resolve_anchor_link(anchor_link) ~= nil
-      end, notes)
-    end
-
-    if vim.tbl_isempty(notes) then
-      opts.anchor = raw_anchor
-      opts.block = block_link
-      create_new_note(location, callback, opts)
-    elseif #notes == 1 then
-      callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
-    elseif #notes > 1 then
-      local locations = {}
-      for _, note in ipairs(notes) do
-        locations[#locations + 1] = note:_location { block = block_link, anchor = anchor_link }
+  link_resolver.resolve_async(location, function(result)
+    local target = result.target
+    if target.kind == "external" then
+      open_uri(target.normalized, target.scheme)
+      return
+    elseif target.kind == "attachment" then
+      local path = result.path or result.predicted_path
+      if path then
+        vim.ui.open(path)
       end
-      callback(locations)
+      return
+    elseif target.kind == "file" then
+      if result.path then
+        vim.ui.open(result.path)
+      else
+        log.warn("Link target does not exist: %s", target.normalized)
+      end
+      return
+    elseif target.kind ~= "note" then
+      return
     end
+
+    local notes = result.notes or {}
+    if result.status == "missing" or vim.tbl_isempty(notes) then
+      opts.anchor = target.raw_anchor or target.anchor
+      opts.block = target.block
+      create_new_note(target.normalized, callback, opts)
+      return
+    end
+
+    local locations = {}
+    for _, note in ipairs(notes) do
+      locations[#locations + 1] = note:_location { block = target.block, anchor = target.anchor }
+    end
+    callback(locations)
   end, {
-    notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
+    source_path = vim.api.nvim_buf_get_name(opts.bufnr),
+    link_type = opts.link_type,
+    notes = {
+      collect_anchor_links = location:find("#", 1, true) ~= nil,
+      collect_blocks = location:find("#^", 1, true) ~= nil,
+    },
   })
 end
 
-local function open_attachment(location)
-  local path = api.resolve_attachment_path(location)
-  vim.ui.open(path)
+local function handle_wiki_link(location, callback, opts)
+  opts.link_type = "wiki"
+  open_target(location, callback, opts)
 end
 
-local handle_wiki_link = function(location, callback, opts)
-  if api.is_attachment_path(location) then
-    open_attachment(location)
-  else
-    open_note(location, callback, opts)
-  end
-end
-
-local handle_markdown_link = function(location, callback, opts)
-  local is_uri, scheme = util.is_uri(location)
-  if is_uri then
-    open_uri(location, scheme)
-  elseif api.is_attachment_path(location) then
-    open_attachment(location)
-  else
-    open_note(location, callback, opts)
-  end
+local function handle_markdown_link(location, callback, opts)
+  opts.link_type = "markdown"
+  open_target(location, callback, opts)
 end
 
 local function open_header_link(location, callback)

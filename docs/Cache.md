@@ -19,7 +19,7 @@ At the moment, the cache is used for `:Obsidian quick_switch`. When enabled, qui
 The cache stores note metadata that helps `quick_switch` build picker entries:
 
 - note path
-- aliases
+- aliases and exact reference IDs
 - tags
 - frontmatter properties
 - outgoing links
@@ -27,6 +27,25 @@ The cache stores note metadata that helps `quick_switch` build picker entries:
 - file modification time and size
 
 The cache is derived data. You can delete it at any time; `obsidian.nvim` will rebuild it on the next startup or file change.
+
+## Link Queries
+
+The cache exposes exact link resolution and grouped unresolved targets through
+`cache.links`:
+
+```lua
+local cache = require "obsidian.cache"
+
+local result = cache.links.resolve("Project", {
+  source_path = vim.api.nvim_buf_get_name(0),
+})
+local unresolved = cache.links.unresolved()
+```
+
+Each unresolved item contains its normalized target, target kind, predicted
+path, and all cached source references. External links and local fragments are
+excluded. By default arbitrary missing files are excluded; pass
+`include_files = true` to include them.
 
 ## Enable the Cache
 

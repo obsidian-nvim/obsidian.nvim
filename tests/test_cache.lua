@@ -19,6 +19,50 @@ local T = new_set {
 }
 
 T["cache backends"] = new_set()
+T["link queries"] = new_set()
+
+T["link queries"]["returns grouped unresolved targets using exact resolution"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache-links" }
+  dir:mkdir { parents = true }
+  helpers.write("---\naliases: [Known Alias]\n---", dir / "Known.md")
+  helpers.write(
+    table.concat({
+      "[[Known]]",
+      "[[Known Alias]]",
+      "[[Missing]] and [[Missing|again]]",
+      "![[PHOTO.PNG]]",
+      "[external](https://example.com)",
+      "[[#Local]]",
+    }, "\n"),
+    dir / "Source.md"
+  )
+  Obsidian = {
+    dir = dir,
+    opts = vim.deepcopy(require("obsidian.config").default),
+  }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local unresolved = cache.links.unresolved()
+  local by_target = {}
+  for _, item in ipairs(unresolved) do
+    by_target[item.target] = item
+  end
+
+  eq(nil, by_target.Known)
+  eq(nil, by_target["Known Alias"])
+  eq(2, #by_target.Missing.references)
+  eq("note", by_target.Missing.kind)
+  eq(true, vim.endswith(by_target.Missing.predicted_path, ".md"))
+  eq(1, #by_target["PHOTO.PNG"].references)
+  eq("attachment", by_target["PHOTO.PNG"].kind)
+  eq(nil, by_target["https://example.com"])
+  eq(nil, by_target[""])
+end
 
 T["cache backends"]["uses a registered backend by name"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }

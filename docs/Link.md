@@ -1,5 +1,6 @@
 - [Link Format](#link-format)
 - [Link Style](#link-style)
+- [Link Resolution](#link-resolution)
 - [Link Rename](#link-rename)
 - [Options](#options)
 
@@ -89,6 +90,32 @@ require("obsidian").setup {
   },
 }
 ```
+
+## Link Resolution
+
+`obsidian.link` provides one exact resolver for wiki and Markdown link targets:
+
+```lua
+local link = require "obsidian.link"
+local result = link.resolve("Project", {
+  source_path = vim.api.nvim_buf_get_name(0),
+  link_type = "wiki",
+})
+```
+
+A resolution has a `status` of `resolved`, `missing`, `ambiguous`, or `invalid`.
+It also identifies the target kind and returns matching paths. Missing targets may
+include a side-effect-free `predicted_path`.
+
+```lua
+print(result.status)
+print(result.target.kind)
+print(result.path or result.predicted_path)
+```
+
+Use `link.resolve_async(target, callback, opts)` outside synchronous Vim
+callbacks. Resolution uses exact paths, note IDs, filenames, and aliases. Fuzzy
+matching remains part of search and completion instead of link resolution.
 
 ## Link Rename
 

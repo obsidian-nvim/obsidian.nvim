@@ -335,6 +335,16 @@ Note._resolve_id_path = function(opts)
   return id, path, title
 end
 
+--- Resolve the path a new note would use without creating a note object or
+--- firing note-creation callbacks and autocommands.
+---
+---@param opts obsidian.note.NoteOpts
+---@return obsidian.Path
+Note.resolve_creation_path = function(opts)
+  local _, path = Note._resolve_id_path(opts)
+  return path
+end
+
 --- Creates a new note in memory.
 ---
 --- The note is NOT written to disk. Call `note:write {}` after if you want the

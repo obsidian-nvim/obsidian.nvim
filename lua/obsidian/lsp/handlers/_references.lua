@@ -3,6 +3,7 @@ local log = require "obsidian.log"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local parse_block_id = require "obsidian.parse.block_id"
+local link_resolver = require "obsidian.link"
 
 ---@param match obsidian.BacklinkMatch
 ---@return lsp.Location
@@ -33,52 +34,47 @@ local function tag_loc_to_lsp_location(tag_loc)
   }
 end
 
-local function handle_note_ref(link, callback)
+local function handle_note_ref(link, callback, link_type)
   local location = util.parse_link(link)
   assert(location, "failed to parse link")
-
-  -- Remove block links from the end if there are any.
-  ---@type string|?
-  local block_link
-  location, block_link = util.strip_block_links(location)
-
-  -- Remove anchor links from the end if there are any.
-  ---@type string|?
-  local anchor_link
-  location, anchor_link = util.strip_anchor_links(location)
-
-  local opts = { anchor = anchor_link, block = block_link }
+  local target = link_resolver.parse_target(location, { link_type = link_type })
+  local opts = { anchor = target.anchor, block = target.block }
 
   local function find_backlinks(note)
     if note == nil then
-      opts.refs = { location }
+      opts.refs = { target.normalized }
     end
     search.find_backlinks_async(note, function(backlink_matches)
       callback(vim.tbl_map(backlink_to_lsp_location, backlink_matches))
     end, opts)
   end
 
-  if location == "" and (anchor_link or block_link) then
+  if target.kind == "local_fragment" then
     local note = api.current_note(0, {
-      collect_anchor_links = anchor_link ~= nil,
-      collect_blocks = block_link ~= nil,
+      collect_anchor_links = target.anchor ~= nil,
+      collect_blocks = target.block ~= nil,
     })
     if not note then
       return log.err "Current buffer does not appear to be a note inside the vault"
     end
     find_backlinks(note)
-  elseif anchor_link or block_link then
-    search.resolve_note_async(location, function(notes)
-      find_backlinks(#notes == 1 and notes[1] or nil)
-    end, {
-      notes = {
-        collect_anchor_links = anchor_link ~= nil,
-        collect_blocks = block_link ~= nil,
-      },
-    })
-  else
-    find_backlinks(nil)
+    return
+  elseif target.kind == "external" or target.kind == "invalid" then
+    callback {}
+    return
   end
+
+  link_resolver.resolve_async(location, function(result)
+    local notes = result.notes or {}
+    find_backlinks(result.status == "resolved" and #notes == 1 and notes[1] or nil)
+  end, {
+    source_path = vim.api.nvim_buf_get_name(0),
+    link_type = link_type,
+    notes = {
+      collect_anchor_links = target.anchor ~= nil,
+      collect_blocks = target.block ~= nil,
+    },
+  })
 end
 
 local handle_footnote = function(link, callback)
@@ -184,7 +180,7 @@ return function(link, opts, callback)
   end
 
   if link_type == "markdown" or link_type == "wiki" then
-    handle_note_ref(link, wrapped_callback)
+    handle_note_ref(link, wrapped_callback, link_type)
   elseif link_type == "footnote" then
     handle_footnote(link, wrapped_callback)
   elseif link_type == "tag" then

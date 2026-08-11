@@ -9,6 +9,7 @@ local cache_note = require "obsidian.cache.note"
 local ignore = require "obsidian.ignore"
 
 local M = {}
+M.links = require "obsidian.cache.links"
 
 ---@class obsidian.cache.Backend
 ---@field open fun(opts: table): obsidian.cache.Store
@@ -214,7 +215,7 @@ local function initial_scan(force)
       found[abs] = true
       local existing = scan_state.backend:get(abs)
       local stat = vim.uv.fs_stat(abs)
-      if stat and (force or not existing or not stat_matches(existing, stat)) then
+      if stat and (force or not existing or existing.reference_ids == nil or not stat_matches(existing, stat)) then
         reindex_one(abs)
       end
     end
