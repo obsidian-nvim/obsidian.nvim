@@ -405,12 +405,19 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                                  *format_path()*
-                         `format_path`({path}, {style})
+                   `format_path`({path}, {style}, {base_dir})
 Parameters ~
 {path} `(obsidian.Path)` vault-relative-path
 {style} `(obsidian.link.LinkFormat?)`
+{base_dir} `(string|obsidian.Path?)`
 Return ~
 `(string)` foramted_path
+
+------------------------------------------------------------------------------
+Class ~
+{obsidian.note.FormatLinkOpts} : obsidian.link.LinkCreationOpts
+Fields ~
+{dir} `(optional)` `(string|obsidian.Path)` Base directory for relative links.
 
 ------------------------------------------------------------------------------
                                                             *Note.format_link()*
@@ -418,7 +425,7 @@ Return ~
 Create a formatted markdown / wiki link for a note.
 
 Parameters ~
-{opts} `(obsidian.link.LinkCreationOpts?)`
+{opts} `(obsidian.note.FormatLinkOpts?)`
 Return ~
 `(string)`
 
