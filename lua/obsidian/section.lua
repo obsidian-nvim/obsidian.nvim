@@ -11,6 +11,10 @@ local H1_UNDERLINE_PATTERN = "^(=+)$"
 local H2_UNDERLINE_PATTERN = "^(-+)$"
 local CODE_BLOCK_PATTERN = "^```[%w_-]*$"
 
+local function is_list_item(line)
+  return line:match "^%s*[-+*]%s+" ~= nil or line:match "^%s*%d+[.)]%s+" ~= nil
+end
+
 --- A contiguous region of a markdown document.
 ---
 --- All ranges are |obsidian.Range|s over *lines* of the parsed document:
@@ -85,6 +89,7 @@ end
 ---@class obsidian.section.ParseOpts
 ---@field start_row integer|? 0-based row where parsing begins, e.g. just past the frontmatter. Defaults to `0`.
 ---@field collect_blocks boolean|? also collect block identifiers (`^block-id`).
+---@field collect_block_candidates boolean|? also collect paragraphs that can receive block identifiers.
 
 --- Parse markdown lines into a document-ordered list of sections.
 ---
@@ -95,6 +100,7 @@ end
 ---@param opts obsidian.section.ParseOpts|?
 ---@return obsidian.Section[] sections
 ---@return table<string, obsidian.note.Block>|? blocks `nil` unless `opts.collect_blocks` is set.
+---@return obsidian.Section[]|? block_candidates `nil` unless `opts.collect_block_candidates` is set.
 M.parse = function(lines, opts)
   opts = opts or {}
   local first = (opts.start_row or 0) + 1
@@ -110,6 +116,8 @@ M.parse = function(lines, opts)
 
   ---@type table<string, obsidian.note.Block>|?
   local blocks = opts.collect_blocks and {} or nil
+  ---@type obsidian.Section[]|?
+  local block_candidates = opts.collect_block_candidates and {} or nil
   ---@type integer|?
   local para_beg
   ---@type obsidian.note.Block[]
@@ -144,6 +152,9 @@ M.parse = function(lines, opts)
       }
       for _, block in ipairs(para_blocks) do
         block.section = section
+      end
+      if block_candidates then
+        table.insert(block_candidates, section)
       end
       last_para_section = section
     end
@@ -180,14 +191,19 @@ M.parse = function(lines, opts)
       end
       current.c_end = idx_excl
 
-      if blocks and detail.type == "text" then
+      if (blocks or block_candidates) and detail.type == "text" then
         local line = vim.trim(lines[idx])
+        if block_candidates and para_beg ~= nil and is_list_item(lines[idx]) then
+          close_paragraph(idx)
+        end
         local block_id = util.parse_block(line)
         if block_id and line == block_id and para_beg == nil and last_para_section ~= nil then
-          blocks[block_id] = { id = block_id, line = idx, block = line, section = last_para_section }
+          if blocks then
+            blocks[block_id] = { id = block_id, line = idx, block = line, section = last_para_section }
+          end
         else
           para_beg = para_beg or idx
-          if block_id then
+          if block_id and blocks then
             local block = { id = block_id, line = idx, block = line }
             blocks[block_id] = block
             table.insert(para_blocks, block)
@@ -244,7 +260,7 @@ M.parse = function(lines, opts)
     sections[i] = section
   end
 
-  return sections, blocks
+  return sections, blocks, block_candidates
 end
 
 return M

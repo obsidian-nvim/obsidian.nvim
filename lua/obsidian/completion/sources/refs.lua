@@ -42,11 +42,244 @@ local function can_complete_request(cc)
   local can_complete
   can_complete, cc.search, cc.insert_start, cc.insert_end = completion.can_complete(cc.request)
 
-  if not (can_complete and cc.search ~= nil and #cc.search >= Obsidian.opts.completion.min_chars) then
+  if
+    not (
+      can_complete
+      and cc.search ~= nil
+      and (vim.startswith(cc.search, "^") or #cc.search >= Obsidian.opts.completion.min_chars)
+    )
+  then
     return false
   end
 
   return true
+end
+
+---@param search_string string
+---@return "current"|"vault"|?
+---@return string|?
+local function block_search(search_string)
+  if vim.startswith(search_string, "^^") then
+    return "vault", search_string:sub(3)
+  elseif vim.startswith(search_string, "^") then
+    return "current", search_string:sub(2)
+  end
+  return nil
+end
+
+---@param note obsidian.Note
+---@param section obsidian.Section
+---@return obsidian.note.Block|?
+local function existing_block(note, section)
+  for _, block in pairs(note.blocks or {}) do
+    if block.section == section then
+      return block
+    end
+  end
+end
+
+---@param lines string[]
+---@param block_id string|?
+---@return string
+local function block_text(lines, block_id)
+  local visible = {}
+  for _, line in ipairs(lines) do
+    if not (block_id and vim.trim(line) == block_id) then
+      if block_id and util.parse_block(line) == block_id then
+        line = line:gsub("%s*" .. vim.pesc(block_id) .. "%s*$", "")
+      end
+      visible[#visible + 1] = line
+    end
+  end
+  return vim.trim(table.concat(visible, "\n"))
+end
+
+---@param note obsidian.Note
+---@param section obsidian.Section
+---@param text string
+---@param reserved table<string, boolean>
+---@return string
+local function generated_block_id(note, section, text, reserved)
+  local salt = 0
+  while true do
+    local digest =
+      vim.fn.sha256(("%s:%d:%d:%s:%d"):format(note.path, section.range.start_row, section.range.end_row, text, salt))
+    local id = "^" .. digest:sub(1, 6)
+    if not (note.blocks or {})[id] and not reserved[id] then
+      reserved[id] = true
+      return id
+    end
+    salt = salt + 1
+  end
+end
+
+---@param text string
+---@return string
+local function block_label(text)
+  local label = text:gsub("%s+", " ")
+  if vim.fn.strchars(label) > 80 then
+    label = vim.fn.strcharpart(label, 0, 79) .. "…"
+  end
+  return label
+end
+
+---@param lines string[]
+---@return "inline"|"standalone"
+local function block_id_placement(lines)
+  for _, line in ipairs(lines) do
+    local table_separator = line:find("|", 1, true) and line:gsub("[|:%-%s]", "") == ""
+    if line:match "^%s*>" or line:match "^%s*|" or table_separator then
+      return "standalone"
+    end
+  end
+  return "inline"
+end
+
+---@param block obsidian.note.Block
+---@return string
+local function format_current_block_link(block)
+  if Obsidian.opts.link.style == "wiki" then
+    return "[[#" .. block.id .. "]]"
+  elseif Obsidian.opts.link.style == "markdown" then
+    return "[#" .. block.id .. "](#" .. block.id .. ")"
+  elseif type(Obsidian.opts.link.style) == "function" then
+    return Obsidian.opts.link.style { label = "", path = "", block = block }
+  end
+  error "not implemented"
+end
+
+---@param request obsidian.completion.Request
+---@param range lsp.Range
+---@return string
+local function current_completion_text(request, range)
+  local suffix_len = range["end"].character - request.character
+  return request.cursor_before_line:sub(range.start.character + 1) .. request.cursor_after_line:sub(1, suffix_len)
+end
+
+---@param note obsidian.Note
+---@return obsidian.Note
+local function prefer_loaded_note(note)
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) then
+      local path = vim.uv.fs_realpath(vim.fn.resolve(vim.api.nvim_buf_get_name(bufnr)))
+      if path == tostring(note.path) then
+        return require("obsidian.note").from_buffer(bufnr, {
+          collect_blocks = true,
+          collect_block_candidates = true,
+        })
+      end
+    end
+  end
+  return note
+end
+
+---@param cc obsidian.completion.sources.refs.context
+---@param scope "current"|"vault"
+---@param query string
+---@param results obsidian.Note[]
+local function process_block_search_results(cc, scope, query, results)
+  local range = {
+    start = { line = cc.request.line, character = cc.insert_start },
+    ["end"] = { line = cc.request.line, character = cc.insert_end },
+  }
+  local placeholder = current_completion_text(cc.request, range)
+  local source_name = vim.api.nvim_buf_get_name(cc.request.bufnr)
+  local source_path = vim.uv.fs_realpath(vim.fn.resolve(source_name)) or vim.fs.normalize(source_name)
+  local lowered_query = vim.fn.tolower(query)
+  local items = {}
+
+  for note_idx, searched_note in ipairs(results) do
+    local note = prefer_loaded_note(searched_note)
+    local same_note = vim.fs.normalize(tostring(note.path)) == source_path
+    local reserved_ids = {}
+    for _, section in ipairs(note.block_candidates or {}) do
+      if not (same_note and section.range.start_row <= cc.request.line and cc.request.line < section.range.end_row) then
+        local lines = vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row)
+        local existing = existing_block(note, section)
+        local text = block_text(lines, existing and existing.id)
+        if text ~= "" and vim.fn.tolower(text):find(lowered_query, 1, true) then
+          local block = existing
+            or {
+              id = generated_block_id(note, section, text, reserved_ids),
+              line = section.range.end_row,
+              block = text,
+              section = section,
+            }
+          if existing then
+            block = vim.tbl_extend("force", block, { block = text })
+          end
+
+          local link = scope == "current" and format_current_block_link(block)
+            or note:format_link { label = note:display_name(), block = block }
+          local label = block_label(text)
+          if scope == "vault" then
+            label = label .. " — " .. note:display_name()
+          end
+
+          local item = {
+            label = label,
+            sortText = ("%08d:%08d"):format(note_idx, section.range.start_row),
+            filterText = (scope == "vault" and "[[^^" or "[[^") .. query .. " " .. label,
+            documentation = {
+              kind = "markdown",
+              value = note:display_info { label = link, block = block },
+            },
+            kind = vim.lsp.protocol.CompletionItemKind.Reference,
+            textEdit = {
+              newText = existing and link or placeholder,
+              range = range,
+            },
+          }
+
+          if not existing then
+            item.command = {
+              command = "obsidian.block_reference_new",
+              title = "Obsidian create block reference",
+              arguments = {
+                {
+                  target_path = tostring(note.path),
+                  target_bufnr = note.bufnr,
+                  target_range = {
+                    start = { line = section.range.start_row, character = 0 },
+                    ["end"] = { line = section.range.end_row, character = 0 },
+                  },
+                  expected_lines = lines,
+                  block_id = block.id,
+                  placement = block_id_placement(lines),
+                  source_bufnr = cc.request.bufnr,
+                  source_range = range,
+                  source_text = link,
+                  placeholder = placeholder,
+                },
+              },
+            }
+          end
+          items[#items + 1] = item
+        end
+      end
+    end
+  end
+
+  cc.completion_resolve_callback { isIncomplete = true, items = items }
+end
+
+---@param cc obsidian.completion.sources.refs.context
+---@param scope "current"|"vault"
+---@param query string
+local function process_block_search(cc, scope, query)
+  if scope == "current" then
+    local note = api.current_note(cc.request.bufnr, { collect_blocks = true, collect_block_candidates = true })
+    process_block_search_results(cc, scope, query, note and { note } or {})
+    return
+  end
+
+  search.find_notes_async(query, function(results)
+    process_block_search_results(cc, scope, query, results)
+  end, {
+    dir = api.resolve_workspace_dir(),
+    search = { sort = false, include_templates = false, ignore_case = true },
+    notes = { collect_blocks = true, collect_block_candidates = true },
+  })
 end
 
 --- Determines whatever the in_buffer_only should be enabled
@@ -327,6 +560,12 @@ function M.process_completion(completion_resolve_callback, request)
 
   if not can_complete_request(cc) or not cc.search then
     cc.completion_resolve_callback(EMPTY_RESPONSE)
+    return
+  end
+
+  local block_scope, block_query = block_search(cc.search)
+  if block_scope and block_query then
+    process_block_search(cc, block_scope, block_query)
     return
   end
 

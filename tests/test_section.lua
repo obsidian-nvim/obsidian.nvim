@@ -45,6 +45,20 @@ T["blocks attach to heading and paragraph sections"] = function()
   eq(blocks["^para"].section, blocks["^standalone"].section)
 end
 
+T["block candidates split adjacent list items"] = function()
+  local _, _, candidates = Section.parse({
+    "A paragraph ^existing",
+    "",
+    "- first item",
+    "- second item",
+  }, { collect_block_candidates = true })
+
+  eq(3, #candidates)
+  eq({ start_row = 0, start_col = 0, end_row = 1, end_col = 0 }, candidates[1].range)
+  eq({ start_row = 2, start_col = 0, end_row = 3, end_col = 0 }, candidates[2].range)
+  eq({ start_row = 3, start_col = 0, end_row = 4, end_col = 0 }, candidates[3].range)
+end
+
 T["full ranges include nested descendants only"] = function()
   local sections = Section.parse {
     "# H1",

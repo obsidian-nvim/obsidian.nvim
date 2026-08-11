@@ -895,6 +895,102 @@ M.footnote_new = function(id, bufnr, restore_cursor)
   require("obsidian.footnotes").create(id, bufnr, restore_cursor)
 end
 
+---@class obsidian.actions.BlockReferenceOpts
+---@field target_path string
+---@field target_bufnr integer|?
+---@field target_range lsp.Range
+---@field expected_lines string[]
+---@field block_id string
+---@field placement "inline"|"standalone"
+---@field source_bufnr integer
+---@field source_range lsp.Range
+---@field source_text string
+---@field placeholder string
+
+--- Add an ID to an unlabeled block and replace the accepted completion with its link.
+---@param opts obsidian.actions.BlockReferenceOpts
+M.block_reference_new = function(opts)
+  if not opts or not vim.api.nvim_buf_is_valid(opts.source_bufnr) then
+    return
+  end
+
+  local source = vim.api.nvim_buf_get_text(
+    opts.source_bufnr,
+    opts.source_range.start.line,
+    opts.source_range.start.character,
+    opts.source_range["end"].line,
+    opts.source_range["end"].character,
+    {}
+  )
+  if #source ~= 1 or source[1] ~= opts.placeholder then
+    return log.warn "Block reference completion is no longer current"
+  end
+
+  local target_bufnr = opts.target_bufnr
+  if not target_bufnr or not vim.api.nvim_buf_is_valid(target_bufnr) then
+    target_bufnr = vim.fn.bufnr(opts.target_path)
+  end
+  local target_was_loaded = target_bufnr > 0 and vim.api.nvim_buf_is_loaded(target_bufnr)
+  if target_bufnr < 1 then
+    target_bufnr = vim.fn.bufadd(opts.target_path)
+  end
+  vim.fn.bufload(target_bufnr)
+
+  local target =
+    vim.api.nvim_buf_get_lines(target_bufnr, opts.target_range.start.line, opts.target_range["end"].line, false)
+  if not vim.deep_equal(target, opts.expected_lines) then
+    return log.warn "Block changed before its reference could be created"
+  end
+
+  for _, line in ipairs(vim.api.nvim_buf_get_lines(target_bufnr, 0, -1, false)) do
+    if util.parse_block(vim.trim(line)) == opts.block_id then
+      return log.warn "Generated block ID already exists"
+    end
+  end
+
+  local target_line = opts.target_range["end"].line - 1
+  local target_character = #opts.expected_lines[#opts.expected_lines]
+  local target_uri = vim.uri_from_bufnr(target_bufnr)
+  local source_uri = vim.uri_from_bufnr(opts.source_bufnr)
+  local changes = {
+    [target_uri] = {
+      {
+        range = {
+          start = { line = target_line, character = target_character },
+          ["end"] = { line = target_line, character = target_character },
+        },
+        newText = opts.placement == "standalone" and "\n" .. opts.block_id or " " .. opts.block_id,
+      },
+    },
+  }
+  local source_edit = { range = opts.source_range, newText = opts.source_text }
+  if source_uri == target_uri then
+    changes[target_uri][#changes[target_uri] + 1] = source_edit
+  else
+    changes[source_uri] = { source_edit }
+  end
+
+  vim.lsp.util.apply_workspace_edit({ changes = changes }, "utf-8")
+
+  if not target_was_loaded then
+    local ok, err = pcall(vim.api.nvim_buf_call, target_bufnr, function()
+      vim.cmd "silent noautocmd write"
+    end)
+    if not ok then
+      log.err("Failed to save block ID in '%s': %s", opts.target_path, err)
+    end
+  end
+
+  if vim.api.nvim_get_current_buf() == opts.source_bufnr then
+    local source_line = opts.source_range.start.line
+    if source_uri == target_uri and opts.placement == "standalone" and target_line < opts.source_range.start.line then
+      source_line = source_line + 1
+    end
+    vim.api.nvim_win_set_cursor(0, { source_line + 1, opts.source_range.start.character + #opts.source_text })
+  end
+  require("obsidian.ui").update(opts.source_bufnr)
+end
+
 ---@param bufnr      integer
 ---@param suggestion obsidian.LinkSuggestion
 ---@param candidate  obsidian.LinkSuggestionCandidate
