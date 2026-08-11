@@ -49,25 +49,13 @@ local function can_complete_request(cc)
     not (
       can_complete
       and cc.search ~= nil
-      and (vim.startswith(cc.search, "^") or #cc.search >= Obsidian.opts.completion.min_chars)
+      and (completion.block_search(cc.search) ~= nil or #cc.search >= Obsidian.opts.completion.min_chars)
     )
   then
     return false
   end
 
   return true
-end
-
----@param search_string string
----@return "current"|"vault"|?
----@return string|?
-local function block_search(search_string)
-  if vim.startswith(search_string, "^^") then
-    return "vault", search_string:sub(3)
-  elseif vim.startswith(search_string, "^") then
-    return "current", search_string:sub(2)
-  end
-  return nil
 end
 
 ---@param note obsidian.Note
@@ -580,7 +568,7 @@ function M.process_completion(completion_resolve_callback, request)
     return
   end
 
-  local block_scope, block_query = block_search(cc.search)
+  local block_scope, block_query = completion.block_search(cc.search)
   if block_scope and block_query then
     process_block_search(cc, block_scope, block_query)
     return

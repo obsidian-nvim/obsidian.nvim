@@ -46,6 +46,17 @@ M.can_complete = function(request)
   end
 end
 
+---@param search_string string
+---@return "current"|"vault"|? scope
+---@return string|? query
+function M.block_search(search_string)
+  if vim.startswith(search_string, "^^") then
+    return "vault", search_string:sub(3)
+  elseif vim.startswith(search_string, "^") then
+    return "current", search_string:sub(2)
+  end
+end
+
 ---@param label string
 ---@return string
 M.get_filter_text = function(label)

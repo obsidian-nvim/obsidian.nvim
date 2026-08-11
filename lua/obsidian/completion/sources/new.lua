@@ -21,7 +21,7 @@ function M.process_completion(callback, request)
     return
   end
 
-  if vim.startswith(term, "^") or #term < Obsidian.opts.completion.min_chars then
+  if completion.block_search(term) ~= nil or #term < Obsidian.opts.completion.min_chars then
     callback(EMPTY_RESPONSE)
     return
   end
