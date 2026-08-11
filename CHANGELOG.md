@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fallback libuv-based fs walker that makes `ripgrep` optional in file finding.
 - Fallback interactive UI for `picker.select`.
 - `require"obsidian.picker.PICKER_NAME".setup()` to add `obsidian_files` and `obsidian_grep` sources for pickers.
+- Experimental Inlay Hints support when cache is enabled, suggesting potential links, use `smart_action` to accept.
 
 ### Fixed
 

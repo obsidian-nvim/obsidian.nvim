@@ -22,12 +22,12 @@ obsidian.VERSION = require "obsidian.version"
 obsidian.Workspace = require "obsidian.workspace"
 obsidian.yaml = require "obsidian.yaml"
 
----@type obsidian.Client|?
+---@type obsidian.Client |?
 obsidian._client = nil
 
 --- TODO: remove in 4.0.0
 
----Get the current obsidian client.
+--- Get the current obsidian client.
 ---@return obsidian.Client
 obsidian.get_client = function()
   ---@type obsidian.Client?
@@ -47,13 +47,13 @@ obsidian.register_command = require("obsidian.commands").register
 ---@return obsidian.Client
 obsidian.setup = function(user_opts)
   ---@class obsidian.state
-  ---@field picker obsidian.Picker Picker to use.
-  ---@field workspace obsidian.Workspace Current workspace.
-  ---@field workspaces obsidian.Workspace[] All workspaces.
-  ---@field dir obsidian.Path Root of the vault for the current workspace.
-  ---@field buf_dir obsidian.Path|? Parent directory of the current buffer.
-  ---@field opts obsidian.config.Internal Current options.
-  ---@field _opts obsidian.config.Internal User input options.
+  ---@field picker     obsidian.Picker          Picker to use.
+  ---@field workspace  obsidian.Workspace       Current workspace.
+  ---@field workspaces obsidian.Workspace[]     All workspaces.
+  ---@field dir        obsidian.Path            Root of the vault for the current workspace.
+  ---@field buf_dir    obsidian.Path |?         Parent directory of the current buffer.
+  ---@field opts       obsidian.config.Internal Current options.
+  ---@field _opts      obsidian.config.Internal User input options.
   ---@diagnostic disable-next-line: global-in-non-module
   Obsidian = setmetatable({}, {
     __index = function(_, key)

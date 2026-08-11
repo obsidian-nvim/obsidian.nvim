@@ -18,10 +18,15 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    inlayHintProvider = true,
     workspaceSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {
-      commands = { "obsidian.write_note", "obsidian.footnote_new" },
+      commands = {
+        "obsidian.write_note",
+        "obsidian.footnote_new",
+        "obsidian.link_suggestion",
+      },
     },
     completionProvider = {
       resolveProvider = false,
@@ -56,7 +61,7 @@ local initializeResult = {
   },
 }
 
----@param _ lsp.InitializeParams
+---@param _       lsp.InitializeParams
 ---@param handler fun(_: any, res: lsp.InitializeResult)
 return function(_, handler, dispatchers)
   send_progress(dispatchers, "begin", "Initializing obsidian LSP server...", 0)

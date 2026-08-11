@@ -17,6 +17,9 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [x] Code Action (`textDocument/codeAction`)
 - [x] Completion Proposals (`textDocument/completion`)
 - [x] Folding Range (`textDocument/foldingRange`)
+- [x] Inlay Hint (`textDocument/inlayHint`) - adds virtual text link suggestions
+- [x] Inlay Hint Refresh (`workspace/inlayHint/refresh`) - refreshes hints after a note is saved
+- [ ] Inlay Hint Resolve (`inlayHint/resolve`)
 - [ ] Hover (`textDocument/hover`)
 - [ ] Completion Item Resolve (`completionItem/resolve`)
 - [ ] Publish Diagnostics (`textDocument/publishDiagnostics`)
@@ -27,9 +30,6 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [ ] Code Lens (`textDocument/codeLens`)
 - [ ] Code Lens Refresh (`codeLens/refresh`)
 - [ ] Selection Range (`textDocument/selectionRange`)
-- [ ] Inlay Hint (`textDocument/inlayHint`)
-- [ ] Inlay Hint Resolve (`inlayHint/resolve`)
-- [ ] Inlay Hint Refresh (`workspace/inlayHint/refresh`)
 - [ ] Formatting (`textDocument/formatting`)
 - [ ] Range Formatting (`textDocument/rangeFormatting`)
 - [ ] On Type Formatting (`textDocument/onTypeFormatting`)
@@ -37,6 +37,7 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [ ] Semantic Tokens (`textDocument/semanticTokens`) - highlighting currently handled via custom extmarks
 - [ ] Document Color (`textDocument/documentColor`)
 - [ ] Color Presentation (`textDocument/colorPresentation`)
+- Inlay Hint Resolve (`inlayHint/resolve`)
 - Pull Diagnostics (`textDocument/pullDiagnostics`) - redundant for in-process server, can push directly
 - Go to Type Definition (`textDocument/typeDefinition`)
 - Go to Implementation (`textDocument/implementation`)
@@ -63,7 +64,8 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
   - [ ] [[Sync]] `on_write` mode
 - [ ] Will Delete Files (`workspace/willDeleteFiles`)
   - [[Trash]]
-  - Prompt to remove file attachments
+  - Prompt to remove attachment
+  - Prompt if backlinks
 - [ ] Will Create Files (`workspace/willCreateFiles`)
 - [ ] Did Create Files (`workspace/didCreateFiles`)
   - prompt to disambiguate existing links with same stem
