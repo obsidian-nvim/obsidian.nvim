@@ -190,6 +190,7 @@ end
 local function process_block_search_results(cc, scope, query, results)
   ---@cast cc.insert_start -nil
   ---@cast cc.insert_end -nil
+  ---@cast cc.search -nil
   ---@type lsp.Range
   local range = {
     start = { line = cc.request.line, character = cc.insert_start },
@@ -235,7 +236,7 @@ local function process_block_search_results(cc, scope, query, results)
           local item = {
             label = label,
             sortText = ("%08d:%08d"):format(note_idx, section.range.start_row),
-            filterText = (scope == "vault" and "[[^^" or "[[^") .. query .. " " .. label,
+            filterText = "[[" .. cc.search .. " " .. label,
             documentation = {
               kind = "markdown",
               value = note:display_info { label = link, block = block },

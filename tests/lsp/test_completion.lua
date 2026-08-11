@@ -346,6 +346,12 @@ T["completion"]["creates a named-note block reference from unlabeled content aft
     return candidate.command and candidate.label == "A named needle paragraph"
   end)
   assert(item, "no named-note unlabeled block completion found")
+  assert(
+    vim.iter(vim.lsp.completion._lsp_to_complete_items(result, "[[target#^needle")):any(function(candidate)
+      return candidate.abbr == item.label
+    end),
+    "Neovim filtered out the named-note block completion"
+  )
   accept_completion(item)
 
   local target_line = vim.iter(vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))):find(function(line)
@@ -372,6 +378,12 @@ T["completion"]["creates a named-note block reference from unlabeled content aft
     return candidate.command and candidate.label == "A second named needle paragraph"
   end)
   assert(item, "no bare-caret named-note block completion found")
+  assert(
+    vim.iter(vim.lsp.completion._lsp_to_complete_items(result, "[[target^named needle")):any(function(candidate)
+      return candidate.abbr == item.label
+    end),
+    "Neovim filtered out the bare-caret named-note block completion"
+  )
   accept_completion(item)
 
   local target_line = vim.iter(vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))):find(function(line)
