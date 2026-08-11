@@ -47,13 +47,23 @@ M.can_complete = function(request)
 end
 
 ---@param search_string string
----@return "current"|"vault"|? scope
+---@return "current"|"note"|"vault"|? scope
 ---@return string|? query
+---@return string|? target
 function M.block_search(search_string)
   if vim.startswith(search_string, "^^") then
     return "vault", search_string:sub(3)
   elseif vim.startswith(search_string, "^") then
     return "current", search_string:sub(2)
+  end
+
+  local target, query = search_string:match "^(.-)#%^(.*)$"
+  if target ~= nil then
+    return target == "" and "current" or "note", query, target
+  end
+  target, query = search_string:match "^(.-)%^(.*)$"
+  if target and target ~= "" then
+    return "note", query, target
   end
 end
 

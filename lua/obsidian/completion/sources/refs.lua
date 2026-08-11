@@ -152,8 +152,9 @@ end
 
 ---@param results obsidian.Note[]
 ---@param dir obsidian.Path
+---@param include_unmatched boolean|?
 ---@return obsidian.Note[]
-local function include_loaded_notes(results, dir)
+local function include_loaded_notes(results, dir, include_unmatched)
   local path_to_idx = {}
   for idx, note in ipairs(results) do
     path_to_idx[tostring(note.path)] = idx
@@ -172,7 +173,7 @@ local function include_loaded_notes(results, dir)
         local idx = path_to_idx[tostring(note.path)]
         if idx then
           results[idx] = note
-        else
+        elseif include_unmatched ~= false then
           results[#results + 1] = note
           path_to_idx[tostring(note.path)] = #results
         end
@@ -183,7 +184,7 @@ local function include_loaded_notes(results, dir)
 end
 
 ---@param cc obsidian.completion.sources.refs.context
----@param scope "current"|"vault"
+---@param scope "current"|"note"|"vault"
 ---@param query string
 ---@param results obsidian.Note[]
 local function process_block_search_results(cc, scope, query, results)
@@ -208,7 +209,8 @@ local function process_block_search_results(cc, scope, query, results)
         local lines = vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row)
         local existing = existing_block(note, section)
         local text = block_text(lines, existing and existing.id)
-        if text ~= "" and vim.fn.tolower(text):find(lowered_query, 1, true) then
+        local searchable = text .. (existing and " " .. existing.id or "")
+        if text ~= "" and vim.fn.tolower(searchable):find(lowered_query, 1, true) then
           local block = existing
             or {
               id = generated_block_id(note, section, text, reserved_ids),
@@ -223,6 +225,9 @@ local function process_block_search_results(cc, scope, query, results)
           local link = scope == "current" and format_current_block_link(block)
             or note:format_link { label = note:display_name(), block = block }
           local label = block_label(text)
+          if existing then
+            label = label .. " " .. existing.id
+          end
           if scope == "vault" then
             label = label .. " — " .. note:display_name()
           end
@@ -277,9 +282,10 @@ local function process_block_search_results(cc, scope, query, results)
 end
 
 ---@param cc obsidian.completion.sources.refs.context
----@param scope "current"|"vault"
+---@param scope "current"|"note"|"vault"
 ---@param query string
-local function process_block_search(cc, scope, query)
+---@param target string|?
+local function process_block_search(cc, scope, query, target)
   if scope == "current" then
     local note = api.current_note(cc.request.bufnr, {
       max_lines = vim.api.nvim_buf_line_count(cc.request.bufnr),
@@ -291,12 +297,22 @@ local function process_block_search(cc, scope, query)
   end
 
   local dir = api.resolve_workspace_dir()
-  search.find_notes_async(query, function(results)
-    process_block_search_results(cc, scope, query, include_loaded_notes(results, dir))
-  end, {
+  local note_opts = { max_lines = ALL_LINES, collect_blocks = true, collect_block_candidates = true }
+  local function on_results(results)
+    process_block_search_results(cc, scope, query, include_loaded_notes(results, dir, scope == "vault"))
+  end
+  if scope == "note" then
+    search.resolve_note_async(
+      assert(target, "named-note block search requires a target"),
+      on_results,
+      { notes = note_opts }
+    )
+    return
+  end
+  search.find_notes_async(query, on_results, {
     dir = dir,
     search = { sort = false, include_templates = false, ignore_case = true },
-    notes = { max_lines = ALL_LINES, collect_blocks = true, collect_block_candidates = true },
+    notes = note_opts,
   })
 end
 
@@ -573,9 +589,9 @@ function M.process_completion(completion_resolve_callback, request)
     return
   end
 
-  local block_scope, block_query = completion.block_search(cc.search)
+  local block_scope, block_query, block_target = completion.block_search(cc.search)
   if block_scope and block_query then
-    process_block_search(cc, block_scope, block_query)
+    process_block_search(cc, block_scope, block_query, block_target)
     return
   end
 
