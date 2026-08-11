@@ -913,7 +913,8 @@ end
 ---@field target_range lsp.Range
 ---@field target_checksum string
 ---@field block_id string
----@field placement "inline"|"standalone"
+---@field placement "inline"|"list-item"|"standalone"
+---@field indent string|?
 ---@field source_bufnr integer
 ---@field source_range lsp.Range
 ---@field source_text string
@@ -969,12 +970,20 @@ M.block_reference_new = function(opts)
 
   local target_line = opts.target_range["end"].line - 1
   local target_character = #target[#target]
+  local has_blank_after = target_lines[opts.target_range["end"].line + 1] ~= nil
+    and vim.trim(target_lines[opts.target_range["end"].line + 1]) == ""
+  local target_text = " " .. opts.block_id
+  if opts.placement == "standalone" then
+    target_text = "\n\n" .. opts.block_id .. (has_blank_after and "" or "\n")
+  elseif opts.placement == "list-item" then
+    target_text = "\n" .. (opts.indent or "    ") .. opts.block_id
+  end
   local target_edit = {
     range = {
       start = { line = target_line, character = target_character },
       ["end"] = { line = target_line, character = target_character },
     },
-    newText = opts.placement == "standalone" and "\n" .. opts.block_id or " " .. opts.block_id,
+    newText = target_text,
   }
   local source_edit = { range = opts.source_range, newText = opts.source_text }
 
@@ -1021,10 +1030,10 @@ M.block_reference_new = function(opts)
     ---@cast source_line integer
     if
       target_bufnr == opts.source_bufnr
-      and opts.placement == "standalone"
+      and target_text:find("\n", 1, true)
       and target_line < opts.source_range.start.line
     then
-      source_line = source_line + 1
+      source_line = source_line + select(2, target_text:gsub("\n", ""))
     end
     local source_col = opts.source_range.start.character + #opts.source_text
     ---@cast source_col integer

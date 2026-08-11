@@ -115,13 +115,14 @@ local function block_label(text)
 end
 
 ---@param lines string[]
----@return "inline"|"standalone"
-local function block_id_placement(lines)
-  for _, line in ipairs(lines) do
-    local table_separator = line:find("|", 1, true) and line:gsub("[|:%-%s]", "") == ""
-    if line:match "^%s*>" or line:match "^%s*|" or table_separator then
-      return "standalone"
-    end
+---@param section obsidian.Section
+---@return "inline"|"list-item"|"standalone"
+---@return string|? indent
+local function block_id_placement(lines, section)
+  if section.block_type == "quote" or section.block_type == "table" then
+    return "standalone"
+  elseif section.block_type == "list" and #lines > 1 then
+    return "list-item", lines[#lines]:match "^(%s+)" or (lines[1]:match "^(%s*)" or "") .. "    "
   end
   return "inline"
 end
@@ -240,6 +241,7 @@ local function process_block_search_results(cc, scope, query, results)
           }
 
           if not existing then
+            local placement, indent = block_id_placement(lines, section)
             item.command = {
               command = "obsidian.block_reference_new",
               title = "Obsidian create block reference",
@@ -253,7 +255,8 @@ local function process_block_search_results(cc, scope, query, results)
                   },
                   target_checksum = vim.fn.sha256(table.concat(note.contents, "\n")),
                   block_id = block.id,
-                  placement = block_id_placement(lines),
+                  placement = placement,
+                  indent = indent,
                   source_bufnr = cc.request.bufnr,
                   source_range = range,
                   source_text = link,

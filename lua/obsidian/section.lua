@@ -17,6 +17,20 @@ local function is_list_item(line)
   return line:match "^%s*[-+*]%s+" ~= nil or line:match "^%s*%d+[.)]%s+" ~= nil
 end
 
+---@param line string
+---@param detail obsidian.section.LineDetail
+---@return "list"|"quote"|"table"|"text"
+local function block_candidate_type(line, detail)
+  if is_list_item(line) then
+    return "list"
+  elseif line:match "^%s*>" then
+    return "quote"
+  elseif detail.type == "table" then
+    return "table"
+  end
+  return "text"
+end
+
 --- A contiguous region of a markdown document.
 ---
 --- All ranges are |obsidian.Range|s over *lines* of the parsed document:
@@ -32,11 +46,12 @@ end
 ---@field heading_range obsidian.Range the heading line(s). Empty for the preamble.
 ---@field content_range obsidian.Range own content (sub-sections excluded), trimmed of leading and trailing blank lines.
 ---@field parent obsidian.Section|? the nearest section above with a lower heading level.
+---@field block_type "paragraph"|"list"|"quote"|"table"|? present on block-completion candidates.
 
 local M = {}
 
 ---@class obsidian.section.LineDetail
----@field type "text"|"header"|"header-underline"|"code"|"empty"
+---@field type "text"|"header"|"header-underline"|"code"|"empty"|"table"
 ---@field level integer|?
 ---@field label string|?
 
@@ -85,6 +100,31 @@ local function get_line_details(lines, first)
     details[idx] = classify(idx)
   end
 
+  for idx = first + 1, #lines do
+    local line = vim.trim(lines[idx])
+    local previous = assert(lines[idx - 1])
+    if
+      details[idx].type == "text"
+      and details[idx - 1].type == "text"
+      and line:find("|", 1, true)
+      and line:find("-", 1, true)
+      and line:gsub("[|:%-%s]", "") == ""
+      and previous:find("|", 1, true)
+    then
+      details[idx - 1].type = "table"
+      details[idx].type = "table"
+      local row = idx + 1
+      while details[row] and details[row].type == "text" do
+        local row_line = assert(lines[row])
+        if not row_line:find("|", 1, true) then
+          break
+        end
+        details[row].type = "table"
+        row = row + 1
+      end
+    end
+  end
+
   return details
 end
 
@@ -122,6 +162,8 @@ M.parse = function(lines, opts)
   local block_candidates = opts.collect_block_candidates and {} or nil
   ---@type integer|?
   local para_beg
+  ---@type "list"|"quote"|"table"|"text"|?
+  local para_type
   ---@type obsidian.note.Block[]
   local para_blocks = {}
   ---@type obsidian.Section|?
@@ -147,10 +189,19 @@ M.parse = function(lines, opts)
   ---@param end_excl integer
   local function close_paragraph(end_excl)
     if para_beg ~= nil then
+      ---@type "paragraph"|"list"|"quote"|"table"|?
+      local block_type
+      if para_type == "text" then
+        block_type = "paragraph"
+      elseif para_type ~= nil then
+        block_type = para_type
+      end
+      ---@type obsidian.Section
       local section = {
         range = Range.new(para_beg - 1, 0, end_excl - 1, 0),
         heading_range = Range.new(para_beg - 1, 0, para_beg - 1, 0),
         content_range = Range.new(para_beg - 1, 0, end_excl - 1, 0),
+        block_type = block_type,
       }
       for _, block in ipairs(para_blocks) do
         block.section = section
@@ -161,6 +212,7 @@ M.parse = function(lines, opts)
       last_para_section = section
     end
     para_beg = nil
+    para_type = nil
     para_blocks = {}
   end
 
@@ -193,10 +245,19 @@ M.parse = function(lines, opts)
       end
       current.c_end = idx_excl
 
-      if (blocks or block_candidates) and detail.type == "text" then
+      if (blocks or block_candidates) and (detail.type == "text" or detail.type == "table") then
         local line = vim.trim(lines[idx])
-        if block_candidates and para_beg ~= nil and is_list_item(lines[idx]) then
-          close_paragraph(idx)
+        local next_type = block_candidate_type(lines[idx], detail)
+        if block_candidates and para_beg ~= nil then
+          local split = next_type == "list" or (para_type ~= "list" and next_type ~= para_type)
+          if para_type == "list" and (next_type == "quote" or next_type == "table") then
+            local item_indent = #(assert(lines[para_beg]):match "^%s*" or "")
+            local next_indent = #(lines[idx]:match "^%s*" or "")
+            split = next_indent <= item_indent
+          end
+          if split then
+            close_paragraph(idx)
+          end
         end
         local block_id = util.parse_block(line)
         if block_id and line == block_id and para_beg == nil and last_para_section ~= nil then
@@ -205,6 +266,7 @@ M.parse = function(lines, opts)
           end
         else
           para_beg = para_beg or idx
+          para_type = para_type or next_type
           if block_id and blocks then
             local block = { id = block_id, line = idx, block = line }
             blocks[block_id] = block
