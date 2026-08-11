@@ -35,6 +35,9 @@ local EMPTY_RESPONSE = {
   items = {},
 }
 
+---@type integer
+local ALL_LINES = 2147483647
+
 --- Returns whether it's possible to complete the search and sets up the search related variables in cc
 ---@param cc obsidian.completion.sources.refs.context
 ---@return boolean success provides a chance to return early if the request didn't meet the requirements
@@ -156,21 +159,36 @@ local function current_completion_text(request, range)
   return request.cursor_before_line:sub(range.start.character + 1) .. request.cursor_after_line:sub(1, suffix_len)
 end
 
----@param note obsidian.Note
----@return obsidian.Note
-local function prefer_loaded_note(note)
+---@param results obsidian.Note[]
+---@param dir obsidian.Path
+---@return obsidian.Note[]
+local function include_loaded_notes(results, dir)
+  local path_to_idx = {}
+  for idx, note in ipairs(results) do
+    path_to_idx[tostring(note.path)] = idx
+  end
+
+  local Note = require "obsidian.note"
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(bufnr) then
       local path = vim.uv.fs_realpath(vim.fn.resolve(vim.api.nvim_buf_get_name(bufnr)))
-      if path == tostring(note.path) then
-        return require("obsidian.note").from_buffer(bufnr, {
+      if path and util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
+        local note = Note.from_buffer(bufnr, {
+          max_lines = vim.api.nvim_buf_line_count(bufnr),
           collect_blocks = true,
           collect_block_candidates = true,
         })
+        local idx = path_to_idx[tostring(note.path)]
+        if idx then
+          results[idx] = note
+        else
+          results[#results + 1] = note
+          path_to_idx[tostring(note.path)] = #results
+        end
       end
     end
   end
-  return note
+  return results
 end
 
 ---@param cc obsidian.completion.sources.refs.context
@@ -178,6 +196,9 @@ end
 ---@param query string
 ---@param results obsidian.Note[]
 local function process_block_search_results(cc, scope, query, results)
+  ---@cast cc.insert_start -nil
+  ---@cast cc.insert_end -nil
+  ---@type lsp.Range
   local range = {
     start = { line = cc.request.line, character = cc.insert_start },
     ["end"] = { line = cc.request.line, character = cc.insert_end },
@@ -188,8 +209,7 @@ local function process_block_search_results(cc, scope, query, results)
   local lowered_query = vim.fn.tolower(query)
   local items = {}
 
-  for note_idx, searched_note in ipairs(results) do
-    local note = prefer_loaded_note(searched_note)
+  for note_idx, note in ipairs(results) do
     local same_note = vim.fs.normalize(tostring(note.path)) == source_path
     local reserved_ids = {}
     for _, section in ipairs(note.block_candidates or {}) do
@@ -243,7 +263,7 @@ local function process_block_search_results(cc, scope, query, results)
                     start = { line = section.range.start_row, character = 0 },
                     ["end"] = { line = section.range.end_row, character = 0 },
                   },
-                  expected_lines = lines,
+                  target_checksum = vim.fn.sha256(table.concat(note.contents, "\n")),
                   block_id = block.id,
                   placement = block_id_placement(lines),
                   source_bufnr = cc.request.bufnr,
@@ -268,17 +288,22 @@ end
 ---@param query string
 local function process_block_search(cc, scope, query)
   if scope == "current" then
-    local note = api.current_note(cc.request.bufnr, { collect_blocks = true, collect_block_candidates = true })
+    local note = api.current_note(cc.request.bufnr, {
+      max_lines = vim.api.nvim_buf_line_count(cc.request.bufnr),
+      collect_blocks = true,
+      collect_block_candidates = true,
+    })
     process_block_search_results(cc, scope, query, note and { note } or {})
     return
   end
 
+  local dir = api.resolve_workspace_dir()
   search.find_notes_async(query, function(results)
-    process_block_search_results(cc, scope, query, results)
+    process_block_search_results(cc, scope, query, include_loaded_notes(results, dir))
   end, {
-    dir = api.resolve_workspace_dir(),
+    dir = dir,
     search = { sort = false, include_templates = false, ignore_case = true },
-    notes = { collect_blocks = true, collect_block_candidates = true },
+    notes = { max_lines = ALL_LINES, collect_blocks = true, collect_block_candidates = true },
   })
 end
 
@@ -388,15 +413,7 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
       }
     elseif option.block then
       -- In buffer block link.
-      if Obsidian.opts.link.style == "wiki" then
-        new_text = "[[#" .. option.block.id .. "]]"
-      elseif Obsidian.opts.link.style == "markdown" then
-        new_text = "[#" .. option.block.id .. "](#" .. option.block.id .. ")"
-      elseif type(Obsidian.opts.link.style) == "function" then
-        new_text = Obsidian.opts.link.style { label = option.label or "", path = "", block = option.block }
-      else
-        error "not implemented"
-      end
+      new_text = format_current_block_link(option.block)
 
       final_label = "#" .. option.block.id
       sort_text = final_label

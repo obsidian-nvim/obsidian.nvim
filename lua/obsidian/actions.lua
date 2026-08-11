@@ -895,11 +895,23 @@ M.footnote_new = function(id, bufnr, restore_cursor)
   require("obsidian.footnotes").create(id, bufnr, restore_cursor)
 end
 
+---@param lines string[]
+---@param block_id string
+---@return boolean
+local function contains_block_id(lines, block_id)
+  for _, line in ipairs(lines) do
+    if util.parse_block(vim.trim(line)) == block_id then
+      return true
+    end
+  end
+  return false
+end
+
 ---@class obsidian.actions.BlockReferenceOpts
 ---@field target_path string
 ---@field target_bufnr integer|?
 ---@field target_range lsp.Range
----@field expected_lines string[]
+---@field target_checksum string
 ---@field block_id string
 ---@field placement "inline"|"standalone"
 ---@field source_bufnr integer
@@ -908,7 +920,7 @@ end
 ---@field placeholder string
 
 --- Add an ID to an unlabeled block and replace the accepted completion with its link.
----@param opts obsidian.actions.BlockReferenceOpts
+---@param opts obsidian.actions.BlockReferenceOpts|?
 M.block_reference_new = function(opts)
   if not opts or not vim.api.nvim_buf_is_valid(opts.source_bufnr) then
     return
@@ -935,58 +947,88 @@ M.block_reference_new = function(opts)
     target_bufnr = vim.fn.bufadd(opts.target_path)
   end
   vim.fn.bufload(target_bufnr)
+  if not vim.bo[target_bufnr].modifiable or vim.bo[target_bufnr].readonly then
+    return log.warn "Target block is not writable"
+  end
 
-  local target =
-    vim.api.nvim_buf_get_lines(target_bufnr, opts.target_range.start.line, opts.target_range["end"].line, false)
-  if not vim.deep_equal(target, opts.expected_lines) then
+  local target_lines = vim.api.nvim_buf_get_lines(target_bufnr, 0, -1, false)
+  local normalized_target = vim.tbl_map(util.rstrip_whitespace, target_lines)
+  if vim.fn.sha256(table.concat(normalized_target, "\n")) ~= opts.target_checksum then
     return log.warn "Block changed before its reference could be created"
   end
 
-  for _, line in ipairs(vim.api.nvim_buf_get_lines(target_bufnr, 0, -1, false)) do
-    if util.parse_block(vim.trim(line)) == opts.block_id then
-      return log.warn "Generated block ID already exists"
-    end
+  if contains_block_id(target_lines, opts.block_id) then
+    return log.warn "Generated block ID already exists"
+  end
+
+  local target =
+    vim.api.nvim_buf_get_lines(target_bufnr, opts.target_range.start.line, opts.target_range["end"].line, false)
+  if #target == 0 then
+    return log.warn "Target block no longer exists"
   end
 
   local target_line = opts.target_range["end"].line - 1
-  local target_character = #opts.expected_lines[#opts.expected_lines]
-  local target_uri = vim.uri_from_bufnr(target_bufnr)
-  local source_uri = vim.uri_from_bufnr(opts.source_bufnr)
-  local changes = {
-    [target_uri] = {
-      {
-        range = {
-          start = { line = target_line, character = target_character },
-          ["end"] = { line = target_line, character = target_character },
-        },
-        newText = opts.placement == "standalone" and "\n" .. opts.block_id or " " .. opts.block_id,
-      },
+  local target_character = #target[#target]
+  local target_edit = {
+    range = {
+      start = { line = target_line, character = target_character },
+      ["end"] = { line = target_line, character = target_character },
     },
+    newText = opts.placement == "standalone" and "\n" .. opts.block_id or " " .. opts.block_id,
   }
   local source_edit = { range = opts.source_range, newText = opts.source_text }
-  if source_uri == target_uri then
-    changes[target_uri][#changes[target_uri] + 1] = source_edit
-  else
-    changes[source_uri] = { source_edit }
+
+  ---@param edits lsp.TextEdit[]
+  ---@param bufnr integer
+  ---@return boolean
+  local function apply_text_edits(edits, bufnr)
+    local ok, err = pcall(vim.lsp.util.apply_text_edits, edits, bufnr, "utf-8")
+    if not ok then
+      log.err("Failed to apply block reference edit: %s", err)
+      return false
+    end
+    return true
   end
 
-  vim.lsp.util.apply_workspace_edit({ changes = changes }, "utf-8")
-
-  if not target_was_loaded then
-    local ok, err = pcall(vim.api.nvim_buf_call, target_bufnr, function()
-      vim.cmd "silent noautocmd write"
-    end)
-    if not ok then
-      log.err("Failed to save block ID in '%s': %s", opts.target_path, err)
+  if target_bufnr == opts.source_bufnr then
+    if not apply_text_edits({ target_edit, source_edit }, target_bufnr) then
+      return
+    end
+  else
+    if not apply_text_edits({ target_edit }, target_bufnr) then
+      return
+    end
+    if not target_was_loaded then
+      local ok, err = pcall(vim.api.nvim_buf_call, target_bufnr, function()
+        vim.cmd "silent write"
+      end)
+      if not ok then
+        log.err("Failed to save block ID in '%s': %s", opts.target_path, err)
+        return
+      end
+    end
+    if not contains_block_id(vim.api.nvim_buf_get_lines(target_bufnr, 0, -1, false), opts.block_id) then
+      log.err("Block ID was removed while saving '%s'", opts.target_path)
+      return
+    end
+    if not apply_text_edits({ source_edit }, opts.source_bufnr) then
+      return
     end
   end
 
   if vim.api.nvim_get_current_buf() == opts.source_bufnr then
     local source_line = opts.source_range.start.line
-    if source_uri == target_uri and opts.placement == "standalone" and target_line < opts.source_range.start.line then
+    ---@cast source_line integer
+    if
+      target_bufnr == opts.source_bufnr
+      and opts.placement == "standalone"
+      and target_line < opts.source_range.start.line
+    then
       source_line = source_line + 1
     end
-    vim.api.nvim_win_set_cursor(0, { source_line + 1, opts.source_range.start.character + #opts.source_text })
+    local source_col = opts.source_range.start.character + #opts.source_text
+    ---@cast source_col integer
+    vim.api.nvim_win_set_cursor(0, { source_line + 1, source_col })
   end
   require("obsidian.ui").update(opts.source_bufnr)
 end

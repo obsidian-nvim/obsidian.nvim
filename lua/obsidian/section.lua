@@ -11,6 +11,8 @@ local H1_UNDERLINE_PATTERN = "^(=+)$"
 local H2_UNDERLINE_PATTERN = "^(-+)$"
 local CODE_BLOCK_PATTERN = "^```[%w_-]*$"
 
+---@param line string
+---@return boolean
 local function is_list_item(line)
   return line:match "^%s*[-+*]%s+" ~= nil or line:match "^%s*%d+[.)]%s+" ~= nil
 end

@@ -16,7 +16,12 @@ local EMPTY_RESPONSE = {
 function M.process_completion(callback, request)
   local can_complete, term, insert_start, insert_end = completion.can_complete(request)
 
-  if (not can_complete) or (#term < Obsidian.opts.completion.min_chars) then
+  if not can_complete or term == nil then
+    callback(EMPTY_RESPONSE)
+    return
+  end
+
+  if vim.startswith(term, "^") or #term < Obsidian.opts.completion.min_chars then
     callback(EMPTY_RESPONSE)
     return
   end
