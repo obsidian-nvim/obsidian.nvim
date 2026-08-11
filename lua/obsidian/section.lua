@@ -12,21 +12,30 @@ local H2_UNDERLINE_PATTERN = "^(-+)$"
 local CODE_BLOCK_PATTERN = "^```[%w_-]*$"
 
 ---@param line string
----@return boolean
-local function is_list_item(line)
-  return line:match "^%s*[-+*]%s+" ~= nil or line:match "^%s*%d+[.)]%s+" ~= nil
+---@return integer|? indent
+---@return "bullet"|"ordered"|? kind
+local function list_item_info(line)
+  local indent = line:match "^(%s*)[-+*]%s+"
+  if indent then
+    return #indent, "bullet"
+  end
+  indent = line:match "^(%s*)%d+[.)]%s+"
+  if indent then
+    return #indent, "ordered"
+  end
+  return nil
 end
 
 ---@param line string
 ---@param detail obsidian.section.LineDetail
----@return "list"|"quote"|"table"|"text"
+---@return "list-item"|"quote"|"table"|"text"
 local function block_candidate_type(line, detail)
-  if is_list_item(line) then
-    return "list"
+  if detail.type == "table" then
+    return "table"
+  elseif list_item_info(line) then
+    return "list-item"
   elseif line:match "^%s*>" then
     return "quote"
-  elseif detail.type == "table" then
-    return "table"
   end
   return "text"
 end
@@ -46,7 +55,7 @@ end
 ---@field heading_range obsidian.Range the heading line(s). Empty for the preamble.
 ---@field content_range obsidian.Range own content (sub-sections excluded), trimmed of leading and trailing blank lines.
 ---@field parent obsidian.Section|? the nearest section above with a lower heading level.
----@field block_type "paragraph"|"list"|"quote"|"table"|? present on block-completion candidates.
+---@field block_type "paragraph"|"list"|"list-item"|"quote"|"table"|? present on block-completion candidates.
 
 local M = {}
 
@@ -102,7 +111,8 @@ local function get_line_details(lines, first)
 
   for idx = first + 1, #lines do
     local line = vim.trim(lines[idx])
-    local previous = assert(lines[idx - 1])
+    local previous = lines[idx - 1]
+    ---@cast previous -nil
     if
       details[idx].type == "text"
       and details[idx - 1].type == "text"
@@ -115,7 +125,8 @@ local function get_line_details(lines, first)
       details[idx].type = "table"
       local row = idx + 1
       while details[row] and details[row].type == "text" do
-        local row_line = assert(lines[row])
+        local row_line = lines[row]
+        ---@cast row_line -nil
         if not row_line:find("|", 1, true) then
           break
         end
@@ -162,7 +173,7 @@ M.parse = function(lines, opts)
   local block_candidates = opts.collect_block_candidates and {} or nil
   ---@type integer|?
   local para_beg
-  ---@type "list"|"quote"|"table"|"text"|?
+  ---@type "list-item"|"quote"|"table"|"text"|?
   local para_type
   ---@type obsidian.note.Block[]
   local para_blocks = {}
@@ -189,7 +200,7 @@ M.parse = function(lines, opts)
   ---@param end_excl integer
   local function close_paragraph(end_excl)
     if para_beg ~= nil then
-      ---@type "paragraph"|"list"|"quote"|"table"|?
+      ---@type "paragraph"|"list-item"|"quote"|"table"|?
       local block_type
       if para_type == "text" then
         block_type = "paragraph"
@@ -249,9 +260,14 @@ M.parse = function(lines, opts)
         local line = vim.trim(lines[idx])
         local next_type = block_candidate_type(lines[idx], detail)
         if block_candidates and para_beg ~= nil then
-          local split = next_type == "list" or (para_type ~= "list" and next_type ~= para_type)
-          if para_type == "list" and (next_type == "quote" or next_type == "table") then
-            local item_indent = #(assert(lines[para_beg]):match "^%s*" or "")
+          local split = next_type == "list-item" or (para_type ~= "list-item" and next_type ~= para_type)
+          if para_type == "quote" and next_type == "text" then
+            split = false
+          end
+          if para_type == "list-item" and (next_type == "quote" or next_type == "table") then
+            local item_line = lines[para_beg]
+            ---@cast item_line -nil
+            local item_indent = #(item_line:match "^%s*" or "")
             local next_indent = #(lines[idx]:match "^%s*" or "")
             split = next_indent <= item_indent
           end
@@ -281,6 +297,74 @@ M.parse = function(lines, opts)
     end
   end
   close_paragraph(#lines + 1)
+
+  if block_candidates then
+    local candidates = {}
+    local idx = 1
+    while idx <= #block_candidates do
+      local first_candidate = block_candidates[idx]
+      ---@cast first_candidate -nil
+      if first_candidate.block_type ~= "list-item" then
+        candidates[#candidates + 1] = first_candidate
+        idx = idx + 1
+      else
+        local base_line = lines[first_candidate.range.start_row + 1]
+        ---@cast base_line -nil
+        local base_indent, base_kind = list_item_info(base_line)
+        ---@cast base_indent -nil
+        ---@cast base_kind -nil
+        local last_idx = idx
+        while last_idx < #block_candidates do
+          local current_candidate = block_candidates[last_idx]
+          local next_candidate = block_candidates[last_idx + 1]
+          ---@cast current_candidate -nil
+          ---@cast next_candidate -nil
+          if
+            next_candidate.block_type ~= "list-item"
+            or current_candidate.range.end_row ~= next_candidate.range.start_row
+          then
+            break
+          end
+          local next_line = lines[next_candidate.range.start_row + 1]
+          ---@cast next_line -nil
+          local indent, kind = list_item_info(next_line)
+          ---@cast indent -nil
+          ---@cast kind -nil
+          if indent < base_indent or (indent == base_indent and kind ~= base_kind) then
+            break
+          end
+          last_idx = last_idx + 1
+        end
+
+        if last_idx > idx then
+          local last_candidate = block_candidates[last_idx]
+          ---@cast last_candidate -nil
+          ---@type obsidian.Section
+          local list_candidate = {
+            range = Range.new(first_candidate.range.start_row, 0, last_candidate.range.end_row, 0),
+            heading_range = Range.new(first_candidate.range.start_row, 0, first_candidate.range.start_row, 0),
+            content_range = Range.new(first_candidate.range.start_row, 0, last_candidate.range.end_row, 0),
+            block_type = "list",
+          }
+          for _, block in pairs(blocks or {}) do
+            if
+              block.section == last_candidate
+              and block.block == block.id
+              and block.line - 1 > last_candidate.range.end_row
+            then
+              block.section = list_candidate
+            end
+          end
+          candidates[#candidates + 1] = list_candidate
+        end
+        for item_idx = idx, last_idx do
+          candidates[#candidates + 1] = block_candidates[item_idx]
+        end
+        idx = last_idx + 1
+      end
+    end
+    block_candidates = candidates
+  end
 
   -- Materialize sections. A section's full range extends through its
   -- descendants: it ends where the next section of the same or lower level

@@ -121,7 +121,9 @@ end
 local function block_id_placement(lines, section)
   if section.block_type == "quote" or section.block_type == "table" then
     return "standalone"
-  elseif section.block_type == "list" and #lines > 1 then
+  elseif section.block_type == "list" then
+    return "standalone"
+  elseif section.block_type == "list-item" and #lines > 1 then
     return "list-item", lines[#lines]:match "^(%s+)" or (lines[1]:match "^(%s*)" or "") .. "    "
   end
   return "inline"
