@@ -486,6 +486,7 @@ Class ~
 Fields ~
 {notes_subdir} `(string?)`
 {note_id_func} `(fun(title: string|?, path: obsidian.Path|?): string)`
+{note_path_func} `(fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)`
 {new_notes_location} `(obsidian.config.NewNotesLocation)`
 
 ------------------------------------------------------------------------------
@@ -497,6 +498,7 @@ Fields ~
 {verbatim} `(boolean|? whether)` to skip applying `note_id_func`
 {dir} `(string|obsidian.Path|? An)` optional directory to place the note in. Relative paths will be interpreted
 to the workspace / vault root.
+{source_path} `(string|obsidian.Path|? Source)` note used to resolve the workspace and current-directory strategy.
 {aliases} `(string[]|? Aliases)` for the note
 {tags} `(string[]|?  Tags)` for this note
 {template} `(string|? Template)` name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
