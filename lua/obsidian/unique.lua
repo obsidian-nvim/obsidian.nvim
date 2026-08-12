@@ -80,12 +80,14 @@ local function generate_unique_id(timestamp, fmt, existing_stems)
 end
 
 ---@param timestamp integer?
+---@param source_path string|obsidian.Path|?
 ---@return string? A unique note ID based on the timestamp and format, ensuring no collisions with existing
-function M.new_unique_id(timestamp)
+function M.new_unique_id(timestamp, source_path)
   timestamp = timestamp or os.time()
 
   local unique_note_folder = Obsidian.opts.unique_note.folder
-  local folder_path = unique_note_folder and Obsidian.dir / unique_note_folder or Obsidian.dir
+  local workspace_dir = api.resolve_workspace_dir(source_path)
+  local folder_path = unique_note_folder and workspace_dir / unique_note_folder or workspace_dir
 
   if folder_path:is_dir() == false then
     local choice =
@@ -123,12 +125,11 @@ end
 ---@param opts obsidian.note.NoteOpts?
 ---@return obsidian.Note? A new unique note instance with a unique ID based on the timestamp and format.
 function M.new_unique_note(timestamp, opts)
-  local unique_id = M.new_unique_id(timestamp)
+  opts = opts or {}
+  local unique_id = M.new_unique_id(timestamp, opts.source_path)
   if not unique_id then
     return
   end
-
-  opts = opts or {}
 
   local default = {
     id = unique_id,

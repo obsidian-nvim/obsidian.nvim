@@ -79,7 +79,7 @@ function M.process_completion(callback, request)
       isIncomplete = true,
       items = items,
     }
-  end, { dir = api.resolve_workspace_dir() })
+  end, { dir = api.resolve_workspace_dir(vim.api.nvim_buf_get_name(request.bufnr)) })
 end
 
 return M

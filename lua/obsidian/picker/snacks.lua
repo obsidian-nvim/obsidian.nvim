@@ -3,6 +3,7 @@ local search = require "obsidian.search"
 local Picker = require "obsidian.picker"
 local Path = require "obsidian.path"
 local ut = require "obsidian.picker.util"
+local api = require "obsidian.api"
 
 --- Build snacks pick opts (keymaps + actions) for query-style mappings. The
 --- callback receives the currently typed query string, mirroring the behavior
@@ -98,7 +99,6 @@ local M = {}
 --- source registry or its `vim.ui.select` implementation.
 M.setup = function()
   local sources = require "snacks.picker.config.sources"
-  local api = require "obsidian.api"
 
   ---@param name string
   ---@param source table
@@ -137,7 +137,7 @@ M.grep = function(opts)
   opts = opts or {}
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or api.resolve_workspace_dir()
   local map = vim.tbl_deep_extend(
     "force",
     {},

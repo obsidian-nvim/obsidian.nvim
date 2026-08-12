@@ -334,7 +334,7 @@ function M.process_completion(completion_resolve_callback, request)
   determine_buffer_only_search_scope(cc)
 
   if cc.in_buffer_only then
-    local note = api.current_note(0, { collect_anchor_links = true, collect_blocks = true })
+    local note = api.current_note(cc.request.bufnr, { collect_anchor_links = true, collect_blocks = true })
     if note then
       process_search_results(cc, { note })
     else
@@ -347,10 +347,11 @@ function M.process_completion(completion_resolve_callback, request)
       ignore_case = true,
     }
 
+    local source_path = vim.api.nvim_buf_get_name(cc.request.bufnr)
     search.find_notes_async(cc.search, function(results)
       process_search_results(cc, results)
     end, {
-      dir = api.resolve_workspace_dir(),
+      dir = api.resolve_workspace_dir(source_path),
       search = search_opts,
       notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
     })

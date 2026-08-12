@@ -73,7 +73,9 @@ M.resolve_attachment_path = function(src, bufnr)
     local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)))
     return tostring(dirname / attachment_folder / src)
   else
-    return tostring(Obsidian.dir / attachment_folder / src)
+    local bufname = vim.api.nvim_buf_get_name(bufnr or 0)
+    local workspace_dir = require("obsidian.api").resolve_workspace_dir(bufname ~= "" and bufname or nil)
+    return tostring(workspace_dir / attachment_folder / src)
   end
 end
 

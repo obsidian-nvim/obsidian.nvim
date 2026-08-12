@@ -2,6 +2,7 @@
 local Path = require "obsidian.path"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
+local api = require "obsidian.api"
 
 ---@param entry string
 ---@return string, integer?, integer?
@@ -20,7 +21,6 @@ local M = {}
 --- Register Obsidian workspace entries with MiniPick.registry.
 M.setup = function()
   local mini_pick = require "mini.pick"
-  local api = require "obsidian.api"
 
   mini_pick.registry.obsidian_files = function(call_opts)
     return mini_pick.builtin.files(call_opts, {
@@ -43,7 +43,7 @@ M.grep = function(opts)
   local mini_pick = require "mini.pick"
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or api.resolve_workspace_dir()
 
   ---@type string[]|?
   local selected

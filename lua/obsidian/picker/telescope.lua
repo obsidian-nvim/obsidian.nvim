@@ -4,6 +4,7 @@ local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -155,7 +156,7 @@ end
 M.grep = function(opts)
   opts = opts or {}
 
-  local cwd = opts.dir and Path.new(opts.dir) or Obsidian.dir
+  local cwd = opts.dir and Path.new(opts.dir) or api.resolve_workspace_dir()
 
   local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,

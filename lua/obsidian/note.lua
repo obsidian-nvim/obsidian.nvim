@@ -254,6 +254,7 @@ end
 Note._resolve_id_path = function(opts)
   local id, dir = opts.id, opts.dir
   local creation_opts = Note._get_creation_opts(opts or {})
+  local workspace_dir = api.resolve_workspace_dir(opts.source_path)
 
   if id then
     id = vim.trim(id)
@@ -271,17 +272,17 @@ Note._resolve_id_path = function(opts)
   ---@type obsidian.Path
   local base_dir
   if parent then
-    base_dir = Path.new(vim.fs.joinpath(tostring(Obsidian.dir), parent))
+    base_dir = Path.new(vim.fs.joinpath(tostring(workspace_dir), parent))
   elseif dir ~= nil then
     base_dir = Path.new(dir)
     if not base_dir:is_absolute() then
-      base_dir = Path.new(vim.fs.joinpath(tostring(Obsidian.dir), tostring(base_dir)))
+      base_dir = Path.new(vim.fs.joinpath(tostring(workspace_dir), tostring(base_dir)))
     else
       base_dir = base_dir:resolve()
     end
   else
     local function is_in_vault(path)
-      return path == Obsidian.dir or Obsidian.dir:is_parent_of(path)
+      return path == workspace_dir or workspace_dir:is_parent_of(path)
     end
 
     local function is_in_daily_notes(path)
@@ -290,12 +291,12 @@ Note._resolve_id_path = function(opts)
         return false
       end
 
-      local daily_notes_dir = Path.new(vim.fs.joinpath(tostring(Obsidian.dir), daily_notes_folder))
+      local daily_notes_dir = Path.new(vim.fs.joinpath(tostring(workspace_dir), daily_notes_folder))
       return path == daily_notes_dir or daily_notes_dir:is_parent_of(path)
     end
 
     if creation_opts.new_notes_location == "current_dir" then
-      local bufname = vim.api.nvim_buf_get_name(0)
+      local bufname = opts.source_path or vim.api.nvim_buf_get_name(0)
       local bufpath = bufname ~= "" and Path.new(bufname):resolve() or nil
       local cwd = Path.new(vim.fn.getcwd(0, 0)):resolve()
 
@@ -309,7 +310,7 @@ Note._resolve_id_path = function(opts)
     end
 
     if base_dir == nil then
-      base_dir = Obsidian.dir
+      base_dir = workspace_dir
       if creation_opts.notes_subdir ~= nil then
         base_dir = Path.new(vim.fs.joinpath(tostring(base_dir), creation_opts.notes_subdir))
       end
@@ -1223,7 +1224,7 @@ end
 ---@return obsidian.BacklinkMatch[]
 Note.backlinks = function(self, opts)
   local backlink_opts = opts or {}
-  backlink_opts.dir = backlink_opts.dir or api.resolve_workspace_dir()
+  backlink_opts.dir = backlink_opts.dir or api.resolve_workspace_dir(self.path or nil)
   return search.find_backlinks(self, backlink_opts)
 end
 
@@ -1231,7 +1232,7 @@ end
 ---@param callback fun(matches: obsidian.BacklinkMatch[])
 Note.backlinks_async = function(self, opts, callback)
   local backlink_opts = opts or {}
-  backlink_opts.dir = backlink_opts.dir or api.resolve_workspace_dir()
+  backlink_opts.dir = backlink_opts.dir or api.resolve_workspace_dir(self.path or nil)
   return search.find_backlinks_async(self, callback, backlink_opts)
 end
 
@@ -1248,7 +1249,7 @@ local function format_path(path, style, base_dir)
   if style == "absolute" then
     return assert(path:vault_relative_path {})
   elseif style == "relative" then
-    base_dir = base_dir or Obsidian.buf_dir or Obsidian.dir
+    base_dir = base_dir or Obsidian.buf_dir or api.resolve_workspace_dir()
     if base_dir == nil then
       return assert(path:vault_relative_path {})
     end
@@ -1476,6 +1477,7 @@ end
 ---@field verbatim boolean|? whether to skip applying `note_id_func`
 ---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
 ---relative to the workspace / vault root.
+---@field source_path string|obsidian.Path|? Source note used to resolve the workspace and current-directory strategy.
 ---@field aliases string[]|? Aliases for the note
 ---@field tags string[]|?  Tags for this note
 ---@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).

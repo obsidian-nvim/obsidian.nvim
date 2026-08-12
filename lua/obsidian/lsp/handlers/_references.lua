@@ -33,7 +33,7 @@ local function tag_loc_to_lsp_location(tag_loc)
   }
 end
 
-local function handle_note_ref(link, callback)
+local function handle_note_ref(link, callback, request_opts)
   local location = util.parse_link(link)
   assert(location, "failed to parse link")
 
@@ -47,7 +47,7 @@ local function handle_note_ref(link, callback)
   local anchor_link
   location, anchor_link = util.strip_anchor_links(location)
 
-  local opts = { anchor = anchor_link, block = block_link }
+  local opts = { anchor = anchor_link, block = block_link, dir = request_opts.dir }
 
   local function find_backlinks(note)
     if note == nil then
@@ -59,7 +59,7 @@ local function handle_note_ref(link, callback)
   end
 
   if location == "" and (anchor_link or block_link) then
-    local note = api.current_note(0, {
+    local note = api.current_note(request_opts.bufnr, {
       collect_anchor_links = anchor_link ~= nil,
       collect_blocks = block_link ~= nil,
     })
@@ -71,6 +71,8 @@ local function handle_note_ref(link, callback)
     search.resolve_note_async(location, function(notes)
       find_backlinks(#notes == 1 and notes[1] or nil)
     end, {
+      dir = request_opts.dir,
+      buf_dir = request_opts.buf_dir,
       notes = {
         collect_anchor_links = anchor_link ~= nil,
         collect_blocks = block_link ~= nil,
@@ -81,12 +83,12 @@ local function handle_note_ref(link, callback)
   end
 end
 
-local handle_footnote = function(link, callback)
+local handle_footnote = function(link, callback, opts)
   local footnotes = require "obsidian.footnotes"
   local id = util.parse_link(link)
   assert(id, "failed to parse footnote")
 
-  local bufnr = vim.api.nvim_get_current_buf()
+  local bufnr = opts.bufnr
   local uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(bufnr))
 
   local locations = vim.tbl_map(function(ref)
@@ -102,14 +104,14 @@ local handle_footnote = function(link, callback)
   callback(locations)
 end
 
-local function handle_tag(tag, callback)
+local function handle_tag(tag, callback, opts)
   search.find_tags_async(tag, function(tag_locs)
     local lsp_locs = vim.tbl_map(tag_loc_to_lsp_location, tag_locs)
     callback(lsp_locs)
-  end)
+  end, { dir = opts.dir })
 end
 
-local function collect_current_note(link, link_type, callback)
+local function collect_current_note(link, link_type, callback, opts)
   local anchor
   local block
 
@@ -119,13 +121,14 @@ local function collect_current_note(link, link_type, callback)
 
   -- Check if cursor is on a header, if so and header parsing is enabled, use that anchor.
   if Obsidian.opts.backlinks.parse_headers then
-    local header_match = util.parse_header(vim.api.nvim_get_current_line())
+    local line = vim.api.nvim_buf_get_lines(opts.bufnr, opts.position.line, opts.position.line + 1, false)[1] or ""
+    local header_match = util.parse_header(line)
     if header_match then
       anchor = header_match.anchor
     end
   end
 
-  local note = api.current_note(0, {
+  local note = api.current_note(opts.bufnr, {
     collect_anchor_links = anchor ~= nil,
     collect_blocks = block ~= nil,
   })
@@ -136,20 +139,20 @@ local function collect_current_note(link, link_type, callback)
 
   search.find_backlinks_async(note, function(backlink_matches)
     callback(nil, vim.tbl_map(backlink_to_lsp_location, backlink_matches))
-  end, { anchor = anchor, block = block })
+  end, { anchor = anchor, block = block, dir = opts.dir })
 end
 
 ---@param include_tag boolean|?
 ---@return string|?
 ---@return obsidian.parse.RefKind|"tag"|"block_id"|?
-local function cursor_ref(include_tag)
-  local link, link_type = api.cursor_link()
+local function cursor_ref(include_tag, opts)
+  local link, link_type = api.cursor_link(opts.bufnr, opts.position)
   if link and link_type then
     return link, link_type
   end
 
-  local line = vim.api.nvim_get_current_line()
-  local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
+  local line = vim.api.nvim_buf_get_lines(opts.bufnr, opts.position.line, opts.position.line + 1, false)[1] or ""
+  local cur_col = opts.position.character
   for _, block in ipairs(parse_block_id.extract(line)) do
     if block.range.start_col <= cur_col and cur_col < block.range.end_col then
       return block.raw, "block_id"
@@ -157,7 +160,7 @@ local function cursor_ref(include_tag)
   end
 
   if include_tag ~= false then
-    local tag = api.cursor_tag()
+    local tag = api.cursor_tag(opts.bufnr, opts.position)
     if tag then
       return tag, "tag"
     end
@@ -165,14 +168,24 @@ local function cursor_ref(include_tag)
 end
 
 ---@param link string|?
----@param opts { tag: boolean }
+---@param opts { tag: boolean, bufnr: integer|?, position: lsp.Position|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }
 ---@param callback fun(_:any, locations: lsp.Location[])
 return function(link, opts, callback)
+  opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  opts.position = opts.position
+    or (function()
+      local cursor = vim.api.nvim_win_get_cursor(0)
+      return { line = cursor[1] - 1, character = cursor[2] }
+    end)()
+  local source_path = vim.api.nvim_buf_get_name(opts.bufnr)
+  opts.dir = opts.dir or api.resolve_workspace_dir(source_path)
+  opts.buf_dir = opts.buf_dir or (source_path ~= "" and vim.fs.dirname(source_path) or nil)
+
   local link_type
   if link then
     link_type = select(3, util.parse_link(link))
   else
-    link, link_type = cursor_ref(opts.tag)
+    link, link_type = cursor_ref(opts.tag, opts)
   end
 
   local wrapped_callback = function(locations)
@@ -180,16 +193,16 @@ return function(link, opts, callback)
   end
 
   if not link then
-    return collect_current_note(nil, nil, callback)
+    return collect_current_note(nil, nil, callback, opts)
   end
 
   if link_type == "markdown" or link_type == "wiki" then
-    handle_note_ref(link, wrapped_callback)
+    handle_note_ref(link, wrapped_callback, opts)
   elseif link_type == "footnote" then
-    handle_footnote(link, wrapped_callback)
+    handle_footnote(link, wrapped_callback, opts)
   elseif link_type == "tag" then
-    handle_tag(link, wrapped_callback)
+    handle_tag(link, wrapped_callback, opts)
   else -- block id is handled here
-    collect_current_note(link, link_type, callback)
+    collect_current_note(link, link_type, callback, opts)
   end
 end

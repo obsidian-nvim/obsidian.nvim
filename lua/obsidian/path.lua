@@ -457,7 +457,7 @@ Path.vault_relative_path = function(self, opts)
   elseif not self:is_absolute() then
     return tostring(self)
   elseif opts.strict then
-    error(string.format("failed to resolve '%s' relative to vault root '%s'", self, Obsidian.workspace.root))
+    error(string.format("failed to resolve '%s' relative to vault root '%s'", self, root))
   end
 end
 

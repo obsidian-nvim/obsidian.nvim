@@ -4,6 +4,7 @@ local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
+local api = require "obsidian.api"
 
 ---@param prompt_title string|?
 ---@return string|?
@@ -29,7 +30,6 @@ local M = {}
 --- Register Obsidian workspace providers with fzf-lua.
 M.setup = function()
   local fzf = require "fzf-lua"
-  local api = require "obsidian.api"
 
   fzf.register_extension("obsidian_files", function(opts)
     opts = opts or {}
@@ -175,7 +175,7 @@ M.grep = function(opts)
   local fzf = require "fzf-lua"
 
   ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or Obsidian.dir
+  local dir = opts.dir and Path.new(opts.dir) or api.resolve_workspace_dir()
   local cmd = table.concat(search.build_grep_cmd(), " ")
   local actions = get_selection_actions {
     callback = opts.callback or ut.open_notes,

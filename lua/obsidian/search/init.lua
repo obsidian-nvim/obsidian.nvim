@@ -4,6 +4,7 @@ local log = require "obsidian.log"
 local async = require "obsidian.async"
 local fs = require "obsidian.fs"
 local gitignore = require("obsidian.lib.glob").gitignore
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -137,7 +138,11 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
   opts = vim.deepcopy(opts or {})
 
-  if Obsidian and Obsidian.dir and Obsidian.opts and util.is_subpath(tostring(norm_dir), tostring(Obsidian.dir)) then
+  if
+    Obsidian
+    and Obsidian.opts
+    and util.is_subpath(tostring(norm_dir), tostring(api.resolve_workspace_dir(norm_dir)))
+  then
     local ignore_filters = Obsidian.opts.file and Obsidian.opts.file.ignore_filters or {}
     opts.exclude = opts.exclude or {}
     for _, pattern in ipairs(ignore_filters) do
@@ -238,7 +243,7 @@ local _search_async = function(term, dir, search_opts, find_opts, callback, exit
   local found = {}
   local result = {}
   local cmds_done = 0
-  dir = dir or Obsidian.dir
+  dir = dir or api.resolve_workspace_dir()
 
   local function dedup_send(path)
     local key = tostring(path:resolve { strict = true })
@@ -372,7 +377,7 @@ end
 
 ---@param query string
 ---@param callback fun(notes: obsidian.Note[])
----@param opts { notes: obsidian.note.LoadOpts|? }|?
+---@param opts { notes: obsidian.note.LoadOpts|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
 M.resolve_note_async = function(query, callback, opts)
   callback = vim.schedule_wrap(callback)
   opts = opts or {}
@@ -381,11 +386,12 @@ M.resolve_note_async = function(query, callback, opts)
     opts.notes.max_lines = Obsidian.opts.search.max_lines
   end
   local Note = require "obsidian.note"
+  local workspace_dir = Path.new(opts.dir or api.resolve_workspace_dir())
 
   -- Autocompletion for command args will have this format.
   local note_path, count = string.gsub(query, "^.*  ", "")
   if count > 0 then
-    local full_path = Obsidian.dir / note_path
+    local full_path = workspace_dir / note_path
     callback { Note.from_file(full_path, opts.notes) }
     return
   end
@@ -404,23 +410,24 @@ M.resolve_note_async = function(query, callback, opts)
   })
   local paths_found = {}
 
-  if Obsidian.buf_dir ~= nil then
-    local note_in_current_buf_dir = Obsidian.buf_dir / fname
+  local buf_dir = opts.buf_dir or (opts.dir == nil and Obsidian.buf_dir or nil)
+  if buf_dir ~= nil then
+    local note_in_current_buf_dir = Path.new(buf_dir) / fname
     paths_lookup[note_in_current_buf_dir] = true
   end
 
   if Obsidian.opts.notes_subdir ~= nil then
-    local note_in_notes_subdir = Obsidian.dir / Obsidian.opts.notes_subdir / fname
+    local note_in_notes_subdir = workspace_dir / Obsidian.opts.notes_subdir / fname
     paths_lookup[note_in_notes_subdir] = true
   end
 
   if Obsidian.opts.daily_notes.folder ~= nil then
-    local notes_in_daily_notes_dir = Obsidian.dir / Obsidian.opts.daily_notes.folder / fname
+    local notes_in_daily_notes_dir = workspace_dir / Obsidian.opts.daily_notes.folder / fname
     paths_lookup[notes_in_daily_notes_dir] = true
   end
 
   local note_with_absolute_path = Path.new(fname)
-  local note_in_vault_root = Obsidian.dir / fname
+  local note_in_vault_root = workspace_dir / fname
 
   paths_lookup[note_with_absolute_path] = true
   paths_lookup[note_in_vault_root] = true
@@ -478,17 +485,17 @@ M.resolve_note_async = function(query, callback, opts)
     else
       callback(fuzzy_matches)
     end
-  end, { search = { ignore_case = true }, notes = opts.notes })
+  end, { dir = workspace_dir, search = { ignore_case = true }, notes = opts.notes })
 end
 
 ---@param query string
----@param opts { notes: obsidian.note.LoadOpts|?, timeout: integer|? }|?
+---@param opts { notes: obsidian.note.LoadOpts|?, timeout: integer|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
 ---@return obsidian.Note[]
 M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    M.resolve_note_async(query, cb, { notes = opts.notes })
+    M.resolve_note_async(query, cb, { notes = opts.notes, dir = opts.dir, buf_dir = opts.buf_dir })
   end, opts.timeout)
   ---@cast result obsidian.Note[]?
   return result or {}
@@ -642,7 +649,7 @@ M.find_backlinks_async = function(note, callback, opts)
   -- vim.validate("callback", callback, "function")
   callback = vim.schedule_wrap(callback)
   opts = opts or {}
-  local dir = opts.dir or Obsidian.dir
+  local dir = opts.dir or (note and api.resolve_workspace_dir(note.path)) or api.resolve_workspace_dir()
   local block = opts.block and util.standardize_block(opts.block) or nil
   local anchor = opts.anchor and util.standardize_anchor(opts.anchor) or nil
   local anchor_obj
@@ -965,7 +972,7 @@ M.find_tags_async = function(term, callback, opts)
   end
 
   M.search_async(
-    opts.dir or Obsidian.dir,
+    opts.dir or api.resolve_workspace_dir(),
     search_terms,
     Opts._prepare(opts.search, { ignore_case = true }),
     on_match,
