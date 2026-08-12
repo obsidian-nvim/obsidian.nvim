@@ -1,6 +1,6 @@
 ---@diagnostic disable: unresolved-require
-local Path = require "obsidian.path"
 local Picker = require "obsidian.picker"
+local Path = require "obsidian.path"
 local ut = require "obsidian.picker.util"
 local api = require "obsidian.api"
 
@@ -35,22 +35,19 @@ M.setup = function()
   end
 end
 
----@param opts obsidian.PickerGrepOpts|? Options.
+---@param opts obsidian.PickerGrepOpts Options.
 M.grep = function(opts)
-  opts = opts and opts or {}
+  vim.validate("opts", opts, "table")
   local callback = opts.callback or ut.open_notes
 
   local mini_pick = require "mini.pick"
-
-  ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or api.resolve_workspace_dir()
 
   ---@type string[]|?
   local selected
   local pick_opts = {
     source = {
       name = opts.prompt_title,
-      cwd = tostring(dir),
+      cwd = tostring(opts.dir),
       choose = function(item)
         selected = { item }
       end,
@@ -73,7 +70,7 @@ M.grep = function(opts)
     callback(vim.tbl_map(function(item)
       local path, lnum, col = clean_path(item)
       return {
-        filename = tostring(dir / path),
+        filename = tostring(Path.new(opts.dir) / path),
         lnum = lnum,
         col = col,
       }

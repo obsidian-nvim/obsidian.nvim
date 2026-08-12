@@ -8,13 +8,13 @@ local M = {}
 --- Get the path to a daily note.
 ---
 ---@param datetime integer|?
----@param source_path string|obsidian.Path|?
+---@param dir string|obsidian.Path|? Vault root in which to resolve the daily note.
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
-M.daily_note_path = function(datetime, source_path)
+M.daily_note_path = function(datetime, dir)
   datetime = datetime and datetime or os.time()
 
   ---@type obsidian.Path
-  local path = Path.new(api.resolve_workspace_dir(source_path))
+  local path = Path.new(dir or api.resolve_workspace_dir()):resolve()
 
   local options = Obsidian.opts
 
@@ -42,14 +42,14 @@ end
 --- must call `note:write { template = ... }` themselves.
 ---
 ---@param datetime integer
----@param opts { load: obsidian.note.LoadOpts|?, source_path: string|obsidian.Path|? }|?
+---@param opts { load: obsidian.note.LoadOpts|?, dir: string|obsidian.Path|? }|?
 ---
 ---@return obsidian.Note
 ---
 local _daily = function(datetime, opts)
   opts = opts or {}
 
-  local path, id = M.daily_note_path(datetime, opts.source_path)
+  local path, id = M.daily_note_path(datetime, opts.dir)
 
   local options = Obsidian.opts
 
@@ -125,7 +125,7 @@ end
 ---@field offset? integer Offset in days from today (e.g. -1 for yesterday,
 ---@field date? integer|? Specific date as a timestamp (overrides offset)
 ---@field load? obsidian.note.LoadOpts|? Options to pass to Note.from_file when loading an existing note
----@field source_path? string|obsidian.Path Source note used to resolve the workspace
+---@field dir? string|obsidian.Path Vault root in which to resolve the daily note
 
 --- Open (or create) the daily note for today + `offset_days`.
 ---

@@ -73,7 +73,7 @@ end
 ---@class obsidian.PickerGrepOpts
 ---
 ---@field prompt_title string|?
----@field dir string|obsidian.Path|?
+---@field dir string|obsidian.Path
 ---@field query string|?
 ---@field callback fun(entries: obsidian.PickerEntry[])|?
 ---@field no_default_mappings boolean|?

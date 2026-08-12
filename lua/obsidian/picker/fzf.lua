@@ -1,6 +1,5 @@
 ---@diagnostic disable: unresolved-require
 local search = require "obsidian.search"
-local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
@@ -168,14 +167,12 @@ local function get_value_actions(entry_to_value_map, opts)
   return actions
 end
 
----@param opts obsidian.PickerGrepOpts|? Options.
+---@param opts obsidian.PickerGrepOpts Options.
 M.grep = function(opts)
-  opts = opts and opts or {}
+  vim.validate("opts", opts, "table")
 
   local fzf = require "fzf-lua"
 
-  ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or api.resolve_workspace_dir()
   local cmd = table.concat(search.build_grep_cmd(), " ")
   local actions = get_selection_actions {
     callback = opts.callback or ut.open_notes,
@@ -186,7 +183,7 @@ M.grep = function(opts)
 
   if opts.query and string.len(opts.query) > 0 then
     fzf.grep {
-      cwd = tostring(dir),
+      cwd = tostring(opts.dir),
       search = opts.query,
       cmd = cmd,
       actions = actions,
@@ -194,7 +191,7 @@ M.grep = function(opts)
     }
   else
     fzf.live_grep {
-      cwd = tostring(dir),
+      cwd = tostring(opts.dir),
       cmd = cmd,
       actions = actions,
       prompt = format_prompt(opts.prompt_title),

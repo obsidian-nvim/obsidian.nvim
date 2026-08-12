@@ -1,10 +1,8 @@
 ---@diagnostic disable: unresolved-require
 local search = require "obsidian.search"
-local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
-local api = require "obsidian.api"
 
 local M = {}
 
@@ -152,11 +150,9 @@ local function attach_picker_mappings(map, opts)
   end
 end
 
----@param opts obsidian.PickerGrepOpts|? Options.
+---@param opts obsidian.PickerGrepOpts Options.
 M.grep = function(opts)
-  opts = opts or {}
-
-  local cwd = opts.dir and Path.new(opts.dir) or api.resolve_workspace_dir()
+  vim.validate("opts", opts, "table")
 
   local prompt_title = ut.build_prompt {
     prompt_title = opts.prompt_title,
@@ -180,7 +176,7 @@ M.grep = function(opts)
   if opts.query and string.len(opts.query) > 0 then
     require("telescope.builtin").grep_string {
       prompt_title = prompt_title,
-      cwd = tostring(cwd),
+      cwd = tostring(opts.dir),
       vimgrep_arguments = search.build_grep_cmd(),
       search = opts.query,
       attach_mappings = attach_mappings,
@@ -188,7 +184,7 @@ M.grep = function(opts)
   else
     require("telescope.builtin").live_grep {
       prompt_title = prompt_title,
-      cwd = tostring(cwd),
+      cwd = tostring(opts.dir),
       vimgrep_arguments = search.build_grep_cmd(),
       attach_mappings = attach_mappings,
     }

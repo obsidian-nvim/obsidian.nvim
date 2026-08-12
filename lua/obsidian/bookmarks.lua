@@ -196,6 +196,7 @@ local function open_bookmark(bookmark)
     -- TODO: proper obsidian search term parser and search
     picker.grep {
       query = bookmark.query,
+      dir = api.resolve_workspace_dir(),
     }
   elseif bookmark.type == "file" then
     api.open_note(bookmark_to_picker_entry(bookmark))

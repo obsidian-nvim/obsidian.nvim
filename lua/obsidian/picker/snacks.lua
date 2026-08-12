@@ -1,7 +1,6 @@
 ---@diagnostic disable: unresolved-require
 local search = require "obsidian.search"
 local Picker = require "obsidian.picker"
-local Path = require "obsidian.path"
 local ut = require "obsidian.picker.util"
 local api = require "obsidian.api"
 
@@ -132,12 +131,10 @@ M.setup = function()
   })
 end
 
----@param opts obsidian.PickerGrepOpts|? Options.
+---@param opts obsidian.PickerGrepOpts Options.
 M.grep = function(opts)
-  opts = opts or {}
+  vim.validate("opts", opts, "table")
 
-  ---@type obsidian.Path
-  local dir = opts.dir and Path.new(opts.dir) or api.resolve_workspace_dir()
   local map = vim.tbl_deep_extend(
     "force",
     {},
@@ -155,7 +152,7 @@ M.grep = function(opts)
     search = opts.query,
     source = "grep",
     title = opts.prompt_title,
-    cwd = tostring(dir),
+    cwd = tostring(opts.dir),
     cmd = cmd,
     args = args,
     confirm = function(picker)

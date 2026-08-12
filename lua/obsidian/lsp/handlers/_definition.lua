@@ -63,6 +63,7 @@ local function create_new_note(location, callback, opts)
 
   local source_path = vim.api.nvim_buf_get_name(bufnr)
   local action_opts = { source_path = source_path ~= "" and source_path or nil }
+  local workspace_dir = api.resolve_workspace_dir(action_opts.source_path)
   local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
     actions.new(location, function(note)
@@ -76,8 +77,9 @@ local function create_new_note(location, callback, opts)
     end, action_opts)
     return
   elseif confirm == "Yes as Unique Note" then
-    local note =
-      require("obsidian.unique").new_unique_note(nil, { title = location, source_path = action_opts.source_path })
+    local unique_dir = Obsidian.opts.unique_note.folder and workspace_dir / Obsidian.opts.unique_note.folder
+      or workspace_dir
+    local note = require("obsidian.unique").new_unique_note(nil, { title = location, dir = unique_dir })
     if note then
       update_link(note)
       callback { note:_location() }

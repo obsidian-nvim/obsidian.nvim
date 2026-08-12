@@ -27,6 +27,14 @@ T["daily_note_path"]["should support moment date_format"] = function()
   Obsidian.opts.daily_notes.date_format = previous
 end
 
+T["daily_note_path"]["should resolve from an explicit vault directory"] = function()
+  local dir = Obsidian.dir / "nested-vault"
+  dir:mkdir()
+
+  local note = M.daily { date = os.time(), dir = dir }
+  eq(true, dir:is_parent_of(note.path))
+end
+
 T["daily_note_path"]["should be able to initialize a daily note"] = function()
   local note = M.today()
   eq(true, note.path ~= nil)
