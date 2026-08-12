@@ -517,7 +517,9 @@ end
 ---
 ---@param id       string |?
 ---@param callback fun(note: obsidian.Note) |?
-M.new = function(id, callback)
+---@param opts? { source_path: string|obsidian.Path|? }
+M.new = function(id, callback, opts)
+  opts = opts or {}
   if not id then
     id = api.input("Enter id or path (optional): ", { completion = "file" })
     if not id then
@@ -527,7 +529,7 @@ M.new = function(id, callback)
     end
   end
 
-  local note = Note.create { id = id, template = Obsidian.opts.note.template }
+  local note = Note.create { id = id, template = Obsidian.opts.note.template, source_path = opts.source_path }
   note:write()
 
   if callback then
@@ -543,14 +545,17 @@ end
 ---@param id       string |?
 ---@param template string |?
 ---@param callback fun(note: obsidian.Note) |?
-M.new_from_template = function(id, template, callback)
-  local templates_dir = api.templates_dir()
+---@param opts? { source_path: string|obsidian.Path|? }
+M.new_from_template = function(id, template, callback, opts)
+  opts = opts or {}
+  local workspace = opts.source_path and api.find_workspace(opts.source_path) or nil
+  local templates_dir = api.templates_dir(workspace)
   if not templates_dir then
     return log.err "Templates folder is not defined or does not exist"
   end
 
   if id ~= nil and template ~= nil then
-    local note = Note.create { id = id, template = template }
+    local note = Note.create { id = id, template = template, source_path = opts.source_path }
     note:write()
     if callback then
       callback(note)
@@ -586,7 +591,7 @@ M.new_from_template = function(id, template, callback)
       end
 
       ---@type obsidian.Note
-      local note = Note.create { id = id, template = template_path }
+      local note = Note.create { id = id, template = template_path, source_path = opts.source_path }
       note:write()
 
       if callback then
@@ -791,7 +796,7 @@ end
 --- Pick a folder under the vault root.
 ---@param callback fun(directory: string, text: string)
 local function pick_folder(callback)
-  local root = tostring(Obsidian.workspace.root)
+  local root = tostring(api.resolve_workspace_dir())
   local choices = { { filename = root, text = "/" } }
 
   ---@diagnostic disable-next-line: param-type-mismatch

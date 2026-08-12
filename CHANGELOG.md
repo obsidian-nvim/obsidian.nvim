@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fallback interactive UI for `picker.select`.
 - `require"obsidian.picker.PICKER_NAME".setup()` to add `obsidian_files` and `obsidian_grep` sources for pickers.
 - Experimental Inlay Hints support when cache is enabled, suggesting potential links, use `smart_action` to accept.
+- Multi-workspace aware note resolution: `api.find_workspace` now matches the most specific workspace for any path (including non-note and non-existent paths).
+- Optional `source_path` for note creation, resolving workspace-specific config (`note_id_func`, `note_path_func`, `notes_subdir`, `new_notes_location`) and the `current_dir` strategy.
+- Optional `dir` argument on `daily_note_path`, `new_unique_id`, and `new_unique_note` to resolve against a specific workspace/folder.
+- Optional `bufnr` and `position` arguments on `api.cursor_link` / `api.cursor_tag`.
 
 ### Fixed
 
@@ -21,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Picker will apply `format_item` consistently.
 - Cache will be triggered by buffer writes.
 - Fixed `attempt to index local 'pos' (a nil value)` error in `:Obsidian toc` by dropping redundant `pos` passing to `vim.lsp.buf.document_symbol`.
+- `api.path_is_note` now checks proper path containment instead of substring matching.
+- `api.templates_dir` resolves against the given workspace root.
+- Search and backlink lookup now resolve the workspace from the searched/note path, and `find_async` applies that workspace's `file.ignore_filters`.
+- `Workspace.set` keeps the single-vault cache aligned when switching workspaces.
 
 ### Changed
 

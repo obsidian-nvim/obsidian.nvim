@@ -2,6 +2,7 @@ local log = require "obsidian.log"
 local Path = require "obsidian.path"
 local picker = require "obsidian.picker"
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -98,7 +99,7 @@ end
 ---@param datetime integer
 ---@return obsidian.Path
 local function daily_note_path(datetime)
-  local path = Path.new(Obsidian.dir)
+  local path = Path.new(api.resolve_workspace_dir())
   local options = Obsidian.opts
 
   if options.daily_notes.folder ~= nil then

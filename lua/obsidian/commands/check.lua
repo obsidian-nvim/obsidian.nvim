@@ -8,8 +8,9 @@ return function()
   local count = 0
   local errors = {}
   local warnings = {}
+  local dir = api.resolve_workspace_dir()
 
-  for path in api.dir(Obsidian.dir) do
+  for path in api.dir(dir) do
     local relative_path = Path.new(path):vault_relative_path { strict = true }
     local ok, res = pcall(Note.from_file, path)
 

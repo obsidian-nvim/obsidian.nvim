@@ -73,7 +73,7 @@ end
 ---@class obsidian.PickerGrepOpts
 ---
 ---@field prompt_title string|?
----@field dir string|obsidian.Path|?
+---@field dir string|obsidian.Path
 ---@field query string|?
 ---@field callback fun(entries: obsidian.PickerEntry[])|?
 ---@field no_default_mappings boolean|?
@@ -168,8 +168,9 @@ M.find_files_from_cache = function(opts)
     return false
   end
 
-  local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(Obsidian.dir))
-  if not util.is_subpath(dir, tostring(Obsidian.dir)) then
+  local workspace_dir = api.resolve_workspace_dir()
+  local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(workspace_dir))
+  if not util.is_subpath(dir, tostring(workspace_dir)) then
     return false
   end
 
@@ -314,7 +315,7 @@ M.find_notes = function(opts)
   return M.find_files {
     query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
-    dir = opts.dir or Obsidian.dir,
+    dir = opts.dir or api.resolve_workspace_dir(),
     callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
@@ -346,7 +347,7 @@ M.grep_notes = function(opts)
 
   M.grep {
     prompt_title = opts.prompt_title or "Grep notes",
-    dir = opts.dir or Obsidian.dir,
+    dir = opts.dir or api.resolve_workspace_dir(),
     query = opts.query,
     callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,

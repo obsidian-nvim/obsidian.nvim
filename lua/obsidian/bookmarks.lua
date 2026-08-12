@@ -167,7 +167,7 @@ end
 
 ---@return string?
 M.resolve_bookmark_file = function()
-  local bookmark_file = Obsidian.workspace.root / ".obsidian" / "bookmarks.json"
+  local bookmark_file = api.resolve_workspace_dir() / ".obsidian" / "bookmarks.json"
 
   if not bookmark_file:exists() then
     log.info "bookmark file does not exist, adding and managing bookmarks is not supported yet"
@@ -196,6 +196,7 @@ local function open_bookmark(bookmark)
     -- TODO: proper obsidian search term parser and search
     picker.grep {
       query = bookmark.query,
+      dir = api.resolve_workspace_dir(),
     }
   elseif bookmark.type == "file" then
     api.open_note(bookmark_to_picker_entry(bookmark))
@@ -210,9 +211,10 @@ end
 ---@param bookmarks obsidian.Bookmark[]
 M.pick = function(bookmarks)
   local filtered = {}
+  local workspace_dir = api.resolve_workspace_dir()
   for _, bm in ipairs(bookmarks) do
     if bm.path then
-      bm._path = tostring(Obsidian.dir / bm.path)
+      bm._path = tostring(workspace_dir / bm.path)
     end
     if not bm.path or vim.uv.fs_stat(bm._path) ~= nil then
       filtered[#filtered + 1] = bm

@@ -11,6 +11,27 @@ T["state"]["should expose picker module for backwards compatibility"] = function
   eq(true, child.lua [[return Obsidian["picker"] == require("obsidian.picker")]])
 end
 
+T["workspace resolution"] = new_set()
+
+T["workspace resolution"]["should resolve non-note and nonexistent paths in the most specific workspace"] = function()
+  eq(
+    { "nested", "nested" },
+    child.lua [[
+    local nested = Obsidian.dir / "nested"
+    nested:mkdir()
+    Obsidian.workspaces[#Obsidian.workspaces + 1] = require("obsidian.workspace").new {
+      name = "nested",
+      path = nested,
+      strict = true,
+    }
+    return {
+      M.resolve_workspace_dir(nested / "attachment.png").name,
+      M.resolve_workspace_dir(nested / "future" / "note.md").name,
+    }
+  ]]
+  )
+end
+
 T["toggle_checkbox"] = new_set()
 
 T["toggle_checkbox"]["should toggle between default states with - lists"] = function()

@@ -161,6 +161,9 @@ Workspace.set = function(workspace)
     (dir / options.daily_notes.folder):mkdir { parents = true }
   end
 
+  -- Keep the single-vault cache aligned with the selected workspace.
+  require("obsidian.cache").setup(options.cache)
+
   -- Setup UI add-ons.
   local has_no_renderer = not (api.get_plugin_info "render-markdown.nvim" or api.get_plugin_info "markview.nvim")
   if has_no_renderer and (options.ui.enable or options.ui.enabled) then

@@ -13,6 +13,20 @@ local parse_tags = require "obsidian.parse.tags"
 
 M.dir = require("obsidian.fs").dir
 
+--- Get the normalized options for a workspace without changing the active workspace.
+---@param workspace obsidian.Workspace|?
+---@return obsidian.config.Internal
+M._workspace_opts = function(workspace)
+  workspace = workspace or Obsidian.workspace
+  if workspace == Obsidian.workspace then
+    return Obsidian.opts
+  end
+
+  local overrides = workspace.overrides or {}
+  ---@cast overrides obsidian.config
+  return config.normalize(overrides, Obsidian._opts)
+end
+
 --- TODO: will not work if plugin is managed by nix
 ---
 ---@return obsidian.Path|?
@@ -32,18 +46,14 @@ end
 ---@param workspace obsidian.Workspace?
 ---@return obsidian.Path|?
 M.templates_dir = function(workspace)
-  local opts = Obsidian.opts
-
-  if workspace and workspace ~= Obsidian.workspace then
-    ---@diagnostic disable-next-line: param-type-mismatch
-    opts = config.normalize(workspace.overrides or {}, Obsidian._opts)
-  end
+  local opts = M._workspace_opts(workspace)
 
   if (not opts.templates.enabled) or opts.templates == nil or opts.templates.folder == nil then
     return nil
   end
 
-  local paths_to_check = { Obsidian.workspace.root / opts.templates.folder, Path.new(opts.templates.folder) }
+  local paths_to_check =
+    { (workspace or Obsidian.workspace).root / opts.templates.folder, Path.new(opts.templates.folder) }
   for _, path in ipairs(paths_to_check) do
     if path:is_dir() then
       return path
@@ -63,7 +73,7 @@ M.path_is_note = function(path, workspace)
   path = Path.new(path):resolve()
   workspace = workspace or Obsidian.workspace
 
-  local in_vault = path.filename:find(vim.pesc(tostring(workspace.root))) ~= nil
+  local in_vault = util.is_subpath(path.filename, tostring(workspace.root))
   if not in_vault then
     return false
   end
@@ -87,15 +97,19 @@ M.path_is_note = function(path, workspace)
   return true
 end
 
--- find workspaces of a path
+---Find the most specific workspace containing a path.
 ---@param path string|obsidian.Path
 ---@return obsidian.Workspace|?
 M.find_workspace = function(path)
-  for _, ws in ipairs(Obsidian.workspaces) do
-    if M.path_is_note(path, ws) then
-      return ws
+  local normalized = vim.fs.normalize(tostring(Path.new(path):resolve()))
+  local match
+  for _, ws in ipairs(Obsidian.workspaces or {}) do
+    local root = vim.fs.normalize(tostring(ws.root))
+    if util.is_subpath(normalized, root) and (not match or #root > #tostring(match.root)) then
+      match = ws
     end
   end
+  return match
 end
 
 ---@param path string|obsidian.Path|?
@@ -112,8 +126,11 @@ M.resolve_workspace_dir = function(path)
   end
   if ws then
     return ws.root
-  else
+  elseif Obsidian.workspace then
     return Obsidian.workspace.root
+  else
+    -- Keep compatibility with callers that provide the legacy state shape.
+    return Obsidian.dir
   end
 end
 
@@ -126,7 +143,9 @@ end
 M.current_note = function(bufnr, opts)
   bufnr = bufnr or 0
   local Note = require "obsidian.note"
-  if not M.find_workspace(vim.api.nvim_buf_get_name(bufnr)) then
+  local path = vim.api.nvim_buf_get_name(bufnr)
+  local workspace = M.find_workspace(path)
+  if not workspace or not M.path_is_note(path, workspace) then
     return nil
   end
 
@@ -146,14 +165,22 @@ M.get_active_window_cursor_location = function()
   return location
 end
 
----Return the full link under cursor
----
+---Return the full link under a cursor position.
+---@param bufnr integer|?
+---@param position lsp.Position|? 0-indexed; defaults to the active window cursor.
 ---@return string? link
 ---@return obsidian.parse.RefKind? link_type
 ---@return [integer, integer]? range
-M.cursor_link = function()
-  local line = vim.api.nvim_get_current_line()
-  local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
+M.cursor_link = function(bufnr, position)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local row, cur_col
+  if position then
+    row, cur_col = position.line, position.character
+  else
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    row, cur_col = cursor[1] - 1, cursor[2]
+  end
+  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
 
   for _, ref in ipairs(parse_refs.extract(line)) do
     if ref.range.start_col <= cur_col and cur_col < ref.range.end_col then
@@ -165,11 +192,20 @@ M.cursor_link = function()
   end
 end
 
----Get the tag under the cursor, if there is one.
+---Get the tag under a cursor position, if there is one.
+---@param bufnr integer|?
+---@param position lsp.Position|?
 ---@return string?
-M.cursor_tag = function()
-  local current_line = vim.api.nvim_get_current_line()
-  local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
+M.cursor_tag = function(bufnr, position)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local current_line, cur_col
+  if position then
+    current_line = vim.api.nvim_buf_get_lines(bufnr, position.line, position.line + 1, false)[1] or ""
+    cur_col = position.character
+  else
+    current_line = vim.api.nvim_get_current_line()
+    cur_col = vim.api.nvim_win_get_cursor(0)[2]
+  end
 
   for _, tag in ipairs(parse_tags.extract(current_line)) do
     if tag.range.start_col <= cur_col and cur_col < tag.range.end_col then
@@ -182,7 +218,7 @@ M.cursor_tag = function()
   if type(cword) ~= "string" then
     return nil
   end
-  local note = Note.from_buffer(0, { max_lines = 100 })
+  local note = Note.from_buffer(bufnr, { max_lines = 100 })
   if note and vim.list_contains(note.tags, cword) then
     return cword
   end

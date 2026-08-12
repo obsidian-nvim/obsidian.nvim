@@ -660,6 +660,61 @@ T["resolve_id_path"]["should respect configured 'note_path_func'"] = function()
   eq(Path.new(Obsidian.dir) / "foo-bar-123.md", path)
 end
 
+T["resolve_id_path"]["should use creation options from the source workspace"] = function()
+  local other = Path.temp { suffix = "-obsidian-other" }
+  other:mkdir { parents = true }
+  other = other:resolve { strict = true }
+  local workspace = require("obsidian.workspace").new {
+    name = "other",
+    path = other,
+    strict = true,
+    overrides = {
+      notes_subdir = "other-notes",
+      new_notes_location = "notes_subdir",
+      note_id_func = function()
+        return "other-id"
+      end,
+      note_path_func = function(spec)
+        return spec.dir / (spec.id .. "-other")
+      end,
+    },
+  }
+  Obsidian.workspaces[#Obsidian.workspaces + 1] = workspace
+
+  local id, path = M._resolve_id_path { id = "Foo", source_path = other / "Source.md" }
+
+  eq("other-id", id)
+  eq(other / "other-notes" / "other-id-other.md", path)
+  vim.fn.delete(tostring(other), "rf")
+end
+
+T["resolve_id_path"]["should validate a source note against its own workspace"] = function()
+  local other = Path.temp { suffix = "-obsidian-other" }
+  local source_dir = other / "topic"
+  source_dir:mkdir { parents = true }
+  other = other:resolve { strict = true }
+  source_dir = other / "topic"
+  local source = source_dir / "Source.md"
+  vim.fn.writefile({}, tostring(source))
+  local workspace = require("obsidian.workspace").new {
+    name = "other",
+    path = other,
+    strict = true,
+    overrides = {
+      new_notes_location = "current_dir",
+      note_id_func = function(id)
+        return id
+      end,
+    },
+  }
+  Obsidian.workspaces[#Obsidian.workspaces + 1] = workspace
+
+  local _, path = M._resolve_id_path { id = "Foo", source_path = source }
+
+  eq(source_dir / "Foo.md", path)
+  vim.fn.delete(tostring(other), "rf")
+end
+
 T["resolve_id_path"]["should ensure result of 'note_path_func' always has '.md' suffix"] = function()
   Obsidian.opts.note_path_func = function(spec)
     return spec.dir / "foo-bar-123"

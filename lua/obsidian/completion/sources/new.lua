@@ -1,6 +1,7 @@
 local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -70,7 +71,9 @@ function M.process_completion(callback, request)
   ---@type { label: string, note: obsidian.Note }[]
   local new_notes_opts = {}
 
-  local note = Note.create { id = term, template = Obsidian.opts.note.template }
+  local source_path = vim.api.nvim_buf_get_name(request.bufnr)
+  local workspace_dir = api.resolve_workspace_dir(source_path)
+  local note = Note.create { id = term, template = Obsidian.opts.note.template, source_path = source_path }
   if note.id and string.len(note.id) > 0 then
     new_notes_opts[#new_notes_opts + 1] = { label = term, note = note }
   end
@@ -78,7 +81,7 @@ function M.process_completion(callback, request)
   -- Check for datetime macros.
   for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
     if dt_offset.cadence == "daily" then
-      note = require("obsidian.daily").daily { offset = dt_offset.offset }
+      note = require("obsidian.daily").daily { offset = dt_offset.offset, dir = workspace_dir }
       if not note:exists() then
         new_notes_opts[#new_notes_opts + 1] = { label = dt_offset.macro, note = note }
       end
@@ -108,6 +111,7 @@ function M.process_completion(callback, request)
       label = new_note_opts.label,
       anchor = anchor,
       block = block,
+      dir = source_path ~= "" and vim.fs.dirname(source_path) or nil,
     }
     local documentation = {
       kind = "markdown",

@@ -7,9 +7,10 @@ local log = obsidian.log
 local api = obsidian.api
 
 ---@param name string
+---@param dir string|obsidian.Path|?
 ---@return boolean
-M.validate = function(name)
-  for path in api.dir(Obsidian.dir) do
+M.validate = function(name, dir)
+  for path in api.dir(dir or api.resolve_workspace_dir()) do
     path = Path.new(path)
     if name == path.stem then
       return false
@@ -33,7 +34,7 @@ end
 
 ---@param note obsidian.Note
 ---@param new_name string
----@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|? }
+---@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|?, dir: string|obsidian.Path|? }
 ---@param callback fun(edit: lsp.WorkspaceEdit|?, meta: { count: integer, path_lookup: table<string, boolean>, buf_list: integer[], old_path: string, new_path: string })
 M.build_edit = function(note, new_name, opts, callback)
   opts = opts or {}
@@ -51,7 +52,8 @@ M.build_edit = function(note, new_name, opts, callback)
     return #a > #b
   end)
 
-  search_note:backlinks_async({ refs = search_refs }, function(matches)
+  local backlink_opts = { refs = search_refs, dir = opts.dir or api.resolve_workspace_dir(old_path) }
+  search_note:backlinks_async(backlink_opts, function(matches)
     local count = 0
     local path_lookup = {}
     local buf_list = {}
@@ -167,7 +169,7 @@ end
 ---@param note obsidian.Note
 ---@param new_name string
 ---@param callback function -- TODO:
----@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|? }
+---@param opts? { old_path: string|?, new_path: string|?, include_file_rename: boolean|?, dir: string|obsidian.Path|? }
 M.rename = function(note, new_name, callback, opts)
   opts = opts or {}
 
@@ -206,7 +208,7 @@ M.rename = function(note, new_name, callback, opts)
         vim.cmd("edit " .. vim.fn.fnameescape(current_file))
       end
 
-      require("obsidian.lsp").start(vim.api.nvim_get_current_buf())
+      require("obsidian.lsp").start(note.bufnr or vim.api.nvim_get_current_buf())
 
       log.info("renamed " .. meta.count .. " reference(s) across " .. vim.tbl_count(meta.path_lookup) .. " file(s)")
     end)
