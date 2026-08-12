@@ -663,6 +663,7 @@ end
 T["resolve_id_path"]["should use creation options from the source workspace"] = function()
   local other = Path.temp { suffix = "-obsidian-other" }
   other:mkdir { parents = true }
+  other = other:resolve { strict = true }
   local workspace = require("obsidian.workspace").new {
     name = "other",
     path = other,
@@ -691,6 +692,8 @@ T["resolve_id_path"]["should validate a source note against its own workspace"] 
   local other = Path.temp { suffix = "-obsidian-other" }
   local source_dir = other / "topic"
   source_dir:mkdir { parents = true }
+  other = other:resolve { strict = true }
+  source_dir = other / "topic"
   local source = source_dir / "Source.md"
   vim.fn.writefile({}, tostring(source))
   local workspace = require("obsidian.workspace").new {

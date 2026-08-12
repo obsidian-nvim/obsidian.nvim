@@ -163,6 +163,7 @@ T["find_async applies ignore filters from the searched workspace"] = function()
   local Path = require "obsidian.path"
   local other = Path.temp { suffix = "-obsidian-other" }
   other:mkdir { parents = true }
+  other = other:resolve { strict = true }
   local kept = tostring(other / "ignored-by-active.md")
   local ignored = tostring(other / "ignored-by-other.md")
   vim.fn.writefile({}, kept)
