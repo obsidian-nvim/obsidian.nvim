@@ -137,13 +137,11 @@ end
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
   opts = vim.deepcopy(opts or {})
+  local workspace = Obsidian and api.find_workspace(norm_dir) or nil
 
-  if
-    Obsidian
-    and Obsidian.opts
-    and util.is_subpath(tostring(norm_dir), tostring(api.resolve_workspace_dir(norm_dir)))
-  then
-    local ignore_filters = Obsidian.opts.file and Obsidian.opts.file.ignore_filters or {}
+  if workspace then
+    local workspace_opts = api._workspace_opts(workspace)
+    local ignore_filters = workspace_opts.file and workspace_opts.file.ignore_filters or {}
     opts.exclude = opts.exclude or {}
     for _, pattern in ipairs(ignore_filters) do
       if not vim.tbl_contains(opts.exclude, pattern) then

@@ -13,6 +13,20 @@ local parse_tags = require "obsidian.parse.tags"
 
 M.dir = require("obsidian.fs").dir
 
+--- Get the normalized options for a workspace without changing the active workspace.
+---@param workspace obsidian.Workspace|?
+---@return obsidian.config.Internal
+M._workspace_opts = function(workspace)
+  workspace = workspace or Obsidian.workspace
+  if workspace == Obsidian.workspace then
+    return Obsidian.opts
+  end
+
+  local overrides = workspace.overrides or {}
+  ---@cast overrides obsidian.config
+  return config.normalize(overrides, Obsidian._opts)
+end
+
 --- TODO: will not work if plugin is managed by nix
 ---
 ---@return obsidian.Path|?
@@ -32,12 +46,7 @@ end
 ---@param workspace obsidian.Workspace?
 ---@return obsidian.Path|?
 M.templates_dir = function(workspace)
-  local opts = Obsidian.opts
-
-  if workspace and workspace ~= Obsidian.workspace then
-    ---@diagnostic disable-next-line: param-type-mismatch
-    opts = config.normalize(workspace.overrides or {}, Obsidian._opts)
-  end
+  local opts = M._workspace_opts(workspace)
 
   if (not opts.templates.enabled) or opts.templates == nil or opts.templates.folder == nil then
     return nil

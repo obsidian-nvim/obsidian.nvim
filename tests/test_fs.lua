@@ -159,6 +159,43 @@ T["find_async filesystem fallback matches literal filenames"] = function()
   eq(exit_code, 0)
 end
 
+T["find_async applies ignore filters from the searched workspace"] = function()
+  local Path = require "obsidian.path"
+  local other = Path.temp { suffix = "-obsidian-other" }
+  other:mkdir { parents = true }
+  local kept = tostring(other / "ignored-by-active.md")
+  local ignored = tostring(other / "ignored-by-other.md")
+  vim.fn.writefile({}, kept)
+  vim.fn.writefile({}, ignored)
+  Obsidian.opts.file.ignore_filters = { "ignored-by-active.md" }
+  Obsidian.workspaces[#Obsidian.workspaces + 1] = require("obsidian.workspace").new {
+    name = "other",
+    path = other,
+    strict = true,
+    overrides = { file = { ignore_filters = { "ignored-by-other.md" } } },
+  }
+
+  local result = {}
+  local exit_code
+  local original_has_ripgrep = search._has_ripgrep
+  search._has_ripgrep = function()
+    return false
+  end
+  search.find_async(other, nil, {}, function(path)
+    result[#result + 1] = path
+  end, function(code)
+    exit_code = code
+  end)
+  search._has_ripgrep = original_has_ripgrep
+
+  vim.wait(1000, function()
+    return exit_code ~= nil
+  end)
+  eq(result, { kept })
+  eq(exit_code, 0)
+  vim.fn.delete(tostring(other), "rf")
+end
+
 T["find_async uses ripgrep when it is available"] = function()
   local dir = Obsidian.dir
   local markdown = tostring(dir / "fast.md")
