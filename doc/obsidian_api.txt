@@ -42,6 +42,7 @@ Fields ~
 {frontmatter_end_line} `(integer|)`?
 {anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
 {blocks} `(table<string, obsidian.note.Block>?)`
+{block_candidates} `(obsidian.Section[]|? paragraphs)` that can receive block identifiers.
 {sections} `(obsidian.Section[]|? document)`-ordered sections, the first one is always the preamble.
 {alt_alias} `(string|)`?
 {bufnr} `(integer|)`?
@@ -478,6 +479,7 @@ Fields ~
 {max_lines} `(integer|)`?
 {collect_anchor_links} `(boolean|)`?
 {collect_blocks} `(boolean|)`?
+{collect_block_candidates} `(boolean|)`?
 {collect_sections} `(boolean|)`?
 
 ------------------------------------------------------------------------------
