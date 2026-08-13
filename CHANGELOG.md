@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Named-note heading completion now preserves the heading's original case and spelling in wiki links.
 - Fzf-lua picker selections now honor multi-select consistently across files, grep, and list pickers.
 - Picker will apply `format_item` consistently.
 - Cache will be triggered by buffer writes.

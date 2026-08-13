@@ -277,6 +277,59 @@ Target note content
   eq(true, found)
 end
 
+T["completion"]["preserves heading case in current-note wiki-link labels"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# HTTP API Guide\n\n[[#http",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 3, 7 })
+
+  local result = run_completion(2, 7)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[#HTTP API Guide]]"
+  end)
+
+  assert(item, "no case-preserving current-note heading completion found")
+  eq("[[#HTTP API Guide]]", item.label)
+end
+
+T["completion"]["preserves heading case in named-note wiki links"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[target#http",
+    ["target.md"] = "# HTTP API Guide",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 14 })
+
+  local result = run_completion(0, 14)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[target#HTTP API Guide]]"
+  end)
+
+  assert(item, "no case-preserving heading completion found")
+  eq("[[target#HTTP API Guide]]", item.label)
+end
+
+T["completion"]["preserves nested heading case in named-note wiki links"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[target#parent-heading#chi",
+    ["target.md"] = "# Parent Heading\n\n## Child Heading",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 27 })
+
+  local result = run_completion(0, 27)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[target#Parent Heading#Child Heading]]"
+  end)
+
+  assert(item, "no case-preserving nested heading completion found")
+  eq("[[target#Parent Heading#Child Heading]]", item.label)
+end
+
 T["completion"]["creates a vault-wide block reference from unlabeled content"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[^^needle",
