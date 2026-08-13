@@ -184,6 +184,7 @@ local function include_loaded_notes(results, dir, note_opts, include_unmatched)
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(bufnr) then
       local path = vim.uv.fs_realpath(vim.fn.resolve(vim.api.nvim_buf_get_name(bufnr)))
+      path = path and vim.fs.normalize(path)
       if path and util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
         local idx = path_to_idx[path]
         if not idx or vim.bo[bufnr].modified then
