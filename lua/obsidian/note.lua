@@ -67,6 +67,7 @@ end
 ---@field frontmatter_end_line integer|?
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
+---@field block_candidates obsidian.Section[]|? paragraphs that can receive block identifiers.
 ---@field sections obsidian.Section[]|? document-ordered sections, the first one is always the preamble.
 ---@field alt_alias string|?
 ---@field bufnr integer|?
@@ -774,12 +775,13 @@ Note.from_lines = function(lines, path, opts)
     end
   end
 
-  ---@type obsidian.Section[]|?, table<string, obsidian.note.Block>|?
-  local sections, blocks
-  if opts.collect_sections or opts.collect_anchor_links or opts.collect_blocks then
-    sections, blocks = Section.parse(contents, {
+  ---@type obsidian.Section[]|?, table<string, obsidian.note.Block>|?, obsidian.Section[]|?
+  local sections, blocks, block_candidates
+  if opts.collect_sections or opts.collect_anchor_links or opts.collect_blocks or opts.collect_block_candidates then
+    sections, blocks, block_candidates = Section.parse(contents, {
       start_row = frontmatter_end_line or 0,
       collect_blocks = opts.collect_blocks,
+      collect_block_candidates = opts.collect_block_candidates,
     })
   end
 
@@ -835,6 +837,7 @@ Note.from_lines = function(lines, path, opts)
   n.contents = contents
   n.anchor_links = anchor_links
   n.blocks = blocks
+  n.block_candidates = block_candidates
   n.sections = sections
   -- TODO: reflect the warnings in `:Obsidian check`
   return n, warnings
@@ -1473,6 +1476,7 @@ end
 ---@field max_lines integer|?
 ---@field collect_anchor_links boolean|?
 ---@field collect_blocks boolean|?
+---@field collect_block_candidates boolean|?
 ---@field collect_sections boolean|?
 
 ---@class (exact) obsidian.note.NoteCreationOpts

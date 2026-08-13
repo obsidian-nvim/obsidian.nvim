@@ -11,6 +11,35 @@ local H1_UNDERLINE_PATTERN = "^(=+)$"
 local H2_UNDERLINE_PATTERN = "^(-+)$"
 local CODE_BLOCK_PATTERN = "^```[%w_-]*$"
 
+---@param line string
+---@return integer|? indent
+---@return "bullet"|"ordered"|? kind
+local function list_item_info(line)
+  local indent = line:match "^(%s*)[-+*]%s+"
+  if indent then
+    return #indent, "bullet"
+  end
+  indent = line:match "^(%s*)%d+[.)]%s+"
+  if indent then
+    return #indent, "ordered"
+  end
+  return nil
+end
+
+---@param line string
+---@param detail obsidian.section.LineDetail
+---@return "list-item"|"quote"|"table"|"text"
+local function block_candidate_type(line, detail)
+  if detail.type == "table" then
+    return "table"
+  elseif list_item_info(line) then
+    return "list-item"
+  elseif line:match "^%s*>" then
+    return "quote"
+  end
+  return "text"
+end
+
 --- A contiguous region of a markdown document.
 ---
 --- All ranges are |obsidian.Range|s over *lines* of the parsed document:
@@ -26,11 +55,12 @@ local CODE_BLOCK_PATTERN = "^```[%w_-]*$"
 ---@field heading_range obsidian.Range the heading line(s). Empty for the preamble.
 ---@field content_range obsidian.Range own content (sub-sections excluded), trimmed of leading and trailing blank lines.
 ---@field parent obsidian.Section|? the nearest section above with a lower heading level.
+---@field block_type "paragraph"|"list"|"list-item"|"quote"|"table"|? present on block-completion candidates.
 
 local M = {}
 
 ---@class obsidian.section.LineDetail
----@field type "text"|"header"|"header-underline"|"code"|"empty"
+---@field type "text"|"header"|"header-underline"|"code"|"empty"|"table"
 ---@field level integer|?
 ---@field label string|?
 
@@ -79,12 +109,40 @@ local function get_line_details(lines, first)
     details[idx] = classify(idx)
   end
 
+  for idx = first + 1, #lines do
+    local line = vim.trim(lines[idx])
+    local previous = lines[idx - 1]
+    ---@cast previous -nil
+    if
+      details[idx].type == "text"
+      and details[idx - 1].type == "text"
+      and line:find("|", 1, true)
+      and line:find("-", 1, true)
+      and line:gsub("[|:%-%s]", "") == ""
+      and previous:find("|", 1, true)
+    then
+      details[idx - 1].type = "table"
+      details[idx].type = "table"
+      local row = idx + 1
+      while details[row] and details[row].type == "text" do
+        local row_line = lines[row]
+        ---@cast row_line -nil
+        if not row_line:find("|", 1, true) then
+          break
+        end
+        details[row].type = "table"
+        row = row + 1
+      end
+    end
+  end
+
   return details
 end
 
 ---@class obsidian.section.ParseOpts
 ---@field start_row integer|? 0-based row where parsing begins, e.g. just past the frontmatter. Defaults to `0`.
 ---@field collect_blocks boolean|? also collect block identifiers (`^block-id`).
+---@field collect_block_candidates boolean|? also collect paragraphs that can receive block identifiers.
 
 --- Parse markdown lines into a document-ordered list of sections.
 ---
@@ -95,6 +153,7 @@ end
 ---@param opts obsidian.section.ParseOpts|?
 ---@return obsidian.Section[] sections
 ---@return table<string, obsidian.note.Block>|? blocks `nil` unless `opts.collect_blocks` is set.
+---@return obsidian.Section[]|? block_candidates `nil` unless `opts.collect_block_candidates` is set.
 M.parse = function(lines, opts)
   opts = opts or {}
   local first = (opts.start_row or 0) + 1
@@ -110,8 +169,12 @@ M.parse = function(lines, opts)
 
   ---@type table<string, obsidian.note.Block>|?
   local blocks = opts.collect_blocks and {} or nil
+  ---@type obsidian.Section[]|?
+  local block_candidates = opts.collect_block_candidates and {} or nil
   ---@type integer|?
   local para_beg
+  ---@type "list-item"|"quote"|"table"|"text"|?
+  local para_type
   ---@type obsidian.note.Block[]
   local para_blocks = {}
   ---@type obsidian.Section|?
@@ -137,17 +200,30 @@ M.parse = function(lines, opts)
   ---@param end_excl integer
   local function close_paragraph(end_excl)
     if para_beg ~= nil then
+      ---@type "paragraph"|"list-item"|"quote"|"table"|?
+      local block_type
+      if para_type == "text" then
+        block_type = "paragraph"
+      elseif para_type ~= nil then
+        block_type = para_type
+      end
+      ---@type obsidian.Section
       local section = {
         range = Range.new(para_beg - 1, 0, end_excl - 1, 0),
         heading_range = Range.new(para_beg - 1, 0, para_beg - 1, 0),
         content_range = Range.new(para_beg - 1, 0, end_excl - 1, 0),
+        block_type = block_type,
       }
       for _, block in ipairs(para_blocks) do
         block.section = section
       end
+      if block_candidates then
+        table.insert(block_candidates, section)
+      end
       last_para_section = section
     end
     para_beg = nil
+    para_type = nil
     para_blocks = {}
   end
 
@@ -180,14 +256,34 @@ M.parse = function(lines, opts)
       end
       current.c_end = idx_excl
 
-      if blocks and detail.type == "text" then
+      if (blocks or block_candidates) and (detail.type == "text" or detail.type == "table") then
         local line = vim.trim(lines[idx])
+        local next_type = block_candidate_type(lines[idx], detail)
+        if block_candidates and para_beg ~= nil then
+          local split = next_type == "list-item" or (para_type ~= "list-item" and next_type ~= para_type)
+          if para_type == "quote" and next_type == "text" then
+            split = false
+          end
+          if para_type == "list-item" and (next_type == "quote" or next_type == "table") then
+            local item_line = lines[para_beg]
+            ---@cast item_line -nil
+            local item_indent = #(item_line:match "^%s*" or "")
+            local next_indent = #(lines[idx]:match "^%s*" or "")
+            split = next_indent <= item_indent
+          end
+          if split then
+            close_paragraph(idx)
+          end
+        end
         local block_id = util.parse_block(line)
         if block_id and line == block_id and para_beg == nil and last_para_section ~= nil then
-          blocks[block_id] = { id = block_id, line = idx, block = line, section = last_para_section }
+          if blocks then
+            blocks[block_id] = { id = block_id, line = idx, block = line, section = last_para_section }
+          end
         else
           para_beg = para_beg or idx
-          if block_id then
+          para_type = para_type or next_type
+          if block_id and blocks then
             local block = { id = block_id, line = idx, block = line }
             blocks[block_id] = block
             table.insert(para_blocks, block)
@@ -201,6 +297,74 @@ M.parse = function(lines, opts)
     end
   end
   close_paragraph(#lines + 1)
+
+  if block_candidates then
+    local candidates = {}
+    local idx = 1
+    while idx <= #block_candidates do
+      local first_candidate = block_candidates[idx]
+      ---@cast first_candidate -nil
+      if first_candidate.block_type ~= "list-item" then
+        candidates[#candidates + 1] = first_candidate
+        idx = idx + 1
+      else
+        local base_line = lines[first_candidate.range.start_row + 1]
+        ---@cast base_line -nil
+        local base_indent, base_kind = list_item_info(base_line)
+        ---@cast base_indent -nil
+        ---@cast base_kind -nil
+        local last_idx = idx
+        while last_idx < #block_candidates do
+          local current_candidate = block_candidates[last_idx]
+          local next_candidate = block_candidates[last_idx + 1]
+          ---@cast current_candidate -nil
+          ---@cast next_candidate -nil
+          if
+            next_candidate.block_type ~= "list-item"
+            or current_candidate.range.end_row ~= next_candidate.range.start_row
+          then
+            break
+          end
+          local next_line = lines[next_candidate.range.start_row + 1]
+          ---@cast next_line -nil
+          local indent, kind = list_item_info(next_line)
+          ---@cast indent -nil
+          ---@cast kind -nil
+          if indent < base_indent or (indent == base_indent and kind ~= base_kind) then
+            break
+          end
+          last_idx = last_idx + 1
+        end
+
+        if last_idx > idx then
+          local last_candidate = block_candidates[last_idx]
+          ---@cast last_candidate -nil
+          ---@type obsidian.Section
+          local list_candidate = {
+            range = Range.new(first_candidate.range.start_row, 0, last_candidate.range.end_row, 0),
+            heading_range = Range.new(first_candidate.range.start_row, 0, first_candidate.range.start_row, 0),
+            content_range = Range.new(first_candidate.range.start_row, 0, last_candidate.range.end_row, 0),
+            block_type = "list",
+          }
+          for _, block in pairs(blocks or {}) do
+            if
+              block.section == last_candidate
+              and block.block == block.id
+              and block.line - 1 > last_candidate.range.end_row
+            then
+              block.section = list_candidate
+            end
+          end
+          candidates[#candidates + 1] = list_candidate
+        end
+        for item_idx = idx, last_idx do
+          candidates[#candidates + 1] = block_candidates[item_idx]
+        end
+        idx = last_idx + 1
+      end
+    end
+    block_candidates = candidates
+  end
 
   -- Materialize sections. A section's full range extends through its
   -- descendants: it ends where the next section of the same or lower level
@@ -244,7 +408,7 @@ M.parse = function(lines, opts)
     sections[i] = section
   end
 
-  return sections, blocks
+  return sections, blocks, block_candidates
 end
 
 return M

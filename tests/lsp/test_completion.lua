@@ -22,6 +22,16 @@ local function run_completion(line, character)
   )
 end
 
+local function accept_completion(item)
+  child.lua(([[
+    local item = %s
+    vim.lsp.util.apply_text_edits({ item.textEdit }, vim.api.nvim_get_current_buf(), "utf-8")
+    if item.command then
+      require("obsidian.actions").block_reference_new(unpack(item.command.arguments))
+    end
+  ]]):format(vim.inspect(item)))
+end
+
 T["refs"] = MiniTest.new_set()
 
 T["refs"]["can_complete should handle wiki links with text"] = function()
@@ -265,6 +275,621 @@ Target note content
     end
   end
   eq(true, found)
+end
+
+T["completion"]["creates a vault-wide block reference from unlabeled content"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^needle",
+    ["target.md"] = "A needle paragraph",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+
+  local result = run_completion(0, 10)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.command.command == "obsidian.block_reference_new"
+  end)
+  assert(item, "no unlabeled block completion found")
+  assert(not vim.iter(result.items or {}):any(function(candidate)
+    return candidate.command and candidate.command.command == "obsidian.write_note"
+  end), "block search offered to create a note")
+
+  accept_completion(item)
+
+  local target_line = vim.iter(vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))):find(function(line)
+    return vim.startswith(line, "A needle paragraph")
+  end)
+  assert(target_line, "target paragraph disappeared")
+  local block_id = target_line:match "(%^[0-9a-f]+)$"
+  assert(block_id, "target paragraph has no generated block ID")
+  eq("A needle paragraph " .. block_id, target_line)
+  eq("[[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
+end
+
+T["completion"]["creates a block embed while preserving the leading bang"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "![[^^embed needle",
+    ["target.md"] = "An embed needle paragraph",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 17 })
+
+  local result = run_completion(0, 17)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "An embed needle paragraph — target"
+  end)
+  assert(item, "no generated block embed completion found")
+  accept_completion(item)
+
+  local target_line = vim.iter(vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))):find(function(line)
+    return vim.startswith(line, "An embed needle paragraph")
+  end)
+  assert(target_line, "embedded target paragraph disappeared")
+  local block_id = target_line:match "(%^[0-9a-f]+)$"
+  assert(block_id, "embedded target has no generated block ID")
+  eq("![[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
+end
+
+T["completion"]["creates a named-note block reference from unlabeled content after hash caret"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[target#^needle",
+    ["target.md"] = "A named needle paragraph",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 16 })
+
+  local result = run_completion(0, 16)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "A named needle paragraph"
+  end)
+  assert(item, "no named-note unlabeled block completion found")
+  assert(
+    vim.iter(vim.lsp.completion._lsp_to_complete_items(result, "[[target#^needle")):any(function(candidate)
+      return candidate.abbr == item.label
+    end),
+    "Neovim filtered out the named-note block completion"
+  )
+  accept_completion(item)
+
+  local target_line = vim.iter(vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))):find(function(line)
+    return vim.startswith(line, "A named needle paragraph")
+  end)
+  assert(target_line, "named-note target paragraph disappeared")
+  local block_id = target_line:match "(%^[0-9a-f]+)$"
+  assert(block_id, "named-note target has no generated block ID")
+  eq("A named needle paragraph " .. block_id, target_line)
+  eq("[[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
+end
+
+T["completion"]["creates a named-note block reference from unlabeled content after bare caret"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[target^named needle",
+    ["target.md"] = "A second named needle paragraph",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 21 })
+
+  local result = run_completion(0, 21)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "A second named needle paragraph"
+  end)
+  assert(item, "no bare-caret named-note block completion found")
+  assert(
+    vim.iter(vim.lsp.completion._lsp_to_complete_items(result, "[[target^named needle")):any(function(candidate)
+      return candidate.abbr == item.label
+    end),
+    "Neovim filtered out the bare-caret named-note block completion"
+  )
+  accept_completion(item)
+
+  local target_line = vim.iter(vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))):find(function(line)
+    return vim.startswith(line, "A second named needle paragraph")
+  end)
+  assert(target_line, "bare-caret named-note target paragraph disappeared")
+  local block_id = target_line:match "(%^[0-9a-f]+)$"
+  assert(block_id, "bare-caret named-note target has no generated block ID")
+  eq("[[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
+end
+
+T["completion"]["searches and displays existing block IDs"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^quote-of-the-day",
+    ["target.md"] = "Unrelated content ^quote-of-the-day",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 20 })
+
+  local result = run_completion(0, 20)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "Unrelated content ^quote-of-the-day — target"
+  end)
+  assert(item, "existing block ID was not searchable and visible")
+  eq(nil, item.command)
+  eq("[[target#^quote-of-the-day]]", item.textEdit.newText)
+end
+
+T["completion"]["creates a current-note block reference from a bare caret trigger"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "A local paragraph\n\n[[^",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 3, 3 })
+
+  local result = run_completion(2, 3)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.command.command == "obsidian.block_reference_new"
+  end)
+  assert(item, "no current-note block completion found")
+  accept_completion(item)
+
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  local block_id = lines[1]:match "(%^[0-9a-f]+)$"
+  assert(block_id, "local paragraph has no generated block ID")
+  eq("A local paragraph " .. block_id, lines[1])
+  eq("[[#" .. block_id .. "]]", lines[3])
+end
+
+T["completion"]["adds a block ID to the selected list item"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^first item",
+    ["target.md"] = "- first item\n- second item",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 14 })
+
+  local result = run_completion(0, 14)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "- first item — target"
+  end)
+  assert(item, "no first-list-item completion found")
+  accept_completion(item)
+
+  local lines = vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))
+  local first_item = vim.iter(lines):find(function(line)
+    return vim.startswith(line, "- first item")
+  end)
+  assert(first_item and first_item:match " %^[0-9a-f]+$", "selected list item has no block ID")
+  eq("- second item", lines[#lines])
+end
+
+T["completion"]["adds a multiline list-item ID on an indented line"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^Paperclip",
+    ["target.md"] = "- Gemmy\n    $$Paperclip / Pen$$\n- Unhelpful assistant",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 13 })
+
+  local result = run_completion(0, 13)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "- Gemmy $$Paperclip / Pen$$ — target"
+  end)
+  assert(item, "no multiline list-item completion found")
+  eq("- Gemmy $$Paperclip / Pen$$ — target", item.label)
+  accept_completion(item)
+
+  local lines = vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))
+  local content_line = vim.iter(lines):enumerate():find(function(_, line)
+    return line == "    $$Paperclip / Pen$$"
+  end)
+  assert(content_line, "list-item continuation disappeared")
+  local block_id = lines[content_line + 1]:match "^    (%^[0-9a-f]+)$"
+  assert(block_id, "multiline list-item ID is not on an indented line")
+  eq("- Unhelpful assistant", lines[content_line + 2])
+  eq("[[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
+end
+
+T["completion"]["creates a reference to a whole list"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^Alpha whole",
+    ["target.md"] = "- Alpha whole\n- Beta whole",
+  })
+
+  child.cmd "set hidden"
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "target.md"))
+  local target_bufnr = child.api.nvim_get_current_buf()
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 15 })
+
+  local result = run_completion(0, 15)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "- Alpha whole - Beta whole — target"
+  end)
+  assert(item, "no whole-list completion found")
+  accept_completion(item)
+
+  local lines = child.api.nvim_buf_get_lines(target_bufnr, 0, -1, false)
+  local block_id = lines[4] and lines[4]:match "^%^[0-9a-f]+$"
+  assert(block_id, "whole-list ID is not surrounded by blank lines")
+  eq({ "- Alpha whole", "- Beta whole", "", block_id, "" }, lines)
+  eq("[[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
+end
+
+T["completion"]["reuses a whole-list block ID"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^Alpha manual",
+    ["target.md"] = "- Alpha manual\n- Beta manual\n\n^whole-list",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 16 })
+
+  local result = run_completion(0, 16)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "- Alpha manual - Beta manual ^whole-list — target"
+  end)
+  assert(item, "no existing whole-list completion found")
+  eq(nil, item.command)
+  eq("[[target#^whole-list]]", item.textEdit.newText)
+end
+
+T["completion"]["keeps the cursor on a same-note link after multiline list-item ID insertion"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "- Gemmy\n    $$Paperclip / Pen$$\n\n[[^Paperclip",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 4, 12 })
+
+  local result = run_completion(3, 12)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label:find("Paperclip", 1, true)
+  end)
+  assert(item, "no current-note multiline list-item completion found")
+  accept_completion(item)
+
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  local block_id = lines[3]:match "^    (%^[0-9a-f]+)$"
+  assert(block_id, "same-note list item has no indented block ID")
+  eq("[[#" .. block_id .. "]]", lines[5])
+  eq({ 5, #lines[5] - 1 }, child.api.nvim_win_get_cursor(0))
+end
+
+T["completion"]["separates quotations from preceding list items"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^quoted target",
+    ["target.md"] = "- list item\n> quoted target\n> continuation",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 17 })
+
+  local result = run_completion(0, 17)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label:find("quoted target", 1, true)
+  end)
+  assert(item, "no quotation completion found after list")
+  eq("> quoted target > continuation — target", item.label)
+end
+
+T["completion"]["keeps lazy continuation lines inside quotations"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^lazy continuation",
+    ["target.md"] = "> quoted start\nlazy continuation",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 21 })
+
+  local result = run_completion(0, 21)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label:find("lazy continuation", 1, true)
+  end)
+  assert(item, "no lazy quotation completion found")
+  eq("> quoted start lazy continuation — target", item.label)
+end
+
+T["completion"]["reuses an existing block ID"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^manual needle",
+    ["target.md"] = "A manual needle ^manual",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 17 })
+
+  local result = run_completion(0, 17)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "A manual needle ^manual — target"
+  end)
+  assert(item, "no existing block completion found")
+  eq(nil, item.command)
+  eq("[[target#^manual]]", item.textEdit.newText)
+  accept_completion(item)
+
+  eq("[[target#^manual]]", child.api.nvim_get_current_line())
+  eq("A manual needle ^manual", vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))[1])
+end
+
+T["completion"]["places a blockquote ID on its own line"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^quoted",
+    ["target.md"] = "> quoted first\n> quoted second",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+
+  local result = run_completion(0, 10)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label:find("quoted first", 1, true)
+  end)
+  assert(item, "no blockquote completion found")
+  eq("> quoted first > quoted second — target", item.label)
+  accept_completion(item)
+
+  local lines = vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))
+  local second = vim.iter(lines):enumerate():find(function(_, line)
+    return line == "> quoted second"
+  end)
+  assert(second, "quoted block disappeared")
+  eq("", lines[second + 1])
+  assert(lines[second + 2]:match "^%^[0-9a-f]+$", "blockquote ID is not standalone")
+end
+
+T["completion"]["separates callouts from paragraphs and surrounds their IDs with blank lines"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^Callout body",
+    ["target.md"] = "A plain paragraph\n> [!note] Quoted target\n> Callout body\n\nA trailing paragraph",
+  })
+
+  child.cmd "set hidden"
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "target.md"))
+  local target_bufnr = child.api.nvim_get_current_buf()
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 16 })
+
+  local result = run_completion(0, 16)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label:find("Callout body", 1, true)
+  end)
+  assert(item, "no callout completion found")
+  eq("> [!note] Quoted target > Callout body — target", item.label)
+  accept_completion(item)
+
+  local lines = child.api.nvim_buf_get_lines(target_bufnr, 0, -1, false)
+  local block_id = lines[5] and lines[5]:match "^%^[0-9a-f]+$"
+  assert(block_id, "callout ID is not surrounded by blank lines")
+  eq(
+    { "A plain paragraph", "> [!note] Quoted target", "> Callout body", "", block_id, "", "A trailing paragraph" },
+    lines
+  )
+  eq("[[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
+end
+
+T["completion"]["places a table ID on its own line"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^value",
+    ["target.md"] = "Key | Value\n--- | ---\nOne | Two",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 9 })
+
+  local result = run_completion(0, 9)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label:find("Key | Value", 1, true)
+  end)
+  assert(item, "no table completion found")
+  eq("Key | Value --- | --- One | Two — target", item.label)
+  accept_completion(item)
+
+  local lines = vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))
+  local last_row = vim.iter(lines):enumerate():find(function(_, line)
+    return line == "One | Two"
+  end)
+  assert(last_row, "table disappeared")
+  eq("", lines[last_row + 1])
+  assert(lines[last_row + 2]:match "^%^[0-9a-f]+$", "table ID is not standalone")
+end
+
+T["completion"]["separates tables from adjacent paragraphs"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^plain target",
+    ["target.md"] = "Key | Value\n--- | ---\nOne | Two\nA plain target",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 16 })
+
+  local result = run_completion(0, 16)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label:find("plain target", 1, true)
+  end)
+  assert(item, "no paragraph completion found after table")
+  eq("A plain target — target", item.label)
+  accept_completion(item)
+
+  local lines = vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))
+  local target_line = vim.iter(lines):find(function(line)
+    return vim.startswith(line, "A plain target")
+  end)
+  assert(target_line, "paragraph after table disappeared")
+  local block_id = target_line:match "(%^[0-9a-f]+)$"
+  assert(block_id, "paragraph after table did not receive an inline ID")
+  eq("A plain target " .. block_id, target_line)
+  eq("[[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
+end
+
+T["completion"]["keeps list-like rows inside tables"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^foo",
+    ["target.md"] = "Name | Value\n--- | ---\n- foo | bar",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "Name | Value --- | --- - foo | bar — target"
+    end),
+    "no complete table candidate found"
+  )
+  assert(not vim.iter(result.items or {}):any(function(candidate)
+    return candidate.label == "- foo | bar — target"
+  end), "table row was exposed as a list-item candidate")
+end
+
+T["completion"]["updates a loaded unsaved target without overwriting it"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^needle",
+    ["target.md"] = "Old on-disk paragraph",
+  })
+
+  child.cmd "set hidden"
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "target.md"))
+  local target_bufnr = child.api.nvim_get_current_buf()
+  child.api.nvim_buf_set_lines(target_bufnr, 0, 1, false, { "Unsaved needle paragraph" })
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+
+  local result = run_completion(0, 10)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "Unsaved needle paragraph — target"
+  end)
+  assert(item, "completion ignored the loaded target buffer")
+  accept_completion(item)
+
+  local target_line = child.api.nvim_buf_get_lines(target_bufnr, 0, 1, false)[1]
+  assert(target_line:match "^Unsaved needle paragraph %^[0-9a-f]+$", "unsaved target was not updated")
+  eq(true, child.api.nvim_get_option_value("modified", { buf = target_bufnr }))
+  eq("Old on-disk paragraph", vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))[1])
+end
+
+T["completion"]["does not create a dangling link when the target changes"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^needle",
+    ["target.md"] = "A needle paragraph\n\nA needle paragraph",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+
+  local result = run_completion(0, 10)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.command.arguments[1].target_range.start.line == 2
+  end)
+  assert(item, "no second duplicate-block completion found")
+
+  vim.fn.writefile(
+    { "A needle paragraph", "", "A needle paragraph", "", "A needle paragraph" },
+    tostring(child.Obsidian.dir / "target.md")
+  )
+  accept_completion(item)
+
+  eq("[[^^needle", child.api.nvim_get_current_line())
+  eq(5, #vim.fn.readfile(tostring(child.Obsidian.dir / "target.md")))
+end
+
+T["completion"]["does not link when the target save fails"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^needle",
+    ["target.md"] = "A needle paragraph",
+  })
+  child.lua [[
+    require("obsidian.log").err = function() end
+    vim.api.nvim_create_autocmd("BufWritePre", {
+      pattern = "target.md",
+      callback = function()
+        error("expected write failure")
+      end,
+    })
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+
+  local result = run_completion(0, 10)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.command.command == "obsidian.block_reference_new"
+  end)
+  assert(item, "no unlabeled block completion found")
+  accept_completion(item)
+
+  eq("[[^^needle", child.api.nvim_get_current_line())
+  eq("A needle paragraph", vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))[1])
+end
+
+T["completion"]["searches beyond the configured note line cap"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^deep needle",
+    ["target.md"] = "First line\n\nDeep needle paragraph",
+  })
+  child.lua [[Obsidian.opts.search.max_lines = 1]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 15 })
+
+  local result = run_completion(0, 15)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "Deep needle paragraph — target"
+  end)
+  assert(item, "block completion stopped at search.max_lines")
+end
+
+T["completion"]["avoids generated block ID collisions"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^",
+    ["target.md"] = "First paragraph\n\nSecond paragraph",
+  })
+  child.lua [[
+    _G.obsidian_test_sha256 = vim.fn.sha256
+    vim.fn.sha256 = function(value)
+      return string.rep(vim.endswith(value, ":1") and "b" or "a", 64)
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+  local result = run_completion(0, 4)
+  child.lua [[
+    vim.fn.sha256 = _G.obsidian_test_sha256
+    _G.obsidian_test_sha256 = nil
+  ]]
+
+  local ids = vim
+    .iter(result.items or {})
+    :filter(function(item)
+      return item.command and vim.endswith(item.label, "— target")
+    end)
+    :map(function(item)
+      return item.command.arguments[1].block_id
+    end)
+    :totable()
+  table.sort(ids)
+  eq({ "^aaaaaa", "^bbbbbb" }, ids)
+end
+
+T["completion"]["preserves trailing whitespace in the target block"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^trailing",
+    ["target.md"] = "Trailing paragraph  ",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 12 })
+  local result = run_completion(0, 12)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "Trailing paragraph — target"
+  end)
+  assert(item, "no trailing-whitespace block completion found")
+  accept_completion(item)
+
+  local target_line = vim.iter(vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))):find(function(line)
+    return vim.startswith(line, "Trailing paragraph")
+  end)
+  assert(target_line, "target paragraph disappeared")
+  assert(target_line:match "^Trailing paragraph   %^[0-9a-f]+$", "target whitespace was not preserved")
 end
 
 T["completion"]["returns items for tag trigger"] = function()
