@@ -6,6 +6,7 @@ local search = require "obsidian.search"
 
 ---@class obsidian.completion.sources.refs.options
 ---@field label string|?
+---@field display_label string|?
 ---@field new_text string
 ---@field sort_text string|?
 ---@field documentation table|?
@@ -140,6 +141,29 @@ local function format_current_block_link(block)
     return Obsidian.opts.link.style { label = "", path = "", block = block }
   end
   error "not implemented"
+end
+
+---Use the headings' original spelling in wiki-link completion while retaining
+---nested anchor paths when the selected anchor includes them.
+---@param anchor obsidian.note.HeaderAnchor|?
+---@return obsidian.note.HeaderAnchor|?
+local function wiki_completion_anchor(anchor)
+  if not anchor or Obsidian.opts.link.style ~= "wiki" then
+    return anchor
+  end
+
+  local headers = { anchor.header }
+  if anchor.anchor:find("#", 2, true) then
+    local parent = anchor.parent
+    while parent do
+      table.insert(headers, 1, parent.header)
+      parent = parent.parent
+    end
+  end
+
+  local formatted = vim.tbl_extend("force", anchor, { anchor = "#" .. table.concat(headers, "#") })
+  ---@cast formatted obsidian.note.HeaderAnchor
+  return formatted
 end
 
 ---@param request obsidian.completion.Request
@@ -382,15 +406,21 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
 
   -- De-duplicate options relative to their `new_text`.
   for _, option in ipairs(new_options) do
-    local final_label, sort_text, new_text, documentation
+    local final_label, display_label, sort_text, new_text, documentation
+    local formatted_anchor = wiki_completion_anchor(option.anchor)
     if option.label then
-      new_text = note:format_link { label = option.label, anchor = option.anchor, block = option.block }
+      new_text = note:format_link { label = option.label, anchor = formatted_anchor, block = option.block }
 
       final_label = option.alt_label or option.label
+      display_label = final_label
       if option.anchor then
         final_label = final_label .. option.anchor.anchor
+        local display_anchor = assert(formatted_anchor, "formatted heading anchor is required")
+        display_label = display_label
+          .. (Obsidian.opts.link.style == "wiki" and display_anchor.anchor or "#" .. option.anchor.header)
       elseif option.block then
         final_label = final_label .. "#" .. option.block.id
+        display_label = final_label
       end
       sort_text = final_label
 
@@ -415,6 +445,7 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
       end
 
       final_label = option.anchor.anchor
+      display_label = "#" .. option.anchor.header
       sort_text = final_label
 
       documentation = {
@@ -426,6 +457,7 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
       new_text = format_current_block_link(option.block)
 
       final_label = "#" .. option.block.id
+      display_label = final_label
       sort_text = final_label
 
       documentation = {
@@ -464,12 +496,13 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
         local cur_new_text = note:format_link {
           label = final_label,
           format = resolve_link_format,
-          anchor = option.anchor,
+          anchor = formatted_anchor,
           block = option.block,
         }
         if not cc.new_text_to_option[cur_new_text] then
           cc.new_text_to_option[cur_new_text] = {
             label = final_label,
+            display_label = display_label,
             new_text = cur_new_text,
             sort_text = sort_text,
             documentation = documentation,
@@ -481,11 +514,12 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
     else
       cc.new_text_to_option[new_text] = {
         label = final_label,
+        display_label = display_label,
         new_text = new_text,
         sort_text = sort_text,
         documentation = documentation,
         note = option.label and note or nil,
-        anchor = option.anchor,
+        anchor = formatted_anchor,
         block = option.block,
       }
     end
@@ -533,8 +567,8 @@ local function process_search_results(cc, results)
   end
 
   for _, option in pairs(cc.new_text_to_option) do
-    -- TODO: need a better label, maybe just the note's display name?
-    local option_label = option.label or ""
+    local option_label = option.display_label or option.label or ""
+    local filter_label = option.label or option_label
     ---@type string
     local label
     if Obsidian.opts.link.style == "wiki" then
@@ -550,7 +584,7 @@ local function process_search_results(cc, results)
     table.insert(completion_items, {
       documentation = option.documentation,
       sortText = option.sort_text,
-      filterText = completion.get_filter_text(option_label),
+      filterText = completion.get_filter_text(filter_label),
       label = label,
       kind = vim.lsp.protocol.CompletionItemKind.Reference,
       textEdit = {
