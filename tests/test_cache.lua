@@ -89,7 +89,7 @@ T["cache backends"]["stores compact rows"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   local note_path = tostring(dir / "Note.md")
-  helpers.write("---\ntags: [Foo]\n---\n# Note\n#Inline", note_path)
+  helpers.write("---\nid: custom-note\ntags: [Foo]\n---\n# Note\n#Inline", note_path)
   Obsidian = { dir = dir }
 
   local cache = require "obsidian.cache"
@@ -108,9 +108,37 @@ T["cache backends"]["stores compact rows"] = function()
   eq(nil, row.folder)
   eq(nil, row.has_frontmatter)
   eq(nil, row.frontmatter_end_line)
+  eq("custom-note", row.id)
   eq(nil, row.aliases)
+  eq({ { anchor = "#note", header = "Note", level = 1, line = 5 } }, row.headings)
   eq(nil, row.links_out)
   eq(nil, row.tasks)
+end
+
+T["cache backends"]["queries headings with original text and locations"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  helpers.write("# HTTP API Guide\n\nSubtitle\n--------", dir / "Guide.md")
+  helpers.write("# Other", dir / "Other.md")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  eq({
+    {
+      anchor = "#http-api-guide",
+      header = "HTTP API Guide",
+      level = 1,
+      line = 1,
+      path = tostring(dir / "Guide.md"),
+    },
+  }, cache.notes.find_headings "api")
+  eq("Subtitle", cache.notes.find_headings("subtitle")[1].header)
+  eq(3, cache.notes.find_headings("subtitle")[1].line)
 end
 
 T["cache backends"]["detects same-size edits within one second"] = function()

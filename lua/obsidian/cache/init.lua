@@ -1,6 +1,6 @@
 --- Obsidian cache: ORM-style repository over swappable backend.
 ---
---- v1 ships JSON backend + notes repository CRUD only (no query layer).
+--- Ships JSON and memory backends plus note metadata queries.
 --- Wired to LSP document-save and watched-file events for live updates.
 
 local log = require "obsidian.log"
@@ -408,6 +408,41 @@ function M.notes.count()
     n = n + 1
   end
   return n
+end
+
+---@class obsidian.cache.HeadingRow
+---@field path string
+---@field header string
+---@field anchor string
+---@field level integer
+---@field line integer 1-based
+
+---Find cached headings whose original text or normalized anchor contains `query`.
+---@param query string?
+---@return obsidian.cache.HeadingRow[]
+function M.notes.find_headings(query)
+  if not state or not state.ready then
+    return {}
+  end
+
+  local needle = vim.fn.tolower(vim.trim(query or ""))
+  local results = {}
+  for path, row in pairs(state.backend:all()) do
+    for _, heading in ipairs(row.headings or {}) do
+      local searchable = heading.header .. " " .. heading.anchor
+      if needle == "" or vim.fn.tolower(searchable):find(needle, 1, true) then
+        results[#results + 1] = vim.tbl_extend("force", heading, { path = path })
+      end
+    end
+  end
+
+  table.sort(results, function(a, b)
+    if a.path ~= b.path then
+      return a.path < b.path
+    end
+    return a.line < b.line
+  end)
+  return results
 end
 
 ---@param path string

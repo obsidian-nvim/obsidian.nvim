@@ -68,6 +68,14 @@ T["refs"]["can_complete should handle wiki links with preceding Unicode text"] =
   eq(21, insert_end)
 end
 
+T["refs"]["heading_search recognizes vault heading syntax"] = function()
+  local completion = require "obsidian.completion.refs"
+
+  eq("HTTP", completion.heading_search "## HTTP")
+  eq("", completion.heading_search "##")
+  eq(nil, completion.heading_search "target#HTTP")
+end
+
 T["tags"] = MiniTest.new_set()
 
 T["tags"]["find_tags_start should accept in-progress prefixes"] = function()
@@ -275,6 +283,119 @@ Target note content
     end
   end
   eq(true, found)
+end
+
+T["completion"]["searches vault headings without cache"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[##api",
+    ["target.md"] = "# HTTP API Guide",
+  })
+
+  child.lua [[require("obsidian.cache").shutdown()]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "HTTP API Guide — target"
+  end)
+  assert(item, "no vault heading completion found")
+  eq("[[target#HTTP API Guide]]", item.textEdit.newText)
+end
+
+T["completion"]["lists vault headings with an empty query"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[##",
+    ["target.md"] = "# Any Heading",
+  })
+
+  child.lua [[require("obsidian.cache").shutdown()]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "Any Heading — target"
+  end)
+  assert(item, "no heading completion found for empty query")
+end
+
+T["completion"]["searches cached vault headings without filesystem search"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[##cache",
+    ["target.md"] = "# Cache Heading",
+  })
+
+  child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
+  h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
+  child.lua [[
+    local search = require "obsidian.search"
+    _G.original_find_notes_async = search.find_notes_async
+    search.find_notes_async = function()
+      error "filesystem heading search should not run"
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 9 })
+  local result = run_completion(0, 9)
+
+  child.lua [[
+    require("obsidian.search").find_notes_async = _G.original_find_notes_async
+    _G.original_find_notes_async = nil
+    require("obsidian.cache").shutdown()
+  ]]
+
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "Cache Heading — target"
+  end)
+  assert(item, "no cached vault heading completion found")
+  eq("[[target#Cache Heading]]", item.textEdit.newText)
+end
+
+T["completion"]["cached heading search uses unsaved loaded buffers"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[##unsaved",
+    ["target.md"] = "# Old Heading",
+  })
+
+  child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
+  h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "target.md"))
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "# Unsaved Heading" })
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 11 })
+
+  local result = run_completion(0, 11)
+  child.lua [[require("obsidian.cache").shutdown()]]
+
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "Unsaved Heading — target"
+  end)
+  assert(item, "no unsaved loaded heading completion found")
+  eq("[[target#Unsaved Heading]]", item.textEdit.newText)
+end
+
+T["completion"]["vault heading completion honors markdown link style"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[##api",
+    ["target.md"] = "# HTTP API Guide",
+  })
+
+  child.lua [[
+    require("obsidian.cache").shutdown()
+    Obsidian.opts.link.style = "markdown"
+  ]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  child.lua [[Obsidian.opts.link.style = "wiki"]]
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "HTTP API Guide — target"
+  end)
+  assert(item, "no markdown vault heading completion found")
+  eq("[target ❯ HTTP API Guide](target.md#http-api-guide)", item.textEdit.newText)
 end
 
 T["completion"]["creates a vault-wide block reference from unlabeled content"] = function()

@@ -67,6 +67,14 @@ function M.block_search(search_string)
   end
 end
 
+---@param search_string string
+---@return string|? query
+function M.heading_search(search_string)
+  if vim.startswith(search_string, "##") then
+    return vim.trim(search_string:sub(3))
+  end
+end
+
 ---@param label string
 ---@return string
 M.get_filter_text = function(label)

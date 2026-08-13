@@ -2,6 +2,13 @@
 
 This plugin provides plugin-agnostic completion via in-process LSP, you only need to make sure you are triggering LSP completions in markdown buffers.
 
+Reference completion supports Obsidian's vault-wide searches:
+
+- `[[##query` searches headings across the vault.
+- `[[^^query` searches blocks across the vault.
+
+Vault-wide heading search uses the metadata cache when it is enabled and ready, and otherwise falls back to the filesystem/ripgrep search path. Loaded buffers replace cached or on-disk data so unsaved headings can be completed.
+
 For blink.cmp, if you have a dedicated `per_filetype` config for markdown, LSP completion will not attach, use:
 
 ```lua
