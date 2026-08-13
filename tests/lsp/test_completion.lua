@@ -307,6 +307,99 @@ T["completion"]["creates a vault-wide block reference from unlabeled content"] =
   eq("[[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
 end
 
+T["completion"]["reuses the vault block index until the vault changes"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "A needle paragraph\n\n[[^^",
+  })
+  child.lua [[
+    _G.block_search_terms = {}
+    local search = require "obsidian.search"
+    local find_notes_async = search.find_notes_async
+    search.find_notes_async = function(term, ...)
+      table.insert(_G.block_search_terms, term)
+      return find_notes_async(term, ...)
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 3, 4 })
+  run_completion(2, 4)
+
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "A fresh paragraph" })
+  child.api.nvim_buf_set_lines(0, 2, 3, false, { "[[^^fresh" })
+  child.api.nvim_win_set_cursor(0, { 3, 9 })
+  child.api.nvim_exec_autocmds("InsertLeave", {})
+  local result = run_completion(2, 9)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "A fresh paragraph — source"
+    end),
+    "cached block index did not include unsaved buffer changes"
+  )
+  eq({ "" }, child.lua_get "_G.block_search_terms")
+
+  child.lua [[
+    require("obsidian.lsp.watchfiles").handle {
+      {
+        path = vim.api.nvim_buf_get_name(0),
+        type = vim.lsp.protocol.FileChangeType.Changed,
+      },
+    }
+  ]]
+  result = run_completion(2, 9)
+  eq({ "", "" }, child.lua_get "_G.block_search_terms")
+
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.command and candidate.label == "A fresh paragraph — source"
+  end)
+  assert(item, "rebuilt block index did not include the source note")
+  accept_completion(item)
+  local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  local block_id = lines[1]:match "(%^[0-9a-f]+)$"
+  assert(block_id, "same-note block did not receive an ID")
+  eq("[[source#" .. block_id .. "]]", lines[3])
+end
+
+T["completion"]["rebuilds a vault block index invalidated while loading"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^fresh",
+    ["target.md"] = "Stale target",
+  })
+  child.lua [[
+    local target_path = tostring(Obsidian.dir / "target.md")
+    vim.fn.bufload(vim.fn.bufadd(target_path))
+
+    _G.block_search_scans = 0
+    local search = require "obsidian.search"
+    local find_notes_async = search.find_notes_async
+    search.find_notes_async = function(term, callback, ...)
+      _G.block_search_scans = _G.block_search_scans + 1
+      if _G.block_search_scans == 1 then
+        return find_notes_async(term, function(results)
+          vim.fn.writefile({ "Fresh external target" }, target_path)
+          require("obsidian.lsp.watchfiles").handle {
+            { path = target_path, type = vim.lsp.protocol.FileChangeType.Changed },
+          }
+          callback(results)
+        end, ...)
+      end
+      return find_notes_async(term, callback, ...)
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 9 })
+  local result = run_completion(0, 9)
+
+  eq(2, child.lua_get "_G.block_search_scans")
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "Fresh external target — target"
+    end),
+    "completion used an invalidated block index"
+  )
+end
+
 T["completion"]["creates a block embed while preserving the leading bang"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "![[^^embed needle",
