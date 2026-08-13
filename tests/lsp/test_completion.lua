@@ -277,6 +277,42 @@ Target note content
   eq(true, found)
 end
 
+T["completion"]["finds notes by a configured title identifier"] = function()
+  child.lua [[Obsidian.opts.note.identifiers = { "id", "aliases", "title" }]]
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[foo",
+    ["12345678.md"] = "---\ntitle: foo bar\n---\nBody",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+
+  local result = run_completion(0, 5)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[foo bar]]"
+  end)
+  assert(item, "frontmatter title was not offered as a completion identifier")
+  eq("[[12345678|foo bar]]", item.textEdit.newText)
+end
+
+T["completion"]["does not find notes by an unconfigured title identifier"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[foo",
+    ["12345678.md"] = "---\ntitle: foo bar\n---\nBody",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+
+  local result = run_completion(0, 5)
+  eq(
+    false,
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "[[foo bar]]"
+    end)
+  )
+end
+
 T["completion"]["creates a vault-wide block reference from unlabeled content"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[^^needle",

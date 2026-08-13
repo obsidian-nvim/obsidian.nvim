@@ -233,11 +233,10 @@ M.note_complete = function(_, cmdline)
     ---@cast path -nil
     local note_path = path:vault_relative_path { strict = true }
     ---@cast note_path -nil
-    table.insert(completions, note:display_name() .. "  " .. tostring(note_path))
-    if not vim.tbl_isempty(note.aliases) then
-      for _, alias in pairs(note.aliases) do
-        table.insert(completions, alias .. "  " .. tostring(note_path))
-      end
+    local identifiers = note:identifiers()
+    identifiers[#identifiers + 1] = path.stem
+    for _, identifier in ipairs(require("obsidian.note.identifiers").unique(identifiers)) do
+      table.insert(completions, identifier .. "  " .. tostring(note_path))
     end
   end
 

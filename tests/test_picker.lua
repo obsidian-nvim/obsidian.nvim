@@ -326,6 +326,38 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
   vim.api.nvim_buf_delete(preview.buf, { force = true })
 end
 
+T["find_files_from_cache searches configured title identifiers"] = function()
+  local dir = Path.temp { suffix = "-obsidian-picker" }
+  dir:mkdir { parents = true }
+  helpers.write("---\ntitle: foo bar\n---\nBody", dir / "12345678.md")
+  Obsidian = {
+    dir = dir,
+    opts = {
+      note = { identifiers = { "id", "aliases", "title" } },
+      file = { ignore_filters = {} },
+    },
+  }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local picked_values
+  local original_select = picker.select
+  picker.select = function(values)
+    picked_values = values
+  end
+
+  eq(true, picker.find_files_from_cache { use_cache = true, query = "FOO" })
+  picker.select = original_select
+
+  eq(1, #picked_values)
+  eq("12345678 | foo bar", picked_values[1].text)
+  eq(tostring(dir / "12345678.md"), picked_values[1].filename)
+end
+
 T["find_files presents filesystem paths without a shell command"] = function()
   local dir = Path.temp { suffix = "-obsidian-picker" }
   dir:mkdir { parents = true }

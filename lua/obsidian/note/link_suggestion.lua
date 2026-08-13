@@ -102,13 +102,13 @@ function M.symbols(path, opts)
   ---@type table<string, obsidian.LinkSuggestionSymbol>
   local symbols_by_text = {}
 
+  local note_identifiers = require "obsidian.note.identifiers"
   for p, row in pairs(rows) do
     p = vim.fs.normalize(p)
     if opts.include_current or p ~= current_path then
-      local name = basename(p)
-      add_symbol(symbols_by_text, name, p)
-      for _, alias in ipairs(row.aliases or {}) do
-        add_symbol(symbols_by_text, alias, p)
+      add_symbol(symbols_by_text, basename(p), p)
+      for _, identifier in ipairs(note_identifiers.from_cache(p, row)) do
+        add_symbol(symbols_by_text, identifier, p)
       end
     end
   end

@@ -196,12 +196,15 @@ M.find_files_from_cache = function(opts)
       }
     end
 
+    local note_identifiers = require "obsidian.note.identifiers"
     for path, note in pairs(cache.notes.all()) do
       if util.is_subpath(path, dir) then
         local rel_path = cache.notes.rel_path(path):gsub("%.md$", "")
         add_entry(rel_path, path)
-        for _, alias in ipairs(note.aliases or {}) do
-          add_entry(rel_path .. " | " .. alias, path)
+        for _, identifier in ipairs(note_identifiers.from_cache(path, note)) do
+          if identifier ~= rel_path and identifier ~= vim.fs.basename(rel_path) then
+            add_entry(rel_path .. " | " .. identifier, path)
+          end
         end
       end
     end

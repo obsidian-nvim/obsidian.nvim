@@ -45,7 +45,11 @@ return {
   ---Default template to use, relative to template.folder or an absolute path.
   ---
   ---@field template string|?
+  ---Frontmatter fields whose values can identify a note. The note filename is always an identifier.
+  ---Fields may contain a string, number, or list of strings/numbers.
+  ---@field identifiers string[]
   note = {
+    identifiers = { "id", "aliases" },
     template = (function()
       local root
       for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do

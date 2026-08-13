@@ -509,20 +509,24 @@ local function process_search_results(cc, results)
     if cc.in_buffer_only then
       update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
     else
-      -- Collect all valid aliases for the note, including ID, title, and filename.
-      local aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
+      -- The filename always identifies a note; frontmatter identifiers are configurable.
+      local identifiers = note:identifiers()
+      if note.path then
+        identifiers[#identifiers + 1] = note.path.stem
+      end
+      identifiers = require("obsidian.note.identifiers").unique(identifiers)
 
-      for _, alias in ipairs(aliases) do
-        update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
-        local alias_case_matched = util.match_case(cc.search, alias)
+      for _, identifier in ipairs(identifiers) do
+        update_completion_options(cc, identifier, nil, matching_anchors, matching_blocks, note)
+        local case_matched = util.match_case(cc.search, identifier)
 
         if
-          alias_case_matched ~= nil
-          and alias_case_matched ~= alias
-          and not vim.list_contains(note.aliases, alias_case_matched)
+          case_matched ~= nil
+          and case_matched ~= identifier
+          and not vim.list_contains(identifiers, case_matched)
           and Obsidian.opts.completion.match_case
         then
-          update_completion_options(cc, alias_case_matched, nil, matching_anchors, matching_blocks, note)
+          update_completion_options(cc, case_matched, nil, matching_anchors, matching_blocks, note)
         end
       end
 

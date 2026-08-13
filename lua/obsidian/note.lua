@@ -515,30 +515,30 @@ Note._location = function(self, opts)
   }
 end
 
---- Get a list of all of the different string that can identify this note via references,
---- including the ID, aliases, and filename.
+--- Get the configured values that identify this note.
+---@return string[]
+Note.identifiers = function(self)
+  return require("obsidian.note.identifiers").from_note(self)
+end
+
+--- Get a list of all strings that can identify this note via references.
+--- The filename always identifies a note in addition to the configured identifiers.
 ---@param opts { lowercase: boolean|? }|?
 ---@return string[]
 Note.reference_ids = function(self, opts)
   opts = opts or {}
-  ---@type string[]
-  local ref_ids = {
-    tostring(self.id),
-    self:display_name(), -- TODO: remove in the future
-  }
+  local ref_ids = self:identifiers()
 
   if self.path then
     table.insert(ref_ids, self.path.name)
     table.insert(ref_ids, self.path.stem)
   end
 
-  vim.list_extend(ref_ids, self.aliases)
-
   if opts.lowercase then
     ref_ids = vim.tbl_map(string.lower, ref_ids)
   end
 
-  return util.tbl_unique(ref_ids)
+  return require("obsidian.note.identifiers").unique(ref_ids)
 end
 
 --- Get a list of all of the different paths that can identify this note
@@ -555,6 +555,8 @@ Note.get_reference_paths = function(self, opts)
   else
     return raw_refs
   end
+
+  vim.list_extend(raw_refs, self:identifiers())
 
   local relpath = self.path:vault_relative_path()
   if relpath then

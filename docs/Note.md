@@ -1,4 +1,5 @@
 - [Default Note Template](#default-note-template)
+- [Note Identifiers](#note-identifiers)
 - [Creation Callback](#creation-callback)
 - [Note ID Presets](#note-id-presets)
 - [Options](#options)
@@ -28,6 +29,22 @@ require("obsidian").setup {
 ```
 
 For fields you have access to for the default template, see [[Template]].
+
+## Note Identifiers
+
+By default, a note can be identified by its filename, frontmatter `id`, or any value in frontmatter `aliases`. This is used by link completion, link resolution, command completion, workspace symbols, backlinks, quick switch, and cached link suggestions.
+
+To also treat a Zettlr-style frontmatter `title` as a note identifier:
+
+```lua
+require("obsidian").setup {
+  note = {
+    identifiers = { "id", "aliases", "title" },
+  },
+}
+```
+
+The configured names refer to frontmatter fields. A field may contain a string, number, or list of strings/numbers. The filename always remains an identifier, so filename- and path-based links continue to work. Arbitrary frontmatter fields are supported.
 
 ## Creation Callback
 
@@ -107,7 +124,11 @@ When creating notes in a directory where the slug already exists, this preset ap
 ---Default template to use, relative to template.folder or an absolute path.
 ---
 ---@field template string|?
+---Frontmatter fields whose values can identify a note. The note filename is always an identifier.
+---Fields may contain a string, number, or list of strings/numbers.
+---@field identifiers string[]
 note = {
+  identifiers = { "id", "aliases" },
   template = (function()
     local root
     for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do

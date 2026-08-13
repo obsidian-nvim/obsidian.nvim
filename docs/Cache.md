@@ -12,14 +12,14 @@ require("obsidian").setup {
 
 The default backend is `json`. It writes a cache file under Neovim's cache directory and reuses it between sessions. You do not need to set `backend = "json"` unless you want to be explicit.
 
-At the moment, the cache is used for `:Obsidian quick_switch`. When enabled, quick switch reads note names and aliases from the cache instead of asking the picker to scan the vault each time.
+At the moment, the cache is used for `:Obsidian quick_switch`. When enabled, quick switch reads note names and the configured `note.identifiers` from the cache instead of asking the picker to scan the vault each time.
 
 ## What Gets Cached
 
 The cache stores note metadata that helps `quick_switch` build picker entries:
 
 - note path
-- aliases
+- note ID and aliases
 - tags
 - frontmatter properties
 - outgoing links

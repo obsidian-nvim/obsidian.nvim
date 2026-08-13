@@ -122,6 +122,10 @@ function M.build(abs_path, _vault_root)
     mtime_nsec = stat.mtime.nsec,
     size = stat.size,
   }
+  local path_stem = vim.fn.fnamemodify(abs_path, ":t:r")
+  if tostring(note.id) ~= path_stem then
+    row.id = tostring(note.id)
+  end
   if note.aliases and #note.aliases > 0 then
     row.aliases = note.aliases
   end

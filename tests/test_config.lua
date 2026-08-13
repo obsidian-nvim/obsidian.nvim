@@ -46,6 +46,22 @@ T["normalize"]["should prefer explicit link.style over deprecated preferred_link
   eq("wiki", opts.link.style)
 end
 
+T["normalize"]["should default note identifiers to id and aliases"] = function()
+  eq({ "id", "aliases" }, normalize({}).note.identifiers)
+end
+
+T["normalize"]["should replace default note identifiers with custom identifiers"] = function()
+  local opts = normalize { note = { identifiers = { "title" } } }
+  eq({ "title" }, opts.note.identifiers)
+  eq({}, normalize({ note = { identifiers = {} } }).note.identifiers)
+end
+
+T["normalize"]["should validate note identifiers"] = function()
+  local ok, err = pcall(normalize, { note = { identifiers = { "id", false } } })
+  eq(false, ok)
+  eq(true, tostring(err):match "note.identifiers%[2%]" ~= nil)
+end
+
 T["normalize"]["should validate link.style"] = function()
   local ok, err = pcall(normalize, {
     link = {

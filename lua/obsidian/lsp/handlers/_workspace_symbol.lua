@@ -37,32 +37,20 @@ local function note_to_symbols(note)
 
   ---@type lsp.WorkspaceSymbol[]
   local symbols = {}
+  local note_identifiers = require "obsidian.note.identifiers"
+  local identifiers = note:identifiers()
+  identifiers[#identifiers + 1] = note.path.stem
 
-  -- Primary symbol: display name.
-  symbols[#symbols + 1] = {
-    name = note:display_name(),
-    kind = SymbolKind.File,
-    location = location,
-    containerName = container,
-    data = {
-      note = note,
-    },
-  }
-
-  -- Additional symbols for each alias.
-  for _, alias in ipairs(note.aliases) do
-    -- Skip if alias is the same as the display name (already emitted).
-    if alias ~= note:display_name() then
-      symbols[#symbols + 1] = {
-        name = alias,
-        kind = SymbolKind.File,
-        location = location,
-        containerName = container,
-        data = {
-          note = note,
-        },
-      }
-    end
+  for _, identifier in ipairs(note_identifiers.unique(identifiers)) do
+    symbols[#symbols + 1] = {
+      name = identifier,
+      kind = SymbolKind.File,
+      location = location,
+      containerName = container,
+      data = {
+        note = note,
+      },
+    }
   end
 
   return symbols

@@ -231,6 +231,21 @@ T["from_lines"]["should work from a lines"] = function()
   eq(#note.tags, 0)
 end
 
+T["from_lines"]["uses configured frontmatter fields as identifiers"] = function()
+  Obsidian.opts.note.identifiers = { "id", "aliases", "title", "citekey" }
+  local note =
+    from_str("---\nid: 12345678\naliases: [short]\ntitle: foo bar\ncitekey: [doe2026, 42]\n---\nBody", "12345678.md")
+
+  eq({ "12345678", "short", "foo bar", "doe2026", "42" }, note:identifiers())
+  eq({ "12345678", "short", "foo bar", "doe2026", "42", "12345678.md" }, note:reference_ids())
+end
+
+T["from_lines"]["does not use unconfigured frontmatter fields as identifiers"] = function()
+  local note = from_str("---\ntitle: foo bar\n---\nBody", "12345678.md")
+  eq({ "12345678" }, note:identifiers())
+  eq({ "12345678", "12345678.md" }, note:reference_ids())
+end
+
 local note_with_headers = [[---
 id: note_with_a_bunch_of_headers
 ---

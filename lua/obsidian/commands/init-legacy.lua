@@ -115,14 +115,12 @@ M.complete_args_search = function(_, cmd_line, _)
     ---@cast path -nil
     local note_path = path:vault_relative_path { strict = true }
     ---@cast note_path -nil
-    if string.find(string.lower(note:display_name()), query_lower, 1, true) then
-      table.insert(completions, note:display_name() .. "  " .. tostring(note_path))
-    else
-      for _, alias in pairs(note.aliases) do
-        if string.find(string.lower(alias), query_lower, 1, true) then
-          table.insert(completions, alias .. "  " .. tostring(note_path))
-          break
-        end
+    local identifiers = note:identifiers()
+    identifiers[#identifiers + 1] = path.stem
+    for _, identifier in ipairs(require("obsidian.note.identifiers").unique(identifiers)) do
+      if string.find(string.lower(identifier), query_lower, 1, true) then
+        table.insert(completions, identifier .. "  " .. tostring(note_path))
+        break
       end
     end
   end

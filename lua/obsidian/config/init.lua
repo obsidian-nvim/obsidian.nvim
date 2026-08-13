@@ -58,6 +58,10 @@ config.normalize = function(opts, defaults)
 
   opts = require "obsidian.config.removed"(opts, defaults)
 
+  -- vim.tbl_deep_extend merges list entries by index. Keep this list so a
+  -- user's identifiers replace (rather than partially merge with) the default.
+  local note_identifiers = opts.note and opts.note.identifiers
+
   --------------------------
   -- Merge with defaults. --
   --------------------------
@@ -80,6 +84,9 @@ config.normalize = function(opts, defaults)
   opts.frontmatter = tbl_override(defaults.frontmatter, opts.frontmatter)
   opts.search = tbl_override(defaults.search, opts.search)
   opts.note = tbl_override(defaults.note, opts.note)
+  if note_identifiers ~= nil then
+    opts.note.identifiers = vim.deepcopy(note_identifiers)
+  end
   opts.link = tbl_override(defaults.link, opts.link)
   opts.unique_note = tbl_override(defaults.unique_note, opts.unique_note)
   opts.sync = tbl_override(defaults.sync, opts.sync)
@@ -131,6 +138,15 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
       if type(pattern) ~= "string" then
         error(string.format("Invalid obsidian.nvim config, 'file.ignore_filters[%d]' should be a string.", i))
       end
+    end
+  end
+
+  if type(opts.note.identifiers) ~= "table" or not vim.islist(opts.note.identifiers) then
+    error "Invalid obsidian.nvim config, 'note.identifiers' should be an array of strings."
+  end
+  for i, field in ipairs(opts.note.identifiers) do
+    if type(field) ~= "string" or field == "" then
+      error(string.format("Invalid obsidian.nvim config, 'note.identifiers[%d]' should be a non-empty string.", i))
     end
   end
 

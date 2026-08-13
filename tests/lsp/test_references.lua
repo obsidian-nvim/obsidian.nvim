@@ -368,7 +368,7 @@ T["avoid invalid patterns"] = function()
   eq(0, #qflist)
 end
 
-T["not find id links, here for historical reasons"] = function()
+T["find links that use a configured id identifier"] = function()
   local referencer = [==[
 
 [[id]]
@@ -388,7 +388,7 @@ id: id
 
   child.cmd(string.format("edit %s", target_path))
   local qflist = get_refs()
-  eq(0, #qflist)
+  eq(1, #qflist)
 end
 
 return T
