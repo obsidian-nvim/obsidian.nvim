@@ -66,7 +66,7 @@ function M.build(abs_path, _vault_root)
   end
   fh:close()
 
-  local ok, note = pcall(Note.from_lines, lines, abs_path, {})
+  local ok, note = pcall(Note.from_lines, lines, abs_path, { collect_sections = true })
   if not ok or not note then
     return nil
   end
@@ -88,6 +88,18 @@ function M.build(abs_path, _vault_root)
   end
   for _, t in ipairs(note.tags or {}) do
     add_tag(t)
+  end
+
+  local headings = {}
+  for _, section in ipairs(note.sections or {}) do
+    if section.header then
+      headings[#headings + 1] = {
+        header = section.header,
+        anchor = section.anchor,
+        level = section.level,
+        line = section.heading_range.start_row + 1,
+      }
+    end
   end
 
   local fm_end = note.frontmatter_end_line or 0
@@ -122,6 +134,10 @@ function M.build(abs_path, _vault_root)
     mtime_nsec = stat.mtime.nsec,
     size = stat.size,
   }
+  local basename = vim.fn.fnamemodify(abs_path, ":t:r")
+  if tostring(note.id) ~= basename then
+    row.id = note.id
+  end
   if note.aliases and #note.aliases > 0 then
     row.aliases = note.aliases
   end
@@ -130,6 +146,9 @@ function M.build(abs_path, _vault_root)
   end
   if next(properties) ~= nil then
     row.properties = properties
+  end
+  if #headings > 0 then
+    row.headings = headings
   end
   if #links_out > 0 then
     row.links_out = links_out

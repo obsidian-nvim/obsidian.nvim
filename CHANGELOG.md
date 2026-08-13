@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Obsidian-style vault-wide heading completion with `[[##query`, using cached heading metadata when available and filesystem search otherwise (#320, #505, #749).
 - Obsidian-style block completion with previews and automatic IDs for unlabeled blocks, using `[[^query`, `[[note^query`, `[[note#^query`, or `[[^^query` (#505, #749).
 - Added separate icons module to support obsidian related filetypes and usecases.
 - Fallback libuv-based fs walker that makes `ripgrep` optional in file finding.
