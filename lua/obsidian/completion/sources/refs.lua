@@ -39,6 +39,20 @@ local EMPTY_RESPONSE = {
 ---@type integer
 local ALL_LINES = 2147483647
 
+---@class obsidian.completion.sources.refs.block_search_index
+---@field dir string
+---@field notes obsidian.Note[]|?
+---@field pending { cc: obsidian.completion.sources.refs.context, query: string }[]
+
+---@type obsidian.completion.sources.refs.block_search_index?
+local vault_block_search_index
+local vault_block_search_generation = 0
+
+require("obsidian.lsp.watchfiles").register_handler(function()
+  vault_block_search_index = nil
+  vault_block_search_generation = vault_block_search_generation + 1
+end)
+
 --- Returns whether it's possible to complete the search and sets up the search related variables in cc
 ---@param cc obsidian.completion.sources.refs.context
 ---@return boolean success provides a chance to return early if the request didn't meet the requirements
@@ -171,16 +185,19 @@ local function include_loaded_notes(results, dir, note_opts, include_unmatched)
     if vim.api.nvim_buf_is_loaded(bufnr) then
       local path = vim.uv.fs_realpath(vim.fn.resolve(vim.api.nvim_buf_get_name(bufnr)))
       if path and util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
-        local opts = vim.tbl_extend("force", note_opts, {
-          max_lines = vim.api.nvim_buf_line_count(bufnr),
-        })
-        local note = Note.from_buffer(bufnr, opts)
-        local idx = path_to_idx[tostring(note.path)]
-        if idx then
-          results[idx] = note
-        elseif include_unmatched ~= false then
-          results[#results + 1] = note
-          path_to_idx[tostring(note.path)] = #results
+        local idx = path_to_idx[path]
+        if not idx or vim.bo[bufnr].modified then
+          local opts = vim.tbl_extend("force", note_opts, {
+            max_lines = vim.api.nvim_buf_line_count(bufnr),
+          })
+          local note = Note.from_buffer(bufnr, opts)
+          idx = path_to_idx[tostring(note.path)]
+          if idx then
+            results[idx] = note
+          elseif include_unmatched ~= false then
+            results[#results + 1] = note
+            path_to_idx[tostring(note.path)] = #results
+          end
         end
       end
     end
@@ -288,6 +305,52 @@ local function process_block_search_results(cc, scope, query, results)
 end
 
 ---@param cc obsidian.completion.sources.refs.context
+---@param query string
+---@param dir obsidian.Path
+---@param note_opts obsidian.note.LoadOpts
+local function process_vault_block_search(cc, query, dir, note_opts)
+  local dir_key = tostring(dir)
+  local index = vault_block_search_index
+  if not index or index.dir ~= dir_key then
+    index = { dir = dir_key, pending = { { cc = cc, query = query } } }
+    vault_block_search_index = index
+    local generation = vault_block_search_generation
+    search.find_notes_async("", function(results)
+      if generation ~= vault_block_search_generation then
+        local pending = index.pending
+        index.pending = {}
+        for _, request in ipairs(pending) do
+          process_vault_block_search(request.cc, request.query, dir, note_opts)
+        end
+        return
+      end
+      index.notes = results
+      local pending = index.pending
+      index.pending = {}
+      for _, request in ipairs(pending) do
+        process_block_search_results(
+          request.cc,
+          "vault",
+          request.query,
+          include_loaded_notes(vim.list_slice(index.notes), dir, note_opts, true)
+        )
+      end
+    end, {
+      dir = dir,
+      search = { sort = false, include_templates = false, ignore_case = true },
+      notes = note_opts,
+    })
+    return
+  end
+
+  if index.notes then
+    process_block_search_results(cc, "vault", query, include_loaded_notes(vim.list_slice(index.notes), dir, note_opts, true))
+  else
+    index.pending[#index.pending + 1] = { cc = cc, query = query }
+  end
+end
+
+---@param cc obsidian.completion.sources.refs.context
 ---@param scope "current"|"note"|"vault"
 ---@param query string
 ---@param target string|?
@@ -305,7 +368,7 @@ local function process_block_search(cc, scope, query, target)
   local dir = api.resolve_workspace_dir()
   local note_opts = { max_lines = ALL_LINES, collect_blocks = true, collect_block_candidates = true }
   local function on_results(results)
-    process_block_search_results(cc, scope, query, include_loaded_notes(results, dir, note_opts, scope == "vault"))
+    process_block_search_results(cc, scope, query, include_loaded_notes(results, dir, note_opts, false))
   end
   if scope == "note" then
     search.resolve_note_async(
@@ -315,11 +378,7 @@ local function process_block_search(cc, scope, query, target)
     )
     return
   end
-  search.find_notes_async(query, on_results, {
-    dir = dir,
-    search = { sort = false, include_templates = false, ignore_case = true },
-    notes = note_opts,
-  })
+  process_vault_block_search(cc, query, dir, note_opts)
 end
 
 ---@param query string
