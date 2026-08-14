@@ -259,8 +259,7 @@ T["config.normalize()"]["templater defaults should apply when not overridden"] =
   }
 
   eq(false, opts.templater.enabled)
-  eq("templater", opts.templater.cmd)
-  eq(true, opts.templater.pipe_stdin)
+  eq(nil, opts.templater.user_scripts_folder)
 end
 
 T["config.normalize()"]["templater overrides should merge with defaults"] = function()
@@ -269,14 +268,12 @@ T["config.normalize()"]["templater overrides should merge with defaults"] = func
     workspaces = { { path = tostring(Obsidian.dir) } },
     templater = {
       enabled = true,
-      cmd = "custom-templater",
+      user_scripts_folder = "scripts",
     },
   }
 
   eq(true, opts.templater.enabled)
-  eq("custom-templater", opts.templater.cmd)
-  -- Default pipe_stdin should still be present.
-  eq(true, opts.templater.pipe_stdin)
+  eq("scripts", opts.templater.user_scripts_folder)
 end
 
 return T
