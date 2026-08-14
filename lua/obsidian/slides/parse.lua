@@ -23,23 +23,44 @@ local function is_footnotes_header(line)
 end
 
 ---@param lines string[]
+---@param i integer
+---@return boolean
+local function is_blank_at(lines, i)
+  local line = lines[i]
+  return line ~= nil and is_blank(line)
+end
+
+---@param lines string[]
+---@param i integer
+---@return boolean
+local function is_footnotes_header_at(lines, i)
+  local line = lines[i]
+  return line ~= nil and is_footnotes_header(line)
+end
+
+---@param lines string[]
 ---@return string[] body_lines
 ---@return table<string, string> definitions
 local function strip_trailing_footnotes(lines)
   local i = #lines
-  while i > 0 and is_blank(lines[i]) do
+  while i > 0 and is_blank_at(lines, i) do
     i = i - 1
   end
 
   local defs = {}
   local found = false
   while i > 0 do
-    local id, text = footnotes.parse_definition(lines[i])
+    local line = lines[i]
+    if line == nil then
+      break
+    end
+
+    local id, text = footnotes.parse_definition(line)
     if id then
       defs[id] = text
       found = true
       i = i - 1
-    elseif is_blank(lines[i]) then
+    elseif is_blank(line) then
       i = i - 1
     else
       break
@@ -50,13 +71,13 @@ local function strip_trailing_footnotes(lines)
     return lines, defs
   end
 
-  while i > 0 and is_blank(lines[i]) do
+  while i > 0 and is_blank_at(lines, i) do
     i = i - 1
   end
 
-  if i > 0 and is_footnotes_header(lines[i]) then
+  if i > 0 and is_footnotes_header_at(lines, i) then
     i = i - 1
-    while i > 0 and is_blank(lines[i]) do
+    while i > 0 and is_blank_at(lines, i) do
       i = i - 1
     end
   end
@@ -87,6 +108,7 @@ local function collect_footnote_refs(line, refs, seen)
       seen[id] = true
       refs[#refs + 1] = id
     end
+    ---@cast m_end -nil
     init = m_end + 1
   end
 end

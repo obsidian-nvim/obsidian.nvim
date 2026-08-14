@@ -13,6 +13,7 @@ local function rename_note(file, dispatchers)
     old_path = vim.uri_to_fname(file.oldUri),
     new_path = new_path,
     include_file_rename = false,
+    dir = api.resolve_workspace_dir(new_path),
   }, function(edit, meta)
     if not edit then
       return

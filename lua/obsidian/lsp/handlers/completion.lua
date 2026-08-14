@@ -54,6 +54,26 @@ local function merge_results(a, b)
   }
 end
 
+--- Stable-partition items so "create new note" items (produced by the new-note source,
+--- identified by their obsidian.write_note command) always sort after every other item,
+--- regardless of which source resolved first. Relative order within each group is preserved.
+---@param items lsp.CompletionItem[]
+---@return lsp.CompletionItem[]
+local function partition_create_last(items)
+  local rest, create = {}, {}
+  for _, item in ipairs(items) do
+    if item.command and item.command.command == "obsidian.write_note" then
+      create[#create + 1] = item
+    else
+      rest[#rest + 1] = item
+    end
+  end
+  for _, item in ipairs(create) do
+    rest[#rest + 1] = item
+  end
+  return rest
+end
+
 ---@param params lsp.CompletionParams
 ---@param callback fun(err: any, result: lsp.CompletionList)
 return function(params, callback, _)
@@ -76,6 +96,7 @@ return function(params, callback, _)
     end
     pending = pending - 1
     if pending == 0 then
+      merged.items = partition_create_last(merged.items)
       callback(nil, merged)
     end
   end

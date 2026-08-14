@@ -1,9 +1,16 @@
----@type table<string, lsp.CodeAction>
+---@class obsidian.lsp.CodeActionData
+---@field title string|fun(note: obsidian.Note): string
+---@field cond fun(note: obsidian.Note): boolean
+
+---@class obsidian.lsp.CodeAction : lsp.CodeAction
+---@field data obsidian.lsp.CodeActionData
+
+---@type table<string, obsidian.lsp.CodeAction>
 local code_actions = {}
 
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
----@field title string text display in code action interface
+---@field title string|fun(note: obsidian.Note): string text display in code action interface
 ---@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
 ---@field fn? function
 
@@ -11,14 +18,16 @@ local code_actions = {}
 ---@param opts obsidian.lsp.CodeActionOpts
 local add = function(opts)
   -- TODO: validate
+  local title = type(opts.title) == "string" and opts.title or ""
   local action = {
-    title = opts.title,
+    title = title,
     command = {
-      title = opts.title,
+      title = title,
       command = "obsidian." .. opts.name,
       -- TODO: kind
     },
     data = {
+      title = opts.title,
       cond = opts.cond or function()
         return true
       end,
@@ -35,7 +44,11 @@ local add = function(opts)
 end
 
 local function in_visual()
-  return vim.api.nvim_get_mode().mode:find "v" ~= nil
+  return (vim.api.nvim_get_mode().mode:find "v") ~= nil
+end
+
+local function is_recording_audio()
+  return require("obsidian.core-plugins.audio_recorder").is_recording()
 end
 
 local default_actions = {
@@ -69,19 +82,38 @@ local default_actions = {
   insert_template = {
     title = "Insert template at cursor",
     cond = function()
-      return Obsidian.opts.templates.enabled
+      return Obsidian.opts.templates.enabled == true
     end,
   },
 
   start_presentation = {
     title = "Start presentation",
     cond = function()
-      return Obsidian.opts.slides.enabled
+      return Obsidian.opts.slides.enabled == true
     end,
   },
 
   add_attachment = {
     title = "Add attachment from folder, filepath or url",
+  },
+
+  insert_link = {
+    title = "Insert internal link at cursor",
+  },
+
+  insert_tag = {
+    title = "Insert tag at cursor",
+  },
+
+  --- TODO: add_alias
+  add_tag = {
+    title = "Add tag to frontmatter",
+  },
+
+  toggle_recording = {
+    title = function()
+      return is_recording_audio() and "Stop recording audio" or "Start recording audio as attachment"
+    end,
   },
 }
 
@@ -91,8 +123,9 @@ local del = function(name)
 end
 
 for name, opts in pairs(default_actions) do
-  opts.name = name
-  add(opts)
+  ---@type obsidian.lsp.CodeActionOpts
+  local action_opts = vim.tbl_extend("force", opts, { name = name })
+  add(action_opts)
 end
 
 return {

@@ -1,6 +1,7 @@
 local lsp = {}
 local log = require "obsidian.log"
 local lsp_util = require "obsidian.lsp.util"
+local api = require "obsidian.api"
 
 --- Start the lsp client
 ---
@@ -23,7 +24,7 @@ lsp.start = function(buf)
     offset_encoding = "utf-8",
     cmd = require "obsidian.lsp.server",
     init_options = {},
-    root_dir = tostring(Obsidian.dir),
+    root_dir = tostring(api.resolve_workspace_dir(vim.api.nvim_buf_get_name(buf))),
   }
 
   local warning = lsp_util.check_completion_availability()

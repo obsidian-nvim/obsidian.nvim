@@ -5,6 +5,33 @@ local T, child = h.child_vault {
   pre_case = [[M = require"obsidian.api"]],
 }
 
+T["state"] = new_set()
+
+T["state"]["should expose picker module for backwards compatibility"] = function()
+  eq(true, child.lua [[return Obsidian["picker"] == require("obsidian.picker")]])
+end
+
+T["workspace resolution"] = new_set()
+
+T["workspace resolution"]["should resolve non-note and nonexistent paths in the most specific workspace"] = function()
+  eq(
+    { "nested", "nested" },
+    child.lua [[
+    local nested = Obsidian.dir / "nested"
+    nested:mkdir()
+    Obsidian.workspaces[#Obsidian.workspaces + 1] = require("obsidian.workspace").new {
+      name = "nested",
+      path = nested,
+      strict = true,
+    }
+    return {
+      M.resolve_workspace_dir(nested / "attachment.png").name,
+      M.resolve_workspace_dir(nested / "future" / "note.md").name,
+    }
+  ]]
+  )
+end
+
 T["toggle_checkbox"] = new_set()
 
 T["toggle_checkbox"]["should toggle between default states with - lists"] = function()
@@ -211,7 +238,7 @@ T["open_note"]["should blink quickfix-style ranges"] = function()
   local result = child.lua [[
     local path = tostring(Obsidian.dir / "blink.md")
     vim.fn.writefile({ "# Heading", "body" }, path)
-    local bufnr = M.open_note({ filename = path, lnum = 1, col = 0, end_lnum = 2, end_col = 5 })
+    local bufnr = M.open_note({ filename = path, lnum = 1, col = 1, end_lnum = 2, end_col = 5 })
     local blinked = false
     for name, ns in pairs(vim.api.nvim_get_namespaces()) do
       if name:match("^obsidian_blink_") and #vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {}) > 0 then

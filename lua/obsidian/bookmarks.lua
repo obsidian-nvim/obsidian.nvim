@@ -2,6 +2,7 @@ local log = require "obsidian.log"
 local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
+local util = require "obsidian.util"
 
 local M = {}
 
@@ -70,11 +71,9 @@ local function format_bookmark(bookmark)
   return bookmark.title
 end
 
----@alias obsidian.ui.select_preview_spec {buf?:integer, pos?:[integer,integer], pos_end?:[integer,integer]}
-
 ---@param bookmark obsidian.Bookmark
 ---@param buf integer
----@return obsidian.ui.select_preview_spec
+---@return obsidian.ui_select_preview_spec
 local function preview_url(bookmark, buf)
   local url = bookmark.url
   if not url then
@@ -107,7 +106,7 @@ end
 
 ---@param bookmark obsidian.Bookmark
 ---@param buf integer
----@return obsidian.ui.select_preview_spec
+---@return obsidian.ui_select_preview_spec
 local function preview_group(bookmark, buf)
   vim.bo[buf].filetype = "markdown"
   local lines = vim.tbl_map(function(bm)
@@ -121,7 +120,7 @@ end
 --
 ---@param bookmark obsidian.Bookmark
 ---@param buf integer
----@return obsidian.ui.select_preview_spec
+---@return obsidian.ui_select_preview_spec
 local function preview_query(bookmark, buf)
   vim.bo[buf].filetype = "markdown"
   local lines = { "query: " .. bookmark.query }
@@ -130,33 +129,37 @@ local function preview_query(bookmark, buf)
 end
 
 ---@param bookmark obsidian.Bookmark
----@param buf integer
----@return obsidian.ui.select_preview_spec
-local function preview_file(bookmark, buf)
-  if not bookmark.path then
+---@return obsidian.ui_select_preview_spec
+local function preview_file(bookmark)
+  if not bookmark.path or not bookmark._path then
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "wipe"
     return { buf = buf }
   end
   local entry = bookmark_to_picker_entry(bookmark)
   if not entry.filename then
-    return { buf = buf }
+    return util.preview_path(bookmark._path)
   end
-  local lines = vim.fn.readfile(entry.filename)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  return { buf = buf, pos = entry.lnum and { entry.lnum, 0 } or nil }
+  local preview = util.preview_path(entry.filename)
+  preview.pos = entry.lnum and { entry.lnum, 0 } or nil
+  return preview
 end
 
 ---@param bookmark obsidian.Bookmark
----@return obsidian.ui.select_preview_spec
+---@return obsidian.ui_select_preview_spec
 local function preview_bookmark(bookmark)
+  if bookmark.type == "file" or bookmark.type == "folder" then
+    return preview_file(bookmark)
+  end
+
   local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
   if bookmark.type == "url" then
     return preview_url(bookmark, buf)
   elseif bookmark.type == "group" then
     return preview_group(bookmark, buf)
   elseif bookmark.type == "search" then
     return preview_query(bookmark, buf)
-  elseif bookmark.type == "file" then
-    return preview_file(bookmark, buf)
   else
     return { buf = buf }
   end
@@ -164,7 +167,7 @@ end
 
 ---@return string?
 M.resolve_bookmark_file = function()
-  local bookmark_file = Obsidian.workspace.root / ".obsidian" / "bookmarks.json"
+  local bookmark_file = api.resolve_workspace_dir() / ".obsidian" / "bookmarks.json"
 
   if not bookmark_file:exists() then
     log.info "bookmark file does not exist, adding and managing bookmarks is not supported yet"
@@ -193,38 +196,39 @@ local function open_bookmark(bookmark)
     -- TODO: proper obsidian search term parser and search
     picker.grep {
       query = bookmark.query,
+      dir = api.resolve_workspace_dir(),
     }
   elseif bookmark.type == "file" then
     api.open_note(bookmark_to_picker_entry(bookmark))
   elseif bookmark.type == "folder" then
     local entry = bookmark_to_picker_entry(bookmark)
-    vim.cmd("edit " .. vim.fn.fnameescape(entry.filename))
+    if entry.filename then
+      vim.cmd("edit " .. vim.fn.fnameescape(entry.filename))
+    end
   end
 end
 
 ---@param bookmarks obsidian.Bookmark[]
 M.pick = function(bookmarks)
-  bookmarks = vim
-    .iter(bookmarks)
-    :map(function(bm)
-      if bm.path then
-        bm._path = tostring(Obsidian.dir / bm.path)
-      end
-      return bm
-    end)
-    :filter(function(bm)
-      if bm.path then
-        return vim.uv.fs_stat(bm._path) ~= nil
-      end
-      return true
-    end)
-    :totable()
+  local filtered = {}
+  local workspace_dir = api.resolve_workspace_dir()
+  for _, bm in ipairs(bookmarks) do
+    if bm.path then
+      bm._path = tostring(workspace_dir / bm.path)
+    end
+    if not bm.path or vim.uv.fs_stat(bm._path) ~= nil then
+      filtered[#filtered + 1] = bm
+    end
+  end
+  bookmarks = filtered
 
-  vim.ui.select(bookmarks, {
-    prompt_title = "Bookmarks",
+  picker.select(bookmarks, {
+    prompt = "Bookmarks",
     format_item = format_bookmark,
     preview_item = preview_bookmark,
-  }, open_bookmark)
+  }, function(items)
+    open_bookmark(items[1])
+  end)
 end
 
 return M

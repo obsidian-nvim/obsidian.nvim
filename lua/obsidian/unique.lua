@@ -1,5 +1,6 @@
 local moment = require "obsidian.lib.moment"
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 local api = require "obsidian.api"
 
 local M = {}
@@ -79,13 +80,27 @@ local function generate_unique_id(timestamp, fmt, existing_stems)
   return date_id, timestamp
 end
 
----@param timestamp integer?
----@return string? A unique note ID based on the timestamp and format, ensuring no collisions with existing
-function M.new_unique_id(timestamp)
-  timestamp = timestamp or os.time()
+---Resolve the directory where a unique note will be created.
+---@param dir string|obsidian.Path|?
+---@return obsidian.Path
+local function resolve_unique_note_dir(dir)
+  local workspace_dir = api.resolve_workspace_dir()
+  if dir then
+    local path = Path.new(dir)
+    return path:is_absolute() and path:resolve() or workspace_dir / path
+  end
 
   local unique_note_folder = Obsidian.opts.unique_note.folder
-  local folder_path = unique_note_folder and Obsidian.dir / unique_note_folder or Obsidian.dir
+  return unique_note_folder and workspace_dir / unique_note_folder or workspace_dir
+end
+
+---@param timestamp integer?
+---@param dir string|obsidian.Path|? Directory in which to check for an existing unique note ID.
+---@return string? A unique note ID based on the timestamp and format, ensuring no collisions with existing
+function M.new_unique_id(timestamp, dir)
+  timestamp = timestamp or os.time()
+
+  local folder_path = resolve_unique_note_dir(dir)
 
   if folder_path:is_dir() == false then
     local choice =
@@ -123,17 +138,17 @@ end
 ---@param opts obsidian.note.NoteOpts?
 ---@return obsidian.Note? A new unique note instance with a unique ID based on the timestamp and format.
 function M.new_unique_note(timestamp, opts)
-  local unique_id = M.new_unique_id(timestamp)
+  opts = opts or {}
+  local dir = resolve_unique_note_dir(opts.dir)
+  local unique_id = M.new_unique_id(timestamp, dir)
   if not unique_id then
     return
   end
 
-  opts = opts or {}
-
   local default = {
     id = unique_id,
     template = Obsidian.opts.unique_note.template,
-    dir = Obsidian.opts.unique_note.folder,
+    dir = dir,
     verbatim = true,
     scope = "unique",
   }

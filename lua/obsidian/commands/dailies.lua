@@ -1,20 +1,26 @@
 local daily = require "obsidian.daily"
 
 ---@param arg string
----@return number
+---@return integer
 local function parse_offset(arg)
+  local offset
   if vim.startswith(arg, "+") then
-    return assert(tonumber(string.sub(arg, 2)), string.format("invalid offset '%s'", arg))
+    offset = tonumber(string.sub(arg, 2))
   elseif vim.startswith(arg, "-") then
-    return -assert(tonumber(string.sub(arg, 2)), string.format("invalid offset '%s'", arg))
+    offset = -(tonumber(string.sub(arg, 2)) or error(string.format("invalid offset '%s'", arg)))
   else
-    return assert(tonumber(arg), string.format("invalid offset '%s'", arg))
+    offset = tonumber(arg)
   end
+  assert(offset, string.format("invalid offset '%s'", arg))
+  ---@cast offset integer
+  return offset
 end
 
 ---@param data obsidian.CommandArgs
 return function(data)
+  ---@type integer
   local offset_start = -5
+  ---@type integer
   local offset_end = 0
 
   if data.fargs and #data.fargs > 0 then
@@ -35,6 +41,8 @@ return function(data)
     end
   end
 
+  ---@cast offset_start integer
+  ---@cast offset_end integer
   daily.pick(offset_start, offset_end, function(note)
     if not note:exists() then
       note:write()

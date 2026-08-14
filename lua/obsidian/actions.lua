@@ -6,11 +6,30 @@ local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
+local search = require "obsidian.search"
+local resolvers = require "obsidian.resolvers"
+
+---@param entry obsidian.PickerEntry
+---@return obsidian.ui_select_preview_spec
+local function preview_entry(entry)
+  local filename = entry.filename
+  ---@cast filename - nil
+  local preview = util.preview_path(filename)
+  local range = rawget(entry, "range")
+  ---@cast range lsp.Range?
+  if range then
+    preview.pos = { range.start.line + 1, range.start.character }
+    preview.pos_end = { range["end"].line + 1, range["end"].character }
+  elseif entry.lnum then
+    preview.pos = { entry.lnum, entry.col and math.max(entry.col - 1, 0) or 0 }
+  end
+  return preview
+end
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
----@param link string
----@param opts { open_strategy: obsidian.config.OpenStrategy|? }|?
+---@param link string?
+---@param opts { open_strategy: obsidian.config.OpenStrategy |? } |?
 M.follow_link = function(link, opts)
   opts = opts and opts or {}
   local range
@@ -29,7 +48,15 @@ M.follow_link = function(link, opts)
     if #items == 1 then
       api.open_note(items[1], cmd)
     else
-      Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
+      picker.select(items, {
+        prompt = "Resolve link",
+        preview_item = preview_entry,
+      }, function(choices)
+        local entry = choices and choices[1]
+        if entry then
+          api.open_note(entry, cmd)
+        end
+      end)
     end
   end, { range = range })
 end
@@ -75,7 +102,13 @@ end
 -- If cursor is on a heading, cycle the fold of that heading
 M.smart_action = function()
   local legacy = Obsidian.opts.legacy_commands
-  if api.cursor_link() then
+  if
+    vim.lsp.inlay_hint
+    and type(vim.lsp.inlay_hint.get) == "function"
+    and not vim.tbl_isempty(require("obsidian.inlay_hints").get_actionable_obsidian())
+  then
+    return "<cmd>lua require('obsidian.inlay_hints').accept()<cr>"
+  elseif api.cursor_link() then
     return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
   elseif api.cursor_tag() then
     return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
@@ -88,7 +121,7 @@ M.smart_action = function()
   end
 end
 
----Check if we are in node that should not do checkbox operations.
+--- Check if we are in node that should not do checkbox operations.
 ---
 ---@return boolean
 local function no_checkbox()
@@ -100,7 +133,7 @@ local function no_checkbox()
 end
 
 ---@param states string[]
----@param cur string|nil
+---@param cur    string | nil
 ---@return string?
 local function next_checkbox_state(states, cur)
   if not states or #states == 0 then
@@ -126,8 +159,8 @@ local function next_checkbox_state(states, cur)
 end
 
 ---@param line string
----@return string|nil prefix
----@return string|nil rest
+---@return string | nil prefix
+---@return string | nil rest
 local function parse_list_prefix(line)
   local indent, bullet, spaces, rest = line:match "^(%s*)([-+*])(%s+)(.*)$"
   if bullet then
@@ -143,9 +176,9 @@ local function parse_list_prefix(line)
 end
 
 ---@param rest string
----@return string|nil state
----@return string|nil ws
----@return string|nil body
+---@return string | nil state
+---@return string | nil ws
+---@return string | nil body
 local function parse_checkbox_rest(rest)
   local state, ws, body = rest:match "^%[(.)%](%s*)(.*)$"
   if state ~= nil then
@@ -154,15 +187,16 @@ local function parse_checkbox_rest(rest)
   return nil, nil, nil
 end
 
----Toggle the checkbox on a lnum
+--- Toggle the checkbox on a lnum
 ---
----@param states string[] Optional table containing checkbox states (e.g., {" ", "x"}).
----@param lnum number|nil Optional line number to toggle the checkbox on. Defaults to the current line.
+---@param states string[]      Optional table containing checkbox states (e.g., {" ", "x"}).
+---@param lnum   integer | nil Optional line number to toggle the checkbox on. Defaults to the current line.
 M._toggle_checkbox = function(states, lnum)
   if no_checkbox() then
     return
   end
   lnum = lnum or unpack(vim.api.nvim_win_get_cursor(0))
+  ---@cast lnum integer
   local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1]
 
   if not line then
@@ -210,12 +244,12 @@ M._toggle_checkbox = function(states, lnum)
 end
 
 --- Toggle checkbox in current line or current visual region or from start to end lnum
----@param start_lnum integer|?
----@param end_lnum integer|?
+---@param start_lnum integer |?
+---@param end_lnum   integer |?
 M.toggle_checkbox = function(start_lnum, end_lnum)
   local viz = api.get_visual_selection { strict = true }
   local states = Obsidian.opts.checkbox.order
-  ---@cast states -nil
+  ---@cast states - nil
   if viz then
     start_lnum, end_lnum = viz.csrow, viz.cerow
   elseif start_lnum == nil or end_lnum == nil then
@@ -231,9 +265,9 @@ M.toggle_checkbox = function(start_lnum, end_lnum)
   end
 end
 
----Set the checkbox on the current line to a specific state.
+--- Set the checkbox on the current line to a specific state.
 ---
----@param state string|nil Optional string of state to set the checkbox to (e.g., " ", "x").
+---@param state string | nil Optional string of state to set the checkbox to (e.g., " ", "x").
 M.set_checkbox = function(state)
   if no_checkbox() then
     return
@@ -244,12 +278,12 @@ M.set_checkbox = function(state)
       log.err "set_checkbox: unable to get state input"
       return
     end
-    ---@cast key -string
+    ---@cast key - string
     state = string.char(key)
   end
 
   local found = false
-  for _, value in ipairs(Obsidian.opts.checkbox.order) do
+  for _, value in ipairs(Obsidian.opts.checkbox.order or {}) do
     if value == state then
       found = true
     end
@@ -268,7 +302,7 @@ M.set_checkbox = function(state)
   local cur_line = vim.api.nvim_get_current_line()
 
   local prefix, rest = parse_list_prefix(cur_line)
-  if prefix then
+  if prefix and rest then
     local cur_state, ws, body = parse_checkbox_rest(rest)
     if state == "" then
       if cur_state then
@@ -297,6 +331,7 @@ M.set_checkbox = function(state)
   end
 
   local line_num = vim.fn.getpos(".")[2]
+  ---@cast line_num integer
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
@@ -304,7 +339,7 @@ end
 --- This is needed because visual selection cecol points to the start byte of the last
 --- selected character, but we need the position after the full character.
 ---
----@param line string The line content
+---@param line     string  The line content
 ---@param byte_pos integer The 1-indexed byte position of the character start
 ---@return integer The 1-indexed byte position after the character (exclusive end)
 local function get_utf8_char_end(line, byte_pos)
@@ -332,9 +367,9 @@ local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
 --- Create an LSP TextEdit from a visual selection.
 --- The edit uses UTF-8 byte offsets (matching our LSP server's offset_encoding).
 ---
----@param viz obsidian.selection The visual selection
----@param new_text string The replacement text
----@param bufnr integer? Buffer number (defaults to current buffer)
+---@param viz      obsidian.selection The visual selection
+---@param new_text string             The replacement text
+---@param bufnr    integer?           Buffer number (defaults to current buffer)
 ---@return lsp.TextDocumentEdit?
 local function make_text_edit(viz, new_text, bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
@@ -369,10 +404,10 @@ end
 --- Replace the visual selection with new text.
 --- Returns the text edit that was (or would be) applied.
 ---
----@param viz obsidian.selection
+---@param viz      obsidian.selection
 ---@param new_text string
----@param opts { apply: boolean? }? Options. apply defaults to true.
----@return lsp.TextDocumentEdit|?
+---@param opts     { apply: boolean? }? Options. apply defaults to true.
+---@return lsp.TextDocumentEdit |?
 local function replace_selection(viz, new_text, opts)
   opts = opts or {}
   local apply = opts.apply ~= false -- default to true
@@ -399,10 +434,14 @@ M.link = function()
 
   local query = viz.selection
 
-  Obsidian.picker.find_notes {
+  picker.find_notes {
     prompt_title = "Select note to link",
     query = query,
-    callback = function(path)
+    callback = function(paths)
+      local path = paths[1]
+      if not path then
+        return
+      end
       local note = require("obsidian.note").from_file(path)
       replace_selection(viz, note:format_link { label = query })
     end,
@@ -431,8 +470,8 @@ M.link_new = function(label)
   vim.cmd "silent! write"
 end
 
----Extract the selected text into a new note
----and replace the selection with a link to the new note.
+--- Extract the selected text into a new note
+--- and replace the selection with a link to the new note.
 ---@param label string?
 M.extract_note = function(label)
   local viz = api.get_visual_selection()
@@ -476,9 +515,11 @@ end
 --- Runs `callback` if provided. The caller decides whether to open the note;
 --- this function never opens it.
 ---
----@param id string|?
----@param callback fun(note: obsidian.Note)|?
-M.new = function(id, callback)
+---@param id       string |?
+---@param callback fun(note: obsidian.Note) |?
+---@param opts? { source_path: string|obsidian.Path|? }
+M.new = function(id, callback, opts)
+  opts = opts or {}
   if not id then
     id = api.input("Enter id or path (optional): ", { completion = "file" })
     if not id then
@@ -488,10 +529,7 @@ M.new = function(id, callback)
     end
   end
 
-  local note = Note.create {
-    id = id,
-    template = Obsidian.opts.note.template,
-  }
+  local note = Note.create { id = id, template = Obsidian.opts.note.template, source_path = opts.source_path }
   note:write()
 
   if callback then
@@ -504,17 +542,20 @@ end
 --- Runs `callback` if provided. The caller decides whether to open the note;
 --- this function never opens it.
 ---
----@param id string|?
----@param template string|?
----@param callback fun(note: obsidian.Note)|?
-M.new_from_template = function(id, template, callback)
-  local templates_dir = api.templates_dir()
+---@param id       string |?
+---@param template string |?
+---@param callback fun(note: obsidian.Note) |?
+---@param opts? { source_path: string|obsidian.Path|? }
+M.new_from_template = function(id, template, callback, opts)
+  opts = opts or {}
+  local workspace = opts.source_path and api.find_workspace(opts.source_path) or nil
+  local templates_dir = api.templates_dir(workspace)
   if not templates_dir then
     return log.err "Templates folder is not defined or does not exist"
   end
 
   if id ~= nil and template ~= nil then
-    local note = Note.create { id = id, template = template }
+    local note = Note.create { id = id, template = template, source_path = opts.source_path }
     note:write()
     if callback then
       callback(note)
@@ -522,15 +563,19 @@ M.new_from_template = function(id, template, callback)
     return
   end
 
-  Obsidian.picker.find_files {
+  picker.find_files {
     prompt_title = "Templates",
     dir = templates_dir,
     no_default_mappings = true,
-    callback = function(template_name)
+    callback = function(template_paths)
+      local template_path = template_paths[1]
+      if not template_path then
+        return
+      end
       if id == nil or id == "" then
         -- Must use pcall in case of KeyboardInterrupt
         -- We cannot place `title` where `safe_title` is because it would be redeclaring it
-        local success, safe_title = pcall(util.input, "Enter title or path (optional): ", { completion = "file" })
+        local success, safe_title = pcall(api.input, "Enter title or path (optional): ", { completion = "file" })
         id = safe_title
         if not success or not safe_title then
           log.warn "Aborted"
@@ -540,13 +585,13 @@ M.new_from_template = function(id, template, callback)
         end
       end
 
-      if template_name == nil or template_name == "" then
+      if template_path == nil or template_path == "" then
         log.warn "Aborted"
         return
       end
 
       ---@type obsidian.Note
-      local note = Note.create { id = id, template = template_name }
+      local note = Note.create { id = id, template = template_path, source_path = opts.source_path }
       note:write()
 
       if callback then
@@ -557,7 +602,7 @@ M.new_from_template = function(id, template, callback)
 end
 
 -- https://help.obsidian.md/plugins/unique-note
----@param timestamp integer|?
+---@param timestamp integer |?
 ---@return obsidian.Note?
 M.unique_note = function(timestamp)
   local note = require("obsidian.unique").new_unique_note(timestamp)
@@ -569,7 +614,7 @@ M.unique_note = function(timestamp)
 end
 
 -- https://help.obsidian.md/plugins/unique-note
----@param timestamp integer|?
+---@param timestamp integer |?
 ---@return string?
 M.unique_link = function(timestamp)
   local link = require("obsidian.unique").new_unique_link(timestamp)
@@ -580,59 +625,41 @@ M.unique_link = function(timestamp)
   return link
 end
 
----@param src string
----@param opts { insert: boolean|?, bufnr: integer|? }
-local add_attachment = function(src, opts)
-  opts = opts or {}
-  src = vim.trim(src)
-
-  local is_uri, scheme = util.is_uri(src)
-  if is_uri and scheme then
-    if scheme == "http" or scheme == "https" then
-      attachment.add(src, opts)
-    elseif scheme == "file" then
-      attachment.add(vim.uri_to_fname(src), opts)
-    else
-      log.err "Unknown URI format"
-    end
-  else
-    local path = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(src), ":p"))
-    local stat = vim.uv.fs_stat(path)
-    if stat and stat.type == "directory" then
-      picker.find_files {
-        dir = path,
-        include_non_markdown = true,
-        callback = function(p)
-          attachment.add(p, opts)
-        end,
-      }
-    else
-      attachment.add(path, opts)
-    end
-  end
-end
-
----@param src string?
----@param opts { insert: boolean|?, bufnr: integer|? }|?
+---@param src  string?
+---@param opts obsidian.AddAttachmentOpts |?
 M.add_attachment = function(src, opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-  local add_opts = { insert = opts.insert, bufnr = bufnr }
+  local add_opts = {
+    insert = opts.insert,
+    bufnr = bufnr,
+    new_name = opts.new_name,
+    position = opts.position,
+    scope = opts.scope or "actions.add_attachment",
+  }
   if not vim.b[bufnr].obsidian_buffer then
     log.warn "Not in an obsidian buffer"
     return
   end
-  if src ~= nil and vim.trim(src) ~= "" then
-    add_attachment(src, add_opts)
-  else
-    vim.ui.input({ prompt = "Url or filepath", completion = "file" }, function(input)
-      if not input then
-        log.info "Aborted"
-        return
-      end
-      add_attachment(input, add_opts)
-    end)
-  end
+
+  resolvers.resolve("attachment", {
+    bufnr = bufnr,
+    source = src,
+    intent = "add_attachment",
+  }, function(result, err)
+    if err then
+      return
+    end
+    if not result or not result.path then
+      log.info "Aborted"
+      return
+    end
+    attachment.add(result.path, add_opts)
+  end)
+end
+
+M.toggle_recording = function()
+  require("obsidian.core-plugins.audio_recorder").toggle()
 end
 
 M.add_property = function()
@@ -689,7 +716,7 @@ M.add_property = function()
   note:update_frontmatter(0)
 end
 
----@param template_name string
+---@param template_name string |?
 M.insert_template = function(template_name)
   local templates_dir = api.templates_dir()
   if not templates_dir then
@@ -714,23 +741,18 @@ M.insert_template = function(template_name)
     return
   end
 
-  ---@type obsidian.PickerEntry[]
-  local entries = {}
-  for path in api.dir(tostring(templates_dir)) do
-    entries[#entries + 1] = {
-      filename = path,
-      text = vim.fs.basename(path),
-    }
-  end
-
-  Obsidian.picker.pick(entries, {
-    callback = function(entry)
-      insert_template(entry.filename)
+  picker.find_files {
+    dir = templates_dir,
+    callback = function(paths)
+      local path = paths[1]
+      if path then
+        insert_template(path)
+      end
     end,
-  })
+  }
 end
 
----@param buf integer|?
+---@param buf integer |?
 M.start_presentation = function(buf)
   local note = Note.from_buffer(buf)
   require("obsidian.slides").start_presentation(note)
@@ -749,43 +771,58 @@ local function symbol_to_entry(symbol)
   }
 end
 
----@param query string|?
----@param callback fun(entry: obsidian.PickerEntry)|?
+---@param query    string |?
+---@param callback fun(entry: obsidian.PickerEntry) |?
 M.workspace_symbol = function(query, callback)
   query = query or ""
   require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
     local entries = vim.tbl_map(symbol_to_entry, symbols)
-    Obsidian.picker.pick(entries, { prompt_title = "Workspace Symbols", callback = callback })
+    picker.select(entries, {
+      prompt = "Workspace Symbols",
+      preview_item = preview_entry,
+    }, function(items)
+      local entry = items and items[1]
+      if not entry then
+        return
+      elseif callback then
+        callback(unpack(items))
+      else
+        api.open_note(entry)
+      end
+    end)
   end)
 end
 
----Pick a folder under the vault root.
+--- Pick a folder under the vault root.
 ---@param callback fun(directory: string, text: string)
 local function pick_folder(callback)
-  local root = tostring(Obsidian.workspace.root)
+  local root = tostring(api.resolve_workspace_dir())
   local choices = { { filename = root, text = "/" } }
 
+  ---@diagnostic disable-next-line: param-type-mismatch
   for path, t in vim.fs.dir(root, { depth = math.huge }) do
     if t == "directory" then
-      choices[#choices + 1] = {
-        filename = vim.fs.joinpath(root, path),
-        text = path .. "/",
-      }
+      choices[#choices + 1] = { filename = vim.fs.joinpath(root, path), text = path .. "/" }
     end
   end
 
-  Obsidian.picker.pick(choices, {
-    callback = function(entry)
-      callback(entry.filename, entry.text)
-    end,
+  picker.select(choices, {
     format_item = function(v)
       return tostring(v.text)
     end,
-  })
+    preview_item = function(entry)
+      return util.preview_path(entry.filename)
+    end,
+  }, function(items)
+    local entry = items[1]
+    if entry and entry.filename and entry.text then
+      callback(entry.filename, entry.text)
+    end
+  end)
 end
 
 ---@param directory string
----@param text string
+---@param text      string
 local function move_note(directory, text)
   local bufnr = vim.api.nvim_get_current_buf()
   local src = vim.api.nvim_buf_get_name(bufnr)
@@ -797,8 +834,11 @@ local function move_note(directory, text)
   if not ok then
     return log.err("Failed to move note: " .. (err or "unknown error"))
   end
+  require("obsidian.cache").notes.rename(src, dest)
   vim.api.nvim_buf_set_name(bufnr, dest)
-  local write_ok, write_err = pcall(vim.cmd, "silent write!")
+  local write_ok, write_err = pcall(function()
+    vim.cmd "silent write!"
+  end)
   if not write_ok then
     return log.err("Failed to save moved note: " .. (write_err or "unknown error"))
   end
@@ -828,6 +868,7 @@ local function merge_note(dst_note)
     dst_note:merge(current_note)
     dst_note:open { sync = true }
     vim.fs.rm(tostring(current_note.path))
+    require("obsidian.cache").notes.delete(tostring(current_note.path))
   end
 end
 
@@ -836,8 +877,12 @@ M.merge_note = function(dst_note)
   if dst_note then
     merge_note(dst_note)
   else
-    Obsidian.picker.find_notes {
-      callback = function(path)
+    picker.find_notes {
+      callback = function(paths)
+        local path = paths[1]
+        if not path then
+          return
+        end
         local note = Note.from_file(path)
         merge_note(note)
       end,
@@ -848,11 +893,238 @@ end
 --- Create a footnote definition, prompting for its content.
 --- Used by the completion source to create unresolved footnotes.
 ---
----@param id string|?
----@param bufnr integer|?
----@param restore_cursor [integer, integer]|?
+---@param id             string |?
+---@param bufnr          integer |?
+---@param restore_cursor [integer, integer] |?
 M.footnote_new = function(id, bufnr, restore_cursor)
   require("obsidian.footnotes").create(id, bufnr, restore_cursor)
+end
+
+---@param lines string[]
+---@param block_id string
+---@return boolean
+local function contains_block_id(lines, block_id)
+  for _, line in ipairs(lines) do
+    if util.parse_block(vim.trim(line)) == block_id then
+      return true
+    end
+  end
+  return false
+end
+
+---@class obsidian.actions.BlockReferenceOpts
+---@field target_path string
+---@field target_bufnr integer|?
+---@field target_range lsp.Range
+---@field target_checksum string
+---@field block_id string
+---@field placement "inline"|"list-item"|"standalone"
+---@field indent string|?
+---@field source_bufnr integer
+---@field source_range lsp.Range
+---@field source_text string
+---@field placeholder string
+
+--- Add an ID to an unlabeled block and replace the accepted completion with its link.
+---@param opts obsidian.actions.BlockReferenceOpts|?
+M.block_reference_new = function(opts)
+  if not opts or not vim.api.nvim_buf_is_valid(opts.source_bufnr) then
+    return
+  end
+
+  local source = vim.api.nvim_buf_get_text(
+    opts.source_bufnr,
+    opts.source_range.start.line,
+    opts.source_range.start.character,
+    opts.source_range["end"].line,
+    opts.source_range["end"].character,
+    {}
+  )
+  if #source ~= 1 or source[1] ~= opts.placeholder then
+    return log.warn "Block reference completion is no longer current"
+  end
+
+  local target_bufnr = opts.target_bufnr
+  if not target_bufnr or not vim.api.nvim_buf_is_valid(target_bufnr) then
+    target_bufnr = vim.fn.bufnr(opts.target_path)
+  end
+  local target_was_loaded = target_bufnr > 0 and vim.api.nvim_buf_is_loaded(target_bufnr)
+  if target_bufnr < 1 then
+    target_bufnr = vim.fn.bufadd(opts.target_path)
+  end
+  vim.fn.bufload(target_bufnr)
+  if not vim.bo[target_bufnr].modifiable or vim.bo[target_bufnr].readonly then
+    return log.warn "Target block is not writable"
+  end
+
+  local target_lines = vim.api.nvim_buf_get_lines(target_bufnr, 0, -1, false)
+  local normalized_target = vim.tbl_map(util.rstrip_whitespace, target_lines)
+  if vim.fn.sha256(table.concat(normalized_target, "\n")) ~= opts.target_checksum then
+    return log.warn "Block changed before its reference could be created"
+  end
+
+  if contains_block_id(target_lines, opts.block_id) then
+    return log.warn "Generated block ID already exists"
+  end
+
+  local target =
+    vim.api.nvim_buf_get_lines(target_bufnr, opts.target_range.start.line, opts.target_range["end"].line, false)
+  if #target == 0 then
+    return log.warn "Target block no longer exists"
+  end
+
+  local target_line = opts.target_range["end"].line - 1
+  local target_character = #target[#target]
+  local has_blank_after = target_lines[opts.target_range["end"].line + 1] ~= nil
+    and vim.trim(target_lines[opts.target_range["end"].line + 1]) == ""
+  local target_text = " " .. opts.block_id
+  if opts.placement == "standalone" then
+    target_text = "\n\n" .. opts.block_id .. (has_blank_after and "" or "\n")
+  elseif opts.placement == "list-item" then
+    target_text = "\n" .. (opts.indent or "    ") .. opts.block_id
+  end
+  local target_edit = {
+    range = {
+      start = { line = target_line, character = target_character },
+      ["end"] = { line = target_line, character = target_character },
+    },
+    newText = target_text,
+  }
+  local source_edit = { range = opts.source_range, newText = opts.source_text }
+
+  ---@param edits lsp.TextEdit[]
+  ---@param bufnr integer
+  ---@return boolean
+  local function apply_text_edits(edits, bufnr)
+    local ok, err = pcall(vim.lsp.util.apply_text_edits, edits, bufnr, "utf-8")
+    if not ok then
+      log.err("Failed to apply block reference edit: %s", err)
+      return false
+    end
+    return true
+  end
+
+  if target_bufnr == opts.source_bufnr then
+    if not apply_text_edits({ target_edit, source_edit }, target_bufnr) then
+      return
+    end
+  else
+    if not apply_text_edits({ target_edit }, target_bufnr) then
+      return
+    end
+    if not target_was_loaded then
+      local ok, err = pcall(vim.api.nvim_buf_call, target_bufnr, function()
+        vim.cmd "silent write"
+      end)
+      if not ok then
+        log.err("Failed to save block ID in '%s': %s", opts.target_path, err)
+        return
+      end
+    end
+    if not contains_block_id(vim.api.nvim_buf_get_lines(target_bufnr, 0, -1, false), opts.block_id) then
+      log.err("Block ID was removed while saving '%s'", opts.target_path)
+      return
+    end
+    if not apply_text_edits({ source_edit }, opts.source_bufnr) then
+      return
+    end
+  end
+
+  if vim.api.nvim_get_current_buf() == opts.source_bufnr then
+    local source_line = opts.source_range.start.line
+    ---@cast source_line integer
+    if
+      target_bufnr == opts.source_bufnr
+      and target_text:find("\n", 1, true)
+      and target_line < opts.source_range.start.line
+    then
+      source_line = source_line + select(2, target_text:gsub("\n", ""))
+    end
+    local source_col = opts.source_range.start.character + #opts.source_text
+    ---@cast source_col integer
+    vim.api.nvim_win_set_cursor(0, { source_line + 1, source_col })
+  end
+  require("obsidian.ui").update(opts.source_bufnr)
+end
+
+---@param bufnr      integer
+---@param suggestion obsidian.LinkSuggestion
+---@param candidate  obsidian.LinkSuggestionCandidate
+local function apply_link_suggestion(bufnr, suggestion, candidate)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+
+  local range = suggestion.range
+  local current_text =
+    vim.api.nvim_buf_get_text(bufnr, range.start_row, range.start_col, range.end_row, range.end_col, {})
+  if #current_text ~= 1 or current_text[1] ~= suggestion.text then
+    return log.warn "Link suggestion is no longer current"
+  end
+
+  vim.api.nvim_buf_set_text(
+    bufnr,
+    range.start_row,
+    range.start_col,
+    range.end_row,
+    range.end_col,
+    { candidate.new_text }
+  )
+  require("obsidian.ui").update(bufnr)
+end
+
+--- Apply the link suggestion under the cursor, selecting a target when the
+--- matched note name or alias belongs to more than one note.
+---@param suggestion obsidian.LinkSuggestion|?
+M.link_suggestion = function(suggestion)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  if not note then
+    return
+  end
+
+  if not suggestion then
+    -- TODO: a find_cursor
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local row, col = cursor[1] - 1, cursor[2]
+    for _, current in ipairs(note:link_suggestions()) do
+      local range = current.range
+      if
+        range.start_row <= row
+        and row <= range.end_row
+        and (row ~= range.start_row or range.start_col <= col)
+        and (row ~= range.end_row or col < range.end_col)
+      then
+        suggestion = current
+        break
+      end
+    end
+    if not suggestion then
+      return
+    end
+  end
+
+  if #suggestion.candidates == 0 then
+    log.info "No Link Suggestion Candidates"
+    return
+  elseif #suggestion.candidates == 1 then
+    return apply_link_suggestion(bufnr, suggestion, suggestion.candidates[1])
+  end
+
+  picker.select(suggestion.candidates, {
+    prompt = "Select link target",
+    format_item = function(candidate)
+      return candidate.new_text
+    end,
+    preview_item = function(candidate)
+      return util.preview_path(candidate.target_path)
+    end,
+  }, function(candidates)
+    if not candidates or not candidates[1] then
+      return
+    end
+    apply_link_suggestion(bufnr, suggestion, candidates[1])
+  end)
 end
 
 --- write note to disk, for lsp completion create note
@@ -863,9 +1135,167 @@ M.write_note = function(note)
   -- If it gets serialized by server commands, it will lose its metatable.
   if not Note.is_note_obj(note) then
     note = setmetatable(note, Note)
-    note.path = setmetatable(note.path, Path)
+    if note.path then
+      note.path = setmetatable(note.path, Path)
+    end
   end
   note:write()
+end
+
+M.insert_link = function(query)
+  picker.find_files {
+    query = query,
+    no_default_mappings = true,
+    callback = function(paths)
+      local path = paths[1]
+      if not path then
+        return
+      end
+      local note = Note.from_file(path)
+      local link = note:format_link()
+      vim.api.nvim_put({ link }, "", true, true)
+      require("obsidian.ui").update(0)
+    end,
+  }
+end
+
+---@param tag_locations obsidian.TagLocation[]
+---@return string[]
+local list_tags = function(tag_locations)
+  local tags = {}
+  for _, tag_loc in ipairs(tag_locations) do
+    local tag = tag_loc.tag
+    if not tags[tag] then
+      tags[tag] = true
+    end
+  end
+  return vim.tbl_keys(tags)
+end
+
+---@param tag_locations obsidian.TagLocation[]
+---@param tags          string[]
+local function gather_tag_picker_list(tag_locations, tags)
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for _, tag_loc in ipairs(tag_locations) do
+    for _, tag in ipairs(tags) do
+      if tag_loc.tag:lower() == tag:lower() or vim.startswith(tag_loc.tag:lower(), tag:lower() .. "/") then
+        local display = string.format("%s [%s] %s", tag_loc.note:display_name(), tag_loc.line, tag_loc.text)
+        entries[#entries + 1] = {
+          text = display,
+          filename = tostring(tag_loc.path),
+          lnum = tag_loc.line,
+          col = tag_loc.tag_start,
+        }
+        break
+      end
+    end
+  end
+  if vim.tbl_isempty(entries) then
+    if #tags == 1 then
+      log.warn "Tag not found"
+    else
+      log.warn "Tags not found"
+    end
+    return
+  end
+
+  vim.schedule(function()
+    picker.select(entries, {
+      prompt = "#" .. table.concat(tags, ", #"),
+      format_item = function(entry)
+        return entry.text
+      end,
+      preview_item = preview_entry,
+    }, function(items)
+      if not vim.tbl_isempty(items) then
+        api.open_note(items[1])
+      end
+    end)
+  end)
+end
+
+local function list_tags_async(callback)
+  local dir = api.resolve_workspace_dir()
+
+  search.find_tags_async("", function(tag_locations)
+    local tags = list_tags(tag_locations)
+    callback(tags, tag_locations)
+  end, { dir = dir })
+end
+
+---@param callback fun(tags: string[], tag_locations: obsidian.TagLocation[])
+---@param title    string |?
+local function pick_tags(callback, title)
+  list_tags_async(function(tags, tag_locations)
+    picker.select(tags, {
+      prompt = title,
+      allow_multiple = true,
+      selection_mappings = picker._tag_selection_mappings(),
+    }, function(items)
+      if not vim.tbl_isempty(items) then
+        callback(items, tag_locations)
+      end
+    end)
+  end)
+end
+
+---@param tags string[] |?
+M.search_tags = function(tags)
+  tags = tags or {}
+  if vim.tbl_isempty(tags) then
+    local tag = api.cursor_tag()
+    if tag then
+      tags = { tag }
+    end
+  end
+
+  local dir = api.resolve_workspace_dir()
+
+  if not vim.tbl_isempty(tags) then
+    search.find_tags_async(tags, function(tag_locations)
+      return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
+    end, { dir = dir })
+  else
+    pick_tags(function(selected_tags, tag_locations)
+      gather_tag_picker_list(tag_locations, selected_tags)
+    end)
+  end
+end
+
+M.insert_tag = function()
+  pick_tags(function(tags)
+    for i, tag in ipairs(tags) do
+      local put_text = "#" .. tag
+      if i ~= #tags then
+        put_text = put_text .. " "
+      end
+      vim.api.nvim_put({ put_text }, "", true, true)
+    end
+  end, "Tag to insert")
+end
+
+---@param tag string
+local tag_note = function(tag)
+  local note = api.current_note()
+  if not note then
+    log.warn "No note to insert tag"
+    return
+  end
+
+  if note:add_tag(tag) then
+    note:update_frontmatter(note.bufnr)
+  else
+    log.info "No tags added"
+  end
+end
+
+M.add_tag = function()
+  pick_tags(function(tags)
+    for _, tag in ipairs(tags) do
+      tag_note(tag)
+    end
+  end, "Add tags to current note")
 end
 
 return M

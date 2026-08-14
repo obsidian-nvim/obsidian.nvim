@@ -1,8 +1,10 @@
 local api = require "obsidian.api"
+local actions = require "obsidian.actions"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local ignore = require "obsidian.ignore"
+local Workspace = require "obsidian.workspace"
 local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
 -- wrapper for creating autocmd events
@@ -29,11 +31,15 @@ local function bufenter_callback(ev)
 
   -- Check if we're in *any* workspace.
   local workspace = api.find_workspace(ev.file)
-  if not workspace then
+  if not workspace or not api.path_is_note(ev.file, workspace) then
     return
   end
 
-  -- Check if this file should be ignored based on file.ignore_filters.
+  if workspace ~= Obsidian.workspace then
+    Workspace.set(workspace)
+  end
+
+  -- Check if this file should be ignored based on this workspace's file.ignore_filters.
   if ignore.is_ignored(ev.file) then
     return
   end
@@ -54,14 +60,14 @@ local function bufenter_callback(ev)
 
   -- Register keymap.
   if vim.g.obsidian_default_keymap ~= false then -- NOTE: not in config since not sure whether the confusion and the small interface is worth it, might remove in major release
-    vim.keymap.set("n", "<CR>", api.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
+    vim.keymap.set("n", "<CR>", actions.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
 
     vim.keymap.set("n", "]o", function()
-      api.nav_link "next"
+      actions.nav_link "next"
     end, { buffer = true, desc = "Obsidian Next Link" })
 
     vim.keymap.set("n", "[o", function()
-      api.nav_link "prev"
+      actions.nav_link "prev"
     end, { buffer = true, desc = "Obsidian Previous Link" })
   end
 
@@ -140,7 +146,7 @@ vim.api.nvim_create_autocmd("User", {
     end
     local fname = vim.api.nvim_buf_get_name(ev.buf or 0)
     local ws = api.find_workspace(fname)
-    if not ws then
+    if not ws or not api.path_is_note(fname, ws) then
       return
     end
     local sync = require "obsidian.sync"

@@ -105,7 +105,10 @@ local function dumps(x, indent, order)
             table.insert(out, indent_str .. "- []")
           end
         else
-          table.insert(out, indent_str .. "- " .. util.lstrip_whitespace(item_lines[1]))
+          local first_line = item_lines[1]
+          if first_line then
+            table.insert(out, indent_str .. "- " .. util.lstrip_whitespace(first_line))
+          end
           for i = 2, #item_lines do
             table.insert(out, item_lines[i])
           end

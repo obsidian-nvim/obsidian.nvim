@@ -1,30 +1,33 @@
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
+local resolvers = require "obsidian.resolvers"
 local util = require "obsidian.util"
+local api = require "obsidian.api"
 local M = {}
 
 --- Get the path to a daily note.
 ---
 ---@param datetime integer|?
----
+---@param dir string|obsidian.Path|? Vault root in which to resolve the daily note.
 ---@return obsidian.Path, string (Path, ID) The path and ID of the note.
-M.daily_note_path = function(datetime)
+M.daily_note_path = function(datetime, dir)
   datetime = datetime and datetime or os.time()
 
   ---@type obsidian.Path
-  local path = Path.new(Obsidian.dir)
+  local path = Path.new(dir or api.resolve_workspace_dir()):resolve()
 
   local options = Obsidian.opts
 
   if options.daily_notes.folder ~= nil then
-    path = path / options.daily_notes.folder
+    path = Path.new(vim.fs.joinpath(tostring(path), options.daily_notes.folder))
   elseif options.notes_subdir ~= nil then
-    path = path / options.notes_subdir
+    path = Path.new(vim.fs.joinpath(tostring(path), options.notes_subdir))
   end
 
-  local id = tostring(util.format_date(datetime, options.daily_notes.date_format))
+  local date_format = assert(options.daily_notes.date_format, "daily notes date_format is required")
+  local id = tostring(util.format_date(datetime, date_format))
 
-  path = path / (id .. ".md")
+  path = Path.new(vim.fs.joinpath(tostring(path), id .. ".md"))
 
   -- ID may contain additional path components, so make sure we use the stem.
   id = path.stem
@@ -39,14 +42,14 @@ end
 --- must call `note:write { template = ... }` themselves.
 ---
 ---@param datetime integer
----@param opts { load: obsidian.note.LoadOpts|? }|?
+---@param opts { load: obsidian.note.LoadOpts|?, dir: string|obsidian.Path|? }|?
 ---
 ---@return obsidian.Note
 ---
 local _daily = function(datetime, opts)
   opts = opts or {}
 
-  local path, id = M.daily_note_path(datetime)
+  local path, id = M.daily_note_path(datetime, opts.dir)
 
   local options = Obsidian.opts
 
@@ -122,6 +125,7 @@ end
 ---@field offset? integer Offset in days from today (e.g. -1 for yesterday,
 ---@field date? integer|? Specific date as a timestamp (overrides offset)
 ---@field load? obsidian.note.LoadOpts|? Options to pass to Note.from_file when loading an existing note
+---@field dir? string|obsidian.Path Vault root in which to resolve the daily note
 
 --- Open (or create) the daily note for today + `offset_days`.
 ---
@@ -146,39 +150,17 @@ end
 ---@param offset_end integer
 ---@param callback fun(note: obsidian.Note)
 M.pick = function(offset_start, offset_end, callback)
-  ---@type obsidian.PickerEntry[]
-  local dailies = {}
-  for offset = offset_end, offset_start, -1 do
-    local datetime = os.time() + (offset * 3600 * 24)
-    local daily_note_path = M.daily_note_path(datetime)
-    local daily_note_alias =
-      tostring(util.format_date(datetime, Obsidian.opts.daily_notes.alias_format or "%A %B %-d, %Y"))
-    if offset == 0 then
-      daily_note_alias = daily_note_alias .. " @today"
-    elseif offset == -1 then
-      daily_note_alias = daily_note_alias .. " @yesterday"
-    elseif offset == 1 then
-      daily_note_alias = daily_note_alias .. " @tomorrow"
+  resolvers.resolve("date", {
+    intent = "open_daily",
+    cadence = "daily",
+    offset_start = offset_start,
+    offset_end = offset_end,
+  }, function(result)
+    if not result or not result.timestamp then
+      return
     end
-    if not daily_note_path:is_file() then
-      daily_note_alias = daily_note_alias .. " ➡️ create"
-    end
-    dailies[#dailies + 1] = {
-      user_data = offset,
-      text = daily_note_alias,
-      filename = tostring(daily_note_path),
-    }
-  end
-
-  Obsidian.picker.pick(dailies, {
-    prompt_title = "Dailies",
-    callback = function(entry)
-      local note = M.daily {
-        offset = entry.user_data,
-      }
-      callback(note)
-    end,
-  })
+    callback(M.daily { date = result.timestamp })
+  end)
 end
 
 return M

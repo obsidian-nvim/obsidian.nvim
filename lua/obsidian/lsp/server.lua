@@ -10,7 +10,7 @@ return function(dispatchers)
   --- Handlers receive (params, callback) and invoke callback(err, result).
   ---@param method string
   ---@param params table?
-  ---@param callback fun(err: lsp.ResponseError?, result: any)
+  ---@param callback fun(err: lsp.ResponseError?, result: any, id: integer)
   ---@param notify_reply_callback fun(message_id: integer)?
   ---@return boolean success
   ---@return integer? id
@@ -26,7 +26,7 @@ return function(dispatchers)
       end
       responded = true
       vim.schedule(function()
-        callback(err, result)
+        callback(err, result, id)
         if notify_reply_callback then
           notify_reply_callback(id)
         end
@@ -39,6 +39,7 @@ return function(dispatchers)
       return true, id
     end
 
+    ---@diagnostic disable-next-line: param-type-mismatch
     local ok, call_err = pcall(handler, params, deliver, dispatchers)
     if not ok then
       deliver({ code = -32603, message = "internal error: " .. tostring(call_err) }, nil)
@@ -55,6 +56,7 @@ return function(dispatchers)
       return true
     end
 
+    ---@diagnostic disable-next-line: param-type-mismatch,assign-type-mismatch
     local ok, err = pcall(handler, ..., dispatchers)
     if not ok then
       log.err("[obsidian-ls] notify handler error (" .. method .. "): " .. tostring(err))

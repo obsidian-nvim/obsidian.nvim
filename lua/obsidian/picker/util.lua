@@ -1,10 +1,11 @@
-local M = {}
+local preview_ns = vim.api.nvim_create_namespace "obsidian.picker.preview"
 
-local api = require "obsidian.api"
-local util = require "obsidian.util"
+local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
 
----@param opts { prompt_title: string, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
+local M = {}
+
+---@param opts { prompt_title: string|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
 ---@return string
 M.build_prompt = function(opts)
   opts = opts or {}
@@ -38,26 +39,77 @@ M.build_prompt = function(opts)
   return prompt
 end
 
----@param entry obsidian.PickerEntry
----
----@return string, { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
-M.make_display = function(entry)
-  local buf = {}
-  ---@type { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
-  local highlights = {}
-
-  local icon, icon_hl
-
-  if entry.filename then
-    icon, icon_hl = api.get_icon(entry.filename)
+---@param winid integer
+---@param spec obsidian.ui_select_preview_spec|?
+---@return boolean
+M.show_preview_spec = function(winid, spec)
+  if not spec or not vim.api.nvim_win_is_valid(winid) then
+    return false
   end
+
+  local buf = spec.buf
+  vim.api.nvim_win_set_buf(winid, buf)
+  vim.api.nvim_buf_clear_namespace(buf, preview_ns, 0, -1)
+
+  if spec.pos then
+    local lnum = math.max(spec.pos[1] or 1, 1)
+    local col = math.max(spec.pos[2] or 0, 0)
+    pcall(vim.api.nvim_win_set_cursor, winid, { lnum, col })
+    pcall(vim.api.nvim_win_call, winid, function()
+      vim.cmd "normal! zt"
+    end)
+
+    if spec.pos_end then
+      pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, col, {
+        end_row = math.max(spec.pos_end[1] or lnum, 1) - 1,
+        end_col = math.max(spec.pos_end[2] or col + 1, 0),
+        hl_group = "Visual",
+      })
+    else
+      pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, 0, {
+        line_hl_group = "CursorLine",
+      })
+    end
+  end
+
+  return true
+end
+
+---Open one picker result directly, or put multiple results in the quickfix list.
+---@param entries (string|obsidian.PickerEntry)[]
+M.open_notes = function(entries)
+  if #entries == 0 then
+    return
+  elseif #entries == 1 then
+    require("obsidian.api").open_note(entries[1])
+    return
+  end
+
+  local items = vim.tbl_map(function(entry)
+    if type(entry) == "string" then
+      return { filename = entry }
+    else
+      return entry
+    end
+  end, entries)
+  vim.fn.setqflist(items, "r")
+  vim.cmd "copen"
+end
+
+---@param entry obsidian.PickerEntry|string
+---
+---@return string
+M.make_display = function(entry)
+  if type(entry) == "string" then
+    return entry
+  end
+
+  local buf = {}
+  local icon = icons.get_icon(entry)
 
   if icon then
     buf[#buf + 1] = icon
     buf[#buf + 1] = " "
-    if icon_hl then
-      highlights[#highlights + 1] = { { 0, util.strdisplaywidth(icon) }, icon_hl }
-    end
   end
 
   if entry.filename then
@@ -82,7 +134,7 @@ M.make_display = function(entry)
     buf[#buf + 1] = tostring(entry.user_data)
   end
 
-  return table.concat(buf, ""), highlights
+  return table.concat(buf, "")
 end
 
 return M

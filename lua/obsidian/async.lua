@@ -138,7 +138,7 @@ local max_timeout = 30000
 --- @param on_finish fun(err: string?, ...:any)
 --- @param ... any
 local function resume(thread, on_finish, ...)
-  --- @type {n: integer, [1]:boolean, [2]:string|function}
+  --- @type {n: integer, [integer]: any}
   local ret = vim.F.pack_len(coroutine.resume(thread, ...))
   local stat = ret[1]
 
@@ -150,7 +150,7 @@ local function resume(thread, on_finish, ...)
     on_finish(nil, unpack(ret, 2, ret.n))
   else
     local fn = ret[2]
-    --- @cast fn -string
+    --- @cast fn function
 
     --- @type boolean, string?
     local ok, err = pcall(fn, function(...)
@@ -235,7 +235,10 @@ function M.join(max_jobs, funs)
     end
 
     for i = 1, max_jobs do
-      M.run(funs[i], run_next)
+      local fun = funs[i]
+      if fun then
+        M.run(fun, run_next)
+      end
     end
   end)
 end

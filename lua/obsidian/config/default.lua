@@ -47,9 +47,13 @@ return {
   ---@field template string|?
   note = {
     template = (function()
-      local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
-        return vim.endswith(path, "obsidian.nvim")
-      end)
+      local root
+      for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
+        if vim.endswith(path, "obsidian.nvim") then
+          root = path
+          break
+        end
+      end
       if not root then
         return nil
       end
@@ -183,7 +187,7 @@ return {
 
   ---@class obsidian.config.SearchOpts
   ---
-  ---@field sort_by string|false
+  ---@field sort_by obsidian.config.SortBy|false
   ---@field sort_reversed boolean
   ---@field max_lines integer
   search = {
@@ -386,9 +390,24 @@ return {
   ---Runs right before writing a note buffer.
   ---@field pre_write_note? fun(note: obsidian.Note)
   ---
+  ---Runs after adding an attachment.
+  ---@field add_attachment? fun(path: string, ctx: obsidian.AddAttachmentContext)
+  ---
   ---Runs anytime the workspace is set/changed.
   ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
   callbacks = {},
+
+  ---@class obsidian.config.ResolverConfig
+  ---
+  ---Resolve an attachment source before `actions.add_attachment` copies/downloads it.
+  ---@field attachment? obsidian.Resolver
+  ---
+  ---Resolve a date before date-based actions, such as `daily.pick`, continue.
+  ---@field date? obsidian.Resolver
+  ---
+  ---Build serializable LSP inlay hints for a note.
+  ---@field hints? obsidian.resolver.Hints
+  resolvers = {},
 
   ---@class obsidian.config.FooterOpts
   ---
@@ -444,5 +463,13 @@ return {
   ---@field enabled? boolean
   slides = {
     enabled = true,
+  },
+
+  ---@class obsidian.config.CacheOpts
+  ---@field enabled? boolean
+  ---@field backend? string Built-in: "json", "memory". Custom backends can be added with `require("obsidian.cache").register(name, backend)`.
+  cache = {
+    enabled = false,
+    backend = "json",
   },
 }

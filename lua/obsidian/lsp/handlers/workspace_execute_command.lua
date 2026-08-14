@@ -11,7 +11,9 @@ return function(params, callback)
   end
 
   local action = actions[command]
+  ---@cast action function
   local args = params.arguments and params.arguments or {}
+  ---@diagnostic disable-next-line: param-type-mismatch,redundant-parameter
   local ok, err = pcall(action, unpack(args))
   if ok then
     callback(nil, nil)

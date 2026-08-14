@@ -1,15 +1,29 @@
 local actions = require("obsidian.lsp.handlers._code_action").actions
 
----@param code_actions lsp.CodeAction[]
+---@param title string|fun(note: obsidian.Note): string
 ---@param note obsidian.Note
----@return string[]
+---@return string
+local function eval_title(title, note)
+  if type(title) == "function" then
+    return title(note)
+  end
+  return title
+end
+
+---@param code_actions table<string, obsidian.lsp.CodeAction>
+---@param note obsidian.Note
+---@return lsp.CodeAction[]
 local function get_commands_by_context(code_actions, note)
-  return vim
-    .iter(vim.tbl_values(code_actions))
-    :filter(function(code_action)
-      return code_action.data.cond(note)
-    end)
-    :totable()
+  local out = {}
+  for _, code_action in ipairs(vim.tbl_values(code_actions)) do
+    local data = code_action.data
+    if data.cond(note) then
+      local title = eval_title(data.title, note)
+      local command = vim.tbl_extend("force", code_action.command or {}, { title = title })
+      out[#out + 1] = vim.tbl_extend("force", code_action, { title = title, command = command })
+    end
+  end
+  return out
 end
 
 ---@param params lsp.CodeActionParams

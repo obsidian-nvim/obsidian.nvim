@@ -51,7 +51,7 @@ TL;DR: `make lint`
 
 TL;DR: `make types`
 
-- We use [Lua Language Server](https://luals.github.io) to check the type annotations in the lua code.
+- We use [EmmyLua Analyzer Rust](https://github.com/CppCXY/emmylua-analyzer-rust) to check the type annotations in the lua code.
 - Contributions should have type annotations.
 
 ### Running tests

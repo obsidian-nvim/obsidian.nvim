@@ -16,6 +16,10 @@ See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP inte
 | `merge_note`         | `n`      | Merge current note into another note.  | `dst_note`           |
 | `start_presentation` | `n`      | Start slide presentation.              | `buf`                |
 | `workspace_symbol`   | `n`      | Search notes, aliases, and headings.   | `query`              |
+| `insert_link`        | `n`      | Pick a note and insert its link.        | `query`              |
+| `search_tags`        | `n`      | Search notes by tag.                   | `tags`               |
+| `insert_tag`         | `n`      | Pick and insert a tag.                 |                      |
+| `add_tag`            | `n`      | Pick and add tag to current note.       |                      |
 | `toggle_checkbox`    | `n`, `v` | Toggle (cycle) checkbox state.         | `start_lnum`, `end_lnum` |
 | `set_checkbox`       | `n`, `v` | Set to specific checkbox state.        | `state`              |
 | `link`               | `v`      | Link selection to an existing note.    |                      |

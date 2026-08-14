@@ -11,12 +11,15 @@ return function(_, handler)
     return handler(nil, symbols)
   end
 
+  local path = note.path
+  ---@cast path -nil
+
   for _, section in ipairs(note.sections or {}) do
     if section.header then
       symbols[#symbols + 1] = {
         name = string.rep("#", section.level) .. " " .. section.header,
         kind = 1,
-        filename = note.path.filename,
+        filename = path.filename,
         range = Range.to_lsp(section.range),
         selectionRange = Range.to_lsp(section.heading_range),
       }

@@ -4,8 +4,8 @@ local M = {}
 ---@class obsidian.link.LinkCreationOpts
 ---@field label? string
 ---@field path? string|?
----@field anchor? obsidian.note.HeaderAnchor|?
----@field block? obsidian.note.Block|?
+---@field anchor? string|obsidian.note.HeaderAnchor
+---@field block? string|obsidian.note.Block
 ---@field style? obsidian.link.LinkStyle
 ---@field format? obsidian.link.LinkFormat
 

@@ -1,4 +1,5 @@
 local log = require "obsidian.log"
+local picker = require "obsidian.picker"
 
 local M = {}
 
@@ -210,12 +211,13 @@ M._actions = actions
 ---@param subcmd? string
 function M.menu(subcmd)
   if not subcmd then
-    vim.ui.select(actions, {
+    picker.select(actions, {
       prompt = "Obsidian Sync",
       format_item = function(item)
         return item.text
       end,
-    }, function(choice)
+    }, function(choices)
+      local choice = choices[1]
       if not choice then
         return
       end
@@ -224,9 +226,13 @@ function M.menu(subcmd)
     return
   end
 
-  local action = vim.iter(actions):find(function(act)
-    return act.name == subcmd
-  end)
+  local action
+  for _, act in ipairs(actions) do
+    if act.name == subcmd then
+      action = act
+      break
+    end
+  end
   if not action then
     log.err("Unknown sync subcommand: " .. subcmd)
     return

@@ -89,72 +89,24 @@ M.build_search_cmd = function(dir, term, opts)
   }
 end
 
---- Escape a string so it can be safely used as a literal rg glob.
---- @param s string
---- @return string
-local function escape_rg_glob(s)
-  local map = {
-    ["\\"] = "[\\]",
-    ["["] = "[[]",
-    ["]"] = "[]]",
-    ["*"] = "[*]",
-    ["?"] = "[?]",
-    ["{"] = "[{]",
-    ["}"] = "[}]",
-  }
-
-  -- One-pass replacement: replacement text won't be reprocessed.
-  s = s:gsub("[\\%[%]%*%?{}]", function(ch)
-    return map[ch]
-  end)
-
-  return s
-end
-
-M._escape_rg_glob = escape_rg_glob
-
---- Build the 'rg' command for finding files.
----
----@param path string|?
----@param term string|?
----@param opts obsidian.search.SearchOpts|?
----
+---@param path string?
+---@param opts obsidian.search.SearchOpts?
 ---@return string[]
-M.build_find_cmd = function(path, term, opts)
-  opts = opts and opts or {}
+M.build_find_cmd = function(path, opts)
+  opts = opts or {}
+  local search_opts = Obsidian and Obsidian.opts and Obsidian.opts.search or {}
   opts = vim.tbl_extend("keep", opts, {
-    sort_by = Obsidian.opts.search.sort_by,
-    sort_reversed = Obsidian.opts.search.sort_reversed,
+    sort_by = search_opts.sort_by,
+    sort_reversed = search_opts.sort_reversed,
     ignore_case = true,
   })
 
   local additional_opts = {}
-
   if not opts.include_non_markdown then
     additional_opts[#additional_opts + 1] = "--type=md"
   end
 
-  if term ~= nil then
-    term = escape_rg_glob(term)
-    if opts.include_non_markdown then
-      term = "*" .. term .. "*"
-    elseif vim.endswith(term, ".md") or vim.endswith(term, ".qmd") or vim.endswith(term, ".base") then
-      term = "*" .. term
-    else
-      term = "*" .. term .. "*.{md,qmd,base}"
-    end
-    additional_opts[#additional_opts + 1] = "-g"
-    additional_opts[#additional_opts + 1] = term
-  end
-
-  if opts.ignore_case then
-    additional_opts[#additional_opts + 1] = "--glob-case-insensitive"
-  end
-
   if path ~= nil and path ~= "." then
-    if opts.escape_path then
-      path = vim.fn.fnameescape(tostring(path))
-    end
     additional_opts[#additional_opts + 1] = path
   end
 
@@ -172,10 +124,11 @@ end
 ---@return string[]
 M.build_grep_cmd = function(opts)
   opts = opts and opts or {}
+  local search_opts = Obsidian and Obsidian.opts and Obsidian.opts.search or {}
 
   opts = vim.tbl_extend("keep", opts, {
-    sort_by = Obsidian.opts.search.sort_by,
-    sort_reversed = Obsidian.opts.search.sort_reversed,
+    sort_by = search_opts.sort_by,
+    sort_reversed = search_opts.sort_reversed,
     smart_case = true,
     fixed_strings = true,
   })

@@ -1,4 +1,6 @@
 local api = require "obsidian.api"
+local picker = require "obsidian.picker"
+local util = require "obsidian.util"
 
 --- Deduplicate items by filename (multiple LSP clients may return same file)
 ---@param items table[]
@@ -20,18 +22,36 @@ end
 return function(data)
   local open_strategy
   if data.args and string.len(data.args) > 0 then
-    open_strategy = api.get_open_strategy(data.args)
+    local strategy = data.args
+    ---@cast strategy obsidian.config.OpenStrategy
+    open_strategy = api.get_open_strategy(strategy)
   else
     open_strategy = api.get_open_strategy(Obsidian.opts.open_notes_in)
   end
 
+  ---@diagnostic disable-next-line: missing-fields,param-type-mismatch
   vim.lsp.buf.definition {
     on_list = function(t)
-      local items = dedupe_items(t.items)
+      local items = dedupe_items(t.items or {})
       if #items == 1 then
         api.open_note(items[1], open_strategy)
       else
-        Obsidian.picker.pick(items, { prompt_title = "Resolve link" })
+        picker.select(items, {
+          prompt = "Resolve link",
+          preview_item = function(entry)
+            ---@cast entry obsidian.PickerEntry
+            local filename = entry.filename
+            ---@cast filename -nil
+            local preview = util.preview_path(filename)
+            preview.pos = { entry.lnum or 1, entry.col and math.max(entry.col - 1, 0) or 0 }
+            return preview
+          end,
+        }, function(choices)
+          local entry = choices and choices[1]
+          if entry then
+            api.open_note(entry)
+          end
+        end)
       end
     end,
   }

@@ -6,7 +6,7 @@ local api = obsidian.api
 local actions = require "obsidian.actions"
 
 local function open_uri(uri, scheme)
-  if vim.list_contains(Obsidian.opts.open.schemes, scheme) then
+  if vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
     vim.ui.open(uri)
   else
     local choice = api.confirm(("Open external link? %s"):format(uri))
@@ -17,9 +17,17 @@ local function open_uri(uri, scheme)
   end
 end
 
+---@class obsidian.lsp.DefinitionCreateOpts
+---@field range [integer, integer]|?
+---@field label string|?
+---@field bufnr integer|?
+---@field cursor_row integer|?
+---@field anchor string|?
+---@field block string|?
+
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
+---@param opts obsidian.lsp.DefinitionCreateOpts|?
 ---@return lsp.Location?
 local function create_new_note(location, callback, opts)
   opts = opts or {}
@@ -42,25 +50,36 @@ local function create_new_note(location, callback, opts)
 
   local function update_link(note)
     if opts.range and vim.api.nvim_buf_is_valid(bufnr) then
-      local new_link = note:format_link { label = opts.label or location, anchor = opts.anchor, block = opts.block }
+      local source = vim.api.nvim_buf_get_name(bufnr)
+      local new_link = note:format_link {
+        label = opts.label or location,
+        anchor = opts.anchor,
+        block = opts.block,
+        dir = source ~= "" and vim.fs.dirname(source) or nil,
+      }
       vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
     end
   end
 
+  local source_path = vim.api.nvim_buf_get_name(bufnr)
+  local action_opts = { source_path = source_path ~= "" and source_path or nil }
+  local workspace_dir = api.resolve_workspace_dir(action_opts.source_path)
   local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
     actions.new(location, function(note)
       update_link(note)
       callback { note:_location() }
-    end)
+    end, action_opts)
   elseif confirm == "Yes with Template" then
     actions.new_from_template(location, nil, function(note)
       update_link(note)
       callback { note:_location() }
-    end)
+    end, action_opts)
     return
   elseif confirm == "Yes as Unique Note" then
-    local note = require("obsidian.unique").new_unique_note(nil, { title = location })
+    local unique_dir = Obsidian.opts.unique_note.folder and workspace_dir / Obsidian.opts.unique_note.folder
+      or workspace_dir
+    local note = require("obsidian.unique").new_unique_note(nil, { title = location, dir = unique_dir })
     if note then
       update_link(note)
       callback { note:_location() }
@@ -72,7 +91,7 @@ end
 
 ---@param location string
 ---@param callback function
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|? }|?
+---@param opts obsidian.lsp.DefinitionCreateOpts|?
 local function open_note(location, callback, opts)
   opts = opts or {}
   opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -81,6 +100,9 @@ local function open_note(location, callback, opts)
   local block_link, anchor_link, raw_anchor
   location, block_link = util.strip_block_links(location)
   location, anchor_link, raw_anchor = util.strip_anchor_links(location)
+
+  local source = vim.api.nvim_buf_get_name(opts.bufnr)
+  local workspace_dir = api.resolve_workspace_dir(source ~= "" and source or nil)
 
   search.resolve_note_async(location, function(notes)
     -- TODO: integrate into resolve_note?
@@ -103,27 +125,27 @@ local function open_note(location, callback, opts)
     elseif #notes == 1 then
       callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
     elseif #notes > 1 then
-      local locations = vim
-        .iter(notes)
-        :map(function(note)
-          return note:_location { block = block_link, anchor = anchor_link }
-        end)
-        :totable()
+      local locations = {}
+      for _, note in ipairs(notes) do
+        locations[#locations + 1] = note:_location { block = block_link, anchor = anchor_link }
+      end
       callback(locations)
     end
   end, {
+    dir = workspace_dir,
+    buf_dir = source ~= "" and vim.fs.dirname(source) or nil,
     notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
   })
 end
 
-local function open_attachment(location)
-  local path = api.resolve_attachment_path(location)
+local function open_attachment(location, opts)
+  local path = api.resolve_attachment_path(location, opts and opts.bufnr or nil)
   vim.ui.open(path)
 end
 
 local handle_wiki_link = function(location, callback, opts)
   if api.is_attachment_path(location) then
-    open_attachment(location)
+    open_attachment(location, opts)
   else
     open_note(location, callback, opts)
   end
@@ -134,15 +156,15 @@ local handle_markdown_link = function(location, callback, opts)
   if is_uri then
     open_uri(location, scheme)
   elseif api.is_attachment_path(location) then
-    open_attachment(location)
+    open_attachment(location, opts)
   else
     open_note(location, callback, opts)
   end
 end
 
-local function open_header_link(location, callback)
-  local note = api.current_note(0, { collect_anchor_links = true })
-  if not note or vim.tbl_isempty(note.anchor_links) then
+local function open_header_link(location, callback, opts)
+  local note = api.current_note(opts.bufnr, { collect_anchor_links = true })
+  if not note or vim.tbl_isempty(note.anchor_links or {}) then
     return
   end
   local anchor_obj = note:resolve_anchor_link(location)
@@ -152,10 +174,10 @@ local function open_header_link(location, callback)
   callback { note:_location { anchor = location } }
 end
 
-local handle_footnote = function(location, callback, _)
+local handle_footnote = function(location, callback, opts)
   local footnotes = require "obsidian.footnotes"
-  local bufnr = vim.api.nvim_get_current_buf()
-  local cursor_row = vim.api.nvim_win_get_cursor(0)[1]
+  local bufnr = opts.bufnr
+  local cursor_row = opts.cursor_row
 
   local def = footnotes.find_definition(bufnr, location)
 
@@ -173,7 +195,9 @@ local handle_footnote = function(location, callback, _)
     if vim.tbl_isempty(refs) then
       return log.info("No references found for footnote [^%s]", location)
     end
-    lnum, col = refs[1].lnum, refs[1].start_col
+    local ref = refs[1]
+    ---@cast ref -nil
+    lnum, col = ref.lnum, ref.start_col
   end
 
   callback {
@@ -187,9 +211,9 @@ local handle_footnote = function(location, callback, _)
   }
 end
 
-local function open_block_link(location, callback)
-  local note = api.current_note(0, { collect_blocks = true })
-  if not note or vim.tbl_isempty(note.blocks) then
+local function open_block_link(location, callback, opts)
+  local note = api.current_note(opts.bufnr, { collect_blocks = true })
+  if not note or vim.tbl_isempty(note.blocks or {}) then
     return
   end
   local block_obj = note:resolve_block(location)
@@ -207,7 +231,11 @@ return {
       return callback(nil, {})
     end
 
-    location = vim.uri_decode(location)
+    local decoded_location = vim.uri_decode(location)
+    if decoded_location then
+      ---@cast decoded_location string
+      location = decoded_location
+    end
 
     local wrapped_callback = function(lsp_locations)
       if lsp_locations and vim.islist(lsp_locations) then
@@ -216,10 +244,12 @@ return {
     end
 
     opts.label = label
+    opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+    opts.cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
     if vim.startswith(location, "#^") then
-      open_block_link(location, wrapped_callback)
+      open_block_link(location, wrapped_callback, opts)
     elseif vim.startswith(location, "#") then
-      open_header_link(location, wrapped_callback)
+      open_header_link(location, wrapped_callback, opts)
     elseif link_type == "markdown" then
       handle_markdown_link(location, wrapped_callback, opts)
     elseif link_type == "wiki" then

@@ -75,4 +75,29 @@ T["should search specific tags"] = function()
   eq(res[2].line, 7) -- 1-indexed
 end
 
+T["should not error on frontmatter tags without an end boundary"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "test.md")
+  local file = [==[
+---
+tags:
+   - Book
+]==]
+  vim.fn.writefile(vim.split(file, "\n"), filepath)
+
+  local res = h.child_await(
+    child,
+    [[
+      local search = require "obsidian.search"
+      search.find_tags_async("Book", function(res)
+        done(res)
+      end, {})
+    ]],
+    { desc = "tags search" }
+  )
+
+  eq(#res, 0)
+  eq(child.lua_get [[vim.v.errmsg]], "")
+end
+
 return T

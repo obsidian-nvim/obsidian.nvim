@@ -115,8 +115,9 @@ T["parse"]["blinks anchor target range"] = function()
   })
 
   local blinked = child.lua [[
-vim.ui.select = function(items, _, callback)
-  callback(items[1])
+local picker = require "obsidian.picker"
+picker.select = function(items, _, callback)
+  callback { items[1] }
 end
 
 M.pick {
@@ -138,6 +139,26 @@ return false
 ]]
 
   eq(true, blinked)
+end
+
+T["parse"]["preview buffers are wiped when hidden"] = function()
+  child.lua [[
+local picker = require "obsidian.picker"
+picker.select = function(items, opts)
+  local preview = opts.preview_item(items[1])
+  _G.preview_bufhidden = vim.bo[preview.buf].bufhidden
+end
+
+M.pick {
+  {
+    type = "search",
+    query = "neovim",
+    title = "neovim search",
+  },
+}
+]]
+
+  eq("wipe", child.lua_get [[preview_bufhidden]])
 end
 
 return T

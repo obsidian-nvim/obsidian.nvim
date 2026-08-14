@@ -5,10 +5,13 @@ local util = require "obsidian.util"
 local log = require "obsidian.log"
 
 ---@param path? string|obsidian.Path
-local function open_in_app(path)
-  local vault_name = vim.fs.basename(tostring(Obsidian.workspace.root))
+local function open_in_app(path, workspace_dir)
+  workspace_dir = workspace_dir or api.resolve_workspace_dir()
+  local vault_name = vim.fs.basename(tostring(workspace_dir))
+  local open_func = Obsidian.opts.open.func
+  ---@cast open_func -nil
   if not path then
-    return Obsidian.opts.open.func("obsidian://open?vault=" .. vim.uri_encode(vault_name))
+    return open_func("obsidian://open?vault=" .. vim.uri_encode(vault_name))
   end
   path = tostring(path)
   local this_os = api.get_os()
@@ -29,7 +32,7 @@ local function open_in_app(path)
     uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
   end
 
-  Obsidian.opts.open.func(uri)
+  open_func(uri)
 end
 
 ---@param data obsidian.CommandArgs
@@ -50,18 +53,23 @@ return function(data)
     end
   end
 
+  local source_path = vim.api.nvim_buf_get_name(0)
+  local workspace_dir = api.resolve_workspace_dir(source_path ~= "" and source_path or nil)
+
   if search_term and vim.trim(search_term) ~= "" then
     search.resolve_note_async(search_term, function(notes)
       if vim.tbl_isempty(notes) then
         return log.err "Note under cursor is not resolved"
       end
       local note = notes[1]
-      open_in_app(note.path:vault_relative_path())
-    end)
+      ---@cast note -nil
+      local note_path = note.path
+      ---@cast note_path -nil
+      open_in_app(note_path:vault_relative_path(), workspace_dir)
+    end, { dir = workspace_dir, buf_dir = source_path ~= "" and vim.fs.dirname(source_path) or nil })
   else
-    -- Otherwise use the pathk of the current buffer.
-    local bufname = vim.api.nvim_buf_get_name(0)
-    path = Path.new(bufname):vault_relative_path()
-    open_in_app(path)
+    -- Otherwise use the path of the current buffer.
+    path = Path.new(source_path):vault_relative_path()
+    open_in_app(path, workspace_dir)
   end
 end

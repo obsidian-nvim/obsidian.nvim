@@ -45,6 +45,7 @@ T["find wiki references"] = function()
   local qflist = get_refs()
   eq(1, #qflist)
   eq("[[target]]", qflist[1].text)
+  eq(1, qflist[1].col)
 end
 
 T["find wiki references under cursor"] = function()
@@ -104,6 +105,7 @@ T["find markdown references"] = function()
   local qflist = get_refs()
   eq(1, #qflist)
   eq("[target](target.md)", qflist[1].text)
+  eq(1, qflist[1].col)
 end
 
 T["find markdown references under cursor"] = function()

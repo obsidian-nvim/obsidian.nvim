@@ -3,8 +3,6 @@ SHELL:=/usr/bin/env bash
 .DEFAULT_GOAL:=help
 PROJECT_NAME = "obsidian.nvim"
 TEST = test/obsidian
-LUARC = $(shell readlink -f .luarc.json)
-
 # Depending on your setup you have to override the locations at runtime. E.g.:
 #   make user-docs
 MINITEST = deps/mini.test
@@ -33,12 +31,8 @@ style:  ## Format the code with stylua
 	stylua --check .
 
 .PHONY: types
-types: ## Type check with lua-ls
-	lua-language-server --configpath "$(LUARC)" --check lua/obsidian/
-
-.PHONY: checklua
-checklua:
-	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/obsidian/ --config .emmyrc.json
+types: ## Type check with EmmyLua
+	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/ --config .emmyrc.json
 
 .PHONY: test
 test: $(MINITEST)

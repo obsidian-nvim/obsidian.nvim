@@ -49,7 +49,7 @@ The original project has not been actively maintained for quite a while and with
 
 ## ⭐ Features
 
-▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via in-process LSP (triggered by typing `[[` for wiki and markdown links, `#` for tags, `[^` for footnotes)
+▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via in-process LSP (triggered by typing `[[` for wiki and markdown links, `#` for tags, `[^` for footnotes). Use `[[^query` for the current note, `[[note^query` or `[[note#^query` for a named note, and `[[^^query` across the vault; unlabeled blocks receive an ID when selected.
 
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
@@ -350,6 +350,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Booyaka101"><img src="https://avatars.githubusercontent.com/u/1064588?v=4?s=100" width="100px;" alt="Christo"/><br /><sub><b>Christo</b></sub></a><br /><a href="#code-Booyaka101" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://www.richsnapp.com"><img src="https://avatars.githubusercontent.com/u/551085?v=4?s=100" width="100px;" alt="Rich Snapp"/><br /><sub><b>Rich Snapp</b></sub></a><br /><a href="#code-snapwich" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mebble"><img src="https://avatars.githubusercontent.com/u/18006759?v=4?s=100" width="100px;" alt="Neil Syiemlieh"/><br /><sub><b>Neil Syiemlieh</b></sub></a><br /><a href="#code-mebble" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/FosRexx"><img src="https://avatars.githubusercontent.com/u/105154048?v=4?s=100" width="100px;" alt="Anshu Gahire"/><br /><sub><b>Anshu Gahire</b></sub></a><br /><a href="#code-FosRexx" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

@@ -30,12 +30,13 @@ M.resolve_link_path = function(location)
   end
 
   if attachment.is_attachment_path(location) then
-    return tostring(normalize_path(M.resolve_attachment_path(location)))
+    return tostring(normalize_path(attachment.resolve_attachment_path(location)))
   end
 
   local location_path = Path.new(location)
   local current_path = vim.api.nvim_buf_get_name(0)
   local current_dir = current_path ~= "" and Path.new(vim.fs.dirname(current_path)) or nil
+  local workspace_dir = api.resolve_workspace_dir(current_path ~= "" and current_path or nil)
 
   local candidates = {}
   local seen = {}
@@ -63,14 +64,14 @@ M.resolve_link_path = function(location)
       add_candidate(current_dir / location)
     end
     add_candidate(location_path)
-    add_candidate(Obsidian.dir / location)
+    add_candidate(workspace_dir / location)
 
     if Obsidian.opts.notes_subdir ~= nil then
-      add_candidate(Obsidian.dir / Obsidian.opts.notes_subdir / location)
+      add_candidate(workspace_dir / Obsidian.opts.notes_subdir / location)
     end
 
     if Obsidian.opts.daily_notes.folder ~= nil then
-      add_candidate(Obsidian.dir / Obsidian.opts.daily_notes.folder / location)
+      add_candidate(workspace_dir / Obsidian.opts.daily_notes.folder / location)
     end
   end
 
@@ -111,7 +112,11 @@ M.includeexpr = function(fname)
     return
   end
 
-  location = vim.uri_decode(location)
+  local decoded = vim.uri_decode(location)
+  if decoded then
+    ---@cast decoded string
+    location = decoded
+  end
   return M.resolve_link_path(location)
 end
 

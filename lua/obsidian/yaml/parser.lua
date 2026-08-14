@@ -6,6 +6,8 @@ local m = {}
 
 ---@class obsidian.yaml.ParserOpts
 ---@field luanil boolean
+---@field default? fun(): obsidian.yaml.ParserOpts
+---@field normalize? fun(opts: table): obsidian.yaml.ParserOpts
 local ParserOpts = {}
 
 m.ParserOpts = ParserOpts
@@ -60,6 +62,7 @@ end
 ---@return string[] -- TODO: does this have to be here?
 Parser.parse = function(self, str)
   -- Collect and pre-process lines.
+  ---@type obsidian.yaml.Line[]
   local lines = {}
   local base_indent = 0
   for raw_line in str:gmatch "[^\r\n]+" do
@@ -87,6 +90,7 @@ Parser.parse = function(self, str)
   local order = {} ---@type string[]
   while i <= #lines do
     local line = lines[i]
+    ---@cast line -nil
 
     if line:is_empty() then
       -- Empty line, skip it.
@@ -115,11 +119,12 @@ Parser.parse = function(self, str)
         if type(root_value) == "table" then
           parent = root_value
         end
-      elseif vim.islist(parent) and value_type == YamlType.ArrayItem then
+      elseif parent ~= nil and vim.islist(parent) and value_type == YamlType.ArrayItem then
         -- Add value to parent array.
         parent[#parent + 1] = value
       elseif type(parent) == "table" and value_type == YamlType.Mapping then
         -- Add value to parent mapping.
+        ---@cast value table
         for key, item in pairs(value) do
           -- Check for duplicate keys.
           if parent[key] ~= nil then
@@ -148,11 +153,13 @@ end
 ---@return integer, any, string
 Parser._parse_next = function(self, lines, i, text)
   local line = lines[i]
+  ---@cast line -nil
   if text == nil then
     -- Skip empty lines.
     while line:is_empty() and i <= #lines do
       i = i + 1
       line = lines[i]
+      ---@cast line -nil
     end
     if line:is_empty() then
       return i, nil, YamlType.EmptyLine
@@ -224,6 +231,7 @@ local YAML_MAPPING_INLINE_REGEX = string.format("%s: (.*)", YAML_KEY_REGEX)
 ---@return boolean, integer, any
 Parser._try_parse_field = function(self, lines, i, text)
   local line = lines[i]
+  ---@cast line -nil
   text = text and text or yaml_util.strip_comments(line.content)
 
   local _, key, value
@@ -248,8 +256,9 @@ Parser._try_parse_field = function(self, lines, i, text)
     -- Check for multi-line string here.
     local next_line = lines[j]
     if type(value) == "string" and next_line ~= nil and next_line.indent > line.indent then
-      local next_indent = next_line.indent
-      while next_line ~= nil and next_line.indent == next_indent do
+      local continuation_indent = next_line.indent
+      ---@diagnostic disable-next-line: preferred-local-alias
+      while next_line ~= nil and next_line.indent == continuation_indent do
         local next_value_str = yaml_util.strip_comments(next_line.content)
         if string.len(next_value_str) > 0 then
           local next_value = self:_parse_inline_value(j, next_line.content)
@@ -299,6 +308,7 @@ end
 ---@return boolean, integer, any
 Parser._try_parse_block_string = function(self, lines, i, text)
   local line = lines[i]
+  ---@cast line -nil
   text = text and text or yaml_util.strip_comments(line.content)
   local _, _, block_key = string.find(text, "([a-zA-Z0-9_-]+):%s?|")
   if block_key ~= nil then
@@ -308,12 +318,13 @@ Parser._try_parse_block_string = function(self, lines, i, text)
     if next_line == nil then
       error(self:_error_msg("expected another line", i, text))
     end
-    local item_indent = next_line.indent
+    local block_indent = next_line.indent
     while j <= #lines do
       next_line = lines[j]
-      if next_line ~= nil and next_line.indent >= item_indent then
+      ---@diagnostic disable-next-line: preferred-local-alias
+      if next_line ~= nil and next_line.indent >= block_indent then
         j = j + 1
-        table.insert(block_lines, util.lstrip_whitespace(next_line.raw_content, item_indent))
+        table.insert(block_lines, util.lstrip_whitespace(next_line.raw_content, block_indent))
       else
         break
       end
@@ -333,6 +344,7 @@ end
 ---@return boolean, integer, any
 Parser._try_parse_array_item = function(self, lines, i, text)
   local line = lines[i]
+  ---@cast line -nil
   text = text and text or yaml_util.strip_comments(line.content)
   if text == "-" then
     -- Bare dash is a null array item.
@@ -359,9 +371,12 @@ end
 ---@return integer, any[]
 Parser._parse_array = function(self, lines, i)
   local out = {}
-  local item_indent = lines[i].indent
+  local first_line = lines[i]
+  ---@cast first_line -nil
+  local item_indent = first_line.indent
   while i <= #lines do
     local line = lines[i]
+    ---@cast line -nil
     if line.indent == item_indent and (line.content == "-" or vim.startswith(line.content, "- ")) then
       local is_array_item, value
       is_array_item, i, value = self:_try_parse_array_item(lines, i)
@@ -385,9 +400,12 @@ end
 ---@return integer, table
 Parser._parse_mapping = function(self, i, lines)
   local out = {}
-  local item_indent = lines[i].indent
+  local first_line = lines[i]
+  ---@cast first_line -nil
+  local item_indent = first_line.indent
   while i <= #lines do
     local line = lines[i]
+    ---@cast line -nil
     if line.indent == item_indent then
       local value, value_type
       i, value, value_type = self:_parse_next(lines, i)
@@ -423,16 +441,14 @@ Parser._parse_inline_value = function(self, i, text)
     return str, YamlType.Scalar
   end
 
-  for parse_func_and_type in
-    vim.iter {
-      { self._parse_number, YamlType.Scalar },
-      { self._parse_null, YamlType.Scalar },
-      { self._parse_boolean, YamlType.Scalar },
-      { self._parse_inline_array, YamlType.Array },
-      { self._parse_inline_mapping, YamlType.Mapping },
-      { self._parse_string, YamlType.Scalar },
-    }
-  do
+  for _, parse_func_and_type in ipairs {
+    { self._parse_number, YamlType.Scalar },
+    { self._parse_null, YamlType.Scalar },
+    { self._parse_boolean, YamlType.Scalar },
+    { self._parse_inline_array, YamlType.Array },
+    { self._parse_inline_mapping, YamlType.Mapping },
+    { self._parse_string, YamlType.Scalar },
+  } do
     local parse_func, parse_type = unpack(parse_func_and_type)
     local ok, errmsg, res = parse_func(self, i, text)
     if ok then

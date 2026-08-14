@@ -1,5 +1,6 @@
 - [Save location](#save-location)
 - [Add attachment](#add-attachment)
+- [Hook after adding attachments](#hook-after-adding-attachments)
 - [Paste from clipboard path](#paste-from-clipboard-path)
 - [Open](#open)
 - [Options](#options)
@@ -25,6 +26,7 @@ For `attachment.add(source, opts)`:
 - If `source` is a local file (or `file://` URI), the file is copied.
 - If `source` is a `http(s)` URL, the file is downloaded with `curl`.
 - The destination path is always resolved by `api.resolve_attachment_path()` and controlled by [Save location](#save-location).
+- Set `opts.new_name` to copy/download the attachment with a different destination basename.
 
 For `actions.add_attachment(source, opts)`:
 
@@ -35,9 +37,36 @@ For `actions.add_attachment(source, opts)`:
 Both functions accept the same `opts` table:
 
 ```lua
----@class obsidian.AttachmentAddOpts
+---@class obsidian.AddAttachmentOpts
 ---@field insert? boolean Insert the generated attachment link after adding. Defaults to true.
 ---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
+---@field new_name? string Destination attachment basename. Path separators are rejected.
+---@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
+---@field scope? string Context passed to callbacks as `ctx.scope`.
+```
+
+## Hook after adding attachments
+
+Use `callbacks.add_attachment` or the `ObsidianAttachmentAdded` user autocmd:
+
+```lua
+require("obsidian").setup {
+  callbacks = {
+    add_attachment = function(path, ctx)
+      -- path: full path to the attached file in the vault
+      -- ctx.scope: context where the attachment was added
+      -- ctx.buffer: target buffer
+    end,
+  },
+}
+
+vim.api.nvim_create_autocmd("User", {
+  pattern = "ObsidianAttachmentAdded",
+  callback = function(ev)
+    local path = ev.data.path
+    local ctx = ev.data.ctx
+  end,
+})
 ```
 
 ## Paste from clipboard path
@@ -65,45 +94,49 @@ local paste_from_path = function()
 end
 ```
 
-To customize attachment resolution, override `require("obsidian.actions").add_attachment`.
-For example, pick with a terminal file manager (yazi in a centered float):
+To customize how attachment is resolved, use `opts.resolvers.attachment`.
+For example, pick with a terminal file manager:
 
 ```lua
-local actions = require "obsidian.actions"
-local attachment = require "obsidian.attachment"
+require("obsidian").setup {
+  resolvers = {
+    attachment = function(ctx, done)
+      local tmp = vim.fn.tempname()
+      local buf = vim.api.nvim_create_buf(false, true)
+      local width = math.floor(vim.o.columns * 0.8)
+      local height = math.floor(vim.o.lines * 0.8)
+      local win = vim.api.nvim_open_win(buf, true, {
+        relative = "editor",
+        row = math.floor((vim.o.lines - height) / 2),
+        col = math.floor((vim.o.columns - width) / 2),
+        width = width,
+        height = height,
+        style = "minimal",
+        border = "rounded",
+      })
 
-actions.add_attachment = function(_, opts)
-  opts = opts or {}
-  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-  local tmp = vim.fn.tempname()
-  local buf = vim.api.nvim_create_buf(false, true)
-  local width = math.floor(vim.o.columns * 0.8)
-  local height = math.floor(vim.o.lines * 0.8)
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = "editor",
-    row = math.floor((vim.o.lines - height) / 2),
-    col = math.floor((vim.o.columns - width) / 2),
-    width = width,
-    height = height,
-    style = "minimal",
-    border = "rounded",
-  })
-  vim.fn.jobstart({ "yazi", "--chooser-file=" .. tmp }, {
-    term = true,
-    on_exit = function()
-      vim.api.nvim_win_close(win, true)
-      vim.api.nvim_buf_delete(buf, { force = true })
-      if vim.uv.fs_stat(tmp) then
-        local lines = vim.fn.readfile(tmp)
-        if lines[1] then
-          attachment.add(lines[1], { insert = opts.insert, bufnr = bufnr })
-        end
-      end
+      vim.fn.jobstart({ "yazi", "--chooser-file=" .. tmp }, {
+        term = true,
+        on_exit = function()
+          vim.api.nvim_win_close(win, true)
+          vim.api.nvim_buf_delete(buf, { force = true })
+          if vim.uv.fs_stat(tmp) then
+            local lines = vim.fn.readfile(tmp)
+            if lines[1] then
+              done { path = lines[1] }
+              return
+            end
+          end
+          done(nil)
+        end,
+      })
+      vim.cmd "startinsert"
     end,
-  })
-  vim.cmd "startinsert"
-end
+  },
+}
 ```
+
+See [[Resolvers]] for the full resolver contract.
 
 ## Open
 

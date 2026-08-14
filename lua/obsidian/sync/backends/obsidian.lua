@@ -1,6 +1,7 @@
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local client = require "obsidian.sync.client"
+local picker = require "obsidian.picker"
 local runner = require "obsidian.sync.runner"
 local status = require "obsidian.sync.status"
 
@@ -76,7 +77,11 @@ function M.pause(dir)
     runner.clear_notify_state(dir)
     status.set "paused"
   end)
-  return ok, err
+  if ok then
+    return true, nil
+  else
+    return false, tostring(err)
+  end
 end
 
 ---@param dir string
@@ -191,7 +196,7 @@ local function select_remote(workspace, remotes, local_vaults)
 
   local items = vim.list_extend(vim.deepcopy(remotes), { CREATE_NEW })
 
-  vim.ui.select(items, {
+  picker.select(items, {
     prompt = "Select remote vault to sync with",
     format_item = function(item)
       if item == CREATE_NEW then
@@ -199,7 +204,8 @@ local function select_remote(workspace, remotes, local_vaults)
       end
       return item.name
     end,
-  }, function(choice)
+  }, function(choices)
+    local choice = choices[1]
     if not choice then
       return
     end

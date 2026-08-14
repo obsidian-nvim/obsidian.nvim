@@ -42,6 +42,7 @@
 ---@field ui? obsidian.config.UIOpts
 ---@field attachments? obsidian.config.AttachmentsOpts
 ---@field callbacks? obsidian.config.CallbackConfig
+---@field resolvers? obsidian.config.ResolverConfig
 ---@field legacy_commands? boolean
 ---@field statusline? obsidian.config.StatuslineOpts
 ---@field footer? obsidian.config.FooterOpts
@@ -54,6 +55,7 @@
 ---@field unique_note? obsidian.config.UniqueNoteOpts
 ---@field sync? obsidian.config.SyncOpts
 ---@field slides? obsidian.config.SlidesOpts
+---@field cache? obsidian.config.CacheOpts
 
 ---@class obsidian.config.TemplaterOpts
 --- When enabled, obsidian.nvim will automatically detect templates containing Templater syntax
@@ -82,6 +84,7 @@
 ---@field ui obsidian.config.UIOpts
 ---@field attachments obsidian.config.AttachmentsOpts
 ---@field callbacks obsidian.config.CallbackConfig
+---@field resolvers obsidian.config.ResolverConfig
 ---@field legacy_commands boolean
 ---@field statusline obsidian.config.StatuslineOpts
 ---@field footer obsidian.config.FooterOpts
@@ -94,5 +97,6 @@
 ---@field unique_note obsidian.config.UniqueNoteOpts
 ---@field sync obsidian.config.SyncOpts
 ---@field slides obsidian.config.SlidesOpts
+---@field cache obsidian.config.CacheOpts
 
 ---@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"

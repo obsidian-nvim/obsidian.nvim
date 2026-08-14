@@ -20,7 +20,7 @@
 ```lua
 ---@class obsidian.config.SearchOpts
 ---
----@field sort_by string|false
+---@field sort_by obsidian.config.SortBy|false
 ---@field sort_reversed boolean
 ---@field max_lines integer
 search = {

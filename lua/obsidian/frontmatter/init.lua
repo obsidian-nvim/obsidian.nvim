@@ -29,7 +29,7 @@ end
 --- Get frontmatter lines to be written
 ---
 ---@param t table<string, any>
----@param order string[] | fun(a: any, b: any): boolean
+---@param order? string[] | fun(a: any, b: any): boolean
 ---
 ---@return string[]
 M.dump = function(t, order)

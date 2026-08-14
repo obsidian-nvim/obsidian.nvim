@@ -25,13 +25,40 @@ util.write_file = function(file, contents)
   fd:close()
 end
 
+---@param path string|obsidian.Path
+---@return obsidian.ui_select_preview_spec
+util.preview_path = function(path)
+  path = tostring(path)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
+
+  local stat = vim.uv.fs_stat(path)
+  if stat and stat.type == "directory" then
+    local entries = {}
+    for name, t in vim.fs.dir(path) do
+      entries[#entries + 1] = name .. (t == "directory" and "/" or "")
+    end
+    table.sort(entries)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
+    vim.bo[buf].filetype = "directory"
+  else
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
+    local ft = vim.filetype.match { filename = path }
+    if ft then
+      vim.bo[buf].filetype = ft
+    end
+  end
+
+  return { buf = buf }
+end
+
 -------------------
 --- Table tools ---
 -------------------
 
 ---@param t table
 util.flatten = function(t)
-  ---@diagnostic disable-next-line: redundant-parameter
+  ---@diagnostic disable-next-line: redundant-parameter, call-non-callable
   return vim.iter(t):flatten():totable()
 end
 
@@ -85,7 +112,7 @@ util.urlencode = function(str, opts)
   opts = opts or {}
   local url = str
   url = url:gsub("\n", "\r\n")
-  url = url:gsub("([%(%)%*%?%[%]%$\"':<>|\\'{}])", char_to_hex)
+  url = url:gsub("([%(%)%*%?%[%]%$\"':<>|\\'{}&])", char_to_hex)
   if not opts.keep_path_sep then
     url = url:gsub("/", char_to_hex)
   end
@@ -220,7 +247,7 @@ end
 util.format_date = function(time, fmt)
   if fmt:find "%%" then
     local time_string = os.date(fmt, time)
-    ---@cast time_string -osdate
+    ---@cast time_string string
     return time_string
   end
   return require("obsidian.lib.moment").format(time, fmt)
@@ -230,7 +257,7 @@ end
 ---
 ---@param str string
 ---@param fmt string|?
----@return osdateparam|? date as os.date table
+---@return std.osdate? date as os.date table
 ---@return string|? error
 util.parse_date = function(str, fmt)
   -- Try common date formats
@@ -334,8 +361,6 @@ util.is_checkbox = function(s)
   return false
 end
 
-util.parse_tags = require("obsidian.parse.tags").parse_tags
-
 ---@param link string
 ---@return string|? link_location
 ---@return string|? link_name
@@ -352,31 +377,29 @@ util.parse_link = function(link)
     return nil
   end
 
-  local link_location, link_name
   if link_type == "markdown" then
-    link_name = link:match "%[(.-)%]"
-    link_location = link:match "%((.-)%)"
+    local link_name = link:match "%[(.-)%]"
+    local link_location = link:match "%((.-)%)"
+    return link_location, link_name, "markdown"
   elseif link_type == "wiki" then
     link = util.unescape_single_backslash(link)
     -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'
     link = link:sub(3, #link - 2)
     local split_idx = link:find "|"
     if split_idx then
-      link_location = link:sub(1, split_idx - 1)
-      link_name = link:sub(split_idx + 1)
+      local link_location = link:sub(1, split_idx - 1)
+      local link_name = link:sub(split_idx + 1)
+      return link_location, link_name, "wiki"
     else
-      link_location = link
-      link_name = link
+      return link, link, "wiki"
     end
   elseif link_type == "footnote" then
     -- remove boundary brackets and the caret, e.g. '[^xxx]' -> 'xxx'
-    link_location = link:sub(3, #link - 1)
-    link_name = link_location
+    local link_location = link:sub(3, #link - 1)
+    return link_location, link_location, "footnote"
   else
     error("not implemented for " .. link_type)
   end
-
-  return link_location, link_name, link_type
 end
 
 --- Replace references of the form '[[xxx|xxx]]', '[[xxx]]', or '[xxx](xxx)' with their title.
@@ -625,54 +648,22 @@ util.in_node = function(node_type)
   return false
 end
 
---- from plenary.nvim
-util.strdisplaywidth = (function()
-  local fallback = function(str, col)
-    str = tostring(str)
+--- HACK: because LazyVim and some users by default sets vim.deprecate to no-op
+--- Shows a deprecation message to the user.
+---
+---@param name        string     Deprecated feature (function, API, etc.).
+---@param alternative string|nil Suggested alternative feature.
+---@param version     string     Version when the deprecated function will be removed.
+---
+util.deprecate = function(name, alternative, version)
+  vim.validate("name", name, "string")
+  vim.validate("alternative", alternative, "string", true)
+  vim.validate("version", version, "string", true)
 
-    if vim.in_fast_event() then
-      return #str - (col or 0)
-    end
-
-    return vim.fn.strdisplaywidth(str, col)
-  end
-
-  if jit and vim.fn.has "win32" ~= 1 then
-    local ffi = require "ffi"
-
-    ffi.cdef [[
-
-
-      typedef unsigned char char_u;
-
-
-      int linetabsize_col(int startcol, char_u *s);
-
-
-    ]]
-
-    local ffi_func = function(str, col)
-      str = tostring(str)
-
-      local startcol = col or 0
-
-      local s = ffi.new("char[?]", #str + 1)
-
-      ffi.copy(s, str)
-
-      return ffi.C.linetabsize_col(startcol, s) - startcol
-    end
-
-    local ok = pcall(ffi_func, "hello")
-
-    if ok then
-      return ffi_func
-    else
-      return fallback
-    end
-  else
-    return fallback
-  end
-end)()
+  local msg = ("%s is deprecated"):format(name)
+  msg = alternative and ("%s, use %s instead."):format(msg, alternative) or (msg .. ".")
+  msg = ("%s\nFeature will be removed in %s %s"):format(msg, "obsidian.nvim", version)
+  vim.notify_once(msg, vim.log.levels.WARN)
+end
 
 return util

@@ -5,6 +5,63 @@ local T, child = h.child_vault [[
 package.loaded["obsidian.lsp.watchfiles"] = nil
 ]]
 
+T["initialize advertises didSave synchronization"] = function()
+  child.lua [[
+    require("obsidian.lsp.handlers.initialize")({}, function(_, result)
+      _G.did_save_sync = result.capabilities.textDocumentSync.save
+    end, {
+      notification = function() end,
+    })
+  ]]
+
+  eq(true, child.lua_get "did_save_sync")
+end
+
+T["saving an attached note emits didSave"] = function()
+  child.lua [[
+    local path = vim.fs.joinpath(tostring(Obsidian.dir), "saved.md")
+    vim.fn.writefile({ "#one" }, path)
+
+    local cache = require "obsidian.cache"
+    cache.setup { enabled = true, backend = "memory" }
+    assert(vim.wait(1000, cache.is_ready))
+
+    local refresh = cache.notes.refresh
+    local refreshes = 0
+    local inlay_refreshes = 0
+    cache.notes.refresh = function(saved_path)
+      refreshes = refreshes + 1
+      refresh(saved_path)
+    end
+    local original_inlay_refresh = vim.lsp.handlers["workspace/inlayHint/refresh"]
+    vim.lsp.handlers["workspace/inlayHint/refresh"] = function()
+      inlay_refreshes = inlay_refreshes + 1
+      return vim.NIL
+    end
+
+    vim.cmd("edit " .. vim.fn.fnameescape(path))
+    assert(vim.wait(1000, function()
+      local clients = vim.lsp.get_clients { bufnr = 0, name = "obsidian-ls" }
+      return clients[1] ~= nil and clients[1].initialized
+    end))
+
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "#two" })
+    vim.cmd "write"
+    assert(vim.wait(1000, function()
+      return refreshes > 0 and inlay_refreshes > 0
+    end))
+
+    vim.lsp.handlers["workspace/inlayHint/refresh"] = original_inlay_refresh
+    _G.did_save_refreshes = refreshes
+    _G.did_save_inlay_refreshes = inlay_refreshes
+    _G.did_save_tags = cache.notes.find(path).tags
+  ]]
+
+  eq(1, child.lua_get "did_save_refreshes")
+  eq(1, child.lua_get "did_save_inlay_refreshes")
+  eq({ "two" }, child.lua_get "did_save_tags")
+end
+
 T["initialized dynamically registers markdown watcher"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.initialized"
@@ -83,6 +140,7 @@ T["watchfiles dispatches LSP events to registered handlers"] = function()
     watchfiles.register_handler(function(events, raw_changes)
       _G.received_event_type = events[1].type
       _G.received_event_uri = events[1].uri
+      _G.received_event_path = events[1].path
       _G.received_raw_uri = raw_changes[1].uri
     end)
 
@@ -95,13 +153,42 @@ T["watchfiles dispatches LSP events to registered handlers"] = function()
 
     _G.returned_event_type = events[1].type
     _G.returned_event_uri = events[1].uri
+    _G.returned_event_path = events[1].path
   ]]
 
   eq(vim.lsp.protocol.FileChangeType.Changed, child.lua_get "returned_event_type")
   eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "returned_event_uri")
+  eq("/tmp/watch.md", child.lua_get "returned_event_path")
   eq(vim.lsp.protocol.FileChangeType.Changed, child.lua_get "received_event_type")
   eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_event_uri")
+  eq("/tmp/watch.md", child.lua_get "received_event_path")
   eq(vim.uri_from_fname "/tmp/watch.md", child.lua_get "received_raw_uri")
+end
+
+T["watchfiles normalizes URI paths"] = function()
+  child.lua [[
+    local watchfiles = require "obsidian.lsp.watchfiles"
+    local uri = "file:///C:/tmp/watch.md"
+
+    watchfiles.register_handler(function(events, raw_changes)
+      _G.received_path = events[1].path
+      _G.raw_has_path = raw_changes[1].path ~= nil
+    end)
+
+    local events = watchfiles.handle {
+      {
+        uri = uri,
+        type = vim.lsp.protocol.FileChangeType.Changed,
+      },
+    }
+
+    _G.expected_path = vim.fs.normalize(vim.uri_to_fname(uri))
+    _G.returned_path = events[1].path
+  ]]
+
+  eq(child.lua_get "expected_path", child.lua_get "returned_path")
+  eq(child.lua_get "expected_path", child.lua_get "received_path")
+  eq(false, child.lua_get "raw_has_path")
 end
 
 T["watchfiles snapshots handlers while dispatching events"] = function()

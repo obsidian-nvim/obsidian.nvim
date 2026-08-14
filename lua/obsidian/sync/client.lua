@@ -7,10 +7,11 @@ local log = require "obsidian.log"
 local M = {}
 
 local function get_plugin_root()
-  local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
-    return vim.endswith(path, "obsidian.nvim")
-  end)
-  return root
+  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
+    if vim.endswith(path, "obsidian.nvim") then
+      return path
+    end
+  end
 end
 
 ---@return string?
@@ -137,7 +138,7 @@ function M.run(subcmd, flags)
     end
     return
   elseif out.code ~= 0 then
-    log.error(out.stderr)
+    log.error(out.stderr or "")
   end
   return out
 end
@@ -208,6 +209,7 @@ function M.run_async(subcmd, flags, sys_opts, callback, opts)
   )
 end
 
+---@type fun()|?
 local invalidate_cache
 
 ---@param email string|?
@@ -225,7 +227,9 @@ function M.login(email, password)
   local out = M.run("login", { email = email, password = password })
 
   if out ~= nil and out.code == 0 then
-    invalidate_cache()
+    local invalidate = invalidate_cache
+    ---@cast invalidate -nil
+    invalidate()
     log.info "Login successful!"
     return true
   else

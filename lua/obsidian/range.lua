@@ -84,14 +84,19 @@ Range.blink = function(range, bufnr, opts)
   local hl_group = opts.hl_group or "ObsidianBlink"
   vim.api.nvim_set_hl(0, hl_group, { link = "Visual", default = true })
 
-  local hl = vim.hl or vim.highlight
-  hl.range(bufnr, ns, hl_group, { range.start_row, range.start_col }, { range.end_row, range.end_col }, {})
+  vim.api.nvim_buf_set_extmark(bufnr, ns, range.start_row, range.start_col, {
+    end_row = range.end_row,
+    end_col = range.end_col,
+    hl_group = hl_group,
+    hl_mode = "combine",
+    priority = 200,
+  })
 
   vim.defer_fn(function()
     if vim.api.nvim_buf_is_valid(bufnr) then
       vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
     end
-  end, opts.timeout or 500)
+  end, opts.timeout or vim.g.obsidian_blink_duration or 500)
 end
 
 setmetatable(Range, {

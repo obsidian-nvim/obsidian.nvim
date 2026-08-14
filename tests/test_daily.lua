@@ -27,6 +27,14 @@ T["daily_note_path"]["should support moment date_format"] = function()
   Obsidian.opts.daily_notes.date_format = previous
 end
 
+T["daily_note_path"]["should resolve from an explicit vault directory"] = function()
+  local dir = Obsidian.dir / "nested-vault"
+  dir:mkdir()
+
+  local note = M.daily { date = os.time(), dir = dir }
+  eq(true, dir:is_parent_of(note.path))
+end
+
 T["daily_note_path"]["should be able to initialize a daily note"] = function()
   local note = M.today()
   eq(true, note.path ~= nil)
@@ -56,6 +64,60 @@ T["dailies"] = h.temp_vault
 T["dailies"]["don't be effected by `note_id_func`"] = function()
   local note = M.daily { offset = 0 }
   eq(note.id, os.date "%Y-%m-%d")
+end
+
+T["dailies"]["pick should use custom date resolver"] = function()
+  local timestamp = os.time { year = 2026, month = 6, day = 25, hour = 12 }
+  Obsidian.opts.resolvers.date = function(ctx, done)
+    eq("open_daily", ctx.intent)
+    eq("daily", ctx.cadence)
+    done { timestamp = timestamp, precision = "day" }
+  end
+
+  local picked
+  M.pick(-5, 0, function(note)
+    picked = note
+  end)
+
+  eq("2026-06-25", picked.id)
+end
+
+T["dailies"]["picker previews existing notes and prompts to create missing notes"] = function()
+  local today = M.daily_note_path()
+  h.write("# Today", today)
+
+  local picker = require "obsidian.picker"
+  local original_select = picker.select
+  local existing_lines, missing_lines, bufhidden
+  picker.select = function(items, opts, on_choice)
+    for _, item in ipairs(items) do
+      local preview = opts.preview_item(item)
+      local lines = vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false)
+      if vim.uv.fs_stat(item.filename) then
+        existing_lines = lines
+      else
+        missing_lines = lines
+      end
+      bufhidden = vim.bo[preview.buf].bufhidden
+      vim.api.nvim_buf_delete(preview.buf, { force = true })
+    end
+    on_choice {}
+  end
+
+  local ok, err = pcall(function()
+    require("obsidian.resolvers").builtin.date({
+      offset_start = 0,
+      offset_end = 1,
+    }, function() end)
+  end)
+  picker.select = original_select
+  if not ok then
+    error(err)
+  end
+
+  eq({ "# Today" }, existing_lines)
+  eq({ "Select to create this daily note." }, missing_lines)
+  eq("wipe", bufhidden)
 end
 
 return T

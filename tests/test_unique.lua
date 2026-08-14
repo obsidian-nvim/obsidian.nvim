@@ -26,6 +26,15 @@ T["create a unique note in specific folder"] = function()
   eq(true, tostring(note.path):find "unique%-notes" ~= nil)
 end
 
+T["create a unique note in an explicit directory"] = function()
+  local dir = Obsidian.dir / "nested-vault" / "unique-notes"
+  dir:mkdir { parents = true }
+
+  local note = M.new_unique_note(os.time(), { dir = dir })
+
+  eq(dir, note.path:parent())
+end
+
 T["create a unique note with specific template"] = function()
   Obsidian.opts.unique_note.template = "unique"
 
