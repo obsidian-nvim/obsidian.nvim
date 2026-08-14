@@ -874,6 +874,24 @@ Return ~
 `(boolean)`
 
 ------------------------------------------------------------------------------
+                                                                   *Path.read()*
+                              `Path.read`({self})
+Read the contents of a file.
+
+Return ~
+`(string| `(optional))``
+
+------------------------------------------------------------------------------
+                                                                  *Path.write()*
+                        `Path.write`({self}, {content})
+Write content to a file.
+
+Parameters ~
+{content} `(string)`
+Return ~
+`(boolean)` success
+
+------------------------------------------------------------------------------
                                                                   *Path.mkdir()*
                           `Path.mkdir`({self}, {opts})
 Create a new directory at the given path.
