@@ -1,6 +1,6 @@
 ---@class obsidian.lsp.CodeActionData
 ---@field title string|fun(note: obsidian.Note): string
----@field cond fun(note: obsidian.Note): boolean
+---@field cond fun(note: obsidian.Note, params: lsp.CodeActionParams?): boolean
 
 ---@class obsidian.lsp.CodeAction : lsp.CodeAction
 ---@field data obsidian.lsp.CodeActionData
@@ -11,7 +11,7 @@ local code_actions = {}
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
 ---@field title string|fun(note: obsidian.Note): string text display in code action interface
----@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
+---@field cond? fun(note: obsidian.Note, params: lsp.CodeActionParams?): boolean function used to determine whether code action is shown
 ---@field fn? function
 
 ---Register a new command.
@@ -99,6 +99,19 @@ local default_actions = {
 
   insert_link = {
     title = "Insert internal link at cursor",
+  },
+
+  unlink = {
+    title = "Remove link under cursor",
+    cond = function(_, params)
+      local bufnr, position
+      if params then
+        bufnr = vim.uri_to_bufnr(params.textDocument.uri)
+        position = params.range.start
+      end
+      local link_type = select(2, require("obsidian.api").cursor_link(bufnr, position))
+      return link_type == "wiki" or link_type == "markdown"
+    end,
   },
 
   insert_tag = {

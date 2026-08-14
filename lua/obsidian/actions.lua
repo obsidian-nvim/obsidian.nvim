@@ -8,6 +8,7 @@ local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
+local parse_refs = require "obsidian.parse.refs"
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
@@ -59,6 +60,53 @@ M.follow_link = function(link, opts)
       end)
     end
   end, { range = range })
+end
+
+---Replace the wiki or Markdown link under the cursor with its display text.
+---Links without display text use the target note's path stem.
+---@param bufnr integer|?
+---@param position lsp.Position|?
+---@return string? display_text
+M.unlink = function(bufnr, position)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local row, col
+  if position then
+    row, col = position.line, position.character
+  else
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    row, col = cursor[1] - 1, cursor[2]
+  end
+
+  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
+  for _, ref in ipairs(parse_refs.extract(line, { row = row })) do
+    if (ref.kind == "wiki" or ref.kind == "markdown") and ref.range.start_col <= col and col < ref.range.end_col then
+      local display_text = ref.label
+      if not display_text or display_text == "" then
+        local target = vim.uri_decode(ref.target)
+        display_text = Path.new(target).stem
+        if not display_text or display_text == "" then
+          display_text = Path.buffer(bufnr).stem
+        end
+      end
+
+      if not display_text or display_text == "" then
+        return log.warn "Could not determine link display text"
+      end
+
+      vim.api.nvim_buf_set_text(
+        bufnr,
+        ref.range.start_row,
+        ref.range.start_col,
+        ref.range.end_row,
+        ref.range.end_col,
+        { display_text }
+      )
+      require("obsidian.ui").update(bufnr)
+      return display_text
+    end
+  end
+
+  return log.warn "No link found under cursor"
 end
 
 ---@param direction "next" | "prev"
