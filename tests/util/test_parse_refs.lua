@@ -33,6 +33,20 @@ T["extract parses embeds and block refs"] = function()
   }, refs.extract(line))
 end
 
+T["extract parses Markdown links without labels"] = function()
+  local line = "[](folder/note.md)"
+  eq({
+    {
+      kind = "markdown",
+      raw = line,
+      range = Range.new(0, 0, 0, #line),
+      target = "folder/note.md",
+      label = "",
+      embed = false,
+    },
+  }, refs.extract(line))
+end
+
 T["extract returns ranges"] = function()
   local out = refs.extract("See [[A]] and [B](b.md#H)", { row = 2 })
   eq(2, #out)
