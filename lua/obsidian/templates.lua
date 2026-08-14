@@ -3,6 +3,7 @@ local Note = require "obsidian.note"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
+local templater_engine = require "obsidian.templater_engine"
 
 local M = {}
 
@@ -248,24 +249,7 @@ end
 ---@param template_content string
 ---@return boolean
 M.has_templater_js = function(template_content)
-  -- Check for Templater execution markers.
-  if template_content:match "<%%" or template_content:match "<%=" or template_content:match "<%%#" then
-    return true
-  end
-
-  -- Check for a leading ```js code block (within first 10 lines).
-  local line_idx = 0
-  for line in template_content:gmatch "[^\n]*\n?" do
-    line_idx = line_idx + 1
-    if line_idx > 10 then
-      break
-    end
-    if line:match "^%s*```js%s*$" then
-      return true
-    end
-  end
-
-  return false
+  return templater_engine.has_templater_syntax(template_content)
 end
 
 --- Read template content from a file.
@@ -299,6 +283,7 @@ M.is_templater_template = function(template_name, templates_dir)
 end
 
 --- Run templater on a template file and return the output as a string.
+--- Uses the built-in Lua templater engine.
 ---
 ---@param template_path obsidian.Path
 ---@param ctx obsidian.TemplateContext
@@ -310,64 +295,23 @@ M.run_templater = function(template_path, ctx)
     return nil, "templater is not enabled"
   end
 
-  local cmd = opts.cmd or "templater"
-  local args = vim.deepcopy(opts.args or {})
-  local pipe_stdin = opts.pipe_stdin ~= false
-
-  -- Build the command arguments.
-  if not pipe_stdin then
-    table.insert(args, tostring(template_path))
+  local content = M.read_template_content(template_path)
+  if not content then
+    return nil, "failed to read template"
   end
 
-  -- Serialize the context to JSON for templater to consume.
-  local context_data = {
-    type = ctx.type,
-    template_name = tostring(ctx.template_name),
-    partial_note = ctx.partial_note and {
-      id = ctx.partial_note.id,
-      title = ctx.partial_note.title,
-      aliases = ctx.partial_note.aliases,
-      tags = ctx.partial_note.tags,
-      path = ctx.partial_note.path and tostring(ctx.partial_note.path) or nil,
-    } or nil,
-    destination_path = ctx.destination_path and tostring(ctx.destination_path) or nil,
-    templates_dir = ctx.templates_dir and tostring(ctx.templates_dir) or nil,
-    date = util.format_date(os.time(), Obsidian.opts.templates.date_format),
-    time = util.format_date(os.time(), Obsidian.opts.templates.time_format),
-  }
+  -- Add date/time to context for backward compatibility
+  ctx.date = util.format_date(os.time(), Obsidian.opts.templates.date_format)
+  ctx.time = util.format_date(os.time(), Obsidian.opts.templates.time_format)
 
-  local context_json = vim.json.encode(context_data)
+  log.info("Running templater engine on: %s", template_path)
 
-  -- Build env.
-  local env = vim.deepcopy(opts.env or {})
-  env.TEMPLATER_CONTEXT = context_json
-
-  local input_data
-  if pipe_stdin then
-    local content = M.read_template_content(template_path)
-    if not content then
-      return nil, "failed to read template"
-    end
-    input_data = content
-  end
-
-  log.info("Running templater: %s %s", cmd, table.concat(args, " "))
-
-  local result = vim.system({ cmd, args }, {
-    stdin = input_data,
-    env = env,
-    text = true,
-  }):wait()
-
-  if result.code ~= 0 then
-    return nil, string.format("templater exited with code %d: %s", result.code, result.stderr or "")
-  end
-
-  return result.stdout or "", nil
+  local output = templater_engine.execute_template(content, ctx)
+  return output, nil
 end
 
 --- Substitute template content using templater.
---- Reads the template, runs templater, and returns the output split into lines.
+--- Reads the template, runs templater engine, and returns the output split into lines.
 --- If templater fails, falls back to built-in substitution.
 ---
 ---@param template_path obsidian.Path

@@ -56,20 +56,12 @@
 ---@field slides? obsidian.config.SlidesOpts
 
 ---@class obsidian.config.TemplaterOpts
---- When enabled, obsidian.nvim will automatically detect templates containing JavaScript
---- (Templater syntax) and execute them via the templater integration instead of using
---- the built-in {{{ variable substitution.
+--- When enabled, obsidian.nvim will automatically detect templates containing Templater syntax
+--- (`<% ... %>`, `<%= ... %>`, `<%# ... %>`) and execute them via the built-in Lua engine.
 ---
 ---@field enabled boolean|?
---- The command to use to execute templater.
----@field cmd string
---- Additional command-line arguments to pass when invoking templater.
----@field args? string[]
---- Environment variables to set when running templater.
----@field env? table<string, string>
---- When `true`, the template content is piped to `cmd` via stdin (default).
---- When `false`, the template file path is appended as the last argument.
----@field pipe_stdin? boolean
+--- Path to folder containing user scripts (Lua files) for `tp.user.*` functions.
+---@field user_scripts_folder? string|obsidian.Path
 
 ---@class obsidian.config.Internal
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]

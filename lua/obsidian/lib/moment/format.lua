@@ -336,11 +336,17 @@ local function expand_localized(ast)
   return out
 end
 
----@param time number
+---@param time number|table
 ---@param fmt string
 ---@returns string
 return function(time, fmt)
-  local date = os.date("*t", time)
+  local date
+  if type(time) == "table" then
+    -- Convert date table to timestamp for os.date
+    date = time
+  else
+    date = os.date("*t", time)
+  end
   local ast = grammar:match(fmt)
 
   ast = expand_localized(ast)

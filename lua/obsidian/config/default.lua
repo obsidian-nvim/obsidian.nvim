@@ -130,16 +130,10 @@ return {
   ---@class obsidian.config.TemplaterOpts
   ---
   ---@field enabled boolean|?
-  ---@field cmd string
-  ---@field args? string[]
-  ---@field env? table<string, string>
-  ---@field pipe_stdin? boolean
+  ---@field user_scripts_folder? string|obsidian.Path
   templater = {
     enabled = false,
-    cmd = "templater",
-    args = { "--stdin" },
-    env = {},
-    pipe_stdin = true,
+    user_scripts_folder = nil,
   },
 
   ---@class obsidian.config.BacklinkOpts
