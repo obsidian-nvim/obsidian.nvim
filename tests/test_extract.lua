@@ -11,9 +11,12 @@ local function temp_file(suffix, content)
 end
 
 local function with_system(fn, body)
-  local old_system = extract._set_system(fn)
+  local old_system = vim.system
+  vim.system = function(cmd, opts, callback)
+    fn(cmd, callback)
+  end
   local ok, err = pcall(body)
-  extract._set_system(old_system)
+  vim.system = old_system
   if not ok then
     error(err)
   end

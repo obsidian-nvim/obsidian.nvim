@@ -1,4 +1,5 @@
 local M = {}
+local Path = require "obsidian.path"
 
 ---@alias obsidian.extract.Callback fun(err: string?, result: obsidian.extract.Result?)
 
@@ -25,15 +26,6 @@ local image_extensions = {
   webp = true,
 }
 
-local function extname(path)
-  return (tostring(path):match "%.([^/%.]+)$" or ""):lower()
-end
-
-local function file_exists(path)
-  local stat = vim.uv.fs_stat(path)
-  return stat and stat.type == "file"
-end
-
 local function trim_trailing(text)
   return (text or ""):gsub("%z", ""):gsub("%s+$", "")
 end
@@ -44,7 +36,7 @@ local function finish(callback, err, result)
   end)
 end
 
----@param path string
+---@param path obsidian.Path
 ---@return boolean
 ---@return string?
 M.can_extract = function(path)
@@ -52,11 +44,11 @@ M.can_extract = function(path)
     return false, "path is empty"
   end
 
-  if not file_exists(path) then
+  if not path:exists() then
     return false, "file does not exist"
   end
 
-  local ext = extname(path)
+  local ext = assert(path.suffix, "path no extension"):sub(2)
   if ext == "pdf" or image_extensions[ext] then
     return true
   end
@@ -64,28 +56,15 @@ M.can_extract = function(path)
   return false, "unsupported file type"
 end
 
----@type fun(cmd: string[], callback: fun(out: vim.SystemCompleted)): any
-local system_fn = function(cmd, callback)
-  return vim.system(cmd, { text = true }, callback)
-end
-
 ---@param cmd string[]
 ---@param callback fun(out: vim.SystemCompleted)
 local function system(cmd, callback)
-  local ok, handle = pcall(system_fn, cmd, callback)
+  local ok, handle = pcall(vim.system, cmd, { text = true }, callback)
   if not ok then
     callback { code = 1, signal = 0, stdout = "", stderr = tostring(handle) }
     return nil
   end
   return handle
-end
-
----@param fn fun(cmd: string[], callback: fun(out: vim.SystemCompleted)): any
----@return fun(cmd: string[], callback: fun(out: vim.SystemCompleted)): any
-M._set_system = function(fn)
-  local old = system_fn
-  system_fn = fn
-  return old
 end
 
 ---@param path string
@@ -148,22 +127,25 @@ local function extract_pdf(path, callback)
   end)
 end
 
----@param path string
+---@param path string|obsidian.Path
 ---@param callback obsidian.extract.Callback
 M.extract = function(path, callback)
   vim.validate("path", path, "string")
   vim.validate("callback", callback, "function")
+
+  path = Path.new(path)
 
   local ok, reason = M.can_extract(path)
   if not ok then
     return finish(callback, reason)
   end
 
-  local ext = extname(path)
+  local ext = assert(path.suffix, "path no extension"):sub(2)
+
   if ext == "pdf" then
-    return extract_pdf(path, callback)
+    return extract_pdf(tostring(path), callback)
   elseif image_extensions[ext] then
-    return extract_image(path, callback)
+    return extract_image(tostring(path), callback)
   end
 
   finish(callback, "unsupported file type")
