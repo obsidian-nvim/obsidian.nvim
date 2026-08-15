@@ -11,6 +11,8 @@ local command_lookups = {
   ObsidianNew = "obsidian.commands.new",
   ObsidianOpen = "obsidian.commands.open",
   ObsidianBacklinks = "obsidian.commands.backlinks",
+  ObsidianFindIncomingLinks = "obsidian.commands.incoming_links",
+  ObsidianFindOutgoingLinks = "obsidian.commands.outgoing_links",
   ObsidianSearch = "obsidian.commands.search",
   ObsidianTags = "obsidian.commands.tags",
   ObsidianTemplate = "obsidian.commands.template",
@@ -148,6 +150,14 @@ M.register(
 )
 
 M.register("ObsidianBacklinks", { opts = { nargs = 0, desc = "Collect backlinks" } })
+
+M.register("ObsidianFindIncomingLinks", {
+  opts = { nargs = 0, desc = "Find unlinked incoming mentions of current note across vault" },
+})
+
+M.register("ObsidianFindOutgoingLinks", {
+  opts = { nargs = 0, desc = "Find unlinked outgoing mentions of other notes in current buffer" },
+})
 
 M.register("ObsidianTags", { opts = { nargs = "*", range = true, desc = "Find tags" } })
 

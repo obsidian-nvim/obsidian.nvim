@@ -114,6 +114,8 @@ There's one entry point user command for this plugin: `Obsidian`
 
 - `:Obsidian backlinks` - get a picker list of references to the current note
   - `grr`/`vim.lsp.buf.references` to see references in quickfix list
+- `:Obsidian incoming_links` - find unlinked plain-text mentions of the current note across the vault; select entries (multi-select with `<Tab>`) to convert them to links
+- `:Obsidian outgoing_links` - find unlinked plain-text mentions of other notes in the current buffer; select entries to convert them to links
 - `:Obsidian follow_link [STRATEGY]` - follow a note reference under the cursor
   - available strategies: `vsplit, hsplit, vsplit_force, hsplit_force`
   - If the link does not exist, you will be prompted to create it. If you choose to create it, the link in the buffer will be automatically updated with the new note's ID and alias.
