@@ -160,12 +160,10 @@ local weekday_short_2char_pattern = case_insensitive "Su"
 ----------------------------------------------------
 
 local CURRENT_YEAR = tonumber(os.date "%Y")
----@cast CURRENT_YEAR -nil
 local YEAR_PIVOT = 68
 
 local function parse_two_digit_year(yy_str)
   local yy = tonumber(yy_str)
-  ---@cast yy -nil
   local current_year_last_two = CURRENT_YEAR % 100
   local century = math.floor(CURRENT_YEAR / 100)
 
@@ -311,9 +309,7 @@ end
 
 token_patterns["d"] = function()
   return C(R "06") / function(n)
-    local value = tonumber(n)
-    ---@cast value -nil
-    return value + 1
+    return tonumber(n) + 1
   end -- 0-6 to 1-7
 end
 
@@ -371,8 +367,6 @@ token_patterns["Z"] = function()
       local offset_sign = tz:sub(1, 1) == "+" and 1 or -1
       local offset_hours = tonumber(tz:sub(2, 3))
       local offset_mins = tonumber(tz:sub(5, 6))
-      ---@cast offset_hours -nil
-      ---@cast offset_mins -nil
       return offset_sign * (offset_hours * 60 + offset_mins) * 60
     end
   local utc_pattern = case_insensitive "Z" * Cc(0) -- UTC is 0 offset
@@ -388,8 +382,6 @@ token_patterns["ZZ"] = function()
       local offset_sign = tz:sub(1, 1) == "+" and 1 or -1
       local offset_hours = tonumber(tz:sub(2, 3))
       local offset_mins = tonumber(tz:sub(4, 5))
-      ---@cast offset_hours -nil
-      ---@cast offset_mins -nil
       return offset_sign * (offset_hours * 60 + offset_mins) * 60
     end
   local utc_pattern = case_insensitive "Z" * Cc(0) -- UTC is 0 offset
@@ -402,12 +394,9 @@ token_patterns["X"] = function()
 end
 
 token_patterns["x"] = function()
-  return C(R "09" ^ 1)
-    / function(n)
-      local value = tonumber(n)
-      ---@cast value -nil
-      return math.floor(value / 1000)
-    end
+  return C(R "09" ^ 1) / function(n)
+    return math.floor(tonumber(n) / 1000)
+  end
 end
 
 ----------------------------------------------------
@@ -468,11 +457,11 @@ local token_pattern = token "YYYY"
   + token "x"
   + token "L"
 
-local literal = P "[" * C((P(1) - P "]") ^ 0) * P "]" / function(s)
+local literal = P "[" * C((1 - P "]") ^ 0) * P "]" / function(s)
   return { type = "literal", value = s }
 end
 
-local text = C(P(1)) / function(s)
+local text = C(1) / function(s)
   return { type = "text", value = s }
 end
 
@@ -509,7 +498,7 @@ end
 ----------------------------------------------------
 
 -- Default values for unspecified fields
----@type table<string, any>
+---@type osdateparam
 local DEFAULTS = {
   year = CURRENT_YEAR,
   month = 1,
@@ -522,152 +511,214 @@ local DEFAULTS = {
 
 ---@param input string
 ---@param fmt string
----@return std.osdate|nil, string|nil
-return function(input, fmt)
-  if not input or input == "" then
-    return nil, "Empty input"
-  end
-  if not fmt or fmt == "" then
-    return nil, "Empty format"
-  end
+---@return osdateparam|nil, string|nil
+return (function()
+  -- Default values for unspecified fields
+  ---@type osdateparam
+  local DEFAULTS = {
+    year = CURRENT_YEAR,
+    month = 1,
+    day = 1,
+    hour = 0, -- Use midnight to match test expectations
+    min = 0,
+    sec = 0,
+    isdst = false,
+  }
 
-  -- Parse format string into AST
-  local ast = format_grammar:match(fmt)
-  if not ast then
-    return nil, "Invalid format string"
-  end
+  ---@param input string
+  ---@param fmt string
+  ---@return osdateparam|nil, string|nil
+  local function parse(input, fmt)
+    if not input or input == "" then
+      return nil, "Empty input"
+    end
+    if not fmt or fmt == "" then
+      return nil, "Empty format"
+    end
 
-  -- Expand localized formats
-  ast = expand_localized(ast)
+    -- Parse format string into AST
+    local ast = format_grammar:match(fmt)
+    if not ast then
+      return nil, "Invalid format string"
+    end
 
-  -- Build parsing patterns
-  local patterns = {}
+    -- Expand localized formats
+    ast = expand_localized(ast)
 
-  for _, node in ipairs(ast) do
-    if node.type == "token" then
-      local pattern_builder = token_patterns[node.value]
-      if pattern_builder then
-        -- Wrap pattern to capture with token name
-        local wrapped = pattern_builder() / function(v)
-          return { token = node.value, value = v }
+    -- Build parsing patterns
+    local patterns = {}
+
+    for _, node in ipairs(ast) do
+      if node.type == "token" then
+        local pattern_builder = token_patterns[node.value]
+        if pattern_builder then
+          -- Wrap pattern to capture with token name
+          local wrapped = pattern_builder() / function(v)
+            return { token = node.value, value = v }
+          end
+          patterns[#patterns + 1] = wrapped
+        else
+          return nil, "Unknown token: " .. node.value
         end
-        patterns[#patterns + 1] = wrapped
-      else
-        return nil, "Unknown token: " .. node.value
-      end
-    elseif node.type == "literal" then
-      -- Escape special LPeg characters in literals
-      local escaped = node.value:gsub("([%.%+%-%*%?%[%]%^%$%(%)%%])", "%%%1")
-      patterns[#patterns + 1] = P(escaped)
-    elseif node.type == "text" then
-      patterns[#patterns + 1] = P(node.value)
-    end
-  end
-
-  if #patterns == 0 then
-    return nil, "No patterns built"
-  end
-
-  -- Combine all patterns
-  local parser = P ""
-  for _, p in ipairs(patterns) do
-    parser = parser * p
-  end
-  parser = parser * P(-1) -- Ensure full match
-  parser = Ct(parser) -- Capture all results as a table
-
-  -- Parse input
-  local results = parser:match(input)
-
-  if not results or #results == 0 then
-    return nil, "Parse failed"
-  end
-
-  -- Extract values from captures
-  local date_fields = {}
-  local has_am_pm = nil
-  local hour_12 = nil
-  local timezone_offset = nil
-  local unix_timestamp = nil
-
-  for _, result in ipairs(results) do
-    if type(result) == "table" and result.token then
-      local token_name = result.token
-      local value = result.value
-
-      -- Map tokens to date fields
-      if token_name == "YYYY" or token_name == "GGGG" or token_name == "YY" or token_name == "GG" then
-        date_fields.year = value
-      elseif token_name == "MMMM" or token_name == "MMM" or token_name == "MM" or token_name == "M" then
-        date_fields.month = value
-      elseif token_name == "DD" or token_name == "D" or token_name == "Do" then
-        date_fields.day = value
-      elseif token_name == "HH" or token_name == "H" then
-        date_fields.hour = value
-        hour_12 = false
-      elseif token_name == "hh" or token_name == "h" then
-        hour_12 = value
-      elseif token_name == "mm" or token_name == "m" then
-        date_fields.min = value
-      elseif token_name == "ss" or token_name == "s" then
-        date_fields.sec = value
-      elseif token_name == "A" or token_name == "a" then
-        has_am_pm = value -- true for AM, false for PM
-      elseif token_name == "d" or token_name == "E" then
-        date_fields.wday = value
-      elseif token_name == "Q" or token_name == "Qo" then
-        -- Quarter: 1-4 -> convert to month (1, 4, 7, 10)
-        local quarter = value
-        date_fields.month = (quarter - 1) * 3 + 1
-      elseif token_name == "Z" or token_name == "ZZ" then
-        timezone_offset = value
-      elseif token_name == "X" or token_name == "x" then
-        unix_timestamp = value
+      elseif node.type == "literal" then
+        -- Escape special LPeg characters in literals
+        local escaped = node.value:gsub("([%.%+%-%*%?%[%]%^%$%(%)%%])", "%%%1")
+        patterns[#patterns + 1] = P(escaped)
+      elseif node.type == "text" then
+        patterns[#patterns + 1] = P(node.value)
       end
     end
-  end
 
-  -- Handle 12-hour format conversion
-  if hour_12 then
-    if has_am_pm == false then -- PM
-      date_fields.hour = (hour_12 % 12) + 12
-    else -- AM or unspecified
-      date_fields.hour = hour_12 % 12
+    if #patterns == 0 then
+      return nil, "No patterns built"
     end
-  end
 
-  -- Handle Unix timestamp (overrides everything else)
-  if unix_timestamp then
-    local date = os.date("*t", unix_timestamp)
-    ---@cast date std.osdate
+    -- Combine all patterns
+    local parser = P ""
+    for _, p in ipairs(patterns) do
+      parser = parser * p
+    end
+    parser = parser * P(-1) -- Ensure full match
+    parser = Ct(parser) -- Capture all results as a table
+
+    -- Parse input
+    local results = parser:match(input)
+
+    if not results or #results == 0 then
+      return nil, "Parse failed"
+    end
+
+    -- Extract values from captures
+    local date_fields = {}
+    local has_am_pm = nil
+    local hour_12 = nil
+    local timezone_offset = nil
+    local unix_timestamp = nil
+
+    for _, result in ipairs(results) do
+      if type(result) == "table" and result.token then
+        local token_name = result.token
+        local value = result.value
+
+        -- Map tokens to date fields
+        if token_name == "YYYY" or token_name == "GGGG" or token_name == "YY" or token_name == "GG" then
+          date_fields.year = value
+        elseif token_name == "MMMM" or token_name == "MMM" or token_name == "MM" or token_name == "M" then
+          date_fields.month = value
+        elseif token_name == "DD" or token_name == "D" or token_name == "Do" then
+          date_fields.day = value
+        elseif token_name == "HH" or token_name == "H" then
+          date_fields.hour = value
+          hour_12 = false
+        elseif token_name == "hh" or token_name == "h" then
+          hour_12 = value
+        elseif token_name == "mm" or token_name == "m" then
+          date_fields.min = value
+        elseif token_name == "ss" or token_name == "s" then
+          date_fields.sec = value
+        elseif token_name == "A" or token_name == "a" then
+          has_am_pm = value -- true for AM, false for PM
+        elseif token_name == "d" or token_name == "E" then
+          date_fields.wday = value
+        elseif token_name == "Q" or token_name == "Qo" then
+          -- Quarter: 1-4 -> convert to month (1, 4, 7, 10)
+          local quarter = value
+          date_fields.month = (quarter - 1) * 3 + 1
+        elseif token_name == "Z" or token_name == "ZZ" then
+          timezone_offset = value
+        elseif token_name == "X" or token_name == "x" then
+          unix_timestamp = value
+        end
+      end
+    end
+
+    -- Handle 12-hour format conversion
+    if hour_12 then
+      if has_am_pm == false then -- PM
+        date_fields.hour = (hour_12 % 12) + 12
+      else -- AM or unspecified
+        date_fields.hour = hour_12 % 12
+      end
+    end
+
+    -- Handle Unix timestamp (overrides everything else)
+    if unix_timestamp then
+      local date = os.date("*t", unix_timestamp)
+      if timezone_offset then
+        date.hour = date.hour + math.floor(timezone_offset / 3600)
+      end
+      return date
+    end
+
+    -- Apply defaults
+    for field, default in pairs(DEFAULTS) do
+      if date_fields[field] == nil then
+        date_fields[field] = default
+      end
+    end
+
+    -- Construct the result table manually to avoid DST issues
+    -- os.time() applies DST offset even with isdst=false, causing hour shifts
+    local result = {
+      year = date_fields.year,
+      month = date_fields.month,
+      day = date_fields.day,
+      hour = date_fields.hour,
+      min = date_fields.min,
+      sec = date_fields.sec,
+    }
+
+    -- Calculate day of week (wday) using Zeller's congruence
+    -- Result: 1 = Sunday, 2 = Monday, ..., 7 = Saturday
+    local y = result.year
+    local m = result.month
+    local d = result.day
+    if m < 3 then
+      m = m + 12
+      y = y - 1
+    end
+    local h = (d + math.floor((13 * (m + 1)) / 5) + y + math.floor(y / 4) - math.floor(y / 100) + math.floor(y / 400)) % 7
+    -- Zeller's: 0 = Saturday, 1 = Sunday, ..., 6 = Friday
+    -- Convert to Lua's: 1 = Sunday, 2 = Monday, ..., 7 = Saturday
+    result.wday = ((h + 6) % 7) + 1
+
+    -- Calculate day of year (yday)
+    local month_days = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+    -- Check leap year
+    local is_leap = (result.year % 4 == 0 and result.year % 100 ~= 0) or (result.year % 400 == 0)
+    if is_leap then
+      month_days[2] = 29
+    end
+    local yday = d
+    for i = 1, result.month - 1 do
+      yday = yday + month_days[i]
+    end
+    result.yday = yday
+
+    -- isdst: we don't know for sure, set to false
+    result.isdst = false
+
+    -- Apply timezone offset if provided
     if timezone_offset then
-      ---@diagnostic disable-next-line: assign-type-mismatch
-      date.hour = date.hour + math.floor(timezone_offset / 3600)
+      result.hour = result.hour - math.floor(timezone_offset / 3600)
     end
-    return date
+
+    return result
   end
 
-  -- Apply defaults
-  for field, default in pairs(DEFAULTS) do
-    if date_fields[field] == nil then
-      date_fields[field] = default
+  -- Convert a date table (like os.date("*t") returns) to a Unix timestamp
+  -- This avoids DST issues by treating the date as local time
+  local function to_timestamp(date_table)
+    -- Use os.time which handles the conversion properly for local time
+    return os.time(date_table)
+  end
+
+  -- Return a callable table that acts like the parse function but also has to_timestamp
+  return setmetatable({
+    to_timestamp = to_timestamp,
+  }, {
+    __call = function(_, input, fmt)
+      return parse(input, fmt)
     end
-  end
-
-  -- Validate date
-  local time = os.time(date_fields)
-  if not time then
-    return nil, "Invalid date"
-  end
-
-  -- Convert to table
-  local result = os.date("*t", time)
-
-  -- Apply timezone offset if provided
-  if timezone_offset then
-    ---@diagnostic disable-next-line: assign-type-mismatch
-    result.hour = result.hour - math.floor(timezone_offset / 3600)
-  end
-
-  return result
-end
+  })
+end)()

@@ -39,8 +39,11 @@ local function message_args(msg, ...)
   return out
 end
 
----@param level integer
+---@param level integer|string
 log.set_level = function(level)
+  if type(level) == "string" then
+    level = vim.log.levels[level:upper()] or vim.log.levels.INFO
+  end
   log._log_level = level
 end
 

@@ -121,6 +121,58 @@ T["clone_template()"]["should transfer title from partial_note"] = function()
   eq("My Note Title", result.title)
 end
 
+T["has_templater_js()"] = new_set()
+
+T["has_templater_js()"]["should detect Templater execution markers"] = function()
+  eq(true, M.has_templater_js("<% tp.date.now() %>"))
+  eq(true, M.has_templater_js("<%= tp.date.now() %>"))
+  eq(true, M.has_templater_js("<%# comment %>"))
+end
+
+T["has_templater_js()"]["should detect js code block in first 10 lines"] = function()
+  local content = "# Title\n\n```js\nconsole.log('hello');\n```\n\nSome text."
+  eq(true, M.has_templater_js(content))
+end
+
+T["has_templater_js()"]["should not detect js code block after first 10 lines"] = function()
+  local lines = {}
+  for i = 1, 11 do
+    lines[#lines + 1] = "line " .. i
+  end
+  lines[#lines + 1] = "```js"
+  local content = table.concat(lines, "\n")
+  eq(false, M.has_templater_js(content))
+end
+
+T["has_templater_js()"]["should return false for plain markdown"] = function()
+  eq(false, M.has_templater_js("# Hello\n\nJust some text."))
+  eq(false, M.has_templater_js("{{date}}\n\n{{title}}"))
+end
+
+T["is_templater_template()"] = new_set()
+
+T["is_templater_template()"]["should return true for template with Templater syntax"] = function()
+  local templates_dir = Obsidian.dir / "templates"
+  templates_dir:mkdir { parents = true, exist_ok = true }
+  local template_path = templates_dir / "templater-note.md"
+  vim.fn.writefile(
+    { "<% tp.date.now(\"YYYY-MM-DD\") %>", "", "# My Note" },
+    tostring(template_path)
+  )
+  eq(true, M.is_templater_template("templater-note.md", templates_dir))
+end
+
+T["is_templater_template()"]["should return false for plain template"] = function()
+  local templates_dir = Obsidian.dir / "templates"
+  templates_dir:mkdir { parents = true, exist_ok = true }
+  local template_path = templates_dir / "plain-note.md"
+  vim.fn.writefile(
+    { "{{date}}", "", "# {{title}}" },
+    tostring(template_path)
+  )
+  eq(false, M.is_templater_template("plain-note.md", templates_dir))
+end
+
 T["config.normalize()"] = new_set()
 
 T["config.normalize()"]["custom substitutions should not clobber defaults"] = function()
@@ -198,6 +250,30 @@ T["config.normalize()"]["vim.NIL should remove a default value"] = function()
 
   -- The field should be nil, not the default "current_dir".
   eq(nil, opts.new_notes_location)
+end
+
+T["config.normalize()"]["templater defaults should apply when not overridden"] = function()
+  local config = require "obsidian.config"
+  local opts = config.normalize {
+    workspaces = { { path = tostring(Obsidian.dir) } },
+  }
+
+  eq(false, opts.templater.enabled)
+  eq(nil, opts.templater.user_scripts_folder)
+end
+
+T["config.normalize()"]["templater overrides should merge with defaults"] = function()
+  local config = require "obsidian.config"
+  local opts = config.normalize {
+    workspaces = { { path = tostring(Obsidian.dir) } },
+    templater = {
+      enabled = true,
+      user_scripts_folder = "scripts",
+    },
+  }
+
+  eq(true, opts.templater.enabled)
+  eq("scripts", opts.templater.user_scripts_folder)
 end
 
 return T

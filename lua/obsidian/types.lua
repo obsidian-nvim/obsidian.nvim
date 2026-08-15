@@ -29,6 +29,7 @@
 ---@field notes_subdir? string
 ---@field file? obsidian.config.FileOpts
 ---@field templates? obsidian.config.TemplateOpts
+---@field templater? obsidian.config.TemplaterOpts
 ---@field new_notes_location? obsidian.config.NewNotesLocation
 ---@field note_id_func? (fun(title: string|?, path: obsidian.Path|?): string)|?
 ---@field note_path_func? fun(spec: { id: string, dir: obsidian.Path, title: string|? }): string|obsidian.Path
@@ -56,12 +57,21 @@
 ---@field slides? obsidian.config.SlidesOpts
 ---@field cache? obsidian.config.CacheOpts
 
+---@class obsidian.config.TemplaterOpts
+--- When enabled, obsidian.nvim will automatically detect templates containing Templater syntax
+--- (`<% ... %>`, `<%= ... %>`, `<%# ... %>`) and execute them via the built-in Lua engine.
+---
+---@field enabled boolean|?
+--- Path to folder containing user scripts (Lua files) for `tp.user.*` functions.
+---@field user_scripts_folder? string|obsidian.Path
+
 ---@class obsidian.config.Internal
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
 ---@field log_level integer
 ---@field notes_subdir string|?
 ---@field file obsidian.config.FileOpts
 ---@field templates obsidian.config.TemplateOpts
+---@field templater obsidian.config.TemplaterOpts
 ---@field new_notes_location obsidian.config.NewNotesLocation
 ---@field note_id_func (fun(id: string|?, path: obsidian.Path|?): string)
 ---@field note_path_func (fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)

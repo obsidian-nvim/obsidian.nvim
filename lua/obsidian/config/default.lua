@@ -131,6 +131,15 @@ return {
     customizations = {},
   },
 
+  ---@class obsidian.config.TemplaterOpts
+  ---
+  ---@field enabled boolean|?
+  ---@field user_scripts_folder? string|obsidian.Path
+  templater = {
+    enabled = false,
+    user_scripts_folder = nil,
+  },
+
   ---@class obsidian.config.BacklinkOpts
   ---
   ---@field parse_headers boolean

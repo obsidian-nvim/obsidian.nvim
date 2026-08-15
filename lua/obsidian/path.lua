@@ -402,6 +402,40 @@ Path.is_dir = function(self)
   end
 end
 
+--- Read the contents of a file.
+---
+---@return string|?
+Path.read = function(self)
+  local realpath = self:abspath()
+  if realpath then
+    local fd, err = vim.uv.fs_open(realpath, "r", 438)
+    if fd then
+      local stat = vim.uv.fs_fstat(fd)
+      if stat then
+        local content = vim.uv.fs_read(fd, stat.size, 0)
+        vim.uv.fs_close(fd)
+        return content
+      end
+      vim.uv.fs_close(fd)
+    end
+  end
+  return nil
+end
+
+--- Write content to a file.
+---
+---@param content string
+---@return boolean success
+Path.write = function(self, content)
+  local fd, err = vim.uv.fs_open(self.filename, "w", 438)
+  if fd then
+    vim.uv.fs_write(fd, content, 0)
+    vim.uv.fs_close(fd)
+    return true
+  end
+  return false
+end
+
 --- Create a new directory at the given path.
 ---
 ---@param opts { mode: integer|?, parents: boolean|? }|?

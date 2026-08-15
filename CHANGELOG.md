@@ -9,58 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Obsidian-style block completion with previews and automatic IDs for unlabeled blocks, using `[[^query`, `[[note^query`, `[[note#^query`, or `[[^^query` (#505, #749).
-- Added separate icons module to support obsidian related filetypes and usecases.
-- Fallback libuv-based fs walker that makes `ripgrep` optional in file finding.
-- Fallback interactive UI for `picker.select`.
-- `require"obsidian.picker.PICKER_NAME".setup()` to add `obsidian_files` and `obsidian_grep` sources for pickers.
-- Experimental Inlay Hints support when cache is enabled, suggesting potential links, use `smart_action` to accept.
-- Multi-workspace aware note resolution: `api.find_workspace` now matches the most specific workspace for any path (including non-note and non-existent paths).
-- Optional `source_path` for note creation, resolving workspace-specific config (`note_id_func`, `note_path_func`, `notes_subdir`, `new_notes_location`) and the `current_dir` strategy.
-- Optional `dir` argument on `daily_note_path`, `new_unique_id`, and `new_unique_note` to resolve against a specific workspace/folder.
-- Optional `bufnr` and `position` arguments on `api.cursor_link` / `api.cursor_tag`.
-
-### Fixed
-
-- Fzf-lua picker selections now honor multi-select consistently across files, grep, and list pickers.
-- Picker will apply `format_item` consistently.
-- Cache will be triggered by buffer writes.
-- Fixed `attempt to index local 'pos' (a nil value)` error in `:Obsidian toc` by dropping redundant `pos` passing to `vim.lsp.buf.document_symbol`.
-- `api.path_is_note` now checks proper path containment instead of substring matching.
-- `api.templates_dir` resolves against the given workspace root.
-- Search and backlink lookup now resolve the workspace from the searched/note path, and `find_async` applies that workspace's `file.ignore_filters`.
-- `Workspace.set` keeps the single-vault cache aligned when switching workspaces.
-
-### Changed
-
-- **Breaking:** `find_files`, `find_notes`, `grep`, and `grep_notes` callbacks now receive a list of selected results. Multiple results use the quickfix list by default.
-- Deprecate old `picker.pick`, internally use `picker.select` with better multi-select and preview_item support.
-
-## [v3.16.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.6) - 2026-07-25
-
-### Added
-
-- Added code action `insert_link`, `insert_tag`, `add_tag`.
-- Added `actions.search_tags` that powers `:Obsidian tags`.
-- Basic cache system, see `:Obsidian help Cache`
-- `:Obsidian quick_switch` now works with aliases.
-- `opts.resolvers` to allow better way to add/pick dates/attachment and other future primitives.
-- Dedicated line tag parser.
-- Added code action `toggle_recording` to add recordings to your vault as attachment, see `:Obsidian help Audio-recorder`
-
-### Fixed
-
-- Properly normalize cached paths.
-- `api.open_note` off by 1 jumping.
-- Github work flows will use `emmylua_check`.
-- Picker integration will resolve when first invoked, to avoid lazy loading issues.
-- Cache based quick_switch will match case insensitively.
-- Guard against checking frontmatter tags when no frontmatter exists.
-
-## [v3.16.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.5) - 2026-06-25
-
-### Added
-
+- Added `opts.templater` integration — automatically detects JavaScript-based Templater syntax in templates (`<% ... %>`, `<%= ... %>`, or leading ` ```js ` code blocks) and executes them via an external templater command instead of built-in substitution. See `:Obsidian help Templater`.
 - Added `opts.callbacks.create_note` and `ObsidianNoteCreate` event to run action after note creation, see `:Obsidian help Note`.
 - LSP folding support, see `:Obsidian help Folding`.
 - Sync supports creating remote with end to end encryption password.
@@ -92,7 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Warns if workspace folder does not exist.
 - Picker will properly require available picker in runtime path, and fallback to native.
 - Bring back the ordinal fallback to the display and filename in the telescope picker.
-- `[[` completion no longer lists the "(create)" item above an existing note match; existing-note results now always sort before create-new-note items, regardless of which completion source resolves first.
 
 ### Changed
 
@@ -622,7 +570,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `makefile types` target to check types via lua-ls.
 - New `obsidian.config` type for user config type check.
 - More informative healthcheck.
-- A guide to embed images for both viewing in neovim and obsidian app: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images>
+- A guide to embed images for both viewing in neovim and obsidian app: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images
 - Added `check_buffers` option to `Note.write` and `Note.save` for automatically reloading buffers with `checktime` after writing them to disk
 - Added footer options.
 - Added default mappings: `]o` and `[o`, for navigating links in note.
