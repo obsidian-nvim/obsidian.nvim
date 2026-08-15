@@ -300,6 +300,10 @@ M.register("bookmarks", { nargs = 0 })
 
 M.register("backlinks", { nargs = 0, note_action = true })
 
+M.register("incoming_links", { nargs = 0, note_action = true })
+
+M.register("outgoing_links", { nargs = 0, note_action = true })
+
 M.register("template", { nargs = "?", note_action = true })
 
 M.register("link_new", { nargs = "?", range = true, note_action = true })
