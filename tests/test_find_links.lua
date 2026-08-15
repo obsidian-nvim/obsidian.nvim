@@ -194,7 +194,7 @@ end
 
 T["incoming_links"]["matches aliases of current note"] = function()
   local root = child.Obsidian.dir
-  h.write("---\naliases: [\"Al\"]\n---\n# Alpha\n", root / "alpha.md")
+  h.write('---\naliases: ["Al"]\n---\n# Alpha\n', root / "alpha.md")
   h.write("# Beta\n\nAl is a short name.\n", root / "beta.md")
   child.cmd("edit " .. tostring(root / "alpha.md"))
   setup_cache()
