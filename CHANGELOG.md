@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Setup-time configuration validation with aggregated errors and `:checkhealth` reporting (#79).
 - Runtime enum tables for configuration values and type check, exported through `require("obsidian.types")`.
 - `daily_notes.start_of_week` for configuring Moment-style week formats.
+- `:Obsidian incoming_links` / `:ObsidianFindIncomingLinks` - find unlinked plain-text mentions of the current note (by title or alias) across the vault and convert them to links.
+- `:Obsidian outgoing_links` / `:ObsidianFindOutgoingLinks` - find unlinked plain-text mentions of other notes within the current buffer and convert them to links. Both commands support multi-select with `<Tab>` and skip existing links, code blocks, inline code, frontmatter, tags, and URLs.
 - Obsidian-style block completion with previews and automatic IDs for unlabeled blocks, using `[[^query`, `[[note^query`, `[[note#^query`, or `[[^^query` (#505, #749).
 - Added separate icons module to support obsidian related filetypes and usecases.
 - Fallback libuv-based fs walker that makes `ripgrep` optional in file finding.
