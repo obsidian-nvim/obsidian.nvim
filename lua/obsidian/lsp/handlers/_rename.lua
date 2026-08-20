@@ -198,7 +198,7 @@ M.rename = function(note, new_name, callback, opts)
 
       note.id = new_name
       note.path = Path.new(new_path)
-      note:save_to_buffer { bufnr = note.bufnr }
+      note:update_frontmatter(note.bufnr)
 
       vim.cmd "silent! wall"
       require("obsidian.cache").notes.rename(old_path, new_path)
