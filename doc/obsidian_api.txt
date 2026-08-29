@@ -61,6 +61,28 @@ Return ~
 `(string)`
 
 ------------------------------------------------------------------------------
+                                                           *is_valid_filename()*
+                          `is_valid_filename`({name})
+Check whether a filename stem is valid across all platforms (Windows + Linux/macOS).
+
+https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
+
+Parameters ~
+{name} `(string)` Filename stem (without extension)
+Return ~
+`(boolean)` valid
+Return ~
+`(string)` `(optional)` reason Human-readable error when invalid
+
+------------------------------------------------------------------------------
+                                                   *prompt_for_valid_filename()*
+                  `prompt_for_valid_filename`({invalid_name})
+Parameters ~
+{invalid_name} `(string)`
+Return ~
+`(string)`
+
+------------------------------------------------------------------------------
                                                                *parse_as_path()*
                               `parse_as_path`({s})
 Parameters ~
@@ -595,6 +617,28 @@ Fields ~
 {line} `(integer)`
 {block} `(string)`
 {section} `(optional)` `(obsidian.Section)` the paragraph carrying the block identifier.
+
+------------------------------------------------------------------------------
+Class ~
+{obsidian.note.RenameMeta}
+Fields ~
+{count} `(integer)` Number of reference replacements.
+{path_lookup} `(table<string, boolean>)` Files with reference replacements.
+{buf_list} `(integer[])` Buffers touched by reference replacements.
+{old_path} `(string)` Original note path.
+{new_path} `(string)` New note path.
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} obsidian.note.RenameOpts
+Fields ~
+{old_path} `(optional)` `(string)` Existing path to rename from. Defaults to `note.path`.
+{new_path} `(optional)` `(string)` Destination path. Defaults to sibling path using `new_name .. ".md"`.
+{include_file_rename} `(optional)` `(boolean)` Include a file rename operation in the generated edit. Defaults to true.
+{apply} `(optional)` `(boolean)` Apply the workspace edit directly. Defaults to true.
+{update_buffers} `(optional)` `(boolean)` Update the note object/frontmatter and reload buffers after applying. Defaults to true.
+{check_unique} `(optional)` `(boolean)` Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
+{offset_encoding} `(optional)` `(string)` Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
 
 
 ==============================================================================
