@@ -12,10 +12,10 @@ return function(params, handler, _)
   local source_path = vim.api.nvim_buf_get_name(bufnr)
   local workspace_dir = api.resolve_workspace_dir(source_path)
 
-  local ok, err = pcall(vim.cmd.wall)
+  local ok, error = pcall(vim.cmd.wall)
 
   if not ok then
-    return log.err(err and err or "failed writing all buffers before renaming, abort")
+    return log.err(error and error or "failed writing all buffers before renaming, abort")
   end
 
   local cur_link = api.cursor_link(bufnr, params.position)

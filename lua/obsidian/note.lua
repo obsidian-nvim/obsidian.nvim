@@ -181,11 +181,6 @@ local function is_valid_filename(name)
     return false, "cannot end with a space or period"
   end
 
-  local upper = name:upper()
-  if upper:match "^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(%..*)?$" then
-    return false, "is a reserved Windows filename"
-  end
-
   return true, nil
 end
 

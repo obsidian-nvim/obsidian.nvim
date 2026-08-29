@@ -263,7 +263,6 @@ M.rename = function(note, new_name, opts, callback)
 
   local ok, err = M.validate(note, new_name, opts)
   if not ok then
-    err = assert(err)
     if err == "Note with same name exists" then
       log.info(err)
       if callback then

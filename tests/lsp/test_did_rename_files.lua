@@ -31,16 +31,13 @@ T["didRenameFiles applies reference edits without file rename"] = function()
     note_mod.from_file = function(path)
       return {
         path = Path.new(path),
-        rename = function(self, new_name, opts, callback)
+        build_rename_edit = function(self, new_name, opts, callback)
           _G.captured_note_path = tostring(self.path)
           _G.captured_name = new_name
           _G.captured_old_path = opts.old_path
           _G.captured_new_path = opts.new_path
           _G.captured_include_file_rename = opts.include_file_rename
-          _G.captured_apply = opts.apply
-          _G.captured_update_buffers = opts.update_buffers
-          _G.captured_check_unique = opts.check_unique
-          callback(nil, {
+          callback({
             documentChanges = {
               {
                 textDocument = {
@@ -89,9 +86,6 @@ T["didRenameFiles applies reference edits without file rename"] = function()
   eq("/tmp/folder/old.md", child.lua_get "captured_old_path")
   eq("/tmp/folder/new.md", child.lua_get "captured_new_path")
   eq(false, child.lua_get "captured_include_file_rename")
-  eq(false, child.lua_get "captured_apply")
-  eq(false, child.lua_get "captured_update_buffers")
-  eq(false, child.lua_get "captured_check_unique")
   eq("Update 2 reference(s) across 1 file(s) for renamed note 'new'?", child.lua_get "confirm_prompt")
   eq("workspace/applyEdit", child.lua_get "request_method")
   eq("Update renamed note references", child.lua_get "request_label")
@@ -111,8 +105,8 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
     note_mod.from_file = function(path)
       return {
         path = Path.new(path),
-        rename = function(_, _, opts, callback)
-          callback(nil, {
+        build_rename_edit = function(_, _, opts, callback)
+          callback({
             documentChanges = {
               {
                 textDocument = {
@@ -175,8 +169,8 @@ T["didRenameFiles skips confirmation when auto_update is enabled"] = function()
     note_mod.from_file = function(path)
       return {
         path = Path.new(path),
-        rename = function(_, _, _, callback)
-          callback(nil, { documentChanges = {} }, {
+        build_rename_edit = function(_, _, _, callback)
+          callback({ documentChanges = {} }, {
             count = 0,
             path_lookup = {},
             buf_list = {},

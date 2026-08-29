@@ -8,15 +8,13 @@ local function rename_note(file, dispatchers)
   local new_path = vim.uri_to_fname(file.newUri)
   local note = Note.from_file(new_path)
   local new_name = vim.fs.basename(new_path):gsub("%.md$", "")
-  note:rename(new_name, {
+  note:build_rename_edit(new_name, {
     old_path = vim.uri_to_fname(file.oldUri),
     new_path = new_path,
     include_file_rename = false,
-    apply = false,
-    update_buffers = false,
-    check_unique = false,
-  }, function(err, edit, meta)
-    if err or not edit then
+    dir = api.resolve_workspace_dir(new_path),
+  }, function(edit, meta)
+    if not edit then
       return
     end
 
