@@ -107,6 +107,26 @@ end
   eq("Note with same name exists", child.lua_get "msg")
 end
 
+T["rename rejects invalid filename"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    [target] = target_content,
+  })
+
+  child.lua [[
+require"obsidian.log".err = function(msg)
+   _G.err_msg = msg
+end
+  ]]
+
+  child.cmd("edit " .. files[target])
+  rename "bad:name"
+  h.child_wait(child, [[return _G.err_msg ~= nil]], { desc = "rename invalid filename message" })
+  eq('Invalid filename "bad:name": contains forbidden character: ":"', child.lua_get "err_msg")
+  eq(true, (root / target):exists())
+  eq(false, (root / "bad:name.md"):exists())
+end
+
 T["rename note under cursor"] = function()
   local root = child.Obsidian.dir
 

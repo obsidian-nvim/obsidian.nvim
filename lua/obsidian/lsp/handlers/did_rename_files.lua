@@ -1,7 +1,6 @@
 local obsidian = require "obsidian"
 local Note = obsidian.Note
 local api = obsidian.api
-local rename = require "obsidian.lsp.handlers._rename"
 
 ---@param file lsp.FileRename
 ---@param dispatchers table
@@ -9,7 +8,7 @@ local function rename_note(file, dispatchers)
   local new_path = vim.uri_to_fname(file.newUri)
   local note = Note.from_file(new_path)
   local new_name = vim.fs.basename(new_path):gsub("%.md$", "")
-  rename.build_edit(note, new_name, {
+  note:build_rename_edit(new_name, {
     old_path = vim.uri_to_fname(file.oldUri),
     new_path = new_path,
     include_file_rename = false,

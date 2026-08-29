@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optional `source_path` for note creation, resolving workspace-specific config (`note_id_func`, `note_path_func`, `notes_subdir`, `new_notes_location`) and the `current_dir` strategy.
 - Optional `dir` argument on `daily_note_path`, `new_unique_id`, and `new_unique_note` to resolve against a specific workspace/folder.
 - Optional `bufnr` and `position` arguments on `api.cursor_link` / `api.cursor_tag`.
+- `Note.rename` for scripting note renames.
+- Invalid filenames are checked on `Note.create` and `Note.rename`.
 
 ### Fixed
 
