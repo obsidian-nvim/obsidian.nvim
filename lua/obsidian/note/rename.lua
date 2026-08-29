@@ -252,8 +252,10 @@ M.rename = function(note, new_name, opts, callback)
     return fail("callback is required when rename opts.apply is false", nil)
   end
 
+  local old_path = opts.old_path or tostring(note.path)
+  local new_path = opts.new_path or (vim.fs.joinpath(vim.fs.dirname(old_path), new_name) .. ".md")
   local old_stem = note.path and note.path.stem or nil
-  if new_name == note.id or (old_stem and new_name == old_stem) then
+  if (new_name == note.id or (old_stem and new_name == old_stem)) and tostring(new_path) == old_path then
     log.info "Identical name"
     if callback then
       callback(nil, nil, nil)

@@ -396,21 +396,22 @@ Note._resolve_id_path = function(opts, prompt_invalid_filename)
     id = generate_id(id, base_dir, creation_opts.note_id_func)
   end
 
-  -- Reject ids that would produce filenames invalid on any platform.
-  local valid, reason = is_valid_filename(id)
-  while not valid do
-    if not prompt_invalid_filename then
-      error(("invalid note filename %q: %s"):format(id, reason), 2)
-    end
-    id = prompt_for_valid_filename(id)
-    valid, reason = is_valid_filename(id)
-  end
-
   dir = base_dir
 
   -- Generate path.
   ---@cast id string
   local path = Note._generate_path(id, dir, creation_opts.note_path_func)
+
+  -- Reject generated filenames that are invalid on any platform.
+  local valid, reason = is_valid_filename(path.stem)
+  while not valid do
+    if not prompt_invalid_filename then
+      error(("invalid note filename %q: %s"):format(path.stem, reason), 2)
+    end
+    id = prompt_for_valid_filename(path.stem)
+    path = Note._generate_path(id, dir, creation_opts.note_path_func)
+    valid, reason = is_valid_filename(path.stem)
+  end
 
   return id, path, title
 end
