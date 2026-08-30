@@ -1269,6 +1269,57 @@ tags:
   eq(true, found)
 end
 
+T["completion"]["new-note suggestions do not create notes while typing"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[brandnewnote",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 14 })
+  child.lua [[
+    _G.obsidian_completion_create_count = 0
+    Obsidian.opts.callbacks.create_note = function()
+      _G.obsidian_completion_create_count = _G.obsidian_completion_create_count + 1
+    end
+  ]]
+
+  local result = run_completion(0, 14)
+  local create_item = vim.iter(result.items or {}):find(function(item)
+    return item.command and item.command.command == "obsidian.write_note"
+  end)
+
+  assert(create_item, "no create item found")
+  eq(0, child.lua_get "_G.obsidian_completion_create_count")
+end
+
+T["completion"]["invalid partial filenames do not prompt during completion"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[bad:name",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+  child.lua [[
+    Obsidian.opts.note_id_func = function(title)
+      return title
+    end
+    _G.obsidian_completion_input_count = 0
+    require("obsidian.api").input = function()
+      _G.obsidian_completion_input_count = _G.obsidian_completion_input_count + 1
+      return "replacement"
+    end
+  ]]
+
+  local result = run_completion(0, 10)
+  eq(0, child.lua_get "_G.obsidian_completion_input_count")
+  eq(
+    false,
+    vim.iter(result.items or {}):any(function(item)
+      return item.command and item.command.command == "obsidian.write_note"
+    end)
+  )
+end
+
 T["completion"]["existing note match sorts before create item for the same title"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[Title",

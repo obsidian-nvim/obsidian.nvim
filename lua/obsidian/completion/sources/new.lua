@@ -11,6 +11,23 @@ local EMPTY_RESPONSE = {
   items = {},
 }
 
+--- Build the note needed to render a completion item without actually creating it.
+--- In particular, this must not fire note creation callbacks or prompt while the
+--- user is still typing. Invalid intermediate filenames simply produce no item.
+---@param opts obsidian.note.NoteOpts
+---@return obsidian.Note|?
+local function preview_note(opts)
+  ---@diagnostic disable-next-line: access-invisible
+  local ok, id, path, title = pcall(Note._resolve_id_path, opts, false)
+  if not ok then
+    return nil
+  end
+
+  local note = Note.new(id, opts.aliases, opts.tags, path, title)
+  note.template = opts.template
+  return note
+end
+
 --- Runs a generalized version of the complete (nvim_cmp) or get_completions (blink) methods
 ---@param callback fun(resp: lsp.CompletionList)
 ---@param request obsidian.completion.Request
@@ -78,17 +95,36 @@ function M.process_completion(callback, request)
 
   local source_path = vim.api.nvim_buf_get_name(request.bufnr)
   local workspace_dir = api.resolve_workspace_dir(source_path)
-  local note = Note.create { id = term, template = Obsidian.opts.note.template, source_path = source_path }
-  if note.id and string.len(note.id) > 0 then
+  local note = preview_note { id = term, template = Obsidian.opts.note.template, source_path = source_path }
+  if note and note.id and string.len(note.id) > 0 then
     new_notes_opts[#new_notes_opts + 1] = { label = term, note = note }
   end
 
-  -- Check for datetime macros.
+  -- Check for datetime macros. Build missing daily notes directly instead of
+  -- calling daily(), which would call Note.create for every completion request.
   for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
     if dt_offset.cadence == "daily" then
-      note = require("obsidian.daily").daily { offset = dt_offset.offset, dir = workspace_dir }
-      if not note:exists() then
-        new_notes_opts[#new_notes_opts + 1] = { label = dt_offset.macro, note = note }
+      local daily = require "obsidian.daily"
+      local timestamp = os.time() + (dt_offset.offset * 3600 * 24)
+      local path, id = daily.daily_note_path(timestamp, workspace_dir)
+      if not path:exists() then
+        local aliases = {}
+        if Obsidian.opts.daily_notes.alias_format ~= nil then
+          aliases[1] = tostring(util.format_date(timestamp, Obsidian.opts.daily_notes.alias_format))
+        end
+        note = preview_note {
+          id = id,
+          verbatim = true,
+          aliases = aliases,
+          tags = Obsidian.opts.daily_notes.default_tags or {},
+          dir = path:parent(),
+          template = Obsidian.opts.daily_notes.template,
+          source_path = source_path,
+          scope = "daily",
+        }
+        if note then
+          new_notes_opts[#new_notes_opts + 1] = { label = dt_offset.macro, note = note }
+        end
       end
     end
   end
