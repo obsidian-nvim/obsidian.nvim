@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Link-suggestion inlay hints exclude templates and refresh immediately after acceptance.
 - Absolute `templates.folder` paths resolve outside the vault without creating nested directories inside it (#761).
 - `ripgrep` tag search will work for `fileformat=dos`.
 - Fzf-lua builtin previews work with the fzf-tmux profile.

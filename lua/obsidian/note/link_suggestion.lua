@@ -88,12 +88,13 @@ function M.symbols(path, opts)
 
   local dir = opts.dir and tostring(opts.dir) or nil
   local current_path = vim.fs.normalize(path) or nil
+  local workspace = api.find_workspace(path)
   local rows = {}
   local ok, cached_rows = pcall(cache.notes.all)
   if ok then
     for p, row in pairs(cached_rows) do
       p = vim.fs.normalize(p)
-      if path_in_dir(p, dir) then
+      if path_in_dir(p, dir) and (not workspace or api.path_is_note(p, workspace)) then
         rows[p] = row
       end
     end
