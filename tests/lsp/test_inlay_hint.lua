@@ -75,6 +75,21 @@ T["suggests wiki brackets for link suggestions"] = function()
   eq(vim.list_extend(link_hints(0, 2, 6), link_hints(0, 23, 27)), run_inlay_hint())
 end
 
+T["excludes cached templates from link suggestions"] = function()
+  local templates_dir = child.Obsidian.dir / "templates"
+  templates_dir:mkdir()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["target.md"] = "---\naliases:\n  - destination\n---\n",
+    ["templates/basic.md"] = "---\naliases:\n  - boilerplate\n---\n",
+    ["hints.md"] = "basic boilerplate target destination",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+
+  eq(vim.list_extend(link_hints(0, 18, 24), link_hints(0, 25, 36)), run_inlay_hint())
+end
+
 T["publishes link suggestions to native inlay hint interface"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",
@@ -107,6 +122,13 @@ T["resolves native hints before accepting them"] = function()
   child.lua [[
     local client = vim.lsp.get_clients({ name = "obsidian-ls" })[1]
     client.server_capabilities.inlayHintProvider = { resolveProvider = true }
+    local original_refresh = vim.lsp.handlers["workspace/inlayHint/refresh"]
+    _G.original_inlay_hint_refresh = original_refresh
+    _G.resolved_inlay_hint_refreshes = 0
+    vim.lsp.handlers["workspace/inlayHint/refresh"] = function(...)
+      _G.resolved_inlay_hint_refreshes = _G.resolved_inlay_hint_refreshes + 1
+      return original_refresh(...)
+    end
     require("obsidian.lsp.handlers")["inlayHint/resolve"] = function(hint, callback)
       _G.resolved_inlay_hint = true
       local resolved = vim.deepcopy(hint)
@@ -127,6 +149,8 @@ T["resolves native hints before accepting them"] = function()
   eq(true, child.lua_get [[_G.accepted_resolved_inlay_hint]])
   eq(true, child.lua_get [[_G.resolved_inlay_hint]])
   eq("a resolved", child.lua_get [[vim.api.nvim_get_current_line()]])
+  h.child_wait(child, [[return _G.resolved_inlay_hint_refreshes > 0]], { desc = "resolved inlay hint refresh" })
+  child.lua [[vim.lsp.handlers["workspace/inlayHint/refresh"] = _G.original_inlay_hint_refresh]]
 end
 
 T["does not suggest inside existing wiki links"] = function()
@@ -257,6 +281,44 @@ T["smart action executes the link suggestion command under cursor"] = function()
 
   eq("<cmd>lua require('obsidian.inlay_hints').accept()<cr>", child.lua_get [[_G.link_suggestion_smart_action]])
   h.child_wait(child, [=[return vim.api.nvim_get_current_line() == "a [[test]]"]=], { desc = "link suggestion action" })
+end
+
+T["refreshes neighboring hints after accepting a suggestion"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["target.md"] = "# target",
+    ["hints.md"] = "test target",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
+  child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 4]], { desc = "native inlay hints" })
+  child.lua [[
+    local original_refresh = vim.lsp.handlers["workspace/inlayHint/refresh"]
+    _G.original_inlay_hint_refresh = original_refresh
+    _G.accepted_inlay_hint_refreshes = 0
+    vim.lsp.handlers["workspace/inlayHint/refresh"] = function(...)
+      _G.accepted_inlay_hint_refreshes = _G.accepted_inlay_hint_refreshes + 1
+      return original_refresh(...)
+    end
+    vim.api.nvim_win_set_cursor(0, { 1, 2 })
+    require("obsidian.inlay_hints").accept()
+  ]]
+
+  h.child_wait(
+    child,
+    [[
+    local hints = vim.lsp.inlay_hint.get { bufnr = 0 }
+    return #hints == 2 and vim.iter(hints):all(function(item)
+      return item.inlay_hint.data.range.start.character == 9
+    end)
+  ]],
+    { desc = "refreshed neighboring inlay hints" }
+  )
+  eq(1, child.lua_get [[_G.accepted_inlay_hint_refreshes]])
+  child.lua [[vim.lsp.handlers["workspace/inlayHint/refresh"] = _G.original_inlay_hint_refresh]]
 end
 
 T["smart action accepts a multi-word suggestion from its middle word"] = function()

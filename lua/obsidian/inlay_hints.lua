@@ -133,6 +133,20 @@ end
 -- TODO: will be unnecessary once something like https://github.com/neovim/neovim/pull/36219 lands in neovim core
 
 ---@param bufnr integer
+---@param client_id integer
+local function refresh(bufnr, client_id)
+  local client = vim.lsp.get_client_by_id(client_id)
+  local handler = vim.lsp.handlers["workspace/inlayHint/refresh"]
+  if client and client.name == "obsidian-ls" and handler then
+    handler(nil, nil, {
+      bufnr = bufnr,
+      client_id = client_id,
+      method = "workspace/inlayHint/refresh",
+    })
+  end
+end
+
+---@param bufnr integer
 ---@param item vim.lsp.inlay_hint.get.ret
 ---@param hint lsp.InlayHint
 local function apply_hint(bufnr, item, hint)
@@ -146,6 +160,8 @@ local function apply_hint(bufnr, item, hint)
   if command then
     execute_lsp_command(command)
   end
+
+  refresh(bufnr, item.client_id)
 end
 
 ---@param bufnr integer | nil
