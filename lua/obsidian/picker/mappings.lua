@@ -1,6 +1,7 @@
 local M = {}
 
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 
@@ -65,6 +66,19 @@ M.new_note = function(query)
   end
   ---@diagnostic disable-next-line: missing-fields,param-type-mismatch
   require "obsidian.commands.new" { args = query }
+end
+
+---@param path string
+M.bookmark = function(path)
+  if not path or path == "" then
+    return
+  end
+  local Bookmarks = require "obsidian.bookmarks"
+  Bookmarks.add {
+    ctime = Bookmarks.new_ctime(),
+    path = Path.new(path):vault_relative_path(),
+    type = "file",
+  }
 end
 
 return M

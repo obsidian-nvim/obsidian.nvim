@@ -25,10 +25,6 @@ return function(user_opts, defaults)
       opts.picker.note_mappings = opts.finder_mappings
       opts.finder_mappings = nil
     end
-    if opts.picker.mappings and not opts.picker.note_mappings then
-      opts.picker.note_mappings = opts.picker.mappings
-      opts.picker.mappings = nil
-    end
   end
 
   if opts.completion ~= nil and opts.completion.preferred_link_style ~= nil then

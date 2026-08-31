@@ -1,20 +1,25 @@
----@type table<string, obsidian.lsp.CodeActionOpts>
+---@class obsidian.lsp.CodeActionData
+---@field title string|fun(note: obsidian.Note): string
+---@field cond fun(note: obsidian.Note): boolean
+
+---@class obsidian.lsp.CodeAction : lsp.CodeAction
+---@field data obsidian.lsp.CodeActionData
+
+---@type table<string, obsidian.lsp.CodeAction>
 local code_actions = {}
 
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
----@field title string|fun(note?: obsidian.Note): string text display in code action interface; may be evaluated each request for dynamic context
----@field cond? fun(note: obsidian.Note): boolean function used to determine whether code action is shown
+---@field title string|fun(note: obsidian.Note): string text display in code action interface
+---@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
 ---@field fn? function
 
----Resolve registered opts into an lsp.CodeAction, evaluating dynamic titles.
+---Register a new command.
 ---@param opts obsidian.lsp.CodeActionOpts
----@param note? obsidian.Note
----@return lsp.CodeAction
-local resolve = function(opts, note)
-  local title = type(opts.title) == "function" and opts.title(note) or opts.title
-  ---@cast title string
-  return {
+local add = function(opts)
+  -- TODO: validate
+  local title = type(opts.title) == "string" and opts.title or ""
+  local action = {
     title = title,
     command = {
       title = title,
@@ -29,18 +34,13 @@ local resolve = function(opts, note)
       -- TODO: preview?
     },
   }
-end
 
----Register a new command.
----@param opts obsidian.lsp.CodeActionOpts
-local add = function(opts)
-  -- TODO: validate
   if opts.fn then
     vim.lsp.commands["obsidian." .. opts.name] = vim.schedule_wrap(function(params)
       opts.fn(unpack(params.arguments or {}))
     end)
   end
-  code_actions[opts.name] = opts
+  code_actions[opts.name] = action
 end
 
 local function in_visual()
@@ -143,5 +143,4 @@ return {
   actions = code_actions,
   add = add,
   del = del,
-  resolve = resolve,
 }

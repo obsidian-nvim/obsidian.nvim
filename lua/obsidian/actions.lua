@@ -670,7 +670,7 @@ local function bookmark_context()
   -- URL under cursor (Markdown link)
   local link, link_type = api.cursor_link()
   if link and link_type == "markdown" then
-    local loc = link:match "%((.-)%)"
+    local loc = link:match "^%[.-%]%((.*)%)$"
     if loc then
       local is_uri, scheme = util.is_uri(loc)
       if is_uri and (scheme == "http" or scheme == "https") then
@@ -707,12 +707,12 @@ M.add_bookmark = function()
   end
 
   local note = api.current_note(0)
-  local ctime = os.time() * 1000
+  local ctime = Bookmarks.new_ctime()
 
   if ctx.kind == "url" then
     local link = api.cursor_link()
     local title = link and link:match "%[(.-)%]" or nil
-    local url = link and link:match "%((.-)%)" or nil
+    local url = link and link:match "^%[.-%]%((.*)%)$" or nil
     if not url then
       return log.warn "No URL under cursor"
     end
