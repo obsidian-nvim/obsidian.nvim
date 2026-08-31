@@ -243,14 +243,15 @@ end
 ---
 ---@param time integer
 ---@param fmt string
+---@param start_of_week? integer First day of the week for Moment-style week tokens (0 is Sunday).
 ---@return string formatted date
-util.format_date = function(time, fmt)
+util.format_date = function(time, fmt, start_of_week)
   if fmt:find "%%" then
     local time_string = os.date(fmt, time)
     ---@cast time_string string
     return time_string
   end
-  return require("obsidian.lib.moment").format(time, fmt)
+  return require("obsidian.lib.moment").format(time, fmt, start_of_week)
 end
 
 --- Format a timestamp with strftime or moment.js date format

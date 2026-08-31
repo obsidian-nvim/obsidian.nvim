@@ -59,7 +59,16 @@ daily_notes = {
 }
 ```
 
-Will create notes in path `daily_notes.folder/year/month/day.md`
+Will create notes in path `daily_notes.folder/year/month/day.md`.
+
+For weekly folders that start on Sunday, set `start_of_week = 0`. This adjusts the Moment-style week tokens `W`, `WW`, `Wo`, `GG`, and `GGGG` without changing the daily date:
+
+```lua
+daily_notes = {
+  date_format = "GGGG-[W]WW/YYYY-MM-DD",
+  start_of_week = 0,
+}
+```
 
 ## Notes
 
@@ -77,6 +86,7 @@ Will create notes in path `daily_notes.folder/year/month/day.md`
 ---@field template? string
 ---@field default_tags? string[]
 ---@field workdays_only? boolean
+---@field start_of_week? integer 0 is Sunday, 1 is Monday, ..., 6 is Saturday.
 daily_notes = {
   enabled = true,
   folder = nil,
@@ -84,5 +94,6 @@ daily_notes = {
   alias_format = nil,
   default_tags = { "daily-notes" },
   workdays_only = true,
+  start_of_week = 1, -- Monday; use 0 for Sunday
 }
 ```
