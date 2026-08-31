@@ -16,4 +16,4 @@ See: <https://help.obsidian.md/bookmarks>
 
 - No `graph` type — Obsidian app does not bookmark graph views.
 - `search` type is partial — passes raw query to grep. Proper Obsidian search-term parser pending: https://github.com/obsidian-nvim/obsidian.nvim/issues/542
-- Adding / editing / removing bookmarks not implemented. Read-only for now — manage them in Obsidian app.
+- Editing bookmarks is not implemented. Bookmarks can be added from code actions and note pickers, moved into groups from the bookmark picker, or removed through the Lua API.

@@ -115,6 +115,17 @@ local default_actions = {
       return is_recording_audio() and "Stop recording audio" or "Start recording audio as attachment"
     end,
   },
+
+  add_bookmark = {
+    title = function()
+      local actions = require "obsidian.actions"
+      local ctx = actions._bookmark_context()
+      if not ctx then
+        return "Bookmark current location"
+      end
+      return "Bookmark " .. ctx.label
+    end,
+  },
 }
 
 ---@param name string

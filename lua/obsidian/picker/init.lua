@@ -406,6 +406,13 @@ M._note_selection_mappings = function()
     }
   end
 
+  if key_is_set(note_mappings.bookmark) then
+    mappings[note_mappings.bookmark] = {
+      desc = "bookmark",
+      callback = Mappings.bookmark,
+    }
+  end
+
   return mappings
 end
 

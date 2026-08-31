@@ -164,9 +164,11 @@ return {
   ---@field tag_mappings? obsidian.config.PickerTagMappingOpts
   picker = {
     name = nil,
+    -- TODO: migrate mappings.bookmark mappings.quick_switch mappings.tag or bookmark.mappings quick_switch.mappings tag.mappings | daily_notes.mappings? attachments.mappings?
     note_mappings = {
       new = "<C-x>",
       insert_link = "<C-l>",
+      bookmark = "<C-b>",
     },
     tag_mappings = {
       tag_note = "<C-x>",

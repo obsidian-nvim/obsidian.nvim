@@ -366,6 +366,7 @@ function M.validate(opts, skip_workspace_overrides)
       fields(errors, "picker.note_mappings", opts.picker.note_mappings, {
         { "new", "string" },
         { "insert_link", "string" },
+        { "bookmark", "string" },
       })
     end
     if type(opts.picker.tag_mappings) == "table" then
