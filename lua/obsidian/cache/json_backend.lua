@@ -7,7 +7,7 @@ local fs_util = require "obsidian.util.fs"
 local M = {}
 M.__index = M
 
-local SCHEMA_VERSION = 2
+local SCHEMA_VERSION = 3
 local INDEXER_VERSION = 5
 
 M.SCHEMA_VERSION = SCHEMA_VERSION
