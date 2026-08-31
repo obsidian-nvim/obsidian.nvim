@@ -303,6 +303,85 @@ T["completion"]["searches vault headings without cache"] = function()
   eq("[[target#HTTP API Guide]]", item.textEdit.newText)
 end
 
+T["completion"]["searches normalized heading anchors without cache"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[##http-api",
+    ["target.md"] = "# HTTP API Guide",
+  })
+
+  child.lua [[require("obsidian.cache").shutdown()]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 12 })
+
+  local result = run_completion(0, 12)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "HTTP API Guide — target"
+  end)
+  assert(item, "no normalized heading completion found")
+end
+
+T["completion"]["heading search takes precedence over block syntax"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[##x^2",
+    ["target.md"] = "# x^2 Formula",
+  })
+
+  child.lua [[require("obsidian.cache").shutdown()]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 7 })
+
+  local result = run_completion(0, 7)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "x^2 Formula — target"
+  end)
+  assert(item, "caret heading query was not completed")
+end
+
+T["completion"]["uses parseable anchors for headings with wiki delimiters"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[##input",
+    ["target.md"] = "# Input | Output",
+  })
+
+  child.lua [[require("obsidian.cache").shutdown()]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 9 })
+
+  local result = run_completion(0, 9)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "Input | Output — target"
+  end)
+  assert(item, "no delimiter heading completion found")
+  eq("[[target#input--output]]", item.textEdit.newText)
+end
+
+T["completion"]["disambiguates duplicate note basenames"] = function()
+  child.fn.mkdir(tostring(child.Obsidian.dir / "one"), "p")
+  child.fn.mkdir(tostring(child.Obsidian.dir / "two"), "p")
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[##shared",
+    ["one/target.md"] = "# Shared One",
+    ["two/target.md"] = "# Shared Two",
+  })
+
+  child.lua [[require("obsidian.cache").shutdown()]]
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+
+  local result = run_completion(0, 10)
+  local links = {}
+  for _, item in ipairs(result.items or {}) do
+    if item.label == "Shared One — target" or item.label == "Shared Two — target" then
+      links[#links + 1] = item.textEdit.newText
+    end
+  end
+  table.sort(links)
+  eq({
+    "[[one/target#Shared One|target ❯ Shared One]]",
+    "[[two/target#Shared Two|target ❯ Shared Two]]",
+  }, links)
+end
+
 T["completion"]["lists vault headings with an empty query"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[##",

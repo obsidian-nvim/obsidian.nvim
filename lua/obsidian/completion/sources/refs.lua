@@ -366,6 +366,13 @@ local function heading_completion_anchor(anchor)
   if Obsidian.opts.link.style ~= "wiki" then
     return anchor
   end
+
+  -- Obsidian-style wiki heading links use the original heading text, but some
+  -- characters would instead be parsed as link syntax by our wiki-link parser.
+  if anchor.header:find "[|%[%]]" or vim.startswith(anchor.header, "^") then
+    return anchor
+  end
+
   local result = vim.tbl_extend("force", anchor, { anchor = "#" .. anchor.header })
   ---@cast result obsidian.note.HeaderAnchor
   return result
@@ -411,10 +418,19 @@ local function process_heading_search_results(cc, query, results)
   local needle = vim.fn.tolower(query)
   local items = {}
   local seen = {}
+  local basename_paths = {}
 
   table.sort(results, function(a, b)
     return tostring(a.path) < tostring(b.path)
   end)
+
+  if Obsidian.opts.link.format == "shortest" then
+    for _, note in ipairs(results) do
+      local basename = vim.fs.basename(tostring(note.path))
+      basename_paths[basename] = basename_paths[basename] or {}
+      basename_paths[basename][tostring(note.path)] = true
+    end
+  end
 
   for note_idx, note in ipairs(results) do
     local anchors = {}
@@ -431,10 +447,14 @@ local function process_heading_search_results(cc, query, results)
     end)
 
     for _, anchor in ipairs(anchors) do
+      local basename = vim.fs.basename(tostring(note.path))
+      local paths = basename_paths[basename]
+      local link_format = paths and vim.tbl_count(paths) > 1 and "absolute" or nil
       local link = note:format_link {
         label = note:display_name(),
         anchor = heading_completion_anchor(anchor),
         dir = source_dir,
+        format = link_format,
       }
       local label = anchor.header .. " — " .. note:display_name()
       items[#items + 1] = {
@@ -470,10 +490,10 @@ local function process_heading_search(cc, query)
   if cache.is_enabled() and cache.is_ready() then
     finish(cached_heading_notes(query))
   else
-    -- Without ripgrep, enumerate notes through the fallback file walker and
-    -- filter their parsed headings below.
-    local search_query = search._has_ripgrep() and query or ""
-    search.find_notes_async(search_query, finish, {
+    -- Heading queries also match normalized anchors, which cannot be mapped
+    -- reliably back to raw file text (e.g. `http-api` vs `HTTP API`). Enumerate
+    -- notes first, then filter their parsed headings below.
+    search.find_notes_async("", finish, {
       dir = dir,
       search = { sort = false, include_templates = false, ignore_case = true },
       notes = note_opts,
@@ -754,15 +774,15 @@ function M.process_completion(completion_resolve_callback, request)
     return
   end
 
-  local block_scope, block_query, block_target = completion.block_search(cc.search)
-  if block_scope and block_query then
-    process_block_search(cc, block_scope, block_query, block_target)
-    return
-  end
-
   local heading_query = completion.heading_search(cc.search)
   if heading_query ~= nil then
     process_heading_search(cc, heading_query)
+    return
+  end
+
+  local block_scope, block_query, block_target = completion.block_search(cc.search)
+  if block_scope and block_query then
+    process_block_search(cc, block_scope, block_query, block_target)
     return
   end
 
