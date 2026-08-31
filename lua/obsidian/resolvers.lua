@@ -109,7 +109,8 @@ local function daily_note_path(datetime)
   end
 
   local date_format = assert(options.daily_notes.date_format, "daily notes date_format is required")
-  local daily_path = path / (tostring(util.format_date(datetime, date_format)) .. ".md")
+  local daily_path = path
+    / (tostring(util.format_date(datetime, date_format, options.daily_notes.start_of_week)) .. ".md")
   ---@cast daily_path obsidian.Path
   return daily_path
 end
@@ -126,10 +127,13 @@ M.builtin.date = function(ctx, done)
 
   ---@type obsidian.PickerEntry[]
   local dailies = {}
+  local options = Obsidian.opts
   for offset = ctx.offset_end, ctx.offset_start, -1 do
     local datetime = os.time() + (offset * 3600 * 24)
     local daily_path = daily_note_path(datetime)
-    local label = tostring(util.format_date(datetime, Obsidian.opts.daily_notes.alias_format or "%A %B %-d, %Y"))
+    local label = tostring(
+      util.format_date(datetime, options.daily_notes.alias_format or "%A %B %-d, %Y", options.daily_notes.start_of_week)
+    )
     if offset == 0 then
       label = label .. " @today"
     elseif offset == -1 then

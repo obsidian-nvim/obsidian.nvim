@@ -27,6 +27,16 @@ T["daily_note_path"]["should support moment date_format"] = function()
   Obsidian.opts.daily_notes.date_format = previous
 end
 
+T["daily_note_path"]["should support Sunday as the start of the week"] = function()
+  Obsidian.opts.daily_notes.date_format = "GGGG-[W]WW/YYYY-MM-DD"
+  Obsidian.opts.daily_notes.start_of_week = 0
+
+  local sunday = os.time { year = 2026, month = 1, day = 4, hour = 12 }
+  local path, id = M.daily_note_path(sunday)
+  assert(vim.endswith(tostring(path), "2026-W02/2026-01-04.md"))
+  eq("2026-01-04", id)
+end
+
 T["daily_note_path"]["should resolve from an explicit vault directory"] = function()
   local dir = Obsidian.dir / "nested-vault"
   dir:mkdir()

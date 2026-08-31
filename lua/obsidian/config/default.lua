@@ -196,6 +196,7 @@ return {
   ---@field template? string
   ---@field default_tags? string[]
   ---@field workdays_only? boolean
+  ---@field start_of_week? integer 0 is Sunday, 1 is Monday, ..., 6 is Saturday.
   daily_notes = {
     enabled = true,
     folder = nil,
@@ -203,6 +204,7 @@ return {
     alias_format = nil,
     default_tags = { "daily-notes" },
     workdays_only = true,
+    start_of_week = 1, -- Monday
   },
 
   ---@class obsidian.config.UICharSpec

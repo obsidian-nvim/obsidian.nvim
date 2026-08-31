@@ -25,7 +25,7 @@ M.daily_note_path = function(datetime, dir)
   end
 
   local date_format = assert(options.daily_notes.date_format, "daily notes date_format is required")
-  local id = tostring(util.format_date(datetime, date_format))
+  local id = tostring(util.format_date(datetime, date_format, options.daily_notes.start_of_week))
 
   path = Path.new(vim.fs.joinpath(tostring(path), id .. ".md"))
 
@@ -56,7 +56,7 @@ local _daily = function(datetime, opts)
   ---@type string|?
   local alias
   if options.daily_notes.alias_format ~= nil then
-    alias = tostring(util.format_date(datetime, options.daily_notes.alias_format))
+    alias = tostring(util.format_date(datetime, options.daily_notes.alias_format, options.daily_notes.start_of_week))
   end
 
   ---@type obsidian.Note
