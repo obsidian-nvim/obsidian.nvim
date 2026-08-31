@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ripgrep` tag search will work for `fileformat=dos`.
 - Fzf-lua builtin previews work with the fzf-tmux profile.
 - Fzf-lua picker selections now honor multi-select consistently across files, grep, and list pickers.
 - Picker will apply `format_item` consistently.
