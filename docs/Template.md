@@ -233,6 +233,7 @@ biography = {
 ---@class obsidian.config.TemplateOpts
 ---
 ---@field enabled boolean|?
+---Folder containing templates, either relative to the vault root or an absolute path.
 ---@field folder string|obsidian.Path|?
 ---@field date_format string
 ---@field time_format string

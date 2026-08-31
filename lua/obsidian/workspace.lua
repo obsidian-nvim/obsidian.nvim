@@ -154,7 +154,11 @@ Workspace.set = function(workspace)
   end
 
   if options.templates.enabled and options.templates.folder then
-    (dir / options.templates.folder):mkdir { parents = true }
+    local templates_dir = Path.new(options.templates.folder)
+    if not templates_dir:is_absolute() then
+      templates_dir = dir / templates_dir
+    end
+    templates_dir:mkdir { parents = true }
   end
 
   if options.daily_notes.enabled and options.daily_notes.folder then

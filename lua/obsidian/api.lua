@@ -52,8 +52,13 @@ M.templates_dir = function(workspace)
     return nil
   end
 
-  local paths_to_check =
-    { (workspace or Obsidian.workspace).root / opts.templates.folder, Path.new(opts.templates.folder) }
+  local configured_path = Path.new(opts.templates.folder)
+  local paths_to_check
+  if configured_path:is_absolute() then
+    paths_to_check = { configured_path }
+  else
+    paths_to_check = { (workspace or Obsidian.workspace).root / configured_path, configured_path }
+  end
   for _, path in ipairs(paths_to_check) do
     if path:is_dir() then
       return path

@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Absolute `templates.folder` paths resolve outside the vault without creating nested directories inside it (#761).
 - `ripgrep` tag search will work for `fileformat=dos`.
 - Fzf-lua builtin previews work with the fzf-tmux profile.
 - Fzf-lua picker selections now honor multi-select consistently across files, grep, and list pickers.
