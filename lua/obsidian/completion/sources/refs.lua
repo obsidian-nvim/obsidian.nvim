@@ -3,6 +3,7 @@ local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
+local cache = require "obsidian.cache"
 
 ---@class obsidian.completion.sources.refs.options
 ---@field label string|?
@@ -49,7 +50,11 @@ local function can_complete_request(cc)
     not (
       can_complete
       and cc.search ~= nil
-      and (completion.block_search(cc.search) ~= nil or #cc.search >= Obsidian.opts.completion.min_chars)
+      and (
+        completion.block_search(cc.search) ~= nil
+        or completion.heading_search(cc.search) ~= nil
+        or #cc.search >= Obsidian.opts.completion.min_chars
+      )
     )
   then
     return false
@@ -152,9 +157,10 @@ end
 
 ---@param results obsidian.Note[]
 ---@param dir obsidian.Path
+---@param note_opts obsidian.note.LoadOpts
 ---@param include_unmatched boolean|?
 ---@return obsidian.Note[]
-local function include_loaded_notes(results, dir, include_unmatched)
+local function include_loaded_notes(results, dir, note_opts, include_unmatched)
   local path_to_idx = {}
   for idx, note in ipairs(results) do
     path_to_idx[tostring(note.path)] = idx
@@ -165,11 +171,10 @@ local function include_loaded_notes(results, dir, include_unmatched)
     if vim.api.nvim_buf_is_loaded(bufnr) then
       local path = vim.uv.fs_realpath(vim.fn.resolve(vim.api.nvim_buf_get_name(bufnr)))
       if path and util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
-        local note = Note.from_buffer(bufnr, {
+        local opts = vim.tbl_extend("force", note_opts, {
           max_lines = vim.api.nvim_buf_line_count(bufnr),
-          collect_blocks = true,
-          collect_block_candidates = true,
         })
+        local note = Note.from_buffer(bufnr, opts)
         local idx = path_to_idx[tostring(note.path)]
         if idx then
           results[idx] = note
@@ -300,7 +305,7 @@ local function process_block_search(cc, scope, query, target)
   local dir = api.resolve_workspace_dir()
   local note_opts = { max_lines = ALL_LINES, collect_blocks = true, collect_block_candidates = true }
   local function on_results(results)
-    process_block_search_results(cc, scope, query, include_loaded_notes(results, dir, scope == "vault"))
+    process_block_search_results(cc, scope, query, include_loaded_notes(results, dir, note_opts, scope == "vault"))
   end
   if scope == "note" then
     search.resolve_note_async(
@@ -315,6 +320,185 @@ local function process_block_search(cc, scope, query, target)
     search = { sort = false, include_templates = false, ignore_case = true },
     notes = note_opts,
   })
+end
+
+---@param query string
+---@return obsidian.Note[]
+local function cached_heading_notes(query)
+  local Note = require "obsidian.note"
+  ---@type obsidian.Note[]
+  local notes = {}
+  ---@type table<string, obsidian.Note>
+  local path_to_note = {}
+  ---@type table<string, table<string, obsidian.note.HeaderAnchor>>
+  local path_to_anchors = {}
+
+  for _, heading in ipairs(cache.notes.find_headings(query)) do
+    if api.path_is_note(heading.path) then
+      local note = path_to_note[heading.path]
+      local anchors = path_to_anchors[heading.path]
+      if not note then
+        local row = cache.notes.get(heading.path)
+        local created = Note.new(row.id or cache.notes.basename(heading.path), row.aliases, nil, heading.path)
+        local created_anchors = {}
+        rawset(created, "anchor_links", created_anchors)
+        path_to_note[heading.path] = created
+        path_to_anchors[heading.path] = created_anchors
+        notes[#notes + 1] = created
+        note = created
+        anchors = created_anchors
+      end
+      anchors[heading.anchor .. ":" .. heading.line] = {
+        anchor = heading.anchor,
+        header = heading.header,
+        level = heading.level,
+        line = heading.line,
+      }
+    end
+  end
+
+  return notes
+end
+
+---@param anchor obsidian.note.HeaderAnchor
+---@return obsidian.note.HeaderAnchor
+local function heading_completion_anchor(anchor)
+  if Obsidian.opts.link.style ~= "wiki" then
+    return anchor
+  end
+
+  -- Obsidian-style wiki heading links use the original heading text, but some
+  -- characters would instead be parsed as link syntax by our wiki-link parser.
+  if anchor.header:find "[|%[%]]" or vim.startswith(anchor.header, "^") then
+    return anchor
+  end
+
+  local result = vim.tbl_extend("force", anchor, { anchor = "#" .. anchor.header })
+  ---@cast result obsidian.note.HeaderAnchor
+  return result
+end
+
+---@param note obsidian.Note
+---@return obsidian.note.HeaderAnchor[]
+local function note_headings(note)
+  local headings = {}
+  if note.sections then
+    for _, section in ipairs(note.sections) do
+      if section.header then
+        headings[#headings + 1] = {
+          anchor = section.anchor,
+          header = section.header,
+          level = section.level,
+          line = section.heading_range.start_row + 1,
+          section = section,
+        }
+      end
+    end
+  else
+    for _, anchor in pairs(note.anchor_links or {}) do
+      headings[#headings + 1] = anchor
+    end
+  end
+  return headings
+end
+
+---@param cc obsidian.completion.sources.refs.context
+---@param query string
+---@param results obsidian.Note[]
+local function process_heading_search_results(cc, query, results)
+  ---@cast cc.insert_start -nil
+  ---@cast cc.insert_end -nil
+  ---@cast cc.search -nil
+  local range = {
+    start = { line = cc.request.line, character = cc.insert_start },
+    ["end"] = { line = cc.request.line, character = cc.insert_end },
+  }
+  local source_name = vim.api.nvim_buf_get_name(cc.request.bufnr)
+  local source_dir = source_name ~= "" and vim.fs.dirname(source_name) or nil
+  local needle = vim.fn.tolower(query)
+  local items = {}
+  local seen = {}
+  local basename_paths = {}
+
+  table.sort(results, function(a, b)
+    return tostring(a.path) < tostring(b.path)
+  end)
+
+  if Obsidian.opts.link.format == "shortest" then
+    for _, note in ipairs(results) do
+      local basename = vim.fs.basename(tostring(note.path))
+      basename_paths[basename] = basename_paths[basename] or {}
+      basename_paths[basename][tostring(note.path)] = true
+    end
+  end
+
+  for note_idx, note in ipairs(results) do
+    local anchors = {}
+    for _, anchor in ipairs(note_headings(note)) do
+      local key = tostring(note.path) .. ":" .. anchor.line
+      local searchable = anchor.header .. " " .. anchor.anchor
+      if not seen[key] and (needle == "" or vim.fn.tolower(searchable):find(needle, 1, true)) then
+        seen[key] = true
+        anchors[#anchors + 1] = anchor
+      end
+    end
+    table.sort(anchors, function(a, b)
+      return a.line < b.line
+    end)
+
+    for _, anchor in ipairs(anchors) do
+      local basename = vim.fs.basename(tostring(note.path))
+      local paths = basename_paths[basename]
+      local link_format = paths and vim.tbl_count(paths) > 1 and "absolute" or nil
+      local link = note:format_link {
+        label = note:display_name(),
+        anchor = heading_completion_anchor(anchor),
+        dir = source_dir,
+        format = link_format,
+      }
+      local label = anchor.header .. " — " .. note:display_name()
+      items[#items + 1] = {
+        label = label,
+        sortText = ("%08d:%08d"):format(note_idx, anchor.line),
+        filterText = "[[##" .. query .. " " .. anchor.header .. " " .. note:display_name(),
+        documentation = {
+          kind = "markdown",
+          value = note:display_info { label = link, anchor = anchor },
+        },
+        kind = vim.lsp.protocol.CompletionItemKind.Reference,
+        textEdit = {
+          newText = link,
+          range = range,
+        },
+      }
+    end
+  end
+
+  cc.completion_resolve_callback { isIncomplete = true, items = items }
+end
+
+---@param cc obsidian.completion.sources.refs.context
+---@param query string
+local function process_heading_search(cc, query)
+  local source_name = vim.api.nvim_buf_get_name(cc.request.bufnr)
+  local dir = api.resolve_workspace_dir(source_name ~= "" and source_name or nil)
+  local note_opts = { max_lines = ALL_LINES, collect_sections = true }
+  local function finish(results)
+    process_heading_search_results(cc, query, include_loaded_notes(results, dir, note_opts, true))
+  end
+
+  if cache.is_enabled() and cache.is_ready() then
+    finish(cached_heading_notes(query))
+  else
+    -- Heading queries also match normalized anchors, which cannot be mapped
+    -- reliably back to raw file text (e.g. `http-api` vs `HTTP API`). Enumerate
+    -- notes first, then filter their parsed headings below.
+    search.find_notes_async("", finish, {
+      dir = dir,
+      search = { sort = false, include_templates = false, ignore_case = true },
+      notes = note_opts,
+    })
+  end
 end
 
 --- Determines whatever the in_buffer_only should be enabled
@@ -587,6 +771,12 @@ function M.process_completion(completion_resolve_callback, request)
 
   if not can_complete_request(cc) or not cc.search then
     cc.completion_resolve_callback(EMPTY_RESPONSE)
+    return
+  end
+
+  local heading_query = completion.heading_search(cc.search)
+  if heading_query ~= nil then
+    process_heading_search(cc, heading_query)
     return
   end
 
