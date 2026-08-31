@@ -1,32 +1,19 @@
 local util = require "obsidian.util"
+local validator = require "obsidian.config.validate"
 local config = {}
 
----@enum obsidian.config.OpenStrategy
-config.OpenStrategy = {
-  current = "current",
-  vsplit = "vsplit",
-  hsplit = "hsplit",
-  vsplit_force = "vsplit_force",
-  hsplit_force = "hsplit_force",
-}
-
----@enum obsidian.config.SortBy
-config.SortBy = {
-  path = "path",
-  modified = "modified",
-  accessed = "accessed",
-  created = "created",
-}
-
----@enum obsidian.config.Picker
-config.Picker = {
-  telescope = "telescope.nvim",
-  fzf_lua = "fzf-lua",
-  mini = "mini.pick",
-  snacks = "snacks.picker",
-}
-
 config.default = require "obsidian.config.default"
+config.validate = validator.validate
+
+local function assert_no_errors(errors)
+  if #errors > 0 then
+    error(validator.format_errors(errors), 0)
+  end
+end
+
+local function assert_valid(opts)
+  assert_no_errors(validator.validate(opts))
+end
 
 local tbl_override = function(defaults, overrides, list_fields)
   local out = vim.tbl_deep_extend("force", defaults, overrides)
@@ -51,6 +38,7 @@ end
 ---@return obsidian.config.Internal
 config.normalize = function(opts, defaults)
   opts = opts or {}
+  assert_no_errors(validator.validate_shape(opts))
 
   if not defaults then
     defaults = config.default
@@ -89,6 +77,8 @@ config.normalize = function(opts, defaults)
   -- Validate. --
   ---------------
 
+  assert_valid(opts)
+
   if opts.legacy_commands then
     util.deprecate(
       "legacy_commands",
@@ -98,40 +88,6 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     ]],
       "4.0"
     )
-  end
-
-  if opts.sort_by ~= nil and not vim.tbl_contains(vim.tbl_values(config.SortBy), opts.sort_by) then
-    error("Invalid 'sort_by' option '" .. opts.sort_by .. "' in obsidian.nvim config.")
-  end
-
-  local valid_link_styles = { "wiki", "markdown" }
-  if
-    opts.link ~= nil
-    and opts.link.style ~= nil
-    and type(opts.link.style) ~= "function"
-    and not vim.tbl_contains(valid_link_styles, opts.link.style)
-  then
-    error("Invalid 'link.style' option '" .. tostring(opts.link.style) .. "' in obsidian.nvim config.")
-  end
-
-  local valid_link_formats = { "shortest", "relative", "absolute" }
-  if opts.link ~= nil and opts.link.format ~= nil and not vim.tbl_contains(valid_link_formats, opts.link.format) then
-    error("Invalid 'link.format' option '" .. tostring(opts.link.format) .. "' in obsidian.nvim config.")
-  end
-
-  if not vim.islist(opts.workspaces) then
-    error "Invalid obsidian.nvim config, the 'config.workspaces' should be an array/list."
-  end
-
-  if opts.file and opts.file.ignore_filters ~= nil then
-    if type(opts.file.ignore_filters) ~= "table" then
-      error "Invalid obsidian.nvim config, 'file.ignore_filters' should be an array of strings."
-    end
-    for i, pattern in ipairs(opts.file.ignore_filters) do
-      if type(pattern) ~= "string" then
-        error(string.format("Invalid obsidian.nvim config, 'file.ignore_filters[%d]' should be a string.", i))
-      end
-    end
   end
 
   -- Convert dir to workspace format.

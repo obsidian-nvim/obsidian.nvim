@@ -1,4 +1,93 @@
--- Useful type definitions go here.
+-- Useful type definitions and runtime enums go here.
+
+local M = {}
+
+---@enum obsidian.config.OpenStrategy
+M.OpenStrategy = {
+  current = "current",
+  vsplit = "vsplit",
+  hsplit = "hsplit",
+  vsplit_force = "vsplit_force",
+  hsplit_force = "hsplit_force",
+}
+
+---@enum obsidian.config.SortBy
+M.SortBy = {
+  path = "path",
+  modified = "modified",
+  accessed = "accessed",
+  created = "created",
+}
+
+---@enum obsidian.config.Picker
+M.Picker = {
+  telescope = "telescope.nvim",
+  fzf_lua = "fzf-lua",
+  mini = "mini.pick",
+  snacks = "snacks.picker",
+}
+
+---@enum obsidian.config.NewNotesLocation
+M.NewNotesLocation = {
+  current_dir = "current_dir",
+  notes_subdir = "notes_subdir",
+}
+
+---@enum obsidian.link.LinkStyle
+M.LinkStyle = {
+  wiki = "wiki",
+  markdown = "markdown",
+}
+
+---@alias obsidian.link.LinkStyleOption obsidian.link.LinkStyle|fun(opts: obsidian.link.LinkCreationOpts): string
+
+---@enum obsidian.link.LinkFormat
+M.LinkFormat = {
+  shortest = "shortest",
+  relative = "relative",
+  absolute = "absolute",
+}
+
+---@enum obsidian.config.SyncTrigger
+M.SyncTrigger = {
+  continuous = "continuous",
+  on_write = "on_write",
+  manual = "manual",
+}
+
+---@enum obsidian.config.SyncMode
+M.SyncMode = {
+  bidirectional = "bidirectional",
+  pull_only = "pull-only",
+  mirror_remote = "mirror-remote",
+}
+
+---@enum obsidian.config.ConflictStrategy
+M.ConflictStrategy = {
+  merge = "merge",
+  conflict = "conflict",
+}
+
+---@enum obsidian.sync.FileType
+M.SyncFileType = {
+  image = "image",
+  audio = "audio",
+  video = "video",
+  pdf = "pdf",
+  unsupported = "unsupported",
+}
+
+---@enum obsidian.sync.ConfigCategory
+M.SyncConfigCategory = {
+  app = "app",
+  appearance = "appearance",
+  appearance_data = "appearance-data",
+  hotkey = "hotkey",
+  core_plugin = "core-plugin",
+  core_plugin_data = "core-plugin-data",
+  community_plugin = "community-plugin",
+  community_plugin_data = "community-plugin-data",
+}
 
 ---@alias obsidian.CommandArgs vim.api.keyset.create_user_command.command_args
 
@@ -89,4 +178,4 @@
 ---@field slides obsidian.config.SlidesOpts
 ---@field cache obsidian.config.CacheOpts
 
----@alias obsidian.config.NewNotesLocation "current_dir" | "notes_subdir"
+return M

@@ -44,7 +44,7 @@ obsidian.register_command = require("obsidian.commands").register
 ---
 ---@param user_opts obsidian.config
 ---
----@return obsidian.Client
+---@return obsidian.Client?
 obsidian.setup = function(user_opts)
   ---@class obsidian.state
   ---@field picker     obsidian.Picker          Picker to use.
@@ -52,8 +52,11 @@ obsidian.setup = function(user_opts)
   ---@field workspaces obsidian.Workspace[]     All workspaces.
   ---@field dir        obsidian.Path            Root of the vault for the current workspace.
   ---@field buf_dir    obsidian.Path |?         Parent directory of the current buffer.
-  ---@field opts       obsidian.config.Internal Current options.
-  ---@field _opts      obsidian.config.Internal User input options.
+  ---@field opts          obsidian.config.Internal Current options.
+  ---@field _opts         obsidian.config.Internal Normalized user options.
+  ---@field _user_opts    obsidian.config Raw options passed to setup.
+  ---@field _setup_called boolean Whether setup has been called.
+  ---@field _config_error string|? Configuration error from the latest setup call.
   ---@diagnostic disable-next-line: global-in-non-module
   Obsidian = setmetatable({}, {
     __index = function(_, key)
@@ -63,7 +66,16 @@ obsidian.setup = function(user_opts)
     end,
   })
 
-  local opts = obsidian.config.normalize(user_opts)
+  Obsidian._setup_called = true
+  Obsidian._user_opts = user_opts or {}
+
+  local normalized, opts = pcall(obsidian.config.normalize, Obsidian._user_opts)
+  if not normalized then
+    Obsidian._config_error = tostring(opts)
+    log.err("%s\n\nobsidian.nvim did not finish setup.", Obsidian._config_error)
+    return
+  end
+  ---@cast opts obsidian.config.Internal
 
   Obsidian._opts = opts
 

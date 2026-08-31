@@ -6,7 +6,7 @@ local M = {}
 ---@field path? string|?
 ---@field anchor? string|obsidian.note.HeaderAnchor
 ---@field block? string|obsidian.note.Block
----@field style? obsidian.link.LinkStyle
+---@field style? obsidian.link.LinkStyleOption
 ---@field format? obsidian.link.LinkFormat
 
 ---Create a new unique Zettel ID.
