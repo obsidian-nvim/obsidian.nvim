@@ -417,7 +417,7 @@ M.pick = function(bookmarks)
         desc = "move to group",
         callback = M.move_to_group,
       },
-      ["<C-x>"] = {
+      ["<C-r>"] = {
         desc = "remove",
         callback = M.del,
       },
