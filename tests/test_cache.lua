@@ -97,6 +97,25 @@ T["cache backends"]["round trips query metadata through JSON"] = function()
   vim.fn.delete(tostring(dir), "rf")
 end
 
+T["cache backends"]["discards caches from an older schema"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache-json" }
+  dir:mkdir { parents = true }
+  local cache_path = tostring(dir / "cache.json")
+  helpers.write(
+    vim.json.encode {
+      version = 2,
+      vault = tostring(dir),
+      notes = { ["/vault/Stale.md"] = { mtime = 1, size = 1 } },
+    },
+    cache_path
+  )
+
+  local backend = require "obsidian.cache.json_backend"
+  local store = backend.open { path = cache_path, vault = tostring(dir) }
+  eq(nil, store:get "/vault/Stale.md")
+  vim.fn.delete(tostring(dir), "rf")
+end
+
 T["cache backends"]["uses file ignore filters"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
