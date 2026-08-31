@@ -15,11 +15,8 @@ return {
   notes_subdir = nil,
   new_notes_location = "current_dir",
 
-  ---@alias obsidian.link.LinkStyle "wiki" | "markdown" | fun(opts: obsidian.link.LinkCreationOpts): string
-  ---@alias obsidian.link.LinkFormat "shortest" | "relative" | "absolute"
-
   ---@class obsidian.config.LinkOpts
-  ---@field style? obsidian.link.LinkStyle
+  ---@field style? obsidian.link.LinkStyleOption
   ---@field format? obsidian.link.LinkFormat
   ---@field auto_update? boolean
   link = {
@@ -302,23 +299,6 @@ return {
     confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
   },
 
-  ---@alias obsidian.sync.FileType
-  ---"image" |
-  ---"audio" |
-  ---"video" |
-  ---"pdf" |
-  ---"unsupported"
-
-  ---@alias obsidian.sync.ConfigCategory
-  ---"app" |
-  ---"appearance" |
-  ---"appearance-data" |
-  ---"hotkey" |
-  ---"core-plugin" |
-  ---"core-plugin-data" |
-  ---"community-plugin" |
-  ---"community-plugin-data"
-
   ---https://help.obsidian.md/sync/settings
   ---@class obsidian.config.SyncOpts
   ---
@@ -332,13 +312,13 @@ return {
   --- - "continuous": keep a long-running sync process (default for obsidian backend).
   --- - "on_write": run a one-shot sync (debounced) after each note save.
   --- - "manual": only sync via :Obsidian sync start or explicit calls.
-  ---@field trigger? "continuous"|"on_write"|"manual"
+  ---@field trigger? obsidian.config.SyncTrigger
   ---
   ---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
-  ---@field mode? "bidirectional"|"pull-only"|"mirror-remote"
+  ---@field mode? obsidian.config.SyncMode
   ---
   ---Conflict strategy when a conflict is detected, NOTE: conflict is not currently supported in this client
-  ---@field conflict_strategy? "merge"|"conflict"
+  ---@field conflict_strategy? obsidian.config.ConflictStrategy
   ---
   ---Attachment types to sync: image, audio, video, pdf, unsupported, empty table to disable attachment syncing
   ---@field file_types? obsidian.sync.FileType[]

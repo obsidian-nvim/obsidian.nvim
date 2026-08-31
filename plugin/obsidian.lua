@@ -1,6 +1,6 @@
 vim.api.nvim_create_user_command("Obsidian", function(data)
-  if not Obsidian then
-    require("obsidian.log").err "Did not setup obsidian.nvim"
+  if not Obsidian or not Obsidian.opts then
+    require("obsidian.log").err "obsidian.nvim did not finish setup"
     return
   end
   local commands = require "obsidian.commands"
@@ -12,8 +12,8 @@ vim.api.nvim_create_user_command("Obsidian", function(data)
 end, {
   nargs = "*",
   complete = function(arg_lead, cmdline, cursor_pos)
-    if not Obsidian then
-      require("obsidian.log").err_once "Did not setup obsidian.nvim"
+    if not Obsidian or not Obsidian.opts then
+      require("obsidian.log").err_once "obsidian.nvim did not finish setup"
       return
     end
     local commands = require "obsidian.commands"

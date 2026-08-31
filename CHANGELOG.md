@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Setup-time configuration validation with aggregated errors and `:checkhealth` reporting (#79).
+- Runtime enum tables for configuration values and type check, exported through `require("obsidian.types")`.
 - `daily_notes.start_of_week` for configuring Moment-style week formats.
 - Obsidian-style block completion with previews and automatic IDs for unlabeled blocks, using `[[^query`, `[[note^query`, `[[note#^query`, or `[[^^query` (#505, #749).
 - Added separate icons module to support obsidian related filetypes and usecases.

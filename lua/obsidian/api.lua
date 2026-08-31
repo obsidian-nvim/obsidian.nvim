@@ -509,7 +509,7 @@ end
 ---@param opt obsidian.config.OpenStrategy
 ---@return string
 M.get_open_strategy = function(opt)
-  local OpenStrategy = require("obsidian.config").OpenStrategy
+  local OpenStrategy = require("obsidian.types").OpenStrategy
 
   -- either 'leaf', 'row' for vertically split windows, or 'col' for horizontally split windows
   local cur_layout = vim.fn.winlayout()[1]

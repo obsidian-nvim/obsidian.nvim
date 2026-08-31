@@ -1,9 +1,11 @@
 local M = {}
 local VERSION = require "obsidian.version"
 local api = require "obsidian.api"
+local config = require "obsidian.config"
 local sync_client = require "obsidian.sync.client"
 
 local error = vim.health.error
+local info = vim.health.info
 local warn = vim.health.warn
 local ok = vim.health.ok
 
@@ -147,7 +149,26 @@ function M.check()
   ok_f("operating system: %s", os)
 
   start "Config"
-  ok_f("dir: %s", api.resolve_workspace_dir())
+  local state = Obsidian
+  local setup_called = state ~= nil and state._setup_called == true
+  local setup_complete = setup_called and state.opts ~= nil
+  if not setup_called then
+    info "setup() has not been called"
+  else
+    local issues = config.validate(state.opts or state._user_opts)
+    if #issues > 0 then
+      for _, issue in ipairs(issues) do
+        error(issue)
+      end
+    elseif state._config_error then
+      error(state._config_error)
+    else
+      ok "configuration passed validation"
+    end
+    if setup_complete then
+      ok_f("dir: %s", api.resolve_workspace_dir())
+    end
+  end
 
   start "Pickers"
 
@@ -201,22 +222,26 @@ function M.check()
   end
 
   start "Sync"
-  local sync_opts = Obsidian.opts.sync or {}
-  local backend = sync_opts.backend or "obsidian"
-  ok_f("backend: %s", backend)
-  if not sync_opts.enabled then
-    ok "disabled; obsidian-headless CLI is only needed when sync is enabled"
-  elseif backend == "obsidian" then
-    local sync_executables = { "ob" }
-    if sync_client.cmd and sync_client.cmd ~= "ob" then
-      table.insert(sync_executables, sync_client.cmd)
-    end
-    has_one_of_executable(sync_executables, {
-      feature = "sync (:Obsidian sync)",
-      hint = "Install `obsidian-headless` (`ob`) or run the local CLI install prompt.",
-    })
+  if not setup_complete then
+    info "setup() has not completed; sync configuration was not checked"
   else
-    ok_f("custom backend: %s", backend)
+    local sync_opts = state.opts.sync or {}
+    local backend = sync_opts.backend or "obsidian"
+    ok_f("backend: %s", backend)
+    if not sync_opts.enabled then
+      ok "disabled; obsidian-headless CLI is only needed when sync is enabled"
+    elseif backend == "obsidian" then
+      local sync_executables = { "ob" }
+      if sync_client.cmd and sync_client.cmd ~= "ob" then
+        table.insert(sync_executables, sync_client.cmd)
+      end
+      has_one_of_executable(sync_executables, {
+        feature = "sync (:Obsidian sync)",
+        hint = "Install `obsidian-headless` (`ob`) or run the local CLI install prompt.",
+      })
+    else
+      ok_f("custom backend: %s", backend)
+    end
   end
 
   start "Compatibility"
