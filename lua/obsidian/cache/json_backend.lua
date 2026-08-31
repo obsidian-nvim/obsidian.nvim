@@ -7,7 +7,7 @@ local util = require "obsidian.util"
 local M = {}
 M.__index = M
 
-local SCHEMA_VERSION = 2
+local SCHEMA_VERSION = 3
 
 local function read_file(path)
   local f = io.open(path, "r")
