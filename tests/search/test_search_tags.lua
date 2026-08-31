@@ -100,4 +100,47 @@ tags:
   eq(child.lua_get [[vim.v.errmsg]], "")
 end
 
+T["should find frontmatter tags in files with DOS line endings"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "test.md")
+  local file = [==[
+---
+tags:
+   - Book
+   - Movie
+---
+
+#Book
+
+- Book
+]==]
+  -- Write the file with CRLF line endings (fileformat=dos).
+  file = file:gsub("\n", "\r\n")
+  vim.fn.writefile(vim.split(file, "\n", { plain = true }), filepath)
+
+  local res = h.child_await(
+    child,
+    [[
+      local search = require "obsidian.search"
+      search.find_tags_async("", function(res)
+        done(res)
+      end, {})
+    ]],
+    { desc = "tags search" }
+  )
+
+  eq(#res, 3)
+  eq(res[1].tag, "Book")
+  eq(res[1].text, "- Book")
+  eq(res[1].line, 3)
+
+  eq(res[2].tag, "Movie")
+  eq(res[2].text, "- Movie")
+  eq(res[2].line, 4)
+
+  eq(res[3].tag, "Book")
+  eq(res[3].text, "#Book")
+  eq(res[3].line, 7)
+end
+
 return T

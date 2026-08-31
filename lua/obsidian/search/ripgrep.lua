@@ -12,7 +12,10 @@ local BASE_CMD = {
   "md:*.base",
 }
 
-local SEARCH_CMD = util.flatten { BASE_CMD, "--type=md", "--json" }
+-- `--crlf` makes ripgrep treat `\r\n` as a line terminator so that `$`
+-- anchors in search patterns (e.g. frontmatter tag lists) also match files
+-- with DOS line endings. See https://github.com/obsidian-nvim/obsidian.nvim/issues/903.
+local SEARCH_CMD = util.flatten { BASE_CMD, "--type=md", "--json", "--crlf" }
 local FIND_CMD = util.flatten { BASE_CMD, "--files" }
 
 ---@param opts obsidian.search.SearchOpts
