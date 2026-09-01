@@ -635,6 +635,8 @@ Fields ~
 {old_path} `(optional)` `(string)` Existing path to rename from. Defaults to `note.path`.
 {new_path} `(optional)` `(string)` Destination path. Defaults to sibling path using `new_name .. ".md"`.
 {include_file_rename} `(optional)` `(boolean)` Include a file rename operation in the generated edit. Defaults to true.
+{include_stem_refs} `(optional)` `(boolean)` Update stem-only references. Defaults to true.
+{dir} `(optional)` `(string|obsidian.Path)` Workspace directory used to find references.
 {apply} `(optional)` `(boolean)` Apply the workspace edit directly. Defaults to true.
 {update_buffers} `(optional)` `(boolean)` Update the note object/frontmatter and reload buffers after applying. Defaults to true.
 {check_unique} `(optional)` `(boolean)` Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
