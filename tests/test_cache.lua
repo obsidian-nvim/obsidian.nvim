@@ -115,6 +115,33 @@ T["cache backends"]["stores compact rows"] = function()
   eq(nil, row.tasks)
 end
 
+T["cache backends"]["computes backlink counts from cached links"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "A.md")
+  helpers.write("# A", note_path)
+  helpers.write("[[A]] [[A|alias]] [A](A.md) [root](/A.md) [[Other]]", dir / "Links.md")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local note = require("obsidian.note").new("A", {}, {}, note_path)
+  note.backlinks_async = function()
+    error "backlink search should not run"
+  end
+  local status
+  note:status(true, function(result)
+    status = result
+  end)
+
+  eq(4, cache.notes.backlink_count(note))
+  eq(4, status.backlinks)
+end
+
 T["cache backends"]["queries headings with original text and locations"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }

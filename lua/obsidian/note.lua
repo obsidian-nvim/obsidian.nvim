@@ -1383,25 +1383,20 @@ Note.format_link = function(self, opts)
   end
 end
 
--- HACK: make backlink search lazy before we have proper cache
-local backlink_cache = {}
-
---- Return note status counts, like obsidian's status bar
+--- Return note status counts, like obsidian's status bar.
 ---
----@param update_backlink boolean|?
----@param callback fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer })|?
----@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
-Note.status = function(self, update_backlink, callback)
+---@param update_backlinks boolean|? Set to false to skip computing backlinks.
+---@param callback fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer? })|?
+---@return { words: integer, chars: integer, properties: integer, backlinks: integer? }?
+Note.status = function(self, update_backlinks, callback)
   local status = {}
   local wc = vim.fn.wordcount()
   status.words = wc.visual_words or wc.words
   status.chars = wc.visual_chars or wc.chars
   status.properties = vim.tbl_count(self:frontmatter()) -- TODO: should be zero if no frontmatter
-  local path = tostring(self.path)
 
   local function finish(num_backlinks)
     status.backlinks = num_backlinks
-    backlink_cache[path] = num_backlinks
     if callback then
       callback(status)
     else
@@ -1409,16 +1404,27 @@ Note.status = function(self, update_backlink, callback)
     end
   end
 
-  if self and (update_backlink or backlink_cache[path] == nil) then -- HACK:
-    if callback then
-      self:backlinks_async({}, function(matches)
-        finish(#matches)
+  if update_backlinks == false then
+    return finish(nil)
+  end
+
+  local cache = require "obsidian.cache"
+  if cache.is_enabled() then
+    if cache.is_ready() then
+      return finish(cache.notes.backlink_count(self))
+    elseif callback then
+      return cache.when_ready(function()
+        finish(cache.notes.backlink_count(self))
       end)
-    else
-      return finish(#self:backlinks {})
     end
+  end
+
+  if callback then
+    self:backlinks_async({}, function(matches)
+      finish(#matches)
+    end)
   else
-    return finish(backlink_cache[path] or 0)
+    return finish(#self:backlinks {})
   end
 end
 
