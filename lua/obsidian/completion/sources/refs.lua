@@ -166,6 +166,14 @@ local function wiki_completion_anchor(anchor)
     end
   end
 
+  -- These characters are parsed as wiki-link syntax rather than heading text.
+  -- Keep the normalized anchor when the original spelling cannot be represented safely.
+  for _, header in ipairs(headers) do
+    if header:find "[|%[%]]" or vim.startswith(header, "^") then
+      return anchor
+    end
+  end
+
   local formatted = vim.tbl_extend("force", anchor, { anchor = "#" .. table.concat(headers, "#") })
   ---@cast formatted obsidian.note.HeaderAnchor
   return formatted

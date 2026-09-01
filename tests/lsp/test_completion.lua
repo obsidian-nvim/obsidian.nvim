@@ -530,6 +530,24 @@ T["completion"]["preserves nested heading case in named-note wiki links"] = func
   eq("[[target#Parent Heading#Child Heading]]", item.label)
 end
 
+T["completion"]["uses normalized wiki anchors when heading text contains link syntax"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[target#http",
+    ["target.md"] = "# HTTP | API",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 13 })
+
+  local result = run_completion(0, 13)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[target#http--api]]"
+  end)
+
+  assert(item, "no syntax-safe heading completion found")
+  eq("[[target#http--api]]", item.label)
+end
+
 T["completion"]["creates a vault-wide block reference from unlabeled content"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[^^needle",
