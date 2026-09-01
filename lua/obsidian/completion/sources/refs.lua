@@ -4,6 +4,7 @@ local util = require "obsidian.util"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local cache = require "obsidian.cache"
+local ignore = require "obsidian.ignore"
 
 ---@class obsidian.completion.sources.refs.options
 ---@field label string|?
@@ -44,7 +45,10 @@ local ALL_LINES = 2147483647
 ---@field candidates obsidian.completion.sources.refs.block_search_candidate[]|?
 ---@field owners_by_path table<string, obsidian.completion.sources.refs.block_search_owner>|?
 ---@field overlays table<string, obsidian.completion.sources.refs.block_search_owner>
----@field note_count integer
+---@field next_note_idx integer
+---@field note_opts obsidian.note.LoadOpts
+---@field workspace obsidian.Workspace
+---@field ignore_checker Glob|?
 
 ---@class obsidian.completion.sources.refs.block_search_owner
 ---@field note obsidian.Note
@@ -89,16 +93,17 @@ local ALL_LINES = 2147483647
 ---@field dir_key string
 ---@field note_opts obsidian.note.LoadOpts
 
+---@class obsidian.completion.sources.refs.block_file_event
+---@field type integer|string
+---@field path string|?
+---@field old_path string|?
+---@field new_path string|?
+
 ---@type table<string, obsidian.completion.sources.refs.block_search_index>
 local vault_block_search_indexes = {}
 ---@type table<string, obsidian.completion.sources.refs.block_search_request>
 local vault_block_search_pending = {}
 local vault_block_search_generation = 0
-
-require("obsidian.lsp.watchfiles").register_handler(function()
-  vault_block_search_indexes = {}
-  vault_block_search_generation = vault_block_search_generation + 1
-end)
 
 --- Returns whether it's possible to complete the search and sets up the search related variables in cc
 ---@param cc obsidian.completion.sources.refs.context
@@ -458,22 +463,180 @@ local function build_vault_block_owner(note, note_idx)
 end
 
 ---@param index obsidian.completion.sources.refs.block_search_index
+local function rebuild_vault_block_candidates(index)
+  local owners = vim.tbl_values(assert(index.owners_by_path, "vault block index owners are missing"))
+  table.sort(owners, function(a, b)
+    return a.note_idx < b.note_idx
+  end)
+
+  local candidates = {}
+  for _, owner in ipairs(owners) do
+    vim.list_extend(candidates, owner.candidates)
+  end
+  index.candidates = candidates
+end
+
+---@param index obsidian.completion.sources.refs.block_search_index
 ---@param notes obsidian.Note[]
 local function build_vault_block_index(index, notes)
-  ---@type obsidian.completion.sources.refs.block_search_candidate[]
-  local candidates = {}
   ---@type table<string, obsidian.completion.sources.refs.block_search_owner>
   local owners_by_path = {}
-  index.candidates = candidates
   index.owners_by_path = owners_by_path
   index.overlays = {}
-  index.note_count = #notes
+  index.next_note_idx = #notes + 1
   for note_idx, note in ipairs(notes) do
     local owner = build_vault_block_owner(note, note_idx)
     owners_by_path[owner.path] = owner
-    vim.list_extend(candidates, owner.candidates)
   end
+  rebuild_vault_block_candidates(index)
 end
+
+---@param path string
+---@return string
+local function normalize_vault_block_path(path)
+  path = vim.fn.resolve(path)
+  return vim.fs.normalize(vim.uv.fs_realpath(path) or path)
+end
+
+---@param index obsidian.completion.sources.refs.block_search_index
+---@param path string
+---@return boolean
+local function vault_block_path_is_in_index(index, path)
+  return util.is_subpath(path, index.dir)
+end
+
+---@param index obsidian.completion.sources.refs.block_search_index
+---@param path string
+---@return boolean
+local function vault_block_path_is_indexable(index, path)
+  local stat = vim.uv.fs_stat(path)
+  if not stat or stat.type ~= "file" then
+    return false
+  end
+  if not api.path_is_note(path, index.workspace) then
+    return false
+  end
+  local relative_path = util.relpath(index.dir, path)
+  return relative_path ~= nil and (not index.ignore_checker or not index.ignore_checker:check(relative_path))
+end
+
+---@param index obsidian.completion.sources.refs.block_search_index
+---@param path string
+---@return integer|? removed_note_idx
+local function remove_vault_block_owner(index, path)
+  local owners_by_path = assert(index.owners_by_path, "vault block index owners are missing")
+  local owner = owners_by_path[path]
+  owners_by_path[path] = nil
+  index.overlays[path] = nil
+  return owner and owner.note_idx or nil
+end
+
+---@param index obsidian.completion.sources.refs.block_search_index
+---@param path string
+---@param preferred_note_idx integer|?
+---@return boolean changed
+local function refresh_vault_block_owner(index, path, preferred_note_idx)
+  local owners_by_path = assert(index.owners_by_path, "vault block index owners are missing")
+  local old_owner = owners_by_path[path]
+  local note_idx = preferred_note_idx or (old_owner and old_owner.note_idx)
+  index.overlays[path] = nil
+
+  if not vault_block_path_is_indexable(index, path) then
+    owners_by_path[path] = nil
+    return old_owner ~= nil
+  end
+
+  local Note = require "obsidian.note"
+  local ok, note = pcall(Note.from_file, path, index.note_opts)
+  if not ok then
+    owners_by_path[path] = nil
+    return old_owner ~= nil
+  end
+
+  if not note_idx then
+    note_idx = index.next_note_idx
+    index.next_note_idx = index.next_note_idx + 1
+  end
+  local owner = build_vault_block_owner(note, note_idx)
+  if owner.path ~= path then
+    owners_by_path[path] = nil
+    index.overlays[owner.path] = nil
+  end
+  owners_by_path[owner.path] = owner
+  return true
+end
+
+---@param event obsidian.completion.sources.refs.block_file_event
+---@return boolean
+local function vault_block_event_is_deleted(event)
+  return event.type == "deleted" or event.type == vim.lsp.protocol.FileChangeType.Deleted
+end
+
+---@param index obsidian.completion.sources.refs.block_search_index
+---@param events obsidian.completion.sources.refs.block_file_event[]
+---@return boolean changed
+local function refresh_vault_block_index(index, events)
+  local changed = false
+  for _, event in ipairs(events) do
+    if event.type == "renamed" and event.old_path and event.new_path then
+      local old_path = normalize_vault_block_path(event.old_path)
+      local new_path = normalize_vault_block_path(event.new_path)
+      local note_idx
+      if vault_block_path_is_in_index(index, old_path) then
+        note_idx = remove_vault_block_owner(index, old_path)
+        changed = note_idx ~= nil or changed
+      end
+      if vault_block_path_is_in_index(index, new_path) then
+        changed = refresh_vault_block_owner(index, new_path, note_idx) or changed
+      end
+    elseif event.path then
+      local path = normalize_vault_block_path(event.path)
+      if vault_block_path_is_in_index(index, path) then
+        if vault_block_event_is_deleted(event) then
+          changed = remove_vault_block_owner(index, path) ~= nil or changed
+        else
+          changed = refresh_vault_block_owner(index, path) or changed
+        end
+      end
+    end
+  end
+
+  if changed then
+    rebuild_vault_block_candidates(index)
+  end
+  return changed
+end
+
+---@param index obsidian.completion.sources.refs.block_search_index
+---@param events obsidian.completion.sources.refs.block_file_event[]
+---@return boolean
+local function vault_block_events_touch_index(index, events)
+  for _, event in ipairs(events) do
+    for _, path in ipairs { event.path, event.old_path, event.new_path } do
+      if path and vault_block_path_is_in_index(index, normalize_vault_block_path(path)) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+require("obsidian.lsp.watchfiles").register_handler(function(events)
+  local touched = false
+  for dir_key, index in pairs(vault_block_search_indexes) do
+    if vault_block_events_touch_index(index, events) then
+      touched = true
+      if index.candidates and index.owners_by_path then
+        refresh_vault_block_index(index, events)
+      else
+        vault_block_search_indexes[dir_key] = nil
+      end
+    end
+  end
+  if touched then
+    vault_block_search_generation = vault_block_search_generation + 1
+  end
+end)
 
 ---@param index obsidian.completion.sources.refs.block_search_index
 ---@param dir obsidian.Path
@@ -501,7 +664,7 @@ local function vault_block_overlays(index, dir, note_opts)
               max_lines = vim.api.nvim_buf_line_count(bufnr),
             })
             local note = Note.from_buffer(bufnr, opts)
-            owner = build_vault_block_owner(note, base and base.note_idx or index.note_count + overlay_idx)
+            owner = build_vault_block_owner(note, base and base.note_idx or index.next_note_idx + overlay_idx - 1)
             owner.bufnr = bufnr
             owner.changedtick = changedtick
           end
@@ -642,8 +805,17 @@ start_vault_block_search_index = function(dir, note_opts)
   if vault_block_search_indexes[dir_key] then
     return
   end
+  local workspace = assert(api.find_workspace(dir), "vault block completion workspace is missing")
+  local workspace_opts = api._workspace_opts(workspace)
   ---@type obsidian.completion.sources.refs.block_search_index
-  local index = { dir = dir_key, overlays = {}, note_count = 0 }
+  local index = {
+    dir = dir_key,
+    overlays = {},
+    next_note_idx = 1,
+    note_opts = note_opts,
+    workspace = workspace,
+    ignore_checker = ignore._build_ignore_checker(workspace_opts.file.ignore_filters),
+  }
   vault_block_search_indexes[dir_key] = index
   local generation = vault_block_search_generation
   search.find_notes_async("", function(results)
@@ -652,12 +824,14 @@ start_vault_block_search_index = function(dir, note_opts)
         vault_block_search_indexes[dir_key] = nil
       end
       if not vault_block_search_indexes[dir_key] then
+        local restart_dir, restart_note_opts = dir, note_opts
         for _, request in pairs(vault_block_search_pending) do
           if request.dir_key == dir_key then
-            start_vault_block_search_index(request.dir, request.note_opts)
+            restart_dir, restart_note_opts = request.dir, request.note_opts
             break
           end
         end
+        start_vault_block_search_index(restart_dir, restart_note_opts)
       end
       return
     end

@@ -624,19 +624,10 @@ T["completion"]["keeps generated vault block IDs unique across filtered queries"
   )
 end
 
-T["completion"]["reuses the vault block index until the vault changes"] = function()
+T["completion"]["keeps an unsaved source overlay after its watched-file event"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "A needle paragraph\n\n[[^^",
   })
-  child.lua [[
-    _G.block_search_terms = {}
-    local search = require "obsidian.search"
-    local find_notes_async = search.find_notes_async
-    search.find_notes_async = function(term, ...)
-      table.insert(_G.block_search_terms, term)
-      return find_notes_async(term, ...)
-    end
-  ]]
 
   child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
   child.api.nvim_win_set_cursor(0, { 3, 4 })
@@ -653,7 +644,6 @@ T["completion"]["reuses the vault block index until the vault changes"] = functi
     end),
     "cached block index did not include unsaved buffer changes"
   )
-  eq({ "" }, child.lua_get "_G.block_search_terms")
 
   child.lua [[
     require("obsidian.lsp.handlers.did_change_watched_files") {
@@ -666,7 +656,6 @@ T["completion"]["reuses the vault block index until the vault changes"] = functi
     }
   ]]
   result = run_completion(2, 9)
-  eq({ "", "" }, child.lua_get "_G.block_search_terms")
 
   local item = vim.iter(result.items or {}):find(function(candidate)
     return candidate.command and candidate.label == "A fresh paragraph — source"
@@ -677,6 +666,123 @@ T["completion"]["reuses the vault block index until the vault changes"] = functi
   local block_id = lines[1]:match "(%^[0-9a-f]+)$"
   assert(block_id, "same-note block did not receive an ID")
   eq("[[source#" .. block_id .. "]]", lines[3])
+end
+
+T["completion"]["refreshes only the changed note in the vault block index"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^cached",
+    ["changed.md"] = "Changed cached block",
+    ["untouched.md"] = "Untouched cached block",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+  local result = run_completion(0, 10)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "Untouched cached block — untouched"
+    end),
+    "initial untouched candidate was missing"
+  )
+
+  child.lua [[
+    local changed = tostring(Obsidian.dir / "changed.md")
+    vim.fn.writefile({ "Fresh changed block" }, changed)
+    vim.fn.writefile({ "Unannounced disk block" }, tostring(Obsidian.dir / "untouched.md"))
+    require("obsidian.lsp.handlers.did_change_watched_files") {
+      changes = { { uri = vim.uri_from_fname(changed), type = vim.lsp.protocol.FileChangeType.Changed } },
+    }
+  ]]
+
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "[[^^fresh" })
+  child.api.nvim_win_set_cursor(0, { 1, 9 })
+  result = run_completion(0, 9)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "Fresh changed block — changed"
+    end),
+    "changed note candidate was not refreshed"
+  )
+
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "[[^^untouched" })
+  child.api.nvim_win_set_cursor(0, { 1, 13 })
+  result = run_completion(0, 13)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "Untouched cached block — untouched"
+    end),
+    "unrelated cached note was refreshed without a watched-file event"
+  )
+  assert(not vim.iter(result.items or {}):any(function(candidate)
+    return candidate.label == "Unannounced disk block — untouched"
+  end), "unrelated disk change leaked into the incrementally refreshed index")
+end
+
+T["completion"]["uses the indexed workspace ignore filters during incremental refresh"] = function()
+  child.fn.mkdir(tostring(child.Obsidian.dir / "ignored"), "p")
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^visible",
+    ["visible.md"] = "Visible target block",
+    ["ignored/hidden.md"] = "Hidden ignored block",
+  })
+  child.lua [[
+    local Path = require "obsidian.path"
+    local Workspace = require "obsidian.workspace"
+    local primary = assert(Workspace.new {
+      name = "primary",
+      path = Obsidian.dir,
+      strict = true,
+      overrides = { file = { ignore_filters = { "ignored/**" } } },
+    })
+    local secondary_dir = Path.temp { suffix = "-secondary-workspace" }
+    secondary_dir:mkdir()
+    local secondary_config_dir = secondary_dir / ".obsidian"
+    secondary_config_dir:mkdir()
+    local secondary = assert(Workspace.new {
+      name = "secondary",
+      path = secondary_dir,
+      strict = true,
+    })
+    Obsidian.workspaces = { primary, secondary }
+    require("obsidian.workspace").set(primary)
+    _G.primary_block_workspace = primary
+    _G.secondary_block_workspace = secondary
+    _G.secondary_block_workspace_dir = secondary_dir
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 11 })
+  local result = run_completion(0, 11)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "Visible target block — visible"
+    end),
+    "primary workspace index did not finish building"
+  )
+
+  child.lua [[
+    local Workspace = require "obsidian.workspace"
+    Workspace.set(_G.secondary_block_workspace)
+    local hidden = tostring(_G.primary_block_workspace.root / "ignored" / "hidden.md")
+    vim.fn.writefile({ "Hidden refreshed block" }, hidden)
+    require("obsidian.lsp.handlers.did_change_watched_files") {
+      changes = { { uri = vim.uri_from_fname(hidden), type = vim.lsp.protocol.FileChangeType.Changed } },
+    }
+    Workspace.set(_G.primary_block_workspace)
+  ]]
+
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "[[^^hidden" })
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+  result = run_completion(0, 10)
+  child.lua [[
+    vim.fn.delete(tostring(_G.secondary_block_workspace_dir), "rf")
+    _G.primary_block_workspace = nil
+    _G.secondary_block_workspace = nil
+    _G.secondary_block_workspace_dir = nil
+  ]]
+  assert(not vim.iter(result.items or {}):any(function(candidate)
+    return candidate.label == "Hidden refreshed block — hidden"
+  end), "incremental refresh ignored the indexed workspace's file.ignore_filters")
 end
 
 T["completion"]["retains a saved buffer overlay until the vault index is invalidated"] = function()
@@ -716,6 +822,68 @@ T["completion"]["retains a saved buffer overlay until the vault index is invalid
       return candidate.label == "Fresh target block — target"
     end),
     "saved-buffer overlay was dropped before index invalidation"
+  )
+
+  child.lua [[
+    local target = tostring(Obsidian.dir / "target.md")
+    vim.fn.writefile({ "External target block" }, target)
+    require("obsidian.lsp.handlers.did_change_watched_files") {
+      changes = { { uri = vim.uri_from_fname(target), type = vim.lsp.protocol.FileChangeType.Changed } },
+    }
+  ]]
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "[[^^external" })
+  child.api.nvim_win_set_cursor(0, { 1, 12 })
+  result = run_completion(0, 12)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "External target block — target"
+    end),
+    "watched-file change did not replace the retained buffer overlay"
+  )
+end
+
+T["completion"]["restarts a bare vault block warm-up invalidated while loading"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^",
+    ["target.md"] = "Stale target block",
+  })
+  child.lua [[
+    Obsidian.opts.completion.min_chars = 2
+    _G.block_search_scans = 0
+    local search = require "obsidian.search"
+    local find_notes_async = search.find_notes_async
+    search.find_notes_async = function(term, callback, ...)
+      _G.block_search_scans = _G.block_search_scans + 1
+      local scan = _G.block_search_scans
+      return find_notes_async(term, function(results)
+        if scan == 1 then
+          local target = tostring(Obsidian.dir / "target.md")
+          vim.fn.writefile({ "Fresh target block" }, target)
+          require("obsidian.lsp.handlers.did_change_watched_files") {
+            changes = {
+              { uri = vim.uri_from_fname(target), type = vim.lsp.protocol.FileChangeType.Changed },
+            },
+          }
+        end
+        callback(results)
+      end, ...)
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+  local result = run_completion(0, 4)
+  eq({}, result.items)
+  h.child_wait(child, [[return _G.block_search_scans == 2]], { desc = "restarted bare block-index warm-up" })
+
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "[[^^fresh" })
+  child.api.nvim_win_set_cursor(0, { 1, 9 })
+  result = run_completion(0, 9)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "Fresh target block — target"
+    end),
+    "restarted bare warm-up did not index the watched-file change"
   )
 end
 
@@ -833,6 +1001,7 @@ T["completion"]["refreshes vault block candidates after note creation and deleti
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[^^alpha",
     ["old.md"] = "Alpha original",
+    ["untouched.md"] = "Untouched cached block",
   })
 
   child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
@@ -848,6 +1017,7 @@ T["completion"]["refreshes vault block candidates after note creation and deleti
   child.lua [[
     local created = tostring(Obsidian.dir / "new.md")
     vim.fn.writefile({ "Beta created" }, created)
+    vim.fn.writefile({ "Unannounced disk block" }, tostring(Obsidian.dir / "untouched.md"))
     require("obsidian.lsp.handlers.did_change_watched_files") {
       changes = { { uri = vim.uri_from_fname(created), type = vim.lsp.protocol.FileChangeType.Created } },
     }
@@ -860,6 +1030,16 @@ T["completion"]["refreshes vault block candidates after note creation and deleti
       return candidate.label == "Beta created — new"
     end),
     "created note was not added to the vault block index"
+  )
+
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "[[^^untouched" })
+  child.api.nvim_win_set_cursor(0, { 1, 13 })
+  result = run_completion(0, 13)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "Untouched cached block — untouched"
+    end),
+    "note creation refreshed an unrelated cached note"
   )
 
   child.lua [[
@@ -875,6 +1055,16 @@ T["completion"]["refreshes vault block candidates after note creation and deleti
   assert(not vim.iter(result.items or {}):any(function(candidate)
     return candidate.label == "Alpha original — old"
   end), "deleted note remained in the vault block index")
+
+  child.api.nvim_buf_set_lines(0, 0, 1, false, { "[[^^untouched" })
+  child.api.nvim_win_set_cursor(0, { 1, 13 })
+  result = run_completion(0, 13)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "Untouched cached block — untouched"
+    end),
+    "note deletion refreshed an unrelated cached note"
+  )
 end
 
 T["completion"]["creates a block embed while preserving the leading bang"] = function()

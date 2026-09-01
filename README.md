@@ -51,7 +51,7 @@ The original project has not been actively maintained for quite a while and with
 
 ▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via in-process LSP (triggered by typing `[[` for wiki and markdown links, `#` for tags, `[^` for footnotes). Use `[[##query` to search headings across the vault. For blocks, use `[[^query` for the current note, `[[note^query` or `[[note#^query` for a named note, and `[[^^query` across the vault; unlabeled blocks receive an ID when selected.
 
-Vault-wide block candidates are indexed in memory on first use and rebuilt when note files change. The index starts warming at `[[^^`; completion items appear once the block query reaches `completion.min_chars` (set it to `0` to show candidates for a bare prefix).
+Vault-wide block candidates are indexed in memory on first use and updated per note when watched files change. The index starts warming at `[[^^`; completion items appear once the block query reaches `completion.min_chars` (set it to `0` to show candidates for a bare prefix).
 
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
