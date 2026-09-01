@@ -43,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `api.templates_dir` resolves against the given workspace root.
 - Search and backlink lookup now resolve the workspace from the searched/note path, and `find_async` applies that workspace's `file.ignore_filters`.
 - `Workspace.set` keeps the single-vault cache aligned when switching workspaces.
+- LSP note rename updates only link destinations, preserving aliases like `[[index|index]]`.
+- LSP folder rename updates vault-relative links without changing stem-only links.
+- Note rename duplicate-name warning only blocks same-folder filename collisions.
 
 ### Changed
 

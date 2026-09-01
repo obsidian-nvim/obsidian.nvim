@@ -51,6 +51,13 @@ local initializeResult = {
                 matches = "file",
               },
             },
+            {
+              scheme = "file",
+              pattern = {
+                glob = "**",
+                matches = "folder",
+              },
+            },
           },
         },
       },

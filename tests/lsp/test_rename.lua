@@ -127,6 +127,23 @@ end
   eq(false, (root / "bad:name.md"):exists())
 end
 
+T["rename current note allows same name in a different folder"] = function()
+  local root = child.Obsidian.dir
+  local folder = root / "other"
+  folder:mkdir()
+  local files = h.mock_vault_contents(root, {
+    [target] = target_content,
+    ["other/existing.md"] = "",
+  })
+
+  local new_target_path = root / "existing.md"
+
+  child.cmd("edit " .. files[target])
+  rename "existing"
+  h.child_wait_for_path(child, new_target_path)
+  eq(true, new_target_path:exists())
+end
+
 T["rename note under cursor"] = function()
   local root = child.Obsidian.dir
 
@@ -174,6 +191,32 @@ tags: []
 
 [[new_target#^block]]
 ]==]
+
+T["rename note preserves matching wiki alias"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["index.md"] = [[---
+id: index
+aliases: []
+tags: []
+---]],
+    [ref] = [==[
+
+[[index|index]]
+]==],
+  })
+  local new_target_path = root / "index-new.md"
+
+  child.cmd("edit " .. files[ref])
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+
+  rename "index-new"
+  h.child_wait_for_path(child, new_target_path)
+  child.cmd "wa"
+
+  local ref_lines = h.read(files[ref])
+  eq(true, table.concat(ref_lines, "\n"):find "%[%[index%-new|index%]%]" ~= nil)
+end
 
 T["rename note without changing blocks and headers"] = function()
   local root = child.Obsidian.dir
