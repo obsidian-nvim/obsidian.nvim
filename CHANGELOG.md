@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Note.rename` for scripting note renames.
 - Invalid filenames are checked on `Note.create` and `Note.rename`.
 - Bookmark management support for adding the current note, heading, block, or URL, bookmarking note picker selections, removing bookmarks, and moving bookmarks into groups.
+- `:Obsidian rebuild_cache` command to force cache rebuild.
 
 ### Fixed
 
