@@ -410,6 +410,31 @@ function M.notes.count()
   return n
 end
 
+---Count cached outgoing links that target `note`.
+---@param note obsidian.Note
+---@return integer
+function M.notes.backlink_count(note)
+  if not state or not state.ready then
+    return 0
+  end
+
+  local refs = {}
+  for _, ref in ipairs(note:get_reference_paths { urlencode = true }) do
+    refs[ref:lower()] = true
+  end
+
+  local count = 0
+  for _, row in pairs(state.backend:all()) do
+    for _, link in ipairs(row.links_out or {}) do
+      local target = link.target:gsub("^%./", ""):gsub("^/", ""):lower()
+      if refs[target] then
+        count = count + 1
+      end
+    end
+  end
+  return count
+end
+
 ---@class obsidian.cache.HeadingRow
 ---@field path string
 ---@field header string

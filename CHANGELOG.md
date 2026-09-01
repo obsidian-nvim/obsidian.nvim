@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Footer backlink counts now refresh on watched-file changes instead of running a vault-wide search every 10 seconds per buffer (#939).
 - Named-note heading completion now preserves the heading's original case and spelling in wiki links.
 - No `Note.create` interrupt calls in completion.
 - `:Obsidian sync log` opens real obsidian-headless cli logs.
