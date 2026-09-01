@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Vault-wide block completion reuses an in-memory block index until the vault changes instead of searching on every keystroke.
+- Vault-wide block completion reuses an in-memory candidate index, coalesces overlapping requests, and honors `completion.min_chars`.
 - **Breaking:** `find_files`, `find_notes`, `grep`, and `grep_notes` callbacks now receive a list of selected results. Multiple results use the quickfix list by default.
 - Deprecate old `picker.pick`, internally use `picker.select` with better multi-select and preview_item support.
 
