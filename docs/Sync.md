@@ -141,7 +141,7 @@ If you use neovim exclusively (no Obsidian desktop app), `configs = nil` is fine
 ## Options
 
 ```lua
----<https://help.obsidian.md/sync/settings>
+---https://help.obsidian.md/sync/settings
 ---@class obsidian.config.SyncOpts
 ---
 ---@field enabled? boolean
