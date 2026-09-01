@@ -339,7 +339,7 @@ local function cached_heading_notes(query)
       local anchors = path_to_anchors[heading.path]
       if not note then
         local row = cache.notes.get(heading.path)
-        local created = Note.new(row.id or cache.notes.basename(heading.path), row.aliases, nil, heading.path)
+        local created = Note.from_cache(heading.path, row)
         local created_anchors = {}
         rawset(created, "anchor_links", created_anchors)
         path_to_note[heading.path] = created

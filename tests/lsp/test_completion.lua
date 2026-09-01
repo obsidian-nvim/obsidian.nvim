@@ -1090,6 +1090,8 @@ T["completion"]["preserves trailing whitespace in the target block"] = function(
   end)
   assert(target_line, "target paragraph disappeared")
   assert(target_line:match "^Trailing paragraph   %^[0-9a-f]+$", "target whitespace was not preserved")
+end
+
 T["completion"]["returns cached ref items when cache is enabled"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[Fr",
