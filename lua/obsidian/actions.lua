@@ -1241,7 +1241,8 @@ end
 --- write note to disk, for lsp completion create note
 ---
 ---@param note obsidian.Note
-M.write_note = function(note)
+---@param scope string|?
+M.write_note = function(note, scope)
   -- Make sure `note` is actually an `obsidian.Note` object.
   -- If it gets serialized by server commands, it will lose its metatable.
   if not Note.is_note_obj(note) then
@@ -1250,6 +1251,7 @@ M.write_note = function(note)
       note.path = setmetatable(note.path, Path)
     end
   end
+  Note._run_creation_lifecycle(note, scope)
   note:write()
 end
 

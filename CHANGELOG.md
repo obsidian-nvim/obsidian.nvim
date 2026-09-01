@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- No `Note.create` interrupt calls in completion.
 - `:Obsidian sync log` opens real obsidian-headless cli logs.
 - YAML frontmatter dumping now quotes ambiguous string values and safely handles backslashes and single quotes.
 - Link-suggestion inlay hints exclude templates and refresh immediately after acceptance.

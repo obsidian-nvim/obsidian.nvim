@@ -1269,6 +1269,57 @@ tags:
   eq(true, found)
 end
 
+T["completion"]["new-note suggestions do not create notes while typing"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[brandnewnote",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 14 })
+  child.lua [[
+    _G.obsidian_completion_create_count = 0
+    Obsidian.opts.callbacks.create_note = function()
+      _G.obsidian_completion_create_count = _G.obsidian_completion_create_count + 1
+    end
+  ]]
+
+  local result = run_completion(0, 14)
+  local create_item = vim.iter(result.items or {}):find(function(item)
+    return item.command and item.command.command == "obsidian.write_note"
+  end)
+
+  assert(create_item, "no create item found")
+  eq(0, child.lua_get "_G.obsidian_completion_create_count")
+end
+
+T["completion"]["invalid partial filenames do not prompt during completion"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[bad:name",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+  child.lua [[
+    Obsidian.opts.note_id_func = function(title)
+      return title
+    end
+    _G.obsidian_completion_input_count = 0
+    require("obsidian.api").input = function()
+      _G.obsidian_completion_input_count = _G.obsidian_completion_input_count + 1
+      return "replacement"
+    end
+  ]]
+
+  local result = run_completion(0, 10)
+  eq(0, child.lua_get "_G.obsidian_completion_input_count")
+  eq(
+    false,
+    vim.iter(result.items or {}):any(function(item)
+      return item.command and item.command.command == "obsidian.write_note"
+    end)
+  )
+end
+
 T["completion"]["existing note match sorts before create item for the same title"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[Title",
@@ -1302,6 +1353,52 @@ Existing note content
   assert(existing_idx < create_idx, "existing note item should sort before create item")
 end
 
+T["completion"]["daily create command carries daily scope"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[@today",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 8 })
+
+  local result = run_completion(0, 8)
+  local daily_item = vim.iter(result.items or {}):find(function(item)
+    return item.command and item.command.command == "obsidian.write_note" and item.command.arguments[2] == "daily"
+  end)
+
+  assert(daily_item, "no daily create item found")
+end
+
+T["completion"]["does not offer a daily create item when its resolved path exists"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[@today",
+    ["redirected.md"] = "Existing note content",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 8 })
+  child.lua [[
+    local _, daily_id = require("obsidian.daily").daily_note_path()
+    Obsidian.opts.note_id_func = function()
+      return "plain-note"
+    end
+    Obsidian.opts.note_path_func = function(spec)
+      if spec.id == daily_id then
+        return Obsidian.dir / "redirected.md"
+      end
+      return (spec.dir / tostring(spec.id)):with_suffix(".md", true)
+    end
+  ]]
+
+  local result = run_completion(0, 8)
+  local create_items = vim.tbl_filter(function(item)
+    return item.command and item.command.command == "obsidian.write_note"
+  end, result.items or {})
+
+  eq(1, #create_items)
+  eq("plain", create_items[1].command.arguments[2])
+end
+
 T["completion"]["create_new emits write_note command that writes file"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[brandnewnote",
@@ -1309,6 +1406,25 @@ T["completion"]["create_new emits write_note command that writes file"] = functi
 
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
   child.api.nvim_win_set_cursor(0, { 1, 14 })
+  child.lua [[
+    _G.obsidian_completion_create_count = 0
+    _G.obsidian_completion_create_scope = nil
+    _G.obsidian_completion_create_event_count = 0
+    _G.obsidian_completion_create_event_scope = nil
+    Obsidian.opts.callbacks.create_note = function(note, opts)
+      _G.obsidian_completion_create_count = _G.obsidian_completion_create_count + 1
+      _G.obsidian_completion_create_scope = opts.scope
+      note:add_alias "from-callback"
+      note:add_tag "from-callback"
+    end
+    vim.api.nvim_create_autocmd("User", {
+      pattern = "ObsidianNoteCreate",
+      callback = function(ev)
+        _G.obsidian_completion_create_event_count = _G.obsidian_completion_create_event_count + 1
+        _G.obsidian_completion_create_event_scope = ev.data.opts.scope
+      end,
+    })
+  ]]
 
   local result = h.child_await(
     child,
@@ -1326,12 +1442,20 @@ T["completion"]["create_new emits write_note command that writes file"] = functi
               if item.command and item.command.command == "obsidian.write_note" then
                 has_create = true
                 local note = item.command.arguments[1]
-                require("obsidian.actions").write_note(note)
+                require("obsidian.actions").write_note(unpack(item.command.arguments))
                 note_path = tostring(note.path)
                 break
               end
             end
-            return { has_create = has_create, note_path = note_path }
+            return {
+              has_create = has_create,
+              note_path = note_path,
+              contents = table.concat(vim.fn.readfile(note_path), "\n"),
+              callback_count = _G.obsidian_completion_create_count,
+              callback_scope = _G.obsidian_completion_create_scope,
+              event_count = _G.obsidian_completion_create_event_count,
+              event_scope = _G.obsidian_completion_create_event_scope,
+            }
           end)
           if ok then
             done(result)
@@ -1350,6 +1474,11 @@ T["completion"]["create_new emits write_note command that writes file"] = functi
   local note_path = result.note_path
   eq("string", type(note_path))
   eq(1, vim.fn.filereadable(note_path))
+  eq(1, result.callback_count)
+  eq("plain", result.callback_scope)
+  eq(1, result.event_count)
+  eq("plain", result.event_scope)
+  assert(result.contents:find "from%-callback", "callback changes were not written")
 end
 
 return T
