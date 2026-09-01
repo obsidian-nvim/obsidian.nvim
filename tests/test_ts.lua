@@ -3,18 +3,32 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
-T["collect_ts_highlight_lines"] = function()
-  local src = [[
-## heading
+T["to_virt_lines"] = function()
+  local lines = {
+    "## heading",
+    "",
+    "**inline** and `code`",
+  }
 
-**inline**
-   ]]
-  local parser = vim.treesitter.get_string_parser(src, "markdown")
-  local lines = ts.collect_ts_highlight_lines(parser, src)
-  eq(lines, {
-    [1] = { { "## heading", "@markup.heading.2.markdown" } },
-    [2] = {},
-    [3] = { { "inline", "@markup.strong.markdown_inline" } },
+  eq(ts.to_virt_lines(lines), {
+    { { "## heading", "@markup.heading.2.markdown" } },
+    {},
+    {
+      { "inline", "@markup.strong.markdown_inline" },
+      { " and " },
+      { "code", "@markup.raw.markdown_inline" },
+    },
+  })
+end
+
+T["to_virt_lines stacks overlapping captures"] = function()
+  eq(ts.to_virt_lines { "***both***" }, {
+    {
+      {
+        "both",
+        { "@markup.italic.markdown_inline", "@markup.strong.markdown_inline" },
+      },
+    },
   })
 end
 
