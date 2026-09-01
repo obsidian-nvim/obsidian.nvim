@@ -543,6 +543,30 @@ Fields ~
 
 ------------------------------------------------------------------------------
 Class ~
+{(exact)} obsidian.note.DeleteOpts
+Whether to prompt when backlinks exist. Defaults to true.
+Fields ~
+{confirm_backlinks} `(optional)` `(boolean)`
+Whether to prompt for linked attachments. Defaults to true.
+{confirm_attachments} `(optional)` `(boolean)`
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} obsidian.note.DeleteAttachmentResult
+Fields ~
+{path} `(string)`
+{deleted} `(boolean)`
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} obsidian.note.DeleteResult
+Fields ~
+{deleted} `(boolean)`
+{cancelled} `(boolean)`
+{attachments} `(obsidian.note.DeleteAttachmentResult[])`
+
+------------------------------------------------------------------------------
+Class ~
 {(exact)} obsidian.note.NoteSaveOpts
 Specify a path to save to. Defaults to `self.path`.
 Fields ~
