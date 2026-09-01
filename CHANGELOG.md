@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.16.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.7) - 2026-09-01
+
 ### Added
 
 - Obsidian-style vault-wide heading completion with `[[##query`, using cached heading metadata when available and filesystem search otherwise (#320, #505, #749).
