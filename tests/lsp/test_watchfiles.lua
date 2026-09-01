@@ -62,7 +62,7 @@ T["saving an attached note emits didSave"] = function()
   eq({ "two" }, child.lua_get "did_save_tags")
 end
 
-T["initialized dynamically registers markdown watcher"] = function()
+T["initialized dynamically registers vault embed watcher"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.initialized"
 
@@ -79,9 +79,12 @@ T["initialized dynamically registers markdown watcher"] = function()
   ]]
 
   eq("client/registerCapability", child.lua_get "request_method")
-  eq("obsidian-watch-markdown", child.lua_get "request_id")
+  eq("obsidian-watch-vault", child.lua_get "request_id")
   eq("workspace/didChangeWatchedFiles", child.lua_get "request_watch_method")
-  eq("**/*.md", child.lua_get "request_watch_glob")
+  eq(
+    "**/*.{markdown,qmd,base,md,canvas,avif,bmp,gif,jpg,jpeg,png,svg,webp,flac,m4a,mp3,ogg,wav,3gp,mkv,mov,mp4,ogv,webm,pdf}",
+    child.lua_get "request_watch_glob"
+  )
   eq(
     vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete,
     child.lua_get "request_watch_kind"

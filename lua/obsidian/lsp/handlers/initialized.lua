@@ -2,15 +2,22 @@ local log = require "obsidian.log"
 
 local WatchKind = vim.lsp.protocol.WatchKind
 
+local EMBED_EXTENSIONS = table.concat({
+  "markdown",
+  "qmd",
+  "base",
+  unpack(require("obsidian.attachment").filetypes),
+}, ",")
+
 local registration = {
   registrations = {
     {
-      id = "obsidian-watch-markdown",
+      id = "obsidian-watch-vault",
       method = "workspace/didChangeWatchedFiles",
       registerOptions = {
         watchers = {
           {
-            globPattern = "**/*.md",
+            globPattern = "**/*.{" .. EMBED_EXTENSIONS .. "}",
             kind = WatchKind.Create + WatchKind.Change + WatchKind.Delete,
           },
         },
