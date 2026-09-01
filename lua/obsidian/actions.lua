@@ -1,5 +1,6 @@
 local M = {}
 local api = require "obsidian.api"
+local cache = require "obsidian.cache"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local Note = require "obsidian.note"
@@ -1411,11 +1412,41 @@ M.add_tag = function()
   end, "Add tags to current note")
 end
 
+---@param dir string|obsidian.Path|?
+---@return obsidian.Path
+local function resolve_health_dir(dir)
+  local path = Path.new(dir or Obsidian.dir)
+  if not path:is_absolute() then
+    path = Obsidian.dir / path
+  end
+  return path:resolve()
+end
+
+---@param path string|obsidian.Path
+---@param dir obsidian.Path
+---@return boolean
+local function path_in_dir(path, dir)
+  return util.is_subpath(tostring(Path.new(path):resolve()), tostring(dir))
+end
+
+---@param callback fun(graph: obsidian.Graph)
+local function with_health_graph(callback)
+  if not cache.is_enabled() then
+    log.warn "Orphan and broken-link checks require the note cache; set `cache.enabled = true`"
+    return
+  end
+
+  cache.when_ready(function()
+    callback(require("obsidian.graph").from_cache())
+  end)
+end
+
+---@param dir obsidian.Path
 ---@return obsidian.Note[]
-local function collect_workspace_notes()
+local function collect_workspace_notes(dir)
   ---@type obsidian.Note[]
   local notes = {}
-  for path in api.dir(Obsidian.dir) do
+  for path in api.dir(dir) do
     local ok, note = pcall(Note.from_file, path)
     if ok and note then
       notes[#notes + 1] = note
@@ -1439,7 +1470,7 @@ end
 M.list_empty_notes = function(opts)
   -- TODO: expand scan scope to include non-note filetypes.
   opts = opts or {}
-  local notes = collect_workspace_notes()
+  local notes = collect_workspace_notes(resolve_health_dir(opts.dir))
 
   ---@type obsidian.Note[]
   local empty_notes = {}
@@ -1470,64 +1501,72 @@ end
 ---@param opts? { dir: string|obsidian.Path|? }
 M.list_orphan_files = function(opts)
   opts = opts or {}
+  local dir = resolve_health_dir(opts.dir)
 
-  local graph = require("obsidian.graph").from_cache()
-  local paths = graph:orphan_files()
+  with_health_graph(function(graph)
+    local paths = graph:orphan_files()
 
-  ---@type obsidian.Note[]
-  local orphan_notes = {}
-  for _, path in ipairs(paths) do
-    orphan_notes[#orphan_notes + 1] = Note.from_file(path)
-  end
+    ---@type obsidian.Note[]
+    local orphan_notes = {}
+    for _, path in ipairs(paths) do
+      if path_in_dir(path, dir) then
+        orphan_notes[#orphan_notes + 1] = Note.from_file(path)
+      end
+    end
 
-  table.sort(orphan_notes, function(a, b)
-    return tostring(a.path) < tostring(b.path)
+    table.sort(orphan_notes, function(a, b)
+      return tostring(a.path) < tostring(b.path)
+    end)
+
+    ---@type vim.quickfix.entry[]
+    local items = {}
+    for _, note in ipairs(orphan_notes) do
+      items[#items + 1] = {
+        filename = tostring(note.path),
+        lnum = 1,
+        col = 1,
+        text = vim.fs.basename(tostring(note.path)),
+      }
+    end
+
+    require("obsidian.picker").select(items, { prompt = "Orphan Files" }, require("obsidian.picker.util").open_notes)
   end)
-
-  ---@type vim.quickfix.entry[]
-  local items = {}
-  for _, note in ipairs(orphan_notes) do
-    items[#items + 1] = {
-      filename = tostring(note.path),
-      lnum = 1,
-      col = 1,
-      text = vim.fs.basename(tostring(note.path)),
-    }
-  end
-
-  require("obsidian.picker").select(items, { prompt = "Orphan Files" }, require("obsidian.picker.util").open_notes)
 end
 
--- TODO: dir range
 ---@param opts? { dir: string|obsidian.Path|? }
 M.list_broken_links = function(opts)
   opts = opts or {}
-  local graph = require("obsidian.graph").from_cache()
-  local entries = graph:broken_links()
+  local dir = resolve_health_dir(opts.dir)
 
-  ---@type vim.quickfix.entry[]
-  local items = {}
+  with_health_graph(function(graph)
+    local entries = graph:broken_links()
 
-  for _, entry in ipairs(entries) do
-    items[#items + 1] = {
-      filename = entry.path,
-      lnum = entry.line,
-      col = (entry.col or 1),
-      text = entry.raw,
-    }
-  end
+    ---@type vim.quickfix.entry[]
+    local items = {}
 
-  table.sort(items, function(a, b)
-    if a.filename == b.filename then
-      if a.lnum == b.lnum then
-        return a.col < b.col
+    for _, entry in ipairs(entries) do
+      if path_in_dir(entry.path, dir) then
+        items[#items + 1] = {
+          filename = entry.path,
+          lnum = entry.line,
+          col = (entry.col or 1),
+          text = entry.raw,
+        }
       end
-      return a.lnum < b.lnum
     end
-    return a.filename < b.filename
-  end)
 
-  require("obsidian.picker").select(items, { prompt = "Broken Links" }, require("obsidian.picker.util").open_notes)
+    table.sort(items, function(a, b)
+      if a.filename == b.filename then
+        if a.lnum == b.lnum then
+          return a.col < b.col
+        end
+        return a.lnum < b.lnum
+      end
+      return a.filename < b.filename
+    end)
+
+    require("obsidian.picker").select(items, { prompt = "Broken Links" }, require("obsidian.picker.util").open_notes)
+  end)
 end
 
 return M
