@@ -72,6 +72,39 @@ end
 
 local cmd, cli
 
+---@return string
+function M.config_home()
+  local home = vim.uv.os_homedir() or tostring(vim.fn.expand "$HOME")
+  local sysname = (vim.uv.os_uname().sysname or ""):lower()
+  if sysname == "linux" then
+    local config_home = vim.env.XDG_CONFIG_HOME
+    if not config_home or config_home == "" then
+      config_home = vim.fs.joinpath(home, ".config")
+    end
+    return vim.fs.joinpath(config_home, "obsidian-headless")
+  end
+  return vim.fs.joinpath(home, ".obsidian-headless")
+end
+
+---@param path string
+---@return string
+local function normalize_path(path)
+  local normalized = vim.fs.normalize(tostring(vim.fn.fnamemodify(path, ":p")))
+  return (normalized:gsub("/$", ""))
+end
+
+---@param path string
+---@param vaults table<string, obsidian.sync.LocalVault>?
+---@return string?
+function M.sync_log_path(path, vaults)
+  local target = normalize_path(path)
+  for vault_path, vault in pairs(vaults or M.list_local(false)) do
+    if normalize_path(vault_path) == target then
+      return vim.fs.joinpath(M.config_home(), "sync", vault.hash, "sync.log")
+    end
+  end
+end
+
 ---@param out vim.SystemCompleted|nil
 ---@return string
 local function output_text(out)
