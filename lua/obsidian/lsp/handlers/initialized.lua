@@ -8,11 +8,8 @@ local function watched_filetypes()
   for _, ext in ipairs(filetypes.note_extensions) do
     seen[ext] = true
   end
-  local opts = Obsidian and Obsidian.opts or {}
-  if opts.cache and opts.cache.enabled then
-    for _, ext in ipairs(filetypes.attachment_extensions) do
-      seen[ext] = true
-    end
+  for _, ext in ipairs(filetypes.attachment_extensions) do
+    seen[ext] = true
   end
   local exts = vim.tbl_keys(seen)
   table.sort(exts)
