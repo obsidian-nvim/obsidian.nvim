@@ -42,17 +42,6 @@ local initializeResult = {
     },
     workspace = {
       fileOperations = {
-        willDelete = {
-          filters = {
-            {
-              scheme = "file",
-              pattern = {
-                glob = "**/*.md",
-                matches = "file",
-              },
-            },
-          },
-        },
         didRename = {
           filters = {
             {

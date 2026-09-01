@@ -12,13 +12,11 @@ local function rm(path)
     return false
   end
 
-  return pcall(vim.fs.rm, path, { recursive = true })
+  local ok = pcall(vim.fs.rm, path, { recursive = true })
+  return ok
 end
 
 --- Delete this note.
----
---- Set `opts.apply = false` when another caller, like a file browser, will
---- delete the note file but should still run Obsidian's delete flow.
 ---
 ---@param opts obsidian.note.DeleteOpts|?
 ---@return obsidian.note.DeleteResult
@@ -64,9 +62,7 @@ M.delete = function(self, opts)
     end
   end
 
-  if opts.apply ~= false then
-    result.deleted = rm(abs_path)
-  end
+  result.deleted = rm(abs_path)
 
   return result
 end

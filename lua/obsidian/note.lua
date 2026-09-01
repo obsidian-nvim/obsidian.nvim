@@ -1585,8 +1585,6 @@ end
 ---@field scope string Scope inherited from the `Note.create` opts, or `"plain"` when not set.
 
 ---@class (exact) obsidian.note.DeleteOpts
---- Whether to delete the note file. Defaults to true. Set false when another caller will remove the file.
----@field apply? boolean
 --- Whether to prompt when backlinks exist. Defaults to true.
 ---@field confirm_backlinks? boolean
 --- Whether to prompt for linked attachments. Defaults to true.

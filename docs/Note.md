@@ -1,5 +1,6 @@
 - [Default Note Template](#default-note-template)
 - [Creation Callback](#creation-callback)
+- [Deleting Notes](#deleting-notes)
 - [Note ID Presets](#note-id-presets)
 - [Options](#options)
 
@@ -78,6 +79,18 @@ local note = require("obsidian.note").create {
   scope = "media",
 }
 ```
+
+## Deleting Notes
+
+Use the `delete_note` code action to delete the current note. It calls `Note.delete()`, asks you to confirm permanent deletion, warns you about backlinks, and lets you delete linked attachments. Run it through your LSP code action picker or directly:
+
+```lua
+require("obsidian.actions").delete_note()
+```
+
+Scripts can call `note:delete()` directly and inspect the returned deletion result.
+
+Support for deleting notes through LSP-aware file browsers is on the roadmap. Until then, use the `delete_note` action so declining a confirmation prevents deletion.
 
 ## Note ID Presets
 

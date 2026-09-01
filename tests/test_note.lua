@@ -244,17 +244,6 @@ T["delete"]["should delete the note file by default"] = function()
   eq(nil, vim.uv.fs_stat(path))
 end
 
-T["delete"]["should support apply=false for callers that delete the file"] = function()
-  local note = M.create { id = "keep-me", verbatim = true }
-  note:write()
-  local path = tostring(note.path)
-
-  local result = note:delete { apply = false, confirm_backlinks = false, confirm_attachments = false }
-
-  eq(false, result.deleted)
-  eq(true, vim.uv.fs_stat(path) ~= nil)
-end
-
 T["delete"]["should abort when backlink confirmation is declined"] = function()
   local old_confirm = api.confirm
   local prompt
