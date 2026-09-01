@@ -105,6 +105,13 @@ by `note:write` unless overridden.
 @return obsidian.Note
 
 ------------------------------------------------------------------------------
+                                                *Note._run_creation_lifecycle()*
+                `Note._run_creation_lifecycle`({note}, {scope})
+Parameters ~
+{note} `(obsidian.Note)`
+{scope} `(string|)`?
+
+------------------------------------------------------------------------------
                                                                     *Note.new()*
               `Note.new`({id}, {aliases}, {tags}, {path}, {title})
 Instantiates a new Note object
