@@ -377,6 +377,8 @@ function Graph:broken_links()
   return result
 end
 
+-- TODO: tag
+
 ---Return absolute paths of notes with no resolved incoming or outgoing note links.
 ---Tag and broken links do not prevent a note from being an orphan.
 ---@return string[]
