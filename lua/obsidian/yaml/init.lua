@@ -19,30 +19,76 @@ end
 
 ---@param s string
 ---@return boolean
+local resolves_as_non_string = function(s)
+  -- Quote strings that this parser, YAML 1.2, or common YAML 1.1 parsers would
+  -- otherwise resolve as numbers, booleans, or nulls.
+  if resolves_as_number(s) then
+    return true
+  end
+
+  local lower = string.lower(s)
+  return lower == "true"
+    or lower == "false"
+    or lower == "null"
+    or lower == "~"
+    or lower == "y"
+    or lower == "yes"
+    or lower == "n"
+    or lower == "no"
+    or lower == "on"
+    or lower == "off"
+end
+
+---@param s string
+---@return boolean
+local is_date_like = function(s)
+  return s:match "^%d%d%d%d[._%-]%d%d?[._%-]%d%d?$" ~= nil
+    or s:match "^%d%d%d%d[._%-]%d%d?[._%-]%d%d?%s+%d%d?:%d%d$" ~= nil
+    or s:match "^%d%d%d%d[._%-]%d%d?[._%-]%d%d?%s+%d%d?:%d%d:%d%d$" ~= nil
+end
+
+---@param s string
+---@return boolean
 local should_quote = function(s)
-  -- TODO: this probably doesn't cover all edge cases.
-  -- See https://www.yaml.info/learn/quote.html
-  -- Check if it starts with a special character.
-  if string.match(s, [[^["'\\[{&!-].*]]) then
+  -- Plain scalar rules: https://www.yaml.info/learn/quote.html
+  -- We quote conservatively, but still allow backslash-starting scalars like
+  -- Pandoc LaTeX header-includes (`\usepackage{...}`), where double quotes can
+  -- accidentally introduce YAML escape sequences.
+  if s == "" or s:match "^%s" or s:match "%s$" then
     return true
-  -- Check if it has a colon followed by whitespace.
-  elseif string.find(s, ": ", 1, true) then
+  elseif s:match "[%z\1-\8\11\12\14-\31]" then
     return true
-  -- Check for wikilinks (e.g., [[note]], [[note|alias]], [[note#section]])
+  elseif s:match "^[-?:]%s" or s == "-" or s == "?" or s == ":" then
+    return true
+  elseif s:match "^[!&*{}%[%],#|>%%@`\"']" then
+    return true
+  elseif s:match "^%.%.%.%s*$" or s:match "^%-%-%-%s*$" then
+    return true
+  elseif s:find(": ", 1, true) or s:match ":$" then
+    return true
+  elseif s:match "%s#" then
+    return true
   elseif s:match "%[%[.-%]%]" then
     return true
-  -- Check if it's an empty string.
-  elseif s == "" or string.match(s, "^[%s]+$") then
-    return true
-  -- Numeric-looking strings are syntactically valid plain scalars, but they
-  -- resolve as numbers. Quote them to preserve string values.
-  elseif resolves_as_number(s) then
+  elseif resolves_as_non_string(s) then
     return true
   elseif util.is_hex_color(s) then
+    return true
+  elseif s:match "%s" and not is_date_like(s) then
     return true
   else
     return false
   end
+end
+
+---@param s string
+---@return string
+local quote_string = function(s)
+  if s:find("\\", 1, true) then
+    return "'" .. s:gsub("'", "''") .. "'"
+  end
+
+  return '"' .. s:gsub('"', '\\"') .. '"'
 end
 
 ---@param s string
@@ -65,8 +111,7 @@ local function dump_string(s, indent)
   end
 
   if should_quote(s) then
-    s = string.gsub(s, '"', '\\"')
-    return { indent_str .. [["]] .. s .. [["]] }
+    return { indent_str .. quote_string(s) }
   else
     return { indent_str .. s }
   end

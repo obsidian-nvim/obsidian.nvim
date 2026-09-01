@@ -11,13 +11,14 @@ T["dump"]["should dump numbers"] = function()
 end
 
 T["dump"]["should dump strings"] = function()
-  eq(yaml.dumps "hi there", "hi there")
-  eq(yaml.dumps "hi it's me", "hi it's me")
+  eq(yaml.dumps "hi there", '"hi there"')
+  eq(yaml.dumps "hi it's me", '"hi it\'s me"')
   eq(yaml.dumps { foo = "bar" }, [[foo: bar]])
 end
 
-T["dump"]["should dump strings with a single quote without quoting"] = function()
-  eq(yaml.dumps "hi it's me", "hi it's me")
+T["dump"]["should quote strings with whitespace"] = function()
+  eq(yaml.dumps "hi it's me", '"hi it\'s me"')
+  eq(yaml.dumps { title = "Useful raw LaTeX commands in Markdown" }, 'title: "Useful raw LaTeX commands in Markdown"')
 end
 
 T["dump"]["should dump table with string values"] = function()
@@ -80,6 +81,10 @@ T["dump"]["should otherwise quote strings with a colon followed by whitespace"] 
   eq(yaml.dumps { a = "2023: a letter" }, [[a: "2023: a letter"]])
 end
 
+T["dump"]["should quote strings with comments"] = function()
+  eq(yaml.dumps { a = "foo # bar" }, [[a: "foo # bar"]])
+end
+
 T["dump"]["should quote strings that start with special characters"] = function()
   eq(yaml.dumps { a = "& aaa" }, [[a: "& aaa"]])
   eq(yaml.dumps { a = "! aaa" }, [[a: "! aaa"]])
@@ -90,8 +95,35 @@ T["dump"]["should quote strings that start with special characters"] = function(
   eq(yaml.dumps { a = '"aaa"' }, [[a: "\"aaa\""]])
 end
 
-T["dump"]["should not unnecessarily escape double quotes in strings"] = function()
-  eq(yaml.dumps { a = 'his name is "Winny the Poo"' }, 'a: his name is "Winny the Poo"')
+T["dump"]["should not quote strings that start with backslash"] = function()
+  eq(yaml.dumps { a = [[\usepackage{xcolor}]] }, [[a: \usepackage{xcolor}]])
+end
+
+T["dump"]["should quote and escape double quotes in strings with whitespace"] = function()
+  eq(yaml.dumps { a = 'his name is "Winny the Poo"' }, 'a: "his name is \\"Winny the Poo\\""')
+end
+
+T["dump"]["should single quote strings with backslashes that need quotes"] = function()
+  eq(yaml.dumps { a = [[C:\Program Files]] }, [[a: 'C:\Program Files']])
+end
+
+T["dump"]["should quote string values that resolve as booleans or nulls"] = function()
+  eq(yaml.dumps { a = "true", b = "null", c = "off" }, 'a: "true"\nb: "null"\nc: "off"')
+end
+
+T["dump"]["should quote markdown titles without quoting LaTeX header includes"] = function()
+  local order = { title = 1, author = 2, date = 3, ["header-includes"] = 4 }
+  eq(
+    yaml.dumps({
+      title = "Useful raw LaTeX commands in Markdown",
+      author = "Your Name",
+      date = "today",
+      ["header-includes"] = { [[\usepackage{xcolor}]], [[\usepackage{soul}]] },
+    }, function(a, b)
+      return order[a] < order[b]
+    end),
+    'title: "Useful raw LaTeX commands in Markdown"\nauthor: "Your Name"\ndate: today\nheader-includes:\n  - \\usepackage{xcolor}\n  - \\usepackage{soul}'
+  )
 end
 
 T["dump"]["should dump null array items as bare dash"] = function()
