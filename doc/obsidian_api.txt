@@ -461,14 +461,14 @@ Return ~
 
 ------------------------------------------------------------------------------
                                                                  *Note.status()*
-              `Note.status`({self}, {update_backlink}, {callback})
-Return note status counts, like obsidian's status bar
+             `Note.status`({self}, {update_backlinks}, {callback})
+Return note status counts, like obsidian's status bar.
 
 Parameters ~
-{update_backlink} `(boolean|)`?
-{callback} `(fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer })|)`?
+{update_backlinks} `(boolean|? Set)` to false to skip computing backlinks.
+{callback} `(fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer? })|)`?
 Return ~
-`({ words: integer, chars: integer, properties: integer, backlinks: integer }?)`
+`({ words: integer, chars: integer, properties: integer, backlinks: integer? }?)`
 
 ------------------------------------------------------------------------------
                                                              *Note.body_lines()*
