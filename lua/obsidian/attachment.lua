@@ -57,9 +57,9 @@ end
 --- Resolve a basename to full path inside the vault.
 ---
 ---@param src string
----@param bufnr integer|?
+---@param bufnr_or_filename integer|string|nil
 ---@return string
-M.resolve_attachment_path = function(src, bufnr)
+M.resolve_attachment_path = function(src, bufnr_or_filename)
   local Path = require "obsidian.path"
   local attachment_folder = Obsidian.opts.attachments.folder
 
@@ -68,13 +68,15 @@ M.resolve_attachment_path = function(src, bufnr)
   end
 
   ---@cast attachment_folder -nil
+  local fname = type(bufnr_or_filename) == "string" and bufnr_or_filename
+    or vim.api.nvim_buf_get_name(bufnr_or_filename or 0)
+  ---@cast fname -nil
   if vim.startswith(attachment_folder, ".") then
-    bufnr = bufnr or 0
-    local dirname = Path.new(vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)))
+    ---TODO: verify is obsidian buffer
+    local dirname = Path.new(vim.fs.dirname(fname))
     return tostring(dirname / attachment_folder / src)
   else
-    local bufname = vim.api.nvim_buf_get_name(bufnr or 0)
-    local workspace_dir = require("obsidian.api").resolve_workspace_dir(bufname ~= "" and bufname or nil)
+    local workspace_dir = require("obsidian.api").resolve_workspace_dir(fname ~= "" and fname or nil)
     return tostring(workspace_dir / attachment_folder / src)
   end
 end

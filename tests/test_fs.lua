@@ -317,5 +317,4 @@ T["path sorting does not stat every result"] = function()
 
   eq(result_stats, 0)
 end
-
 return T

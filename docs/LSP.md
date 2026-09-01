@@ -49,6 +49,7 @@ Available actions:
   - Start/stop recording audio as attachment (`toggle_recording`, title changes with recording state)
   - Insert template at cursor (`insert_template`, requires templates enabled)
   - Move current note to another folder (`move_note`)
+  - Delete current note (`delete_note`)
   - Merge current note into another note (`merge_note`)
   - Start presentation (`start_presentation`, requires slides enabled)
   - Insert internal link at cursor (`insert_link`)

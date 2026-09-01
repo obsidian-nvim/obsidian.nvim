@@ -13,6 +13,7 @@ See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP inte
 | `insert_template`    | `n`      | Insert a template at cursor.           | `name`               |
 | `rename`             | `n`      | Rename current note.                   | `name`               |
 | `move_note`          | `n`      | Move current note to another folder.   |                      |
+| `delete_note`        | `n`      | Delete current note.                   |                      |
 | `merge_note`         | `n`      | Merge current note into another note.  | `dst_note`           |
 | `start_presentation` | `n`      | Start slide presentation.              | `buf`                |
 | `workspace_symbol`   | `n`      | Search notes, aliases, and headings.   | `query`              |
