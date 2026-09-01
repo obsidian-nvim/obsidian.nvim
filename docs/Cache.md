@@ -61,6 +61,14 @@ LSP `textDocument/didSave` notifications refresh saved notes immediately. Plugin
 
 The cache follows your existing `file.ignore_filters` setting.
 
+To force a full rescan after external changes or suspected stale data, run:
+
+```vim
+:Obsidian rebuild_cache
+```
+
+The command reparses every supported note, removes entries for missing files, and flushes the rebuilt cache immediately.
+
 ## Backends
 
 Built-in backends:
