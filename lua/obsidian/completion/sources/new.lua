@@ -90,14 +90,14 @@ function M.process_completion(callback, request)
     anchor = { anchor = anchor_link, header = string.sub(anchor_link, 2), level = 1, line = 1 }
   end
 
-  ---@type { label: string, note: obsidian.Note }[]
+  ---@type { label: string, note: obsidian.Note, scope: string }[]
   local new_notes_opts = {}
 
   local source_path = vim.api.nvim_buf_get_name(request.bufnr)
   local workspace_dir = api.resolve_workspace_dir(source_path)
   local note = preview_note { id = term, template = Obsidian.opts.note.template, source_path = source_path }
   if note and note.id and string.len(note.id) > 0 then
-    new_notes_opts[#new_notes_opts + 1] = { label = term, note = note }
+    new_notes_opts[#new_notes_opts + 1] = { label = term, note = note, scope = "plain" }
   end
 
   -- Check for datetime macros. Build missing daily notes directly instead of
@@ -107,24 +107,22 @@ function M.process_completion(callback, request)
       local daily = require "obsidian.daily"
       local timestamp = os.time() + (dt_offset.offset * 3600 * 24)
       local path, id = daily.daily_note_path(timestamp, workspace_dir)
-      if not path:exists() then
-        local aliases = {}
-        if Obsidian.opts.daily_notes.alias_format ~= nil then
-          aliases[1] = tostring(util.format_date(timestamp, Obsidian.opts.daily_notes.alias_format))
-        end
-        note = preview_note {
-          id = id,
-          verbatim = true,
-          aliases = aliases,
-          tags = Obsidian.opts.daily_notes.default_tags or {},
-          dir = path:parent(),
-          template = Obsidian.opts.daily_notes.template,
-          source_path = source_path,
-          scope = "daily",
-        }
-        if note then
-          new_notes_opts[#new_notes_opts + 1] = { label = dt_offset.macro, note = note }
-        end
+      local aliases = {}
+      if Obsidian.opts.daily_notes.alias_format ~= nil then
+        aliases[1] = tostring(util.format_date(timestamp, Obsidian.opts.daily_notes.alias_format))
+      end
+      note = preview_note {
+        id = id,
+        verbatim = true,
+        aliases = aliases,
+        tags = Obsidian.opts.daily_notes.default_tags or {},
+        dir = path:parent(),
+        template = Obsidian.opts.daily_notes.template,
+        source_path = source_path,
+        scope = "daily",
+      }
+      if note and not note:exists() then
+        new_notes_opts[#new_notes_opts + 1] = { label = dt_offset.macro, note = note, scope = "daily" }
       end
     end
   end
@@ -185,7 +183,7 @@ function M.process_completion(callback, request)
       command = {
         command = "obsidian.write_note",
         title = "Obsidian write note",
-        arguments = { new_note },
+        arguments = { new_note, new_note_opts.scope },
       },
       -- NOTE: for [[new_note@template future expansion
       -- command = {

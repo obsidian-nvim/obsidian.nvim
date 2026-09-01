@@ -435,13 +435,19 @@ Note.create = function(opts)
   local aliases = opts.aliases
   local note = Note.new(new_id, aliases, opts.tags, path, title)
   note.template = opts.template
-  local callback_opts = { scope = opts.scope or "plain" }
+  Note._run_creation_lifecycle(note, opts.scope)
+  return note
+end
+
+---@param note obsidian.Note
+---@param scope string|?
+Note._run_creation_lifecycle = function(note, scope)
+  local callback_opts = { scope = scope or "plain" }
   util.fire_callback("create_note", Obsidian.opts.callbacks.create_note, note, callback_opts)
   vim.api.nvim_exec_autocmds("User", {
     pattern = "ObsidianNoteCreate",
     data = { note = note, opts = callback_opts },
   })
-  return note
 end
 
 --- Instantiates a new Note object
