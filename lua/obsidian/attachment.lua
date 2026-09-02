@@ -43,6 +43,7 @@ M.filetypes = filetypes
 ---@param location string
 ---@return boolean
 M.is_attachment_path = function(location)
+  location = location:lower()
   if vim.endswith(location, ".md") then
     return false
   end
@@ -54,12 +55,13 @@ M.is_attachment_path = function(location)
   return false
 end
 
---- Resolve a basename to full path inside the vault.
+--- Resolve the configured destination for a new attachment.
 ---
+--- The returned path does not need to exist.
 ---@param src string
 ---@param bufnr_or_filename integer|string|nil
 ---@return string
-M.resolve_attachment_path = function(src, bufnr_or_filename)
+M.destination_path = function(src, bufnr_or_filename)
   local Path = require "obsidian.path"
   local attachment_folder = Obsidian.opts.attachments.folder
 
@@ -79,6 +81,236 @@ M.resolve_attachment_path = function(src, bufnr_or_filename)
     local workspace_dir = require("obsidian.api").resolve_workspace_dir(fname ~= "" and fname or nil)
     return tostring(workspace_dir / attachment_folder / src)
   end
+end
+
+--- Compatibility alias for `destination_path`.
+M.resolve_attachment_path = M.destination_path
+
+---@class obsidian.AttachmentResolveOpts
+---@field bufnr? integer Buffer containing the attachment reference.
+---@field filename? string File containing the attachment reference.
+
+---@class obsidian.AttachmentMatch
+---@field path string Absolute attachment path.
+---@field rel_path string Vault-relative attachment path.
+---@field basename string Attachment basename.
+---@field ambiguous boolean Whether another match has the same basename.
+
+---@param opts obsidian.AttachmentResolveOpts|?
+---@return string filename
+---@return string workspace_dir
+---@return string source_dir
+local function resolve_context(opts)
+  opts = opts or {}
+  local filename = opts.filename
+  if not filename then
+    filename = vim.api.nvim_buf_get_name(opts.bufnr or 0)
+  end
+  local workspace_dir = tostring(require("obsidian.api").resolve_workspace_dir(filename ~= "" and filename or nil))
+  local source_dir = filename ~= "" and vim.fs.dirname(filename) or workspace_dir
+  return filename, workspace_dir, source_dir
+end
+
+---@param path string
+---@return boolean
+local function is_attachment_file(path)
+  local stat = vim.uv.fs_stat(path)
+  return stat ~= nil and stat.type == "file" and M.is_attachment_path(path)
+end
+
+---@param path string
+---@param base string
+---@return string?
+local function relative_path(path, base)
+  local ok, relative = pcall(function()
+    return require("obsidian.path").new(path):relative_to(base)
+  end)
+  return ok and tostring(relative):gsub("^%./", "") or nil
+end
+
+---@param value string
+---@return string
+local function comparable_path(value)
+  return vim.fs.normalize(value):gsub("^%./", ""):gsub("\\", "/"):lower()
+end
+
+---@param paths string[]
+---@return string[]
+local function unique_paths(paths)
+  local result = {}
+  local seen = {}
+  for _, path in ipairs(paths) do
+    path = vim.fs.normalize(path)
+    if not seen[path] then
+      seen[path] = true
+      result[#result + 1] = path
+    end
+  end
+  return result
+end
+
+--- Find attachments in the source workspace.
+---
+--- Private for now; completion and attachment operations may use it internally.
+---@param term string
+---@param opts obsidian.AttachmentResolveOpts|?
+---@param callback fun(matches: obsidian.AttachmentMatch[])
+---@return fun() cancel
+M._find_async = function(term, opts, callback)
+  local _, workspace_dir = resolve_context(opts)
+  local matches = {}
+
+  return require("obsidian.search").find_async(workspace_dir, term, { include_non_markdown = true }, function(path)
+    if M.is_attachment_path(path) then
+      matches[#matches + 1] = {
+        path = path,
+        rel_path = relative_path(path, workspace_dir) or path,
+        basename = vim.fs.basename(path),
+        ambiguous = false,
+      }
+    end
+  end, function()
+    local basename_counts = {}
+    for _, match in ipairs(matches) do
+      local basename = match.basename:lower()
+      basename_counts[basename] = (basename_counts[basename] or 0) + 1
+    end
+    for _, match in ipairs(matches) do
+      match.ambiguous = basename_counts[match.basename:lower()] > 1
+    end
+    table.sort(matches, function(a, b)
+      local a_name, b_name = a.basename:lower(), b.basename:lower()
+      if a_name == b_name then
+        return a.rel_path:lower() < b.rel_path:lower()
+      end
+      return a_name < b_name
+    end)
+    vim.schedule(function()
+      callback(matches)
+    end)
+  end)
+end
+
+---@param src string
+---@return string?
+local function normalize_reference(src)
+  src = vim.trim(src)
+  src = util.strip_block_links(src)
+  src = util.strip_anchor_links(src)
+  src = vim.uri_decode(src) or src
+  return src ~= "" and src or nil
+end
+
+---@param src string
+---@param opts obsidian.AttachmentResolveOpts|?
+---@param matches obsidian.AttachmentMatch[]|nil
+---@return string? path
+---@return string? err
+---@return string[]? candidates
+M._resolve_reference = function(src, opts, matches)
+  local Path = require "obsidian.path"
+  local normalized = normalize_reference(src)
+  if not normalized then
+    return nil, "Invalid attachment reference"
+  end
+
+  local is_uri, scheme = util.is_uri(normalized)
+  if is_uri then
+    if scheme ~= "file" then
+      return nil, "Unsupported attachment URI scheme '" .. tostring(scheme) .. "'"
+    end
+    local uri_path = vim.fs.normalize(vim.uri_to_fname(normalized))
+    if is_attachment_file(uri_path) then
+      return uri_path
+    end
+    return nil, "Attachment not found: " .. uri_path
+  end
+
+  local _, workspace_dir, source_dir = resolve_context(opts)
+  local path = Path.new(normalized)
+  if path:is_absolute() and is_attachment_file(normalized) then
+    return vim.fs.normalize(normalized)
+  end
+
+  local has_path = normalized:find "[/\\]" ~= nil
+  if not has_path then
+    local configured = vim.fs.normalize(M.destination_path(normalized, opts and (opts.filename or opts.bufnr) or nil))
+    if is_attachment_file(configured) then
+      return configured
+    end
+  end
+
+  local direct = {}
+  if has_path then
+    if vim.startswith(normalized, "./") or vim.startswith(normalized, "../") then
+      direct[#direct + 1] = vim.fs.joinpath(source_dir, normalized)
+    elseif vim.startswith(normalized, "/") then
+      direct[#direct + 1] = vim.fs.joinpath(workspace_dir, normalized:sub(2))
+    else
+      direct[#direct + 1] = vim.fs.joinpath(source_dir, normalized)
+      direct[#direct + 1] = vim.fs.joinpath(workspace_dir, normalized)
+    end
+  end
+
+  local candidates = {}
+  for _, candidate in ipairs(unique_paths(direct)) do
+    if is_attachment_file(candidate) then
+      candidates[#candidates + 1] = candidate
+    end
+  end
+
+  if matches then
+    local target = comparable_path(normalized:gsub("^/", ""))
+    for _, match in ipairs(matches) do
+      if is_attachment_file(match.path) then
+        local matches_reference
+        if has_path then
+          local from_workspace = comparable_path(match.rel_path)
+          local from_source = relative_path(match.path, source_dir)
+          matches_reference = from_workspace == target
+            or (from_source ~= nil and comparable_path(from_source) == comparable_path(normalized))
+        else
+          matches_reference = match.basename:lower() == normalized:lower()
+        end
+        if matches_reference then
+          candidates[#candidates + 1] = match.path
+        end
+      end
+    end
+  end
+
+  candidates = unique_paths(candidates)
+  if #candidates == 1 then
+    return candidates[1]
+  elseif #candidates > 1 then
+    return nil, "Ambiguous attachment reference '" .. src .. "'", candidates
+  elseif matches then
+    return nil, "Attachment not found: " .. src
+  end
+end
+
+--- Resolve an existing attachment reference.
+---
+--- Private for now; mutation and navigation operations should use this instead
+--- of treating the configured destination as an existing file.
+---@param src string
+---@param opts obsidian.AttachmentResolveOpts|?
+---@param callback fun(path: string?, err: string?, candidates: string[]?)
+---@return fun() cancel
+M._resolve_async = function(src, opts, callback)
+  local path, err, candidates = M._resolve_reference(src, opts, nil)
+  if path or err then
+    vim.schedule(function()
+      callback(path, err, candidates)
+    end)
+    return function() end
+  end
+
+  local normalized = assert(normalize_reference(src))
+  return M._find_async(vim.fs.basename(normalized), opts, function(matches)
+    path, err, candidates = M._resolve_reference(src, opts, matches)
+    callback(path, err, candidates)
+  end)
 end
 
 ---@param fname string
@@ -154,7 +386,7 @@ local function get_attachment_paths(src, bufnr, new_name)
     fname = validated_name
   end
 
-  return src_path, M.resolve_attachment_path(fname, bufnr)
+  return src_path, M.destination_path(fname, bufnr)
 end
 
 ---@param src string
@@ -272,7 +504,7 @@ M.add = function(src, opts)
   end
 
   if opts.insert ~= false then
-    local link_text = M.format_link(resolved_dst)
+    local link_text = M.format_link(resolved_dst, { bufnr = bufnr })
     local insert_pos = normalize_position(opts.position)
     if insert_pos then
       vim.api.nvim_buf_set_text(
@@ -299,19 +531,85 @@ M.add = function(src, opts)
   return resolved_dst
 end
 
+---@class obsidian.AttachmentLinkOpts : obsidian.AttachmentResolveOpts
+---@field embed? boolean Prefix the link with `!`.
+---@field format? obsidian.link.LinkFormat
+---@field label? string
+---@field style? obsidian.link.LinkStyleOption
+
 ---@param dst string
+---@param format obsidian.link.LinkFormat
+---@param opts obsidian.AttachmentLinkOpts
 ---@return string
-M.format_link = function(dst)
-  local basename = vim.fs.basename(dst)
-  local style = Obsidian.opts.link.style
-  if style == "wiki" then
-    return "![[" .. basename .. "]]"
-  elseif style == "markdown" then
-    return "![](" .. util.urlencode(basename) .. ")"
-  elseif type(style) == "function" then
-    return style { path = basename }
+local function format_path(dst, format, opts)
+  if format == "absolute" then
+    return assert(require("obsidian.path").new(dst):vault_relative_path { strict = true })
+  elseif format == "relative" then
+    local _, _, source_dir = resolve_context(opts)
+    local rel_path = assert(util.relpath(source_dir, dst), "failed to resolve attachment path against source file")
+    return (rel_path:gsub("^%./", ""))
   end
-  return "![[" .. basename .. "]]"
+  return vim.fs.basename(dst)
+end
+
+--- Format a reference to an attachment.
+---@param dst string
+---@param opts obsidian.AttachmentLinkOpts|?
+---@return string
+M.format_reference = function(dst, opts)
+  opts = opts or {}
+  local format = opts.format or Obsidian.opts.link.format
+  ---@cast format -nil
+  local style = opts.style or Obsidian.opts.link.style
+  local path = format_path(dst, format, opts)
+  local link_opts = {
+    path = path,
+    label = opts.label or "",
+    style = style,
+    format = format,
+  }
+  local link
+
+  if style == "wiki" or style == nil then
+    link = require("obsidian.builtin").wiki_link(link_opts)
+  elseif style == "markdown" then
+    link = require("obsidian.builtin").markdown_link(link_opts)
+  elseif type(style) == "function" then
+    link = style(link_opts)
+  else
+    error(string.format("Invalid link style '%s'", style))
+  end
+
+  if opts.embed and not vim.startswith(link, "!") then
+    link = "!" .. link
+  end
+  return link
+end
+
+--- Format an embedded attachment link.
+---@param dst string
+---@param opts obsidian.AttachmentLinkOpts|?
+---@return string
+M.format_link = function(dst, opts)
+  opts = vim.tbl_extend("force", opts or {}, { embed = true })
+  return M.format_reference(dst, opts)
+end
+
+--- Rename an attachment and update references that resolve to it.
+---@param src string Attachment reference or path.
+---@param new_name string New basename. The old extension is retained when omitted.
+---@param opts obsidian.RenameAttachmentOpts|?
+---@param callback? fun(err: string?, edit: lsp.WorkspaceEdit?, meta: obsidian.RenameAttachmentMeta?)
+M.rename = function(src, new_name, opts, callback)
+  return require("obsidian.attachment.rename").rename(src, new_name, opts, callback)
+end
+
+--- Delete an existing attachment.
+---@param src string Attachment reference or path.
+---@param opts obsidian.DeleteAttachmentOpts|?
+---@param callback? fun(err: string?, path: string?)
+M.delete = function(src, opts, callback)
+  return require("obsidian.attachment.delete").delete(src, opts, callback)
 end
 
 return M

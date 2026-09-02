@@ -120,7 +120,7 @@ end
 ---@param range obsidian.Range
 ---@return obsidian.parse.Ref?
 local function parse_markdown(raw, range)
-  local label, target = raw:match "^!?%[([^%]]+)%]%(([^%)]+)%)$"
+  local label, target = raw:match "^!?%[([^%]]*)%]%(([^%)]+)%)$"
   if not target then
     return nil
   end
@@ -168,7 +168,7 @@ local patterns = {
   -- NOTE: Footnote must come before Markdown so that `[^fn](text)` is matched
   -- as a footnote ref instead of a markdown link.
   { pattern = "%[%^[^%]%[%s]+%]", parser = parse_footnote },
-  { pattern = "%[[^][]+%]%([^%)]+%)", parser = parse_markdown },
+  { pattern = "%[[^][]*%]%([^%)]+%)", parser = parse_markdown },
 }
 
 ---Extract outgoing wiki/markdown/footnote refs from a single line.
