@@ -1,5 +1,7 @@
 - [Save location](#save-location)
 - [Add attachment](#add-attachment)
+- [Rename attachment](#rename-attachment)
+- [Delete attachment](#delete-attachment)
 - [Hook after adding attachments](#hook-after-adding-attachments)
 - [Paste from clipboard path](#paste-from-clipboard-path)
 - [Open](#open)
@@ -25,8 +27,9 @@ For `attachment.add(source, opts)`:
 
 - If `source` is a local file (or `file://` URI), the file is copied.
 - If `source` is a `http(s)` URL, the file is downloaded with `curl`.
-- The destination path is always resolved by `api.resolve_attachment_path()` and controlled by [Save location](#save-location).
+- The destination path is resolved by `attachment.destination_path()` and controlled by [Save location](#save-location). `api.resolve_attachment_path()` remains a compatibility alias.
 - Set `opts.new_name` to copy/download the attachment with a different destination basename.
+- Inserted links follow `opts.link.style` and `opts.link.format`; relative links omit an unnecessary `./` prefix.
 
 For `actions.add_attachment(source, opts)`:
 
@@ -44,6 +47,18 @@ Both functions accept the same `opts` table:
 ---@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
 ---@field scope? string Context passed to callbacks as `ctx.scope`.
 ```
+
+## Rename attachment
+
+`require("obsidian.attachment").rename(reference, new_name, opts, callback)` resolves an existing attachment, renames it, and updates wiki and Markdown references that resolve to it. If `new_name` has no extension, the existing extension is retained.
+
+Set `opts.apply = false` to receive the generated workspace edit without applying it. A callback is required in that mode.
+
+## Delete attachment
+
+`require("obsidian.attachment").delete(reference, opts, callback)` resolves and permanently deletes an existing attachment. Ambiguous basename references are rejected; use a relative or vault-relative path to identify a specific duplicate.
+
+Both operations resolve basename references from the configured attachment destination first, then search the vault. Their callbacks receive an error as the first argument.
 
 ## Hook after adding attachments
 

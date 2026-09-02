@@ -22,4 +22,18 @@ T["format_link"]["markdown links should URL-encode basename"] = function()
   eq("![](test%20file%20%281%29.png)", attachment.format_link(mock_file))
 end
 
+T["format_link"]["absolute format uses a vault-relative path"] = function()
+  local path = vim.fs.joinpath(tostring(Obsidian.dir), "assets", "diagram.png")
+  eq("![[assets/diagram.png]]", attachment.format_link(path, { format = "absolute" }))
+end
+
+T["format_link"]["relative format omits a leading dot slash"] = function()
+  local note = vim.fs.joinpath(tostring(Obsidian.dir), "notes", "note.md")
+  local same_dir = vim.fs.joinpath(tostring(Obsidian.dir), "notes", "diagram.png")
+  local other_dir = vim.fs.joinpath(tostring(Obsidian.dir), "assets", "diagram.png")
+
+  eq("![[diagram.png]]", attachment.format_link(same_dir, { format = "relative", filename = note }))
+  eq("![[../assets/diagram.png]]", attachment.format_link(other_dir, { format = "relative", filename = note }))
+end
+
 return T
