@@ -133,3 +133,19 @@ resolvers = {
 ```
 
 The built-in resolver returns link-suggestion hints for the requested range.
+
+## Inline completion resolver
+
+`opts.resolvers.inline_completion` builds inline completion items for text being typed. Replacing it overrides the built-in plain-text and wiki-link suggestions derived from cached note names and aliases.
+
+```lua
+---@class obsidian.resolver.InlineCompletionCtx
+---@field bufnr integer
+---@field note obsidian.Note
+---@field position lsp.Position
+---@field context lsp.InlineCompletionContext
+
+---@alias obsidian.resolver.InlineCompletionResult lsp.InlineCompletionItem[]|lsp.InlineCompletionList
+```
+
+The returned items must be valid, serializable LSP inline completion items.

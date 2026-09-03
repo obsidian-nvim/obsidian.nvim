@@ -35,6 +35,15 @@ local M = {}
 ---@alias obsidian.resolver.HintsResult lsp.InlayHint[]
 ---@alias obsidian.resolver.Hints fun(ctx: obsidian.resolver.HintsCtx, done: fun(result: obsidian.resolver.HintsResult|?, err: string|?))
 
+---@class obsidian.resolver.InlineCompletionCtx
+---@field bufnr integer
+---@field note obsidian.Note
+---@field position lsp.Position
+---@field context lsp.InlineCompletionContext
+
+---@alias obsidian.resolver.InlineCompletionResult lsp.InlineCompletionItem[]|lsp.InlineCompletionList
+---@alias obsidian.resolver.InlineCompletion fun(ctx: obsidian.resolver.InlineCompletionCtx, done: fun(result: obsidian.resolver.InlineCompletionResult|?, err: string|?))
+
 ---@alias obsidian.Resolver fun(ctx: table, done: fun(result: table|?, err: string|?))
 
 ---@type table<string, obsidian.Resolver>
@@ -187,6 +196,11 @@ end
 ---@type obsidian.Resolver
 M.builtin.hints = function(ctx, done)
   done(require "obsidian.lsp.inlay_hints.link"(ctx.note, ctx.range))
+end
+
+---@type obsidian.Resolver
+M.builtin.inline_completion = function(ctx, done)
+  done(require("obsidian.lsp.inline_completion").complete(ctx))
 end
 
 ---@param name string

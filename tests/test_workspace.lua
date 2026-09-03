@@ -19,6 +19,22 @@ T["new"]["should be able to initialize a workspace"] = function()
   eq(true, tmpdir:resolve() == ws.path)
 end
 
+T["new"]["should use the nearest Obsidian vault root"] = function()
+  local vault = Path.temp { suffix = "-vault" }
+  local nested = vault / "notes" / "project"
+  (vault / ".obsidian"):mkdir { parents = true }
+  nested:mkdir { parents = true }
+
+  local ws = assert(workspace.new {
+    path = nested,
+    name = "nested_workspace",
+  })
+
+  eq(vault:resolve(), ws.root)
+  eq(nested:resolve(), ws.path)
+  vim.fn.delete(tostring(vault), "rf")
+end
+
 T["new"]["should warn when workspace path does not exist"] = function()
   local tmpdir = Path.temp()
   local notifications = {}

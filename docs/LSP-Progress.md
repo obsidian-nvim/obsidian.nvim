@@ -1,6 +1,6 @@
 # LSP Progress
 
-Tracking implementation status of [LSP 3.17](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/) features in `obsidian-ls`.
+Tracking implementation status of [LSP 3.18](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/specification/) features in `obsidian-ls`.
 
 - `- [x] ` - Implemented
 - `- [ ] ` - Not yet implemented, but feasible and meaningful for this plugin
@@ -19,6 +19,7 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [x] Folding Range (`textDocument/foldingRange`)
 - [x] Inlay Hint (`textDocument/inlayHint`) - adds virtual text link suggestions
 - [x] Inlay Hint Refresh (`workspace/inlayHint/refresh`) - refreshes hints after a note is saved
+- [x] Inline Completion (`textDocument/inlineCompletion`) - suggests plain or linked cached note symbols
 - [ ] Inlay Hint Resolve (`inlayHint/resolve`)
 - [ ] Hover (`textDocument/hover`)
 - [ ] Completion Item Resolve (`completionItem/resolve`)

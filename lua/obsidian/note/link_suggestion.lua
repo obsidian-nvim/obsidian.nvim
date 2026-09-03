@@ -226,10 +226,43 @@ local function skipped_inline_ranges(line, row)
   return ranges
 end
 
+---Build link candidates for a symbol.
+---@param symbol obsidian.LinkSuggestionSymbol
+---@param label string
+---@param source_dir string|obsidian.Path|nil
+---@param path_exists? fun(path: string): boolean
+---@return obsidian.LinkSuggestionCandidate[]
+function M.link_candidates(symbol, label, source_dir, path_exists)
+  path_exists = path_exists or function(path)
+    return vim.uv.fs_stat(path) ~= nil
+  end
+
+  local target_paths = vim.tbl_filter(path_exists, symbol.target_paths)
+  local candidates = {}
+  for _, path in ipairs(target_paths) do
+    local ok_link, new_text = pcall(function()
+      return Note.new(basename(path), nil, nil, path):format_link {
+        label = label,
+        format = #target_paths > 1 and "absolute" or nil,
+        dir = source_dir,
+      }
+    end)
+
+    if ok_link then
+      candidates[#candidates + 1] = {
+        new_text = new_text,
+        symbol = symbol.text,
+        target_path = path,
+      }
+    end
+  end
+  return candidates
+end
+
 ---@param line string
 ---@param row integer 1-indexed row number
 ---@param symbols obsidian.LinkSuggestionSymbol[]
----@param path_exists fun(path: string): boolean|nil
+---@param path_exists? fun(path: string): boolean
 ---@param source_dir string|obsidian.Path|nil
 function M.find_in_line(line, row, symbols, path_exists, source_dir)
   path_exists = path_exists or function(path)
@@ -259,26 +292,8 @@ function M.find_in_line(line, row, symbols, path_exists, source_dir)
         and not overlaps_ranges(skip_ranges, row0, start0, end0)
         and not overlaps_existing_suggestion(suggestions, row0, start0, end0)
       then
-        local target_paths = vim.tbl_filter(path_exists, symbol.target_paths)
         local label = line:sub(start_col, end_col)
-        local candidates = {}
-        for _, path in ipairs(target_paths) do
-          local ok_link, new_text = pcall(function()
-            return Note.new(basename(path), nil, nil, path):format_link {
-              label = label,
-              format = #target_paths > 1 and "absolute" or nil,
-              dir = source_dir,
-            }
-          end)
-
-          if ok_link then
-            candidates[#candidates + 1] = {
-              new_text = new_text,
-              symbol = symbol.text,
-              target_path = path,
-            }
-          end
-        end
+        local candidates = M.link_candidates(symbol, label, source_dir, path_exists)
 
         if #candidates > 0 then
           suggestions[#suggestions + 1] = {

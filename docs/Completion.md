@@ -27,6 +27,27 @@ require("blink.cmp").setup {
 }
 ```
 
+## Inline Completion
+
+On Neovim versions that provide `vim.lsp.inline_completion`, obsidian.nvim can suggest cached note names and aliases while typing ordinary prose. Each match offers a plain-text candidate and a wiki-link candidate. It does not run inside explicit `[[` or `#` completion, and requires the [[Cache]] to be enabled.
+
+```lua
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(ev)
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client and client.name == "obsidian-ls" and vim.lsp.inline_completion then
+      vim.lsp.inline_completion.enable(true, { bufnr = ev.buf, client_id = client.id })
+      vim.keymap.set("i", "<Tab>", function()
+        return vim.lsp.inline_completion.get { bufnr = ev.buf } and "" or "\t"
+      end, { buffer = ev.buf, expr = true })
+      vim.keymap.set("i", "<M-n>", function()
+        vim.lsp.inline_completion.select { bufnr = ev.buf, count = 1 }
+      end, { buffer = ev.buf })
+    end
+  end,
+})
+```
+
 ## Neovim Native Completion
 
 To use completions without completion plugin, put this anywhere in your config before an obsidian buffer loads:

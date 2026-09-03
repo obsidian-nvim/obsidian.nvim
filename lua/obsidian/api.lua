@@ -389,10 +389,15 @@ end
 ---@class obsidian.selection
 ---@field lines string[]
 ---@field selection string
+---@field range obsidian.Range 0-based, end-exclusive byte range.
 ---@field csrow integer
 ---@field cerow integer
 ---@field cecol integer
 ---@field cscol integer
+
+local function is_visual_mode(mode)
+  return mode == "v" or mode == "V" or mode == ""
+end
 
 --- Get the current visual selection of text and exit visual mode.
 ---
@@ -401,98 +406,56 @@ end
 ---@return obsidian.selection|?
 M.get_visual_selection = function(opts)
   opts = opts or {}
-  -- Adapted from fzf-lua:
-  -- https://github.com/ibhagwan/fzf-lua/blob/6ee73fdf2a79bbd74ec56d980262e29993b46f2b/lua/fzf-lua/utils.lua#L434-L466
-  -- this will exit visual mode
-  -- use 'gv' to reselect the text
-  local _, csrow, cscol, cerow, cecol
+
   local mode = vim.fn.mode()
-  if opts.strict and not vim.endswith(string.lower(mode), "v") then
+  local active = is_visual_mode(mode)
+  if opts.strict and not active then
     return
   end
 
-  if mode == "v" or mode == "V" or mode == "" then
-    -- if we are in visual mode use the live position
-    _, csrow, cscol, _ = unpack(vim.fn.getpos ".")
-    _, cerow, cecol, _ = unpack(vim.fn.getpos "v")
-    if mode == "V" then
-      -- visual line doesn't provide columns
-      cscol, cecol = 0, 999
-    end
-    -- exit visual mode
+  local pos1, pos2, region_type
+  if active then
+    pos1 = vim.fn.getpos "."
+    pos2 = vim.fn.getpos "v"
+    region_type = mode
+    -- Exit Visual mode; `gv` can be used to restore the selection.
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
   else
-    -- otherwise, use the last known visual position
-    _, csrow, cscol, _ = unpack(vim.fn.getpos "'<")
-    _, cerow, cecol, _ = unpack(vim.fn.getpos "'>")
+    pos1 = vim.fn.getpos "'<"
+    pos2 = vim.fn.getpos "'>"
+    region_type = vim.fn.visualmode()
   end
 
-  -- Swap vars if needed
-  if cerow < csrow then
+  if not is_visual_mode(region_type) then
+    region_type = "v"
+  end
+
+  local region_opts = { type = region_type }
+  local selected_lines = vim.fn.getregion(pos1, pos2, region_opts)
+  local positions = vim.fn.getregionpos(pos1, pos2, { type = region_type, eol = true })
+  if vim.tbl_isempty(positions) then
+    return
+  end
+
+  local first = positions[1][1]
+  local last = positions[#positions][2]
+  local end_line = vim.api.nvim_buf_get_lines(0, last[2] - 1, last[2], false)[1] or ""
+  local range = Range.new(first[2] - 1, math.max(first[3] - 1, 0), last[2] - 1, math.min(last[3], #end_line))
+
+  local _, csrow, cscol = unpack(pos1)
+  local _, cerow, cecol = unpack(pos2)
+  if cerow < csrow or (cerow == csrow and cecol < cscol) then
     csrow, cerow = cerow, csrow
-    cscol, cecol = cecol, cscol
-  elseif cerow == csrow and cecol < cscol then
     cscol, cecol = cecol, cscol
   end
 
   local lines = vim.fn.getline(csrow, cerow)
   assert(type(lines) == "table", "lines is not a table")
-  if vim.tbl_isempty(lines) then
-    return
-  end
-
-  -- When the whole line is selected via visual line mode ("V"), cscol / cecol will be equal to "v:maxcol"
-  -- for some odd reason. So change that to what they should be here. See ':h getpos' for more info.
-  local maxcol = vim.api.nvim_get_vvar "maxcol"
-  if cscol == maxcol then
-    cscol = vim.fn.strlen(lines[1] or "")
-  end
-  if cecol == maxcol then
-    cecol = vim.fn.strlen(lines[#lines] or "")
-  end
-
-  -- Use nvim_buf_get_text which properly handles UTF-8 byte positions
-  -- getpos() returns byte-indexed positions (1-indexed)
-  -- Visual selection is inclusive, so cecol points to the last selected byte
-  -- But if that byte is the start of a multi-byte UTF-8 character, we need all its bytes
-  local bufnr = vim.api.nvim_get_current_buf()
-
-  local line = vim.api.nvim_buf_get_lines(bufnr, cerow - 1, cerow, false)[1]
-
-  -- Calculate the end position for text extraction (needs to account for UTF-8)
-  local end_col_for_extraction = cecol
-  if line and cecol <= #line then
-    local byte = line:byte(cecol)
-    if byte then
-      -- Determine UTF-8 character byte length
-      local char_bytes = 1
-      if byte >= 240 then -- 11110xxx: 4-byte char
-        char_bytes = 4
-      elseif byte >= 224 then -- 1110xxxx: 3-byte char
-        char_bytes = 3
-      elseif byte >= 192 then -- 110xxxxx: 2-byte char
-        char_bytes = 2
-        -- else: 0xxxxxxx (1-byte) or 10xxxxxx (continuation byte, shouldn't happen)
-      end
-      -- Move end position to point AFTER the last byte of this character (exclusive end)
-      end_col_for_extraction = cecol + char_bytes
-    end
-  end
-
-  local selection_lines = vim.api.nvim_buf_get_text(
-    bufnr,
-    csrow - 1, -- start row (convert to 0-indexed)
-    cscol - 1, -- start col in bytes (convert to 0-indexed)
-    cerow - 1, -- end row (convert to 0-indexed)
-    end_col_for_extraction - 1, -- end col: exclusive, convert to 0-indexed
-    {}
-  )
-
-  local selection = table.concat(selection_lines, "\n")
 
   return {
     lines = lines,
-    selection = selection,
+    selection = table.concat(selected_lines, "\n"),
+    range = range,
     csrow = csrow,
     cscol = cscol,
     cerow = cerow,

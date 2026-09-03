@@ -8,6 +8,7 @@ local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
+local Range = require "obsidian.range"
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
@@ -335,33 +336,6 @@ M.set_checkbox = function(state)
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
---- Calculate the byte position after a UTF-8 character at the given byte position.
---- This is needed because visual selection cecol points to the start byte of the last
---- selected character, but we need the position after the full character.
----
----@param line     string  The line content
----@param byte_pos integer The 1-indexed byte position of the character start
----@return integer The 1-indexed byte position after the character (exclusive end)
-local function get_utf8_char_end(line, byte_pos)
-  if not line or byte_pos > #line then
-    return byte_pos
-  end
-  local byte = line:byte(byte_pos)
-  if not byte then
-    return byte_pos
-  end
-  -- Determine UTF-8 character byte length from lead byte
-  local char_bytes = 1
-  if byte >= 240 then -- 11110xxx: 4-byte char
-    char_bytes = 4
-  elseif byte >= 224 then -- 1110xxxx: 3-byte char
-    char_bytes = 3
-  elseif byte >= 192 then -- 110xxxxx: 2-byte char
-    char_bytes = 2
-  end
-  return byte_pos + char_bytes
-end
-
 local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
 
 --- Create an LSP TextEdit from a visual selection.
@@ -373,14 +347,6 @@ local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
 ---@return lsp.TextDocumentEdit?
 local function make_text_edit(viz, new_text, bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local line = vim.api.nvim_buf_get_lines(bufnr, viz.cerow - 1, viz.cerow, false)[1]
-
-  if not line then
-    return
-  end
-
-  -- Calculate the exclusive end position (byte after the last selected character)
-  local end_col = get_utf8_char_end(line, viz.cecol)
 
   ---@diagnostic disable-next-line: return-type-mismatch TODO: emmylua bug?
   return {
@@ -390,11 +356,7 @@ local function make_text_edit(viz, new_text, bufnr)
     },
     edits = {
       {
-        range = {
-          -- LSP positions are 0-indexed
-          start = { line = viz.csrow - 1, character = viz.cscol - 1 },
-          ["end"] = { line = viz.cerow - 1, character = end_col - 1 },
-        },
+        range = Range.to_lsp(viz.range),
         newText = new_text,
       },
     },

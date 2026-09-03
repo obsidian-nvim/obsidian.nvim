@@ -22,6 +22,7 @@ T["get_visual_selection"]["should handle ASCII text correctly"] = function()
   eq("Hello", result.selection)
   eq(1, result.cscol)
   eq(5, result.cecol)
+  eq({ start_row = 0, start_col = 0, end_row = 0, end_col = 5 }, result.range)
 end
 
 T["get_visual_selection"]["should handle Cyrillic text correctly"] = function()
@@ -30,6 +31,7 @@ T["get_visual_selection"]["should handle Cyrillic text correctly"] = function()
   local result = select_and_get(child, "Привет мир", 1, 11)
   -- bytes 1-12 = "Привет" (6 chars * 2 bytes each, but end_col 11 is start of last char)
   eq("Привет", result.selection)
+  eq({ start_row = 0, start_col = 0, end_row = 0, end_col = 12 }, result.range)
 end
 
 T["get_visual_selection"]["should handle Chinese text correctly"] = function()
@@ -81,34 +83,17 @@ local function apply_edit_and_get_line(child_instance, line, start_col, end_col,
   -- Store new_text in a global variable to avoid escaping issues
   child_instance.lua("_G._test_new_text = ...", { new_text })
 
-  -- Use the same UTF-8 byte calculation logic as in api.lua
+  -- Apply the end-exclusive byte range returned by get_visual_selection.
   child_instance.lua [[
     local viz = M.get_visual_selection()
-    local bufnr = vim.api.nvim_get_current_buf()
-    local line = vim.api.nvim_buf_get_lines(bufnr, viz.cerow - 1, viz.cerow, false)[1]
-
-    -- Calculate end position using the same logic as get_utf8_char_end
-    local end_col = viz.cecol
-    if line and viz.cecol <= #line then
-      local byte = line:byte(viz.cecol)
-      if byte then
-        local char_bytes = 1
-        if byte >= 240 then char_bytes = 4
-        elseif byte >= 224 then char_bytes = 3
-        elseif byte >= 192 then char_bytes = 2
-        end
-        end_col = viz.cecol + char_bytes
-      end
-    end
-
-    -- Apply replacement using nvim_buf_set_text (same as LSP would do internally)
+    local range = viz.range
     local new_lines = vim.split(_G._test_new_text, "\n", { plain = true })
     vim.api.nvim_buf_set_text(
-      bufnr,
-      viz.csrow - 1,
-      viz.cscol - 1,
-      viz.cerow - 1,
-      end_col - 1,
+      0,
+      range.start_row,
+      range.start_col,
+      range.end_row,
+      range.end_col,
       new_lines
     )
   ]]

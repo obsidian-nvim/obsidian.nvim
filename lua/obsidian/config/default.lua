@@ -383,6 +383,8 @@ return {
   ---
   ---Build serializable LSP inlay hints for a note.
   ---@field hints? obsidian.resolver.Hints
+  ---Build serializable LSP inline completion items.
+  ---@field inline_completion? obsidian.resolver.InlineCompletion
   resolvers = {},
 
   ---@class obsidian.config.FooterOpts

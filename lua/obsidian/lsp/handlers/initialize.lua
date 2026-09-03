@@ -19,6 +19,7 @@ local initializeResult = {
     definitionProvider = true,
     documentSymbolProvider = true,
     inlayHintProvider = true,
+    inlineCompletionProvider = true,
     workspaceSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {

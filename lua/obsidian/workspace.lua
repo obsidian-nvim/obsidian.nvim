@@ -44,19 +44,8 @@ end
 ---
 ---@return obsidian.Path|?
 local function find_vault_root(base_dir)
-  local vault_indicator_folder = ".obsidian"
-  base_dir = Path.new(base_dir)
-  local dirs = Path.new(base_dir):parents()
-  table.insert(dirs, 1, base_dir)
-
-  for _, dir in ipairs(dirs) do
-    local maybe_vault = dir / vault_indicator_folder
-    if maybe_vault:is_dir() then
-      return dir
-    end
-  end
-
-  return nil
+  local root = vim.fs.root(tostring(base_dir), ".obsidian")
+  return root and Path.new(root) or nil
 end
 
 --- Create a new 'Workspace' object. This assumes the workspace already exists on the filesystem.
