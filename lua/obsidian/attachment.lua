@@ -313,6 +313,19 @@ M._resolve_async = function(src, opts, callback)
   end)
 end
 
+---@param src string
+---@param opts obsidian.AttachmentResolveOpts|?
+---@return string? path
+---@return string? err
+---@return string[]? candidates
+M._resolve = function(src, opts)
+  opts = opts or {}
+  local result = require("obsidian.async").block_on(function(cb)
+    M._resolve_async(src, {}, cb)
+  end, 1000)
+  return result or {}
+end
+
 ---@param fname string
 ---@return string|?
 ---@return string|?

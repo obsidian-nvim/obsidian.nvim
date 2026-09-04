@@ -363,14 +363,18 @@ util.is_checkbox = function(s)
 end
 
 ---@param link string
+---@param opts? { row: integer? }
 ---@return string|? link_location
 ---@return string|? link_name
 ---@return obsidian.parse.RefKind? link_type
-util.parse_link = function(link)
-  local link_type
-  for _, ref in ipairs(require("obsidian.parse.refs").extract(link)) do
+---@return obsidian.Range? range
+util.parse_link = function(link, opts)
+  opts = opts or {}
+  local link_type, range
+  for _, ref in ipairs(require("obsidian.parse.refs").extract(link, { row = opts.row })) do
     link_type = ref.kind
     link = ref.embed and ref.raw:sub(2) or ref.raw
+    range = ref.range
     break
   end
 
@@ -381,7 +385,7 @@ util.parse_link = function(link)
   if link_type == "markdown" then
     local link_name = link:match "%[(.-)%]"
     local link_location = link:match "%((.-)%)"
-    return link_location, link_name, "markdown"
+    return link_location, link_name, "markdown", range
   elseif link_type == "wiki" then
     link = util.unescape_single_backslash(link)
     -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'
@@ -390,14 +394,14 @@ util.parse_link = function(link)
     if split_idx then
       local link_location = link:sub(1, split_idx - 1)
       local link_name = link:sub(split_idx + 1)
-      return link_location, link_name, "wiki"
+      return link_location, link_name, "wiki", range
     else
-      return link, link, "wiki"
+      return link, link, "wiki", range
     end
   elseif link_type == "footnote" then
     -- remove boundary brackets and the caret, e.g. '[^xxx]' -> 'xxx'
     local link_location = link:sub(3, #link - 1)
-    return link_location, link_location, "footnote"
+    return link_location, link_location, "footnote", range
   else
     error("not implemented for " .. link_type)
   end

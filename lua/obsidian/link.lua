@@ -30,82 +30,35 @@ M.resolve_link_path = function(location)
   end
 
   if attachment.is_attachment_path(location) then
-    return tostring(normalize_path(attachment.resolve_attachment_path(location)))
+    return tostring(normalize_path(attachment._resolve(location)))
   end
 
-  local location_path = Path.new(location)
   local current_path = vim.api.nvim_buf_get_name(0)
-  local current_dir = current_path ~= "" and Path.new(vim.fs.dirname(current_path)) or nil
+  local current_dir = current_path ~= "" and vim.fs.dirname(current_path) or nil
   local workspace_dir = api.resolve_workspace_dir(current_path ~= "" and current_path or nil)
 
-  local candidates = {}
-  local seen = {}
+  local notes = search.resolve_note(location, {
+    dir = workspace_dir,
+    buf_dir = current_dir,
+  })
 
-  ---@param path string|obsidian.Path|?
-  local add_candidate = function(path)
-    if not path then
-      return
-    end
-
-    local normalized = normalize_path(path)
-    local key = tostring(normalized)
-    if seen[key] then
-      return
-    end
-
-    seen[key] = true
-    candidates[#candidates + 1] = normalized
-  end
-
-  if location_path:is_absolute() then
-    add_candidate(location_path)
-  else
-    if current_dir then
-      add_candidate(current_dir / location)
-    end
-    add_candidate(location_path)
-    add_candidate(workspace_dir / location)
-
-    if Obsidian.opts.notes_subdir ~= nil then
-      add_candidate(workspace_dir / Obsidian.opts.notes_subdir / location)
-    end
-
-    if Obsidian.opts.daily_notes.folder ~= nil then
-      add_candidate(workspace_dir / Obsidian.opts.daily_notes.folder / location)
-    end
-  end
-
-  for _, candidate in ipairs(candidates) do
-    if candidate:is_file() or candidate:is_dir() then
-      return tostring(candidate)
-    end
-  end
-
-  local notes = search.find_notes(location, {})
-  if not vim.endswith(location:lower(), ".base") then
-    notes = vim.tbl_filter(function(note)
-      return not vim.endswith(tostring(note.path), ".base")
-    end, notes)
-  end
-  if vim.tbl_isempty(notes) then
-    return nil
-  elseif #notes == 1 then
-    return tostring(notes[1].path)
-  elseif #notes > 1 then
+  if not vim.tbl_isempty(notes) and notes[1] ~= nil then
     return tostring(notes[1].path)
   end
 end
 
 --- For gf and other goto file operations to work.
----@param fname string|?
 ---@return string|?
-M.includeexpr = function(fname)
+---@return obsidian.Range|?
+M.includeexpr = function()
   local link = api.cursor_link()
-  local location = fname
+  local location, range
+  local row = unpack(vim.api.nvim_win_get_cursor(0)) - 1 -- 0-indexed row
 
   if link then
-    local parsed_location = util.parse_link(link)
-    location = parsed_location or location
+    local parsed_location, _, _, parsed_range = util.parse_link(link, { row = row })
+    location = parsed_location
+    range = parsed_range
   end
 
   if not location then
@@ -117,7 +70,7 @@ M.includeexpr = function(fname)
     ---@cast decoded string
     location = decoded
   end
-  return M.resolve_link_path(location)
+  return M.resolve_link_path(location), range
 end
 
 return M
