@@ -671,7 +671,7 @@ Fields ~
 {apply} `(optional)` `(boolean)` Apply the workspace edit directly. Defaults to true.
 {update_buffers} `(optional)` `(boolean)` Update the note object/frontmatter and reload buffers after applying. Defaults to true.
 {check_unique} `(optional)` `(boolean)` Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
-{offset_encoding} `(optional)` `(string)` Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
+{offset_encoding} `(optional)` "`(utf)`-8"|"utf-16"|"utf-32" Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
 
 
 ==============================================================================
