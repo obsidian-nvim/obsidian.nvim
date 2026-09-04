@@ -35,20 +35,21 @@ end
 ---  `selection_mappings`: Mappings that run with the current selection.
 ---
 M.grep = function(opts)
-  opts = opts or {}
+  local o = opts or {}
+  ---@cast o obsidian.PickerGrepOpts
 
   local query
-  if opts.query and vim.trim(opts.query) ~= "" then
-    query = opts.query
+  if o.query and vim.trim(o.query) ~= "" then
+    query = o.query
   else
-    query = api.input(opts.prompt_title or "Grep")
+    query = api.input(o.prompt_title or "Grep")
   end
 
   if not query then
     return
   end
 
-  local dir = opts.dir or api.resolve_workspace_dir()
+  local dir = o.dir or api.resolve_workspace_dir()
 
   local items = {}
 
@@ -65,7 +66,7 @@ M.grep = function(opts)
       if vim.tbl_isempty(items) then
         return log.info "Failed to Grep"
       end
-      local callback = opts.callback or ut.open_notes
+      local callback = o.callback or ut.open_notes
       callback(items)
     end)
   )

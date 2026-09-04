@@ -276,6 +276,7 @@ M.select = function(values, opts, on_choice)
   end
 
   local builtin = require "fzf-lua.previewer.builtin"
+  ---@type table
   local previewer
 
   if opts.preview_item then

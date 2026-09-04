@@ -32,7 +32,7 @@ style:  ## Format the code with stylua
 
 .PHONY: types
 types: ## Type check with EmmyLua
-	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/ --config .emmyrc.json
+	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/ --config .emmyrc.json --warnings-as-errors
 
 .PHONY: test
 test: $(MINITEST)

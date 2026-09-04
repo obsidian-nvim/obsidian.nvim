@@ -158,8 +158,7 @@ Parser._parse_next = function(self, lines, i, text)
     -- Skip empty lines.
     while line:is_empty() and i <= #lines do
       i = i + 1
-      line = lines[i]
-      ---@cast line -nil
+      line = assert(lines[i], "unexpected end of YAML input")
     end
     if line:is_empty() then
       return i, nil, YamlType.EmptyLine

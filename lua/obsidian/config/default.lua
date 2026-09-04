@@ -151,6 +151,7 @@ return {
   ---
   ---@field new? string
   ---@field insert_link? string
+  ---@field bookmark? string
 
   ---@class obsidian.config.PickerTagMappingOpts
   ---

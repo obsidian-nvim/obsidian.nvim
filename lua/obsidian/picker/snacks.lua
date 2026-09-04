@@ -143,6 +143,7 @@ M.grep = function(opts)
     end),
     query_mappings(opts.query_mappings, true)
   )
+  ---@cast map table
   local callback = opts.callback or ut.open_notes
 
   local args = search.build_grep_cmd()
@@ -197,6 +198,7 @@ M.select = function(values, opts, on_choice)
     end),
     query_mappings(opts.query_mappings, false)
   )
+  ---@cast map table
 
   local previewer
   if opts.preview_item then

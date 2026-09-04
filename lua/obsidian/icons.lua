@@ -94,8 +94,8 @@ end
 ---@param bookmark obsidian.Bookmark
 ---@return string
 local spec_for_bookmark = function(bookmark)
-  if bookmark.type == "file" and (bookmark._path or bookmark.path) then
-    return spec_for_path(bookmark._path or bookmark.path)
+  if bookmark.type == "file" and bookmark._path then
+    return spec_for_path(bookmark._path)
   end
 
   return M.by_bookmark_type[bookmark.type] or M.kinds.bookmark

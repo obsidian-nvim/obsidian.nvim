@@ -12,7 +12,8 @@ local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
 ---@param new_name string
 ---@return string
 local function normalize_name(new_name)
-  return vim.trim(tostring(new_name)):gsub("%.md$", "", 1)
+  local name = vim.trim(tostring(new_name)):gsub("%.md$", "", 1)
+  return name
 end
 
 local function strip_md_suffix(path)
@@ -346,6 +347,7 @@ M.rename = function(note, new_name, opts, callback)
 
   local ok, err = M.validate(note, new_name, opts)
   if not ok then
+    ---@cast err string
     if err == "Note with same name exists" then
       log.info(err)
       if callback then

@@ -528,6 +528,7 @@ local function update_extmarks(bufnr, ns_id, ui_opts)
   local n_marks_cleared = 0
 
   -- Collect all current marks, grouped by line.
+  ---@type table<integer, ExtMark[]>
   local cur_marks_by_line = vim.defaulttable()
   for mark in iter(ExtMark.collect(bufnr, ns_id)) do
     local cur_line_marks = cur_marks_by_line[mark.row]

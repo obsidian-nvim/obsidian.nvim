@@ -37,17 +37,38 @@ end
 ---@field items obsidian.Bookmark[]?
 ---@field url string?
 
+---Resolve a bookmark's vault-relative path against the current workspace,
+---caching the result on `bookmark._path`. Bookmarks without a `path`, or whose
+---`path` is the empty string (e.g. the vault root), resolve to nil.
+---
+---@param bookmark obsidian.Bookmark
+---@return string?
+local function resolve_bookmark(bookmark)
+  if bookmark._path ~= nil then
+    return bookmark._path
+  end
+  if not bookmark.path or bookmark.path == "" then
+    return nil
+  end
+  local workspace_dir = api.resolve_workspace_dir()
+  if workspace_dir then
+    bookmark._path = tostring(workspace_dir / bookmark.path)
+  end
+  return bookmark._path
+end
+
 ---@param bookmark obsidian.Bookmark
 ---@return obsidian.PickerEntry entry
 local function bookmark_to_picker_entry(bookmark)
   local entry = { text = bookmark.title, user_data = bookmark }
 
-  if bookmark.path then
-    entry.filename = bookmark._path
+  local path = resolve_bookmark(bookmark)
+  if path then
+    entry.filename = path
   end
 
-  if bookmark.subpath then
-    local ok, note = pcall(Note.from_file, entry.filename)
+  if bookmark.subpath and path and vim.uv.fs_stat(path) ~= nil then
+    local ok, note = pcall(Note.from_file, path)
     if ok and note then
       ---@cast note -string
       ---@type obsidian.Section|?
@@ -151,16 +172,18 @@ end
 ---@param bookmark obsidian.Bookmark
 ---@return obsidian.ui_select_preview_spec
 local function preview_file(bookmark)
-  if not bookmark.path or not bookmark._path then
+  local path = resolve_bookmark(bookmark)
+  if not path or vim.uv.fs_stat(path) == nil then
     local buf = vim.api.nvim_create_buf(false, true)
     vim.bo[buf].bufhidden = "wipe"
+    local label = bookmark.path and bookmark.path ~= "" and bookmark.path or "(unresolved path)"
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Bookmark target is missing: " .. label })
     return { buf = buf }
   end
   local entry = bookmark_to_picker_entry(bookmark)
-  if not entry.filename then
-    return util.preview_path(bookmark._path)
-  end
-  local preview = util.preview_path(entry.filename)
+  local bookmark_path = entry.filename
+  ---@cast bookmark_path -nil
+  local preview = util.preview_path(bookmark_path)
   preview.pos = entry.lnum and { entry.lnum, 0 } or nil
   return preview
 end
@@ -385,29 +408,24 @@ local function open_bookmark(bookmark)
       dir = api.resolve_workspace_dir(),
     }
   elseif bookmark.type == "file" then
-    api.open_note(bookmark_to_picker_entry(bookmark))
+    local entry = bookmark_to_picker_entry(bookmark)
+    if entry.filename and vim.uv.fs_stat(entry.filename) ~= nil then
+      api.open_note(entry)
+    else
+      log.warn("Bookmark target is missing: %s", bookmark.path or bookmark.title)
+    end
   elseif bookmark.type == "folder" then
     local entry = bookmark_to_picker_entry(bookmark)
-    if entry.filename then
+    if entry.filename and vim.uv.fs_stat(entry.filename) ~= nil then
       vim.cmd("edit " .. vim.fn.fnameescape(entry.filename))
+    else
+      log.warn("Bookmark target is missing: %s", bookmark.path or bookmark.title)
     end
   end
 end
 
 ---@param bookmarks obsidian.Bookmark[]
 M.pick = function(bookmarks)
-  local filtered = {}
-  local workspace_dir = api.resolve_workspace_dir()
-  for _, bm in ipairs(bookmarks) do
-    if bm.path then
-      bm._path = tostring(workspace_dir / bm.path)
-    end
-    if not bm.path or vim.uv.fs_stat(bm._path) ~= nil then
-      filtered[#filtered + 1] = bm
-    end
-  end
-  bookmarks = filtered
-
   picker.select(bookmarks, {
     prompt = "Bookmarks",
     format_item = format_bookmark,

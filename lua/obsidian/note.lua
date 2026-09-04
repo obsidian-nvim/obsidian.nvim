@@ -1478,7 +1478,7 @@ Note.insert_text = function(self, text, opts)
 
   local text_idx = self.has_frontmatter and self.frontmatter_end_line or 0
 
-  self:save(vim.tbl_extend("error", opts, {
+  self:save(vim.tbl_extend("error", {}, {
     update_content = function(lines)
       local insert_idx, insert_top, insert_bot = text_insertion.resolve(lines, opts)
       if insert_idx == 0 then
@@ -1686,7 +1686,7 @@ local rename = require "obsidian.note.rename"
 ---@field apply? boolean Apply the workspace edit directly. Defaults to true.
 ---@field update_buffers? boolean Update the note object/frontmatter and reload buffers after applying. Defaults to true.
 ---@field check_unique? boolean Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
----@field offset_encoding? string Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
+---@field offset_encoding? "utf-8"|"utf-16"|"utf-32" Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
 
 Note.build_rename_edit = rename.build_edit
 Note.rename = rename.rename

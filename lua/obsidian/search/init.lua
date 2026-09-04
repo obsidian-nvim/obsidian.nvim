@@ -202,8 +202,7 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
           return
         end
 
-        local paths = vim
-          .iter(vim.split(result.stdout or "", "\n", { plain = true, trimempty = true }))
+        local paths = iter(vim.split(result.stdout or "", "\n", { plain = true, trimempty = true }))
           :filter(function(path)
             if query then
               return string.find(string.lower(vim.fs.basename(path)), query, 1, true) ~= nil
