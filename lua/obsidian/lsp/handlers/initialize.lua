@@ -18,6 +18,9 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    documentLinkProvider = {
+      resolveProvider = false,
+    },
     inlayHintProvider = true,
     workspaceSymbolProvider = true,
     codeActionProvider = true,
