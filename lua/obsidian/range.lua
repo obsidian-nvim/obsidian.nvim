@@ -47,9 +47,9 @@ end
 --- Converts an |obsidian.Range| to an `lsp.Range`.
 ---
 --- NOTE: `lsp.Position.character` is measured in code units of the position
---- encoding while ours is a byte index. The ranges produced by this plugin are
---- line-based (cols are always 0), where the two are identical, so no buffer
---- access or re-encoding is needed.
+--- encoding while ours is a byte index. The LSP client is configured with
+--- `utf-8` offset encoding, where these are identical, so no buffer access or
+--- re-encoding is needed.
 ---
 ---@param range obsidian.Range
 ---@return lsp.Range

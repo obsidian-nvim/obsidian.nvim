@@ -15,8 +15,9 @@ end
 --- TODO: use in definition handler later,
 
 ---@param location string
+---@param source_path string|? path of the note containing the link, used to resolve relative paths.
 ---@return string|?
-M.resolve_link_path = function(location)
+M.resolve_link_path = function(location, source_path)
   local is_uri = util.is_uri(location)
   if is_uri then
     return nil
@@ -30,10 +31,14 @@ M.resolve_link_path = function(location)
   end
 
   if attachment.is_attachment_path(location) then
-    return tostring(normalize_path(attachment._resolve(location)))
+    local path = attachment._resolve(location, { filename = source_path })
+    if path then
+      return tostring(normalize_path(path))
+    end
+    return nil
   end
 
-  local current_path = vim.api.nvim_buf_get_name(0)
+  local current_path = source_path or vim.api.nvim_buf_get_name(0)
   local current_dir = current_path ~= "" and vim.fs.dirname(current_path) or nil
   local workspace_dir = api.resolve_workspace_dir(current_path ~= "" and current_path or nil)
 
@@ -48,17 +53,15 @@ M.resolve_link_path = function(location)
 end
 
 --- For gf and other goto file operations to work.
+---@param fname string|?
 ---@return string|?
----@return obsidian.Range|?
-M.includeexpr = function()
+M.includeexpr = function(fname)
   local link = api.cursor_link()
-  local location, range
-  local row = unpack(vim.api.nvim_win_get_cursor(0)) - 1 -- 0-indexed row
+  local location = fname
 
   if link then
-    local parsed_location, _, _, parsed_range = util.parse_link(link, { row = row })
-    location = parsed_location
-    range = parsed_range
+    local parsed_location = util.parse_link(link)
+    location = parsed_location or location
   end
 
   if not location then
@@ -70,7 +73,7 @@ M.includeexpr = function()
     ---@cast decoded string
     location = decoded
   end
-  return M.resolve_link_path(location), range
+  return M.resolve_link_path(location)
 end
 
 return M

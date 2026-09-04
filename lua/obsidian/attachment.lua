@@ -320,10 +320,9 @@ end
 ---@return string[]? candidates
 M._resolve = function(src, opts)
   opts = opts or {}
-  local result = require("obsidian.async").block_on(function(cb)
-    M._resolve_async(src, {}, cb)
+  return require("obsidian.async").block_on(function(cb)
+    M._resolve_async(src, opts, cb)
   end, 1000)
-  return result or {}
 end
 
 ---@param fname string
