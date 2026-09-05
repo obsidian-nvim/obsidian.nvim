@@ -255,6 +255,73 @@ M.cursor_frontmatter = function()
   return row <= note.frontmatter_end_line
 end
 
+--- Return the frontmatter property key and scalar value under the cursor, if any.
+---
+--- The cursor is considered over a property key when it is inside the key part
+--- of a top-level `key: value` mapping. It is considered over a property value
+--- when it is inside a scalar value on the mapping line or inside a list item
+--- indented under a top-level mapping.
+---
+---@return string? key
+---@return string? value
+M.cursor_property = function()
+  local note = M.current_note(0, { max_lines = 100 })
+  if not note or not note.has_frontmatter or not note.frontmatter_end_line then
+    return
+  end
+
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  if row < 1 or row > note.frontmatter_end_line then
+    return
+  end
+
+  local lines = vim.api.nvim_buf_get_lines(0, 0, note.frontmatter_end_line, false)
+
+  local current_key
+  local current_key_indent = 0
+
+  for i = 1, #lines do
+    local line = lines[i]
+    local leading = line:match "^%s*" or ""
+    local indent = #leading
+    local stripped = line:sub(indent + 1)
+
+    local key, value_str = stripped:match "^([^:]+):%s*(.*)$"
+    if key then
+      key = vim.trim(key)
+      if indent == 0 then
+        current_key = key
+        current_key_indent = 0
+        if i == row then
+          local key_end = indent + #key
+          if col >= indent and col < key_end then
+            return key
+          end
+
+          if value_str ~= "" then
+            ---@cast value_str string
+            local after_colon = line:sub(indent + #key + 2)
+            local leading_value_ws = after_colon:match "^%s*" or ""
+            local value_start = indent + #key + 1 + #leading_value_ws
+            if col >= value_start then
+              return key, vim.trim(value_str)
+            end
+          end
+        end
+      end
+    else
+      local item = stripped:match "^[-*]%s+(.*)$"
+      if item and current_key and indent > current_key_indent and i == row then
+        local dash = stripped:match "^[-*]%s+" or ""
+        local value_start = indent + #dash
+        if col >= value_start then
+          return current_key, vim.trim(item)
+        end
+      end
+    end
+  end
+end
+
 ------------------
 --- buffer api ---
 ------------------

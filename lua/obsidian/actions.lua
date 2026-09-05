@@ -98,16 +98,23 @@ end
 
 -- If cursor is on a link, follow the link
 -- If cursor is on a tag, show all notes with that tag in a picker
+-- If cursor is on a frontmatter property, show all notes with that property
 -- If cursor is on a checkbox, toggle the checkbox
 -- If cursor is on a heading, cycle the fold of that heading
 M.smart_action = function()
   local legacy = Obsidian.opts.legacy_commands
+  local property_key, property_value = api.cursor_property()
   if
     vim.lsp.inlay_hint
     and type(vim.lsp.inlay_hint.get) == "function"
     and not vim.tbl_isempty(require("obsidian.inlay_hints").get_actionable_obsidian())
   then
     return "<cmd>lua require('obsidian.inlay_hints').accept()<cr>"
+  elseif property_key then
+    return ("<cmd>lua require('obsidian.commands.properties').pick(%s, %s)<cr>"):format(
+      vim.inspect(property_key),
+      vim.inspect(property_value)
+    )
   elseif api.cursor_link() then
     return legacy and "<cmd>ObsidianFollowLink<cr>" or "<cmd>Obsidian follow_link<cr>"
   elseif api.cursor_tag() then
