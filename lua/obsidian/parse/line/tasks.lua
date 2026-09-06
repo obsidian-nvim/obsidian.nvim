@@ -22,6 +22,9 @@ function M.extract(line, opts)
     return {}
   end
 
+  local task_marker_col = item.task_marker_col
+  ---@cast task_marker_col integer
+
   ---@type obsidian.parse.line.Task
   local task = {
     kind = "task",
@@ -33,7 +36,7 @@ function M.extract(line, opts)
     state = item.task_state,
     task_state = item.task_state,
     text = item.text,
-    task_marker_col = item.task_marker_col,
+    task_marker_col = task_marker_col,
     text_col = item.text_col,
   }
 

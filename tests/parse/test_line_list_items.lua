@@ -51,6 +51,20 @@ T["extract preserves marker padding before task marker"] = function()
   eq("indented", item.text)
 end
 
+T["extract parses multibyte task marker states"] = function()
+  local item = list_items.extract("- [✓] done")[1]
+  eq("✓", item.task_state)
+  eq("done", item.text)
+  eq(2, item.task_marker_col)
+  eq(8, item.text_col)
+end
+
+T["extract does not treat multi-character markers as tasks"] = function()
+  local item = list_items.extract("- [xy] done")[1]
+  eq(nil, item.task_state)
+  eq("[xy] done", item.text)
+end
+
 T["extract treats empty list items as empty text"] = function()
   eq("", list_items.extract("-")[1].text)
   eq("", list_items.extract("-   ")[1].text)

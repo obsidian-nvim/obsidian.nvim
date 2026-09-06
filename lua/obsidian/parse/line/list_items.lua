@@ -100,16 +100,21 @@ function M.extract(line, opts)
   ---@cast rest string
 
   local text = rest
-  local task_state, task_padding, task_text = rest:match "^%[(.)%]([ \t]*)(.*)$"
+  local task_state, task_padding, task_text = rest:match "^%[([^%]]+)%]([ \t]*)(.*)$"
   if task_state then
-    text = task_text
+    if vim.str_utfindex(task_state, "utf-32") ~= 1 then
+      task_state = nil
+    else
+      ---@cast task_text string
+      text = task_text
+    end
   end
 
   local marker_col = #indent
   local content_col = marker_col + #marker + #padding
   local text_col = content_col
   if task_state then
-    text_col = content_col + 3 + #task_padding
+    text_col = content_col + 2 + #task_state + #task_padding
   end
 
   ---@type obsidian.parse.line.ListItem

@@ -6,7 +6,12 @@ local parse_block_id = require "obsidian.parse.block_id"
 local parse_tags = require "obsidian.parse.tags"
 local parse_tasks = require "obsidian.parse.line.tasks"
 local parse_list_items = require "obsidian.parse.line.list_items"
-local iter = vim.iter
+
+---@param t table
+local function iter(t)
+  ---@diagnostic disable-next-line: call-non-callable
+  return vim.iter(t)
+end
 
 local M = {}
 
@@ -210,9 +215,9 @@ end
 local function get_line_check_extmarks(marks, line, lnum, ui_opts)
   local task = parse_tasks.extract(line)[1]
   if task then
-    local opts = ui_opts.checkboxes[task.state]
+    local opts = (ui_opts.checkboxes or {})[task.state]
     if opts then
-      local end_col = task.task_marker_col + 3
+      local end_col = task.task_marker_col + #task.task_state + 2
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,

@@ -41,7 +41,7 @@ local one_tag = tag_at_bol + boundary
 local all_tags = Ct(((utf8_char - one_tag) ^ 0 * one_tag) ^ 0)
 
 --- Find Obsidian-style tags in a markdown line (Unicode-safe).
---- UTF-8 indices are 0-based and end-exclusive.
+--- Byte indices are 1-based and end-inclusive.
 ---
 --- @param line string
 --- @return { [1]: integer, [2]: integer }[]
@@ -57,8 +57,11 @@ M.parse_tags = function(line)
     return tonumber(tag) ~= nil
   end
 
+  ---@param start_byte_index integer
   local is_bound = function(start_byte_index)
-    local char_ahead = line:sub(start_byte_index - 1, start_byte_index - 1)
+    local prev_byte_index = start_byte_index - 1
+    ---@cast prev_byte_index integer
+    local char_ahead = line:sub(prev_byte_index, prev_byte_index)
     return start_byte_index == 1 or char_ahead == " "
   end
 

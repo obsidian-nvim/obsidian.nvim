@@ -39,4 +39,17 @@ T["extract ignores non-tasks"] = function()
   eq({}, tasks.extract "- - -")
 end
 
+T["extract parses multibyte task states"] = function()
+  local task = tasks.extract("- [✓] done")[1]
+  eq("✓", task.state)
+  eq("✓", task.task_state)
+  eq("done", task.text)
+  eq(2, task.task_marker_col)
+  eq(8, task.text_col)
+end
+
+T["extract ignores multi-character task markers"] = function()
+  eq({}, tasks.extract "- [xy] done")
+end
+
 return T

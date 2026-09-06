@@ -180,8 +180,8 @@ end
 ---@return string | nil ws
 ---@return string | nil body
 local function parse_checkbox_rest(rest)
-  local state, ws, body = rest:match "^%[(.)%](%s*)(.*)$"
-  if state ~= nil then
+  local state, ws, body = rest:match "^%[([^%]]+)%](%s*)(.*)$"
+  if state ~= nil and vim.str_utfindex(state, "utf-32") == 1 then
     return state, ws, body
   end
   return nil, nil, nil

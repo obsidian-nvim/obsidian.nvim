@@ -6,7 +6,7 @@ local C, Cp, Ct = lpeg.C, lpeg.Cp, lpeg.Ct
 
 local M = {}
 
----@class obsidian.parse.Tag : obsidian.parse.Match
+---@class obsidian.parse.Tag : obsidian.parse.line.Match
 ---@field kind "tag"
 ---@field tag string Tag text without leading `#`.
 
@@ -90,7 +90,7 @@ end
 
 ---Find Obsidian-style tags in a markdown line.
 ---@param line string
----@param opts obsidian.parse.LineOpts?
+---@param opts obsidian.parse.line.LineOpts?
 ---@return obsidian.parse.Tag[]
 function M.extract(line, opts)
   opts = opts or {}
