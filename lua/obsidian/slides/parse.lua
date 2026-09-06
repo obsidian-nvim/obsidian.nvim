@@ -77,6 +77,7 @@ local function strip_trailing_footnotes(lines)
 
   if i > 0 and is_footnotes_header_at(lines, i) then
     i = i - 1
+    ---@cast i integer
     while i > 0 and is_blank_at(lines, i) do
       i = i - 1
     end

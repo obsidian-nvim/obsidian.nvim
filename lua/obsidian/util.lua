@@ -346,7 +346,6 @@ util.is_checkbox = function(s)
   return require("obsidian.parse.line.tasks").extract(s)[1] ~= nil
 end
 
-
 ---@param link string
 ---@return string|? link_location
 ---@return string|? link_name

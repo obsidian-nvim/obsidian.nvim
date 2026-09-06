@@ -79,6 +79,7 @@ end
 local function parse_match(line, row, start_col, end_col, parser)
   if start_col > 1 and line:sub(start_col - 1, start_col - 1) == "!" then
     start_col = start_col - 1
+    ---@cast start_col integer
   end
 
   local raw = line:sub(start_col, end_col)
