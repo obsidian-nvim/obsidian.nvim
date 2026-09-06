@@ -8,6 +8,7 @@ local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
+local list_items = require "obsidian.parse.line.list_items"
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
@@ -162,17 +163,16 @@ end
 ---@return string | nil prefix
 ---@return string | nil rest
 local function parse_list_prefix(line)
-  local indent, bullet, spaces, rest = line:match "^(%s*)([-+*])(%s+)(.*)$"
-  if bullet then
-    return indent .. bullet .. spaces, rest
+  local item = list_items.parse(line)
+  if not item then
+    return nil, nil
   end
 
-  local indent2, num, delim, spaces2, rest2 = line:match "^(%s*)(%d+)([%.%)])(%s+)(.*)$"
-  if num then
-    return indent2 .. num .. delim .. spaces2, rest2
+  local prefix = line:sub(1, item.marker_col + #item.marker + #item.padding)
+  if item.padding == "" then
+    prefix = prefix .. " "
   end
-
-  return nil, nil
+  return prefix, line:sub(item.marker_col + #item.marker + #item.padding + 1)
 end
 
 ---@param rest string
@@ -180,8 +180,8 @@ end
 ---@return string | nil ws
 ---@return string | nil body
 local function parse_checkbox_rest(rest)
-  local state, ws, body = rest:match "^%[(.)%](%s*)(.*)$"
-  if state ~= nil then
+  local state, ws, body = rest:match "^%[([^%]]+)%](%s*)(.*)$"
+  if state ~= nil and vim.str_utfindex(state, "utf-32") == 1 then
     return state, ws, body
   end
   return nil, nil, nil

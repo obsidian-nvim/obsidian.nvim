@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Prompt to confirm deletion for notes that have backlinks and attachments.
 - Attachment destination and vault-wide reference resolution, with `attachment.rename()` and `attachment.delete()` APIs.
+- Line-level Markdown list item and task parsers (`obsidian.parse.line.list_items`, `obsidian.parse.line.tasks`) with unified marker, indentation, and task-state metadata.
+
+### Changed
+
+- Checkbox detection and conceal now follow CommonMark/GFM list syntax (e.g. `-- [ ]` and `++ [ ]` are no longer treated as checkboxes) and support multi-byte checkbox states.
 
 ## [v3.16.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.7) - 2026-09-01
 
