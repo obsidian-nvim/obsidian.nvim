@@ -79,6 +79,7 @@ end
 ---@field no_default_mappings boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
+---@field cmd string[]
 
 ---@alias obsidian.PickerEntry vim.quickfix.entry
 
@@ -310,8 +311,6 @@ M.find_notes = function(opts)
     selection_mappings = M._note_selection_mappings()
   end
 
-  -- TODO: build cmd here instead of in all pickers
-
   return M.find_files {
     query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
@@ -346,6 +345,7 @@ M.grep_notes = function(opts)
   end
 
   M.grep {
+    cmd = search.build_grep_cmd(),
     prompt_title = opts.prompt_title or "Grep notes",
     dir = opts.dir or api.resolve_workspace_dir(),
     query = opts.query,

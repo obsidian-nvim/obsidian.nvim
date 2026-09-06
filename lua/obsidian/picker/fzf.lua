@@ -1,5 +1,4 @@
 ---@diagnostic disable: unresolved-require
-local search = require "obsidian.search"
 local log = require "obsidian.log"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
@@ -194,7 +193,7 @@ M.grep = function(opts)
 
   local fzf = require "fzf-lua"
 
-  local cmd = table.concat(search.build_grep_cmd(), " ")
+  local cmd = table.concat(opts.cmd, " ")
   local actions = get_selection_actions {
     callback = opts.callback or ut.open_notes,
     no_default_mappings = opts.no_default_mappings,

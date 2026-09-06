@@ -1,5 +1,4 @@
 ---@diagnostic disable: unresolved-require
-local search = require "obsidian.search"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
 local api = require "obsidian.api"
@@ -146,7 +145,7 @@ M.grep = function(opts)
   ---@cast map table
   local callback = opts.callback or ut.open_notes
 
-  local args = search.build_grep_cmd()
+  local args = opts.cmd
   local cmd = table.remove(args, 1)
 
   local pick_opts = vim.tbl_extend("force", map or {}, {

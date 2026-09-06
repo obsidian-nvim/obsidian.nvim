@@ -10,7 +10,7 @@ return function(data)
     return
   end
 
-  picker.grep {
+  picker.grep_notes {
     prompt_title = "Quick Switch",
     dir = dir,
     query = query,

@@ -403,7 +403,7 @@ local function open_bookmark(bookmark)
     M.pick(bookmark.items or {})
   elseif bookmark.type == "search" and bookmark.query then
     -- TODO: proper obsidian search term parser and search
-    picker.grep {
+    picker.grep_notes {
       query = bookmark.query,
       dir = api.resolve_workspace_dir(),
     }
