@@ -452,32 +452,17 @@ M.get_visual_selection = function(opts)
     cecol = vim.fn.strlen(lines[#lines] or "")
   end
 
-  -- Use nvim_buf_get_text which properly handles UTF-8 byte positions
-  -- getpos() returns byte-indexed positions (1-indexed)
-  -- Visual selection is inclusive, so cecol points to the last selected byte
-  -- But if that byte is the start of a multi-byte UTF-8 character, we need all its bytes
+  -- Use nvim_buf_get_text which properly handles UTF-8 byte positions.
+  -- getpos() returns byte-indexed positions (1-indexed). Visual selection is
+  -- inclusive, so cecol points to the first byte of the last selected
+  -- character; advance past the full character for the exclusive end.
   local bufnr = vim.api.nvim_get_current_buf()
 
   local line = vim.api.nvim_buf_get_lines(bufnr, cerow - 1, cerow, false)[1]
 
-  -- Calculate the end position for text extraction (needs to account for UTF-8)
   local end_col_for_extraction = cecol
   if line and cecol <= #line then
-    local byte = line:byte(cecol)
-    if byte then
-      -- Determine UTF-8 character byte length
-      local char_bytes = 1
-      if byte >= 240 then -- 11110xxx: 4-byte char
-        char_bytes = 4
-      elseif byte >= 224 then -- 1110xxxx: 3-byte char
-        char_bytes = 3
-      elseif byte >= 192 then -- 110xxxxx: 2-byte char
-        char_bytes = 2
-        -- else: 0xxxxxxx (1-byte) or 10xxxxxx (continuation byte, shouldn't happen)
-      end
-      -- Move end position to point AFTER the last byte of this character (exclusive end)
-      end_col_for_extraction = cecol + char_bytes
-    end
+    end_col_for_extraction = cecol + vim.str_utf_end(line, cecol) + 1
   end
 
   local selection_lines = vim.api.nvim_buf_get_text(
