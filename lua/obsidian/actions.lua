@@ -346,20 +346,8 @@ local function get_utf8_char_end(line, byte_pos)
   if not line or byte_pos > #line then
     return byte_pos
   end
-  local byte = line:byte(byte_pos)
-  if not byte then
-    return byte_pos
-  end
-  -- Determine UTF-8 character byte length from lead byte
-  local char_bytes = 1
-  if byte >= 240 then -- 11110xxx: 4-byte char
-    char_bytes = 4
-  elseif byte >= 224 then -- 1110xxxx: 3-byte char
-    char_bytes = 3
-  elseif byte >= 192 then -- 110xxxxx: 2-byte char
-    char_bytes = 2
-  end
-  return byte_pos + char_bytes
+  -- Byte after the character that byte_pos points into (1-indexed).
+  return byte_pos + vim.str_utf_end(line, byte_pos) + 1
 end
 
 local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
