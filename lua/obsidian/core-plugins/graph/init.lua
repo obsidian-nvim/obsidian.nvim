@@ -1,14 +1,13 @@
 --- Minimal local graph view for obsidian.nvim.
 ---
---- Builds the note graph from the cache when available and serves a small
---- browser UI from a local HTTP server.
+--- Builds the note graph from the cache and serves a small browser UI from a
+--- local HTTP server.
 
 local Path = require "obsidian.path"
+local Graph = require "obsidian.graph"
 local HttpServer = require "obsidian.web.server"
 local watchfiles = require "obsidian.lsp.watchfiles"
 local cache = require "obsidian.cache"
-local cache_note = require "obsidian.cache.note"
-local ignore = require "obsidian.ignore"
 
 local uv = vim.uv
 
@@ -58,339 +57,16 @@ end
 
 M.current_note_id = current_note_id
 
-local function normalize_target(target)
-  target = vim.trim(target or "")
-  if target == "" or target:sub(1, 1) == "#" then
-    return nil
-  end
-  if target:match "^[%w+.-]+:" then
-    return nil
-  end
-
-  target = target:gsub("\\", "/")
-  target = target:gsub("^%./", "")
-  target = target:gsub("^/", "")
-
-  local ok, decoded = pcall(vim.uri_decode, target)
-  if ok then
-    target = decoded
-  end
-
-  return strip_markdown_suffix(target)
-end
-
----@param value any
----@return string[]
-local function normalize_string_list(value)
-  if type(value) ~= "table" then
-    return {}
-  end
-
-  local out = {}
-  for _, item in ipairs(value) do
-    if type(item) == "string" and item ~= "" then
-      out[#out + 1] = item
-    end
-  end
-  return out
-end
-
 ---@param target string
 ---@return string?
 local function target_extension(target)
   return (target:match "%.([^./]+)$" or ""):lower():match "^(.+)$"
 end
 
----@param target string
----@return "note"|"attachment"
-local function target_kind(target)
-  local ext = target_extension(target)
-  if ext and not MARKDOWN_EXTENSIONS[ext] then
-    return "attachment"
-  else
-    return "note"
-  end
-end
-
----@param target string
----@param kind "note"|"attachment"
----@return string[]
-local function target_candidates(target, kind)
-  if kind == "attachment" then
-    return { target }
-  end
-
-  local ext = target_extension(target)
-  if ext and MARKDOWN_EXTENSIONS[ext] then
-    return { target }
-  end
-
-  return { target .. ".md", target .. ".markdown", target .. ".qmd", target .. ".base" }
-end
-
----@param target string
----@param kind "note"|"attachment"
----@return boolean
-local function target_is_ignored(target, kind)
-  for _, candidate in ipairs(target_candidates(target, kind)) do
-    if ignore.is_ignored(candidate) then
-      return true
-    end
-  end
-  return false
-end
-
----@param target string
----@param kind "note"|"attachment"
----@return obsidian.Path|?
-local function target_existing_path(target, kind)
-  for _, candidate in ipairs(target_candidates(target, kind)) do
-    local path = Path.new(vim.fs.joinpath(tostring(Obsidian.dir), candidate))
-    if path:is_file() then
-      return path
-    end
-  end
-end
-
----@param id string
----@return string
-local function node_folder(id)
-  return id:match "^(.*)/[^/]+$" or ""
-end
-
----@param id string
----@return string
-local function node_title(id)
-  return id:match "([^/]+)$" or id
-end
-
----@param tag string
----@return string
-local function tag_node_id(tag)
-  return "tag:" .. tag
-end
-
----@param nodes table[]
----@param node_set table<string, boolean>
----@param tag string
----@return string|?
-local function ensure_tag_node(nodes, node_set, tag)
-  if vim.startswith(tag, "#") then
-    tag = tag:sub(2)
-  end
-  if tag == "" then
-    return nil
-  end
-
-  local id = tag_node_id(tag)
-  if node_set[id] then
-    return id
-  end
-
-  nodes[#nodes + 1] = {
-    id = id,
-    title = "#" .. tag,
-    folder = "",
-    aliases = {},
-    tags = {},
-    type = "tag",
-  }
-  node_set[id] = true
-  return id
-end
-
----@param nodes table[]
----@param node_set table<string, boolean>
----@param target string
----@param kind "note"|"attachment"
----@return string|?
-local function ensure_linked_node(nodes, node_set, target, kind)
-  if target == "" or target_is_ignored(target, kind) then
-    return nil
-  end
-
-  if node_set[target] then
-    return target
-  end
-
-  local path = target_existing_path(target, kind)
-  local exists = path ~= nil
-  local node = {
-    id = target,
-    title = node_title(target),
-    folder = node_folder(target),
-    aliases = {},
-    tags = {},
-  }
-
-  if path then
-    node.path = tostring(path)
-  end
-  if not exists then
-    node.exists = false
-  end
-  if kind == "attachment" then
-    node.type = "attachment"
-    node.exists = exists
-  end
-
-  nodes[#nodes + 1] = node
-  node_set[target] = true
-  return target
-end
-
----@param rel string
----@return string
-local function note_stem(rel)
-  return vim.fn.fnamemodify(rel, ":t:r")
-end
-
----@param row table
----@param fallback string
----@return string
-local function row_title(row, fallback)
-  if type(row.properties) == "table" and type(row.properties.title) == "string" then
-    return row.properties.title
-  end
-  return fallback
-end
-
----@return { path: string, rel: string, id: string, stem: string, row: table }[]
-local function note_entries()
-  local entries = {}
-  local root = tostring(Obsidian.dir)
-
-  local function add(abs, row)
-    local rel = vim.fs.normalize(abs)
-    local norm_root = vim.fs.normalize(root):gsub("/+$", "")
-    if vim.startswith(rel, norm_root .. "/") then
-      rel = rel:sub(#norm_root + 2)
-    end
-    rel = rel:gsub("\\", "/")
-    entries[#entries + 1] = {
-      path = abs,
-      rel = rel,
-      id = note_id_from_relative_path(rel),
-      stem = note_stem(rel),
-      row = row,
-    }
-  end
-
-  if cache.is_enabled() and cache.is_ready() then
-    for abs, row in pairs(cache.notes.all()) do
-      if not ignore.is_ignored(abs) then
-        add(abs, row)
-      end
-    end
-  else
-    local files = vim.fs.find(function(name, dir)
-      local ext = (name:match "%.([^./]+)$" or ""):lower()
-      if not MARKDOWN_EXTENSIONS[ext] then
-        return false
-      end
-      return not ignore.is_ignored(dir .. "/" .. name)
-    end, { type = "file", path = root, limit = math.huge })
-
-    for _, abs in ipairs(files) do
-      local row = cache_note.build(abs, root)
-      if row then
-        add(abs, row)
-      end
-    end
-  end
-
-  table.sort(entries, function(a, b)
-    return a.rel < b.rel
-  end)
-  return entries
-end
-
----@param target string
----@param target_to_id table<string, string|false>
----@return string|?
-local function resolve_target(target, target_to_id)
-  local id = target_to_id[target]
-  if id then
-    return id
-  end
-
-  -- Obsidian wiki links often omit folders. If the target includes a folder,
-  -- try the basename too. Ambiguous basenames are stored as false and ignored.
-  local basename = target:match "([^/]+)$"
-  local basename_id = basename and target_to_id[basename] or nil
-  if basename_id then
-    return basename_id
-  end
-end
-
---- Build graph data: note nodes and note-to-note links.
----@return table graph { nodes: {id:string, title:string, path:string|?, folder:string, aliases:string[], tags:string[], type:string|?, exists:boolean|?}[], links: {source:string, target:string}[] }
+---Build graph data from the current cache snapshot.
+---@return obsidian.graph.Table
 function M.build_graph()
-  local entries = note_entries()
-  local target_to_id = {}
-  local nodes = {}
-  local links = {}
-  local link_set = {}
-  local node_set = {}
-
-  local function add_link(source, target)
-    if not target or target == source then
-      return
-    end
-
-    local key = source .. "\0" .. target
-    if not link_set[key] then
-      link_set[key] = true
-      links[#links + 1] = { source = source, target = target }
-    end
-  end
-
-  for _, entry in ipairs(entries) do
-    local aliases = normalize_string_list(entry.row.aliases)
-    local tags = normalize_string_list(entry.row.tags)
-    local node = {
-      id = entry.id,
-      title = row_title(entry.row, entry.stem),
-      path = entry.path,
-      folder = node_folder(entry.id),
-      aliases = aliases,
-      tags = tags,
-    }
-    nodes[#nodes + 1] = node
-    node_set[entry.id] = true
-    target_to_id[entry.id] = entry.id
-
-    if target_to_id[entry.stem] == nil then
-      target_to_id[entry.stem] = entry.id
-    elseif target_to_id[entry.stem] ~= entry.id then
-      target_to_id[entry.stem] = false
-    end
-
-    for _, alias in ipairs(aliases) do
-      if target_to_id[alias] == nil then
-        target_to_id[alias] = entry.id
-      elseif target_to_id[alias] ~= entry.id then
-        target_to_id[alias] = false
-      end
-    end
-
-    for _, tag in ipairs(tags) do
-      add_link(entry.id, ensure_tag_node(nodes, node_set, tag))
-    end
-  end
-
-  for _, entry in ipairs(entries) do
-    for _, link in ipairs(entry.row.links_out or {}) do
-      local target = normalize_target(link.target)
-      if target then
-        local resolved = resolve_target(target, target_to_id)
-        local target_id = resolved or ensure_linked_node(nodes, node_set, target, target_kind(target))
-        add_link(entry.id, target_id)
-      end
-    end
-  end
-
-  return { nodes = nodes, links = links }
+  return Graph.from_cache():to_table { include_tag_nodes = true }
 end
 
 function M.invalidate_graph_cache()
@@ -907,6 +583,16 @@ end
 --- Main entry point: start the server and open the graph.
 ---@param target string?
 function M.open_graph(target)
+  if not cache.is_enabled() then
+    vim.notify("Graph view requires cache.enabled = true", vim.log.levels.ERROR)
+    return
+  elseif not cache.is_ready() then
+    cache.when_ready(function()
+      M.open_graph(target)
+    end)
+    return
+  end
+
   local scope, err = resolve_graph_arg(target)
   if err then
     vim.notify(err, vim.log.levels.ERROR)

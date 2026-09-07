@@ -29,7 +29,6 @@
   var settings = {
     search: "",
     tags: true,
-    attachments: true,
     existingOnly: false,
     showOrphans: true,
     textFadeThreshold: 0,
@@ -144,7 +143,7 @@
     (graph.nodes || []).forEach(function(n) {
       allNodes[n.id] = n;
       var inFolder = n.folder === folder || String(n.folder || "").indexOf(folder + "/") === 0;
-      if (!n.type && n.path && inFolder) {
+      if (n.type === "note" && n.path && inFolder) {
         sourceNodes[n.id] = true;
         keep[n.id] = true;
       }
@@ -182,10 +181,9 @@
       var text = (n.title + " " + n.id + " " + (n.path || "") + " " + (n.folder || "") + " " + (n.aliases || []).join(" ") + " " + nodeTags.join(" ")).toLowerCase();
       var matchesSearch = search === "" || text.indexOf(search) !== -1;
       var isTag = n.type === "tag";
-      var isAttachment = n.type === "attachment";
       var exists = n.exists !== false;
       var hasLinks = degree[n.id] > 0 || n.id === localRoot;
-      var ok = matchesSearch && (settings.tags || !isTag) && (settings.attachments || !isAttachment) && (!settings.existingOnly || exists) && (settings.showOrphans || hasLinks);
+      var ok = matchesSearch && (settings.tags || !isTag) && (!settings.existingOnly || exists) && (settings.showOrphans || hasLinks);
       if (ok) keep[n.id] = true;
       return ok;
     });
@@ -286,7 +284,6 @@
 
   function nodeFillColor(node, isHover, isRoot) {
     if (isRoot) return "#f59e0b";
-    if (node.type === "attachment") return node.exists ? (isHover ? "#facc15" : "#eab308") : (isHover ? "#b5a04a" : "#9c872a");
     if (!node.exists) return isHover ? "#9ca3af" : "#6b7280";
     if (node.type === "tag") return isHover ? "#86efac" : "#22c55e";
     return isHover ? "#c084fc" : "#7c3aed";
@@ -294,7 +291,6 @@
 
   function nodeStrokeColor(node, isRoot, isActive) {
     if (isRoot) return "#fbbf24";
-    if (node.type === "attachment") return node.exists ? "#fde047" : "#c9b44a";
     if (!node.exists) return "#d1d5db";
     if (node.type === "tag") return "#bbf7d0";
     if (isActive) return "#38bdf8";
@@ -433,10 +429,6 @@
     });
     document.getElementById("show-tags").addEventListener("change", function(e) {
       settings.tags = e.target.checked;
-      rerender();
-    });
-    document.getElementById("show-attachments").addEventListener("change", function(e) {
-      settings.attachments = e.target.checked;
       rerender();
     });
     document.getElementById("existing-only").addEventListener("change", function(e) {
