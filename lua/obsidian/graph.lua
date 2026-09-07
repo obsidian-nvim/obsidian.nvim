@@ -41,6 +41,9 @@ local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = tru
 ---@class obsidian.graph.RenderOpts
 ---@field include_tag_nodes? boolean Add tag nodes and note-to-tag links. Defaults to false.
 
+---@class obsidian.graph.OrphanOpts
+---@field include_tag_nodes? boolean Count note-to-tag links when finding orphans. Defaults to false.
+
 ---@class obsidian.graph.CachedLink
 ---@field target any
 ---@field kind string?
@@ -74,6 +77,7 @@ local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = tru
 ---@field _analysis obsidian.graph.Analysis?
 ---@field _broken_links obsidian.graph.BrokenLink[]?
 ---@field _orphan_files string[]?
+---@field _orphan_files_with_tag_nodes string[]?
 local Graph = {}
 Graph.__index = Graph
 
@@ -97,6 +101,12 @@ end
 ---@return string
 local function basename(path)
   return path:match "([^/]+)$" or path
+end
+
+---@param raw_tag string
+---@return string
+local function tag_name(raw_tag)
+  return (raw_tag:gsub("^#", ""))
 end
 
 ---@param value any
@@ -377,23 +387,41 @@ function Graph:broken_links()
   return result
 end
 
----Return absolute paths of notes with no resolved incoming or outgoing note links.
----Tag and broken links do not prevent a note from being an orphan.
+---Return absolute paths of notes with no resolved incoming or outgoing links.
+---Broken links do not prevent a note from being an orphan. Tag links only count
+---when `include_tag_nodes` is enabled.
+---@param opts obsidian.graph.OrphanOpts?
 ---@return string[]
-function Graph:orphan_files()
-  if self._orphan_files then
+function Graph:orphan_files(opts)
+  opts = opts or {}
+  if opts.include_tag_nodes and self._orphan_files_with_tag_nodes then
+    return self._orphan_files_with_tag_nodes
+  elseif not opts.include_tag_nodes and self._orphan_files then
     return self._orphan_files
   end
 
   local analysis = analyze(self)
   local result = {}
   for _, entry in ipairs(self._entries) do
-    if not analysis.connected[entry.id] then
+    local connected = analysis.connected[entry.id]
+    if opts.include_tag_nodes and not connected then
+      for _, raw_tag in ipairs(entry.tags) do
+        if tag_name(raw_tag) ~= "" then
+          connected = true
+          break
+        end
+      end
+    end
+    if not connected then
       result[#result + 1] = entry.path
     end
   end
   table.sort(result)
-  self._orphan_files = result
+  if opts.include_tag_nodes then
+    self._orphan_files_with_tag_nodes = result
+  else
+    self._orphan_files = result
+  end
   return result
 end
 
@@ -460,7 +488,7 @@ function Graph:to_table(opts)
   if opts.include_tag_nodes then
     for _, entry in ipairs(self._entries) do
       for _, raw_tag in ipairs(entry.tags) do
-        local tag = raw_tag:gsub("^#", "")
+        local tag = tag_name(raw_tag)
         if tag ~= "" then
           local tag_id = "tag:" .. tag
           add_node {
