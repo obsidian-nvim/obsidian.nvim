@@ -82,6 +82,21 @@ T["normalize"]["should validate link.format"] = function()
   eq(true, tostring(err):match "link.format: expected one of" ~= nil)
 end
 
+T["normalize"]["should validate URI options"] = function()
+  local opts = normalize {
+    uri = {
+      enabled = false,
+      require_confirmation = false,
+    },
+  }
+  eq(false, opts.uri.enabled)
+  eq(false, opts.uri.require_confirmation)
+
+  local ok, err = pcall(normalize, { uri = { enabled = "yes" } })
+  eq(false, ok)
+  eq(true, tostring(err):match "uri.enabled: expected boolean" ~= nil)
+end
+
 T["normalize"]["should validate picker.name during setup"] = function()
   local ok, err = pcall(normalize, {
     picker = {

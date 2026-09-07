@@ -1,61 +1,66 @@
+local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 local ut = require "obsidian.uri.util"
 
---- Handle the "new" action.
 ---@param parsed obsidian.uri.Parsed
-local function handle_new(parsed)
-  local Note = require "obsidian.note"
-  local Path = require "obsidian.path"
-
-  -- Determine the note identity.
-  local id = parsed.name or parsed.file
-  local dir = nil
-
+---@return obsidian.Path|nil
+---@return string|nil
+local function target_path(parsed)
   if parsed.path then
-    -- Absolute path: derive dir and id from it.
-    local p = Path.new(parsed.path)
-    dir = p:parent()
-    id = tostring(p.stem)
-  elseif parsed.file then
-    -- file is a vault-absolute path like "path/to/note".
-    -- The id already contains path components which Note._resolve_id_path handles.
-    id = parsed.file
-  end
-
-  -- Determine content. Prefer clipboard, fall back to content param.
-  -- In headless mode (e.g. Web Clipper with silent=true), clipboard may be unavailable.
-  local content = nil
-  if parsed.clipboard then
-    local clip = vim.fn.getreg "+"
-    if clip and clip ~= "" then
-      content = clip
+    local path = Path.new(parsed.path)
+    if not path:is_absolute() then
+      return nil, "The path parameter must be absolute"
     end
-  end
-  if not content then
-    content = parsed.content
+    path = path:resolve()
+    if path.suffix == nil then
+      path = path:with_suffix ".md"
+    end
+    if not ut.path_in_current_workspace(path) then
+      return nil, ("Path is not inside the selected workspace: %s"):format(path)
+    end
+    return path, nil
+  elseif parsed.file then
+    local path = (Obsidian.workspace.root / parsed.file):resolve()
+    if path.suffix == nil then
+      path = path:with_suffix ".md"
+    end
+    if not ut.path_in_current_workspace(path) then
+      return nil, ("File escapes the selected workspace: %s"):format(parsed.file)
+    end
+    return path, nil
   end
 
-  local note = Note.create {
-    id = id,
-    dir = dir,
-    should_write = true,
-  }
-
-  -- Write content if provided.
-  if content and content ~= "" then
-    local lines = vim.split(content, "\n", { plain = true })
-    local file_lines = vim.fn.readfile(tostring(note.path))
-    -- Append content after the existing template content.
-    vim.list_extend(file_lines, lines)
-    vim.fn.writefile(file_lines, tostring(note.path))
+  ---@diagnostic disable-next-line: access-invisible
+  local _, path = Note._resolve_id_path({
+    id = parsed.name,
+    verbatim = parsed.name ~= nil,
+    template = Obsidian.opts.note.template,
+  }, false)
+  if not ut.path_in_current_workspace(path) then
+    return nil, ("New-note path escapes the selected workspace: %s"):format(path)
   end
+  return path, nil
+end
+
+--- Handle the `new` action.
+---@param parsed obsidian.uri.Parsed
+---@return obsidian.uri.Result
+local function handle_new(parsed)
+  local path, err = target_path(parsed)
+  if not path then
+    return ut.failure(parsed, assert(err, "target path error is required"))
+  end
+
+  local note = ut.note_at_path(path, "uri", Obsidian.opts.note.template)
+  ut.write_note(note, parsed, { content = ut.content(parsed) })
 
   if not parsed.silent then
-    local open_cmd = ut.pane_type_to_open_strategy(parsed.pane_type)
     note:open {
       sync = true,
-      open_strategy = open_cmd,
+      open_strategy = ut.pane_type_to_open_strategy(parsed.pane_type),
     }
   end
+  return ut.success(parsed, { note = note, silent = parsed.silent })
 end
 
 return handle_new

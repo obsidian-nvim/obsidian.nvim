@@ -515,7 +515,9 @@ M.get_open_strategy = function(opt)
   -- either 'leaf', 'row' for vertically split windows, or 'col' for horizontally split windows
   local cur_layout = vim.fn.winlayout()[1]
 
-  if vim.startswith(OpenStrategy.hsplit, opt) then
+  if vim.startswith(OpenStrategy.tab, opt) then
+    return "tabedit "
+  elseif vim.startswith(OpenStrategy.hsplit, opt) then
     if cur_layout ~= "col" then
       return "split "
     else

@@ -5,6 +5,7 @@ local M = {}
 ---@enum obsidian.config.OpenStrategy
 M.OpenStrategy = {
   current = "current",
+  tab = "tab",
   vsplit = "vsplit",
   hsplit = "hsplit",
   vsplit_force = "vsplit_force",
@@ -135,6 +136,7 @@ M.SyncConfigCategory = {
 ---@field statusline? obsidian.config.StatuslineOpts
 ---@field footer? obsidian.config.FooterOpts
 ---@field open? obsidian.config.OpenOpts
+---@field uri? obsidian.config.UriOpts
 ---@field checkbox? obsidian.config.CheckboxOpts
 ---@field comment? obsidian.config.CommentOpts
 ---@field search? obsidian.config.SearchOpts
@@ -168,6 +170,7 @@ M.SyncConfigCategory = {
 ---@field statusline obsidian.config.StatuslineOpts
 ---@field footer obsidian.config.FooterOpts
 ---@field open obsidian.config.OpenOpts
+---@field uri obsidian.config.UriOpts
 ---@field checkbox obsidian.config.CheckboxOpts
 ---@field comment obsidian.config.CommentOpts
 ---@field search obsidian.config.SearchOpts

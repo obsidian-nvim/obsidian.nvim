@@ -1,35 +1,23 @@
---- Handle the "unique" action. Creates a new note with an auto-generated ID.
+local ut = require "obsidian.uri.util"
+
+--- Handle the `unique` action.
 ---@param parsed obsidian.uri.Parsed
+---@return obsidian.uri.Result
 local function handle_unique(parsed)
-  local ut = require "obsidian.uri.util"
-  local Note = require "obsidian.note"
-
-  -- Prefer clipboard, fall back to content param.
-  local content = nil
-  if parsed.clipboard then
-    local clip = vim.fn.getreg "+"
-    if clip and clip ~= "" then
-      content = clip
-    end
-  end
-  if not content then
-    content = parsed.content
+  local note = require("obsidian.unique").new_unique_note()
+  if not note then
+    return ut.failure(parsed, "Unique note creation was cancelled")
   end
 
-  -- id = nil causes note_id_func to auto-generate a zettel ID.
-  local note = Note.create {
-    should_write = true,
+  ut.write_note(note, parsed, {
+    content = ut.content(parsed),
+    force_append = true,
+  })
+  note:open {
+    sync = true,
+    open_strategy = ut.pane_type_to_open_strategy(parsed.pane_type),
   }
-
-  if content and content ~= "" then
-    local lines = vim.split(content, "\n", { plain = true })
-    local file_lines = vim.fn.readfile(tostring(note.path))
-    vim.list_extend(file_lines, lines)
-    vim.fn.writefile(file_lines, tostring(note.path))
-  end
-
-  local open_cmd = ut.pane_type_to_open_strategy(parsed.pane_type)
-  note:open { sync = true, open_strategy = open_cmd }
+  return ut.success(parsed, { note = note })
 end
 
 return handle_unique

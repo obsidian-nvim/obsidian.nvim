@@ -399,6 +399,19 @@ return {
     separator = string.rep("-", 80),
   },
 
+  ---@class obsidian.config.UriOpts
+  ---
+  ---Handle `obsidian://` links inside Neovim instead of passing them to the operating system.
+  ---@field enabled? boolean
+  ---
+  ---Confirm URI actions that can create or modify files when followed from a note.
+  ---Direct Lua and OS-launcher calls are not prompted.
+  ---@field require_confirmation? boolean
+  uri = {
+    enabled = true,
+    require_confirmation = true,
+  },
+
   ---@class obsidian.config.OpenOpts
   ---
   ---Opens the file with current line number

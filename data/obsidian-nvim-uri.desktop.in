@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Obsidian (Neovim)
+Comment=Handle obsidian:// URIs with obsidian.nvim
+Exec=@LAUNCHER@ %u
+Terminal=false
+Type=Application
+NoDisplay=true
+MimeType=x-scheme-handler/obsidian;
+Categories=Utility;TextEditor;

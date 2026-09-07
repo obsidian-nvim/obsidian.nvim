@@ -7,7 +7,16 @@ local actions = require "obsidian.actions"
 local obsidian_uri = require "obsidian.uri"
 
 local function open_uri(uri, scheme)
-  if scheme == "obsidian" then -- TODO: is opts.uri.enabled = true, or opts.open.uri
+  if scheme == "obsidian" and Obsidian.opts.uri.enabled then
+    local parsed = obsidian_uri.parse(uri)
+    if
+      parsed
+      and Obsidian.opts.uri.require_confirmation
+      and obsidian_uri.is_mutating(parsed)
+      and api.confirm(("Run file-modifying URI action? %s"):format(uri)) ~= "Yes"
+    then
+      return
+    end
     obsidian_uri.handle(uri)
   elseif vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
     vim.ui.open(uri)
@@ -234,11 +243,14 @@ return {
       return callback(nil, {})
     end
 
-    local decoded_location = vim.uri_decode(location)
-    if decoded_location then
-      ---@cast decoded_location string
-      location = decoded_location
+    -- URI query delimiters must remain encoded until the scheme-specific parser
+    -- processes them. Decoding the whole URI turns values such as `%26` into a
+    -- new query parameter.
+    local is_uri = util.is_uri(location)
+    if not is_uri then
+      location = vim.uri_decode(location)
     end
+    ---@cast location string
 
     local wrapped_callback = function(lsp_locations)
       if lsp_locations and vim.islist(lsp_locations) then
