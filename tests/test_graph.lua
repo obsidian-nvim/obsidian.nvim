@@ -125,7 +125,7 @@ T["resolves relative markdown links"] = function()
   eq(b, result.nodes[1].path)
 end
 
-T["optionally includes tag nodes without changing orphans"] = function()
+T["optionally uses tag nodes when finding orphans"] = function()
   local tagged = put("Tagged.md", { tags = { "graph", "#health" } })
   local plain = put("Plain.md", {})
   local graph = require("obsidian.graph").from_cache()
@@ -142,6 +142,7 @@ T["optionally includes tag nodes without changing orphans"] = function()
   }, with_tags.links)
   eq("tag", with_tags.nodes[3].type)
   eq("tag", with_tags.nodes[4].type)
+  eq({ plain }, graph:orphan_files { include_tag_nodes = true })
   eq({ plain, tagged }, graph:orphan_files())
 end
 
