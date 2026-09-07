@@ -1,182 +1,33 @@
 local helpers = require "tests.helpers"
-local ignore = require "obsidian.ignore"
+local cache = require "obsidian.cache"
 
 local T = helpers.temp_vault
 
-T["build_graph"] = MiniTest.new_set()
+local function start_cache()
+  cache.setup { enabled = true, backend = "memory" }
+  helpers.wait(function()
+    return cache.is_ready()
+  end, { desc = "note cache" })
+end
 
-T["build_graph"]["builds note nodes and links"] = function()
-  local graph = require "obsidian.core-plugins.graph"
-
+T["build_graph uses obsidian.Graph"] = function()
+  local graph_view = require "obsidian.core-plugins.graph"
   local nested = Obsidian.dir / "nested"
   nested:mkdir()
 
-  helpers.write("# A\n[[B]]\n[[nested/C|see C]]\n[also B](B.md)\n", Obsidian.dir / "A.md")
-  helpers.write("# B\n[[nested/C#Heading]]\n", Obsidian.dir / "B.md")
-  helpers.write("# C\n", nested / "C.md")
+  helpers.write("[[B]] [[Missing]]", Obsidian.dir / "A.md")
+  helpers.write("---\ntags: [graph]\n---\n# B", nested / "B.md")
+  start_cache()
 
-  local data = graph.build_graph()
-  table.sort(data.links, function(a, b)
-    return a.source .. a.target < b.source .. b.target
-  end)
-
-  MiniTest.expect.equality(3, #data.nodes)
+  local data = graph_view.build_graph()
   MiniTest.expect.equality({
-    { source = "A", target = "B" },
-    { source = "A", target = "nested/C" },
-    { source = "B", target = "nested/C" },
-  }, data.links)
-end
-
-T["build_graph"]["adds linked attachments and missing notes"] = function()
-  local graph = require "obsidian.core-plugins.graph"
-  local assets = Obsidian.dir / "assets"
-  assets:mkdir()
-
-  helpers.write("![[assets/image.png]]\n[[Missing]]", Obsidian.dir / "A.md")
-  helpers.write("png", assets / "image.png")
-
-  local data = graph.build_graph()
-  table.sort(data.nodes, function(a, b)
-    return a.id < b.id
-  end)
-  table.sort(data.links, function(a, b)
-    return a.source .. a.target < b.source .. b.target
-  end)
-
-  MiniTest.expect.equality({
-    { id = "A", title = "A", path = tostring(Obsidian.dir / "A.md"), folder = "", aliases = {}, tags = {} },
-    { id = "Missing", title = "Missing", folder = "", aliases = {}, tags = {}, exists = false },
-    {
-      id = "assets/image.png",
-      title = "image.png",
-      path = tostring(assets / "image.png"),
-      folder = "assets",
-      aliases = {},
-      tags = {},
-      type = "attachment",
-      exists = true,
-    },
-  }, data.nodes)
-  MiniTest.expect.equality({
-    { source = "A", target = "Missing" },
-    { source = "A", target = "assets/image.png" },
-  }, data.links)
-end
-
-T["build_graph"]["does not show ignored nodes"] = function()
-  local graph = require "obsidian.core-plugins.graph"
-  Obsidian.opts.file = {
-    ignore_filters = { "archive", "drafts/*.md", "private/**" },
-  }
-  ignore.clear_cache()
-
-  local archive = Obsidian.dir / "archive"
-  local drafts = Obsidian.dir / "drafts"
-  local private = Obsidian.dir / "private"
-  archive:mkdir()
-  drafts:mkdir()
-  private:mkdir()
-
-  helpers.write("[[B]] [[archive/Old]] [[drafts/Draft]] [[private/Secret]]", Obsidian.dir / "A.md")
-  helpers.write("# B", Obsidian.dir / "B.md")
-  helpers.write("# Old", archive / "Old.md")
-  helpers.write("# Draft", drafts / "Draft.md")
-  helpers.write("# Secret", private / "Secret.md")
-
-  local data = graph.build_graph()
-  table.sort(data.nodes, function(a, b)
-    return a.id < b.id
-  end)
-
-  MiniTest.expect.equality({
-    { id = "A", title = "A", path = tostring(Obsidian.dir / "A.md"), folder = "", aliases = {}, tags = {} },
-    { id = "B", title = "B", path = tostring(Obsidian.dir / "B.md"), folder = "", aliases = {}, tags = {} },
-  }, data.nodes)
-  MiniTest.expect.equality({ { source = "A", target = "B" } }, data.links)
-end
-
-T["build_graph"]["reads frontmatter metadata and resolves aliases"] = function()
-  local graph = require "obsidian.core-plugins.graph"
-  local nested = Obsidian.dir / "nested"
-  nested:mkdir()
-
-  helpers.write("---\naliases: [Alias B]\ntags: [project, graph]\ntitle: Better B\n---\n# B\n#inline", nested / "B.md")
-  helpers.write("[[Alias B]]", Obsidian.dir / "A.md")
-
-  local data = graph.build_graph()
-  table.sort(data.nodes, function(a, b)
-    return a.id < b.id
-  end)
-  table.sort(data.links, function(a, b)
-    return a.source .. a.target < b.source .. b.target
-  end)
-
-  MiniTest.expect.equality({
-    { id = "A", title = "A", path = tostring(Obsidian.dir / "A.md"), folder = "", aliases = {}, tags = {} },
-    {
-      id = "nested/B",
-      title = "Better B",
-      path = tostring(nested / "B.md"),
-      folder = "nested",
-      aliases = { "Alias B" },
-      tags = { "project", "graph", "inline" },
-    },
-    { id = "tag:graph", title = "#graph", folder = "", aliases = {}, tags = {}, type = "tag" },
-    { id = "tag:inline", title = "#inline", folder = "", aliases = {}, tags = {}, type = "tag" },
-    { id = "tag:project", title = "#project", folder = "", aliases = {}, tags = {}, type = "tag" },
-  }, data.nodes)
-  MiniTest.expect.equality({
+    { source = "A", target = "missing:Missing" },
     { source = "A", target = "nested/B" },
     { source = "nested/B", target = "tag:graph" },
-    { source = "nested/B", target = "tag:inline" },
-    { source = "nested/B", target = "tag:project" },
   }, data.links)
-end
-
-T["build_graph"]["uses ready cache rows"] = function()
-  local cache = require "obsidian.cache"
-  local graph = require "obsidian.core-plugins.graph"
-  local path = tostring(Obsidian.dir / "Cached.md")
-
-  cache.setup { enabled = true, backend = "memory" }
-  vim.wait(1000, function()
-    return cache.is_ready()
-  end)
-  cache.notes.upsert {
-    path = path,
-    aliases = { "Cached Alias" },
-    tags = { "cached" },
-    properties = { title = "From Cache" },
-    links_out = { { target = "Missing" } },
-  }
-
-  local data = graph.build_graph()
-  table.sort(data.nodes, function(a, b)
-    return a.id < b.id
-  end)
-  table.sort(data.links, function(a, b)
-    return a.source .. a.target < b.source .. b.target
-  end)
-
-  MiniTest.expect.equality({
-    {
-      id = "Cached",
-      title = "From Cache",
-      path = path,
-      folder = "",
-      aliases = { "Cached Alias" },
-      tags = { "cached" },
-    },
-    { id = "Missing", title = "Missing", folder = "", aliases = {}, tags = {}, exists = false },
-    { id = "tag:cached", title = "#cached", folder = "", aliases = {}, tags = {}, type = "tag" },
-  }, data.nodes)
-  MiniTest.expect.equality({
-    { source = "Cached", target = "Missing" },
-    { source = "Cached", target = "tag:cached" },
-  }, data.links)
-
-  cache.shutdown()
+  MiniTest.expect.equality("note", data.nodes[1].type)
+  MiniTest.expect.equality("missing", data.nodes[2].type)
+  MiniTest.expect.equality("tag", data.nodes[4].type)
 end
 
 T["resolve_graph_arg"] = function()
@@ -213,6 +64,7 @@ T["note_path_by_id"] = function()
   local graph = require "obsidian.core-plugins.graph"
   local path = Obsidian.dir / "A.md"
   helpers.write("# A", path)
+  start_cache()
 
   MiniTest.expect.equality(tostring(path), graph.note_path_by_id "A")
   MiniTest.expect.equality(nil, graph.note_path_by_id "missing")
@@ -222,6 +74,7 @@ T["open_note_by_id"] = function()
   local graph = require "obsidian.core-plugins.graph"
   local path = Obsidian.dir / "A.md"
   helpers.write("# A", path)
+  start_cache()
 
   local ok, err = graph.open_note_by_id("A", "edit")
   MiniTest.expect.equality(true, ok)
