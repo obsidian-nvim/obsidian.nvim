@@ -407,14 +407,13 @@ end
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
 local function preview_query_result(entry)
-  local preview = util.preview_path(assert(entry.filename, "query result is missing its filename"))
-  preview.pos = { entry.lnum or 1, math.max(0, (entry.col or 1) - 1) }
-  return preview
+  return util.preview_path(entry)
 end
 
 ---@param bookmark obsidian.Bookmark
 local function open_query_bookmark(bookmark)
   local dir = api.resolve_workspace_dir()
+  assert(bookmark.query, "bookmark item with query type without query field")
   Query.search(bookmark.query, { root = dir }, function(results, err)
     if err then
       log.err("Invalid bookmark search query: %s", err)

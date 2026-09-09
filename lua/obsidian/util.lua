@@ -25,10 +25,18 @@ util.write_file = function(file, contents)
   fd:close()
 end
 
----@param path string|obsidian.Path
+---Build a preview for a path or quickfix-style picker entry.
+---@param target string|obsidian.Path|obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
-util.preview_path = function(path)
-  path = tostring(path)
+util.preview_path = function(target)
+  ---@type obsidian.PickerEntry?
+  local entry
+  if type(target) == "table" and target.filename and not require("obsidian.path").is_path_obj(target) then
+    ---@cast target obsidian.PickerEntry
+    entry = target
+  end
+
+  local path = tostring(entry and entry.filename or target)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = "wipe"
 
@@ -49,7 +57,15 @@ util.preview_path = function(path)
     end
   end
 
-  return { buf = buf }
+  local preview = { buf = buf }
+  if entry then
+    local lnum = entry.lnum or 1
+    preview.pos = { lnum, math.max(0, (entry.col or 1) - 1) }
+    if entry.end_col then
+      preview.pos_end = { entry.end_lnum or lnum, math.max(preview.pos[2] + 1, entry.end_col - 1) }
+    end
+  end
+  return preview
 end
 
 -------------------

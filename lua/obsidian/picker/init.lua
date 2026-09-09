@@ -8,6 +8,7 @@ local Mappings = require "obsidian.picker.mappings"
 local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
+local search_files = require "obsidian.search.files"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
@@ -197,7 +198,7 @@ M.find_files_from_cache = function(opts)
       }
     end
 
-    for _, note in ipairs(cache.notes.entries { dir = dir }) do
+    for _, note in ipairs(cache.notes.entries { dir = dir, extensions = search_files.markdown_extensions }) do
       local rel_path = note.relative_path:gsub("%.[^./]+$", "")
       add_entry(rel_path, note.path)
       for _, alias in ipairs(note.aliases or {}) do

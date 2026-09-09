@@ -151,4 +151,53 @@ _G.res = search.find_links(note, {})
   }, res)
 end
 
+local find_notes_child
+T["find_notes"], find_notes_child = h.child_vault {
+  pre_case = [[
+vim.fn.writefile({ "# Shared note" }, tostring(Obsidian.dir / "shared-note.md"))
+vim.fn.writefile({ "# Shared template" }, tostring(Obsidian.dir / "templates" / "shared-template.md"))
+vim.fn.writefile({ "filters: shared" }, tostring(Obsidian.dir / "shared.base"))
+vim.fn.writefile({ '{"text":"shared"}' }, tostring(Obsidian.dir / "shared.canvas"))
+vim.fn.writefile({ '{"text":"shared"}' }, tostring(Obsidian.dir / "shared.excalidraw"))
+local archive = Obsidian.dir / "archive"
+archive:mkdir()
+vim.fn.writefile({ "# Shared archive" }, tostring(archive / "shared-archive.md"))
+Obsidian.opts.file.ignore_filters = { "archive" }
+require("obsidian.cache").setup { enabled = true, backend = "memory" }
+  ]],
+}
+
+T["find_notes"]["applies search exclusions to cached symbol lookups"] = function()
+  local result = h.child_await(
+    find_notes_child,
+    [[
+local search = require "obsidian.search"
+local pending = 3
+local result = {}
+local function collect(key)
+  return function(notes)
+    result[key] = vim.tbl_map(function(note)
+      return note.path.name
+    end, notes)
+    pending = pending - 1
+    if pending == 0 then
+      done(result)
+    end
+  end
+end
+search.find_notes_async("shared", collect("default"), { symbols_only = true })
+search.find_notes_async("shared", collect("with_templates"), {
+  symbols_only = true,
+  search = { include_templates = true },
+})
+search.find_notes_async("shared", collect("filesystem"), { symbols_only = false })
+  ]],
+    { desc = "cached note searches" }
+  )
+
+  eq({ "shared-note.md" }, result.default)
+  eq({ "shared-note.md" }, result.filesystem)
+  eq({ "shared-note.md", "shared-template.md" }, result.with_templates)
+end
+
 return T

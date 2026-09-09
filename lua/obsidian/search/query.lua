@@ -1,6 +1,7 @@
 local M = {}
 
 local cache = require "obsidian.cache"
+local search_files = require "obsidian.search.files"
 local Ripgrep = require "obsidian.search.ripgrep"
 
 local scope_list = {
@@ -53,7 +54,7 @@ end
 ---@field col      integer                       1-indexed
 ---@field end_col  integer |?                    Quickfix-style end column (1-indexed, exclusive after normalization).
 ---@field score    integer
----@field context  string |?
+---@field context  string |?                     Matched source line when file content was loaded.
 
 ---@param query            string
 ---@param allow_incomplete boolean
@@ -434,8 +435,8 @@ local function find_term(text, node, case_sensitive, exact)
 
   local original_text, original_value = text, value
   if not case_sensitive then
-    text = string.lower(text)
-    value = string.lower(value)
+    text = vim.fn.tolower(text)
+    value = vim.fn.tolower(value)
   end
   if exact then
     text = text:gsub("^#", "")
@@ -758,7 +759,7 @@ end
 ---@class obsidian.search.QueryOpts
 ---@field root string|obsidian.Path|nil
 ---@field allow_incomplete boolean|nil
----@field include_canvas boolean|nil
+---@field include_non_markdown boolean|nil
 
 ---Execute an Obsidian query against the validated cache universe. File content
 ---is obtained only through ripgrep when the AST requires it.
@@ -810,7 +811,7 @@ function M.search(query, opts, callback)
     local rows = {}
     for path, row in pairs(snapshot.rows) do
       path = vim.fs.normalize(path)
-      if is_under(path, root) and (opts.include_canvas ~= false or row.kind ~= "canvas") then
+      if is_under(path, root) and (opts.include_non_markdown ~= false or search_files.is_markdown(path)) then
         paths[#paths + 1] = path
         rows[path] = row
       end

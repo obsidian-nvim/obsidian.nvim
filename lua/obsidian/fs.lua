@@ -2,6 +2,7 @@ local M = {}
 
 local gitignore = require("obsidian.lib.glob").gitignore
 local ignore = require "obsidian.ignore"
+local search_files = require "obsidian.search.files"
 
 ---@class obsidian.fs.WalkOpts
 ---@field hidden? boolean Include dotfiles and descend into dot-directories.
@@ -329,7 +330,7 @@ M.dir = function(dir)
       return vim.fs.normalize(path) == vim.fs.normalize(tostring(templates_dir))
     end or nil,
     predicate = function(path)
-      return vim.endswith(path, ".md") or vim.endswith(path, ".qmd") or vim.endswith(path, ".base")
+      return search_files.is_markdown(path)
     end,
     sort_by = false,
   })

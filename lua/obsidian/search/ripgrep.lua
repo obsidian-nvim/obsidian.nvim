@@ -11,9 +11,10 @@ local BASE_CMD = {
 
 local function extension_args()
   local args = {}
-  for _, glob in ipairs(search_files.ripgrep_globs()) do
-    args[#args + 1] = "--glob=" .. glob
+  for extension in pairs(search_files.markdown_extensions) do
+    args[#args + 1] = "--glob=*." .. extension
   end
+  table.sort(args)
   return args
 end
 

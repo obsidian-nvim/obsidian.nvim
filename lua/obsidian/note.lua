@@ -1415,7 +1415,7 @@ Note.status = function(self, update_backlinks, callback)
     if cache.is_ready() then
       return finish(cache.notes.backlink_count(self))
     elseif callback then
-      return cache.when_ready(function()
+      cache.when_ready(function()
         finish(cache.notes.backlink_count(self))
       end)
     end

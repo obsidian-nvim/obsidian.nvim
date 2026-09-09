@@ -713,13 +713,7 @@ end
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
 local function preview_entry(entry)
-  local spec = require("obsidian.util").preview_path(assert(entry.filename, "picker result is missing its filename"))
-  local lnum = entry.lnum or 1
-  spec.pos = { lnum, math.max(0, (entry.col or 1) - 1) }
-  if entry.end_col then
-    spec.pos_end = { entry.end_lnum or lnum, math.max(spec.pos[2] + 1, entry.end_col - 1) }
-  end
-  return spec
+  return require("obsidian.util").preview_path(entry)
 end
 
 ---Start a live ripgrep picker. Results are appended as ripgrep produces them.
@@ -763,8 +757,12 @@ function M.search(opts)
     return require("obsidian.search.query").search(query, {
       root = dir,
       allow_incomplete = true,
-      include_canvas = opts.include_non_markdown ~= false,
-    }, function(results)
+      include_non_markdown = opts.include_non_markdown ~= false,
+    }, function(results, err)
+      if err then
+        require("obsidian.log").err_once("Obsidian search failed: %s", err)
+        return
+      end
       for _, result in ipairs(results) do
         emit {
           filename = result.document.path,

@@ -22,6 +22,25 @@ T["preview_path"]["lists directory contents and marks folders"] = function()
   vim.fn.delete(tostring(dir), "rf")
 end
 
+T["preview_path"]["uses the location from a quickfix entry"] = function()
+  local path = Path.temp { suffix = "-obsidian-preview.md" }
+  M.write_file(tostring(path), "first line\nsecond line")
+
+  local preview = M.preview_path {
+    filename = tostring(path),
+    lnum = 2,
+    col = 3,
+    end_lnum = 2,
+    end_col = 7,
+  }
+  eq({ 2, 2 }, preview.pos)
+  eq({ 2, 6 }, preview.pos_end)
+  eq({ "first line", "second line" }, vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false))
+
+  vim.api.nvim_buf_delete(preview.buf, { force = true })
+  vim.fn.delete(tostring(path))
+end
+
 T["tbl_unique"] = function()
   eq(#M.tbl_unique { "hi", "hey", "hi", "hi" }, 2)
 end

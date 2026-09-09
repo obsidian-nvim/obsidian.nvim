@@ -82,6 +82,7 @@ local integer = function(value)
 end
 
 local picker_names = vim.tbl_values(types.Picker)
+table.insert(picker_names, false)
 local sort_values = vim.tbl_values(types.SortBy)
 local open_strategies = vim.tbl_values(types.OpenStrategy)
 local link_styles = vim.tbl_values(types.LinkStyle)

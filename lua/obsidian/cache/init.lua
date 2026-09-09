@@ -1,6 +1,6 @@
 --- Obsidian cache: ORM-style repository over swappable backend.
 ---
---- Ships JSON and memory backends plus note metadata queries.
+--- Ships JSON and memory backends plus searchable file metadata queries.
 --- Wired to LSP document-save and watched-file events for live updates.
 
 local log = require "obsidian.log"
@@ -312,7 +312,7 @@ local function stat_matches(row, stat)
   return row.mtime == stat.mtime.sec and row.mtime_nsec == stat.mtime.nsec and row.size == stat.size
 end
 
----Walk vault, populate cache for all `.md` files. Skips notes whose mtime/size match.
+---Walk vault and populate the cache. Skips files whose mtime/size match.
 ---@param force boolean? rebuild every entry regardless of stat
 local function initial_scan(force)
   if not state then
@@ -503,7 +503,7 @@ function M.shutdown()
 end
 
 -- ──────────────────────────────────────────────────────────────────────────────
--- Notes repository (CRUD)
+-- Searchable files repository (kept as `notes` for the internal cache API)
 -- ──────────────────────────────────────────────────────────────────────────────
 
 ---@class obsidian.cache.NotesRepo
@@ -648,11 +648,13 @@ function M.notes.backlink_count(note)
   end
 
   local count = 0
-  for _, row in pairs(state.backend:all()) do
-    for _, link in ipairs(row.links_out or {}) do
-      local target = link.target:gsub("^%./", ""):gsub("^/", ""):lower()
-      if refs[target] then
-        count = count + 1
+  for path, row in pairs(state.backend:all()) do
+    if search_files.is_markdown(path) then
+      for _, link in ipairs(row.links_out or {}) do
+        local target = link.target:gsub("^%./", ""):gsub("^/", ""):lower()
+        if refs[target] then
+          count = count + 1
+        end
       end
     end
   end
@@ -677,10 +679,12 @@ function M.notes.find_headings(query)
   local needle = vim.fn.tolower(vim.trim(query or ""))
   local results = {}
   for path, row in pairs(state.backend:all()) do
-    for _, heading in ipairs(row.headings or {}) do
-      local searchable = heading.header .. " " .. heading.anchor
-      if needle == "" or vim.fn.tolower(searchable):find(needle, 1, true) then
-        results[#results + 1] = vim.tbl_extend("force", heading, { path = path })
+    if search_files.is_markdown(path) then
+      for _, heading in ipairs(row.headings or {}) do
+        local searchable = heading.header .. " " .. heading.anchor
+        if needle == "" or vim.fn.tolower(searchable):find(needle, 1, true) then
+          results[#results + 1] = vim.tbl_extend("force", heading, { path = path })
+        end
       end
     end
   end

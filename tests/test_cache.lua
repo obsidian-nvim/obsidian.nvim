@@ -160,11 +160,11 @@ T["cache backends"]["stores searchable rows"] = function()
   eq("Note", row.basename)
   eq("md", row.extension)
   eq("markdown", row.kind)
-  eq(5, row.line_count)
+  eq(6, row.line_count)
   eq(true, row.frontmatter.present)
   eq({ "Foo" }, row.frontmatter.values.tags)
   eq("#Inline", row.tag_locations[2].text)
-  eq(5, row.tag_locations[2].line)
+  eq(6, row.tag_locations[2].line)
   eq(nil, row.ext)
   eq(nil, row.folder)
   eq(nil, row.has_frontmatter)
@@ -370,14 +370,15 @@ T["cache backends"]["removes stale data when parsing fails"] = function()
   eq(nil, cache.notes.find(note_path))
 end
 
-T["cache backends"]["indexes markdown-like extensions"] = function()
+T["cache backends"]["indexes notes and generic searchable files"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   helpers.write("# Note", dir / "Note.md")
   helpers.write("# Page", dir / "Page.markdown")
   helpers.write("# Query", dir / "Query.qmd")
-  helpers.write("# Base", dir / "Base.base")
+  helpers.write("filters:\n  and:\n    - 'tag == #project'", dir / "Base.base")
   helpers.write('{"nodes":[]}', dir / "Board.canvas")
+  helpers.write('{"type":"excalidraw"}', dir / "Drawing.excalidraw")
   Obsidian = { dir = dir }
 
   local cache = require "obsidian.cache"
@@ -386,11 +387,14 @@ T["cache backends"]["indexes markdown-like extensions"] = function()
     return cache.is_ready()
   end)
 
-  eq(5, cache.notes.count())
-  eq(true, cache.notes.find(tostring(dir / "Page.markdown")) ~= nil)
-  eq(true, cache.notes.find(tostring(dir / "Query.qmd")) ~= nil)
-  eq(true, cache.notes.find(tostring(dir / "Base.base")) ~= nil)
-  eq("canvas", cache.notes.find(tostring(dir / "Board.canvas")).kind)
+  eq(6, cache.notes.count())
+  eq("markdown", cache.notes.find(tostring(dir / "Page.markdown")).kind)
+  eq("markdown", cache.notes.find(tostring(dir / "Query.qmd")).kind)
+  local base = cache.notes.find(tostring(dir / "Base.base"))
+  eq("file", base.kind)
+  eq(nil, base.tags)
+  eq("file", cache.notes.find(tostring(dir / "Board.canvas")).kind)
+  eq("file", cache.notes.find(tostring(dir / "Drawing.excalidraw")).kind)
 end
 
 T["cache backends"]["publishes snapshots and indexed symbols"] = function()

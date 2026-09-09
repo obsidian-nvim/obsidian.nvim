@@ -9,5 +9,5 @@ return function()
   local old_count = cache.notes.count()
   cache.notes.reindex()
   cache.notes.flush()
-  log.info("Rebuilt cache: %d -> %d note(s)", old_count, cache.notes.count())
+  log.info("Rebuilt cache: %d -> %d file(s)", old_count, cache.notes.count())
 end

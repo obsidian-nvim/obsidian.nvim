@@ -1,19 +1,21 @@
 local M = {}
 
-M.extensions = {
-  base = true,
-  canvas = true,
+-- Formats that contain Markdown notes and can be parsed by obsidian.Note.
+M.markdown_extensions = {
   markdown = true,
   md = true,
   qmd = true,
 }
 
-M.markdown_extensions = {
+-- Text-based Obsidian formats that are useful in content search, but are not
+-- notes and must not be passed to the Markdown parser.
+local generic_extensions = {
   base = true,
-  markdown = true,
-  md = true,
-  qmd = true,
+  canvas = true,
+  excalidraw = true,
 }
+
+M.extensions = vim.tbl_extend("force", {}, M.markdown_extensions, generic_extensions)
 
 ---@param path string
 ---@return string
@@ -31,16 +33,6 @@ end
 ---@return boolean
 function M.is_markdown(path)
   return M.markdown_extensions[M.extension(path)] == true
-end
-
----@return string[]
-function M.ripgrep_globs()
-  local globs = {}
-  for extension in pairs(M.extensions) do
-    globs[#globs + 1] = "*." .. extension
-  end
-  table.sort(globs)
-  return globs
 end
 
 return M

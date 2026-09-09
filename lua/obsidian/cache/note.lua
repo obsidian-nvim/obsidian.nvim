@@ -97,13 +97,18 @@ local function range_row(range)
   }
 end
 
----Convert obsidian.Note + stat → CacheNote row.
+---Convert a searchable vault file into a cache row.
 ---@param abs_path string
 ---@param _vault_root string
 ---@return table? row
 function M.build(abs_path, _vault_root)
   local stat = vim.uv.fs_stat(abs_path)
   if not stat or stat.type ~= "file" then
+    return nil
+  end
+
+  local extension = search_files.extension(abs_path)
+  if not search_files.is_searchable(abs_path) then
     return nil
   end
 
@@ -118,7 +123,6 @@ function M.build(abs_path, _vault_root)
   end
   fh:close()
 
-  local extension = search_files.extension(abs_path)
   local filename = vim.fs.basename(abs_path)
   local relative_path = abs_path
   local root = vim.fs.normalize(_vault_root):gsub("/+$", "")
@@ -126,9 +130,9 @@ function M.build(abs_path, _vault_root)
     relative_path = vim.fs.normalize(abs_path):sub(#root + 2)
   end
 
-  if extension == "canvas" then
+  if not search_files.is_markdown(abs_path) then
     return {
-      kind = "canvas",
+      kind = "file",
       relative_path = relative_path,
       extension = extension,
       filename = filename,

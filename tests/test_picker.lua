@@ -195,6 +195,22 @@ T["pick preserves varargs for custom multiple-selection callbacks"] = function()
   eq({ first, second }, choices)
 end
 
+T["make_display reads the target line when entry text is missing"] = function()
+  local picker_util = require "obsidian.picker.util"
+  local root = Path.temp { suffix = "-picker-display" }
+  root:mkdir { parents = true }
+  local path = root / "note.md"
+  helpers.write("first line\nsecond line", path)
+  Obsidian = { dir = root }
+
+  local display = picker_util.make_display {
+    filename = tostring(path),
+    lnum = 2,
+    col = 3,
+  }
+  eq(true, vim.endswith(display, "note.md:2:3 second line"))
+end
+
 T["open_notes opens a single result directly"] = function()
   local picker_util = require "obsidian.picker.util"
   local original_open_note = api.open_note
@@ -270,6 +286,9 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
   dir:mkdir { parents = true }
   helpers.write("# Agenda", dir / "Agenda.md")
   helpers.write("# Other", dir / "Other.md")
+  helpers.write("filters: Agenda", dir / "Agenda.base")
+  helpers.write('{"text":"Agenda"}', dir / "Agenda.canvas")
+  helpers.write('{"text":"Agenda"}', dir / "Agenda.excalidraw")
   Obsidian = { dir = dir }
 
   local cache = require "obsidian.cache"

@@ -11,6 +11,7 @@ local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
 local parse_tasks = require "obsidian.parse.line.tasks"
+local search_files = require "obsidian.search.files"
 
 M.dir = require("obsidian.fs").dir
 
@@ -87,8 +88,7 @@ M.path_is_note = function(path, workspace)
   -- Check file extension instead of vim.filetype.match to avoid fast event
   -- context issues. vim.filetype.match calls getenv() which is not allowed in
   -- completion context.
-  local extension = tostring(path):match "%.([^%.]+)$"
-  if not vim.list_contains({ "md", "markdown", "qmd", "base" }, extension) then
+  if not search_files.is_markdown(tostring(path)) then
     return false
   end
 

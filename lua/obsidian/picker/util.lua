@@ -126,9 +126,17 @@ M.make_display = function(entry)
     end
   end
 
-  if entry.text then
+  local text = entry.text
+  if text == nil and entry.filename and entry.lnum and entry.lnum > 0 then
+    local ok, lines = pcall(vim.fn.readfile, entry.filename, "", entry.lnum)
+    if ok then
+      text = lines[entry.lnum]
+    end
+  end
+
+  if text then
     buf[#buf + 1] = " "
-    buf[#buf + 1] = entry.text
+    buf[#buf + 1] = text
   elseif entry.user_data then
     buf[#buf + 1] = " "
     buf[#buf + 1] = tostring(entry.user_data)
