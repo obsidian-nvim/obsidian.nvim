@@ -57,6 +57,7 @@ local T = new_set {
           "~~~",
           "#alsohidden",
           "~~~",
+          "Ärger über Überraschungen",
         }, "\n"),
         root / "personal" / "meetup.md"
       )
@@ -128,6 +129,12 @@ T["terms"]["matches words, phrases, regex, OR, and negation"] = function()
   eq({ "archive.md" }, paths "work -meeting")
 end
 
+T["terms"]["folds Unicode case for case-insensitive terms"] = function()
+  eq({ "personal/meetup.md" }, paths "ärger")
+  eq({}, paths "match-case:ärger")
+  eq({ "personal/meetup.md" }, paths "ignore-case:ärger")
+end
+
 T["operators"] = new_set()
 
 T["operators"]["matches file, path, content, and case scopes"] = function()
@@ -178,23 +185,35 @@ T["results are ranked by match quality and then by path"] = function()
   eq(11, results[1].line)
   eq(18, results[1].col)
   eq(26, results[1].end_col)
+  eq("call Alice about HappyCat", results[1].context)
 end
 
-T["cache universe includes notes and canvases"] = function()
+T["cache universe includes generic searchable files"] = function()
   local note_path = root / "note.md"
+  local base_path = root / "catalog.base"
   local canvas_path = root / "board.canvas"
+  local excalidraw_path = root / "drawing.excalidraw"
   h.write("needle in a note", note_path)
+  h.write("filters: needle in a base", base_path)
   h.write('{"text":"needle in a canvas"}', canvas_path)
+  h.write('{"text":"needle in an excalidraw drawing"}', excalidraw_path)
   h.write("needle in plain text", root / "ignored.txt")
   local cache = require "obsidian.cache"
-  cache.notes.refresh(tostring(note_path))
-  cache.notes.refresh(tostring(canvas_path))
+  for _, path in ipairs { note_path, base_path, canvas_path, excalidraw_path } do
+    cache.notes.refresh(tostring(path))
+  end
 
   eq(
-    { "board.canvas", "note.md" },
+    { "board.canvas", "catalog.base", "drawing.excalidraw", "note.md" },
     vim.tbl_map(function(result)
       return result.document.relative_path
     end, search "needle")
+  )
+  eq(
+    { "note.md" },
+    vim.tbl_map(function(result)
+      return result.document.relative_path
+    end, search("needle", { include_non_markdown = false }))
   )
 end
 
@@ -218,7 +237,14 @@ T["metadata-only queries do not start ripgrep"] = function()
   end
 
   local ok, err = pcall(function()
-    eq({ "meetings/work.md" }, paths "[status:Draft]")
+    local metadata_results = search "[status:Draft]"
+    eq(
+      { "meetings/work.md" },
+      vim.tbl_map(function(result)
+        return result.document.relative_path
+      end, metadata_results)
+    )
+    eq(nil, metadata_results[1].context)
     eq(0, calls)
     eq({ "meetings/work.md" }, paths "content:HappyCat")
     eq(1, calls)

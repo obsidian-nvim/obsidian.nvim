@@ -13,6 +13,71 @@ util.write_file = function(file, contents)
   fd:close()
 end
 
+---Build a preview for a path or quickfix-style picker entry.
+---@param target string|obsidian.Path|obsidian.PickerEntry
+---@return obsidian.ui_select_preview_spec
+util.preview_path = function(target)
+  ---@type obsidian.PickerEntry?
+  local entry
+  if type(target) == "table" and target.filename and not require("obsidian.path").is_path_obj(target) then
+    ---@cast target obsidian.PickerEntry
+    entry = target
+  end
+
+  local path = tostring(entry and entry.filename or target)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
+
+  local stat = vim.uv.fs_stat(path)
+  if stat and stat.type == "directory" then
+    local entries = {}
+    for name, t in vim.fs.dir(path) do
+      entries[#entries + 1] = name .. (t == "directory" and "/" or "")
+    end
+    table.sort(entries)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
+    vim.bo[buf].filetype = "directory"
+  else
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
+    local ft = vim.filetype.match { filename = path }
+    if ft then
+      vim.bo[buf].filetype = ft
+    end
+  end
+
+  local preview = { buf = buf }
+  if entry then
+    local lnum = entry.lnum or 1
+    preview.pos = { lnum, math.max(0, (entry.col or 1) - 1) }
+    if entry.end_col then
+      preview.pos_end = { entry.end_lnum or lnum, math.max(preview.pos[2] + 1, entry.end_col - 1) }
+    end
+  end
+  return preview
+end
+
+-------------------
+--- Table tools ---
+-------------------
+
+---@param t table
+util.flatten = function(t)
+  ---@diagnostic disable-next-line: redundant-parameter, call-non-callable
+  return vim.iter(t):flatten():totable()
+end
+
+---Return a new list table with only the unique values of the original table.
+---
+---@param t table
+---@return any[]
+util.tbl_unique = function(t)
+  local found = {}
+  for _, val in pairs(t) do
+    found[val] = true
+  end
+  return vim.tbl_keys(found)
+end
+
 --------------------
 --- String Tools ---
 --------------------

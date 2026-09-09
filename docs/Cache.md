@@ -33,7 +33,7 @@ The cache stores typed note and attachment rows with derived facts used by symbo
 - outgoing links
 - task state, text, original line, and location
 - heading, section, and block ranges
-- line count and file kind (`markdown` or `canvas`)
+- line count and file kind (`markdown` or generic `file`)
 - file modification time and size
 - attachment extension and file statistics
 
@@ -41,13 +41,13 @@ Attachment content is not stored in the metadata cache.
 
 Complete note contents and complete line arrays are not cached. When query semantics require content, `obsidian.search.query` obtains complete-line evidence through ripgrep and evaluates the existing query AST in Lua.
 
-The searchable extension set is shared by cache scanning and ripgrep:
+The cache scans Markdown notes (`.md`, `.markdown`, and `.qmd`) plus a small set of text-based Obsidian files that are useful in content search but are not parsed as notes:
 
-- `.md`
-- `.markdown`
-- `.qmd`
 - `.base`
 - `.canvas`
+- `.excalidraw`
+
+Generic files only contribute path and file metadata to the cache; content queries read their text through ripgrep. Note lookup, completion, backlinks, headings, and quick switch remain limited to Markdown notes.
 
 The cache is derived data. You can delete it at any time; `obsidian.nvim` will rebuild it on the next startup or file change.
 

@@ -1,5 +1,6 @@
 local child = MiniTest.new_child_neovim()
 local eq = MiniTest.expect.equality
+local h = require "tests.helpers"
 
 local T = MiniTest.new_set {
   hooks = {
@@ -259,8 +260,13 @@ end
 local preview_buf = vim.api.nvim_create_buf(false, true)
 local Util = require "obsidian.util"
 local original_preview_path = Util.preview_path
-Util.preview_path = function()
-  return { buf = preview_buf }
+Util.preview_path = function(entry)
+  local lnum = entry.lnum or 1
+  return {
+    buf = preview_buf,
+    pos = { lnum, math.max(0, (entry.col or 1) - 1) },
+    pos_end = entry.end_col and { entry.end_lnum or lnum, entry.end_col - 1 } or nil,
+  }
 end
 local picker = require("obsidian.picker.ui").live_grep {
   dir = ".",
@@ -308,7 +314,9 @@ T["search streams Obsidian query results"] = function()
   local result = child.lua [[
 local Query = require "obsidian.search.query"
 local original = Query.search
-Query.search = function(_, _, callback)
+local query_opts
+Query.search = function(_, opts, callback)
+  query_opts = opts
   callback({ {
     document = {
       path = "/vault/work.md",
@@ -349,13 +357,63 @@ local out = {
   end_lnum = value.end_lnum,
   end_col = value.end_col,
   text = value.text,
+  include_non_markdown = query_opts.include_non_markdown,
 }
 picker:cancel()
 Query.search = original
 return out
   ]]
 
-  eq({ filename = "/vault/work.md", lnum = 4, col = 1, end_lnum = 4, end_col = 7, text = "needle" }, result)
+  eq({
+    filename = "/vault/work.md",
+    lnum = 4,
+    col = 1,
+    end_lnum = 4,
+    end_col = 7,
+    text = "needle",
+    include_non_markdown = true,
+  }, result)
+end
+
+T["search reports Obsidian query execution errors"] = function()
+  child.lua [[
+local Query = require "obsidian.search.query"
+_G.original_query_search = Query.search
+Query.search = function(_, _, callback)
+  callback({}, "Obsidian query search requires the cache to be enabled")
+  return function() end
+end
+
+_G.original_notify_once = vim.notify_once
+vim.notify_once = function(message, level, opts)
+  _G.search_error = { message = message, level = level, title = opts and opts.title }
+end
+
+_G.search_error_picker = require("obsidian.picker.ui").search {
+  dir = "/vault",
+  query = "content:needle",
+  debounce = 0,
+}
+  ]]
+
+  h.child_wait(child, "return _G.search_error ~= nil", { desc = "query error notification" })
+  local result = child.lua [[
+local result = search_error
+search_error_picker:cancel()
+require("obsidian.search.query").search = original_query_search
+vim.notify_once = original_notify_once
+_G.original_query_search = nil
+_G.original_notify_once = nil
+_G.search_error = nil
+_G.search_error_picker = nil
+return result
+  ]]
+
+  eq({
+    message = "Obsidian search failed: Obsidian query search requires the cache to be enabled",
+    level = vim.log.levels.ERROR,
+    title = "Obsidian.nvim",
+  }, result)
 end
 
 return T

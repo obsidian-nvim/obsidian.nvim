@@ -21,7 +21,7 @@ local T = new_set {
 T["cache backends"] = new_set()
 T["json backend"] = new_set()
 
-T["json backend"]["persists schema v2 entries"] = function()
+T["json backend"]["persists schema v3 entries"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache-json" }
   dir:mkdir { parents = true }
   Obsidian = { dir = dir }
@@ -37,7 +37,7 @@ T["json backend"]["persists schema v2 entries"] = function()
   backend:flush()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
-  eq(2, decoded.schema_version)
+  eq(3, decoded.schema_version)
   eq(5, decoded.indexer_version)
   eq(vault, decoded.vault)
   eq("note", decoded.entries[note_path].kind)
@@ -68,7 +68,7 @@ T["json backend"]["rebuilds incompatible cache envelopes"] = function()
   backend:flush()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
-  eq(2, decoded.schema_version)
+  eq(3, decoded.schema_version)
   eq(5, decoded.indexer_version)
   eq(nil, decoded.version)
   eq(nil, decoded.notes)
@@ -217,11 +217,11 @@ T["cache backends"]["stores typed searchable note rows"] = function()
   eq("Note", row.basename)
   eq("md", row.extension)
   eq("markdown", row.search_kind)
-  eq(5, row.line_count)
+  eq(6, row.line_count)
   eq(true, row.frontmatter.present)
   eq({ "Foo" }, row.frontmatter.values.tags)
   eq("#Inline", row.tag_locations[2].text)
-  eq(5, row.tag_locations[2].line)
+  eq(6, row.tag_locations[2].line)
   eq(nil, row.ext)
   eq(nil, row.folder)
   eq(nil, row.has_frontmatter)
@@ -441,14 +441,15 @@ T["cache backends"]["removes stale data when parsing fails"] = function()
   eq(nil, cache.notes.find(note_path))
 end
 
-T["cache backends"]["indexes markdown-like extensions"] = function()
+T["cache backends"]["indexes notes and generic searchable files"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   helpers.write("# Note", dir / "Note.md")
   helpers.write("# Page", dir / "Page.markdown")
   helpers.write("# Query", dir / "Query.qmd")
-  helpers.write("# Base", dir / "Base.base")
+  helpers.write("filters:\n  and:\n    - 'tag == #project'", dir / "Base.base")
   helpers.write('{"nodes":[]}', dir / "Board.canvas")
+  helpers.write('{"type":"excalidraw"}', dir / "Drawing.excalidraw")
   Obsidian = { dir = dir }
 
   local cache = require "obsidian.cache"
@@ -457,12 +458,19 @@ T["cache backends"]["indexes markdown-like extensions"] = function()
     return cache.is_ready()
   end)
 
-  eq(4, cache.notes.count())
-  eq(1, cache.attachments.count())
+  eq(3, cache.notes.count())
+  eq(0, cache.attachments.count())
   eq(true, cache.notes.find(tostring(dir / "Page.markdown")) ~= nil)
   eq(true, cache.notes.find(tostring(dir / "Query.qmd")) ~= nil)
-  eq(true, cache.notes.find(tostring(dir / "Base.base")) ~= nil)
-  eq("canvas", cache.attachments.find(tostring(dir / "Board.canvas")).search_kind)
+  eq(nil, cache.notes.find(tostring(dir / "Base.base")))
+
+  local rows = cache.notes.snapshot().rows
+  for _, filename in ipairs { "Base.base", "Board.canvas", "Drawing.excalidraw" } do
+    local row = rows[tostring(dir / filename)]
+    eq("file", row.kind)
+    eq("generic", row.search_kind)
+    eq(nil, row.tags)
+  end
 end
 
 T["cache backends"]["publishes snapshots and indexed symbols"] = function()

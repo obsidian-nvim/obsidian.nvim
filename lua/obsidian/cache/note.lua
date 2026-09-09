@@ -5,6 +5,7 @@ local parse_refs = require "obsidian.parse.refs"
 local parse_tasks = require "obsidian.parse.line.tasks"
 local tags = require "obsidian.tag"
 local yaml = require "obsidian.yaml"
+local search_files = require "obsidian.search.files"
 
 local M = {}
 
@@ -85,13 +86,18 @@ local function range_row(range)
   return { start_line = range.start_row + 1, end_line = range.end_row }
 end
 
----Convert a note and its stat data into a compact typed cache row.
+---Convert a searchable vault file into a compact cache row.
 ---@param abs_path string
 ---@param vault_root string
 ---@return table? row
 function M.build(abs_path, vault_root)
   local stat = vim.uv.fs_stat(abs_path)
   if not stat or stat.type ~= "file" then
+    return nil
+  end
+
+  local extension = search_files.extension(abs_path)
+  if not search_files.is_searchable(abs_path) then
     return nil
   end
 
@@ -104,6 +110,31 @@ function M.build(abs_path, vault_root)
     lines[#lines + 1] = line
   end
   fh:close()
+
+  local filename = vim.fs.basename(abs_path)
+  local root = vim.fs.normalize(vault_root):gsub("/+$", "")
+  local normalized_path = vim.fs.normalize(abs_path)
+  local relative_path = normalized_path
+  if vim.startswith(normalized_path, root .. "/") then
+    relative_path = normalized_path:sub(#root + 2)
+  end
+
+  if not search_files.is_markdown(abs_path) then
+    return {
+      kind = "file",
+      search_kind = "generic",
+      stat = {
+        mtime_sec = stat.mtime.sec,
+        mtime_nsec = stat.mtime.nsec,
+        size = stat.size,
+      },
+      relative_path = relative_path,
+      extension = extension,
+      filename = filename,
+      basename = vim.fn.fnamemodify(filename, ":r"),
+      line_count = #lines,
+    }
+  end
 
   local document = Document.parse(lines)
   local ok, note = pcall(Note.from_lines, lines, abs_path, {

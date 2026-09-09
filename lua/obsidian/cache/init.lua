@@ -1,6 +1,5 @@
 --- Obsidian cache: ORM-style repository over swappable backend.
----
---- v2 stores typed note and attachment rows behind separate repositories.
+--- Stores typed note, attachment, and generic searchable file rows.
 --- Wired to LSP document-save and watched-file events for live updates.
 
 local log = require "obsidian.log"
@@ -43,7 +42,17 @@ M.find_files = require("obsidian.cache.api").find_files
 ---@field stat obsidian.cache.FileStat
 ---@field extension string
 
----@alias obsidian.cache.Row obsidian.cache.NoteRow|obsidian.cache.AttachmentRow
+---@class obsidian.cache.SearchableFileRow
+---@field kind "file"
+---@field search_kind "generic"
+---@field stat obsidian.cache.FileStat
+---@field relative_path string
+---@field extension string
+---@field filename string
+---@field basename string
+---@field line_count integer
+
+---@alias obsidian.cache.Row obsidian.cache.NoteRow|obsidian.cache.AttachmentRow|obsidian.cache.SearchableFileRow
 
 ---@type table<string, any>
 local backends = {
@@ -67,14 +76,14 @@ local generation = 0
 
 local FLUSH_DEBOUNCE_MS = 2000
 ---@param abs_path string
----@param kind "note"|"attachment"
+---@param kind "note"|"attachment"|"file"
 ---@return obsidian.cache.Row?
 local function build_row(abs_path, kind)
   if not state then
     return nil
   end
 
-  if kind == "note" then
+  if kind == "note" or kind == "file" then
     return cache_note.build(abs_path, state.vault)
   end
 
@@ -91,13 +100,16 @@ local function build_row(abs_path, kind)
     },
     extension = filetypes.extension(abs_path),
   }
-  if row.extension == "canvas" then
-    row.search_kind = "canvas"
-    row.relative_path = vim.fs.normalize(abs_path):sub(#state.vault + 2)
-    row.filename = vim.fs.basename(abs_path)
-    row.basename = vim.fn.fnamemodify(row.filename, ":r")
-  end
   return row
+end
+
+---@param path string
+---@return string|nil
+local function cache_kind(path)
+  if search_files.is_searchable(path) and not search_files.is_markdown(path) then
+    return "file"
+  end
+  return filetypes.kind(path)
 end
 
 ---@class obsidian.cache.SymbolIndex
@@ -304,7 +316,7 @@ local function reindex_one(abs_path)
   if not is_in_vault(abs_path) then
     return
   end
-  local kind = filetypes.kind(abs_path)
+  local kind = cache_kind(abs_path)
   if not kind or is_internal(abs_path) or is_ignored(abs_path) then
     delete_row(abs_path)
     schedule_flush()
@@ -338,7 +350,7 @@ local function rename_one(old_path, new_path)
   end
   old_path = vim.fs.normalize(old_path)
   new_path = vim.fs.normalize(new_path)
-  local kind = filetypes.kind(new_path)
+  local kind = cache_kind(new_path)
   if not is_in_vault(new_path) or not kind or is_internal(new_path) or is_ignored(new_path) then
     delete_row(old_path)
     schedule_flush()
@@ -405,14 +417,14 @@ end
 ---@param stat uv.fs_stat.result
 ---@return boolean
 local function entry_matches(row, path, stat)
-  local kind = filetypes.kind(path)
+  local kind = cache_kind(path)
   if type(row) ~= "table" or not kind or row.kind ~= kind or not stat_matches(row, stat) then
     return false
   end
   return kind ~= "attachment" or row.extension == filetypes.extension(path)
 end
 
----Walk vault, populate cache for all supported notes and attachments. Skips entries whose mtime/size match.
+---Walk vault and populate the cache. Skips files whose mtime/size match.
 ---@param force boolean? rebuild every entry regardless of stat
 local function initial_scan(force)
   if not state then
@@ -421,7 +433,7 @@ local function initial_scan(force)
   local scan_state = state
   local found = {}
   local files = vim.fs.find(function(name, dir)
-    if not filetypes.kind(name) then
+    if not cache_kind(name) then
       return false
     end
     local path = dir .. "/" .. name
@@ -609,7 +621,7 @@ function M.shutdown()
 end
 
 -- ──────────────────────────────────────────────────────────────────────────────
--- Notes repository (CRUD)
+-- Searchable files repository (kept as `notes` for the internal cache API)
 -- ──────────────────────────────────────────────────────────────────────────────
 
 ---@class obsidian.cache.NotesRepo
@@ -742,11 +754,13 @@ function M.notes.backlink_count(note)
   end
 
   local count = 0
-  for _, row in pairs(state.backend:all()) do
-    for _, link in ipairs(row.links_out or {}) do
-      local target = link.target:gsub("^%./", ""):gsub("^/", ""):lower()
-      if refs[target] then
-        count = count + 1
+  for path, row in pairs(state.backend:all()) do
+    if search_files.is_markdown(path) then
+      for _, link in ipairs(row.links_out or {}) do
+        local target = link.target:gsub("^%./", ""):gsub("^/", ""):lower()
+        if refs[target] then
+          count = count + 1
+        end
       end
     end
   end
@@ -771,10 +785,12 @@ function M.notes.find_headings(query)
   local needle = vim.fn.tolower(vim.trim(query or ""))
   local results = {}
   for path, row in pairs(state.backend:all()) do
-    for _, heading in ipairs(row.headings or {}) do
-      local searchable = heading.header .. " " .. heading.anchor
-      if needle == "" or vim.fn.tolower(searchable):find(needle, 1, true) then
-        results[#results + 1] = vim.tbl_extend("force", heading, { path = path })
+    if search_files.is_markdown(path) then
+      for _, heading in ipairs(row.headings or {}) do
+        local searchable = heading.header .. " " .. heading.anchor
+        if needle == "" or vim.fn.tolower(searchable):find(needle, 1, true) then
+          results[#results + 1] = vim.tbl_extend("force", heading, { path = path })
+        end
       end
     end
   end
