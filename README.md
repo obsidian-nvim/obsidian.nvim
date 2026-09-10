@@ -355,6 +355,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mebble"><img src="https://avatars.githubusercontent.com/u/18006759?v=4?s=100" width="100px;" alt="Neil Syiemlieh"/><br /><sub><b>Neil Syiemlieh</b></sub></a><br /><a href="#code-mebble" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/FosRexx"><img src="https://avatars.githubusercontent.com/u/105154048?v=4?s=100" width="100px;" alt="Anshu Gahire"/><br /><sub><b>Anshu Gahire</b></sub></a><br /><a href="#code-FosRexx" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mgajewskik"><img src="https://avatars.githubusercontent.com/u/47600161?v=4?s=100" width="100px;" alt="Maciej Gajewski"/><br /><sub><b>Maciej Gajewski</b></sub></a><br /><a href="#code-mgajewskik" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/xiangnongWu2233"><img src="https://avatars.githubusercontent.com/u/68880238?v=4?s=100" width="100px;" alt="Xiangnong Wu"/><br /><sub><b>Xiangnong Wu</b></sub></a><br /><a href="#code-xiangnongWu2233" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
