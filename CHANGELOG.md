@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Checkbox detection and conceal now follow CommonMark/GFM list syntax (e.g. `-- [ ]` and `++ [ ]` are no longer treated as checkboxes) and support multi-byte checkbox states.
 - YAML Parser will emit ranges for internal use.
 
+### Fixed
+
+- Rename no longer inserts frontmatter when `frontmatter.enabled = false`.
+
 ## [v3.16.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.7) - 2026-09-01
 
 ### Added
@@ -66,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Vault-wide block completion reuses an in-memory candidate index, updates only affected notes after watched-file changes, coalesces overlapping requests, and honors `completion.min_chars`.
 - **Breaking:** `find_files`, `find_notes`, `grep`, and `grep_notes` callbacks now receive a list of selected results. Multiple results use the quickfix list by default.
 - Deprecate old `picker.pick`, internally use `picker.select` with better multi-select and preview_item support.
 

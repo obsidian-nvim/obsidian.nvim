@@ -51,6 +51,8 @@ The original project has not been actively maintained for quite a while and with
 
 ▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via in-process LSP (triggered by typing `[[` for wiki and markdown links, `#` for tags, `[^` for footnotes). Use `[[##query` to search headings across the vault. For blocks, use `[[^query` for the current note, `[[note^query` or `[[note#^query` for a named note, and `[[^^query` across the vault; unlabeled blocks receive an ID when selected.
 
+Vault-wide block candidates are indexed in memory on first use and updated per note when watched files change. The index starts warming at `[[^^`; completion items appear once the block query reaches `completion.min_chars` (set it to `0` to show candidates for a bare prefix).
+
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
 📷 **Images:** Paste images into notes.
@@ -352,6 +354,8 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="http://www.richsnapp.com"><img src="https://avatars.githubusercontent.com/u/551085?v=4?s=100" width="100px;" alt="Rich Snapp"/><br /><sub><b>Rich Snapp</b></sub></a><br /><a href="#code-snapwich" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/mebble"><img src="https://avatars.githubusercontent.com/u/18006759?v=4?s=100" width="100px;" alt="Neil Syiemlieh"/><br /><sub><b>Neil Syiemlieh</b></sub></a><br /><a href="#code-mebble" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/FosRexx"><img src="https://avatars.githubusercontent.com/u/105154048?v=4?s=100" width="100px;" alt="Anshu Gahire"/><br /><sub><b>Anshu Gahire</b></sub></a><br /><a href="#code-FosRexx" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/mgajewskik"><img src="https://avatars.githubusercontent.com/u/47600161?v=4?s=100" width="100px;" alt="Maciej Gajewski"/><br /><sub><b>Maciej Gajewski</b></sub></a><br /><a href="#code-mgajewskik" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/xiangnongWu2233"><img src="https://avatars.githubusercontent.com/u/68880238?v=4?s=100" width="100px;" alt="Xiangnong Wu"/><br /><sub><b>Xiangnong Wu</b></sub></a><br /><a href="#code-xiangnongWu2233" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
