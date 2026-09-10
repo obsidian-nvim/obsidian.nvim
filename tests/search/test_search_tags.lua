@@ -248,6 +248,38 @@ T["uses the same fenced-code exclusions as the cache"] = function()
   eq({ "visible" }, result.cached)
 end
 
+T["search and cache reuse YAML scalar occurrences"] = function()
+  local path = vim.fs.joinpath(child.lua_get [[tostring(Obsidian.dir)]], "test.md")
+  h.write("---\naliases: [NotATag]\ntags:\n\n- '#É'\n- 'it''s'\n- 2026\n---", path)
+  local result = h.child_await(
+    child,
+    ([=[
+      require("obsidian.search").find_tags_async("", function(res)
+        local row = require("obsidian.cache.note").build(%q, tostring(Obsidian.dir))
+        done({ locations = res, cached = row.tags })
+      end, {})
+    ]=]):format(path),
+    { desc = "ranged YAML tags" }
+  )
+  eq(
+    { "É", "it's", "2026" },
+    vim.tbl_map(function(item)
+      return item.tag
+    end, result.locations)
+  )
+  eq({ "é", "it's", "2026" }, result.cached)
+  eq(
+    { 5, 6, 7 },
+    vim.tbl_map(function(item)
+      return item.line
+    end, result.locations)
+  )
+  eq(4, result.locations[1].range.start_col)
+  eq(6, result.locations[1].range.end_col)
+  eq(3, result.locations[2].range.start_col)
+  eq(8, result.locations[2].range.end_col)
+end
+
 T["invokes its callback exactly once when search fails"] = function()
   local count = h.child_await(
     child,
