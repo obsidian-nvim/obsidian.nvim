@@ -76,7 +76,7 @@ local function section_to_symbol(note, section)
   local container = relative_path_no_ext(note.path)
   local name = container .. "#" .. section.header
   local uri = vim.uri_from_fname(tostring(note.path))
-  local range = Range.to_lsp(section.range)
+  local range = Range.to_lsp(section.range, "utf-8")
 
   return {
     name = name,

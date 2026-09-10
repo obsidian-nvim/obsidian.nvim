@@ -1,24 +1,15 @@
---- A minimal imitation of the experimental `vim.range` API (neovim/neovim#25509).
----
---- Only the useful subset is implemented here. Field names and semantics match
---- `vim.Range` (0-based rows/cols, end-exclusive), so that once `vim.range`
---- stabilizes, migrating is mechanical:
---- `vim.range(buf, r.start_row, r.start_col, r.end_row, r.end_col)`.
----
---- Unlike `vim.Range`, no buffer handle is carried: ranges here typically
---- describe locations in note *files* that may not be loaded in a buffer.
----
---- NOTE: prefer calling these as module functions (`Range.to_lsp(r)`) rather
---- than methods (`r:to_lsp()`) inside the plugin, because ranges that
---- round-trip through `vim.b` (see `Note.from_buffer`) lose their metatable.
+--- Half-open byte ranges within a document snapshot: [start, end).
+--- Independent of Neovim's buffer-bound vim.Range, with the same indexing conventions.
+--- Values are immutable by convention; compare only ranges from the same snapshot.
+--- Use module functions because serialization (including vim.b) may discard metatables.
+--- Line ranges may end at (line_count, 0); adapters must handle this sentinel explicitly.
+local Pos = require "obsidian.pos"
 
---- Represents a range in a file or buffer. 0-based, end-exclusive.
----
 ---@class obsidian.Range
 ---@field start_row integer 0-based start row.
----@field start_col integer 0-based start col, byte index.
+---@field start_col integer 0-based start byte offset.
 ---@field end_row integer 0-based end row.
----@field end_col integer 0-based end col, byte index, exclusive.
+---@field end_col integer 0-based exclusive end byte offset.
 local Range = {}
 Range.__index = Range
 
@@ -28,6 +19,9 @@ Range.__index = Range
 ---@param end_col integer
 ---@return obsidian.Range
 Range.new = function(start_row, start_col, end_row, end_col)
+  local start = Pos.new(start_row, start_col)
+  local finish = Pos.new(end_row, end_col)
+  assert(Pos.compare(start, finish) <= 0, "range start must not follow its end")
   return setmetatable({
     start_row = start_row,
     start_col = start_col,
@@ -36,67 +30,89 @@ Range.new = function(start_row, start_col, end_row, end_col)
   }, Range)
 end
 
---- Checks whether the given range is empty; i.e., start >= end.
----
+---@param start obsidian.Pos
+---@param finish obsidian.Pos
+---@return obsidian.Range
+Range.from_positions = function(start, finish)
+  return Range.new(start.row, start.col, finish.row, finish.col)
+end
+
+---@param range obsidian.Range
+---@return obsidian.Pos
+Range.start_pos = function(range)
+  return Pos.new(range.start_row, range.start_col)
+end
+
+---@param range obsidian.Range
+---@return obsidian.Pos
+Range.end_pos = function(range)
+  return Pos.new(range.end_row, range.end_col)
+end
+
 ---@param range obsidian.Range
 ---@return boolean
 Range.is_empty = function(range)
-  return range.start_row > range.end_row or (range.start_row == range.end_row and range.start_col >= range.end_col)
+  return range.start_row == range.end_row and range.start_col == range.end_col
 end
 
---- Converts an |obsidian.Range| to an `lsp.Range`.
----
---- NOTE: `lsp.Position.character` is measured in code units of the position
---- encoding while ours is a byte index. The ranges produced by this plugin are
---- line-based (cols are always 0), where the two are identical, so no buffer
---- access or re-encoding is needed.
----
+--- Empty ranges contain no positions; the exclusive end is never inside.
 ---@param range obsidian.Range
+---@param pos obsidian.Pos
+---@return boolean
+Range.contains_pos = function(range, pos)
+  return Pos.compare(Range.start_pos(range), pos) <= 0 and Pos.compare(pos, Range.end_pos(range)) < 0
+end
+
+--- Endpoint enclosure, including empty inner ranges at either boundary.
+---@param outer obsidian.Range
+---@param inner obsidian.Range
+---@return boolean
+Range.contains_range = function(outer, inner)
+  return Pos.compare(Range.start_pos(outer), Range.start_pos(inner)) <= 0
+    and Pos.compare(Range.end_pos(inner), Range.end_pos(outer)) <= 0
+end
+
+--- Return the nonempty intersection; touching ranges do not intersect.
+---@param a obsidian.Range
+---@param b obsidian.Range
+---@return obsidian.Range?
+Range.intersection = function(a, b)
+  local a_start, b_start = Range.start_pos(a), Range.start_pos(b)
+  local a_end, b_end = Range.end_pos(a), Range.end_pos(b)
+  local start = Pos.compare(a_start, b_start) < 0 and b_start or a_start
+  local finish = Pos.compare(a_end, b_end) < 0 and a_end or b_end
+  if Pos.compare(start, finish) < 0 then
+    return Range.from_positions(start, finish)
+  end
+end
+
+--- Attach a buffer explicitly. The caller must ensure it matches the snapshot.
+--- Requires a Neovim version providing vim.range.
+---@param range obsidian.Range
+---@param bufnr integer
+---@return vim.Range
+Range.to_vim = function(range, bufnr)
+  local new = vim.range --[[@as fun(buf: integer, sr: integer, sc: integer, er: integer, ec: integer): vim.Range]]
+  return new(bufnr, range.start_row, range.start_col, range.end_row, range.end_col)
+end
+
+---@param range obsidian.Range
+---@param encoding lsp.PositionEncodingKind
+---@param lines string[]?
 ---@return lsp.Range
-Range.to_lsp = function(range)
+Range.to_lsp = function(range, encoding, lines)
   return {
-    start = { line = range.start_row, character = range.start_col },
-    ["end"] = { line = range.end_row, character = range.end_col },
+    start = Pos.to_lsp(Range.start_pos(range), encoding, lines),
+    ["end"] = Pos.to_lsp(Range.end_pos(range), encoding, lines),
   }
 end
 
---- Creates a new |obsidian.Range| from an `lsp.Range`.
----
 ---@param range lsp.Range
+---@param encoding lsp.PositionEncodingKind
+---@param lines string[]?
 ---@return obsidian.Range
-Range.lsp = function(range)
-  return Range.new(range.start.line, range.start.character, range["end"].line, range["end"].character)
-end
-
-local blink_counter = 0
-
---- Briefly highlight a range in a buffer.
----
----@param range obsidian.Range
----@param bufnr integer|?
----@param opts { timeout: integer|?, hl_group: string|? }|?
-Range.blink = function(range, bufnr, opts)
-  opts = opts or {}
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  blink_counter = blink_counter + 1
-
-  local ns = vim.api.nvim_create_namespace("obsidian_blink_" .. blink_counter)
-  local hl_group = opts.hl_group or "ObsidianBlink"
-  vim.api.nvim_set_hl(0, hl_group, { link = "Visual", default = true })
-
-  vim.api.nvim_buf_set_extmark(bufnr, ns, range.start_row, range.start_col, {
-    end_row = range.end_row,
-    end_col = range.end_col,
-    hl_group = hl_group,
-    hl_mode = "combine",
-    priority = 200,
-  })
-
-  vim.defer_fn(function()
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
-    end
-  end, opts.timeout or vim.g.obsidian_blink_duration or 500)
+Range.from_lsp = function(range, encoding, lines)
+  return Range.from_positions(Pos.from_lsp(range.start, encoding, lines), Pos.from_lsp(range["end"], encoding, lines))
 end
 
 setmetatable(Range, {

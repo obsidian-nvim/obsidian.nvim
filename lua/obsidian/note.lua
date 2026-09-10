@@ -65,6 +65,7 @@ end
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
+---@field frontmatter_elements obsidian.yaml.Element[]? Scalar occurrences in document coordinates.
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field block_candidates obsidian.Section[]|? paragraphs that can receive block identifiers.
@@ -570,14 +571,14 @@ Note._location = function(self, opts)
     if opts.range.start_row then
       local obsidian_range = opts.range
       ---@cast obsidian_range obsidian.Range
-      range = Range.to_lsp(obsidian_range)
+      range = Range.to_lsp(obsidian_range, "utf-8")
     else
       local lsp_range = opts.range
       ---@cast lsp_range lsp.Range
       range = lsp_range
     end
   elseif section then
-    range = Range.to_lsp(section.range)
+    range = Range.to_lsp(section.range, "utf-8")
   else
     range = {
       start = { line = 0, character = 0 },
@@ -824,6 +825,7 @@ Note.from_lines = function(lines, path, opts)
   end
 
   for line in next_line do
+    local source_line = line
     line = util.rstrip_whitespace(line)
 
     if line_idx == 1 and Note._is_frontmatter_boundary(line) then
@@ -839,7 +841,7 @@ Note.from_lines = function(lines, path, opts)
     end
 
     if in_frontmatter and not at_boundary then
-      table.insert(frontmatter_lines, line)
+      table.insert(frontmatter_lines, source_line)
     end
 
     -- Collect contents.
@@ -894,8 +896,9 @@ Note.from_lines = function(lines, path, opts)
 
   -- Parse the frontmatter YAML.
   local metadata = {}
+  local frontmatter_elements = {}
   if #frontmatter_lines > 0 then
-    info, metadata, warnings = Frontmatter.parse(frontmatter_lines, path)
+    info, metadata, warnings, frontmatter_elements = Frontmatter.parse(frontmatter_lines, path, { base_row = 1 })
   end
 
   local id, aliases, tags = info.id, info.aliases, info.tags
@@ -910,6 +913,7 @@ Note.from_lines = function(lines, path, opts)
   n.metadata = metadata
   n.has_frontmatter = has_frontmatter
   n.frontmatter_end_line = frontmatter_end_line
+  n.frontmatter_elements = frontmatter_elements
   n.contents = contents
   n.anchor_links = anchor_links
   n.blocks = blocks
