@@ -25,14 +25,11 @@ end
 ---@param tag_loc obsidian.TagLocation
 ---@return lsp.Location
 local function tag_loc_to_lsp_location(tag_loc)
-  local line = tag_loc.line - 1
-  -- BUG: why no tags_start field??
-  local st, ed = (tag_loc.tag_start or 1) - 1, (tag_loc.tag_end or 1) - 1
   return {
     uri = vim.uri_from_fname(tostring(tag_loc.path)),
     range = {
-      start = { line = line, character = st },
-      ["end"] = { line = line, character = ed },
+      start = { line = tag_loc.range.start_row, character = tag_loc.range.start_col },
+      ["end"] = { line = tag_loc.range.end_row, character = tag_loc.range.end_col },
     },
   }
 end
@@ -104,7 +101,7 @@ local function handle_tag(tag, callback, opts)
   search.find_tags_async(tag, function(tag_locs)
     local lsp_locs = vim.tbl_map(tag_loc_to_lsp_location, tag_locs)
     callback(lsp_locs)
-  end, { dir = opts.dir })
+  end, { dir = opts.dir, match = "subtree" })
 end
 
 local function collect_current_note(link, link_type, callback, opts)

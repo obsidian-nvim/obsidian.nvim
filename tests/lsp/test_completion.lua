@@ -1885,6 +1885,25 @@ tags:
   eq("table", type(result))
 end
 
+T["completion"]["deduplicates tag casing and combines occurrence counts"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "#wo",
+    ["a.md"] = "#Work",
+    ["b.md"] = "#work",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 3 })
+
+  local result = run_completion(0, 3)
+  local matches = vim.tbl_filter(function(item)
+    return item.textEdit and item.textEdit.newText:lower() == "#work"
+  end, result.items or {})
+
+  eq(1, #matches)
+  eq(true, matches[1].documentation.value:find("2 occurrences", 1, true) ~= nil)
+end
+
 T["completion"]["isIncomplete is true"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[fo",

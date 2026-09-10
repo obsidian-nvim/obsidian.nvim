@@ -1,6 +1,7 @@
 local completion = require "obsidian.completion.tags"
 local search = require "obsidian.search"
 local api = require "obsidian.api"
+local tag_module = require "obsidian.tag"
 
 local M = {}
 
@@ -26,11 +27,18 @@ function M.process_completion(callback, request)
   search.find_tags_async(term, function(tag_locs)
     local tags = {}
     for _, tag_loc in ipairs(tag_locs) do
-      tags[tag_loc.tag] = (tags[tag_loc.tag] or 0) + 1
+      local key = tag_module.normalize(tag_loc.tag)
+      local item = tags[key]
+      if item then
+        item.count = item.count + 1
+      else
+        tags[key] = { name = tag_loc.tag, count = 1 }
+      end
     end
 
     local items = {}
-    for tag, count in pairs(tags) do
+    for _, tag_item in pairs(tags) do
+      local tag, count = tag_item.name, tag_item.count
       -- Generate context-appropriate text
       local insert_text, label_text
       if in_frontmatter then
@@ -79,7 +87,7 @@ function M.process_completion(callback, request)
       isIncomplete = true,
       items = items,
     }
-  end, { dir = api.resolve_workspace_dir(vim.api.nvim_buf_get_name(request.bufnr)) })
+  end, { dir = api.resolve_workspace_dir(vim.api.nvim_buf_get_name(request.bufnr)), match = "prefix" })
 end
 
 return M

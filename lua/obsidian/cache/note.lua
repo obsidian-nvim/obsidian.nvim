@@ -3,6 +3,7 @@ local Note = require "obsidian.note"
 local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
+local tags = require "obsidian.tag"
 
 local M = {}
 
@@ -93,14 +94,19 @@ function M.build(abs_path, _vault_root)
   local tags_lower = {}
   local tags_seen = {}
   local function add_tag(tag)
-    tag = tag:lower()
+    tag = tags.normalize(tag)
     if tag ~= "" and not tags_seen[tag] then
       tags_lower[#tags_lower + 1] = tag
       tags_seen[tag] = true
     end
   end
-  for _, t in ipairs(note.tags or {}) do
-    add_tag(t)
+  for _, occurrence in
+    ipairs(tags.extract(lines, {
+      frontmatter_end_line = note.frontmatter_end_line,
+      frontmatter_elements = note.frontmatter_elements,
+    }))
+  do
+    add_tag(occurrence.tag)
   end
 
   local headings = {}
