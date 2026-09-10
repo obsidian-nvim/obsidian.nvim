@@ -25,13 +25,18 @@ jobs:
           neovim: true
           version: v0.11.4
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Install EmmyLua checker
-        run: cargo install emmylua_check --version 0.23.2 --locked
+      - name: Install EmmyLua check + ls
+        env:
+          EMMYLUA_VERSION: 0.24.0
+        run: |
+          set -euo pipefail
+          base_url="https://github.com/EmmyLuaLs/emmylua-analyzer-rust/releases/download/${EMMYLUA_VERSION}"
+          curl -fsSL "${base_url}/emmylua_check-linux-x64-glibc.2.17.tar.gz" | tar -xz
+          curl -fsSL "${base_url}/emmylua_ls-linux-x64-glibc.2.17.tar.gz" | tar -xz
+          chmod +x emmylua_check emmylua_ls
+          mkdir -p "$HOME/.local/bin"
+          mv emmylua_check emmylua_ls "$HOME/.local/bin/"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Run type checker
         run: make types
