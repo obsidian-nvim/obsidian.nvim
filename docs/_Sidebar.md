@@ -18,6 +18,7 @@
 - [[Scripting]]
 - [[Startup-Guide]]
 - [[Obsidian-URI]]
+- [[Obsidian-URI-Registration]]
 - [[Recipes]]
 - [[LSP]]
 - [[LSP-Progress]]

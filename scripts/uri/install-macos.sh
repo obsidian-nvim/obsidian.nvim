@@ -31,7 +31,7 @@ require_command() {
 }
 
 current_bundle() {
-  duti -x obsidian 2>/dev/null | tail -n 1 || true
+  swift "$SCRIPT_DIR/macos/CurrentHandler.swift" 2>/dev/null || true
 }
 
 install_handler() {
@@ -76,7 +76,7 @@ EOF
   codesign --force --deep --sign - "$APP" >/dev/null
   lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
   "$lsregister" -f "$APP"
-  duti -s "$BUNDLE_ID" obsidian all
+  duti -s "$BUNDLE_ID" obsidian
   printf 'Installed obsidian:// handler: %s\n' "$APP"
 }
 
@@ -84,7 +84,7 @@ uninstall_handler() {
   current=$(current_bundle)
   if [ "$current" = "$BUNDLE_ID" ] && [ -s "$PREVIOUS_FILE" ]; then
     previous=$(head -n 1 "$PREVIOUS_FILE")
-    duti -s "$previous" obsidian all
+    duti -s "$previous" obsidian
     printf 'Restored previous obsidian:// handler: %s\n' "$previous"
   elif [ "$current" = "$BUNDLE_ID" ]; then
     printf '%s\n' 'No previous handler was recorded; choose a new default handler manually.' >&2
@@ -93,10 +93,11 @@ uninstall_handler() {
   rm -f "$PREVIOUS_FILE"
 }
 
-require_command duti
+require_command swift
 command=${1-status}
 case "$command" in
   install)
+    require_command duti
     require_command swiftc
     require_command codesign
     if [ "${2-}" = "--force" ]; then
@@ -114,7 +115,10 @@ case "$command" in
     [ "$current" = "$BUNDLE_ID" ]
     ;;
   test) open 'obsidian://choose-vault' ;;
-  uninstall) uninstall_handler ;;
+  uninstall)
+    require_command duti
+    uninstall_handler
+    ;;
   *)
     usage >&2
     exit 2
