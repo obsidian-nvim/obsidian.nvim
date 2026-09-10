@@ -634,6 +634,19 @@ T["from_file"]["should work from a README"] = function()
   eq(false, note:should_save_frontmatter())
 end
 
+T["from_file"]["strips CR line endings from frontmatter source lines"] = function()
+  local temp_path = "/tmp/" .. util.zettel_id() .. ".md"
+  util.write_file(temp_path, "---\r\nbody: |\r\n  text  \r\n---\r\n")
+
+  local note = M.from_file(temp_path)
+  local element = note.frontmatter_elements[1]
+
+  eq("text  ", note.metadata.body)
+  eq(8, element.range.end_col)
+
+  vim.fn.delete(temp_path)
+end
+
 T["_is_frontmatter_boundary()"] = function()
   eq(true, M._is_frontmatter_boundary "---")
   eq(true, M._is_frontmatter_boundary "----")

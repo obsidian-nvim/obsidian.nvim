@@ -825,7 +825,7 @@ Note.from_lines = function(lines, path, opts)
   end
 
   for line in next_line do
-    local source_line = line
+    local source_line = line:gsub("\r$", "")
     line = util.rstrip_whitespace(line)
 
     if line_idx == 1 and Note._is_frontmatter_boundary(line) then
