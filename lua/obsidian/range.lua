@@ -92,8 +92,14 @@ end
 ---@param bufnr integer
 ---@return vim.Range
 Range.to_vim = function(range, bufnr)
-  local new = vim.range --[[@as fun(buf: integer, sr: integer, sc: integer, er: integer, ec: integer): vim.Range]]
-  return new(bufnr, range.start_row, range.start_col, range.end_row, range.end_col)
+  if vim.fn.has "nvim-0.13" == 1 then
+    local new = vim.range
+    ---@cast new fun(buf: integer, sr: integer, sc: integer, er: integer, ec: integer): vim.Range
+    return new(bufnr, range.start_row, range.start_col, range.end_row, range.end_col)
+  end
+
+  local new = vim.range --[[@as any]]
+  return new(range.start_row, range.start_col, range.end_row, range.end_col, { buf = bufnr })
 end
 
 ---@param range obsidian.Range

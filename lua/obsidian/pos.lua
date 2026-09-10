@@ -51,8 +51,13 @@ end
 ---@param bufnr integer
 ---@return vim.Pos
 Pos.to_vim = function(pos, bufnr)
-  local new = vim.pos --[[@as fun(buf: integer, row: integer, col: integer): vim.Pos]]
-  return new(bufnr, pos.row, pos.col)
+  if vim.fn.has "nvim-0.13" == 1 then
+    local new = vim.pos --[[@as fun(buf: integer, row: integer, col: integer): vim.Pos]]
+    return new(bufnr, pos.row, pos.col)
+  end
+
+  local new = vim.pos --[[@as any]]
+  return new(pos.row, pos.col, { buf = bufnr })
 end
 
 ---@param encoding lsp.PositionEncodingKind

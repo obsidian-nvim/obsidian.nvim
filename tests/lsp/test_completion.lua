@@ -919,11 +919,12 @@ T["completion"]["separates callouts from paragraphs and surrounds their IDs with
   child.api.nvim_win_set_cursor(0, { 1, 16 })
 
   local result = run_completion(0, 16)
+  local expected_label = "> [!note] Quoted target > Callout body — target"
   local item = vim.iter(result.items or {}):find(function(candidate)
-    return candidate.command and candidate.label:find("Callout body", 1, true)
+    return candidate.command and candidate.label == expected_label
   end)
   assert(item, "no callout completion found")
-  eq("> [!note] Quoted target > Callout body — target", item.label)
+  eq(expected_label, item.label)
   accept_completion(item)
 
   local lines = child.api.nvim_buf_get_lines(target_bufnr, 0, -1, false)
