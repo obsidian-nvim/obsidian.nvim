@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Checkbox detection and conceal now follow CommonMark/GFM list syntax (e.g. `-- [ ]` and `++ [ ]` are no longer treated as checkboxes) and support multi-byte checkbox states.
+- YAML Parser will emit ranges for internal use.
 
 ## [v3.16.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.7) - 2026-09-01
 
