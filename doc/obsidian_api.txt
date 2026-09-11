@@ -40,6 +40,7 @@ Fields ~
 {path} `(obsidian.Path|)`?
 {has_frontmatter} `(boolean|)`?
 {frontmatter_end_line} `(integer|)`?
+{frontmatter_elements} `(obsidian.yaml.Element[]?)` Scalar occurrences in document coordinates.
 {anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
 {blocks} `(table<string, obsidian.note.Block>?)`
 {block_candidates} `(obsidian.Section[]|? paragraphs)` that can receive block identifiers.
