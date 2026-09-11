@@ -295,6 +295,44 @@ M.open_buffer = function(path, opts)
   }, opts.cmd)
 end
 
+local blink_counter = 0
+
+--- Briefly highlight a snapshot range in a matching buffer.
+---@param range obsidian.Range
+---@param bufnr integer?
+---@param opts { timeout: integer?, hl_group: string? }?
+M.blink = function(range, bufnr, opts)
+  opts = opts or {}
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if Range.is_empty(range) then
+    return
+  end
+  blink_counter = blink_counter + 1
+  local ns = vim.api.nvim_create_namespace("obsidian_blink_" .. blink_counter)
+  local hl_group = opts.hl_group or "ObsidianBlink"
+  vim.api.nvim_set_hl(0, hl_group, { link = "Visual", default = true })
+
+  -- Whole-line ranges can end one row beyond the last physical line.
+  local end_row, end_col = range.end_row, range.end_col
+  if end_col == 0 and end_row == vim.api.nvim_buf_line_count(bufnr) then
+    end_row = end_row - 1
+    ---@cast end_row integer
+    end_col = #vim.api.nvim_buf_get_lines(bufnr, end_row, end_row + 1, true)[1]
+  end
+  vim.api.nvim_buf_set_extmark(bufnr, ns, range.start_row, range.start_col, {
+    end_row = end_row,
+    end_col = end_col,
+    hl_group = hl_group,
+    hl_mode = "combine",
+    priority = 200,
+  })
+  vim.defer_fn(function()
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+    end
+  end, opts.timeout or vim.g.obsidian_blink_duration or 500)
+end
+
 ---@param range obsidian.Range|lsp.Range|?
 ---@return obsidian.Range|?
 local function normalize_range(range)
@@ -303,7 +341,8 @@ local function normalize_range(range)
   elseif range.start_row then
     return range
   elseif range.start then
-    return Range.lsp(range)
+    -- Obsidian's built-in language server uses UTF-8 positions.
+    return Range.from_lsp(range, "utf-8")
   end
 end
 
@@ -376,7 +415,7 @@ M.open_note = function(entry, cmd)
   if type(entry) == "table" then
     local range = entry_range(entry)
     if range and not Range.is_empty(range) then
-      Range.blink(range, result_bufnr)
+      M.blink(range, result_bufnr)
     end
   end
 

@@ -20,8 +20,8 @@ return function(_, handler)
         name = string.rep("#", section.level) .. " " .. section.header,
         kind = 1,
         filename = path.filename,
-        range = Range.to_lsp(section.range),
-        selectionRange = Range.to_lsp(section.heading_range),
+        range = Range.to_lsp(section.range, "utf-8"),
+        selectionRange = Range.to_lsp(section.heading_range, "utf-8"),
       }
     end
   end
