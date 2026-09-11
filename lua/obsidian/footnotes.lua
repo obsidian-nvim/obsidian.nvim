@@ -1,3 +1,6 @@
+local BufferDocument = require "obsidian.document"
+local Document = require "obsidian.parse.document"
+local Range = require "obsidian.range"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local picker = require "obsidian.picker"
@@ -31,9 +34,15 @@ M.definitions = function(bufnr)
   bufnr = bufnr or 0
   ---@type obsidian.footnote.Definition[]
   local defs = {}
-  for lnum, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
+  local document = BufferDocument.get(bufnr)
+  for lnum, line in ipairs(document.lines) do
     local id, text = M.parse_definition(line)
-    if id and text then
+    local marker_end = id and #id + 3 or 0
+    if
+      id
+      and text
+      and not document:intersects(Range.new(lnum - 1, 0, lnum - 1, marker_end), Document.BODY_EXCLUSIONS)
+    then
       defs[#defs + 1] = { id = id, lnum = lnum, text = text }
     end
   end
@@ -64,14 +73,18 @@ M.find_refs = function(bufnr, id)
   ---@type obsidian.footnote.Ref[]
   local refs = {}
   local pattern = "%[%^" .. vim.pesc(id) .. "%]"
-  for lnum, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
+  local document = BufferDocument.get(bufnr)
+  for lnum, line in ipairs(document.lines) do
     local init = 1
     while true do
       local m_start, m_end = line:find(pattern, init)
       if not m_start or not m_end then
         break
       end
-      refs[#refs + 1] = { lnum = lnum, start_col = m_start - 1, end_col = m_end }
+      local range = Range.new(lnum - 1, m_start - 1, lnum - 1, m_end)
+      if not document:intersects(range, Document.BODY_EXCLUSIONS) then
+        refs[#refs + 1] = { lnum = lnum, start_col = m_start - 1, end_col = m_end }
+      end
       init = m_end + 1
     end
   end

@@ -6,11 +6,12 @@
 
 local header_parser = require "obsidian.parse.header"
 local block_ids = require "obsidian.parse.block_id"
+local Document = require "obsidian.parse.document"
+local Pos = require "obsidian.pos"
 local Range = require "obsidian.range"
 
 local H1_UNDERLINE_PATTERN = "^(=+)$"
 local H2_UNDERLINE_PATTERN = "^(-+)$"
-local CODE_BLOCK_PATTERN = "^```[%w_-]*$"
 
 ---@param line string
 ---@return integer|? indent
@@ -69,24 +70,24 @@ local M = {}
 ---
 ---@param lines string[]
 ---@param first integer 1-based index to start at.
+---@param document obsidian.parse.Document?
 ---@return table<integer, obsidian.section.LineDetail>
-local function get_line_details(lines, first)
+local function get_line_details(lines, first, document)
   local details = {}
-  local in_code_block = false
 
   ---@param idx integer
   ---@return obsidian.section.LineDetail
   local function classify(idx)
-    local line = vim.trim(lines[idx] --[[@as string]])
-
-    if in_code_block then
-      in_code_block = not line:match(CODE_BLOCK_PATTERN)
-      return { type = "code" }
-    elseif line:match(CODE_BLOCK_PATTERN) then
-      in_code_block = true
-      return { type = "code" }
+    local source_line = lines[idx] --[[@as string]]
+    local first_byte = source_line:find "%S"
+    if document then
+      local context = document:context_at(Pos.new(idx - 1, first_byte and first_byte - 1 or 0))
+      if context.code_block or context.comment or context.html_block or context.frontmatter then
+        return { type = "code" }
+      end
     end
 
+    local line = vim.trim(source_line)
     if line == "" then
       return { type = "empty" }
     end
@@ -144,6 +145,7 @@ end
 ---@field start_row integer|? 0-based row where parsing begins, e.g. just past the frontmatter. Defaults to `0`.
 ---@field collect_blocks boolean|? also collect block identifiers (`^block-id`).
 ---@field collect_block_candidates boolean|? also collect paragraphs that can receive block identifiers.
+---@field document obsidian.parse.Document? parsed snapshot for exclusion filtering.
 
 --- Parse markdown lines into a document-ordered list of sections.
 ---
@@ -158,8 +160,20 @@ end
 M.parse = function(lines, opts)
   opts = opts or {}
   local first = (opts.start_row or 0) + 1
+  local document = opts.document or Document.parse(lines)
 
-  local details = get_line_details(lines, first)
+  local details = get_line_details(lines, first, document)
+
+  ---@param line string
+  ---@param idx integer
+  ---@return string?
+  local function eligible_block_id(line, idx)
+    local block = block_ids.extract_lexical(line, { row = idx - 1 })[1]
+    if block == nil or document:intersects(block.range, Document.BODY_EXCLUSIONS) then
+      return nil
+    end
+    return block.raw
+  end
 
   -- Working entries with 1-based [beg_incl, end_excl) line indices,
   -- mirroring the half-open ranges of the output.
@@ -189,7 +203,7 @@ M.parse = function(lines, opts)
     end
 
     local line = vim.trim(lines[idx] or "")
-    local block_id = block_ids.parse(line)
+    local block_id = eligible_block_id(line, idx)
     if block_id then
       local block = { id = block_id, line = idx, block = line }
       blocks[block_id] = block
@@ -276,7 +290,7 @@ M.parse = function(lines, opts)
             close_paragraph(idx)
           end
         end
-        local block_id = block_ids.parse(line)
+        local block_id = eligible_block_id(line, idx)
         if block_id and line == block_id and para_beg == nil and last_para_section ~= nil then
           if blocks then
             blocks[block_id] = { id = block_id, line = idx, block = line, section = last_para_section }

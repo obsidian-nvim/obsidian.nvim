@@ -1,6 +1,9 @@
 ---builtin functions that are impure, interacts with editor state, like vim.api
 
 local M = {}
+local BufferDocument = require "obsidian.document"
+local Document = require "obsidian.parse.document"
+local Pos = require "obsidian.pos"
 local log = require "obsidian.log"
 local fs_util = require "obsidian.util.fs"
 local header = require "obsidian.parse.header"
@@ -234,9 +237,16 @@ M.cursor_link = function(bufnr, position)
     row, cur_col = cursor[1] - 1, cursor[2]
   end
   local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
+  local document = BufferDocument.get(bufnr)
 
-  for _, ref in ipairs(parse_refs.extract(line, { row = row })) do
-    if ref.range.start_col <= cur_col and cur_col < ref.range.end_col then
+  for _, ref in ipairs(parse_refs.extract_lexical(line, { row = row })) do
+    local origin = Range.new(row, ref.range.start_col, row, ref.range.start_col + 1)
+    if
+      ref.range.start_col <= cur_col
+      and cur_col < ref.range.end_col
+      and not document:intersects(origin, Document.BODY_EXCLUSIONS)
+      and not document:intersects(ref.range, Document.COMMENTS)
+    then
       local link_type = ref.kind
       local link = ref.embed and ref.raw:sub(2) or ref.raw
       local start_col = ref.range.start_col + (ref.embed and 2 or 1)
@@ -251,17 +261,25 @@ end
 ---@return string?
 M.cursor_tag = function(bufnr, position)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local current_line, cur_col
+  local current_line, cur_col, row
   if position then
-    current_line = vim.api.nvim_buf_get_lines(bufnr, position.line, position.line + 1, false)[1] or ""
+    row = position.line
+    current_line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
     cur_col = position.character
   else
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    row = cursor[1] - 1
     current_line = vim.api.nvim_get_current_line()
-    cur_col = vim.api.nvim_win_get_cursor(0)[2]
+    cur_col = cursor[2]
   end
 
-  for _, tag in ipairs(parse_tags.extract(current_line)) do
-    if tag.range.start_col <= cur_col and cur_col < tag.range.end_col then
+  local document = BufferDocument.get(bufnr)
+  for _, tag in ipairs(parse_tags.extract_lexical(current_line, { row = row })) do
+    if
+      tag.range.start_col <= cur_col
+      and cur_col < tag.range.end_col
+      and not document:intersects(tag.range, Document.BODY_EXCLUSIONS)
+    then
       return tag.tag
     end
   end
@@ -272,7 +290,8 @@ M.cursor_tag = function(bufnr, position)
     return nil
   end
   local note = Note.from_buffer(bufnr, { max_lines = 100 })
-  if note and vim.list_contains(note.tags, cword) then
+  local context = document:context_at(Pos.new(row, cur_col))
+  if context.frontmatter and note and vim.list_contains(note.tags, cword) then
     return cword
   end
 
@@ -282,25 +301,35 @@ end
 --- Get the heading under the cursor, if there is one.
 ---@return { header: string, level: integer, anchor: string }|?
 M.cursor_heading = function()
-  return header.parse(vim.api.nvim_get_current_line())
+  local line = vim.api.nvim_get_current_line()
+  local first_byte = line:find "%S"
+  if first_byte == nil then
+    return nil
+  end
+  local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+  local marker = Range.new(row, first_byte - 1, row, first_byte)
+  if BufferDocument.get(0):intersects(marker, Document.BODY_EXCLUSIONS) then
+    return nil
+  end
+  return header.parse(line)
 end
 
 --- Whether there is a checkbox under the cursor
 ---@return boolean
 M.cursor_checkbox = function()
-  return parse_tasks.extract(vim.api.nvim_get_current_line())[1] ~= nil
+  local line = vim.api.nvim_get_current_line()
+  local task = parse_tasks.extract(line)[1]
+  if task == nil then
+    return false
+  end
+  local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+  local marker = Range.new(row, task.task_marker_col, row, task.task_marker_col + 3)
+  return not BufferDocument.get(0):intersects(marker, Document.BODY_EXCLUSIONS)
 end
 
 M.cursor_frontmatter = function()
-  local note = M.current_note()
-  if not note then
-    return
-  end
-  if not note.has_frontmatter or not note.frontmatter_end_line then
-    return false
-  end
-  local row = unpack(vim.api.nvim_win_get_cursor(0))
-  return row <= note.frontmatter_end_line
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  return BufferDocument.get(0):context_at(Pos.new(cursor[1] - 1, cursor[2])).frontmatter ~= nil
 end
 
 ------------------

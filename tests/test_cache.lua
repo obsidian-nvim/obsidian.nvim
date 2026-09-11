@@ -697,4 +697,24 @@ T["cache backends"]["setup is idempotent and disabled tears down"] = function()
   eq(false, cache.is_enabled())
 end
 
+T["cache backends"]["filters links, tags, tasks, and headings through document exclusions"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Note.md")
+  helpers.write(
+    "```\n# Fake\n[[Hidden]] #hidden\n- [ ] hidden task\n```\n"
+      .. "%% [[Commented]] #commented %%\n# Real\n[[Shown]] #shown\n- [ ] shown task",
+    note_path
+  )
+  Obsidian = { dir = dir }
+
+  local row = require("obsidian.cache.note").build(note_path, tostring(dir))
+  eq({ "shown" }, row.tags)
+  eq(1, #row.links_out)
+  eq("Shown", row.links_out[1].target)
+  eq(1, #row.tasks)
+  eq("shown task", row.tasks[1].text)
+  eq({ { anchor = "#real", header = "Real", level = 1, line = 7 } }, row.headings)
+end
+
 return T

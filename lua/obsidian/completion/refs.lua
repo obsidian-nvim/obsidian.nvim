@@ -1,5 +1,6 @@
 local util = require "obsidian.util"
 local block_ids = require "obsidian.parse.block_id"
+local completion_util = require "obsidian.completion.util"
 
 local M = {}
 
@@ -40,8 +41,12 @@ M.can_complete = function(request)
   if vim.startswith(input, "[[") then
     local suffix = string.sub(request.cursor_after_line, 1, 2)
     local cursor_char = request.character
+    local insert_start = cursor_char - string.len(input)
+    if completion_util.trigger_is_excluded(request, insert_start, cursor_char) then
+      return false
+    end
     local insert_end_offset = suffix == "]]" and 1 or -1
-    return true, search, cursor_char - string.len(input), cursor_char + 1 + insert_end_offset
+    return true, search, insert_start, cursor_char + 1 + insert_end_offset
   else
     return false
   end

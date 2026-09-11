@@ -2254,4 +2254,32 @@ T["completion"]["create_new emits write_note command that writes file"] = functi
   assert(result.contents:find "from%-callback", "callback changes were not written")
 end
 
+T["completion"]["suppresses triggers in shared document exclusions"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "```",
+    "[[hidden",
+    "#tag",
+    "[^foot",
+    "```",
+  })
+  child.lua [[
+    local bufnr = vim.api.nvim_get_current_buf()
+    local function request(row, text)
+      return {
+        bufnr = bufnr,
+        line = row,
+        character = #text,
+        cursor_before_line = text,
+        cursor_after_line = "",
+      }
+    end
+    _G.excluded_completion_results = {
+      require("obsidian.completion.refs").can_complete(request(1, "[[hidden")),
+      require("obsidian.completion.tags").can_complete(request(2, "#tag")),
+      require("obsidian.completion.footnotes").can_complete(request(3, "[^foot")),
+    }
+  ]]
+  eq({ false, false, false }, child.lua_get [[_G.excluded_completion_results]])
+end
+
 return T

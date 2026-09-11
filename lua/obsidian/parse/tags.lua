@@ -52,9 +52,6 @@ local all_tags = Ct(((utf8_char - one_tag) ^ 0 * one_tag) ^ 0)
 ---@param line string
 ---@return { [1]: integer, [2]: integer }[]
 local function collect_tag_ranges(line)
-  if string.find(line, "<!--.*-->") ~= nil then
-    return {}
-  end
   local util = require "obsidian.util"
   local caps = lpeg.match(all_tags, line) or {}
   local out = {}
@@ -88,11 +85,11 @@ local function collect_tag_ranges(line)
   return out
 end
 
----Find Obsidian-style tags in a markdown line.
+--- Find lexical Obsidian-style tags without document exclusion filtering.
 ---@param line string
 ---@param opts obsidian.parse.line.LineOpts?
 ---@return obsidian.parse.Tag[]
-function M.extract(line, opts)
+function M.extract_lexical(line, opts)
   opts = opts or {}
   local row = opts.row or 0
   ---@cast row integer
@@ -110,6 +107,24 @@ function M.extract(line, opts)
     }
   end
 
+  return out
+end
+
+--- Find tags in a standalone line. Full-document consumers should call
+--- `extract_lexical` and filter against their shared Document snapshot.
+---@param line string
+---@param opts obsidian.parse.line.LineOpts?
+---@return obsidian.parse.Tag[]
+function M.extract(line, opts)
+  local Document = require "obsidian.parse.document"
+  local document = Document.parse { line }
+  local out = {}
+  for _, tag in ipairs(M.extract_lexical(line, opts)) do
+    local local_range = Range.new(0, tag.range.start_col, 0, tag.range.end_col)
+    if not document:intersects(local_range, Document.BODY_EXCLUSIONS) then
+      out[#out + 1] = tag
+    end
+  end
   return out
 end
 

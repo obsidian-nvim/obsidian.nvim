@@ -92,4 +92,21 @@ T["pick uses picker.select with preview"] = function()
   eq({ 3, 0 }, vim.api.nvim_win_get_cursor(0))
 end
 
+T["definitions and refs ignore document exclusions"] = function()
+  local bufnr = make_buf {
+    "```",
+    "coded[^1]",
+    "[^1]: hidden",
+    "```",
+    "%% [^1] %%",
+    "shown[^1]",
+    "[^1]: visible",
+  }
+  eq({ { id = "1", lnum = 7, text = "visible" } }, footnotes.definitions(bufnr))
+  eq({
+    { lnum = 6, start_col = 5, end_col = 9 },
+    { lnum = 7, start_col = 0, end_col = 4 },
+  }, footnotes.find_refs(bufnr, "1"))
+end
+
 return T

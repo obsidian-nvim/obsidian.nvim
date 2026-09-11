@@ -1,5 +1,6 @@
+local Document = require "obsidian.parse.document"
 local Path = require "obsidian.path"
-local util = require "obsidian.util"
+local Range = require "obsidian.range"
 local compat = require "obsidian.compat"
 local header = require "obsidian.parse.header"
 local block_id = require "obsidian.parse.block_id"
@@ -55,32 +56,6 @@ M.find_highlight = function(s)
     search_start = match_end
   end
   return matches
-end
-
---- Find all code block boundaries in a list of lines.
----
----@param lines string[]
----
----@return { [1]: integer, [2]: integer }[]
-M.find_code_blocks = function(lines)
-  ---@type { [1]: integer, [2]: integer }[]
-  local blocks = {}
-  ---@type integer|?
-  local start_idx
-  for i, line in ipairs(lines) do
-    if string.match(line, "^%s*```.*```%s*$") then
-      table.insert(blocks, { i, i })
-      start_idx = nil
-    elseif string.match(line, "^%s*```") then
-      if start_idx ~= nil then
-        table.insert(blocks, { start_idx, i })
-        start_idx = nil
-      else
-        start_idx = i
-      end
-    end
-  end
-  return blocks
 end
 
 ---@class MatchPath
@@ -501,6 +476,15 @@ M.resolve_note = function(query, opts)
   return result or {}
 end
 
+---@param document obsidian.parse.Document
+---@param ref obsidian.parse.Ref
+---@return boolean
+local function ref_is_eligible(document, ref)
+  local origin = Range.new(ref.range.start_row, ref.range.start_col, ref.range.start_row, ref.range.start_col + 1)
+  return not document:intersects(origin, Document.BODY_EXCLUSIONS)
+    and not document:intersects(ref.range, Document.COMMENTS)
+end
+
 ---@class obsidian.LinkMatch
 ---@field link string
 ---@field line integer
@@ -515,13 +499,17 @@ M.find_links = function(note)
   local matches = {}
   ---@type table<string, boolean>
   local found = {}
-  local lines = io.lines(tostring(note.path))
+  local lines = {}
+  for line in io.lines(tostring(note.path)) do
+    lines[#lines + 1] = line:gsub("\r$", "")
+  end
+  local document = Document.parse(lines)
 
   local parse_refs = require "obsidian.parse.refs"
-  for lnum, line in iter(lines):enumerate() do
-    for _, ref in ipairs(parse_refs.extract(line)) do
+  for lnum, line in ipairs(lines) do
+    for _, ref in ipairs(parse_refs.extract_lexical(line, { row = lnum - 1 })) do
       local link = ref.embed and ref.raw:sub(2) or ref.raw
-      if not found[link] then
+      if ref_is_eligible(document, ref) and not found[link] then
         local match = {
           link = link,
           line = lnum,
@@ -615,17 +603,31 @@ local function get_in_note_backlink(note, term)
   end
 
   local patterns = build_in_note_search_term(term)
+  local document = Document.parse(note.raw_contents or note.contents or {})
 
   for lnum, line in ipairs(note.contents or {}) do
+    local matched = false
     for _, pat in ipairs(patterns) do
-      if string.find(line, pat, 1, true) ~= nil then
-        matches[#matches + 1] = {
-          path = tostring(note.path),
-          line = lnum,
-          start = 0,
-          ["end"] = 0,
-        }
+      local start_col = line:find(pat, 1, true)
+      while start_col do
+        local range = Range.new(lnum - 1, start_col - 1, lnum - 1, start_col - 1 + #pat)
+        if not document:intersects(range, Document.BODY_EXCLUSIONS) then
+          matched = true
+          break
+        end
+        start_col = line:find(pat, start_col + #pat, true)
       end
+      if matched then
+        break
+      end
+    end
+    if matched then
+      matches[#matches + 1] = {
+        path = tostring(note.path),
+        line = lnum,
+        start = 0,
+        ["end"] = 0,
+      }
     end
   end
   return matches
@@ -658,6 +660,8 @@ M.find_backlinks_async = function(note, callback, opts)
   end
   ---@type obsidian.BacklinkMatch[]
   local results = {}
+  ---@type table<string, obsidian.parse.Document>
+  local documents = {}
 
   if note then
     vim.list_extend(results, get_in_note_backlink(note, block or anchor))
@@ -682,13 +686,27 @@ M.find_backlinks_async = function(note, callback, opts)
   ---@param match MatchData
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
+    local path_key = tostring(path)
+    local document = documents[path_key]
+    if document == nil then
+      local lines = {}
+      for source_line in io.lines(path_key) do
+        lines[#lines + 1] = source_line:gsub("\r$", "")
+      end
+      document = Document.parse(lines)
+      documents[path_key] = document
+    end
     local parse_refs = require "obsidian.parse.refs"
-    local line_text = util.rstrip_whitespace(match.lines.text)
-    for _, ref in ipairs(parse_refs.extract(line_text)) do
+    local row = match.line_number - 1
+    local line_text = document.lines[row + 1]
+    if line_text == nil then
+      return
+    end
+    for _, ref in ipairs(parse_refs.extract_lexical(line_text, { row = row })) do
       local ref_start_1idx = ref.range.start_col + (ref.embed and 2 or 1)
       local ref_start = ref_start_1idx - 1
       local ref_end = ref.range.end_col
-      if _submatch_in_ref(match.submatches, ref_start_1idx, ref_end) then
+      if ref_is_eligible(document, ref) and _submatch_in_ref(match.submatches, ref_start_1idx, ref_end) then
         local matched_anchor = ref.block and ("#^" .. ref.block) or (ref.anchor and ("#" .. ref.anchor) or nil)
         local include = true
         if anchor and note then
@@ -773,8 +791,8 @@ end
 ---@field note obsidian.Note The note instance where the tag was found.
 ---@field path string|obsidian.Path The path to the note where the tag was found.
 ---@field line integer The line number (1-indexed) where the tag was found.
----@field text string The text (with whitespace stripped) of the line where the tag was found.
----@field tag_start integer|? The index within 'text' where the tag starts.
+---@field text string The source line where the tag was found (frontmatter list displays remain trimmed for compatibility).
+---@field tag_start integer|? The 1-based byte index within the source line where the tag starts.
 ---@field tag_end integer|? The index within 'text' where the tag ends.
 
 --- Find all tags starting with the given search term(s).
@@ -825,9 +843,9 @@ M.find_tags_async = function(term, callback, opts)
   -- Caches note objects.
   ---@type table<string, obsidian.Note>
   local path_to_note = {}
-  -- Caches code block locations.
-  ---@type table<string, { [1]: integer, [2]: integer }[]>
-  local path_to_code_blocks = {}
+  -- Caches full source snapshots used for byte-accurate exclusion filtering.
+  ---@type table<string, obsidian.parse.Document>
+  local path_to_document = {}
   -- Keeps track of the order of the paths.
   ---@type table<string, integer>
   local path_order = {}
@@ -863,16 +881,18 @@ M.find_tags_async = function(term, callback, opts)
     }
   end
 
-  -- Wraps `Note.from_file_with_contents_async()` to return a table instead of a tuple and
-  -- find the code blocks.
   ---@param path obsidian.Path
-  ---@return { [1]: obsidian.Note, [2]: {[1]: integer, [2]: integer}[] }
+  ---@return { [1]: obsidian.Note, [2]: obsidian.parse.Document }
   local load_note = function(path)
-    local note = Note.from_file(path, {
-      load_contents = true,
-      max_lines = Obsidian.opts.search.max_lines,
-    })
-    return { note, M.find_code_blocks(note.contents) }
+    local file = assert(io.open(tostring(path), "r"), "failed to open note")
+    local lines = {}
+    for source_line in file:lines() do
+      lines[#lines + 1] = source_line:gsub("\r$", "")
+    end
+    file:close()
+    local document = Document.parse(lines)
+    local note = Note.from_lines(lines, path, { max_lines = #lines, document = document })
+    return { note, document }
   end
 
   ---@param match_data MatchData
@@ -887,13 +907,13 @@ M.find_tags_async = function(term, callback, opts)
 
     -- Load note.
     local note = path_to_note[path_key]
-    local code_blocks = path_to_code_blocks[path_key]
-    if not note or not code_blocks then
+    local document = path_to_document[path_key]
+    if not note or not document then
       local ok, res = pcall(load_note, path)
       if ok then
-        note, code_blocks = unpack(res)
+        note, document = unpack(res)
         path_to_note[path_key] = note
-        path_to_code_blocks[path_key] = code_blocks
+        path_to_document[path_key] = document
       else
         err_count = err_count + 1
         if first_err == nil then
@@ -904,43 +924,46 @@ M.find_tags_async = function(term, callback, opts)
       end
     end
 
-    -- check if the match was inside a code block.
-    for _, block in ipairs(code_blocks) do
-      if block[1] <= match_data.line_number and match_data.line_number <= block[2] then
-        return
+    local row = match_data.line_number - 1
+    local line = document.lines[row + 1]
+    if line == nil then
+      return
+    end
+    local n_matches = 0
+
+    -- Check body hashtags against their exact source ranges.
+    local parse_tags = require "obsidian.parse.tags"
+    for _, tag_match in ipairs(parse_tags.extract_lexical(line, { row = row })) do
+      if not document:intersects(tag_match.range, Document.BODY_EXCLUSIONS) then
+        add_match(
+          tag_match.tag,
+          path,
+          note,
+          match_data.line_number,
+          line,
+          tag_match.range.start_col + 1,
+          tag_match.range.end_col
+        )
+        n_matches = n_matches + 1
       end
     end
 
-    local line = vim.trim(match_data.lines.text)
-    local n_matches = 0
-
-    -- check for tag in the wild of the form '#{tag}'
-    local parse_tags = require "obsidian.parse.tags"
-    for _, tag_match in ipairs(parse_tags.extract(line)) do
-      add_match(
-        tag_match.tag,
-        path,
-        note,
-        match_data.line_number,
-        line,
-        tag_match.range.start_col + 1,
-        tag_match.range.end_col
-      )
-      n_matches = n_matches + 1
-    end
-
-    -- check for tags in frontmatter
+    -- Frontmatter tags continue through the YAML semantic path.
+    local frontmatter = document.frontmatter
     if
       n_matches == 0
-      and note.has_frontmatter
-      and note.frontmatter_end_line ~= nil
-      and match_data.line_number < note.frontmatter_end_line
+      and frontmatter ~= nil
+      and frontmatter.termination == "delimiter"
+      and frontmatter.body_range ~= nil
+      and frontmatter.body_range.start_row <= row
+      and row < frontmatter.body_range.end_row
       and note.tags ~= nil
-      and (vim.startswith(line, "tags:") or string.match(line, "%s*- "))
+      and (vim.startswith(vim.trim(line), "tags:") or string.match(line, "%s*- "))
     then
-      local tag = vim.trim(string.sub(line, 3)) -- HACK: works because we force '  - tag'
+      local display_line = vim.trim(line)
+      local tag = vim.trim(string.sub(display_line, 3)) -- HACK: works because we force '  - tag'
       if vim.list_contains(note.tags, tag) then
-        add_match(tag, path, note, match_data.line_number, line)
+        add_match(tag, path, note, match_data.line_number, display_line)
       end
     end
   end

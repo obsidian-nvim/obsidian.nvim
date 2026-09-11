@@ -1,4 +1,6 @@
-local util = require "obsidian.util"
+local BufferDocument = require "obsidian.document"
+local Document = require "obsidian.parse.document"
+local Range = require "obsidian.range"
 local uri = require "obsidian.uri"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
@@ -262,7 +264,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
   local block_ids = assert(ui_opts.block_ids, "ui block_ids options are required")
   local tags = assert(ui_opts.tags, "ui tags options are required")
   local matches = {}
-  for _, ref in ipairs(parse_refs.extract(line)) do
+  for _, ref in ipairs(parse_refs.extract_lexical(line)) do
     if ref.kind ~= "footnote" then
       matches[#matches + 1] = {
         ref.range.start_col + (ref.embed and 2 or 1),
@@ -272,7 +274,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       }
     end
   end
-  for _, block in ipairs(parse_block_id.extract(line)) do
+  for _, block in ipairs(parse_block_id.extract_lexical(line)) do
     matches[#matches + 1] = {
       block.range.start_col + 1,
       block.range.end_col,
@@ -434,34 +436,19 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
     end
   end
 
-  local inline_code_blocks = {}
-  for m_start, m_end in util.gfind(line, "`[^`]*`") do
-    inline_code_blocks[#inline_code_blocks + 1] = { m_start, m_end }
-  end
-
-  for _, tag_match in ipairs(parse_tags.extract(line)) do
+  for _, tag_match in ipairs(parse_tags.extract_lexical(line)) do
     local m_start, m_end = tag_match.range.start_col + 1, tag_match.range.end_col
-    local inside_code_block = false
-    for _, code_block_boundary in ipairs(inline_code_blocks) do
-      if code_block_boundary[1] < m_start and m_end < code_block_boundary[2] then
-        inside_code_block = true
-        break
-      end
-    end
-
-    if not inside_code_block then
-      marks[#marks + 1] = ExtMark.new(
-        nil,
-        lnum,
-        to_int(m_start - 1),
-        ExtMarkOpts.from_tbl {
-          end_row = lnum,
-          end_col = to_int(m_end),
-          hl_group = tags.hl_group,
-          spell = false,
-        }
-      )
-    end
+    marks[#marks + 1] = ExtMark.new(
+      nil,
+      lnum,
+      to_int(m_start - 1),
+      ExtMarkOpts.from_tbl {
+        end_row = lnum,
+        end_col = to_int(m_end),
+        hl_group = tags.hl_group,
+        spell = false,
+      }
+    )
   end
 
   return marks
@@ -525,6 +512,19 @@ local get_line_marks = function(line, lnum, ui_opts)
   return marks
 end
 
+---@param document obsidian.parse.Document
+---@return ExtMark[]
+local function filter_excluded_marks(marks, document)
+  local result = {}
+  for _, mark in ipairs(marks) do
+    local range = Range.new(mark.row, mark.col, mark.opts.end_row, mark.opts.end_col)
+    if not document:intersects(range, Document.BODY_EXCLUSIONS) then
+      result[#result + 1] = mark
+    end
+  end
+  return result
+end
+
 ---@param bufnr integer
 ---@param ui_opts obsidian.config.UIOpts
 local function update_extmarks(bufnr, ns_id, ui_opts)
@@ -540,9 +540,10 @@ local function update_extmarks(bufnr, ns_id, ui_opts)
     cur_line_marks[#cur_line_marks + 1] = mark
   end
 
-  -- Iterate over lines (skipping code blocks) and update marks.
-  local inside_code_block = false
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, true)
+  -- Parse once for this changedtick and filter all lexical decorations against
+  -- the same source snapshot.
+  local document = BufferDocument.get(bufnr)
+  local lines = document.lines
   for i, line in ipairs(lines) do
     local lnum = i - 1
     local cur_line_marks = cur_marks_by_line[lnum]
@@ -555,38 +556,24 @@ local function update_extmarks(bufnr, ns_id, ui_opts)
       end
     end
 
-    -- Check if inside a code block or at code block boundary. If not, update marks.
-    if string.match(line, "^%s*```[^`]*$") then
-      inside_code_block = not inside_code_block
-      -- Remove any existing marks here on the boundary of a code block.
-      clear_line()
-    elseif not inside_code_block then
-      -- Get all marks that should be materialized.
-      -- Some of these might already be materialized, which we'll check below and avoid re-drawing
-      -- if that's the case.
-      local new_line_marks = get_line_marks(line, lnum, ui_opts)
-      if #new_line_marks > 0 then
-        -- Materialize new marks.
-        for mark in iter(new_line_marks) do
-          if not vim.list_contains(cur_line_marks, mark) then
-            mark:materialize(bufnr, ns_id)
-            n_marks_added = n_marks_added + 1
-          end
+    -- Some marks might already be materialized, which we'll check below and
+    -- avoid re-drawing when possible.
+    local new_line_marks = filter_excluded_marks(get_line_marks(line, lnum, ui_opts), document)
+    if #new_line_marks > 0 then
+      for mark in iter(new_line_marks) do
+        if not vim.list_contains(cur_line_marks, mark) then
+          mark:materialize(bufnr, ns_id)
+          n_marks_added = n_marks_added + 1
         end
+      end
 
-        -- Clear old marks.
-        for mark in iter(cur_line_marks) do
-          if not vim.list_contains(new_line_marks, mark) then
-            mark:clear(bufnr, ns_id)
-            n_marks_cleared = n_marks_cleared + 1
-          end
+      for mark in iter(cur_line_marks) do
+        if not vim.list_contains(new_line_marks, mark) then
+          mark:clear(bufnr, ns_id)
+          n_marks_cleared = n_marks_cleared + 1
         end
-      else
-        -- Remove any existing marks here since there are no new marks.
-        clear_line()
       end
     else
-      -- Remove any existing marks here since we're inside a code block.
       clear_line()
     end
   end

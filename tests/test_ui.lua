@@ -79,4 +79,29 @@ T["update"]["should not add tag extmarks inside inline code"] = function()
   eq(11, tag_marks[1][3])
 end
 
+T["update"]["filters all decorations through document exclusions"] = function()
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(bufnr, vim.fn.tempname() .. ".md")
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+    "```",
+    "#fenced [[hidden]] ==hidden== - [ ] task",
+    "```",
+    "#shown <!-- #hidden -->",
+  })
+
+  Obsidian = {
+    opts = {
+      ui = vim.deepcopy(require("obsidian.config.default").ui),
+    },
+  }
+  ui.update(bufnr)
+
+  local ns_id = vim.api.nvim_create_namespace "ObsidianUI"
+  local rows = {}
+  for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, { details = true })) do
+    rows[mark[2]] = true
+  end
+  eq({ [3] = true }, rows)
+end
+
 return T

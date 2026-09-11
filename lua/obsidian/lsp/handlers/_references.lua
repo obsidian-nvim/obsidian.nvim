@@ -1,3 +1,6 @@
+local BufferDocument = require "obsidian.document"
+local Document = require "obsidian.parse.document"
+local Range = require "obsidian.range"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
@@ -116,8 +119,12 @@ local function collect_current_note(link, link_type, callback, opts)
   if Obsidian.opts.backlinks.parse_headers then
     local line = vim.api.nvim_buf_get_lines(opts.bufnr, opts.position.line, opts.position.line + 1, false)[1] or ""
     local header_match = header.parse(line)
-    if header_match then
-      anchor = header_match.anchor
+    local first_byte = line:find "%S"
+    if header_match and first_byte then
+      local marker = Range.new(opts.position.line, first_byte - 1, opts.position.line, first_byte)
+      if not BufferDocument.get(opts.bufnr):intersects(marker, Document.BODY_EXCLUSIONS) then
+        anchor = header_match.anchor
+      end
     end
   end
 
@@ -146,8 +153,13 @@ local function cursor_ref(include_tag, opts)
 
   local line = vim.api.nvim_buf_get_lines(opts.bufnr, opts.position.line, opts.position.line + 1, false)[1] or ""
   local cur_col = opts.position.character
-  for _, block in ipairs(parse_block_id.extract(line)) do
-    if block.range.start_col <= cur_col and cur_col < block.range.end_col then
+  local document = BufferDocument.get(opts.bufnr)
+  for _, block in ipairs(parse_block_id.extract_lexical(line, { row = opts.position.line })) do
+    if
+      block.range.start_col <= cur_col
+      and cur_col < block.range.end_col
+      and not document:intersects(block.range, Document.BODY_EXCLUSIONS)
+    then
       return block.raw, "block_id"
     end
   end

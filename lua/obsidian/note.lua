@@ -8,6 +8,7 @@
 ---
 ---@toc
 
+local Document = require "obsidian.parse.document"
 local Path = require "obsidian.path"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
@@ -65,6 +66,7 @@ end
 ---@field aliases string[]
 ---@field tags string[]
 ---@field contents string[]
+---@field raw_contents string[]? source-preserving lines when loaded from a file or buffer.
 ---@field metadata table
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
@@ -748,6 +750,9 @@ Note.from_buffer = function(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local path = vim.api.nvim_buf_get_name(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  opts = vim.deepcopy(opts or {})
+  opts.max_lines = #lines
+  opts.document = require("obsidian.document").get(bufnr)
   local note = Note.from_lines(lines, path, opts)
   note.bufnr = bufnr
 
@@ -788,12 +793,10 @@ Note.from_lines = function(lines, path, opts)
   local max_lines = opts.max_lines or DEFAULT_MAX_LINES
 
   local contents = {}
+  local raw_contents = {}
 
-  -- Iterate over lines in the file, collecting frontmatter and contents.
-  local frontmatter_lines = {}
-  local has_frontmatter, in_frontmatter = false, false
-  local at_boundary
-  local frontmatter_end_line = nil
+  -- Capture source lines once. Presentation contents retain their historical
+  -- trailing-whitespace normalization; syntax ranges use `raw_contents`.
   local line_idx = 0
   local next_line
   if type(lines) == "table" and vim.islist(lines) then
@@ -810,26 +813,8 @@ Note.from_lines = function(lines, path, opts)
 
   for line in next_line do
     local source_line = line:gsub("\r$", "")
-    line = util.rstrip_whitespace(line)
-
-    if line_idx == 1 and Note._is_frontmatter_boundary(line) then
-      has_frontmatter = true
-      at_boundary = true
-      in_frontmatter = true
-    elseif in_frontmatter and Note._is_frontmatter_boundary(line) then
-      at_boundary = true
-      in_frontmatter = false
-      frontmatter_end_line = line_idx
-    else
-      at_boundary = false
-    end
-
-    if in_frontmatter and not at_boundary then
-      table.insert(frontmatter_lines, source_line)
-    end
-
-    -- Collect contents.
-    table.insert(contents, line)
+    table.insert(raw_contents, source_line)
+    table.insert(contents, util.rstrip_whitespace(source_line))
 
     -- Check if we can stop reading lines now.
     if line_idx > max_lines then
@@ -837,13 +822,26 @@ Note.from_lines = function(lines, path, opts)
     end
   end
 
+  local document = opts.document or Document.parse(raw_contents)
+  local frontmatter = document.frontmatter
+  local has_frontmatter = frontmatter ~= nil
+  local frontmatter_end_line = frontmatter and frontmatter.termination == "delimiter" and frontmatter.range.end_row
+    or nil
+  local frontmatter_lines = {}
+  if frontmatter and frontmatter.body_range then
+    for source_idx = frontmatter.body_range.start_row + 1, frontmatter.body_range.end_row do
+      frontmatter_lines[#frontmatter_lines + 1] = raw_contents[source_idx]
+    end
+  end
+
   ---@type obsidian.Section[]|?, table<string, obsidian.note.Block>|?, obsidian.Section[]|?
   local sections, blocks, block_candidates
   if opts.collect_sections or opts.collect_anchor_links or opts.collect_blocks or opts.collect_block_candidates then
     sections, blocks, block_candidates = Section.parse(contents, {
-      start_row = frontmatter_end_line or 0,
+      start_row = frontmatter and frontmatter.range.end_row or 0,
       collect_blocks = opts.collect_blocks,
       collect_block_candidates = opts.collect_block_candidates,
+      document = document,
     })
   end
 
@@ -899,6 +897,7 @@ Note.from_lines = function(lines, path, opts)
   n.frontmatter_end_line = frontmatter_end_line
   n.frontmatter_elements = frontmatter_elements
   n.contents = contents
+  n.raw_contents = raw_contents
   n.anchor_links = anchor_links
   n.blocks = blocks
   n.block_candidates = block_candidates
@@ -915,7 +914,7 @@ end
 ---
 ---@private
 Note._is_frontmatter_boundary = function(line)
-  return line:match "^%-%-%-+$" ~= nil
+  return Document.parse({ line }).frontmatter ~= nil
 end
 
 Note.frontmatter = require("obsidian.builtin").frontmatter
@@ -1093,6 +1092,7 @@ Note.save = function(self, opts)
   local content = {}
   ---@type string[]
   local existing_frontmatter
+  local replace_frontmatter = true
   local has_trailing_newline = true -- Default to true for new files.
 
   if self.path:is_file() then
@@ -1108,26 +1108,24 @@ Note.save = function(self, opts)
       file:close()
     end
 
-    existing_frontmatter = {}
-    local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
-    local idx = 0
+    local source_lines = {}
     for line in io.lines(tostring(self.path)) do
-      idx = idx + 1
-      if idx == 1 and Note._is_frontmatter_boundary(line) then
-        at_boundary = true
-        in_frontmatter = true
-      elseif in_frontmatter and Note._is_frontmatter_boundary(line) then
-        at_boundary = true
-        in_frontmatter = false
-      else
-        at_boundary = false
+      source_lines[#source_lines + 1] = line:gsub("\r$", "")
+    end
+    local document = Document.parse(source_lines)
+    local frontmatter = document.frontmatter
+    existing_frontmatter = {}
+    if frontmatter then
+      for idx = 1, frontmatter.range.end_row do
+        existing_frontmatter[#existing_frontmatter + 1] = source_lines[idx]
       end
-
-      if not in_frontmatter and not at_boundary then
-        table.insert(content, line)
-      else
-        table.insert(existing_frontmatter, line)
+      for idx = frontmatter.range.end_row + 1, #source_lines do
+        content[#content + 1] = source_lines[idx]
       end
+      -- An unmatched opener is protected source, not a safe replacement range.
+      replace_frontmatter = frontmatter.termination == "delimiter"
+    else
+      content = source_lines
     end
     -- end)
     -- elseif self.title ~= nil then
@@ -1142,7 +1140,7 @@ Note.save = function(self, opts)
 
   ---@type string[]
   local new_lines
-  if opts.insert_frontmatter then
+  if opts.insert_frontmatter and replace_frontmatter then
     -- Replace frontmatter.
     ---@diagnostic disable-next-line: call-non-callable
     new_lines = vim.iter({ self:frontmatter_lines(existing_frontmatter), content }):flatten():totable()
@@ -1523,6 +1521,7 @@ end
 ---@field collect_blocks boolean|?
 ---@field collect_block_candidates boolean|?
 ---@field collect_sections boolean|?
+---@field document obsidian.parse.Document? internal shared source snapshot.
 
 ---@class (exact) obsidian.note.NoteCreationOpts
 ---@field notes_subdir string?
