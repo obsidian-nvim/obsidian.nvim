@@ -32,7 +32,8 @@ style:  ## Format the code with stylua
 
 .PHONY: types
 types: ## Type check with EmmyLua
-	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/ --config .emmyrc.json --warnings-as-errors
+	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/ --config .emmyrc.json 
+	# --warnings-as-errors TODO: upstream neovim stdlib is going through some type refactors, wait util 0.13 to add this back
 
 .PHONY: test
 test: $(MINITEST)
