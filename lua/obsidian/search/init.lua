@@ -122,7 +122,7 @@ M.search_async = function(dir, term, opts, on_match, on_exit)
     if on_exit ~= nil then
       on_exit(code)
     end
-  end, { ignore_enoent = true })
+  end)
 end
 
 --- Find files in a directory matching a given term. Each matching path is

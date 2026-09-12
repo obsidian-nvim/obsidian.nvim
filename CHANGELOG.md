@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Added an opt-in `ignore_enoent` option to `async.run_job_async` (passed by `search.search_async`) that demotes transient `No such file or directory` stderr lines from `rg` — e.g. when a file vanishes mid-scan in a cloud-synced vault — from error notifications to debug logs.
+- Demoted transient `rg` "No such file or directory" stderr messages (e.g. when a file vanishes mid-scan in a cloud-synced vault) from error notifications to debug logs, while still surfacing them for other commands.
 
 ### Changed
 

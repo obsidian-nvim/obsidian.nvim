@@ -8,12 +8,7 @@ local M = {}
 ---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
----@param opts table|? { ignore_enoent: boolean } — when true, stderr lines matching
---- 'No such file or directory' are demoted to debug logs instead of errors. Useful for
---- search commands like `rg`, where a file vanishing mid-scan (common in
---- cloud-synced vaults) is transient and does not affect results. Other stderr
---- output is still surfaced as an error.
-M.run_job_async = function(cmds, on_stdout, on_exit, opts)
+M.run_job_async = function(cmds, on_stdout, on_exit)
   local stderr_lines = false
 
   local on_obj = function(obj)
@@ -44,7 +39,13 @@ M.run_job_async = function(cmds, on_stdout, on_exit, opts)
     if err then
       return log.err("Error running command '%s'\n:%s", cmds, err)
     elseif data ~= nil then
-      if opts ~= nil and opts.ignore_enoent and data:match "No such file or directory" then
+      -- `rg` emits "rg: <path>: No such file or directory (os error 2)" when a file
+      -- vanishes between the directory scan and the file open, which happens routinely
+      -- in cloud-synced vaults (e.g. iCloud replacing files via temp-file + rename).
+      -- The message is transient and does not affect search results, so demote it to a
+      -- debug log. Matching the `rg` prefix keeps other ENOENT stderr (from any command)
+      -- surfacing as errors.
+      if data:match "^rg: .*No such file or directory" then
         return log.debug("[stderr] %s", data)
       end
       if not stderr_lines then
