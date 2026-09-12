@@ -3,10 +3,17 @@ local util = require "obsidian.util"
 
 local M = {}
 
+--- Run a command asynchronously, passing each stdout line to `on_stdout`.
+---
 ---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
-M.run_job_async = function(cmds, on_stdout, on_exit)
+---@param opts table|? { ignore_enoent: boolean } — when true, stderr lines matching
+--- 'No such file or directory' are demoted to debug logs instead of errors. Useful for
+--- search commands like `rg`, where a file vanishing mid-scan (common in
+--- cloud-synced vaults) is transient and does not affect results. Other stderr
+--- output is still surfaced as an error.
+M.run_job_async = function(cmds, on_stdout, on_exit, opts)
   local stderr_lines = false
 
   local on_obj = function(obj)
@@ -37,13 +44,8 @@ M.run_job_async = function(cmds, on_stdout, on_exit)
     if err then
       return log.err("Error running command '%s'\n:%s", cmds, err)
     elseif data ~= nil then
-      -- ENOENT messages from search commands like `rg` (e.g. when a file vanishes
-      -- between the directory scan and the file open, which happens routinely in
-      -- cloud-synced vaults) are transient and don't affect search results, so we
-      -- demote them to debug logs instead of surfacing them as errors.
-      if data:match "No such file or directory" then
-        log.debug("[stderr] %s", data)
-        return
+      if opts ~= nil and opts.ignore_enoent and data:match "No such file or directory" then
+        return log.debug("[stderr] %s", data)
       end
       if not stderr_lines then
         log.err("Captured stderr output while running command '%s'", cmds)
