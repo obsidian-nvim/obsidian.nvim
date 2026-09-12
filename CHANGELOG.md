@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Attachment destination and vault-wide reference resolution, with `attachment.rename()` and `attachment.delete()` APIs.
 - Line-level Markdown list item and task parsers (`obsidian.parse.line.list_items`, `obsidian.parse.line.tasks`) with unified marker, indentation, and task-state metadata.
 
+### Fixed
+
+- Demoted transient `rg` "No such file or directory" stderr messages (e.g. when a file vanishes mid-scan in a cloud-synced vault) from error notifications to debug logs, while still surfacing them for other commands.
+
 ### Changed
 
 - Checkbox detection and conceal now follow CommonMark/GFM list syntax (e.g. `-- [ ]` and `++ [ ]` are no longer treated as checkboxes) and support multi-byte checkbox states.

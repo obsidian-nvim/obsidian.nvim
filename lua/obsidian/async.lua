@@ -3,6 +3,8 @@ local util = require "obsidian.util"
 
 local M = {}
 
+--- Run a command asynchronously, passing each stdout line to `on_stdout`.
+---
 ---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
 ---@param on_exit function|? (integer) -> nil
@@ -37,6 +39,24 @@ M.run_job_async = function(cmds, on_stdout, on_exit)
     if err then
       return log.err("Error running command '%s'\n:%s", cmds, err)
     elseif data ~= nil then
+      -- `rg` emits "rg: <path>: No such file or directory (os error 2)" when a file
+      -- vanishes between the directory scan and the file open, which happens routinely
+      -- in cloud-synced vaults (e.g. iCloud replacing files via temp-file + rename)
+      -- or when the editor saves a file with a temp-file + rename strategy. The
+      -- message is transient, does not affect search results, and makes rg exit with
+      -- code 2 — which would otherwise surface as multiple error notifications. So we
+      -- demote it to a debug log. Matching the `rg` prefix keeps ENOENT stderr from
+      -- other commands surfacing as errors. Stderr chunks are split into lines so a
+      -- real error sharing a chunk with a demoted line is still surfaced.
+      local lines = vim.split(data, "\n", { plain = true })
+      local kept = vim.tbl_filter(function(line)
+        return line:match "^rg: .*No such file or directory" == nil
+      end, lines)
+      if #kept == 0 then
+        return log.debug("[stderr] %s", data)
+      elseif #kept < #lines then
+        data = table.concat(kept, "\n")
+      end
       if not stderr_lines then
         log.err("Captured stderr output while running command '%s'", cmds)
         stderr_lines = true
