@@ -37,6 +37,14 @@ M.run_job_async = function(cmds, on_stdout, on_exit)
     if err then
       return log.err("Error running command '%s'\n:%s", cmds, err)
     elseif data ~= nil then
+      -- ENOENT messages from search commands like `rg` (e.g. when a file vanishes
+      -- between the directory scan and the file open, which happens routinely in
+      -- cloud-synced vaults) are transient and don't affect search results, so we
+      -- demote them to debug logs instead of surfacing them as errors.
+      if data:match "No such file or directory" then
+        log.debug("[stderr] %s", data)
+        return
+      end
       if not stderr_lines then
         log.err("Captured stderr output while running command '%s'", cmds)
         stderr_lines = true

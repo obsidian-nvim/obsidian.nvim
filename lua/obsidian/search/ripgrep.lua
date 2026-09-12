@@ -15,11 +15,8 @@ local BASE_CMD = {
 -- `--crlf` makes ripgrep treat `\r\n` as a line terminator so that `$`
 -- anchors in search patterns (e.g. frontmatter tag lists) also match files
 -- with DOS line endings. See https://github.com/obsidian-nvim/obsidian.nvim/issues/903.
--- `--no-messages` suppresses rg's own error messages (e.g. when a file vanishes
--- mid-scan, which happens routinely in iCloud-synced vaults) so they are not
--- logged as errors.
-local SEARCH_CMD = util.flatten { BASE_CMD, "--type=md", "--json", "--crlf", "--no-messages" }
-local FIND_CMD = util.flatten { BASE_CMD, "--files", "--no-messages" }
+local SEARCH_CMD = util.flatten { BASE_CMD, "--type=md", "--json", "--crlf" }
+local FIND_CMD = util.flatten { BASE_CMD, "--files" }
 
 ---@param opts obsidian.search.SearchOpts
 ---@return string[]

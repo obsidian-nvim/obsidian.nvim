@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Suppressed transient `rg` filesystem error messages (e.g. `No such file or directory` when a file vanishes mid-scan in iCloud-synced vaults) with `--no-messages`, preventing spurious error notifications on save.
+- Demoted transient `No such file or directory` (ENOENT) stderr messages from async commands (e.g. `rg` hitting a file that vanished mid-scan in a cloud-synced vault) from error notifications to debug logs.
 
 ### Changed
 
