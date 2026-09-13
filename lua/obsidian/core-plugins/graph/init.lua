@@ -8,16 +8,20 @@ local Graph = require "obsidian.graph"
 local HttpServer = require "obsidian.web.server"
 local watchfiles = require "obsidian.lsp.watchfiles"
 local cache = require "obsidian.cache"
+local actions = require "obsidian.core-plugins.graph.actions"
 
 local uv = vim.uv
 
 local M = {}
 
+---Register a whole-note context menu action. See graph/actions.lua for the contract.
+M.register_action = actions.register
+
 ---@type obsidian.web.Server?
 M._server = nil
 ---@type table?
 M._graph_cache = nil
----@type table<string, table>?
+---@type table<string, obsidian.graph.Node>?
 M._graph_by_id = nil
 ---@type string?
 M._graph_cache_dir = nil
@@ -95,7 +99,7 @@ local function get_graph(force)
 end
 
 ---@param id string
----@return table|?
+---@return obsidian.graph.Node?
 local function node_by_id(id)
   get_graph(false)
   local node = M._graph_by_id and M._graph_by_id[id] or nil
@@ -208,11 +212,17 @@ function M.open_note_by_id(id, open)
   }
   local cmd = commands[open or "edit"] or "edit"
 
-  vim.schedule(function()
+  local function open_note()
     require("obsidian.api").open_note({ filename = path }, cmd)
-  end)
+  end
+  if vim.in_fast_event() then
+    vim.schedule(open_note)
+    return true
+  end
 
-  return true
+  -- Menu actions already run on the main loop; report opening failures to the browser.
+  local ok, err = pcall(open_note)
+  return ok, not ok and tostring(err) or nil
 end
 
 ---@param client any
@@ -389,6 +399,80 @@ local function handle_open(client, req)
   respond(client, "200 OK", "application/json", vim.json.encode { ok = true })
 end
 
+---@param id string
+---@return obsidian.graph.ActionContext?
+local function action_context(id)
+  local node = node_by_id(id)
+  if not node or node.type ~= "note" or not node.exists or not node.path then
+    return nil
+  end
+  -- The cache may still contain a note deleted since the menu was opened.
+  local stat = uv.fs_stat(node.path)
+  if not stat or stat.type ~= "file" then
+    return nil
+  end
+  return { node = vim.deepcopy(node), path = node.path }
+end
+
+---@param client any
+---@param req obsidian.web.Request
+local function handle_actions(client, req)
+  if not M._token or req.params.token ~= M._token then
+    respond(client, "403 Forbidden", "text/plain", "Forbidden")
+    return
+  end
+
+  local id, name = req.params.id, nil
+  if req.method == "POST" then
+    local ok, payload = pcall(vim.json.decode, req.body)
+    if not ok or type(payload) ~= "table" or type(payload.name) ~= "string" or payload.name == "" then
+      respond(client, "400 Bad Request", "text/plain", "Expected JSON with id and name")
+      return
+    end
+    id, name = payload.id, payload.name
+  end
+  if type(id) ~= "string" or id == "" then
+    respond(client, "400 Bad Request", "text/plain", "Expected a note id")
+    return
+  end
+
+  -- Conditions, titles and callbacks may use Neovim APIs, unlike the libuv handler.
+  vim.schedule(function()
+    if client:is_closing() then
+      return
+    end
+    if req.params.token ~= M._token then
+      respond(client, "403 Forbidden", "text/plain", "Forbidden")
+      return
+    end
+    ---@return string status
+    ---@return string body
+    local function action_response()
+      local ctx = action_context(id)
+      if not ctx then
+        if req.method == "GET" then
+          return "200 OK", "[]"
+        end
+        return "404 Not Found", "Note not found"
+      end
+      if name then
+        local success, err = actions.execute(name, ctx)
+        if not success then
+          return "404 Not Found", err or "Action unavailable"
+        end
+        return "200 OK", vim.json.encode { ok = true }
+      end
+      return "200 OK", vim.json.encode(actions.list(ctx))
+    end
+    local ok, status, body = pcall(action_response)
+    if not ok then
+      respond(client, "500 Internal Server Error", "text/plain", tostring(status))
+    else
+      respond(client, status, status == "200 OK" and "application/json" or "text/plain", body)
+    end
+  end)
+end
+
 ---@param client any
 ---@param req obsidian.web.Request
 local function handle_request(client, req)
@@ -414,6 +498,10 @@ local function handle_request(client, req)
     else
       respond_events(client)
     end
+  elseif
+    (req.path == "/api/actions" and req.method == "GET") or (req.path == "/api/action" and req.method == "POST")
+  then
+    handle_actions(client, req)
   elseif req.path == "/api/open" and req.method == "POST" then
     if req.params.token ~= M._token then
       respond(client, "403 Forbidden", "text/plain", "Forbidden")

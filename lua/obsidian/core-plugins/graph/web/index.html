@@ -12,6 +12,8 @@ __OBSIDIAN_GRAPH_CSS__
 <div id="loading">Loading graph...</div>
 <div id="stats"></div>
 <div id="tip"></div>
+<div id="node-menu" role="menu" aria-label="Note actions" hidden></div>
+<div id="action-error" role="alert" hidden></div>
 <button id="settings-toggle">☰</button>
 <aside id="side" class="open">
   <h1>Graph view</h1>
@@ -43,7 +45,7 @@ __OBSIDIAN_GRAPH_CSS__
   <div class="muted">Search graph nodes and toggle tags, missing files, orphans, labels, arrows, sizing, and force tuning.</div>
 </aside>
 <div id="controls"><button id="zin">+</button><button id="zout">-</button><button id="reset">&#x27F2;</button></div>
-<canvas id="graph"></canvas>
+<canvas id="graph" tabindex="0" aria-label="Note graph"></canvas>
 <script>
 __OBSIDIAN_GRAPH_JS__
 </script>
