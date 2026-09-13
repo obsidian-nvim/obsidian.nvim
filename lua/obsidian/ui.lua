@@ -1,4 +1,5 @@
 local util = require "obsidian.util"
+local uri = require "obsidian.uri"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
 local parse_refs = require "obsidian.parse.refs"
@@ -359,7 +360,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       -- Reference of the form [yyy](xxx)
       local closing_bracket_loc = string.find(line, "]", m_start, true)
       assert(closing_bracket_loc, "")
-      local is_uri = util.is_uri(string.sub(line, to_int(closing_bracket_loc + 2), to_int(m_end - 1)))
+      local is_uri = uri.is_uri(string.sub(line, to_int(closing_bracket_loc + 2), to_int(m_end - 1)))
       -- Conceal the opening '['
       marks[#marks + 1] = ExtMark.new(
         nil,

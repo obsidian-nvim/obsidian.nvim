@@ -2,7 +2,6 @@ local log = require "obsidian.log"
 local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
-local util = require "obsidian.util"
 
 local M = {}
 
@@ -183,7 +182,7 @@ local function preview_file(bookmark)
   local entry = bookmark_to_picker_entry(bookmark)
   local bookmark_path = entry.filename
   ---@cast bookmark_path -nil
-  local preview = util.preview_path(bookmark_path)
+  local preview = picker.preview_path(bookmark_path)
   preview.pos = entry.lnum and { entry.lnum, 0 } or nil
   return preview
 end

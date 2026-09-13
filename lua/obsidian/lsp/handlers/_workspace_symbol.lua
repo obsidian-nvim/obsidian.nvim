@@ -1,6 +1,6 @@
 local search = require "obsidian.search"
 local async = require "obsidian.async"
-local util = require "obsidian.util"
+local fs_util = require "obsidian.util.fs"
 local Range = require "obsidian.range"
 local api = require "obsidian.api"
 local SymbolKind = vim.lsp.protocol.SymbolKind
@@ -14,7 +14,7 @@ local SymbolKind = vim.lsp.protocol.SymbolKind
 ---@param abs_path string|obsidian.Path
 ---@return string
 local function relative_path_no_ext(abs_path)
-  local rel = util.relpath(tostring(api.resolve_workspace_dir(abs_path)), tostring(abs_path))
+  local rel = fs_util.relpath(tostring(api.resolve_workspace_dir(abs_path)), tostring(abs_path))
   if rel and vim.endswith(rel, ".md") then
     rel = rel:sub(1, -4)
   end

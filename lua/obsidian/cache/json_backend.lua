@@ -1,4 +1,4 @@
-local util = require "obsidian.util"
+local fs_util = require "obsidian.util.fs"
 
 ---@class obsidian.cache.JsonBackend
 ---@field path string
@@ -76,7 +76,7 @@ function M:flush()
   end
   self.data.generated_at = os.time()
   local encoded = vim.json.encode(self.data)
-  util.atomic_write(self.path, encoded)
+  fs_util.atomic_write(self.path, encoded)
   self.dirty = false
 end
 

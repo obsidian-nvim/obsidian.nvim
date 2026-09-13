@@ -12,6 +12,11 @@ local Path = require "obsidian.path"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local fs_util = require "obsidian.util.fs"
+local compat = require "obsidian.compat"
+local uri = require "obsidian.uri"
+local header_parser = require "obsidian.parse.header"
+local block_ids = require "obsidian.parse.block_id"
 local text_insertion = require "obsidian.util.text_insertion"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
@@ -151,40 +156,6 @@ local function generate_id(base_id, path, id_func)
   return new_id
 end
 
---- Check whether a filename stem is valid across all platforms (Windows + Linux/macOS).
----
---- https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
----
----@param name string Filename stem (without extension)
----@return boolean valid
----@return string? reason Human-readable error when invalid
-local function is_valid_filename(name)
-  if vim.g.obsidian_allow_invalid_names then
-    return true, nil
-  end
-
-  if not name or name == "" then
-    return false, "cannot be empty"
-  end
-
-  -- Forbidden on Windows (and / on Linux); %z matches the NUL byte.
-  local forbidden = name:match '[<>:"/\\|?*%z]'
-  if forbidden then
-    return false, ("contains forbidden character: %q"):format(forbidden)
-  end
-
-  -- Control characters 0x01-0x1F (NUL covered above).
-  if name:match "[\1-\31]" then
-    return false, "contains a control character"
-  end
-
-  if name:match "[%. ]$" then
-    return false, "cannot end with a space or period"
-  end
-
-  return true, nil
-end
-
 ---@param invalid_name string
 ---@return string
 local function prompt_for_valid_filename(invalid_name)
@@ -197,7 +168,7 @@ local function prompt_for_valid_filename(invalid_name)
     end
 
     current = input:gsub("%.md$", "")
-    local valid, reason = is_valid_filename(current)
+    local valid, reason = util.is_valid_filename(current)
     if valid then
       return current
     end
@@ -206,7 +177,7 @@ local function prompt_for_valid_filename(invalid_name)
   end
 end
 
-Note.is_valid_filename = is_valid_filename
+Note.is_valid_filename = util.is_valid_filename
 Note.prompt_for_valid_filename = prompt_for_valid_filename
 
 --- Generate the file path for a new note given its ID, parent directory, and title.
@@ -404,14 +375,14 @@ Note._resolve_id_path = function(opts, prompt_invalid_filename)
   local path = Note._generate_path(id, dir, creation_opts.note_path_func)
 
   -- Reject generated filenames that are invalid on any platform.
-  local valid, reason = is_valid_filename(path.stem)
+  local valid, reason = util.is_valid_filename(path.stem)
   while not valid do
     if not prompt_invalid_filename then
       error(("invalid note filename %q: %s"):format(path.stem, reason), 2)
     end
     id = prompt_for_valid_filename(path.stem)
     path = Note._generate_path(id, dir, creation_opts.note_path_func)
-    valid, reason = is_valid_filename(path.stem)
+    valid, reason = util.is_valid_filename(path.stem)
   end
 
   return id, path, title
@@ -615,7 +586,7 @@ Note.reference_ids = function(self, opts)
     ref_ids = vim.tbl_map(string.lower, ref_ids)
   end
 
-  return util.tbl_unique(ref_ids)
+  return compat.list_unique(ref_ids)
 end
 
 --- Get a list of all of the different paths that can identify this note
@@ -640,7 +611,7 @@ Note.get_reference_paths = function(self, opts)
     table.insert(raw_refs, no_suffix_relpath)
   end
 
-  raw_refs = util.tbl_unique(raw_refs)
+  raw_refs = compat.list_unique(raw_refs)
 
   if opts.urlencode == true then
     local refs = {}
@@ -648,10 +619,10 @@ Note.get_reference_paths = function(self, opts)
     for _, raw_ref in ipairs(raw_refs) do
       vim.list_extend(
         refs,
-        util.tbl_unique {
+        compat.list_unique {
           raw_ref,
-          util.urlencode(raw_ref),
-          util.urlencode(raw_ref, { keep_path_sep = true }),
+          uri.encode(raw_ref),
+          uri.encode(raw_ref, { keep_path_sep = true }),
         }
       )
     end
@@ -1160,10 +1131,12 @@ Note.save = function(self, opts)
   local new_lines
   if opts.insert_frontmatter then
     -- Replace frontmatter.
-    new_lines = util.flatten { self:frontmatter_lines(existing_frontmatter), content }
+    ---@diagnostic disable-next-line: call-non-callable
+    new_lines = vim.iter({ self:frontmatter_lines(existing_frontmatter), content }):flatten():totable()
   else
     -- Use existing frontmatter.
-    new_lines = util.flatten { existing_frontmatter, content }
+    ---@diagnostic disable-next-line: call-non-callable
+    new_lines = vim.iter({ existing_frontmatter, content }):flatten():totable()
   end
 
   local file_content = table.concat(new_lines, "\n")
@@ -1254,7 +1227,7 @@ end
 ---@param anchor_link string
 ---@return obsidian.note.HeaderAnchor|?
 Note.resolve_anchor_link = function(self, anchor_link)
-  anchor_link = util.standardize_anchor(anchor_link)
+  anchor_link = header_parser.normalize_anchor(anchor_link)
 
   if self.anchor_links ~= nil then
     return self.anchor_links[anchor_link]
@@ -1272,7 +1245,7 @@ end
 ---
 ---@return obsidian.note.Block|?
 Note.resolve_block = function(self, block_id)
-  block_id = util.standardize_block(block_id)
+  block_id = block_ids.normalize(block_id)
 
   if self.blocks ~= nil then
     return self.blocks[block_id]
@@ -1349,7 +1322,7 @@ local function format_path(path, style, base_dir)
     end
 
     local relpath =
-      assert(util.relpath(tostring(base_dir), tostring(path)), "failed to resolve link path against current note")
+      assert(fs_util.relpath(tostring(base_dir), tostring(path)), "failed to resolve link path against current note")
     return relpath
   else
     return vim.fs.basename(tostring(path))

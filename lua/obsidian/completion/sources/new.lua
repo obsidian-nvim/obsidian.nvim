@@ -1,5 +1,9 @@
 local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
+local date = require "obsidian.date"
+local link_parser = require "obsidian.link.parser"
+local header = require "obsidian.parse.header"
+local block_ids = require "obsidian.parse.block_id"
 local Note = require "obsidian.note"
 local api = require "obsidian.api"
 
@@ -50,25 +54,17 @@ function M.process_completion(callback, request)
 
   term = util.lstrip_whitespace(term)
 
-  ---@type string|?
-  local block_link
-  term, block_link = util.strip_block_links(term)
+  local parsed_anchor, parsed_block
+  term, parsed_anchor, parsed_block = link_parser.parse(term)
 
-  ---@type string|?
-  local anchor_link
-  term, anchor_link = util.strip_anchor_links(term)
-
-  -- If block link is incomplete, do nothing.
-  if not block_link and vim.endswith(term, "#^") then
+  -- Incomplete fragments cannot produce a new-note completion.
+  if parsed_anchor == "" or parsed_block == "" then
     callback(EMPTY_RESPONSE)
     return
   end
 
-  -- If anchor link is incomplete, do nothing.
-  if not anchor_link and vim.endswith(term, "#") then
-    callback(EMPTY_RESPONSE)
-    return
-  end
+  local anchor_link = parsed_anchor and header.normalize_anchor(parsed_anchor) or nil
+  local block_link = parsed_block and block_ids.normalize(parsed_block) or nil
 
   -- Probably just a block/anchor link within current note.
   if string.len(term) == 0 then
@@ -80,7 +76,7 @@ function M.process_completion(callback, request)
   ---@type obsidian.note.Block|?
   local block
   if block_link then
-    block = { block = "", id = util.standardize_block(block_link), line = 1 }
+    block = { block = "", id = block_ids.normalize(block_link), line = 1 }
   end
 
   -- Create a mock anchor.
@@ -102,14 +98,14 @@ function M.process_completion(callback, request)
 
   -- Check for datetime macros. Build missing daily notes directly instead of
   -- calling daily(), which would call Note.create for every completion request.
-  for _, dt_offset in ipairs(util.resolve_date_macro(term)) do
+  for _, dt_offset in ipairs(date.resolve_macro(term)) do
     if dt_offset.cadence == "daily" then
       local daily = require "obsidian.daily"
       local timestamp = os.time() + (dt_offset.offset * 3600 * 24)
       local path, id = daily.daily_note_path(timestamp, workspace_dir)
       local aliases = {}
       if Obsidian.opts.daily_notes.alias_format ~= nil then
-        aliases[1] = tostring(util.format_date(timestamp, Obsidian.opts.daily_notes.alias_format))
+        aliases[1] = tostring(date.format(timestamp, Obsidian.opts.daily_notes.alias_format))
       end
       note = preview_note {
         id = id,

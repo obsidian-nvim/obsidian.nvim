@@ -2,7 +2,8 @@
 
 local M = {}
 local log = require "obsidian.log"
-local util = require "obsidian.util"
+local fs_util = require "obsidian.util.fs"
+local header = require "obsidian.parse.header"
 local string, table = string, table
 local Path = require "obsidian.path"
 local config = require "obsidian.config"
@@ -79,7 +80,7 @@ M.path_is_note = function(path, workspace)
   path = Path.new(path):resolve()
   workspace = workspace or Obsidian.workspace
 
-  local in_vault = util.is_subpath(path.filename, tostring(workspace.root))
+  local in_vault = fs_util.is_subpath(path.filename, tostring(workspace.root))
   if not in_vault then
     return false
   end
@@ -111,7 +112,7 @@ M.find_workspace = function(path)
   local match
   for _, ws in ipairs(Obsidian.workspaces or {}) do
     local root = vim.fs.normalize(tostring(ws.root))
-    if util.is_subpath(normalized, root) and (not match or #root > #tostring(match.root)) then
+    if fs_util.is_subpath(normalized, root) and (not match or #root > #tostring(match.root)) then
       match = ws
     end
   end
@@ -235,7 +236,7 @@ end
 --- Get the heading under the cursor, if there is one.
 ---@return { header: string, level: integer, anchor: string }|?
 M.cursor_heading = function()
-  return util.parse_header(vim.api.nvim_get_current_line())
+  return header.parse(vim.api.nvim_get_current_line())
 end
 
 --- Whether there is a checkbox under the cursor

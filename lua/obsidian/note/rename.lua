@@ -5,7 +5,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local refs = require "obsidian.parse.refs"
 local search = require "obsidian.search"
-local util = require "obsidian.util"
+local uri = require "obsidian.uri"
 
 local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
 
@@ -34,12 +34,12 @@ end
 
 local function add_replacement_variants(replacements, seen, old_ref, new_ref)
   add_replacement(replacements, seen, old_ref, new_ref)
-  add_replacement(replacements, seen, util.urlencode(old_ref), util.urlencode(new_ref))
+  add_replacement(replacements, seen, uri.encode(old_ref), uri.encode(new_ref))
   add_replacement(
     replacements,
     seen,
-    util.urlencode(old_ref, { keep_path_sep = true }),
-    util.urlencode(new_ref, { keep_path_sep = true })
+    uri.encode(old_ref, { keep_path_sep = true }),
+    uri.encode(new_ref, { keep_path_sep = true })
   )
 end
 

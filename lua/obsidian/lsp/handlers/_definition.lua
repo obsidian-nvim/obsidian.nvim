@@ -1,9 +1,13 @@
 local obsidian = require "obsidian"
 local search = obsidian.search
-local util = obsidian.util
 local log = obsidian.log
 local api = obsidian.api
 local actions = require "obsidian.actions"
+local refs_parser = require "obsidian.parse.refs"
+local link_parser = require "obsidian.link.parser"
+local header = require "obsidian.parse.header"
+local block_ids = require "obsidian.parse.block_id"
+local uri_util = require "obsidian.uri"
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
@@ -97,9 +101,9 @@ local function open_note(location, callback, opts)
   opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
   opts.cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
 
-  local block_link, anchor_link, raw_anchor
-  location, block_link = util.strip_block_links(location)
-  location, anchor_link, raw_anchor = util.strip_anchor_links(location)
+  local raw_anchor, raw_block = opts.anchor, opts.block
+  local anchor_link = raw_anchor ~= nil and header.normalize_anchor(raw_anchor) or nil
+  local block_link = raw_block ~= nil and block_ids.normalize(raw_block) or nil
 
   local source = vim.api.nvim_buf_get_name(opts.bufnr)
   local workspace_dir = api.resolve_workspace_dir(source ~= "" and source or nil)
@@ -119,8 +123,8 @@ local function open_note(location, callback, opts)
     end
 
     if vim.tbl_isempty(notes) then
-      opts.anchor = raw_anchor
-      opts.block = block_link
+      opts.anchor = raw_anchor ~= nil and link_parser.format("", raw_anchor) or nil
+      opts.block = raw_block ~= nil and link_parser.format("", nil, raw_block) or nil
       create_new_note(location, callback, opts)
     elseif #notes == 1 then
       callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
@@ -152,7 +156,7 @@ local handle_wiki_link = function(location, callback, opts)
 end
 
 local handle_markdown_link = function(location, callback, opts)
-  local is_uri, scheme = util.is_uri(location)
+  local is_uri, scheme = uri_util.is_uri(location)
   if is_uri then
     open_uri(location, scheme)
   elseif api.is_attachment_path(location) then
@@ -226,9 +230,13 @@ end
 return {
   follow_link = function(link, callback, opts)
     opts = opts or {}
-    local location, label, link_type = util.parse_link(link)
-    if not location then
+    local ref = refs_parser.parse(link)
+    if not ref then
       return callback(nil, {})
+    end
+    local location, label, link_type = ref.target, ref.label, ref.kind
+    if label == nil and link_type == "wiki" then
+      label = link_parser.format(ref.target, ref.anchor, ref.block)
     end
 
     local decoded_location = vim.uri_decode(location)
@@ -237,6 +245,9 @@ return {
       location = decoded_location
     end
 
+    local decoded_anchor, decoded_block
+    location, decoded_anchor, decoded_block = link_parser.parse(location)
+
     local wrapped_callback = function(lsp_locations)
       if lsp_locations and vim.islist(lsp_locations) then
         callback(nil, lsp_locations)
@@ -244,12 +255,14 @@ return {
     end
 
     opts.label = label
+    opts.anchor = ref.anchor ~= nil and (vim.uri_decode(ref.anchor) or ref.anchor) or decoded_anchor
+    opts.block = ref.block ~= nil and (vim.uri_decode(ref.block) or ref.block) or decoded_block
     opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
     opts.cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
-    if vim.startswith(location, "#^") then
-      open_block_link(location, wrapped_callback, opts)
-    elseif vim.startswith(location, "#") then
-      open_header_link(location, wrapped_callback, opts)
+    if opts.block ~= nil and location == "" then
+      open_block_link(opts.block, wrapped_callback, opts)
+    elseif opts.anchor ~= nil and location == "" then
+      open_header_link(opts.anchor, wrapped_callback, opts)
     elseif link_type == "markdown" then
       handle_markdown_link(location, wrapped_callback, opts)
     elseif link_type == "wiki" then

@@ -1,5 +1,5 @@
 local attachment = require "obsidian.attachment"
-local util = require "obsidian.util"
+local uri = require "obsidian.uri"
 
 local M = {}
 
@@ -81,7 +81,7 @@ end
 ---@param path string
 ---@return string
 local spec_for_path = function(path)
-  local is_uri = util.is_uri(path)
+  local is_uri = uri.is_uri(path)
   if is_uri then
     return M.kinds.url
   elseif is_dir(path) then

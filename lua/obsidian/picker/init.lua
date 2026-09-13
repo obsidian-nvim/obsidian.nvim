@@ -1,4 +1,4 @@
-local util = require "obsidian.util"
+local fs_util = require "obsidian.util.fs"
 local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
 local cache = require "obsidian.cache"
@@ -14,7 +14,10 @@ local search = require "obsidian.search"
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
 ---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
-local M = {}
+---@field preview_path fun(path: string|obsidian.Path): obsidian.ui_select_preview_spec
+local M = {
+  preview_path = picker_util.preview_path,
+}
 
 local state = {}
 M.state = state
@@ -171,7 +174,7 @@ M.find_files_from_cache = function(opts)
 
   local workspace_dir = api.resolve_workspace_dir()
   local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(workspace_dir))
-  if not util.is_subpath(dir, tostring(workspace_dir)) then
+  if not fs_util.is_subpath(dir, tostring(workspace_dir)) then
     return false
   end
 
@@ -198,7 +201,7 @@ M.find_files_from_cache = function(opts)
     end
 
     for path, note in pairs(cache.notes.all()) do
-      if util.is_subpath(path, dir) then
+      if fs_util.is_subpath(path, dir) then
         local rel_path = cache.notes.rel_path(path):gsub("%.md$", "")
         add_entry(rel_path, path)
         for _, alias in ipairs(note.aliases or {}) do
@@ -227,7 +230,7 @@ M.find_files_from_cache = function(opts)
         return icon .. " " .. item.text
       end,
       preview_item = function(item)
-        return util.preview_path(item.filename)
+        return picker_util.preview_path(item.filename)
       end,
     }, function(items)
       local paths = vim.tbl_filter(
@@ -281,7 +284,7 @@ local find_files = function(opts)
       format_item = function(path)
         return icons.get_path_icon(path) .. " " .. tostring(Path.new(path):relative_to(dir))
       end,
-      preview_item = util.preview_path,
+      preview_item = picker_util.preview_path,
     }, function(items)
       local callback = opts.callback or picker_util.open_notes
       callback(items)

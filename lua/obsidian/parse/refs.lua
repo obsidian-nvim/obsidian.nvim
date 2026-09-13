@@ -1,5 +1,6 @@
 local Range = require "obsidian.range"
 local util = require "obsidian.util"
+local link_parser = require "obsidian.link.parser"
 
 local M = {}
 
@@ -12,25 +13,6 @@ local M = {}
 ---@field anchor string?
 ---@field block string?
 ---@field embed boolean
-
----@param target string
----@return string target
----@return string? anchor
----@return string? block
-local function split_fragment(target)
-  local anchor, block
-  local hash = target:find("#", 1, true)
-  if hash then
-    local frag = target:sub(hash + 1)
-    target = target:sub(1, hash - 1)
-    if frag:sub(1, 1) == "^" then
-      block = frag:sub(2)
-    else
-      anchor = frag
-    end
-  end
-  return target, anchor, block
-end
 
 ---@param line string
 ---@return [integer, integer][]
@@ -99,12 +81,12 @@ local function parse_wiki(raw, range)
   local target, label = body, nil
   local pipe = body:find("|", 1, true)
   if pipe then
-    target = body:sub(1, pipe - 1)
+    target = body:sub(1, pipe - 1):gsub("\\$", "")
     label = body:sub(pipe + 1)
   end
 
   local anchor, block
-  target, anchor, block = split_fragment(target)
+  target, anchor, block = link_parser.parse(target)
   return {
     kind = "wiki",
     raw = raw,
@@ -127,7 +109,7 @@ local function parse_markdown(raw, range)
   end
 
   local anchor, block
-  target, anchor, block = split_fragment(target)
+  target, anchor, block = link_parser.parse(target)
   return {
     kind = "markdown",
     raw = raw,
@@ -171,6 +153,22 @@ local patterns = {
   { pattern = "%[%^[^%]%[%s]+%]", parser = parse_footnote },
   { pattern = "%[[^][]*%]%([^%)]+%)", parser = parse_markdown },
 }
+
+--- Parse one complete wiki, Markdown, or footnote reference.
+---@param raw string
+---@param opts? obsidian.parse.line.LineOpts
+---@return obsidian.parse.Ref?
+function M.parse(raw, opts)
+  opts = opts or {}
+  local row = opts.row or 0
+  local range = Range.new(row, 0, row, #raw)
+  for _, entry in ipairs(patterns) do
+    local ref = entry.parser(raw, range)
+    if ref then
+      return ref
+    end
+  end
+end
 
 ---Extract outgoing wiki/markdown/footnote refs from a single line.
 ---@param line string

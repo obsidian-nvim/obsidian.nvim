@@ -1,6 +1,5 @@
 local api = require "obsidian.api"
 local picker = require "obsidian.picker"
-local util = require "obsidian.util"
 
 return function()
   require "obsidian.lsp.handlers._references"(nil, { tag = false }, function(_, locations)
@@ -14,7 +13,7 @@ return function()
           ---@cast entry obsidian.PickerEntry
           local filename = entry.filename
           ---@cast filename -nil
-          local preview = util.preview_path(filename)
+          local preview = picker.preview_path(filename)
           preview.pos = { entry.lnum or 1, entry.col and math.max(entry.col - 1, 0) or 0 }
           return preview
         end,

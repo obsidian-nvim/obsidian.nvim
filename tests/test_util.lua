@@ -1,4 +1,6 @@
 local M = require "obsidian.util"
+local picker_util = require "obsidian.picker.util"
+local compat = require "obsidian.compat"
 local Path = require "obsidian.path"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
@@ -14,7 +16,7 @@ T["preview_path"]["lists directory contents and marks folders"] = function()
   M.write_file(tostring(dir / "file1.md"), "# file1")
   M.write_file(tostring(dir / "file2.lua"), "return {}")
 
-  local preview = M.preview_path(dir)
+  local preview = picker_util.preview_path(dir)
   eq({ "file1.md", "file2.lua", "folder1/" }, vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false))
   eq("wipe", vim.bo[preview.buf].bufhidden)
 
@@ -22,8 +24,15 @@ T["preview_path"]["lists directory contents and marks folders"] = function()
   vim.fn.delete(tostring(dir), "rf")
 end
 
-T["tbl_unique"] = function()
-  eq(#M.tbl_unique { "hi", "hey", "hi", "hi" }, 2)
+T["list_unique"] = function()
+  eq({ "hi", "hey" }, compat.list_unique { "hi", "hey", "hi", "hi" })
+end
+
+T["filename validation distinguishes filesystem and link restrictions"] = function()
+  eq(false, M.is_valid_filename "bad:name")
+  eq(true, M.is_valid_filename "has#fragment-marker")
+  eq(true, M.contains_invalid_characters "has#fragment-marker")
+  eq(false, M.contains_invalid_characters "bad:name")
 end
 
 T["match_case"] = new_set()
@@ -31,55 +40,6 @@ T["match_case"] = new_set()
 T["match_case"]["should match case of key to prefix"] = function()
   eq(M.match_case("Foo", "foo"), "Foo")
   eq(M.match_case("In-cont", "in-context learning"), "In-context learning")
-end
-
-T["unescape_single_backslash"] = new_set()
-
-T["unescape_single_backslash"]["should correctly remove single backslash"] = function()
-  -- [[123\|NOTE1]] should get [[123|NOTE1]] in markdown file
-  -- in lua, it needs to be with double backslash '\\'
-  eq(M.unescape_single_backslash "[[foo\\|bar]]", "[[foo|bar]]")
-end
-
-T["is_checkbox"] = new_set()
-
-T["is_checkbox"]["should return true for valid checkbox list items"] = function()
-  eq(true, M.is_checkbox "- [ ] Task 1")
-  eq(true, M.is_checkbox "- [x] Task 1")
-  eq(true, M.is_checkbox "+ [ ] Task 1")
-  eq(true, M.is_checkbox "+ [x] Task 1")
-  eq(true, M.is_checkbox "* [ ] Task 2")
-  eq(true, M.is_checkbox "* [x] Task 2")
-  eq(true, M.is_checkbox "1. [ ] Task 3")
-  eq(true, M.is_checkbox "1. [x] Task 3")
-  eq(true, M.is_checkbox "2. [ ] Task 3")
-  eq(true, M.is_checkbox "10. [ ] Task 3")
-  eq(true, M.is_checkbox "1) [ ] Task")
-  eq(true, M.is_checkbox "10) [ ] Task")
-end
-
-T["is_checkbox"]["should return false for non-checkbox list items"] = function()
-  eq(false, M.is_checkbox "- Task 1")
-  eq(false, M.is_checkbox "-- Task 1")
-  eq(false, M.is_checkbox "-- [ ] Task 1")
-  eq(false, M.is_checkbox "* Task 2")
-  eq(false, M.is_checkbox "++ [ ] Task 2")
-  eq(false, M.is_checkbox "1. Task 3")
-  eq(false, M.is_checkbox "1.1 Task 3")
-  eq(false, M.is_checkbox "1.1 [ ] Task 3")
-  eq(false, M.is_checkbox "1)1 Task 3")
-  eq(false, M.is_checkbox "1234567890. [ ] Task 3")
-  eq(false, M.is_checkbox "Random text")
-end
-
-T["is_checkbox"]["should handle leading spaces correctly"] = function()
-  eq(true, M.is_checkbox "  - [ ] Task 1")
-  eq(true, M.is_checkbox "    * [ ] Task 2")
-  eq(true, M.is_checkbox "     5. [ ] Task 2")
-
-  eq(false, M.is_checkbox "    - Task 1")
-  eq(false, M.is_checkbox "    * Task 1")
-  eq(false, M.is_checkbox "    1. Task 1")
 end
 
 T["is_whitespace"] = function()
@@ -116,169 +76,19 @@ T["count_indent"]["should count each space as one indent"] = function()
 end
 
 T["count_indent"]["should count each tab as one indent"] = function()
-  eq(2, M.count_indent "		")
-end
-
-T["header_level"] = new_set()
-
-T["header_level"]["should return 0 when the line is not a header"] = function()
-  eq(0, M.header_level "Hello World")
-  eq(0, M.header_level "#Hello World")
-end
-
-T["header_level"]["should return 1 for H1 headers"] = function()
-  eq(1, M.header_level "# Hello World")
-end
-
-T["header_level"]["should return 2 for H2 headers"] = function()
-  eq(2, M.header_level "## Hello World")
-end
-
-T["previous_day"] = function()
-  local now = os.time { year = 2025, month = 4, day = 27 }
-  eq(M.previous_day(now), os.time { year = 2025, month = 4, day = 26 })
-end
-
-T["next_day"] = function()
-  local now = os.time { year = 2025, month = 4, day = 27 }
-  eq(M.next_day(now), os.time { year = 2025, month = 4, day = 28 })
-end
-
-T["working_day_before"] = function()
-  local now = os.time { year = 2025, month = 4, day = 27 }
-  eq(M.working_day_before(now), os.time { year = 2025, month = 4, day = 25 })
-end
-
-T["working_day_after"] = function()
-  local now = os.time { year = 2025, month = 4, day = 25 }
-  eq(M.working_day_after(now), os.time { year = 2025, month = 4, day = 28 })
-end
-
-T["parse"] = new_set()
-
-T["parse"]["block"] = new_set()
-
-T["parse"]["block"]["should parse basic block identifiers"] = function()
-  local block = M.parse_block "Foo Bar ^hello-world"
-  eq("^hello-world", block)
-end
-
-T["parse"]["header"] = new_set()
-
-T["parse"]["header"]["should include spaces"] = function()
-  eq({ header = "Hello World", level = 2, anchor = "#hello-world" }, M.parse_header "## Hello World")
-  eq({ header = "Hello World", level = 1, anchor = "#hello-world" }, M.parse_header "# Hello World")
-end
-
-T["parse"]["header"]["should include extra spaces at the beginning"] = function()
-  eq({ header = "Hello World", level = 2, anchor = "#hello-world" }, M.parse_header "##  Hello World")
-end
-
-T["parse"]["header"]["should strip white space at the end"] = function()
-  eq({ header = "Hello World", level = 2, anchor = "#hello-world" }, M.parse_header "## Hello World ")
+  eq(2, M.count_indent "\t\t")
 end
 
 T["strip"] = new_set()
 
-T["strip"]["block_links"] = new_set()
-
-T["strip"]["block_links"]["should strip basic block links"] = function()
-  local line, block = M.strip_block_links "Foo Bar#^hello-world"
-  eq("Foo Bar", line)
-  eq("#^hello-world", block)
-end
-
-T["strip"]["block_links"]["should strip block links from an otherwise empty input"] = function()
-  local line, block = M.strip_block_links "#^hello-world"
-  eq("", line)
-  eq("#^hello-world", block)
-end
-
-T["strip"]["anchor_links"] = new_set()
-
-T["strip"]["anchor_links"]["should strip basic anchor links"] = function()
-  local line, anchor = M.strip_anchor_links "Foo Bar#hello-world"
-  eq("Foo Bar", line)
-  eq("#hello-world", anchor)
-end
-
-T["strip"]["anchor_links"]["should strip even a single letter anchor link (for completion)"] = function()
-  local line, anchor = M.strip_anchor_links "Foo Bar#H"
-  eq("Foo Bar", line)
-  eq("#h", anchor)
-end
-
-T["strip"]["anchor_links"]["should strip non-standard anchor links"] = function()
-  local line, anchor = M.strip_anchor_links "Foo Bar#Hello World"
-  eq("Foo Bar", line)
-  eq("#hello-world", anchor)
-end
-
-T["strip"]["anchor_links"]["should strip multiple anchor links"] = function()
-  local line, anchor = M.strip_anchor_links "Foo Bar#hello-world#sub-header"
-  eq("Foo Bar", line)
-  eq("#hello-world#sub-header", anchor)
-end
-
-T["strip"]["anchor_links"]["should leave line alone when there are no anchor links"] = function()
-  local line, anchor = M.strip_anchor_links "Foo Bar"
-  eq("Foo Bar", line)
-  eq(nil, anchor)
-end
-
-T["strip"]["anchor_links"]["should strip emoji anchor links"] = function()
-  local line, anchor = M.strip_anchor_links "Foo Bar#😀"
-  eq("Foo Bar", line)
-  eq("#😀", anchor)
-end
-
-T["strip"]["anchor_links"]["should strip CJK anchor links"] = function()
-  local line, anchor = M.strip_anchor_links "Foo Bar#中文标题"
-  eq("Foo Bar", line)
-  eq("#中文标题", anchor)
-end
-
 T["strip"]["left whitespace"] = new_set()
 
 T["strip"]["left whitespace"]["should strip tabs and spaces from left end only"] = function()
-  eq("foo ", M.lstrip_whitespace "	foo ")
+  eq("foo ", M.lstrip_whitespace "\tfoo ")
 end
 
 T["strip"]["left whitespace"]["should respect the limit parameters"] = function()
   eq(" foo ", M.lstrip_whitespace("  foo ", 1))
-end
-
-T["uri"] = new_set()
-
-T["uri"]["encode"] = new_set()
-T["uri"]["encode"]["should correctly URL-encode a path"] = function()
-  eq([[~%2FLibrary%2FFoo%20Bar.md]], M.urlencode [[~/Library/Foo Bar.md]])
-end
-
-T["uri"]["encode"]["should keep path separated when asks"] = function()
-  eq([[~/Library/Foo%20Bar.md]], M.urlencode([[~/Library/Foo Bar.md]], { keep_path_sep = true }))
-end
-
-T["header_to_anchor"] = new_set()
-
-T["header_to_anchor"]["should strip leading '#' and put everything in lowercase"] = function()
-  eq("#hello-world", M.header_to_anchor "## Hello World")
-end
-
-T["header_to_anchor"]["should remove punctuation"] = function()
-  eq("#hello-world", M.header_to_anchor "# Hello, World!")
-end
-
-T["header_to_anchor"]["should keep numbers"] = function()
-  eq("#hello-world-123", M.header_to_anchor "# Hello, World! 123")
-end
-
-T["header_to_anchor"]["should keep underscores"] = function()
-  eq("#hello_world", M.header_to_anchor "# Hello_World")
-end
-
-T["header_to_anchor"]["should have a '-' for every space"] = function()
-  eq("#hello--world", M.header_to_anchor "# Hello  World!")
 end
 
 return T

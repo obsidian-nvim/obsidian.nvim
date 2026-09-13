@@ -1,7 +1,27 @@
 local log = require "obsidian.log"
-local util = require "obsidian.util"
 
 local M = {}
+
+---@param fn? fun(line: string)
+---@return fun(data: string)
+local function line_buffer(fn)
+  if not fn then
+    return function() end
+  end
+  local buffer = ""
+  return function(data)
+    buffer = buffer .. data
+    local lines = vim.split(buffer, "\n")
+    if #lines > 1 then
+      for i = 1, #lines - 1 do
+        local line = lines[i]
+        ---@cast line string
+        fn(line)
+      end
+      buffer = lines[#lines] or ""
+    end
+  end
+end
 
 ---@param cmds string[]
 ---@param on_stdout function|? (string) -> nil
@@ -22,7 +42,7 @@ M.run_job_async = function(cmds, on_stdout, on_exit)
     end
   end
 
-  on_stdout = util.buffer_fn(on_stdout)
+  on_stdout = line_buffer(on_stdout)
 
   local function stdout(err, data)
     if err ~= nil then

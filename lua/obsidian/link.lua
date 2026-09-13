@@ -1,10 +1,14 @@
 local Path = require "obsidian.path"
-local util = require "obsidian.util"
 local search = require "obsidian.search"
 local attachment = require "obsidian.attachment"
 local api = require "obsidian.api"
+local parser = require "obsidian.link.parser"
+local uri = require "obsidian.uri"
 
-local M = {}
+local M = {
+  parse = parser.parse,
+  format = parser.format,
+}
 
 ---@param path string|obsidian.Path
 ---@return obsidian.Path
@@ -17,13 +21,11 @@ end
 ---@param location string
 ---@return string|?
 M.resolve_link_path = function(location)
-  local is_uri = util.is_uri(location)
-  if is_uri then
+  if uri.is_uri(location) then
     return nil
   end
 
-  location = util.strip_block_links(location)
-  location = util.strip_anchor_links(location)
+  location = parser.parse(location)
 
   if location == "" then
     return
@@ -104,8 +106,8 @@ M.includeexpr = function(fname)
   local location = fname
 
   if link then
-    local parsed_location = util.parse_link(link)
-    location = parsed_location or location
+    local ref = require("obsidian.parse.refs").parse(link)
+    location = ref and ref.target or location
   end
 
   if not location then

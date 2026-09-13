@@ -1,8 +1,9 @@
-local util = require "obsidian.util"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local parse_block_id = require "obsidian.parse.block_id"
+local parse_refs = require "obsidian.parse.refs"
+local header = require "obsidian.parse.header"
 
 ---@param match obsidian.BacklinkMatch
 ---@return lsp.Location
@@ -34,18 +35,10 @@ local function tag_loc_to_lsp_location(tag_loc)
 end
 
 local function handle_note_ref(link, callback, request_opts)
-  local location = util.parse_link(link)
-  assert(location, "failed to parse link")
-
-  -- Remove block links from the end if there are any.
-  ---@type string|?
-  local block_link
-  location, block_link = util.strip_block_links(location)
-
-  -- Remove anchor links from the end if there are any.
-  ---@type string|?
-  local anchor_link
-  location, anchor_link = util.strip_anchor_links(location)
+  local ref = assert(parse_refs.parse(link), "failed to parse link")
+  local location = ref.target
+  local anchor_link = ref.anchor
+  local block_link = ref.block
 
   local opts = { anchor = anchor_link, block = block_link, dir = request_opts.dir }
 
@@ -85,8 +78,8 @@ end
 
 local handle_footnote = function(link, callback, opts)
   local footnotes = require "obsidian.footnotes"
-  local id = util.parse_link(link)
-  assert(id, "failed to parse footnote")
+  local parsed_ref = assert(parse_refs.parse(link), "failed to parse footnote")
+  local id = parsed_ref.target
 
   local bufnr = opts.bufnr
   local uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(bufnr))
@@ -122,7 +115,7 @@ local function collect_current_note(link, link_type, callback, opts)
   -- Check if cursor is on a header, if so and header parsing is enabled, use that anchor.
   if Obsidian.opts.backlinks.parse_headers then
     local line = vim.api.nvim_buf_get_lines(opts.bufnr, opts.position.line, opts.position.line + 1, false)[1] or ""
-    local header_match = util.parse_header(line)
+    local header_match = header.parse(line)
     if header_match then
       anchor = header_match.anchor
     end
@@ -183,7 +176,8 @@ return function(link, opts, callback)
 
   local link_type
   if link then
-    link_type = select(3, util.parse_link(link))
+    local ref = parse_refs.parse(link)
+    link_type = ref and ref.kind or nil
   else
     link, link_type = cursor_ref(opts.tag, opts)
   end

@@ -1,17 +1,5 @@
-local ts, string, table = vim.treesitter, string, table
+local string, table = string, table
 local util = {}
-
-local fs_util = require "obsidian.util.fs"
-
-util.relpath = fs_util.relpath
-util.is_subpath = fs_util.is_subpath
-util.atomic_write = fs_util.atomic_write
-
-setmetatable(util, {
-  __index = function(_, k)
-    return require("obsidian.api")[k] or require("obsidian.builtin")[k]
-  end,
-})
 
 -------------------
 --- File tools ----
@@ -23,55 +11,6 @@ util.write_file = function(file, contents)
   local fd = assert(io.open(file, "w+"))
   fd:write(contents)
   fd:close()
-end
-
----@param path string|obsidian.Path
----@return obsidian.ui_select_preview_spec
-util.preview_path = function(path)
-  path = tostring(path)
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.bo[buf].bufhidden = "wipe"
-
-  local stat = vim.uv.fs_stat(path)
-  if stat and stat.type == "directory" then
-    local entries = {}
-    for name, t in vim.fs.dir(path) do
-      entries[#entries + 1] = name .. (t == "directory" and "/" or "")
-    end
-    table.sort(entries)
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
-    vim.bo[buf].filetype = "directory"
-  else
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
-    local ft = vim.filetype.match { filename = path }
-    if ft then
-      vim.bo[buf].filetype = ft
-    end
-  end
-
-  return { buf = buf }
-end
-
--------------------
---- Table tools ---
--------------------
-
----@param t table
-util.flatten = function(t)
-  ---@diagnostic disable-next-line: redundant-parameter, call-non-callable
-  return vim.iter(t):flatten():totable()
-end
-
----Return a new list table with only the unique values of the original table.
----
----@param t table
----@return any[]
-util.tbl_unique = function(t)
-  local found = {}
-  for _, val in pairs(t) do
-    found[val] = true
-  end
-  return vim.tbl_keys(found)
 end
 
 --------------------
@@ -98,33 +37,6 @@ util.gfind = function(s, pattern, init, plain)
   end
 end
 
-local char_to_hex = function(c)
-  return string.format("%%%02X", string.byte(c))
-end
-
---- Encode a string into URL-safe version.
----
----@param str string
----@param opts { keep_path_sep: boolean|? }|?
----
----@return string
-util.urlencode = function(str, opts)
-  opts = opts or {}
-  local url = str
-  url = url:gsub("\n", "\r\n")
-  url = url:gsub("([%(%)%*%?%[%]%$\"':<>|\\'{}&])", char_to_hex)
-  if not opts.keep_path_sep then
-    url = url:gsub("/", char_to_hex)
-  end
-
-  -- Spaces in URLs are always safely encoded with `%20`, but not always safe
-  -- with `+`. For example, `+` in a query param's value will be interpreted
-  -- as a literal plus-sign if the decoder is using JavaScript's `decodeURI`
-  -- function.
-  url = url:gsub(" ", "%%20")
-  return url
-end
-
 util.is_hex_color = function(s)
   return (s:match "^#%x%x%x$" or s:match "^#%x%x%x%x$" or s:match "^#%x%x%x%x%x%x$" or s:match "^#%x%x%x%x%x%x%x%x$")
     ~= nil
@@ -149,41 +61,6 @@ util.match_case = function(prefix, key)
     end
   end
   return table.concat(out_chars, "")
-end
-
----@param s string
----@return string|? scheme
----@return string|? rest
-local function get_uri_scheme(s)
-  -- scheme per RFC-ish: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-  local scheme, rest = s:match "^([%a][%w+%-%.]*):(.*)$"
-  if not scheme or not rest then
-    return nil
-  end
-
-  -- Avoid treating Windows drive letters as schemes: "C:\foo" or "C:/foo"
-  if #scheme == 1 and rest:match "^[\\/]." then
-    return nil
-  end
-
-  return scheme:lower(), rest
-end
-
----@param s string
----@return boolean is_uri
----@return string|? scheme
-util.is_uri = function(s)
-  local scheme = get_uri_scheme(s)
-  if scheme then
-    return true, scheme
-  else
-    return false, nil
-  end
-end
-
--- This function removes a single backslash within double square brackets
-util.unescape_single_backslash = function(text)
-  return text:gsub("(%[%[[^\\]+)\\(%|[^\\]+]])", "%1%2")
 end
 
 ---Count the indentation of a line.
@@ -235,324 +112,31 @@ util.lstrip_whitespace = function(str, limit)
   return str
 end
 
---------------------
---- Date helpers ---
---------------------
-
---- Format a timestamp with strftime or moment.js date format
----
----@param time integer
----@param fmt string
----@param start_of_week? integer First day of the week for Moment-style week tokens (0 is Sunday).
----@return string formatted date
-util.format_date = function(time, fmt, start_of_week)
-  if fmt:find "%%" then
-    local time_string = os.date(fmt, time)
-    ---@cast time_string string
-    return time_string
-  end
-  return require("obsidian.lib.moment").format(time, fmt, start_of_week)
-end
-
---- Format a timestamp with strftime or moment.js date format
----
----@param str string
----@param fmt string|?
----@return std.osdate? date as os.date table
----@return string|? error
-util.parse_date = function(str, fmt)
-  -- Try common date formats
-  local formats = {
-    "YYYY-M-D",
-    "M/D/YYYY",
-    "D/M/YYYY",
-    "MMMM D, YYYY",
-    "MMM D, YYYY",
-    "M-D",
-    "M/D",
-  }
-  local parse = require("obsidian.lib.moment").parse
-
-  if fmt ~= nil then
-    return parse(str, fmt)
-  else
-    for _, _fmt in ipairs(formats) do
-      local parsed = parse(str, _fmt)
-      if parsed then
-        return parsed
-      end
-    end
-  end
-end
-
----Determines if the given date is a working day (not weekend)
----
----@param time integer
----
----@return boolean
-util.is_working_day = function(time)
-  local is_saturday = (os.date("%w", time) == "6")
-  local is_sunday = (os.date("%w", time) == "0")
-  return not (is_saturday or is_sunday)
-end
-
---- Returns the previous day from given time
----
---- @param time integer
---- @return integer
-util.previous_day = function(time)
-  return time - (24 * 60 * 60)
-end
----
---- Returns the next day from given time
----
---- @param time integer
---- @return integer
-util.next_day = function(time)
-  return time + (24 * 60 * 60)
-end
-
----Determines the last working day before a given time
----
----@param time integer
----@return integer
-util.working_day_before = function(time)
-  local previous_day = util.previous_day(time)
-  if util.is_working_day(previous_day) then
-    return previous_day
-  else
-    return util.working_day_before(previous_day)
-  end
-end
-
----Determines the next working day before a given time
----
----@param time integer
----@return integer
-util.working_day_after = function(time)
-  local next_day = util.next_day(time)
-  if util.is_working_day(next_day) then
-    return next_day
-  else
-    return util.working_day_after(next_day)
-  end
-end
-
----Check if a string is an Obsidian/GFM-style task list item.
----
----@param s string
----@return boolean
-util.is_checkbox = function(s)
-  return require("obsidian.parse.line.tasks").extract(s)[1] ~= nil
-end
-
----@param link string
----@return string|? link_location
----@return string|? link_name
----@return obsidian.parse.RefKind? link_type
-util.parse_link = function(link)
-  local link_type
-  for _, ref in ipairs(require("obsidian.parse.refs").extract(link)) do
-    link_type = ref.kind
-    link = ref.embed and ref.raw:sub(2) or ref.raw
-    break
-  end
-
-  if link_type == nil then
-    return nil
-  end
-
-  if link_type == "markdown" then
-    local link_name = link:match "%[(.-)%]"
-    local link_location = link:match "%((.-)%)"
-    return link_location, link_name, "markdown"
-  elseif link_type == "wiki" then
-    link = util.unescape_single_backslash(link)
-    -- remove boundary brackets, e.g. '[[XXX|YYY]]' -> 'XXX|YYY'
-    link = link:sub(3, #link - 2)
-    local split_idx = link:find "|"
-    if split_idx then
-      local link_location = link:sub(1, split_idx - 1)
-      local link_name = link:sub(split_idx + 1)
-      return link_location, link_name, "wiki"
-    else
-      return link, link, "wiki"
-    end
-  elseif link_type == "footnote" then
-    -- remove boundary brackets and the caret, e.g. '[^xxx]' -> 'xxx'
-    local link_location = link:sub(3, #link - 1)
-    return link_location, link_location, "footnote"
-  else
-    error("not implemented for " .. link_type)
-  end
-end
-
---- Replace references of the form '[[xxx|xxx]]', '[[xxx]]', or '[xxx](xxx)' with their title.
----
----@param s string
----
----@return string
-util.replace_refs = function(s)
-  local out, _ = string.gsub(s, "%[%[[^%|%]]+%|([^%]]+)%]%]", "%1")
-  out, _ = out:gsub("%[%[([^%]]+)%]%]", "%1")
-  out, _ = out:gsub("%[([^%]]+)%]%([^%)]+%)", "%1")
-  return out
-end
-
 ------------------------------------
 -- Miscellaneous helper functions --
 ------------------------------------
 
--- We are very loose here because obsidian allows pretty much anything
--- One trailing anchor segment: "#" + at least 1 char that is not "#"
-local ANCHOR_SEGMENT_PATTERN = "#[^#]+$"
-
-util.BLOCK_PATTERN = "%^[%w%d][%w%d-]*"
-
-util.BLOCK_LINK_PATTERN = "#" .. util.BLOCK_PATTERN
-
-util.strip_anchor_links = function(line)
-  local parts = {}
-
-  while true do
-    local s, e = line:find(ANCHOR_SEGMENT_PATTERN)
-    if not s then
-      break
-    end
-
-    -- Prepend this segment so "#H1#H2" stays in order.
-    table.insert(parts, 1, line:sub(s, e))
-
-    -- Remove the matched segment from the end.
-    line = line:sub(1, s - 1)
+--- Check whether a filename stem is valid across supported platforms.
+---@param name string
+---@return boolean valid
+---@return string? reason
+util.is_valid_filename = function(name)
+  if vim.g.obsidian_allow_invalid_names then
+    return true, nil
+  end
+  if not name or name == "" then
+    return false, "cannot be empty"
   end
 
-  if #parts == 0 then
-    return line, nil, nil
+  local forbidden = name:match '[<>:"/\\|?*%z]'
+  if forbidden then
+    return false, ("contains forbidden character: %q"):format(forbidden)
+  elseif name:match "[\1-\31]" then
+    return false, "contains a control character"
+  elseif name:match "[%. ]$" then
+    return false, "cannot end with a space or period"
   end
-
-  local anchor = table.concat(parts, "")
-  return line, util.standardize_anchor(anchor), anchor
-end
-
---- Parse a block line from a line.
----
----@param line string
----
----@return string|?
-util.parse_block = function(line)
-  local block_match = string.match(line, util.BLOCK_PATTERN .. "$")
-  return block_match
-end
-
---- Strip block links from a line.
----@param line string
----@return string, string|?
-util.strip_block_links = function(line)
-  local block_match = string.match(line, util.BLOCK_LINK_PATTERN .. "$")
-  if block_match then
-    line = string.sub(line, 1, -block_match:len() - 1)
-  end
-  return line, block_match
-end
-
---- Standardize a block identifier.
----@param block_id string
----@return string
-util.standardize_block = function(block_id)
-  if vim.startswith(block_id, "#") then
-    block_id = string.sub(block_id, 2)
-  end
-
-  if not vim.startswith(block_id, "^") then
-    block_id = "^" .. block_id
-  end
-
-  return block_id
-end
-
---- Check if a line is a markdown header.
----@param line string
----@return boolean
-util.is_header = function(line)
-  if string.match(line, "^#+%s+[%w]+") then
-    return true
-  else
-    return false
-  end
-end
-
---- Get the header level of a line.
----@param line string
----@return integer
-util.header_level = function(line)
-  local headers, match_count = string.gsub(line, "^(#+)%s+[%w]+.*", "%1")
-  if match_count > 0 then
-    return string.len(headers)
-  else
-    return 0
-  end
-end
-
----@param line string
----@return { header: string, level: integer, anchor: string }|?
-util.parse_header = function(line)
-  local header_start, header = string.match(line, "^(#+)%s+([^%s]+.*)$")
-  if header_start and header then
-    header = vim.trim(header)
-    return {
-      header = vim.trim(header),
-      level = string.len(header_start),
-      anchor = util.header_to_anchor(header),
-    }
-  else
-    return nil
-  end
-end
-
---- Standardize a header anchor link.
----
----@param anchor string
----
----@return string
-util.standardize_anchor = function(anchor)
-  -- Lowercase everything.
-  anchor = string.lower(anchor)
-  -- Replace whitespace with "-".
-  anchor = string.gsub(anchor, "%s", "-")
-  -- Remove every non-alphanumeric character.
-  anchor = string.gsub(anchor, "[^#%w\128-\255_-]", "")
-  return anchor
-end
-
---- Transform a markdown header into an link, e.g. "# Hello World" -> "#hello-world".
----
----@param header string
----
----@return string
-util.header_to_anchor = function(header)
-  -- Remove leading '#' and strip whitespace.
-  local anchor = vim.trim(string.gsub(header, [[^#+%s+]], ""))
-  return util.standardize_anchor("#" .. anchor)
-end
-
----@alias datetime_cadence "daily"
-
---- Parse possible relative date macros like '@tomorrow'.
----
----@param macro string
----
----@return { macro: string, offset: integer, cadence: datetime_cadence }[]
-util.resolve_date_macro = function(macro)
-  ---@type { macro: string, offset: integer, cadence: datetime_cadence }[]
-  local out = {}
-  for m, offset_days in pairs { today = 0, tomorrow = 1, yesterday = -1 } do
-    m = "@" .. m
-    if vim.startswith(m, macro) then
-      out[#out + 1] = { macro = m, offset = offset_days, cadence = "daily" }
-    end
-  end
-  return out
+  return true, nil
 end
 
 --- Check if a string contains invalid characters.
@@ -564,26 +148,6 @@ util.contains_invalid_characters = function(fname)
   fname = tostring(fname)
   local invalid_chars = "#^%[%]|"
   return string.find(fname, "[" .. invalid_chars .. "]") ~= nil
-end
-
----Higher order function, make sure a function is called with complete lines
----@param fn fun(string)?
----@return fun(string)
-util.buffer_fn = function(fn)
-  if not fn then
-    return function() end
-  end
-  local buffer = ""
-  return function(data)
-    buffer = buffer .. data
-    local lines = vim.split(buffer, "\n")
-    if #lines > 1 then
-      for i = 1, #lines - 1 do
-        fn(lines[i])
-      end
-      buffer = lines[#lines] or "" -- Store remaining partial line
-    end
-  end
 end
 
 ---@param event string
@@ -602,35 +166,6 @@ util.fire_callback = function(event, callback, ...)
     log.error("Error running %s callback: %s", event, err)
     return false
   end
-end
-
----@param node_type string | string[]
----@return boolean
-util.in_node = function(node_type)
-  local function in_node(t)
-    local has_parser, node = pcall(ts.get_node)
-    if not has_parser then
-      return false -- silent fail for 1) a older neovim version 2) don't have markdown parser 3) ci tests
-    end
-    while node do
-      if node.type and node:type() == t then
-        return true
-      end
-      node = node.parent and node:parent()
-    end
-    return false
-  end
-  if type(node_type) == "string" then
-    return in_node(node_type)
-  elseif type(node_type) == "table" then
-    for _, t in ipairs(node_type) do
-      local is_in_node = in_node(t)
-      if is_in_node then
-        return true
-      end
-    end
-  end
-  return false
 end
 
 --- HACK: because LazyVim and some users by default sets vim.deprecate to no-op

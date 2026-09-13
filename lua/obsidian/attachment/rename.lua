@@ -4,6 +4,8 @@ local attachment = require "obsidian.attachment"
 local log = require "obsidian.log"
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
+local uri = require "obsidian.uri"
+local compat = require "obsidian.compat"
 
 local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
 
@@ -53,7 +55,7 @@ local function renamed_target(target, new_basename, kind)
   local prefix = decoded:match "^(.*[/\\])" or ""
   local result = prefix .. new_basename
   if kind == "markdown" then
-    return util.urlencode(result, { keep_path_sep = true })
+    return uri.encode(result, { keep_path_sep = true })
   end
   return result
 end
@@ -107,10 +109,10 @@ local function build_edit(old_path, new_path, callback)
   attachment._find_async(old_basename, { filename = tostring(old_path) }, function(attachments)
     local terms = {
       old_basename,
-      util.urlencode(old_basename),
-      util.urlencode(old_basename, { keep_path_sep = true }),
+      uri.encode(old_basename),
+      uri.encode(old_basename, { keep_path_sep = true }),
     }
-    terms = util.tbl_unique(terms)
+    terms = compat.list_unique(terms)
 
     local matches = {}
     require("obsidian.search").search_async(
