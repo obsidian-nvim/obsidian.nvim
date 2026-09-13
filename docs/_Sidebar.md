@@ -31,6 +31,7 @@
 - [[File]]
 - [[Footer]]
 - [[Frontmatter]]
+- [[Graph]]
 - [[Link]]
 - [[Note]]
 - [[Open]]

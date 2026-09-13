@@ -4,6 +4,9 @@
   var loading = document.getElementById("loading");
   var stats = document.getElementById("stats");
   var tip = document.getElementById("tip");
+  var menu = document.getElementById("node-menu");
+  var actionError = document.getElementById("action-error");
+  var menuRequest = 0, menuNode = null;
   var controls = document.getElementById("controls");
   var side = document.getElementById("side");
   var settingsToggle = document.getElementById("settings-toggle");
@@ -42,6 +45,7 @@
   };
 
   function resize() {
+    closeMenu();
     dpr = window.devicePixelRatio || 1;
     width = window.innerWidth;
     height = window.innerHeight;
@@ -56,6 +60,7 @@
   function worldY(y) { return (y - transform.y) / transform.k; }
 
   function zoomBy(amount, cx, cy) {
+    closeMenu();
     cx = cx == null ? width / 2 : cx;
     cy = cy == null ? height / 2 : cy;
     var beforeX = worldX(cx), beforeY = worldY(cy);
@@ -65,6 +70,7 @@
   }
 
   function resetView() {
+    closeMenu();
     transform.x = 0; transform.y = 0; transform.k = 1;
   }
 
@@ -357,6 +363,7 @@
   }
 
   function renderGraph(graph) {
+    closeMenu();
     var empty = document.getElementById("empty");
     if (empty) empty.remove();
     hover = null;
@@ -497,6 +504,96 @@
     rerender();
   }
 
+  function closeMenu() {
+    menuRequest++;
+    menuNode = null;
+    if (menu.contains(document.activeElement)) canvas.focus({ preventScroll: true });
+    menu.hidden = true;
+    menu.replaceChildren();
+  }
+
+  function showActionError(err) {
+    actionError.textContent = "Graph action failed: " + err.message;
+    actionError.hidden = false;
+  }
+
+  function actionRequest(path, options) {
+    return fetch(path + (path.indexOf("?") === -1 ? "?" : "&") + "token=" + encodeURIComponent(graphToken), options)
+      .then(function(res) {
+        if (!res.ok) {
+          return res.text().then(function(text) { throw new Error(text || res.statusText); });
+        }
+        return res.json();
+      });
+  }
+
+  function showMenu(node, x, y) {
+    menuNode = node.id;
+    var request = menuRequest;
+    actionError.hidden = true;
+    tip.style.display = "none";
+    actionRequest("/api/actions?id=" + encodeURIComponent(node.id))
+      .then(function(actions) {
+        if (request !== menuRequest) return;
+        if (!actions.length) { closeMenu(); return; }
+        actions.forEach(function(action) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.setAttribute("role", "menuitem");
+          button.tabIndex = -1;
+          button.textContent = action.title;
+          button.addEventListener("click", function() {
+            closeMenu();
+            actionRequest("/api/action", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: node.id, name: action.name })
+            }).catch(showActionError);
+          });
+          menu.appendChild(button);
+        });
+        menu.hidden = false;
+        menu.style.left = clamp(x, 0, width - menu.offsetWidth) + "px";
+        menu.style.top = clamp(y, 0, height - menu.offsetHeight) + "px";
+        menu.firstElementChild.focus({ preventScroll: true });
+      })
+      .catch(function(err) {
+        if (request !== menuRequest) return;
+        closeMenu();
+        showActionError(err);
+      });
+  }
+
+  canvas.addEventListener("contextmenu", function(e) {
+    closeMenu();
+    var node = nodeAt(e.clientX, e.clientY);
+    if (!node || node.type !== "note" || !node.exists || !node.path) return;
+    e.preventDefault();
+    showMenu(node, e.clientX, e.clientY);
+  });
+  document.addEventListener("pointerdown", function(e) {
+    if (!menu.contains(e.target)) closeMenu();
+  });
+  window.addEventListener("blur", closeMenu);
+  document.addEventListener("keydown", function(e) {
+    if (menuNode == null) return;
+    if (e.key === "Escape" || e.key === "Tab") {
+      closeMenu();
+      if (e.key === "Escape") e.preventDefault();
+      return;
+    }
+    if (menu.hidden || !menu.contains(e.target)) return;
+    var items = Array.from(menu.children);
+    var index = items.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") index = (index + 1) % items.length;
+    else if (e.key === "ArrowUp") index = (index - 1 + items.length) % items.length;
+    else if (e.key === "Home") index = 0;
+    else if (e.key === "End") index = items.length - 1;
+    else return;
+    e.preventDefault();
+    items[index].focus({ preventScroll: true });
+  });
+
   function openNode(node, event) {
     if (node.type === "tag") return;
 
@@ -558,6 +655,7 @@
       return;
     }
 
+    if (menuNode != null) return;
     var nextHover = nodeAt(e.clientX, e.clientY);
     if (nextHover !== hover) {
       hover = nextHover;
@@ -574,6 +672,8 @@
   });
 
   canvas.addEventListener("mousedown", function(e) {
+    if (e.button !== 0) return;
+    closeMenu();
     mouse.x = e.clientX; mouse.y = e.clientY;
     mouse.downX = e.clientX; mouse.downY = e.clientY; mouse.moved = false;
     drag = nodeAt(e.clientX, e.clientY);
@@ -588,6 +688,7 @@
   });
 
   window.addEventListener("mouseup", function(e) {
+    if (e.button !== 0) return;
     var clicked = mouse.downNode && !mouse.moved && Math.hypot(e.clientX - mouse.downX, e.clientY - mouse.downY) < 4;
     if (clicked) openNode(mouse.downNode, e);
     if (drag) {
