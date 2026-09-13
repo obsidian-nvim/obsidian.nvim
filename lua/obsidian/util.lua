@@ -192,5 +192,6 @@ end
 
 util.urlencode = require("obsidian.uri").encode
 util.format_date = require("obsidian.date").format
+util.parse_date = require("obsidian.date").parse
 
 return util
