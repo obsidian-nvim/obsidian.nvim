@@ -186,4 +186,11 @@ util.deprecate = function(name, alternative, version)
   vim.notify_once(msg, vim.log.levels.WARN)
 end
 
+------------------------------------------------
+--- back compatibility stuff, remove in 4.0 ----
+------------------------------------------------
+
+util.urlencode = require("obsidian.uri").encode
+util.format_date = require("obsidian.date").format
+
 return util
