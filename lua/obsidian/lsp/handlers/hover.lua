@@ -2,9 +2,6 @@ local api = require "obsidian.api"
 local util = require "obsidian.util"
 local search = require "obsidian.search"
 
-local M = {}
-
---- TODO: tag hover should also work on frontmatter
 --- TODO: add hover support for bare/autolink URLs once cursor_link can detect them.
 --- TODO: hover for attachments
 
@@ -36,6 +33,8 @@ local function note_preview(note, label, anchor_link, block_link)
   return note:display_info { label = label, anchor = block and nil or anchor, block = block }
 end
 
+-- TODO: header and block preview full section
+
 ---@param location string
 ---@param label string|?
 ---@param callback fun(contents: string)
@@ -66,10 +65,9 @@ local function preview_note_link(location, label, callback)
   })
 end
 
-handlers.Wiki = preview_note_link
-handlers.WikiWithAlias = preview_note_link
+handlers.wiki = preview_note_link
 
-handlers.Markdown = function(location, label, callback)
+handlers.markdown = function(location, label, callback)
   if api.is_attachment_path(location) then
     return
   else
@@ -77,33 +75,9 @@ handlers.Markdown = function(location, label, callback)
   end
 end
 
-handlers.HeaderLink = function(location, label, callback)
-  local note = api.current_note(0, { collect_anchor_links = true })
-  if not note then
-    return
-  end
+-- handlers.BlockID = handlers.BlockLink
 
-  local contents = note_preview(note, label, location, nil)
-  if contents then
-    callback(contents)
-  end
-end
-
-handlers.BlockLink = function(location, label, callback)
-  local note = api.current_note(0, { collect_blocks = true })
-  if not note then
-    return
-  end
-
-  local contents = note_preview(note, label, nil, location)
-  if contents then
-    callback(contents)
-  end
-end
-
-handlers.BlockID = handlers.BlockLink
-
-handlers.Footnote = function(location, _, callback)
+handlers.footnote = function(location, _, callback)
   local footnotes = require "obsidian.footnotes"
   local def = footnotes.find_definition(vim.api.nvim_get_current_buf(), location)
   if def then
@@ -111,7 +85,7 @@ handlers.Footnote = function(location, _, callback)
   end
 end
 
-handlers.Tag = function(cursor_tag, _, callback)
+handlers.tag = function(cursor_tag, _, callback)
   search.find_tags_async(cursor_tag, function(tag_locs)
     local notes_lookup = {}
     for _, tag_loc in ipairs(tag_locs) do
@@ -130,7 +104,7 @@ return function(_, handler, _)
   local cursor_tag = api.cursor_tag()
 
   if cursor_ref then
-    local location, label, link_type = util.parse_link(cursor_ref, { link_type = cursor_ref_type })
+    local location, label, link_type = util.parse_link(cursor_ref)
     if not location or not link_type then
       return
     end
@@ -145,7 +119,7 @@ return function(_, handler, _)
       handler(nil, { contents = contents })
     end)
   elseif cursor_tag then
-    handlers.Tag(cursor_tag, nil, function(contents)
+    handlers.tag(cursor_tag, nil, function(contents)
       handler(nil, { contents = contents })
     end)
   else
