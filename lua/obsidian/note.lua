@@ -1323,6 +1323,28 @@ Note.links = function(self)
   return require("obsidian.search.link_refs").unique_from_file(tostring(self.path))
 end
 
+---@class obsidian.HighlightMatch
+---@field range obsidian.Range
+---@field text string
+
+---@return obsidian.HighlightMatch[]
+Note.highlights = function(self)
+  local matches = {}
+  for row, line in ipairs(self.contents) do
+    local hls = search.find_highlight(line)
+    if not vim.tbl_isempty(hls) then
+      for _, hl in ipairs(hls) do
+        local range = Range.new(row - 1, hl[1] - 1, row - 1, hl[2] - 1)
+        table.insert(matches, {
+          range = range,
+          text = hl[3],
+        })
+      end
+    end
+  end
+  return matches
+end
+
 Note.delete = require("obsidian.note.delete").delete
 
 ---@class obsidian.note.FormatLinkOpts : obsidian.link.LinkCreationOpts

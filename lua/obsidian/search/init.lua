@@ -19,6 +19,29 @@ local Ripgrep = require "obsidian.search.ripgrep"
 
 local TAG_CHARS_REQUIRED_RG = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L}\p{N}_/-]*]]
 
+--- Find inline highlights.
+---@param s string
+---@return { [1]: integer, [2]: integer, [3]: string }[]
+M.find_highlight = function(s)
+  local matches = {}
+  local search_start = 1
+  while search_start < #s do
+    local match_start, match_end = s:find("==[^=]+==", search_start)
+    if not match_start or not match_end then
+      break
+    end
+
+    -- Remove highlights that begin/end with whitespace.
+    local text = s:sub(match_start + 2, match_end - 2)
+    if vim.trim(text) == text then
+      matches[#matches + 1] = { match_start, match_end, text }
+    end
+
+    search_start = match_end
+  end
+  return matches
+end
+
 --- Search markdown files in a directory for a given term. Each match is passed to the `on_match` callback.
 ---
 ---@param dir string|obsidian.Path
