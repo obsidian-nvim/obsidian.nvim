@@ -51,7 +51,7 @@ M.find_highlight = function(s)
     -- Remove highlights that begin/end with whitespace.
     local text = s:sub(match_start + 2, match_end - 2)
     if vim.trim(text) == text then
-      matches[#matches + 1] = { match_start, match_end }
+      matches[#matches + 1] = { match_start, match_end, text }
     end
 
     search_start = match_end
