@@ -328,4 +328,6 @@ M.register("toc", { nargs = 0, note_action = true })
 
 M.register("footnotes", { nargs = 0, note_action = true })
 
+M.register("highlights", { nargs = 0, note_action = true })
+
 return M
