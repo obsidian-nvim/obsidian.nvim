@@ -37,6 +37,21 @@ T["follow markdown links"] = function()
   h.child_wait_for_buf_name(child, files["target.md"])
 end
 
+T["follow wiki links with square brackets in the target"] = function()
+  local target_dir = child.Obsidian.dir / "Media DB" / "music"
+  target_dir:mkdir { parents = true }
+  local target = target_dir / "[LOadinG . .] (by Purynn - 2026).md"
+  h.write("# target", target)
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[Media DB/music/[LOadinG . .] (by Purynn - 2026)]]",
+  })
+
+  child.cmd("edit " .. files["referencer.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua "vim.lsp.buf.definition()"
+  h.child_wait_for_buf_name(child, target)
+end
+
 T["follow encoded headerlinks"] = function()
   local src = [==[
 ## This is a heading with spaces

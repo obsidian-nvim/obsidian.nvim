@@ -165,6 +165,18 @@ T["does not suggest inside existing wiki links"] = function()
   eq(link_hints(0, 9, 13), run_inlay_hint())
 end
 
+T["does not suggest inside wiki links with square brackets in the target"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["DB.md"] = "# DB",
+    ["linked.md"] = "[[Media DB/music/[LOadinG . .] (by Purynn - 2026)]]",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["linked.md"])
+
+  eq({}, run_inlay_hint())
+end
+
 T["does not suggest inside tags"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["project.md"] = "# project",

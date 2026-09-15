@@ -47,6 +47,15 @@ T["extract parses Markdown links without labels"] = function()
   }, refs.extract(line))
 end
 
+T["extract parses wiki links with square brackets in the target"] = function()
+  local line = "[[Media DB/music/[LOadinG . .] (by Purynn - 2026)]]"
+  local out = refs.extract(line)
+  eq(1, #out)
+  eq(line, out[1].raw)
+  eq("Media DB/music/[LOadinG . .] (by Purynn - 2026)", out[1].target)
+  eq(Range.new(0, 0, 0, #line), out[1].range)
+end
+
 T["extract returns ranges"] = function()
   local out = refs.extract("See [[A]] and [B](b.md#H)", { row = 2 })
   eq(2, #out)
