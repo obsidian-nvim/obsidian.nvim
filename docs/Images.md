@@ -21,6 +21,29 @@ require("snacks").setup {
 
 Then you are good to go.
 
+### Images in LSP hovers
+
+The built-in LSP hover creates a scratch Markdown buffer. obsidian.nvim emits
+`User ObsidianHover` after that buffer is created so image renderers can attach
+to it without replacing the LSP hover handler:
+
+```lua
+vim.api.nvim_create_autocmd("User", {
+  pattern = "ObsidianHover",
+  callback = function(ev)
+    local ok, image = pcall(require, "snacks.image")
+    if ok then
+      image.doc.attach(ev.data.buf)
+    end
+  end,
+})
+```
+
+`ev.data` contains `buf`, `win`, and `source_buf`. The event is renderer
+agnostic, so the same hook can later attach a native `vim.ui.img` renderer.
+Attachments returned by hover are absolute paths, which avoids losing vault
+context in the scratch buffer.
+
 ## Change image insert text
 
 The default `opts.attachments.img_text_func` is trying to be 100% Obsidian compatible, and changes with `opts.link.style`.

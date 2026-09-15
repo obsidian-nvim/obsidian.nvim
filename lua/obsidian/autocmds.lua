@@ -80,6 +80,35 @@ local function bufenter_callback(ev)
   exec_autocmds "ObsidianNoteEnter"
 end
 
+-- The built-in LSP hover uses a scratch markdown buffer. Emit a plugin event for
+-- integrations that need to attach to that buffer (for example image renderers).
+-- There is no public hover-buffer event in Neovim yet, so identify the float via
+-- the window variable set by `vim.lsp.util.open_floating_preview`.
+vim.api.nvim_create_autocmd("FileType", {
+  group = group,
+  pattern = "markdown",
+  callback = function(ev)
+    if vim.bo[ev.buf].buftype ~= "nofile" or vim.b[ev.buf].obsidian_hover then
+      return
+    end
+
+    for _, win in ipairs(vim.fn.win_findbuf(ev.buf)) do
+      if vim.api.nvim_win_is_valid(win) then
+        local source_buf = vim.w[win].lsp_floating_bufnr
+        local win_config = vim.api.nvim_win_get_config(win)
+        if source_buf and source_buf ~= ev.buf and win_config.relative ~= "" then
+          vim.b[ev.buf].obsidian_hover = true
+          vim.api.nvim_exec_autocmds("User", {
+            pattern = "ObsidianHover",
+            data = { buf = ev.buf, win = win, source_buf = source_buf },
+          })
+          return
+        end
+      end
+    end
+  end,
+})
+
 vim.api.nvim_create_autocmd("FileType", {
   group = group,
   pattern = { "markdown", "quarto" },

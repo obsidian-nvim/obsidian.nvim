@@ -94,9 +94,6 @@ local function bookmark_to_picker_entry(bookmark)
   return entry
 end
 
----@type table<string, string[]>
-local url_cache = {}
-
 local function format_bookmark(bookmark)
   if bookmark.type == "folder" then
     return bookmark.path .. "/"
@@ -122,26 +119,16 @@ local function preview_url(bookmark, buf)
   end
   vim.bo[buf].filetype = "markdown"
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Fetching preview for url..." })
-  if url_cache[url] then
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, url_cache[url])
-  else
-    vim.system(
-      { "curl", "https://defuddle.md/" .. url },
-      {},
-      vim.schedule_wrap(function(out)
-        if not vim.api.nvim_buf_is_valid(buf) then
-          return
-        end
-        if out.code ~= 0 or not out.stdout or out.stdout == "" then
-          vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Failed to fetch preview for " .. url })
-          return
-        end
-        local lines = vim.split(out.stdout, "\n")
-        url_cache[url] = lines
-        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-      end)
-    )
-  end
+  util.fetch_url_markdown(url, function(lines, err)
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    if err then
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { err })
+    else
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    end
+  end)
   return { buf = buf }
 end
 

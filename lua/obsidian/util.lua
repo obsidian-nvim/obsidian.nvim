@@ -651,4 +651,27 @@ util.deprecate = function(name, alternative, version)
   vim.notify_once(msg, vim.log.levels.WARN)
 end
 
+---@type table<string, string[]>
+local url_cache = {}
+
+util.fetch_url_markdown = function(url, callback)
+  if url_cache[url] then
+    callback(url_cache[url])
+    return
+  end
+  vim.system(
+    { "curl", "https://defuddle.md/" .. url },
+    {},
+    vim.schedule_wrap(function(out)
+      if out.code ~= 0 or not out.stdout or out.stdout == "" then
+        callback(nil, "Failed to fetch preview for " .. url)
+        return
+      end
+      local lines = vim.split(out.stdout, "\n")
+      url_cache[url] = lines
+      callback(lines, nil)
+    end)
+  )
+end
+
 return util

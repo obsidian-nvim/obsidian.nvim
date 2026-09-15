@@ -1,4 +1,5 @@
 local h = dofile "tests/helpers.lua"
+local eq = MiniTest.expect.equality
 local T, child = h.child_vault()
 
 local function hover_contents()
@@ -15,6 +16,33 @@ local function expect_hover_contains(needle)
   local contents = hover_contents()
   assert(contents, "expected hover contents")
   assert(contents:find(needle, 1, true), ("expected hover to contain %q, got:\n%s"):format(needle, contents))
+end
+
+T["emits an event for hover buffers"] = function()
+  child.lua [[
+    _G.hover_event = nil
+    vim.api.nvim_create_autocmd("User", {
+      pattern = "ObsidianHover",
+      callback = function(ev)
+        _G.hover_event = ev.data
+      end,
+    })
+
+    local source_buf = vim.api.nvim_get_current_buf()
+    local hover_buf, hover_win = vim.lsp.util.open_floating_preview(
+      { "![image](" .. vim.fn.getcwd() .. "/image.png)" },
+      "markdown",
+      { focus_id = "textDocument/hover", close_events = {} }
+    )
+    _G.hover_ids = { source_buf = source_buf, buf = hover_buf, win = hover_win }
+  ]]
+
+  h.child_wait(child, "return _G.hover_event ~= nil", { desc = "ObsidianHover event" })
+  eq(child.lua_get "_G.hover_event.buf", child.lua_get "_G.hover_ids.buf")
+  eq(child.lua_get "_G.hover_event.win", child.lua_get "_G.hover_ids.win")
+  eq(child.lua_get "_G.hover_event.source_buf", child.lua_get "_G.hover_ids.source_buf")
+
+  child.lua [[vim.api.nvim_win_close(_G.hover_ids.win, true)]]
 end
 
 T["previews links"] = function()
