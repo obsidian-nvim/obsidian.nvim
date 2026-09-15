@@ -1,5 +1,4 @@
 local Path = require "obsidian.path"
-local util = require "obsidian.util"
 
 local M = {}
 
@@ -15,8 +14,10 @@ local BASE_CMD = {
 -- `--crlf` makes ripgrep treat `\r\n` as a line terminator so that `$`
 -- anchors in search patterns (e.g. frontmatter tag lists) also match files
 -- with DOS line endings. See https://github.com/obsidian-nvim/obsidian.nvim/issues/903.
-local SEARCH_CMD = util.flatten { BASE_CMD, "--type=md", "--json", "--crlf" }
-local FIND_CMD = util.flatten { BASE_CMD, "--files" }
+---@diagnostic disable-next-line: call-non-callable
+local SEARCH_CMD = vim.iter({ BASE_CMD, "--type=md", "--json", "--crlf" }):flatten():totable()
+---@diagnostic disable-next-line: call-non-callable
+local FIND_CMD = vim.iter({ BASE_CMD, "--files" }):flatten():totable()
 
 ---@param opts obsidian.search.SearchOpts
 ---@return string[]
@@ -84,12 +85,16 @@ M.build_search_cmd = function(dir, term, opts)
     path = vim.fn.fnameescape(path)
   end
 
-  return util.flatten {
-    SEARCH_CMD,
-    generate_args(opts),
-    search_terms,
-    path,
-  }
+  ---@diagnostic disable-next-line: call-non-callable
+  return vim
+    .iter({
+      SEARCH_CMD,
+      generate_args(opts),
+      search_terms,
+      path,
+    })
+    :flatten()
+    :totable()
 end
 
 ---@param path string?
@@ -113,11 +118,15 @@ M.build_find_cmd = function(path, opts)
     additional_opts[#additional_opts + 1] = path
   end
 
-  return util.flatten {
-    FIND_CMD,
-    generate_args(opts),
-    additional_opts,
-  }
+  ---@diagnostic disable-next-line: call-non-callable
+  return vim
+    .iter({
+      FIND_CMD,
+      generate_args(opts),
+      additional_opts,
+    })
+    :flatten()
+    :totable()
 end
 
 --- Build the 'rg' grep command for pickers.
@@ -136,16 +145,20 @@ M.build_grep_cmd = function(opts)
     fixed_strings = true,
   })
 
-  return util.flatten {
-    BASE_CMD,
-    "--type=md",
-    generate_args(opts),
-    "--column",
-    "--line-number",
-    "--no-heading",
-    "--with-filename",
-    "--color=never",
-  }
+  ---@diagnostic disable-next-line: call-non-callable
+  return vim
+    .iter({
+      BASE_CMD,
+      "--type=md",
+      generate_args(opts),
+      "--column",
+      "--line-number",
+      "--no-heading",
+      "--with-filename",
+      "--color=never",
+    })
+    :flatten()
+    :totable()
 end
 
 return M

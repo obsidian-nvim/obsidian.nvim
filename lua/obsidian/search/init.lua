@@ -1,5 +1,8 @@
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
+local compat = require "obsidian.compat"
+local header = require "obsidian.parse.header"
+local block_id = require "obsidian.parse.block_id"
 local log = require "obsidian.log"
 local async = require "obsidian.async"
 local fs = require "obsidian.fs"
@@ -588,7 +591,7 @@ local function build_in_note_search_term(term)
   local terms = {}
 
   if vim.startswith(term, "#") then
-    term = term:sub(2) -- NOTE: should be done in standardize_anchor
+    term = term:sub(2)
   end
 
   -- Wiki links with block.
@@ -647,8 +650,8 @@ M.find_backlinks_async = function(note, callback, opts)
   callback = vim.schedule_wrap(callback)
   opts = opts or {}
   local dir = opts.dir or (note and api.resolve_workspace_dir(note.path)) or api.resolve_workspace_dir()
-  local block = opts.block and util.standardize_block(opts.block) or nil
-  local anchor = opts.anchor and util.standardize_anchor(opts.anchor) or nil
+  local block = opts.block and block_id.normalize(opts.block) or nil
+  local anchor = opts.anchor and header.normalize_anchor(opts.anchor) or nil
   local anchor_obj
   if anchor and note then
     anchor_obj = note:resolve_anchor_link(anchor)
@@ -692,7 +695,7 @@ M.find_backlinks_async = function(note, callback, opts)
           if not matched_anchor then
             include = false
           else
-            local std_matched = util.standardize_anchor(matched_anchor)
+            local std_matched = header.normalize_anchor(matched_anchor)
             local is_direct_match = std_matched == anchor
             local is_resolved_match = false
             if not is_direct_match and anchor_obj ~= nil then
@@ -707,7 +710,7 @@ M.find_backlinks_async = function(note, callback, opts)
           end
         end
         if block and include then
-          if not matched_anchor or util.standardize_block(matched_anchor) ~= block then
+          if not matched_anchor or block_id.normalize(matched_anchor) ~= block then
             include = false
           end
         end
@@ -814,7 +817,7 @@ M.find_tags_async = function(term, callback, opts)
     end
   end
 
-  terms = util.tbl_unique(terms)
+  terms = compat.list_unique(terms)
 
   -- Maps paths to tag locations.
   ---@type table<string, obsidian.TagLocation[]>

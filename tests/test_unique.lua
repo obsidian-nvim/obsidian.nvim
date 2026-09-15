@@ -1,7 +1,7 @@
 local M = require "obsidian.unique"
 local eq = MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
-local util = require "obsidian.util"
+local date = require "obsidian.date"
 local Path = require "obsidian.path"
 
 local T = h.temp_vault
@@ -9,7 +9,7 @@ local T = h.temp_vault
 T["create a unique note with timestamp"] = function()
   local timestamp = os.time()
   local note = M.new_unique_note(timestamp)
-  local expected_id = util.format_date(timestamp, Obsidian.opts.unique_note.format)
+  local expected_id = date.format(timestamp, Obsidian.opts.unique_note.format)
 
   eq(expected_id, note.id)
   eq(true, note:exists())
@@ -54,7 +54,7 @@ T["use next available timestamp"] = function()
   local note2 = M.new_unique_note(timestamp)
 
   -- note2 should be 1 minute after note1
-  local expected_id = util.format_date(timestamp + 60, Obsidian.opts.unique_note.format)
+  local expected_id = date.format(timestamp + 60, Obsidian.opts.unique_note.format)
   eq(expected_id, note2.id)
 end
 
@@ -66,7 +66,7 @@ T["use next available timestamp for format with non numeric"] = function()
   local note2 = M.new_unique_note(timestamp)
 
   -- Smallest unit is second, note2 should be 1 second after note1
-  local expected_id = util.format_date(timestamp + 1, "YYYYMMDD-HHmmss")
+  local expected_id = date.format(timestamp + 1, "YYYYMMDD-HHmmss")
   eq(expected_id, note2.id)
 end
 
@@ -77,9 +77,9 @@ T["create multiple unique notes in sequence"] = function()
   local note2 = M.new_unique_note(timestamp)
   local note3 = M.new_unique_note(timestamp)
 
-  local expected_id1 = util.format_date(timestamp, Obsidian.opts.unique_note.format)
-  local expected_id2 = util.format_date(timestamp + 60, Obsidian.opts.unique_note.format)
-  local expected_id3 = util.format_date(timestamp + 120, Obsidian.opts.unique_note.format)
+  local expected_id1 = date.format(timestamp, Obsidian.opts.unique_note.format)
+  local expected_id2 = date.format(timestamp + 60, Obsidian.opts.unique_note.format)
+  local expected_id3 = date.format(timestamp + 120, Obsidian.opts.unique_note.format)
 
   eq(expected_id1, note1.id)
   eq(expected_id2, note2.id)
@@ -91,7 +91,7 @@ T["custom date format"] = function()
 
   local timestamp = os.time()
   local note = M.new_unique_note(timestamp)
-  local expected_id = util.format_date(timestamp, "YYYYMMDD")
+  local expected_id = date.format(timestamp, "YYYYMMDD")
 
   eq(expected_id, note.id)
 end

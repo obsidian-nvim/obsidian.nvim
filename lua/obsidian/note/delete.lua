@@ -1,4 +1,4 @@
-local util = require "obsidian.util"
+local refs = require "obsidian.parse.refs"
 local api = require "obsidian.api"
 local attachment = require "obsidian.attachment"
 local Path = require "obsidian.path"
@@ -45,7 +45,8 @@ M.delete = function(self, opts)
 
   if opts.confirm_attachments ~= false then
     for _, link in ipairs(self:links()) do
-      local loc = util.parse_link(link.link)
+      local ref = refs.parse(link.link)
+      local loc = ref and ref.target or nil
       if loc and attachment.is_attachment_path(loc) then
         local resolved = attachment.resolve_attachment_path(loc, abs_path)
         if resolved and vim.uv.fs_stat(resolved) then

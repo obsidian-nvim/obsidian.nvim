@@ -12,11 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prompt to confirm deletion for notes that have backlinks and attachments.
 - Attachment destination and vault-wide reference resolution, with `attachment.rename()` and `attachment.delete()` APIs.
 - Line-level Markdown list item and task parsers (`obsidian.parse.line.list_items`, `obsidian.parse.line.tasks`) with unified marker, indentation, and task-state metadata.
+- Dedicated date, URI, link-location, and Markdown heading APIs.
 
 ### Changed
 
 - Checkbox detection and conceal now follow CommonMark/GFM list syntax (e.g. `-- [ ]` and `++ [ ]` are no longer treated as checkboxes) and support multi-byte checkbox states.
 - YAML Parser will emit ranges for internal use.
+- Link targets are decomposed once into location, anchor, and block components instead of using `obsidian.util` suffix helpers.
+- `obsidian.util` now contains only shared string, filename, callback, deprecation, and file-writing helpers.
+- The documented minimum Neovim version is now 0.11, matching runtime checks and CI.
 
 ### Fixed
 

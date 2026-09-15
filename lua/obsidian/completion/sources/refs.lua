@@ -1,6 +1,11 @@
 --- TODO: make more declarative
 local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
+local fs_util = require "obsidian.util.fs"
+local compat = require "obsidian.compat"
+local link_parser = require "obsidian.link.parser"
+local header_parser = require "obsidian.parse.header"
+local block_ids = require "obsidian.parse.block_id"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
 local cache = require "obsidian.cache"
@@ -148,7 +153,7 @@ local function block_text(lines, block_id)
   local visible = {}
   for _, line in ipairs(lines) do
     if not (block_id and vim.trim(line) == block_id) then
-      if block_id and util.parse_block(line) == block_id then
+      if block_id and block_ids.parse(line) == block_id then
         line = line:gsub("%s*" .. vim.pesc(block_id) .. "%s*$", "")
       end
       visible[#visible + 1] = line
@@ -338,7 +343,7 @@ local function include_loaded_notes(results, dir, note_opts, include_unmatched)
     if vim.api.nvim_buf_is_loaded(bufnr) then
       local path = vim.uv.fs_realpath(vim.fn.resolve(vim.api.nvim_buf_get_name(bufnr)))
       path = path and vim.fs.normalize(path)
-      if path and util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
+      if path and fs_util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
         local idx = path_to_idx[path]
         if not idx or vim.bo[bufnr].modified then
           local opts = vim.tbl_extend("force", note_opts, {
@@ -534,7 +539,7 @@ end
 ---@param path string
 ---@return boolean
 local function vault_block_path_is_in_index(index, path)
-  return util.is_subpath(path, index.dir)
+  return fs_util.is_subpath(path, index.dir)
 end
 
 ---@param index obsidian.completion.sources.refs.block_search_index
@@ -548,7 +553,7 @@ local function vault_block_path_is_indexable(index, path)
   if not api.path_is_note(path, index.workspace) then
     return false
   end
-  local relative_path = util.relpath(index.dir, path)
+  local relative_path = fs_util.relpath(index.dir, path)
   return relative_path ~= nil and (not index.ignore_checker or not index.ignore_checker:check(relative_path))
 end
 
@@ -684,7 +689,7 @@ local function vault_block_overlays(index, dir, note_opts)
     if vim.api.nvim_buf_is_loaded(bufnr) then
       local path = vim.uv.fs_realpath(vim.fn.resolve(vim.api.nvim_buf_get_name(bufnr)))
       path = path and vim.fs.normalize(path)
-      if path and util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
+      if path and fs_util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
         local base = owners_by_path[path]
         local cached = index.overlays[path]
         if not base or vim.bo[bufnr].modified or cached then
@@ -1141,20 +1146,10 @@ local function strip_links(cc)
   if not cc.search then
     return
   end
-  cc.search, cc.block_link = util.strip_block_links(cc.search)
-  cc.search, cc.anchor_link = util.strip_anchor_links(cc.search)
-
-  -- If block link is incomplete, we'll match against all block links.
-  if not cc.block_link and vim.endswith(cc.search, "#^") then
-    cc.block_link = "#^"
-    cc.search = string.sub(cc.search, 1, -3)
-  end
-
-  -- If anchor link is incomplete, we'll match against all anchor links.
-  if not cc.anchor_link and vim.endswith(cc.search, "#") then
-    cc.anchor_link = "#"
-    cc.search = string.sub(cc.search, 1, -2)
-  end
+  local anchor, block
+  cc.search, anchor, block = link_parser.parse(cc.search)
+  cc.block_link = block ~= nil and "#" .. block_ids.normalize(block) or nil
+  cc.anchor_link = anchor ~= nil and header_parser.normalize_anchor(anchor) or nil
 end
 
 ---@param cc obsidian.completion.sources.refs.context
@@ -1326,7 +1321,7 @@ local function process_search_results(cc, results)
       update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
     else
       -- Collect all valid aliases for the note, including ID, title, and filename.
-      local aliases = util.tbl_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
+      local aliases = compat.list_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
 
       for _, alias in ipairs(aliases) do
         update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)

@@ -1,7 +1,7 @@
 local api = require "obsidian.api"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
-local util = require "obsidian.util"
+local refs = require "obsidian.parse.refs"
 local log = require "obsidian.log"
 
 ---@param path? string|obsidian.Path
@@ -45,11 +45,8 @@ return function(data)
   else
     local link_string, _ = api.cursor_link()
     if link_string then
-      search_term = util.parse_link(link_string) -- TODO: jump to exact anchor/block
-      if search_term then
-        search_term = util.strip_anchor_links(search_term)
-        search_term = util.strip_block_links(search_term)
-      end
+      local ref = refs.parse(link_string) -- TODO: jump to exact anchor/block
+      search_term = ref and ref.target or nil
     end
   end
 

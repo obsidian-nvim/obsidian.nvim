@@ -52,6 +52,12 @@ T["extract ignores refs within inline code"] = function()
   eq(Range.new(0, 10, 0, 21), out[1].range)
 end
 
+T["extract preserves URI fragments"] = function()
+  local ref = assert(refs.parse "[site](https://example.com/page#fragment)")
+  eq("https://example.com/page#fragment", ref.target)
+  eq(nil, ref.anchor)
+end
+
 T["extract parses footnotes"] = function()
   local out = refs.extract "some claim[^1] and [^note]"
   eq(2, #out)

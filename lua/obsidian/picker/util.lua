@@ -5,6 +5,33 @@ local Path = require "obsidian.path"
 
 local M = {}
 
+---@param path string|obsidian.Path
+---@return obsidian.ui_select_preview_spec
+M.preview_path = function(path)
+  path = tostring(path)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
+
+  local stat = vim.uv.fs_stat(path)
+  if stat and stat.type == "directory" then
+    local entries = {}
+    for name, kind in vim.fs.dir(path) do
+      entries[#entries + 1] = name .. (kind == "directory" and "/" or "")
+    end
+    table.sort(entries)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
+    vim.bo[buf].filetype = "directory"
+  else
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
+    local filetype = vim.filetype.match { filename = path }
+    if filetype then
+      vim.bo[buf].filetype = filetype
+    end
+  end
+
+  return { buf = buf }
+end
+
 ---@param opts { prompt_title: string|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
 ---@return string
 M.build_prompt = function(opts)

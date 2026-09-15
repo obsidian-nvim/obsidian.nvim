@@ -2,6 +2,9 @@ local M = {}
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local uri = require "obsidian.uri"
+local compat = require "obsidian.compat"
+local block_ids = require "obsidian.parse.block_id"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local attachment = require "obsidian.attachment"
@@ -15,7 +18,7 @@ local list_items = require "obsidian.parse.line.list_items"
 local function preview_entry(entry)
   local filename = entry.filename
   ---@cast filename - nil
-  local preview = util.preview_path(filename)
+  local preview = picker.preview_path(filename)
   local range = rawget(entry, "range")
   ---@cast range lsp.Range?
   if range then
@@ -122,11 +125,26 @@ M.smart_action = function()
   end
 end
 
+---@param node_types string[]
+---@return boolean
+local function in_node(node_types)
+  local ok, node = pcall(vim.treesitter.get_node)
+  if not ok then
+    return false
+  end
+  while node do
+    if vim.list_contains(node_types, node:type()) then
+      return true
+    end
+    node = node:parent()
+  end
+  return false
+end
+
 --- Check if we are in node that should not do checkbox operations.
----
 ---@return boolean
 local function no_checkbox()
-  return util.in_node {
+  return in_node {
     "fenced_code_block",
     "minus_metadata",
     --- what other types?
@@ -672,7 +690,7 @@ local function bookmark_context()
   if link and link_type == "markdown" then
     local loc = link:match "^%[.-%]%((.*)%)$"
     if loc then
-      local is_uri, scheme = util.is_uri(loc)
+      local is_uri, scheme = uri.is_uri(loc)
       if is_uri and (scheme == "http" or scheme == "https") then
         return { kind = "url", label = "URL under cursor" }
       end
@@ -681,7 +699,7 @@ local function bookmark_context()
 
   -- Block under cursor
   local line = vim.api.nvim_get_current_line()
-  local block = util.parse_block(line)
+  local block = block_ids.parse(line)
   if block and note then
     return { kind = "block", label = "block under cursor" }
   end
@@ -722,7 +740,7 @@ M.add_bookmark = function()
     end
   elseif ctx.kind == "block" and note then
     local line = vim.api.nvim_get_current_line()
-    local block = util.parse_block(line)
+    local block = block_ids.parse(line)
     local rel = note.path and note.path:vault_relative_path()
     if not rel then
       return log.err "Cannot resolve note path"
@@ -922,7 +940,7 @@ local function pick_folder(callback)
       return tostring(v.text)
     end,
     preview_item = function(entry)
-      return util.preview_path(entry.filename)
+      return picker.preview_path(entry.filename)
     end,
   }, function(items)
     local entry = items[1]
@@ -1050,7 +1068,7 @@ end
 ---@return boolean
 local function contains_block_id(lines, block_id)
   for _, line in ipairs(lines) do
-    if util.parse_block(vim.trim(line)) == block_id then
+    if block_ids.parse(vim.trim(line)) == block_id then
       return true
     end
   end
@@ -1262,7 +1280,7 @@ M.link_suggestion = function(suggestion)
       return candidate.new_text
     end,
     preview_item = function(candidate)
-      return util.preview_path(candidate.target_path)
+      return picker.preview_path(candidate.target_path)
     end,
   }, function(candidates)
     if not candidates or not candidates[1] then
@@ -1401,7 +1419,7 @@ M.search_tags = function(tags)
 
   if not vim.tbl_isempty(tags) then
     search.find_tags_async(tags, function(tag_locations)
-      return gather_tag_picker_list(tag_locations, util.tbl_unique(tags))
+      return gather_tag_picker_list(tag_locations, compat.list_unique(tags))
     end, { dir = dir })
   else
     pick_tags(function(selected_tags, tag_locations)

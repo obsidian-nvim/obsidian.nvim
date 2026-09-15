@@ -1,58 +1,68 @@
-local M = require "obsidian.util"
+local refs = require "obsidian.parse.refs"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
--- TODO: test for all link types
 local T = new_set()
 
-T["should parse link"] = function()
-  local location = M.parse_link "[[hi#^block]]"
-  eq(location, "hi#^block")
+T["parses note block destinations"] = function()
+  local ref = assert(refs.parse "[[hi#^block]]")
+  eq("hi", ref.target)
+  eq(nil, ref.anchor)
+  eq("block", ref.block)
 end
 
 T["header link"] = new_set()
 
-T["header link"]["should find in wiki link"] = function()
-  local location, name, t = M.parse_link "[[#Header]]"
-  eq(location, "#Header")
-  eq(name, "#Header")
-  eq(t, "wiki")
+T["header link"]["parses wiki links"] = function()
+  local ref = assert(refs.parse "[[#Header]]")
+  eq("", ref.target)
+  eq("Header", ref.anchor)
+  eq(nil, ref.label)
+  eq("wiki", ref.kind)
 end
 
-T["header link"]["should find in wiki link with alias"] = function()
-  local location, name, t = M.parse_link "[[#header|Header]]"
-  eq(location, "#header")
-  eq(name, "Header")
-  eq(t, "wiki")
+T["header link"]["parses wiki aliases"] = function()
+  local ref = assert(refs.parse "[[#header|Header]]")
+  eq("", ref.target)
+  eq("header", ref.anchor)
+  eq("Header", ref.label)
 end
 
-T["header link"]["should find in markdown link"] = function()
-  local location, name, t = M.parse_link "[Header](#header)"
-  eq(location, "#header")
-  eq(name, "Header")
-  eq(t, "markdown")
+T["header link"]["parses Markdown links"] = function()
+  local ref = assert(refs.parse "[Header](#header)")
+  eq("", ref.target)
+  eq("header", ref.anchor)
+  eq("Header", ref.label)
+  eq("markdown", ref.kind)
 end
 
 T["block link"] = new_set()
 
-T["block link"]["should find in wiki link"] = function()
-  local location, name, t = M.parse_link "[[#^block]]"
-  eq(location, "#^block")
-  eq(name, "#^block")
-  eq(t, "wiki")
+T["block link"]["parses wiki links"] = function()
+  local ref = assert(refs.parse "[[#^block]]")
+  eq("", ref.target)
+  eq("block", ref.block)
+  eq("wiki", ref.kind)
 end
 
-T["block link"]["should find in wiki link with alias"] = function()
-  local location, name, t = M.parse_link "[[#^block|Block]]"
-  eq(location, "#^block")
-  eq(name, "Block")
-  eq(t, "wiki")
+T["block link"]["parses wiki aliases"] = function()
+  local ref = assert(refs.parse "[[#^block|Block]]")
+  eq("", ref.target)
+  eq("block", ref.block)
+  eq("Block", ref.label)
 end
 
-T["block link"]["should find in markdown link"] = function()
-  local location, name, t = M.parse_link "[Block](#^block)"
-  eq(location, "#^block")
-  eq(name, "Block")
-  eq(t, "markdown")
+T["block link"]["parses Markdown links"] = function()
+  local ref = assert(refs.parse "[Block](#^block)")
+  eq("", ref.target)
+  eq("block", ref.block)
+  eq("Block", ref.label)
+  eq("markdown", ref.kind)
+end
+
+T["wiki table escapes"] = function()
+  local ref = assert(refs.parse [=[[[note\|Label]]]=])
+  eq("note", ref.target)
+  eq("Label", ref.label)
 end
 
 return T

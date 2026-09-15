@@ -150,7 +150,7 @@ There's one entry point user command for this plugin: `Obsidian`
 
 ### System requirements
 
-- Neovim >= 0.10.0
+- Neovim >= 0.11.0
 - For completion and search features: [`ripgrep`](https://github.com/BurntSushi/ripgrep?tab=readme-ov-file#installation)
 - Additional system dependencies:
   - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:Obsidian open`.

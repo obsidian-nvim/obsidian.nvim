@@ -1,5 +1,5 @@
 local log = require "obsidian.log"
-local util = require "obsidian.util"
+local date_util = require "obsidian.date"
 
 ---@param data obsidian.CommandArgs
 return function(data)
@@ -12,7 +12,7 @@ return function(data)
       ---@diagnostic disable-next-line: param-type-mismatch
       note = require("obsidian.daily").daily { offset = offset }
     else -- Try parsing as a formatted date
-      local date, err = util.parse_date(arg)
+      local date, err = date_util.parse(arg)
       if date then
         ---@diagnostic disable-next-line: param-type-mismatch
         note = require("obsidian.daily").daily { date = os.time(date) }

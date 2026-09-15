@@ -3,7 +3,8 @@ local obsidian = require "obsidian"
 local search = obsidian.search
 local log = obsidian.log
 local api = obsidian.api
-local util = obsidian.util
+local refs = require "obsidian.parse.refs"
+local link_parser = require "obsidian.link.parser"
 
 ---@param params lsp.RenameParams
 return function(params, handler, _)
@@ -30,11 +31,8 @@ return function(params, handler, _)
   end
 
   if cur_link then
-    local loc = util.parse_link(cur_link)
-    assert(loc, "wrong link format")
-    local stripped = util.strip_anchor_links(loc)
-    stripped = util.strip_block_links(stripped)
-    loc = stripped ~= "" and stripped or loc
+    local ref = assert(refs.parse(cur_link), "wrong link format")
+    local loc = ref.target ~= "" and ref.target or link_parser.format(ref.target, ref.anchor, ref.block)
     search.resolve_note_async(loc, function(notes)
       -- TODO: pick note
       if vim.tbl_isempty(notes) then

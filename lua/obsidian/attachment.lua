@@ -1,5 +1,8 @@
 local M = {}
 local util = require "obsidian.util"
+local fs_util = require "obsidian.util.fs"
+local link_parser = require "obsidian.link.parser"
+local uri = require "obsidian.uri"
 local log = require "obsidian.log"
 
 ---@enum obsidian.attachment.ft
@@ -195,8 +198,7 @@ end
 ---@return string?
 local function normalize_reference(src)
   src = vim.trim(src)
-  src = util.strip_block_links(src)
-  src = util.strip_anchor_links(src)
+  src = link_parser.parse(src)
   src = vim.uri_decode(src) or src
   return src ~= "" and src or nil
 end
@@ -214,7 +216,7 @@ M._resolve_reference = function(src, opts, matches)
     return nil, "Invalid attachment reference"
   end
 
-  local is_uri, scheme = util.is_uri(normalized)
+  local is_uri, scheme = uri.is_uri(normalized)
   if is_uri then
     if scheme ~= "file" then
       return nil, "Unsupported attachment URI scheme '" .. tostring(scheme) .. "'"
@@ -344,7 +346,7 @@ end
 ---@return string|?
 ---@return string|?
 local function get_attachment_paths(src, bufnr, new_name)
-  local is_uri, scheme = util.is_uri(src)
+  local is_uri, scheme = uri.is_uri(src)
   local src_path, fname
 
   if is_uri then
@@ -393,7 +395,7 @@ end
 ---@param dst string
 ---@return string|?
 local function copy_attachment(src, dst)
-  local is_uri, scheme = util.is_uri(src)
+  local is_uri, scheme = uri.is_uri(src)
 
   local mkdir_ok, mkdir_err = pcall(vim.fn.mkdir, vim.fs.dirname(dst), "p")
   if not mkdir_ok then
@@ -546,7 +548,7 @@ local function format_path(dst, format, opts)
     return assert(require("obsidian.path").new(dst):vault_relative_path { strict = true })
   elseif format == "relative" then
     local _, _, source_dir = resolve_context(opts)
-    local rel_path = assert(util.relpath(source_dir, dst), "failed to resolve attachment path against source file")
+    local rel_path = assert(fs_util.relpath(source_dir, dst), "failed to resolve attachment path against source file")
     return (rel_path:gsub("^%./", ""))
   end
   return vim.fs.basename(dst)
