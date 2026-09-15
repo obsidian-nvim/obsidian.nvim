@@ -15,7 +15,8 @@ M.encode = function(str, opts)
   if not opts.keep_path_sep then
     url = url:gsub("/", char_to_hex)
   end
-  return url:gsub(" ", "%%20")
+  url = url:gsub(" ", "%%20")
+  return url
 end
 
 --- Return a URI's normalized scheme. Windows drive paths are not URIs.
