@@ -62,20 +62,6 @@ Return ~
 `(string)`
 
 ------------------------------------------------------------------------------
-                                                           *is_valid_filename()*
-                          `is_valid_filename`({name})
-Check whether a filename stem is valid across all platforms (Windows + Linux/macOS).
-
-https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
-
-Parameters ~
-{name} `(string)` Filename stem (without extension)
-Return ~
-`(boolean)` valid
-Return ~
-`(string)` `(optional)` reason Human-readable error when invalid
-
-------------------------------------------------------------------------------
                                                    *prompt_for_valid_filename()*
                   `prompt_for_valid_filename`({invalid_name})
 Parameters ~
