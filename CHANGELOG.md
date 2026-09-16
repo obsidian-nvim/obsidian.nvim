@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Note-reference completion uses cached metadata when available and delegates fuzzy filtering to the completion engine (#962).
 - Checkbox detection and conceal now follow CommonMark/GFM list syntax (e.g. `-- [ ]` and `++ [ ]` are no longer treated as checkboxes) and support multi-byte checkbox states.
 - YAML Parser will emit ranges for internal use.
 - Link targets are decomposed once into location, anchor, and block components instead of using `obsidian.util` suffix helpers.
