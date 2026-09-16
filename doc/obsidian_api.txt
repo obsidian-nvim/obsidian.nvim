@@ -251,6 +251,18 @@ Return ~
 `(obsidian.Note)`
 
 ------------------------------------------------------------------------------
+                                                             *Note.from_cache()*
+                        `Note.from_cache`({path}, {row})
+Initialize a note from a cache row without reading the file.
+
+Parameters ~
+{path} `(string|obsidian.Path)`
+{row} `(table)`
+
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
                                                             *Note.from_buffer()*
                       `Note.from_buffer`({bufnr}, {opts})
 Initialize a note from a buffer.
