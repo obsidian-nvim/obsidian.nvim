@@ -1,10 +1,10 @@
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
-local util = require "obsidian.util"
 local attachment = require "obsidian.attachment"
 local api = require "obsidian.api"
 local parser = require "obsidian.link.parser"
 local uri = require "obsidian.uri"
+local fs_util = require "obsidian.util.fs"
 
 local M = {
   parse = parser.parse,
@@ -46,7 +46,7 @@ local function missing_attachment_path(location, source_file)
 
     for _, candidate in ipairs(candidates) do
       local abs = vim.fs.normalize(tostring(candidate:resolve()))
-      if util.is_subpath(abs, tostring(Obsidian.dir)) then
+      if fs_util.is_subpath(abs, tostring(Obsidian.dir)) then
         return abs
       end
     end
@@ -75,12 +75,11 @@ end
 ---@param source_file string|? Absolute path to the note containing the link.
 ---@return string|?
 M.missing_link_path = function(location, source_file)
-  if util.is_uri(location) then
+  if uri.is_uri(location) then
     return nil
   end
 
-  location = util.strip_block_links(location)
-  location = util.strip_anchor_links(location)
+  location = parser.parse(location)
 
   if location == "" then
     return

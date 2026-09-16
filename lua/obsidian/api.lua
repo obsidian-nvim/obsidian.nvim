@@ -122,7 +122,8 @@ local function format_path(path, style, base_dir)
       return rel_path
     end
 
-    local relpath = assert(util.relpath(tostring(base_dir), path), "failed to resolve link path against current note")
+    local relpath =
+      assert(fs_util.relpath(tostring(base_dir), path), "failed to resolve link path against current note")
     return relpath
   else
     return vim.fs.basename(path)

@@ -1,4 +1,4 @@
-local util = require "obsidian.util"
+local fs_util = require "obsidian.util.fs"
 local attachment = require "obsidian.attachment"
 local icons = require "obsidian.icons"
 local link = require "obsidian.link"
@@ -101,7 +101,7 @@ M.find_files = function(opts)
   local show_existing_only = opts.show_existing_only ~= false
   local show_attachments = opts.show_attachments == true
   local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(Obsidian.dir))
-  if not util.is_subpath(dir, tostring(Obsidian.dir)) then
+  if not fs_util.is_subpath(dir, tostring(Obsidian.dir)) then
     return false
   end
 
@@ -148,7 +148,7 @@ M.find_files = function(opts)
     end
 
     for path, note in pairs(notes) do
-      if util.is_subpath(path, dir) then
+      if fs_util.is_subpath(path, dir) then
         local rel_path = cache.notes.rel_path(path):gsub("%.md$", "")
         local user_data = entry_user_data(false, false)
         add_entry(rel_path, path, user_data)
@@ -159,7 +159,7 @@ M.find_files = function(opts)
     end
     if show_attachments then
       for path in pairs(attachments) do
-        if util.is_subpath(path, dir) then
+        if fs_util.is_subpath(path, dir) then
           add_entry(cache.attachments.rel_path(path), path, entry_user_data(true, false))
         end
       end
@@ -173,7 +173,7 @@ M.find_files = function(opts)
             local missing_is_attachment = is_attachment_target(target)
             if show_attachments or not missing_is_attachment then
               local target_path = link.missing_link_path(target, path)
-              if target_path and util.is_subpath(target_path, dir) then
+              if target_path and fs_util.is_subpath(target_path, dir) then
                 local missing_key = missing_is_attachment and target_path or normalize_link_target(target):lower()
                 ---@type obsidian.NoteCreationReference
                 local reference = {

@@ -1,9 +1,8 @@
-local util = require "obsidian.util"
 local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
 local icons = require "obsidian.icons"
 local log = require "obsidian.log"
-local PickerName = require("obsidian.config").Picker
+local PickerName = require("obsidian.types").Picker
 local Mappings = require "obsidian.picker.mappings"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
@@ -13,7 +12,9 @@ local search = require "obsidian.search"
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
 ---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
-local M = {}
+local M = {
+  preview_path = picker_util.preview_path,
+}
 
 local state = {}
 M.state = state
@@ -179,7 +180,7 @@ local find_files = function(opts)
       format_item = function(path)
         return icons.get_path_icon(path) .. " " .. tostring(Path.new(path):relative_to(dir))
       end,
-      preview_item = util.preview_path,
+      preview_item = picker_util.preview_path,
     }, function(items)
       local callback = opts.callback or picker_util.open_notes
       callback(items)
@@ -304,6 +305,13 @@ M._note_selection_mappings = function()
     mappings[note_mappings.insert_link] = {
       desc = "insert link",
       callback = Mappings.insert_link,
+    }
+  end
+
+  if key_is_set(note_mappings.bookmark) then
+    mappings[note_mappings.bookmark] = {
+      desc = "bookmark",
+      callback = Mappings.bookmark,
     }
   end
 

@@ -320,7 +320,7 @@ local function resolve_declared_dst(dst)
     return nil, "Attachment destination cannot be empty"
   end
 
-  local is_uri, scheme = util.is_uri(dst)
+  local is_uri, scheme = uri.is_uri(dst)
   if is_uri then
     if scheme ~= "file" then
       return nil, "Attachment destination must be a file path"
@@ -335,7 +335,7 @@ local function resolve_declared_dst(dst)
   dst = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(dst), ":p"))
 
   local vault_dir = vim.fs.normalize(vim.fn.fnamemodify(tostring(Obsidian.dir), ":p"))
-  if not util.is_subpath(dst, vault_dir) then
+  if not fs_util.is_subpath(dst, vault_dir) then
     return nil, "Attachment destination must be inside vault: " .. dst
   end
 
