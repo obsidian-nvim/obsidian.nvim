@@ -966,7 +966,7 @@ local function cached_heading_notes(query)
       local anchors = path_to_anchors[heading.path]
       if not note then
         local row = cache.notes.get(heading.path)
-        local created = Note.new(row.id or cache.notes.basename(heading.path), row.aliases, nil, heading.path)
+        local created = Note.from_cache(heading.path, row)
         local created_anchors = {}
         rawset(created, "anchor_links", created_anchors)
         path_to_note[heading.path] = created
@@ -1320,8 +1320,13 @@ local function process_search_results(cc, results)
     if cc.in_buffer_only then
       update_completion_options(cc, nil, nil, matching_anchors, matching_blocks, note)
     else
-      -- Collect all valid aliases for the note, including ID, title, and filename.
-      local aliases = compat.list_unique { tostring(note.id), note:display_name(), unpack(note.aliases) }
+      -- Collect all valid aliases for the note, including ID, title, aliases, and filename stem.
+      local aliases = { tostring(note.id), note:display_name() }
+      if note.path then
+        aliases[#aliases + 1] = note.path.stem
+      end
+      vim.list_extend(aliases, note.aliases)
+      aliases = compat.list_unique(aliases)
 
       for _, alias in ipairs(aliases) do
         update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
@@ -1386,6 +1391,43 @@ local function process_search_results(cc, results)
   }
 end
 
+---Use cached metadata to return the complete ordinary note-reference candidate set.
+---Completion clients can then apply their own fuzzy matcher without a filesystem search.
+---@param cc obsidian.completion.sources.refs.context
+---@return boolean handled
+local function process_cached_search(cc)
+  if not cache.is_enabled() or not cache.is_ready() or cc.anchor_link ~= nil or cc.block_link ~= nil then
+    return false
+  end
+
+  local source_path = vim.api.nvim_buf_get_name(cc.request.bufnr)
+  local dir = api.resolve_workspace_dir(source_path ~= "" and source_path or nil)
+  local workspace = api.find_workspace(dir)
+  local templates_dir = api.templates_dir(workspace)
+  local rows = cache.notes.all()
+  local paths = {}
+
+  for path in pairs(rows) do
+    if
+      fs_util.is_subpath(path, tostring(dir))
+      and (not templates_dir or not fs_util.is_subpath(path, tostring(templates_dir)))
+    then
+      paths[#paths + 1] = path
+    end
+  end
+  table.sort(paths)
+
+  local Note = require "obsidian.note"
+  ---@type obsidian.Note[]
+  local notes = {}
+  for _, path in ipairs(paths) do
+    notes[#notes + 1] = Note.from_cache(path, rows[path])
+  end
+
+  process_search_results(cc, include_loaded_notes(notes, dir, {}, true))
+  return true
+end
+
 ---@param completion_resolve_callback function
 ---@param request obsidian.completion.Request
 function M.process_completion(completion_resolve_callback, request)
@@ -1424,6 +1466,10 @@ function M.process_completion(completion_resolve_callback, request)
       cc.completion_resolve_callback(EMPTY_RESPONSE)
     end
   else
+    if process_cached_search(cc) then
+      return
+    end
+
     local search_opts = {
       sort = false,
       include_templates = false,

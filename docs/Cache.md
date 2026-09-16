@@ -12,7 +12,7 @@ require("obsidian").setup {
 
 The default backend is `json`. It writes a cache file under Neovim's cache directory and reuses it between sessions. You do not need to set `backend = "json"` unless you want to be explicit.
 
-The cache is used for `:Obsidian quick_switch` and vault-wide heading completion (`[[##query`). When enabled, these features query cached metadata instead of scanning and parsing the vault for each request.
+The cache is used for `:Obsidian quick_switch`, ordinary note-reference completion (`[[query`), and vault-wide heading completion (`[[##query`). When enabled, these features query cached metadata instead of scanning and parsing the vault for each request. Ordinary reference completion sends the cached note candidates to your completion engine for filtering.
 
 ## What Gets Cached
 
@@ -95,5 +95,6 @@ A store implements `get(key)`, `all()`, `put(key, row)`, and `delete(key)`. `flu
 
 ## Limitations
 
-- The cache currently powers `:Obsidian quick_switch` and vault-wide heading completion.
+- The cache currently powers `:Obsidian quick_switch`, ordinary note-reference completion, and vault-wide heading completion.
+- Heading and block completion remain query-filtered instead of sending every heading or block to the completion engine.
 - Running several Neovim instances on the same vault can cause cache updates to race.
