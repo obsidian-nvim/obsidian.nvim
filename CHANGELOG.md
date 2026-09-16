@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `:Obsidian incoming_links` / `:ObsidianFindIncomingLinks` - find unlinked plain-text mentions of the current note (by title or alias) across the vault and convert them to links.
-- `:Obsidian outgoing_links` / `:ObsidianFindOutgoingLinks` - find unlinked plain-text mentions of other notes within the current buffer and convert them to links. Both commands support multi-select with `<Tab>` and skip existing links, code blocks, inline code, frontmatter, tags, and URLs.
+- `:Obsidian find_incoming` / `:ObsidianFindIncomingLinks` - find unlinked plain-text mentions of the current note (by title or alias) across the vault and convert them to links. Use `<C-o>` to open a location without changing it.
+- `:Obsidian find_outgoing` / `:ObsidianFindOutgoingLinks` - select an unlinked target note, then select locations in the current buffer to convert them to links. Scanning skips existing links, code blocks, inline code, frontmatter, tags, and URLs.
 - Obsidian-style block completion with previews and automatic IDs for unlabeled blocks, using `[[^query`, `[[note^query`, `[[note#^query`, or `[[^^query` (#505, #749).
 - Added separate icons module to support obsidian related filetypes and usecases.
 - Fallback libuv-based fs walker that makes `ripgrep` optional in file finding.

@@ -75,9 +75,9 @@ local scan_incoming_lua = [[
 -- Outgoing unlinked mentions
 -- ---------------------------------------------------------------------------
 
-T["outgoing_links"] = MiniTest.new_set()
+T["find_outgoing"] = MiniTest.new_set()
 
-T["outgoing_links"]["finds plain-text mention of another note"] = function()
+T["find_outgoing"]["finds plain-text mention of another note"] = function()
   local root = child.Obsidian.dir
   -- Note stem is "target" which becomes the symbol; source mentions "target" in plain text
   h.write("# Target\n", root / "target.md")
@@ -105,7 +105,7 @@ T["outgoing_links"]["finds plain-text mention of another note"] = function()
   eq(true, found)
 end
 
-T["outgoing_links"]["skips already-linked text"] = function()
+T["find_outgoing"]["skips already-linked text"] = function()
   local root = child.Obsidian.dir
   h.write("# Target\n", root / "target.md")
   h.write("# Source\n\nAlready linked: [[target]] and also Target in plain.\n", root / "source.md")
@@ -127,7 +127,7 @@ T["outgoing_links"]["skips already-linked text"] = function()
   end
 end
 
-T["outgoing_links"]["skips text inside fenced code block"] = function()
+T["find_outgoing"]["skips text inside fenced code block"] = function()
   local root = child.Obsidian.dir
   h.write("# Go\n", root / "go.md")
   h.write("# Source\n\n```\nGo is mentioned here\n```\n\nOutside the fence.\n", root / "source.md")
@@ -149,7 +149,7 @@ T["outgoing_links"]["skips text inside fenced code block"] = function()
   end
 end
 
-T["outgoing_links"]["skips inline code spans"] = function()
+T["find_outgoing"]["skips inline code spans"] = function()
   local root = child.Obsidian.dir
   h.write("# MyNote\n", root / "mynote.md")
   h.write("# Source\n\nUse `MyNote` in code and MyNote outside.\n", root / "source.md")
@@ -177,9 +177,9 @@ end
 -- Incoming unlinked mentions (scan logic via link_suggestion directly)
 -- ---------------------------------------------------------------------------
 
-T["incoming_links"] = MiniTest.new_set()
+T["find_incoming"] = MiniTest.new_set()
 
-T["incoming_links"]["scans other notes for plain-text mentions"] = function()
+T["find_incoming"]["scans other notes for plain-text mentions"] = function()
   local root = child.Obsidian.dir
   h.write("# Alpha\n", root / "alpha.md")
   h.write("# Beta\n\nAlpha is referenced here.\n", root / "beta.md")
@@ -192,7 +192,7 @@ T["incoming_links"]["scans other notes for plain-text mentions"] = function()
   eq("Alpha", found[1].text)
 end
 
-T["incoming_links"]["matches aliases of current note"] = function()
+T["find_incoming"]["matches aliases of current note"] = function()
   local root = child.Obsidian.dir
   h.write('---\naliases: ["Al"]\n---\n# Alpha\n', root / "alpha.md")
   h.write("# Beta\n\nAl is a short name.\n", root / "beta.md")
@@ -210,7 +210,7 @@ T["incoming_links"]["matches aliases of current note"] = function()
   eq(true, found_alias)
 end
 
-T["incoming_links"]["does not match text inside existing wikilinks"] = function()
+T["find_incoming"]["does not match text inside existing wikilinks"] = function()
   local root = child.Obsidian.dir
   h.write("# Alpha\n", root / "alpha.md")
   -- beta.md already links to Alpha — only the plain "Alpha" word should be surfaced

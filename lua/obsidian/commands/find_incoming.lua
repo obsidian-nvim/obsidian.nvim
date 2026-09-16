@@ -4,6 +4,7 @@ local picker = require "obsidian.picker"
 local link_suggestion = require "obsidian.note.link_suggestion"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
+local picker_util = require "obsidian.picker.util"
 
 ---Apply a link suggestion to a specific (possibly unlisted) buffer.
 ---@param bufnr integer
@@ -159,6 +160,15 @@ return function()
   picker.select(entries, {
     prompt = "Incoming unlinked mentions",
     allow_multiple = true,
+    selection_mappings = {
+      ["<C-o>"] = {
+        desc = "open location",
+        allow_multiple = true,
+        callback = function(...)
+          picker_util.open_notes { ... }
+        end,
+      },
+    },
     preview_item = function(entry)
       ---@cast entry obsidian.PickerEntry
       local preview = util.preview_path(entry.filename)
