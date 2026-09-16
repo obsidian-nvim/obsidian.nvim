@@ -7,7 +7,9 @@ Reference completion supports Obsidian's vault-wide searches:
 - `[[##query` searches headings across the vault.
 - `[[^^query` searches blocks across the vault.
 
-Vault-wide heading search uses the metadata cache when it is enabled and ready, and otherwise falls back to the filesystem/ripgrep search path. Loaded buffers replace cached or on-disk data so unsaved headings can be completed.
+When the metadata cache is enabled and ready, ordinary note-reference completion returns cached note IDs, filenames, and aliases without reading note files or invoking ripgrep. The completion engine filters this candidate set, so blink.cmp, nvim-cmp, and Neovim's native completion can apply their own fuzzy matcher. `completion.min_chars` still controls when candidates first appear. The LSP list remains incomplete while query-dependent create-note suggestions are enabled, so clients may request the cached set again as the query changes.
+
+Vault-wide heading search also uses the metadata cache when it is enabled and ready, and otherwise falls back to the filesystem/ripgrep search path. Loaded buffers replace cached or on-disk data so unsaved headings can be completed. Heading and block searches remain query-filtered by obsidian.nvim because their candidate sets can be much larger than the note list.
 
 For blink.cmp, if you have a dedicated `per_filetype` config for markdown, LSP completion will not attach, use:
 

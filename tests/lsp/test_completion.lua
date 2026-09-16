@@ -285,6 +285,100 @@ Target note content
   eq(true, found)
 end
 
+T["completion"]["returns all cached note references for client-side fuzzy filtering"] = function()
+  child.fn.mkdir(tostring(child.Obsidian.dir / "templates"), "p")
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[td",
+    ["test-document.md"] = [==[
+---
+id: cached-id
+aliases:
+  - Friendly Target
+---
+Cached note content
+]==],
+    ["unrelated.md"] = "Unrelated note content",
+    ["templates/template.md"] = "Template content",
+  })
+
+  child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
+  h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
+  child.lua [[
+    require("obsidian.search").find_notes_async = function()
+      error "filesystem note search should not run"
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+  local result = run_completion(0, 4)
+
+  local path_item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[test-document]]"
+  end)
+  assert(path_item, "cached filename candidate was missing")
+  eq("[[test-document", path_item.filterText)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.textEdit and candidate.textEdit.newText == "[[test-document|cached-id]]"
+    end),
+    "cached ID candidate was missing"
+  )
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.textEdit and candidate.textEdit.newText == "[[test-document|Friendly Target]]"
+    end),
+    "cached alias candidate was missing"
+  )
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.textEdit and candidate.textEdit.newText == "[[unrelated]]"
+    end),
+    "server filtered an unrelated cached candidate"
+  )
+  assert(not vim.iter(result.items or {}):any(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText:find("template", 1, true)
+  end), "cached template was offered as a note reference")
+
+  local completeopt = vim.o.completeopt
+  if not completeopt:find("fuzzy", 1, true) then
+    vim.o.completeopt = completeopt .. ",fuzzy"
+  end
+  local builtin_items = vim.lsp.completion._lsp_to_complete_items(result, "[[td")
+  vim.o.completeopt = completeopt
+  assert(
+    vim.iter(builtin_items):any(function(candidate)
+      return candidate.abbr == path_item.label
+    end),
+    "Neovim builtin fuzzy completion filtered out the cached candidate"
+  )
+end
+
+T["completion"]["cached note references use unsaved loaded metadata"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[ua",
+    ["target.md"] = "---\naliases:\n  - Saved Alias\n---\nTarget content",
+  })
+
+  child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
+  h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "target.md"))
+  child.api.nvim_buf_set_lines(0, 0, 4, false, { "---", "aliases:", "  - Unsaved Alias", "---" })
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.textEdit and candidate.textEdit.newText == "[[target|Unsaved Alias]]"
+    end),
+    "unsaved alias was missing from cached reference completion"
+  )
+  assert(not vim.iter(result.items or {}):any(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[target|Saved Alias]]"
+  end), "stale cached alias was offered for a modified buffer")
+end
+
 T["completion"]["searches vault headings without cache"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[##api",
