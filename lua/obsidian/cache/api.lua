@@ -94,7 +94,7 @@ end
 M.find_files = function(opts)
   opts = opts or {}
   local cache = require "obsidian.cache"
-  if not opts.use_cache or not cache.is_enabled() or opts.include_non_markdown then
+  if not Obsidian.opts.cache.enabled or opts.include_non_markdown then
     return false
   end
 

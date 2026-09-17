@@ -205,6 +205,39 @@ return {
   eq("markdown", result.existing_preview_filetype)
 end
 
+T["quick switch"]["ignores missing links without a note filename"] = function()
+  h.child_mock_vault_contents(child, {
+    ["Note.md"] = "[[nix/]]",
+  })
+
+  child.lua [[
+Obsidian.opts.note_id_func = function(title)
+  assert(title ~= nil, "note_id_func requires a title")
+  return title
+end
+  ]]
+  h.child_setup_cache(child)
+
+  local result = child.lua [[
+local picker = require "obsidian.picker"
+local cache = require "obsidian.cache"
+local original_select = picker.select
+local entries
+
+picker.select = function(values)
+  entries = values
+end
+cache.find_files { use_cache = true, show_existing_only = false }
+picker.select = original_select
+
+return vim.tbl_map(function(entry)
+  return entry.text
+end, entries)
+  ]]
+
+  eq({ "Note" }, result)
+end
+
 T["quick switch"]["creating a missing note updates its cached references"] = function()
   h.child_mock_vault_contents(child, {
     ["Note.md"] = "[[Missing]]\nA [[Missing|label]]\n![[PHOTO.PNG]]",

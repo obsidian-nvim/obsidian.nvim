@@ -60,12 +60,12 @@ end
 ---@return string|?
 local function missing_note_path(location)
   local target = normalize_link_target(location)
-  if target == "" then
+  if target == "" or vim.endswith(target, "/") then
     return nil
   end
 
   local Note = require "obsidian.note"
-  local path = Note.resolve_creation_path { id = target }
+  local _, path = Note._resolve_id_path { id = target, check_invalid_filename = false }
   return vim.fs.normalize(tostring(path))
 end
 
@@ -108,7 +108,7 @@ M.resolve_link_path = function(location)
   end
 
   if attachment.is_attachment_path(location) then
-    return M.missing_link_path(location, vim.api.nvim_buf_get_name(0))
+    return attachment.destination_path(location, vim.api.nvim_buf_get_name(0)) -- TODO: use sync resolve
   end
 
   local location_path = Path.new(location)

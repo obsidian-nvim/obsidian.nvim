@@ -287,7 +287,6 @@ end
 ---@return string id
 ---@return obsidian.Path path
 ---@return string|? title
----@private
 Note._resolve_id_path = function(opts, prompt_invalid_filename)
   local id, dir = opts.id, opts.dir
   local workspace = opts.source_path and api.find_workspace(opts.source_path) or nil
@@ -375,26 +374,18 @@ Note._resolve_id_path = function(opts, prompt_invalid_filename)
 
   -- Reject generated filenames that are invalid on any platform.
   local valid, reason = util.is_valid_filename(path.stem)
-  while not valid do
-    if not prompt_invalid_filename then
-      error(("invalid note filename %q: %s"):format(path.stem, reason), 2)
+  if opts.check_invalid_filename ~= false then
+    while not valid do
+      if not prompt_invalid_filename then
+        error(("invalid note filename %q: %s"):format(path.stem, reason), 2)
+      end
+      id = prompt_for_valid_filename(path.stem)
+      path = Note._generate_path(id, dir, creation_opts.note_path_func)
+      valid, reason = util.is_valid_filename(path.stem)
     end
-    id = prompt_for_valid_filename(path.stem)
-    path = Note._generate_path(id, dir, creation_opts.note_path_func)
-    valid, reason = util.is_valid_filename(path.stem)
   end
 
   return id, path, title
-end
-
---- Resolve the path a new note would use without creating a note object or
---- firing note-creation callbacks and autocommands.
----
----@param opts obsidian.note.NoteOpts
----@return obsidian.Path
-Note.resolve_creation_path = function(opts)
-  local _, path = Note._resolve_id_path(opts)
-  return path
 end
 
 --- Creates a new note in memory.
@@ -1550,6 +1541,7 @@ end
 ---@field tags string[]|?  Tags for this note
 ---@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
 ---@field scope string|? Arbitrary note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+---@field check_invalid_filename boolean|?
 
 ---@class (exact) obsidian.note.CreateCallbackOpts
 ---@field scope string Scope inherited from the `Note.create` opts, or `"plain"` when not set.

@@ -6,6 +6,7 @@ local PickerName = require("obsidian.types").Picker
 local Mappings = require "obsidian.picker.mappings"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
+local cache = require "obsidian.cache"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
@@ -154,11 +155,16 @@ M.pick = pick
 local find_files = function(opts)
   opts = opts or {}
 
+  if require("obsidian.cache").find_files(opts) then
+    return
+  end
+
   -- search.find_async() resolves its root before enumerating files. Use the
   -- same canonical root here so aliases such as macOS's /var -> /private/var
   -- and Windows short paths remain relative to the picker directory.
   local dir = Path.new(opts.dir or api.resolve_workspace_dir()):resolve { strict = true }
   local paths = {}
+
   search.find_async(dir, nil, {
     sort_by = Obsidian.opts.search.sort_by,
     sort_reversed = Obsidian.opts.search.sort_reversed,
@@ -209,8 +215,6 @@ M.find_notes = function(opts)
     query_mappings = M._note_query_mappings()
     selection_mappings = M._note_selection_mappings()
   end
-
-  -- TODO: build cmd here instead of in all pickers
 
   return M.find_files {
     query = opts.query,
@@ -349,16 +353,18 @@ end
 local function patch(modname)
   local picker = require(modname)
   local picker_find_files = picker.find_files or find_files
-  M.find_files = function(opts)
-    opts = opts or {}
-    if require("obsidian.cache").find_files(opts) then
-      return
-    end
-    picker_find_files(opts)
-  end
+  -- M.find_files = function(opts)
+  --   opts = opts or {}
+  --   if require("obsidian.cache").find_files(opts) then
+  --     print "here"
+  --     return
+  --   end
+  --   picker_find_files(opts)
+  -- end
 
   for name, f in pairs(picker) do
-    if name ~= "pick" and name ~= "find_files" then
+    if name ~= "pick" then
+      -- and name ~= "find_files" then
       M[name] = f
     end
   end
