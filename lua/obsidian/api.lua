@@ -235,7 +235,7 @@ M.cursor_link = function(bufnr, position)
   end
   local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
 
-  for _, ref in ipairs(parse_refs.extract(line)) do
+  for _, ref in ipairs(parse_refs.extract(line, { row = row })) do
     if ref.range.start_col <= cur_col and cur_col < ref.range.end_col then
       local link_type = ref.kind
       local link = ref.embed and ref.raw:sub(2) or ref.raw

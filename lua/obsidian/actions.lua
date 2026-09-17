@@ -12,7 +12,6 @@ local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
 local list_items = require "obsidian.parse.line.list_items"
-local parse_refs = require "obsidian.parse.refs"
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
@@ -73,44 +72,47 @@ end
 ---@return string? display_text
 M.unlink = function(bufnr, position)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local row, col
-  if position then
-    row, col = position.line, position.character
-  else
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    row, col = cursor[1] - 1, cursor[2]
+
+  local _, _, _, ref = api.cursor_link(bufnr, position)
+  if not ref then
+    return log.warn "No link found under cursor"
   end
-
-  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
-  for _, ref in ipairs(parse_refs.extract(line, { row = row })) do
-    if (ref.kind == "wiki" or ref.kind == "markdown") and ref.range.start_col <= col and col < ref.range.end_col then
-      local display_text = ref.label
+  if ref.kind == "wiki" or ref.kind == "markdown" then
+    local display_text = ref.label
+    if not display_text or display_text == "" then
+      local target = vim.uri_decode(ref.target)
+      display_text = Path.new(target).stem
       if not display_text or display_text == "" then
-        local target = vim.uri_decode(ref.target)
-        display_text = Path.new(target).stem
-        if not display_text or display_text == "" then
-          display_text = Path.buffer(bufnr).stem
-        end
+        display_text = Path.buffer(bufnr).stem
       end
-
-      if not display_text or display_text == "" then
-        return log.warn "Could not determine link display text"
-      end
-
-      vim.api.nvim_buf_set_text(
-        bufnr,
-        ref.range.start_row,
-        ref.range.start_col,
-        ref.range.end_row,
-        ref.range.end_col,
-        { display_text }
-      )
-      require("obsidian.ui").update(bufnr)
-      return display_text
     end
-  end
 
-  return log.warn "No link found under cursor"
+    if not display_text or display_text == "" then
+      return log.warn "Could not determine link display text"
+    end
+
+    vim.api.nvim_buf_set_text(
+      bufnr,
+      ref.range.start_row,
+      ref.range.start_col,
+      ref.range.end_row,
+      ref.range.end_col,
+      { display_text }
+    )
+    require("obsidian.ui").update(bufnr)
+
+    if ref.embed == true and api.confirm "Remove Attachment?" == "Yes" then
+      attachment.delete(ref.target, {}, function(err, path)
+        if err then
+          log.err(err)
+        else
+          log.info(path .. " removed")
+        end
+      end)
+      -- TODO: if resolved note, prompt note:delete
+    end
+    return display_text
+  end
 end
 
 ---@param direction "next" | "prev"

@@ -31,6 +31,7 @@ local add = function(opts)
       cond = opts.cond or function()
         return true
       end,
+      arguments = opts.arguments,
       -- TODO: preview?
     },
   }
@@ -41,6 +42,17 @@ local add = function(opts)
     end)
   end
   code_actions[opts.name] = action
+end
+
+---Resolve the buffer and LSP position a code action was requested for.
+---@param params lsp.CodeActionParams|?
+---@return integer|? bufnr
+---@return lsp.Position|? position
+local function resolve_position(params)
+  if not params then
+    return nil, nil
+  end
+  return vim.uri_to_bufnr(params.textDocument.uri), params.range.start
 end
 
 local function in_visual()
@@ -108,13 +120,13 @@ local default_actions = {
   unlink = {
     title = "Remove link under cursor",
     cond = function(_, params)
-      local bufnr, position
-      if params then
-        bufnr = vim.uri_to_bufnr(params.textDocument.uri)
-        position = params.range.start
-      end
+      local bufnr, position = resolve_position(params)
       local link_type = select(2, require("obsidian.api").cursor_link(bufnr, position))
       return link_type == "wiki" or link_type == "markdown"
+    end,
+    arguments = function(_, params)
+      local bufnr, position = resolve_position(params)
+      return { bufnr, position }
     end,
   },
 
