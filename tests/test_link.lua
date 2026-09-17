@@ -133,4 +133,39 @@ return {
   eq(true, vim.endswith(result.attachment_path, "PHOTO.PNG"))
 end
 
+T["missing_link_path preserves relative and vault-absolute semantics"] = function()
+  local result = child.lua [[
+Obsidian.opts.note_id_func = function(id)
+  return id
+end
+local source = tostring(Obsidian.dir / "nested" / "Current.md")
+local api = require "obsidian.api"
+local original_confirm = api.confirm
+api.confirm = function()
+  return "Yes"
+end
+api.create_new_note("./Created", nil, { source_path = source })
+api.create_new_note("../Root", nil, { source_path = source })
+api.create_new_note("/Absolute", nil, { source_path = source })
+api.confirm = original_confirm
+return {
+  sibling = M.missing_link_path("./Sibling", source),
+  parent = M.missing_link_path("../Parent", source),
+  absolute = M.missing_link_path("/AbsoluteMissing", source),
+  attachment = M.missing_link_path("/assets/Image.png", source),
+  created_sibling = vim.uv.fs_stat(tostring(Obsidian.dir / "nested" / "Created.md")) ~= nil,
+  created_parent = vim.uv.fs_stat(tostring(Obsidian.dir / "Root.md")) ~= nil,
+  created_absolute = vim.uv.fs_stat(tostring(Obsidian.dir / "Absolute.md")) ~= nil,
+}
+  ]]
+
+  eq(tostring(child.Obsidian.dir / "nested" / "Sibling.md"), result.sibling)
+  eq(tostring(child.Obsidian.dir / "Parent.md"), result.parent)
+  eq(tostring(child.Obsidian.dir / "AbsoluteMissing.md"), result.absolute)
+  eq(tostring(child.Obsidian.dir / "assets" / "Image.png"), result.attachment)
+  eq(true, result.created_sibling)
+  eq(true, result.created_parent)
+  eq(true, result.created_absolute)
+end
+
 return T

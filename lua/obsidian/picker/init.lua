@@ -6,7 +6,6 @@ local PickerName = require("obsidian.types").Picker
 local Mappings = require "obsidian.picker.mappings"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
-local cache = require "obsidian.cache"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
@@ -69,7 +68,6 @@ end
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field include_non_markdown boolean|?
----@field use_cache boolean|?
 ---@field show_existing_only boolean|?
 ---@field show_attachments boolean|?
 
@@ -82,6 +80,7 @@ end
 ---@field no_default_mappings boolean|?
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
+---@field cmd string[]
 
 ---@alias obsidian.PickerEntry vim.quickfix.entry
 
@@ -224,7 +223,6 @@ M.find_notes = function(opts)
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
-    use_cache = true,
     show_existing_only = opts.show_existing_only,
     show_attachments = opts.show_attachments,
   }
@@ -252,6 +250,7 @@ M.grep_notes = function(opts)
   end
 
   M.grep {
+    cmd = search.build_grep_cmd(),
     prompt_title = opts.prompt_title or "Grep notes",
     dir = opts.dir or api.resolve_workspace_dir(),
     query = opts.query,
@@ -352,19 +351,8 @@ end
 
 local function patch(modname)
   local picker = require(modname)
-  local picker_find_files = picker.find_files or find_files
-  -- M.find_files = function(opts)
-  --   opts = opts or {}
-  --   if require("obsidian.cache").find_files(opts) then
-  --     print "here"
-  --     return
-  --   end
-  --   picker_find_files(opts)
-  -- end
-
   for name, f in pairs(picker) do
     if name ~= "pick" then
-      -- and name ~= "find_files" then
       M[name] = f
     end
   end

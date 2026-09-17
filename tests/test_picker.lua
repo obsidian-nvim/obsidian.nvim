@@ -270,6 +270,34 @@ T["note and tag mappings accept string values"] = function()
   eq({ "[[note]]", "#project" }, inserted)
 end
 
+T["grep_notes supplies the backend command"] = function()
+  local captured
+  local dir = Path.temp { suffix = "-obsidian-picker" }
+  dir:mkdir { parents = true }
+  Obsidian = {
+    dir = dir,
+    opts = {
+      picker = { note_mappings = {} },
+      search = { sort_by = false, sort_reversed = false },
+    },
+  }
+
+  with_picker_stubs({
+    default = {
+      grep = function(opts)
+        captured = opts
+      end,
+    },
+  }, function()
+    picker.get(false)
+    picker.grep_notes { dir = dir, query = "needle" }
+  end)
+
+  eq("needle", captured.query)
+  eq("table", type(captured.cmd))
+  eq(true, #captured.cmd > 0)
+end
+
 T["find_files presents filesystem paths without a shell command"] = function()
   local dir = Path.temp { suffix = "-obsidian-picker" }
   dir:mkdir { parents = true }

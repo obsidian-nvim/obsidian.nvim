@@ -427,7 +427,7 @@ end
 ---
 ---@param location string Note id or path.
 ---@param callback (fun(locations: lsp.Location[]|nil)|nil)?
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|?, anchor: string|?, block: string|?, references: obsidian.NoteCreationReference[]|? }|?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|?, anchor: string|?, block: string|?, references: obsidian.NoteCreationReference[]|?, source_path: string|? }|?
 M.create_new_note = function(location, callback, opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -566,14 +566,26 @@ M.create_new_note = function(location, callback, opts)
     end
   end
 
-  local source_path = vim.api.nvim_buf_get_name(bufnr)
-  local action_opts = { source_path = source_path ~= "" and source_path or nil }
-  local workspace_dir = M.resolve_workspace_dir(action_opts.source_path)
+  local buffer_path = vim.api.nvim_buf_get_name(bufnr)
+  local source_path = opts.source_path or (buffer_path ~= "" and buffer_path or nil)
+  local action_opts = { source_path = source_path }
+  local workspace_dir = M.resolve_workspace_dir(source_path)
+  local creation_location = location
+  if source_path and (vim.startswith(location, "./") or vim.startswith(location, "../")) then
+    local target = vim.fs.normalize(vim.fs.joinpath(vim.fs.dirname(source_path), location))
+    if fs_util.is_subpath(target, tostring(workspace_dir)) then
+      creation_location = assert(fs_util.relpath(tostring(workspace_dir), target))
+      if not creation_location:find("/", 1, true) then
+        creation_location = "/" .. creation_location
+      end
+    end
+  end
+
   local confirm = M.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
-    require("obsidian.actions").new(location, on_created, action_opts)
+    require("obsidian.actions").new(creation_location, on_created, action_opts)
   elseif confirm == "Yes with Template" then
-    require("obsidian.actions").new_from_template(location, nil, on_created, action_opts)
+    require("obsidian.actions").new_from_template(creation_location, nil, on_created, action_opts)
   elseif confirm == "Yes as Unique Note" then
     local unique_dir = Obsidian.opts.unique_note.folder and workspace_dir / Obsidian.opts.unique_note.folder
       or workspace_dir

@@ -45,7 +45,6 @@ return captured
 
   eq(false, captured.show_existing_only)
   eq(true, captured.show_attachments)
-  eq(true, captured.use_cache)
 end
 
 T["quick switch"]["cache picker filters attachments and missing links"] = function()
@@ -92,9 +91,9 @@ picker.select = function(values, opts, callback)
   end
 end
 
-cache.find_files { use_cache = true }
-cache.find_files { use_cache = true, show_existing_only = false }
-cache.find_files { use_cache = true, show_existing_only = false, show_attachments = true }
+cache.find_files {}
+cache.find_files { show_existing_only = false }
+cache.find_files { show_existing_only = false, show_attachments = true }
 
 local formatted_missing = pick_opts.format_item {
   text = "Missing",
@@ -205,6 +204,39 @@ return {
   eq("markdown", result.existing_preview_filetype)
 end
 
+T["quick switch"]["resolves explicit relative links from their source note"] = function()
+  h.child_mock_vault_contents(child, {
+    ["Existing.md"] = "# Existing",
+    ["Root.md"] = "# Root",
+    ["nested/Source.md"] = "[[./Existing]]\n[[../Root]]",
+  })
+  child.lua [[
+Obsidian.opts.note_id_func = function(title)
+  return title
+end
+  ]]
+  h.child_setup_cache(child)
+
+  local missing = child.lua [[
+local picker = require "obsidian.picker"
+local cache = require "obsidian.cache"
+local original_select = picker.select
+local targets = {}
+picker.select = function(values)
+  for _, entry in ipairs(values) do
+    if entry.user_data and entry.user_data.missing then
+      targets[#targets + 1] = entry.user_data.target
+    end
+  end
+end
+cache.find_files { show_existing_only = false }
+picker.select = original_select
+return targets
+  ]]
+
+  eq({ "./Existing" }, missing)
+end
+
 T["quick switch"]["ignores missing links without a note filename"] = function()
   h.child_mock_vault_contents(child, {
     ["Note.md"] = "[[nix/]]",
@@ -227,7 +259,7 @@ local entries
 picker.select = function(values)
   entries = values
 end
-cache.find_files { use_cache = true, show_existing_only = false }
+cache.find_files { show_existing_only = false }
 picker.select = original_select
 
 return vim.tbl_map(function(entry)
@@ -288,7 +320,6 @@ end
 api.open_note = function() end
 
 cache.find_files {
-  use_cache = true,
   show_existing_only = false,
   show_attachments = true,
 }

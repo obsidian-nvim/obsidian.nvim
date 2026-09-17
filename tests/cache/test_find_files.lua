@@ -5,7 +5,7 @@ local picker = require "obsidian.picker"
 
 local T = new_set {}
 
-T["find_files_from_cache applies initial query case-insensitively"] = function()
+T["find_files applies initial query case-insensitively"] = function()
   local dir = Path.temp { suffix = "-obsidian-picker" }
   dir:mkdir { parents = true }
   h.write("# Agenda", dir / "Agenda.md")
@@ -30,7 +30,6 @@ T["find_files_from_cache applies initial query case-insensitively"] = function()
   eq(
     true,
     cache.find_files {
-      use_cache = true,
       query = "agenda",
       selection_mappings = {
         ["<C-l>"] = {

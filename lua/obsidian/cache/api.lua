@@ -53,10 +53,13 @@ end
 ---@param lookup table<string, boolean>
 local function add_lookup_path(path, lookup)
   local cache = require "obsidian.cache"
+  local path_no_ext = path:gsub("%.md$", "")
   local rel_path = cache.notes.rel_path(path)
   local rel_path_no_ext = rel_path:gsub("%.md$", "")
   local basename = vim.fn.fnamemodify(path, ":t")
   for _, key in ipairs {
+    path,
+    path_no_ext,
     rel_path,
     rel_path_no_ext,
     basename,
@@ -68,16 +71,44 @@ end
 
 ---@param target string
 ---@param lookup table<string, boolean>
+---@param source_path string
 ---@return boolean
-local function target_exists(target, lookup)
-  local normalized = normalize_link_target(target)
-  local normalized_no_ext = normalized:gsub("%.md$", "")
-  for _, key in ipairs { normalized, normalized_no_ext, normalized .. ".md" } do
+local function target_exists(target, lookup, source_path)
+  local decoded = vim.uri_decode(target):gsub("\\", "/")
+  local candidates
+  if vim.startswith(decoded, "./") or vim.startswith(decoded, "../") then
+    local absolute = vim.fs.normalize(vim.fs.joinpath(vim.fs.dirname(source_path), decoded))
+    local absolute_no_ext = absolute:gsub("%.md$", "")
+    candidates = { absolute, absolute_no_ext, absolute .. ".md" }
+  else
+    local normalized = normalize_link_target(target)
+    local normalized_no_ext = normalized:gsub("%.md$", "")
+    candidates = { normalized, normalized_no_ext, normalized .. ".md" }
+  end
+
+  for _, key in ipairs(candidates) do
     if lookup[key:lower()] then
       return true
     end
   end
   return false
+end
+
+---@param target string
+---@param source_path string
+---@param target_path string
+---@param is_attachment boolean
+---@return string
+local function missing_entry_key(target, source_path, target_path, is_attachment)
+  if is_attachment then
+    return target_path:lower()
+  end
+
+  local decoded = vim.uri_decode(target):gsub("\\", "/")
+  if vim.startswith(decoded, "./") or vim.startswith(decoded, "../") then
+    return vim.fs.normalize(vim.fs.joinpath(vim.fs.dirname(source_path), decoded)):lower()
+  end
+  return normalize_link_target(decoded):lower()
 end
 
 ---@param is_attachment boolean
@@ -94,7 +125,7 @@ end
 M.find_files = function(opts)
   opts = opts or {}
   local cache = require "obsidian.cache"
-  if not Obsidian.opts.cache.enabled or opts.include_non_markdown then
+  if not cache.is_enabled() or opts.include_non_markdown then
     return false
   end
 
@@ -169,12 +200,12 @@ M.find_files = function(opts)
       for path, note in pairs(notes) do
         for _, outgoing in ipairs(note.links_out or {}) do
           local target = outgoing.target
-          if not is_external_target(target) and not target_exists(target, lookup) then
+          if not is_external_target(target) and not target_exists(target, lookup, path) then
             local missing_is_attachment = is_attachment_target(target)
             if show_attachments or not missing_is_attachment then
               local target_path = link.missing_link_path(target, path)
               if target_path and fs_util.is_subpath(target_path, dir) then
-                local missing_key = missing_is_attachment and target_path or normalize_link_target(target):lower()
+                local missing_key = missing_entry_key(target, path, target_path, missing_is_attachment)
                 ---@type obsidian.NoteCreationReference
                 local reference = {
                   filename = path,
@@ -191,7 +222,7 @@ M.find_files = function(opts)
                   local added = add_entry(
                     text,
                     target_path,
-                    entry_user_data(missing_is_attachment, true, { reference }, normalize_link_target(target))
+                    entry_user_data(missing_is_attachment, true, { reference }, vim.uri_decode(target):gsub("\\", "/"))
                   )
                   if added then
                     missing_entries[missing_key] = added
@@ -321,7 +352,10 @@ M.find_files = function(opts)
               if locations and locations[1] then
                 api.open_note(vim.uri_to_fname(locations[1].uri))
               end
-            end, { references = data.references })
+            end, {
+              references = data.references,
+              source_path = data.references and data.references[1] and data.references[1].filename or nil,
+            })
           elseif choice == "Open References" then
             picker.select(data.references, { prompt = "Unresolved References" }, function(choices)
               picker_util.open_notes(choices)
