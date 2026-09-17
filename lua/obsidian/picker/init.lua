@@ -1,6 +1,5 @@
 local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
-local icons = require "obsidian.icons"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.types").Picker
 local Mappings = require "obsidian.picker.mappings"
@@ -182,9 +181,6 @@ local find_files = function(opts)
       query = opts.query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,
-      format_item = function(path)
-        return icons.get_path_icon(path) .. " " .. tostring(Path.new(path):relative_to(dir))
-      end,
       preview_item = picker_util.preview_path,
     }, function(items)
       local callback = opts.callback or picker_util.open_notes

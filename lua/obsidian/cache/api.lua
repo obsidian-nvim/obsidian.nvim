@@ -1,36 +1,39 @@
 local fs_util = require "obsidian.util.fs"
 local attachment = require "obsidian.attachment"
-local icons = require "obsidian.icons"
 local link = require "obsidian.link"
 local api = require "obsidian.api"
 local picker_util = require "obsidian.picker.util"
 
 local M = {}
 
----@param mappings obsidian.PickerMappingTable|?
----@param transform fun(value: any): string
----@return obsidian.PickerMappingTable|?
-local function transform_selection_mappings(mappings, transform)
-  if not mappings then
-    return nil
+---@param entry obsidian.PickerEntry
+---@return obsidian.ui_select_preview_spec
+local function preview_picker_entry(entry)
+  local cache = require "obsidian.cache"
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
+
+  local data = entry.user_data or {}
+  if data.missing then
+    local references = vim.deepcopy(data.references or {})
+    local lines = {}
+    for i, reference in ipairs(references) do
+      if i > 1 then
+        lines[#lines + 1] = ""
+      end
+      lines[#lines + 1] = ("%s:%d:%d"):format(cache.notes.rel_path(reference.filename), reference.lnum, reference.col)
+      lines[#lines + 1] = ""
+      lines[#lines + 1] = "```markdown"
+      lines[#lines + 1] = reference.raw
+      lines[#lines + 1] = "```"
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.bo[buf].filetype = "markdown"
+  elseif entry.filename then
+    return picker_util.preview_path(entry.filename)
   end
 
-  local transformed = {}
-  for key, mapping in pairs(mappings) do
-    local callback = mapping.callback
-    transformed[key] = vim.tbl_extend("force", {}, mapping, {
-      callback = function(...)
-        callback(unpack(vim.tbl_map(transform, { ... })))
-      end,
-    })
-  end
-  return transformed
-end
-
----@param target string
----@return boolean
-local function is_attachment_target(target)
-  return attachment.is_attachment_path(target:lower())
+  return { buf = buf }
 end
 
 ---@param target string?
@@ -117,7 +120,12 @@ end
 ---@param target string?
 ---@return obsidian.PickerEntryUserData
 local function entry_user_data(is_attachment, missing, references, target)
-  return { attachment = is_attachment, missing = missing, references = references, target = target }
+  return {
+    attachment = is_attachment,
+    missing = missing,
+    references = references,
+    target = target,
+  }
 end
 
 ---@param opts obsidian.PickerFindOpts|?
@@ -201,7 +209,7 @@ M.find_files = function(opts)
         for _, outgoing in ipairs(note.links_out or {}) do
           local target = outgoing.target
           if not is_external_target(target) and not target_exists(target, lookup, path) then
-            local missing_is_attachment = is_attachment_target(target)
+            local missing_is_attachment = attachment.is_attachment_path(target:lower())
             if show_attachments or not missing_is_attachment then
               local target_path = link.missing_link_path(target, path)
               if target_path and fs_util.is_subpath(target_path, dir) then
@@ -240,69 +248,6 @@ M.find_files = function(opts)
       pick_query = nil
     end
 
-    ---@param entry obsidian.PickerEntry
-    ---@return string
-    local format_picker_entry = function(entry)
-      local icon = icons.get_icon(entry)
-      local text = entry.text or ""
-      return icon .. " " .. text
-    end
-
-    ---@param entry obsidian.PickerEntry
-    ---@return obsidian.ui_select_preview_spec
-    local function preview_picker_entry(entry)
-      local buf = vim.api.nvim_create_buf(false, true)
-      vim.bo[buf].bufhidden = "wipe"
-
-      local data = entry.user_data or {}
-      if data.missing then
-        local references = vim.deepcopy(data.references or {})
-        table.sort(references, function(a, b)
-          local a_path = cache.notes.rel_path(a.filename)
-          local b_path = cache.notes.rel_path(b.filename)
-          if a_path ~= b_path then
-            return a_path < b_path
-          elseif a.lnum ~= b.lnum then
-            return a.lnum < b.lnum
-          else
-            return a.col < b.col
-          end
-        end)
-
-        local lines = {}
-        for i, reference in ipairs(references) do
-          if i > 1 then
-            lines[#lines + 1] = ""
-          end
-          lines[#lines + 1] = ("%s:%d:%d"):format(
-            cache.notes.rel_path(reference.filename),
-            reference.lnum,
-            reference.col
-          )
-          lines[#lines + 1] = ""
-          lines[#lines + 1] = "```markdown"
-          lines[#lines + 1] = reference.raw
-          lines[#lines + 1] = "```"
-        end
-        vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-        vim.bo[buf].filetype = "markdown"
-      elseif entry.filename then
-        local ok, lines = pcall(vim.fn.readfile, entry.filename, "", 1000)
-        if not ok then
-          lines = { entry.filename }
-        end
-        if not pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, lines) then
-          vim.api.nvim_buf_set_lines(buf, 0, -1, false, { entry.filename })
-        end
-        local filetype = vim.filetype.match { filename = entry.filename }
-        if filetype then
-          vim.bo[buf].filetype = filetype
-        end
-      end
-
-      return { buf = buf }
-    end
-
     local picker = require "obsidian.picker"
 
     picker.select(entries, {
@@ -312,10 +257,7 @@ M.find_files = function(opts)
       -- Don't pass it through, since some pickers would filter again case-sensitively.
       query = pick_query,
       query_mappings = opts.query_mappings,
-      selection_mappings = transform_selection_mappings(opts.selection_mappings, function(item)
-        return item.filename
-      end),
-      format_item = format_picker_entry,
+      selection_mappings = opts.selection_mappings,
       preview_item = preview_picker_entry,
     }, function(items)
       local paths = vim.tbl_filter(

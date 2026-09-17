@@ -5,8 +5,10 @@ local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 
----@param path string
-M.insert_link = function(path)
+---@param arg string|obsidian.PickerEntry
+M.insert_link = function(arg)
+  local path = type(arg) == "table" and arg.filename or arg
+  ---@cast path string
   if not path or path == "" then
     return
   end
@@ -73,8 +75,10 @@ M.new_note = function(query)
   require "obsidian.commands.new" { args = query }
 end
 
----@param path string
-M.bookmark = function(path)
+---@param arg string|obsidian.PickerEntry
+M.bookmark = function(arg)
+  local path = type(arg) == "table" and arg.filename or arg
+  ---@cast path string
   if not path or path == "" then
     return
   end

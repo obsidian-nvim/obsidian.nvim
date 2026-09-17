@@ -128,7 +128,10 @@ end
 ---@return string
 M.make_display = function(entry)
   if type(entry) == "string" then
-    return entry
+    entry = {
+      filename = entry,
+    }
+    -- return entry
   end
 
   local buf = {}
@@ -139,7 +142,9 @@ M.make_display = function(entry)
     buf[#buf + 1] = " "
   end
 
-  if entry.filename then
+  if entry.text then
+    buf[#buf + 1] = entry.text
+  elseif entry.filename then
     buf[#buf + 1] = Path.new(entry.filename):vault_relative_path()
 
     if entry.lnum ~= nil then
@@ -151,14 +156,6 @@ M.make_display = function(entry)
         buf[#buf + 1] = entry.col
       end
     end
-  end
-
-  if entry.text then
-    buf[#buf + 1] = " "
-    buf[#buf + 1] = entry.text
-  elseif entry.user_data then
-    buf[#buf + 1] = " "
-    buf[#buf + 1] = tostring(entry.user_data)
   end
 
   return table.concat(buf, "")
