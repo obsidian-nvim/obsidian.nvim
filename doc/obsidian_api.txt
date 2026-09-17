@@ -80,6 +80,21 @@ Return ~
 `(string| `(optional))``
 
 ------------------------------------------------------------------------------
+                                                       *Note._resolve_id_path()*
+           `Note._resolve_id_path`({opts}, {prompt_invalid_filename})
+Resolves the ID, and path for a new note.
+
+Parameters ~
+{opts} `(obsidian.note.NoteOpts)` Strategy for resolving note path and title
+{prompt_invalid_filename} `(boolean|? Prompt)` for a replacement instead of erroring when the filename is invalid.
+Return ~
+`(string)` id
+Return ~
+`(obsidian.Path)` path
+Return ~
+`(string| `(optional))`` title
+
+------------------------------------------------------------------------------
                                                                  *Note.create()*
                              `Note.create`({opts})
 Creates a new note in memory.
@@ -433,16 +448,6 @@ Return ~
 `(obsidian.LinkMatch[])`
 
 ------------------------------------------------------------------------------
-                                                                 *format_path()*
-                   `format_path`({path}, {style}, {base_dir})
-Parameters ~
-{path} `(obsidian.Path)` vault-relative-path
-{style} `(obsidian.link.LinkFormat?)`
-{base_dir} `(string|obsidian.Path?)`
-Return ~
-`(string)` foramted_path
-
-------------------------------------------------------------------------------
 Class ~
 {obsidian.note.FormatLinkOpts} : obsidian.link.LinkCreationOpts
 Fields ~
@@ -533,6 +538,7 @@ to the workspace / vault root.
 {tags} `(string[]|?  Tags)` for this note
 {template} `(string|? Template)` name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
 {scope} `(string|? Arbitrary)` note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+{check_invalid_filename} `(boolean|)`?
 
 ------------------------------------------------------------------------------
 Class ~
