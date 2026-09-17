@@ -1,6 +1,7 @@
 ---@class obsidian.lsp.CodeActionData
 ---@field title string|fun(note: obsidian.Note): string
 ---@field cond fun(note: obsidian.Note, params: lsp.CodeActionParams?): boolean
+---@field arguments? fun(note: obsidian.Note, params: lsp.CodeActionParams?): any[]
 
 ---@class obsidian.lsp.CodeAction : lsp.CodeAction
 ---@field data obsidian.lsp.CodeActionData
@@ -12,6 +13,7 @@ local code_actions = {}
 ---@field name string unique name
 ---@field title string|fun(note: obsidian.Note): string text display in code action interface
 ---@field cond? fun(note: obsidian.Note, params: lsp.CodeActionParams?): boolean function used to determine whether code action is shown
+---@field arguments? fun(note: obsidian.Note, params: lsp.CodeActionParams?): any[] command arguments, resolved at request time
 ---@field fn? function
 
 ---Register a new command.
