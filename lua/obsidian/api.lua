@@ -223,6 +223,7 @@ end
 ---@return string? link
 ---@return obsidian.parse.RefKind? link_type
 ---@return [integer, integer]? range
+---@return obsidian.parse.Ref?
 M.cursor_link = function(bufnr, position)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local row, cur_col
@@ -234,12 +235,12 @@ M.cursor_link = function(bufnr, position)
   end
   local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
 
-  for _, ref in ipairs(parse_refs.extract(line)) do
+  for _, ref in ipairs(parse_refs.extract(line, { row = row })) do
     if ref.range.start_col <= cur_col and cur_col < ref.range.end_col then
       local link_type = ref.kind
       local link = ref.embed and ref.raw:sub(2) or ref.raw
       local start_col = ref.range.start_col + (ref.embed and 2 or 1)
-      return link, link_type, { start_col, ref.range.end_col }
+      return link, link_type, { start_col, ref.range.end_col }, ref
     end
   end
 end

@@ -65,6 +65,56 @@ M.follow_link = function(link, opts)
   end, { range = range })
 end
 
+---Replace the wiki or Markdown link under the cursor with its display text.
+---Links without display text use the target note's path stem.
+---@param bufnr integer|?
+---@param position lsp.Position|?
+---@return string? display_text
+M.unlink = function(bufnr, position)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+
+  local _, _, _, ref = api.cursor_link(bufnr, position)
+  if not ref then
+    return log.warn "No link found under cursor"
+  end
+  if ref.kind == "wiki" or ref.kind == "markdown" then
+    local display_text = ref.label
+    if not display_text or display_text == "" then
+      local target = vim.uri_decode(ref.target)
+      display_text = Path.new(target).stem
+      if not display_text or display_text == "" then
+        display_text = Path.buffer(bufnr).stem
+      end
+    end
+
+    if not display_text or display_text == "" then
+      return log.warn "Could not determine link display text"
+    end
+
+    vim.api.nvim_buf_set_text(
+      bufnr,
+      ref.range.start_row,
+      ref.range.start_col,
+      ref.range.end_row,
+      ref.range.end_col,
+      { display_text }
+    )
+    require("obsidian.ui").update(bufnr)
+
+    if ref.embed == true and api.confirm "Remove Attachment?" == "Yes" then
+      attachment.delete(ref.target, {}, function(err, path)
+        if err then
+          log.err(err)
+        else
+          log.info(path .. " removed")
+        end
+      end)
+      -- TODO: if resolved note, prompt note:delete
+    end
+    return display_text
+  end
+end
+
 ---@param direction "next" | "prev"
 M.nav_link = function(direction)
   -- vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")

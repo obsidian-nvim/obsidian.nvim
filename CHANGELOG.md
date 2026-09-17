@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `unlink` code action to replace a link with its display text, falling back to the target note path stem.
 - `:Obsidian quick_switch` new capabilities:
   - `opts.quick_switch.show_existing_only` default to `true`.
   - `opts.quick_switch.show_attachments` default to `false`.
