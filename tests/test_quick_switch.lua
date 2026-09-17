@@ -56,6 +56,7 @@ T["quick switch"]["cache picker filters attachments and missing links"] = functi
 
   local result = child.lua [[
 local picker = require "obsidian.picker"
+local picker_util = require "obsidian.picker.util"
 local cache = require "obsidian.cache"
 local icons = require "obsidian.icons"
 local original_select = picker.select
@@ -95,11 +96,11 @@ cache.find_files {}
 cache.find_files { show_existing_only = false }
 cache.find_files { show_existing_only = false, show_attachments = true }
 
-local formatted_missing = pick_opts.format_item {
+local formatted_missing = picker_util.make_display {
   text = "Missing",
   user_data = { missing = true },
 }
-local formatted_image = pick_opts.format_item {
+local formatted_image = picker_util.make_display {
   text = "Image.png",
   filename = "Image.png",
   user_data = { attachment = true },

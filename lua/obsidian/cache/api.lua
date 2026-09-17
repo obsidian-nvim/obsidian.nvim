@@ -16,6 +16,17 @@ local function preview_picker_entry(entry)
   local data = entry.user_data or {}
   if data.missing then
     local references = vim.deepcopy(data.references or {})
+    table.sort(references, function(a, b)
+      local a_path = cache.notes.rel_path(a.filename)
+      local b_path = cache.notes.rel_path(b.filename)
+      if a_path ~= b_path then
+        return a_path < b_path
+      elseif a.lnum ~= b.lnum then
+        return a.lnum < b.lnum
+      else
+        return a.col < b.col
+      end
+    end)
     local lines = {}
     for i, reference in ipairs(references) do
       if i > 1 then

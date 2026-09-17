@@ -128,10 +128,7 @@ end
 ---@return string
 M.make_display = function(entry)
   if type(entry) == "string" then
-    entry = {
-      filename = entry,
-    }
-    -- return entry
+    return entry
   end
 
   local buf = {}
