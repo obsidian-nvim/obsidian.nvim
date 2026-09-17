@@ -8,6 +8,7 @@ local link_parser = require "obsidian.link.parser"
 local header = require "obsidian.parse.header"
 local block_ids = require "obsidian.parse.block_id"
 local uri_util = require "obsidian.uri"
+local attachment = require "obsidian.attachment"
 
 local function open_uri(uri, scheme)
   if vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
@@ -28,6 +29,16 @@ end
 ---@field cursor_row integer|?
 ---@field anchor string|?
 ---@field block string|?
+
+--- Open an attachment with the system default application.
+---@param location string Attachment path or link target.
+local function open_attachment(location, opts)
+  attachment._resolve_async(location, { bufnr = opts and opts.bufnr }, function(path, err)
+    if path and not err then
+      vim.ui.open(path)
+    end
+  end)
+end
 
 ---@param location string
 ---@param callback function
@@ -140,11 +151,6 @@ local function open_note(location, callback, opts)
     buf_dir = source ~= "" and vim.fs.dirname(source) or nil,
     notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
   })
-end
-
-local function open_attachment(location, opts)
-  local path = api.resolve_attachment_path(location, opts and opts.bufnr or nil)
-  vim.ui.open(path)
 end
 
 local handle_wiki_link = function(location, callback, opts)

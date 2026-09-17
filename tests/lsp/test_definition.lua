@@ -97,11 +97,13 @@ local function test_ft(ext)
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = ([==[
 
-[target](./target.%s)
+[target](target.%s)
 ]==]):format(ext),
+    ["attachments/target." .. ext] = "",
   })
 
   child.lua [[
+  _G.uri = nil
   vim.ui.open = function(uri)
     _G.uri = uri
   end
@@ -110,6 +112,7 @@ local function test_ft(ext)
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
+  h.child_wait(child, "return _G.uri ~= nil", { desc = "attachment URI" })
   fs_eq(tostring(child.Obsidian.dir / "attachments" / ("target." .. ext)), child.lua_get "uri")
 end
 

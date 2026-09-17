@@ -103,4 +103,69 @@ T["parse"]["does not split URI fragments or Windows paths"] = function()
   eq(nil, block)
 end
 
+T["missing_link_path predicts paths without firing creation hooks"] = function()
+  local result = child.lua [[
+local callback_calls = 0
+local autocmd_calls = 0
+Obsidian.opts.callbacks.create_note = function()
+  callback_calls = callback_calls + 1
+end
+vim.api.nvim_create_autocmd("User", {
+  pattern = "ObsidianNoteCreate",
+  callback = function()
+    autocmd_calls = autocmd_calls + 1
+  end,
+})
+
+local note_path = M.missing_link_path("Missing")
+local attachment_path = M.missing_link_path("PHOTO.PNG", tostring(Obsidian.dir / "Current.md"))
+return {
+  callback_calls = callback_calls,
+  autocmd_calls = autocmd_calls,
+  note_path = note_path,
+  attachment_path = attachment_path,
+}
+  ]]
+
+  eq(0, result.callback_calls)
+  eq(0, result.autocmd_calls)
+  eq(true, vim.endswith(result.note_path, ".md"))
+  eq(true, vim.endswith(result.attachment_path, "PHOTO.PNG"))
+end
+
+T["missing_link_path preserves relative and vault-absolute semantics"] = function()
+  local result = child.lua [[
+Obsidian.opts.note_id_func = function(id)
+  return id
+end
+local source = tostring(Obsidian.dir / "nested" / "Current.md")
+local api = require "obsidian.api"
+local original_confirm = api.confirm
+api.confirm = function()
+  return "Yes"
+end
+api.create_new_note("./Created", nil, { source_path = source })
+api.create_new_note("../Root", nil, { source_path = source })
+api.create_new_note("/Absolute", nil, { source_path = source })
+api.confirm = original_confirm
+return {
+  sibling = M.missing_link_path("./Sibling", source),
+  parent = M.missing_link_path("../Parent", source),
+  absolute = M.missing_link_path("/AbsoluteMissing", source),
+  attachment = M.missing_link_path("/assets/Image.png", source),
+  created_sibling = vim.uv.fs_stat(tostring(Obsidian.dir / "nested" / "Created.md")) ~= nil,
+  created_parent = vim.uv.fs_stat(tostring(Obsidian.dir / "Root.md")) ~= nil,
+  created_absolute = vim.uv.fs_stat(tostring(Obsidian.dir / "Absolute.md")) ~= nil,
+}
+  ]]
+
+  eq(tostring(child.Obsidian.dir / "nested" / "Sibling.md"), result.sibling)
+  eq(tostring(child.Obsidian.dir / "Parent.md"), result.parent)
+  eq(tostring(child.Obsidian.dir / "AbsoluteMissing.md"), result.absolute)
+  eq(tostring(child.Obsidian.dir / "assets" / "Image.png"), result.attachment)
+  eq(true, result.created_sibling)
+  eq(true, result.created_parent)
+  eq(true, result.created_absolute)
+end
+
 return T

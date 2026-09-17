@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `:Obsidian quick_switch` new capabilities:
+  - `opts.quick_switch.show_existing_only` default to `true`.
+  - `opts.quick_switch.show_attachments` default to `false`.
 - Prompt to confirm deletion for notes that have backlinks and attachments.
 - Attachment destination and vault-wide reference resolution, with `attachment.rename()` and `attachment.delete()` APIs.
 - Line-level Markdown list item and task parsers (`obsidian.parse.line.list_items`, `obsidian.parse.line.tasks`) with unified marker, indentation, and task-state metadata.

@@ -12,7 +12,6 @@ local Path = require "obsidian.path"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local fs_util = require "obsidian.util.fs"
 local compat = require "obsidian.compat"
 local uri = require "obsidian.uri"
 local header_parser = require "obsidian.parse.header"
@@ -288,7 +287,6 @@ end
 ---@return string id
 ---@return obsidian.Path path
 ---@return string|? title
----@private
 Note._resolve_id_path = function(opts, prompt_invalid_filename)
   local id, dir = opts.id, opts.dir
   local workspace = opts.source_path and api.find_workspace(opts.source_path) or nil
@@ -376,13 +374,15 @@ Note._resolve_id_path = function(opts, prompt_invalid_filename)
 
   -- Reject generated filenames that are invalid on any platform.
   local valid, reason = util.is_valid_filename(path.stem)
-  while not valid do
-    if not prompt_invalid_filename then
-      error(("invalid note filename %q: %s"):format(path.stem, reason), 2)
+  if opts.check_invalid_filename ~= false then
+    while not valid do
+      if not prompt_invalid_filename then
+        error(("invalid note filename %q: %s"):format(path.stem, reason), 2)
+      end
+      id = prompt_for_valid_filename(path.stem)
+      path = Note._generate_path(id, dir, creation_opts.note_path_func)
+      valid, reason = util.is_valid_filename(path.stem)
     end
-    id = prompt_for_valid_filename(path.stem)
-    path = Note._generate_path(id, dir, creation_opts.note_path_func)
-    valid, reason = util.is_valid_filename(path.stem)
   end
 
   return id, path, title
@@ -1321,27 +1321,6 @@ end
 
 Note.delete = require("obsidian.note.delete").delete
 
----@param path obsidian.Path vault-relative-path
----@param style obsidian.link.LinkFormat?
----@param base_dir string|obsidian.Path?
----@return string foramted_path
-local function format_path(path, style, base_dir)
-  if style == "absolute" then
-    return assert(path:vault_relative_path {})
-  elseif style == "relative" then
-    base_dir = base_dir or Obsidian.buf_dir or api.resolve_workspace_dir()
-    if base_dir == nil then
-      return assert(path:vault_relative_path {})
-    end
-
-    local relpath =
-      assert(fs_util.relpath(tostring(base_dir), tostring(path)), "failed to resolve link path against current note")
-    return relpath
-  else
-    return vim.fs.basename(tostring(path))
-  end
-end
-
 ---@class obsidian.note.FormatLinkOpts : obsidian.link.LinkCreationOpts
 ---@field dir? string|obsidian.Path Base directory for relative links.
 
@@ -1356,23 +1335,15 @@ Note.format_link = function(self, opts)
   local link_format = opts.format or Obsidian.opts.link.format
 
   local new_opts = {
-    path = format_path(self.path, link_format, opts.dir),
+    path = tostring(self.path),
     label = label,
     anchor = opts.anchor,
     block = opts.block,
     style = link_style,
     format = link_format,
+    dir = opts.dir,
   }
-
-  if link_style == "markdown" then
-    return require("obsidian.builtin").markdown_link(new_opts)
-  elseif link_style == "wiki" or link_style == nil then
-    return require("obsidian.builtin").wiki_link(new_opts)
-  elseif type(link_style) == "function" then
-    return link_style(new_opts)
-  else
-    error(string.format("Invalid link style '%s'", link_style))
-  end
+  return api.format_link(new_opts)
 end
 
 --- Return note status counts, like obsidian's status bar.
@@ -1570,6 +1541,7 @@ end
 ---@field tags string[]|?  Tags for this note
 ---@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
 ---@field scope string|? Arbitrary note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+---@field check_invalid_filename boolean|?
 
 ---@class (exact) obsidian.note.CreateCallbackOpts
 ---@field scope string Scope inherited from the `Note.create` opts, or `"plain"` when not set.

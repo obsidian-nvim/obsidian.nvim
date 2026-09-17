@@ -233,11 +233,15 @@ T["note and tag mappings accept string values"] = function()
   local Note = require "obsidian.note"
   local ui = require "obsidian.ui"
   local original_from_file = Note.from_file
+  local original_fs_stat = vim.uv.fs_stat
   local original_put = vim.api.nvim_put
   local original_update = ui.update
   local inserted = {}
 
   local ok, err = pcall(function()
+    vim.uv.fs_stat = function()
+      return {}
+    end
     Note.from_file = function(path)
       eq("/vault/note.md", path)
       return {
@@ -256,6 +260,7 @@ T["note and tag mappings accept string values"] = function()
   end)
 
   Note.from_file = original_from_file
+  vim.uv.fs_stat = original_fs_stat
   vim.api.nvim_put = original_put
   ui.update = original_update
   if not ok then
@@ -265,65 +270,32 @@ T["note and tag mappings accept string values"] = function()
   eq({ "[[note]]", "#project" }, inserted)
 end
 
-T["find_files_from_cache applies initial query case-insensitively"] = function()
+T["grep_notes supplies the backend command"] = function()
+  local captured
   local dir = Path.temp { suffix = "-obsidian-picker" }
   dir:mkdir { parents = true }
-  helpers.write("# Agenda", dir / "Agenda.md")
-  helpers.write("# Other", dir / "Other.md")
-  Obsidian = { dir = dir }
+  Obsidian = {
+    dir = dir,
+    opts = {
+      picker = { note_mappings = {} },
+      search = { sort_by = false, sort_reversed = false },
+    },
+  }
 
-  local cache = require "obsidian.cache"
-  cache.setup { enabled = true, backend = "memory" }
-  vim.wait(1000, function()
-    return cache.is_ready()
+  with_picker_stubs({
+    default = {
+      grep = function(opts)
+        captured = opts
+      end,
+    },
+  }, function()
+    picker.get(false)
+    picker.grep_notes { dir = dir, query = "needle" }
   end)
 
-  local picked_values
-  local picked_opts
-  local mapped
-  local original_select = picker.select
-  picker.select = function(values, opts)
-    picked_values = values
-    picked_opts = opts
-  end
-
-  eq(
-    true,
-    picker.find_files_from_cache {
-      use_cache = true,
-      query = "agenda",
-      selection_mappings = {
-        ["<C-l>"] = {
-          desc = "map",
-          callback = function(path)
-            mapped = path
-          end,
-        },
-      },
-    }
-  )
-  picked_opts.selection_mappings["<C-l>"].callback(picked_values[1])
-
-  local search = require "obsidian.search"
-  local original_find_async = search.find_async
-  local filesystem_calls = 0
-  search.find_async = function()
-    filesystem_calls = filesystem_calls + 1
-  end
-  picker.find_files { use_cache = true, query = "agenda" }
-  search.find_async = original_find_async
-
-  picker.select = original_select
-
-  eq(0, filesystem_calls)
-  eq(1, #picked_values)
-  eq("Agenda", picked_values[1].text)
-  eq(true, picked_opts.allow_multiple)
-  eq(nil, picked_opts.query)
-  eq(tostring(dir / "Agenda.md"), mapped)
-  local preview = picked_opts.preview_item(picked_values[1])
-  eq({ "# Agenda" }, vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false))
-  vim.api.nvim_buf_delete(preview.buf, { force = true })
+  eq("needle", captured.query)
+  eq("table", type(captured.cmd))
+  eq(true, #captured.cmd > 0)
 end
 
 T["find_files presents filesystem paths without a shell command"] = function()

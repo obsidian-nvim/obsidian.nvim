@@ -5,13 +5,20 @@ local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 
----@param path string
-M.insert_link = function(path)
+---@param arg string|obsidian.PickerEntry
+M.insert_link = function(arg)
+  local path = type(arg) == "table" and arg.filename or arg
+  ---@cast path string
   if not path or path == "" then
     return
   end
-  local note = Note.from_file(path)
-  local link = note:format_link()
+  local link
+  if not vim.uv.fs_stat(path) then
+    link = api.format_link { path = path }
+  else
+    local note = Note.from_file(path)
+    link = note:format_link()
+  end
   vim.api.nvim_put({ link }, "", false, true)
   require("obsidian.ui").update(0)
 end
@@ -68,8 +75,10 @@ M.new_note = function(query)
   require "obsidian.commands.new" { args = query }
 end
 
----@param path string
-M.bookmark = function(path)
+---@param arg string|obsidian.PickerEntry
+M.bookmark = function(arg)
+  local path = type(arg) == "table" and arg.filename or arg
+  ---@cast path string
   if not path or path == "" then
     return
   end

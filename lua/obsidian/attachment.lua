@@ -4,59 +4,29 @@ local fs_util = require "obsidian.util.fs"
 local link_parser = require "obsidian.link.parser"
 local uri = require "obsidian.uri"
 local log = require "obsidian.log"
+local filetypes = require "obsidian.filetypes"
 
 ---@enum obsidian.attachment.ft
-local filetypes = {
+local supported_filetypes = {
   -- markdown
   "md",
-  -- json canvas
-  "canvas",
-  -- images
-  "avif",
-  "bmp",
-  "gif",
-  "jpg",
-  "jpeg",
-  "png",
-  "svg",
-  "webp",
-  -- audio
-  "flac",
-  "m4a",
-  "mp3",
-  "ogg",
-  "wav",
-  "3gp",
-  -- video
-  "mkv",
-  "mov",
-  "mp4",
-  "ogv",
-  "webm",
-  -- pdf
-  "pdf",
 }
+vim.list_extend(supported_filetypes, filetypes.attachment_extensions)
 
 -- TODO: file extension to mime type and vice versa
 
-M.filetypes = filetypes
+M.filetypes = supported_filetypes
 
 ---Checks if a given string represents a valid attachment based on its suffix.
 ---
 ---@param location string
 ---@return boolean
 M.is_attachment_path = function(location)
-  location = location:lower()
-  if vim.endswith(location, ".md") then
-    return false
-  end
-  for _, ext in ipairs(filetypes) do
-    if vim.endswith(location, "." .. ext) then
-      return true
-    end
-  end
-  return false
+  return filetypes.is_attachment(location)
 end
+
+-- Compatibility alias for callers using the filetype name.
+M.is_attachment_filetype = M.is_attachment_path
 
 --- Resolve the configured destination for a new attachment.
 ---
@@ -340,12 +310,57 @@ local function validate_attachment_name(name)
   return name
 end
 
+---@param dst string
+---@return string|?
+---@return string|?
+local function resolve_declared_dst(dst)
+  local Path = require "obsidian.path"
+  dst = vim.trim(dst)
+  if dst == "" then
+    return nil, "Attachment destination cannot be empty"
+  end
+
+  local is_uri, scheme = uri.is_uri(dst)
+  if is_uri then
+    if scheme ~= "file" then
+      return nil, "Attachment destination must be a file path"
+    end
+    dst = vim.uri_to_fname(dst)
+  end
+
+  local dst_path = Path.new(dst)
+  if not dst_path:is_absolute() then
+    dst = tostring(Obsidian.dir / dst)
+  end
+  dst = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(dst), ":p"))
+
+  local vault_dir = vim.fs.normalize(vim.fn.fnamemodify(tostring(Obsidian.dir), ":p"))
+  if not fs_util.is_subpath(dst, vault_dir) then
+    return nil, "Attachment destination must be inside vault: " .. dst
+  end
+
+  return dst
+end
+
+---@param fname string
+---@param bufnr integer|?
+---@param dst string|?
+---@return string|?
+---@return string|?
+local function resolve_dst(fname, bufnr, dst)
+  if dst then
+    return resolve_declared_dst(dst)
+  end
+  return M.resolve_attachment_path(fname, bufnr)
+end
+
 ---@param src string
 ---@param bufnr integer|?
 ---@param new_name string|?
+---@param dst string|?
 ---@return string|?
 ---@return string|?
-local function get_attachment_paths(src, bufnr, new_name)
+local function get_attachment_paths(src, bufnr, new_name, dst)
   local is_uri, scheme = uri.is_uri(src)
   local src_path, fname
 
@@ -388,7 +403,11 @@ local function get_attachment_paths(src, bufnr, new_name)
     fname = validated_name
   end
 
-  return src_path, M.destination_path(fname, bufnr)
+  local resolved_dst, dst_err = resolve_dst(fname, bufnr, dst)
+  if not resolved_dst then
+    return nil, dst_err
+  end
+  return src_path, resolved_dst
 end
 
 ---@param src string
@@ -455,6 +474,7 @@ end
 ---@field insert? boolean Insert the generated attachment link. Defaults to true.
 ---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
 ---@field new_name? string Destination attachment basename. Path separators are rejected.
+---@field dst? string Exact destination path. Must be inside the vault.
 ---@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
 ---@field scope? string Context where the attachment is added.
 
@@ -486,14 +506,16 @@ end
 M.add = function(src, opts)
   opts = opts or {}
   src = vim.trim(src)
-  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr, opts.new_name)
+  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr, opts.new_name, opts.dst)
   if not resolved_src then
     log.err(resolved_dst or "Failed to resolve attachment")
     return
   end
 
   ---@cast resolved_dst -nil
-  resolved_dst = unique_dst(resolved_dst)
+  if not opts.dst then
+    resolved_dst = unique_dst(resolved_dst)
+  end
   local err = copy_attachment(resolved_src, resolved_dst)
   if err then
     log.err(err)

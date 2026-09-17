@@ -1,11 +1,9 @@
-local fs_util = require "obsidian.util.fs"
 local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
-local cache = require "obsidian.cache"
+local icons = require "obsidian.icons"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.types").Picker
 local Mappings = require "obsidian.picker.mappings"
-local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 
@@ -14,7 +12,6 @@ local search = require "obsidian.search"
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
 ---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
----@field preview_path fun(path: string|obsidian.Path): obsidian.ui_select_preview_spec
 local M = {
   preview_path = picker_util.preview_path,
 }
@@ -54,7 +51,7 @@ end
 ---@class obsidian.PickerMappingOpts
 ---
 ---@field desc string
----@field callback fun(...: any)
+---@field callback fun(...: obsidian.PickerEntry|string)
 ---@field fallback_to_query boolean|?
 ---@field keep_open boolean|?
 ---@field allow_multiple boolean|?
@@ -71,7 +68,8 @@ end
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field include_non_markdown boolean|?
----@field use_cache boolean|?
+---@field show_existing_only boolean|?
+---@field show_attachments boolean|?
 
 ---@class obsidian.PickerGrepOpts
 ---
@@ -99,6 +97,12 @@ end
 ---@field format_item (fun(value: any): string)|?
 ---@field preview_item (fun(value: any): obsidian.ui_select_preview_spec)?
 ---@field query string|?
+---
+---@class obsidian.PickerEntryUserData
+---@field attachment boolean|?
+---@field missing boolean|?
+---@field references obsidian.NoteCreationReference[]|?
+---@field target string|?
 ---
 ---@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts
 ---
@@ -144,117 +148,13 @@ end
 
 M.pick = pick
 
----@param mappings obsidian.PickerMappingTable|?
----@param transform fun(value: any): string
----@return obsidian.PickerMappingTable|?
-local function transform_selection_mappings(mappings, transform)
-  if not mappings then
-    return nil
-  end
-
-  local transformed = {}
-  for key, mapping in pairs(mappings) do
-    local callback = mapping.callback
-    transformed[key] = vim.tbl_extend("force", {}, mapping, {
-      callback = function(...)
-        callback(unpack(vim.tbl_map(transform, { ... })))
-      end,
-    })
-  end
-  return transformed
-end
-
----@param opts obsidian.PickerFindOpts|?
----@return boolean handled
-M.find_files_from_cache = function(opts)
-  opts = opts or {}
-  if not opts.use_cache or not cache.is_enabled() or opts.include_non_markdown then
-    return false
-  end
-
-  local workspace_dir = api.resolve_workspace_dir()
-  local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(workspace_dir))
-  if not fs_util.is_subpath(dir, tostring(workspace_dir)) then
-    return false
-  end
-
-  cache.when_ready(function()
-    local query = opts.query and vim.trim(opts.query) or nil
-    if query == "" then
-      query = nil
-    end
-    local query_lower = query and string.lower(query) or nil
-
-    ---@type obsidian.PickerEntry[]
-    local entries = {}
-
-    ---@param text string
-    ---@param path string
-    local function add_entry(text, path)
-      if query_lower and not string.find(string.lower(text), query_lower, 1, true) then
-        return
-      end
-      entries[#entries + 1] = {
-        text = text,
-        filename = path,
-      }
-    end
-
-    for path, note in pairs(cache.notes.all()) do
-      if fs_util.is_subpath(path, dir) then
-        local rel_path = cache.notes.rel_path(path):gsub("%.md$", "")
-        add_entry(rel_path, path)
-        for _, alias in ipairs(note.aliases or {}) do
-          add_entry(rel_path .. " | " .. alias, path)
-        end
-      end
-    end
-
-    local pick_query = opts.query
-    if query and #entries > 0 then
-      pick_query = nil
-    end
-
-    M.select(entries, {
-      prompt = opts.prompt_title,
-      allow_multiple = true,
-      -- The cache has already applied the initial query case-insensitively.
-      -- Don't pass it through, since some pickers would filter again case-sensitively.
-      query = pick_query,
-      query_mappings = opts.query_mappings,
-      selection_mappings = transform_selection_mappings(opts.selection_mappings, function(item)
-        return item.filename
-      end),
-      format_item = function(item)
-        local icon = icons.get_path_icon(item.filename)
-        return icon .. " " .. item.text
-      end,
-      preview_item = function(item)
-        return picker_util.preview_path(item.filename)
-      end,
-    }, function(items)
-      local paths = vim.tbl_filter(
-        function(path)
-          return path ~= nil
-        end,
-        vim.tbl_map(function(item)
-          return item["filename"]
-        end, items)
-      )
-      local callback = opts.callback or picker_util.open_notes
-      callback(paths)
-    end)
-  end)
-
-  return true
-end
-
 --- Find files using the shared filesystem iterator and present them with the active picker.
 ---
 ---@param opts obsidian.PickerFindOpts?
 local find_files = function(opts)
   opts = opts or {}
-  if M.find_files_from_cache(opts) then
+
+  if require("obsidian.cache").find_files(opts) then
     return
   end
 
@@ -263,6 +163,7 @@ local find_files = function(opts)
   -- and Windows short paths remain relative to the picker directory.
   local dir = Path.new(opts.dir or api.resolve_workspace_dir()):resolve { strict = true }
   local paths = {}
+
   search.find_async(dir, nil, {
     sort_by = Obsidian.opts.search.sort_by,
     sort_reversed = Obsidian.opts.search.sort_reversed,
@@ -296,7 +197,7 @@ M.find_files = find_files
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(paths: string[])|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(paths: string[])|?, no_default_mappings: boolean|?, dir: obsidian.Path|?, show_existing_only: boolean|?, show_attachments: boolean|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -322,7 +223,8 @@ M.find_notes = function(opts)
     no_default_mappings = opts.no_default_mappings,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
-    use_cache = true,
+    show_existing_only = opts.show_existing_only,
+    show_attachments = opts.show_attachments,
   }
 end
 
@@ -449,20 +351,8 @@ end
 
 local function patch(modname)
   local picker = require(modname)
-  if picker.find_files then
-    M.find_files = function(opts)
-      opts = opts or {}
-      if M.find_files_from_cache(opts) then
-        return
-      end
-      picker.find_files(opts)
-    end
-  else
-    M.find_files = find_files
-  end
-
   for name, f in pairs(picker) do
-    if name ~= "pick" and name ~= "find_files" then
+    if name ~= "pick" then
       M[name] = f
     end
   end

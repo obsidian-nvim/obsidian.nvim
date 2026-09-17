@@ -104,6 +104,51 @@ M.path_is_note = function(path, workspace)
   return true
 end
 
+---@param path string
+---@param style obsidian.link.LinkFormat?
+---@param base_dir string|obsidian.Path?
+---@return string formatted_path
+local function format_path(path, style, base_dir)
+  local rel_path = Path.new(path):vault_relative_path()
+  if rel_path == nil then
+    error "failed to resolve link path relative to vault"
+  end
+
+  if style == "absolute" then
+    return rel_path
+  elseif style == "relative" then
+    base_dir = base_dir or Obsidian.buf_dir or M.resolve_workspace_dir()
+    if base_dir == nil then
+      return rel_path
+    end
+
+    local relpath =
+      assert(fs_util.relpath(tostring(base_dir), path), "failed to resolve link path against current note")
+    return relpath
+  else
+    return vim.fs.basename(path)
+  end
+end
+
+---@class obsidian.link.FormatLinkOpts : obsidian.link.LinkCreationOpts
+---@field path string
+---@field dir? string|obsidian.Path Base directory for relative links.
+
+---@param opts obsidian.link.FormatLinkOpts
+---@return string
+M.format_link = function(opts)
+  opts.path = format_path(opts.path, opts.format, opts.dir)
+  if opts.style == "markdown" then
+    return require("obsidian.builtin").markdown_link(opts)
+  elseif opts.style == "wiki" or opts.style == nil then
+    return require("obsidian.builtin").wiki_link(opts)
+  elseif type(opts.style) == "function" then
+    return opts.style(opts)
+  else
+    error(string.format("Invalid link style '%s'", opts.style))
+  end
+end
+
 ---Find the most specific workspace containing a path.
 ---@param path string|obsidian.Path
 ---@return obsidian.Workspace|?
@@ -369,6 +414,187 @@ local function entry_range(entry)
     ---@cast end_row integer
     ---@cast normalized_end_col integer
     return Range.new(start_row, start_col, end_row, normalized_end_col)
+  end
+end
+
+---@class obsidian.NoteCreationReference
+---@field filename string
+---@field lnum integer
+---@field col integer
+---@field raw string
+
+--- Prompt to create a new note when a link target does not exist.
+---
+---@param location string Note id or path.
+---@param callback (fun(locations: lsp.Location[]|nil)|nil)?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|?, anchor: string|?, block: string|?, references: obsidian.NoteCreationReference[]|?, source_path: string|? }|?
+M.create_new_note = function(location, callback, opts)
+  opts = opts or {}
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  local cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
+
+  local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
+  local has_unique = Obsidian.opts.unique_note.enabled
+
+  local options = { "&Yes" }
+  if has_template then
+    table.insert(options, "Yes with &Template")
+  end
+  if has_unique then
+    table.insert(options, "Yes as &Unique Note")
+  end
+  table.insert(options, "&No")
+
+  local format_options = table.concat(options, "\n")
+
+  local function update_link(note)
+    if opts.range and vim.api.nvim_buf_is_valid(bufnr) then
+      local source = vim.api.nvim_buf_get_name(bufnr)
+      local new_link = note:format_link {
+        label = opts.label or location,
+        anchor = opts.anchor,
+        block = opts.block,
+        dir = source ~= "" and vim.fs.dirname(source) or nil,
+      }
+      vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
+    end
+  end
+
+  ---@param note obsidian.Note
+  ---@param reference obsidian.NoteCreationReference
+  ---@return string?
+  local function format_reference(note, reference)
+    local parsed = parse_refs.extract(reference.raw or "")[1]
+    if not parsed or (parsed.kind ~= "wiki" and parsed.kind ~= "markdown") then
+      return nil
+    end
+
+    -- Relative links must be formatted from the referencing note's directory,
+    -- which may not be the current buffer when creation starts from a picker.
+    local previous_buf_dir = Obsidian.buf_dir
+    local reference_dir = vim.fs.dirname(reference.filename)
+    if reference_dir then
+      Obsidian.buf_dir = Path.new(reference_dir)
+    end
+    local ok, new_link = pcall(note.format_link, note, {
+      label = parsed.label or location,
+      anchor = parsed.anchor,
+      block = parsed.block,
+      style = parsed.kind,
+    })
+    Obsidian.buf_dir = previous_buf_dir
+    if not ok then
+      log.err(new_link)
+      return nil
+    end
+
+    return (parsed.embed and "!" or "") .. new_link
+  end
+
+  ---@param note obsidian.Note
+  local function update_references(note)
+    local references = vim.deepcopy(opts.references or {})
+    table.sort(references, function(a, b)
+      if a.filename ~= b.filename then
+        return a.filename < b.filename
+      elseif a.lnum ~= b.lnum then
+        return a.lnum > b.lnum
+      else
+        return a.col > b.col
+      end
+    end)
+
+    local buffers = {}
+    for _, reference in ipairs(references) do
+      local filename = reference.filename
+      local lnum = tonumber(reference.lnum)
+      local col = tonumber(reference.col)
+      local raw = reference.raw
+      ---@cast lnum integer
+      ---@cast col integer
+      if filename and lnum and col and type(raw) == "string" then
+        local state = buffers[filename]
+        if not state then
+          local existing_bufnr = vim.fn.bufnr(filename)
+          local was_loaded = existing_bufnr ~= -1 and vim.api.nvim_buf_is_loaded(existing_bufnr)
+          state = {
+            bufnr = was_loaded and existing_bufnr or nil,
+            lines = not was_loaded and vim.fn.readfile(filename) or nil,
+            changed = false,
+          }
+          buffers[filename] = state
+        end
+
+        local line
+        if state.bufnr then
+          line = vim.api.nvim_buf_get_lines(state.bufnr, lnum - 1, lnum, false)[1]
+        else
+          line = state.lines[lnum]
+        end
+        local start_col = col - 1
+        if line and line:sub(col, col + #raw - 1) == raw then
+          local new_link = format_reference(note, reference)
+          if new_link then
+            if state.bufnr then
+              vim.api.nvim_buf_set_text(state.bufnr, lnum - 1, start_col, lnum - 1, start_col + #raw, { new_link })
+            else
+              state.lines[lnum] = line:sub(1, start_col) .. new_link .. line:sub(col + #raw)
+            end
+            state.changed = true
+          end
+        else
+          log.warn("Could not update stale reference at %s:%d:%d", filename, lnum, col)
+        end
+      end
+    end
+
+    -- Preserve the usual unsaved-buffer behavior for open notes. Rewrite
+    -- unloaded files directly so buffer write hooks do not add unrelated
+    -- frontmatter or other generated content.
+    for filename, state in pairs(buffers) do
+      if state.changed and not state.bufnr then
+        vim.fn.writefile(state.lines, filename)
+      end
+    end
+  end
+
+  local function on_created(note)
+    update_link(note)
+    update_references(note)
+    if callback then
+      callback { note:_location() }
+    end
+  end
+
+  local buffer_path = vim.api.nvim_buf_get_name(bufnr)
+  local source_path = opts.source_path or (buffer_path ~= "" and buffer_path or nil)
+  local action_opts = { source_path = source_path }
+  local workspace_dir = M.resolve_workspace_dir(source_path)
+  local creation_location = location
+  if source_path and (vim.startswith(location, "./") or vim.startswith(location, "../")) then
+    local target = vim.fs.normalize(vim.fs.joinpath(vim.fs.dirname(source_path), location))
+    if fs_util.is_subpath(target, tostring(workspace_dir)) then
+      creation_location = assert(fs_util.relpath(tostring(workspace_dir), target))
+      if not creation_location:find("/", 1, true) then
+        creation_location = "/" .. creation_location
+      end
+    end
+  end
+
+  local confirm = M.confirm(("Create new note '%s'?"):format(location), format_options)
+  if confirm == "Yes" then
+    require("obsidian.actions").new(creation_location, on_created, action_opts)
+  elseif confirm == "Yes with Template" then
+    require("obsidian.actions").new_from_template(creation_location, nil, on_created, action_opts)
+  elseif confirm == "Yes as Unique Note" then
+    local unique_dir = Obsidian.opts.unique_note.folder and workspace_dir / Obsidian.opts.unique_note.folder
+      or workspace_dir
+    local note = require("obsidian.unique").new_unique_note(nil, { title = location, dir = unique_dir })
+    if note then
+      on_created(note)
+    end
+  else
+    return log.warn "Aborted"
   end
 end
 
