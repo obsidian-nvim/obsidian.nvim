@@ -113,8 +113,9 @@ end
 --- TODO: use in definition handler later,
 
 ---@param location string
+---@param source_path string|? path of the note containing the link, used to resolve relative paths.
 ---@return string|?
-M.resolve_link_path = function(location)
+M.resolve_link_path = function(location, source_path)
   if uri.is_uri(location) then
     return nil
   end
@@ -126,68 +127,39 @@ M.resolve_link_path = function(location)
   end
 
   if attachment.is_attachment_path(location) then
-    return attachment.destination_path(location, vim.api.nvim_buf_get_name(0)) -- TODO: use sync resolve
+    local path = attachment._resolve(location, { filename = source_path })
+    if path then
+      return tostring(normalize_path(path))
+    end
+    return nil
   end
 
-  local location_path = Path.new(location)
-  local current_path = vim.api.nvim_buf_get_name(0)
-  local current_dir = current_path ~= "" and Path.new(vim.fs.dirname(current_path)) or nil
+  local current_path = source_path or vim.api.nvim_buf_get_name(0)
+  local current_dir = current_path ~= "" and vim.fs.dirname(current_path) or nil
   local workspace_dir = api.resolve_workspace_dir(current_path ~= "" and current_path or nil)
 
-  local candidates = {}
-  local seen = {}
-
-  ---@param path string|obsidian.Path|?
-  local add_candidate = function(path)
-    if not path then
-      return
+  -- Prefer an exact note next to the source over a same-named note elsewhere.
+  if current_dir and not Path.new(location):is_absolute() then
+    local source_location = location
+    if
+      not vim.endswith(source_location, ".md")
+      and not vim.endswith(source_location, ".qmd")
+      and not vim.endswith(source_location, ".base")
+    then
+      source_location = source_location .. ".md"
     end
-
-    local normalized = normalize_path(path)
-    local key = tostring(normalized)
-    if seen[key] then
-      return
-    end
-
-    seen[key] = true
-    candidates[#candidates + 1] = normalized
-  end
-
-  if location_path:is_absolute() then
-    add_candidate(location_path)
-  else
-    if current_dir then
-      add_candidate(current_dir / location)
-    end
-    add_candidate(location_path)
-    add_candidate(workspace_dir / location)
-
-    if Obsidian.opts.notes_subdir ~= nil then
-      add_candidate(workspace_dir / Obsidian.opts.notes_subdir / location)
-    end
-
-    if Obsidian.opts.daily_notes.folder ~= nil then
-      add_candidate(workspace_dir / Obsidian.opts.daily_notes.folder / location)
+    local source_candidate = Path.new(current_dir) / source_location
+    if source_candidate:is_file() then
+      return tostring(normalize_path(source_candidate))
     end
   end
 
-  for _, candidate in ipairs(candidates) do
-    if candidate:is_file() or candidate:is_dir() then
-      return tostring(candidate)
-    end
-  end
+  local notes = search.resolve_note(location, {
+    dir = workspace_dir,
+    buf_dir = current_dir,
+  })
 
-  local notes = search.find_notes(location, {})
-  if not vim.endswith(location:lower(), ".base") then
-    notes = vim.tbl_filter(function(note)
-      return not vim.endswith(tostring(note.path), ".base")
-    end, notes)
-  end
-  if vim.tbl_isempty(notes) then
-    return nil
-  elseif #notes == 1 then
-    return tostring(notes[1].path)
-  elseif #notes > 1 then
+  if not vim.tbl_isempty(notes) and notes[1] ~= nil then
     return tostring(notes[1].path)
   end
 end
