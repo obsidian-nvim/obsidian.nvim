@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Use `ImageMagick` when installed to fix macos `pngpaste` contrast issue #931.
 - Obsidian-style vault-wide heading completion with `[[##query`, using cached heading metadata when available and filesystem search otherwise (#320, #505, #749).
 - Setup-time configuration validation with aggregated errors and `:checkhealth` reporting (#79).
 - Runtime enum tables for configuration values and type check, exported through `require("obsidian.types")`.
