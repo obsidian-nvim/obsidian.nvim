@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `obsidian.util` now contains only shared string, filename, callback, deprecation, and file-writing helpers.
 - The documented minimum Neovim version is now 0.11, matching runtime checks and CI.
 - Unified internal document parser for ignored ranges.
+- Unified tag module for tag related operations.
 
 ### Fixed
 

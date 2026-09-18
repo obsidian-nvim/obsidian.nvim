@@ -9,6 +9,7 @@ local async = require "obsidian.async"
 local fs = require "obsidian.fs"
 local gitignore = require("obsidian.lib.glob").gitignore
 local api = require "obsidian.api"
+local tags = require "obsidian.tag"
 
 local M = {}
 
@@ -791,20 +792,21 @@ end
 ---@field note obsidian.Note The note instance where the tag was found.
 ---@field path string|obsidian.Path The path to the note where the tag was found.
 ---@field line integer The line number (1-indexed) where the tag was found.
----@field text string The source line where the tag was found (frontmatter list displays remain trimmed for compatibility).
----@field tag_start integer|? The 1-based byte index within the source line where the tag starts.
----@field tag_end integer|? The index within 'text' where the tag ends.
+---@field text string The original source line where the tag was found.
+---@field range obsidian.Range The exact source range of the tag.
+---@field tag_start integer The 1-based byte column where the tag starts.
+---@field tag_end integer The 1-based exclusive byte column where the tag ends.
 
 --- Find all tags starting with the given search term(s).
 ---
 ---@param term string|string[] The search term.
----@param opts { search: obsidian.SearchOpts|?, timeout: integer|?, dir: obsidian.Path|? }|?
+---@param opts { search: obsidian.SearchOpts|?, timeout: integer|?, dir: obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
 ---@return obsidian.TagLocation[] tags always returns a list (empty on timeout)
 M.find_tags = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    M.find_tags_async(term, cb, { search = opts.search, dir = opts.dir })
+    M.find_tags_async(term, cb, { search = opts.search, dir = opts.dir, match = opts.match })
   end, opts.timeout)
   ---@cast result obsidian.TagLocation[]?
   return result or {}
@@ -814,7 +816,7 @@ end
 ---
 ---@param term string|string[] The search term.
 ---@param callback fun(tags: obsidian.TagLocation[])
----@param opts { search: obsidian.SearchOpts|?, dir: obsidian.Path|? }|?
+---@param opts { search: obsidian.SearchOpts|?, dir: obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
 M.find_tags_async = function(term, callback, opts)
   callback = vim.schedule_wrap(callback)
   opts = opts or {}
@@ -822,16 +824,19 @@ M.find_tags_async = function(term, callback, opts)
   local Note = require "obsidian.note"
 
   ---@type string[]
-  local terms
+  local input_terms
   if type(term) == "string" then
-    terms = { term }
+    input_terms = { term }
   else
-    terms = term
+    input_terms = term
   end
-
-  for i, t in ipairs(terms) do
-    if vim.startswith(t, "#") then
-      terms[i] = string.sub(t, 2)
+  local terms = {}
+  local terms_seen = {}
+  for _, input_term in ipairs(input_terms) do
+    local normalized = tags.normalize(input_term)
+    if not terms_seen[normalized] then
+      terms[#terms + 1] = normalized
+      terms_seen[normalized] = true
     end
   end
 
@@ -840,159 +845,75 @@ M.find_tags_async = function(term, callback, opts)
   -- Maps paths to tag locations.
   ---@type table<string, obsidian.TagLocation[]>
   local path_to_tag_loc = {}
-  -- Caches note objects.
-  ---@type table<string, obsidian.Note>
-  local path_to_note = {}
-  -- Caches full source snapshots used for byte-accurate exclusion filtering.
-  ---@type table<string, obsidian.parse.Document>
-  local path_to_document = {}
-  -- Keeps track of the order of the paths.
-  ---@type table<string, integer>
-  local path_order = {}
-
-  local num_paths = 0
+  local processed_paths = {}
   local err_count = 0
   local first_err = nil
   local first_err_path = nil
 
-  ---@param tag string
-  ---@param path string|obsidian.Path
-  ---@param note obsidian.Note
-  ---@param lnum integer
-  ---@param text string
-  ---@param col_start integer|?
-  ---@param col_end integer|?
-  local add_match = function(tag, path, note, lnum, text, col_start, col_end)
-    if vim.startswith(tag, "#") then
-      tag = string.sub(tag, 2)
+  ---@param occurrence obsidian.TagOccurrence
+  ---@return boolean
+  local include_occurrence = function(occurrence)
+    for _, query in ipairs(terms) do
+      if tags.matches(occurrence.tag, query, opts.match or "prefix") then
+        return true
+      end
     end
-    local path_key = tostring(path)
-    if not path_to_tag_loc[path_key] then
-      path_to_tag_loc[path_key] = {}
-    end
-    path_to_tag_loc[path_key][#path_to_tag_loc[path_key] + 1] = {
-      tag = tag,
-      path = path,
-      note = note,
-      line = lnum,
-      text = text,
-      tag_start = col_start,
-      tag_end = col_end,
-    }
-  end
-
-  ---@param path obsidian.Path
-  ---@return { [1]: obsidian.Note, [2]: obsidian.parse.Document }
-  local load_note = function(path)
-    local file = assert(io.open(tostring(path), "r"), "failed to open note")
-    local lines = {}
-    for source_line in file:lines() do
-      lines[#lines + 1] = source_line:gsub("\r$", "")
-    end
-    file:close()
-    local document = Document.parse(lines)
-    local note = Note.from_lines(lines, path, { max_lines = #lines, document = document })
-    return { note, document }
+    return false
   end
 
   ---@param match_data MatchData
   local on_match = function(match_data)
     local path = Path.new(match_data.path.text):resolve { strict = true }
-
     local path_key = tostring(path)
-    if path_order[path_key] == nil then
-      num_paths = num_paths + 1
-      path_order[path_key] = num_paths
-    end
-
-    -- Load note.
-    local note = path_to_note[path_key]
-    local document = path_to_document[path_key]
-    if not note or not document then
-      local ok, res = pcall(load_note, path)
-      if ok then
-        note, document = unpack(res)
-        path_to_note[path_key] = note
-        path_to_document[path_key] = document
-      else
-        err_count = err_count + 1
-        if first_err == nil then
-          first_err = res
-          first_err_path = path
-        end
-        return
-      end
-    end
-
-    local row = match_data.line_number - 1
-    local line = document.lines[row + 1]
-    if line == nil then
+    if processed_paths[path_key] then
       return
     end
-    local n_matches = 0
+    processed_paths[path_key] = true
 
-    -- Check body hashtags against their exact source ranges.
-    local parse_tags = require "obsidian.parse.tags"
-    for _, tag_match in ipairs(parse_tags.extract(line, { row = row, lexical = true })) do
-      if not document:intersects(tag_match.range, Document.BODY_EXCLUSIONS) then
-        add_match(
-          tag_match.tag,
-          path,
-          note,
-          match_data.line_number,
-          line,
-          tag_match.range.start_col + 1,
-          tag_match.range.end_col
-        )
-        n_matches = n_matches + 1
+    local ok, note = pcall(Note.from_file, path, {
+      load_contents = true,
+      max_lines = Obsidian.opts.search.max_lines,
+    })
+    if not ok then
+      err_count = err_count + 1
+      if first_err == nil then
+        first_err = note
+        first_err_path = path
       end
+      return
     end
 
-    -- Frontmatter tags continue through the YAML semantic path.
-    local frontmatter = document.frontmatter
-    if
-      n_matches == 0
-      and frontmatter ~= nil
-      and frontmatter.termination == "delimiter"
-      and frontmatter.body_range ~= nil
-      and frontmatter.body_range.start_row <= row
-      and row < frontmatter.body_range.end_row
-      and note.tags ~= nil
-      and (vim.startswith(vim.trim(line), "tags:") or string.match(line, "%s*- "))
-    then
-      local display_line = vim.trim(line)
-      local tag = vim.trim(string.sub(display_line, 3)) -- HACK: works because we force '  - tag'
-      if vim.list_contains(note.tags, tag) then
-        add_match(tag, path, note, match_data.line_number, display_line)
+    local locations = {}
+    for _, occurrence in
+      ipairs(tags.extract(note.raw_contents or note.contents, {
+        frontmatter_end_line = note.frontmatter_end_line,
+        frontmatter_elements = note.frontmatter_elements,
+      }))
+    do
+      if include_occurrence(occurrence) then
+        locations[#locations + 1] = {
+          tag = occurrence.tag,
+          path = path,
+          note = note,
+          line = occurrence.range.start_row + 1,
+          text = occurrence.text,
+          range = occurrence.range,
+          tag_start = occurrence.range.start_col + 1,
+          tag_end = occurrence.range.end_col,
+        }
       end
+    end
+    if #locations > 0 then
+      path_to_tag_loc[path_key] = locations
     end
   end
 
-  local search_terms = {}
-  for _, t in ipairs(terms) do
-    if string.len(t) > 0 then
-      -- tag in the wild
-      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsOptionalRg .. t .. M.Patterns.TagCharsOptionalRg
-      -- frontmatter tag in multiline list
-      search_terms[#search_terms + 1] = "\\s*- "
-        .. M.Patterns.TagCharsOptionalRg
-        .. t
-        .. M.Patterns.TagCharsOptionalRg
-        .. "$"
-      -- frontmatter tag in inline list
-      search_terms[#search_terms + 1] = "tags: .*"
-        .. M.Patterns.TagCharsOptionalRg
-        .. t
-        .. M.Patterns.TagCharsOptionalRg
-    else
-      -- tag in the wild
-      search_terms[#search_terms + 1] = "#" .. M.Patterns.TagCharsRequiredRg
-      -- frontmatter tag in multiline list
-      search_terms[#search_terms + 1] = "\\s*- " .. M.Patterns.TagCharsRequiredRg .. "$"
-      -- frontmatter tag in inline list
-      search_terms[#search_terms + 1] = "tags: .*" .. M.Patterns.TagCharsRequiredRg
-    end
-  end
+  -- Ripgrep only identifies candidate files. Parsed occurrences below decide
+  -- whether a tag actually matches the query.
+  local search_terms = {
+    "#" .. M.Patterns.TagCharsRequiredRg,
+    "^\\s*tags\\s*:",
+  }
 
   M.search_async(
     opts.dir or api.resolve_workspace_dir(),
@@ -1002,26 +923,16 @@ M.find_tags_async = function(term, callback, opts)
     function(code)
       if code ~= 0 then
         callback {}
+        return
       end
       ---@type obsidian.TagLocation[]
       local tags_list = {}
 
-      -- Order by path.
-      local paths = {}
-      for path, idx in pairs(path_order) do
-        paths[idx] = path
-      end
-
-      -- Gather results in path order.
+      local paths = vim.tbl_keys(path_to_tag_loc)
+      table.sort(paths)
       for _, path in ipairs(paths) do
-        local tag_locs = path_to_tag_loc[path]
-        if tag_locs ~= nil then
-          table.sort(tag_locs, function(a, b)
-            return a.line < b.line
-          end)
-          for _, tag_loc in ipairs(tag_locs) do
-            tags_list[#tags_list + 1] = tag_loc
-          end
+        for _, tag_loc in ipairs(path_to_tag_loc[path]) do
+          tags_list[#tags_list + 1] = tag_loc
         end
       end
 

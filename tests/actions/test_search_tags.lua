@@ -59,4 +59,24 @@ T["search_tags uses select for tag choice"] = function()
   eq("wipe", result.result_select.preview_bufhidden)
 end
 
+T["tag choice deduplicates case-insensitively"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["a.md"] = "#Work",
+    ["b.md"] = "#work",
+  })
+
+  local items = h.child_await(
+    child,
+    [[
+      require("obsidian.picker").select = function(items)
+        done(items)
+      end
+      require("obsidian.actions").search_tags()
+    ]],
+    { desc = "case-insensitive tag picker" }
+  )
+
+  eq({ "Work" }, items)
+end
+
 return T

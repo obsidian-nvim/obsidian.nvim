@@ -15,6 +15,7 @@ local picker = require "obsidian.picker"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
 local list_items = require "obsidian.parse.line.list_items"
+local tag_module = require "obsidian.tag"
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
@@ -1385,14 +1386,16 @@ end
 ---@param tag_locations obsidian.TagLocation[]
 ---@return string[]
 local list_tags = function(tag_locations)
-  local tags = {}
+  local result = {}
+  local seen = {}
   for _, tag_loc in ipairs(tag_locations) do
-    local tag = tag_loc.tag
-    if not tags[tag] then
-      tags[tag] = true
+    local key = tag_module.normalize(tag_loc.tag)
+    if not seen[key] then
+      result[#result + 1] = tag_loc.tag
+      seen[key] = true
     end
   end
-  return vim.tbl_keys(tags)
+  return result
 end
 
 ---@param tag_locations obsidian.TagLocation[]
@@ -1402,7 +1405,7 @@ local function gather_tag_picker_list(tag_locations, tags)
   local entries = {}
   for _, tag_loc in ipairs(tag_locations) do
     for _, tag in ipairs(tags) do
-      if tag_loc.tag:lower() == tag:lower() or vim.startswith(tag_loc.tag:lower(), tag:lower() .. "/") then
+      if tag_module.matches(tag_loc.tag, tag, "subtree") then
         local display = string.format("%s [%s] %s", tag_loc.note:display_name(), tag_loc.line, tag_loc.text)
         entries[#entries + 1] = {
           text = display,
@@ -1478,7 +1481,7 @@ M.search_tags = function(tags)
   if not vim.tbl_isempty(tags) then
     search.find_tags_async(tags, function(tag_locations)
       return gather_tag_picker_list(tag_locations, compat.list_unique(tags))
-    end, { dir = dir })
+    end, { dir = dir, match = "subtree" })
   else
     pick_tags(function(selected_tags, tag_locations)
       gather_tag_picker_list(tag_locations, selected_tags)
