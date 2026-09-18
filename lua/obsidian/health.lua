@@ -207,6 +207,10 @@ function M.check()
       feature = ":Obsidian paste_img",
       hint = "Install `pngpaste` to paste clipboard images.",
     })
+    has_one_of_executable({ "convert" }, {
+      feature = ":Obsidian paste_img",
+      hint = "Install ImageMagick to correct pasted image gamma.",
+    })
   elseif os == api.OSType.Windows or os == api.OSType.Wsl then
     ok_f ":Obsidian paste_img uses PowerShell clipboard support"
   else

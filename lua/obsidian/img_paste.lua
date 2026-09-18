@@ -121,7 +121,12 @@ local function save_clipboard_image(path, img_type)
     local ret = os.execute(cmd) -- TODO:
     return ret == true or ret == 0
   elseif this_os == api.OSType.Darwin then
-    return vim.system({ "pngpaste", path }):wait() ~= 0
+    -- issue: https://github.com/jcsalterego/pngpaste/issues/16#issuecomment-2643724380
+    if vim.fn.executable "convert" == 1 then
+      local cmd = string.format("pngpaste - | convert - -set gamma 0.4545 - > %s", vim.fn.shellescape(path))
+      return vim.system({ "bash", "-c", cmd }):wait().code == 0
+    end
+    return vim.system({ "pngpaste", path }):wait().code == 0
   else
     error("image saving not implemented for OS '" .. this_os .. "'")
   end
