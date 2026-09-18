@@ -51,7 +51,8 @@ end
 ---@param bufnr integer
 ---@return vim.Pos
 Pos.to_vim = function(pos, bufnr)
-  if vim.fn.has "nvim-0.13" == 1 then
+  -- The buffer-first constructor is used from Nvim 0.12 onward.
+  if vim.fn.has "nvim-0.12.0" == 1 then
     local new = vim.pos --[[@as fun(buf: integer, row: integer, col: integer): vim.Pos]]
     return new(bufnr, pos.row, pos.col)
   end

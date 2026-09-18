@@ -92,7 +92,8 @@ end
 ---@param bufnr integer
 ---@return vim.Range
 Range.to_vim = function(range, bufnr)
-  if vim.fn.has "nvim-0.13" == 1 then
+  -- The buffer-first constructor is used from Nvim 0.12 onward.
+  if vim.fn.has "nvim-0.12.0" == 1 then
     local new = vim.range
     ---@cast new fun(buf: integer, sr: integer, sc: integer, er: integer, ec: integer): vim.Range
     return new(bufnr, range.start_row, range.start_col, range.end_row, range.end_col)
