@@ -97,4 +97,26 @@ T["content ranges trim trailing blanks"] = function()
   eq({ start_row = 2, start_col = 0, end_row = 3, end_col = 0 }, sections[2].content_range)
 end
 
+T["ignores headings and block IDs in document exclusions"] = function()
+  local sections, blocks = Section.parse({
+    "```",
+    "# fenced ^fenced",
+    "```",
+    "%%",
+    "# commented ^commented",
+    "%%",
+    "# Real `code` heading",
+    "text <!-- ^hidden --> ^shown",
+    "  `code` ^indented",
+  }, { collect_blocks = true })
+
+  eq(#sections, 2)
+  eq(sections[2].header, "Real `code` heading")
+  eq(blocks["^fenced"], nil)
+  eq(blocks["^commented"], nil)
+  eq(blocks["^hidden"], nil)
+  eq(blocks["^shown"].line, 8)
+  eq(blocks["^indented"].line, 9)
+end
+
 return T

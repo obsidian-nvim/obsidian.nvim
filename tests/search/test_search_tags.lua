@@ -143,4 +143,36 @@ tags:
   eq(res[3].line, 7)
 end
 
+T["should keep visible tags beside comments and exclude opaque tags"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "excluded.md")
+  vim.fn.writefile({
+    "```",
+    "#fenced",
+    "```",
+    "#before <!-- #hidden --> #after",
+    "%% #commented %%",
+    "`#coded`",
+  }, filepath)
+
+  local res = h.child_await(
+    child,
+    [[
+      require("obsidian.search").find_tags_async("", function(res)
+        done(res)
+      end, {})
+    ]],
+    { desc = "filtered tags search" }
+  )
+
+  eq(
+    { "before", "after" },
+    vim.tbl_map(function(item)
+      return item.tag
+    end, res)
+  )
+  eq(1, res[1].tag_start)
+  eq(26, res[2].tag_start)
+end
+
 return T

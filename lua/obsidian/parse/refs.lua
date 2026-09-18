@@ -1,5 +1,4 @@
 local Range = require "obsidian.range"
-local util = require "obsidian.util"
 local link_parser = require "obsidian.link.parser"
 
 local M = {}
@@ -13,29 +12,6 @@ local M = {}
 ---@field anchor string?
 ---@field block string?
 ---@field embed boolean
-
----@param line string
----@return [integer, integer][]
-local function inline_code_ranges(line)
-  local ranges = {}
-  for start_col, end_col in util.gfind(line, "`[^`]*`") do
-    ranges[#ranges + 1] = { start_col, end_col }
-  end
-  return ranges
-end
-
----@param ranges [integer, integer][]
----@param start_col integer
----@param end_col integer
----@return boolean
-local function inside_inline_code(ranges, start_col, end_col)
-  for _, range in ipairs(ranges) do
-    if range[1] < start_col and end_col < range[2] then
-      return true
-    end
-  end
-  return false
-end
 
 ---@param refs obsidian.parse.Ref[]
 ---@param start_col integer 1-indexed, inclusive.
@@ -172,7 +148,9 @@ function M.parse(raw, opts)
   end
 end
 
----Extract outgoing wiki/markdown/footnote refs from a single line.
+--- Extract wiki/markdown/footnote refs from a line. By default this applies
+--- standalone document filtering; set `opts.lexical` when a full-document
+--- consumer will apply filtering against its shared snapshot.
 ---@param line string
 ---@param opts obsidian.parse.line.LineOpts?
 ---@return obsidian.parse.Ref[]
@@ -181,9 +159,7 @@ function M.extract(line, opts)
   local row = opts.row or 0
   ---@cast row integer
 
-  local out = {}
-  local code_ranges = inline_code_ranges(line)
-
+  local matches = {}
   for _, pat in ipairs(patterns) do
     local search_start = 1
     while search_start < #line do
@@ -192,10 +168,10 @@ function M.extract(line, opts)
         break
       end
 
-      if not inside_inline_code(code_ranges, start_col, end_col) and not overlaps_ref(out, start_col, end_col) then
+      if not overlaps_ref(matches, start_col, end_col) then
         local ref = parse_match(line, row, start_col, end_col, pat.parser)
         if ref then
-          out[#out + 1] = ref
+          matches[#matches + 1] = ref
         end
       end
 
@@ -203,10 +179,27 @@ function M.extract(line, opts)
     end
   end
 
-  table.sort(out, function(a, b)
+  table.sort(matches, function(a, b)
     return a.range.start_col < b.range.start_col
   end)
 
+  if opts.lexical then
+    return matches
+  end
+
+  local Document = require "obsidian.parse.document"
+  local document = Document.parse { line }
+  local out = {}
+  for _, ref in ipairs(matches) do
+    local local_range = Range.new(0, ref.range.start_col, 0, ref.range.end_col)
+    local origin = Range.new(0, ref.range.start_col, 0, ref.range.start_col + 1)
+    if
+      not document:intersects(origin, Document.BODY_EXCLUSIONS)
+      and not document:intersects(local_range, Document.COMMENTS)
+    then
+      out[#out + 1] = ref
+    end
+  end
   return out
 end
 

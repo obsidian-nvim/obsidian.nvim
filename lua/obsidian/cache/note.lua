@@ -1,4 +1,6 @@
+local Document = require "obsidian.parse.document"
 local Note = require "obsidian.note"
+local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
 
@@ -7,11 +9,17 @@ local M = {}
 ---Extract outgoing links from a single line.
 ---@param line string
 ---@param lnum integer  1-based
+---@param document obsidian.parse.Document
 ---@return table[]
-local function extract_links(line, lnum)
+local function extract_links(line, lnum, document)
   local out = {}
-  for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1 })) do
-    if ref.kind == "wiki" or ref.kind == "markdown" then
+  for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1, lexical = true })) do
+    local origin = Range.new(lnum - 1, ref.range.start_col, lnum - 1, ref.range.start_col + 1)
+    if
+      (ref.kind == "wiki" or ref.kind == "markdown")
+      and not document:intersects(origin, Document.BODY_EXCLUSIONS)
+      and not document:intersects(ref.range, Document.COMMENTS)
+    then
       out[#out + 1] = {
         kind = ref.kind,
         raw = ref.raw,
@@ -30,19 +38,19 @@ end
 
 ---Match `- [x] foo` / `* [ ] foo` / `1. [ ] foo`. Captures indent, state, text.
 ---@param line string
----@return integer? indent, string? state, string? text
+---@return integer? indent, string? state, string? text, integer? marker_col
 local function match_task(line)
   -- bullet list
   local indent, state, text = line:match "^(%s*)[-%*%+] %[(.)%] (.*)$"
   if state then
-    return #indent, state, text
+    return #indent, state, text, assert(line:find("[", 1, true)) - 1
   end
   -- numbered list
   indent, state, text = line:match "^(%s*)%d+%. %[(.)%] (.*)$"
   if state then
-    return #indent, state, text
+    return #indent, state, text, assert(line:find("[", 1, true)) - 1
   end
-  return nil, nil, nil
+  return nil, nil, nil, nil
 end
 
 ---Convert obsidian.Note + stat → CacheNote row.
@@ -66,7 +74,12 @@ function M.build(abs_path, _vault_root)
   end
   fh:close()
 
-  local ok, note = pcall(Note.from_lines, lines, abs_path, { collect_sections = true })
+  local document = Document.parse(lines)
+  local ok, note = pcall(Note.from_lines, lines, abs_path, {
+    collect_sections = true,
+    max_lines = #lines,
+    document = document,
+  })
   if not ok or not note then
     return nil
   end
@@ -102,30 +115,31 @@ function M.build(abs_path, _vault_root)
     end
   end
 
-  local fm_end = note.frontmatter_end_line or 0
+  local body_start = document.frontmatter and document.frontmatter.range.end_row or 0
   local links_out = {}
   local tasks = {}
-  local in_code_block = false
-  for i = fm_end + 1, #lines do
+  for i = body_start + 1, #lines do
     local line = lines[i] or ""
-    if line:match "^%s*```" then
-      in_code_block = not in_code_block
-    elseif not in_code_block then
-      for _, l in ipairs(extract_links(line, i)) do
-        links_out[#links_out + 1] = l
-      end
-      for _, tag_match in ipairs(parse_tags.extract(line, { row = i - 1 })) do
+    for _, link in ipairs(extract_links(line, i, document)) do
+      links_out[#links_out + 1] = link
+    end
+    for _, tag_match in ipairs(parse_tags.extract(line, { row = i - 1, lexical = true })) do
+      if not document:intersects(tag_match.range, Document.BODY_EXCLUSIONS) then
         add_tag(tag_match.tag)
       end
-      local indent, state, text = match_task(line)
-      if indent ~= nil then
-        tasks[#tasks + 1] = {
-          line = i,
-          indent = indent,
-          state = state,
-          text = text,
-        }
-      end
+    end
+    local indent, state, text, marker_col = match_task(line)
+    if
+      indent ~= nil
+      and marker_col ~= nil
+      and not document:intersects(Range.new(i - 1, marker_col, i - 1, marker_col + 3), Document.BODY_EXCLUSIONS)
+    then
+      tasks[#tasks + 1] = {
+        line = i,
+        indent = indent,
+        state = state,
+        text = text,
+      }
     end
   end
 

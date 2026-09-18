@@ -31,4 +31,14 @@ T["extract ignores block IDs inside inline code"] = function()
   eq({}, block_id.extract "Paragraph `^block-id`")
 end
 
+T["extract supports unfiltered lexical matches"] = function()
+  eq({}, block_id.extract "%% ^block-id")
+  eq({
+    {
+      raw = "^block-id",
+      range = Range.new(2, 3, 2, 12),
+    },
+  }, block_id.extract("%% ^block-id", { row = 2, lexical = true }))
+end
+
 return T

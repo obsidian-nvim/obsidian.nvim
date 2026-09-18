@@ -52,9 +52,6 @@ local all_tags = Ct(((utf8_char - one_tag) ^ 0 * one_tag) ^ 0)
 ---@param line string
 ---@return { [1]: integer, [2]: integer }[]
 local function collect_tag_ranges(line)
-  if string.find(line, "<!--.*-->") ~= nil then
-    return {}
-  end
   local util = require "obsidian.util"
   local caps = lpeg.match(all_tags, line) or {}
   local out = {}
@@ -88,7 +85,9 @@ local function collect_tag_ranges(line)
   return out
 end
 
----Find Obsidian-style tags in a markdown line.
+--- Find Obsidian-style tags in a line. By default this applies standalone
+--- document filtering; set `opts.lexical` when a full-document consumer will
+--- apply filtering against its shared snapshot.
 ---@param line string
 ---@param opts obsidian.parse.line.LineOpts?
 ---@return obsidian.parse.Tag[]
@@ -96,13 +95,13 @@ function M.extract(line, opts)
   opts = opts or {}
   local row = opts.row or 0
   ---@cast row integer
-  local out = {}
+  local matches = {}
 
   for _, match in ipairs(collect_tag_ranges(line)) do
     local start_byte_index, end_byte_index = match[1], match[2]
     ---@cast start_byte_index integer
     ---@cast end_byte_index integer
-    out[#out + 1] = {
+    matches[#matches + 1] = {
       kind = "tag",
       raw = line:sub(start_byte_index, end_byte_index),
       range = Range.new(row, start_byte_index - 1, row, end_byte_index),
@@ -110,6 +109,19 @@ function M.extract(line, opts)
     }
   end
 
+  if opts.lexical then
+    return matches
+  end
+
+  local Document = require "obsidian.parse.document"
+  local document = Document.parse { line }
+  local out = {}
+  for _, tag in ipairs(matches) do
+    local local_range = Range.new(0, tag.range.start_col, 0, tag.range.end_col)
+    if not document:intersects(local_range, Document.BODY_EXCLUSIONS) then
+      out[#out + 1] = tag
+    end
+  end
   return out
 end
 

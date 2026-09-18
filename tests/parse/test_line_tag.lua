@@ -93,6 +93,13 @@ T["should ignore tags in html comments"] = function()
   eq({}, M.extract(s))
 end
 
+T["extract supports unfiltered lexical matches"] = function()
+  local out = M.extract("<!-- #region -->", { row = 2, lexical = true })
+  eq(1, #out)
+  eq("region", out[1].tag)
+  eq(Range.new(2, 5, 2, 12), out[1].range)
+end
+
 T["should find non-English tags"] = function()
   eq(1, #M.extract "#你好")
   eq(1, #M.extract "#タグ")

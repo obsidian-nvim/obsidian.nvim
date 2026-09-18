@@ -1,3 +1,5 @@
+local completion_util = require "obsidian.completion.util"
+
 local M = {}
 
 ---Check if a footnote completion request can/should be carried out. Returns a
@@ -24,6 +26,9 @@ M.can_complete = function(request)
   end
 
   local term = before:sub(m_start + 2)
+  if completion_util.trigger_is_excluded(request, m_start - 1, request.character) then
+    return false
+  end
 
   -- If the cursor is right before a closing bracket, replace it as well.
   local insert_end = request.character

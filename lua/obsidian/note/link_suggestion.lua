@@ -1,3 +1,4 @@
+local Document = require "obsidian.parse.document"
 local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
@@ -207,16 +208,15 @@ end
 local function skipped_inline_ranges(line, row)
   local ranges = {}
 
-  for _, ref in ipairs(parse_refs.extract(line, { row = row })) do
+  for _, ref in ipairs(parse_refs.extract(line, { row = row, lexical = true })) do
     if ref.kind == "wiki" or ref.kind == "markdown" then
       ranges[#ranges + 1] = ref.range
     end
   end
-  for _, tag in ipairs(parse_tags.extract(line, { row = row })) do
+  for _, tag in ipairs(parse_tags.extract(line, { row = row, lexical = true })) do
     ranges[#ranges + 1] = tag.range
   end
 
-  add_pattern_ranges(ranges, line, row, "`[^`]*`")
   -- Markdown autolinks like <https://example.com/foo>.
   add_pattern_ranges(ranges, line, row, "<[%a][%w+.-]*://[^>%s]+>")
   -- Bare URLs. These are intentionally broad; trailing punctuation is harmless
@@ -231,7 +231,8 @@ end
 ---@param symbols obsidian.LinkSuggestionSymbol[]
 ---@param path_exists fun(path: string): boolean|nil
 ---@param source_dir string|obsidian.Path|nil
-function M.find_in_line(line, row, symbols, path_exists, source_dir)
+---@param document obsidian.parse.Document|nil
+function M.find_in_line(line, row, symbols, path_exists, source_dir, document)
   path_exists = path_exists or function(path)
     return vim.uv.fs_stat(path) ~= nil
   end
@@ -241,6 +242,7 @@ function M.find_in_line(line, row, symbols, path_exists, source_dir)
 
   local skip_ranges = skipped_inline_ranges(line, row0)
   local line_lower = line:lower()
+  local local_document = document == nil and Document.parse { line } or nil
 
   for _, symbol in ipairs(symbols) do
     local search_start = 1
@@ -254,8 +256,19 @@ function M.find_in_line(line, row, symbols, path_exists, source_dir)
       ---@cast end_col integer
       local start0 = start_col - 1
       local end0 = end_col
+      local candidate_range = Range.new(row0, start0, row0, end0)
+      local excluded
+      if document then
+        excluded = document:intersects(candidate_range, Document.BODY_EXCLUSIONS)
+      else
+        excluded = assert(local_document, "local document is missing"):intersects(
+          Range.new(0, start0, 0, end0),
+          Document.BODY_EXCLUSIONS
+        )
+      end
       if
-        boundary_ok(line, start0, end0, symbol.text)
+        not excluded
+        and boundary_ok(line, start0, end0, symbol.text)
         and not overlaps_ranges(skip_ranges, row0, start0, end0)
         and not overlaps_existing_suggestion(suggestions, row0, start0, end0)
       then
@@ -282,7 +295,7 @@ function M.find_in_line(line, row, symbols, path_exists, source_dir)
 
         if #candidates > 0 then
           suggestions[#suggestions + 1] = {
-            range = Range.new(row0, start0, row0, end0),
+            range = candidate_range,
             text = label,
             candidates = candidates,
           }
@@ -311,15 +324,15 @@ function M.find(note, opts)
   end
 
   local suggestions = {}
+  local document = Document.parse(note.raw_contents or note.contents)
 
-  local fm_end = note.frontmatter_end_line or 1
-  local start_line = opts.range and math.max(fm_end, opts.range.start_row + 1) or fm_end
+  local body_first = document.frontmatter and document.frontmatter.range.end_row + 1 or 1
+  local start_line = opts.range and math.max(body_first, opts.range.start_row + 1) or body_first
   local end_line = #note.contents
   if opts.range then
     end_line = math.min(end_line, opts.range["end_row"] + (opts.range.end_col > 0 and 1 or 0))
   end
   ---@cast end_line integer
-  local code_fence
   local path_status = {}
   local source_dir = vim.fs.dirname(current_path)
   local function path_exists(path)
@@ -328,21 +341,11 @@ function M.find(note, opts)
     end
     return path_status[path]
   end
-  for row = fm_end, end_line do
+  for row = start_line, end_line do
     local line = note.contents[row]
     ---@cast line string
-    local fence = line:match "^%s*(```+)" or line:match "^%s*(~~~+)"
-
-    if fence then
-      if not code_fence then
-        code_fence = fence
-      elseif fence:sub(1, 1) == code_fence:sub(1, 1) and #fence >= #code_fence then
-        code_fence = nil
-      end
-    elseif not code_fence and row >= start_line then
-      local results = M.find_in_line(line, row, symbols, path_exists, source_dir)
-      vim.list_extend(suggestions, results)
-    end
+    local results = M.find_in_line(line, row, symbols, path_exists, source_dir, document)
+    vim.list_extend(suggestions, results)
   end
 
   table.sort(suggestions, function(a, b)

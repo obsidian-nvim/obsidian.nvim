@@ -1,4 +1,6 @@
 local M = {}
+local Document = require "obsidian.parse.document"
+local Range = require "obsidian.range"
 local footnotes = require "obsidian.footnotes"
 local header = require "obsidian.parse.header"
 
@@ -39,9 +41,10 @@ local function is_footnotes_header_at(lines, i)
 end
 
 ---@param lines string[]
+---@param document obsidian.parse.Document
 ---@return string[] body_lines
 ---@return table<string, string> definitions
-local function strip_trailing_footnotes(lines)
+local function strip_trailing_footnotes(lines, document)
   local i = #lines
   while i > 0 and is_blank_at(lines, i) do
     i = i - 1
@@ -56,6 +59,12 @@ local function strip_trailing_footnotes(lines)
     end
 
     local id, text = footnotes.parse_definition(line)
+    if id then
+      local marker = Range.new(i - 1, 0, i - 1, #id + 3)
+      if document:intersects(marker, Document.BODY_EXCLUSIONS) then
+        id = nil
+      end
+    end
     if id then
       defs[id] = text
       found = true
@@ -167,23 +176,20 @@ local clean_slide = function(slide)
   return slide
 end
 
--- TODO: use treesitter
--- Strip Obsidian markdown comments (%%...%%) and HTML comments (<!--...-->).
--- If the result is empty/whitespace-only, returns nil to indicate "drop line".
-local strip_comments = function(line)
-  if not line then
+---@param document obsidian.parse.Document
+---@param row integer
+---@param line string
+---@return string?
+local strip_comments = function(document, row, line)
+  local ranges = document:ranges_on_row(row, Document.COMMENTS)
+  for i = #ranges, 1, -1 do
+    local range = ranges[i]
+    line = line:sub(1, range.start_col) .. line:sub(range.end_col + 1)
+  end
+  line = line:gsub("%s*$", "")
+  if #ranges > 0 and not line:find "%S" then
     return nil
   end
-
-  -- remove %%...%% (non-greedy, same-line)
-  line = line:gsub("%%%%.-%%%%", "")
-
-  -- remove <!--...--> (non-greedy, same-line)
-  line = line:gsub("<!%-%-.-%-%->", "")
-
-  -- collapse edges (optional; helps decide drop-line accurately)
-  line = line:gsub("%s*$", "")
-
   return line
 end
 
@@ -191,22 +197,34 @@ end
 ---@param lines string[]: The lines in the buffer
 ---@return obsidian.Slide[]
 M.parse = function(lines)
+  local document = Document.parse(lines)
   local defs
-  lines, defs = strip_trailing_footnotes(lines)
+  lines, defs = strip_trailing_footnotes(lines, document)
 
   local slides = {}
   local current_slide = new_slide()
 
-  for _, raw in ipairs(lines) do
-    if raw == "---" then
+  for i, raw in ipairs(lines) do
+    local row = i - 1
+    local raw_range = Range.new(row, 0, row, #raw)
+    if raw == "---" and not document:intersects(raw_range, Document.BODY_EXCLUSIONS) then
       slides[#slides + 1] = clean_slide(current_slide)
       current_slide = new_slide()
     else
-      local line = strip_comments(raw)
+      local line = strip_comments(document, row, raw)
+      local heading_allowed = false
+      local heading_col = raw:find("#", 1, true)
+      while heading_col ~= nil do
+        local marker = Range.new(row, heading_col - 1, row, heading_col)
+        if not document:intersects(marker, Document.BODY_EXCLUSIONS) then
+          heading_allowed = true
+          break
+        end
+        heading_col = raw:find("#", heading_col + 1, true)
+      end
 
-      -- drop line if it was only comments/whitespace
-      if line then
-        if current_slide.title == "" and header.parse(line) then
+      if line ~= nil then
+        if current_slide.title == "" and heading_allowed and header.parse(line) then
           current_slide.title = line
         else
           current_slide.body[#current_slide.body + 1] = line

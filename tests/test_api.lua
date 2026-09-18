@@ -281,4 +281,53 @@ T["blink handles the exclusive EOF sentinel without mutating the range"] = funct
   eq(result, { 1, 6, 2, 0, true })
 end
 
+T["toggle checkbox checks every target marker against exclusions"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "```",
+    "- [ ] fenced",
+    "```",
+    "%% - [ ] commented %%",
+    "- [ ] visible",
+  })
+  child.lua [[Obsidian.opts.checkbox.order = { " ", "x" }; M.toggle_checkbox(1, 5)]]
+  eq({
+    "```",
+    "- [ ] fenced",
+    "```",
+    "%% - [ ] commented %%",
+    "- [x] visible",
+  }, child.api.nvim_buf_get_lines(0, 0, -1, false))
+end
+
+T["cursor syntax ignores excluded regions and keeps adjacent prose"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "---",
+    "property: '#yaml'",
+    "---",
+    "```",
+    "#fake [[hidden]] - [ ] task",
+    "```",
+    "#visible <!-- #hidden --> #after",
+    "`[[coded]] #coded` [[shown]]",
+  })
+
+  child.api.nvim_win_set_cursor(0, { 5, 1 })
+  eq(vim.NIL, child.lua_get [[M.cursor_tag()]])
+  eq(vim.NIL, child.lua_get [[M.cursor_link()]])
+  eq(false, child.lua_get [[M.cursor_checkbox()]])
+  eq(vim.NIL, child.lua_get [[M.cursor_heading()]])
+
+  child.api.nvim_win_set_cursor(0, { 7, 1 })
+  eq("visible", child.lua_get [[M.cursor_tag()]])
+  child.api.nvim_win_set_cursor(0, { 7, 17 })
+  eq(vim.NIL, child.lua_get [[M.cursor_tag()]])
+  child.api.nvim_win_set_cursor(0, { 7, 29 })
+  eq("after", child.lua_get [[M.cursor_tag()]])
+
+  child.api.nvim_win_set_cursor(0, { 8, 3 })
+  eq(vim.NIL, child.lua_get [[M.cursor_link()]])
+  child.api.nvim_win_set_cursor(0, { 8, 23 })
+  eq("[[shown]]", child.lua_get [[M.cursor_link()]])
+end
+
 return T

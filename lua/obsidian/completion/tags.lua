@@ -1,4 +1,7 @@
-local Note = require "obsidian.note"
+local BufferDocument = require "obsidian.document"
+local Document = require "obsidian.parse.document"
+local Pos = require "obsidian.pos"
+local Range = require "obsidian.range"
 
 local M = {}
 
@@ -18,16 +21,6 @@ M.find_tags_start = function(input)
     if match then
       return string.sub(match, pattern.offset + 1)
     end
-  end
-end
-
---- Find the boundaries of the YAML frontmatter within the buffer.
----@param bufnr integer
----@return integer|?, integer|?
-local get_frontmatter_boundaries = function(bufnr)
-  local note = Note.from_buffer(bufnr)
-  if note.frontmatter_end_line ~= nil then
-    return 1, note.frontmatter_end_line
   end
 end
 
@@ -66,27 +59,34 @@ end
 ---@return boolean, string|?, boolean|?
 M.can_complete = function(request)
   local line = request.line + 1 -- 1-indexed
-  local frontmatter_start, frontmatter_end = get_frontmatter_boundaries(request.bufnr)
-  local in_frontmatter = frontmatter_start ~= nil
-    and frontmatter_start <= (line + 1)
-    and frontmatter_end ~= nil
-    and line <= frontmatter_end
+  local document = BufferDocument.get(request.bufnr)
+  local cursor = Pos.new(request.line, #request.cursor_before_line)
+  local frontmatter = document.frontmatter
+  local in_frontmatter = frontmatter ~= nil
+    and frontmatter.body_range ~= nil
+    and Range.contains_pos(frontmatter.body_range, cursor)
 
-  -- In frontmatter, check for tags list item trigger (no # needed)
+  -- In frontmatter, only YAML `tags` list items are eligible. A hashtag in an
+  -- arbitrary YAML scalar is not a Markdown tag trigger.
   if in_frontmatter then
     local is_tags, term = in_frontmatter_tags_list(request.bufnr, line, request.cursor_before_line)
     if is_tags then
       return true, term, true
     end
+    return false
   end
 
-  -- Standard #tag trigger
   local search = M.find_tags_start(request.cursor_before_line)
   if not search or string.len(search) == 0 then
     return false
   end
 
-  return true, search, in_frontmatter
+  local trigger_end = #request.cursor_before_line
+  local trigger = Range.new(request.line, trigger_end - #search - 1, request.line, trigger_end)
+  if document:intersects(trigger, Document.BODY_EXCLUSIONS) then
+    return false
+  end
+  return true, search, false
 end
 
 return M

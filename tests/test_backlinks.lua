@@ -80,4 +80,16 @@ T["multiple links per line"] = function()
   eq(by_line[5], 1)
 end
 
+T["ignores backlinks in code and comments"] = function()
+  local root = child.Obsidian.dir
+  h.write("# A", root / "A.md")
+  h.write("```\n[[A]]\n```\n%% [[A]] %%\n`[[A]]`", root / "Hidden.md")
+  h.write("before <!-- [[A]] --> [shown](A.md)", root / "Shown.md")
+  child.cmd("edit " .. tostring(root / "A.md"))
+
+  local backlinks = get_backlinks "{}"
+  eq(1, #backlinks)
+  eq("[shown](A.md)", backlinks[1].link)
+end
+
 return T

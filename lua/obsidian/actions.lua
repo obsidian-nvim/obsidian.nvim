@@ -1,10 +1,13 @@
 local M = {}
+local BufferDocument = require "obsidian.document"
+local Document = require "obsidian.parse.document"
+local Pos = require "obsidian.pos"
+local parse_block_id = require "obsidian.parse.block_id"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local uri = require "obsidian.uri"
 local compat = require "obsidian.compat"
-local block_ids = require "obsidian.parse.block_id"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local attachment = require "obsidian.attachment"
@@ -175,30 +178,20 @@ M.smart_action = function()
   end
 end
 
----@param node_types string[]
+--- Check if the checkbox action falls inside excluded document syntax.
+---@param lnum integer? 1-based line number.
+---@param col integer? 0-based byte column of the checkbox action.
 ---@return boolean
-local function in_node(node_types)
-  local ok, node = pcall(vim.treesitter.get_node)
-  if not ok then
-    return false
-  end
-  while node do
-    if vim.list_contains(node_types, node:type()) then
-      return true
-    end
-    node = node:parent()
-  end
-  return false
-end
-
---- Check if we are in node that should not do checkbox operations.
----@return boolean
-local function no_checkbox()
-  return in_node {
-    "fenced_code_block",
-    "minus_metadata",
-    --- what other types?
-  }
+local function no_checkbox(lnum, col)
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  lnum = lnum or cursor[1]
+  col = col or cursor[2]
+  local context = BufferDocument.get(0):context_at(Pos.new(lnum - 1, col))
+  return context.frontmatter ~= nil
+    or context.code_block ~= nil
+    or context.code_span ~= nil
+    or context.comment ~= nil
+    or context.html_block ~= nil
 end
 
 ---@param states string[]
@@ -260,9 +253,6 @@ end
 ---@param states string[]      Optional table containing checkbox states (e.g., {" ", "x"}).
 ---@param lnum   integer | nil Optional line number to toggle the checkbox on. Defaults to the current line.
 M._toggle_checkbox = function(states, lnum)
-  if no_checkbox() then
-    return
-  end
   lnum = lnum or unpack(vim.api.nvim_win_get_cursor(0))
   ---@cast lnum integer
   local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1]
@@ -274,6 +264,10 @@ M._toggle_checkbox = function(states, lnum)
   local checkboxes = states or { " ", "x" }
 
   local prefix, rest = parse_list_prefix(line)
+  local action_col = prefix and #prefix or #(line:match "^(%s*)" or "")
+  if no_checkbox(lnum, action_col) then
+    return
+  end
   if prefix and rest then
     local cur_state, ws, body = parse_checkbox_rest(rest)
     if cur_state then
@@ -337,7 +331,11 @@ end
 ---
 ---@param state string | nil Optional string of state to set the checkbox to (e.g., " ", "x").
 M.set_checkbox = function(state)
-  if no_checkbox() then
+  local cur_line = vim.api.nvim_get_current_line()
+  local line_num = vim.api.nvim_win_get_cursor(0)[1]
+  local current_prefix = parse_list_prefix(cur_line)
+  local action_col = current_prefix and #current_prefix or #(cur_line:match "^(%s*)" or "")
+  if no_checkbox(line_num, action_col) then
     return
   end
   if state == nil then
@@ -366,8 +364,6 @@ M.set_checkbox = function(state)
     )
     return
   end
-
-  local cur_line = vim.api.nvim_get_current_line()
 
   local prefix, rest = parse_list_prefix(cur_line)
   if prefix and rest then
@@ -398,8 +394,6 @@ M.set_checkbox = function(state)
     return
   end
 
-  local line_num = vim.fn.getpos(".")[2]
-  ---@cast line_num integer
   vim.api.nvim_buf_set_lines(0, line_num - 1, line_num, true, { cur_line })
 end
 
@@ -731,6 +725,16 @@ M.toggle_recording = function()
   require("obsidian.core-plugins.audio_recorder").toggle()
 end
 
+---@param line string
+---@param row integer
+---@return string?
+local function eligible_block_id(line, row)
+  local block = parse_block_id.extract(line, { row = row, lexical = true })[1]
+  if block and not BufferDocument.get(0):intersects(block.range, Document.BODY_EXCLUSIONS) then
+    return block.raw
+  end
+end
+
 ---Inspect cursor context and return a description of what would be bookmarked.
 ---@return { kind: "url"|"block"|"heading"|"note", label: string }?
 local function bookmark_context()
@@ -750,7 +754,7 @@ local function bookmark_context()
 
   -- Block under cursor
   local line = vim.api.nvim_get_current_line()
-  local block = block_ids.parse(line)
+  local block = eligible_block_id(line, vim.api.nvim_win_get_cursor(0)[1] - 1)
   if block and note then
     return { kind = "block", label = "block under cursor" }
   end
@@ -791,7 +795,7 @@ M.add_bookmark = function()
     end
   elseif ctx.kind == "block" and note then
     local line = vim.api.nvim_get_current_line()
-    local block = block_ids.parse(line)
+    local block = eligible_block_id(line, vim.api.nvim_win_get_cursor(0)[1] - 1)
     local rel = note.path and note.path:vault_relative_path()
     if not rel then
       return log.err "Cannot resolve note path"
@@ -1118,9 +1122,12 @@ end
 ---@param block_id string
 ---@return boolean
 local function contains_block_id(lines, block_id)
-  for _, line in ipairs(lines) do
-    if block_ids.parse(vim.trim(line)) == block_id then
-      return true
+  local document = Document.parse(lines)
+  for row, line in ipairs(lines) do
+    for _, block in ipairs(parse_block_id.extract(line, { row = row - 1, lexical = true })) do
+      if block.raw == block_id and not document:intersects(block.range, Document.BODY_EXCLUSIONS) then
+        return true
+      end
     end
   end
   return false

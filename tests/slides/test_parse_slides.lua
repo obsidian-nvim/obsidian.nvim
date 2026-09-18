@@ -129,4 +129,24 @@ T["should strip final footnote slide"] = function()
   eq({ "Alpha[^1]", "", "[^1]: first footnote" }, slides[1].body)
 end
 
+T["ignores separators in code and multiline comments"] = function()
+  local slides = parse {
+    "# First",
+    "```",
+    "---",
+    "# Not a title",
+    "```",
+    "%%",
+    "---",
+    "%%",
+    "---",
+    "# Second",
+  }
+
+  eq(2, #slides)
+  eq("# First", slides[1].title)
+  eq({ "```", "---", "# Not a title", "```" }, slides[1].body)
+  eq("# Second", slides[2].title)
+end
+
 return T
