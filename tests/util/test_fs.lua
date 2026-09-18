@@ -1,4 +1,4 @@
-local M = require "obsidian.util"
+local M = require "obsidian.util.fs"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()

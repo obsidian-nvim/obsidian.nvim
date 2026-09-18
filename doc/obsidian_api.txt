@@ -40,6 +40,7 @@ Fields ~
 {path} `(obsidian.Path|)`?
 {has_frontmatter} `(boolean|)`?
 {frontmatter_end_line} `(integer|)`?
+{frontmatter_elements} `(obsidian.yaml.Element[]?)` Scalar occurrences in document coordinates.
 {anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
 {blocks} `(table<string, obsidian.note.Block>?)`
 {block_candidates} `(obsidian.Section[]|? paragraphs)` that can receive block identifiers.
@@ -61,20 +62,6 @@ Return ~
 `(string)`
 
 ------------------------------------------------------------------------------
-                                                           *is_valid_filename()*
-                          `is_valid_filename`({name})
-Check whether a filename stem is valid across all platforms (Windows + Linux/macOS).
-
-https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
-
-Parameters ~
-{name} `(string)` Filename stem (without extension)
-Return ~
-`(boolean)` valid
-Return ~
-`(string)` `(optional)` reason Human-readable error when invalid
-
-------------------------------------------------------------------------------
                                                    *prompt_for_valid_filename()*
                   `prompt_for_valid_filename`({invalid_name})
 Parameters ~
@@ -91,6 +78,21 @@ Return ~
 `(string| `(optional))``
 Return ~
 `(string| `(optional))``
+
+------------------------------------------------------------------------------
+                                                       *Note._resolve_id_path()*
+           `Note._resolve_id_path`({opts}, {prompt_invalid_filename})
+Resolves the ID, and path for a new note.
+
+Parameters ~
+{opts} `(obsidian.note.NoteOpts)` Strategy for resolving note path and title
+{prompt_invalid_filename} `(boolean|? Prompt)` for a replacement instead of erroring when the filename is invalid.
+Return ~
+`(string)` id
+Return ~
+`(obsidian.Path)` path
+Return ~
+`(string| `(optional))`` title
 
 ------------------------------------------------------------------------------
                                                                  *Note.create()*
@@ -259,6 +261,18 @@ Initialize a note from a file.
 Parameters ~
 {path} `(string|obsidian.Path)`
 {opts} `(obsidian.note.LoadOpts|)`?
+
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
+                                                             *Note.from_cache()*
+                        `Note.from_cache`({path}, {row})
+Initialize a note from a cache row without reading the file.
+
+Parameters ~
+{path} `(string|obsidian.Path)`
+{row} `(table)`
 
 Return ~
 `(obsidian.Note)`
@@ -434,16 +448,6 @@ Return ~
 `(obsidian.LinkMatch[])`
 
 ------------------------------------------------------------------------------
-                                                                 *format_path()*
-                   `format_path`({path}, {style}, {base_dir})
-Parameters ~
-{path} `(obsidian.Path)` vault-relative-path
-{style} `(obsidian.link.LinkFormat?)`
-{base_dir} `(string|obsidian.Path?)`
-Return ~
-`(string)` foramted_path
-
-------------------------------------------------------------------------------
 Class ~
 {obsidian.note.FormatLinkOpts} : obsidian.link.LinkCreationOpts
 Fields ~
@@ -534,6 +538,7 @@ to the workspace / vault root.
 {tags} `(string[]|?  Tags)` for this note
 {template} `(string|? Template)` name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
 {scope} `(string|? Arbitrary)` note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+{check_invalid_filename} `(boolean|)`?
 
 ------------------------------------------------------------------------------
 Class ~

@@ -1,59 +1,32 @@
 local M = {}
 local util = require "obsidian.util"
+local fs_util = require "obsidian.util.fs"
+local link_parser = require "obsidian.link.parser"
+local uri = require "obsidian.uri"
 local log = require "obsidian.log"
+local filetypes = require "obsidian.filetypes"
 
 ---@enum obsidian.attachment.ft
-local filetypes = {
+local supported_filetypes = {
   -- markdown
   "md",
-  -- json canvas
-  "canvas",
-  -- images
-  "avif",
-  "bmp",
-  "gif",
-  "jpg",
-  "jpeg",
-  "png",
-  "svg",
-  "webp",
-  -- audio
-  "flac",
-  "m4a",
-  "mp3",
-  "ogg",
-  "wav",
-  "3gp",
-  -- video
-  "mkv",
-  "mov",
-  "mp4",
-  "ogv",
-  "webm",
-  -- pdf
-  "pdf",
 }
+vim.list_extend(supported_filetypes, filetypes.attachment_extensions)
 
 -- TODO: file extension to mime type and vice versa
 
-M.filetypes = filetypes
+M.filetypes = supported_filetypes
 
 ---Checks if a given string represents a valid attachment based on its suffix.
 ---
 ---@param location string
 ---@return boolean
 M.is_attachment_path = function(location)
-  location = location:lower()
-  if vim.endswith(location, ".md") then
-    return false
-  end
-  for _, ext in ipairs(filetypes) do
-    if vim.endswith(location, "." .. ext) then
-      return true
-    end
-  end
-  return false
+  return filetypes.is_attachment(location)
 end
+
+-- Compatibility alias for callers using the filetype name.
+M.is_attachment_filetype = M.is_attachment_path
 
 --- Resolve the configured destination for a new attachment.
 ---
@@ -195,8 +168,7 @@ end
 ---@return string?
 local function normalize_reference(src)
   src = vim.trim(src)
-  src = util.strip_block_links(src)
-  src = util.strip_anchor_links(src)
+  src = link_parser.parse(src)
   src = vim.uri_decode(src) or src
   return src ~= "" and src or nil
 end
@@ -214,7 +186,7 @@ M._resolve_reference = function(src, opts, matches)
     return nil, "Invalid attachment reference"
   end
 
-  local is_uri, scheme = util.is_uri(normalized)
+  local is_uri, scheme = uri.is_uri(normalized)
   if is_uri then
     if scheme ~= "file" then
       return nil, "Unsupported attachment URI scheme '" .. tostring(scheme) .. "'"
@@ -338,13 +310,58 @@ local function validate_attachment_name(name)
   return name
 end
 
+---@param dst string
+---@return string|?
+---@return string|?
+local function resolve_declared_dst(dst)
+  local Path = require "obsidian.path"
+  dst = vim.trim(dst)
+  if dst == "" then
+    return nil, "Attachment destination cannot be empty"
+  end
+
+  local is_uri, scheme = uri.is_uri(dst)
+  if is_uri then
+    if scheme ~= "file" then
+      return nil, "Attachment destination must be a file path"
+    end
+    dst = vim.uri_to_fname(dst)
+  end
+
+  local dst_path = Path.new(dst)
+  if not dst_path:is_absolute() then
+    dst = tostring(Obsidian.dir / dst)
+  end
+  dst = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(dst), ":p"))
+
+  local vault_dir = vim.fs.normalize(vim.fn.fnamemodify(tostring(Obsidian.dir), ":p"))
+  if not fs_util.is_subpath(dst, vault_dir) then
+    return nil, "Attachment destination must be inside vault: " .. dst
+  end
+
+  return dst
+end
+
+---@param fname string
+---@param bufnr integer|?
+---@param dst string|?
+---@return string|?
+---@return string|?
+local function resolve_dst(fname, bufnr, dst)
+  if dst then
+    return resolve_declared_dst(dst)
+  end
+  return M.resolve_attachment_path(fname, bufnr)
+end
+
 ---@param src string
 ---@param bufnr integer|?
 ---@param new_name string|?
+---@param dst string|?
 ---@return string|?
 ---@return string|?
-local function get_attachment_paths(src, bufnr, new_name)
-  local is_uri, scheme = util.is_uri(src)
+local function get_attachment_paths(src, bufnr, new_name, dst)
+  local is_uri, scheme = uri.is_uri(src)
   local src_path, fname
 
   if is_uri then
@@ -386,14 +403,18 @@ local function get_attachment_paths(src, bufnr, new_name)
     fname = validated_name
   end
 
-  return src_path, M.destination_path(fname, bufnr)
+  local resolved_dst, dst_err = resolve_dst(fname, bufnr, dst)
+  if not resolved_dst then
+    return nil, dst_err
+  end
+  return src_path, resolved_dst
 end
 
 ---@param src string
 ---@param dst string
 ---@return string|?
 local function copy_attachment(src, dst)
-  local is_uri, scheme = util.is_uri(src)
+  local is_uri, scheme = uri.is_uri(src)
 
   local mkdir_ok, mkdir_err = pcall(vim.fn.mkdir, vim.fs.dirname(dst), "p")
   if not mkdir_ok then
@@ -453,6 +474,7 @@ end
 ---@field insert? boolean Insert the generated attachment link. Defaults to true.
 ---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
 ---@field new_name? string Destination attachment basename. Path separators are rejected.
+---@field dst? string Exact destination path. Must be inside the vault.
 ---@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
 ---@field scope? string Context where the attachment is added.
 
@@ -484,14 +506,16 @@ end
 M.add = function(src, opts)
   opts = opts or {}
   src = vim.trim(src)
-  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr, opts.new_name)
+  local resolved_src, resolved_dst = get_attachment_paths(src, opts.bufnr, opts.new_name, opts.dst)
   if not resolved_src then
     log.err(resolved_dst or "Failed to resolve attachment")
     return
   end
 
   ---@cast resolved_dst -nil
-  resolved_dst = unique_dst(resolved_dst)
+  if not opts.dst then
+    resolved_dst = unique_dst(resolved_dst)
+  end
   local err = copy_attachment(resolved_src, resolved_dst)
   if err then
     log.err(err)
@@ -546,7 +570,7 @@ local function format_path(dst, format, opts)
     return assert(require("obsidian.path").new(dst):vault_relative_path { strict = true })
   elseif format == "relative" then
     local _, _, source_dir = resolve_context(opts)
-    local rel_path = assert(util.relpath(source_dir, dst), "failed to resolve attachment path against source file")
+    local rel_path = assert(fs_util.relpath(source_dir, dst), "failed to resolve attachment path against source file")
     return (rel_path:gsub("^%./", ""))
   end
   return vim.fs.basename(dst)

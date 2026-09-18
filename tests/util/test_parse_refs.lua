@@ -33,6 +33,20 @@ T["extract parses embeds and block refs"] = function()
   }, refs.extract(line))
 end
 
+T["extract parses Markdown links without labels"] = function()
+  local line = "[](folder/note.md)"
+  eq({
+    {
+      kind = "markdown",
+      raw = line,
+      range = Range.new(0, 0, 0, #line),
+      target = "folder/note.md",
+      label = "",
+      embed = false,
+    },
+  }, refs.extract(line))
+end
+
 T["extract returns ranges"] = function()
   local out = refs.extract("See [[A]] and [B](b.md#H)", { row = 2 })
   eq(2, #out)
@@ -50,6 +64,12 @@ T["extract ignores refs within inline code"] = function()
   eq("foo", out[1].target)
   eq("Bar", out[1].label)
   eq(Range.new(0, 10, 0, 21), out[1].range)
+end
+
+T["extract preserves URI fragments"] = function()
+  local ref = assert(refs.parse "[site](https://example.com/page#fragment)")
+  eq("https://example.com/page#fragment", ref.target)
+  eq(nil, ref.anchor)
 end
 
 T["extract parses footnotes"] = function()

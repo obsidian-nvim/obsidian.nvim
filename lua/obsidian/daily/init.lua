@@ -1,7 +1,7 @@
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local resolvers = require "obsidian.resolvers"
-local util = require "obsidian.util"
+local date = require "obsidian.date"
 local api = require "obsidian.api"
 local M = {}
 
@@ -25,7 +25,7 @@ M.daily_note_path = function(datetime, dir)
   end
 
   local date_format = assert(options.daily_notes.date_format, "daily notes date_format is required")
-  local id = tostring(util.format_date(datetime, date_format, options.daily_notes.start_of_week))
+  local id = tostring(date.format(datetime, date_format, options.daily_notes.start_of_week))
 
   path = Path.new(vim.fs.joinpath(tostring(path), id .. ".md"))
 
@@ -56,7 +56,7 @@ local _daily = function(datetime, opts)
   ---@type string|?
   local alias
   if options.daily_notes.alias_format ~= nil then
-    alias = tostring(util.format_date(datetime, options.daily_notes.alias_format, options.daily_notes.start_of_week))
+    alias = tostring(date.format(datetime, options.daily_notes.alias_format, options.daily_notes.start_of_week))
   end
 
   ---@type obsidian.Note
@@ -97,9 +97,9 @@ M.yesterday = function()
   local yesterday
 
   if Obsidian.opts.daily_notes.workdays_only then
-    yesterday = util.working_day_before(now)
+    yesterday = date.working_day_before(now)
   else
-    yesterday = util.previous_day(now)
+    yesterday = date.previous_day(now)
   end
 
   return _daily(yesterday, {})
@@ -113,9 +113,9 @@ M.tomorrow = function()
   local tomorrow
 
   if Obsidian.opts.daily_notes.workdays_only then
-    tomorrow = util.working_day_after(now)
+    tomorrow = date.working_day_after(now)
   else
-    tomorrow = util.next_day(now)
+    tomorrow = date.next_day(now)
   end
 
   return _daily(tomorrow, {})

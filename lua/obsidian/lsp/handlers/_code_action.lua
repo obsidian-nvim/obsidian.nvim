@@ -1,6 +1,7 @@
 ---@class obsidian.lsp.CodeActionData
 ---@field title string|fun(note: obsidian.Note): string
----@field cond fun(note: obsidian.Note): boolean
+---@field cond fun(note: obsidian.Note, params: lsp.CodeActionParams?): boolean
+---@field arguments? fun(note: obsidian.Note, params: lsp.CodeActionParams?): any[]
 
 ---@class obsidian.lsp.CodeAction : lsp.CodeAction
 ---@field data obsidian.lsp.CodeActionData
@@ -11,7 +12,8 @@ local code_actions = {}
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
 ---@field title string|fun(note: obsidian.Note): string text display in code action interface
----@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
+---@field cond? fun(note: obsidian.Note, params: lsp.CodeActionParams?): boolean function used to determine whether code action is shown
+---@field arguments? fun(note: obsidian.Note, params: lsp.CodeActionParams?): any[] command arguments, resolved at request time
 ---@field fn? function
 
 ---Register a new command.
@@ -31,6 +33,7 @@ local add = function(opts)
       cond = opts.cond or function()
         return true
       end,
+      arguments = opts.arguments,
       -- TODO: preview?
     },
   }
@@ -41,6 +44,17 @@ local add = function(opts)
     end)
   end
   code_actions[opts.name] = action
+end
+
+---Resolve the buffer and LSP position a code action was requested for.
+---@param params lsp.CodeActionParams|?
+---@return integer|? bufnr
+---@return lsp.Position|? position
+local function resolve_position(params)
+  if not params then
+    return nil, nil
+  end
+  return vim.uri_to_bufnr(params.textDocument.uri), params.range.start
 end
 
 local function in_visual()
@@ -103,6 +117,19 @@ local default_actions = {
 
   insert_link = {
     title = "Insert internal link at cursor",
+  },
+
+  unlink = {
+    title = "Remove link under cursor",
+    cond = function(_, params)
+      local bufnr, position = resolve_position(params)
+      local link_type = select(2, require("obsidian.api").cursor_link(bufnr, position))
+      return link_type == "wiki" or link_type == "markdown"
+    end,
+    arguments = function(_, params)
+      local bufnr, position = resolve_position(params)
+      return { bufnr, position }
+    end,
   },
 
   insert_tag = {

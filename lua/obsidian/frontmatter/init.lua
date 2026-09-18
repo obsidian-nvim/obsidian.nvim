@@ -53,23 +53,25 @@ end
 
 --- Parse and validate info from frontmatter.
 ---
----@param frontmatter_lines string[]
+---@param frontmatter_lines string[] YAML body, without the boundary lines.
+---@param path string|obsidian.Path?
+---@param opts obsidian.yaml.ParseOpts?
 ---@return { id: string|?, tags: string[]|?, aliases: string[]|? }
 ---@return table<string, any> metadata
 ---@return string[] errors
-M.parse = function(frontmatter_lines, path)
-  local frontmatter = table.concat(frontmatter_lines, "\n")
-  local ok, data = pcall(yaml.loads, frontmatter)
+---@return obsidian.yaml.Element[] elements Raw scalar occurrences before validation/normalization.
+M.parse = function(frontmatter_lines, path, opts)
+  local ok, data, _, elements = pcall(yaml.loads, frontmatter_lines, opts)
   if type(data) ~= "table" then
     data = {}
   end
   if not ok then
-    return {}, {}, {}
+    return {}, {}, {}, {}
   end
   local metadata, ret, errors = {}, {}, {}
   for k, v in pairs(data) do
     if validator[k] ~= nil then
-      local value, err = validator[k](v, path)
+      local value, err = validator[k](v, tostring(path))
       if err ~= nil then
         errors[#errors + 1] = err
       else
@@ -80,7 +82,7 @@ M.parse = function(frontmatter_lines, path)
     end
   end
 
-  return ret, metadata, errors
+  return ret, metadata, errors, elements
 end
 
 return M

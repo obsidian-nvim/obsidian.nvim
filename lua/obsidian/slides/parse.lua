@@ -1,6 +1,6 @@
 local M = {}
 local footnotes = require "obsidian.footnotes"
-local util = require "obsidian.util"
+local header = require "obsidian.parse.header"
 
 ---@class obsidian.Slide
 ---@field title string: The title of the slide
@@ -206,7 +206,7 @@ M.parse = function(lines)
 
       -- drop line if it was only comments/whitespace
       if line then
-        if current_slide.title == "" and util.is_header(line) then
+        if current_slide.title == "" and header.parse(line) then
           current_slide.title = line
         else
           current_slide.body[#current_slide.body + 1] = line

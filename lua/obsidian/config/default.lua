@@ -105,11 +105,11 @@ return {
     substitutions = {
       date = function(_, suffix)
         local format = suffix or Obsidian.opts.templates.date_format
-        return require("obsidian.util").format_date(os.time(), format)
+        return require("obsidian.date").format(os.time(), format)
       end,
       time = function(_, suffix)
         local format = suffix or Obsidian.opts.templates.time_format
-        return require("obsidian.util").format_date(os.time(), format)
+        return require("obsidian.date").format(os.time(), format)
       end,
       title = function(ctx)
         return ctx.partial_note and ctx.partial_note:display_name()
@@ -278,6 +278,19 @@ return {
     format = "YYYYMMDDHHmm",
     folder = nil,
     template = nil,
+  },
+
+  ---@class obsidian.config.QuickSwitchOpts
+  ---
+  ---Whether quick switch only shows files that already exist. When false and cache is enabled,
+  ---links to missing notes are included.
+  ---@field show_existing_only? boolean
+  ---
+  ---Whether quick switch includes attachments when cache is enabled.
+  ---@field show_attachments? boolean
+  quick_switch = {
+    show_existing_only = true,
+    show_attachments = false,
   },
 
   ---@class obsidian.config.AttachmentsOpts

@@ -253,4 +253,32 @@ T["open_note"]["should blink quickfix-style ranges"] = function()
   eq(true, result[3])
 end
 
+T["blink handles the exclusive EOF sentinel without mutating the range"] = function()
+  local result = child.lua [[
+    local Range = require "obsidian.range"
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "first", "élast" })
+    local range = Range.new(0, 0, 2, 0)
+    M.blink(range, buf, { timeout = 30 })
+    local mark, namespace
+    for name, ns in pairs(vim.api.nvim_get_namespaces()) do
+      if name:match("^obsidian_blink_") then
+        local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, { details = true })
+        if #marks > 0 then
+          mark, namespace = marks[1], ns
+          break
+        end
+      end
+    end
+    assert(mark, "expected a highlight in the supplied buffer")
+    local cleared = vim.wait(1000, function()
+      return #vim.api.nvim_buf_get_extmarks(buf, namespace, 0, -1, {}) == 0
+    end, 5)
+    M.blink(Range.new(2, 0, 2, 0), buf)
+    vim.api.nvim_buf_delete(buf, { force = true })
+    return { mark[4].end_row, mark[4].end_col, range.end_row, range.end_col, cleared }
+  ]]
+  eq(result, { 1, 6, 2, 0, true })
+end
+
 return T

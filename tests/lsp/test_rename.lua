@@ -70,6 +70,23 @@ T["rename current note"] = function()
   eq(target_expected, table.concat(lines, "\n"))
 end
 
+T["rename current note does not insert frontmatter when disabled"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["plain.md"] = "hello\nworld",
+  })
+
+  local new_target_path = root / "renamed-plain.md"
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["plain.md"])
+  rename "renamed-plain"
+  h.child_wait_for_path(child, new_target_path)
+  eq(true, new_target_path:exists())
+  local lines = child.api.nvim_buf_get_lines(1, 0, -1, false)
+  eq("hello\nworld", table.concat(lines, "\n"))
+end
+
 T["rename current note is no-op when name matches current note"] = function()
   local root = child.Obsidian.dir
   local files = h.mock_vault_contents(root, {

@@ -39,7 +39,7 @@ local function link_suggestion_hint(value, position, suggestion)
     label = label,
     paddingLeft = false,
     paddingRight = false,
-    data = { range = Range.to_lsp(suggestion.range) },
+    data = { range = Range.to_lsp(suggestion.range, "utf-8") },
   }
 end
 
@@ -71,7 +71,7 @@ local function get_hints(note, range)
   end
 
   local suggestions = note:link_suggestions {
-    range = range and Range.lsp(range) or nil,
+    range = range and Range.from_lsp(range, "utf-8") or nil,
   }
   local seen_suggestion_ranges = {}
 

@@ -4,7 +4,8 @@
 --- It backs both anchor-link / block resolution (`Note.from_lines`) and
 --- `Note.insert_text` (via `obsidian.util.text_insertion`).
 
-local util = require "obsidian.util"
+local header_parser = require "obsidian.parse.header"
+local block_ids = require "obsidian.parse.block_id"
 local Range = require "obsidian.range"
 
 local H1_UNDERLINE_PATTERN = "^(=+)$"
@@ -90,7 +91,7 @@ local function get_line_details(lines, first)
       return { type = "empty" }
     end
 
-    local header = util.parse_header(line)
+    local header = header_parser.parse(line)
     if header then
       return { type = "header", level = header.level, label = header.header }
     end
@@ -188,7 +189,7 @@ M.parse = function(lines, opts)
     end
 
     local line = vim.trim(lines[idx] or "")
-    local block_id = util.parse_block(line)
+    local block_id = block_ids.parse(line)
     if block_id then
       local block = { id = block_id, line = idx, block = line }
       blocks[block_id] = block
@@ -275,7 +276,7 @@ M.parse = function(lines, opts)
             close_paragraph(idx)
           end
         end
-        local block_id = util.parse_block(line)
+        local block_id = block_ids.parse(line)
         if block_id and line == block_id and para_beg == nil and last_para_section ~= nil then
           if blocks then
             blocks[block_id] = { id = block_id, line = idx, block = line, section = last_para_section }
@@ -386,7 +387,7 @@ M.parse = function(lines, opts)
     local section = {
       header = entry.label,
       level = entry.level,
-      anchor = entry.label and util.header_to_anchor(entry.label) or nil,
+      anchor = entry.label and header_parser.to_anchor(entry.label) or nil,
       range = Range.new((entry.level and entry.h_beg or entry.c_beg) - 1, 0, full_end - 1, 0),
       heading_range = Range.new(entry.h_beg - 1, 0, entry.h_end - 1, 0),
       content_range = Range.new(entry.c_beg - 1, 0, entry.c_end - 1, 0),

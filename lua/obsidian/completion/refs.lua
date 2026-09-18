@@ -1,4 +1,5 @@
 local util = require "obsidian.util"
+local block_ids = require "obsidian.parse.block_id"
 
 local M = {}
 
@@ -99,7 +100,7 @@ function M.collect_matching_blocks(note, block_link)
 
     if #matching_blocks == 0 then
       -- Unmatched, create a mock one.
-      table.insert(matching_blocks, { id = util.standardize_block(block_link), line = 1 })
+      table.insert(matching_blocks, { id = block_ids.normalize(block_link), line = 1 })
     end
   end
 

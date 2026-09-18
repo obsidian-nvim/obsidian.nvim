@@ -12,6 +12,10 @@ local Path = require "obsidian.path"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
+local compat = require "obsidian.compat"
+local uri = require "obsidian.uri"
+local header_parser = require "obsidian.parse.header"
+local block_ids = require "obsidian.parse.block_id"
 local text_insertion = require "obsidian.util.text_insertion"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
@@ -65,6 +69,7 @@ end
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
+---@field frontmatter_elements obsidian.yaml.Element[]? Scalar occurrences in document coordinates.
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field block_candidates obsidian.Section[]|? paragraphs that can receive block identifiers.
@@ -150,40 +155,6 @@ local function generate_id(base_id, path, id_func)
   return new_id
 end
 
---- Check whether a filename stem is valid across all platforms (Windows + Linux/macOS).
----
---- https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
----
----@param name string Filename stem (without extension)
----@return boolean valid
----@return string? reason Human-readable error when invalid
-local function is_valid_filename(name)
-  if vim.g.obsidian_allow_invalid_names then
-    return true, nil
-  end
-
-  if not name or name == "" then
-    return false, "cannot be empty"
-  end
-
-  -- Forbidden on Windows (and / on Linux); %z matches the NUL byte.
-  local forbidden = name:match '[<>:"/\\|?*%z]'
-  if forbidden then
-    return false, ("contains forbidden character: %q"):format(forbidden)
-  end
-
-  -- Control characters 0x01-0x1F (NUL covered above).
-  if name:match "[\1-\31]" then
-    return false, "contains a control character"
-  end
-
-  if name:match "[%. ]$" then
-    return false, "cannot end with a space or period"
-  end
-
-  return true, nil
-end
-
 ---@param invalid_name string
 ---@return string
 local function prompt_for_valid_filename(invalid_name)
@@ -196,7 +167,7 @@ local function prompt_for_valid_filename(invalid_name)
     end
 
     current = input:gsub("%.md$", "")
-    local valid, reason = is_valid_filename(current)
+    local valid, reason = util.is_valid_filename(current)
     if valid then
       return current
     end
@@ -205,7 +176,7 @@ local function prompt_for_valid_filename(invalid_name)
   end
 end
 
-Note.is_valid_filename = is_valid_filename
+Note.is_valid_filename = util.is_valid_filename
 Note.prompt_for_valid_filename = prompt_for_valid_filename
 
 --- Generate the file path for a new note given its ID, parent directory, and title.
@@ -316,7 +287,6 @@ end
 ---@return string id
 ---@return obsidian.Path path
 ---@return string|? title
----@private
 Note._resolve_id_path = function(opts, prompt_invalid_filename)
   local id, dir = opts.id, opts.dir
   local workspace = opts.source_path and api.find_workspace(opts.source_path) or nil
@@ -403,14 +373,16 @@ Note._resolve_id_path = function(opts, prompt_invalid_filename)
   local path = Note._generate_path(id, dir, creation_opts.note_path_func)
 
   -- Reject generated filenames that are invalid on any platform.
-  local valid, reason = is_valid_filename(path.stem)
-  while not valid do
-    if not prompt_invalid_filename then
-      error(("invalid note filename %q: %s"):format(path.stem, reason), 2)
+  local valid, reason = util.is_valid_filename(path.stem)
+  if opts.check_invalid_filename ~= false then
+    while not valid do
+      if not prompt_invalid_filename then
+        error(("invalid note filename %q: %s"):format(path.stem, reason), 2)
+      end
+      id = prompt_for_valid_filename(path.stem)
+      path = Note._generate_path(id, dir, creation_opts.note_path_func)
+      valid, reason = util.is_valid_filename(path.stem)
     end
-    id = prompt_for_valid_filename(path.stem)
-    path = Note._generate_path(id, dir, creation_opts.note_path_func)
-    valid, reason = is_valid_filename(path.stem)
   end
 
   return id, path, title
@@ -570,14 +542,14 @@ Note._location = function(self, opts)
     if opts.range.start_row then
       local obsidian_range = opts.range
       ---@cast obsidian_range obsidian.Range
-      range = Range.to_lsp(obsidian_range)
+      range = Range.to_lsp(obsidian_range, "utf-8")
     else
       local lsp_range = opts.range
       ---@cast lsp_range lsp.Range
       range = lsp_range
     end
   elseif section then
-    range = Range.to_lsp(section.range)
+    range = Range.to_lsp(section.range, "utf-8")
   else
     range = {
       start = { line = 0, character = 0 },
@@ -614,7 +586,7 @@ Note.reference_ids = function(self, opts)
     ref_ids = vim.tbl_map(string.lower, ref_ids)
   end
 
-  return util.tbl_unique(ref_ids)
+  return compat.list_unique(ref_ids)
 end
 
 --- Get a list of all of the different paths that can identify this note
@@ -639,7 +611,7 @@ Note.get_reference_paths = function(self, opts)
     table.insert(raw_refs, no_suffix_relpath)
   end
 
-  raw_refs = util.tbl_unique(raw_refs)
+  raw_refs = compat.list_unique(raw_refs)
 
   if opts.urlencode == true then
     local refs = {}
@@ -647,10 +619,10 @@ Note.get_reference_paths = function(self, opts)
     for _, raw_ref in ipairs(raw_refs) do
       vim.list_extend(
         refs,
-        util.tbl_unique {
+        compat.list_unique {
           raw_ref,
-          util.urlencode(raw_ref),
-          util.urlencode(raw_ref, { keep_path_sep = true }),
+          uri.encode(raw_ref),
+          uri.encode(raw_ref, { keep_path_sep = true }),
         }
       )
     end
@@ -753,6 +725,19 @@ Note.from_file = function(path, opts)
   return note
 end
 
+--- Initialize a note from a cache row without reading the file.
+---
+---@param path string|obsidian.Path
+---@param row table
+---
+---@return obsidian.Note
+Note.from_cache = function(path, row)
+  path = Path.new(path)
+  local note = Note.new(row.id or path.stem, vim.deepcopy(row.aliases or {}), vim.deepcopy(row.tags or {}), path)
+  note.metadata = vim.deepcopy(row.properties or {})
+  return note
+end
+
 --- Initialize a note from a buffer.
 ---
 ---@param bufnr integer|?
@@ -824,6 +809,7 @@ Note.from_lines = function(lines, path, opts)
   end
 
   for line in next_line do
+    local source_line = line:gsub("\r$", "")
     line = util.rstrip_whitespace(line)
 
     if line_idx == 1 and Note._is_frontmatter_boundary(line) then
@@ -839,7 +825,7 @@ Note.from_lines = function(lines, path, opts)
     end
 
     if in_frontmatter and not at_boundary then
-      table.insert(frontmatter_lines, line)
+      table.insert(frontmatter_lines, source_line)
     end
 
     -- Collect contents.
@@ -894,8 +880,9 @@ Note.from_lines = function(lines, path, opts)
 
   -- Parse the frontmatter YAML.
   local metadata = {}
+  local frontmatter_elements = {}
   if #frontmatter_lines > 0 then
-    info, metadata, warnings = Frontmatter.parse(frontmatter_lines, path)
+    info, metadata, warnings, frontmatter_elements = Frontmatter.parse(frontmatter_lines, path, { base_row = 1 })
   end
 
   local id, aliases, tags = info.id, info.aliases, info.tags
@@ -910,6 +897,7 @@ Note.from_lines = function(lines, path, opts)
   n.metadata = metadata
   n.has_frontmatter = has_frontmatter
   n.frontmatter_end_line = frontmatter_end_line
+  n.frontmatter_elements = frontmatter_elements
   n.contents = contents
   n.anchor_links = anchor_links
   n.blocks = blocks
@@ -1156,10 +1144,12 @@ Note.save = function(self, opts)
   local new_lines
   if opts.insert_frontmatter then
     -- Replace frontmatter.
-    new_lines = util.flatten { self:frontmatter_lines(existing_frontmatter), content }
+    ---@diagnostic disable-next-line: call-non-callable
+    new_lines = vim.iter({ self:frontmatter_lines(existing_frontmatter), content }):flatten():totable()
   else
     -- Use existing frontmatter.
-    new_lines = util.flatten { existing_frontmatter, content }
+    ---@diagnostic disable-next-line: call-non-callable
+    new_lines = vim.iter({ existing_frontmatter, content }):flatten():totable()
   end
 
   local file_content = table.concat(new_lines, "\n")
@@ -1250,7 +1240,7 @@ end
 ---@param anchor_link string
 ---@return obsidian.note.HeaderAnchor|?
 Note.resolve_anchor_link = function(self, anchor_link)
-  anchor_link = util.standardize_anchor(anchor_link)
+  anchor_link = header_parser.normalize_anchor(anchor_link)
 
   if self.anchor_links ~= nil then
     return self.anchor_links[anchor_link]
@@ -1268,7 +1258,7 @@ end
 ---
 ---@return obsidian.note.Block|?
 Note.resolve_block = function(self, block_id)
-  block_id = util.standardize_block(block_id)
+  block_id = block_ids.normalize(block_id)
 
   if self.blocks ~= nil then
     return self.blocks[block_id]
@@ -1331,27 +1321,6 @@ end
 
 Note.delete = require("obsidian.note.delete").delete
 
----@param path obsidian.Path vault-relative-path
----@param style obsidian.link.LinkFormat?
----@param base_dir string|obsidian.Path?
----@return string foramted_path
-local function format_path(path, style, base_dir)
-  if style == "absolute" then
-    return assert(path:vault_relative_path {})
-  elseif style == "relative" then
-    base_dir = base_dir or Obsidian.buf_dir or api.resolve_workspace_dir()
-    if base_dir == nil then
-      return assert(path:vault_relative_path {})
-    end
-
-    local relpath =
-      assert(util.relpath(tostring(base_dir), tostring(path)), "failed to resolve link path against current note")
-    return relpath
-  else
-    return vim.fs.basename(tostring(path))
-  end
-end
-
 ---@class obsidian.note.FormatLinkOpts : obsidian.link.LinkCreationOpts
 ---@field dir? string|obsidian.Path Base directory for relative links.
 
@@ -1366,23 +1335,15 @@ Note.format_link = function(self, opts)
   local link_format = opts.format or Obsidian.opts.link.format
 
   local new_opts = {
-    path = format_path(self.path, link_format, opts.dir),
+    path = tostring(self.path),
     label = label,
     anchor = opts.anchor,
     block = opts.block,
     style = link_style,
     format = link_format,
+    dir = opts.dir,
   }
-
-  if link_style == "markdown" then
-    return require("obsidian.builtin").markdown_link(new_opts)
-  elseif link_style == "wiki" or link_style == nil then
-    return require("obsidian.builtin").wiki_link(new_opts)
-  elseif type(link_style) == "function" then
-    return link_style(new_opts)
-  else
-    error(string.format("Invalid link style '%s'", link_style))
-  end
+  return api.format_link(new_opts)
 end
 
 --- Return note status counts, like obsidian's status bar.
@@ -1580,6 +1541,7 @@ end
 ---@field tags string[]|?  Tags for this note
 ---@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
 ---@field scope string|? Arbitrary note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+---@field check_invalid_filename boolean|?
 
 ---@class (exact) obsidian.note.CreateCallbackOpts
 ---@field scope string Scope inherited from the `Note.create` opts, or `"plain"` when not set.

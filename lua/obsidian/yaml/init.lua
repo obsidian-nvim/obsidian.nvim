@@ -4,11 +4,13 @@ local parser = require "obsidian.yaml.parser"
 local yaml = {}
 
 ---Deserialize a YAML string.
----@param str string
----@return any
----@return string[]
-yaml.loads = function(str)
-  return parser.loads(str)
+---@param str string|string[]
+---@param opts obsidian.yaml.ParseOpts?
+---@return any value
+---@return string[] order
+---@return obsidian.yaml.Element[] elements
+yaml.loads = function(str, opts)
+  return parser.loads(str, opts)
 end
 
 ---@param s string

@@ -4,6 +4,7 @@ local T = h.temp_vault
 local api = require "obsidian.api"
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
+local builtin = require "obsidian.builtin"
 
 local new_set, eq, not_eq = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.no_equality
 
@@ -13,6 +14,27 @@ T["new"]["should be able to be initialize directly"] = function()
   eq(note.id, "FOO")
   eq(note.aliases[1], "foo")
   eq(true, M.is_note_obj(note))
+end
+
+T["from_cache"] = new_set()
+T["from_cache"]["uses cached metadata without reading the file"] = function()
+  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", {
+    id = "cached-id",
+    aliases = { "Alias" },
+    tags = { "tag" },
+    properties = { custom = "value" },
+  })
+
+  eq("cached-id", note.id)
+  eq("Alias", note.aliases[1])
+  eq("tag", note.tags[1])
+  eq("value", note.metadata.custom)
+  eq(nil, rawget(note, "contents"))
+end
+
+T["from_cache"]["uses the filename stem when no ID is cached"] = function()
+  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", {})
+  eq("note", note.id)
 end
 
 T["create"] = new_set()
@@ -160,7 +182,7 @@ This is some content.]]
 T["save"] = new_set()
 
 T["save"]["should be able to save a new note"] = function()
-  local note = M.new("FOO", {}, {}, "/tmp/" .. util.zettel_id() .. ".md")
+  local note = M.new("FOO", {}, {}, "/tmp/" .. builtin.zettel_id() .. ".md")
   note:save()
   eq(true, note.path:exists())
   vim.fn.delete(note.path.filename)
@@ -168,7 +190,7 @@ T["save"]["should be able to save a new note"] = function()
 end
 
 T["save"]["should create new files with trailing newline"] = function()
-  local note = M.new("FOO", { "foo" }, {}, "/tmp/" .. util.zettel_id() .. ".md")
+  local note = M.new("FOO", { "foo" }, {}, "/tmp/" .. builtin.zettel_id() .. ".md")
   note.title = "Foo"
   note:save()
 
@@ -183,7 +205,7 @@ T["save"]["should create new files with trailing newline"] = function()
 end
 
 T["save"]["should preserve eol status"] = function()
-  local temp_path = "/tmp/" .. util.zettel_id() .. ".md"
+  local temp_path = "/tmp/" .. builtin.zettel_id() .. ".md"
   util.write_file(temp_path, "# Test\n\nContent here\n")
 
   local note = M.from_file(temp_path)
@@ -199,7 +221,7 @@ T["save"]["should preserve eol status"] = function()
 end
 
 T["save"]["should preserve noeol status"] = function()
-  local temp_path = "/tmp/" .. util.zettel_id() .. ".md"
+  local temp_path = "/tmp/" .. builtin.zettel_id() .. ".md"
   util.write_file(temp_path, "# Test\n\nContent here")
 
   local note = M.from_file(temp_path)
@@ -219,7 +241,7 @@ T["save"]["should not error on :checktime when save path contains regex-special 
   -- `:checktime`, which treats it as a Vim regex pattern. Paths with `[`,
   -- `]`, `*`, etc. (legal in note filenames, e.g. `[[wiki]] title.md`)
   -- would raise E94 even when a buffer was loaded for the exact path.
-  local path = "/tmp/" .. util.zettel_id() .. " [draft].md"
+  local path = "/tmp/" .. builtin.zettel_id() .. " [draft].md"
   local note = M.new("FOO", {}, {}, path)
   note:save()
 
@@ -632,6 +654,19 @@ T["from_file"]["should work from a README"] = function()
   eq(#note.tags, 0)
   eq(note:fname(), "README.md")
   eq(false, note:should_save_frontmatter())
+end
+
+T["from_file"]["strips CR line endings from frontmatter source lines"] = function()
+  local temp_path = "/tmp/" .. builtin.zettel_id() .. ".md"
+  util.write_file(temp_path, "---\r\nbody: |\r\n  text  \r\n---\r\n")
+
+  local note = M.from_file(temp_path)
+  local element = note.frontmatter_elements[1]
+
+  eq("text  ", note.metadata.body)
+  eq(8, element.range.end_col)
+
+  vim.fn.delete(temp_path)
 end
 
 T["_is_frontmatter_boundary()"] = function()

@@ -9,14 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `unlink` code action to replace a link with its display text, falling back to the target note path stem.
+- `:Obsidian quick_switch` new capabilities:
+  - `opts.quick_switch.show_existing_only` default to `true`.
+  - `opts.quick_switch.show_attachments` default to `false`.
 - Prompt to confirm deletion for notes that have backlinks and attachments.
 - Attachment destination and vault-wide reference resolution, with `attachment.rename()` and `attachment.delete()` APIs.
 - Line-level Markdown list item and task parsers (`obsidian.parse.line.list_items`, `obsidian.parse.line.tasks`) with unified marker, indentation, and task-state metadata.
 - Edits to frontmatter upon editing notes are now merged with said edits in the undo tree. Now you only need to press undo once to revert said note changes instead of twice to revert the frontmattter change as well.
+- Dedicated date, URI, link-location, and Markdown heading APIs.
+
 
 ### Changed
 
+- Note-reference completion uses cached metadata when available and delegates fuzzy filtering to the completion engine (#962).
 - Checkbox detection and conceal now follow CommonMark/GFM list syntax (e.g. `-- [ ]` and `++ [ ]` are no longer treated as checkboxes) and support multi-byte checkbox states.
+- YAML Parser will emit ranges for internal use.
+- Link targets are decomposed once into location, anchor, and block components instead of using `obsidian.util` suffix helpers.
+- `obsidian.util` now contains only shared string, filename, callback, deprecation, and file-writing helpers.
+- The documented minimum Neovim version is now 0.11, matching runtime checks and CI.
+
+### Fixed
+
+- Rename no longer inserts frontmatter when `frontmatter.enabled = false`.
 
 ## [v3.16.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.7) - 2026-09-01
 
@@ -66,6 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Vault-wide block completion reuses an in-memory candidate index, updates only affected notes after watched-file changes, coalesces overlapping requests, and honors `completion.min_chars`.
 - **Breaking:** `find_files`, `find_notes`, `grep`, and `grep_notes` callbacks now receive a list of selected results. Multiple results use the quickfix list by default.
 - Deprecate old `picker.pick`, internally use `picker.select` with better multi-select and preview_item support.
 

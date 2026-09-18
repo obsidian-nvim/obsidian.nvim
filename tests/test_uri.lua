@@ -1,4 +1,4 @@
-local M = require "obsidian.util"
+local M = require "obsidian.uri"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
@@ -57,6 +57,11 @@ T["is_uri"]["identify different uri schemes"] = function(expected_scheme, uri)
   local is_uri, scheme = M.is_uri(uri)
   eq(true, is_uri)
   eq(expected_scheme, scheme)
+end
+
+T["encode"] = function()
+  eq([[~%2FLibrary%2FFoo%20Bar.md]], M.encode [[~/Library/Foo Bar.md]])
+  eq([[~/Library/Foo%20Bar.md]], M.encode([[~/Library/Foo Bar.md]], { keep_path_sep = true }))
 end
 
 T["is_uri_negative"] = new_set {

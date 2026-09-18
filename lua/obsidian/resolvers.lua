@@ -1,7 +1,8 @@
 local log = require "obsidian.log"
 local Path = require "obsidian.path"
 local picker = require "obsidian.picker"
-local util = require "obsidian.util"
+local date = require "obsidian.date"
+local uri = require "obsidian.uri"
 local api = require "obsidian.api"
 
 local M = {}
@@ -49,7 +50,7 @@ local function resolve_attachment_source(src, done)
     return
   end
 
-  local is_uri, scheme = util.is_uri(src)
+  local is_uri, scheme = uri.is_uri(src)
   if is_uri and scheme then
     if scheme == "http" or scheme == "https" then
       done { path = src }
@@ -109,8 +110,7 @@ local function daily_note_path(datetime)
   end
 
   local date_format = assert(options.daily_notes.date_format, "daily notes date_format is required")
-  local daily_path = path
-    / (tostring(util.format_date(datetime, date_format, options.daily_notes.start_of_week)) .. ".md")
+  local daily_path = path / (tostring(date.format(datetime, date_format, options.daily_notes.start_of_week)) .. ".md")
   ---@cast daily_path obsidian.Path
   return daily_path
 end
@@ -132,7 +132,7 @@ M.builtin.date = function(ctx, done)
     local datetime = os.time() + (offset * 3600 * 24)
     local daily_path = daily_note_path(datetime)
     local label = tostring(
-      util.format_date(datetime, options.daily_notes.alias_format or "%A %B %-d, %Y", options.daily_notes.start_of_week)
+      date.format(datetime, options.daily_notes.alias_format or "%A %B %-d, %Y", options.daily_notes.start_of_week)
     )
     if offset == 0 then
       label = label .. " @today"
@@ -159,7 +159,7 @@ M.builtin.date = function(ctx, done)
     prompt = "Dailies",
     preview_item = function(entry)
       if vim.uv.fs_stat(entry.filename) then
-        return util.preview_path(entry.filename)
+        return picker.preview_path(entry.filename)
       end
 
       local buf = vim.api.nvim_create_buf(false, true)
