@@ -52,6 +52,7 @@ local function parsePatternBracePart(pat, start)
     if a1 > a2 then
       a1, a2 = a2, a1
     end
+    ---@cast e -nil
     return {
       kind = "brace",
       alphaRange = { a1, a2 },
@@ -65,6 +66,7 @@ local function parsePatternBracePart(pat, start)
     if n1 > n2 then
       n1, n2 = n2, n1
     end
+    ---@cast e -nil
     return {
       kind = "brace",
       numberRange = { n1, n2 },
@@ -338,7 +340,6 @@ function M:checkPatternWord(path, pattern, patIndex)
         end
         newPath = newPath:sub(2)
       end
-      return false
     elseif pat == "?" then
       if path == nil or path == "" then
         return false
@@ -481,6 +482,7 @@ function M:status(paths)
       end
       local patternKey = base
       if self.options.ignoreCase then
+        ---@cast patternKey string
         patternKey = patternKey:lower()
       end
       local patterns = self.patternMap[patternKey]

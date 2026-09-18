@@ -15,11 +15,8 @@ return {
   notes_subdir = nil,
   new_notes_location = "current_dir",
 
-  ---@alias obsidian.link.LinkStyle "wiki" | "markdown" | fun(opts: obsidian.link.LinkCreationOpts): string
-  ---@alias obsidian.link.LinkFormat "shortest" | "relative" | "absolute"
-
   ---@class obsidian.config.LinkOpts
-  ---@field style? obsidian.link.LinkStyle
+  ---@field style? obsidian.link.LinkStyleOption
   ---@field format? obsidian.link.LinkFormat
   ---@field auto_update? boolean
   link = {
@@ -47,14 +44,28 @@ return {
   ---@field template string|?
   note = {
     template = (function()
-      local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
-        return vim.endswith(path, "obsidian.nvim")
-      end)
+      local root
+      for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
+        if vim.endswith(path, "obsidian.nvim") then
+          root = path
+          break
+        end
+      end
       if not root then
         return nil
       end
       return vim.fs.joinpath(root, "data/default_template.md")
     end)(),
+  },
+
+  ---@class obsidian.config.FileOpts
+  ---
+  --- A list of gitignore-style glob patterns to ignore files and directories.
+  --- Users should use simple gitignore style globs without modifiers,
+  --- and ripgrep compatibility is not guaranteed.
+  ---@field ignore_filters? string[]
+  file = {
+    ignore_filters = {},
   },
 
   ---@class obsidian.config.FrontmatterOpts
@@ -77,6 +88,7 @@ return {
   ---@class obsidian.config.TemplateOpts
   ---
   ---@field enabled boolean|?
+  ---Folder containing templates, either relative to the vault root or an absolute path.
   ---@field folder string|obsidian.Path|?
   ---@field date_format string
   ---@field time_format string
@@ -93,11 +105,11 @@ return {
     substitutions = {
       date = function(_, suffix)
         local format = suffix or Obsidian.opts.templates.date_format
-        return require("obsidian.util").format_date(os.time(), format)
+        return require("obsidian.date").format(os.time(), format)
       end,
       time = function(_, suffix)
         local format = suffix or Obsidian.opts.templates.time_format
-        return require("obsidian.util").format_date(os.time(), format)
+        return require("obsidian.date").format(os.time(), format)
       end,
       title = function(ctx)
         return ctx.partial_note and ctx.partial_note:display_name()
@@ -126,27 +138,20 @@ return {
 
   ---@class obsidian.config.CompletionOpts
   ---
-  ---@field nvim_cmp? boolean
-  ---@field blink? boolean
   ---@field min_chars? integer
   ---@field match_case? boolean
   ---@field create_new? boolean
-  completion = (function()
-    local has_nvim_cmp, _ = pcall(require, "cmp")
-    local has_blink = pcall(require, "blink.cmp")
-    return {
-      nvim_cmp = has_nvim_cmp and not has_blink,
-      blink = has_blink,
-      min_chars = 2,
-      match_case = true,
-      create_new = true,
-    }
-  end)(),
+  completion = {
+    min_chars = 2,
+    match_case = true,
+    create_new = true,
+  },
 
   ---@class obsidian.config.PickerNoteMappingOpts
   ---
   ---@field new? string
   ---@field insert_link? string
+  ---@field bookmark? string
 
   ---@class obsidian.config.PickerTagMappingOpts
   ---
@@ -160,9 +165,11 @@ return {
   ---@field tag_mappings? obsidian.config.PickerTagMappingOpts
   picker = {
     name = nil,
+    -- TODO: migrate mappings.bookmark mappings.quick_switch mappings.tag or bookmark.mappings quick_switch.mappings tag.mappings | daily_notes.mappings? attachments.mappings?
     note_mappings = {
       new = "<C-x>",
       insert_link = "<C-l>",
+      bookmark = "<C-b>",
     },
     tag_mappings = {
       tag_note = "<C-x>",
@@ -172,7 +179,7 @@ return {
 
   ---@class obsidian.config.SearchOpts
   ---
-  ---@field sort_by string|false
+  ---@field sort_by obsidian.config.SortBy|false
   ---@field sort_reversed boolean
   ---@field max_lines integer
   search = {
@@ -190,6 +197,7 @@ return {
   ---@field template? string
   ---@field default_tags? string[]
   ---@field workdays_only? boolean
+  ---@field start_of_week? integer 0 is Sunday, 1 is Monday, ..., 6 is Saturday.
   daily_notes = {
     enabled = true,
     folder = nil,
@@ -197,6 +205,7 @@ return {
     alias_format = nil,
     default_tags = { "daily-notes" },
     workdays_only = true,
+    start_of_week = 1, -- Monday
   },
 
   ---@class obsidian.config.UICharSpec
@@ -212,19 +221,19 @@ return {
 
   ---@class obsidian.config.UIOpts
   ---
-  ---@field enable boolean
-  ---@field enabled boolean
-  ---@field ignore_conceal_warn boolean
-  ---@field update_debounce integer
+  ---@field enable boolean|?
+  ---@field enabled boolean|?
+  ---@field ignore_conceal_warn boolean|?
+  ---@field update_debounce integer|?
   ---@field max_file_length integer|?
-  ---@field checkboxes table<string, obsidian.config.CheckboxSpec>
+  ---@field checkboxes table<string, obsidian.config.CheckboxSpec>|?
   ---@field bullets obsidian.config.UICharSpec|?
-  ---@field external_link_icon obsidian.config.UICharSpec
-  ---@field reference_text obsidian.config.UIStyleSpec
-  ---@field highlight_text obsidian.config.UIStyleSpec
-  ---@field tags obsidian.config.UIStyleSpec
-  ---@field block_ids obsidian.config.UIStyleSpec
-  ---@field hl_groups table<string, table>
+  ---@field external_link_icon obsidian.config.UICharSpec|?
+  ---@field reference_text obsidian.config.UIStyleSpec|?
+  ---@field highlight_text obsidian.config.UIStyleSpec|?
+  ---@field tags obsidian.config.UIStyleSpec|?
+  ---@field block_ids obsidian.config.UIStyleSpec|?
+  ---@field hl_groups table<string, table>|?
   ui = {
     enable = true,
     ignore_conceal_warn = false,
@@ -271,6 +280,19 @@ return {
     template = nil,
   },
 
+  ---@class obsidian.config.QuickSwitchOpts
+  ---
+  ---Whether quick switch only shows files that already exist. When false and cache is enabled,
+  ---links to missing notes are included.
+  ---@field show_existing_only? boolean
+  ---
+  ---Whether quick switch includes attachments when cache is enabled.
+  ---@field show_attachments? boolean
+  quick_switch = {
+    show_existing_only = true,
+    show_attachments = false,
+  },
+
   ---@class obsidian.config.AttachmentsOpts
   ---
   ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
@@ -293,33 +315,26 @@ return {
     confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
   },
 
-  ---@alias obsidian.sync.FileType
-  ---"image" |
-  ---"audio" |
-  ---"video" |
-  ---"pdf" |
-  ---"unsupported"
-
-  ---@alias obsidian.sync.ConfigCategory
-  ---"app" |
-  ---"appearance" |
-  ---"appearance-data" |
-  ---"hotkey" |
-  ---"core-plugin" |
-  ---"core-plugin-data" |
-  ---"community-plugin" |
-  ---"community-plugin-data"
-
   ---https://help.obsidian.md/sync/settings
   ---@class obsidian.config.SyncOpts
   ---
   ---@field enabled? boolean
   ---
+  ---Which backend to use. Built-in: "obsidian" (obsidian-headless CLI).
+  ---Custom backends can be added with `require("obsidian.sync").register(name, backend)`.
+  ---@field backend? string
+  ---
+  ---When to run a sync.
+  --- - "continuous": keep a long-running sync process (default for obsidian backend).
+  --- - "on_write": run a one-shot sync (debounced) after each note save.
+  --- - "manual": only sync via :Obsidian sync start or explicit calls.
+  ---@field trigger? obsidian.config.SyncTrigger
+  ---
   ---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
-  ---@field mode? "bidirectional"|"pull-only"|"mirror-remote"
+  ---@field mode? obsidian.config.SyncMode
   ---
   ---Conflict strategy when a conflict is detected, NOTE: conflict is not currently supported in this client
-  ---@field conflict_strategy? "merge"|"conflict"
+  ---@field conflict_strategy? obsidian.config.ConflictStrategy
   ---
   ---Attachment types to sync: image, audio, video, pdf, unsupported, empty table to disable attachment syncing
   ---@field file_types? obsidian.sync.FileType[]
@@ -337,10 +352,12 @@ return {
   ---@field device_name? string
   sync = {
     enabled = false,
+    backend = "obsidian",
+    trigger = "continuous",
     mode = nil,
     conflict_strategy = "merge",
     file_types = { "image", "audio", "video", "pdf", "unsupported" },
-    configs = nil,
+    configs = { "core-plugin", "core-plugin-data" },
     excluded_folders = {},
     device_name = nil,
     config_dir = ".obsidian",
@@ -351,6 +368,9 @@ return {
   ---Runs right after setup
   ---@field post_setup? fun()
   ---
+  ---Runs when `Note.create` builds a note object. `opts.scope` is inherited from the `Note.create` opts, defaulting to `"plain"`.
+  ---@field create_note? fun(note: obsidian.Note, opts: obsidian.note.CreateCallbackOpts)
+  ---
   ---Runs when entering a note buffer.
   ---@field enter_note? fun(note: obsidian.Note)
   ---
@@ -360,9 +380,24 @@ return {
   ---Runs right before writing a note buffer.
   ---@field pre_write_note? fun(note: obsidian.Note)
   ---
+  ---Runs after adding an attachment.
+  ---@field add_attachment? fun(path: string, ctx: obsidian.AddAttachmentContext)
+  ---
   ---Runs anytime the workspace is set/changed.
   ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
   callbacks = {},
+
+  ---@class obsidian.config.ResolverConfig
+  ---
+  ---Resolve an attachment source before `actions.add_attachment` copies/downloads it.
+  ---@field attachment? obsidian.Resolver
+  ---
+  ---Resolve a date before date-based actions, such as `daily.pick`, continue.
+  ---@field date? obsidian.Resolver
+  ---
+  ---Build serializable LSP inlay hints for a note.
+  ---@field hints? obsidian.resolver.Hints
+  resolvers = {},
 
   ---@class obsidian.config.FooterOpts
   ---
@@ -418,5 +453,13 @@ return {
   ---@field enabled? boolean
   slides = {
     enabled = true,
+  },
+
+  ---@class obsidian.config.CacheOpts
+  ---@field enabled? boolean
+  ---@field backend? string Built-in: "json", "memory". Custom backends can be added with `require("obsidian.cache").register(name, backend)`.
+  cache = {
+    enabled = false,
+    backend = "json",
   },
 }

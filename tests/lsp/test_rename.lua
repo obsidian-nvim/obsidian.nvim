@@ -3,9 +3,31 @@ local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault()
 
-local function flush()
-  child.lua [[vim.wait(100, function() end)]]
-  child.lua [[vim.wait(100, function() end)]]
+local function rename(new_name)
+  h.child_await(
+    child,
+    ([[
+      require("obsidian.lsp.handlers.rename")({ newName = %q }, function(_, edit)
+        if edit then
+          vim.lsp.util.apply_workspace_edit(edit, "utf-8")
+        end
+        done(true)
+      end)
+    ]]):format(new_name),
+    { desc = "rename" }
+  )
+end
+
+local function prepare_rename_placeholder()
+  return h.child_await(
+    child,
+    [[
+      require("obsidian.lsp.handlers.prepare_rename")(nil, function(_, result)
+        done(result.placeholder)
+      end)
+    ]],
+    { desc = "prepare rename" }
+  )
 end
 
 local target = "target.md"
@@ -41,11 +63,28 @@ T["rename current note"] = function()
   local new_target_path = root / "new_target.md"
 
   child.cmd("edit " .. files[target])
-  child.lua [[vim.lsp.buf.rename("new_target", {})]]
-  flush()
+  rename "new_target"
+  h.child_wait_for_path(child, new_target_path)
   eq(true, new_target_path:exists())
   local lines = child.api.nvim_buf_get_lines(1, 0, -1, false) -- new_target
   eq(target_expected, table.concat(lines, "\n"))
+end
+
+T["rename current note does not insert frontmatter when disabled"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["plain.md"] = "hello\nworld",
+  })
+
+  local new_target_path = root / "renamed-plain.md"
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["plain.md"])
+  rename "renamed-plain"
+  h.child_wait_for_path(child, new_target_path)
+  eq(true, new_target_path:exists())
+  local lines = child.api.nvim_buf_get_lines(1, 0, -1, false)
+  eq("hello\nworld", table.concat(lines, "\n"))
 end
 
 T["rename current note is no-op when name matches current note"] = function()
@@ -61,7 +100,8 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  child.lua [[vim.lsp.buf.rename("target", {})]]
+  rename "target"
+  h.child_wait(child, [[return _G.msg == "Identical name"]], { desc = "rename no-op message" })
   eq("Identical name", child.lua_get "msg")
 end
 
@@ -79,8 +119,46 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  child.lua [[vim.lsp.buf.rename("existing", {})]]
+  rename "existing"
+  h.child_wait(child, [[return _G.msg == "Note with same name exists"]], { desc = "rename no-op message" })
   eq("Note with same name exists", child.lua_get "msg")
+end
+
+T["rename rejects invalid filename"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    [target] = target_content,
+  })
+
+  child.lua [[
+require"obsidian.log".err = function(msg)
+   _G.err_msg = msg
+end
+  ]]
+
+  child.cmd("edit " .. files[target])
+  rename "bad:name"
+  h.child_wait(child, [[return _G.err_msg ~= nil]], { desc = "rename invalid filename message" })
+  eq('Invalid filename "bad:name": contains forbidden character: ":"', child.lua_get "err_msg")
+  eq(true, (root / target):exists())
+  eq(false, (root / "bad:name.md"):exists())
+end
+
+T["rename current note allows same name in a different folder"] = function()
+  local root = child.Obsidian.dir
+  local folder = root / "other"
+  folder:mkdir()
+  local files = h.mock_vault_contents(root, {
+    [target] = target_content,
+    ["other/existing.md"] = "",
+  })
+
+  local new_target_path = root / "existing.md"
+
+  child.cmd("edit " .. files[target])
+  rename "existing"
+  h.child_wait_for_path(child, new_target_path)
+  eq(true, new_target_path:exists())
 end
 
 T["rename note under cursor"] = function()
@@ -95,13 +173,30 @@ T["rename note under cursor"] = function()
   child.cmd("edit " .. files[ref])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
-  child.lua [[vim.lsp.buf.rename("new_target", {})]]
-  flush()
+  rename "new_target"
+  h.child_wait_for_path(child, new_target_path)
   child.cmd "wa"
   eq(true, new_target_path:exists())
   local lines = vim.fn.readfile(tostring(new_target_path))
 
   eq(target_expected, table.concat(lines, "\n"))
+end
+
+T["prepare rename keeps fragment-only placeholders"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    [ref] = [==[
+
+[[#header]] [[#^block]]
+]==],
+  })
+
+  child.cmd("edit " .. files[ref])
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  eq("#header", prepare_rename_placeholder())
+
+  child.api.nvim_win_set_cursor(0, { 2, 13 })
+  eq("#^block", prepare_rename_placeholder())
 end
 
 local referencer2_expected = [==[
@@ -113,6 +208,32 @@ tags: []
 
 [[new_target#^block]]
 ]==]
+
+T["rename note preserves matching wiki alias"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["index.md"] = [[---
+id: index
+aliases: []
+tags: []
+---]],
+    [ref] = [==[
+
+[[index|index]]
+]==],
+  })
+  local new_target_path = root / "index-new.md"
+
+  child.cmd("edit " .. files[ref])
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+
+  rename "index-new"
+  h.child_wait_for_path(child, new_target_path)
+  child.cmd "wa"
+
+  local ref_lines = h.read(files[ref])
+  eq(true, table.concat(ref_lines, "\n"):find "%[%[index%-new|index%]%]" ~= nil)
+end
 
 T["rename note without changing blocks and headers"] = function()
   local root = child.Obsidian.dir
@@ -129,8 +250,8 @@ T["rename note without changing blocks and headers"] = function()
   child.cmd("edit " .. files[ref])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
-  child.lua [[vim.lsp.buf.rename("new_target", {})]]
-  flush()
+  rename "new_target"
+  h.child_wait_for_path(child, new_target_path)
   child.cmd "wa"
   eq(true, new_target_path:exists())
 
@@ -185,8 +306,8 @@ T["rename note with special characters in filename"] = function()
   child.cmd("edit " .. files[ref])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
 
-  child.lua [[vim.lsp.buf.rename("new-note", {})]]
-  flush()
+  rename "new-note"
+  h.child_wait_for_path(child, new_target_path)
   child.cmd "wa"
   eq(true, new_target_path:exists())
 
@@ -229,8 +350,8 @@ T["rename note with markdown link reference"] = function()
   child.lua("vim.cmd.edit('" .. files["notea.md"]:gsub("'", "\\'") .. "')")
   child.api.nvim_win_set_cursor(0, { 8, 40 }) -- cursor on noteb.md in the link (line 8, col 40)
 
-  child.lua [[vim.lsp.buf.rename("renamed-note", {})]]
-  flush()
+  rename "renamed-note"
+  h.child_wait_for_path(child, new_target_path)
   child.cmd "wa"
 
   -- Check that file was renamed

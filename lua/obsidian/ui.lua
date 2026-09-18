@@ -1,15 +1,33 @@
 local util = require "obsidian.util"
+local uri = require "obsidian.uri"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
-local iter = vim.iter
+local parse_refs = require "obsidian.parse.refs"
+local parse_block_id = require "obsidian.parse.block_id"
+local parse_tags = require "obsidian.parse.tags"
+local parse_tasks = require "obsidian.parse.line.tasks"
+local parse_list_items = require "obsidian.parse.line.list_items"
+
+---@param t table
+local function iter(t)
+  ---@diagnostic disable-next-line: call-non-callable
+  return vim.iter(t)
+end
 
 local M = {}
 
 local NAMESPACE = "ObsidianUI"
 
+---@param n number
+---@return integer
+local function to_int(n)
+  ---@cast n integer
+  return n
+end
+
 ---@param ui_opts obsidian.config.UIOpts
 local function install_hl_groups(ui_opts)
-  for group_name, opts in pairs(ui_opts.hl_groups) do
+  for group_name, opts in pairs(ui_opts.hl_groups or {}) do
     vim.api.nvim_set_hl(0, group_name, opts)
   end
 end
@@ -19,6 +37,7 @@ end
 -- For example, "󰄱" is turned into "1\1\15".
 -- TODO: if we knew how to un-mangle the conceal char we wouldn't need the cache.
 
+---@type table<integer, table<integer, table<integer, ExtMark>>>
 M._buf_mark_cache = vim.defaulttable()
 
 ---@param bufnr integer
@@ -161,9 +180,11 @@ ExtMark.collect = function(bufnr, ns_id, region_start, region_end)
     local mark = ExtMark.new(data[1], data[2], data[3], ExtMarkOpts.from_tbl(data[4]))
     -- NOTE: since the conceal char we get back from `nvim_buf_get_extmarks()` is mangled, e.g.
     -- "󰄱" is turned into "1\1\15", we used the cached version.
-    local cached_mark = cache_get(bufnr, ns_id, mark.id)
-    if cached_mark ~= nil then
-      mark.opts.conceal = cached_mark.opts.conceal
+    if mark.id ~= nil then
+      local cached_mark = cache_get(bufnr, ns_id, mark.id)
+      if cached_mark ~= nil then
+        mark.opts.conceal = cached_mark.opts.conceal
+      end
     end
     cache_set(bufnr, ns_id, mark)
     marks[#marks + 1] = mark
@@ -193,16 +214,18 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_check_extmarks(marks, line, lnum, ui_opts)
-  for char, opts in pairs(ui_opts.checkboxes) do
-    if string.match(line, "^%s*- %[" .. vim.pesc(char) .. "%]") then
-      local indent = util.count_indent(line)
+  local task = parse_tasks.extract(line)[1]
+  if task then
+    local opts = (ui_opts.checkboxes or {})[task.state]
+    if opts then
+      local end_col = task.task_marker_col + #task.task_state + 2
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        indent,
+        task.indent,
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = indent + 5,
+          end_col = end_col,
           conceal = opts.char,
           hl_group = opts.hl_group,
         }
@@ -211,15 +234,15 @@ local function get_line_check_extmarks(marks, line, lnum, ui_opts)
     end
   end
 
-  if ui_opts.bullets ~= nil and string.match(line, "^%s*[-%*%+] ") then
-    local indent = util.count_indent(line)
+  local item = parse_list_items.parse(line)
+  if ui_opts.bullets ~= nil and item and item.marker_type == "bullet" and not item.checkbox_state then
     marks[#marks + 1] = ExtMark.new(
       nil,
       lnum,
-      indent,
+      item.indent,
       ExtMarkOpts.from_tbl {
         end_row = lnum,
-        end_col = indent + 1,
+        end_col = item.indent + #item.marker,
         conceal = ui_opts.bullets.char,
         hl_group = ui_opts.bullets.hl_group,
       }
@@ -234,10 +257,32 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
-  local matches = search.find_refs(line)
+  local reference_text = assert(ui_opts.reference_text, "ui reference_text options are required")
+  local external_link_icon = assert(ui_opts.external_link_icon, "ui external_link_icon options are required")
+  local block_ids = assert(ui_opts.block_ids, "ui block_ids options are required")
+  local tags = assert(ui_opts.tags, "ui tags options are required")
+  local matches = {}
+  for _, ref in ipairs(parse_refs.extract(line)) do
+    if ref.kind ~= "footnote" then
+      matches[#matches + 1] = {
+        ref.range.start_col + (ref.embed and 2 or 1),
+        ref.range.end_col,
+        ref.kind,
+        ref.label ~= nil,
+      }
+    end
+  end
+  for _, block in ipairs(parse_block_id.extract(line)) do
+    matches[#matches + 1] = {
+      block.range.start_col + 1,
+      block.range.end_col,
+      "block_id",
+    }
+  end
+
   for _, match in ipairs(matches) do
-    local m_start, m_end, m_type = unpack(match)
-    if m_type == "WikiWithAlias" then
+    local m_start, m_end, m_type, has_alias = unpack(match)
+    if m_type == "wiki" and has_alias then
       -- Reference of the form [[xxx|yyy]]
       local pipe_loc = string.find(line, "|", m_start, true)
       assert(pipe_loc, "")
@@ -245,7 +290,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start - 1,
+        to_int(m_start - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = pipe_loc,
@@ -259,8 +304,8 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         pipe_loc,
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end - 2,
-          hl_group = ui_opts.reference_text.hl_group,
+          end_col = to_int(m_end - 2),
+          hl_group = reference_text.hl_group,
           spell = false,
         }
       )
@@ -268,23 +313,23 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_end - 2,
+        to_int(m_end - 2),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end,
+          end_col = to_int(m_end),
           conceal = "",
         }
       )
-    elseif m_type == "Wiki" then
+    elseif m_type == "wiki" then
       -- Reference of the form [[xxx]]
       -- Conceal the opening '[['
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start - 1,
+        to_int(m_start - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_start + 1,
+          end_col = to_int(m_start + 1),
           conceal = "",
         }
       )
@@ -292,11 +337,11 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start + 1,
+        to_int(m_start + 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end - 2,
-          hl_group = ui_opts.reference_text.hl_group,
+          end_col = to_int(m_end - 2),
+          hl_group = reference_text.hl_group,
           spell = false,
         }
       )
@@ -304,26 +349,26 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_end - 2,
+        to_int(m_end - 2),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end,
+          end_col = to_int(m_end),
           conceal = "",
         }
       )
-    elseif m_type == "Markdown" then
+    elseif m_type == "markdown" then
       -- Reference of the form [yyy](xxx)
       local closing_bracket_loc = string.find(line, "]", m_start, true)
       assert(closing_bracket_loc, "")
-      local is_uri = util.is_uri(string.sub(line, closing_bracket_loc + 2, m_end - 1))
+      local is_uri = uri.is_uri(string.sub(line, to_int(closing_bracket_loc + 2), to_int(m_end - 1)))
       -- Conceal the opening '['
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start - 1,
+        to_int(m_start - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_start,
+          end_col = to_int(m_start),
           conceal = "",
         }
       )
@@ -331,11 +376,11 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start,
+        to_int(m_start),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = closing_bracket_loc - 1,
-          hl_group = ui_opts.reference_text.hl_group,
+          end_col = to_int(closing_bracket_loc - 1),
+          hl_group = reference_text.hl_group,
           spell = false,
         }
       )
@@ -343,10 +388,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        closing_bracket_loc - 1,
+        to_int(closing_bracket_loc - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = closing_bracket_loc + 1,
+          end_col = to_int(closing_bracket_loc + 1),
           conceal = is_uri and " " or "",
         }
       )
@@ -354,53 +399,71 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        closing_bracket_loc + 1,
+        to_int(closing_bracket_loc + 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end - 1,
-          conceal = is_uri and ui_opts.external_link_icon.char or "",
-          hl_group = ui_opts.external_link_icon.hl_group,
+          end_col = to_int(m_end - 1),
+          conceal = is_uri and external_link_icon.char or "",
+          hl_group = external_link_icon.hl_group,
         }
       )
       -- Conceal the closing ')'
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_end - 1,
+        to_int(m_end - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end,
+          end_col = to_int(m_end),
           conceal = is_uri and " " or "",
         }
       )
-    elseif m_type == "Tag" then
-      -- A tag is like '#tag'
-      marks[#marks + 1] = ExtMark.new(
-        nil,
-        lnum,
-        m_start - 1,
-        ExtMarkOpts.from_tbl {
-          end_row = lnum,
-          end_col = m_end,
-          hl_group = ui_opts.tags.hl_group,
-          spell = false,
-        }
-      )
-    elseif m_type == "BlockID" then
+    elseif m_type == "block_id" then
       -- A block ID, like '^hello-world'
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        m_start - 1,
+        to_int(m_start - 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = m_end,
-          hl_group = ui_opts.block_ids.hl_group,
+          end_col = to_int(m_end),
+          hl_group = block_ids.hl_group,
           spell = false,
         }
       )
     end
   end
+
+  local inline_code_blocks = {}
+  for m_start, m_end in util.gfind(line, "`[^`]*`") do
+    inline_code_blocks[#inline_code_blocks + 1] = { m_start, m_end }
+  end
+
+  for _, tag_match in ipairs(parse_tags.extract(line)) do
+    local m_start, m_end = tag_match.range.start_col + 1, tag_match.range.end_col
+    local inside_code_block = false
+    for _, code_block_boundary in ipairs(inline_code_blocks) do
+      if code_block_boundary[1] < m_start and m_end < code_block_boundary[2] then
+        inside_code_block = true
+        break
+      end
+    end
+
+    if not inside_code_block then
+      marks[#marks + 1] = ExtMark.new(
+        nil,
+        lnum,
+        to_int(m_start - 1),
+        ExtMarkOpts.from_tbl {
+          end_row = lnum,
+          end_col = to_int(m_end),
+          hl_group = tags.hl_group,
+          spell = false,
+        }
+      )
+    end
+  end
+
   return marks
 end
 
@@ -409,17 +472,18 @@ end
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
+  local highlight_text = assert(ui_opts.highlight_text, "ui highlight_text options are required")
   local matches = search.find_highlight(line)
   for match in iter(matches) do
-    local m_start, m_end, _ = unpack(match)
+    local m_start, m_end = unpack(match)
     -- Conceal opening '=='
     marks[#marks + 1] = ExtMark.new(
       nil,
       lnum,
-      m_start - 1,
+      to_int(m_start - 1),
       ExtMarkOpts.from_tbl {
         end_row = lnum,
-        end_col = m_start + 1,
+        end_col = to_int(m_start + 1),
         conceal = "",
       }
     )
@@ -427,11 +491,11 @@ local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
     marks[#marks + 1] = ExtMark.new(
       nil,
       lnum,
-      m_start + 1,
+      to_int(m_start + 1),
       ExtMarkOpts.from_tbl {
         end_row = lnum,
-        end_col = m_end - 2,
-        hl_group = ui_opts.highlight_text.hl_group,
+        end_col = to_int(m_end - 2),
+        hl_group = highlight_text.hl_group,
         spell = false,
       }
     )
@@ -439,7 +503,7 @@ local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
     marks[#marks + 1] = ExtMark.new(
       nil,
       lnum,
-      m_end - 2,
+      to_int(m_end - 2),
       ExtMarkOpts.from_tbl {
         end_row = lnum,
         end_col = m_end,
@@ -469,6 +533,7 @@ local function update_extmarks(bufnr, ns_id, ui_opts)
   local n_marks_cleared = 0
 
   -- Collect all current marks, grouped by line.
+  ---@type table<integer, ExtMark[]>
   local cur_marks_by_line = vim.defaulttable()
   for mark in iter(ExtMark.collect(bufnr, ns_id)) do
     local cur_line_marks = cur_marks_by_line[mark.row]
@@ -565,7 +630,7 @@ local function get_extmarks_autocmd_callback(ui_opts, throttle)
   end
 
   if throttle then
-    return require("obsidian.async").throttle(callback, ui_opts.update_debounce)
+    return require("obsidian.async").throttle(callback, ui_opts.update_debounce or 200)
   else
     return callback
   end

@@ -160,10 +160,12 @@ local weekday_short_2char_pattern = case_insensitive "Su"
 ----------------------------------------------------
 
 local CURRENT_YEAR = tonumber(os.date "%Y")
+---@cast CURRENT_YEAR -nil
 local YEAR_PIVOT = 68
 
 local function parse_two_digit_year(yy_str)
   local yy = tonumber(yy_str)
+  ---@cast yy -nil
   local current_year_last_two = CURRENT_YEAR % 100
   local century = math.floor(CURRENT_YEAR / 100)
 
@@ -309,7 +311,9 @@ end
 
 token_patterns["d"] = function()
   return C(R "06") / function(n)
-    return tonumber(n) + 1
+    local value = tonumber(n)
+    ---@cast value -nil
+    return value + 1
   end -- 0-6 to 1-7
 end
 
@@ -367,6 +371,8 @@ token_patterns["Z"] = function()
       local offset_sign = tz:sub(1, 1) == "+" and 1 or -1
       local offset_hours = tonumber(tz:sub(2, 3))
       local offset_mins = tonumber(tz:sub(5, 6))
+      ---@cast offset_hours -nil
+      ---@cast offset_mins -nil
       return offset_sign * (offset_hours * 60 + offset_mins) * 60
     end
   local utc_pattern = case_insensitive "Z" * Cc(0) -- UTC is 0 offset
@@ -382,6 +388,8 @@ token_patterns["ZZ"] = function()
       local offset_sign = tz:sub(1, 1) == "+" and 1 or -1
       local offset_hours = tonumber(tz:sub(2, 3))
       local offset_mins = tonumber(tz:sub(4, 5))
+      ---@cast offset_hours -nil
+      ---@cast offset_mins -nil
       return offset_sign * (offset_hours * 60 + offset_mins) * 60
     end
   local utc_pattern = case_insensitive "Z" * Cc(0) -- UTC is 0 offset
@@ -394,9 +402,12 @@ token_patterns["X"] = function()
 end
 
 token_patterns["x"] = function()
-  return C(R "09" ^ 1) / function(n)
-    return math.floor(tonumber(n) / 1000)
-  end
+  return C(R "09" ^ 1)
+    / function(n)
+      local value = tonumber(n)
+      ---@cast value -nil
+      return math.floor(value / 1000)
+    end
 end
 
 ----------------------------------------------------
@@ -457,11 +468,11 @@ local token_pattern = token "YYYY"
   + token "x"
   + token "L"
 
-local literal = P "[" * C((1 - P "]") ^ 0) * P "]" / function(s)
+local literal = P "[" * C((P(1) - P "]") ^ 0) * P "]" / function(s)
   return { type = "literal", value = s }
 end
 
-local text = C(1) / function(s)
+local text = C(P(1)) / function(s)
   return { type = "text", value = s }
 end
 
@@ -498,7 +509,7 @@ end
 ----------------------------------------------------
 
 -- Default values for unspecified fields
----@type osdateparam
+---@type table<string, any>
 local DEFAULTS = {
   year = CURRENT_YEAR,
   month = 1,
@@ -511,7 +522,7 @@ local DEFAULTS = {
 
 ---@param input string
 ---@param fmt string
----@return osdateparam|nil, string|nil
+---@return std.osdate|nil, string|nil
 return function(input, fmt)
   if not input or input == "" then
     return nil, "Empty input"
@@ -628,7 +639,9 @@ return function(input, fmt)
   -- Handle Unix timestamp (overrides everything else)
   if unix_timestamp then
     local date = os.date("*t", unix_timestamp)
+    ---@cast date std.osdate
     if timezone_offset then
+      ---@diagnostic disable-next-line: assign-type-mismatch
       date.hour = date.hour + math.floor(timezone_offset / 3600)
     end
     return date
@@ -652,6 +665,7 @@ return function(input, fmt)
 
   -- Apply timezone offset if provided
   if timezone_offset then
+    ---@diagnostic disable-next-line: assign-type-mismatch
     result.hour = result.hour - math.floor(timezone_offset / 3600)
   end
 

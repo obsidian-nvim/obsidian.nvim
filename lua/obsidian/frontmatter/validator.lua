@@ -19,18 +19,21 @@ validator.aliases = function(v, path)
   local aliases = {}
   if type(v) == "table" then
     for _, alias in ipairs(v) do
-      if type(alias) == "string" then
-        table.insert(aliases, alias)
-      elseif type(alias) == "number" then
-        table.insert(aliases, tostring(alias))
-      else
-        return nil,
-          string.format(
-            "Invalid alias '%s' in frontmatter for %s. Expected string, found %s",
-            vim.inspect(alias),
-            tostring(path),
-            type(alias)
-          )
+      -- Skip empty list items (e.g. `aliases:\n  -` from a template placeholder).
+      if alias ~= vim.NIL then
+        if type(alias) == "string" then
+          table.insert(aliases, alias)
+        elseif type(alias) == "number" then
+          table.insert(aliases, tostring(alias))
+        else
+          return nil,
+            string.format(
+              "Invalid alias '%s' in frontmatter for %s. Expected string, found %s",
+              vim.inspect(alias),
+              tostring(path),
+              type(alias)
+            )
+        end
       end
     end
   elseif type(v) == "string" then
@@ -48,18 +51,21 @@ validator.tags = function(v, path)
   local tags = {}
   if type(v) == "table" then
     for _, tag in ipairs(v) do
-      if type(tag) == "string" then
-        table.insert(tags, tag)
-      elseif type(tag) == "number" then
-        table.insert(tags, tostring(tag))
-      else
-        return nil,
-          string.format(
-            "Invalid tag '%s' found in frontmatter for %s. Expected string, found %s",
-            vim.inspect(tag),
-            tostring(path),
-            type(tag)
-          )
+      -- Skip empty list items (e.g. `tags:\n  -` from a template placeholder).
+      if tag ~= vim.NIL then
+        if type(tag) == "string" then
+          table.insert(tags, tag)
+        elseif type(tag) == "number" then
+          table.insert(tags, tostring(tag))
+        else
+          return nil,
+            string.format(
+              "Invalid tag '%s' found in frontmatter for %s. Expected string, found %s",
+              vim.inspect(tag),
+              tostring(path),
+              type(tag)
+            )
+        end
       end
     end
   elseif type(v) == "string" then

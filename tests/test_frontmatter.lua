@@ -34,6 +34,13 @@ T["validator"]["aliases"] = function()
   v, err = validator.aliases(2026, "path.md")
   eq(v, { "2026" })
   eq(err, nil)
+  -- Empty list items (e.g. `aliases:\n  -` from a template placeholder) are skipped.
+  v, err = validator.aliases({ "alias", vim.NIL, "other" }, "path.md")
+  eq(v, { "alias", "other" })
+  eq(err, nil)
+  v, err = validator.aliases({ vim.NIL }, "path.md")
+  eq(v, {})
+  eq(err, nil)
 end
 
 T["validator"]["tags"] = function()
@@ -51,6 +58,13 @@ T["validator"]["tags"] = function()
   eq(err, nil)
   v, err = validator.tags(2026, "path.md")
   eq(v, { "2026" })
+  eq(err, nil)
+  -- Empty list items (e.g. `tags:\n  -` from a template placeholder) are skipped.
+  v, err = validator.tags({ "tag", vim.NIL, "other" }, "path.md")
+  eq(v, { "tag", "other" })
+  eq(err, nil)
+  v, err = validator.tags({ vim.NIL }, "path.md")
+  eq(v, {})
   eq(err, nil)
 end
 

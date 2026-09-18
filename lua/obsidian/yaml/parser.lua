@@ -1,4 +1,5 @@
 local Line = require "obsidian.yaml.line"
+local Range = require "obsidian.range"
 local util = require "obsidian.util"
 local yaml_util = require "obsidian.yaml.util"
 
@@ -6,6 +7,8 @@ local m = {}
 
 ---@class obsidian.yaml.ParserOpts
 ---@field luanil boolean
+---@field default? fun(): obsidian.yaml.ParserOpts
+---@field normalize? fun(opts: table): obsidian.yaml.ParserOpts
 local ParserOpts = {}
 
 m.ParserOpts = ParserOpts
@@ -25,8 +28,24 @@ ParserOpts.normalize = function(opts)
   return opts
 end
 
+--- A scalar occurrence in the original YAML, separate from decoded metadata.
+--- Paths use mapping keys and 1-based sequence indices. Repeated values remain distinct.
+--- Ranges include quotes/block indicators, but exclude surrounding whitespace and comments.
+--- Implicit nulls have empty ranges after the ':' or '-'.
+---@class obsidian.yaml.Element
+---@field kind "scalar"
+---@field path (string|integer)[]
+---@field value any
+---@field range obsidian.Range
+
+---@class obsidian.yaml.ParseOpts
+---@field base_row integer? Document row of the first input line (default 0).
+
 ---@class obsidian.yaml.Parser
 ---@field opts obsidian.yaml.ParserOpts
+---@field _lines obsidian.yaml.Line[]
+---@field _elements obsidian.yaml.Element[]
+---@field _path (string|integer)[]
 local Parser = {}
 Parser.__index = Parser
 
@@ -54,28 +73,40 @@ m.new = function(opts)
   return setmetatable(self, Parser)
 end
 
----Parse a YAML string.
----@param str string
----@return any
----@return string[] -- TODO: does this have to be here?
-Parser.parse = function(self, str)
-  -- Collect and pre-process lines.
-  local lines = {}
+--- Parse YAML without discarding physical blank lines or source byte offsets.
+--- The first two returns retain the decoded-value/key-order API.
+---@param str string|string[] Lines exclude line endings and are not modified.
+---@param opts obsidian.yaml.ParseOpts?
+---@return any value
+---@return string[] order
+---@return obsidian.yaml.Element[] elements Scalar occurrences in source order.
+Parser.parse = function(self, str, opts)
+  opts = opts or {}
+  local base_row = opts.base_row or 0
+  assert(base_row >= 0 and base_row % 1 == 0, "base_row must be a nonnegative integer")
+  local raw_lines
+  if type(str) == "string" then
+    raw_lines = vim.split(str, "\r?\n")
+  else
+    raw_lines = str
+  end
   local base_indent = 0
-  for raw_line in str:gmatch "[^\r\n]+" do
-    local ok, result = pcall(Line.new, raw_line, base_indent)
-    if ok then
-      local line = result
-      if #lines == 0 then
-        base_indent = line.indent
-        line.indent = 0
-      end
-      table.insert(lines, line)
-    else
-      local err = result
-      error(self:_error_msg(tostring(err), #lines + 1))
+  for _, raw_line in ipairs(raw_lines) do
+    if vim.trim(yaml_util.strip_comments(vim.trim(raw_line))) ~= "" then
+      base_indent = util.count_indent(raw_line)
+      break
     end
   end
+  ---@type obsidian.yaml.Line[]
+  local lines = {}
+  for i, raw_line in ipairs(raw_lines) do
+    local ok, result = pcall(Line.new, raw_line, base_indent, base_row + i - 1)
+    if not ok then
+      error(self:_error_msg(tostring(result), i))
+    end
+    lines[#lines + 1] = result
+  end
+  self._lines, self._elements, self._path = lines, {}, {}
 
   -- Now iterate over the root elements, differing to `self:_parse_next()` to recurse into child elements.
   ---@type any
@@ -85,8 +116,10 @@ Parser.parse = function(self, str)
   local current_indent = 0
   local i = 1
   local order = {} ---@type string[]
+  local root_item = 0
   while i <= #lines do
     local line = lines[i]
+    ---@cast line -nil
 
     if line:is_empty() then
       -- Empty line, skip it.
@@ -94,7 +127,13 @@ Parser.parse = function(self, str)
     elseif line.indent == current_indent then
       local value
       local value_type
+      local is_item = line.content == "-" or vim.startswith(line.content, "- ")
+      if is_item then
+        root_item = root_item + 1
+        self._path[1] = root_item
+      end
       i, value, value_type = self:_parse_next(lines, i)
+      self._path[1] = nil
       if type(value) == "table" then
         local k, v = next(value)
         if k and v then
@@ -115,11 +154,12 @@ Parser.parse = function(self, str)
         if type(root_value) == "table" then
           parent = root_value
         end
-      elseif util.islist(parent) and value_type == YamlType.ArrayItem then
+      elseif parent ~= nil and vim.islist(parent) and value_type == YamlType.ArrayItem then
         -- Add value to parent array.
         parent[#parent + 1] = value
       elseif type(parent) == "table" and value_type == YamlType.Mapping then
         -- Add value to parent mapping.
+        ---@cast value table
         for key, item in pairs(value) do
           -- Check for duplicate keys.
           if parent[key] ~= nil then
@@ -134,10 +174,29 @@ Parser.parse = function(self, str)
     else
       error(self:_error_msg("invalid indentation", i))
     end
-    current_indent = line.indent
+    if not line:is_empty() then
+      current_indent = line.indent
+    end
   end
 
-  return root_value, order
+  return root_value, order, self._elements
+end
+
+---@param i integer
+---@param col integer
+---@param text string
+---@param value any
+---@return obsidian.yaml.Element
+Parser._record_scalar = function(self, i, col, text, value)
+  local row = self._lines[i].row
+  local element = {
+    kind = "scalar",
+    path = vim.list_extend({}, self._path),
+    value = value,
+    range = Range.new(row, col, row, col + #text),
+  }
+  self._elements[#self._elements + 1] = element
+  return element
 end
 
 ---Parse the next single item, recursing to child blocks if necessary.
@@ -145,14 +204,16 @@ end
 ---@param lines obsidian.yaml.Line[]
 ---@param i integer
 ---@param text string|?
+---@param col integer? Byte offset of text in the original line.
 ---@return integer, any, string
-Parser._parse_next = function(self, lines, i, text)
+Parser._parse_next = function(self, lines, i, text, col)
   local line = lines[i]
+  ---@cast line -nil
   if text == nil then
     -- Skip empty lines.
     while line:is_empty() and i <= #lines do
       i = i + 1
-      line = lines[i]
+      line = assert(lines[i], "unexpected end of YAML input")
     end
     if line:is_empty() then
       return i, nil, YamlType.EmptyLine
@@ -160,35 +221,39 @@ Parser._parse_next = function(self, lines, i, text)
     text = yaml_util.strip_comments(line.content)
   end
 
+  col = col or line.content_col
+  col = col + #text - #util.lstrip_whitespace(text)
+  text = vim.trim(text)
   local _, ok, value
 
   -- First just check for a string enclosed in quotes.
   if yaml_util.has_enclosing_chars(text) then
     _, _, value = self:_parse_string(i, text)
+    self:_record_scalar(i, col, text, value)
     return i + 1, value, YamlType.Scalar
   end
 
   -- Check for array item, like `- foo`.
-  ok, i, value = self:_try_parse_array_item(lines, i, text)
+  ok, i, value = self:_try_parse_array_item(lines, i, text, col)
   if ok then
     return i, value, YamlType.ArrayItem
   end
 
   -- Check for a block string field, like `foo: |`.
-  ok, i, value = self:_try_parse_block_string(lines, i, text)
+  ok, i, value = self:_try_parse_block_string(lines, i, text, col)
   if ok then
     return i, value, YamlType.Mapping
   end
 
   -- Check for any other `key: value` fields.
-  ok, i, value = self:_try_parse_field(lines, i, text)
+  ok, i, value = self:_try_parse_field(lines, i, text, col)
   if ok then
     return i, value, YamlType.Mapping
   end
 
   -- Otherwise we have an inline value.
   local value_type
-  value, value_type = self:_parse_inline_value(i, text)
+  value, value_type = self:_parse_inline_value(i, text, col)
   return i + 1, value, value_type
 end
 
@@ -221,10 +286,13 @@ local YAML_MAPPING_INLINE_REGEX = string.format("%s: (.*)", YAML_KEY_REGEX)
 ---@param i integer
 ---@param lines obsidian.yaml.Line[]
 ---@param text string|?
+---@param col integer?
 ---@return boolean, integer, any
-Parser._try_parse_field = function(self, lines, i, text)
+Parser._try_parse_field = function(self, lines, i, text, col)
   local line = lines[i]
+  ---@cast line -nil
   text = text and text or yaml_util.strip_comments(line.content)
+  col = col or line.content_col
 
   local _, key, value
 
@@ -235,39 +303,66 @@ Parser._try_parse_field = function(self, lines, i, text)
     _, _, key, value = string.find(text, YAML_MAPPING_INLINE_REGEX)
   end
 
-  value = value and vim.trim(value) or nil
+  if key == nil then
+    return false, i, nil
+  end
+  local value_col = value and col + #text - #value or col + #text
+  if value then
+    value_col = value_col + #value - #util.lstrip_whitespace(value)
+    value = vim.trim(value)
+  end
   if value == "" then
     value = nil
   end
+  self._path[#self._path + 1] = key
 
-  if key ~= nil and value ~= nil then
+  if value ~= nil then
     -- This is a mapping, e.g. `foo: 1`.
     local out = {}
-    value = self:_parse_inline_value(i, value)
+    value = self:_parse_inline_value(i, value, value_col)
+    local element = self._elements[#self._elements]
     local j = i + 1
     -- Check for multi-line string here.
-    local next_line = lines[j]
+    local next_content = j
+    while lines[next_content] and lines[next_content]:is_empty() do
+      next_content = next_content + 1
+    end
+    local next_line = lines[next_content]
     if type(value) == "string" and next_line ~= nil and next_line.indent > line.indent then
-      local next_indent = next_line.indent
-      while next_line ~= nil and next_line.indent == next_indent do
+      local continuation_indent = next_line.indent
+      j = next_content
+      ---@diagnostic disable-next-line: preferred-local-alias
+      while next_line ~= nil and (next_line:is_empty() or next_line.indent == continuation_indent) do
         local next_value_str = yaml_util.strip_comments(next_line.content)
         if string.len(next_value_str) > 0 then
-          local next_value = self:_parse_inline_value(j, next_line.content)
+          local next_value = self:_parse_inline_value(j, next_value_str, next_line.content_col)
           if type(next_value) ~= "string" then
             error(self:_error_msg("expected a string, found " .. type(next_value), j, next_line.content))
           end
           value = value .. " " .. next_value
+          local continuation = table.remove(self._elements)
+          element.value = value
+          element.range = Range.new(
+            element.range.start_row,
+            element.range.start_col,
+            continuation.range.end_row,
+            continuation.range.end_col
+          )
         end
         j = j + 1
         next_line = lines[j]
       end
     end
     out[key] = value
+    self._path[#self._path] = nil
     return true, j, out
-  elseif key ~= nil then
+  else
     local out = {}
-    local next_line = lines[i + 1]
     local j = i + 1
+    while lines[j] and lines[j]:is_empty() do
+      j = j + 1
+    end
+    local next_line = lines[j]
     if
       next_line ~= nil
       and next_line.indent >= line.indent
@@ -285,10 +380,10 @@ Parser._try_parse_field = function(self, lines, i, text)
     else
       -- This is an implicit null field.
       out[key] = self:_new_null()
+      self:_record_scalar(i, col + #text, "", out[key])
     end
+    self._path[#self._path] = nil
     return true, j, out
-  else
-    return false, i, nil
   end
 end
 
@@ -296,11 +391,14 @@ end
 ---@param i integer
 ---@param lines obsidian.yaml.Line[]
 ---@param text string|?
+---@param col integer?
 ---@return boolean, integer, any
-Parser._try_parse_block_string = function(self, lines, i, text)
+Parser._try_parse_block_string = function(self, lines, i, text, col)
   local line = lines[i]
+  ---@cast line -nil
   text = text and text or yaml_util.strip_comments(line.content)
-  local _, _, block_key = string.find(text, "([a-zA-Z0-9_-]+):%s?|")
+  col = col or line.content_col
+  local _, _, block_key = string.find(text, "^([a-zA-Z0-9_-]+):%s*|%s*$")
   if block_key ~= nil then
     local block_lines = {}
     local j = i + 1
@@ -308,18 +406,31 @@ Parser._try_parse_block_string = function(self, lines, i, text)
     if next_line == nil then
       error(self:_error_msg("expected another line", i, text))
     end
-    local item_indent = next_line.indent
+    local first_content = j
+    while lines[first_content] and vim.trim(lines[first_content].source) == "" do
+      first_content = first_content + 1
+    end
+    local block_indent = math.max(line.indent + 1, lines[first_content] and lines[first_content].indent or 0)
     while j <= #lines do
       next_line = lines[j]
-      if next_line ~= nil and next_line.indent >= item_indent then
+      ---@diagnostic disable-next-line: preferred-local-alias
+      if next_line ~= nil and (vim.trim(next_line.source) == "" or next_line.indent >= block_indent) then
         j = j + 1
-        table.insert(block_lines, util.lstrip_whitespace(next_line.raw_content, item_indent))
+        table.insert(block_lines, util.lstrip_whitespace(next_line.raw_content, block_indent))
       else
         break
       end
     end
     local out = {}
     out[block_key] = table.concat(block_lines, "\n")
+    self._path[#self._path + 1] = block_key
+    local indicator_col = col + assert(text:find("|", 1, true)) - 1
+    local element = self:_record_scalar(i, indicator_col, "|", out[block_key])
+    if j > i + 1 then
+      local last_line = assert(lines[j - 1], "missing final block scalar line")
+      element.range = Range.new(line.row, indicator_col, last_line.row, #last_line.source)
+    end
+    self._path[#self._path] = nil
     return true, j, out
   else
     return false, i, nil
@@ -330,22 +441,29 @@ end
 ---@param i integer
 ---@param lines obsidian.yaml.Line[]
 ---@param text string|?
+---@param col integer?
 ---@return boolean, integer, any
-Parser._try_parse_array_item = function(self, lines, i, text)
+Parser._try_parse_array_item = function(self, lines, i, text, col)
   local line = lines[i]
+  ---@cast line -nil
   text = text and text or yaml_util.strip_comments(line.content)
+  col = col or line.content_col
   if text == "-" then
     -- Bare dash is a null array item.
-    return true, i + 1, self:_new_null()
+    local value = self:_new_null()
+    self:_record_scalar(i, col + 1, "", value)
+    return true, i + 1, value
   elseif vim.startswith(text, "- ") then
-    local _, _, array_item_str = string.find(text, "- (.*)")
+    local array_item_str = text:sub(3)
     local value
     -- Check for null entry.
     if array_item_str == "" then
       value = self:_new_null()
+      self:_record_scalar(i, col + 2, "", value)
       i = i + 1
     else
-      i, value = self:_parse_next(lines, i, array_item_str)
+      local item_col = col + 2 + #array_item_str - #util.lstrip_whitespace(array_item_str)
+      i, value = self:_parse_next(lines, i, vim.trim(array_item_str), item_col)
     end
     return true, i, value
   else
@@ -359,12 +477,19 @@ end
 ---@return integer, any[]
 Parser._parse_array = function(self, lines, i)
   local out = {}
-  local item_indent = lines[i].indent
+  local first_line = lines[i]
+  ---@cast first_line -nil
+  local item_indent = first_line.indent
+  local item_index = 0
   while i <= #lines do
     local line = lines[i]
+    ---@cast line -nil
     if line.indent == item_indent and (line.content == "-" or vim.startswith(line.content, "- ")) then
       local is_array_item, value
+      item_index = item_index + 1
+      self._path[#self._path + 1] = item_index
       is_array_item, i, value = self:_try_parse_array_item(lines, i)
+      self._path[#self._path] = nil
       assert(is_array_item, "not an array item")
       out[#out + 1] = value
     elseif line:is_empty() then
@@ -385,10 +510,15 @@ end
 ---@return integer, table
 Parser._parse_mapping = function(self, i, lines)
   local out = {}
-  local item_indent = lines[i].indent
+  local first_line = lines[i]
+  ---@cast first_line -nil
+  local item_indent = first_line.indent
   while i <= #lines do
     local line = lines[i]
-    if line.indent == item_indent then
+    ---@cast line -nil
+    if line:is_empty() then
+      i = i + 1
+    elseif line.indent == item_indent then
       local value, value_type
       i, value, value_type = self:_parse_next(lines, i)
       if value_type == YamlType.Mapping then
@@ -416,40 +546,43 @@ end
 ---@param self obsidian.yaml.Parser
 ---@param i integer
 ---@param text string
+---@param col integer Byte offset of text before trimming.
 ---@return any, string
-Parser._parse_inline_value = function(self, i, text)
-  if text:match "%[%[.-%]%]" then
-    local _, _, str = self:_parse_string(i, text)
-    return str, YamlType.Scalar
-  end
-
-  for parse_func_and_type in
-    vim.iter {
-      { self._parse_number, YamlType.Scalar },
-      { self._parse_null, YamlType.Scalar },
-      { self._parse_boolean, YamlType.Scalar },
+Parser._parse_inline_value = function(self, i, text, col)
+  col = col + #text - #util.lstrip_whitespace(text)
+  text = vim.trim(text)
+  if not text:match "%[%[.-%]%]" and not yaml_util.has_enclosing_chars(text) then
+    for _, entry in ipairs {
       { self._parse_inline_array, YamlType.Array },
       { self._parse_inline_mapping, YamlType.Mapping },
-      { self._parse_string, YamlType.Scalar },
-    }
-  do
-    local parse_func, parse_type = unpack(parse_func_and_type)
-    local ok, errmsg, res = parse_func(self, i, text)
+    } do
+      local parse_func, parse_type = unpack(entry)
+      local ok, errmsg, value = parse_func(self, i, text, col)
+      if ok then
+        return value, parse_type
+      elseif errmsg then
+        error(errmsg)
+      end
+    end
+  end
+  for _, parse_func in ipairs { self._parse_number, self._parse_null, self._parse_boolean, self._parse_string } do
+    local ok, errmsg, value = parse_func(self, i, text)
     if ok then
-      return res, parse_type
-    elseif errmsg ~= nil then
+      self:_record_scalar(i, col, text, value)
+      return value, YamlType.Scalar
+    elseif errmsg then
       error(errmsg)
     end
   end
-  -- Should never get here because we always fall back to parsing as a string.
   error(self:_error_msg("unable to parse", i))
 end
 
 ---@param self obsidian.yaml.Parser
 ---@param i integer
 ---@param text string
+---@param col integer
 ---@return boolean, string|?, any[]|?
-Parser._parse_inline_array = function(self, i, text)
+Parser._parse_inline_array = function(self, i, text, col)
   local str
   if vim.startswith(text, "[") then
     str = string.sub(text, 2)
@@ -464,7 +597,10 @@ Parser._parse_inline_array = function(self, i, text)
   end
 
   local out = {}
+  local item_index = 0
+  str = util.lstrip_whitespace(str)
   while string.len(str) > 0 do
+    local item_col = col + #text - 1 - #str
     local item_str
     if vim.startswith(str, "[") then
       -- Nested inline array.
@@ -479,8 +615,12 @@ Parser._parse_inline_array = function(self, i, text)
     if item_str == nil then
       return false, self:_error_msg("invalid inline array", i, text), nil
     end
-    out[#out + 1] = self:_parse_inline_value(i, item_str)
+    item_index = item_index + 1
+    self._path[#self._path + 1] = item_index
+    out[#out + 1] = self:_parse_inline_value(i, item_str, item_col)
+    self._path[#self._path] = nil
 
+    str = util.lstrip_whitespace(str)
     if vim.startswith(str, ",") then
       str = string.sub(str, 2)
     end
@@ -493,8 +633,9 @@ end
 ---@param self obsidian.yaml.Parser
 ---@param i integer
 ---@param text string
+---@param col integer
 ---@return boolean, string|?, table|?
-Parser._parse_inline_mapping = function(self, i, text)
+Parser._parse_inline_mapping = function(self, i, text, col)
   local str
   if vim.startswith(text, "{") then
     str = string.sub(text, 2)
@@ -509,6 +650,7 @@ Parser._parse_inline_mapping = function(self, i, text)
   end
 
   local out = {}
+  str = util.lstrip_whitespace(str)
   while string.len(str) > 0 do
     -- Parse the key.
     local key_str
@@ -520,6 +662,7 @@ Parser._parse_inline_mapping = function(self, i, text)
 
     -- Parse the value.
     str = util.lstrip_whitespace(str)
+    local value_col = col + #text - 1 - #str
     local value_str
     if vim.startswith(str, "[") then
       -- Nested inline array.
@@ -534,13 +677,16 @@ Parser._parse_inline_mapping = function(self, i, text)
     if value_str == nil then
       return false, self:_error_msg("invalid inline mapping", i, text), nil
     end
-    local value = self:_parse_inline_value(i, value_str)
+    self._path[#self._path + 1] = key
+    local value = self:_parse_inline_value(i, value_str, value_col)
+    self._path[#self._path] = nil
     if out[key] == nil then
       out[key] = value
     else
       return false, self:_error_msg("duplicate key '" .. key .. "' found in inline mapping", i, text), nil
     end
 
+    str = util.lstrip_whitespace(str)
     if vim.startswith(str, ",") then
       str = util.lstrip_whitespace(string.sub(str, 2))
     end
@@ -552,11 +698,20 @@ end
 ---@param text string
 ---@return boolean, string|?, string
 Parser._parse_string = function(_, _, text)
+  text = vim.trim(text)
   if vim.startswith(text, [["]]) and vim.endswith(text, [["]]) then
-    -- when the text is enclosed with double-quotes we need to un-escape certain characters.
+    -- When the text is enclosed with double quotes, un-escape the escapes this
+    -- dumper emits.
+    text = yaml_util.strip_enclosing_chars(text)
     text = string.gsub(text, vim.pesc [[\"]], [["]])
+  elseif vim.startswith(text, [[']]) and vim.endswith(text, [[']]) then
+    -- YAML single-quoted strings escape a single quote as two single quotes.
+    text = yaml_util.strip_enclosing_chars(text)
+    text = string.gsub(text, "''", "'")
+  else
+    text = yaml_util.strip_enclosing_chars(text)
   end
-  return true, nil, yaml_util.strip_enclosing_chars(vim.trim(text))
+  return true, nil, text
 end
 
 ---Parse a string value.
@@ -654,9 +809,12 @@ Parser.parse_null = function(self, text)
 end
 
 ---Deserialize a YAML string.
-m.loads = function(str)
+---@param str string|string[]
+---@param opts obsidian.yaml.ParseOpts?
+---@return any, string[], obsidian.yaml.Element[]
+m.loads = function(str, opts)
   local parser = m.new()
-  return parser:parse(str)
+  return parser:parse(str, opts)
 end
 
 return m

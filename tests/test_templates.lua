@@ -102,6 +102,27 @@ T["substitute_template_variables()"]["should pass suffix to substitution functio
   eq("value is hello", M.substitute_template_variables(text, tmp_template_context()))
 end
 
+T["templates_dir()"] = new_set()
+
+T["templates_dir()"]["should support an absolute path outside the vault"] = function()
+  local Path = require "obsidian.path"
+  local Workspace = require "obsidian.workspace"
+  local templates_dir = Path.temp { suffix = "-templates" }
+  templates_dir:mkdir()
+
+  local malformed_dir = Obsidian.dir / templates_dir
+  local ws = assert(Workspace.new {
+    path = Obsidian.dir,
+    overrides = { templates = { folder = tostring(templates_dir) } },
+  })
+  Workspace.set(ws)
+
+  eq(templates_dir, api.templates_dir())
+  eq(false, malformed_dir:exists())
+
+  vim.fn.delete(tostring(templates_dir), "rf")
+end
+
 T["clone_template()"] = new_set()
 
 T["clone_template()"]["should transfer title from partial_note"] = function()

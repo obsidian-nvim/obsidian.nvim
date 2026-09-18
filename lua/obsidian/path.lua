@@ -109,6 +109,9 @@ end
 Path.__eq = function(a, b)
   return a.filename == b.filename
 end
+---@param self obsidian.Path
+---@param other string|obsidian.Path
+---@return obsidian.Path
 Path.__div = function(self, other)
   return Path.new(vim.fs.joinpath(self.filename, tostring(other)))
 end
@@ -219,7 +222,7 @@ Path.with_suffix = function(self, suffix, should_append)
   end
 
   if parent then
-    return parent / new_name
+    return Path.new(vim.fs.joinpath(parent.filename, new_name))
   else
     return Path.new(new_name)
   end
@@ -292,7 +295,11 @@ end
 ---
 ---@return obsidian.Path[]
 Path.parents = function(self)
-  return vim.iter(vim.fs.parents(self.filename)):map(Path.new):totable()
+  local parents = {}
+  for parent in vim.fs.parents(self.filename) do
+    parents[#parents + 1] = Path.new(parent)
+  end
+  return parents
 end
 
 --- Check if the path is a parent of other. This is a pure path method, so it only checks by
@@ -330,12 +337,12 @@ end
 ---
 ---@return obsidian.Path
 Path.resolve = function(self, opts)
-  opts = opts or {}
+  local resolve_opts = opts or {}
 
   local realpath = self:abspath()
   if realpath then
     return Path.new(realpath)
-  elseif opts.strict then
+  elseif resolve_opts.strict then
     error("FileNotFoundError: " .. self.filename)
   end
 
@@ -412,22 +419,18 @@ Path.mkdir = function(self, opts)
   end
 
   if not opts.parents then
-    error("FileNotFoundError: " .. tostring(self:parent()))
+    error("FileNotFoundError: " .. self.filename)
   end
 
   local parents = self:parents()
   for i = #parents, 1, -1 do
     if not parents[i]:is_dir() then
-      parents[i]:mkdir { mode = mode }
+      parents[i]:mkdir { mode = mode, parents = true }
     end
   end
 
   self:mkdir { mode = mode }
 end
-
--- TODO: not implemented and not used, after we get to 0.11 we can simply use vim.fs.rm
---- Recursively remove an entire directory and its contents.
-Path.rmtree = function() end
 
 --- Make a path relative to the vault root, if possible, return a string
 ---
@@ -454,7 +457,7 @@ Path.vault_relative_path = function(self, opts)
   elseif not self:is_absolute() then
     return tostring(self)
   elseif opts.strict then
-    error(string.format("failed to resolve '%s' relative to vault root '%s'", self, Obsidian.workspace.root))
+    error(string.format("failed to resolve '%s' relative to vault root '%s'", self, root))
   end
 end
 

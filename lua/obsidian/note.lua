@@ -12,18 +12,47 @@ local Path = require "obsidian.path"
 local yaml = require "obsidian.yaml"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
-local text_insertion = require "obsidian.util.text_insertion"
-local iter = vim.iter
 local compat = require "obsidian.compat"
+local uri = require "obsidian.uri"
+local header_parser = require "obsidian.parse.header"
+local block_ids = require "obsidian.parse.block_id"
+local text_insertion = require "obsidian.util.text_insertion"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
+local ignore = require "obsidian.ignore"
+local Section = require "obsidian.section"
+local Range = require "obsidian.range"
 
 local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.md" }
 
 local DEFAULT_MAX_LINES = 500
 
-local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
+local function is_default_note_template(template)
+  local default_template = require("obsidian.config.default").note.template
+  return template ~= nil
+    and default_template ~= nil
+    and Path.new(template):resolve() == Path.new(default_template):resolve()
+end
+
+---@param section obsidian.Section
+---@param parent obsidian.note.HeaderAnchor|?
+---@param anchor string|?
+---@return obsidian.note.HeaderAnchor
+local function new_header_anchor(section, parent, anchor)
+  local section_anchor = assert(section.anchor, "section anchor is required")
+  local header = assert(section.header, "section header is required")
+  local level = assert(section.level, "section level is required")
+
+  return {
+    anchor = anchor or section_anchor,
+    line = section.heading_range.start_row + 1,
+    header = header,
+    level = level,
+    parent = parent,
+    section = section,
+  }
+end
 
 --- A class that represents a note within a vault.
 ---
@@ -40,10 +69,14 @@ local CODE_BLOCK_PATTERN = "^%s*```[%w_-]*$"
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
+---@field frontmatter_elements obsidian.yaml.Element[]? Scalar occurrences in document coordinates.
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
+---@field block_candidates obsidian.Section[]|? paragraphs that can receive block identifiers.
+---@field sections obsidian.Section[]|? document-ordered sections, the first one is always the preamble.
 ---@field alt_alias string|?
 ---@field bufnr integer|?
+---@field template string|? Template name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
 local Note = {}
 
 local load_contents = function(note)
@@ -122,19 +155,45 @@ local function generate_id(base_id, path, id_func)
   return new_id
 end
 
+---@param invalid_name string
+---@return string
+local function prompt_for_valid_filename(invalid_name)
+  local current = invalid_name
+
+  while true do
+    local input = api.input("Enter filename", { default = current, completion = "file" })
+    if not input then
+      error "Aborted"
+    end
+
+    current = input:gsub("%.md$", "")
+    local valid, reason = util.is_valid_filename(current)
+    if valid then
+      return current
+    end
+
+    log.err(("Invalid filename %q: %s"):format(current, reason))
+  end
+end
+
+Note.is_valid_filename = util.is_valid_filename
+Note.prompt_for_valid_filename = prompt_for_valid_filename
+
 --- Generate the file path for a new note given its ID, parent directory, and title.
 --- This respects the user's `note_path_func` if configured, otherwise essentially falls back to
 --- `note_opts.dir / (note_opts.id .. ".md")`.
 ---
 ---@param id string The note ID
 ---@param dir obsidian.Path The note path
+---@param note_path_func? fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path
 ---@return obsidian.Path
 ---@private
-Note._generate_path = function(id, dir)
+Note._generate_path = function(id, dir, note_path_func)
   ---@type obsidian.Path
   local path
 
-  path = Path.new(Obsidian.opts.note_path_func { id = id, dir = dir })
+  note_path_func = note_path_func or Obsidian.opts.note_path_func
+  path = Path.new(note_path_func { id = id, dir = dir })
 
   -- NOTE: `opts.dir` should always be absolute, but for extra safety we handle the case where
   if not path:is_absolute() and (dir:is_absolute() or not dir:is_parent_of(path)) then
@@ -154,18 +213,25 @@ end
 
 --- Selects the strategy to use when resolving the note title, id, and path
 ---@param opts obsidian.note.NoteOpts The note creation options
+---@param workspace obsidian.Workspace|?
 ---@return obsidian.note.NoteCreationOpts The strategy to use for creating the note
 ---@private
-Note._get_creation_opts = function(opts)
+Note._get_creation_opts = function(opts, workspace)
+  local workspace_opts = api._workspace_opts(workspace)
   --- @type obsidian.note.NoteCreationOpts
   local ret = {
-    notes_subdir = Obsidian.opts.notes_subdir,
-    note_id_func = Obsidian.opts.note_id_func,
-    new_notes_location = Obsidian.opts.new_notes_location,
+    notes_subdir = workspace_opts.notes_subdir,
+    note_id_func = workspace_opts.note_id_func,
+    note_path_func = workspace_opts.note_path_func,
+    new_notes_location = workspace_opts.new_notes_location,
   }
 
+  if opts.template == nil then
+    return ret
+  end
+
   local resolve_template = require("obsidian.templates").resolve_template
-  local success, template_path = pcall(resolve_template, opts.template, api.templates_dir())
+  local success, template_path = pcall(resolve_template, opts.template, api.templates_dir(workspace))
 
   if not success then
     return ret
@@ -174,11 +240,12 @@ Note._get_creation_opts = function(opts)
   local stem = template_path.stem:lower()
 
   -- Check if the configuration has a custom key for this template
-  for key, cfg in pairs(Obsidian.opts.templates.customizations) do
+  for key, cfg in pairs(workspace_opts.templates.customizations or {}) do
     if key:lower() == stem then
       ret = {
         notes_subdir = cfg.notes_subdir or ret.notes_subdir,
         note_id_func = cfg.note_id_func or ret.note_id_func,
+        note_path_func = ret.note_path_func,
         new_notes_location = "notes_subdir",
       }
       break
@@ -216,13 +283,17 @@ end
 --- Resolves the ID, and path for a new note.
 ---
 ---@param opts obsidian.note.NoteOpts Strategy for resolving note path and title
+---@param prompt_invalid_filename boolean|? Prompt for a replacement instead of erroring when the filename is invalid.
 ---@return string id
 ---@return obsidian.Path path
 ---@return string|? title
----@private
-Note._resolve_id_path = function(opts)
+Note._resolve_id_path = function(opts, prompt_invalid_filename)
   local id, dir = opts.id, opts.dir
-  local creation_opts = Note._get_creation_opts(opts or {})
+  local workspace = opts.source_path and api.find_workspace(opts.source_path) or nil
+  workspace = workspace or Obsidian.workspace
+  local workspace_opts = api._workspace_opts(workspace)
+  local creation_opts = Note._get_creation_opts(opts or {}, workspace)
+  local workspace_dir = workspace and workspace.root or api.resolve_workspace_dir(opts.source_path)
 
   if id then
     id = vim.trim(id)
@@ -240,31 +311,47 @@ Note._resolve_id_path = function(opts)
   ---@type obsidian.Path
   local base_dir
   if parent then
-    base_dir = Obsidian.dir / parent
+    base_dir = Path.new(vim.fs.joinpath(tostring(workspace_dir), parent))
   elseif dir ~= nil then
     base_dir = Path.new(dir)
     if not base_dir:is_absolute() then
-      base_dir = Obsidian.dir / base_dir
+      base_dir = Path.new(vim.fs.joinpath(tostring(workspace_dir), tostring(base_dir)))
     else
       base_dir = base_dir:resolve()
     end
   else
-    local bufpath = Path.buffer(0):resolve()
-    if
-      creation_opts.new_notes_location == "current_dir"
-      -- note is actually in the workspace.
-      and Obsidian.dir:is_parent_of(bufpath)
-      -- note is not in dailies folder
-      and (
-        Obsidian.opts.daily_notes.folder == nil
-        or not (Obsidian.dir / Obsidian.opts.daily_notes.folder):is_parent_of(bufpath)
-      )
-    then
-      base_dir = Obsidian.buf_dir or assert(bufpath:parent())
-    else
-      base_dir = Obsidian.dir
+    local function is_in_vault(path)
+      return path == workspace_dir or workspace_dir:is_parent_of(path)
+    end
+
+    local function is_in_daily_notes(path)
+      local daily_notes_folder = workspace_opts.daily_notes.folder
+      if daily_notes_folder == nil then
+        return false
+      end
+
+      local daily_notes_dir = Path.new(vim.fs.joinpath(tostring(workspace_dir), daily_notes_folder))
+      return path == daily_notes_dir or daily_notes_dir:is_parent_of(path)
+    end
+
+    if creation_opts.new_notes_location == "current_dir" then
+      local bufname = opts.source_path or vim.api.nvim_buf_get_name(0)
+      local bufpath = bufname ~= "" and Path.new(bufname):resolve() or nil
+      local cwd = Path.new(vim.fn.getcwd(0, 0)):resolve()
+
+      if bufpath ~= nil and api.path_is_note(bufpath, workspace) then
+        if not is_in_daily_notes(bufpath) then
+          base_dir = assert(bufpath:parent())
+        end
+      elseif is_in_vault(cwd) and not is_in_daily_notes(cwd) then
+        base_dir = cwd
+      end
+    end
+
+    if base_dir == nil then
+      base_dir = workspace_dir
       if creation_opts.notes_subdir ~= nil then
-        base_dir = base_dir / creation_opts.notes_subdir
+        base_dir = Path.new(vim.fs.joinpath(tostring(base_dir), creation_opts.notes_subdir))
       end
     end
   end
@@ -282,35 +369,57 @@ Note._resolve_id_path = function(opts)
   dir = base_dir
 
   -- Generate path.
-  local path = Note._generate_path(id, dir)
+  ---@cast id string
+  local path = Note._generate_path(id, dir, creation_opts.note_path_func)
+
+  -- Reject generated filenames that are invalid on any platform.
+  local valid, reason = util.is_valid_filename(path.stem)
+  if opts.check_invalid_filename ~= false then
+    while not valid do
+      if not prompt_invalid_filename then
+        error(("invalid note filename %q: %s"):format(path.stem, reason), 2)
+      end
+      id = prompt_for_valid_filename(path.stem)
+      path = Note._generate_path(id, dir, creation_opts.note_path_func)
+      valid, reason = util.is_valid_filename(path.stem)
+    end
+  end
 
   return id, path, title
 end
 
---- Creates a new note
+--- Creates a new note in memory.
 ---
---- @param opts obsidian.note.NoteOpts
+--- The note is NOT written to disk. Call `note:write {}` after if you want the
+--- file persisted; the `template` passed here is carried on the note and used
+--- by `note:write` unless overridden.
+---
+--- @param opts obsidian.note.NoteOpts?
 --- @return obsidian.Note
 Note.create = function(opts)
-  local new_id, path, title = Note._resolve_id_path(opts)
+  opts = opts or {}
+  local new_id, path, title = Note._resolve_id_path(opts, true)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
-
-  -- Add the title as an alias.
-  --- @type string[]
-  local aliases = opts.aliases
-  local note = Note.new(new_id, aliases, opts.tags, path, title)
-
-  -- Ensure the parent directory exists.
-  local parent = path:parent()
-  assert(parent, "failed to get parent in note creation")
-  parent:mkdir { parents = true, exist_ok = true }
-
-  -- Write to disk.
-  if opts.should_write then
-    note:write { template = opts.template }
+  if rawget(opts, "should_write") then
+    log.warn "`should_write` in Note.create is removed, call note:write instead"
   end
 
+  local aliases = opts.aliases
+  local note = Note.new(new_id, aliases, opts.tags, path, title)
+  note.template = opts.template
+  Note._run_creation_lifecycle(note, opts.scope)
   return note
+end
+
+---@param note obsidian.Note
+---@param scope string|?
+Note._run_creation_lifecycle = function(note, scope)
+  local callback_opts = { scope = scope or "plain" }
+  util.fire_callback("create_note", Obsidian.opts.callbacks.create_note, note, callback_opts)
+  vim.api.nvim_exec_autocmds("User", {
+    pattern = "ObsidianNoteCreate",
+    data = { note = note, opts = callback_opts },
+  })
 end
 
 --- Instantiates a new Note object
@@ -406,7 +515,7 @@ Note.uri = function(self)
   return vim.uri_from_fname(tostring(self.path))
 end
 
----@param opts { block: string|?, anchor: string|?, range: lsp.Range|? }|?-- TODO: vim.Range in the future
+---@param opts { block: string|?, anchor: string|?, range: lsp.Range|obsidian.Range|? }|?
 ---@return lsp.Location
 Note._location = function(self, opts)
   opts = opts or {}
@@ -415,25 +524,38 @@ Note._location = function(self, opts)
     error "can not pass both range and an block/anhor link to Note:_location()"
   end
 
-  ---@type integer|?, obsidian.note.Block|?, obsidian.note.HeaderAnchor|?
-  local line = 0
+  -- The full section the link points at: jumps land at its start and the
+  -- whole range gets a blink highlight, like the Obsidian app.
+  ---@type obsidian.Section|?
+  local section
   if opts.block then
     local block_match = self:resolve_block(opts.block)
-    if block_match then
-      line = block_match.line - 1
-    end
+    section = block_match and block_match.section
   elseif opts.anchor then
     local anchor_match = self:resolve_anchor_link(opts.anchor)
-    if anchor_match then
-      line = anchor_match.line - 1
-    end
+    section = anchor_match and anchor_match.section
   end
 
-  local range = opts.range
-    or {
-      start = { line = line, character = 0 },
-      ["end"] = { line = line, character = 0 },
+  ---@type lsp.Range
+  local range
+  if opts.range then
+    if opts.range.start_row then
+      local obsidian_range = opts.range
+      ---@cast obsidian_range obsidian.Range
+      range = Range.to_lsp(obsidian_range, "utf-8")
+    else
+      local lsp_range = opts.range
+      ---@cast lsp_range lsp.Range
+      range = lsp_range
+    end
+  elseif section then
+    range = Range.to_lsp(section.range, "utf-8")
+  else
+    range = {
+      start = { line = 0, character = 0 },
+      ["end"] = { line = 0, character = 0 },
     }
+  end
 
   return {
     uri = self:uri(),
@@ -464,7 +586,7 @@ Note.reference_ids = function(self, opts)
     ref_ids = vim.tbl_map(string.lower, ref_ids)
   end
 
-  return util.tbl_unique(ref_ids)
+  return compat.list_unique(ref_ids)
 end
 
 --- Get a list of all of the different paths that can identify this note
@@ -489,7 +611,7 @@ Note.get_reference_paths = function(self, opts)
     table.insert(raw_refs, no_suffix_relpath)
   end
 
-  raw_refs = util.tbl_unique(raw_refs)
+  raw_refs = compat.list_unique(raw_refs)
 
   if opts.urlencode == true then
     local refs = {}
@@ -497,10 +619,10 @@ Note.get_reference_paths = function(self, opts)
     for _, raw_ref in ipairs(raw_refs) do
       vim.list_extend(
         refs,
-        util.tbl_unique {
+        compat.list_unique {
           raw_ref,
-          util.urlencode(raw_ref),
-          util.urlencode(raw_ref, { keep_path_sep = true }),
+          uri.encode(raw_ref),
+          uri.encode(raw_ref, { keep_path_sep = true }),
         }
       )
     end
@@ -603,6 +725,19 @@ Note.from_file = function(path, opts)
   return note
 end
 
+--- Initialize a note from a cache row without reading the file.
+---
+---@param path string|obsidian.Path
+---@param row table
+---
+---@return obsidian.Note
+Note.from_cache = function(path, row)
+  path = Path.new(path)
+  local note = Note.new(row.id or path.stem, vim.deepcopy(row.aliases or {}), vim.deepcopy(row.tags or {}), path)
+  note.metadata = vim.deepcopy(row.properties or {})
+  return note
+end
+
 --- Initialize a note from a buffer.
 ---
 ---@param bufnr integer|?
@@ -613,7 +748,7 @@ Note.from_buffer = function(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local path = vim.api.nvim_buf_get_name(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local note = Note.from_lines(iter(lines), path, opts)
+  local note = Note.from_lines(lines, path, opts)
   note.bufnr = bufnr
 
   ---@type obsidian.Note
@@ -639,7 +774,8 @@ end
 
 --- Initialize a note from an iterator of lines.
 ---
----@param lines string[] | fun(): string|? | Iter
+--- TODO: use vim.Iter here once the minimum Neovim runtime exposes that type.
+---@param lines any
 ---@param path string|obsidian.Path|?
 ---@param opts obsidian.note.LoadOpts|?
 ---
@@ -653,61 +789,27 @@ Note.from_lines = function(lines, path, opts)
 
   local contents = {}
 
-  ---@type table<string, obsidian.note.HeaderAnchor>|?
-  local anchor_links
-  ---@type obsidian.note.HeaderAnchor[]|?
-  local anchor_stack
-  if opts.collect_anchor_links then
-    anchor_links = {}
-    anchor_stack = {}
-  end
-
-  ---@type table<string, obsidian.note.Block>|?
-  local blocks
-  if opts.collect_blocks then
-    blocks = {}
-  end
-
-  ---@param anchor_data obsidian.note.HeaderAnchor
-  ---@return obsidian.note.HeaderAnchor|?
-  local function get_parent_anchor(anchor_data)
-    assert(anchor_links and anchor_stack, "failed to collect anchor")
-    for i = #anchor_stack, 1, -1 do
-      local parent = anchor_stack[i]
-      if parent.level < anchor_data.level then
-        return parent
-      end
-    end
-  end
-
-  ---@param anchor string
-  ---@param data obsidian.note.HeaderAnchor|?
-  local function format_nested_anchor(anchor, data)
-    local out = anchor
-    if not data then
-      return out
-    end
-
-    local parent = data.parent
-    while parent ~= nil do
-      out = parent.anchor .. out
-      data = get_parent_anchor(parent)
-      if data ~= nil then
-        parent = data.parent
-      else
-        parent = nil
-      end
-    end
-
-    return out
-  end
-
-  -- Iterate over lines in the file, collecting frontmatter and parsing the title.
+  -- Iterate over lines in the file, collecting frontmatter and contents.
   local frontmatter_lines = {}
-  local has_frontmatter, in_frontmatter, at_boundary = false, false, false
+  local has_frontmatter, in_frontmatter = false, false
+  local at_boundary
   local frontmatter_end_line = nil
-  local in_code_block = false
-  for line_idx, line in iter(lines):enumerate() do
+  local line_idx = 0
+  local next_line
+  if type(lines) == "table" and vim.islist(lines) then
+    next_line = function()
+      line_idx = line_idx + 1
+      return lines[line_idx]
+    end
+  else
+    next_line = function()
+      line_idx = line_idx + 1
+      return lines()
+    end
+  end
+
+  for line in next_line do
+    local source_line = line:gsub("\r$", "")
     line = util.rstrip_whitespace(line)
 
     if line_idx == 1 and Note._is_frontmatter_boundary(line) then
@@ -722,50 +824,8 @@ Note.from_lines = function(lines, path, opts)
       at_boundary = false
     end
 
-    if string.match(line, CODE_BLOCK_PATTERN) then
-      in_code_block = not in_code_block
-    end
-
     if in_frontmatter and not at_boundary then
-      table.insert(frontmatter_lines, line)
-    elseif not in_frontmatter and not at_boundary and not in_code_block then
-      -- Check for title/header and collect anchor link.
-      local header_match = util.parse_header(line)
-      if header_match then
-        -- Collect anchor link.
-        if opts.collect_anchor_links then
-          assert(anchor_links and anchor_stack, "failed to collect anchor")
-          -- We collect up to two anchor for each header. One standalone, e.g. '#header1', and
-          -- one with the parents, e.g. '#header1#header2'.
-          -- This is our standalone one:
-          ---@type obsidian.note.HeaderAnchor
-          local data = {
-            anchor = header_match.anchor,
-            line = line_idx,
-            header = header_match.header,
-            level = header_match.level,
-          }
-          data.parent = get_parent_anchor(data)
-
-          anchor_links[header_match.anchor] = data
-          table.insert(anchor_stack, data)
-
-          -- Now if there's a parent we collect the nested version. All of the data will be the same
-          -- except the anchor key.
-          if data.parent ~= nil then
-            local nested_anchor = format_nested_anchor(header_match.anchor, data)
-            anchor_links[nested_anchor] = vim.tbl_extend("force", data, { anchor = nested_anchor })
-          end
-        end
-      end
-
-      -- Check for block.
-      if opts.collect_blocks then
-        local block = util.parse_block(line)
-        if block then
-          blocks[block] = { id = block, line = line_idx, block = line }
-        end
-      end
+      table.insert(frontmatter_lines, source_line)
     end
 
     -- Collect contents.
@@ -777,13 +837,52 @@ Note.from_lines = function(lines, path, opts)
     end
   end
 
+  ---@type obsidian.Section[]|?, table<string, obsidian.note.Block>|?, obsidian.Section[]|?
+  local sections, blocks, block_candidates
+  if opts.collect_sections or opts.collect_anchor_links or opts.collect_blocks or opts.collect_block_candidates then
+    sections, blocks, block_candidates = Section.parse(contents, {
+      start_row = frontmatter_end_line or 0,
+      collect_blocks = opts.collect_blocks,
+      collect_block_candidates = opts.collect_block_candidates,
+    })
+  end
+
+  ---@type table<string, obsidian.note.HeaderAnchor>|?
+  local anchor_links
+  if opts.collect_anchor_links then
+    anchor_links = {}
+    ---@type table<obsidian.Section, obsidian.note.HeaderAnchor>
+    local section_to_anchor = {}
+    for _, section in ipairs(assert(sections, "sections must be parsed when collecting anchor links")) do
+      if section.header then
+        -- We collect up to two anchors for each header. One standalone, e.g. '#header1', and
+        -- one with the parents, e.g. '#header1#header2'.
+        local data = new_header_anchor(section, section.parent and section_to_anchor[section.parent], nil)
+        section_to_anchor[section] = data
+        anchor_links[section.anchor] = data
+
+        if data.parent ~= nil then
+          local nested_anchor = data.anchor
+          ---@type obsidian.note.HeaderAnchor|?
+          local parent = data.parent
+          while parent ~= nil do
+            nested_anchor = parent.anchor .. nested_anchor
+            parent = parent.parent
+          end
+          anchor_links[nested_anchor] = new_header_anchor(section, data.parent, nested_anchor)
+        end
+      end
+    end
+  end
+
   local info = {}
   local warnings = {}
 
   -- Parse the frontmatter YAML.
   local metadata = {}
+  local frontmatter_elements = {}
   if #frontmatter_lines > 0 then
-    info, metadata, warnings = Frontmatter.parse(frontmatter_lines, path)
+    info, metadata, warnings, frontmatter_elements = Frontmatter.parse(frontmatter_lines, path, { base_row = 1 })
   end
 
   local id, aliases, tags = info.id, info.aliases, info.tags
@@ -792,14 +891,18 @@ Note.from_lines = function(lines, path, opts)
   if id == nil or (path and id == path.name) then
     id = path and path.stem
   end
+  ---@cast id string
 
   local n = Note.new(id, aliases, tags, path)
   n.metadata = metadata
   n.has_frontmatter = has_frontmatter
   n.frontmatter_end_line = frontmatter_end_line
+  n.frontmatter_elements = frontmatter_elements
   n.contents = contents
   n.anchor_links = anchor_links
   n.blocks = blocks
+  n.block_candidates = block_candidates
+  n.sections = sections
   -- TODO: reflect the warnings in `:Obsidian check`
   return n, warnings
 end
@@ -823,8 +926,10 @@ Note.frontmatter = require("obsidian.builtin").frontmatter
 ---@return string[]
 Note.frontmatter_lines = function(self, current_lines)
   local order
-  if Obsidian.opts.frontmatter.sort then
-    order = Obsidian.opts.frontmatter.sort
+  local configured_order = Obsidian.opts.frontmatter.sort
+  if configured_order ~= vim.NIL and (type(configured_order) == "table" or type(configured_order) == "function") then
+    ---@cast configured_order string[]|fun(a: any, b: any): boolean
+    order = configured_order
   end
   local syntax_ok
   local has_frontmatter = current_lines and not vim.tbl_isempty(current_lines)
@@ -833,19 +938,29 @@ Note.frontmatter_lines = function(self, current_lines)
     local yaml_body_lines = vim.tbl_filter(function(line)
       return not Note._is_frontmatter_boundary(line)
     end, current_lines or {})
-    syntax_ok, _, order = pcall(yaml.loads, table.concat(yaml_body_lines, "\n"))
+    -- Preserve the existing frontmatter's key order only when the user hasn't
+    -- configured an explicit sort. Otherwise the user's `frontmatter.sort`
+    -- would be silently overwritten by the parsed order on every save.
+    local parse_result = { pcall(yaml.loads, table.concat(yaml_body_lines, "\n")) }
+    syntax_ok = parse_result[1]
+    local parsed_order = parse_result[3]
+    if order == nil then
+      order = parsed_order
+    end
   end
   if syntax_ok or not has_frontmatter then -- if parse success or there's no frontmatter (and should insert)
+    local frontmatter_func = Obsidian.opts.frontmatter.func
+    ---@cast frontmatter_func -nil
     ---@diagnostic disable-next-line: param-type-mismatch
-    local frontmatter_properties = Obsidian.opts.frontmatter.func(self)
+    local frontmatter_properties = frontmatter_func(self)
     if frontmatter_properties and not vim.tbl_isempty(frontmatter_properties) then
       return Frontmatter.dump(frontmatter_properties, order)
     else
-      return current_lines
+      return current_lines or {}
     end
   else
     log.info "invalid yaml syntax in frontmatter"
-    return current_lines
+    return current_lines or {}
   end
 end
 
@@ -887,6 +1002,10 @@ Note.should_save_frontmatter = function(self)
     end
   end
 
+  if ignore.is_ignored(tostring(self.path)) then
+    return false
+  end
+
   local enabled = Obsidian.opts.frontmatter.enabled
 
   if is_in_frontmatter_blacklist(self) then
@@ -911,16 +1030,24 @@ Note.write = function(self, opts)
   local path = assert(self.path, "A path must be provided")
   path = Path.new(path)
 
+  -- Fall back to the template carried by the note (set at Note.create).
+  local template = opts.template ~= nil and opts.template or self.template
+  local should_save_frontmatter = self:should_save_frontmatter()
+
+  if not should_save_frontmatter and is_default_note_template(template) then
+    template = nil
+  end
+
   ---@type string
   local verb
   if path:is_file() then
     verb = "Updated"
   else
     verb = "Created"
-    if opts.template ~= nil then
+    if template ~= nil then
       self = Template.clone_template {
         type = "clone_template",
-        template_name = opts.template,
+        template_name = template,
         destination_path = path,
         templates_dir = api.templates_dir(),
         partial_note = self,
@@ -929,13 +1056,13 @@ Note.write = function(self, opts)
   end
 
   local frontmatter = nil
-  if Obsidian.opts.frontmatter.func ~= nil then
+  if should_save_frontmatter and Obsidian.opts.frontmatter.func ~= nil then
     frontmatter = Obsidian.opts.frontmatter.func(self)
   end
 
   self:save {
     path = path,
-    insert_frontmatter = self:should_save_frontmatter(),
+    insert_frontmatter = should_save_frontmatter,
     frontmatter = frontmatter,
     update_content = opts.update_content,
     check_buffers = opts.check_buffers,
@@ -983,7 +1110,9 @@ Note.save = function(self, opts)
 
     existing_frontmatter = {}
     local in_frontmatter, at_boundary = false, false -- luacheck: ignore (false positive)
-    for idx, line in iter(io.lines(tostring(self.path))):enumerate() do
+    local idx = 0
+    for line in io.lines(tostring(self.path)) do
+      idx = idx + 1
       if idx == 1 and Note._is_frontmatter_boundary(line) then
         at_boundary = true
         in_frontmatter = true
@@ -1015,10 +1144,12 @@ Note.save = function(self, opts)
   local new_lines
   if opts.insert_frontmatter then
     -- Replace frontmatter.
-    new_lines = compat.flatten { self:frontmatter_lines(existing_frontmatter), content }
+    ---@diagnostic disable-next-line: call-non-callable
+    new_lines = vim.iter({ self:frontmatter_lines(existing_frontmatter), content }):flatten():totable()
   else
     -- Use existing frontmatter.
-    new_lines = compat.flatten { existing_frontmatter, content }
+    ---@diagnostic disable-next-line: call-non-callable
+    new_lines = vim.iter({ existing_frontmatter, content }):flatten():totable()
   end
 
   local file_content = table.concat(new_lines, "\n")
@@ -1028,10 +1159,13 @@ Note.save = function(self, opts)
   util.write_file(tostring(save_path), file_content)
 
   if opts.check_buffers then
-    -- `vim.fn.bufnr` returns the **max** bufnr loaded from the same path.
-    if vim.fn.bufnr(save_path.filename) ~= -1 then
-      -- But we want to call |checktime| on **all** buffers loaded from the path.
-      vim.cmd.checktime(save_path.filename)
+    -- `:checktime <name>` parses {name} as a Vim regex, so paths with `[`,
+    -- `*`, etc. raise E94. Pass the bufnr instead, iterating to cover
+    -- every buffer loaded from this path.
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_get_name(bufnr) == save_path.filename then
+        vim.cmd.checktime(bufnr)
+      end
     end
   end
 end
@@ -1106,7 +1240,7 @@ end
 ---@param anchor_link string
 ---@return obsidian.note.HeaderAnchor|?
 Note.resolve_anchor_link = function(self, anchor_link)
-  anchor_link = util.standardize_anchor(anchor_link)
+  anchor_link = header_parser.normalize_anchor(anchor_link)
 
   if self.anchor_links ~= nil then
     return self.anchor_links[anchor_link]
@@ -1124,7 +1258,7 @@ end
 ---
 ---@return obsidian.note.Block|?
 Note.resolve_block = function(self, block_id)
-  block_id = util.standardize_block(block_id)
+  block_id = block_ids.normalize(block_id)
 
   if self.blocks ~= nil then
     return self.blocks[block_id]
@@ -1133,7 +1267,9 @@ Note.resolve_block = function(self, block_id)
   assert(self.path, "'note.path' is not set")
   local n = Note.from_file(self.path, { collect_blocks = true })
   self.blocks = n.blocks
-  return self.blocks[block_id]
+  local blocks = self.blocks
+  ---@cast blocks -nil
+  return blocks[block_id]
 end
 
 --- Open a note in a buffer.
@@ -1147,7 +1283,7 @@ Note.open = function(self, opts)
     local bufnr = api.open_note({
       filename = tostring(self.path),
       lnum = opts.line,
-      col = opts.col,
+      col = opts.col and opts.col + 1,
     }, open_cmd)
     vim.b[bufnr].note = self
     if opts.callback then
@@ -1162,11 +1298,20 @@ Note.open = function(self, opts)
   end
 end
 
----@param opts { search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? }
----@return obsidian.BacklinkMatch
+---@param opts { search: obsidian.SearchOpts?, anchor: string?, block: string?, timeout: integer?, dir: string|obsidian.Path?, refs: string[]? }?
+---@return obsidian.BacklinkMatch[]
 Note.backlinks = function(self, opts)
-  opts.dir = opts.dir or api.resolve_workspace_dir()
-  return search.find_backlinks(self, opts)
+  local backlink_opts = opts or {}
+  backlink_opts.dir = backlink_opts.dir or api.resolve_workspace_dir(self.path or nil)
+  return search.find_backlinks(self, backlink_opts)
+end
+
+---@param opts { search: obsidian.SearchOpts?, anchor: string?, block: string?, dir: string|obsidian.Path?, refs: string[]? }?
+---@param callback fun(matches: obsidian.BacklinkMatch[])
+Note.backlinks_async = function(self, opts, callback)
+  local backlink_opts = opts or {}
+  backlink_opts.dir = backlink_opts.dir or api.resolve_workspace_dir(self.path or nil)
+  return search.find_backlinks_async(self, callback, backlink_opts)
 end
 
 ---@return obsidian.LinkMatch[]
@@ -1174,28 +1319,14 @@ Note.links = function(self)
   return search.find_links(self)
 end
 
----@param path obsidian.Path vault-relative-path
----@param style obsidian.link.LinkFormat?
----@return string foramted_path
-local function format_path(path, style)
-  if style == "absolute" then
-    return assert(path:vault_relative_path {})
-  elseif style == "relative" then
-    local base_dir = Obsidian.buf_dir or Obsidian.dir
-    if base_dir == nil then
-      return assert(path:vault_relative_path {})
-    end
+Note.delete = require("obsidian.note.delete").delete
 
-    local relpath = util.relpath(tostring(base_dir), tostring(path))
-    return assert(relpath, "failed to resolve link path against current note")
-  else
-    return vim.fs.basename(tostring(path))
-  end
-end
+---@class obsidian.note.FormatLinkOpts : obsidian.link.LinkCreationOpts
+---@field dir? string|obsidian.Path Base directory for relative links.
 
 --- Create a formatted markdown / wiki link for a note.
 ---
----@param opts obsidian.link.LinkCreationOpts?
+---@param opts obsidian.note.FormatLinkOpts?
 ---@return string
 Note.format_link = function(self, opts)
   opts = opts or {}
@@ -1204,47 +1335,60 @@ Note.format_link = function(self, opts)
   local link_format = opts.format or Obsidian.opts.link.format
 
   local new_opts = {
-    path = format_path(self.path, link_format),
+    path = tostring(self.path),
     label = label,
     anchor = opts.anchor,
     block = opts.block,
     style = link_style,
     format = link_format,
+    dir = opts.dir,
   }
-
-  if link_style == "markdown" then
-    return require("obsidian.builtin").markdown_link(new_opts)
-  elseif link_style == "wiki" or link_style == nil then
-    return require("obsidian.builtin").wiki_link(new_opts)
-  elseif type(link_style) == "function" then
-    return link_style(new_opts)
-  else
-    error(string.format("Invalid link style '%s'", link_style))
-  end
+  return api.format_link(new_opts)
 end
 
--- HACK: make backlink search lazy before we have proper cache
-local backlink_cache = {}
-
---- Return note status counts, like obsidian's status bar
+--- Return note status counts, like obsidian's status bar.
 ---
----@param update_backlink boolean|?
----@return { words: integer, chars: integer, properties: integer, backlinks: integer }?
-Note.status = function(self, update_backlink)
+---@param update_backlinks boolean|? Set to false to skip computing backlinks.
+---@param callback fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer? })|?
+---@return { words: integer, chars: integer, properties: integer, backlinks: integer? }?
+Note.status = function(self, update_backlinks, callback)
   local status = {}
   local wc = vim.fn.wordcount()
   status.words = wc.visual_words or wc.words
   status.chars = wc.visual_chars or wc.chars
   status.properties = vim.tbl_count(self:frontmatter()) -- TODO: should be zero if no frontmatter
-  local path = tostring(self.path)
-  if self and (update_backlink or backlink_cache[path] == nil) then -- HACK:
-    local num_backlinks = #self:backlinks {}
+
+  local function finish(num_backlinks)
     status.backlinks = num_backlinks
-    backlink_cache[path] = num_backlinks
-  else
-    status.backlinks = backlink_cache[path] or 0
+    if callback then
+      callback(status)
+    else
+      return status
+    end
   end
-  return status
+
+  if update_backlinks == false then
+    return finish(nil)
+  end
+
+  local cache = require "obsidian.cache"
+  if cache.is_enabled() then
+    if cache.is_ready() then
+      return finish(cache.notes.backlink_count(self))
+    elseif callback then
+      return cache.when_ready(function()
+        finish(cache.notes.backlink_count(self))
+      end)
+    end
+  end
+
+  if callback then
+    self:backlinks_async({}, function(matches)
+      finish(#matches)
+    end)
+  else
+    return finish(#self:backlinks {})
+  end
 end
 
 ---@return string[]
@@ -1259,31 +1403,66 @@ Note.body_lines = function(self)
   return lines
 end
 
+---@param choice obsidian.note.insert_text.SectionChoice
+---@return { header?: string, level?: integer }
+local function normalize_section_choice(choice)
+  local norm = { header = nil, level = nil }
+
+  if type(choice) == "string" then
+    norm.header = choice
+  elseif type(choice) == "number" then
+    norm.level = choice
+  elseif type(choice) == "table" then
+    if vim.islist(choice) then
+      norm.header = choice[1]
+      norm.level = choice[2]
+    else
+      norm.header = choice.header
+      norm.level = choice.level
+    end
+    assert(norm.header == nil or type(norm.header) == "string", "`section.header` must be string or nil")
+    assert(norm.level == nil or type(norm.level) == "number", "`section.level` must be number or nil")
+  elseif choice ~= nil then
+    error("invalid `section`: " .. vim.inspect(choice))
+  end
+
+  return norm
+end
+
 ---@param text string|string[] The text to insert into the note.
 ---@param opts obsidian.note.InsertTextOpts? The options for constraining where text can be inserted.
 ---@return integer text_idx where the text begins in the file (_including_ frontmatter) or `0` when insert is cancelled.
 Note.insert_text = function(self, text, opts)
-  local text_idx = 0
+  local defaults = { padding_top = self.has_frontmatter }
+  local overrides = { section = normalize_section_choice(opts and opts.section) }
+  opts = vim.tbl_deep_extend("force", defaults, opts or {}, overrides)
 
-  opts = vim.tbl_extend("keep", opts or {}, { padding_top = self.has_frontmatter })
-  opts.update_content = function(lines)
-    local insert_idx, insert_before, insert_after = text_insertion.resolve(lines, opts)
+  local text_idx = self.has_frontmatter and self.frontmatter_end_line or 0
 
-    if insert_idx == 0 then
-      return lines
-    end
-
-    text_idx = insert_idx + #insert_before
-    local head = vim.list_slice(lines, 1, insert_idx - 1)
-    local tail = vim.list_slice(lines, insert_idx, #lines)
-    return vim.iter({ head, insert_before, text, insert_after, tail }):flatten():totable()
-  end
-
-  self:save(opts)
-
-  if self.has_frontmatter and text_idx > 0 then
-    return self.frontmatter_end_line + text_idx
-  end
+  self:save(vim.tbl_extend("error", {}, {
+    update_content = function(lines)
+      local insert_idx, insert_top, insert_bot = text_insertion.resolve(lines, opts)
+      if insert_idx == 0 then
+        text_idx = 0
+        return lines
+      else
+        text_idx = text_idx + insert_idx + #insert_top
+        local top_lines = vim.list_slice(lines, 1, insert_idx - 1)
+        local bot_lines = vim.list_slice(lines, insert_idx, #lines)
+        local out = {}
+        for _, group in ipairs { top_lines, insert_top, text, insert_bot, bot_lines } do
+          if type(group) == "table" then
+            for _, line in ipairs(group) do
+              out[#out + 1] = line
+            end
+          else
+            out[#out + 1] = group
+          end
+        end
+        return out
+      end
+    end,
+  }))
 
   return text_idx
 end
@@ -1315,13 +1494,13 @@ Note.merge = function(self, other)
   end
 
   local function listify(v)
-    return util.islist(v) and v or { v }
+    return vim.islist(v) and v or { v }
   end
 
   for k, v in pairs(insert_metadata) do
     if self.metadata[k] then
       local listified_v = listify(v)
-      if not util.islist(self.metadata[k]) then
+      if not vim.islist(self.metadata[k]) then
         self.metadata[k] = listify(self.metadata[k])
       end
       vim.list_extend(self.metadata[k], listified_v)
@@ -1334,14 +1513,21 @@ Note.merge = function(self, other)
   return self
 end
 
+Note.link_suggestions = function(note, opts)
+  return require("obsidian.note.link_suggestion").find(note, opts)
+end
+
 ---@class (exact) obsidian.note.LoadOpts
 ---@field max_lines integer|?
 ---@field collect_anchor_links boolean|?
 ---@field collect_blocks boolean|?
+---@field collect_block_candidates boolean|?
+---@field collect_sections boolean|?
 
 ---@class (exact) obsidian.note.NoteCreationOpts
----@field notes_subdir string
----@field note_id_func fun()
+---@field notes_subdir string?
+---@field note_id_func fun(title: string|?, path: obsidian.Path|?): string
+---@field note_path_func fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path
 ---@field new_notes_location obsidian.config.NewNotesLocation
 
 ---@class (exact) obsidian.note.NoteOpts
@@ -1349,12 +1535,31 @@ end
 ---@field title string|? Readable title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
 ---@field verbatim boolean|? whether to skip applying `note_id_func`
 ---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
----relative to the workspace / vault root. If the directory doesn't exist it will
----be created, regardless of the value of the `should_write` option.
+---relative to the workspace / vault root.
+---@field source_path string|obsidian.Path|? Source note used to resolve the workspace and current-directory strategy.
 ---@field aliases string[]|? Aliases for the note
 ---@field tags string[]|?  Tags for this note
----@field should_write boolean|? Don't write the note to disk
----@field template string|? The name of the template
+---@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
+---@field scope string|? Arbitrary note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+---@field check_invalid_filename boolean|?
+
+---@class (exact) obsidian.note.CreateCallbackOpts
+---@field scope string Scope inherited from the `Note.create` opts, or `"plain"` when not set.
+
+---@class (exact) obsidian.note.DeleteOpts
+--- Whether to prompt when backlinks exist. Defaults to true.
+---@field confirm_backlinks? boolean
+--- Whether to prompt for linked attachments. Defaults to true.
+---@field confirm_attachments? boolean
+
+---@class (exact) obsidian.note.DeleteAttachmentResult
+---@field path string
+---@field deleted boolean
+
+---@class (exact) obsidian.note.DeleteResult
+---@field deleted boolean
+---@field cancelled boolean
+---@field attachments obsidian.note.DeleteAttachmentResult[]
 
 ---@class (exact) obsidian.note.NoteSaveOpts
 --- Specify a path to save to. Defaults to `self.path`.
@@ -1385,22 +1590,29 @@ end
 ---@field check_buffers? boolean
 
 ---@class (exact) obsidian.note.InsertTextOpts: obsidian.note.NoteSaveOpts
+--- Specifies the section to insert text under. When neither `header` nor `level` are provided, then the "preamble" will
+--- be targeted (i.e. everything from the beginning of the file up to, but not including, the first heading).
+--- Defaults to the preamble.
+---@field section? obsidian.note.insert_text.SectionChoice
+--- Decides what to do when the specified section is not found in the note. Defaults to `create`.
+---@field on_section_missing? obsidian.note.insert_text.OnSectionMissing
 --- Whether a blank line is inserted between frontmatter/top-of-file and the first heading of a note.
 --- Defaults to the expression: `note.has_frontmatter`.
 ---@field padding_top? boolean
---- Specifies the section to insert the text into, or `nil` to target the preamble (i.e. the area starting from the top
---- of the file up to but not including the first heading). Defaults to `nil`.
----@field section? obsidian.note.Section
 --- Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
 ---@field placement? "top"|"bot"
 
----@class (exact) obsidian.note.Section
---- The label of the heading.
----@field header string
---- The level of the heading (H1, H2, H3, ...).
----@field level integer
---- Decides what to do when the section is missing. Defaults to `create`.
----@field on_missing? "create"|"error"|"cancel"
+--- Selects a section by preamble, header, level, or both.
+--- - `nil`, `{ header = nil, level = nil }`, or `{ nil, nil }`: preamble.
+--- - `string`, `{ header = string }`, or `{ string, nil }`: first matching header.
+--- - `integer`, `{ level = integer }`, or `{ nil, integer }`: first matching level.
+--- - `{ header = string, level = integer }` or `{ string, integer }`: first matching pair.
+---@alias obsidian.note.insert_text.SectionChoice nil|string|integer|[string?, integer?]|{header: string?, level: integer?}
+
+---@alias obsidian.note.insert_text.OnSectionMissing
+---| "create" Create the missing section where text will be inserted under.
+---| "error"  Force user to handle the missing section by raising an error.
+---| "cancel" Silently abandon the insert operation altogether.
 
 ---@class obsidian.note.HeaderAnchor
 ---
@@ -1409,11 +1621,37 @@ end
 ---@field level integer
 ---@field line integer
 ---@field parent obsidian.note.HeaderAnchor|?
+---@field section? obsidian.Section the full section this header begins.
 
 ---@class obsidian.note.Block
 ---
 ---@field id string
 ---@field line integer
 ---@field block string
+---@field section? obsidian.Section the paragraph carrying the block identifier.
+
+local rename = require "obsidian.note.rename"
+
+---@class obsidian.note.RenameMeta
+---@field count integer Number of reference replacements.
+---@field path_lookup table<string, boolean> Files with reference replacements.
+---@field buf_list integer[] Buffers touched by reference replacements.
+---@field old_path string Original note path.
+---@field new_path string New note path.
+
+---@class (exact) obsidian.note.RenameOpts
+---@field old_path? string Existing path to rename from. Defaults to `note.path`.
+---@field new_path? string Destination path. Defaults to sibling path using `new_name .. ".md"`.
+---@field include_file_rename? boolean Include a file rename operation in the generated edit. Defaults to true.
+---@field include_stem_refs? boolean Update stem-only references. Defaults to true.
+---@field dir? string|obsidian.Path Workspace directory used to find references.
+---@field apply? boolean Apply the workspace edit directly. Defaults to true.
+---@field update_buffers? boolean Update the note object/frontmatter and reload buffers after applying. Defaults to true.
+---@field check_unique? boolean Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
+---@field offset_encoding? "utf-8"|"utf-16"|"utf-32" Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
+
+Note.build_rename_edit = rename.build_edit
+Note.rename = rename.rename
+Note.validate_rename = rename.validate
 
 return Note

@@ -1,5 +1,7 @@
 local lsp = {}
 local log = require "obsidian.log"
+local lsp_util = require "obsidian.lsp.util"
+local api = require "obsidian.api"
 
 --- Start the lsp client
 ---
@@ -10,6 +12,11 @@ lsp.start = function(buf)
   capabilities.workspace = capabilities.workspace or {}
   capabilities.workspace.fileOperations =
     vim.tbl_extend("force", capabilities.workspace.fileOperations or {}, { didRename = true })
+  -- manually enable dynamic registration for file watching, since neovim turns off this capability by default on linux and BSD
+  capabilities.workspace.didChangeWatchedFiles = {
+    dynamicRegistration = true,
+    relativePatternSupport = true,
+  }
 
   local lsp_config = {
     name = "obsidian-ls",
@@ -17,8 +24,13 @@ lsp.start = function(buf)
     offset_encoding = "utf-8",
     cmd = require "obsidian.lsp.server",
     init_options = {},
-    root_dir = tostring(Obsidian.dir),
+    root_dir = tostring(api.resolve_workspace_dir(vim.api.nvim_buf_get_name(buf))),
   }
+
+  local warning = lsp_util.check_completion_availability()
+  if warning then
+    log.warn_once(warning)
+  end
 
   local client_id = vim.lsp.start(lsp_config, { bufnr = buf, silent = false })
 

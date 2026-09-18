@@ -1,23 +1,32 @@
 local M = {}
 
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
 
----@param entry obsidian.PickerEntry
-M.insert_link = function(entry)
-  local note = Note.from_file(entry.filename)
-  local link = note:format_link()
+---@param arg string|obsidian.PickerEntry
+M.insert_link = function(arg)
+  local path = type(arg) == "table" and arg.filename or arg
+  ---@cast path string
+  if not path or path == "" then
+    return
+  end
+  local link
+  if not vim.uv.fs_stat(path) then
+    link = api.format_link { path = path }
+  else
+    local note = Note.from_file(path)
+    link = note:format_link()
+  end
   vim.api.nvim_put({ link }, "", false, true)
   require("obsidian.ui").update(0)
 end
 
----@param ... obsidian.PickerEntry
+---@param ... string
 M.tag_note = function(...)
   local calling_bufnr = require("obsidian.picker").state.calling_bufnr
-  local tags = vim.tbl_map(function(value)
-    return value.user_data
-  end, { ... })
+  local tags = { ... }
 
   local note = api.current_note(calling_bufnr)
   if not note then
@@ -49,9 +58,8 @@ M.tag_note = function(...)
   end
 end
 
----@param entry obsidian.PickerEntry
-M.insert_tag = function(entry)
-  local tag = entry.user_data
+---@param tag string
+M.insert_tag = function(tag)
   if tag == nil then
     log.err "Tag does not exist"
     return
@@ -63,8 +71,23 @@ M.new_note = function(query)
   if not query or vim.trim(query) == "" then
     return
   end
-  ---@diagnostic disable-next-line: missing-fields
+  ---@diagnostic disable-next-line: missing-fields,param-type-mismatch
   require "obsidian.commands.new" { args = query }
+end
+
+---@param arg string|obsidian.PickerEntry
+M.bookmark = function(arg)
+  local path = type(arg) == "table" and arg.filename or arg
+  ---@cast path string
+  if not path or path == "" then
+    return
+  end
+  local Bookmarks = require "obsidian.bookmarks"
+  Bookmarks.add {
+    ctime = Bookmarks.new_ctime(),
+    path = Path.new(path):vault_relative_path(),
+    type = "file",
+  }
 end
 
 return M

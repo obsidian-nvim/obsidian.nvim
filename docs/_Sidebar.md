@@ -24,13 +24,17 @@
 ### Modules:
 
 - [[Attachment]]
+- [[Audio-recorder]]
+- [[Bookmarks]]
 - [[Checkbox]]
 - [[Daily-Notes]]
+- [[File]]
 - [[Footer]]
 - [[Frontmatter]]
 - [[Link]]
 - [[Note]]
 - [[Open]]
+- [[Resolvers]]
 - [[Search]]
 - [[Sync]]
 - [[Tag]]

@@ -49,7 +49,9 @@ The original project has not been actively maintained for quite a while and with
 
 ## ⭐ Features
 
-▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) or [blink.cmp](https://github.com/Saghen/blink.cmp) (triggered by typing `[[` for wiki and markdown links, `#` for tags)
+▶️ **Completion:** Ultra-fast, asynchronous autocompletion for note references and tags via in-process LSP (triggered by typing `[[` for wiki and markdown links, `#` for tags, `[^` for footnotes). Use `[[##query` to search headings across the vault. For blocks, use `[[^query` for the current note, `[[note^query` or `[[note#^query` for a named note, and `[[^^query` across the vault; unlabeled blocks receive an ID when selected.
+
+Vault-wide block candidates are indexed in memory on first use and updated per note when watched files change. The index starts warming at `[[^^`; completion items appear once the block query reaches `completion.min_chars` (set it to `0` to show candidates for a bare prefix).
 
 🏃 **Navigation:** Navigate throughout your vault via links, backlinks, tags and etc.
 
@@ -88,7 +90,7 @@ There's one entry point user command for this plugin: `Obsidian`
 #### Top level commands
 
 - `:Obsidian check` - check for common issues in your vault and plugin setup
-- `:Obsidian ailies [OFFSET ...]` - open a picker list of daily notes
+- `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
 - `:Obsidian help` - find files in the help wiki
 - `:Obsidian helpgrep` - grep files in the help wiki
@@ -104,6 +106,7 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian new_from_template [TITLE] [TEMPLATE]` - create a new note with `TITLE` from a template with the name `TEMPLATE`
   - both arguments are optional. If not given, the template will be selected from a list using your preferred picker
 - `:Obsidian quick_switch` - switch to another note in your vault, searching by its name with a picker
+- `:Obsidian rebuild_cache` - force a full cache rescan and flush
 - `:Obsidian search [QUERY]` - search for (or create) notes in your vault using `ripgrep` with your preferred picker
 - `:Obsidian sync [SUBCMD]` - use [obsidian-headless](https://obsidian.md/help/sync/headless) to access official obsidian sync service. Default off, enable with `opts.sync.enabled = true`, for more see [Sync](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Sync).
 - `:Obsidian tags [QUERY]` - search tags with Obsidian-style tag terms such as `tag:#book`, `tag:#book OR tag:#movie`, or `tag:#book -tag:#archive`.
@@ -116,7 +119,9 @@ There's one entry point user command for this plugin: `Obsidian`
   - `grr`/`vim.lsp.buf.references` to see references in quickfix list
 - `:Obsidian follow_link [STRATEGY]` - follow a note reference under the cursor
   - available strategies: `vsplit, hsplit, vsplit_force, hsplit_force`
+  - If the link does not exist, you will be prompted to create it. If you choose to create it, the link in the buffer will be automatically updated with the new note's ID and alias.
 - `:Obsidian toc` - get a picker list of table of contents for current note
+- `:Obsidian footnotes` - get a select list of all footnotes in current note, with preview
 - `:Obsidian template [NAME]` - insert a template from the templates folder, selecting from a list using your preferred picker
   - [Template](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template)
 - `:Obsidian links` - get a picker list of all links in current note
@@ -145,7 +150,7 @@ There's one entry point user command for this plugin: `Obsidian`
 
 ### System requirements
 
-- Neovim >= 0.10.0
+- Neovim >= 0.11.0
 - For completion and search features: [`ripgrep`](https://github.com/BurntSushi/ripgrep?tab=readme-ov-file#installation)
 - Additional system dependencies:
   - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:Obsidian open`.
@@ -156,22 +161,31 @@ There's one entry point user command for this plugin: `Obsidian`
 
 There's no required dependency, but there are a number of optional dependencies that enhance the obsidian.nvim experience.
 
-**Completion:**
+- **Pickers:**
+  - [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
+  - [fzf-lua](https://github.com/ibhagwan/fzf-lua)
+  - [mini.pick](https://github.com/echasnovski/mini.pick)
+  - [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
 
-- [blink.cmp](https://github.com/Saghen/blink.cmp)
-- [nvim-cmp](https://github.com/hrsh7th/nvim-cmp)
+To use a specific picker, set `picker.name` in your config, e.g.:
 
-**Pickers:**
+```lua
+require("obsidian").setup {
+  picker = {
+    name = "snacks.picker", -- use snacks picker
+    -- name = "telescope.nvim",   -- or telescope
+    -- name = "fzf-lua",     -- or fzf-lua
+    -- name = "mini.pick",   -- or mini.pick
+  },
+}
+```
 
-- [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
-- [fzf-lua](https://github.com/ibhagwan/fzf-lua)
-- [mini.pick](https://github.com/echasnovski/mini.pick)
-- [snacks.picker](https://github.com/folke/snacks.nvim/blob/main/docs/picker.md)
+- **Image viewing:**
+  - [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
+  - See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
 
-**Image viewing:**
-
-- [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
-- See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
+- **Completion**
+  - See [Completion](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Completion)
 
 ## 📥 Installation
 
@@ -183,7 +197,7 @@ There's no required dependency, but there are a number of optional dependencies 
 > [!TIP]
 > To see your installation status, run `:checkhealth obsidian`
 >
-> To try out or debug this plugin, run `nvim -u minimal.lua` to try in a clean environment
+> To try out or debug this plugin, run `nvim -u minimal.lua` in the installed root to try in a clean environment
 
 ### Using [`lazy.nvim`](https://github.com/folke/lazy.nvim)
 
@@ -330,6 +344,19 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/franco-ruggeri"><img src="https://avatars.githubusercontent.com/u/38300576?v=4?s=100" width="100px;" alt="Franco Ruggeri"/><br /><sub><b>Franco Ruggeri</b></sub></a><br /><a href="#code-franco-ruggeri" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/JohnTKelly"><img src="https://avatars.githubusercontent.com/u/25050248?v=4?s=100" width="100px;" alt="John T. Kelly"/><br /><sub><b>John T. Kelly</b></sub></a><br /><a href="#code-JohnTKelly" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/antinomie8"><img src="https://avatars.githubusercontent.com/u/130611615?v=4?s=100" width="100px;" alt="antinomie8"/><br /><sub><b>antinomie8</b></sub></a><br /><a href="#code-antinomie8" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://thoughts.tp6gw94.qzz.io/explore"><img src="https://avatars.githubusercontent.com/u/71218426?v=4?s=100" width="100px;" alt="Todd"/><br /><sub><b>Todd</b></sub></a><br /><a href="#doc-tp6gw94" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/beekeepeer"><img src="https://avatars.githubusercontent.com/u/108191539?v=4?s=100" width="100px;" alt="beekeepeer"/><br /><sub><b>beekeepeer</b></sub></a><br /><a href="#code-beekeepeer" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/tdashelby-cmyk"><img src="https://avatars.githubusercontent.com/u/253610080?v=4?s=100" width="100px;" alt="tdashelby-cmyk"/><br /><sub><b>tdashelby-cmyk</b></sub></a><br /><a href="#doc-tdashelby-cmyk" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/gsmith-alvarez"><img src="https://avatars.githubusercontent.com/u/175654654?v=4?s=100" width="100px;" alt="Giovanni Smith-Alvarez"/><br /><sub><b>Giovanni Smith-Alvarez</b></sub></a><br /><a href="#code-gsmith-alvarez" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Booyaka101"><img src="https://avatars.githubusercontent.com/u/1064588?v=4?s=100" width="100px;" alt="Christo"/><br /><sub><b>Christo</b></sub></a><br /><a href="#code-Booyaka101" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.richsnapp.com"><img src="https://avatars.githubusercontent.com/u/551085?v=4?s=100" width="100px;" alt="Rich Snapp"/><br /><sub><b>Rich Snapp</b></sub></a><br /><a href="#code-snapwich" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/mebble"><img src="https://avatars.githubusercontent.com/u/18006759?v=4?s=100" width="100px;" alt="Neil Syiemlieh"/><br /><sub><b>Neil Syiemlieh</b></sub></a><br /><a href="#code-mebble" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/FosRexx"><img src="https://avatars.githubusercontent.com/u/105154048?v=4?s=100" width="100px;" alt="Anshu Gahire"/><br /><sub><b>Anshu Gahire</b></sub></a><br /><a href="#code-FosRexx" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/mgajewskik"><img src="https://avatars.githubusercontent.com/u/47600161?v=4?s=100" width="100px;" alt="Maciej Gajewski"/><br /><sub><b>Maciej Gajewski</b></sub></a><br /><a href="#code-mgajewskik" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/xiangnongWu2233"><img src="https://avatars.githubusercontent.com/u/68880238?v=4?s=100" width="100px;" alt="Xiangnong Wu"/><br /><sub><b>Xiangnong Wu</b></sub></a><br /><a href="#code-xiangnongWu2233" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/MoltenMonster"><img src="https://avatars.githubusercontent.com/u/42647030?v=4?s=100" width="100px;" alt="MoltenMonster"/><br /><sub><b>MoltenMonster</b></sub></a><br /><a href="#code-MoltenMonster" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

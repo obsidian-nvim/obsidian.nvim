@@ -9,8 +9,10 @@ return function(data)
     return log.err "There is no image data in the clipboard"
   end
 
+  local img_name_func = Obsidian.opts.attachments.img_name_func
+  ---@cast img_name_func -nil
   ---@type string|?
-  local default_name = Obsidian.opts.attachments.img_name_func()
+  local default_name = img_name_func()
 
   local should_confirm = Obsidian.opts.attachments.confirm_img_paste
 

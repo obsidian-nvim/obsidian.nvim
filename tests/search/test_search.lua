@@ -6,37 +6,6 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
-T["find_refs"] = new_set()
-
-T["find_refs"]["should find positions of all refs"] = function()
-  local s = "[[Foo]] [[foo|Bar]]"
-  eq({ { 1, 7, "Wiki" }, { 9, 19, "WikiWithAlias" } }, M.find_refs(s))
-end
-
-T["find_refs"]["should ignore refs within an inline code block"] = function()
-  local s = "`[[Foo]]` [[foo|Bar]]"
-  eq({ { 11, 21, "WikiWithAlias" } }, M.find_refs(s))
-
-  s = "[nvim-cmp](https://github.com/hrsh7th/nvim-cmp) (triggered by typing `[[` for wiki links or "
-    .. "just `[` for markdown links), powered by [`ripgrep`](https://github.com/BurntSushi/ripgrep)"
-  eq({ { 1, 47, "Markdown" }, { 134, 183, "Markdown" } }, M.find_refs(s))
-end
-
-T["find_refs"]["should find block IDs at the end of a line"] = function()
-  eq({ { 14, 25, "BlockID" } }, M.find_refs "Hello World! ^hello-world")
-end
-
-T["find_matches"] = function()
-  local matches = M.find_matches(
-    [[
-- <https://youtube.com@Fireship>
-- [Fireship](https://youtube.com@Fireship)
-  ]],
-    { "Markdown" }
-  )
-  eq(1, #matches)
-end
-
 T["find_code_blocks"] = new_set()
 
 T["find_code_blocks"]["should find generic code blocks"] = function()
@@ -170,7 +139,6 @@ local search = require"obsidian.search"
 local note = require"obsidian.note".from_file(tostring(Obsidian.dir / "test.md"))
 _G.res = search.find_links(note, {})
   ]]
-  vim.uv.sleep(100)
   local res = child.lua_get [[res]]
 
   eq({

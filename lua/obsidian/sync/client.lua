@@ -1,12 +1,5 @@
 local api = require "obsidian.api"
 local log = require "obsidian.log"
-local status = require "obsidian.sync.status"
-
----@type table<string, vim.SystemObj>
-local sync_proc = {}
-
----@type table<string, string[]>
-local sync_log = {}
 
 ---@class obsidian.sync.Client
 ---@field cmd string?  -- path to CLI, if available
@@ -14,10 +7,11 @@ local sync_log = {}
 local M = {}
 
 local function get_plugin_root()
-  local root = vim.iter(vim.api.nvim_list_runtime_paths()):find(function(path)
-    return vim.endswith(path, "obsidian.nvim")
-  end)
-  return root
+  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
+    if vim.endswith(path, "obsidian.nvim") then
+      return path
+    end
+  end
 end
 
 ---@return string?
@@ -78,6 +72,69 @@ end
 
 local cmd, cli
 
+---@return string
+function M.config_home()
+  local home = vim.uv.os_homedir() or tostring(vim.fn.expand "$HOME")
+  local sysname = (vim.uv.os_uname().sysname or ""):lower()
+  if sysname == "linux" then
+    local config_home = vim.env.XDG_CONFIG_HOME
+    if not config_home or config_home == "" then
+      config_home = vim.fs.joinpath(home, ".config")
+    end
+    return vim.fs.joinpath(config_home, "obsidian-headless")
+  end
+  return vim.fs.joinpath(home, ".obsidian-headless")
+end
+
+---@param path string
+---@return string
+local function normalize_path(path)
+  local normalized = vim.fs.normalize(tostring(vim.fn.fnamemodify(path, ":p")))
+  return (normalized:gsub("/$", ""))
+end
+
+---@param path string
+---@param vaults table<string, obsidian.sync.LocalVault>?
+---@return string?
+function M.sync_log_path(path, vaults)
+  local target = normalize_path(path)
+  for vault_path, vault in pairs(vaults or M.list_local(false)) do
+    if normalize_path(vault_path) == target then
+      return vim.fs.joinpath(M.config_home(), "sync", vault.hash, "sync.log")
+    end
+  end
+end
+
+---@param out vim.SystemCompleted|nil
+---@return string
+local function output_text(out)
+  if not out then
+    return ""
+  end
+  return table.concat({ out.stderr or "", out.stdout or "" }, "\n")
+end
+
+---@param out vim.SystemCompleted|nil
+---@return boolean
+local function is_not_logged_in(out)
+  if not out or out.code ~= 2 then
+    return false
+  end
+
+  local text = output_text(out):lower()
+  return text:find("no account logged in", 1, true) ~= nil or text:find('run "ob login" first', 1, true) ~= nil
+end
+
+---@param out vim.SystemCompleted|nil
+---@return boolean
+local function is_password_validation_error(out)
+  if not out or out.code ~= 2 then
+    return false
+  end
+
+  return output_text(out):lower():find("failed to validate password", 1, true) ~= nil
+end
+
 setmetatable(M, {
   __index = function(_, k)
     if k == "cmd" then
@@ -105,7 +162,7 @@ function M.run(subcmd, flags)
   end
 
   local out = M.cli:run_sync(subcmd, flags)
-  if out.code == 2 then
+  if is_not_logged_in(out) then
     if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
       local success = M.login()
       if success then
@@ -113,8 +170,21 @@ function M.run(subcmd, flags)
       end
     end
     return
+  elseif out.code ~= 0 then
+    log.error(out.stderr or "")
   end
   return out
+end
+
+---@param lines string[]?
+---@return boolean
+local function has_error_lines(lines)
+  for _, line in ipairs(lines or {}) do
+    if line:find("Error:", 1, true) then
+      return true
+    end
+  end
+  return false
 end
 
 ---@param subcmd string
@@ -136,7 +206,7 @@ function M.run_async(subcmd, flags, sys_opts, callback, opts)
     flags,
     sys_opts,
     vim.schedule_wrap(function(out)
-      if out.code == 2 then
+      if is_not_logged_in(out) then
         if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
           local success = M.login()
           if success then
@@ -145,13 +215,24 @@ function M.run_async(subcmd, flags, sys_opts, callback, opts)
         end
         return
       elseif out.code ~= 0 then
-        local error_output = sys_opts.cwd and sync_log[sys_opts.cwd] and table.concat(sync_log[sys_opts.cwd], "\n")
-          or out.stderr
-        if error_output:find "Another sync instance is already running for this vault." then
+        local runner = require "obsidian.sync.runner"
+        local log_lines = sys_opts.cwd and runner.logs[sys_opts.cwd]
+        local logged_error = has_error_lines(log_lines)
+        local error_output = (log_lines and table.concat(log_lines, "\n")) or out.stderr or ""
+        local already_running = error_output:find("Another sync instance is already running for this vault.", 1, true)
+          ~= nil
+        if sys_opts.cwd and not already_running then
+          runner.append_log(
+            sys_opts.cwd,
+            string.format("obsidian sync exited with code %s: %s", out.code, out.stderr or ""),
+            { error = true, notify = false }
+          )
+        end
+        if already_running then
           if not opts.silent then
             log.info "Another sync instance is already running for this vault."
           end
-        else
+        elseif not logged_error then
           log.err("Command failed with code %s: %s", out.code, error_output)
         end
       else
@@ -160,6 +241,9 @@ function M.run_async(subcmd, flags, sys_opts, callback, opts)
     end)
   )
 end
+
+---@type fun()|?
+local invalidate_cache
 
 ---@param email string|?
 ---@param password string|?
@@ -176,6 +260,9 @@ function M.login(email, password)
   local out = M.run("login", { email = email, password = password })
 
   if out ~= nil and out.code == 0 then
+    local invalidate = invalidate_cache
+    ---@cast invalidate -nil
+    invalidate()
     log.info "Login successful!"
     return true
   else
@@ -186,20 +273,41 @@ end
 
 ---@type table<string, obsidian.sync.LocalVault>|nil
 local _local_vaults_cache = nil
+---@type obsidian.sync.RemoteVault[]|nil
+local _remote_vaults_cache = nil
 
 M._local_vaults_cache = _local_vaults_cache
+M._remote_vaults_cache = _remote_vaults_cache
 
-local function invalidate_cache()
+invalidate_cache = function()
   _local_vaults_cache = nil
+  _remote_vaults_cache = nil
+  M._local_vaults_cache = nil
+  M._remote_vaults_cache = nil
 end
 
 M.invalidate_vaults_cache = invalidate_cache
 
 ---@param vault string  -- vault id or name
 ---@param path string
+---@param opts { password?: string, prompt_password?: boolean }?
 ---@return vim.SystemCompleted|nil
-function M.setup(vault, path)
-  local out = M.run("sync-setup", { vault = vault, path = path })
+function M.setup(vault, path, opts)
+  opts = opts or {}
+  local args = { vault = vault, path = path }
+  if opts.password and opts.password ~= "" then
+    args.password = opts.password
+  end
+
+  local out = M.run("sync-setup", args)
+  if is_password_validation_error(out) and opts.prompt_password ~= false and not args.password then
+    local password = vim.fn.inputsecret "End-to-end encryption password: "
+    if password and password ~= "" then
+      args.password = password
+      out = M.run("sync-setup", args)
+    end
+  end
+
   if out and out.code == 0 then
     invalidate_cache()
     log.info "Vault configured successfully!"
@@ -261,25 +369,40 @@ end
 ---@field hash string
 ---@field name string
 
+---@param use_cache boolean? -- if true (default), return cached result when available
 ---@return obsidian.sync.RemoteVault[]  -- list of remote vaults
-function M.list_remote()
-  local out = M.run "sync-list-remote"
+function M.list_remote(use_cache)
+  if use_cache ~= false and _remote_vaults_cache then
+    return _remote_vaults_cache
+  end
 
-  if not out or not out.stdout then
+  local out = M.run("sync-list-remote", {})
+
+  if not out or out.code ~= 0 or not out.stdout then
     return {}
   end
 
   local lines = vim.split(out.stdout, "\n", { trimempty = true })
-  local pat = "^%s*([0-9a-fA-F]+)%s+([^\n]+)"
-
   local res = {}
   for _, line in ipairs(lines) do
-    local hash, name = line:match(pat)
+    local hash, quoted_name = line:match '^%s*([0-9a-fA-F]+)%s+"([^"]+)"'
+    local name
+    if hash and quoted_name then
+      name = quoted_name
+    else
+      hash, name = line:match "^%s*([0-9a-fA-F]+)%s+(.+)$"
+      if name then
+        name = vim.trim(name)
+      end
+    end
+
     if hash and name then
       table.insert(res, { hash = hash, name = name })
     end
   end
 
+  _remote_vaults_cache = res
+  M._remote_vaults_cache = res
   return res
 end
 
@@ -302,7 +425,12 @@ function M.create_remote(name, opts)
   local out = M.run("sync-create-remote", args)
   if out and out.code == 0 and out.stdout then
     local vault_id = out.stdout:match "[Vv]ault ID:%s*([0-9a-fA-F]+)"
-    return { hash = assert(vault_id, "failed to parse sync-create-remote result"), name = name }
+    if vault_id then
+      _remote_vaults_cache = nil
+      M._remote_vaults_cache = nil
+      return { hash = vault_id, name = name }
+    end
+    log.err "Failed to parse sync-create-remote result."
   end
 end
 
@@ -337,10 +465,13 @@ function M.set_config(path, opts)
   return M.run("sync-config", args)
 end
 
----@param path string?
 ---@return vim.SystemCompleted|nil
 function M.logout()
-  return M.run("logout", {})
+  local out = M.run("logout", {})
+  if out and out.code == 0 then
+    invalidate_cache()
+  end
+  return out
 end
 
 ---@param path string?
@@ -351,127 +482,6 @@ function M.unlink(path)
     invalidate_cache()
   end
   return out
-end
-
---------------------------------
---- Sync Process Management ---
---------------------------------
-
----@param dir string
----@param message string
-local function append_log(dir, message)
-  if not message or message == "" then
-    return
-  end
-
-  if not sync_log[dir] then
-    sync_log[dir] = {}
-  end
-
-  local ts = os.date "%Y-%m-%d %H:%M"
-  local lines = vim.split(message, "\n")
-
-  for _, line in ipairs(lines) do
-    if line and line ~= "" then
-      if line == "Fully synced" then
-        status.set "synced"
-      elseif line:lower():find("paused", 1, true) then
-        status.set "paused"
-      else
-        status.set "syncing"
-      end
-      local entry = string.format("%s - %s", ts, line)
-      table.insert(sync_log[dir], entry)
-    end
-  end
-end
-
----@param dir string
-function M.pause(dir)
-  if not sync_proc[dir] then
-    return
-  end
-
-  local ok, err = pcall(function()
-    sync_proc[dir]:kill(15)
-    sync_proc[dir] = nil
-    status.set "paused"
-  end)
-  return ok, err
-end
-
----@param dir string
----@return fun(err, line)
-local function make_handler(dir)
-  return function(err, line)
-    if err then
-      log.err(err)
-      append_log(dir, tostring(err))
-    end
-    if not line then
-      return
-    end
-    line = vim.trim(line)
-    if line == "" then
-      return
-    end
-    append_log(dir, line)
-  end
-end
-
----@param dir string
----@param opts { silent: boolean? }?
-function M.start(dir, opts)
-  opts = opts or {}
-  local handler = make_handler(dir)
-
-  if not M.cli then
-    log.err "CLI not available, cannot start sync."
-    return
-  end
-
-  if sync_proc[dir] ~= nil then
-    if not opts.silent then
-      log.info("Sync already running for %s", dir)
-    end
-    return
-  end
-
-  local callback = function(out)
-    if out.code ~= 0 then
-      log.err("obsidian sync exited %s", out.stderr)
-      append_log(dir, string.format("obsidian sync exited with code %s: %s", out.code, out.stderr))
-    end
-  end
-
-  M.set_config(dir, Obsidian.opts.sync)
-
-  sync_proc[dir] = M.run_async("sync", { continuous = true }, {
-    cwd = dir,
-    stderr = handler,
-    stdout = handler,
-  }, callback, { silent = opts.silent })
-
-  vim.api.nvim_create_autocmd("VimLeavePre", {
-    group = vim.api.nvim_create_augroup("obsidian-sync-" .. dir, { clear = true }),
-    callback = function()
-      M.pause(dir)
-    end,
-  })
-end
-
----@param dir string
----@return { buf: integer }
-function M.log(dir)
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, sync_log[dir] or {})
-  vim.bo[buf].modifiable = false
-  vim.api.nvim_buf_set_name(buf, ("Obsidian Sync Log %s"):format(dir))
-  vim.api.nvim_set_current_buf(buf)
-  vim.keymap.set("n", "q", function()
-    vim.api.nvim_buf_delete(buf, { force = true })
-  end, { buffer = buf, silent = true })
-  return { buf = buf }
 end
 
 return M

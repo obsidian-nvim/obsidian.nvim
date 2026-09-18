@@ -55,7 +55,7 @@ local search_defaults = {
   ignore_case = false,
 }
 
----@param opts obsidian.SearchOpts
+---@param opts obsidian.SearchOpts?
 ---@param additional_opts obsidian.search.SearchOpts|?
 ---
 ---@return obsidian.search.SearchOpts
@@ -72,6 +72,12 @@ M._prepare = function(opts, additional_opts)
 
   if not opts.include_templates and Obsidian.opts.templates ~= nil and Obsidian.opts.templates.folder ~= nil then
     add_exclude(search_opts, tostring(Obsidian.opts.templates.folder))
+  end
+
+  if Obsidian.opts.file and Obsidian.opts.file.ignore_filters and #Obsidian.opts.file.ignore_filters > 0 then
+    for _, pattern in ipairs(Obsidian.opts.file.ignore_filters) do
+      add_exclude(search_opts, pattern)
+    end
   end
 
   if opts.ignore_case then

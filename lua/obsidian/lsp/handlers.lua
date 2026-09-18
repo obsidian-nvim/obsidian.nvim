@@ -1,12 +1,19 @@
 ---@type table<vim.lsp.protocol.Method, function>
 return {
   ["initialize"] = require "obsidian.lsp.handlers.initialize",
+  ["initialized"] = require "obsidian.lsp.handlers.initialized",
+  ["workspace/didChangeWatchedFiles"] = require "obsidian.lsp.handlers.did_change_watched_files",
   ["workspace/didRenameFiles"] = require "obsidian.lsp.handlers.did_rename_files",
   ["workspace/symbol"] = require "obsidian.lsp.handlers.workspace_symbol",
+  ["workspace/executeCommand"] = require "obsidian.lsp.handlers.workspace_execute_command",
   ["textDocument/rename"] = require "obsidian.lsp.handlers.rename",
   ["textDocument/prepareRename"] = require "obsidian.lsp.handlers.prepare_rename",
   ["textDocument/references"] = require "obsidian.lsp.handlers.references",
   ["textDocument/definition"] = require "obsidian.lsp.handlers.definition",
+  ["textDocument/didSave"] = require "obsidian.lsp.handlers.did_save",
   ["textDocument/documentSymbol"] = require "obsidian.lsp.handlers.document_symbol",
   ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
+  ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",
+  ["textDocument/foldingRange"] = require "obsidian.lsp.handlers.folding_range",
+  ["textDocument/inlayHint"] = require "obsidian.lsp.handlers.inlay_hint",
 }

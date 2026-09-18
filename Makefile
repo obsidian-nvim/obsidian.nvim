@@ -3,8 +3,6 @@ SHELL:=/usr/bin/env bash
 .DEFAULT_GOAL:=help
 PROJECT_NAME = "obsidian.nvim"
 TEST = test/obsidian
-LUARC = $(shell readlink -f .luarc.json)
-
 # Depending on your setup you have to override the locations at runtime. E.g.:
 #   make user-docs
 MINITEST = deps/mini.test
@@ -33,16 +31,13 @@ style:  ## Format the code with stylua
 	stylua --check .
 
 .PHONY: types
-types: ## Type check with lua-ls
-	lua-language-server --configpath "$(LUARC)" --check lua/obsidian/
-
-.PHONY: checklua
-checklua:
-	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/obsidian/ --config .emmyrc.json
+types: ## Type check with EmmyLua
+	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/ --config .emmyrc.json 
+	# --warnings-as-errors TODO: upstream neovim stdlib is going through some type refactors, wait util 0.13 to add this back
 
 .PHONY: test
 test: $(MINITEST)
-	nvim --headless --noplugin -u ./scripts/minimal_init.lua -c "lua MiniTest.run()"
+	nvim --headless --clean --noplugin -u ./scripts/minimal_init.lua -c "lua MiniTest.run()"
 
 $(MINITEST):
 	mkdir -p deps

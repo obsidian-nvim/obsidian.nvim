@@ -2,6 +2,8 @@
   "runtime": {
     "version": "LuaJIT",
     "requirePattern": [
+      "?.lua",
+      "?/init.lua",
       "lua/?.lua",
       "lua/?/init.lua",
       "?/lua/?.lua",
@@ -20,10 +22,12 @@
   "workspace": {
     "checkThirdParty": false,
     "library": [
-      "$VIMRUNTIME"
+      "$VIMRUNTIME",
+      ".emmy"
     ],
     "ignoreGlobs": [
-      "tests/test_*.lua"
+      "tests/test_*.lua",
+      "obsidian/lib/glob.lua"
     ]
   }
 }

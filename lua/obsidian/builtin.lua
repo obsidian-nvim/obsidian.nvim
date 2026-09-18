@@ -4,9 +4,9 @@ local M = {}
 ---@class obsidian.link.LinkCreationOpts
 ---@field label? string
 ---@field path? string|?
----@field anchor? obsidian.note.HeaderAnchor|?
----@field block? obsidian.note.Block|?
----@field style? obsidian.link.LinkStyle
+---@field anchor? string|obsidian.note.HeaderAnchor
+---@field block? string|obsidian.note.Block
+---@field style? obsidian.link.LinkStyleOption
 ---@field format? obsidian.link.LinkFormat
 
 ---Create a new unique Zettel ID.
@@ -86,11 +86,19 @@ M.wiki_link = function(opts)
   local anchor = ""
   local header = ""
   if opts.anchor then
-    anchor = opts.anchor.anchor
-    header = format_anchor_label(opts.anchor)
+    if type(opts.anchor) == "table" then
+      anchor = opts.anchor.anchor
+      header = format_anchor_label(opts.anchor)
+    else
+      anchor = opts.anchor
+    end
   elseif opts.block then
-    anchor = "#" .. opts.block.id
-    header = "#" .. opts.block.id
+    if type(opts.block) == "table" then
+      anchor = "#" .. opts.block.id
+      header = "#" .. opts.block.id
+    else
+      anchor = opts.block
+    end
   end
 
   local path = tostring(opts.path or "")
@@ -112,15 +120,23 @@ M.markdown_link = function(opts)
   local anchor = ""
   local header = ""
   if opts.anchor then
-    anchor = opts.anchor.anchor
-    header = format_anchor_label(opts.anchor)
+    if type(opts.anchor) == "table" then
+      anchor = opts.anchor.anchor
+      header = format_anchor_label(opts.anchor)
+    else
+      anchor = opts.anchor
+    end
   elseif opts.block then
-    anchor = "#" .. opts.block.id
-    header = "#" .. opts.block.id
+    if type(opts.block) == "table" then
+      anchor = "#" .. opts.block.id
+      header = "#" .. opts.block.id
+    else
+      anchor = opts.block
+    end
   end
 
-  local util = require "obsidian.util"
-  local path = opts.path and util.urlencode(tostring(opts.path), { keep_path_sep = true }) or ""
+  local uri = require "obsidian.uri"
+  local path = opts.path and uri.encode(tostring(opts.path), { keep_path_sep = true }) or ""
 
   return string.format("[%s%s](%s%s)", opts.label, header, path, anchor)
 end
@@ -136,7 +152,7 @@ M.img_text_func = function(path)
   local name = vim.fs.basename(tostring(path))
 
   if style == "markdown" then
-    name = require("obsidian.util").urlencode(name)
+    name = require("obsidian.uri").encode(name)
   end
   if format_string[style] ~= nil then
     return string.format(format_string[style], name)

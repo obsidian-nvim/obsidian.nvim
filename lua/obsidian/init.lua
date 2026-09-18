@@ -8,8 +8,9 @@ obsidian.code_action = require "obsidian.lsp.handlers._code_action"
 obsidian.async = require "obsidian.async"
 obsidian.Client = require "obsidian.client"
 obsidian.commands = require "obsidian.commands"
-obsidian.completion = require "obsidian.completion"
 obsidian.config = require "obsidian.config"
+obsidian.date = require "obsidian.date"
+obsidian.link = require "obsidian.link"
 obsidian.log = log
 obsidian.img_paste = require "obsidian.img_paste"
 obsidian.Note = require "obsidian.note"
@@ -18,24 +19,26 @@ obsidian.Picker = require "obsidian.picker"
 obsidian.search = require "obsidian.search"
 obsidian.templates = require "obsidian.templates"
 obsidian.ui = require "obsidian.ui"
+obsidian.uri = require "obsidian.uri"
 obsidian.util = require "obsidian.util"
 obsidian.VERSION = require "obsidian.version"
 obsidian.Workspace = require "obsidian.workspace"
 obsidian.yaml = require "obsidian.yaml"
 
----@type obsidian.Client|?
+---@type obsidian.Client |?
 obsidian._client = nil
 
 --- TODO: remove in 4.0.0
 
----Get the current obsidian client.
+--- Get the current obsidian client.
 ---@return obsidian.Client
 obsidian.get_client = function()
-  if obsidian._client == nil then
+  ---@type obsidian.Client?
+  local client = rawget(obsidian, "_client")
+  if client == nil then
     error "Obsidian client has not been set! Did you forget to call 'setup()'?"
-  else
-    return obsidian._client
   end
+  return client
 end
 
 obsidian.register_command = require("obsidian.commands").register
@@ -44,19 +47,38 @@ obsidian.register_command = require("obsidian.commands").register
 ---
 ---@param user_opts obsidian.config
 ---
----@return obsidian.Client
+---@return obsidian.Client?
 obsidian.setup = function(user_opts)
   ---@class obsidian.state
-  ---@field picker obsidian.Picker Picker to use.
-  ---@field workspace obsidian.Workspace Current workspace.
-  ---@field workspaces obsidian.Workspace[] All workspaces.
-  ---@field dir obsidian.Path Root of the vault for the current workspace.
-  ---@field buf_dir obsidian.Path|? Parent directory of the current buffer.
-  ---@field opts obsidian.config.Internal Current options.
-  ---@field _opts obsidian.config.Internal User input options.
-  Obsidian = {}
+  ---@field picker     obsidian.Picker          Picker to use.
+  ---@field workspace  obsidian.Workspace       Current workspace.
+  ---@field workspaces obsidian.Workspace[]     All workspaces.
+  ---@field dir        obsidian.Path            Root of the vault for the current workspace.
+  ---@field buf_dir    obsidian.Path |?         Parent directory of the current buffer.
+  ---@field opts          obsidian.config.Internal Current options.
+  ---@field _opts         obsidian.config.Internal Normalized user options.
+  ---@field _user_opts    obsidian.config Raw options passed to setup.
+  ---@field _setup_called boolean Whether setup has been called.
+  ---@field _config_error string|? Configuration error from the latest setup call.
+  ---@diagnostic disable-next-line: global-in-non-module
+  Obsidian = setmetatable({}, {
+    __index = function(_, key)
+      if key == "picker" then
+        return obsidian.Picker
+      end
+    end,
+  })
 
-  local opts = obsidian.config.normalize(user_opts)
+  Obsidian._setup_called = true
+  Obsidian._user_opts = user_opts or {}
+
+  local normalized, opts = pcall(obsidian.config.normalize, Obsidian._user_opts)
+  if not normalized then
+    Obsidian._config_error = tostring(opts)
+    log.err("%s\n\nobsidian.nvim did not finish setup.", Obsidian._config_error)
+    return
+  end
+  ---@cast opts obsidian.config.Internal
 
   Obsidian._opts = opts
 
@@ -78,17 +100,10 @@ obsidian.setup = function(user_opts)
 
   log.set_level(Obsidian.opts.log_level)
 
-  Obsidian.picker = obsidian.Picker.get()
+  obsidian.Picker.get(Obsidian.opts.picker.name)
 
   if opts.legacy_commands then
     obsidian.commands.install_legacy()
-  end
-
-  -- Register completion sources, providers
-  if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").register_sources()
-  elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").register_providers()
   end
 
   -- Register autocmds for keymaps, options and custom callbacks
@@ -96,6 +111,9 @@ obsidian.setup = function(user_opts)
 
   -- Set global client.
   obsidian._client = client
+
+  -- experimental values don't want to expose, override in post_setup
+  vim.g.obsidian_sync_on_write_debounce_ms = 2000
 
   obsidian.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup)
 

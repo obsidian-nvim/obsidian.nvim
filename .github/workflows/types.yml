@@ -1,0 +1,42 @@
+name: Type Checking
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  types:
+    name: Types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: nightly
+
+      - name: Install EmmyLua check + ls
+        env:
+          EMMYLUA_VERSION: 0.24.0
+        run: |
+          set -euo pipefail
+          base_url="https://github.com/EmmyLuaLs/emmylua-analyzer-rust/releases/download/${EMMYLUA_VERSION}"
+          curl -fsSL "${base_url}/emmylua_check-linux-x64-glibc.2.17.tar.gz" | tar -xz
+          curl -fsSL "${base_url}/emmylua_ls-linux-x64-glibc.2.17.tar.gz" | tar -xz
+          chmod +x emmylua_check emmylua_ls
+          mkdir -p "$HOME/.local/bin"
+          mv emmylua_check emmylua_ls "$HOME/.local/bin/"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run type checker
+        run: make types

@@ -88,14 +88,26 @@ local function week_of_year(date)
   return math.floor((date.yday + (jan1.wday - 1) - 1) / 7) + 1
 end
 
-local function iso_week(date, time)
+local function shift_week(date, time, start_of_week)
+  local day_offset = (1 - (start_of_week or 1)) % 7
+  if day_offset == 0 then
+    return date, time
+  end
+
+  local shifted_time = time + (day_offset * 86400)
+  return os.date("*t", shifted_time), shifted_time
+end
+
+local function iso_week(date, time, start_of_week)
+  date, time = shift_week(date, time, start_of_week)
   local wday = iso_weekday(date.wday)
   local thursday = time + (4 - wday) * 86400
   local thursday_date = os.date("*t", thursday)
   return math.floor((thursday_date.yday - 1) / 7) + 1
 end
 
-local function iso_week_year(date, time)
+local function iso_week_year(date, time, start_of_week)
+  date, time = shift_week(date, time, start_of_week)
   local wday = iso_weekday(date.wday)
   local thursday = time + (4 - wday) * 86400
   return os.date("*t", thursday).year
@@ -202,11 +214,11 @@ end
 handlers["ww"] = function(d)
   return string.format("%02d", week_of_year(d))
 end
-handlers["W"] = function(d, time)
-  return iso_week(d, time)
+handlers["W"] = function(d, time, start_of_week)
+  return iso_week(d, time, start_of_week)
 end
-handlers["WW"] = function(d, time)
-  return string.format("%02d", iso_week(d, time))
+handlers["WW"] = function(d, time, start_of_week)
+  return string.format("%02d", iso_week(d, time, start_of_week))
 end
 handlers["Q"] = function(d)
   return math.floor((d.month - 1) / 3) + 1
@@ -215,15 +227,15 @@ handlers["Qo"] = function(d)
   local q = math.floor((d.month - 1) / 3) + 1
   return tostring(q) .. ordinal_suffix(q)
 end
-handlers["Wo"] = function(d, time)
-  local w = iso_week(d, time)
+handlers["Wo"] = function(d, time, start_of_week)
+  local w = iso_week(d, time, start_of_week)
   return tostring(w) .. ordinal_suffix(w)
 end
-handlers["GGGG"] = function(d, time)
-  return string.format("%04d", iso_week_year(d, time))
+handlers["GGGG"] = function(d, time, start_of_week)
+  return string.format("%04d", iso_week_year(d, time, start_of_week))
 end
-handlers["GG"] = function(d, time)
-  return string.format("%02d", iso_week_year(d, time) % 100)
+handlers["GG"] = function(d, time, start_of_week)
+  return string.format("%02d", iso_week_year(d, time, start_of_week) % 100)
 end
 handlers["Z"] = function(_, time)
   local offset = os.date("%z", time)
@@ -338,8 +350,9 @@ end
 
 ---@param time number
 ---@param fmt string
+---@param start_of_week? integer 0 is Sunday, 1 is Monday, ..., 6 is Saturday.
 ---@returns string
-return function(time, fmt)
+return function(time, fmt, start_of_week)
   local date = os.date("*t", time)
   local ast = grammar:match(fmt)
 
@@ -349,7 +362,7 @@ return function(time, fmt)
 
   for _, node in ipairs(ast) do
     if node.type == "token" then
-      out[#out + 1] = tostring(handlers[node.value](date, time))
+      out[#out + 1] = tostring(handlers[node.value](date, time, start_of_week))
     else
       out[#out + 1] = node.value
     end

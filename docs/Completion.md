@@ -1,0 +1,55 @@
+## Plugin Completion
+
+This plugin provides plugin-agnostic completion via in-process LSP, you only need to make sure you are triggering LSP completions in markdown buffers.
+
+Reference completion supports Obsidian's vault-wide searches:
+
+- `[[##query` searches headings across the vault.
+- `[[^^query` searches blocks across the vault.
+
+When the metadata cache is enabled and ready, ordinary note-reference completion returns cached note IDs, filenames, and aliases without reading note files or invoking ripgrep. The completion engine filters this candidate set, so blink.cmp, nvim-cmp, and Neovim's native completion can apply their own fuzzy matcher. `completion.min_chars` still controls when candidates first appear. The LSP list remains incomplete while query-dependent create-note suggestions are enabled, so clients may request the cached set again as the query changes.
+
+Vault-wide heading search also uses the metadata cache when it is enabled and ready, and otherwise falls back to the filesystem/ripgrep search path. Loaded buffers replace cached or on-disk data so unsaved headings can be completed. Heading and block searches remain query-filtered by obsidian.nvim because their candidate sets can be much larger than the note list.
+
+For blink.cmp, if you have a dedicated `per_filetype` config for markdown, LSP completion will not attach, use:
+
+```lua
+
+require("blink.cmp").setup {
+  sources = {
+    -- NOTE: no need if you don't have custom markdown stuff
+    per_filetype = {
+      markdown = {
+        "lsp", -- NOTE: explicitly enable lsp
+        -- inherit_defaults = true, -- NOTE: if your defaults include lsp
+        "dictionary",
+      },
+    },
+  },
+}
+```
+
+## Neovim Native Completion
+
+To use completions without completion plugin, put this anywhere in your config before an obsidian buffer loads:
+
+```lua
+-- NOTE: you don't need this is you are on neovim 0.13 (nightly)
+-- HACK: to trigger on every ASCII char
+local chars = {}
+for i = 32, 126 do
+  table.insert(chars, string.char(i))
+end
+
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(ev)
+    local buf = ev.buf
+    local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client and client.name == "obsidian-ls" then
+      client.server_capabilities.completionProvider.triggerCharacters = chars -- HACK:
+      vim.bo[buf].completeopt = "menuone,noselect,fuzzy,nosort" -- noselect to make sure no accidentally accept and create new notes, others are not strictly necessary, adjust to your taste, see `:h completeopt'
+      vim.lsp.completion.enable(true, client.id, buf, { autotrigger = true })
+    end
+  end,
+})
+```

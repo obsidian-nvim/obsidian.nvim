@@ -124,7 +124,7 @@ Visual mode commands ~
 
 System requirements ~
 
-- Neovim >= 0.10.0
+- Neovim >= 0.11.0
 - For completion and search features: `ripgrep` {15}
 - Additional system dependencies:
   - Windows WSL users need `wsl-open` {16} for `:Obsidian open`.

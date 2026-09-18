@@ -1,27 +1,39 @@
----@type table<string, lsp.CodeAction>
+---@class obsidian.lsp.CodeActionData
+---@field title string|fun(note: obsidian.Note): string
+---@field cond fun(note: obsidian.Note, params: lsp.CodeActionParams?): boolean
+---@field arguments? fun(note: obsidian.Note, params: lsp.CodeActionParams?): any[]
+
+---@class obsidian.lsp.CodeAction : lsp.CodeAction
+---@field data obsidian.lsp.CodeActionData
+
+---@type table<string, obsidian.lsp.CodeAction>
 local code_actions = {}
 
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
----@field title string text display in code action interface
----@field cond? fun(note: obsidian.Note): boolean function used to determine whether code actoin is shown
+---@field title string|fun(note: obsidian.Note): string text display in code action interface
+---@field cond? fun(note: obsidian.Note, params: lsp.CodeActionParams?): boolean function used to determine whether code action is shown
+---@field arguments? fun(note: obsidian.Note, params: lsp.CodeActionParams?): any[] command arguments, resolved at request time
 ---@field fn? function
 
 ---Register a new command.
 ---@param opts obsidian.lsp.CodeActionOpts
 local add = function(opts)
   -- TODO: validate
+  local title = type(opts.title) == "string" and opts.title or ""
   local action = {
-    title = opts.title,
+    title = title,
     command = {
-      title = opts.title,
+      title = title,
       command = "obsidian." .. opts.name,
       -- TODO: kind
     },
     data = {
+      title = opts.title,
       cond = opts.cond or function()
         return true
       end,
+      arguments = opts.arguments,
       -- TODO: preview?
     },
   }
@@ -34,8 +46,23 @@ local add = function(opts)
   code_actions[opts.name] = action
 end
 
+---Resolve the buffer and LSP position a code action was requested for.
+---@param params lsp.CodeActionParams|?
+---@return integer|? bufnr
+---@return lsp.Position|? position
+local function resolve_position(params)
+  if not params then
+    return nil, nil
+  end
+  return vim.uri_to_bufnr(params.textDocument.uri), params.range.start
+end
+
 local function in_visual()
-  return vim.api.nvim_get_mode().mode:find "v" ~= nil
+  return (vim.api.nvim_get_mode().mode:find "v") ~= nil
+end
+
+local function is_recording_audio()
+  return require("obsidian.core-plugins.audio_recorder").is_recording()
 end
 
 local default_actions = {
@@ -49,6 +76,10 @@ local default_actions = {
 
   move_note = {
     title = "Move current note to another folder",
+  },
+
+  delete_note = {
+    title = "Delete current note",
   },
 
   link = {
@@ -69,14 +100,61 @@ local default_actions = {
   insert_template = {
     title = "Insert template at cursor",
     cond = function()
-      return Obsidian.opts.templates.enabled
+      return Obsidian.opts.templates.enabled == true
     end,
   },
 
   start_presentation = {
     title = "Start presentation",
     cond = function()
-      return Obsidian.opts.slides.enabled
+      return Obsidian.opts.slides.enabled == true
+    end,
+  },
+
+  add_attachment = {
+    title = "Add attachment from folder, filepath or url",
+  },
+
+  insert_link = {
+    title = "Insert internal link at cursor",
+  },
+
+  unlink = {
+    title = "Remove link under cursor",
+    cond = function(_, params)
+      local bufnr, position = resolve_position(params)
+      local link_type = select(2, require("obsidian.api").cursor_link(bufnr, position))
+      return link_type == "wiki" or link_type == "markdown"
+    end,
+    arguments = function(_, params)
+      local bufnr, position = resolve_position(params)
+      return { bufnr, position }
+    end,
+  },
+
+  insert_tag = {
+    title = "Insert tag at cursor",
+  },
+
+  --- TODO: add_alias
+  add_tag = {
+    title = "Add tag to frontmatter",
+  },
+
+  toggle_recording = {
+    title = function()
+      return is_recording_audio() and "Stop recording audio" or "Start recording audio as attachment"
+    end,
+  },
+
+  add_bookmark = {
+    title = function()
+      local actions = require "obsidian.actions"
+      local ctx = actions._bookmark_context()
+      if not ctx then
+        return "Bookmark current location"
+      end
+      return "Bookmark " .. ctx.label
     end,
   },
 }
@@ -87,8 +165,9 @@ local del = function(name)
 end
 
 for name, opts in pairs(default_actions) do
-  opts.name = name
-  add(opts)
+  ---@type obsidian.lsp.CodeActionOpts
+  local action_opts = vim.tbl_extend("force", opts, { name = name })
+  add(action_opts)
 end
 
 return {

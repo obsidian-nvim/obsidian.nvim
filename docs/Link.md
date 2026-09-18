@@ -97,11 +97,8 @@ See [LSP rename](LSP.md#rename)
 ## Options
 
 ```lua
----@alias obsidian.link.LinkStyle "wiki" | "markdown" | fun(opts: obsidian.link.LinkCreationOpts): string
----@alias obsidian.link.LinkFormat "shortest" | "relative" | "absolute"
-
 ---@class obsidian.config.LinkOpts
----@field style? obsidian.link.LinkStyle
+---@field style? obsidian.link.LinkStyleOption
 ---@field format? obsidian.link.LinkFormat
 ---@field auto_update? boolean
 link = {

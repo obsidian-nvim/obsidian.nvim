@@ -154,9 +154,11 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
     end
 
     -- Used by Linux & MacOS to run save clipboard image command
-    async.run_job = function(cmds)
+    vim.system = function(cmds)
         _G.captured_cmd = cmds
-        return 0
+        local obj = { code = 0 }
+        obj.wait = function() end
+        return obj
     end
 
     vim.api.nvim_put = function() end

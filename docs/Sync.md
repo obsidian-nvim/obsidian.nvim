@@ -42,7 +42,7 @@ Available subcommands:
 - `:Obsidian sync pause`: pause sync for current workspace
 - `:Obsidian sync setup`: setup wizard
 - `:Obsidian sync disconnect`: disconnect existing connections
-- `:Obsidian sync log`: open log for current session
+- `:Obsidian sync log`: open log file/buffer for current sync backend
 
 ## Statusline Component
 
@@ -76,6 +76,7 @@ The default sync highlight groups are:
 - `ObsidianSyncSynced` linked to `DiagnosticOk`
 - `ObsidianSyncSyncing` linked to `DiagnosticWarn`
 - `ObsidianSyncPaused` linked to `DiagnosticInfo`
+- `ObsidianSyncError` linked to `DiagnosticError`
 
 You can override them in your config like this:
 
@@ -83,21 +84,22 @@ You can override them in your config like this:
 vim.api.nvim_set_hl(0, "ObsidianSyncSynced", { fg = "#98c379" })
 vim.api.nvim_set_hl(0, "ObsidianSyncSyncing", { fg = "#e5c07b" })
 vim.api.nvim_set_hl(0, "ObsidianSyncPaused", { fg = "#61afef" })
+vim.api.nvim_set_hl(0, "ObsidianSyncError", { fg = "#e06c75" })
 ```
 
 ## Sync Settings
 
 These settings map directly to `ob sync-config` options from the [Obsidian Headless CLI](https://help.obsidian.md/sync/headless). They are applied automatically before each sync run.
 
-| Option              | Type                                            | Default                                               | Description                                                                                                                                                                                                       |
-| ------------------- | ----------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mode`              | `"bidirectional"\|"pull-only"\|"mirror-remote"` | `nil` (bidirectional)                                 | Sync direction. `pull-only` only downloads and ignores local changes. `mirror-remote` only downloads and reverts local changes.                                                                                   |
-| `conflict_strategy` | `"merge"\|"conflict"`                           | `"merge"`                                             | How to handle conflicts. conflict mode will generate conflict files in your repo, more support will be in later releases, for now prefer merge                                                                    |
-| `file_types`        | `string[]`                                      | `{ "image", "audio", "video", "pdf", "unsupported" }` | Attachment types to sync. Use an empty table `{}` to disable attachment syncing.                                                                                                                                  |
+| Option              | Type                                            | Default                                               | Description                                                                                                                                                                                                                            |
+| ------------------- | ----------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`              | `"bidirectional"\|"pull-only"\|"mirror-remote"` | `nil` (bidirectional)                                 | Sync direction. `pull-only` only downloads and ignores local changes. `mirror-remote` only downloads and reverts local changes.                                                                                                        |
+| `conflict_strategy` | `"merge"\|"conflict"`                           | `"merge"`                                             | How to handle conflicts. conflict mode will generate conflict files in your repo, more support will be in later releases, for now prefer merge                                                                                         |
+| `file_types`        | `string[]`                                      | `{ "image", "audio", "video", "pdf", "unsupported" }` | Attachment types to sync. Use an empty table `{}` to disable attachment syncing.                                                                                                                                                       |
 | `configs`           | `string[]\|nil`                                 | `nil`                                                 | Obsidian app config categories to sync (e.g. `"app"`, `"appearance"`, `"hotkey"`, `"core-plugin"`, `"community-plugin"`, etc). `nil` = leave server config unchanged. `{}` = explicitly disable config syncing. See [Quirks](#quirks). |
-| `excluded_folders`  | `string[]`                                      | `{}`                                                  | Folders to exclude from syncing.                                                                                                                                                                                  |
-| `device_name`       | `string\|nil`                                   | `nil`                                                 | Device name shown in sync version history.                                                                                                                                                                        |
-| `config_dir`        | `string`                                        | `".obsidian"`                                         | Config directory name.                                                                                                                                                                                            |
+| `excluded_folders`  | `string[]`                                      | `{}`                                                  | Folders to exclude from syncing.                                                                                                                                                                                                       |
+| `device_name`       | `string\|nil`                                   | `nil`                                                 | Device name shown in sync version history.                                                                                                                                                                                             |
+| `config_dir`        | `string`                                        | `".obsidian"`                                         | Config directory name.                                                                                                                                                                                                                 |
 
 ## Available API (`require("obsidian.sync")`)
 
@@ -122,17 +124,17 @@ The Obsidian desktop app runs its own sync process. If both the app and obsidian
 ```lua
 sync = {
   enabled = true,
-  configs = {},  -- explicitly disable .obsidian/*.json syncing
+  configs = {}, -- explicitly disable .obsidian/*.json syncing
 }
 ```
 
 **`configs` semantics:**
 
-| Value | Behavior |
-|-------|----------|
-| `nil` (default) | Leave server's config-sync setting unchanged — safe if the Obsidian app is never open at the same time |
-| `{}` | Explicitly disable config syncing — pass `--configs ""` to `ob sync-config` |
-| `{"app", "appearance", ...}` | Sync only the listed categories |
+| Value                        | Behavior                                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `nil` (default)              | Leave server's config-sync setting unchanged — safe if the Obsidian app is never open at the same time |
+| `{}`                         | Explicitly disable config syncing — pass `--configs ""` to `ob sync-config`                            |
+| `{"app", "appearance", ...}` | Sync only the listed categories                                                                        |
 
 If you use neovim exclusively (no Obsidian desktop app), `configs = nil` is fine. If both coexist on the same machine, set `configs = {}` to avoid conflicts.
 
@@ -144,11 +146,21 @@ If you use neovim exclusively (no Obsidian desktop app), `configs = nil` is fine
 ---
 ---@field enabled? boolean
 ---
+---Which backend to use. Built-in: "obsidian" (obsidian-headless CLI).
+---Custom backends can be added with `require("obsidian.sync").register(name, backend)`.
+---@field backend? string
+---
+---When to run a sync.
+--- - "continuous": keep a long-running sync process (default for obsidian backend).
+--- - "on_write": run a one-shot sync (debounced) after each note save.
+--- - "manual": only sync via :Obsidian sync start or explicit calls.
+---@field trigger? obsidian.config.SyncTrigger
+---
 ---Sync mode: bidirectional (default), pull-only (only download, ignore local changes), or mirror-remote (only download, revert local changes)
----@field mode? "bidirectional"|"pull-only"|"mirror-remote"
+---@field mode? obsidian.config.SyncMode
 ---
 ---Conflict strategy when a conflict is detected, NOTE: conflict is not currently supported in this client
----@field conflict_strategy? "merge"|"conflict"
+---@field conflict_strategy? obsidian.config.ConflictStrategy
 ---
 ---Attachment types to sync: image, audio, video, pdf, unsupported, empty table to disable attachment syncing
 ---@field file_types? obsidian.sync.FileType[]
@@ -166,10 +178,12 @@ If you use neovim exclusively (no Obsidian desktop app), `configs = nil` is fine
 ---@field device_name? string
 sync = {
   enabled = false,
+  backend = "obsidian",
+  trigger = "continuous",
   mode = nil,
   conflict_strategy = "merge",
   file_types = { "image", "audio", "video", "pdf", "unsupported" },
-  configs = nil,
+  configs = { "core-plugin", "core-plugin-data" },
   excluded_folders = {},
   device_name = nil,
   config_dir = ".obsidian",

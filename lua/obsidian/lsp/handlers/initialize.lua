@@ -18,8 +18,28 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    inlayHintProvider = true,
     workspaceSymbolProvider = true,
     codeActionProvider = true,
+    executeCommandProvider = {
+      commands = {
+        "obsidian.write_note",
+        "obsidian.footnote_new",
+        "obsidian.block_reference_new",
+        "obsidian.link_suggestion",
+      },
+    },
+    completionProvider = {
+      resolveProvider = false,
+      triggerCharacters = { "[", "#", "^" },
+    },
+    foldingRangeProvider = true,
+    -- Needed so Neovim sends textDocument/didChange notifications, which
+    -- triggers LspNotify and causes foldingRange to be re-requested on edits.
+    textDocumentSync = {
+      change = 1, -- Full
+      save = true,
+    },
     workspace = {
       fileOperations = {
         didRename = {
@@ -29,6 +49,13 @@ local initializeResult = {
               pattern = {
                 glob = "**/*.md",
                 matches = "file",
+              },
+            },
+            {
+              scheme = "file",
+              pattern = {
+                glob = "**",
+                matches = "folder",
               },
             },
           },
@@ -42,7 +69,7 @@ local initializeResult = {
   },
 }
 
----@param _ lsp.InitializeParams
+---@param _       lsp.InitializeParams
 ---@param handler fun(_: any, res: lsp.InitializeResult)
 return function(_, handler, dispatchers)
   send_progress(dispatchers, "begin", "Initializing obsidian LSP server...", 0)

@@ -5,6 +5,33 @@ local T, child = h.child_vault {
   pre_case = [[M = require"obsidian.api"]],
 }
 
+T["state"] = new_set()
+
+T["state"]["should expose picker module for backwards compatibility"] = function()
+  eq(true, child.lua [[return Obsidian["picker"] == require("obsidian.picker")]])
+end
+
+T["workspace resolution"] = new_set()
+
+T["workspace resolution"]["should resolve non-note and nonexistent paths in the most specific workspace"] = function()
+  eq(
+    { "nested", "nested" },
+    child.lua [[
+    local nested = Obsidian.dir / "nested"
+    nested:mkdir()
+    Obsidian.workspaces[#Obsidian.workspaces + 1] = require("obsidian.workspace").new {
+      name = "nested",
+      path = nested,
+      strict = true,
+    }
+    return {
+      M.resolve_workspace_dir(nested / "attachment.png").name,
+      M.resolve_workspace_dir(nested / "future" / "note.md").name,
+    }
+  ]]
+  )
+end
+
 T["toggle_checkbox"] = new_set()
 
 T["toggle_checkbox"]["should toggle between default states with - lists"] = function()
@@ -99,12 +126,12 @@ T["cursor_link"] = function()
   local link2 = "[[another/file.md|yet]]"
 
   local tests = {
-    { cur_col = 4, link = link1, t = "Markdown" },
-    { cur_col = 6, link = link1, t = "Markdown" },
-    { cur_col = 24, link = link1, t = "Markdown" },
-    { cur_col = 31, link = link2, t = "WikiWithAlias" },
-    { cur_col = 39, link = link2, t = "WikiWithAlias" },
-    { cur_col = 53, link = link2, t = "WikiWithAlias" },
+    { cur_col = 4, link = link1, t = "markdown" },
+    { cur_col = 6, link = link1, t = "markdown" },
+    { cur_col = 24, link = link1, t = "markdown" },
+    { cur_col = 31, link = link2, t = "wiki" },
+    { cur_col = 39, link = link2, t = "wiki" },
+    { cur_col = 53, link = link2, t = "wiki" },
   }
   for _, test in ipairs(tests) do
     child.api.nvim_win_set_cursor(0, { 1, test.cur_col })
@@ -203,6 +230,55 @@ T["cursor_heading"] = function()
   eq(1, child.lua([[return M.cursor_heading()]]).level)
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   eq(vim.NIL, child.lua [[return M.cursor_heading()]])
+end
+
+T["open_note"] = new_set()
+
+T["open_note"]["should blink quickfix-style ranges"] = function()
+  local result = child.lua [[
+    local path = tostring(Obsidian.dir / "blink.md")
+    vim.fn.writefile({ "# Heading", "body" }, path)
+    local bufnr = M.open_note({ filename = path, lnum = 1, col = 1, end_lnum = 2, end_col = 5 })
+    local blinked = false
+    for name, ns in pairs(vim.api.nvim_get_namespaces()) do
+      if name:match("^obsidian_blink_") and #vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {}) > 0 then
+        blinked = true
+      end
+    end
+    return { vim.api.nvim_buf_get_name(bufnr), vim.api.nvim_win_get_cursor(0), blinked }
+  ]]
+
+  eq(tostring(child.Obsidian.dir / "blink.md"), result[1])
+  eq({ 1, 0 }, result[2])
+  eq(true, result[3])
+end
+
+T["blink handles the exclusive EOF sentinel without mutating the range"] = function()
+  local result = child.lua [[
+    local Range = require "obsidian.range"
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "first", "élast" })
+    local range = Range.new(0, 0, 2, 0)
+    M.blink(range, buf, { timeout = 30 })
+    local mark, namespace
+    for name, ns in pairs(vim.api.nvim_get_namespaces()) do
+      if name:match("^obsidian_blink_") then
+        local marks = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, { details = true })
+        if #marks > 0 then
+          mark, namespace = marks[1], ns
+          break
+        end
+      end
+    end
+    assert(mark, "expected a highlight in the supplied buffer")
+    local cleared = vim.wait(1000, function()
+      return #vim.api.nvim_buf_get_extmarks(buf, namespace, 0, -1, {}) == 0
+    end, 5)
+    M.blink(Range.new(2, 0, 2, 0), buf)
+    vim.api.nvim_buf_delete(buf, { force = true })
+    return { mark[4].end_row, mark[4].end_col, range.end_row, range.end_col, cleared }
+  ]]
+  eq(result, { 1, 6, 2, 0, true })
 end
 
 return T

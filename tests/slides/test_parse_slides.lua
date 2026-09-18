@@ -98,4 +98,35 @@ T["should use ignore comments"] = function()
   eq({ "This is the final line" }, slide.body)
 end
 
+T["should append referenced footnotes to each slide"] = function()
+  local slides = parse {
+    "# First",
+    "Alpha[^1]",
+    "---",
+    "# Second",
+    "Beta[^2] and [^1]",
+    "",
+    "[^1]: first footnote",
+    "[^2]: second footnote",
+  }
+
+  eq(2, #slides)
+  eq({ "Alpha[^1]", "", "[^1]: first footnote" }, slides[1].body)
+  eq({ "Beta[^2] and [^1]", "", "[^2]: second footnote", "[^1]: first footnote" }, slides[2].body)
+end
+
+T["should strip final footnote slide"] = function()
+  local slides = parse {
+    "# First",
+    "Alpha[^1]",
+    "---",
+    "# Footnotes",
+    "[^1]: first footnote",
+  }
+
+  eq(1, #slides)
+  eq("# First", slides[1].title)
+  eq({ "Alpha[^1]", "", "[^1]: first footnote" }, slides[1].body)
+end
+
 return T

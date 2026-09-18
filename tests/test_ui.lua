@@ -52,4 +52,31 @@ T["ExtMark"]["should match == with other ExtMark instances"] = function()
   eq(m1, m2)
 end
 
+T["update"] = new_set()
+
+T["update"]["should not add tag extmarks inside inline code"] = function()
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(bufnr, vim.fn.tempname() .. ".md")
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "`foo #bar` #baz" })
+
+  Obsidian = {
+    opts = {
+      ui = vim.deepcopy(require("obsidian.config.default").ui),
+    },
+  }
+
+  ui.update(bufnr)
+
+  local ns_id = vim.api.nvim_create_namespace "ObsidianUI"
+  local tag_marks = {}
+  for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, { details = true })) do
+    if mark[4].hl_group == "ObsidianTag" then
+      tag_marks[#tag_marks + 1] = mark
+    end
+  end
+
+  eq(1, #tag_marks)
+  eq(11, tag_marks[1][3])
+end
+
 return T

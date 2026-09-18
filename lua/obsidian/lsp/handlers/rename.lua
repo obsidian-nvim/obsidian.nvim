@@ -3,44 +3,44 @@ local obsidian = require "obsidian"
 local search = obsidian.search
 local log = obsidian.log
 local api = obsidian.api
-local util = obsidian.util
-
-local M = require "obsidian.lsp.handlers._rename"
+local refs = require "obsidian.parse.refs"
+local link_parser = require "obsidian.link.parser"
 
 ---@param params lsp.RenameParams
 return function(params, handler, _)
   local new_name = params.newName
+  local bufnr = params.textDocument and vim.uri_to_bufnr(params.textDocument.uri) or vim.api.nvim_get_current_buf()
+  local source_path = vim.api.nvim_buf_get_name(bufnr)
+  local workspace_dir = api.resolve_workspace_dir(source_path)
 
-  local ok, err = pcall(vim.cmd.wall)
+  local ok, error = pcall(vim.cmd.wall)
 
   if not ok then
-    return log.err(err and err or "failed writing all buffers before renaming, abort")
+    return log.err(error and error or "failed writing all buffers before renaming, abort")
   end
 
-  local cur_link = api.cursor_link()
-  local note
+  local cur_link = api.cursor_link(bufnr, params.position)
+
+  local function do_rename(note)
+    note:rename(new_name, { apply = false }, function(err, edit)
+      if err or not edit then
+        return handler(nil, {})
+      end
+      handler(nil, edit)
+    end)
+  end
 
   if cur_link then
-    local loc = util.parse_link(cur_link, { strip = true })
-    assert(loc, "wrong link format")
-    local notes = search.resolve_note(loc)
-    -- TODO: pick note
-    if vim.tbl_isempty(notes) then
-      return
-    end
-    note = notes[1]
+    local ref = assert(refs.parse(cur_link), "wrong link format")
+    local loc = ref.target ~= "" and ref.target or link_parser.format(ref.target, ref.anchor, ref.block)
+    search.resolve_note_async(loc, function(notes)
+      -- TODO: pick note
+      if vim.tbl_isempty(notes) then
+        return
+      end
+      do_rename(notes[1])
+    end, { dir = workspace_dir, buf_dir = source_path ~= "" and vim.fs.dirname(source_path) or nil })
   else
-    note = assert(api.current_note(0))
+    do_rename(assert(api.current_note(bufnr)))
   end
-
-  local old_stem = note.path and note.path.stem or nil
-  if new_name == note.id or (old_stem and new_name == old_stem) then
-    log.info "Identical name"
-    return handler(nil, {})
-  end
-  if not M.validate(new_name) then
-    log.info "Note with same name exists"
-    return handler(nil, {})
-  end
-  M.rename(note, new_name, handler)
 end

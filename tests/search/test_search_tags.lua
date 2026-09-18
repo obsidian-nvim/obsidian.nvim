@@ -38,14 +38,16 @@ end
 T["should return both frontmatter and inline tags"] = function()
   local root = child.lua_get [[tostring(Obsidian.dir)]]
   tmp_file(root)
-  child.lua [[
-local search = require"obsidian.search"
-search.find_tags_async("", function(res)
-   _G.res = res
-end, {})
-  ]]
-  vim.uv.sleep(100)
-  local res = child.lua_get [[res]]
+  local res = h.child_await(
+    child,
+    [[
+      local search = require "obsidian.search"
+      search.find_tags_async("", function(res)
+        done(res)
+      end, {})
+    ]],
+    { desc = "tags search" }
+  )
 
   eq(#res, 3)
   eq(res[1].tag, "Book")
@@ -67,14 +69,16 @@ end
 T["should search specific tags"] = function()
   local root = child.lua_get [[tostring(Obsidian.dir)]]
   tmp_file(root)
-  child.lua [[
-local search = require"obsidian.search"
-search.find_tags_async("Book", function(res)
-   _G.res = res
-end, {})
-  ]]
-  vim.uv.sleep(100)
-  local res = child.lua_get [[res]]
+  local res = h.child_await(
+    child,
+    [[
+      local search = require "obsidian.search"
+      search.find_tags_async("Book", function(res)
+        done(res)
+      end, {})
+    ]],
+    { desc = "tags search" }
+  )
 
   eq(#res, 2)
   eq(res[1].tag, "Book")
@@ -115,6 +119,74 @@ end, {})
   eq(res[3].text, "#Book")
   eq(res[3].line, 5)
   eq(res[3].inline, true)
+end
+
+T["should not error on frontmatter tags without an end boundary"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "test.md")
+  local file = [==[
+---
+tags:
+   - Book
+]==]
+  vim.fn.writefile(vim.split(file, "\n"), filepath)
+
+  local res = h.child_await(
+    child,
+    [[
+      local search = require "obsidian.search"
+      search.find_tags_async("Book", function(res)
+        done(res)
+      end, {})
+    ]],
+    { desc = "tags search" }
+  )
+
+  eq(#res, 0)
+  eq(child.lua_get [[vim.v.errmsg]], "")
+end
+
+T["should find frontmatter tags in files with DOS line endings"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "test.md")
+  local file = [==[
+---
+tags:
+   - Book
+   - Movie
+---
+
+#Book
+
+- Book
+]==]
+  -- Write the file with CRLF line endings (fileformat=dos).
+  file = file:gsub("\n", "\r\n")
+  vim.fn.writefile(vim.split(file, "\n", { plain = true }), filepath)
+
+  local res = h.child_await(
+    child,
+    [[
+      local search = require "obsidian.search"
+      search.find_tags_async("", function(res)
+        done(res)
+      end, {})
+    ]],
+    { desc = "tags search" }
+  )
+
+  eq(#res, 3)
+  eq(res[1].tag, "Book")
+  eq(res[1].text, "- Book")
+  eq(res[1].line, 3)
+
+  eq(res[2].tag, "Movie")
+  eq(res[2].text, "- Movie")
+  eq(res[2].line, 4)
+
+  eq(res[3].tag, "Book")
+  eq(res[3].text, "#Book")
+  eq(res[3].line, 7)
 end
 
 return T

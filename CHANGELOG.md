@@ -10,6 +10,187 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Obsidian-style tag query support for `:Obsidian tags`, including `tag:#book`, explicit `OR`, and negated tag terms.
+- `unlink` code action to replace a link with its display text, falling back to the target note path stem.
+- `:Obsidian quick_switch` new capabilities:
+  - `opts.quick_switch.show_existing_only` default to `true`.
+  - `opts.quick_switch.show_attachments` default to `false`.
+- Prompt to confirm deletion for notes that have backlinks and attachments.
+- Attachment destination and vault-wide reference resolution, with `attachment.rename()` and `attachment.delete()` APIs.
+- Line-level Markdown list item and task parsers (`obsidian.parse.line.list_items`, `obsidian.parse.line.tasks`) with unified marker, indentation, and task-state metadata.
+- Edits to frontmatter upon editing notes are now merged with said edits in the undo tree. Now you only need to press undo once to revert said note changes instead of twice to revert the frontmattter change as well.
+- Dedicated date, URI, link-location, and Markdown heading APIs.
+
+
+### Changed
+
+- Note-reference completion uses cached metadata when available and delegates fuzzy filtering to the completion engine (#962).
+- Checkbox detection and conceal now follow CommonMark/GFM list syntax (e.g. `-- [ ]` and `++ [ ]` are no longer treated as checkboxes) and support multi-byte checkbox states.
+- YAML Parser will emit ranges for internal use.
+- Link targets are decomposed once into location, anchor, and block components instead of using `obsidian.util` suffix helpers.
+- `obsidian.util` now contains only shared string, filename, callback, deprecation, and file-writing helpers.
+- The documented minimum Neovim version is now 0.11, matching runtime checks and CI.
+
+### Fixed
+
+- Rename no longer inserts frontmatter when `frontmatter.enabled = false`.
+
+## [v3.16.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.7) - 2026-09-01
+
+### Added
+
+- Obsidian-style vault-wide heading completion with `[[##query`, using cached heading metadata when available and filesystem search otherwise (#320, #505, #749).
+- Setup-time configuration validation with aggregated errors and `:checkhealth` reporting (#79).
+- Runtime enum tables for configuration values and type check, exported through `require("obsidian.types")`.
+- `daily_notes.start_of_week` for configuring Moment-style week formats.
+- Obsidian-style block completion with previews and automatic IDs for unlabeled blocks, using `[[^query`, `[[note^query`, `[[note#^query`, or `[[^^query` (#505, #749).
+- Added separate icons module to support obsidian related filetypes and usecases.
+- Fallback libuv-based fs walker that makes `ripgrep` optional in file finding.
+- Fallback interactive UI for `picker.select`.
+- `require"obsidian.picker.PICKER_NAME".setup()` to add `obsidian_files` and `obsidian_grep` sources for pickers.
+- Experimental Inlay Hints support when cache is enabled, suggesting potential links, use `smart_action` to accept.
+- Multi-workspace aware note resolution: `api.find_workspace` now matches the most specific workspace for any path (including non-note and non-existent paths).
+- Optional `source_path` for note creation, resolving workspace-specific config (`note_id_func`, `note_path_func`, `notes_subdir`, `new_notes_location`) and the `current_dir` strategy.
+- Optional `dir` argument on `daily_note_path`, `new_unique_id`, and `new_unique_note` to resolve against a specific workspace/folder.
+- Optional `bufnr` and `position` arguments on `api.cursor_link` / `api.cursor_tag`.
+- `Note.rename` for scripting note renames.
+- Invalid filenames are checked on `Note.create` and `Note.rename`.
+- Bookmark management support for adding the current note, heading, block, or URL, bookmarking note picker selections, removing bookmarks, and moving bookmarks into groups.
+- `:Obsidian rebuild_cache` command to force cache rebuild.
+
+### Fixed
+
+- Footer backlink counts now refresh on watched-file changes instead of running a vault-wide search every 10 seconds per buffer (#939).
+- Named-note heading completion now preserves the heading's original case and spelling in wiki links.
+- No `Note.create` interrupt calls in completion.
+- `:Obsidian sync log` opens real obsidian-headless cli logs.
+- YAML frontmatter dumping now quotes ambiguous string values and safely handles backslashes and single quotes.
+- Link-suggestion inlay hints exclude templates and refresh immediately after acceptance.
+- Absolute `templates.folder` paths resolve outside the vault without creating nested directories inside it (#761).
+- `ripgrep` tag search will work for `fileformat=dos`.
+- Fzf-lua builtin previews work with the fzf-tmux profile.
+- Fzf-lua picker selections now honor multi-select consistently across files, grep, and list pickers.
+- Picker will apply `format_item` consistently.
+- Cache will be triggered by buffer writes.
+- Fixed `attempt to index local 'pos' (a nil value)` error in `:Obsidian toc` by dropping redundant `pos` passing to `vim.lsp.buf.document_symbol`.
+- `api.path_is_note` now checks proper path containment instead of substring matching.
+- `api.templates_dir` resolves against the given workspace root.
+- Search and backlink lookup now resolve the workspace from the searched/note path, and `find_async` applies that workspace's `file.ignore_filters`.
+- `Workspace.set` keeps the single-vault cache aligned when switching workspaces.
+- LSP note rename updates only link destinations, preserving aliases like `[[index|index]]`.
+- LSP folder rename updates vault-relative links without changing stem-only links.
+- Note rename duplicate-name warning only blocks same-folder filename collisions.
+
+### Changed
+
+- Vault-wide block completion reuses an in-memory candidate index, updates only affected notes after watched-file changes, coalesces overlapping requests, and honors `completion.min_chars`.
+- **Breaking:** `find_files`, `find_notes`, `grep`, and `grep_notes` callbacks now receive a list of selected results. Multiple results use the quickfix list by default.
+- Deprecate old `picker.pick`, internally use `picker.select` with better multi-select and preview_item support.
+
+## [v3.16.6](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.6) - 2026-07-25
+
+### Added
+
+- Added code action `insert_link`, `insert_tag`, `add_tag`.
+- Added `actions.search_tags` that powers `:Obsidian tags`.
+- Basic cache system, see `:Obsidian help Cache`
+- `:Obsidian quick_switch` now works with aliases.
+- `opts.resolvers` to allow better way to add/pick dates/attachment and other future primitives.
+- Dedicated line tag parser.
+- Added code action `toggle_recording` to add recordings to your vault as attachment, see `:Obsidian help Audio-recorder`
+
+### Fixed
+
+- Properly normalize cached paths.
+- `api.open_note` off by 1 jumping.
+- Github work flows will use `emmylua_check`.
+- Picker integration will resolve when first invoked, to avoid lazy loading issues.
+- Cache based quick_switch will match case insensitively.
+- Guard against checking frontmatter tags when no frontmatter exists.
+
+## [v3.16.5](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.5) - 2026-06-25
+
+### Added
+
+- Added `opts.callbacks.create_note` and `ObsidianNoteCreate` event to run action after note creation, see `:Obsidian help Note`.
+- LSP folding support, see `:Obsidian help Folding`.
+- Sync supports creating remote with end to end encryption password.
+- Navigating to an anchor or block link now briefly highlights the full referenced section, like the Obsidian app. The highlight group is `ObsidianBlink` (defaults to `Visual`) and the duration is controlled by `vim.g.obsidian_blink_duration` (ms, defaults to 500).
+- `note.sections` and the `obsidian.Section` type: header anchors and blocks now carry the full section/paragraph range (`anchor.section`, `block.section`). Anchors are also collected for setext (`===`/`---` underline) headings now.
+- `obsidian.Range`, a minimal shim of the experimental `vim.range()` API (0-based, end-exclusive) used by `obsidian.Section`.
+- LSP document symbols now report real section ranges instead of zero-width ranges.
+- Add `opts.file.ignore_filters` to exclude directories completely from the plug-in.
+- Sync supports switching backend and one shot sync on file write
+  - `opts.sync.backend` -> `obsidian` / `git` (WIP)
+  - `opts.sync.trigger` -> `continuous` / `on_write` / `manual`
+  - `vim.g.obsidian_sync_on_write_debounce_ms` for `on_write` defaults to 2000 (experimental value, override in `post_setup` callback)
+- References/Backlinks will find unresolved links.
+- LSP filewatch capability for internal use in sync and cache.
+- Footnote support, mirroring the Obsidian app:
+  - goto-definition on `[^1]` jumps to the `[^1]:` definition, and back to the first reference from the definition; unresolved footnotes prompt for content and insert a definition.
+  - references finds all occurrences of the same footnote in the current note.
+  - completion of existing footnotes after typing `[^`, plus a create item for unresolved ids that prompts for content and inserts the definition (`obsidian.footnote_new`).
+  - `:Obsidian footnotes` to view footnotes of the current note via `vim.ui.select` with preview.
+
+### Fixed
+
+- LSP references on block ids and block links will work properly.
+- `frontmatter.enabled = false` now prevents `:Obsidian new` from writing the default frontmatter template. Closes #862.
+- Proper trigger characters for neovim native LSP completion to work.
+- After `actions.move_note`, buffers can be properly saved without warning.
+- Sync will properly log cli errors.
+- YAML will not force quoted number strings into number.
+- Warns if workspace folder does not exist.
+- Picker will properly require available picker in runtime path, and fallback to native.
+- Bring back the ordinal fallback to the display and filename in the telescope picker.
+- `[[` completion no longer lists the "(create)" item above an existing note match; existing-note results now always sort before create-new-note items, regardless of which completion source resolves first.
+
+### Changed
+
+- Raise minimum supported version to `0.11`.
+- `new_notes_location` when `current_dir` but the current buffer is not valid note file, fallback to current working directory.
+
+## [v3.16.4](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.4) - 2026-06-03
+
+### Added
+
+- Update link in buffer when creating a new note via `follow_link`.
+- Minimal `.base` support, definition, references and quick_switch will work.
+- Proper resolve `.base` file only with explicit suffix.
+- `:Obsidian bookmarks` to view existing bookmarks.
+- use `vim.g.obsidian_default_keymap` to disable the default keymaps.
+- `attachment.add(src, opts)` and `actions.add_attachment(src, opts)` for adding:
+  - filepath and urls for attachment
+  - folders will open a file picker
+  - see docs at <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment>
+- `Note` class can carry a `template` field.
+- LSP completion replaces completion plugin based completion.
+- Frontmatter tag completion.
+- Unicode/CJK tag support across parsing, completion, and UI highlighting (e.g. `#café`, `#中文`).
+- Sync supports End-to-end encryption password.
+
+### Changed
+
+- Always call async version of search functions internally, blocking version are just for scripting.
+
+### Removed
+
+- `should_write` option on `Note.create` is removed. Call `note:write {}` explicitly instead.
+
+### Fixed
+
+- `Note.save` no longer raises `E94: No matching buffer` when the save path contains Vim regex-special characters (e.g. `[`, `]`, `*`). The `:checktime` call now passes a bufnr instead of the path string.
+- Preserve anchors and blocks when creating notes from unresolved links.
+- WIP: proper async jobs and no `block_on` calls which performs bad on windows.
+- snacks picker now honors `picker.note_mappings.new` (and any other query mappings) for `find_files`, `grep` and `pick`, so creating a new note from the typed query (e.g. `<C-x>`) works on par with the telescope/fzf integrations.
+- Respect `frontmatter.sort` for notes that already have frontmatter (the parsed key order was silently overwriting the configured sort). Closes #818.
+- Skip empty list items in `tags`/`aliases` frontmatter validators so template placeholders no longer surface as `vim.NIL` validation errors. Refs #801.
+- Preserve template frontmatter when `frontmatter.enabled = false` (the strip+merge round-trip previously dropped it because `update_frontmatter` short-circuits). Closes #801.
+- Sync by default syncs core plugin settings and data for bookmarks and future compatibility support.
+
+## [v3.16.3](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.3) - 2026-05-08
+
+### Added
+
 - Add unique note creation prompt option for missing definitions.
 - LSP client commands can run actions in actions.lua.
 - Add `Note.insert_text` for inserting text under a specific section
@@ -22,6 +203,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add code_actions with `require"obsidian".code_action.add`.
   - Delete code_actions with `require"obsidian".code_action.del`.
 - `Note.create` accept a `title` field for readable name for note.
+- Refactor `Note.insert_text` with flattened and flexible opts for more-expressive configs
 
 ### Fixed
 
@@ -32,6 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set `opts.sync.configs = {}` to disable obsidian.nvim from racing to sync config with obsidian app using the same folder.
 - Removes unnecessary sync log messages.
 - Unique note creation through link gets a proper readable title instead of id.
+- Updated picker enum values to use correct module names and added picker configuration documentation in README.md.
 
 ## [v3.16.2](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.2) - 2026-04-08
 
@@ -489,7 +672,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `makefile types` target to check types via lua-ls.
 - New `obsidian.config` type for user config type check.
 - More informative healthcheck.
-- A guide to embed images for both viewing in neovim and obsidian app: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images
+- A guide to embed images for both viewing in neovim and obsidian app: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images>
 - Added `check_buffers` option to `Note.write` and `Note.save` for automatically reloading buffers with `checktime` after writing them to disk
 - Added footer options.
 - Added default mappings: `]o` and `[o`, for navigating links in note.

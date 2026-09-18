@@ -34,7 +34,7 @@ require("obsidian").setup {
   attachments = {
     img_text_func = function(path)
       local name = vim.fs.basename(tostring(path))
-      local encoded_name = require("obsidian.util").urlencode(name)
+      local encoded_name = require("obsidian.uri").encode(name)
       return string.format("![%s](%s)", name, encoded_name)
     end,
   },

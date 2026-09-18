@@ -1,10 +1,11 @@
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
-local run_job = require("obsidian.async").run_job
 local api = require "obsidian.api"
 local util = require "obsidian.util"
 
 local M = {}
+
+---@alias obsidian.ImageType "avif"|"bmp"|"gif"|"jpeg"|"png"|"webp"
 
 local img_types = {
   ["image/jpeg"] = "jpeg",
@@ -36,6 +37,8 @@ local function get_clip_check_command(this_os)
   return check_cmd
 end
 
+---@param content string[]
+---@return obsidian.ImageType?
 local function get_image_type(content)
   for _, line in ipairs(content) do
     if img_types[line] ~= nil then
@@ -47,7 +50,7 @@ end
 
 --- Get the type of image on the clipboard.
 ---
----@return "png"|"jpeg"|nil
+---@return obsidian.ImageType?
 function M.get_clipboard_img_type()
   local this_os = api.get_os()
   local check_cmd = get_clip_check_command(this_os)
@@ -57,7 +60,6 @@ function M.get_clipboard_img_type()
   local result_string = vim.fn.system(check_cmd)
   local content = vim.split(result_string, "\n")
 
-  local is_img = false
   -- See: [Data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme)
   if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
     if vim.tbl_contains(content, "text/uri-list") then
@@ -75,12 +77,13 @@ function M.get_clipboard_img_type()
 
   -- Code for non-Linux Operating systems (only supports png)
   elseif this_os == api.OSType.Darwin then
-    is_img = string.sub(content[1], 1, 9) == "iVBORw0KG" -- Magic png number in base64
+    local first_line = content[1] or ""
+    local is_img = string.sub(first_line, 1, 9) == "iVBORw0KG" -- Magic png number in base64
     if is_img then
       return "png"
     end
   elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
-    is_img = content ~= nil
+    local is_img = content ~= nil
     if is_img then
       return "png"
     end
@@ -94,9 +97,9 @@ end
 
 --- Save image from clipboard to `path`.
 ---@param path string
----@param img_type "png" | "jpeg"
+---@param img_type obsidian.ImageType
 ---
----@return boolean|integer|? result
+---@return boolean|? result
 local function save_clipboard_image(path, img_type)
   local this_os = api.get_os()
 
@@ -106,23 +109,25 @@ local function save_clipboard_image(path, img_type)
     local display_server = os.getenv "XDG_SESSION_TYPE"
     if display_server == "x11" or display_server == "tty" then
       cmd = string.format("xclip -selection clipboard -t %s -o > '%s'", mime_type, path)
-      return run_job { "bash", "-c", cmd }
+      return vim.system({ "bash", "-c", cmd }):wait() ~= 0
     elseif display_server == "wayland" then
       cmd = string.format("wl-paste --no-newline --type %s > %s", mime_type, vim.fn.shellescape(path))
-      return run_job { "bash", "-c", cmd }
+      return vim.system({ "bash", "-c", cmd }):wait() ~= 0
     end
   elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
     local cmd = 'powershell.exe -c "'
       .. string.format("(get-clipboard -format image).save('%s', 'png')", string.gsub(path, "/", "\\"))
       .. '"'
-    local ret = os.execute(cmd)
-    return ret
+    local ret = os.execute(cmd) -- TODO:
+    return ret == true or ret == 0
   elseif this_os == api.OSType.Darwin then
-    return run_job { "pngpaste", path }
+    return vim.system({ "pngpaste", path }):wait() ~= 0
   else
     error("image saving not implemented for OS '" .. this_os .. "'")
   end
 end
+
+-- TODO: use attachment.add, deprecate img_text_func and etc
 
 --- @param path string|obsidian.Path image_path The absolute path to the image file.
 M.paste = function(path, img_type)
@@ -160,7 +165,9 @@ M.paste = function(path, img_type)
     return
   end
 
-  local img_text = Obsidian.opts.attachments.img_text_func(path)
+  local img_text_func = Obsidian.opts.attachments.img_text_func
+  ---@cast img_text_func -nil
+  local img_text = img_text_func(path)
   vim.api.nvim_put({ img_text }, "c", true, false)
 end
 

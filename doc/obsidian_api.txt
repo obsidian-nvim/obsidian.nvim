@@ -13,6 +13,16 @@ Table of contents
   obsidian.Path ....................................................... |Path|
   
 ------------------------------------------------------------------------------
+                                                           *new_header_anchor()*
+               `new_header_anchor`({section}, {parent}, {anchor})
+Parameters ~
+{section} `(obsidian.Section)`
+{parent} `(obsidian.note.HeaderAnchor|)`?
+{anchor} `(string|)`?
+Return ~
+`(obsidian.note.HeaderAnchor)`
+
+------------------------------------------------------------------------------
                                                                           *Note*
                                      `Note`
 A class that represents a note within a vault.
@@ -30,10 +40,14 @@ Fields ~
 {path} `(obsidian.Path|)`?
 {has_frontmatter} `(boolean|)`?
 {frontmatter_end_line} `(integer|)`?
+{frontmatter_elements} `(obsidian.yaml.Element[]?)` Scalar occurrences in document coordinates.
 {anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
 {blocks} `(table<string, obsidian.note.Block>?)`
+{block_candidates} `(obsidian.Section[]|? paragraphs)` that can receive block identifiers.
+{sections} `(obsidian.Section[]|? document)`-ordered sections, the first one is always the preamble.
 {alt_alias} `(string|)`?
 {bufnr} `(integer|)`?
+{template} `(string|? Template)` name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
 
 ------------------------------------------------------------------------------
                                                                  *generate_id()*
@@ -48,6 +62,14 @@ Return ~
 `(string)`
 
 ------------------------------------------------------------------------------
+                                                   *prompt_for_valid_filename()*
+                  `prompt_for_valid_filename`({invalid_name})
+Parameters ~
+{invalid_name} `(string)`
+Return ~
+`(string)`
+
+------------------------------------------------------------------------------
                                                                *parse_as_path()*
                               `parse_as_path`({s})
 Parameters ~
@@ -58,12 +80,38 @@ Return ~
 `(string| `(optional))``
 
 ------------------------------------------------------------------------------
+                                                       *Note._resolve_id_path()*
+           `Note._resolve_id_path`({opts}, {prompt_invalid_filename})
+Resolves the ID, and path for a new note.
+
+Parameters ~
+{opts} `(obsidian.note.NoteOpts)` Strategy for resolving note path and title
+{prompt_invalid_filename} `(boolean|? Prompt)` for a replacement instead of erroring when the filename is invalid.
+Return ~
+`(string)` id
+Return ~
+`(obsidian.Path)` path
+Return ~
+`(string| `(optional))`` title
+
+------------------------------------------------------------------------------
                                                                  *Note.create()*
                              `Note.create`({opts})
-Creates a new note
+Creates a new note in memory.
 
-@param opts obsidian.note.NoteOpts
+The note is NOT written to disk. Call `note:write {}` after if you want the
+file persisted; the `template` passed here is carried on the note and used
+by `note:write` unless overridden.
+
+@param opts obsidian.note.NoteOpts?
 @return obsidian.Note
+
+------------------------------------------------------------------------------
+                                                *Note._run_creation_lifecycle()*
+                `Note._run_creation_lifecycle`({note}, {scope})
+Parameters ~
+{note} `(obsidian.Note)`
+{scope} `(string|)`?
 
 ------------------------------------------------------------------------------
                                                                     *Note.new()*
@@ -118,7 +166,7 @@ Return ~
                                                               *Note._location()*
                         `Note._location`({self}, {opts})
 Parameters ~
-{opts} `({ block: string|?, anchor: string|?, range: lsp.Range|? }|?-- TODO)`: vim.Range in the future
+{opts} `({ block: string|?, anchor: string|?, range: lsp.Range|obsidian.Range|? }|)`?
 Return ~
 `(lsp.Location)`
 
@@ -218,6 +266,18 @@ Return ~
 `(obsidian.Note)`
 
 ------------------------------------------------------------------------------
+                                                             *Note.from_cache()*
+                        `Note.from_cache`({path}, {row})
+Initialize a note from a cache row without reading the file.
+
+Parameters ~
+{path} `(string|obsidian.Path)`
+{row} `(table)`
+
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
                                                             *Note.from_buffer()*
                       `Note.from_buffer`({bufnr}, {opts})
 Initialize a note from a buffer.
@@ -242,8 +302,9 @@ Return ~
                    `Note.from_lines`({lines}, {path}, {opts})
 Initialize a note from an iterator of lines.
 
+TODO: use vim.Iter here once the minimum Neovim runtime exposes that type.
 Parameters ~
-{lines} `(string[] | fun(): string|? | Iter)`
+{lines} `(any)`
 {path} `(string|obsidian.Path|)`?
 {opts} `(obsidian.note.LoadOpts|)`?
 
@@ -369,9 +430,16 @@ Parameters ~
                                                               *Note.backlinks()*
                         `Note.backlinks`({self}, {opts})
 Parameters ~
-{opts} `({ search: obsidian.SearchOpts, anchor: string, block: string, timeout: integer, dir: string|obsidian.Path, refs: string[]|? })`
+{opts} `({ search: obsidian.SearchOpts?, anchor: string?, block: string?, timeout: integer?, dir: string|obsidian.Path?, refs: string[]? }?)`
 Return ~
-`(obsidian.BacklinkMatch)`
+`(obsidian.BacklinkMatch[])`
+
+------------------------------------------------------------------------------
+                                                        *Note.backlinks_async()*
+               `Note.backlinks_async`({self}, {opts}, {callback})
+Parameters ~
+{opts} `({ search: obsidian.SearchOpts?, anchor: string?, block: string?, dir: string|obsidian.Path?, refs: string[]? }?)`
+{callback} `(fun(matches: obsidian.BacklinkMatch[]))`
 
 ------------------------------------------------------------------------------
                                                                   *Note.links()*
@@ -380,13 +448,10 @@ Return ~
 `(obsidian.LinkMatch[])`
 
 ------------------------------------------------------------------------------
-                                                                 *format_path()*
-                         `format_path`({path}, {style})
-Parameters ~
-{path} `(obsidian.Path)` vault-relative-path
-{style} `(obsidian.link.LinkFormat?)`
-Return ~
-`(string)` foramted_path
+Class ~
+{obsidian.note.FormatLinkOpts} : obsidian.link.LinkCreationOpts
+Fields ~
+{dir} `(optional)` `(string|obsidian.Path)` Base directory for relative links.
 
 ------------------------------------------------------------------------------
                                                             *Note.format_link()*
@@ -394,25 +459,34 @@ Return ~
 Create a formatted markdown / wiki link for a note.
 
 Parameters ~
-{opts} `(obsidian.link.LinkCreationOpts?)`
+{opts} `(obsidian.note.FormatLinkOpts?)`
 Return ~
 `(string)`
 
 ------------------------------------------------------------------------------
                                                                  *Note.status()*
-                    `Note.status`({self}, {update_backlink})
-Return note status counts, like obsidian's status bar
+             `Note.status`({self}, {update_backlinks}, {callback})
+Return note status counts, like obsidian's status bar.
 
 Parameters ~
-{update_backlink} `(boolean|)`?
+{update_backlinks} `(boolean|? Set)` to false to skip computing backlinks.
+{callback} `(fun(status: { words: integer, chars: integer, properties: integer, backlinks: integer? })|)`?
 Return ~
-`({ words: integer, chars: integer, properties: integer, backlinks: integer }?)`
+`({ words: integer, chars: integer, properties: integer, backlinks: integer? }?)`
 
 ------------------------------------------------------------------------------
                                                              *Note.body_lines()*
                            `Note.body_lines`({self})
 Return ~
 `(string[])`
+
+------------------------------------------------------------------------------
+                                                    *normalize_section_choice()*
+                      `normalize_section_choice`({choice})
+Parameters ~
+{choice} `(obsidian.note.insert_text.SectionChoice)`
+Return ~
+`({ header?: string, level?: integer })`
 
 ------------------------------------------------------------------------------
                                                             *Note.insert_text()*
@@ -438,13 +512,16 @@ Fields ~
 {max_lines} `(integer|)`?
 {collect_anchor_links} `(boolean|)`?
 {collect_blocks} `(boolean|)`?
+{collect_block_candidates} `(boolean|)`?
+{collect_sections} `(boolean|)`?
 
 ------------------------------------------------------------------------------
 Class ~
 {(exact)} obsidian.note.NoteCreationOpts
 Fields ~
-{notes_subdir} `(string)`
-{note_id_func} `(fun())`
+{notes_subdir} `(string?)`
+{note_id_func} `(fun(title: string|?, path: obsidian.Path|?): string)`
+{note_path_func} `(fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path)`
 {new_notes_location} `(obsidian.config.NewNotesLocation)`
 
 ------------------------------------------------------------------------------
@@ -455,12 +532,43 @@ Fields ~
 {title} `(string|? Readable)` title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
 {verbatim} `(boolean|? whether)` to skip applying `note_id_func`
 {dir} `(string|obsidian.Path|? An)` optional directory to place the note in. Relative paths will be interpreted
-to the workspace / vault root. If the directory doesn't exist it will
-created, regardless of the value of the `should_write` option.
+to the workspace / vault root.
+{source_path} `(string|obsidian.Path|? Source)` note used to resolve the workspace and current-directory strategy.
 {aliases} `(string[]|? Aliases)` for the note
 {tags} `(string[]|?  Tags)` for this note
-{should_write} `(boolean|? Don)`'t write the note to disk
-{template} `(string|? The)` name of the template
+{template} `(string|? Template)` name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
+{scope} `(string|? Arbitrary)` note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+{check_invalid_filename} `(boolean|)`?
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} obsidian.note.CreateCallbackOpts
+Fields ~
+{scope} `(string)` Scope inherited from the `Note.create` opts, or `"plain"` when not set.
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} obsidian.note.DeleteOpts
+Whether to prompt when backlinks exist. Defaults to true.
+Fields ~
+{confirm_backlinks} `(optional)` `(boolean)`
+Whether to prompt for linked attachments. Defaults to true.
+{confirm_attachments} `(optional)` `(boolean)`
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} obsidian.note.DeleteAttachmentResult
+Fields ~
+{path} `(string)`
+{deleted} `(boolean)`
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} obsidian.note.DeleteResult
+Fields ~
+{deleted} `(boolean)`
+{cancelled} `(boolean)`
+{attachments} `(obsidian.note.DeleteAttachmentResult[])`
 
 ------------------------------------------------------------------------------
 Class ~
@@ -499,26 +607,30 @@ See `:help checktime` to learn more.
 ------------------------------------------------------------------------------
 Class ~
 {(exact)} obsidian.note.InsertTextOpts: obsidian.note.NoteSaveOpts
+Specifies the section to insert text under. When neither `header` nor `level` are provided, then the "preamble" will
+be targeted (i.e. everything from the beginning of the file up to, but not including, the first heading).
+Defaults to the preamble.
+Fields ~
+{section} `(optional)` `(obsidian.note.insert_text.SectionChoice)`
+Decides what to do when the specified section is not found in the note. Defaults to `create`.
+{on_section_missing} `(optional)` `(obsidian.note.insert_text.OnSectionMissing)`
 Whether a blank line is inserted between frontmatter/top-of-file and the first heading of a note.
 Defaults to the expression: `note.has_frontmatter`.
-Fields ~
 {padding_top} `(optional)` `(boolean)`
-Specifies the section to insert the text into, or `nil` to target the preamble (i.e. the area starting from the top
-of the file up to but not including the first heading). Defaults to `nil`.
-{section} `(optional)` `(obsidian.note.Section)`
 Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
 {placement} `(optional)` "`(top)`"|"bot"
 
 ------------------------------------------------------------------------------
-Class ~
-{(exact)} obsidian.note.Section
-The label of the heading.
-Fields ~
-{header} `(string)`
-The level of the heading (H1, H2, H3, ...).
-{level} `(integer)`
-Decides what to do when the section is missing. Defaults to `create`.
-{on_missing} `(optional)` "`(create)`"|"error"|"cancel"
+Selects a section by preamble, header, level, or both.
+- `nil`, `{ header = nil, level = nil }`, or `{ nil, nil }`: preamble.
+- `string`, `{ header = string }`, or `{ string, nil }`: first matching header.
+- `integer`, `{ level = integer }`, or `{ nil, integer }`: first matching level.
+- `{ header = string, level = integer }` or `{ string, integer }`: first matching pair.
+
+------------------------------------------------------------------------------
+"create" Create the missing section where text will be inserted under.
+"error"  Force user to handle the missing section by raising an error.
+"cancel" Silently abandon the insert operation altogether.
 
 ------------------------------------------------------------------------------
 Class ~
@@ -530,6 +642,7 @@ Fields ~
 {level} `(integer)`
 {line} `(integer)`
 {parent} `(obsidian.note.HeaderAnchor|)`?
+{section} `(optional)` `(obsidian.Section)` the full section this header begins.
 
 ------------------------------------------------------------------------------
 Class ~
@@ -539,6 +652,31 @@ Fields ~
 {id} `(string)`
 {line} `(integer)`
 {block} `(string)`
+{section} `(optional)` `(obsidian.Section)` the paragraph carrying the block identifier.
+
+------------------------------------------------------------------------------
+Class ~
+{obsidian.note.RenameMeta}
+Fields ~
+{count} `(integer)` Number of reference replacements.
+{path_lookup} `(table<string, boolean>)` Files with reference replacements.
+{buf_list} `(integer[])` Buffers touched by reference replacements.
+{old_path} `(string)` Original note path.
+{new_path} `(string)` New note path.
+
+------------------------------------------------------------------------------
+Class ~
+{(exact)} obsidian.note.RenameOpts
+Fields ~
+{old_path} `(optional)` `(string)` Existing path to rename from. Defaults to `note.path`.
+{new_path} `(optional)` `(string)` Destination path. Defaults to sibling path using `new_name .. ".md"`.
+{include_file_rename} `(optional)` `(boolean)` Include a file rename operation in the generated edit. Defaults to true.
+{include_stem_refs} `(optional)` `(boolean)` Update stem-only references. Defaults to true.
+{dir} `(optional)` `(string|obsidian.Path)` Workspace directory used to find references.
+{apply} `(optional)` `(boolean)` Apply the workspace edit directly. Defaults to true.
+{update_buffers} `(optional)` `(boolean)` Update the note object/frontmatter and reload buffers after applying. Defaults to true.
+{check_unique} `(optional)` `(boolean)` Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
+{offset_encoding} `(optional)` "`(utf)`-8"|"utf-16"|"utf-32" Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
 
 
 ==============================================================================
@@ -547,7 +685,7 @@ Class ~
 {obsidian.workspace.WorkspaceSpec}
 
 Fields ~
-{path} `(string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path))`
+{path} `(optional)` `(string|(fun(): string)|obsidian.Path|(fun(): obsidian.Path))`
 {name} `(string|)`?
 {strict} `(boolean|? If)` true, the workspace root will be fixed to 'path' instead of the vault root (if different).
 {overrides} `(obsidian.config?)`
@@ -646,6 +784,15 @@ Fields ~
 {suffixes} `(string[])` A list of all of the path's extensions.
 {stem} `(string)` The final path component, without its suffix.
 div(string|obsidian.Path): obsidian.Path
+
+------------------------------------------------------------------------------
+                                                                  *Path.__div()*
+                         `Path.__div`({self}, {other})
+Parameters ~
+{self} `(obsidian.Path)`
+{other} `(string|obsidian.Path)`
+Return ~
+`(obsidian.Path)`
 
 ------------------------------------------------------------------------------
                                                             *Path.is_path_obj()*
@@ -815,11 +962,6 @@ Create a new directory at the given path.
 
 Parameters ~
 {opts} `({ mode: integer|?, parents: boolean|? }|)`?
-
-------------------------------------------------------------------------------
-                                                                 *Path.rmtree()*
-                                `Path.rmtree`()
-Recursively remove an entire directory and its contents.
 
 ------------------------------------------------------------------------------
                                                     *Path.vault_relative_path()*

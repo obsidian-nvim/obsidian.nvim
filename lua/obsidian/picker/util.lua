@@ -1,10 +1,38 @@
-local M = {}
+local preview_ns = vim.api.nvim_create_namespace "obsidian.picker.preview"
 
-local api = require "obsidian.api"
-local util = require "obsidian.util"
+local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
 
----@param opts { prompt_title: string, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
+local M = {}
+
+---@param path string|obsidian.Path
+---@return obsidian.ui_select_preview_spec
+M.preview_path = function(path)
+  path = tostring(path)
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
+
+  local stat = vim.uv.fs_stat(path)
+  if stat and stat.type == "directory" then
+    local entries = {}
+    for name, kind in vim.fs.dir(path) do
+      entries[#entries + 1] = name .. (kind == "directory" and "/" or "")
+    end
+    table.sort(entries)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
+    vim.bo[buf].filetype = "directory"
+  else
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
+    local filetype = vim.filetype.match { filename = path }
+    if filetype then
+      vim.bo[buf].filetype = filetype
+    end
+  end
+
+  return { buf = buf }
+end
+
+---@param opts { prompt_title: string|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
 ---@return string
 M.build_prompt = function(opts)
   opts = opts or {}
@@ -38,29 +66,82 @@ M.build_prompt = function(opts)
   return prompt
 end
 
----@param entry obsidian.PickerEntry
----
----@return string, { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
-M.make_display = function(entry)
-  local buf = {}
-  ---@type { [1]: { [1]: integer, [2]: integer }, [2]: string }[]
-  local highlights = {}
-
-  local icon, icon_hl
-
-  if entry.filename then
-    icon, icon_hl = api.get_icon(entry.filename)
+---@param winid integer
+---@param spec obsidian.ui_select_preview_spec|?
+---@return boolean
+M.show_preview_spec = function(winid, spec)
+  if not spec or not vim.api.nvim_win_is_valid(winid) then
+    return false
   end
+
+  local buf = spec.buf
+  vim.api.nvim_win_set_buf(winid, buf)
+  vim.api.nvim_buf_clear_namespace(buf, preview_ns, 0, -1)
+
+  if spec.pos then
+    local lnum = math.max(spec.pos[1] or 1, 1)
+    local col = math.max(spec.pos[2] or 0, 0)
+    pcall(vim.api.nvim_win_set_cursor, winid, { lnum, col })
+    pcall(vim.api.nvim_win_call, winid, function()
+      vim.cmd "normal! zt"
+    end)
+
+    if spec.pos_end then
+      pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, col, {
+        end_row = math.max(spec.pos_end[1] or lnum, 1) - 1,
+        end_col = math.max(spec.pos_end[2] or col + 1, 0),
+        hl_group = "Visual",
+      })
+    else
+      pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, 0, {
+        line_hl_group = "CursorLine",
+      })
+    end
+  end
+
+  return true
+end
+
+---Open one picker result directly, or put multiple results in the quickfix list.
+---@param entries (string|obsidian.PickerEntry)[]
+M.open_notes = function(entries)
+  if #entries == 0 then
+    return
+  elseif #entries == 1 then
+    require("obsidian.api").open_note(entries[1])
+    return
+  end
+
+  local items = vim.tbl_map(function(entry)
+    if type(entry) == "string" then
+      return { filename = entry }
+    else
+      return entry
+    end
+  end, entries)
+  vim.fn.setqflist(items, "r")
+  vim.cmd "copen"
+end
+
+---@param entry obsidian.PickerEntry|string
+---
+---@return string
+M.make_display = function(entry)
+  if type(entry) == "string" then
+    return entry
+  end
+
+  local buf = {}
+  local icon = icons.get_icon(entry)
 
   if icon then
     buf[#buf + 1] = icon
     buf[#buf + 1] = " "
-    if icon_hl then
-      highlights[#highlights + 1] = { { 0, util.strdisplaywidth(icon) }, icon_hl }
-    end
   end
 
-  if entry.filename then
+  if entry.text then
+    buf[#buf + 1] = entry.text
+  elseif entry.filename then
     buf[#buf + 1] = Path.new(entry.filename):vault_relative_path()
 
     if entry.lnum ~= nil then
@@ -74,15 +155,7 @@ M.make_display = function(entry)
     end
   end
 
-  if entry.text then
-    buf[#buf + 1] = " "
-    buf[#buf + 1] = entry.text
-  elseif entry.user_data then
-    buf[#buf + 1] = " "
-    buf[#buf + 1] = tostring(entry.user_data)
-  end
-
-  return table.concat(buf, ""), highlights
+  return table.concat(buf, "")
 end
 
 return M

@@ -2,14 +2,32 @@
 
 local M = {}
 local log = require "obsidian.log"
-local util = require "obsidian.util"
-local iter, string, table = vim.iter, string, table
+local fs_util = require "obsidian.util.fs"
+local header = require "obsidian.parse.header"
+local string, table = string, table
 local Path = require "obsidian.path"
-local search = require "obsidian.search"
 local config = require "obsidian.config"
 local attachment = require "obsidian.attachment"
+local Range = require "obsidian.range"
+local parse_refs = require "obsidian.parse.refs"
+local parse_tags = require "obsidian.parse.tags"
+local parse_tasks = require "obsidian.parse.line.tasks"
 
 M.dir = require("obsidian.fs").dir
+
+--- Get the normalized options for a workspace without changing the active workspace.
+---@param workspace obsidian.Workspace|?
+---@return obsidian.config.Internal
+M._workspace_opts = function(workspace)
+  workspace = workspace or Obsidian.workspace
+  if workspace == Obsidian.workspace then
+    return Obsidian.opts
+  end
+
+  local overrides = workspace.overrides or {}
+  ---@cast overrides obsidian.config
+  return config.normalize(overrides, Obsidian._opts)
+end
 
 --- TODO: will not work if plugin is managed by nix
 ---
@@ -30,17 +48,19 @@ end
 ---@param workspace obsidian.Workspace?
 ---@return obsidian.Path|?
 M.templates_dir = function(workspace)
-  local opts = Obsidian.opts
-
-  if workspace and workspace ~= Obsidian.workspace then
-    opts = config.normalize(workspace.overrides, Obsidian._opts)
-  end
+  local opts = M._workspace_opts(workspace)
 
   if (not opts.templates.enabled) or opts.templates == nil or opts.templates.folder == nil then
     return nil
   end
 
-  local paths_to_check = { Obsidian.workspace.root / opts.templates.folder, Path.new(opts.templates.folder) }
+  local configured_path = Path.new(opts.templates.folder)
+  local paths_to_check
+  if configured_path:is_absolute() then
+    paths_to_check = { configured_path }
+  else
+    paths_to_check = { (workspace or Obsidian.workspace).root / configured_path, configured_path }
+  end
   for _, path in ipairs(paths_to_check) do
     if path:is_dir() then
       return path
@@ -60,7 +80,7 @@ M.path_is_note = function(path, workspace)
   path = Path.new(path):resolve()
   workspace = workspace or Obsidian.workspace
 
-  local in_vault = path.filename:find(vim.pesc(tostring(workspace.root))) ~= nil
+  local in_vault = fs_util.is_subpath(path.filename, tostring(workspace.root))
   if not in_vault then
     return false
   end
@@ -69,7 +89,7 @@ M.path_is_note = function(path, workspace)
   -- context issues. vim.filetype.match calls getenv() which is not allowed in
   -- completion context.
   local extension = tostring(path):match "%.([^%.]+)$"
-  if not vim.list_contains({ "md", "markdown", "qmd" }, extension) then
+  if not vim.list_contains({ "md", "markdown", "qmd", "base" }, extension) then
     return false
   end
 
@@ -84,13 +104,64 @@ M.path_is_note = function(path, workspace)
   return true
 end
 
--- find workspaces of a path
+---@param path string
+---@param style obsidian.link.LinkFormat?
+---@param base_dir string|obsidian.Path?
+---@return string formatted_path
+local function format_path(path, style, base_dir)
+  local rel_path = Path.new(path):vault_relative_path()
+  if rel_path == nil then
+    error "failed to resolve link path relative to vault"
+  end
+
+  if style == "absolute" then
+    return rel_path
+  elseif style == "relative" then
+    base_dir = base_dir or Obsidian.buf_dir or M.resolve_workspace_dir()
+    if base_dir == nil then
+      return rel_path
+    end
+
+    local relpath =
+      assert(fs_util.relpath(tostring(base_dir), path), "failed to resolve link path against current note")
+    return relpath
+  else
+    return vim.fs.basename(path)
+  end
+end
+
+---@class obsidian.link.FormatLinkOpts : obsidian.link.LinkCreationOpts
+---@field path string
+---@field dir? string|obsidian.Path Base directory for relative links.
+
+---@param opts obsidian.link.FormatLinkOpts
+---@return string
+M.format_link = function(opts)
+  opts.path = format_path(opts.path, opts.format, opts.dir)
+  if opts.style == "markdown" then
+    return require("obsidian.builtin").markdown_link(opts)
+  elseif opts.style == "wiki" or opts.style == nil then
+    return require("obsidian.builtin").wiki_link(opts)
+  elseif type(opts.style) == "function" then
+    return opts.style(opts)
+  else
+    error(string.format("Invalid link style '%s'", opts.style))
+  end
+end
+
+---Find the most specific workspace containing a path.
 ---@param path string|obsidian.Path
 ---@return obsidian.Workspace|?
 M.find_workspace = function(path)
-  return iter(Obsidian.workspaces):find(function(ws)
-    return M.path_is_note(path, ws)
-  end)
+  local normalized = vim.fs.normalize(tostring(Path.new(path):resolve()))
+  local match
+  for _, ws in ipairs(Obsidian.workspaces or {}) do
+    local root = vim.fs.normalize(tostring(ws.root))
+    if fs_util.is_subpath(normalized, root) and (not match or #root > #tostring(match.root)) then
+      match = ws
+    end
+  end
+  return match
 end
 
 ---@param path string|obsidian.Path|?
@@ -107,8 +178,11 @@ M.resolve_workspace_dir = function(path)
   end
   if ws then
     return ws.root
-  else
+  elseif Obsidian.workspace then
     return Obsidian.workspace.root
+  else
+    -- Keep compatibility with callers that provide the legacy state shape.
+    return Obsidian.dir
   end
 end
 
@@ -121,7 +195,9 @@ end
 M.current_note = function(bufnr, opts)
   bufnr = bufnr or 0
   local Note = require "obsidian.note"
-  if not M.find_workspace(vim.api.nvim_buf_get_name(bufnr)) then
+  local path = vim.api.nvim_buf_get_name(bufnr)
+  local workspace = M.find_workspace(path)
+  if not workspace or not M.path_is_note(path, workspace) then
     return nil
   end
 
@@ -141,43 +217,61 @@ M.get_active_window_cursor_location = function()
   return location
 end
 
----Return the full link under cursor
----
+---Return the full link under a cursor position.
+---@param bufnr integer|?
+---@param position lsp.Position|? 0-indexed; defaults to the active window cursor.
 ---@return string? link
----@return obsidian.search.RefTypes? link_type
-M.cursor_link = function()
-  local line = vim.api.nvim_get_current_line()
-  local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
-  cur_col = cur_col + 1 -- 0-indexed column to 1-indexed lua string position
+---@return obsidian.parse.RefKind? link_type
+---@return [integer, integer]? range
+---@return obsidian.parse.Ref?
+M.cursor_link = function(bufnr, position)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local row, cur_col
+  if position then
+    row, cur_col = position.line, position.character
+  else
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    row, cur_col = cursor[1] - 1, cursor[2]
+  end
+  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
 
-  local refs = search.find_refs(line, { exclude = { "Tag" } })
-
-  local match = iter(refs):find(function(m)
-    local open, close = unpack(m)
-    return cur_col >= open and cur_col <= close
-  end)
-  if match then
-    return line:sub(match[1], match[2]), match[3]
+  for _, ref in ipairs(parse_refs.extract(line, { row = row })) do
+    if ref.range.start_col <= cur_col and cur_col < ref.range.end_col then
+      local link_type = ref.kind
+      local link = ref.embed and ref.raw:sub(2) or ref.raw
+      local start_col = ref.range.start_col + (ref.embed and 2 or 1)
+      return link, link_type, { start_col, ref.range.end_col }, ref
+    end
   end
 end
 
----Get the tag under the cursor, if there is one.
+---Get the tag under a cursor position, if there is one.
+---@param bufnr integer|?
+---@param position lsp.Position|?
 ---@return string?
-M.cursor_tag = function()
-  local current_line = vim.api.nvim_get_current_line()
-  local _, cur_col = unpack(vim.api.nvim_win_get_cursor(0))
-  cur_col = cur_col + 1 -- nvim_win_get_cursor returns 0-indexed column
+M.cursor_tag = function(bufnr, position)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local current_line, cur_col
+  if position then
+    current_line = vim.api.nvim_buf_get_lines(bufnr, position.line, position.line + 1, false)[1] or ""
+    cur_col = position.character
+  else
+    current_line = vim.api.nvim_get_current_line()
+    cur_col = vim.api.nvim_win_get_cursor(0)[2]
+  end
 
-  for _, match in ipairs(util.parse_tags(current_line)) do
-    local open, close, _ = unpack(match)
-    if open <= cur_col and cur_col <= close then
-      return string.sub(current_line, open + 1, close)
+  for _, tag in ipairs(parse_tags.extract(current_line)) do
+    if tag.range.start_col <= cur_col and cur_col < tag.range.end_col then
+      return tag.tag
     end
   end
 
   local Note = require "obsidian.note"
   local cword = vim.fn.expand "<cWORD>"
-  local note = Note.from_buffer(0, { max_lines = 100 })
+  if type(cword) ~= "string" then
+    return nil
+  end
+  local note = Note.from_buffer(bufnr, { max_lines = 100 })
   if note and vim.list_contains(note.tags, cword) then
     return cword
   end
@@ -188,13 +282,25 @@ end
 --- Get the heading under the cursor, if there is one.
 ---@return { header: string, level: integer, anchor: string }|?
 M.cursor_heading = function()
-  return util.parse_header(vim.api.nvim_get_current_line())
+  return header.parse(vim.api.nvim_get_current_line())
 end
 
 --- Whether there is a checkbox under the cursor
 ---@return boolean
 M.cursor_checkbox = function()
-  return util.is_checkbox(vim.api.nvim_get_current_line())
+  return parse_tasks.extract(vim.api.nvim_get_current_line())[1] ~= nil
+end
+
+M.cursor_frontmatter = function()
+  local note = M.current_note()
+  if not note then
+    return
+  end
+  if not note.has_frontmatter or not note.frontmatter_end_line then
+    return false
+  end
+  local row = unpack(vim.api.nvim_win_get_cursor(0))
+  return row <= note.frontmatter_end_line
 end
 
 ------------------
@@ -232,8 +338,265 @@ M.open_buffer = function(path, opts)
   return M.open_note({
     filename = tostring(path),
     lnum = opts.line,
-    col = opts.col,
+    col = opts.col and opts.col + 1,
   }, opts.cmd)
+end
+
+local blink_counter = 0
+
+--- Briefly highlight a snapshot range in a matching buffer.
+---@param range obsidian.Range
+---@param bufnr integer?
+---@param opts { timeout: integer?, hl_group: string? }?
+M.blink = function(range, bufnr, opts)
+  opts = opts or {}
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if Range.is_empty(range) then
+    return
+  end
+  blink_counter = blink_counter + 1
+  local ns = vim.api.nvim_create_namespace("obsidian_blink_" .. blink_counter)
+  local hl_group = opts.hl_group or "ObsidianBlink"
+  vim.api.nvim_set_hl(0, hl_group, { link = "Visual", default = true })
+
+  -- Whole-line ranges can end one row beyond the last physical line.
+  local end_row, end_col = range.end_row, range.end_col
+  if end_col == 0 and end_row == vim.api.nvim_buf_line_count(bufnr) then
+    end_row = end_row - 1
+    ---@cast end_row integer
+    end_col = #vim.api.nvim_buf_get_lines(bufnr, end_row, end_row + 1, true)[1]
+  end
+  vim.api.nvim_buf_set_extmark(bufnr, ns, range.start_row, range.start_col, {
+    end_row = end_row,
+    end_col = end_col,
+    hl_group = hl_group,
+    hl_mode = "combine",
+    priority = 200,
+  })
+  vim.defer_fn(function()
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+    end
+  end, opts.timeout or vim.g.obsidian_blink_duration or 500)
+end
+
+---@param range obsidian.Range|lsp.Range|?
+---@return obsidian.Range|?
+local function normalize_range(range)
+  if not range then
+    return nil
+  elseif range.start_row then
+    return range
+  elseif range.start then
+    -- Obsidian's built-in language server uses UTF-8 positions.
+    return Range.from_lsp(range, "utf-8")
+  end
+end
+
+---@param entry obsidian.PickerEntry|vim.quickfix.entry
+---@return obsidian.Range|?
+local function entry_range(entry)
+  local range = rawget(entry, "range")
+  if type(range) == "table" then
+    return normalize_range(range)
+  end
+
+  local lnum = tonumber(entry.lnum)
+  local col = tonumber(entry.col) or 1
+  local end_lnum = tonumber(entry.end_lnum)
+  local end_col = tonumber(entry.end_col)
+  if lnum and end_lnum and end_col then
+    local start_row = lnum - 1
+    local start_col = math.max(col - 1, 0)
+    local end_row = end_lnum - 1
+    local normalized_end_col = math.max(end_col - 1, 0)
+    ---@cast start_row integer
+    ---@cast start_col integer
+    ---@cast end_row integer
+    ---@cast normalized_end_col integer
+    return Range.new(start_row, start_col, end_row, normalized_end_col)
+  end
+end
+
+---@class obsidian.NoteCreationReference
+---@field filename string
+---@field lnum integer
+---@field col integer
+---@field raw string
+
+--- Prompt to create a new note when a link target does not exist.
+---
+---@param location string Note id or path.
+---@param callback (fun(locations: lsp.Location[]|nil)|nil)?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|?, anchor: string|?, block: string|?, references: obsidian.NoteCreationReference[]|?, source_path: string|? }|?
+M.create_new_note = function(location, callback, opts)
+  opts = opts or {}
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  local cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
+
+  local has_template = Obsidian.opts.templates.enabled and Obsidian.opts.templates.folder
+  local has_unique = Obsidian.opts.unique_note.enabled
+
+  local options = { "&Yes" }
+  if has_template then
+    table.insert(options, "Yes with &Template")
+  end
+  if has_unique then
+    table.insert(options, "Yes as &Unique Note")
+  end
+  table.insert(options, "&No")
+
+  local format_options = table.concat(options, "\n")
+
+  local function update_link(note)
+    if opts.range and vim.api.nvim_buf_is_valid(bufnr) then
+      local source = vim.api.nvim_buf_get_name(bufnr)
+      local new_link = note:format_link {
+        label = opts.label or location,
+        anchor = opts.anchor,
+        block = opts.block,
+        dir = source ~= "" and vim.fs.dirname(source) or nil,
+      }
+      vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
+    end
+  end
+
+  ---@param note obsidian.Note
+  ---@param reference obsidian.NoteCreationReference
+  ---@return string?
+  local function format_reference(note, reference)
+    local parsed = parse_refs.extract(reference.raw or "")[1]
+    if not parsed or (parsed.kind ~= "wiki" and parsed.kind ~= "markdown") then
+      return nil
+    end
+
+    -- Relative links must be formatted from the referencing note's directory,
+    -- which may not be the current buffer when creation starts from a picker.
+    local previous_buf_dir = Obsidian.buf_dir
+    local reference_dir = vim.fs.dirname(reference.filename)
+    if reference_dir then
+      Obsidian.buf_dir = Path.new(reference_dir)
+    end
+    local ok, new_link = pcall(note.format_link, note, {
+      label = parsed.label or location,
+      anchor = parsed.anchor,
+      block = parsed.block,
+      style = parsed.kind,
+    })
+    Obsidian.buf_dir = previous_buf_dir
+    if not ok then
+      log.err(new_link)
+      return nil
+    end
+
+    return (parsed.embed and "!" or "") .. new_link
+  end
+
+  ---@param note obsidian.Note
+  local function update_references(note)
+    local references = vim.deepcopy(opts.references or {})
+    table.sort(references, function(a, b)
+      if a.filename ~= b.filename then
+        return a.filename < b.filename
+      elseif a.lnum ~= b.lnum then
+        return a.lnum > b.lnum
+      else
+        return a.col > b.col
+      end
+    end)
+
+    local buffers = {}
+    for _, reference in ipairs(references) do
+      local filename = reference.filename
+      local lnum = tonumber(reference.lnum)
+      local col = tonumber(reference.col)
+      local raw = reference.raw
+      ---@cast lnum integer
+      ---@cast col integer
+      if filename and lnum and col and type(raw) == "string" then
+        local state = buffers[filename]
+        if not state then
+          local existing_bufnr = vim.fn.bufnr(filename)
+          local was_loaded = existing_bufnr ~= -1 and vim.api.nvim_buf_is_loaded(existing_bufnr)
+          state = {
+            bufnr = was_loaded and existing_bufnr or nil,
+            lines = not was_loaded and vim.fn.readfile(filename) or nil,
+            changed = false,
+          }
+          buffers[filename] = state
+        end
+
+        local line
+        if state.bufnr then
+          line = vim.api.nvim_buf_get_lines(state.bufnr, lnum - 1, lnum, false)[1]
+        else
+          line = state.lines[lnum]
+        end
+        local start_col = col - 1
+        if line and line:sub(col, col + #raw - 1) == raw then
+          local new_link = format_reference(note, reference)
+          if new_link then
+            if state.bufnr then
+              vim.api.nvim_buf_set_text(state.bufnr, lnum - 1, start_col, lnum - 1, start_col + #raw, { new_link })
+            else
+              state.lines[lnum] = line:sub(1, start_col) .. new_link .. line:sub(col + #raw)
+            end
+            state.changed = true
+          end
+        else
+          log.warn("Could not update stale reference at %s:%d:%d", filename, lnum, col)
+        end
+      end
+    end
+
+    -- Preserve the usual unsaved-buffer behavior for open notes. Rewrite
+    -- unloaded files directly so buffer write hooks do not add unrelated
+    -- frontmatter or other generated content.
+    for filename, state in pairs(buffers) do
+      if state.changed and not state.bufnr then
+        vim.fn.writefile(state.lines, filename)
+      end
+    end
+  end
+
+  local function on_created(note)
+    update_link(note)
+    update_references(note)
+    if callback then
+      callback { note:_location() }
+    end
+  end
+
+  local buffer_path = vim.api.nvim_buf_get_name(bufnr)
+  local source_path = opts.source_path or (buffer_path ~= "" and buffer_path or nil)
+  local action_opts = { source_path = source_path }
+  local workspace_dir = M.resolve_workspace_dir(source_path)
+  local creation_location = location
+  if source_path and (vim.startswith(location, "./") or vim.startswith(location, "../")) then
+    local target = vim.fs.normalize(vim.fs.joinpath(vim.fs.dirname(source_path), location))
+    if fs_util.is_subpath(target, tostring(workspace_dir)) then
+      creation_location = assert(fs_util.relpath(tostring(workspace_dir), target))
+      if not creation_location:find("/", 1, true) then
+        creation_location = "/" .. creation_location
+      end
+    end
+  end
+
+  local confirm = M.confirm(("Create new note '%s'?"):format(location), format_options)
+  if confirm == "Yes" then
+    require("obsidian.actions").new(creation_location, on_created, action_opts)
+  elseif confirm == "Yes with Template" then
+    require("obsidian.actions").new_from_template(creation_location, nil, on_created, action_opts)
+  elseif confirm == "Yes as Unique Note" then
+    local unique_dir = Obsidian.opts.unique_note.folder and workspace_dir / Obsidian.opts.unique_note.folder
+      or workspace_dir
+    local note = require("obsidian.unique").new_unique_note(nil, { title = location, dir = unique_dir })
+    if note then
+      on_created(note)
+    end
+  else
+    return log.warn "Aborted"
+  end
 end
 
 --- Open a quickfix entry in buffer, with open strategy
@@ -265,11 +628,23 @@ M.open_note = function(entry, cmd)
 
   vim.cmd(string.format("%s %s", cmd, vim.fn.fnameescape(tostring(path))))
   if type(entry) == "table" and entry.lnum then
-    vim.api.nvim_win_set_cursor(0, { tonumber(entry.lnum), entry.col and entry.col or 0 })
+    local lnum = tonumber(entry.lnum)
+    local col = math.max((tonumber(entry.col) or 1) - 1, 0)
+    ---@cast lnum integer
+    ---@cast col integer
+    vim.api.nvim_win_set_cursor(0, { lnum, col })
   end
 
   if not result_bufnr then
     result_bufnr = vim.api.nvim_get_current_buf()
+  end
+
+  -- Blink the target range, e.g. the full section of an anchor/block link.
+  if type(entry) == "table" then
+    local range = entry_range(entry)
+    if range and not Range.is_empty(range) then
+      M.blink(range, result_bufnr)
+    end
   end
 
   return result_bufnr
@@ -338,10 +713,10 @@ M.get_visual_selection = function(opts)
   -- for some odd reason. So change that to what they should be here. See ':h getpos' for more info.
   local maxcol = vim.api.nvim_get_vvar "maxcol"
   if cscol == maxcol then
-    cscol = vim.fn.strlen(lines[1])
+    cscol = vim.fn.strlen(lines[1] or "")
   end
   if cecol == maxcol then
-    cecol = vim.fn.strlen(lines[#lines])
+    cecol = vim.fn.strlen(lines[#lines] or "")
   end
 
   -- Use nvim_buf_get_text which properly handles UTF-8 byte positions
@@ -402,7 +777,7 @@ end
 ---@param opt obsidian.config.OpenStrategy
 ---@return string
 M.get_open_strategy = function(opt)
-  local OpenStrategy = require("obsidian.config").OpenStrategy
+  local OpenStrategy = require("obsidian.types").OpenStrategy
 
   -- either 'leaf', 'row' for vertically split windows, or 'col' for horizontally split windows
   local cur_layout = vim.fn.winlayout()[1]
@@ -440,9 +815,11 @@ end
 ---@param name string
 ---@return string|?
 local get_src_root = function(name)
-  return iter(vim.api.nvim_list_runtime_paths()):find(function(path)
-    return vim.endswith(path, name)
-  end)
+  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
+    if vim.endswith(path, name) then
+      return path
+    end
+  end
 end
 
 --- Get info about a plugin.
@@ -458,7 +835,7 @@ M.get_plugin_info = function(name)
   local out = { path = src_root }
   local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
   if obj.code == 0 then
-    out.commit = vim.trim(obj.stdout)
+    out.commit = vim.trim(obj.stdout or "")
   else
     out.commit = "unknown"
   end
@@ -522,6 +899,7 @@ M.OSType = {
   FreeBSD = "FreeBSD",
 }
 
+---@type OSType?
 M._current_os = nil
 
 ---Get the running operating system.
@@ -529,9 +907,11 @@ M._current_os = nil
 ---@return OSType
 M.get_os = function()
   if M._current_os ~= nil then
+    ---@diagnostic disable-next-line: return-type-mismatch
     return M._current_os
   end
 
+  ---@type OSType
   local this_os
   if vim.fn.has "win32" == 1 then
     this_os = M.OSType.Windows
@@ -541,6 +921,7 @@ M.get_os = function()
     if sysname:lower() == "linux" and string.find(release, "microsoft") then
       this_os = M.OSType.Wsl
     else
+      ---@cast sysname OSType
       this_os = sysname
     end
   end
@@ -549,31 +930,13 @@ M.get_os = function()
   return this_os
 end
 
---- Get a nice icon for a file or URL, if possible.
+--- Get the icon associated with a path.
 ---
+---@deprecated use `require("obsidian.icons").get_path_icon` instead.
 ---@param path string
----
----@return string|?, string|? (icon, hl_group) The icon and highlight group.
+---@return string icon
 M.get_icon = function(path)
-  if util.is_uri(path) then
-    local icon = ""
-    local _, hl_group = M.get_icon "blah.html"
-    return icon, hl_group
-  elseif Path.new(path):is_dir() then
-    return "󰉋"
-  else
-    local ok, res = pcall(function()
-      local icon, hl_group = require("nvim-web-devicons").get_icon(path, nil, { default = true })
-      return { icon, hl_group }
-    end)
-    if ok and type(res) == "table" then
-      local icon, hlgroup = unpack(res)
-      return icon, hlgroup
-    elseif vim.endswith(path, ".md") then
-      return ""
-    end
-  end
-  return nil
+  return require("obsidian.icons").get_path_icon(path)
 end
 
 M.resolve_attachment_path = attachment.resolve_attachment_path

@@ -13,12 +13,13 @@ T["follow wiki links"] = function()
 
 [[target]]
 ]==],
-    ["target.md"] = "",
+    ["target.md"] = "[[existing]]",
   })
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
-  fs_eq(files["target.md"], child.api.nvim_buf_get_name(0))
+  h.child_wait_for_buf_name(child, files["target.md"])
+  eq({ 1, 0 }, child.api.nvim_win_get_cursor(0))
 end
 
 T["follow markdown links"] = function()
@@ -33,7 +34,22 @@ T["follow markdown links"] = function()
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
-  fs_eq(files["target.md"], child.api.nvim_buf_get_name(0))
+  h.child_wait_for_buf_name(child, files["target.md"])
+end
+
+T["follow wiki links with square brackets in the target"] = function()
+  local target_dir = child.Obsidian.dir / "Media DB" / "music"
+  target_dir:mkdir { parents = true }
+  local target = target_dir / "[LOadinG . .] (by Purynn - 2026).md"
+  h.write("# target", target)
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[Media DB/music/[LOadinG . .] (by Purynn - 2026)]]",
+  })
+
+  child.cmd("edit " .. files["referencer.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua "vim.lsp.buf.definition()"
+  h.child_wait_for_buf_name(child, target)
 end
 
 T["follow encoded headerlinks"] = function()
@@ -56,17 +72,53 @@ T["follow encoded headerlinks"] = function()
   eq(child.api.nvim_win_get_cursor(0), { 1, 0 })
 end
 
+T["goto footnote definition"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["note.md"] = [==[
+some claim[^1]
+
+more text
+
+[^1]: the footnote
+]==],
+  })
+  child.cmd("edit " .. files["note.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 11 })
+  child.lua "vim.lsp.buf.definition()"
+  h.wait(function()
+    return vim.deep_equal(child.api.nvim_win_get_cursor(0), { 5, 0 })
+  end, { desc = "cursor on footnote definition" })
+end
+
+T["goto first footnote reference from definition"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["note.md"] = [==[
+some claim[^1]
+
+[^1]: the footnote
+]==],
+  })
+  child.cmd("edit " .. files["note.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 0 })
+  child.lua "vim.lsp.buf.definition()"
+  h.wait(function()
+    return vim.deep_equal(child.api.nvim_win_get_cursor(0), { 1, 10 })
+  end, { desc = "cursor on first footnote reference" })
+end
+
 local filetypes = require("obsidian.attachment").filetypes
 
 local function test_ft(ext)
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = ([==[
 
-[target](./target.%s)
+[target](target.%s)
 ]==]):format(ext),
+    ["attachments/target." .. ext] = "",
   })
 
   child.lua [[
+  _G.uri = nil
   vim.ui.open = function(uri)
     _G.uri = uri
   end
@@ -75,6 +127,7 @@ local function test_ft(ext)
   child.cmd("edit " .. files["referencer.md"])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   child.lua "vim.lsp.buf.definition()"
+  h.child_wait(child, "return _G.uri ~= nil", { desc = "attachment URI" })
   fs_eq(tostring(child.Obsidian.dir / "attachments" / ("target." .. ext)), child.lua_get "uri")
 end
 

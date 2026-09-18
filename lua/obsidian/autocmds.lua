@@ -1,7 +1,10 @@
 local api = require "obsidian.api"
+local actions = require "obsidian.actions"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
+local ignore = require "obsidian.ignore"
+local Workspace = require "obsidian.workspace"
 local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
 -- wrapper for creating autocmd events
@@ -28,7 +31,16 @@ local function bufenter_callback(ev)
 
   -- Check if we're in *any* workspace.
   local workspace = api.find_workspace(ev.file)
-  if not workspace then
+  if not workspace or not api.path_is_note(ev.file, workspace) then
+    return
+  end
+
+  if workspace ~= Obsidian.workspace then
+    Workspace.set(workspace)
+  end
+
+  -- Check if this file should be ignored based on this workspace's file.ignore_filters.
+  if ignore.is_ignored(ev.file) then
     return
   end
 
@@ -47,21 +59,16 @@ local function bufenter_callback(ev)
   end
 
   -- Register keymap.
-  vim.keymap.set("n", "<CR>", api.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
+  if vim.g.obsidian_default_keymap ~= false then -- NOTE: not in config since not sure whether the confusion and the small interface is worth it, might remove in major release
+    vim.keymap.set("n", "<CR>", actions.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
 
-  vim.keymap.set("n", "]o", function()
-    api.nav_link "next"
-  end, { buffer = true, desc = "Obsidian Next Link" })
+    vim.keymap.set("n", "]o", function()
+      actions.nav_link "next"
+    end, { buffer = true, desc = "Obsidian Next Link" })
 
-  vim.keymap.set("n", "[o", function()
-    api.nav_link "prev"
-  end, { buffer = true, desc = "Obsidian Previous Link" })
-
-  -- Inject completion sources, providers to their plugin configurations
-  if opts.completion.nvim_cmp then
-    require("obsidian.completion.plugin_initializers.nvim_cmp").inject_sources()
-  elseif opts.completion.blink then
-    require("obsidian.completion.plugin_initializers.blink").inject_sources()
+    vim.keymap.set("n", "[o", function()
+      actions.nav_link "prev"
+    end, { buffer = true, desc = "Obsidian Previous Link" })
   end
 
   require("obsidian.lsp").start(ev.buf)
@@ -92,7 +99,9 @@ vim.api.nvim_create_autocmd("FileType", {
       exec_autocmds "ObsidianNoteWritePre"
       local note = Note.from_buffer(ev.buf)
       if not vim.b[ev.buf].obsidian_help then
+        pcall(vim.cmd, "undojoin")
         note:update_frontmatter(ev.buf) -- Update buffer with new frontmatter.
+        pcall(vim.cmd, "undojoin")
       end
     end)
     create_autocmd("BufWritePost", args.buf, function(ev)
@@ -125,5 +134,27 @@ vim.api.nvim_create_autocmd("User", {
   pattern = "ObsidianNoteWritePre",
   callback = function(ev)
     util.fire_callback("pre_write_note", Obsidian.opts.callbacks.pre_write_note, Note.from_buffer(ev.buf))
+  end,
+})
+
+-- One-shot sync trigger on buffer write.
+vim.api.nvim_create_autocmd("User", {
+  group = group,
+  pattern = "ObsidianNoteWritePost",
+  callback = function(ev)
+    local sync_opts = Obsidian.opts.sync
+    if not sync_opts or not sync_opts.enabled or sync_opts.trigger ~= "on_write" then
+      return
+    end
+    local fname = vim.api.nvim_buf_get_name(ev.buf or 0)
+    local ws = api.find_workspace(fname)
+    if not ws or not api.path_is_note(fname, ws) then
+      return
+    end
+    local sync = require "obsidian.sync"
+    if not sync.is_configured(ws) then
+      return
+    end
+    sync.sync_once_debounced(ws)
   end,
 })

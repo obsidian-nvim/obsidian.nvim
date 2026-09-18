@@ -1,30 +1,32 @@
 local M = {}
 local VERSION = require "obsidian.version"
 local api = require "obsidian.api"
+local config = require "obsidian.config"
 local sync_client = require "obsidian.sync.client"
 
 local error = vim.health.error
+local info = vim.health.info
 local warn = vim.health.warn
 local ok = vim.health.ok
 
 local function error_f(...)
   local t = { ... }
   local format = table.remove(t, 1)
-  local str = #t == 0 and format or string.format(format, unpack(t))
+  local str = #t == 0 and tostring(format) or string.format(tostring(format), unpack(t))
   return error(str)
 end
 
 local function warn_f(...)
   local t = { ... }
   local format = table.remove(t, 1)
-  local str = #t == 0 and format or string.format(format, unpack(t))
+  local str = #t == 0 and tostring(format) or string.format(tostring(format), unpack(t))
   return warn(str)
 end
 
 local function ok_f(...)
   local t = { ... }
   local format = table.remove(t, 1)
-  local str = #t == 0 and format or string.format(format, unpack(t))
+  local str = #t == 0 and tostring(format) or string.format(tostring(format), unpack(t))
   return ok(str)
 end
 
@@ -91,22 +93,41 @@ local function has_one_of(plugins)
   end
 end
 
----@param plugins string[]
-local function has_one_of_executable(plugins)
+---@param executables string[]
+---@return string
+local function executable_list(executables)
+  return "`" .. table.concat(executables, "`, `") .. "`"
+end
+
+---@param executables string[]
+---@param opts? { feature?: string, hint?: string }
+local function has_one_of_executable(executables, opts)
+  opts = opts or {}
   local found
-  for _, name in ipairs(plugins) do
-    if has_executable(name, true) then
-      found = true
+  local checked = {}
+  for _, name in ipairs(executables) do
+    if name and name ~= "" and not checked[name] then
+      checked[name] = true
+      if has_executable(name, true) then
+        found = true
+      end
     end
   end
-  if not found then
-    warn("It is recommended to install at least one of " .. vim.inspect(plugins))
+  if found then
+    return
   end
+
+  local msg = string.format("%s requires one of: %s", opts.feature or "optional feature", executable_list(executables))
+  if opts.hint then
+    msg = msg .. ". " .. opts.hint
+  end
+  warn(msg)
 end
 
 ---@param minimum string
 ---@param recommended string
 local function neovim(minimum, recommended)
+  ---@diagnostic disable-next-line: call-non-callable
   local version = tostring(vim.version())
   if vim.fn.has("nvim-" .. minimum) == 0 then
     error_f("neovim < %s (%s)", minimum, version)
@@ -119,7 +140,7 @@ end
 
 function M.check()
   local os = api.get_os()
-  neovim("0.10", "0.11")
+  neovim("0.11", "0.12")
   start "Version"
   local plugin_info = api.get_plugin_info "obsidian.nvim"
   ok_f("obsidian.nvim v%s (%s)", VERSION, plugin_info and plugin_info.commit or "unknown commit")
@@ -128,7 +149,26 @@ function M.check()
   ok_f("operating system: %s", os)
 
   start "Config"
-  ok_f("dir: %s", Obsidian.dir)
+  local state = Obsidian
+  local setup_called = state ~= nil and state._setup_called == true
+  local setup_complete = setup_called and state.opts ~= nil
+  if not setup_called then
+    info "setup() has not been called"
+  else
+    local issues = config.validate(state.opts or state._user_opts)
+    if #issues > 0 then
+      for _, issue in ipairs(issues) do
+        error(issue)
+      end
+    elseif state._config_error then
+      error(state._config_error)
+    else
+      ok "configuration passed validation"
+    end
+    if setup_complete then
+      ok_f("dir: %s", api.resolve_workspace_dir())
+    end
+  end
 
   start "Pickers"
 
@@ -140,33 +180,75 @@ function M.check()
     "snacks.nvim",
   }
 
-  start "Completion"
-
-  has_one_of {
-    "nvim-cmp",
-    "blink.cmp",
-  }
-
   start "Dependencies"
   has_executable("rg", false)
 
-  if os == api.OSType.Wsl then
-    has_executable("wsl-open", true)
-  elseif os == api.OSType.Linux then
-    has_one_of_executable {
+  start "Audio recorder"
+  has_one_of_executable({
+    "rec",
+    "sox",
+    "arecord",
+  }, {
+    feature = "audio recorder",
+    hint = "Install SoX (provides `rec`/`sox`) or ALSA `arecord` to record audio notes.",
+  })
+
+  start "Image paste"
+  if os == api.OSType.Linux or os == api.OSType.FreeBSD then
+    has_one_of_executable({
       "xclip",
       "wl-paste",
-    }
+    }, {
+      feature = ":Obsidian paste_img",
+      hint = "Use `xclip` on X11 or `wl-clipboard` (provides `wl-paste`) on Wayland.",
+    })
   elseif os == api.OSType.Darwin then
-    has_executable("pngpaste", true)
+    has_one_of_executable({ "pngpaste" }, {
+      feature = ":Obsidian paste_img",
+      hint = "Install `pngpaste` to paste clipboard images.",
+    })
+  elseif os == api.OSType.Windows or os == api.OSType.Wsl then
+    ok_f ":Obsidian paste_img uses PowerShell clipboard support"
+  else
+    warn_f(":Obsidian paste_img is not implemented for %s", os)
+  end
+
+  if os == api.OSType.Wsl then
+    start "Open"
+    has_one_of_executable({ "wsl-open" }, {
+      feature = ":Obsidian open on WSL",
+      hint = "Install `wsl-open` to open notes in the Obsidian app from WSL.",
+    })
   end
 
   start "Sync"
+  if not setup_complete then
+    info "setup() has not completed; sync configuration was not checked"
+  else
+    local sync_opts = state.opts.sync or {}
+    local backend = sync_opts.backend or "obsidian"
+    ok_f("backend: %s", backend)
+    if not sync_opts.enabled then
+      ok "disabled; obsidian-headless CLI is only needed when sync is enabled"
+    elseif backend == "obsidian" then
+      local sync_executables = { "ob" }
+      if sync_client.cmd and sync_client.cmd ~= "ob" then
+        table.insert(sync_executables, sync_client.cmd)
+      end
+      has_one_of_executable(sync_executables, {
+        feature = "sync (:Obsidian sync)",
+        hint = "Install `obsidian-headless` (`ob`) or run the local CLI install prompt.",
+      })
+    else
+      ok_f("custom backend: %s", backend)
+    end
+  end
 
-  has_one_of_executable {
-    "ob",
-    sync_client.cmd,
-  }
+  start "Compatibility"
+  local warning = require("obsidian.lsp.util").check_completion_availability()
+  if warning then
+    warn_f(warning)
+  end
 end
 
 return M

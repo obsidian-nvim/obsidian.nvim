@@ -1,8 +1,10 @@
 local M = require "obsidian.note"
-local T = dofile("tests/helpers.lua").temp_vault
+local h = dofile "tests/helpers.lua"
+local T = h.temp_vault
 local api = require "obsidian.api"
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
+local builtin = require "obsidian.builtin"
 
 local new_set, eq, not_eq = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.no_equality
 
@@ -12,6 +14,125 @@ T["new"]["should be able to be initialize directly"] = function()
   eq(note.id, "FOO")
   eq(note.aliases[1], "foo")
   eq(true, M.is_note_obj(note))
+end
+
+T["from_cache"] = new_set()
+T["from_cache"]["uses cached metadata without reading the file"] = function()
+  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", {
+    id = "cached-id",
+    aliases = { "Alias" },
+    tags = { "tag" },
+    properties = { custom = "value" },
+  })
+
+  eq("cached-id", note.id)
+  eq("Alias", note.aliases[1])
+  eq("tag", note.tags[1])
+  eq("value", note.metadata.custom)
+  eq(nil, rawget(note, "contents"))
+end
+
+T["from_cache"]["uses the filename stem when no ID is cached"] = function()
+  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", {})
+  eq("note", note.id)
+end
+
+T["create"] = new_set()
+T["create"]["should run configured callback with default scope"] = function()
+  local calls = 0
+  Obsidian.opts.callbacks.create_note = function(note, opts)
+    calls = calls + 1
+    eq("plain", opts.scope)
+    note:add_tag "created"
+  end
+
+  local note = M.create { id = "Foo" }
+
+  eq(1, calls)
+  eq("created", note.tags[1])
+  Obsidian.opts.callbacks.create_note = nil
+end
+
+T["create"]["should trigger create autocmd with note data"] = function()
+  local calls = 0
+  local group = vim.api.nvim_create_augroup("obsidian_test_note_create", { clear = true })
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = "ObsidianNoteCreate",
+    callback = function(ev)
+      calls = calls + 1
+      eq("plain", ev.data.opts.scope)
+      eq("table", type(ev.data.note))
+    end,
+  })
+
+  M.create { id = "Foo" }
+
+  eq(1, calls)
+  vim.api.nvim_del_augroup_by_id(group)
+end
+
+T["create"]["should prompt for replacement filename with invalid name as default"] = function()
+  local orig_input = api.input
+  api.input = function(prompt, opts)
+    eq("Enter filename", prompt)
+    eq("bad:name", opts.default)
+    return "good name"
+  end
+
+  local note = M.create { id = "bad:name", verbatim = true }
+
+  api.input = orig_input
+  eq("good name", note.id)
+end
+
+T["create"]["should allow invalid filenames when global is set"] = function()
+  local orig_allow_invalid_names = vim.g.obsidian_allow_invalid_names
+  vim.g.obsidian_allow_invalid_names = true
+
+  local note = M.create { id = "bad:name", verbatim = true }
+
+  vim.g.obsidian_allow_invalid_names = orig_allow_invalid_names
+  eq("bad:name", note.id)
+end
+
+T["rename"] = new_set()
+T["rename"]["should reject invalid filenames"] = function()
+  local note = M.new("Foo", {}, {}, Obsidian.dir / "Foo.md")
+  local log = require "obsidian.log"
+  local orig_err = log.err
+  local got_err
+  log.err = function() end
+
+  note:rename("bad:name", { apply = false }, function(err)
+    got_err = err
+  end)
+
+  log.err = orig_err
+  eq('Invalid filename "bad:name": contains forbidden character: ":"', got_err)
+end
+
+T["rename"]["should honor new_path when the stem is unchanged"] = function()
+  local note = M.new("Foo", {}, {}, Obsidian.dir / "Foo.md")
+  local rename = require "obsidian.note.rename"
+  local orig_build_edit = rename.build_edit
+  local destination = tostring(Obsidian.dir / "moved" / "Foo.md")
+  local got_path
+
+  rename.build_edit = function(_, _, opts, callback)
+    got_path = opts.new_path
+    callback(nil, nil)
+  end
+
+  note:rename("Foo", {
+    apply = false,
+    check_unique = false,
+    new_path = destination,
+    update_buffers = false,
+  }, function() end)
+
+  rename.build_edit = orig_build_edit
+  eq(destination, got_path)
 end
 
 local function from_str(str, path, opts)
@@ -61,7 +182,7 @@ This is some content.]]
 T["save"] = new_set()
 
 T["save"]["should be able to save a new note"] = function()
-  local note = M.new("FOO", {}, {}, "/tmp/" .. util.zettel_id() .. ".md")
+  local note = M.new("FOO", {}, {}, "/tmp/" .. builtin.zettel_id() .. ".md")
   note:save()
   eq(true, note.path:exists())
   vim.fn.delete(note.path.filename)
@@ -69,7 +190,7 @@ T["save"]["should be able to save a new note"] = function()
 end
 
 T["save"]["should create new files with trailing newline"] = function()
-  local note = M.new("FOO", { "foo" }, {}, "/tmp/" .. util.zettel_id() .. ".md")
+  local note = M.new("FOO", { "foo" }, {}, "/tmp/" .. builtin.zettel_id() .. ".md")
   note.title = "Foo"
   note:save()
 
@@ -84,7 +205,7 @@ T["save"]["should create new files with trailing newline"] = function()
 end
 
 T["save"]["should preserve eol status"] = function()
-  local temp_path = "/tmp/" .. util.zettel_id() .. ".md"
+  local temp_path = "/tmp/" .. builtin.zettel_id() .. ".md"
   util.write_file(temp_path, "# Test\n\nContent here\n")
 
   local note = M.from_file(temp_path)
@@ -100,7 +221,7 @@ T["save"]["should preserve eol status"] = function()
 end
 
 T["save"]["should preserve noeol status"] = function()
-  local temp_path = "/tmp/" .. util.zettel_id() .. ".md"
+  local temp_path = "/tmp/" .. builtin.zettel_id() .. ".md"
   util.write_file(temp_path, "# Test\n\nContent here")
 
   local note = M.from_file(temp_path)
@@ -113,6 +234,124 @@ T["save"]["should preserve noeol status"] = function()
   file:close()
 
   vim.fn.delete(temp_path)
+end
+
+T["save"]["should not error on :checktime when save path contains regex-special characters"] = function()
+  -- Regression: the old code passed `save_path.filename` as a string to
+  -- `:checktime`, which treats it as a Vim regex pattern. Paths with `[`,
+  -- `]`, `*`, etc. (legal in note filenames, e.g. `[[wiki]] title.md`)
+  -- would raise E94 even when a buffer was loaded for the exact path.
+  local path = "/tmp/" .. builtin.zettel_id() .. " [draft].md"
+  local note = M.new("FOO", {}, {}, path)
+  note:save()
+
+  vim.cmd.edit(vim.fn.fnameescape(path))
+
+  note:save() -- must not raise E94
+
+  vim.cmd "bwipeout!"
+  vim.fn.delete(path)
+end
+
+T["delete"] = new_set()
+
+T["delete"]["should delete the note file by default"] = function()
+  local note = M.create { id = "delete-me", verbatim = true }
+  note:write()
+  local path = tostring(note.path)
+
+  local result = note:delete { confirm_backlinks = false, confirm_attachments = false }
+
+  eq(true, result.deleted)
+  eq(nil, vim.uv.fs_stat(path))
+end
+
+T["delete"]["should abort when backlink confirmation is declined"] = function()
+  local old_confirm = api.confirm
+  local prompt
+  local note = M.create { id = "target", verbatim = true }
+  note:write()
+  h.write("[[target]]", Obsidian.dir / "ref.md")
+
+  api.confirm = function(p)
+    prompt = p
+    return "No"
+  end
+
+  local result = note:delete { confirm_attachments = false }
+
+  api.confirm = old_confirm
+  eq(true, result.cancelled)
+  eq(true, note.path:exists())
+  eq("'target' is referenced in 1 place(s). Delete anyway?", prompt)
+end
+
+T["delete"]["should prompt for linked attachments"] = function()
+  local old_confirm = api.confirm
+  local attachments_dir = Obsidian.dir / "attachments"
+  attachments_dir:mkdir()
+  local attachment_path = attachments_dir / "image.png"
+  h.write("image", attachment_path)
+  h.write("![[image.png]]", Obsidian.dir / "with-attachment.md")
+  local note = M.from_file(Obsidian.dir / "with-attachment.md")
+  local prompt
+
+  api.confirm = function(p)
+    prompt = p
+    return "Yes"
+  end
+
+  local result = note:delete { confirm_backlinks = false }
+
+  api.confirm = old_confirm
+  eq(true, result.deleted)
+  eq("Note contains attachment 'image.png'. Delete it too?", prompt)
+  eq(1, #result.attachments)
+  eq(true, result.attachments[1].deleted)
+  eq(false, attachment_path:exists())
+  eq(false, note.path:exists())
+end
+
+T["write"] = new_set()
+
+T["write"]["should not add default frontmatter template when frontmatter is disabled"] = function()
+  Obsidian.opts.frontmatter.enabled = false
+
+  local note = M.create { id = "Foo", template = Obsidian.opts.note.template }
+  note:write()
+
+  local saved_note = M.from_file(note.path)
+  eq(false, saved_note.has_frontmatter)
+end
+
+T["write"]["should not call frontmatter function when frontmatter is disabled"] = function()
+  local calls = 0
+  Obsidian.opts.frontmatter.enabled = false
+  Obsidian.opts.frontmatter.func = function()
+    calls = calls + 1
+    return { id = "SHOULD_NOT_BE_WRITTEN" }
+  end
+
+  local note = M.create { id = "Foo" }
+  note:write()
+
+  eq(0, calls)
+  local saved_note = M.from_file(note.path)
+  eq(false, saved_note.has_frontmatter)
+end
+
+T["write"]["should preserve explicit template frontmatter when frontmatter is disabled"] = function()
+  Obsidian.opts.frontmatter.enabled = false
+  h.write("---\ncustom: true\n---\nBody", Obsidian.dir / "templates" / "custom.md")
+
+  local note = M.create { id = "Foo", template = "custom.md" }
+  note:write()
+
+  local lines = h.read(note.path)
+  eq("---", lines[1])
+  eq("custom: true", lines[2])
+  eq("---", lines[3])
+  eq("Body", lines[4])
 end
 
 T["add_alias"] = new_set()
@@ -150,6 +389,21 @@ id: note_with_a_bunch_of_headers
 
 ## Sub header 3 A]]
 
+--- Strip the `section` references so anchors can be compared with `eq`.
+---@param anchor obsidian.note.HeaderAnchor|?
+local function anchor_fields(anchor)
+  if anchor == nil then
+    return nil
+  end
+  return {
+    anchor = anchor.anchor,
+    line = anchor.line,
+    header = anchor.header,
+    level = anchor.level,
+    parent = anchor_fields(anchor.parent),
+  }
+end
+
 T["from_lines"]["should be able to collect anchor links"] = function()
   local note = from_str(note_with_headers, "anchors.md", {
     collect_anchor_links = true,
@@ -161,53 +415,101 @@ T["from_lines"]["should be able to collect anchor links"] = function()
     line = 5,
     header = "Header 1",
     level = 1,
-  }, note.anchor_links["#header-1"])
+  }, anchor_fields(note.anchor_links["#header-1"]))
   eq({
     anchor = "#sub-header-1-a",
     line = 7,
     header = "Sub header 1 A",
     level = 2,
-    parent = note.anchor_links["#header-1"],
-  }, note.anchor_links["#sub-header-1-a"])
+    parent = anchor_fields(note.anchor_links["#header-1"]),
+  }, anchor_fields(note.anchor_links["#sub-header-1-a"]))
   eq({
     anchor = "#header-2",
     line = 9,
     header = "Header 2",
     level = 1,
-  }, note.anchor_links["#header-2"])
+  }, anchor_fields(note.anchor_links["#header-2"]))
   eq({
     anchor = "#sub-header-2-a",
     line = 11,
     header = "Sub header 2 A",
     level = 2,
-    parent = note.anchor_links["#header-2"],
-  }, note.anchor_links["#sub-header-2-a"])
+    parent = anchor_fields(note.anchor_links["#header-2"]),
+  }, anchor_fields(note.anchor_links["#sub-header-2-a"]))
   eq({
     anchor = "#sub-header-3-a",
     line = 13,
     header = "Sub header 3 A",
     level = 2,
-    parent = note.anchor_links["#header-2"],
-  }, note.anchor_links["#sub-header-3-a"])
+    parent = anchor_fields(note.anchor_links["#header-2"]),
+  }, anchor_fields(note.anchor_links["#sub-header-3-a"]))
   eq({
     anchor = "#header-2#sub-header-3-a",
     line = 13,
     header = "Sub header 3 A",
     level = 2,
-    parent = note.anchor_links["#header-2"],
-  }, note.anchor_links["#header-2#sub-header-3-a"])
+    parent = anchor_fields(note.anchor_links["#header-2"]),
+  }, anchor_fields(note.anchor_links["#header-2#sub-header-3-a"]))
   eq({
     anchor = "#header-1",
     line = 5,
     header = "Header 1",
     level = 1,
-  }, note:resolve_anchor_link "#header-1")
+  }, anchor_fields(note:resolve_anchor_link "#header-1"))
   eq({
     anchor = "#header-1",
     line = 5,
     header = "Header 1",
     level = 1,
-  }, note:resolve_anchor_link "#Header 1")
+  }, anchor_fields(note:resolve_anchor_link "#Header 1"))
+end
+
+T["from_lines"]["should collect sections with full ranges for anchors"] = function()
+  local note = from_str(note_with_headers, "anchors.md", {
+    collect_anchor_links = true,
+  })
+  not_eq(nil, note.sections)
+  -- preamble + 5 headers
+  eq(6, #note.sections)
+  eq(nil, note.sections[1].header)
+
+  local h1 = note.anchor_links["#header-1"].section
+  -- "# Header 1" (line 5) through "## Sub header 1 A" content (line 7), i.e. until "# Header 2".
+  eq({ start_row = 4, start_col = 0, end_row = 7, end_col = 0 }, h1.range)
+  eq({ start_row = 4, start_col = 0, end_row = 5, end_col = 0 }, h1.heading_range)
+
+  local h2 = note.anchor_links["#header-2"].section
+  -- "# Header 2" (line 9) through the last sub header (line 13).
+  eq({ start_row = 8, start_col = 0, end_row = 13, end_col = 0 }, h2.range)
+  eq(h2, note.anchor_links["#sub-header-2-a"].section.parent)
+end
+
+T["from_lines"]["should resolve anchor locations to full section ranges"] = function()
+  local note = from_str(note_with_headers, "anchors.md", {
+    collect_anchor_links = true,
+  })
+  local location = note:_location { anchor = "#header-2" }
+  eq({
+    start = { line = 8, character = 0 },
+    ["end"] = { line = 13, character = 0 },
+  }, location.range)
+end
+
+T["from_lines"]["should collect setext header anchors"] = function()
+  local note = from_str("Title\n=====\n\nBody", "setext.md", {
+    collect_anchor_links = true,
+  })
+
+  eq({
+    anchor = "#title",
+    line = 1,
+    header = "Title",
+    level = 1,
+  }, anchor_fields(note.anchor_links["#title"]))
+  eq({
+    start = { line = 0, character = 0 },
+    ["end"] = { line = 4, character = 0 },
+  }, note:_location({ anchor = "#title" }).range)
 end
 
 local note_with_blocks = [[---
@@ -225,12 +527,34 @@ T["from_lines"]["should be able to collect blocks"] = function()
     id = "^1234",
     line = 5,
     block = "This is a block ^1234",
-  }, note.blocks["^1234"])
+  }, {
+    id = note.blocks["^1234"].id,
+    line = note.blocks["^1234"].line,
+    block = note.blocks["^1234"].block,
+  })
   eq({
     id = "^hello-world",
     line = 7,
     block = "And another block ^hello-world",
-  }, note.blocks["^hello-world"])
+  }, {
+    id = note.blocks["^hello-world"].id,
+    line = note.blocks["^hello-world"].line,
+    block = note.blocks["^hello-world"].block,
+  })
+  -- Each block carries the paragraph it lives in as a section.
+  eq({ start_row = 4, start_col = 0, end_row = 5, end_col = 0 }, note.blocks["^1234"].section.range)
+  eq({ start_row = 6, start_col = 0, end_row = 7, end_col = 0 }, note.blocks["^hello-world"].section.range)
+end
+
+T["from_lines"]["should map block ids to the referenced paragraph"] = function()
+  local note = from_str("text ^123", "block-inline.md", { collect_blocks = true })
+  eq({ start_row = 0, start_col = 0, end_row = 1, end_col = 0 }, note.blocks["^123"].section.range)
+
+  note = from_str("text\ntext2\n^123", "block-multiline.md", { collect_blocks = true })
+  eq({ start_row = 0, start_col = 0, end_row = 3, end_col = 0 }, note.blocks["^123"].section.range)
+
+  note = from_str("text\ntext2\n\n^123", "block-standalone.md", { collect_blocks = true })
+  eq({ start_row = 0, start_col = 0, end_row = 2, end_col = 0 }, note.blocks["^123"].section.range)
 end
 
 T["from_lines"]["should work from a file w/o frontmatter"] = function()
@@ -330,6 +654,19 @@ T["from_file"]["should work from a README"] = function()
   eq(#note.tags, 0)
   eq(note:fname(), "README.md")
   eq(false, note:should_save_frontmatter())
+end
+
+T["from_file"]["strips CR line endings from frontmatter source lines"] = function()
+  local temp_path = "/tmp/" .. builtin.zettel_id() .. ".md"
+  util.write_file(temp_path, "---\r\nbody: |\r\n  text  \r\n---\r\n")
+
+  local note = M.from_file(temp_path)
+  local element = note.frontmatter_elements[1]
+
+  eq("text  ", note.metadata.body)
+  eq(8, element.range.end_col)
+
+  vim.fn.delete(temp_path)
 end
 
 T["_is_frontmatter_boundary()"] = function()
@@ -480,6 +817,83 @@ T["resolve_id_path"]["should respect configured 'note_path_func'"] = function()
   eq(Path.new(Obsidian.dir) / "foo-bar-123.md", path)
 end
 
+T["resolve_id_path"]["should reject an invalid filename generated by 'note_path_func'"] = function()
+  Obsidian.opts.note_path_func = function(spec)
+    return spec.dir / "bad:name.md"
+  end
+
+  local ok, err = pcall(M._resolve_id_path, { id = "valid-name" })
+
+  eq(false, ok)
+  eq(true, tostring(err):find('invalid note filename "bad:name": contains forbidden character: ":"', 1, true) ~= nil)
+end
+
+T["resolve_id_path"]["should accept an invalid id sanitized by 'note_path_func'"] = function()
+  Obsidian.opts.note_path_func = function(spec)
+    return spec.dir / spec.id:gsub(":", "-")
+  end
+
+  local id, path = M._resolve_id_path { id = "bad:name", verbatim = true }
+
+  eq("bad:name", id)
+  eq(Path.new(Obsidian.dir) / "bad-name.md", path)
+end
+
+T["resolve_id_path"]["should use creation options from the source workspace"] = function()
+  local other = Path.temp { suffix = "-obsidian-other" }
+  other:mkdir { parents = true }
+  other = other:resolve { strict = true }
+  local workspace = require("obsidian.workspace").new {
+    name = "other",
+    path = other,
+    strict = true,
+    overrides = {
+      notes_subdir = "other-notes",
+      new_notes_location = "notes_subdir",
+      note_id_func = function()
+        return "other-id"
+      end,
+      note_path_func = function(spec)
+        return spec.dir / (spec.id .. "-other")
+      end,
+    },
+  }
+  Obsidian.workspaces[#Obsidian.workspaces + 1] = workspace
+
+  local id, path = M._resolve_id_path { id = "Foo", source_path = other / "Source.md" }
+
+  eq("other-id", id)
+  eq(other / "other-notes" / "other-id-other.md", path)
+  vim.fn.delete(tostring(other), "rf")
+end
+
+T["resolve_id_path"]["should validate a source note against its own workspace"] = function()
+  local other = Path.temp { suffix = "-obsidian-other" }
+  local source_dir = other / "topic"
+  source_dir:mkdir { parents = true }
+  other = other:resolve { strict = true }
+  source_dir = other / "topic"
+  local source = source_dir / "Source.md"
+  vim.fn.writefile({}, tostring(source))
+  local workspace = require("obsidian.workspace").new {
+    name = "other",
+    path = other,
+    strict = true,
+    overrides = {
+      new_notes_location = "current_dir",
+      note_id_func = function(id)
+        return id
+      end,
+    },
+  }
+  Obsidian.workspaces[#Obsidian.workspaces + 1] = workspace
+
+  local _, path = M._resolve_id_path { id = "Foo", source_path = source }
+
+  eq(source_dir / "Foo.md", path)
+  vim.fn.delete(tostring(other), "rf")
+end
+
 T["resolve_id_path"]["should ensure result of 'note_path_func' always has '.md' suffix"] = function()
   Obsidian.opts.note_path_func = function(spec)
     return spec.dir / "foo-bar-123"
@@ -505,6 +919,65 @@ T["resolve_id_path"]["should ensure result of 'note_path_func' is always an abso
   }
   eq("New Note", id)
   eq(Path.new(Obsidian.dir) / "notes" / "foo-bar-123.md", path)
+end
+
+T["resolve_id_path"]["should use cwd for non-note buffers when cwd is in vault"] = function()
+  local previous_cwd = vim.fn.getcwd()
+  local notes_dir = Obsidian.dir / "notes"
+  local stale_dir = Obsidian.dir / "stale"
+  notes_dir:mkdir { exist_ok = true }
+  stale_dir:mkdir { exist_ok = true }
+
+  vim.cmd "enew!"
+  Obsidian.buf_dir = stale_dir
+  vim.cmd("cd " .. vim.fn.fnameescape(tostring(notes_dir)))
+
+  local id, path = M._resolve_id_path { id = "Foo" }
+
+  vim.cmd("cd " .. vim.fn.fnameescape(previous_cwd))
+  eq("Foo", id)
+  eq(notes_dir / "Foo.md", path)
+end
+
+T["resolve_id_path"]["should prefer current note directory over cwd"] = function()
+  local previous_cwd = vim.fn.getcwd()
+  local notes_dir = Obsidian.dir / "notes"
+  local other_dir = Obsidian.dir / "other"
+  notes_dir:mkdir { exist_ok = true }
+  other_dir:mkdir { exist_ok = true }
+
+  local current_note = notes_dir / "Current.md"
+  vim.fn.writefile({}, tostring(current_note))
+  vim.cmd("edit " .. vim.fn.fnameescape(tostring(current_note)))
+  vim.cmd("cd " .. vim.fn.fnameescape(tostring(other_dir)))
+
+  local id, path = M._resolve_id_path { id = "Foo" }
+
+  vim.cmd("cd " .. vim.fn.fnameescape(previous_cwd))
+  vim.cmd "enew!"
+  eq("Foo", id)
+  eq(notes_dir / "Foo.md", path)
+end
+
+T["resolve_id_path"]["should not use cwd when current buffer is a daily note"] = function()
+  local previous_cwd = vim.fn.getcwd()
+  Obsidian.opts.daily_notes.folder = "daily"
+  local daily_dir = Obsidian.dir / "daily"
+  local other_dir = Obsidian.dir / "other"
+  daily_dir:mkdir { exist_ok = true }
+  other_dir:mkdir { exist_ok = true }
+
+  local current_note = daily_dir / "Today.md"
+  vim.fn.writefile({}, tostring(current_note))
+  vim.cmd("edit " .. vim.fn.fnameescape(tostring(current_note)))
+  vim.cmd("cd " .. vim.fn.fnameescape(tostring(other_dir)))
+
+  local id, path = M._resolve_id_path { id = "Foo" }
+
+  vim.cmd("cd " .. vim.fn.fnameescape(previous_cwd))
+  vim.cmd "enew!"
+  eq("Foo", id)
+  eq(Obsidian.dir / "Foo.md", path)
 end
 
 T["format_link"] = new_set()
@@ -618,5 +1091,52 @@ end
 --   note = M.from_file(path)
 --   eq({ "hi", "sub/hi", "sub%2Fhi", "sub%2Fhi.md", "sub/hi.md", "hi.md" }, note:get_reference_paths())
 -- end
+
+T["frontmatter_lines"] = new_set()
+
+T["frontmatter_lines"]["respects opts.frontmatter.sort over parsed key order"] = function()
+  -- Regression test for #818: when a note already has frontmatter, the parsed
+  -- key order was being assigned to the same `order` local, silently
+  -- overwriting the user's configured `opts.frontmatter.sort`.
+  local prev_sort = Obsidian.opts.frontmatter.sort
+  local prev_func = Obsidian.opts.frontmatter.func
+  Obsidian.opts.frontmatter.sort = { "id", "aliases", "start", "created", "modified", "tags" }
+  Obsidian.opts.frontmatter.func = function(note)
+    local out = { tags = note.tags }
+    if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
+      for k, v in pairs(note.metadata) do
+        out[k] = v
+      end
+    end
+    return out
+  end
+
+  local note = from_str [[---
+tags:
+  - foo
+created: 2026-05-20
+start: morning
+---
+
+# n
+]]
+  local current_lines = { "---", "tags:", "  - foo", "created: 2026-05-20", "start: morning", "---" }
+  local lines = note:frontmatter_lines(current_lines)
+
+  local function find(key)
+    for i, line in ipairs(lines) do
+      if line:match("^" .. key .. ":") then
+        return i
+      end
+    end
+    return nil
+  end
+  local start_i, created_i, tags_i = find "start", find "created", find "tags"
+  eq(true, start_i < created_i)
+  eq(true, created_i < tags_i)
+
+  Obsidian.opts.frontmatter.sort = prev_sort
+  Obsidian.opts.frontmatter.func = prev_func
+end
 
 return T

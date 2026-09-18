@@ -708,7 +708,7 @@ T["insert_text"]["section missing"]["create"]["should create in empty top"] = fu
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" } }
+    { placement = "top", on_section_missing = "create", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -723,7 +723,7 @@ T["insert_text"]["section missing"]["create"]["should create in empty bot"] = fu
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" } }
+    { placement = "bot", on_section_missing = "create", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -742,7 +742,7 @@ T["insert_text"]["section missing"]["create"]["should create in preamble_only to
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" } }
+    { placement = "top", on_section_missing = "create", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -765,7 +765,7 @@ T["insert_text"]["section missing"]["create"]["should create in preamble_only bo
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" } }
+    { placement = "bot", on_section_missing = "create", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -792,7 +792,7 @@ T["insert_text"]["section missing"]["create"]["should create in multi top"] = fu
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" } }
+    { placement = "top", on_section_missing = "create", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -821,10 +821,12 @@ T["insert_text"]["section missing"]["create"]["should fix top padding"] = functi
     "Body2.",
   }
 
-  note:insert_text(
-    EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" }, padding_top = true }
-  )
+  note:insert_text(EXPECTED_LINE, {
+    placement = "top",
+    on_section_missing = "create",
+    section = { level = 3, header = EXPECTED_HEADING },
+    padding_top = true,
+  })
 
   eq(H.load_note(note), {
     "",
@@ -850,10 +852,12 @@ T["insert_text"]["section missing"]["create"]["should preserve correct padding"]
     "Body1.",
   }
 
-  note:insert_text(
-    EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" }, padding_top = true }
-  )
+  note:insert_text(EXPECTED_LINE, {
+    placement = "top",
+    on_section_missing = "create",
+    section = { level = 3, header = EXPECTED_HEADING },
+    padding_top = true,
+  })
 
   eq(H.load_note(note), {
     "",
@@ -880,7 +884,7 @@ T["insert_text"]["section missing"]["create"]["should create in multi bot"] = fu
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" } }
+    { placement = "bot", on_section_missing = "create", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -913,7 +917,7 @@ T["insert_text"]["section missing"]["create"]["should create in preamble_multi t
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" } }
+    { placement = "top", on_section_missing = "create", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -948,7 +952,7 @@ T["insert_text"]["section missing"]["create"]["should create in preamble_multi b
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "create" } }
+    { placement = "bot", on_section_missing = "create", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -974,7 +978,7 @@ T["insert_text"]["section missing"]["error"]["should error w/ empty top"] = func
   has_error(function()
     note:insert_text(
       EXPECTED_LINE,
-      { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "error" } }
+      { placement = "top", on_section_missing = "error", section = { level = 3, header = EXPECTED_HEADING } }
     )
   end)
 end
@@ -985,7 +989,7 @@ T["insert_text"]["section missing"]["error"]["should error w/ empty bot"] = func
   has_error(function()
     note:insert_text(
       EXPECTED_LINE,
-      { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "error" } }
+      { placement = "bot", on_section_missing = "error", section = { level = 3, header = EXPECTED_HEADING } }
     )
   end)
 end
@@ -1000,7 +1004,7 @@ T["insert_text"]["section missing"]["error"]["should error w/ preamble_only top"
   has_error(function()
     note:insert_text(
       EXPECTED_LINE,
-      { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "error" } }
+      { placement = "top", on_section_missing = "error", section = { level = 3, header = EXPECTED_HEADING } }
     )
   end)
 end
@@ -1015,7 +1019,7 @@ T["insert_text"]["section missing"]["error"]["should error w/ preamble_only bot"
   has_error(function()
     note:insert_text(
       EXPECTED_LINE,
-      { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "error" } }
+      { placement = "bot", on_section_missing = "error", section = { level = 3, header = EXPECTED_HEADING } }
     )
   end)
 end
@@ -1034,7 +1038,7 @@ T["insert_text"]["section missing"]["error"]["should error w/ multi top"] = func
   has_error(function()
     note:insert_text(
       EXPECTED_LINE,
-      { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "error" } }
+      { placement = "top", on_section_missing = "error", section = { level = 3, header = EXPECTED_HEADING } }
     )
   end)
 end
@@ -1053,7 +1057,7 @@ T["insert_text"]["section missing"]["error"]["should error w/ multi bot"] = func
   has_error(function()
     note:insert_text(
       EXPECTED_LINE,
-      { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "error" } }
+      { placement = "bot", on_section_missing = "error", section = { level = 3, header = EXPECTED_HEADING } }
     )
   end)
 end
@@ -1074,7 +1078,7 @@ T["insert_text"]["section missing"]["error"]["should error w/ preamble_multi top
   has_error(function()
     note:insert_text(
       EXPECTED_LINE,
-      { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "error" } }
+      { placement = "top", on_section_missing = "error", section = { level = 3, header = EXPECTED_HEADING } }
     )
   end)
 end
@@ -1095,7 +1099,7 @@ T["insert_text"]["section missing"]["error"]["should error w/ preamble_multi bot
   has_error(function()
     note:insert_text(
       EXPECTED_LINE,
-      { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "error" } }
+      { placement = "bot", on_section_missing = "error", section = { level = 3, header = EXPECTED_HEADING } }
     )
   end)
 end
@@ -1105,7 +1109,7 @@ T["insert_text"]["section missing"]["cancel"]["should cancel in empty top"] = fu
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
+    { placement = "top", on_section_missing = "cancel", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), { "" })
@@ -1116,7 +1120,7 @@ T["insert_text"]["section missing"]["cancel"]["should cancel in empty bot"] = fu
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
+    { placement = "bot", on_section_missing = "cancel", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), { "" })
@@ -1131,7 +1135,7 @@ T["insert_text"]["section missing"]["cancel"]["should cancel in preamble_only to
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
+    { placement = "top", on_section_missing = "cancel", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -1150,7 +1154,7 @@ T["insert_text"]["section missing"]["cancel"]["should cancel in preamble_only bo
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
+    { placement = "bot", on_section_missing = "cancel", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -1173,7 +1177,7 @@ T["insert_text"]["section missing"]["cancel"]["should cancel in multi top"] = fu
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
+    { placement = "top", on_section_missing = "cancel", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -1200,7 +1204,7 @@ T["insert_text"]["section missing"]["cancel"]["should cancel in multi bot"] = fu
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
+    { placement = "bot", on_section_missing = "cancel", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -1229,7 +1233,7 @@ T["insert_text"]["section missing"]["cancel"]["should cancel in preamble_multi t
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "top", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
+    { placement = "top", on_section_missing = "cancel", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -1260,7 +1264,7 @@ T["insert_text"]["section missing"]["cancel"]["should cancel in preamble_multi b
 
   note:insert_text(
     EXPECTED_LINE,
-    { placement = "bot", section = { level = 3, header = EXPECTED_HEADING, on_missing = "cancel" } }
+    { placement = "bot", on_section_missing = "cancel", section = { level = 3, header = EXPECTED_HEADING } }
   )
 
   eq(H.load_note(note), {
@@ -1293,7 +1297,7 @@ T["insert_text"]["section missing"]["invalid key"]["should error with invalid ke
     note:insert_text(
       EXPECTED_LINE,
       ---@diagnostic disable-next-line: assign-type-mismatch
-      { placement = "top", section = { level = 1, header = EXPECTED_HEADING, on_missing = "invalid key" } }
+      { placement = "top", on_section_missing = "invalid key", section = { level = 1, header = EXPECTED_HEADING } }
     )
   end)
 end
