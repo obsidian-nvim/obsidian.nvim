@@ -138,6 +138,22 @@ M.resolve_link_path = function(location, source_path)
   local current_dir = current_path ~= "" and vim.fs.dirname(current_path) or nil
   local workspace_dir = api.resolve_workspace_dir(current_path ~= "" and current_path or nil)
 
+  -- Prefer an exact note next to the source over a same-named note elsewhere.
+  if current_dir and not Path.new(location):is_absolute() then
+    local source_location = location
+    if
+      not vim.endswith(source_location, ".md")
+      and not vim.endswith(source_location, ".qmd")
+      and not vim.endswith(source_location, ".base")
+    then
+      source_location = source_location .. ".md"
+    end
+    local source_candidate = Path.new(current_dir) / source_location
+    if source_candidate:is_file() then
+      return tostring(normalize_path(source_candidate))
+    end
+  end
+
   local notes = search.resolve_note(location, {
     dir = workspace_dir,
     buf_dir = current_dir,

@@ -43,6 +43,22 @@ vim.api.nvim_buf_set_lines(0, 0, -1, false, {
   eq(linked_note_path, child.lua [[return M.includeexpr("ignored.md")]])
 end
 
+T["includeexpr"]["prefers a source-directory note over a vault duplicate"] = function()
+  local root = child.Obsidian.dir
+  local nested_dir = root / "nested"
+  nested_dir:mkdir()
+
+  local source_path = nested_dir / "current.md"
+  local source_target = nested_dir / "target.md"
+  local vault_target = root / "target.md"
+  vim.fn.writefile({ "# Source" }, tostring(source_target))
+  vim.fn.writefile({ "# Vault" }, tostring(vault_target))
+  vim.fn.writefile({ "# Current" }, tostring(source_path))
+  child.cmd("edit " .. vim.fn.fnameescape(tostring(source_path)))
+
+  eq(tostring(source_target), child.lua [[return M.resolve_link_path("target")]])
+end
+
 T["parse"] = new_set()
 
 T["parse"]["splits anchors and blocks"] = function()
