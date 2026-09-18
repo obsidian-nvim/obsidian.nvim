@@ -19,12 +19,12 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [x] Folding Range (`textDocument/foldingRange`)
 - [x] Inlay Hint (`textDocument/inlayHint`) - adds virtual text link suggestions
 - [x] Inlay Hint Refresh (`workspace/inlayHint/refresh`) - refreshes hints after a note is saved
+- [x] Document Link (`textDocument/documentLink`)
 - [ ] Inlay Hint Resolve (`inlayHint/resolve`)
 - [ ] Hover (`textDocument/hover`)
 - [ ] Completion Item Resolve (`completionItem/resolve`)
 - [ ] Publish Diagnostics (`textDocument/publishDiagnostics`)
 - [ ] Code Action Resolve (`codeAction/resolve`)
-- [ ] Document Link (`textDocument/documentLink`)
 - [ ] Document Link Resolve (`documentLink/resolve`)
 - [ ] Document Highlight (`textDocument/documentHighlight`)
 - [ ] Code Lens (`textDocument/codeLens`)
@@ -35,8 +35,8 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [ ] On Type Formatting (`textDocument/onTypeFormatting`)
 - [ ] Linked Editing Range (`textDocument/linkedEditingRange`)
 - [ ] Semantic Tokens (`textDocument/semanticTokens`) - highlighting currently handled via custom extmarks
-- [ ] Document Color (`textDocument/documentColor`)
-- [ ] Color Presentation (`textDocument/colorPresentation`)
+- Document Color (`textDocument/documentColor`)
+- Color Presentation (`textDocument/colorPresentation`)
 - Inlay Hint Resolve (`inlayHint/resolve`)
 - Pull Diagnostics (`textDocument/pullDiagnostics`) - redundant for in-process server, can push directly
 - Go to Type Definition (`textDocument/typeDefinition`)
