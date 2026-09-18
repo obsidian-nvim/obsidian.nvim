@@ -178,34 +178,11 @@ M.smart_action = function()
   end
 end
 
----@param node_types string[]
----@return boolean
-local function in_node(node_types)
-  local ok, node = pcall(vim.treesitter.get_node)
-  if not ok then
-    return false
-  end
-  while node do
-    if vim.list_contains(node_types, node:type()) then
-      return true
-    end
-    node = node:parent()
-  end
-  return false
-end
-
---- Check if we are in node that should not do checkbox operations.
+--- Check if the checkbox action falls inside excluded document syntax.
 ---@param lnum integer? 1-based line number.
 ---@param col integer? 0-based byte column of the checkbox action.
 ---@return boolean
 local function no_checkbox(lnum, col)
-  if in_node {
-    "fenced_code_block",
-    "minus_metadata",
-  } then
-    return true
-  end
-
   local cursor = vim.api.nvim_win_get_cursor(0)
   lnum = lnum or cursor[1]
   col = col or cursor[2]

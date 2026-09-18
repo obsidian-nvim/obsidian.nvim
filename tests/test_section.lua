@@ -107,6 +107,7 @@ T["ignores headings and block IDs in document exclusions"] = function()
     "%%",
     "# Real `code` heading",
     "text <!-- ^hidden --> ^shown",
+    "  `code` ^indented",
   }, { collect_blocks = true })
 
   eq(#sections, 2)
@@ -115,6 +116,7 @@ T["ignores headings and block IDs in document exclusions"] = function()
   eq(blocks["^commented"], nil)
   eq(blocks["^hidden"], nil)
   eq(blocks["^shown"].line, 8)
+  eq(blocks["^indented"].line, 9)
 end
 
 return T

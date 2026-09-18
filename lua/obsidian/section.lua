@@ -202,8 +202,9 @@ M.parse = function(lines, opts)
       return
     end
 
-    local line = vim.trim(lines[idx] or "")
-    local block_id = eligible_block_id(line, idx)
+    local source_line = lines[idx] or ""
+    local line = vim.trim(source_line)
+    local block_id = eligible_block_id(source_line, idx)
     if block_id then
       local block = { id = block_id, line = idx, block = line }
       blocks[block_id] = block
@@ -272,8 +273,9 @@ M.parse = function(lines, opts)
       current.c_end = idx_excl
 
       if (blocks or block_candidates) and (detail.type == "text" or detail.type == "table") then
-        local line = vim.trim(lines[idx])
-        local next_type = block_candidate_type(lines[idx], detail)
+        local source_line = lines[idx]
+        local line = vim.trim(source_line)
+        local next_type = block_candidate_type(source_line, detail)
         if block_candidates and para_beg ~= nil then
           local split = next_type == "list-item" or (para_type ~= "list-item" and next_type ~= para_type)
           if para_type == "quote" and next_type == "text" then
@@ -290,7 +292,7 @@ M.parse = function(lines, opts)
             close_paragraph(idx)
           end
         end
-        local block_id = eligible_block_id(line, idx)
+        local block_id = eligible_block_id(source_line, idx)
         if block_id and line == block_id and para_beg == nil and last_para_section ~= nil then
           if blocks then
             blocks[block_id] = { id = block_id, line = idx, block = line, section = last_para_section }
