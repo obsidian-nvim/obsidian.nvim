@@ -147,7 +147,9 @@ end
 
 ---@type obsidian.parse.refs.Pattern[]
 local patterns = {
-  { pattern = "%[%[[^][]+%]%]", parser = parse_wiki },
+  -- Single square brackets are valid in note names, so they must not stop
+  -- the search for the closing pair of a wiki link.
+  { pattern = "%[%[.-%]%]", parser = parse_wiki },
   -- NOTE: Footnote must come before Markdown so that `[^fn](text)` is matched
   -- as a footnote ref instead of a markdown link.
   { pattern = "%[%^[^%]%[%s]+%]", parser = parse_footnote },
