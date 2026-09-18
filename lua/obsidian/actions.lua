@@ -729,7 +729,7 @@ end
 ---@param row integer
 ---@return string?
 local function eligible_block_id(line, row)
-  local block = parse_block_id.extract_lexical(line, { row = row })[1]
+  local block = parse_block_id.extract(line, { row = row, lexical = true })[1]
   if block and not BufferDocument.get(0):intersects(block.range, Document.BODY_EXCLUSIONS) then
     return block.raw
   end
@@ -1124,7 +1124,7 @@ end
 local function contains_block_id(lines, block_id)
   local document = Document.parse(lines)
   for row, line in ipairs(lines) do
-    for _, block in ipairs(parse_block_id.extract_lexical(line, { row = row - 1 })) do
+    for _, block in ipairs(parse_block_id.extract(line, { row = row - 1, lexical = true })) do
       if block.raw == block_id and not document:intersects(block.range, Document.BODY_EXCLUSIONS) then
         return true
       end

@@ -148,17 +148,18 @@ function M.parse(raw, opts)
   end
 end
 
---- Extract lexical wiki/markdown/footnote refs without document filtering.
+--- Extract wiki/markdown/footnote refs from a line. By default this applies
+--- standalone document filtering; set `opts.lexical` when a full-document
+--- consumer will apply filtering against its shared snapshot.
 ---@param line string
 ---@param opts obsidian.parse.line.LineOpts?
 ---@return obsidian.parse.Ref[]
-function M.extract_lexical(line, opts)
+function M.extract(line, opts)
   opts = opts or {}
   local row = opts.row or 0
   ---@cast row integer
 
-  local out = {}
-
+  local matches = {}
   for _, pat in ipairs(patterns) do
     local search_start = 1
     while search_start < #line do
@@ -167,10 +168,10 @@ function M.extract_lexical(line, opts)
         break
       end
 
-      if not overlaps_ref(out, start_col, end_col) then
+      if not overlaps_ref(matches, start_col, end_col) then
         local ref = parse_match(line, row, start_col, end_col, pat.parser)
         if ref then
-          out[#out + 1] = ref
+          matches[#matches + 1] = ref
         end
       end
 
@@ -178,23 +179,18 @@ function M.extract_lexical(line, opts)
     end
   end
 
-  table.sort(out, function(a, b)
+  table.sort(matches, function(a, b)
     return a.range.start_col < b.range.start_col
   end)
 
-  return out
-end
+  if opts.lexical then
+    return matches
+  end
 
---- Extract refs from a standalone line. Full-document consumers should use
---- `extract_lexical` with a shared Document snapshot.
----@param line string
----@param opts obsidian.parse.line.LineOpts?
----@return obsidian.parse.Ref[]
-function M.extract(line, opts)
   local Document = require "obsidian.parse.document"
   local document = Document.parse { line }
   local out = {}
-  for _, ref in ipairs(M.extract_lexical(line, opts)) do
+  for _, ref in ipairs(matches) do
     local local_range = Range.new(0, ref.range.start_col, 0, ref.range.end_col)
     local origin = Range.new(0, ref.range.start_col, 0, ref.range.start_col + 1)
     if

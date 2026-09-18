@@ -75,6 +75,13 @@ T["extract ignores refs within inline code"] = function()
   eq(Range.new(0, 10, 0, 21), out[1].range)
 end
 
+T["extract supports unfiltered lexical matches"] = function()
+  local out = refs.extract("`[[Foo]]`", { row = 2, lexical = true })
+  eq(1, #out)
+  eq("Foo", out[1].target)
+  eq(Range.new(2, 1, 2, 8), out[1].range)
+end
+
 T["extract preserves URI fragments"] = function()
   local ref = assert(refs.parse "[site](https://example.com/page#fragment)")
   eq("https://example.com/page#fragment", ref.target)

@@ -13,7 +13,7 @@ local M = {}
 ---@return table[]
 local function extract_links(line, lnum, document)
   local out = {}
-  for _, ref in ipairs(parse_refs.extract_lexical(line, { row = lnum - 1 })) do
+  for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1, lexical = true })) do
     local origin = Range.new(lnum - 1, ref.range.start_col, lnum - 1, ref.range.start_col + 1)
     if
       (ref.kind == "wiki" or ref.kind == "markdown")
@@ -123,7 +123,7 @@ function M.build(abs_path, _vault_root)
     for _, link in ipairs(extract_links(line, i, document)) do
       links_out[#links_out + 1] = link
     end
-    for _, tag_match in ipairs(parse_tags.extract_lexical(line, { row = i - 1 })) do
+    for _, tag_match in ipairs(parse_tags.extract(line, { row = i - 1, lexical = true })) do
       if not document:intersects(tag_match.range, Document.BODY_EXCLUSIONS) then
         add_tag(tag_match.tag)
       end

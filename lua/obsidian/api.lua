@@ -239,7 +239,7 @@ M.cursor_link = function(bufnr, position)
   local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
   local document = BufferDocument.get(bufnr)
 
-  for _, ref in ipairs(parse_refs.extract_lexical(line, { row = row })) do
+  for _, ref in ipairs(parse_refs.extract(line, { row = row, lexical = true })) do
     local origin = Range.new(row, ref.range.start_col, row, ref.range.start_col + 1)
     if
       ref.range.start_col <= cur_col
@@ -274,7 +274,7 @@ M.cursor_tag = function(bufnr, position)
   end
 
   local document = BufferDocument.get(bufnr)
-  for _, tag in ipairs(parse_tags.extract_lexical(current_line, { row = row })) do
+  for _, tag in ipairs(parse_tags.extract(current_line, { row = row, lexical = true })) do
     if
       tag.range.start_col <= cur_col
       and cur_col < tag.range.end_col

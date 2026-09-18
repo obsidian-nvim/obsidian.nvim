@@ -168,7 +168,7 @@ M.parse = function(lines, opts)
   ---@param idx integer
   ---@return string?
   local function eligible_block_id(line, idx)
-    local block = block_ids.extract_lexical(line, { row = idx - 1 })[1]
+    local block = block_ids.extract(line, { row = idx - 1, lexical = true })[1]
     if block == nil or document:intersects(block.range, Document.BODY_EXCLUSIONS) then
       return nil
     end

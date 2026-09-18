@@ -154,7 +154,7 @@ local function cursor_ref(include_tag, opts)
   local line = vim.api.nvim_buf_get_lines(opts.bufnr, opts.position.line, opts.position.line + 1, false)[1] or ""
   local cur_col = opts.position.character
   local document = BufferDocument.get(opts.bufnr)
-  for _, block in ipairs(parse_block_id.extract_lexical(line, { row = opts.position.line })) do
+  for _, block in ipairs(parse_block_id.extract(line, { row = opts.position.line, lexical = true })) do
     if
       block.range.start_col <= cur_col
       and cur_col < block.range.end_col

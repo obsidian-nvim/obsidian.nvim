@@ -85,21 +85,23 @@ local function collect_tag_ranges(line)
   return out
 end
 
---- Find lexical Obsidian-style tags without document exclusion filtering.
+--- Find Obsidian-style tags in a line. By default this applies standalone
+--- document filtering; set `opts.lexical` when a full-document consumer will
+--- apply filtering against its shared snapshot.
 ---@param line string
 ---@param opts obsidian.parse.line.LineOpts?
 ---@return obsidian.parse.Tag[]
-function M.extract_lexical(line, opts)
+function M.extract(line, opts)
   opts = opts or {}
   local row = opts.row or 0
   ---@cast row integer
-  local out = {}
+  local matches = {}
 
   for _, match in ipairs(collect_tag_ranges(line)) do
     local start_byte_index, end_byte_index = match[1], match[2]
     ---@cast start_byte_index integer
     ---@cast end_byte_index integer
-    out[#out + 1] = {
+    matches[#matches + 1] = {
       kind = "tag",
       raw = line:sub(start_byte_index, end_byte_index),
       range = Range.new(row, start_byte_index - 1, row, end_byte_index),
@@ -107,19 +109,14 @@ function M.extract_lexical(line, opts)
     }
   end
 
-  return out
-end
+  if opts.lexical then
+    return matches
+  end
 
---- Find tags in a standalone line. Full-document consumers should call
---- `extract_lexical` and filter against their shared Document snapshot.
----@param line string
----@param opts obsidian.parse.line.LineOpts?
----@return obsidian.parse.Tag[]
-function M.extract(line, opts)
   local Document = require "obsidian.parse.document"
   local document = Document.parse { line }
   local out = {}
-  for _, tag in ipairs(M.extract_lexical(line, opts)) do
+  for _, tag in ipairs(matches) do
     local local_range = Range.new(0, tag.range.start_col, 0, tag.range.end_col)
     if not document:intersects(local_range, Document.BODY_EXCLUSIONS) then
       out[#out + 1] = tag

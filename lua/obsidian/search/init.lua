@@ -507,7 +507,7 @@ M.find_links = function(note)
 
   local parse_refs = require "obsidian.parse.refs"
   for lnum, line in ipairs(lines) do
-    for _, ref in ipairs(parse_refs.extract_lexical(line, { row = lnum - 1 })) do
+    for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1, lexical = true })) do
       local link = ref.embed and ref.raw:sub(2) or ref.raw
       if ref_is_eligible(document, ref) and not found[link] then
         local match = {
@@ -702,7 +702,7 @@ M.find_backlinks_async = function(note, callback, opts)
     if line_text == nil then
       return
     end
-    for _, ref in ipairs(parse_refs.extract_lexical(line_text, { row = row })) do
+    for _, ref in ipairs(parse_refs.extract(line_text, { row = row, lexical = true })) do
       local ref_start_1idx = ref.range.start_col + (ref.embed and 2 or 1)
       local ref_start = ref_start_1idx - 1
       local ref_end = ref.range.end_col
@@ -933,7 +933,7 @@ M.find_tags_async = function(term, callback, opts)
 
     -- Check body hashtags against their exact source ranges.
     local parse_tags = require "obsidian.parse.tags"
-    for _, tag_match in ipairs(parse_tags.extract_lexical(line, { row = row })) do
+    for _, tag_match in ipairs(parse_tags.extract(line, { row = row, lexical = true })) do
       if not document:intersects(tag_match.range, Document.BODY_EXCLUSIONS) then
         add_match(
           tag_match.tag,

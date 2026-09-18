@@ -264,7 +264,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
   local block_ids = assert(ui_opts.block_ids, "ui block_ids options are required")
   local tags = assert(ui_opts.tags, "ui tags options are required")
   local matches = {}
-  for _, ref in ipairs(parse_refs.extract_lexical(line)) do
+  for _, ref in ipairs(parse_refs.extract(line, { lexical = true })) do
     if ref.kind ~= "footnote" then
       matches[#matches + 1] = {
         ref.range.start_col + (ref.embed and 2 or 1),
@@ -274,7 +274,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
       }
     end
   end
-  for _, block in ipairs(parse_block_id.extract_lexical(line)) do
+  for _, block in ipairs(parse_block_id.extract(line, { lexical = true })) do
     matches[#matches + 1] = {
       block.range.start_col + 1,
       block.range.end_col,
@@ -436,7 +436,7 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
     end
   end
 
-  for _, tag_match in ipairs(parse_tags.extract_lexical(line)) do
+  for _, tag_match in ipairs(parse_tags.extract(line, { lexical = true })) do
     local m_start, m_end = tag_match.range.start_col + 1, tag_match.range.end_col
     marks[#marks + 1] = ExtMark.new(
       nil,

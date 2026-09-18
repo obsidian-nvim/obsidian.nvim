@@ -208,12 +208,12 @@ end
 local function skipped_inline_ranges(line, row)
   local ranges = {}
 
-  for _, ref in ipairs(parse_refs.extract_lexical(line, { row = row })) do
+  for _, ref in ipairs(parse_refs.extract(line, { row = row, lexical = true })) do
     if ref.kind == "wiki" or ref.kind == "markdown" then
       ranges[#ranges + 1] = ref.range
     end
   end
-  for _, tag in ipairs(parse_tags.extract_lexical(line, { row = row })) do
+  for _, tag in ipairs(parse_tags.extract(line, { row = row, lexical = true })) do
     ranges[#ranges + 1] = tag.range
   end
 
