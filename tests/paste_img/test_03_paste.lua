@@ -73,6 +73,17 @@ local test_cases = {
     expected_msg = nil,
     os_type = api.OSType.Darwin,
     display_server = nil,
+    convert_available = true,
+    expected_cmd = { "bash", "-c", [[pngpaste - | convert - -set gamma 0.4545 - > 'meow.png']] },
+    confirm_img_paste = false,
+  },
+  {
+    img_type = "png",
+    file_name = "meow.png",
+    expected_msg = nil,
+    os_type = api.OSType.Darwin,
+    display_server = nil,
+    convert_available = false,
     expected_cmd = { "pngpaste", "meow.png" },
     confirm_img_paste = false,
   },
@@ -135,6 +146,14 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
       return case.os_type
     end
 
+    local original_executable = vim.fn.executable
+    vim.fn.executable = function(name)
+      if name == "convert" then
+        return case.convert_available and 1 or 0
+      end
+      return original_executable(name)
+    end
+
     os.getenv = function(var)
       if var == "XDG_SESSION_TYPE" then
         return case.display_server
@@ -157,7 +176,7 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
     vim.system = function(cmds)
         _G.captured_cmd = cmds
         local obj = { code = 0 }
-        obj.wait = function() end
+        obj.wait = function() return obj end
         return obj
     end
 

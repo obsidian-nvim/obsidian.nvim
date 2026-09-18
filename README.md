@@ -154,7 +154,7 @@ There's one entry point user command for this plugin: `Obsidian`
 - For completion and search features: [`ripgrep`](https://github.com/BurntSushi/ripgrep?tab=readme-ov-file#installation)
 - Additional system dependencies:
   - **Windows WSL** users need [`wsl-open`](https://gitlab.com/4U6U57/wsl-open) for `:Obsidian open`.
-  - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:Obsidian paste_img`.
+  - **MacOS** users need [`pngpaste`](https://github.com/jcsalterego/pngpaste) (`brew install pngpaste`) for `:Obsidian paste_img`. ImageMagick is optional and corrects macOS paste gamma when installed (`brew install imagemagick`).
   - **Linux** users need `xclip` (X11) or `wl-clipboard` (Wayland) for `:Obsidian paste_img`.
 
 ### Plugin dependencies
