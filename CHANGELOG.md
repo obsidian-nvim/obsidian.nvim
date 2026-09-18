@@ -19,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Edits to frontmatter upon editing notes are now merged with said edits in the undo tree. Now you only need to press undo once to revert said note changes instead of twice to revert the frontmattter change as well.
 - Dedicated date, URI, link-location, and Markdown heading APIs.
 
-
 ### Changed
 
 - Note-reference completion uses cached metadata when available and delegates fuzzy filtering to the completion engine (#962).
@@ -28,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Link targets are decomposed once into location, anchor, and block components instead of using `obsidian.util` suffix helpers.
 - `obsidian.util` now contains only shared string, filename, callback, deprecation, and file-writing helpers.
 - The documented minimum Neovim version is now 0.11, matching runtime checks and CI.
+- Unified internal document parser for ignored ranges.
 
 ### Fixed
 
