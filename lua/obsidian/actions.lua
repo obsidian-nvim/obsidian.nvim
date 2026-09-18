@@ -1398,21 +1398,6 @@ local list_tags = function(tag_locations)
   return result
 end
 
----@param input string[]
----@return string[]
-local function unique_tags(input)
-  local result = {}
-  local seen = {}
-  for _, tag in ipairs(input) do
-    local key = tag_module.normalize(tag)
-    if not seen[key] then
-      result[#result + 1] = tag
-      seen[key] = true
-    end
-  end
-  return result
-end
-
 ---@param tag_locations obsidian.TagLocation[]
 ---@param tags          string[]
 local function gather_tag_picker_list(tag_locations, tags)
