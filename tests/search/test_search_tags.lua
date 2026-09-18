@@ -215,15 +215,24 @@ T["finds scalar, flow-list, and block-list frontmatter tags with ranges"] = func
     { desc = "frontmatter tag forms" }
   )
 
-  eq({ "Scalar", "Flow", "Quoted", "Block" }, vim.tbl_map(function(item)
-    return item.tag
-  end, res))
-  eq({ 6, 7, 14, 4 }, vim.tbl_map(function(item)
-    return item.range.start_col
-  end, res))
-  eq({ 12, 11, 20, 9 }, vim.tbl_map(function(item)
-    return item.range.end_col
-  end, res))
+  eq(
+    { "Scalar", "Flow", "Quoted", "Block" },
+    vim.tbl_map(function(item)
+      return item.tag
+    end, res)
+  )
+  eq(
+    { 6, 7, 14, 4 },
+    vim.tbl_map(function(item)
+      return item.range.start_col
+    end, res)
+  )
+  eq(
+    { 12, 11, 20, 9 },
+    vim.tbl_map(function(item)
+      return item.range.end_col
+    end, res)
+  )
 end
 
 T["uses the same fenced-code exclusions as the cache"] = function()
@@ -315,13 +324,19 @@ T["search and cache reuse YAML scalar occurrences"] = function()
     ]=]):format(path),
     { desc = "ranged YAML tags" }
   )
-  eq({ "É", "it's", "2026" }, vim.tbl_map(function(item)
-    return item.tag
-  end, result.locations))
+  eq(
+    { "É", "it's", "2026" },
+    vim.tbl_map(function(item)
+      return item.tag
+    end, result.locations)
+  )
   eq({ "é", "it's", "2026" }, result.cached)
-  eq({ 5, 6, 7 }, vim.tbl_map(function(item)
-    return item.line
-  end, result.locations))
+  eq(
+    { 5, 6, 7 },
+    vim.tbl_map(function(item)
+      return item.line
+    end, result.locations)
+  )
   eq(4, result.locations[1].range.start_col)
   eq(6, result.locations[1].range.end_col)
   eq(3, result.locations[2].range.start_col)

@@ -884,10 +884,12 @@ M.find_tags_async = function(term, callback, opts)
     end
 
     local locations = {}
-    for _, occurrence in ipairs(tags.extract(note.contents, {
-      frontmatter_end_line = note.frontmatter_end_line,
-      frontmatter_elements = note.frontmatter_elements,
-    })) do
+    for _, occurrence in
+      ipairs(tags.extract(note.raw_contents or note.contents, {
+        frontmatter_end_line = note.frontmatter_end_line,
+        frontmatter_elements = note.frontmatter_elements,
+      }))
+    do
       if include_occurrence(occurrence) then
         locations[#locations + 1] = {
           tag = occurrence.tag,

@@ -104,6 +104,7 @@ function M.build(abs_path, _vault_root)
     ipairs(tags.extract(lines, {
       frontmatter_end_line = note.frontmatter_end_line,
       frontmatter_elements = note.frontmatter_elements,
+      document = document,
     }))
   do
     add_tag(occurrence.tag)
