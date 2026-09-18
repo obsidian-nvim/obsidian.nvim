@@ -36,6 +36,7 @@ Fields ~
 {aliases} `(string[])`
 {tags} `(string[])`
 {contents} `(string[])`
+{raw_contents} `(string[]?)` source-preserving lines when loaded from a file or buffer.
 {metadata} `(table)`
 {path} `(obsidian.Path|)`?
 {has_frontmatter} `(boolean|)`?
@@ -514,6 +515,7 @@ Fields ~
 {collect_blocks} `(boolean|)`?
 {collect_block_candidates} `(boolean|)`?
 {collect_sections} `(boolean|)`?
+{document} `(obsidian.parse.Document?)` internal shared source snapshot.
 
 ------------------------------------------------------------------------------
 Class ~
