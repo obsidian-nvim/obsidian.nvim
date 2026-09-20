@@ -74,7 +74,7 @@ local test_cases = {
     os_type = api.OSType.Darwin,
     display_server = nil,
     convert_available = true,
-    expected_cmd = { "bash", "-c", [[pngpaste - | convert - -set gamma 0.4545 - > 'meow.png']] },
+    expected_cmd = { "bash", "-c", [[pngpaste - | convert - -set gamma 0.4545 - > "meow.png"]] },
     confirm_img_paste = false,
   },
   {
