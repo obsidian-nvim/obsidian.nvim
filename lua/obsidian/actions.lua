@@ -120,11 +120,27 @@ M.unlink = function(bufnr, position)
 end
 
 ---@param direction "next" | "prev"
-M.nav_link = function(direction)
+---@param include_hints boolean? Also navigate to link suggestion hints when the cache is enabled.
+M.nav_link = function(direction, include_hints)
   -- vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")
   local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
 
-  local matches = Note.from_buffer(0):links()
+  local note = Note.from_buffer(0)
+  ---@type { line: integer, start: integer }[]
+  local matches = vim.tbl_map(function(link)
+    return { line = link.line, start = link.start }
+  end, note:links())
+  if include_hints and require("obsidian.cache").is_enabled() then
+    for _, hint in ipairs(note:link_suggestions()) do
+      matches[#matches + 1] = {
+        line = hint.range.start_row + 1,
+        start = hint.range.start_col,
+      }
+    end
+    table.sort(matches, function(a, b)
+      return a.line < b.line or (a.line == b.line and a.start < b.start)
+    end)
+  end
 
   if direction == "next" then
     for i = 1, #matches do

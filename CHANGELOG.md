@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The documented minimum Neovim version is now 0.11, matching runtime checks and CI.
 - Unified internal document parser for ignored ranges.
 - Unified tag module for tag related operations.
+- `]o`/`[o`/`actions.nav_link` will jump to link suggestions when cache is enabled.
 
 ### Fixed
 
