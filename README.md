@@ -97,6 +97,9 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian new [TITLE]` - create a new note
 - `:Obsidian open [QUERY]` - open a note in the Obsidian app
   - query is used to resolve the note to open by ID, path, or alias, else use current note
+- `:Obsidian properties [KEY] [VALUE]` - get a picker list of frontmatter properties across the vault
+  - with no arguments, opens a three-stage picker: property keys, then values for the chosen key, then notes carrying that key/value pair
+  - `KEY` alone skips to the values stage; `KEY VALUE` skips straight to matching notes
 - `:Obsidian today [OFFSET_OR_DATE]` - open/create a new daily note
   - offset is in days, e.g. use `:Obsidian today -1` to go to yesterday's note.
   - you can also give an argument like `3-1`/`2026-3-1`, it will parse common date formats and open daily for that specific date.

@@ -1505,6 +1505,144 @@ M.search_tags = function(tags)
   end
 end
 
+---@param notes obsidian.Note[]
+---@param key   string
+---@return string[]
+local function collect_property_values(notes, key)
+  ---@type table<string, boolean>
+  local seen = {}
+  for _, note in ipairs(notes) do
+    local value = note.metadata and note.metadata[key]
+    if value ~= nil and value ~= vim.NIL then
+      if vim.islist(value) then
+        for _, item in ipairs(value) do
+          if item ~= vim.NIL then
+            seen[tostring(item)] = true
+          end
+        end
+      else
+        seen[tostring(value)] = true
+      end
+    end
+  end
+  return vim.tbl_keys(seen)
+end
+
+---@param note  obsidian.Note
+---@param key   string
+---@param value string
+---@return boolean
+local function note_has_property_value(note, key, value)
+  local prop = note.metadata and note.metadata[key]
+  if prop == nil or prop == vim.NIL then
+    return false
+  end
+  if vim.islist(prop) then
+    for _, item in ipairs(prop) do
+      if item ~= vim.NIL and tostring(item) == value then
+        return true
+      end
+    end
+    return false
+  end
+  return tostring(prop) == value
+end
+
+---@param notes obsidian.Note[]
+---@param key   string
+---@param value string
+local function gather_property_picker_list(notes, key, value)
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for _, note in ipairs(notes) do
+    if note_has_property_value(note, key, value) then
+      entries[#entries + 1] = {
+        text = note:display_name(),
+        filename = tostring(note.path),
+      }
+    end
+  end
+
+  if vim.tbl_isempty(entries) then
+    log.warn "No notes found with that property value"
+    return
+  end
+
+  vim.schedule(function()
+    picker.select(entries, {
+      prompt = string.format("%s: %s", key, value),
+      format_item = function(entry)
+        return entry.text
+      end,
+      preview_item = preview_entry,
+    }, function(items)
+      if not vim.tbl_isempty(items) then
+        api.open_note(items[1])
+      end
+    end)
+  end)
+end
+
+---@param notes obsidian.Note[]
+---@param key   string
+local function pick_property_value(notes, key)
+  local values = collect_property_values(notes, key)
+  if vim.tbl_isempty(values) then
+    log.warn "No values found for that property"
+    return
+  end
+  table.sort(values)
+
+  picker.select(values, { prompt = key }, function(items)
+    local value = items and items[1]
+    if value then
+      gather_property_picker_list(notes, key, value)
+    end
+  end)
+end
+
+---@param callback fun(keys: string[], notes: obsidian.Note[])
+local function list_properties_async(callback)
+  local dir = api.resolve_workspace_dir()
+  search.find_notes_async("", function(notes)
+    ---@type table<string, boolean>
+    local seen = {}
+    for _, note in ipairs(notes) do
+      for k, _ in pairs(note.metadata or {}) do
+        seen[k] = true
+      end
+    end
+    callback(vim.tbl_keys(seen), notes)
+  end, { dir = dir })
+end
+
+--- Open a three-stage picker over frontmatter properties: keys, then values
+--- for the chosen key, then notes carrying that key/value pair.
+---
+---@param key   string |?
+---@param value string |?
+M.search_properties = function(key, value)
+  list_properties_async(function(keys, notes)
+    if key and value then
+      gather_property_picker_list(notes, key, value)
+      return
+    end
+
+    if key then
+      pick_property_value(notes, key)
+      return
+    end
+
+    table.sort(keys)
+    picker.select(keys, { prompt = "Properties" }, function(items)
+      local chosen_key = items and items[1]
+      if chosen_key then
+        pick_property_value(notes, chosen_key)
+      end
+    end)
+  end)
+end
+
 M.insert_tag = function()
   pick_tags(function(tags)
     for i, tag in ipairs(tags) do
