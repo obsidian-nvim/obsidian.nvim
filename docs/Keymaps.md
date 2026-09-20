@@ -61,8 +61,9 @@ The plugin provides the following remappable functions:
   - If cursor is on a tag, show all notes with that tag in a picker
   - If cursor is on a checkbox, toggle the checkbox
   - If cursor is on a heading, cycle the fold of that heading
-- `nav_link ["next"|"prev"]`
-  - Will navigate cursor to next valid link in the buffer
+- `nav_link ["next"|"prev"] [include_hints]`
+  - Will navigate cursor to the next valid link in the buffer
+  - If `include_hints` is `true` and the cache is enabled, link suggestion hints are included
 - `set_checkbox [state]`
   - If cursor is on a checkbox, set the state to the parameter given
   - If cursor is on a checkbox and no parameter was given, set the state to the next input

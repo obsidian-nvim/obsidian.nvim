@@ -63,11 +63,11 @@ local function bufenter_callback(ev)
     vim.keymap.set("n", "<CR>", actions.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
 
     vim.keymap.set("n", "]o", function()
-      actions.nav_link "next"
+      actions.nav_link("next", true)
     end, { buffer = true, desc = "Obsidian Next Link" })
 
     vim.keymap.set("n", "[o", function()
-      actions.nav_link "prev"
+      actions.nav_link("prev", true)
     end, { buffer = true, desc = "Obsidian Previous Link" })
   end
 
