@@ -37,6 +37,16 @@ T["from_cache"]["uses the filename stem when no ID is cached"] = function()
   eq("note", note.id)
 end
 
+T["highlights"] = new_set()
+T["highlights"]["returns half-open ranges for inline highlights"] = function()
+  local note = M.from_lines({ "before ==hello== after" }, Obsidian.dir / "highlights.md", { max_lines = 1 })
+  local highlights = note:highlights()
+
+  eq(1, #highlights)
+  eq("hello", highlights[1].text)
+  eq({ start_row = 0, start_col = 7, end_row = 0, end_col = 16 }, highlights[1].range)
+end
+
 T["create"] = new_set()
 T["create"]["should run configured callback with default scope"] = function()
   local calls = 0
