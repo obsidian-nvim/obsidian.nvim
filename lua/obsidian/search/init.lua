@@ -38,7 +38,7 @@ M.Patterns = {
 ---
 ---@param s string
 ---
----@return { [1]: integer, [2]: integer }[]
+---@return { [1]: integer, [2]: integer, [3]: string }[]
 M.find_highlight = function(s)
   local matches = {}
   local search_start = 1

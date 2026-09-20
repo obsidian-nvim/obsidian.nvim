@@ -1328,7 +1328,7 @@ Note.highlights = function(self)
     local hls = search.find_highlight(line)
     if not vim.tbl_isempty(hls) then
       for _, hl in ipairs(hls) do
-        local range = Range.new(row - 1, hl[1] - 1, row - 1, hl[2] - 1)
+        local range = Range.new(row - 1, hl[1] - 1, row - 1, hl[2])
         table.insert(matches, {
           range = range,
           text = hl[3],

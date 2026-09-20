@@ -296,6 +296,8 @@ M.register("unique_note", { nargs = "?" })
 
 M.register("bookmarks", { nargs = 0 })
 
+M.register("attachments", { nargs = "?" })
+
 ---------------------
 ---- note action ----
 ---------------------
