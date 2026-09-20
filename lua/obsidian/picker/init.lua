@@ -291,13 +291,6 @@ M.find_attachments = function(opts)
         local preview_buf = vim.api.nvim_create_buf(false, true)
         vim.bo[preview_buf].bufhidden = "wipe"
         vim.bo[preview_buf].filetype = "markdown"
-        vim.print {
-          "# " .. entry.text,
-          "",
-          "- Type: "
-            .. (filetypes.extension(entry.filename) ~= "" and filetypes.extension(entry.filename) or "unknown"),
-          "- Size: " .. (stat and stat.size or 0) .. " bytes",
-        }
         vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, {
           "# " .. entry.text,
           "",
