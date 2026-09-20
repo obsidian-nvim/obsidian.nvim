@@ -6,12 +6,14 @@ local attachment = require "obsidian.attachment"
 
 local M = {}
 
-local audio_filetypes = {
-  flac = true,
-  m4a = true,
-  mp3 = true,
-  ogg = true,
-  wav = true,
+local image_preview_filetypes = {
+  gif = true,
+  jpg = true,
+  jpeg = true,
+  png = true,
+  svg = true,
+  webp = true,
+  pdf = true,
 }
 
 ---@param path string|obsidian.Path
@@ -31,18 +33,17 @@ M.preview_path = function(path)
     table.sort(entries)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
     vim.bo[buf].filetype = "directory"
-  elseif audio_filetypes[require("obsidian.filetypes").extension(path)] then
+  elseif image_preview_filetypes[require("obsidian.filetypes").extension(path)] then
+    buf = vim.fn.bufadd(path)
+    vim.fn.bufload(buf)
+    vim.bo[buf].bufhidden = "wipe"
+  elseif attachment.is_attachment_filetype(path) then
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
       "# " .. path,
       "",
       "- Type: " .. (filetypes.extension(path) ~= "" and filetypes.extension(path) or "unknown"),
       "- Size: " .. (stat and stat.size or 0) .. " bytes",
     })
-  elseif attachment.is_attachment_filetype(path) then
-    buf = vim.fn.bufadd(path)
-    vim.fn.bufload(buf)
-    vim.bo[buf].bufhidden = "wipe"
-    return { buf = buf }
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
     local filetype = vim.filetype.match { filename = path }
