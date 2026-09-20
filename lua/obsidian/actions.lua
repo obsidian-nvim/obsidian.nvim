@@ -1505,14 +1505,19 @@ M.search_tags = function(tags)
   end
 end
 
----@param notes obsidian.Note[]
----@param key   string
+---@class obsidian.PropertyRecord
+---@field path         string
+---@field display_name string
+---@field properties   table<string, any>
+
+---@param records obsidian.PropertyRecord[]
+---@param key     string
 ---@return string[]
-local function collect_property_values(notes, key)
+local function collect_property_values(records, key)
   ---@type table<string, boolean>
   local seen = {}
-  for _, note in ipairs(notes) do
-    local value = note.metadata and note.metadata[key]
+  for _, record in ipairs(records) do
+    local value = record.properties[key]
     if value ~= nil and value ~= vim.NIL then
       if vim.islist(value) then
         for _, item in ipairs(value) do
@@ -1528,12 +1533,12 @@ local function collect_property_values(notes, key)
   return vim.tbl_keys(seen)
 end
 
----@param note  obsidian.Note
----@param key   string
----@param value string
+---@param record obsidian.PropertyRecord
+---@param key    string
+---@param value  string
 ---@return boolean
-local function note_has_property_value(note, key, value)
-  local prop = note.metadata and note.metadata[key]
+local function record_has_property_value(record, key, value)
+  local prop = record.properties[key]
   if prop == nil or prop == vim.NIL then
     return false
   end
@@ -1548,17 +1553,17 @@ local function note_has_property_value(note, key, value)
   return tostring(prop) == value
 end
 
----@param notes obsidian.Note[]
----@param key   string
----@param value string
-local function gather_property_picker_list(notes, key, value)
+---@param records obsidian.PropertyRecord[]
+---@param key     string
+---@param value   string
+local function gather_property_picker_list(records, key, value)
   ---@type obsidian.PickerEntry[]
   local entries = {}
-  for _, note in ipairs(notes) do
-    if note_has_property_value(note, key, value) then
+  for _, record in ipairs(records) do
+    if record_has_property_value(record, key, value) then
       entries[#entries + 1] = {
-        text = note:display_name(),
-        filename = tostring(note.path),
+        text = record.display_name,
+        filename = record.path,
       }
     end
   end
@@ -1583,10 +1588,10 @@ local function gather_property_picker_list(notes, key, value)
   end)
 end
 
----@param notes obsidian.Note[]
----@param key   string
-local function pick_property_value(notes, key)
-  local values = collect_property_values(notes, key)
+---@param records obsidian.PropertyRecord[]
+---@param key     string
+local function pick_property_value(records, key)
+  local values = collect_property_values(records, key)
   if vim.tbl_isempty(values) then
     log.warn "No values found for that property"
     return
@@ -1596,23 +1601,75 @@ local function pick_property_value(notes, key)
   picker.select(values, { prompt = key }, function(items)
     local value = items and items[1]
     if value then
-      gather_property_picker_list(notes, key, value)
+      gather_property_picker_list(records, key, value)
     end
   end)
 end
 
----@param callback fun(keys: string[], notes: obsidian.Note[])
+---@param notes obsidian.Note[]
+---@return obsidian.PropertyRecord[]
+local function property_records_from_notes(notes)
+  local records = {}
+  for _, note in ipairs(notes) do
+    records[#records + 1] = {
+      path = tostring(note.path),
+      display_name = note:display_name(),
+      properties = note.metadata or {},
+    }
+  end
+  return records
+end
+
+---@param rows table<string, table>
+---@return obsidian.PropertyRecord[]
+local function property_records_from_cache(rows)
+  local cache = require "obsidian.cache"
+  local records = {}
+  for path, row in pairs(rows) do
+    local display_name = (row.id and tostring(row.id))
+      or (row.aliases and row.aliases[#row.aliases])
+      or cache.notes.basename(path)
+    records[#records + 1] = {
+      path = path,
+      display_name = display_name,
+      properties = row.properties or {},
+    }
+  end
+  return records
+end
+
+---@param records obsidian.PropertyRecord[]
+---@return string[]
+local function collect_property_keys(records)
+  ---@type table<string, boolean>
+  local seen = {}
+  for _, record in ipairs(records) do
+    for k, _ in pairs(record.properties) do
+      seen[k] = true
+    end
+  end
+  return vim.tbl_keys(seen)
+end
+
+--- Enumerate notes for the properties picker. Prefers the vault-wide note
+--- cache (already kept live by file-watch events) over re-scanning and
+--- re-parsing every note on each invocation.
+---
+---@param callback fun(keys: string[], records: obsidian.PropertyRecord[])
 local function list_properties_async(callback)
+  local cache = require "obsidian.cache"
+  if cache.is_enabled() then
+    cache.when_ready(function()
+      local records = property_records_from_cache(cache.notes.all())
+      callback(collect_property_keys(records), records)
+    end)
+    return
+  end
+
   local dir = api.resolve_workspace_dir()
   search.find_notes_async("", function(notes)
-    ---@type table<string, boolean>
-    local seen = {}
-    for _, note in ipairs(notes) do
-      for k, _ in pairs(note.metadata or {}) do
-        seen[k] = true
-      end
-    end
-    callback(vim.tbl_keys(seen), notes)
+    local records = property_records_from_notes(notes)
+    callback(collect_property_keys(records), records)
   end, { dir = dir })
 end
 
@@ -1622,14 +1679,14 @@ end
 ---@param key   string |?
 ---@param value string |?
 M.search_properties = function(key, value)
-  list_properties_async(function(keys, notes)
+  list_properties_async(function(keys, records)
     if key and value then
-      gather_property_picker_list(notes, key, value)
+      gather_property_picker_list(records, key, value)
       return
     end
 
     if key then
-      pick_property_value(notes, key)
+      pick_property_value(records, key)
       return
     end
 
@@ -1637,7 +1694,7 @@ M.search_properties = function(key, value)
     picker.select(keys, { prompt = "Properties" }, function(items)
       local chosen_key = items and items[1]
       if chosen_key then
-        pick_property_value(notes, chosen_key)
+        pick_property_value(records, chosen_key)
       end
     end)
   end)
