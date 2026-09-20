@@ -287,18 +287,7 @@ M.find_attachments = function(opts)
       query = nil,
       format_item = picker_util.make_display,
       preview_item = function(entry)
-        local stat = vim.uv.fs_stat(entry.filename)
-        local preview_buf = vim.api.nvim_create_buf(false, true)
-        vim.bo[preview_buf].bufhidden = "wipe"
-        vim.bo[preview_buf].filetype = "markdown"
-        vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, {
-          "# " .. entry.text,
-          "",
-          "- Type: "
-            .. (filetypes.extension(entry.filename) ~= "" and filetypes.extension(entry.filename) or "unknown"),
-          "- Size: " .. (stat and stat.size or 0) .. " bytes",
-        })
-        return { buf = preview_buf }
+        return picker_util.preview_path(entry.filename)
       end,
     }, function(items)
       local paths = vim.tbl_map(function(item)
