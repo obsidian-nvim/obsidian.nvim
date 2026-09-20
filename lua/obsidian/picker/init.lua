@@ -6,9 +6,11 @@ local PickerName = require("obsidian.types").Picker
 local Mappings = require "obsidian.picker.mappings"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
+local filetypes = require "obsidian.filetypes"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
+---@field find_attachments fun(opts: obsidian.PickerAttachmentOpts|?)
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
 ---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
@@ -70,6 +72,15 @@ end
 ---@field include_non_markdown boolean|?
 ---@field show_existing_only boolean|?
 ---@field show_attachments boolean|?
+
+---@class obsidian.PickerAttachmentOpts
+---
+---@field prompt_title string|?
+---@field dir string|obsidian.Path|?
+---@field query string|?
+---@field callback fun(paths: string[])|?
+---@field query_mappings obsidian.PickerMappingTable|?
+---@field selection_mappings obsidian.PickerMappingTable|?
 
 ---@class obsidian.PickerGrepOpts
 ---
@@ -226,6 +237,89 @@ M.find_notes = function(opts)
     show_existing_only = opts.show_existing_only,
     show_attachments = opts.show_attachments,
   }
+end
+
+--- Find attachments in a directory and open selected files externally by default.
+---
+---@param opts obsidian.PickerAttachmentOpts|?
+M.find_attachments = function(opts)
+  state.calling_bufnr = vim.api.nvim_get_current_buf()
+  opts = opts or {}
+
+  local dir = Path.new(opts.dir or api.resolve_workspace_dir()):resolve { strict = true }
+  local query = opts.query and vim.trim(opts.query):lower() or nil
+  if query == "" then
+    query = nil
+  end
+
+  local entries = {}
+  return search.find_async(dir, nil, {
+    sort_by = Obsidian.opts.search.sort_by,
+    sort_reversed = Obsidian.opts.search.sort_reversed,
+    include_non_markdown = true,
+  }, function(path)
+    if not filetypes.is_attachment(path) then
+      return
+    end
+
+    local rel_path = tostring(Path.new(path):relative_to(dir))
+    if query and not rel_path:lower():find(query, 1, true) then
+      return
+    end
+
+    entries[#entries + 1] = {
+      filename = path,
+      text = rel_path,
+      user_data = { attachment = true },
+    }
+  end, function(code)
+    if code ~= 0 then
+      log.err("Failed to enumerate attachments in '%s'", dir)
+      return
+    end
+
+    M.select(entries, {
+      prompt = opts.prompt_title or "Attachments",
+      allow_multiple = true,
+      query_mappings = opts.query_mappings,
+      selection_mappings = opts.selection_mappings,
+      -- The initial query is applied above so it also matches directories.
+      query = nil,
+      format_item = picker_util.make_display,
+      preview_item = function(entry)
+        local stat = vim.uv.fs_stat(entry.filename)
+        local preview_buf = vim.api.nvim_create_buf(false, true)
+        vim.bo[preview_buf].bufhidden = "wipe"
+        vim.bo[preview_buf].filetype = "markdown"
+        vim.print {
+          "# " .. entry.text,
+          "",
+          "- Type: "
+            .. (filetypes.extension(entry.filename) ~= "" and filetypes.extension(entry.filename) or "unknown"),
+          "- Size: " .. (stat and stat.size or 0) .. " bytes",
+        }
+        vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, {
+          "# " .. entry.text,
+          "",
+          "- Type: "
+            .. (filetypes.extension(entry.filename) ~= "" and filetypes.extension(entry.filename) or "unknown"),
+          "- Size: " .. (stat and stat.size or 0) .. " bytes",
+        })
+        return { buf = preview_buf }
+      end,
+    }, function(items)
+      local paths = vim.tbl_map(function(item)
+        return item.filename
+      end, items or {})
+      if opts.callback then
+        opts.callback(paths)
+      else
+        for _, path in ipairs(paths) do
+          vim.ui.open(path)
+        end
+      end
+    end)
+  end)
 end
 
 --- Grep search in notes.
