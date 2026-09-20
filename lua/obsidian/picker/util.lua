@@ -2,8 +2,17 @@ local preview_ns = vim.api.nvim_create_namespace "obsidian.picker.preview"
 
 local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
+local attachment = require "obsidian.attachment"
 
 local M = {}
+
+local audio_filetypes = {
+  flac = true,
+  m4a = true,
+  mp3 = true,
+  ogg = true,
+  wav = true,
+}
 
 ---@param path string|obsidian.Path
 ---@return obsidian.ui_select_preview_spec
@@ -21,6 +30,13 @@ M.preview_path = function(path)
     table.sort(entries)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
     vim.bo[buf].filetype = "directory"
+  elseif audio_filetypes[require("obsidian.filetypes").extension(path)] then
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { path })
+  elseif attachment.is_attachment_filetype(path) then
+    buf = vim.fn.bufadd(path)
+    vim.fn.bufload(buf)
+    vim.bo[buf].bufhidden = "wipe"
+    return { buf = buf }
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
     local filetype = vim.filetype.match { filename = path }
