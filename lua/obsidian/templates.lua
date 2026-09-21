@@ -184,10 +184,10 @@ M.insert_template = function(ctx)
   vim.api.nvim_win_set_cursor(0, { new_cursor_row, 0 })
 
   if manage_frontmatter then
-    current_note:update_frontmatter()
+    current_note:update_frontmatter(buf)
   end
 
-  require("obsidian.ui").update(0)
+  require("obsidian.ui").update(buf)
 
   return Note.from_buffer(buf)
 end

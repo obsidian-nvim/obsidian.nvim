@@ -973,7 +973,11 @@ Note.update_frontmatter = function(self, bufnr)
     return false
   end
 
-  return self:save_to_buffer { bufnr = bufnr }
+  if bufnr then
+    return self:save_to_buffer { bufnr = bufnr }
+  else
+    return self:save { insert_frontmatter = true }
+  end
 end
 
 --- Checks if the parameter note is in the blacklist of files which shouldn't have
