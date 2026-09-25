@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Rename no longer inserts frontmatter when `frontmatter.enabled = false`.
+- Footer backlink refreshes are no longer triggered by file events that cannot change them (attachments, hidden files such as formatter temp files like `.conform.*.md`), removing a source of vault-wide scans racing with writes (#967).
 
 ## [v3.16.7](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.7) - 2026-09-01
 
