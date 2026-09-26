@@ -1,5 +1,7 @@
 local M = {}
 local ns_id = vim.api.nvim_create_namespace "obsidian.footer"
+local api = require "obsidian.api"
+local fs = require "obsidian.fs"
 local Note = require "obsidian.note"
 local watchfiles = require "obsidian.lsp.watchfiles"
 
@@ -121,6 +123,37 @@ local function is_current_file(event, buf_path)
   return false
 end
 
+--- Check if an event touches a path that the backlink search could observe.
+---
+--- The backlink search scans `workspace` with `rg --type=md` and without
+--- `--hidden`, so events for anything other than a visible note in that
+--- workspace — attachments, config churn, or formatter temp files like
+--- `.conform.<rand>.md` — cannot change the result. Hidden-ness is judged
+--- relative to the workspace root so that vaults living under dot-prefixed
+--- directories keep working. See
+--- https://github.com/obsidian-nvim/obsidian.nvim/issues/967.
+---
+---@param event table
+---@param workspace obsidian.Workspace Workspace that the search would scan.
+---@return boolean
+local function event_affects_backlinks(event, workspace)
+  local root = vim.fs.normalize(tostring(workspace.root))
+  for _, key in ipairs { "path", "old_path", "new_path" } do
+    local path = event[key]
+    if path and api.path_is_note(path, workspace) then
+      -- Only the components below the workspace root decide hidden-ness. If
+      -- the event path is not a plain prefix of the root (e.g. a differently
+      -- resolved or symlinked form), fall back to refreshing — the behavior
+      -- before filtering — rather than skipping the event.
+      local norm = vim.fs.normalize(path)
+      if not vim.startswith(norm, root) or not fs.is_hidden(norm:sub(#root + 1)) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 M.start = function(buf)
   if attached_bufs[buf] then
     return
@@ -159,8 +192,12 @@ M.start = function(buf)
       return
     end
     local buf_path = vim.fs.normalize(vim.api.nvim_buf_get_name(buf))
+    -- The backlink search scans the note's own workspace, which is not
+    -- necessarily the globally active one, so gate events against this
+    -- buffer's workspace.
+    local workspace = api.find_workspace(buf_path) or Obsidian.workspace
     for _, event in ipairs(events) do
-      if not is_current_file(event, buf_path) then
+      if workspace and event_affects_backlinks(event, workspace) and not is_current_file(event, buf_path) then
         update_footer(buf, true)
         return
       end
@@ -186,5 +223,7 @@ M.start = function(buf)
     end,
   })
 end
+
+M._event_affects_backlinks = event_affects_backlinks
 
 return M
