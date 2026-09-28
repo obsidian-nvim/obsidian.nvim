@@ -38,7 +38,7 @@ T["json backend"]["persists schema v2 entries"] = function()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
   eq(2, decoded.schema_version)
-  eq(2, decoded.indexer_version)
+  eq(3, decoded.indexer_version)
   eq(vault, decoded.vault)
   eq("note", decoded.entries[note_path].kind)
   eq(nil, decoded.notes)
@@ -69,7 +69,7 @@ T["json backend"]["rebuilds incompatible cache envelopes"] = function()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
   eq(2, decoded.schema_version)
-  eq(2, decoded.indexer_version)
+  eq(3, decoded.indexer_version)
   eq(nil, decoded.version)
   eq(nil, decoded.notes)
 end
@@ -177,7 +177,7 @@ T["cache backends"]["computes backlink counts from cached links"] = function()
   dir:mkdir { parents = true }
   local note_path = tostring(dir / "A.md")
   helpers.write("# A", note_path)
-  helpers.write("[[A]] [[A|alias]] [A](A.md) [root](/A.md) [[Other]]", dir / "Links.md")
+  helpers.write("---\nproperty: '[[A]]'\n---\n[[A]] [[A|alias]] [A](A.md) [root](/A.md) [[Other]]", dir / "Links.md")
   Obsidian = { dir = dir }
 
   local cache = require "obsidian.cache"
@@ -195,8 +195,8 @@ T["cache backends"]["computes backlink counts from cached links"] = function()
     status = result
   end)
 
-  eq(4, cache.notes.backlink_count(note))
-  eq(4, status.backlinks)
+  eq(5, cache.notes.backlink_count(note))
+  eq(5, status.backlinks)
 end
 
 T["cache backends"]["queries headings with original text and locations"] = function()

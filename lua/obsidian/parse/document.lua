@@ -8,9 +8,19 @@ local Range = require "obsidian.range"
 
 local M = {}
 
---- Regions that suppress ordinary Markdown body actions. Consumers with a
---- narrower policy (for example frontmatter completion) should select kinds
---- explicitly instead.
+--- Regions that suppress inline Markdown syntax. Frontmatter is deliberately
+--- allowed because Obsidian properties can contain links and tags.
+M.INLINE_EXCLUSIONS = {
+  fenced_code = true,
+  indented_code = true,
+  code_span = true,
+  html_comment = true,
+  obsidian_comment = true,
+  html_block = true,
+}
+
+--- Regions that suppress ordinary Markdown body actions. Consumers that only
+--- inspect inline syntax should use `INLINE_EXCLUSIONS` instead.
 M.BODY_EXCLUSIONS = {
   frontmatter = true,
   fenced_code = true,

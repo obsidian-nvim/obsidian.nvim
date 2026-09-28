@@ -482,7 +482,7 @@ end
 ---@return boolean
 local function ref_is_eligible(document, ref)
   local origin = Range.new(ref.range.start_row, ref.range.start_col, ref.range.start_row, ref.range.start_col + 1)
-  return not document:intersects(origin, Document.BODY_EXCLUSIONS)
+  return not document:intersects(origin, Document.INLINE_EXCLUSIONS)
     and not document:intersects(ref.range, Document.COMMENTS)
 end
 
@@ -612,7 +612,7 @@ local function get_in_note_backlink(note, term)
       local start_col = line:find(pat, 1, true)
       while start_col do
         local range = Range.new(lnum - 1, start_col - 1, lnum - 1, start_col - 1 + #pat)
-        if not document:intersects(range, Document.BODY_EXCLUSIONS) then
+        if not document:intersects(range, Document.INLINE_EXCLUSIONS) then
           matched = true
           break
         end

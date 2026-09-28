@@ -244,7 +244,7 @@ M.cursor_link = function(bufnr, position)
     if
       ref.range.start_col <= cur_col
       and cur_col < ref.range.end_col
-      and not document:intersects(origin, Document.BODY_EXCLUSIONS)
+      and not document:intersects(origin, Document.INLINE_EXCLUSIONS)
       and not document:intersects(ref.range, Document.COMMENTS)
     then
       local link_type = ref.kind
@@ -278,7 +278,7 @@ M.cursor_tag = function(bufnr, position)
     if
       tag.range.start_col <= cur_col
       and cur_col < tag.range.end_col
-      and not document:intersects(tag.range, Document.BODY_EXCLUSIONS)
+      and not document:intersects(tag.range, Document.INLINE_EXCLUSIONS)
     then
       return tag.tag
     end

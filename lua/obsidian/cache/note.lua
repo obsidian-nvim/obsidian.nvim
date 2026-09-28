@@ -18,7 +18,7 @@ local function extract_links(line, lnum, document)
     local origin = Range.new(lnum - 1, ref.range.start_col, lnum - 1, ref.range.start_col + 1)
     if
       (ref.kind == "wiki" or ref.kind == "markdown")
-      and not document:intersects(origin, Document.BODY_EXCLUSIONS)
+      and not document:intersects(origin, Document.INLINE_EXCLUSIONS)
       and not document:intersects(ref.range, Document.COMMENTS)
     then
       out[#out + 1] = {
@@ -122,10 +122,9 @@ function M.build(abs_path, _vault_root)
     end
   end
 
-  local body_start = document.frontmatter and document.frontmatter.range.end_row or 0
   local links_out = {}
   local tasks = {}
-  for i = body_start + 1, #lines do
+  for i = 1, #lines do
     local line = lines[i] or ""
     for _, link in ipairs(extract_links(line, i, document)) do
       links_out[#links_out + 1] = link

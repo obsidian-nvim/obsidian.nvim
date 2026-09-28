@@ -518,7 +518,7 @@ local function filter_excluded_marks(marks, document)
   local result = {}
   for _, mark in ipairs(marks) do
     local range = Range.new(mark.row, mark.col, mark.opts.end_row, mark.opts.end_col)
-    if not document:intersects(range, Document.BODY_EXCLUSIONS) then
+    if not document:intersects(range, Document.INLINE_EXCLUSIONS) then
       result[#result + 1] = mark
     end
   end
