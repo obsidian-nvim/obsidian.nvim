@@ -376,10 +376,11 @@ local function resolve_note_strict(query, opts)
   local workspace_dir = Path.new(opts.dir or api.resolve_workspace_dir())
   local current_dir = opts.buf_dir or (opts.dir == nil and Obsidian.buf_dir or nil)
 
-  local query_path = Path.new(query)
+  local path_query = query:gsub("\\", "/")
+  local query_path = Path.new(path_query)
   local suffix = query_path.suffix and string.lower(query_path.suffix) or nil
   local has_note_suffix = suffix ~= nil and NOTE_SUFFIXES[suffix] == true
-  local fname = has_note_suffix and query or (query .. ".md")
+  local fname = has_note_suffix and path_query or (path_query .. ".md")
   local fname_path = Path.new(fname)
   local path_like = fname_path:is_absolute() or query:find "[/\\\\]" ~= nil or suffix == ".base"
 

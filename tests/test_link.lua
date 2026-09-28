@@ -189,6 +189,9 @@ vim.fn.writefile({ "---", "id: realid", "aliases: [\"My Alias\"]", "---", "# Foo
 vim.fn.writefile({ "# Sub Foo" }, tostring(sub_dir / "foo.md"))
 vim.fn.writefile({ "# Bar" }, tostring(notes_dir / "bar.md"))
 vim.fn.writefile({ "# Daily" }, tostring(dailies_dir / "daily.md"))
+vim.fn.writefile({ "# Quarto" }, tostring(Obsidian.dir / "quarto.qmd"))
+vim.fn.writefile({ "views: []" }, tostring(Obsidian.dir / "view.base"))
+vim.cmd("edit " .. vim.fn.fnameescape(tostring(Obsidian.dir / "current.md")))
       ]]
     end,
   },
@@ -225,6 +228,13 @@ T["strict resolve"]["resolves path-like links from vault root"] = function()
   local root = child.Obsidian.dir
   eq(tostring(root / "notes" / "bar.md"), child.lua [[return M.resolve_link_path("notes/bar")]])
   eq(tostring(root / "notes" / "bar.md"), child.lua [[return M.resolve_link_path("notes/bar.md")]])
+  eq(tostring(root / "notes" / "bar.md"), child.lua [[return M.resolve_link_path("notes\\bar")]])
+end
+
+T["strict resolve"]["supports qmd and base suffixes"] = function()
+  local root = child.Obsidian.dir
+  eq(tostring(root / "quarto.qmd"), child.lua [[return M.resolve_link_path("quarto.qmd")]])
+  eq(tostring(root / "view.base"), child.lua [[return M.resolve_link_path("view.base")]])
 end
 
 T["strict resolve"]["returns nil for unknown link"] = function()
