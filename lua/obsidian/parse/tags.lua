@@ -118,7 +118,7 @@ function M.extract(line, opts)
   local out = {}
   for _, tag in ipairs(matches) do
     local local_range = Range.new(0, tag.range.start_col, 0, tag.range.end_col)
-    if not document:intersects(local_range, Document.BODY_EXCLUSIONS) then
+    if not document:intersects(local_range, Document.INLINE_EXCLUSIONS) then
       out[#out + 1] = tag
     end
   end

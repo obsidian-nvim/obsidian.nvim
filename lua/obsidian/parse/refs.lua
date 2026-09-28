@@ -194,7 +194,7 @@ function M.extract(line, opts)
     local local_range = Range.new(0, ref.range.start_col, 0, ref.range.end_col)
     local origin = Range.new(0, ref.range.start_col, 0, ref.range.start_col + 1)
     if
-      not document:intersects(origin, Document.BODY_EXCLUSIONS)
+      not document:intersects(origin, Document.INLINE_EXCLUSIONS)
       and not document:intersects(local_range, Document.COMMENTS)
     then
       out[#out + 1] = ref

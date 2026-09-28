@@ -79,6 +79,27 @@ T["update"]["should not add tag extmarks inside inline code"] = function()
   eq(11, tag_marks[1][3])
 end
 
+T["update"]["decorates links in frontmatter"] = function()
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(bufnr, vim.fn.tempname() .. ".md")
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+    "---",
+    'related: "[Something](Target.md)"',
+    "---",
+  })
+
+  Obsidian = {
+    opts = {
+      ui = vim.deepcopy(require("obsidian.config.default").ui),
+    },
+  }
+  ui.update(bufnr)
+
+  local ns_id = vim.api.nvim_create_namespace "ObsidianUI"
+  local frontmatter_marks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, { 1, 0 }, { 1, -1 }, {})
+  eq(true, #frontmatter_marks > 0)
+end
+
 T["update"]["filters all decorations through document exclusions"] = function()
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(bufnr, vim.fn.tempname() .. ".md")

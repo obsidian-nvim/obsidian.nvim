@@ -141,6 +141,20 @@ T["cursor_link"] = function()
   end
 end
 
+T["cursor_link detects links in frontmatter"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "---",
+    "isPartOf:",
+    '  - "[Something](20260518150627.md)"',
+    "---",
+  })
+  child.api.nvim_win_set_cursor(0, { 3, 8 })
+
+  local link, link_type = unpack(child.lua_get [[{ M.cursor_link() }]])
+  eq("[Something](20260518150627.md)", link)
+  eq("markdown", link_type)
+end
+
 T["cursor_tag"] = new_set()
 
 T["cursor_tag"]["should detect inline tags"] = function()
@@ -161,6 +175,16 @@ T["cursor_tag"]["should detect inline tags"] = function()
     local tag = child.lua [[return M.cursor_tag()]]
     eq(test.res, tag)
   end
+end
+
+T["cursor_tag"]["should detect inline tags in frontmatter"] = function()
+  child.api.nvim_buf_set_lines(0, 0, -1, false, {
+    "---",
+    "related: #project",
+    "---",
+  })
+  child.api.nvim_win_set_cursor(0, { 2, 12 })
+  eq("project", child.lua_get [[M.cursor_tag()]])
 end
 
 T["cursor_tag"]["should detect tags in frontmatter list"] = function()
