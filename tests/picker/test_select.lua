@@ -74,6 +74,22 @@ T["mini select applies custom formatting to string values"] = function()
   end)
 end
 
+T["mini grep forwards ignore globs from the command"] = function()
+  with_module("mini.pick", {
+    builtin = {
+      grep = function(local_opts)
+        eq({ "!ignored/**" }, local_opts.globs)
+      end,
+    },
+  }, function()
+    require("obsidian.picker.mini").grep {
+      cmd = { "rg", "-g!ignored/**" },
+      dir = "/vault",
+      query = "needle",
+    }
+  end)
+end
+
 T["fzf select explicitly enables multiple selections and returns all choices"] = function()
   local choices
 

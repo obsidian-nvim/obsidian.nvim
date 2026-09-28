@@ -249,10 +249,11 @@ M.grep_notes = function(opts)
     selection_mappings = M._note_selection_mappings()
   end
 
+  local dir = opts.dir or api.resolve_workspace_dir()
   M.grep {
-    cmd = search.build_grep_cmd(),
+    cmd = search.build_grep_cmd(nil, dir),
     prompt_title = opts.prompt_title or "Grep notes",
-    dir = opts.dir or api.resolve_workspace_dir(),
+    dir = dir,
     query = opts.query,
     callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,

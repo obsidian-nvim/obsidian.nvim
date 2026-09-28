@@ -22,7 +22,39 @@ end
 local Opts = require "obsidian.search.opts" -- general class to handle options
 local Ripgrep = require "obsidian.search.ripgrep" -- could have other backends in the future...
 
-M.build_grep_cmd = Ripgrep.build_grep_cmd
+---@param dir string|obsidian.Path
+---@param opts obsidian.search.SearchOpts|?
+---@return obsidian.search.SearchOpts
+local function add_workspace_excludes(dir, opts)
+  opts = vim.deepcopy(opts or {})
+
+  local workspace = Obsidian and api.find_workspace(dir) or nil
+  local workspace_opts
+  if workspace then
+    workspace_opts = api._workspace_opts(workspace)
+  elseif Obsidian and Obsidian.workspaces == nil then
+    -- Keep compatibility with callers that provide the legacy state shape.
+    workspace_opts = Obsidian.opts
+  end
+
+  local ignore_filters = workspace_opts and workspace_opts.file and workspace_opts.file.ignore_filters or {}
+  opts.exclude = opts.exclude or {}
+  for _, pattern in ipairs(ignore_filters) do
+    if not vim.tbl_contains(opts.exclude, pattern) then
+      opts.exclude[#opts.exclude + 1] = pattern
+    end
+  end
+
+  return opts
+end
+
+---@param opts obsidian.search.SearchOpts|?
+---@param dir string|obsidian.Path|?
+---@return string[]
+M.build_grep_cmd = function(opts, dir)
+  dir = dir or api.resolve_workspace_dir()
+  return Ripgrep.build_grep_cmd(add_workspace_excludes(dir, opts))
+end
 
 M._has_ripgrep = function()
   return vim.fn.executable "rg" == 1
@@ -90,6 +122,7 @@ end
 ---@param on_exit fun(exit_code: integer)|?
 ---@return vim.SystemObj handle
 M.search_async = function(dir, term, opts, on_match, on_exit)
+  opts = add_workspace_excludes(dir, opts)
   local cmd = Ripgrep.build_search_cmd(dir, term, opts)
   return async.run_job_async(cmd, function(line)
     local data = vim.json.decode(line)
@@ -115,19 +148,7 @@ end
 ---@return fun() cancel
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
-  opts = vim.deepcopy(opts or {})
-  local workspace = Obsidian and api.find_workspace(norm_dir) or nil
-
-  if workspace then
-    local workspace_opts = api._workspace_opts(workspace)
-    local ignore_filters = workspace_opts.file and workspace_opts.file.ignore_filters or {}
-    opts.exclude = opts.exclude or {}
-    for _, pattern in ipairs(ignore_filters) do
-      if not vim.tbl_contains(opts.exclude, pattern) then
-        opts.exclude[#opts.exclude + 1] = pattern
-      end
-    end
-  end
+  opts = add_workspace_excludes(norm_dir, opts)
 
   local query = term and string.lower(term) or nil
   local exclude = opts.exclude and gitignore(opts.exclude, { ignoreCase = true }) or nil

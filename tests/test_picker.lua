@@ -277,6 +277,7 @@ T["grep_notes supplies the backend command"] = function()
   Obsidian = {
     dir = dir,
     opts = {
+      file = { ignore_filters = { "ignored/**" } },
       picker = { note_mappings = {} },
       search = { sort_by = false, sort_reversed = false },
     },
@@ -296,6 +297,7 @@ T["grep_notes supplies the backend command"] = function()
   eq("needle", captured.query)
   eq("table", type(captured.cmd))
   eq(true, #captured.cmd > 0)
+  eq(true, vim.tbl_contains(captured.cmd, "-g!ignored/**"))
 end
 
 T["find_files presents filesystem paths without a shell command"] = function()

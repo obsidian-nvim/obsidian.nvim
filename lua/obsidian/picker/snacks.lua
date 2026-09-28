@@ -2,6 +2,7 @@
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
 local api = require "obsidian.api"
+local search = require "obsidian.search"
 
 --- Build snacks pick opts (keymaps + actions) for query-style mappings. The
 --- callback receives the currently typed query string, mirroring the behavior
@@ -127,6 +128,12 @@ M.setup = function()
     show_empty = true,
     live = true,
     supports_live = true,
+    config = function(source_opts)
+      local command = search.build_grep_cmd(nil, api.resolve_workspace_dir())
+      source_opts.cmd = source_opts.cmd or table.remove(command, 1)
+      source_opts.args = source_opts.args or command
+      return source_opts
+    end,
   })
 end
 

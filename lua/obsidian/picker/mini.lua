@@ -3,6 +3,19 @@ local Picker = require "obsidian.picker"
 local Path = require "obsidian.path"
 local ut = require "obsidian.picker.util"
 local api = require "obsidian.api"
+local search = require "obsidian.search"
+
+---@param cmd string[]
+---@return string[]
+local function grep_globs(cmd)
+  local globs = {}
+  for _, arg in ipairs(cmd) do
+    if vim.startswith(arg, "-g!") then
+      globs[#globs + 1] = string.sub(arg, 3)
+    end
+  end
+  return globs
+end
 
 ---@param entry string
 ---@return string, integer?, integer?
@@ -29,8 +42,13 @@ M.setup = function()
   end
 
   mini_pick.registry.obsidian_grep = function(call_opts)
+    local dir = api.resolve_workspace_dir()
+    call_opts = type(call_opts) == "table" and call_opts or {}
+    call_opts = vim.tbl_extend("keep", call_opts, {
+      globs = grep_globs(search.build_grep_cmd(nil, dir)),
+    })
     return mini_pick.builtin.grep_live(call_opts, {
-      source = { cwd = tostring(api.resolve_workspace_dir()), name = "Obsidian Grep" },
+      source = { cwd = tostring(dir), name = "Obsidian Grep" },
     })
   end
 end
@@ -57,12 +75,15 @@ M.grep = function(opts)
     },
   }
 
+  ---@type table
+  local grep_opts = { globs = grep_globs(opts.cmd or search.build_grep_cmd(nil, opts.dir)) }
   ---@type string|?
   local result
   if opts.query and string.len(opts.query) > 0 then
-    result = mini_pick.builtin.grep({ pattern = opts.query }, pick_opts)
+    grep_opts.pattern = opts.query
+    result = mini_pick.builtin.grep(grep_opts, pick_opts)
   else
-    result = mini_pick.builtin.grep_live({}, pick_opts)
+    result = mini_pick.builtin.grep_live(grep_opts, pick_opts)
   end
 
   selected = selected or (result and { result }) or {}

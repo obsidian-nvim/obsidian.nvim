@@ -3,6 +3,7 @@ local log = require "obsidian.log"
 local Picker = require "obsidian.picker"
 local ut = require "obsidian.picker.util"
 local api = require "obsidian.api"
+local search = require "obsidian.search"
 
 ---@param prompt_title string|?
 ---@return string|?
@@ -58,7 +59,9 @@ M.setup = function()
 
   fzf.register_extension("obsidian_grep", function(opts)
     opts = opts or {}
-    opts.cwd = tostring(api.resolve_workspace_dir())
+    local dir = api.resolve_workspace_dir()
+    opts.cwd = tostring(dir)
+    opts.cmd = opts.cmd or table.concat(search.build_grep_cmd(nil, dir), " ")
     return fzf.live_grep(opts)
   end, {}, true)
 end

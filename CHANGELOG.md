@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+- Grep searches now honor the searched workspace's `file.ignore_filters`.
+
 ## [v3.16.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.8) - 2026-09-28
 
 ### Added

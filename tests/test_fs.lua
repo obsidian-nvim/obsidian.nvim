@@ -159,6 +159,39 @@ T["find_async filesystem fallback matches literal filenames"] = function()
   eq(exit_code, 0)
 end
 
+T["search_async applies ignore filters from the searched workspace"] = function()
+  local Path = require "obsidian.path"
+  local other = Path.temp { suffix = "-obsidian-other" }
+  other:mkdir { parents = true }
+  other = other:resolve { strict = true }
+  local kept = tostring(other / "ignored-by-active.md")
+  local ignored = tostring(other / "ignored-by-other.md")
+  vim.fn.writefile({ "needle" }, kept)
+  vim.fn.writefile({ "needle" }, ignored)
+  Obsidian.opts.file.ignore_filters = { "ignored-by-active.md" }
+  Obsidian.workspaces[#Obsidian.workspaces + 1] = require("obsidian.workspace").new {
+    name = "other",
+    path = other,
+    strict = true,
+    overrides = { file = { ignore_filters = { "ignored-by-other.md" } } },
+  }
+
+  local result = {}
+  local exit_code
+  search.search_async(other, "needle", { fixed_strings = true }, function(match)
+    result[#result + 1] = match.path.text
+  end, function(code)
+    exit_code = code
+  end)
+
+  vim.wait(1000, function()
+    return exit_code ~= nil
+  end)
+  eq(result, { kept })
+  eq(exit_code, 0)
+  vim.fn.delete(tostring(other), "rf")
+end
+
 T["find_async applies ignore filters from the searched workspace"] = function()
   local Path = require "obsidian.path"
   local other = Path.temp { suffix = "-obsidian-other" }
