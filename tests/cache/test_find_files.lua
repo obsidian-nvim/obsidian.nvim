@@ -5,7 +5,12 @@ local picker = require "obsidian.picker"
 
 local T = new_set {}
 
-T["find_files applies initial query case-insensitively"] = function()
+T["find_files respects ignorecase for the initial query"] = function()
+  local original_ignorecase = vim.o.ignorecase
+  local original_smartcase = vim.o.smartcase
+  vim.o.ignorecase = true
+  vim.o.smartcase = true
+
   local dir = Path.temp { suffix = "-obsidian-picker" }
   dir:mkdir { parents = true }
   h.write("# Agenda", dir / "Agenda.md")
@@ -44,6 +49,8 @@ T["find_files applies initial query case-insensitively"] = function()
   picked_opts.selection_mappings["<C-l>"].callback(picked_values[1])
 
   picker.select = original_select
+  vim.o.ignorecase = original_ignorecase
+  vim.o.smartcase = original_smartcase
 
   eq(1, #picked_values)
   eq("Agenda", picked_values[1].text)

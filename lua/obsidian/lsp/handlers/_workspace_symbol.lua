@@ -137,7 +137,6 @@ return function(query, callback)
     local symbols = {}
 
     local notes = async.await(2, search.find_notes_async, query, nil, {
-      search = { ignore_case = true },
       notes = { collect_sections = true },
       match = { references = true, headings = true },
     })
