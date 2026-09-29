@@ -2,6 +2,7 @@ local eq = MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
 local fs = require "obsidian.fs"
 local search = require "obsidian.search"
+local Ripgrep = require "obsidian.search.ripgrep"
 
 local T = h.temp_vault
 
@@ -141,8 +142,8 @@ T["find_async filesystem fallback matches literal filenames"] = function()
 
   local result = {}
   local exit_code
-  local original_has_ripgrep = search._has_ripgrep
-  search._has_ripgrep = function()
+  local original_has_ripgrep = Ripgrep._has_ripgrep
+  Ripgrep._has_ripgrep = function()
     return false
   end
   search.find_async(dir, "{query}", {}, function(path)
@@ -150,7 +151,7 @@ T["find_async filesystem fallback matches literal filenames"] = function()
   end, function(code)
     exit_code = code
   end)
-  search._has_ripgrep = original_has_ripgrep
+  Ripgrep._has_ripgrep = original_has_ripgrep
 
   vim.wait(1000, function()
     return exit_code ~= nil
@@ -178,8 +179,8 @@ T["find_async applies ignore filters from the searched workspace"] = function()
 
   local result = {}
   local exit_code
-  local original_has_ripgrep = search._has_ripgrep
-  search._has_ripgrep = function()
+  local original_has_ripgrep = Ripgrep._has_ripgrep
+  Ripgrep._has_ripgrep = function()
     return false
   end
   search.find_async(other, nil, {}, function(path)
@@ -187,7 +188,7 @@ T["find_async applies ignore filters from the searched workspace"] = function()
   end, function(code)
     exit_code = code
   end)
-  search._has_ripgrep = original_has_ripgrep
+  Ripgrep._has_ripgrep = original_has_ripgrep
 
   vim.wait(1000, function()
     return exit_code ~= nil
@@ -202,10 +203,10 @@ T["find_async uses ripgrep when it is available"] = function()
   local markdown = tostring(dir / "fast.md")
   vim.fn.writefile({}, markdown)
 
-  local original_has_ripgrep = search._has_ripgrep
+  local original_has_ripgrep = Ripgrep._has_ripgrep
   local original_system = vim.system
   local command
-  search._has_ripgrep = function()
+  Ripgrep._has_ripgrep = function()
     return true
   end
   vim.system = function(cmd, _, callback)
@@ -226,7 +227,7 @@ T["find_async uses ripgrep when it is available"] = function()
     exit_code = code
   end)
 
-  search._has_ripgrep = original_has_ripgrep
+  Ripgrep._has_ripgrep = original_has_ripgrep
   vim.system = original_system
   vim.wait(1000, function()
     return exit_code ~= nil
@@ -242,9 +243,9 @@ T["find_async falls back when ripgrep execution fails"] = function()
   local markdown = tostring(dir / "fallback.md")
   vim.fn.writefile({}, markdown)
 
-  local original_has_ripgrep = search._has_ripgrep
+  local original_has_ripgrep = Ripgrep._has_ripgrep
   local original_system = vim.system
-  search._has_ripgrep = function()
+  Ripgrep._has_ripgrep = function()
     return true
   end
   vim.system = function(_, _, callback)
@@ -264,7 +265,7 @@ T["find_async falls back when ripgrep execution fails"] = function()
     exit_code = code
   end)
 
-  search._has_ripgrep = original_has_ripgrep
+  Ripgrep._has_ripgrep = original_has_ripgrep
   vim.system = original_system
   vim.wait(1000, function()
     return exit_code ~= nil

@@ -100,12 +100,13 @@ local filesystem = {
   refs = simple_refs(search.find_refs("", ref_opts)),
 }
 filesystem.template_refs = search.find_refs("Template", ref_opts)
-local original_has_ripgrep = search._has_ripgrep
-search._has_ripgrep = function()
+local ripgrep = require "obsidian.search.ripgrep"
+local original_has_ripgrep = ripgrep._has_ripgrep
+ripgrep._has_ripgrep = function()
   return false
 end
 filesystem.refs_without_rg = simple_refs(search.find_refs("", ref_opts))
-search._has_ripgrep = original_has_ripgrep
+ripgrep._has_ripgrep = original_has_ripgrep
 return { cached = cached, filesystem = filesystem }
   ]]
 

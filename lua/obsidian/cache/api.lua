@@ -71,7 +71,7 @@ end
 ---Find existing cached notes using the same structured domains as search.find_notes().
 ---The cache must be ready before calling this function.
 ---@param term string
----@param opts obsidian.cache.FindNotesOpts|?
+---@param opts obsidian.search.FindNotesOpts|?
 ---@return obsidian.Note[]
 M.find_notes = function(term, opts)
   local cache = require "obsidian.cache"
@@ -137,7 +137,7 @@ end
 ---Find existing cached attachments.
 ---The cache must be ready before calling this function.
 ---@param term string
----@param opts obsidian.cache.FindAttachmentsOpts|?
+---@param opts obsidian.search.FindAttachmentsOpts|?
 ---@return string[]
 M.find_attachments = function(term, opts)
   local cache = require "obsidian.cache"
