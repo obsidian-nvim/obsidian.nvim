@@ -3,7 +3,6 @@ local Document = require "obsidian.parse.document"
 local Range = require "obsidian.range"
 local uri = require "obsidian.uri"
 local log = require "obsidian.log"
-local search = require "obsidian.search"
 local parse_refs = require "obsidian.parse.refs"
 local parse_block_id = require "obsidian.parse.block_id"
 local parse_tags = require "obsidian.parse.tags"
@@ -454,13 +453,38 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
   return marks
 end
 
+--- Find inline highlights
+---
+---@param s string
+---
+---@return { [1]: integer, [2]: integer }[]
+local find_highlight = function(s)
+  local matches = {}
+  local search_start = 1
+  while search_start < #s do
+    local match_start, match_end = s:find("==[^=]+==", search_start)
+    if not match_start or not match_end then
+      break
+    end
+
+    -- Remove highlights that begin/end with whitespace.
+    local text = s:sub(match_start + 2, match_end - 2)
+    if vim.trim(text) == text then
+      matches[#matches + 1] = { match_start, match_end }
+    end
+
+    search_start = match_end
+  end
+  return matches
+end
+
 ---@param marks ExtMark[]
 ---@param lnum integer
 ---@param ui_opts obsidian.config.UIOpts
 ---@return ExtMark[]
 local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
   local highlight_text = assert(ui_opts.highlight_text, "ui highlight_text options are required")
-  local matches = search.find_highlight(line)
+  local matches = find_highlight(line)
   for match in iter(matches) do
     local m_start, m_end = unpack(match)
     -- Conceal opening '=='

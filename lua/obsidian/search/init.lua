@@ -6,69 +6,23 @@ local header = require "obsidian.parse.header"
 local block_id = require "obsidian.parse.block_id"
 local log = require "obsidian.log"
 local async = require "obsidian.async"
-local fs = require "obsidian.fs"
-local gitignore = require("obsidian.lib.glob").gitignore
 local api = require "obsidian.api"
 local tags = require "obsidian.tag"
 local fs_util = require "obsidian.util.fs"
-local filetypes = require "obsidian.filetypes"
 local note_matcher = require "obsidian.search.note_matcher"
 local link_refs = require "obsidian.search.link_refs"
 local attachment = require "obsidian.attachment"
 
 local M = {}
 
----@param t table|function
-local function iter(t)
-  ---@diagnostic disable-next-line: call-non-callable
-  return vim.iter(t)
-end
-
 local Opts = require "obsidian.search.opts"
 local Ripgrep = require "obsidian.search.ripgrep"
-
----@param opts obsidian.search.BackendOpts|?
----@param dir string|obsidian.Path|?
----@return string[]
-M.build_grep_cmd = function(opts, dir)
-  dir = dir or api.resolve_workspace_dir()
-  return Ripgrep.build_grep_cmd(Opts.resolve(dir, opts))
-end
-
-M._has_ripgrep = function()
-  return vim.fn.executable "rg" == 1
-end
 
 M.Patterns = {
   -- Tags
   TagCharsRequiredRg = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L}\p{N}_/-]*]],
   TagCharsOptionalRg = [[[\p{L}\p{N}_/-]*]],
 }
-
---- Find inline highlights
----
----@param s string
----
----@return { [1]: integer, [2]: integer }[]
-M.find_highlight = function(s)
-  local matches = {}
-  local search_start = 1
-  while search_start < #s do
-    local match_start, match_end = s:find("==[^=]+==", search_start)
-    if not match_start or not match_end then
-      break
-    end
-
-    -- Remove highlights that begin/end with whitespace.
-    local text = s:sub(match_start + 2, match_end - 2)
-    if vim.trim(text) == text then
-      matches[#matches + 1] = { match_start, match_end }
-    end
-
-    search_start = match_end
-  end
-  return matches
-end
 
 ---@class MatchPath
 ---
@@ -101,23 +55,12 @@ end
 ---@param on_exit fun(exit_code: integer)|?
 ---@return vim.SystemObj handle
 M.search_async = function(dir, term, opts, on_match, on_exit)
-  opts = Opts.resolve(dir, opts)
-  local cmd = Ripgrep.build_search_cmd(dir, term, opts)
-  return async.run_job_async(cmd, function(line)
-    local data = vim.json.decode(line)
-    if data["type"] == "match" then
-      local match_data = data.data
-      on_match(match_data)
-    end
-  end, function(code)
-    if on_exit ~= nil then
-      on_exit(code)
-    end
-  end)
+  return Ripgrep.search_async(dir, term, opts, on_match, on_exit)
 end
 
 --- Find files in a directory matching a given term. Each matching path is
---- passed to the `on_match` callback.
+--- passed to the `on_match` callback. Ripgrep is preferred, with the native
+--- filesystem backend used when it is unavailable or fails.
 ---
 ---@param dir string|obsidian.Path
 ---@param term string?
@@ -126,87 +69,7 @@ end
 ---@param on_exit fun(exit_code: integer)|?
 ---@return fun() cancel
 M.find_async = function(dir, term, opts, on_match, on_exit)
-  local norm_dir = Path.new(dir):resolve { strict = true }
-  opts = Opts.resolve(norm_dir, opts)
-
-  local query = term and string.lower(term) or nil
-  local exclude = opts.exclude and gitignore(opts.exclude, { ignoreCase = true }) or nil
-  local markdown_extensions = { [".md"] = true, [".qmd"] = true, [".base"] = true }
-
-  local cancelled = false
-  local cancel_backend
-
-  local function finish(paths, code)
-    if cancelled then
-      return
-    end
-    for _, path in ipairs(paths) do
-      on_match(vim.fs.normalize(path))
-    end
-    if on_exit ~= nil then
-      on_exit(code)
-    end
-  end
-
-  local function find_with_fs()
-    cancel_backend = fs.find_files_async(norm_dir, {
-      sort_by = opts.sort_by,
-      sort_reversed = opts.sort_reversed,
-      ignore = function(path)
-        if not exclude then
-          return false
-        end
-        local relative_path = tostring(Path.new(path):relative_to(norm_dir))
-        return exclude:check(relative_path)
-      end,
-      predicate = function(path)
-        local extension = "." .. vim.fn.fnamemodify(path, ":e"):lower()
-        if not opts.include_non_markdown and not markdown_extensions[extension] then
-          return false
-        end
-        return not query or string.find(string.lower(vim.fs.basename(path)), query, 1, true) ~= nil
-      end,
-    }, function(paths)
-      finish(paths, 0)
-    end)
-  end
-
-  if M._has_ripgrep() then
-    local handle = vim.system(Ripgrep.build_find_cmd(tostring(norm_dir), opts), { text = true }, function(result)
-      vim.schedule(function()
-        if cancelled then
-          return
-        elseif result.code ~= 0 then
-          find_with_fs()
-          return
-        end
-
-        local paths = iter(vim.split(result.stdout or "", "\n", { plain = true, trimempty = true }))
-          :filter(function(path)
-            if query then
-              return string.find(string.lower(vim.fs.basename(path)), query, 1, true) ~= nil
-            else
-              return true
-            end
-          end)
-          :totable()
-
-        finish(paths, result.code)
-      end)
-    end)
-    cancel_backend = function()
-      handle:kill(15)
-    end
-  else
-    find_with_fs()
-  end
-
-  return function()
-    cancelled = true
-    if cancel_backend then
-      cancel_backend()
-    end
-  end
+  return Ripgrep.find_async(dir, term, opts, on_match, on_exit)
 end
 
 ---@param dir string|obsidian.Path|nil
@@ -354,30 +217,7 @@ M.find_attachments_async = function(term, callback, opts)
     end)
     return
   end
-
-  local paths = {}
-  local query = vim.trim(term or "")
-  local ignore_case = Opts.should_ignore_case(query)
-  if ignore_case then
-    query = query:lower()
-  end
-  return M.find_async(dir, nil, {
-    sort_by = opts.sort_by,
-    sort_reversed = opts.sort_reversed,
-    include_non_markdown = true,
-  }, function(path)
-    if filetypes.is_attachment(path) then
-      local rel = fs_util.relpath(tostring(dir), path) or path
-      if ignore_case then
-        rel = rel:lower()
-      end
-      if query == "" or rel:find(query, 1, true) then
-        paths[#paths + 1] = path
-      end
-    end
-  end, function()
-    callback(paths)
-  end)
+  return Ripgrep.find_attachments_async(term, callback, opts)
 end
 
 ---@param term string
@@ -553,7 +393,7 @@ local function find_refs_with_fs(term, dir, opts)
     end
 
     local candidates = {}
-    if M._has_ripgrep() then
+    if Ripgrep._has_ripgrep() then
       local seen = {}
       local code = async.await(1, function(done)
         M.search_async(dir, { "[[", "](" }, {
