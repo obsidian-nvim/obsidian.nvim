@@ -6,6 +6,8 @@ local PickerName = require("obsidian.types").Picker
 local Mappings = require "obsidian.picker.mappings"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
+local SearchOpts = require "obsidian.search.opts"
+local Ripgrep = require "obsidian.search.ripgrep"
 
 ---@alias obsidian.Picker obsidian.picker.Module
 ---@class obsidian.picker.Module
@@ -296,7 +298,7 @@ M.grep_notes = function(opts)
 
   local dir = opts.dir or api.resolve_workspace_dir()
   M.grep {
-    cmd = search.build_grep_cmd(nil, dir),
+    cmd = Ripgrep.build_grep_cmd(SearchOpts.resolve(dir)),
     prompt_title = opts.prompt_title or "Grep notes",
     dir = dir,
     query = opts.query,
