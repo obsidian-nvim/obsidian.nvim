@@ -256,12 +256,6 @@ local function cache_can_search(dir)
   return fs_util.is_subpath(tostring(search_dir), tostring(vault_dir))
 end
 
----@class obsidian.search.FindNotesOpts: obsidian.search.SortOpts
----@field notes obsidian.note.LoadOpts|?
----@field dir string|obsidian.Path|?
----@field match obsidian.search.NoteMatchOpts|?
----@field timeout integer|?
-
 --- An async version of `find_notes()` using coroutines.
 ---
 ---@param term string The term to search for
@@ -363,7 +357,6 @@ end
 ---@return obsidian.Note[] notes always returns a list (empty on timeout)
 M.find_notes = function(term, opts)
   opts = opts or {}
-  opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
     M.find_notes_async(term, cb, {
       sort_by = opts.sort_by,
@@ -372,7 +365,7 @@ M.find_notes = function(term, opts)
       dir = opts.dir,
       match = opts.match,
     })
-  end, opts.timeout)
+  end, 3000)
   ---@cast result obsidian.Note[]?
   return result or {}
 end
@@ -448,10 +441,6 @@ M.find_blocks_async = function(term, callback, opts)
     end,
   })
 end
----@class obsidian.search.FindAttachmentsOpts: obsidian.search.SortOpts
----@field dir string|obsidian.Path|?
----@field timeout integer|?
-
 ---Find attachment paths matching a filename or vault-relative path.
 ---@param term string
 ---@param callback fun(paths: string[])
@@ -508,7 +497,7 @@ M.find_attachments = function(term, opts)
       sort_reversed = opts.sort_reversed,
       dir = opts.dir,
     })
-  end, opts.timeout or 1000)
+  end, 3000)
   ---@cast result string[]?
   return result or {}
 end
