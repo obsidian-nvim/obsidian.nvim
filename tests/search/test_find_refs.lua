@@ -56,15 +56,18 @@ local cached = {
   case_sensitive = case_sensitive,
 }
 
-local refs = search.find_refs("", {
+local ref_opts = {
   include_notes = false,
   include_attachments = true,
   include_unresolved = true,
   include_tags = true,
-})
-cached.refs = vim.tbl_map(function(ref)
-  return { kind = ref.kind, text = ref.text, attachment = ref.attachment == true }
-end, refs)
+}
+local function simple_refs(refs)
+  return vim.tbl_map(function(ref)
+    return { kind = ref.kind, text = ref.text, attachment = ref.attachment == true }
+  end, refs)
+end
+cached.refs = simple_refs(search.find_refs("", ref_opts))
 cached.template_refs = search.find_refs("Template", {})
 
 local original_sort = table.sort
@@ -94,8 +97,15 @@ local filesystem = {
   attachments = vim.tbl_map(vim.fs.basename, search.find_attachments("image", opts)),
   smartcase_alias = names(search.find_notes("FRIENDLY", opts)),
   smartcase_attachments = search.find_attachments("IMAGE", opts),
-  refs = search.find_refs("", { include_notes = true }),
+  refs = simple_refs(search.find_refs("", ref_opts)),
 }
+filesystem.template_refs = search.find_refs("Template", ref_opts)
+local original_has_ripgrep = search._has_ripgrep
+search._has_ripgrep = function()
+  return false
+end
+filesystem.refs_without_rg = simple_refs(search.find_refs("", ref_opts))
+search._has_ripgrep = original_has_ripgrep
 return { cached = cached, filesystem = filesystem }
   ]]
 
@@ -119,9 +129,11 @@ return { cached = cached, filesystem = filesystem }
     { attachment = false, kind = "unresolved", text = "Missing" },
     { attachment = true, kind = "unresolved", text = "Missing.pdf" },
   }, result.cached.refs)
+  eq(result.cached.refs, result.filesystem.refs)
+  eq(result.filesystem.refs, result.filesystem.refs_without_rg)
   eq({}, result.cached.template_refs)
+  eq({}, result.filesystem.template_refs)
   eq(true, result.cached.respected_disabled_sort)
-  eq({}, result.filesystem.refs)
 end
 
 return T

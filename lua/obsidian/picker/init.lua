@@ -228,8 +228,6 @@ M.find_notes = function(opts)
 end
 
 ---Find note, attachment, and unresolved references for quick switch.
----The cache route is complete; the generic filesystem fallback currently finds
----existing notes only.
 ---@param opts obsidian.PickerFindOpts|?
 M.find_refs = function(opts)
   state.calling_bufnr = vim.api.nvim_get_current_buf()
@@ -253,13 +251,16 @@ M.find_refs = function(opts)
     show_existing_only = opts.show_existing_only,
     show_attachments = opts.show_attachments,
   }
-  if require("obsidian.cache").pick_refs(find_opts) then
-    return
-  end
-
-  -- TODO: use search.find_refs_async() once its ripgrep/filesystem route can
-  -- discover unresolved references.
-  return find_files(find_opts)
+  -- TODO: let the minimal picker filter a single reference snapshot interactively.
+  return search.find_refs_async(opts.query or "", function(refs)
+    require("obsidian.cache").pick_refs(refs, find_opts)
+  end, {
+    dir = find_opts.dir,
+    include_notes = true,
+    include_attachments = opts.show_attachments == true,
+    include_unresolved = opts.show_existing_only == false,
+    include_tags = false,
+  })
 end
 
 --- Grep search in notes.
