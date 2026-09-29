@@ -1623,7 +1623,7 @@ Note.open = function(self, opts)
   end
 end
 
----@param opts { search: obsidian.SearchOpts?, anchor: string?, block: string?, timeout: integer?, dir: string|obsidian.Path?, refs: string[]? }?
+---@param opts { anchor: string?, block: string?, timeout: integer?, dir: string|obsidian.Path?, refs: string[]? }?
 ---@return obsidian.search.BacklinkMatch[]
 Note.backlinks = function(self, opts)
   local backlink_opts = opts or {}
@@ -1631,7 +1631,7 @@ Note.backlinks = function(self, opts)
   return search.find_backlinks(self, backlink_opts)
 end
 
----@param opts { search: obsidian.SearchOpts?, anchor: string?, block: string?, dir: string|obsidian.Path?, refs: string[]? }?
+---@param opts { anchor: string?, block: string?, dir: string|obsidian.Path?, refs: string[]? }?
 ---@param callback fun(matches: obsidian.search.BacklinkMatch[])
 Note.backlinks_async = function(self, opts, callback)
   local backlink_opts = opts or {}

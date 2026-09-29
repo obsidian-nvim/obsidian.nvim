@@ -4,19 +4,18 @@ local link = require "obsidian.link"
 local api = require "obsidian.api"
 local picker_util = require "obsidian.picker.util"
 local note_matcher = require "obsidian.search.note_matcher"
+local SearchOpts = require "obsidian.search.opts"
 local log = require "obsidian.log"
 
 local M = {}
 
----@class obsidian.cache.FindNotesOpts
+---@class obsidian.cache.FindNotesOpts: obsidian.search.SortOpts
 ---@field dir string|obsidian.Path|?
----@field search obsidian.SearchOpts|?
 ---@field notes obsidian.note.LoadOpts|?
 ---@field match obsidian.search.NoteMatchOpts|?
 
----@class obsidian.cache.FindAttachmentsOpts
+---@class obsidian.cache.FindAttachmentsOpts: obsidian.search.SortOpts
 ---@field dir string|obsidian.Path|?
----@field search obsidian.SearchOpts|?
 
 ---@class obsidian.Ref
 ---@field kind "note"|"attachment"|"unresolved"|"tag"
@@ -45,19 +44,13 @@ end
 
 ---@param paths string[]
 ---@param rows table<string, table>
----@param search_opts obsidian.SearchOpts|?
-local function sort_cached_paths(paths, rows, search_opts)
-  search_opts = search_opts or {}
-  if search_opts.sort == false then
+---@param opts obsidian.search.BackendOpts
+local function sort_cached_paths(paths, rows, opts)
+  if opts.sort_by == false then
     return
   end
-  local global_search = (Obsidian.opts and Obsidian.opts.search) or {}
-  local sort_by = global_search.sort_by
-  if sort_by == false then
-    return
-  end
-  sort_by = sort_by or "path"
-  local reversed = global_search.sort_reversed or false
+  local sort_by = opts.sort_by or "path"
+  local reversed = opts.sort_reversed or false
   table.sort(paths, function(a, b)
     ---@type string|number
     local av = a
@@ -93,21 +86,25 @@ M.find_notes = function(term, opts)
   assert(cache.is_ready(), "cache not ready")
   opts = opts or {}
   local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
-  local search_opts = opts.search or {}
+  local backend_opts = SearchOpts.resolve(dir, {
+    sort_by = opts.sort_by,
+    sort_reversed = opts.sort_reversed,
+  })
   local root = vim.fs.normalize(tostring(Obsidian.dir))
   local rows = cache.notes.all()
   local paths = {}
+  local ignore_case = SearchOpts.should_ignore_case(term)
 
   for path, row in pairs(rows) do
     if
       fs_util.is_subpath(path, dir)
       and not path_is_template(path, dir)
-      and note_matcher.matches(path, root, row, term, opts.match, search_opts.ignore_case)
+      and note_matcher.matches(path, root, row, term, opts.match, ignore_case)
     then
       paths[#paths + 1] = path
     end
   end
-  sort_cached_paths(paths, rows, search_opts)
+  sort_cached_paths(paths, rows, backend_opts)
 
   local Note = require "obsidian.note"
   local load_opts = opts.notes or {}
@@ -155,9 +152,13 @@ M.find_attachments = function(term, opts)
   assert(cache.is_ready(), "cache not ready")
   opts = opts or {}
   local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
+  local backend_opts = SearchOpts.resolve(dir, {
+    sort_by = opts.sort_by,
+    sort_reversed = opts.sort_reversed,
+  })
   local root = vim.fs.normalize(tostring(Obsidian.dir))
   local query = vim.trim(term or "")
-  local ignore_case = opts.search == nil or opts.search.ignore_case ~= false
+  local ignore_case = SearchOpts.should_ignore_case(query)
   if ignore_case then
     query = query:lower()
   end
@@ -173,7 +174,7 @@ M.find_attachments = function(term, opts)
       paths[#paths + 1] = path
     end
   end
-  sort_cached_paths(paths, rows, opts.search)
+  sort_cached_paths(paths, rows, backend_opts)
   return paths
 end
 
@@ -325,7 +326,11 @@ M.find_refs = function(term, opts)
   local include_unresolved = opts.include_unresolved == true
   -- TODO: honor opts.include_tags once tags are exposed as cache-powered references.
   local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
-  local query = vim.trim(term or ""):lower()
+  local query = vim.trim(term or "")
+  local ignore_case = SearchOpts.should_ignore_case(query)
+  if ignore_case then
+    query = query:lower()
+  end
   local notes = cache.notes.all()
   local attachments = cache.attachments.all()
   local lookup = {}
@@ -337,7 +342,8 @@ M.find_refs = function(term, opts)
   ---@param ref obsidian.Ref
   ---@return obsidian.Ref?
   local function add_ref(ref)
-    if query ~= "" and not ref.text:lower():find(query, 1, true) then
+    local text = ignore_case and ref.text:lower() or ref.text
+    if query ~= "" and not text:find(query, 1, true) then
       return
     end
     refs[#refs + 1] = ref
@@ -489,8 +495,8 @@ M.find_files = function(opts)
     picker.select(entries, {
       prompt = opts.prompt_title,
       allow_multiple = true,
-      -- The cache has already applied the initial query case-insensitively.
-      -- Don't pass it through, since some pickers would filter again case-sensitively.
+      -- The cache has already applied the initial query using Vim's case rules.
+      -- Don't pass it through, since some pickers would filter it again differently.
       query = pick_query,
       query_mappings = opts.query_mappings,
       selection_mappings = opts.selection_mappings,

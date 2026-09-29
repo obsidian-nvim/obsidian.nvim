@@ -34,19 +34,26 @@ local function names(notes)
   return out
 end
 
-local opts = { search = { ignore_case = true, sort = false } }
+local opts = { sort_by = false }
+vim.o.ignorecase = false
+local case_sensitive = names(search.find_notes("friendly", opts))
+vim.o.ignorecase = true
+vim.o.smartcase = true
 local cached = {
   alias = names(search.find_notes("friendly", opts)),
   heading = names(search.find_notes("http-api", {
-    search = opts.search,
+    sort_by = opts.sort_by,
     match = { references = false, headings = true },
   })),
   block = names(search.find_notes("block-id", {
-    search = opts.search,
+    sort_by = opts.sort_by,
     match = { references = false, blocks = true },
   })),
   body = names(search.find_notes("body-only", opts)),
   attachments = vim.tbl_map(vim.fs.basename, search.find_attachments("image", opts)),
+  smartcase_alias = names(search.find_notes("FRIENDLY", opts)),
+  smartcase_attachments = search.find_attachments("IMAGE", opts),
+  case_sensitive = case_sensitive,
 }
 
 local refs = search.find_refs("", {
@@ -76,15 +83,17 @@ cache.shutdown()
 local filesystem = {
   alias = names(search.find_notes("friendly", opts)),
   heading = names(search.find_notes("http-api", {
-    search = opts.search,
+    sort_by = opts.sort_by,
     match = { references = false, headings = true },
   })),
   block = names(search.find_notes("block-id", {
-    search = opts.search,
+    sort_by = opts.sort_by,
     match = { references = false, blocks = true },
   })),
   body = names(search.find_notes("body-only", opts)),
   attachments = vim.tbl_map(vim.fs.basename, search.find_attachments("image", opts)),
+  smartcase_alias = names(search.find_notes("FRIENDLY", opts)),
+  smartcase_attachments = search.find_attachments("IMAGE", opts),
   refs = search.find_refs("", { include_notes = true }),
 }
 return { cached = cached, filesystem = filesystem }
@@ -100,6 +109,11 @@ return { cached = cached, filesystem = filesystem }
   eq(result.cached.body, result.filesystem.body)
   eq({ "Image.PNG" }, result.cached.attachments)
   eq(result.cached.attachments, result.filesystem.attachments)
+  eq({}, result.cached.case_sensitive)
+  eq({}, result.cached.smartcase_alias)
+  eq(result.cached.smartcase_alias, result.filesystem.smartcase_alias)
+  eq({}, result.cached.smartcase_attachments)
+  eq(result.cached.smartcase_attachments, result.filesystem.smartcase_attachments)
   eq({
     { attachment = true, kind = "attachment", text = "Image.PNG" },
     { attachment = false, kind = "unresolved", text = "Missing" },
