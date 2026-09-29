@@ -3,8 +3,179 @@ local attachment = require "obsidian.attachment"
 local link = require "obsidian.link"
 local api = require "obsidian.api"
 local picker_util = require "obsidian.picker.util"
+local note_matcher = require "obsidian.search.note_matcher"
+local log = require "obsidian.log"
 
 local M = {}
+
+---@class obsidian.cache.FindNotesOpts
+---@field dir string|obsidian.Path|?
+---@field search obsidian.SearchOpts|?
+---@field notes obsidian.note.LoadOpts|?
+---@field match obsidian.search.NoteMatchOpts|?
+
+---@class obsidian.cache.FindAttachmentsOpts
+---@field dir string|obsidian.Path|?
+---@field search obsidian.SearchOpts|?
+
+---@class obsidian.Ref
+---@field kind "note"|"attachment"|"unresolved"|"tag"
+---@field text string
+---@field path string|?
+---@field note obsidian.Note|?
+---@field attachment boolean|?
+---@field target string|?
+---@field references obsidian.NoteCreationReference[]|?
+
+---@class obsidian.cache.FindRefsOpts
+---@field dir string|obsidian.Path|?
+---@field include_notes boolean|?
+---@field include_attachments boolean|?
+---@field include_unresolved boolean|?
+---@field include_tags boolean|? Reserved until tags are cache-powered.
+
+---@param path string
+---@param dir string
+---@return boolean
+local function path_is_template(path, dir)
+  local workspace = api.find_workspace(dir)
+  local templates_dir = workspace and api.templates_dir(workspace) or nil
+  return templates_dir ~= nil and fs_util.is_subpath(path, tostring(templates_dir))
+end
+
+---@param paths string[]
+---@param rows table<string, table>
+---@param search_opts obsidian.SearchOpts|?
+local function sort_cached_paths(paths, rows, search_opts)
+  search_opts = search_opts or {}
+  if search_opts.sort == false then
+    return
+  end
+  local global_search = (Obsidian.opts and Obsidian.opts.search) or {}
+  local sort_by = global_search.sort_by
+  if sort_by == false then
+    return
+  end
+  sort_by = sort_by or "path"
+  local reversed = global_search.sort_reversed or false
+  table.sort(paths, function(a, b)
+    ---@type string|number
+    local av = a
+    ---@type string|number
+    local bv = b
+    if sort_by == "modified" then
+      local a_stat, b_stat = rows[a].stat or {}, rows[b].stat or {}
+      av = (a_stat.mtime_sec or 0) * 1000000000 + (a_stat.mtime_nsec or 0)
+      bv = (b_stat.mtime_sec or 0) * 1000000000 + (b_stat.mtime_nsec or 0)
+    elseif sort_by == "accessed" or sort_by == "created" then
+      local stat_key = sort_by == "accessed" and "atime" or "birthtime"
+      local a_stat, b_stat = vim.uv.fs_stat(a), vim.uv.fs_stat(b)
+      av = a_stat and a_stat[stat_key] and a_stat[stat_key].sec or 0
+      bv = b_stat and b_stat[stat_key] and b_stat[stat_key].sec or 0
+    end
+    if av == bv then
+      return a < b
+    elseif reversed then
+      return av > bv
+    else
+      return av < bv
+    end
+  end)
+end
+
+---Find existing cached notes using the same structured domains as search.find_notes().
+---The cache must be ready before calling this function.
+---@param term string
+---@param opts obsidian.cache.FindNotesOpts|?
+---@return obsidian.Note[]
+M.find_notes = function(term, opts)
+  local cache = require "obsidian.cache"
+  assert(cache.is_ready(), "cache not ready")
+  opts = opts or {}
+  local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
+  local search_opts = opts.search or {}
+  local root = vim.fs.normalize(tostring(Obsidian.dir))
+  local rows = cache.notes.all()
+  local paths = {}
+
+  for path, row in pairs(rows) do
+    if
+      fs_util.is_subpath(path, dir)
+      and not path_is_template(path, dir)
+      and note_matcher.matches(path, root, row, term, opts.match, search_opts.ignore_case)
+    then
+      paths[#paths + 1] = path
+    end
+  end
+  sort_cached_paths(paths, rows, search_opts)
+
+  local Note = require "obsidian.note"
+  local load_opts = opts.notes or {}
+  local parse_file = load_opts.collect_sections
+    or load_opts.collect_anchor_links
+    or load_opts.collect_blocks
+    or load_opts.collect_block_candidates
+  local notes = {}
+  local first_err, first_err_path
+  local err_count = 0
+  for _, path in ipairs(paths) do
+    local ok, note
+    if parse_file then
+      ok, note = pcall(Note.from_file, path, load_opts)
+    else
+      ok, note = pcall(Note.from_cache, path, rows[path])
+    end
+    if ok then
+      notes[#notes + 1] = note
+    else
+      err_count = err_count + 1
+      if not first_err then
+        first_err, first_err_path = note, path
+      end
+    end
+  end
+  if first_err then
+    log.err(
+      "%d error(s) occurred during cached note search. First error from '%s':\n%s",
+      err_count,
+      first_err_path,
+      first_err
+    )
+  end
+  return notes
+end
+
+---Find existing cached attachments.
+---The cache must be ready before calling this function.
+---@param term string
+---@param opts obsidian.cache.FindAttachmentsOpts|?
+---@return string[]
+M.find_attachments = function(term, opts)
+  local cache = require "obsidian.cache"
+  assert(cache.is_ready(), "cache not ready")
+  opts = opts or {}
+  local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
+  local root = vim.fs.normalize(tostring(Obsidian.dir))
+  local query = vim.trim(term or "")
+  local ignore_case = opts.search == nil or opts.search.ignore_case ~= false
+  if ignore_case then
+    query = query:lower()
+  end
+  local rows = cache.attachments.all()
+  local paths = {}
+  for path in pairs(rows) do
+    local rel = fs_util.relpath(root, path) or path
+    local haystack = rel
+    if ignore_case then
+      haystack = haystack:lower()
+    end
+    if fs_util.is_subpath(path, dir) and (query == "" or haystack:find(query, 1, true)) then
+      paths[#paths + 1] = path
+    end
+  end
+  sort_cached_paths(paths, rows, opts.search)
+  return paths
+end
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
@@ -139,6 +310,135 @@ local function entry_user_data(is_attachment, missing, references, target)
   }
 end
 
+---Find note, attachment, and unresolved-link references from one cache snapshot.
+---The cache must be ready before calling this function. Tags are reserved for a
+---future cache-powered reference kind.
+---@param term string
+---@param opts obsidian.cache.FindRefsOpts|?
+---@return obsidian.Ref[]
+M.find_refs = function(term, opts)
+  local cache = require "obsidian.cache"
+  assert(cache.is_ready(), "cache not ready")
+  opts = opts or {}
+  local include_notes = opts.include_notes ~= false
+  local include_attachments = opts.include_attachments == true
+  local include_unresolved = opts.include_unresolved == true
+  -- TODO: honor opts.include_tags once tags are exposed as cache-powered references.
+  local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
+  local query = vim.trim(term or ""):lower()
+  local notes = cache.notes.all()
+  local attachments = cache.attachments.all()
+  local lookup = {}
+  ---@type obsidian.Ref[]
+  local refs = {}
+  ---@type table<string, obsidian.Ref>
+  local unresolved = {}
+
+  ---@param ref obsidian.Ref
+  ---@return obsidian.Ref?
+  local function add_ref(ref)
+    if query ~= "" and not ref.text:lower():find(query, 1, true) then
+      return
+    end
+    refs[#refs + 1] = ref
+    return ref
+  end
+
+  for path, row in pairs(notes) do
+    add_lookup_path(path, lookup)
+    for _, alias in ipairs(row.aliases or {}) do
+      lookup[alias:lower()] = true
+    end
+  end
+  for path in pairs(attachments) do
+    add_lookup_path(path, lookup)
+  end
+
+  local Note = require "obsidian.note"
+  if include_notes then
+    for path, row in pairs(notes) do
+      if fs_util.is_subpath(path, dir) and not path_is_template(path, dir) then
+        local text = note_matcher.without_note_extension(cache.notes.rel_path(path))
+        local note = Note.from_cache(path, row)
+        add_ref { kind = "note", text = text, path = path, note = note, attachment = false }
+        for _, alias in ipairs(row.aliases or {}) do
+          add_ref {
+            kind = "note",
+            text = text .. " | " .. alias,
+            path = path,
+            note = note,
+            attachment = false,
+          }
+        end
+      end
+    end
+  end
+
+  if include_attachments then
+    for path in pairs(attachments) do
+      if fs_util.is_subpath(path, dir) then
+        add_ref {
+          kind = "attachment",
+          text = cache.attachments.rel_path(path),
+          path = path,
+          attachment = true,
+        }
+      end
+    end
+  end
+
+  if include_unresolved then
+    for source_path, row in pairs(notes) do
+      if not path_is_template(source_path, dir) then
+        for _, outgoing in ipairs(row.links_out or {}) do
+          local target = outgoing.target
+          if not is_external_target(target) and not target_exists(target, lookup, source_path) then
+            local target_is_attachment = attachment.is_attachment_path(target:lower())
+            if include_attachments or not target_is_attachment then
+              local target_path = link.missing_link_path(target, source_path)
+              if target_path and fs_util.is_subpath(target_path, dir) then
+                local key = missing_entry_key(target, source_path, target_path, target_is_attachment)
+                ---@type obsidian.NoteCreationReference
+                local reference = {
+                  filename = source_path,
+                  lnum = outgoing.line or 1,
+                  col = outgoing.col or 1,
+                  raw = outgoing.raw or target,
+                }
+                local existing = unresolved[key]
+                if existing then
+                  local references = assert(existing.references, "unresolved reference locations are missing")
+                  references[#references + 1] = reference
+                else
+                  local ref = {
+                    kind = "unresolved",
+                    text = normalize_link_target(target),
+                    path = target_path,
+                    target = vim.uri_decode(target):gsub("\\", "/"),
+                    attachment = target_is_attachment,
+                    references = { reference },
+                  }
+                  if add_ref(ref) then
+                    unresolved[key] = ref
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  table.sort(refs, function(a, b)
+    if a.text ~= b.text then
+      return a.text < b.text
+    end
+    return (a.path or "") < (b.path or "")
+  end)
+  return refs
+end
+
 ---@param opts obsidian.PickerFindOpts|?
 ---@return boolean handled
 M.find_files = function(opts)
@@ -160,98 +460,23 @@ M.find_files = function(opts)
     if query == "" then
       query = nil
     end
-    local query_lower = query and string.lower(query) or nil
 
     ---@type obsidian.PickerEntry[]
     local entries = {}
-    local lookup = {}
-    ---@type table<string, obsidian.PickerEntry>
-    local missing_entries = {}
-    local notes = cache.notes.all()
-    local attachments = cache.attachments.all()
-
-    ---@param text string
-    ---@param path string
-    ---@param user_data obsidian.PickerEntryUserData
-    ---@return obsidian.PickerEntry?
-    local function add_entry(text, path, user_data)
-      if query_lower and not string.find(string.lower(text), query_lower, 1, true) then
-        return
-      end
-      local entry = {
-        text = text,
-        filename = path,
-        user_data = user_data,
+    for _, ref in
+      ipairs(M.find_refs(query or "", {
+        dir = dir,
+        include_notes = true,
+        include_attachments = show_attachments,
+        include_unresolved = not show_existing_only,
+        include_tags = false,
+      }))
+    do
+      entries[#entries + 1] = {
+        text = ref.text,
+        filename = ref.path,
+        user_data = entry_user_data(ref.attachment == true, ref.kind == "unresolved", ref.references, ref.target),
       }
-      entries[#entries + 1] = entry
-      return entry
-    end
-
-    for path, note in pairs(notes) do
-      add_lookup_path(path, lookup)
-      for _, alias in ipairs(note.aliases or {}) do
-        lookup[alias:lower()] = true
-      end
-    end
-    for path in pairs(attachments) do
-      add_lookup_path(path, lookup)
-    end
-
-    for path, note in pairs(notes) do
-      if fs_util.is_subpath(path, dir) then
-        local rel_path = cache.notes.rel_path(path):gsub("%.md$", "")
-        local user_data = entry_user_data(false, false)
-        add_entry(rel_path, path, user_data)
-        for _, alias in ipairs(note.aliases or {}) do
-          add_entry(rel_path .. " | " .. alias, path, user_data)
-        end
-      end
-    end
-    if show_attachments then
-      for path in pairs(attachments) do
-        if fs_util.is_subpath(path, dir) then
-          add_entry(cache.attachments.rel_path(path), path, entry_user_data(true, false))
-        end
-      end
-    end
-
-    if not show_existing_only then
-      for path, note in pairs(notes) do
-        for _, outgoing in ipairs(note.links_out or {}) do
-          local target = outgoing.target
-          if not is_external_target(target) and not target_exists(target, lookup, path) then
-            local missing_is_attachment = attachment.is_attachment_path(target:lower())
-            if show_attachments or not missing_is_attachment then
-              local target_path = link.missing_link_path(target, path)
-              if target_path and fs_util.is_subpath(target_path, dir) then
-                local missing_key = missing_entry_key(target, path, target_path, missing_is_attachment)
-                ---@type obsidian.NoteCreationReference
-                local reference = {
-                  filename = path,
-                  lnum = outgoing.line or 1,
-                  col = outgoing.col or 1,
-                  raw = outgoing.raw or target,
-                }
-                local entry = missing_entries[missing_key]
-                if entry then
-                  local data = entry.user_data
-                  data.references[#data.references + 1] = reference
-                else
-                  local text = normalize_link_target(target)
-                  local added = add_entry(
-                    text,
-                    target_path,
-                    entry_user_data(missing_is_attachment, true, { reference }, vim.uri_decode(target):gsub("\\", "/"))
-                  )
-                  if added then
-                    missing_entries[missing_key] = added
-                  end
-                end
-              end
-            end
-          end
-        end
-      end
     end
 
     local pick_query = opts.query

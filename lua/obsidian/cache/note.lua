@@ -78,6 +78,8 @@ function M.build(abs_path, _vault_root)
   local document = Document.parse(lines)
   local ok, note = pcall(Note.from_lines, lines, abs_path, {
     collect_sections = true,
+    collect_blocks = true,
+    collect_block_candidates = true,
     max_lines = #lines,
     document = document,
   })
@@ -120,6 +122,23 @@ function M.build(abs_path, _vault_root)
         line = section.heading_range.start_row + 1,
       }
     end
+  end
+
+  local blocks_search = {}
+  local blocks_seen = {}
+  local function add_block_search(value)
+    value = vim.trim(value or "")
+    if value ~= "" and not blocks_seen[value] then
+      blocks_search[#blocks_search + 1] = value
+      blocks_seen[value] = true
+    end
+  end
+  for id, block in pairs(note.blocks or {}) do
+    add_block_search(id)
+    add_block_search(block.block)
+  end
+  for _, section in ipairs(note.block_candidates or {}) do
+    add_block_search(table.concat(vim.list_slice(lines, section.range.start_row + 1, section.range.end_row), "\n"))
   end
 
   local links_out = {}
@@ -175,6 +194,9 @@ function M.build(abs_path, _vault_root)
   end
   if #links_out > 0 then
     row.links_out = links_out
+  end
+  if #blocks_search > 0 then
+    row.blocks_search = blocks_search
   end
   if #tasks > 0 then
     row.tasks = tasks
