@@ -9,14 +9,6 @@ local log = require "obsidian.log"
 
 local M = {}
 
----@class obsidian.cache.FindNotesOpts: obsidian.search.SortOpts
----@field dir string|obsidian.Path|?
----@field notes obsidian.note.LoadOpts|?
----@field match obsidian.search.NoteMatchOpts|?
-
----@class obsidian.cache.FindAttachmentsOpts: obsidian.search.SortOpts
----@field dir string|obsidian.Path|?
-
 ---@class obsidian.Ref
 ---@field kind "note"|"attachment"|"unresolved"|"tag"
 ---@field text string
