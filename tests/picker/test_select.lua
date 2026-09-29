@@ -396,7 +396,7 @@ T["fzf grep confirmation retains entries and mappings receive paths"] = function
     }, function()
       local fzf = require "obsidian.picker.fzf"
       fzf.grep {
-        cmd = require("obsidian.search").build_grep_cmd(),
+        cmd = require("obsidian.search.ripgrep").build_grep_cmd(),
         dir = "/vault",
         query = "query",
         callback = function(entries)
@@ -476,7 +476,7 @@ T["snacks grep mappings receive paths"] = function()
       end,
     }, function()
       require("obsidian.picker.snacks").grep {
-        cmd = require("obsidian.search").build_grep_cmd(),
+        cmd = require("obsidian.search.ripgrep").build_grep_cmd(),
         dir = "/vault",
         query = "query",
         selection_mappings = {
