@@ -10,7 +10,12 @@ local filetypes = require "obsidian.filetypes"
 local ignore = require "obsidian.ignore"
 
 local M = {}
-M.find_files = require("obsidian.cache.api").find_files
+local cache_api = require "obsidian.cache.api"
+M.find_files = cache_api.find_files -- compatibility alias for the cache-backed picker
+M.pick_refs = cache_api.find_files
+M.find_notes = cache_api.find_notes
+M.find_attachments = cache_api.find_attachments
+M.find_refs = cache_api.find_refs
 
 ---@class obsidian.cache.Backend
 ---@field open fun(opts: table): obsidian.cache.Store
@@ -31,9 +36,12 @@ M.find_files = require("obsidian.cache.api").find_files
 ---@class obsidian.cache.NoteRow
 ---@field kind "note"
 ---@field stat obsidian.cache.FileStat
+---@field id? string
 ---@field aliases? string[]
 ---@field tags? string[]
 ---@field properties? table<string, any>
+---@field headings? obsidian.cache.HeadingRow[]
+---@field blocks_search? string[]
 ---@field links_out? table[]
 ---@field tasks? table[]
 
