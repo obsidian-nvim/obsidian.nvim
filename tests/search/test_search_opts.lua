@@ -27,11 +27,48 @@ T["should disable sort when sort_by is false"] = function()
   eq(M._generate_args(opts), {})
 end
 
-T["should merge with another SearchOpts instance"] = function()
-  local opts1 = { fixed_strings = true, max_count_per_file = 1 }
-  local opts2 = { fixed_strings = false, ignore_case = true }
-  local opt = Opts._merge(opts1, opts2)
-  eq(M._generate_args(opt), { "--ignore-case", "-m=1" })
+T["should resolve workspace defaults without overriding explicit false"] = function()
+  local original_obsidian = Obsidian
+  Obsidian = {
+    opts = {
+      search = { sort_by = "modified", sort_reversed = true },
+      templates = {},
+      file = { ignore_filters = { "archive" } },
+    },
+  }
+
+  local resolved = Opts.resolve(".", { sort_by = false, sort_reversed = false })
+  Obsidian = original_obsidian
+
+  eq(false, resolved.sort_by)
+  eq(false, resolved.sort_reversed)
+  eq({ "archive" }, resolved.exclude)
+end
+
+T["should derive case sensitivity from ignorecase and smartcase"] = function()
+  local original_ignorecase = vim.o.ignorecase
+  local original_smartcase = vim.o.smartcase
+  local results = {}
+
+  vim.o.ignorecase = false
+  vim.o.smartcase = false
+  results.ignorecase_off = Opts.should_ignore_case "lower"
+
+  vim.o.ignorecase = true
+  results.smartcase_off = Opts.should_ignore_case "UPPER"
+
+  vim.o.smartcase = true
+  results.lowercase_query = Opts.should_ignore_case "lower"
+  results.uppercase_query = Opts.should_ignore_case "Upper"
+
+  vim.o.ignorecase = original_ignorecase
+  vim.o.smartcase = original_smartcase
+  eq({
+    ignorecase_off = false,
+    smartcase_off = true,
+    lowercase_query = true,
+    uppercase_query = false,
+  }, results)
 end
 
 return T

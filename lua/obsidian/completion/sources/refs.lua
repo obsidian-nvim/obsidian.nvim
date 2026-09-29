@@ -879,7 +879,7 @@ start_vault_block_search_index = function(dir, note_opts)
     end
   end, {
     dir = dir,
-    search = { sort = false, ignore_case = true },
+    sort_by = false,
     notes = note_opts,
   })
 end
@@ -1122,7 +1122,7 @@ local function process_heading_search(cc, query)
     -- notes first, then filter their parsed headings below.
     search.find_notes_async("", finish, {
       dir = dir,
-      search = { sort = false, ignore_case = true },
+      sort_by = false,
       notes = note_opts,
     })
   end
@@ -1470,17 +1470,12 @@ function M.process_completion(completion_resolve_callback, request)
       return
     end
 
-    local search_opts = {
-      sort = false,
-      ignore_case = true,
-    }
-
     local source_path = vim.api.nvim_buf_get_name(cc.request.bufnr)
     search.find_notes_async(cc.search, function(results)
       process_search_results(cc, results)
     end, {
       dir = api.resolve_workspace_dir(source_path),
-      search = search_opts,
+      sort_by = false,
       notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
     })
   end

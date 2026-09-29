@@ -19,7 +19,7 @@ local SEARCH_CMD = vim.iter({ BASE_CMD, "--type=md", "--json", "--crlf" }):flatt
 ---@diagnostic disable-next-line: call-non-callable
 local FIND_CMD = vim.iter({ BASE_CMD, "--files" }):flatten():totable()
 
----@param opts obsidian.search.SearchOpts
+---@param opts obsidian.search.BackendOpts
 ---@return string[]
 local generate_args = function(opts)
   -- vim.validate("opts.exclude", opts.exclude, "table", true)
@@ -63,7 +63,7 @@ M._generate_args = generate_args
 
 ---@param dir string|obsidian.Path
 ---@param term string|string[]
----@param opts obsidian.search.SearchOpts|?
+---@param opts obsidian.search.BackendOpts|?
 ---
 ---@return string[]
 M.build_search_cmd = function(dir, term, opts)
@@ -98,16 +98,10 @@ M.build_search_cmd = function(dir, term, opts)
 end
 
 ---@param path string?
----@param opts obsidian.search.SearchOpts?
+---@param opts obsidian.search.BackendOpts?
 ---@return string[]
 M.build_find_cmd = function(path, opts)
-  opts = opts or {}
-  local search_opts = Obsidian and Obsidian.opts and Obsidian.opts.search or {}
-  opts = vim.tbl_extend("keep", opts, {
-    sort_by = search_opts.sort_by,
-    sort_reversed = search_opts.sort_reversed,
-    ignore_case = true,
-  })
+  opts = vim.tbl_extend("keep", opts or {}, { ignore_case = true })
 
   local additional_opts = {}
   if not opts.include_non_markdown then
@@ -131,16 +125,11 @@ end
 
 --- Build the 'rg' grep command for pickers.
 ---
----@param opts obsidian.search.SearchOpts|?
+---@param opts obsidian.search.BackendOpts|?
 ---
 ---@return string[]
 M.build_grep_cmd = function(opts)
-  opts = opts and opts or {}
-  local search_opts = Obsidian and Obsidian.opts and Obsidian.opts.search or {}
-
-  opts = vim.tbl_extend("keep", opts, {
-    sort_by = search_opts.sort_by,
-    sort_reversed = search_opts.sort_reversed,
+  opts = vim.tbl_extend("keep", opts or {}, {
     smart_case = true,
     fixed_strings = true,
   })

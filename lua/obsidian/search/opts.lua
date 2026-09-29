@@ -1,14 +1,9 @@
---- TODO: a bit weird to have these two...
+---@class obsidian.search.SortOpts
+---@field sort_by obsidian.config.SortBy|false|? Defaults to the workspace setting.
+---@field sort_reversed boolean|? Defaults to the workspace setting.
 
----@class obsidian.SearchOpts
+---@class obsidian.search.BackendOpts: obsidian.search.SortOpts
 ---
----@field sort boolean|?
----@field ignore_case boolean|?
-
----@class obsidian.search.SearchOpts
----
----@field sort_by obsidian.config.SortBy|false|?
----@field sort_reversed boolean|?
 ---@field fixed_strings boolean|?
 ---@field ignore_case boolean|?
 ---@field smart_case boolean|?
@@ -17,70 +12,68 @@
 ---@field escape_path boolean|?
 ---@field include_non_markdown boolean|?
 
+local api = require "obsidian.api"
+local fs_util = require "obsidian.util.fs"
+
 local M = {}
 
-local as_tbl = function(self)
-  local fields = {}
-  for k, v in pairs(self) do
-    if not vim.startswith(k, "__") then
-      fields[k] = v
-    end
-  end
-  return fields
+---@param query string
+---@return boolean
+M.should_ignore_case = function(query)
+  return vim.o.ignorecase and (not vim.o.smartcase or query:find "%u" == nil)
 end
 
----@param one obsidian.search.SearchOpts|table
----@param other obsidian.search.SearchOpts|table
----@return obsidian.search.SearchOpts
-local merge = function(one, other)
-  return vim.tbl_extend("force", as_tbl(one), as_tbl(other))
-end
-
-M._merge = merge
-
----@param opts obsidian.search.SearchOpts
+---@param opts obsidian.search.BackendOpts
 ---@param path string
-local add_exclude = function(opts, path)
-  if opts.exclude == nil then
-    opts.exclude = {}
+local function add_exclude(opts, path)
+  opts.exclude = opts.exclude or {}
+  if not vim.tbl_contains(opts.exclude, path) then
+    opts.exclude[#opts.exclude + 1] = path
   end
-  opts.exclude[#opts.exclude + 1] = path
 end
 
----@param opts obsidian.SearchOpts?
----@param additional_opts obsidian.search.SearchOpts|?
----
----@return obsidian.search.SearchOpts
----
-M._prepare = function(opts, additional_opts)
-  opts = opts or {}
+---Resolve workspace search defaults and exclusions into concrete backend options.
+---@param dir string|obsidian.Path
+---@param opts obsidian.search.BackendOpts|?
+---@return obsidian.search.BackendOpts
+M.resolve = function(dir, opts)
+  opts = vim.deepcopy(opts or {})
 
-  local search_opts = {}
+  local workspace = Obsidian and api.find_workspace(dir) or nil
+  local workspace_opts = {}
+  if workspace then
+    workspace_opts = api._workspace_opts(workspace)
+  elseif Obsidian and Obsidian.workspaces == nil then
+    -- Keep compatibility with callers that provide the legacy state shape.
+    workspace_opts = Obsidian.opts or {}
+  end
+  local search_opts = workspace_opts.search or {}
 
-  if opts.sort ~= false then
-    search_opts.sort_by = Obsidian.opts.search.sort_by
-    search_opts.sort_reversed = Obsidian.opts.search.sort_reversed
+  if opts.sort_by == nil then
+    opts.sort_by = search_opts.sort_by
+  end
+  if opts.sort_reversed == nil then
+    opts.sort_reversed = search_opts.sort_reversed
   end
 
-  if Obsidian.opts.templates ~= nil and Obsidian.opts.templates.folder ~= nil then
-    add_exclude(search_opts, tostring(Obsidian.opts.templates.folder))
-  end
-
-  if Obsidian.opts.file and Obsidian.opts.file.ignore_filters and #Obsidian.opts.file.ignore_filters > 0 then
-    for _, pattern in ipairs(Obsidian.opts.file.ignore_filters) do
-      add_exclude(search_opts, pattern)
+  local templates_dir = workspace and api.templates_dir(workspace) or nil
+  if templates_dir ~= nil then
+    local relative = fs_util.relpath(tostring(dir), tostring(templates_dir))
+    if relative == "." then
+      add_exclude(opts, "**")
+    elseif relative ~= nil and not vim.startswith(relative, "..") then
+      add_exclude(opts, relative)
     end
+  elseif workspace_opts.templates and workspace_opts.templates.folder then
+    add_exclude(opts, tostring(workspace_opts.templates.folder))
   end
 
-  if opts.ignore_case then
-    search_opts.ignore_case = true
+  local ignore_filters = workspace_opts.file and workspace_opts.file.ignore_filters or {}
+  for _, pattern in ipairs(ignore_filters) do
+    add_exclude(opts, pattern)
   end
 
-  if additional_opts ~= nil then
-    search_opts = merge(search_opts, additional_opts)
-  end
-
-  return search_opts
+  return opts
 end
 
 return M
