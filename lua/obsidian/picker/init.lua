@@ -9,6 +9,7 @@ local search = require "obsidian.search"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
+---@field find_refs fun(opts: obsidian.PickerFindOpts|?)
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
 ---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
@@ -226,6 +227,41 @@ M.find_notes = function(opts)
     show_existing_only = opts.show_existing_only,
     show_attachments = opts.show_attachments,
   }
+end
+
+---Find note, attachment, and unresolved references for quick switch.
+---The cache route is complete; the generic filesystem fallback currently finds
+---existing notes only.
+---@param opts obsidian.PickerFindOpts|?
+M.find_refs = function(opts)
+  state.calling_bufnr = vim.api.nvim_get_current_buf()
+  opts = opts or {}
+
+  local query_mappings
+  local selection_mappings
+  if not opts.no_default_mappings then
+    query_mappings = M._note_query_mappings()
+    selection_mappings = M._note_selection_mappings()
+  end
+
+  local find_opts = {
+    query = opts.query,
+    prompt_title = opts.prompt_title or "References",
+    dir = opts.dir or api.resolve_workspace_dir(),
+    callback = opts.callback,
+    no_default_mappings = opts.no_default_mappings,
+    query_mappings = query_mappings,
+    selection_mappings = selection_mappings,
+    show_existing_only = opts.show_existing_only,
+    show_attachments = opts.show_attachments,
+  }
+  if require("obsidian.cache").pick_refs(find_opts) then
+    return
+  end
+
+  -- TODO: use search.find_refs_async() once its ripgrep/filesystem route can
+  -- discover unresolved references.
+  return find_files(find_opts)
 end
 
 --- Grep search in notes.

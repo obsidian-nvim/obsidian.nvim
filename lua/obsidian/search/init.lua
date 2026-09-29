@@ -10,6 +10,9 @@ local fs = require "obsidian.fs"
 local gitignore = require("obsidian.lib.glob").gitignore
 local api = require "obsidian.api"
 local tags = require "obsidian.tag"
+local fs_util = require "obsidian.util.fs"
+local filetypes = require "obsidian.filetypes"
+local note_matcher = require "obsidian.search.note_matcher"
 
 local M = {}
 
@@ -209,115 +212,91 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
   end
 end
 
----@param term string
----@param dir string|obsidian.Path
----@param search_opts obsidian.SearchOpts
----@param find_opts obsidian.SearchOpts
----@param callback fun(path: obsidian.Path)
----@param exit_callback fun(paths: obsidian.Path[])
-local _search_async = function(term, dir, search_opts, find_opts, callback, exit_callback)
-  local found = {}
-  local result = {}
-  local cmds_done = 0
-  dir = dir or api.resolve_workspace_dir()
-
-  local function dedup_send(path)
-    local key = tostring(path:resolve { strict = true })
-    if not found[key] then
-      found[key] = true
-      result[#result + 1] = path
-      callback(path)
-    end
+---@param dir string|obsidian.Path|nil
+---@return boolean
+local function cache_can_search(dir)
+  local cache = require "obsidian.cache"
+  if not cache.is_enabled() or not Obsidian or not Obsidian.dir then
+    return false
   end
-
-  local function on_search_match(content_match)
-    local path = Path.new(content_match.path.text)
-    dedup_send(path)
-  end
-
-  local function on_find_match(path_match)
-    local path = Path.new(path_match)
-    dedup_send(path)
-  end
-
-  local function on_exit()
-    cmds_done = cmds_done + 1
-    if cmds_done == 2 then
-      exit_callback(result)
-    end
-  end
-
-  M.search_async(
-    dir,
-    term,
-    Opts._prepare(search_opts, { fixed_strings = true, max_count_per_file = 1 }),
-    on_search_match,
-    on_exit
-  )
-
-  M.find_async(dir, term, Opts._prepare(find_opts, { ignore_case = true }), on_find_match, on_exit)
+  local search_dir = Path.new(dir or api.resolve_workspace_dir()):resolve { strict = true }
+  local vault_dir = Path.new(Obsidian.dir):resolve { strict = true }
+  return fs_util.is_subpath(tostring(search_dir), tostring(vault_dir))
 end
 
 --- An async version of `find_notes()` using coroutines.
 ---
 ---@param term string The term to search for
 ---@param callback fun(notes: obsidian.Note[])
----@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|? }|?
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: string|obsidian.Path|?, match: obsidian.search.NoteMatchOpts|? }|?
 M.find_notes_async = function(term, callback, opts)
   callback = vim.schedule_wrap(callback)
+  opts = opts or {}
+  opts.notes = opts.notes or {}
+  if not opts.notes.max_lines then
+    opts.notes.max_lines = Obsidian.opts.search.max_lines
+  end
+  local dir = opts.dir or api.resolve_workspace_dir()
+
+  if cache_can_search(dir) then
+    local cache = require "obsidian.cache"
+    cache.when_ready(function()
+      callback(cache.find_notes(term, {
+        dir = dir,
+        search = opts.search,
+        notes = opts.notes,
+        match = opts.match,
+      }))
+    end)
+    return
+  end
+
   async.run(function()
-    opts = opts or {}
-    opts.notes = opts.notes or {}
-    if not opts.notes.max_lines then
-      opts.notes.max_lines = Obsidian.opts.search.max_lines
-    end
-
     local Note = require "obsidian.note"
-
-    ---@type table<string, integer>
-    local paths = {}
-    local num_results = 0
-    local err_count = 0
-    local first_err, first_err_path
-    local notes = {}
-
-    -- Awaitable wrapper for loading a single note from path
-    ---@param path string
-    local function load_note_async(path)
-      local ok, res = pcall(Note.from_file, path, opts.notes)
-      if ok then
-        num_results = num_results + 1
-        paths[tostring(path)] = num_results
-        notes[#notes + 1] = res
-      else
-        err_count = err_count + 1
-        if not first_err then
-          first_err = res
-          first_err_path = path
-        end
-      end
+    local root = tostring(Path.new(dir):resolve { strict = true })
+    local load_opts = vim.deepcopy(opts.notes)
+    if opts.match and opts.match.headings then
+      load_opts.collect_sections = true
+    end
+    if opts.match and opts.match.blocks then
+      load_opts.collect_blocks = true
+      load_opts.collect_block_candidates = true
     end
 
     local paths_found = {} ---@type string[]
-    async.await(6, _search_async, term, opts.dir, opts.search, nil, function(path)
+    async.await(5, M.find_async, dir, nil, Opts._prepare(opts.search, { include_non_markdown = false }), function(path)
       paths_found[#paths_found + 1] = path
     end)
 
+    local notes_by_path = {}
+    local err_count = 0
+    local first_err, first_err_path
     async.join(
       10,
       vim.tbl_map(function(path)
         return function()
-          load_note_async(path)
+          local ok, note = pcall(Note.from_file, path, load_opts)
+          if ok then
+            if note_matcher.matches(path, root, note, term, opts.match, opts.search and opts.search.ignore_case) then
+              notes_by_path[path] = note
+            end
+          else
+            err_count = err_count + 1
+            if not first_err then
+              first_err, first_err_path = note, path
+            end
+          end
         end
       end, paths_found)
     )
 
-    -- Sort notes by search order
-    table.sort(notes, function(a, b)
-      return paths[tostring(a.path)] < paths[tostring(b.path)]
-    end)
+    local notes = {}
+    for _, path in ipairs(paths_found) do
+      if notes_by_path[path] then
+        notes[#notes + 1] = notes_by_path[path]
+      end
+    end
 
-    -- Report any errors
     if first_err ~= nil and first_err_path ~= nil then
       log.err(
         "%d error(s) occurred during search. First error from note at '%s':\n%s",
@@ -326,7 +305,6 @@ M.find_notes_async = function(term, callback, opts)
         first_err
       )
     end
-
     callback(notes)
   end)
 end
@@ -337,15 +315,101 @@ end
 --- (`includeexpr`, command-completion `customlist` functions).
 ---
 ---@param term string The term to search for
----@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|? }
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: string|obsidian.Path|?, match: obsidian.search.NoteMatchOpts|?, timeout: integer|? }
 ---@return obsidian.Note[] notes always returns a list (empty on timeout)
 M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
+    M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes, dir = opts.dir, match = opts.match })
   end, opts.timeout)
   ---@cast result obsidian.Note[]?
+  return result or {}
+end
+
+---Find attachment paths matching a filename or vault-relative path.
+---@param term string
+---@param callback fun(paths: string[])
+---@param opts { search: obsidian.SearchOpts|?, dir: string|obsidian.Path|? }|?
+M.find_attachments_async = function(term, callback, opts)
+  callback = vim.schedule_wrap(callback)
+  opts = opts or {}
+  local dir = opts.dir or api.resolve_workspace_dir()
+  if cache_can_search(dir) then
+    local cache = require "obsidian.cache"
+    cache.when_ready(function()
+      callback(cache.find_attachments(term, { dir = dir, search = opts.search }))
+    end)
+    return
+  end
+
+  local paths = {}
+  local query = vim.trim(term or "")
+  local ignore_case = opts.search == nil or opts.search.ignore_case ~= false
+  if ignore_case then
+    query = query:lower()
+  end
+  return M.find_async(dir, nil, Opts._prepare(opts.search, { include_non_markdown = true }), function(path)
+    if filetypes.is_attachment(path) then
+      local rel = fs_util.relpath(tostring(dir), path) or path
+      if ignore_case then
+        rel = rel:lower()
+      end
+      if query == "" or rel:find(query, 1, true) then
+        paths[#paths + 1] = path
+      end
+    end
+  end, function()
+    callback(paths)
+  end)
+end
+
+---@param term string
+---@param opts { search: obsidian.SearchOpts|?, dir: string|obsidian.Path|?, timeout: integer|? }|?
+---@return string[]
+M.find_attachments = function(term, opts)
+  opts = opts or {}
+  local result = async.block_on(function(cb)
+    return M.find_attachments_async(term, cb, { search = opts.search, dir = opts.dir })
+  end, opts.timeout or 1000)
+  ---@cast result string[]?
+  return result or {}
+end
+
+---Find typed note, attachment, and unresolved references.
+---Only the cache route is implemented for now.
+---@param term string
+---@param callback fun(refs: obsidian.Ref[])
+---@param opts obsidian.cache.FindRefsOpts|?
+---@return boolean handled
+M.find_refs_async = function(term, callback, opts)
+  opts = opts or {}
+  local dir = opts.dir or api.resolve_workspace_dir()
+  if not cache_can_search(dir) then
+    -- TODO: implement the ripgrep/filesystem route for unresolved references.
+    return false
+  end
+  callback = vim.schedule_wrap(callback)
+  local cache = require "obsidian.cache"
+  cache.when_ready(function()
+    callback(cache.find_refs(term, opts))
+  end)
+  return true
+end
+
+---@param term string
+---@param opts obsidian.cache.FindRefsOpts|?
+---@return obsidian.Ref[]
+M.find_refs = function(term, opts)
+  opts = opts or {}
+  if not cache_can_search(opts.dir) then
+    -- TODO: implement the ripgrep/filesystem route for unresolved references.
+    return {}
+  end
+  local result = async.block_on(function(cb)
+    M.find_refs_async(term, cb, opts)
+  end, 1000)
+  ---@cast result obsidian.Ref[]?
   return result or {}
 end
 

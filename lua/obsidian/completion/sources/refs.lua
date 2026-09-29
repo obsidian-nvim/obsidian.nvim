@@ -879,7 +879,7 @@ start_vault_block_search_index = function(dir, note_opts)
     end
   end, {
     dir = dir,
-    search = { sort = false, include_templates = false, ignore_case = true },
+    search = { sort = false, ignore_case = true },
     notes = note_opts,
   })
 end
@@ -1122,7 +1122,7 @@ local function process_heading_search(cc, query)
     -- notes first, then filter their parsed headings below.
     search.find_notes_async("", finish, {
       dir = dir,
-      search = { sort = false, include_templates = false, ignore_case = true },
+      search = { sort = false, ignore_case = true },
       notes = note_opts,
     })
   end
@@ -1472,7 +1472,6 @@ function M.process_completion(completion_resolve_callback, request)
 
     local search_opts = {
       sort = false,
-      include_templates = false,
       ignore_case = true,
     }
 
