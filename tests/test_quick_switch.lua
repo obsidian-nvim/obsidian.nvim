@@ -6,17 +6,17 @@ local T, child = h.child_vault()
 
 T["quick switch"] = MiniTest.new_set()
 
-T["quick switch"]["passes config to find notes"] = function()
+T["quick switch"]["passes config to find refs"] = function()
   local captured = child.lua [[
 local captured
-local original = Obsidian.picker.find_notes
+local original = Obsidian.picker.find_refs
 Obsidian.opts.quick_switch.show_existing_only = false
 Obsidian.opts.quick_switch.show_attachments = true
-Obsidian.picker.find_notes = function(opts)
+Obsidian.picker.find_refs = function(opts)
   captured = opts
 end
 require "obsidian.commands.quick_switch" { args = "foo" }
-Obsidian.picker.find_notes = original
+Obsidian.picker.find_refs = original
 return captured
   ]]
 

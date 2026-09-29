@@ -3,9 +3,7 @@
 ---@class obsidian.SearchOpts
 ---
 ---@field sort boolean|?
----@field include_templates boolean|?
 ---@field ignore_case boolean|?
----@field default function?
 
 ---@class obsidian.search.SearchOpts
 ---
@@ -49,19 +47,13 @@ local add_exclude = function(opts, path)
   opts.exclude[#opts.exclude + 1] = path
 end
 
-local search_defaults = {
-  sort = true,
-  include_templates = false,
-  ignore_case = false,
-}
-
 ---@param opts obsidian.SearchOpts?
 ---@param additional_opts obsidian.search.SearchOpts|?
 ---
 ---@return obsidian.search.SearchOpts
 ---
 M._prepare = function(opts, additional_opts)
-  opts = opts or search_defaults
+  opts = opts or {}
 
   local search_opts = {}
 
@@ -70,7 +62,7 @@ M._prepare = function(opts, additional_opts)
     search_opts.sort_reversed = Obsidian.opts.search.sort_reversed
   end
 
-  if not opts.include_templates and Obsidian.opts.templates ~= nil and Obsidian.opts.templates.folder ~= nil then
+  if Obsidian.opts.templates ~= nil and Obsidian.opts.templates.folder ~= nil then
     add_exclude(search_opts, tostring(Obsidian.opts.templates.folder))
   end
 

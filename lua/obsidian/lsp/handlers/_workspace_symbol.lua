@@ -139,6 +139,7 @@ return function(query, callback)
     local notes = async.await(2, search.find_notes_async, query, nil, {
       search = { ignore_case = true },
       notes = { collect_sections = true },
+      match = { references = true, headings = true },
     })
 
     for _, note in ipairs(notes) do
