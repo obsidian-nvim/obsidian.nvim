@@ -8,10 +8,13 @@ local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local SearchOpts = require "obsidian.search.opts"
 local Ripgrep = require "obsidian.search.ripgrep"
+local fs_util = require "obsidian.util.fs"
+local note_matcher = require "obsidian.search.note_matcher"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
 ---@field find_refs fun(opts: obsidian.PickerFindOpts|?)
+---@field pick_refs fun(refs: obsidian.Ref[], opts: obsidian.PickerFindOpts|?)
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
 ---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
@@ -116,6 +119,139 @@ end
 --- Concrete methods with a default implementation subclasses. ---
 ------------------------------------------------------------------
 
+---@param entry obsidian.PickerEntry
+---@return obsidian.ui_select_preview_spec
+local function preview_ref_entry(entry)
+  local function relative_path(path)
+    return fs_util.relpath(tostring(Obsidian.dir), path) or path
+  end
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.bo[buf].bufhidden = "wipe"
+
+  local data = entry.user_data or {}
+  if data.missing then
+    local references = vim.deepcopy(data.references or {})
+    table.sort(references, function(a, b)
+      local a_path = relative_path(a.filename)
+      local b_path = relative_path(b.filename)
+      if a_path ~= b_path then
+        return a_path < b_path
+      elseif a.lnum ~= b.lnum then
+        return a.lnum < b.lnum
+      else
+        return a.col < b.col
+      end
+    end)
+    local lines = {}
+    for i, reference in ipairs(references) do
+      if i > 1 then
+        lines[#lines + 1] = ""
+      end
+      lines[#lines + 1] = ("%s:%d:%d"):format(relative_path(reference.filename), reference.lnum, reference.col)
+      lines[#lines + 1] = ""
+      lines[#lines + 1] = "```markdown"
+      lines[#lines + 1] = reference.raw
+      lines[#lines + 1] = "```"
+    end
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.bo[buf].filetype = "markdown"
+  elseif entry.filename then
+    return picker_util.preview_path(entry.filename)
+  end
+
+  return { buf = buf }
+end
+
+---Present typed note, attachment, and unresolved-link targets.
+---@param refs obsidian.Ref[]
+---@param opts obsidian.PickerFindOpts|?
+M.pick_refs = function(refs, opts)
+  opts = opts or {}
+  local query = opts.query and vim.trim(opts.query) or nil
+  if query == "" then
+    query = nil
+  end
+
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for _, ref in ipairs(refs) do
+    entries[#entries + 1] = {
+      text = ref.text,
+      filename = ref.path,
+      user_data = {
+        attachment = ref.attachment == true,
+        missing = ref.kind == "unresolved",
+        references = ref.references,
+        target = ref.target,
+      },
+    }
+  end
+
+  local pick_query = opts.query
+  if query and #entries > 0 then
+    pick_query = nil
+  end
+
+  M.select(entries, {
+    prompt = opts.prompt_title,
+    allow_multiple = true,
+    query = pick_query,
+    query_mappings = opts.query_mappings,
+    selection_mappings = opts.selection_mappings,
+    preview_item = preview_ref_entry,
+  }, function(items)
+    local paths = vim.tbl_filter(
+      function(path)
+        return path ~= nil
+      end,
+      vim.tbl_map(function(item)
+        return item.filename
+      end, items)
+    )
+    if opts.callback then
+      opts.callback(paths)
+      return
+    end
+
+    local selected_notes = {}
+    for _, item in ipairs(items) do
+      local path = item.filename
+      local data = item.user_data or {}
+      if path and data.attachment and data.missing then
+        require("obsidian.actions").add_attachment(nil, {
+          insert = false,
+          bufnr = M.state.calling_bufnr,
+          dst = path,
+        })
+      elseif path and data.attachment then
+        vim.ui.open(path)
+      elseif path and data.missing then
+        local choice = api.confirm("How to handle missing reference?", "&Create New Note\n&Open References")
+        if choice == "Create New Note" then
+          local relative = fs_util.relpath(tostring(Obsidian.dir), path) or path
+          local location = data.target or note_matcher.without_note_extension(relative)
+          api.create_new_note(location, function(locations)
+            if locations and locations[1] then
+              api.open_note(vim.uri_to_fname(locations[1].uri))
+            end
+          end, {
+            references = data.references,
+            source_path = data.references and data.references[1] and data.references[1].filename or nil,
+          })
+        elseif choice == "Open References" then
+          M.select(data.references, { prompt = "Unresolved References" }, function(choices)
+            picker_util.open_notes(choices)
+          end)
+        end
+      elseif path then
+        selected_notes[#selected_notes + 1] = item
+      end
+    end
+    picker_util.open_notes(selected_notes)
+  end)
+end
+
 --- Backwards-compatible shim for the old picker API.
 ---
 ---@param values string[]|obsidian.PickerEntry[] Items to pick from.
@@ -157,10 +293,6 @@ M.pick = pick
 local find_files = function(opts)
   opts = opts or {}
 
-  if require("obsidian.cache").find_files(opts) then
-    return
-  end
-
   -- search.find_async() resolves its root before enumerating files. Use the
   -- same canonical root here so aliases such as macOS's /var -> /private/var
   -- and Windows short paths remain relative to the picker directory.
@@ -198,7 +330,7 @@ M.find_files = find_files
 
 --- Find notes by filename.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(paths: string[])|?, no_default_mappings: boolean|?, dir: obsidian.Path|?, show_existing_only: boolean|?, show_attachments: boolean|? }|? Options.
+---@param opts obsidian.PickerFindOpts|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -209,19 +341,19 @@ M.find_notes = function(opts)
 
   opts = opts or {}
 
-  local query_mappings
-  local selection_mappings
+  local query_mappings = opts.query_mappings
+  local selection_mappings = opts.selection_mappings
   if not opts.no_default_mappings then
-    query_mappings = M._note_query_mappings()
-    selection_mappings = M._note_selection_mappings()
+    query_mappings = query_mappings or M._note_query_mappings()
+    selection_mappings = selection_mappings or M._note_selection_mappings()
   end
 
-  return M.find_files {
+  return M.find_refs {
     query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
     dir = opts.dir or api.resolve_workspace_dir(),
     callback = opts.callback,
-    no_default_mappings = opts.no_default_mappings,
+    no_default_mappings = true,
     query_mappings = query_mappings,
     selection_mappings = selection_mappings,
     show_existing_only = opts.show_existing_only,
@@ -235,11 +367,11 @@ M.find_refs = function(opts)
   state.calling_bufnr = vim.api.nvim_get_current_buf()
   opts = opts or {}
 
-  local query_mappings
-  local selection_mappings
+  local query_mappings = opts.query_mappings
+  local selection_mappings = opts.selection_mappings
   if not opts.no_default_mappings then
-    query_mappings = M._note_query_mappings()
-    selection_mappings = M._note_selection_mappings()
+    query_mappings = query_mappings or M._note_query_mappings()
+    selection_mappings = selection_mappings or M._note_selection_mappings()
   end
 
   local find_opts = {
@@ -254,8 +386,11 @@ M.find_refs = function(opts)
     show_attachments = opts.show_attachments,
   }
   -- TODO: let the minimal picker filter a single reference snapshot interactively.
-  return search.find_refs_async(opts.query or "", function(refs)
-    require("obsidian.cache").pick_refs(refs, find_opts)
+  return search.find_refs_async(opts.query or "", function(refs, err)
+    if err then
+      log.err("Failed to find references: %s", err)
+    end
+    M.pick_refs(refs, find_opts)
   end, {
     dir = find_opts.dir,
     include_notes = true,

@@ -50,4 +50,25 @@ function M.from_file(path)
   return out
 end
 
+---Return the unique link spellings in a file.
+---@param path string
+---@return obsidian.LinkMatch[]
+function M.unique_from_file(path)
+  local matches = {}
+  local seen = {}
+  for _, ref in ipairs(M.from_file(path)) do
+    local link = ref.embed and ref.raw:sub(2) or ref.raw
+    if not seen[link] then
+      seen[link] = true
+      matches[#matches + 1] = {
+        link = link,
+        line = ref.line,
+        start = ref.col - 1 + (ref.embed and 1 or 0),
+        ["end"] = ref.col - 1 + #ref.raw - 1,
+      }
+    end
+  end
+  return matches
+end
+
 return M
