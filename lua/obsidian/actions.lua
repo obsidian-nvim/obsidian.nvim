@@ -1316,7 +1316,7 @@ end
 ---@param suggestion obsidian.LinkSuggestion|?
 M.link_suggestion = function(suggestion)
   local bufnr = vim.api.nvim_get_current_buf()
-  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  local note = api.current_note(bufnr)
   if not note then
     return
   end

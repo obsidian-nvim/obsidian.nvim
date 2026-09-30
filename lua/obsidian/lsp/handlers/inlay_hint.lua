@@ -5,7 +5,7 @@ return function(params, callback)
   local range = params and params.range or nil
 
   require("obsidian.cache").when_ready(function()
-    local note = require("obsidian.api").current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+    local note = require("obsidian.api").current_note(bufnr)
     if not note then
       callback(nil, {})
       return

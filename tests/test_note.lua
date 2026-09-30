@@ -151,6 +151,24 @@ tags: []
 
 This is some content.]]
 
+T["from_lines uses the global search line limit by default"] = function()
+  local original = Obsidian.opts.search.max_lines
+  Obsidian.opts.search.max_lines = 2
+  local note = from_str("one\ntwo\nthree", "limited.md")
+  Obsidian.opts.search.max_lines = original
+
+  eq({ "one", "two" }, note.contents)
+end
+
+T["from_lines can disable the global search line limit"] = function()
+  local original = Obsidian.opts.search.max_lines
+  Obsidian.opts.search.max_lines = nil
+  local note = from_str("one\ntwo\nthree", "unlimited.md")
+  Obsidian.opts.search.max_lines = original
+
+  eq({ "one", "two", "three" }, note.contents)
+end
+
 -- local foo_bar = [[---
 -- id: foo
 -- aliases:

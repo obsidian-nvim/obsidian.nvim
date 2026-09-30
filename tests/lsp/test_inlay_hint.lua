@@ -210,7 +210,7 @@ T["formats relative suggestions from the source note directory"] = function()
   eq(
     "[[../target|target]]",
     child.lua_get [[
-      require("obsidian.api").current_note(0, { max_lines = vim.api.nvim_buf_line_count(0) })
+      require("obsidian.api").current_note(0)
         :link_suggestions()[1].candidates[1].new_text
     ]]
   )

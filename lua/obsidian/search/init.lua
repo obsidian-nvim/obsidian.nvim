@@ -9,6 +9,7 @@ local async = require "obsidian.async"
 local api = require "obsidian.api"
 local tags = require "obsidian.tag"
 local fs_util = require "obsidian.util.fs"
+local note_matcher = require "obsidian.search.note_matcher"
 
 local M = {}
 
@@ -107,10 +108,6 @@ end
 ---@return obsidian.search.AsyncHandle
 M.find_notes_async = function(term, callback, opts)
   opts = opts or {}
-  opts.notes = opts.notes or {}
-  if not opts.notes.max_lines then
-    opts.notes.max_lines = Obsidian.opts.search.max_lines
-  end
   opts.dir = opts.dir or api.resolve_workspace_dir()
   return dispatch_async("find_notes", term, opts, callback)
 end
@@ -185,7 +182,7 @@ end
 
 ---@param query string
 ---@param callback fun(notes: obsidian.Note[], err: string?)
----@param opts { notes: obsidian.note.LoadOpts|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
+---@param opts { collect: obsidian.search.NoteCollectOpts|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
 ---@return obsidian.search.AsyncHandle
 M.resolve_note_async = function(query, callback, opts)
   local cancelled = false
@@ -203,10 +200,7 @@ M.resolve_note_async = function(query, callback, opts)
     scheduled_callback(notes, err)
   end
   opts = opts or {}
-  opts.notes = opts.notes or {}
-  if not opts.notes.max_lines then
-    opts.notes.max_lines = Obsidian.opts.search.max_lines
-  end
+  local parse_opts = note_matcher.parse_opts { collect = opts.collect }
   local Note = require "obsidian.note"
   local workspace_dir = Path.new(opts.dir or api.resolve_workspace_dir())
 
@@ -214,7 +208,7 @@ M.resolve_note_async = function(query, callback, opts)
   local note_path, count = string.gsub(query, "^.*  ", "")
   if count > 0 then
     local full_path = workspace_dir / note_path
-    finish { Note.from_file(full_path, opts.notes) }
+    finish { Note.from_file(full_path, parse_opts) }
     return handle
   end
 
@@ -256,7 +250,7 @@ M.resolve_note_async = function(query, callback, opts)
 
   for path in pairs(paths_lookup) do
     if Path.new(path):is_file() then
-      paths_found[#paths_found + 1] = Note.from_file(path, opts.notes)
+      paths_found[#paths_found + 1] = Note.from_file(path, parse_opts)
     end
   end
 
@@ -312,19 +306,19 @@ M.resolve_note_async = function(query, callback, opts)
     else
       finish(fuzzy_matches)
     end
-  end, { dir = workspace_dir, notes = opts.notes })
+  end, { dir = workspace_dir, collect = opts.collect })
   return handle
 end
 
 ---@param query string
----@param opts { notes: obsidian.note.LoadOpts|?, timeout: integer|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
+---@param opts { collect: obsidian.search.NoteCollectOpts|?, timeout: integer|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
 ---@return obsidian.Note[] notes
 ---@return string? err
 M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result, err = async.block_on(function(cb)
-    return M.resolve_note_async(query, cb, { notes = opts.notes, dir = opts.dir, buf_dir = opts.buf_dir })
+    return M.resolve_note_async(query, cb, { collect = opts.collect, dir = opts.dir, buf_dir = opts.buf_dir })
   end, opts.timeout)
   if result == nil then
     return {}, err or "note resolution timed out"
@@ -688,10 +682,7 @@ M.find_tags_async = function(term, callback, opts)
     end
     processed_paths[path_key] = true
 
-    local ok, note = pcall(Note.from_file, path, {
-      load_contents = true,
-      max_lines = Obsidian.opts.search.max_lines,
-    })
+    local ok, note = pcall(Note.from_file, path)
     if not ok then
       err_count = err_count + 1
       if first_err == nil then

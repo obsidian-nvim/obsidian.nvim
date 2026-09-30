@@ -29,6 +29,13 @@ local SKIP_UPDATING_FRONTMATTER = { "README.md", "CONTRIBUTING.md", "CHANGELOG.m
 
 local DEFAULT_MAX_LINES = 500
 
+local function default_max_lines()
+  if Obsidian and Obsidian.opts and Obsidian.opts.search then
+    return Obsidian.opts.search.max_lines or math.huge
+  end
+  return DEFAULT_MAX_LINES
+end
+
 local function is_default_note_template(template)
   local default_template = require("obsidian.config.default").note.template
   return template ~= nil
@@ -790,7 +797,7 @@ Note.from_lines = function(lines, path, opts)
   opts = opts or {}
   path = path and Path.new(path):resolve()
 
-  local max_lines = opts.max_lines or DEFAULT_MAX_LINES
+  local max_lines = opts.max_lines or default_max_lines()
 
   local contents = {}
   local raw_contents = {}
@@ -812,14 +819,13 @@ Note.from_lines = function(lines, path, opts)
   end
 
   for line in next_line do
-    local source_line = line:gsub("\r$", "")
-    table.insert(raw_contents, source_line)
-    table.insert(contents, util.rstrip_whitespace(source_line))
-
-    -- Check if we can stop reading lines now.
     if line_idx > max_lines then
       break
     end
+
+    local source_line = line:gsub("\r$", "")
+    table.insert(raw_contents, source_line)
+    table.insert(contents, util.rstrip_whitespace(source_line))
   end
 
   local document = opts.document or Document.parse(raw_contents)

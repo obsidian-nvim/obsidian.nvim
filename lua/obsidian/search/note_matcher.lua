@@ -8,6 +8,23 @@ local M = {}
 ---@field headings boolean|? Match heading text and normalized anchors.
 ---@field blocks boolean|? Match block text and block IDs.
 
+---Build the note parser options needed by a note search.
+---
+---`match` controls which domains are searched and guarantees that those
+---domains are present on returned notes. `collect` adds result data without
+---changing which notes match.
+---@param opts obsidian.search.FindNotesOpts
+---@return obsidian.note.LoadOpts
+function M.parse_opts(opts)
+  local headings = (opts.match and opts.match.headings) or (opts.collect and opts.collect.headings)
+  local blocks = (opts.match and opts.match.blocks) or (opts.collect and opts.collect.blocks)
+  return {
+    collect_anchor_links = headings == true,
+    collect_blocks = blocks == true,
+    collect_block_candidates = blocks == true,
+  }
+end
+
 ---@param path string
 ---@return string
 local function without_note_extension(path)

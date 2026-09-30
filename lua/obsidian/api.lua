@@ -204,10 +204,6 @@ M.current_note = function(bufnr, opts)
     return nil
   end
 
-  opts = opts or {}
-  if not opts.max_lines then
-    opts.max_lines = Obsidian.opts.search.max_lines
-  end
   return Note.from_buffer(bufnr, opts)
 end
 
@@ -289,7 +285,7 @@ M.cursor_tag = function(bufnr, position)
   if type(cword) ~= "string" then
     return nil
   end
-  local note = Note.from_buffer(bufnr, { max_lines = 100 })
+  local note = Note.from_buffer(bufnr)
   local context = document:context_at(Pos.new(row, cur_col))
   if context.frontmatter and note and vim.list_contains(note.tags, cword) then
     return cword

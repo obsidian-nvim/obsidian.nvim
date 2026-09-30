@@ -66,9 +66,9 @@ local function handle_note_ref(link, callback, request_opts)
     end, {
       dir = request_opts.dir,
       buf_dir = request_opts.buf_dir,
-      notes = {
-        collect_anchor_links = anchor_link ~= nil,
-        collect_blocks = block_link ~= nil,
+      collect = {
+        headings = anchor_link ~= nil,
+        blocks = block_link ~= nil,
       },
     })
   else
