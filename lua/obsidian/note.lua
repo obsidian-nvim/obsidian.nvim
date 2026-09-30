@@ -1641,7 +1641,7 @@ end
 
 ---@return obsidian.search.LinkMatch[]
 Note.links = function(self)
-  return search.find_links(self)
+  return require("obsidian.search.link_refs").unique_from_file(tostring(self.path))
 end
 
 Note.delete = require("obsidian.note.delete").delete

@@ -1,9 +1,7 @@
 local Path = require "obsidian.path"
 local async = require "obsidian.async"
+local Handle = require "obsidian.search.handle"
 local SearchOpts = require "obsidian.search.opts"
-local api = require "obsidian.api"
-local filetypes = require "obsidian.filetypes"
-local fs_util = require "obsidian.util.fs"
 local fs = require "obsidian.fs"
 local gitignore = require("obsidian.lib.glob").gitignore
 
@@ -162,21 +160,29 @@ end
 ---@param dir string|obsidian.Path
 ---@param term string|string[]
 ---@param opts obsidian.search.BackendOpts|?
----@param on_match fun(match: MatchData)
+---@param on_match fun(match: obsidian.search.MatchData)
 ---@param on_exit fun(exit_code: integer)|?
----@return vim.SystemObj handle
+---@return obsidian.search.AsyncHandle
 M.search_async = function(dir, term, opts, on_match, on_exit)
   opts = SearchOpts.resolve(dir, opts)
   local cmd = M.build_search_cmd(dir, term, opts)
-  return async.run_job_async(cmd, function(line)
+  local cancelled = false
+  local job = async.run_job_async(cmd, function(line)
+    if cancelled then
+      return
+    end
     local data = vim.json.decode(line)
     if data["type"] == "match" then
       on_match(data.data)
     end
   end, function(code)
-    if on_exit then
+    if not cancelled and on_exit then
       on_exit(code)
     end
+  end)
+  return Handle.new(function()
+    cancelled = true
+    job:kill(15)
   end)
 end
 
@@ -193,7 +199,7 @@ end
 ---@param opts obsidian.search.BackendOpts|?
 ---@param on_match fun(path: string)
 ---@param on_exit fun(exit_code: integer)|?
----@return fun() cancel
+---@return obsidian.search.AsyncHandle
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
   opts = SearchOpts.resolve(norm_dir, opts)
@@ -271,45 +277,11 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
     find_with_fs()
   end
 
-  return function()
+  return Handle.new(function()
     cancelled = true
     if cancel_backend then
       cancel_backend()
     end
-  end
-end
-
----Find attachment paths matching a filename or vault-relative path.
----@param term string
----@param callback fun(paths: string[])
----@param opts obsidian.search.FindAttachmentsOpts|?
-M.find_attachments_async = function(term, callback, opts)
-  callback = vim.schedule_wrap(callback)
-  opts = opts or {}
-  local dir = opts.dir or api.resolve_workspace_dir()
-
-  local paths = {}
-  local query = vim.trim(term or "")
-  local ignore_case = SearchOpts.should_ignore_case(query)
-  if ignore_case then
-    query = query:lower()
-  end
-  return M.find_async(dir, nil, {
-    sort_by = opts.sort_by,
-    sort_reversed = opts.sort_reversed,
-    include_non_markdown = true,
-  }, function(path)
-    if filetypes.is_attachment(path) then
-      local rel = fs_util.relpath(tostring(dir), path) or path
-      if ignore_case then
-        rel = rel:lower()
-      end
-      if query == "" or rel:find(query, 1, true) then
-        paths[#paths + 1] = path
-      end
-    end
-  end, function()
-    callback(paths)
   end)
 end
 

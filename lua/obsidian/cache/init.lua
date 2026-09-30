@@ -11,8 +11,6 @@ local ignore = require "obsidian.ignore"
 
 local M = {}
 local cache_api = require "obsidian.cache.api"
-M.find_files = cache_api.find_files -- compatibility alias for the cache-backed picker
-M.pick_refs = cache_api.pick_refs
 M.find_notes = cache_api.find_notes
 M.find_attachments = cache_api.find_attachments
 M.find_refs = cache_api.find_refs

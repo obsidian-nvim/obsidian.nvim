@@ -9,7 +9,7 @@ local ut = require "obsidian.picker.util"
 ---
 M.select = require("obsidian.picker.ui").select
 
----@param match obsidian.search.ripgrep.MatchData
+---@param match obsidian.search.MatchData
 ---@return vim.quickfix.entry
 local function match_data_to_qfitem(match)
   local filename = match.path.text
