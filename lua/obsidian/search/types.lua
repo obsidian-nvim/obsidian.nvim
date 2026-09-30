@@ -49,10 +49,14 @@
 ---@field escape_path boolean|?
 ---@field include_non_markdown boolean|?
 
+---@class obsidian.search.NoteCollectOpts
+---@field headings boolean|? Include parsed headings and anchors on returned notes.
+---@field blocks boolean|? Include parsed block IDs and block candidates on returned notes.
+
 ---@class obsidian.search.FindNotesOpts: obsidian.search.SortOpts
 ---
 ---@field dir string|obsidian.Path|?
----@field notes obsidian.note.LoadOpts|?
+---@field collect obsidian.search.NoteCollectOpts|? Additional parsed domains to return beyond those selected by `match`.
 ---@field match obsidian.search.NoteMatchOpts|?
 ---@field timeout integer|?
 

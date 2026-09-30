@@ -82,18 +82,18 @@ M.find_notes = function(term, opts)
   sort_cached_paths(paths, rows, backend_opts)
 
   local Note = require "obsidian.note"
-  local load_opts = opts.notes or {}
-  local parse_file = load_opts.collect_sections
-    or load_opts.collect_anchor_links
-    or load_opts.collect_blocks
-    or load_opts.collect_block_candidates
+  local parse_opts = note_matcher.parse_opts(opts)
+  local parse_file = parse_opts.collect_sections
+    or parse_opts.collect_anchor_links
+    or parse_opts.collect_blocks
+    or parse_opts.collect_block_candidates
   local notes = {}
   local first_err, first_err_path
   local err_count = 0
   for _, path in ipairs(paths) do
     local ok, note
     if parse_file then
-      ok, note = pcall(Note.from_file, path, load_opts)
+      ok, note = pcall(Note.from_file, path, parse_opts)
     else
       ok, note = pcall(Note.from_cache, path, rows[path])
     end
