@@ -1262,6 +1262,220 @@ M.merge_note = function(dst_note)
   end
 end
 
+--- Create a footnote definition, prompting for its content.
+--- Used by the completion source to create unresolved footnotes.
+---
+---@param id             string |?
+---@param bufnr          integer |?
+---@param restore_cursor [integer, integer] |?
+M.footnote_new = function(id, bufnr, restore_cursor)
+  require("obsidian.footnotes").create(id, bufnr, restore_cursor)
+end
+
+---@param lines string[]
+---@param block_id string
+---@return boolean
+local function contains_block_id(lines, block_id)
+  local document = Document.parse(lines)
+  for row, line in ipairs(lines) do
+    for _, block in ipairs(parse_block_id.extract(line, { row = row - 1, lexical = true })) do
+      if block.raw == block_id and not document:intersects(block.range, Document.BODY_EXCLUSIONS) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+---@class obsidian.actions.BlockReferenceOpts
+---@field target_path string
+---@field target_bufnr integer|?
+---@field target_range lsp.Range
+---@field target_checksum string
+---@field block_id string
+---@field placement "inline"|"list-item"|"standalone"
+---@field indent string|?
+---@field source_bufnr integer
+---@field source_range lsp.Range
+---@field source_text string
+---@field placeholder string
+
+--- Add an ID to an unlabeled block and replace the accepted completion with its link.
+---@param opts obsidian.actions.BlockReferenceOpts|?
+M.block_reference_new = function(opts)
+  if not opts or not vim.api.nvim_buf_is_valid(opts.source_bufnr) then
+    return
+  end
+
+  local source = vim.api.nvim_buf_get_text(
+    opts.source_bufnr,
+    opts.source_range.start.line,
+    opts.source_range.start.character,
+    opts.source_range["end"].line,
+    opts.source_range["end"].character,
+    {}
+  )
+  if #source ~= 1 or source[1] ~= opts.placeholder then
+    return log.warn "Block reference completion is no longer current"
+  end
+
+  local target_bufnr = opts.target_bufnr
+  if not target_bufnr or not vim.api.nvim_buf_is_valid(target_bufnr) then
+    target_bufnr = vim.fn.bufnr(opts.target_path)
+  end
+  local target_was_loaded = target_bufnr > 0 and vim.api.nvim_buf_is_loaded(target_bufnr)
+  if target_bufnr < 1 then
+    target_bufnr = vim.fn.bufadd(opts.target_path)
+  end
+  vim.fn.bufload(target_bufnr)
+  if not vim.bo[target_bufnr].modifiable or vim.bo[target_bufnr].readonly then
+    return log.warn "Target block is not writable"
+  end
+
+  local target_lines = vim.api.nvim_buf_get_lines(target_bufnr, 0, -1, false)
+  local normalized_target = vim.tbl_map(util.rstrip_whitespace, target_lines)
+  if vim.fn.sha256(table.concat(normalized_target, "\n")) ~= opts.target_checksum then
+    return log.warn "Block changed before its reference could be created"
+  end
+
+  if contains_block_id(target_lines, opts.block_id) then
+    return log.warn "Generated block ID already exists"
+  end
+
+  local target =
+    vim.api.nvim_buf_get_lines(target_bufnr, opts.target_range.start.line, opts.target_range["end"].line, false)
+  if #target == 0 then
+    return log.warn "Target block no longer exists"
+  end
+
+  local target_line = opts.target_range["end"].line - 1
+  local target_character = #target[#target]
+  local has_blank_after = target_lines[opts.target_range["end"].line + 1] ~= nil
+    and vim.trim(target_lines[opts.target_range["end"].line + 1]) == ""
+  local target_text = " " .. opts.block_id
+  if opts.placement == "standalone" then
+    target_text = "\n\n" .. opts.block_id .. (has_blank_after and "" or "\n")
+  elseif opts.placement == "list-item" then
+    target_text = "\n" .. (opts.indent or "    ") .. opts.block_id
+  end
+  local target_edit = {
+    range = {
+      start = { line = target_line, character = target_character },
+      ["end"] = { line = target_line, character = target_character },
+    },
+    newText = target_text,
+  }
+  local source_edit = { range = opts.source_range, newText = opts.source_text }
+
+  ---@param edits lsp.TextEdit[]
+  ---@param bufnr integer
+  ---@return boolean
+  local function apply_text_edits(edits, bufnr)
+    local ok, err = pcall(vim.lsp.util.apply_text_edits, edits, bufnr, "utf-8")
+    if not ok then
+      log.err("Failed to apply block reference edit: %s", err)
+      return false
+    end
+    return true
+  end
+
+  if target_bufnr == opts.source_bufnr then
+    if not apply_text_edits({ target_edit, source_edit }, target_bufnr) then
+      return
+    end
+  else
+    if not apply_text_edits({ target_edit }, target_bufnr) then
+      return
+    end
+    if not target_was_loaded then
+      local ok, err = pcall(vim.api.nvim_buf_call, target_bufnr, function()
+        vim.cmd "silent write"
+      end)
+      if not ok then
+        log.err("Failed to save block ID in '%s': %s", opts.target_path, err)
+        return
+      end
+    end
+    if not contains_block_id(vim.api.nvim_buf_get_lines(target_bufnr, 0, -1, false), opts.block_id) then
+      log.err("Block ID was removed while saving '%s'", opts.target_path)
+      return
+    end
+    if not apply_text_edits({ source_edit }, opts.source_bufnr) then
+      return
+    end
+  end
+
+  if vim.api.nvim_get_current_buf() == opts.source_bufnr then
+    local source_line = opts.source_range.start.line
+    ---@cast source_line integer
+    if
+      target_bufnr == opts.source_bufnr
+      and target_text:find("\n", 1, true)
+      and target_line < opts.source_range.start.line
+    then
+      source_line = source_line + select(2, target_text:gsub("\n", ""))
+    end
+    local source_col = opts.source_range.start.character + #opts.source_text
+    ---@cast source_col integer
+    vim.api.nvim_win_set_cursor(0, { source_line + 1, source_col })
+  end
+  require("obsidian.ui").update(opts.source_bufnr)
+end
+
+--- Apply the link suggestion under the cursor, selecting a target when the
+--- matched note name or alias belongs to more than one note.
+---@param suggestion obsidian.LinkSuggestion|?
+M.link_suggestion = function(suggestion)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local note = api.current_note(bufnr)
+  if not note then
+    return
+  end
+
+  if not suggestion then
+    -- TODO: a find_cursor
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local row, col = cursor[1] - 1, cursor[2]
+    for _, current in ipairs(note:link_suggestions()) do
+      local range = current.range
+      if
+        range.start_row <= row
+        and row <= range.end_row
+        and (row ~= range.start_row or range.start_col <= col)
+        and (row ~= range.end_row or col < range.end_col)
+      then
+        suggestion = current
+        break
+      end
+    end
+    if not suggestion then
+      return
+    end
+  end
+
+  if #suggestion.candidates == 0 then
+    log.info "No Link Suggestion Candidates"
+    return
+  elseif #suggestion.candidates == 1 then
+    return link_suggestion.apply(bufnr, suggestion, suggestion.candidates[1])
+  end
+
+  picker.select(suggestion.candidates, {
+    prompt = "Select link target",
+    format_item = function(candidate)
+      return candidate.new_text
+    end,
+    preview_item = function(candidate)
+      return picker.preview_path(candidate.target_path)
+    end,
+  }, function(candidates)
+    if not candidates or not candidates[1] then
+      return
+    end
+    link_suggestion.apply(bufnr, suggestion, candidates[1])
+  end)
+end
+
 ---@param a obsidian.picker.Entry
 ---@param b obsidian.picker.Entry
 ---@return boolean

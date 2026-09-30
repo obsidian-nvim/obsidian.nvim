@@ -42,9 +42,6 @@ local EMPTY_RESPONSE = {
   items = {},
 }
 
----@type integer
-local ALL_LINES = 2147483647
-
 ---@class obsidian.completion.sources.refs.NewBlockTarget
 ---@field path string
 ---@field bufnr integer|?
@@ -221,10 +218,10 @@ end
 
 ---@param results obsidian.Note[]
 ---@param dir obsidian.Path
----@param note_opts obsidian.note.LoadOpts
+---@param parse_opts obsidian.note.LoadOpts
 ---@param include_unmatched boolean|?
 ---@return obsidian.Note[]
-local function include_loaded_notes(results, dir, note_opts, include_unmatched)
+local function include_loaded_notes(results, dir, parse_opts, include_unmatched)
   local path_to_idx = {}
   for idx, note in ipairs(results) do
     path_to_idx[tostring(note.path)] = idx
@@ -238,7 +235,7 @@ local function include_loaded_notes(results, dir, note_opts, include_unmatched)
       if path and fs_util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
         local idx = path_to_idx[path]
         if not idx or vim.bo[bufnr].modified then
-          local note = Note.from_buffer(bufnr, note_opts)
+          local note = Note.from_buffer(bufnr, parse_opts)
           idx = path_to_idx[tostring(note.path)]
           if idx then
             results[idx] = note
@@ -327,14 +324,13 @@ end
 local function process_block_search(cc, scope, query, target)
   local should_complete = vim.fn.strchars(query) >= Obsidian.opts.completion.min_chars
   local dir = api.resolve_workspace_dir()
-  local note_opts = { max_lines = ALL_LINES, collect_blocks = true, collect_block_candidates = true }
   local _, _, source_path = block_completion_request_context(cc)
 
   if not should_complete then
     cancel_block_request(cc)
     cc.completion_resolve_callback(EMPTY_RESPONSE)
     if scope == "vault" then
-      search.find_blocks_async("", function() end, { dir = dir, note_opts = note_opts })
+      search.find_blocks_async("", function() end, { dir = dir })
     end
     return
   end
@@ -364,19 +360,18 @@ local function process_block_search(cc, scope, query, target)
   end
 
   if scope == "current" then
-    local note = require("obsidian.note").from_buffer(cc.request.bufnr, {
+    local note = api.current_note(cc.request.bufnr, {
       collect_blocks = true,
       collect_block_candidates = true,
     })
-    search_notes { note }
+    search_notes(note and { note } or {})
   elseif scope == "note" then
     search.resolve_note_async(assert(target, "named-note block search requires a target"), search_notes, {
-      notes = note_opts,
+      collect = { blocks = true },
     })
   else
     search.find_blocks_async(query, finish, {
       dir = dir,
-      note_opts = note_opts,
       source_path = source_path,
       source_row = cc.request.line,
     })
@@ -543,9 +538,9 @@ end
 local function process_heading_search(cc, query)
   local source_name = vim.api.nvim_buf_get_name(cc.request.bufnr)
   local dir = api.resolve_workspace_dir(source_name ~= "" and source_name or nil)
-  local note_opts = { max_lines = ALL_LINES, collect_sections = true }
+  local parse_opts = { collect_sections = true }
   local function finish(results)
-    process_heading_search_results(cc, query, include_loaded_notes(results, dir, note_opts, true))
+    process_heading_search_results(cc, query, include_loaded_notes(results, dir, parse_opts, true))
   end
 
   if cache.is_enabled() and cache.is_ready() then
@@ -557,7 +552,7 @@ local function process_heading_search(cc, query)
     search.find_notes_async("", finish, {
       dir = dir,
       sort_by = false,
-      notes = note_opts,
+      match = { headings = true },
     })
   end
 end
@@ -909,7 +904,7 @@ function M.process_completion(completion_resolve_callback, request)
     end, {
       dir = api.resolve_workspace_dir(source_path),
       sort_by = false,
-      notes = { collect_anchor_links = cc.anchor_link ~= nil, collect_blocks = cc.block_link ~= nil },
+      collect = { headings = cc.anchor_link ~= nil, blocks = cc.block_link ~= nil },
     })
   end
 end
