@@ -2,28 +2,11 @@ local fs_util = require "obsidian.util.fs"
 local attachment = require "obsidian.attachment"
 local link = require "obsidian.link"
 local api = require "obsidian.api"
-local picker_util = require "obsidian.picker.util"
 local note_matcher = require "obsidian.search.note_matcher"
 local SearchOpts = require "obsidian.search.opts"
 local log = require "obsidian.log"
 
 local M = {}
-
----@class obsidian.Ref
----@field kind "note"|"attachment"|"unresolved"|"tag"
----@field text string
----@field path string|?
----@field note obsidian.Note|?
----@field attachment boolean|?
----@field target string|?
----@field references obsidian.NoteCreationReference[]|?
-
----@class obsidian.cache.FindRefsOpts
----@field dir string|obsidian.Path|?
----@field include_notes boolean|?
----@field include_attachments boolean|?
----@field include_unresolved boolean|?
----@field include_tags boolean|? Reserved until tags are cache-powered.
 
 ---@param path string
 ---@param dir string
@@ -170,50 +153,6 @@ M.find_attachments = function(term, opts)
   return paths
 end
 
----@param entry obsidian.PickerEntry
----@return obsidian.ui_select_preview_spec
-local function preview_picker_entry(entry)
-  local function relative_path(path)
-    return fs_util.relpath(tostring(Obsidian.dir), path) or path
-  end
-
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.bo[buf].bufhidden = "wipe"
-
-  local data = entry.user_data or {}
-  if data.missing then
-    local references = vim.deepcopy(data.references or {})
-    table.sort(references, function(a, b)
-      local a_path = relative_path(a.filename)
-      local b_path = relative_path(b.filename)
-      if a_path ~= b_path then
-        return a_path < b_path
-      elseif a.lnum ~= b.lnum then
-        return a.lnum < b.lnum
-      else
-        return a.col < b.col
-      end
-    end)
-    local lines = {}
-    for i, reference in ipairs(references) do
-      if i > 1 then
-        lines[#lines + 1] = ""
-      end
-      lines[#lines + 1] = ("%s:%d:%d"):format(relative_path(reference.filename), reference.lnum, reference.col)
-      lines[#lines + 1] = ""
-      lines[#lines + 1] = "```markdown"
-      lines[#lines + 1] = reference.raw
-      lines[#lines + 1] = "```"
-    end
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    vim.bo[buf].filetype = "markdown"
-  elseif entry.filename then
-    return picker_util.preview_path(entry.filename)
-  end
-
-  return { buf = buf }
-end
-
 ---@param target string?
 ---@return boolean
 local function is_external_target(target)
@@ -292,25 +231,11 @@ local function missing_entry_key(target, source_path, target_path, is_attachment
   return normalize_link_target(decoded):lower()
 end
 
----@param is_attachment boolean
----@param missing boolean
----@param references obsidian.NoteCreationReference[]?
----@param target string?
----@return obsidian.PickerEntryUserData
-local function entry_user_data(is_attachment, missing, references, target)
-  return {
-    attachment = is_attachment,
-    missing = missing,
-    references = references,
-    target = target,
-  }
-end
-
----Find note, attachment, and unresolved-link references from one cache snapshot.
+---Find note, attachment, and unresolved-link references from the cache.
 ---The cache must be ready before calling this function. Tags are reserved for a
 ---future cache-powered reference kind.
 ---@param term string
----@param opts obsidian.cache.FindRefsOpts|?
+---@param opts obsidian.search.FindRefsOpts|?
 ---@return obsidian.Ref[]
 M.find_refs = function(term, opts)
   local cache = require "obsidian.cache"
@@ -438,122 +363,6 @@ M.find_refs = function(term, opts)
     return (a.path or "") < (b.path or "")
   end)
   return refs
-end
-
----Present typed references with the active picker.
----@param refs obsidian.Ref[]
----@param opts obsidian.PickerFindOpts|?
-M.pick_refs = function(refs, opts)
-  opts = opts or {}
-  local query = opts.query and vim.trim(opts.query) or nil
-  if query == "" then
-    query = nil
-  end
-
-  ---@type obsidian.PickerEntry[]
-  local entries = {}
-  for _, ref in ipairs(refs) do
-    entries[#entries + 1] = {
-      text = ref.text,
-      filename = ref.path,
-      user_data = entry_user_data(ref.attachment == true, ref.kind == "unresolved", ref.references, ref.target),
-    }
-  end
-
-  local pick_query = opts.query
-  if query and #entries > 0 then
-    pick_query = nil
-  end
-
-  local picker = require "obsidian.picker"
-  picker.select(entries, {
-    prompt = opts.prompt_title,
-    allow_multiple = true,
-    -- Discovery has already applied the initial query using Vim's case rules.
-    query = pick_query,
-    query_mappings = opts.query_mappings,
-    selection_mappings = opts.selection_mappings,
-    preview_item = preview_picker_entry,
-  }, function(items)
-    local paths = vim.tbl_filter(
-      function(path)
-        return path ~= nil
-      end,
-      vim.tbl_map(function(item)
-        return item["filename"]
-      end, items)
-    )
-    if opts.callback then
-      opts.callback(paths)
-      return
-    end
-
-    local selected_notes = {}
-    for _, item in ipairs(items) do
-      local path = item.filename
-      local data = item.user_data or {}
-      local is_missing_attachment = data.attachment and data.missing
-      if path and is_missing_attachment then
-        require("obsidian.actions").add_attachment(nil, {
-          insert = false,
-          bufnr = require("obsidian.picker").state.calling_bufnr,
-          dst = path,
-        })
-      elseif path and data.attachment then
-        vim.ui.open(path)
-      elseif path and data.missing then
-        local choice = api.confirm("How to handle missing reference?", "&Create New Note\n&Open References")
-        if choice == "Create New Note" then
-          local relative = fs_util.relpath(tostring(Obsidian.dir), path) or path
-          local location = data.target or note_matcher.without_note_extension(relative)
-          api.create_new_note(location, function(locations)
-            if locations and locations[1] then
-              api.open_note(vim.uri_to_fname(locations[1].uri))
-            end
-          end, {
-            references = data.references,
-            source_path = data.references and data.references[1] and data.references[1].filename or nil,
-          })
-        elseif choice == "Open References" then
-          picker.select(data.references, { prompt = "Unresolved References" }, function(choices)
-            picker_util.open_notes(choices)
-          end)
-        end
-      elseif path then
-        selected_notes[#selected_notes + 1] = item
-      end
-    end
-    picker_util.open_notes(selected_notes)
-  end)
-end
-
----@param opts obsidian.PickerFindOpts|?
----@return boolean handled
-M.find_files = function(opts)
-  opts = opts or {}
-  local cache = require "obsidian.cache"
-  if not cache.is_enabled() or opts.include_non_markdown then
-    return false
-  end
-
-  local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(Obsidian.dir))
-  if not fs_util.is_subpath(dir, tostring(Obsidian.dir)) then
-    return false
-  end
-
-  cache.when_ready(function()
-    M.pick_refs(
-      M.find_refs(opts.query or "", {
-        dir = dir,
-        include_notes = true,
-        include_attachments = opts.show_attachments == true,
-        include_unresolved = opts.show_existing_only == false,
-        include_tags = false,
-      }),
-      opts
-    )
-  end)
-  return true
 end
 
 return M

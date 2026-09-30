@@ -5,7 +5,7 @@ local picker = require "obsidian.picker"
 
 local T = new_set {}
 
-T["find_files respects ignorecase for the initial query"] = function()
+T["find_notes respects ignorecase for the initial query"] = function()
   local original_ignorecase = vim.o.ignorecase
   local original_smartcase = vim.o.smartcase
   vim.o.ignorecase = true
@@ -32,20 +32,21 @@ T["find_files respects ignorecase for the initial query"] = function()
     picked_opts = opts
   end
 
-  eq(
-    true,
-    cache.find_files {
-      query = "agenda",
-      selection_mappings = {
-        ["<C-l>"] = {
-          desc = "map",
-          callback = function(path)
-            mapped = path
-          end,
-        },
+  picker.find_notes {
+    query = "agenda",
+    no_default_mappings = true,
+    selection_mappings = {
+      ["<C-l>"] = {
+        desc = "map",
+        callback = function(path)
+          mapped = path
+        end,
       },
-    }
-  )
+    },
+  }
+  vim.wait(1000, function()
+    return picked_values ~= nil
+  end)
   picked_opts.selection_mappings["<C-l>"].callback(picked_values[1])
 
   picker.select = original_select

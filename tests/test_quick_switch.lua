@@ -26,12 +26,12 @@ return captured
   eq(true, captured.show_attachments)
 end
 
-T["quick switch"]["find notes passes options to find files"] = function()
+T["quick switch"]["find notes passes options to find refs"] = function()
   local captured = child.lua [[
 local picker = require "obsidian.picker"
 local captured
-local original = picker.find_files
-picker.find_files = function(opts)
+local original = picker.find_refs
+picker.find_refs = function(opts)
   captured = opts
 end
 picker.find_notes {
@@ -39,7 +39,7 @@ picker.find_notes {
   show_existing_only = false,
   show_attachments = true,
 }
-picker.find_files = original
+picker.find_refs = original
 return captured
   ]]
 
@@ -92,9 +92,12 @@ picker.select = function(values, opts, callback)
   end
 end
 
-cache.find_files {}
-cache.find_files { show_existing_only = false }
-cache.find_files { show_existing_only = false, show_attachments = true }
+picker.find_notes {}
+picker.find_notes { show_existing_only = false }
+picker.find_notes { show_existing_only = false, show_attachments = true }
+vim.wait(1000, function()
+  return #snapshots == 3
+end)
 
 local formatted_missing = picker_util.make_display {
   text = "Missing",
@@ -230,7 +233,10 @@ picker.select = function(values)
     end
   end
 end
-cache.find_files { show_existing_only = false }
+picker.find_notes { show_existing_only = false }
+vim.wait(1000, function()
+  return #targets > 0
+end)
 picker.select = original_select
 return targets
   ]]
@@ -260,7 +266,10 @@ local entries
 picker.select = function(values)
   entries = values
 end
-cache.find_files { show_existing_only = false }
+picker.find_notes { show_existing_only = false }
+vim.wait(1000, function()
+  return entries ~= nil
+end)
 picker.select = original_select
 
 return vim.tbl_map(function(entry)
@@ -320,10 +329,13 @@ api.confirm = function(prompt)
 end
 api.open_note = function() end
 
-cache.find_files {
+picker.find_notes {
   show_existing_only = false,
   show_attachments = true,
 }
+vim.wait(1000, function()
+  return enumeration_create_calls ~= nil and create_calls == 1
+end)
 
 picker.select = original_select
 api.confirm = original_confirm
