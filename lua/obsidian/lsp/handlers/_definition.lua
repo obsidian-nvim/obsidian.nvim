@@ -149,7 +149,7 @@ local function open_note(location, callback, opts)
   end, {
     dir = workspace_dir,
     buf_dir = source ~= "" and vim.fs.dirname(source) or nil,
-    notes = { collect_anchor_links = anchor_link ~= nil, collect_blocks = block_link ~= nil },
+    collect = { headings = anchor_link ~= nil, blocks = block_link ~= nil },
   })
 end
 

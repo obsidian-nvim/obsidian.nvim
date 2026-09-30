@@ -1792,7 +1792,7 @@ T["completion"]["does not link when the target save fails"] = function()
   eq("A needle paragraph", vim.fn.readfile(tostring(child.Obsidian.dir / "target.md"))[1])
 end
 
-T["completion"]["searches beyond the configured note line cap"] = function()
+T["completion"]["respects the configured note line cap"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[^^deep needle",
     ["target.md"] = "First line\n\nDeep needle paragraph",
@@ -1806,7 +1806,7 @@ T["completion"]["searches beyond the configured note line cap"] = function()
   local item = vim.iter(result.items or {}):find(function(candidate)
     return candidate.command and candidate.label == "Deep needle paragraph — target"
   end)
-  assert(item, "block completion stopped at search.max_lines")
+  eq(nil, item)
 end
 
 T["completion"]["avoids generated block ID collisions"] = function()

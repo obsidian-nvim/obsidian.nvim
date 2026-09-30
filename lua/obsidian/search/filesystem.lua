@@ -20,24 +20,13 @@ local M = {}
 ---@return obsidian.search.AsyncHandle
 M.find_notes_async = function(term, callback, opts)
   opts = opts or {}
-  opts.notes = opts.notes or {}
-  if not opts.notes.max_lines then
-    opts.notes.max_lines = Obsidian.opts.search.max_lines
-  end
   local dir = opts.dir or api.resolve_workspace_dir()
   local cancelled = false
 
   async.run(function()
     local Note = require "obsidian.note"
     local root = tostring(Path.new(dir):resolve { strict = true })
-    local load_opts = vim.deepcopy(opts.notes)
-    if opts.match and opts.match.headings then
-      load_opts.collect_sections = true
-    end
-    if opts.match and opts.match.blocks then
-      load_opts.collect_blocks = true
-      load_opts.collect_block_candidates = true
-    end
+    local parse_opts = note_matcher.parse_opts(opts)
 
     local paths_found = {} ---@type string[]
     local ignore_case = Opts.should_ignore_case(term)
@@ -63,7 +52,7 @@ M.find_notes_async = function(term, callback, opts)
           if cancelled then
             return
           end
-          local ok, note = pcall(Note.from_file, path, load_opts)
+          local ok, note = pcall(Note.from_file, path, parse_opts)
           if ok then
             if note_matcher.matches(path, root, note, term, opts.match, ignore_case) then
               notes_by_path[path] = note

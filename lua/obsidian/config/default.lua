@@ -181,7 +181,7 @@ return {
   ---
   ---@field sort_by obsidian.config.SortBy|false
   ---@field sort_reversed boolean
-  ---@field max_lines integer
+  ---@field max_lines integer|? Maximum lines parsed from notes on disk; `nil` means unlimited.
   search = {
     sort_by = "modified",
     sort_reversed = true,
