@@ -5,6 +5,31 @@ local Path = require "obsidian.path"
 
 local M = {}
 
+local image_extensions = {
+  avif = true,
+  bmp = true,
+  gif = true,
+  ico = true,
+  jpeg = true,
+  jpg = true,
+  png = true,
+  svg = true,
+  tif = true,
+  tiff = true,
+  webp = true,
+}
+
+local function image_preview_lines(path, extension, size)
+  local support = extension == "png" and "Native PNG preview" or "Image preview unavailable (PNG only)"
+  return {
+    support,
+    "",
+    vim.fs.basename(path),
+    string.format("Type: %s", extension:upper()),
+    string.format("Size: %d bytes", size),
+  }
+end
+
 ---@param path string|obsidian.Path
 ---@return obsidian.ui_select_preview_spec
 M.preview_path = function(path)
@@ -21,8 +46,25 @@ M.preview_path = function(path)
     table.sort(entries)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
     vim.bo[buf].filetype = "directory"
+  elseif not stat then
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Preview unavailable", "", path })
   else
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
+    local extension = path:match "%.([^./\\]+)$"
+    extension = extension and extension:lower() or ""
+    if image_extensions[extension] then
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, image_preview_lines(path, extension, stat.size))
+      return {
+        buf = buf,
+        img = extension == "png" and { source = { path = vim.fs.normalize(path) } } or nil,
+      }
+    end
+
+    local ok, lines = pcall(vim.fn.readfile, path)
+    if ok then
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    else
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "Preview unavailable", "", tostring(lines) })
+    end
     local filetype = vim.filetype.match { filename = path }
     if filetype then
       vim.bo[buf].filetype = filetype
