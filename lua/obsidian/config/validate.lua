@@ -81,6 +81,10 @@ local integer = function(value)
   return type(value) == "number" and value % 1 == 0
 end
 
+local positive_integer = function(value)
+  return integer(value) and value > 0
+end
+
 local picker_names = vim.tbl_values(types.Picker)
 local sort_values = vim.tbl_values(types.SortBy)
 local open_strategies = vim.tbl_values(types.OpenStrategy)
@@ -104,6 +108,7 @@ local config_sections = {
   "file",
   "footer",
   "frontmatter",
+  "img",
   "link",
   "note",
   "open",
@@ -377,6 +382,23 @@ function M.validate(opts, skip_workspace_overrides)
     end
   elseif opts.picker ~= nil then
     check(errors, "picker", opts.picker, "table")
+  end
+
+  if type(opts.img) == "table" then
+    fields(errors, "img", opts.img, {
+      { "enabled", "boolean" },
+      { "max_file_size", positive_integer, "positive integer" },
+      { "picker", "table" },
+    })
+    if type(opts.img.picker) == "table" then
+      fields(errors, "img.picker", opts.img.picker, {
+        { "enabled", "boolean" },
+        { "max_width", positive_integer, "positive integer" },
+        { "max_height", positive_integer, "positive integer" },
+      })
+    end
+  elseif opts.img ~= nil then
+    check(errors, "img", opts.img, "table")
   end
 
   if type(opts.search) == "table" then

@@ -64,6 +64,84 @@ return {
   eq(false, closed.preview_window_valid)
 end
 
+T["owns native PNG previews across selection changes and close"] = function()
+  local result = child.lua [[
+local Ui = require "obsidian.picker.ui"
+local picker_util = require "obsidian.picker.util"
+local path = vim.fn.tempname() .. ".png"
+local file = assert(io.open(path, "wb"))
+file:write(vim.base64.decode "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGP4z8DwnxLMMGrAqAGjBgwXAwAwxP4QHCfkAAAAAABJRU5ErkJggg==")
+file:close()
+
+Obsidian = {
+  opts = {
+    img = {
+      enabled = true,
+      max_file_size = 1024 * 1024,
+      picker = { enabled = true, max_width = 60, max_height = 20 },
+    },
+  },
+}
+
+local created = 0
+local updated = 0
+local deleted = {}
+vim.ui.img = {
+  set = function(data_or_id)
+    if type(data_or_id) == "number" then
+      updated = updated + 1
+      return data_or_id
+    end
+    created = created + 1
+    return created
+  end,
+  get = function() end,
+  del = function(id)
+    deleted[#deleted + 1] = id
+    return true
+  end,
+}
+
+local picker = Ui.select({ path, "text" }, {
+  preview_item = function(value)
+    if value == path then
+      return picker_util.preview_path(value)
+    end
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].bufhidden = "wipe"
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "plain text" })
+    return { buf = buf }
+  end,
+})
+assert(vim.wait(1000, function() return created == 1 end))
+vim.api.nvim_exec_autocmds("VimResized", {})
+assert(vim.wait(1000, function() return updated > 0 end))
+local after_resize = { created = created, updated = updated }
+
+picker:move(1)
+local after_text = { created = created, deleted = vim.deepcopy(deleted) }
+picker:move(-1)
+assert(vim.wait(1000, function() return created == 2 end))
+picker:cancel()
+vim.fn.delete(path)
+
+return {
+  after_resize = after_resize,
+  after_text = after_text,
+  created = created,
+  updated = updated,
+  deleted = deleted,
+}
+  ]]
+
+  eq(1, result.after_resize.created)
+  eq(true, result.after_resize.updated > 0)
+  eq(1, result.after_text.created)
+  eq({ 1 }, result.after_text.deleted)
+  eq(2, result.created)
+  eq({ 1, 2 }, result.deleted)
+end
+
 T["runs query mappings without installing selection mappings"] = function()
   local result = child.lua [[
 local Ui = require "obsidian.picker.ui"
