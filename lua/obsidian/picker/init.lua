@@ -84,7 +84,7 @@ end
 
 ---@alias obsidian.PickerEntry vim.quickfix.entry
 
----@alias obsidian.ui_select_preview_spec { buf: integer, pos: [integer,integer]?, pos_end: [integer,integer]? }
+---@alias obsidian.ui_select_preview_spec { buf: integer, pos: [integer,integer]?, pos_end: [integer,integer]?, img: { source: obsidian.img.Source }? }
 
 ---@class obsidian.PickerSelectOpts
 ---

@@ -1,6 +1,27 @@
+## Native picker previews (experimental)
+
+Obsidian.nvim can show local PNG files in the built-in picker preview pane through Neovim's experimental `vim.ui.img` API. This is opt-in and currently supports only the native picker and PNG files:
+
+```lua
+require("obsidian").setup {
+  img = {
+    enabled = true,
+    picker = {
+      enabled = true,
+      max_width = 60,
+      max_height = 20,
+    },
+  },
+}
+```
+
+A Neovim build with `vim.ui.img` and a terminal supporting the Kitty graphics protocol are required. There is no stable public terminal capability probe yet, so an unavailable or failed backend falls back to image filename/type/size text. Image files are read asynchronously, are limited to 10 MiB by default (`img.max_file_size`), and are never fetched from the network. Other picker backends retain their text-only previews.
+
+The display service is also available experimentally as `require("obsidian.img")`. `owner(opts)` creates a scoped owner with idempotent `owner:close()`, `owner:show(...)` and `owner:update(...)`; `show(source, placement, opts)` is a convenience wrapper. Callers must pass an absolute local PNG path or PNG bytes. Owners delete only image IDs they created.
+
 ## Inline Image viewing
 
-The only image viewing backend that is well tested and supported is [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md), and for extra info there's work being done that will give neovim an native [API rendering images](https://github.com/neovim/neovim/pull/31399), so eventually we will just move to that.
+Inline note rendering remains separate from native picker previews. The only inline image viewing backend that is well tested and supported is [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md).
 
 For proper image path resolving, add the following snippet to your snacks config, it will only effect markdown files in your vault:
 
