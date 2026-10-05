@@ -24,6 +24,17 @@ local function write_binary(path, bytes)
   file:close()
 end
 
+T["fits pixel dimensions using terminal cell aspect ratio"] = function()
+  local img = require "obsidian.img"
+  local width, height = img.fit(100, 100, 60, 20, 2)
+  eq(40, width)
+  eq(20, height)
+
+  width, height = img.fit(200, 100, 60, 20, 2)
+  eq(60, width)
+  eq(15, height)
+end
+
 T["owns, updates, and idempotently deletes a fitted PNG"] = function()
   local img = require "obsidian.img"
   local path = Path.temp { suffix = ".png" }
