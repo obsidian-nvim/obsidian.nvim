@@ -94,6 +94,7 @@ T["normalize"]["should merge and validate native image options"] = function()
   eq(true, opts.img.picker.enabled)
   eq(42, opts.img.picker.max_width)
   eq(20, opts.img.picker.max_height)
+  eq(2, opts.img.cell_aspect_ratio)
 
   local ok, err = pcall(normalize, { img = { max_file_size = 0 } })
   eq(false, ok)
