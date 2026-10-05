@@ -13,6 +13,7 @@ local exit_autocmd
 ---@field height? integer
 ---@field max_width? integer
 ---@field max_height? integer
+---@field cell_aspect_ratio? number Ratio of cell height to cell width.
 ---@field relative? string
 ---@field zindex? integer
 
@@ -71,12 +72,17 @@ end
 ---@param height integer
 ---@param max_width integer
 ---@param max_height integer
+---@param cell_aspect_ratio? number Ratio of cell height to cell width.
 ---@return integer, integer
-function M.fit(width, height, max_width, max_height)
+function M.fit(width, height, max_width, max_height, cell_aspect_ratio)
   max_width = math.max(1, math.floor(max_width))
   max_height = math.max(1, math.floor(max_height))
-  local scale = math.min(max_width / width, max_height / height, 1)
-  return math.max(1, math.floor(width * scale + 0.5)), math.max(1, math.floor(height * scale + 0.5))
+  local ratio = (width / height) * (cell_aspect_ratio or 1)
+  if max_width / max_height <= ratio then
+    return max_width, math.max(1, math.floor(max_width / ratio + 0.5))
+  else
+    return math.max(1, math.floor(max_height * ratio + 0.5)), max_height
+  end
 end
 
 ---@param owner obsidian.img.Owner
@@ -113,10 +119,11 @@ local function resolve_placement(owner)
   local dimensions = owner.dimensions
   if dimensions and placement.max_width and placement.max_height then
     placement.width, placement.height =
-      M.fit(dimensions.width, dimensions.height, placement.max_width, placement.max_height)
+      M.fit(dimensions.width, dimensions.height, placement.max_width, placement.max_height, placement.cell_aspect_ratio)
   end
   placement.max_width = nil
   placement.max_height = nil
+  placement.cell_aspect_ratio = nil
   return placement, nil
 end
 

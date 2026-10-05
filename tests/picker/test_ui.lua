@@ -86,13 +86,15 @@ Obsidian = {
 local created = 0
 local updated = 0
 local deleted = {}
+local first_placement
 vim.ui.img = {
-  set = function(data_or_id)
+  set = function(data_or_id, opts)
     if type(data_or_id) == "number" then
       updated = updated + 1
       return data_or_id
     end
     created = created + 1
+    first_placement = first_placement or vim.deepcopy(opts)
     return created
   end,
   get = function() end,
@@ -114,6 +116,11 @@ local picker = Ui.select({ path, "text" }, {
   end,
 })
 assert(vim.wait(1000, function() return created == 1 end))
+assert(vim.wait(1000, function()
+  local line = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(picker.preview_win), 0, 1, false)[1]
+  return line == ""
+end))
+local hidden_fallback = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(picker.preview_win), 0, 1, false)[1]
 vim.api.nvim_exec_autocmds("VimResized", {})
 assert(vim.wait(1000, function() return updated > 0 end))
 local after_resize = { created = created, updated = updated }
@@ -127,6 +134,8 @@ vim.fn.delete(path)
 
 return {
   after_resize = after_resize,
+  hidden_fallback = hidden_fallback,
+  first_placement = first_placement,
   after_text = after_text,
   created = created,
   updated = updated,
@@ -136,6 +145,10 @@ return {
 
   eq(1, result.after_resize.created)
   eq(true, result.after_resize.updated > 0)
+  eq("", result.hidden_fallback)
+  eq(result.first_placement.height * 2, result.first_placement.width)
+  eq("ui", result.first_placement.relative)
+  eq(nil, result.first_placement.cell_aspect_ratio)
   eq(1, result.after_text.created)
   eq({ 1 }, result.after_text.deleted)
   eq(2, result.created)

@@ -85,7 +85,12 @@ local positive_integer = function(value)
   return integer(value) and value > 0
 end
 
+local positive_number = function(value)
+  return type(value) == "number" and value > 0
+end
+
 local picker_names = vim.tbl_values(types.Picker)
+table.insert(picker_names, false)
 local sort_values = vim.tbl_values(types.SortBy)
 local open_strategies = vim.tbl_values(types.OpenStrategy)
 local link_styles = vim.tbl_values(types.LinkStyle)
@@ -388,6 +393,7 @@ function M.validate(opts, skip_workspace_overrides)
     fields(errors, "img", opts.img, {
       { "enabled", "boolean" },
       { "max_file_size", positive_integer, "positive integer" },
+      { "cell_aspect_ratio", positive_number, "positive number" },
       { "picker", "table" },
     })
     if type(opts.img.picker) == "table" then
