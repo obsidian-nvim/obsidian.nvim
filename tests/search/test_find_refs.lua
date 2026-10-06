@@ -137,4 +137,119 @@ return { cached = cached, filesystem = filesystem }
   eq(true, result.cached.respected_disabled_sort)
 end
 
+T["resolve_note remains case insensitive when ignorecase is disabled"] = function()
+  h.child_mock_vault_contents(child, {
+    ["Foo.md"] = "---\naliases:\n  - Friendly Name\n---\n# Foo",
+  })
+  h.child_setup_cache(child)
+
+  local result = child.lua [[
+local search = require "obsidian.search"
+local cache = require "obsidian.cache"
+
+local function names(notes)
+  return vim.tbl_map(function(note)
+    return note.path.stem
+  end, notes)
+end
+
+vim.o.ignorecase = false
+local cached = {
+  filename = names(search.resolve_note "foo"),
+  alias = names(search.resolve_note "friendly name"),
+}
+cache.shutdown()
+local filesystem = {
+  filename = names(search.resolve_note "foo"),
+  alias = names(search.resolve_note "friendly name"),
+}
+return { cached = cached, filesystem = filesystem }
+  ]]
+
+  eq({ "Foo" }, result.cached.filename)
+  eq({ "Foo" }, result.cached.alias)
+  eq(result.cached, result.filesystem)
+end
+
+T["cached heading and block matches respect max_lines"] = function()
+  h.child_mock_vault_contents(child, {
+    ["Limited.md"] = "intro\n# Hidden Heading\nblock text ^hidden-block",
+  })
+  h.child_setup_cache(child)
+
+  local result = child.lua [[
+local search = require "obsidian.search"
+local cache = require "obsidian.cache"
+
+Obsidian.opts.search.max_lines = 1
+local match_heading = { references = false, headings = true }
+local match_block = { references = false, blocks = true }
+local cached = {
+  heading = #search.find_notes("hidden-heading", { match = match_heading }),
+  block = #search.find_notes("hidden-block", { match = match_block }),
+}
+cache.shutdown()
+local filesystem = {
+  heading = #search.find_notes("hidden-heading", { match = match_heading }),
+  block = #search.find_notes("hidden-block", { match = match_block }),
+}
+return { cached = cached, filesystem = filesystem }
+  ]]
+
+  eq({ heading = 0, block = 0 }, result.cached)
+  eq(result.cached, result.filesystem)
+end
+
+T["subdirectory searches match vault-relative paths across backends"] = function()
+  h.child_mock_vault_contents(child, {
+    ["sub/Note.md"] = "# Note",
+    ["sub/images/foo.png"] = "image",
+  })
+  h.child_setup_cache(child)
+
+  local result = child.lua [[
+local search = require "obsidian.search"
+local cache = require "obsidian.cache"
+local dir = Obsidian.dir / "sub"
+
+local function stems(notes)
+  return vim.tbl_map(function(note)
+    return note.path.stem
+  end, notes)
+end
+
+local function basenames(paths)
+  return vim.tbl_map(vim.fs.basename, paths)
+end
+
+local function note_ref_texts(refs)
+  local texts = {}
+  for _, ref in ipairs(refs) do
+    if ref.kind == "note" then
+      texts[#texts + 1] = ref.text
+    end
+  end
+  return texts
+end
+
+local cached = {
+  notes = stems(search.find_notes("sub/Note", { dir = dir })),
+  attachments = basenames(search.find_attachments("sub/images/foo.png", { dir = dir })),
+  refs = note_ref_texts(search.find_refs("", { dir = dir })),
+}
+cache.shutdown()
+local filesystem = {
+  notes = stems(search.find_notes("sub/Note", { dir = dir })),
+  attachments = basenames(search.find_attachments("sub/images/foo.png", { dir = dir })),
+  refs = note_ref_texts(search.find_refs("", { dir = dir })),
+}
+return { cached = cached, filesystem = filesystem }
+  ]]
+
+  eq({ "Note" }, result.cached.notes)
+  eq({ "foo.png" }, result.cached.attachments)
+  eq({ "sub/Note" }, result.cached.refs)
+  eq(result.cached, result.filesystem)
+end
+
 return T
