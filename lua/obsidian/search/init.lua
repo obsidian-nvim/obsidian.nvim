@@ -306,7 +306,7 @@ M.resolve_note_async = function(query, callback, opts)
     else
       finish(fuzzy_matches)
     end
-  end, { dir = workspace_dir, collect = opts.collect })
+  end, { dir = workspace_dir, collect = opts.collect, ignore_case = true })
   return handle
 end
 
@@ -324,6 +324,15 @@ M.resolve_note = function(query, opts)
     return {}, err or "note resolution timed out"
   end
   return result, err
+end
+
+---Gather all unique links from a note.
+---@param note obsidian.Note
+---@return obsidian.LinkMatch[]
+---@deprecated use `obsidian.Note:links()` instead. Will be removed in 4.0.0.
+M.find_links = function(note)
+  require("obsidian.util").deprecate("search.find_links", "Note:links()", "4.0.0")
+  return note:links()
 end
 
 ---@param document obsidian.parse.Document

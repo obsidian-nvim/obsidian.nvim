@@ -68,7 +68,10 @@ M.find_notes = function(term, opts)
   local root = vim.fs.normalize(tostring(Obsidian.dir))
   local rows = cache.notes.all()
   local paths = {}
-  local ignore_case = SearchOpts.should_ignore_case(term)
+  local ignore_case = opts.ignore_case
+  if ignore_case == nil then
+    ignore_case = SearchOpts.should_ignore_case(term)
+  end
 
   for path, row in pairs(rows) do
     if
@@ -97,9 +100,9 @@ M.find_notes = function(term, opts)
     else
       ok, note = pcall(Note.from_cache, path, rows[path])
     end
-    if ok then
+    if ok and (not parse_file or note_matcher.matches(path, root, note, term, opts.match, ignore_case)) then
       notes[#notes + 1] = note
-    else
+    elseif not ok then
       err_count = err_count + 1
       if not first_err then
         first_err, first_err_path = note, path

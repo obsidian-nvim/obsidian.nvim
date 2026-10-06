@@ -58,6 +58,7 @@
 ---@field dir string|obsidian.Path|?
 ---@field collect obsidian.search.NoteCollectOpts|? Additional parsed domains to return beyond those selected by `match`.
 ---@field match obsidian.search.NoteMatchOpts|?
+---@field ignore_case boolean|? Override the editor's `ignorecase` and `smartcase` settings.
 ---@field timeout integer|?
 
 ---@class obsidian.search.FindAttachmentsOpts: obsidian.search.SortOpts
