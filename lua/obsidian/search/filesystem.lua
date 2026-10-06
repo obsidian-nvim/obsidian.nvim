@@ -13,6 +13,24 @@ local Ripgrep = require "obsidian.search.ripgrep"
 
 local M = {}
 
+---@param dir string|obsidian.Path
+---@return string
+local function matching_root(dir)
+  local resolved_dir = tostring(Path.new(dir):resolve { strict = true })
+  local workspace = Obsidian and api.find_workspace(resolved_dir) or nil
+  if workspace then
+    return tostring(Path.new(workspace.root):resolve { strict = true })
+  end
+
+  if Obsidian and Obsidian.dir then
+    local vault_root = tostring(Path.new(Obsidian.dir):resolve { strict = true })
+    if fs_util.is_subpath(resolved_dir, vault_root) then
+      return vault_root
+    end
+  end
+  return resolved_dir
+end
+
 ---Find notes by structured identity, heading, or block fields.
 ---@param term string
 ---@param callback fun(notes: obsidian.Note[], err: string?)
@@ -25,11 +43,14 @@ M.find_notes_async = function(term, callback, opts)
 
   async.run(function()
     local Note = require "obsidian.note"
-    local root = tostring(Path.new(dir):resolve { strict = true })
+    local root = matching_root(dir)
     local parse_opts = note_matcher.parse_opts(opts)
 
     local paths_found = {} ---@type string[]
-    local ignore_case = Opts.should_ignore_case(term)
+    local ignore_case = opts.ignore_case
+    if ignore_case == nil then
+      ignore_case = Opts.should_ignore_case(term)
+    end
     async.await(5, Ripgrep.find_async, dir, nil, {
       sort_by = opts.sort_by,
       sort_reversed = opts.sort_reversed,
@@ -106,6 +127,7 @@ end
 M.find_attachments_async = function(term, callback, opts)
   opts = opts or {}
   local dir = opts.dir or api.resolve_workspace_dir()
+  local root = matching_root(dir)
   local paths = {}
   local query = vim.trim(term or "")
   local ignore_case = Opts.should_ignore_case(query)
@@ -119,7 +141,7 @@ M.find_attachments_async = function(term, callback, opts)
     include_non_markdown = true,
   }, function(path)
     if filetypes.is_attachment(path) then
-      local rel = fs_util.relpath(tostring(dir), path) or path
+      local rel = fs_util.relpath(root, path) or path
       if ignore_case then
         rel = rel:lower()
       end
@@ -213,7 +235,7 @@ end
 ---@param opts obsidian.search.FindRefsOpts
 ---@return obsidian.Ref[]
 local function find_refs(term, dir, opts)
-  local root = tostring(Path.new(dir):resolve { strict = true })
+  local root = matching_root(dir)
   local include_notes = opts.include_notes ~= false
   local include_attachments = opts.include_attachments == true
   local include_unresolved = opts.include_unresolved == true
