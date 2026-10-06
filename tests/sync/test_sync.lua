@@ -230,12 +230,15 @@ T["client.run auth handling"]["should prompt login only for actual login errors"
   client.login = orig_login
 end
 
-T["client.run auth handling"]["should not prompt login for password validation errors"] = function()
+T["client.run auth handling"]["should defer setup password errors to client.setup"] = function()
+  local log = require "obsidian.log"
   local orig_cli = rawget(client, "cli")
   local orig_confirm = api.confirm
   local orig_login = client.login
+  local orig_error = log.error
   local calls = 0
   local confirms = 0
+  local errors = 0
 
   client.cli = {
     run_sync = function()
@@ -250,15 +253,20 @@ T["client.run auth handling"]["should not prompt login for password validation e
   client.login = function()
     error "login should not be called"
   end
+  log.error = function()
+    errors = errors + 1
+  end
 
   local out = client.run("sync-setup", {})
   eq(2, out.code)
   eq(1, calls)
   eq(0, confirms)
+  eq(0, errors)
 
   client.cli = orig_cli
   api.confirm = orig_confirm
   client.login = orig_login
+  log.error = orig_error
 end
 
 T["client.run_async"] = new_set()
@@ -303,7 +311,7 @@ end
 
 T["client.setup"] = new_set()
 
-T["client.setup"]["should retry password validation failures with an E2E password"] = function()
+local function expect_setup_password_retry(first_error)
   local orig_run = client.run
   local orig_inputsecret = vim.fn.inputsecret
   local calls = {}
@@ -311,7 +319,7 @@ T["client.setup"]["should retry password validation failures with an E2E passwor
   client.run = function(subcmd, flags)
     table.insert(calls, { subcmd = subcmd, flags = vim.deepcopy(flags) })
     if #calls == 1 then
-      return { code = 2, stdout = "", stderr = "Failed to validate password." }
+      return { code = 2, stdout = "", stderr = first_error }
     end
     return { code = 0, stdout = "ok", stderr = "" }
   end
@@ -331,6 +339,14 @@ T["client.setup"]["should retry password validation failures with an E2E passwor
 
   client.run = orig_run
   vim.fn.inputsecret = orig_inputsecret
+end
+
+T["client.setup"]["should retry password validation failures with an E2E password"] = function()
+  expect_setup_password_retry "Failed to validate password."
+end
+
+T["client.setup"]["should prompt when obsidian-headless cannot read a password"] = function()
+  expect_setup_password_retry "Password not provided."
 end
 
 T["obsidian_backend.build_linked_map"] = new_set()

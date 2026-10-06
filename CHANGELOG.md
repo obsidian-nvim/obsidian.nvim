@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Cache and filesystem searches now agree on case sensitivity, sorting, workspace boundaries, ignore filters, template exclusion, and subdirectory paths.
 - Cache metadata is rebuilt when required for the expanded search index.
+- Sync setup now prompts for the end-to-end encryption password when linking an existing encrypted vault (#984).
 
 ## [v3.16.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.8) - 2026-09-28
 

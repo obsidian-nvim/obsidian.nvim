@@ -26,7 +26,7 @@ Sync the current workspace vault. On first run, it will:
 1. Check if you have a working `obsidian-headless` CLI, if not it will prompt you go install a local copy managed by this plugin, or you can manually install a global CLI with
    `npm install obsidian-headless -g`
 2. Check if logged in (prompt for credentials if not)
-3. Check if any vault is configured (prompt to create at least one connection to remote)
+3. Check if any vault is configured (prompt to create at least one connection to remote). When linking an existing end-to-end encrypted vault, it will securely prompt for the vault's encryption password. This is separate from your Obsidian account password.
 4. Apply sync configuration from plugin settings
 5. Run the sync
 
