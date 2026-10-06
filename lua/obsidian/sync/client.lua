@@ -127,12 +127,15 @@ end
 
 ---@param out vim.SystemCompleted|nil
 ---@return boolean
-local function is_password_validation_error(out)
+local function is_encryption_password_error(out)
   if not out or out.code ~= 2 then
     return false
   end
 
-  return output_text(out):lower():find("failed to validate password", 1, true) ~= nil
+  local text = output_text(out):lower()
+  return text:find("failed to validate password", 1, true) ~= nil
+    or text:find("password not provided", 1, true) ~= nil
+    or text:find("no password provided", 1, true) ~= nil
 end
 
 setmetatable(M, {
@@ -170,7 +173,7 @@ function M.run(subcmd, flags)
       end
     end
     return
-  elseif out.code ~= 0 then
+  elseif out.code ~= 0 and not (subcmd == "sync-setup" and is_encryption_password_error(out)) then
     log.error(out.stderr or "")
   end
   return out
@@ -300,7 +303,7 @@ function M.setup(vault, path, opts)
   end
 
   local out = M.run("sync-setup", args)
-  if is_password_validation_error(out) and opts.prompt_password ~= false and not args.password then
+  if is_encryption_password_error(out) and opts.prompt_password ~= false and not args.password then
     local password = vim.fn.inputsecret "End-to-end encryption password: "
     if password and password ~= "" then
       args.password = password
