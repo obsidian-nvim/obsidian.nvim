@@ -13,17 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `search.find_blocks_async()` for finding existing and unlabeled block-reference candidates.
 - Code action `link_suggestions` ("List unlinked outgoing mentions") - select an unlinked target note, then select locations in the current buffer to convert them to links. Scanning skips existing links, code blocks, inline code, frontmatter, tags, and URLs. Requires cache.
 - Code action `backlink_suggestions` ("List unlinked incoming mentions") - find unlinked plain-text mentions of the current note (by title or alias) across the vault and convert them to links. Requires cache.
+- `search.find_refs()` and `search.find_refs_async()` for searching typed note, attachment, and unresolved-link references.
+- `picker.find_refs()` and `picker.pick_refs()` for presenting and acting on those references.
+- Native filesystem fallback for file search when `ripgrep` is unavailable or fails.
 
 ### Changed
 
 - Don't inject inlay hints when an completion is active.
 - Cache inlay hints in memory for performance.
 - Build vault-wide block and tag indexes lazily in memory, update them after file changes, and share buffer-aware cache lifecycle handling across parsed documents, inlay hints, and link-suggestion symbols.
+- Search now shares structured matching semantics across the cache and filesystem backends, including note IDs, aliases, paths, headings, anchors, block IDs, and block content.
+- **Breaking:** asynchronous search callbacks now receive an optional error and return cancellable handles; synchronous search APIs return results and an optional error.
+- Quick switch and note pickers now use reference search, with optional attachments and unresolved links.
+- `search.max_lines` is applied consistently when loading notes; set it to `nil` for unlimited parsing.
 
 ### Fixed
 
 - Keep reserved frontmatter fields synchronized between note attributes, metadata, and cached notes.
 - Note navigation when note is resolved, but failed to resolve section suffixes like `#heaing` and `#^block_id` will not prompt to create note.
+- Cache and filesystem searches now agree on case sensitivity, sorting, workspace boundaries, ignore filters, template exclusion, and subdirectory paths.
+- Cache metadata is rebuilt when required for the expanded search index.
 
 ## [v3.16.9](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.9) - 2026-10-13
 
