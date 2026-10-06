@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `search.find_refs()` and `search.find_refs_async()` for searching typed note, attachment, and unresolved-link references.
+- `picker.find_refs()` and `picker.pick_refs()` for presenting and acting on those references.
+- Native filesystem fallback for file search when `ripgrep` is unavailable or fails.
+
+### Changed
+
+- Search now shares structured matching semantics across the cache and filesystem backends, including note IDs, aliases, paths, headings, anchors, block IDs, and block content.
+- **Breaking:** asynchronous search callbacks now receive an optional error and return cancellable handles; synchronous search APIs return results and an optional error.
+- Quick switch and note pickers now use reference search, with optional attachments and unresolved links.
+- `search.max_lines` is applied consistently when loading notes; set it to `nil` for unlimited parsing.
+
+### Fixed
+
+- Cache and filesystem searches now agree on case sensitivity, sorting, workspace boundaries, ignore filters, template exclusion, and subdirectory paths.
+- Cache metadata is rebuilt when required for the expanded search index.
+
 ## [v3.16.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.8) - 2026-09-28
 
 ### Added

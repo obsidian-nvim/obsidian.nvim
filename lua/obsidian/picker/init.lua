@@ -14,7 +14,6 @@ local note_matcher = require "obsidian.search.note_matcher"
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
 ---@field find_refs fun(opts: obsidian.PickerFindOpts|?)
----@field pick_refs fun(refs: obsidian.Ref[], opts: obsidian.PickerFindOpts|?)
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
 ---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
@@ -166,7 +165,7 @@ end
 ---Present typed note, attachment, and unresolved-link targets.
 ---@param refs obsidian.Ref[]
 ---@param opts obsidian.PickerFindOpts|?
-M.pick_refs = function(refs, opts)
+local pick_refs = function(refs, opts)
   opts = opts or {}
   local query = opts.query and vim.trim(opts.query) or nil
   if query == "" then
@@ -341,21 +340,12 @@ M.find_notes = function(opts)
 
   opts = opts or {}
 
-  local query_mappings = opts.query_mappings
-  local selection_mappings = opts.selection_mappings
-  if not opts.no_default_mappings then
-    query_mappings = query_mappings or M._note_query_mappings()
-    selection_mappings = selection_mappings or M._note_selection_mappings()
-  end
-
   return M.find_refs {
     query = opts.query,
     prompt_title = opts.prompt_title or "Notes",
     dir = opts.dir or api.resolve_workspace_dir(),
     callback = opts.callback,
     no_default_mappings = true,
-    query_mappings = query_mappings,
-    selection_mappings = selection_mappings,
     show_existing_only = opts.show_existing_only,
     show_attachments = opts.show_attachments,
   }
@@ -390,7 +380,7 @@ M.find_refs = function(opts)
     if err then
       log.err("Failed to find references: %s", err)
     end
-    M.pick_refs(refs, find_opts)
+    pick_refs(refs, find_opts)
   end, {
     dir = find_opts.dir,
     include_notes = true,
