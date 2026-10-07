@@ -3,7 +3,7 @@ local Document = require "obsidian.parse.document"
 local Range = require "obsidian.range"
 local uri = require "obsidian.uri"
 local log = require "obsidian.log"
-local search = require "obsidian.search"
+local parse_highlight = require "obsidian.parse.highlight"
 local parse_refs = require "obsidian.parse.refs"
 local parse_block_id = require "obsidian.parse.block_id"
 local parse_tags = require "obsidian.parse.tags"
@@ -460,9 +460,10 @@ end
 ---@return ExtMark[]
 local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
   local highlight_text = assert(ui_opts.highlight_text, "ui highlight_text options are required")
-  local matches = search.find_highlight(line)
+  local matches = parse_highlight.extract(line)
   for match in iter(matches) do
-    local m_start, m_end = unpack(match)
+    local m_start = match.range.start_col + 1
+    local m_end = match.range.end_col
     -- Conceal opening '=='
     marks[#marks + 1] = ExtMark.new(
       nil,
