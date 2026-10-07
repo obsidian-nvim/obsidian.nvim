@@ -21,6 +21,7 @@ local text_insertion = require "obsidian.util.text_insertion"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
+local highlight = require "obsidian.parse.highlight"
 local ignore = require "obsidian.ignore"
 local Section = require "obsidian.section"
 local Range = require "obsidian.range"
@@ -1331,15 +1332,13 @@ end
 Note.highlights = function(self)
   local matches = {}
   for row, line in ipairs(self.contents) do
-    local hls = search.find_highlight(line)
-    if not vim.tbl_isempty(hls) then
-      for _, hl in ipairs(hls) do
-        local range = Range.new(row - 1, hl[1] - 1, row - 1, hl[2])
-        table.insert(matches, {
-          range = range,
-          text = hl[3],
-        })
-      end
+    local note_row = row - 1
+    ---@cast note_row integer
+    for _, hl in ipairs(highlight.extract(line, { row = note_row })) do
+      table.insert(matches, {
+        range = hl.range,
+        text = hl.text,
+      })
     end
   end
   return matches
