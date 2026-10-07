@@ -15,7 +15,6 @@ local pick_note_highlights = function(buf)
   local highlights = {}
   for row, line in ipairs(note.contents) do
     local note_row = row - 1
-    ---@cast note_row integer
     vim.list_extend(highlights, highlight.extract(line, { row = note_row }))
   end
 
