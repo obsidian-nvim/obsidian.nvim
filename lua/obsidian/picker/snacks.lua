@@ -226,10 +226,14 @@ M.select = function(values, opts, on_choice)
     format = "text",
     confirm = function(picker, item)
       local selected = opts.allow_multiple and picker:selected { fallback = true } or (item and { item } or {})
-      picker:close()
-      on_choice(vim.tbl_map(function(selected_item)
+      local choices = vim.tbl_map(function(selected_item)
         return selected_item.obsidian_item
-      end, selected))
+      end, selected)
+      picker:close()
+      -- Snacks finishes closing its windows on the next tick; open the choice afterward.
+      vim.schedule(function()
+        on_choice(choices)
+      end)
     end,
   })
 

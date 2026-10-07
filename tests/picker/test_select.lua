@@ -273,6 +273,35 @@ T["snacks select applies custom formatting to string values"] = function()
   end)
 end
 
+T["snacks select confirms after close cleanup"] = function()
+  local events, choice = {}, nil
+  local values = { { id = 1 }, { id = 2 } }
+
+  with_module("snacks.picker", {
+    pick = function(opts)
+      opts.confirm({
+        close = function()
+          vim.schedule(function()
+            events[#events + 1] = "closed"
+          end)
+        end,
+      }, opts.items[2])
+      eq(nil, choice)
+    end,
+  }, function()
+    require("obsidian.picker.snacks").select(values, {}, function(selected)
+      events[#events + 1] = "selected"
+      choice = selected[1]
+    end)
+  end)
+
+  assert(vim.wait(1000, function()
+    return choice ~= nil
+  end))
+  eq({ "closed", "selected" }, events)
+  eq(values[2], choice)
+end
+
 T["snacks select preserves opaque values for mappings"] = function()
   local value = { filename = "/vault/note.md" }
   local mapped
@@ -334,6 +363,72 @@ T["telescope select applies custom formatting to string values"] = function()
       end,
     })
   end)
+end
+
+T["telescope select confirms after close cleanup"] = function()
+  local events, choice = {}, nil
+  local values = { { id = 1 }, { id = 2 } }
+  local entry
+
+  with_modules({
+    ["telescope.pickers"] = {
+      new = function(picker_opts, opts)
+        entry = opts.finder.entry_maker(values[2])
+        return {
+          find = function()
+            picker_opts.attach_mappings(1, function(_, key, callback)
+              if key == "<CR>" then
+                callback(1)
+              end
+            end)
+            eq(nil, choice)
+          end,
+        }
+      end,
+    },
+    ["telescope.finders"] = {
+      new_table = function(opts)
+        return opts
+      end,
+    },
+    ["telescope.config"] = {
+      values = {
+        generic_sorter = function()
+          return {}
+        end,
+      },
+    },
+    ["telescope.actions"] = {
+      close = function()
+        vim.schedule(function()
+          events[#events + 1] = "closed"
+        end)
+      end,
+    },
+    ["telescope.actions.state"] = {
+      get_current_picker = function()
+        return {
+          get_multi_selection = function()
+            return {}
+          end,
+        }
+      end,
+      get_selected_entry = function()
+        return entry
+      end,
+    },
+  }, function()
+    require("obsidian.picker.telescope").select(values, {}, function(selected)
+      events[#events + 1] = "selected"
+      choice = selected[1]
+    end)
+  end)
+
+  assert(vim.wait(1000, function()
+    return choice ~= nil
+  end))
+  eq({ "closed", "selected" }, events)
+  eq(values[2], choice)
 end
 
 T["telescope select does not infer fields or previews from value shape"] = function()

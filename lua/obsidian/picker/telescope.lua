@@ -235,7 +235,10 @@ M.select = function(values, opts, on_choice)
       map({ "i", "n" }, "<CR>", function(prompt_bufnr)
         local choices = get_selected_values(prompt_bufnr)
         if choices then
-          on_choice(choices)
+          -- Let picker teardown and the insert-to-normal transition finish before moving the cursor.
+          vim.schedule(function()
+            on_choice(choices)
+          end)
         end
       end)
       return true
