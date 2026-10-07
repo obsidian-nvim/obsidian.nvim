@@ -1,5 +1,6 @@
 local api = require "obsidian.api"
 local picker = require "obsidian.picker"
+local highlight = require "obsidian.parse.highlight"
 
 ---@param bufnr integer
 ---@param item obsidian.HighlightMatch
@@ -18,6 +19,26 @@ local function preview(bufnr, item)
   }
 end
 
+---@class obsidian.HighlightMatch
+---@field range obsidian.Range
+---@field text string
+
+---@return obsidian.HighlightMatch[]
+local note_highlights = function(self)
+  local matches = {}
+  for row, line in ipairs(self.contents) do
+    local note_row = row - 1
+    ---@cast note_row integer
+    for _, hl in ipairs(highlight.extract(line, { row = note_row })) do
+      table.insert(matches, {
+        range = hl.range,
+        text = hl.text,
+      })
+    end
+  end
+  return matches
+end
+
 return function()
   local buf = vim.api.nvim_get_current_buf()
   local note = api.current_note(buf)
@@ -25,7 +46,7 @@ return function()
     return
   end
 
-  local highlights = note:highlights()
+  local highlights = note_highlights(note)
   if #highlights == 0 then
     return
   end
