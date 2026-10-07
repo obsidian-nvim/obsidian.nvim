@@ -6,6 +6,7 @@ local actions = require "obsidian.actions"
 local log = require "obsidian.log"
 
 T["add"] = new_set()
+
 T["add"]["URL filenames should be decoded before basename resolution"] = function()
   local original_system = vim.system
   local original_executable = vim.fn.executable
