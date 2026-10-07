@@ -60,8 +60,4 @@ function M.extract(line, opts)
   return matches
 end
 
--- `parse` is kept as a convenient singular parser name for callers that use
--- the parse namespace; highlights may occur more than once on a line.
-M.parse = M.extract
-
 return M

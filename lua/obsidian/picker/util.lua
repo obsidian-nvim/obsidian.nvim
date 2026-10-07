@@ -2,24 +2,12 @@ local preview_ns = vim.api.nvim_create_namespace "obsidian.picker.preview"
 
 local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
-local attachment = require "obsidian.attachment"
 
 local M = {}
-
-local image_preview_filetypes = {
-  gif = true,
-  jpg = true,
-  jpeg = true,
-  png = true,
-  svg = true,
-  webp = true,
-  pdf = true,
-}
 
 ---@param path string|obsidian.Path
 ---@return obsidian.ui_select_preview_spec
 M.preview_path = function(path)
-  local filetypes = require "obsidian.filetypes"
   path = tostring(path)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = "wipe"
@@ -33,17 +21,6 @@ M.preview_path = function(path)
     table.sort(entries)
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
     vim.bo[buf].filetype = "directory"
-  elseif image_preview_filetypes[require("obsidian.filetypes").extension(path)] then
-    buf = vim.fn.bufadd(path)
-    vim.fn.bufload(buf)
-    vim.bo[buf].bufhidden = "wipe"
-  elseif attachment.is_attachment_filetype(path) then
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
-      "# " .. path,
-      "",
-      "- Type: " .. (filetypes.extension(path) ~= "" and filetypes.extension(path) or "unknown"),
-      "- Size: " .. (stat and stat.size or 0) .. " bytes",
-    })
   else
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
     local filetype = vim.filetype.match { filename = path }
