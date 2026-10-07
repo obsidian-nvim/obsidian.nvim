@@ -21,7 +21,6 @@ local text_insertion = require "obsidian.util.text_insertion"
 local api = require "obsidian.api"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
-local highlight = require "obsidian.parse.highlight"
 local ignore = require "obsidian.ignore"
 local Section = require "obsidian.section"
 local Range = require "obsidian.range"
@@ -1322,26 +1321,6 @@ end
 ---@return obsidian.LinkMatch[]
 Note.links = function(self)
   return require("obsidian.search.link_refs").unique_from_file(tostring(self.path))
-end
-
----@class obsidian.HighlightMatch
----@field range obsidian.Range
----@field text string
-
----@return obsidian.HighlightMatch[]
-Note.highlights = function(self)
-  local matches = {}
-  for row, line in ipairs(self.contents) do
-    local note_row = row - 1
-    ---@cast note_row integer
-    for _, hl in ipairs(highlight.extract(line, { row = note_row })) do
-      table.insert(matches, {
-        range = hl.range,
-        text = hl.text,
-      })
-    end
-  end
-  return matches
 end
 
 Note.delete = require("obsidian.note.delete").delete
