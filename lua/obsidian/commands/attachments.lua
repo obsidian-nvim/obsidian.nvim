@@ -60,9 +60,6 @@ local find_attachments = function(opts)
       -- The initial query is applied above so it also matches directories.
       query = nil,
       format_item = picker_util.make_display,
-      preview_item = function(entry)
-        return picker_util.preview_path(entry.filename)
-      end,
     }, function(items)
       local paths = vim.tbl_map(function(item)
         return item.filename

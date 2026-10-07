@@ -1,53 +1,26 @@
 local api = require "obsidian.api"
 local picker = require "obsidian.picker"
 local highlight = require "obsidian.parse.highlight"
+local picker_util = require "obsidian.picker.util"
+local log = require "obsidian.log"
+local Note = require "obsidian.note"
 
----@param bufnr integer
----@param item obsidian.HighlightMatch
----@return obsidian.ui_select_preview_spec
-local function preview(bufnr, item)
-  local preview_buf = vim.api.nvim_create_buf(false, true)
-  vim.bo[preview_buf].bufhidden = "wipe"
-  vim.bo[preview_buf].filetype = "markdown"
-  vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
-
-  local range = item.range
-  return {
-    buf = preview_buf,
-    pos = { range.start_row + 1, range.start_col },
-    pos_end = { range.end_row + 1, range.end_col },
-  }
-end
-
----@class obsidian.HighlightMatch
----@field range obsidian.Range
----@field text string
-
----@return obsidian.HighlightMatch[]
-local note_highlights = function(self)
-  local matches = {}
-  for row, line in ipairs(self.contents) do
-    local note_row = row - 1
-    ---@cast note_row integer
-    for _, hl in ipairs(highlight.extract(line, { row = note_row })) do
-      table.insert(matches, {
-        range = hl.range,
-        text = hl.text,
-      })
-    end
-  end
-  return matches
-end
-
-return function()
-  local buf = vim.api.nvim_get_current_buf()
-  local note = api.current_note(buf)
+---@param buf integer
+local pick_note_highlights = function(buf)
+  local note = Note.from_buffer(buf)
   if not note then
     return
   end
 
-  local highlights = note_highlights(note)
+  local highlights = {}
+  for row, line in ipairs(note.contents) do
+    local note_row = row - 1
+    ---@cast note_row integer
+    vim.list_extend(highlights, highlight.extract(line, { row = note_row }))
+  end
+
   if #highlights == 0 then
+    log.info "No highlights in current buffer"
     return
   end
 
@@ -57,7 +30,11 @@ return function()
       return ("%d:%d  %s"):format(item.range.start_row + 1, item.range.start_col + 1, item.text)
     end,
     preview_item = function(item)
-      return preview(buf, item)
+      return {
+        buf = picker_util.preview_path(tostring(note.path)).buf,
+        pos = { item.range.start_row + 1, item.range.start_col + 1 },
+        end_pos = { item.range.end_row + 1, item.range.end_col + 1 },
+      }
     end,
   }, function(items)
     local item = items and items[1]
@@ -74,4 +51,9 @@ return function()
       end_col = range.end_col + 1,
     }
   end)
+end
+
+return function()
+  local buf = vim.api.nvim_get_current_buf()
+  pick_note_highlights(buf)
 end

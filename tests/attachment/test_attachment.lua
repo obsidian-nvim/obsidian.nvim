@@ -6,19 +6,6 @@ local actions = require "obsidian.actions"
 local log = require "obsidian.log"
 
 T["add"] = new_set()
-T["preview"] = new_set()
-
-T["preview"]["loads the attachment filename into the preview buffer"] = function()
-  local path = vim.fs.joinpath(tostring(Obsidian.dir), "image.png")
-  vim.fn.writefile({ "image" }, path)
-
-  local spec = attachment._preview { filename = path }
-
-  eq(vim.fs.normalize(path), vim.fs.normalize(vim.api.nvim_buf_get_name(spec.buf)))
-  eq(true, vim.api.nvim_buf_is_loaded(spec.buf))
-  eq({ "image" }, vim.api.nvim_buf_get_lines(spec.buf, 0, -1, false))
-end
-
 T["add"]["URL filenames should be decoded before basename resolution"] = function()
   local original_system = vim.system
   local original_executable = vim.fn.executable
