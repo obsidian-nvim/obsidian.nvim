@@ -127,11 +127,19 @@ local function render(bufnr, opts)
     owner:close()
   end
   state.owners = {}
-  for _, embed in ipairs(embeds) do
+  state.resized = state.resized or {}
+
+  for i, embed in ipairs(embeds) do
     local ref, row = embed.ref, embed.row
     local width_px, height_px
     if ref.kind == "wiki" then
       width_px, height_px = parse_size(ref.label)
+      local resized = state.resized[i]
+      if resized and resized.signature == signature[i] and not ref.label then
+        width_px, height_px = resized.width, resized.height
+      else
+        state.resized[i] = nil
+      end
     end
     local owner = img.owner {
       kind = "inline-embed",
@@ -152,6 +160,118 @@ local function render(bufnr, opts)
     -- A buffer-relative image inserts virtual lines below its anchor. One per line
     -- gives deterministic ordering and avoids overlapping images on a shared row.
   end
+end
+
+---Resize a rendered wiki embed under the cursor. Explicit size labels are
+---edited; an implicit size is changed only in the current buffer's image state.
+---@param delta integer Direction of the change.
+---@return boolean
+function M.resize_under_cursor(delta)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local state = states[bufnr]
+  if not state or delta == 0 or not vim.bo[bufnr].modifiable or vim.bo[bufnr].readonly then
+    return false
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local row, col = cursor[1] - 1, cursor[2]
+  local embeds = find_embeds(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+  for i, embed in ipairs(embeds) do
+    local ref = embed.ref
+    if ref.kind == "wiki" and ref.range.start_row == row and ref.range.start_col <= col and col < ref.range.end_col then
+      local owner = state.owners[i]
+      if not owner or not owner.image_id or state.signature[i] ~= embed_signature(ref) then
+        return false
+      end
+      local width, height = parse_size(ref.label)
+      if ref.label and not width then
+        return false
+      end
+      local dimensions = owner.dimensions
+      local available_width = text_width(bufnr)
+      if not dimensions or not available_width then
+        return false
+      end
+      local img = require "obsidian.img"
+      local cell_width, cell_height = img.cell_pixels()
+      local max_width = math.min(max_image_width, available_width)
+      if not width then
+        local resized = state.resized and state.resized[i]
+        if resized and resized.signature == state.signature[i] then
+          width, height = resized.width, resized.height
+        else
+          local fitted_width = img.fit(dimensions.width, dimensions.height, max_width, max_image_height)
+          width = math.floor(fitted_width * cell_width + 0.5)
+        end
+      end
+      local explicit_height = height ~= nil
+      height = height or math.max(1, math.floor(width * dimensions.height / dimensions.width + 0.5))
+      local limit = math.floor(math.min(max_width * cell_width, max_image_height * cell_height * width / height))
+      local current_placement = owner.placement
+      if not current_placement then
+        return false
+      end
+      local _, shown_height =
+        img.fit(dimensions.width, dimensions.height, current_placement.max_width, current_placement.max_height)
+      -- The pixel-to-cell conversion is quantized. Find the nearest proportional
+      -- size that changes the *rendered* height by a cell, never width alone.
+      local function rendered_height(candidate_width)
+        local candidate_height = math.max(1, math.floor(height * candidate_width / width + 0.5))
+        local placement =
+          image_placement(bufnr, embed.row, available_width, cell_width, cell_height, candidate_width, candidate_height)
+        local _, rows = img.fit(dimensions.width, dimensions.height, placement.max_width, placement.max_height)
+        return rows
+      end
+      ---@type number, number
+      local low, high = delta > 0 and width + 1 or 1, delta > 0 and limit or math.min(width - 1, limit)
+      local next_width
+      while low <= high do
+        local mid = math.floor((low + high) / 2)
+        local rows = rendered_height(mid)
+        if delta > 0 then
+          if rows > shown_height then
+            next_width = mid
+            high = mid - 1
+          else
+            low = mid + 1
+          end
+        elseif rows < shown_height then
+          next_width = mid
+          low = mid + 1
+        else
+          high = mid - 1
+        end
+      end
+      if not next_width then
+        return false
+      end
+      local next_height = math.max(1, math.floor(height * next_width / width + 0.5))
+      if not ref.label then
+        local ok = owner:update(
+          image_placement(bufnr, embed.row, available_width, cell_width, cell_height, next_width, next_height)
+        )
+        if not ok then
+          M.refresh(bufnr)
+          return false
+        end
+        state.resized = state.resized or {}
+        state.resized[i] = { signature = state.signature[i], width = next_width, height = next_height }
+        return true
+      end
+      local next_label = explicit_height and next_width .. "x" .. next_height or tostring(next_width)
+      local prefix = ref.raw:sub(1, #ref.raw - 2 - (ref.label and #ref.label + 1 or 0))
+      vim.api.nvim_buf_set_text(
+        bufnr,
+        row,
+        ref.range.start_col,
+        row,
+        ref.range.end_col,
+        { prefix .. "|" .. next_label .. "]]" }
+      )
+      M.refresh(bufnr)
+      return true
+    end
+  end
+  return false
 end
 
 local function schedule_render(bufnr, opts, force)

@@ -2,6 +2,7 @@ local eq = MiniTest.expect.equality
 local Path = require "obsidian.path"
 local img = require "obsidian.img"
 local embed = require "obsidian.img.embed"
+local actions = require "obsidian.actions"
 local attachment = require "obsidian.attachment"
 local source = require "obsidian.img.source"
 
@@ -44,18 +45,23 @@ T["embeds reserve rows below the link in the buffer text area"] = function()
   vim.bo[buf].modified = false
 
   local ns = vim.api.nvim_create_namespace "ObsidianImgEmbedTest"
-  local placed, deleted, marks = {}, {}, {}
+  local placed, deleted, updated, marks = {}, {}, {}, {}
   vim.ui.img = {
-    set = function(_, opts)
-      local id = #placed + 1
+    set = function(bytes_or_id, opts)
+      local id = type(bytes_or_id) == "number" and bytes_or_id or #placed + 1
       local virtual = {}
       for _ = 1, opts.height do
         virtual[#virtual + 1] = { { string.rep(" ", opts.width), "Normal" } }
       end
       marks[id] = vim.api.nvim_buf_set_extmark(buf, ns, opts.row - 1, opts.col - 1, {
+        id = marks[id],
         virt_lines = virtual,
       })
-      placed[id] = opts
+      if type(bytes_or_id) == "number" then
+        updated[#updated + 1] = opts
+      else
+        placed[id] = opts
+      end
       return id
     end,
     get = function() end,
@@ -114,14 +120,100 @@ T["embeds reserve rows below the link in the buffer text area"] = function()
   eq(3, placed[2].row)
   eq({ 1 }, deleted)
 
+  vim.api.nvim_win_set_cursor(win, { 3, 5 })
+  local initial_height = placed[#placed].height
+  eq(true, actions.increment())
+  local grown_width = tonumber(vim.api.nvim_buf_get_lines(buf, 2, 3, false)[1]:match "^!%[%[image%.png|(%d+)%]%]$")
+  eq(true, grown_width > 300)
+  eq(initial_height + 1, placed[#placed].height)
+  eq(true, actions.decrement())
+  local shrunk_width = tonumber(vim.api.nvim_buf_get_lines(buf, 2, 3, false)[1]:match "^!%[%[image%.png|(%d+)%]%]$")
+  eq(true, shrunk_width < grown_width)
+  eq(initial_height, placed[#placed].height)
+  vim.api.nvim_win_set_cursor(win, { 1, 0 })
+  eq(false, actions.increment())
+  eq("new first line", vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1])
+
+  vim.api.nvim_buf_set_lines(buf, 2, 3, false, { "![[image.png|300x200]]" })
+  embed.refresh(buf)
+  vim.api.nvim_win_set_cursor(win, { 3, 5 })
+  local cell_width, cell_height = img.cell_pixels()
+  eq(true, placed[#placed].width <= math.ceil(300 / cell_width))
+  eq(true, placed[#placed].height <= math.ceil(200 / cell_height))
+  local initial_height_with_bound = placed[#placed].height
+  eq(true, actions.increment())
+  local grown_width_with_bound, grown_height_with_bound =
+    vim.api.nvim_buf_get_lines(buf, 2, 3, false)[1]:match "^!%[%[image%.png|(%d+)x(%d+)%]%]$"
+  eq(true, tonumber(grown_width_with_bound) > 300)
+  eq(true, math.abs(tonumber(grown_height_with_bound) / tonumber(grown_width_with_bound) - 200 / 300) < 0.01)
+  eq(initial_height_with_bound + 1, placed[#placed].height)
+
+  local text_width = vim.fn.getwininfo(win)[1].width - vim.fn.getwininfo(win)[1].textoff
+  local width_limit = math.floor(math.min(80, text_width) * cell_width)
+  local height_limit = math.floor(math.min(width_limit, 30 * cell_height))
+  vim.api.nvim_buf_set_lines(buf, 2, 3, false, { ("![[image.png|%dx1]]"):format(width_limit) })
+  embed.refresh(buf)
+  eq(false, actions.increment()) -- width cap
+  vim.api.nvim_buf_set_lines(buf, 2, 3, false, { ("![[image.png|%dx%d]]"):format(height_limit, height_limit) })
+  embed.refresh(buf)
+  eq(false, actions.increment()) -- height cap
+  local before_shrink = placed[#placed].height
+  eq(true, actions.decrement())
+  eq(before_shrink - 1, placed[#placed].height)
+  local next_width, next_height =
+    vim.api.nvim_buf_get_lines(buf, 2, 3, false)[1]:match "^!%[%[image%.png|(%d+)x(%d+)%]%]$"
+  eq(next_width, next_height)
+
+  -- A wide image needs a larger pixel-width change to move by one row.
+  source.load = function(_, _, callback)
+    callback({ bytes = "png", width = 1200, height = 100 }, nil)
+  end
+  vim.api.nvim_buf_set_lines(buf, 2, 3, false, { "![[image.png|600]]" })
+  embed.refresh(buf)
+  local wide_height = placed[#placed].height
+  eq(true, wide_height >= 2)
+  eq(true, actions.decrement())
+  eq(wide_height - 1, placed[#placed].height)
+  local wide_width = tonumber(vim.api.nvim_buf_get_lines(buf, 2, 3, false)[1]:match "^!%[%[image%.png|(%d+)%]%]$")
+  eq(true, 600 - wide_width > cell_width)
+  eq(true, actions.decrement())
+  eq(wide_height - 2, placed[#placed].height)
+  eq(false, actions.decrement()) -- height cannot shrink below one cell
+  source.load = function(_, _, callback)
+    callback({ bytes = "png", width = 600, height = 300 }, nil)
+  end
+
+  vim.api.nvim_buf_set_lines(buf, 2, 3, false, { "![[image.png|alias]]" })
+  embed.refresh(buf)
+  eq(false, actions.increment())
+  eq("![[image.png|alias]]", vim.api.nvim_buf_get_lines(buf, 2, 3, false)[1])
+
+  vim.api.nvim_buf_set_lines(buf, 2, 3, false, { "![[image.png]]" })
+  embed.refresh(buf)
+  local tick = vim.api.nvim_buf_get_changedtick(buf)
+  local creations = #placed
+  eq(true, actions.decrement())
+  eq(true, actions.decrement())
+  eq("![[image.png]]", vim.api.nvim_buf_get_lines(buf, 2, 3, false)[1])
+  eq(tick, vim.api.nvim_buf_get_changedtick(buf))
+  eq(creations, #placed)
+  eq(2, #updated)
+  eq(placed[creations].height - 1, updated[1].height)
+  eq(updated[1].height - 1, updated[2].height)
+  eq(true, updated[2].width < updated[1].width)
+  vim.api.nvim_win_set_cursor(win, { 5, 5 }) -- link syntax inside inline code
+  eq(false, actions.increment())
+
+  local before = #placed
   vim.api.nvim_exec_autocmds("WinEnter", {}) -- returning from the message pager
   vim.wait(150)
-  eq(3, #placed)
-  eq({ 1, 2 }, deleted)
+  eq(before + 1, #placed)
+  eq(before, #deleted)
+  eq(updated[2].width, placed[#placed].width)
 
   vim.api.nvim_win_set_buf(win, original_buf)
   vim.api.nvim_buf_delete(buf, { force = true })
-  eq(3, #deleted)
+  eq(#placed, #deleted)
   vim.wo[win].number = original_number
   vim.fn.delete(tostring(dir), "rf")
 end

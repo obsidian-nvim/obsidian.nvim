@@ -742,6 +742,20 @@ M.toggle_recording = function()
   require("obsidian.core-plugins.audio_recorder").toggle()
 end
 
+---Grow the rendered image embed under the cursor by one terminal cell row.
+---Other contexts are currently a no-op.
+---@return boolean
+M.increment = function()
+  return require("obsidian.img.embed").resize_under_cursor(1)
+end
+
+---Shrink the rendered image embed under the cursor by one terminal cell row.
+---Other contexts are currently a no-op.
+---@return boolean
+M.decrement = function()
+  return require("obsidian.img.embed").resize_under_cursor(-1)
+end
+
 ---@param line string
 ---@param row integer
 ---@return string?
