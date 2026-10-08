@@ -29,13 +29,22 @@ function M.extract(line, opts)
   local matches = {}
   local search_start = 1
   while search_start < #line do
-    local start_col, end_col = line:find("==[^=]+==", search_start)
-    if not start_col or not end_col then
+    local start_col = line:find("==", search_start, true)
+    if not start_col then
       break
     end
 
-    local text = line:sub(start_col + 2, end_col - 2)
-    if vim.trim(text) == text then
+    local text_start = start_col + 2
+    local close_start = line:find("==", text_start, true)
+    if not close_start then
+      break
+    end
+
+    -- A delimiter pair always belongs to the nearest candidate. This both
+    -- keeps adjacent highlights separate and prevents an invalid pair from
+    -- swallowing a later valid one.
+    local text = line:sub(text_start, close_start - 1)
+    if text ~= "" and not text:sub(1, 1):match "%s" and not text:sub(-1):match "%s" then
       local color
       for emoji, emoji_color in pairs(colors) do
         if vim.startswith(text, emoji) then
@@ -45,6 +54,7 @@ function M.extract(line, opts)
         end
       end
 
+      local end_col = close_start + 1
       matches[#matches + 1] = {
         kind = "highlight",
         raw = line:sub(start_col, end_col),
@@ -54,7 +64,7 @@ function M.extract(line, opts)
       }
     end
 
-    search_start = end_col
+    search_start = close_start + 2
   end
 
   return matches
