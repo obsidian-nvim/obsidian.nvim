@@ -1,11 +1,14 @@
 local eq = MiniTest.expect.equality
 local new_set = MiniTest.new_set
 local Path = require "obsidian.path"
+local source = require "obsidian.img.source"
+local original_load = source.load
 
 local T = new_set {
   hooks = {
     post_case = function()
       require("obsidian.img").clear_all()
+      source.load = original_load
     end,
   },
 }
@@ -166,6 +169,48 @@ T["reports unsupported and malformed sources without throwing"] = function()
   )
   eq(false, malformed[1])
   eq("truncated PNG", malformed[2])
+end
+
+T["buffer placement refuses a backend that does not insert virtual lines"] = function()
+  local img = require "obsidian.img"
+  source.load = function(_, _, callback)
+    callback { bytes = png(12, 12), width = 12, height = 12 }
+  end
+  local buf = vim.api.nvim_create_buf(false, true)
+  local deleted = {}
+  local count = 0
+  local backend = {
+    set = function()
+      count = count + 1
+      return count
+    end,
+    get = function() end,
+    del = function(id)
+      deleted[#deleted + 1] = id
+    end,
+  }
+  local owner = img.owner { buf = buf, backend = backend }
+  local result
+  owner:show({
+    source = { bytes = png(12, 12) },
+    placement = { relative = "buffer", buf = buf, row = 1, col = 1, width = 2, height = 2 },
+    require_buffer_lines = true,
+  }, function(ok, err)
+    result = { ok, err }
+  end)
+  eq(false, result[1])
+  eq("vim.ui.img does not support buffer-relative images", result[2])
+  eq({ 1 }, deleted)
+  eq(nil, owner.image_id)
+  local started = owner:show {
+    source = { bytes = png(12, 12) },
+    placement = { relative = "buffer", buf = buf, row = 1, col = 1, width = 2, height = 2 },
+    require_buffer_lines = true,
+  }
+  eq(false, started)
+  eq(1, count)
+  owner:close()
+  vim.api.nvim_buf_delete(buf, { force = true })
 end
 
 T["picker path previews never put image bytes in a buffer"] = function()
