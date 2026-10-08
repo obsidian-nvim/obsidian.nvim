@@ -185,12 +185,11 @@ return {
   ---@class obsidian.config.ImgOpts
   ---@field enabled? boolean Master switch for experimental native image display.
   ---@field max_file_size? integer Maximum number of bytes read for one image.
-  ---@field cell_aspect_ratio? number Ratio of terminal cell height to width.
   ---@field picker? obsidian.config.ImgPickerOpts
   img = {
     enabled = false,
     max_file_size = 10 * 1024 * 1024,
-    cell_aspect_ratio = 2,
+    cell_aspect_ratio = nil,
     picker = {
       enabled = false,
       max_width = 60,
