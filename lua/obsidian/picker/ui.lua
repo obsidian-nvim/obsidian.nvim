@@ -295,7 +295,6 @@ local function image_placement(picker, opts)
       col = pos[2] + border_offset + 1,
       max_width = math.max(1, math.min(width, opts.picker.max_width or width)),
       max_height = math.max(1, math.min(height, opts.picker.max_height or height)),
-      cell_aspect_ratio = opts.cell_aspect_ratio or 2,
       zindex = 90,
     }
   end

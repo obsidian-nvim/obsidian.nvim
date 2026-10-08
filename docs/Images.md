@@ -6,7 +6,6 @@ Obsidian.nvim can show local PNG files in the built-in picker preview pane throu
 require("obsidian").setup {
   img = {
     enabled = true,
-    cell_aspect_ratio = 2, -- tune if images look stretched in your terminal/font
     picker = {
       enabled = true,
       max_width = 60,
@@ -18,7 +17,7 @@ require("obsidian").setup {
 
 A Neovim build with `vim.ui.img` and a terminal supporting the Kitty graphics protocol are required. There is no stable public terminal capability probe yet, so an unavailable or failed backend falls back to image filename/type/size text. After successful placement, that fallback text is hidden behind the graphical preview. Image files are read asynchronously, are limited to 10 MiB by default (`img.max_file_size`), and are never fetched from the network. Other picker backends retain their text-only previews.
 
-Image pixels and terminal cells have different shapes. Fitting assumes cells are twice as tall as they are wide. Adjust `img.cell_aspect_ratio` if your terminal font uses a different ratio; increase it when images look too tall and decrease it when they look too wide.
+Image pixels and terminal cells have different shapes. Fitting measures terminal pixel and cell dimensions (as Snacks does) to calculate the cell aspect ratio. If the terminal does not report pixel dimensions, it falls back to a 9×18 cell estimate.
 
 The display service is also available experimentally as `require("obsidian.img")`. `owner(opts)` creates a scoped owner with idempotent `owner:close()`, `owner:show(...)` and `owner:update(...)`; `show(source, placement, opts)` is a convenience wrapper. Callers must pass an absolute local PNG path or PNG bytes. Owners delete only image IDs they created.
 

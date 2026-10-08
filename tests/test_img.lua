@@ -24,13 +24,19 @@ local function write_binary(path, bytes)
   file:close()
 end
 
+T["derives cell aspect ratio from terminal pixel dimensions"] = function()
+  local img = require "obsidian.img"
+  eq(1.5, img.cell_aspect_ratio { row = 24, col = 80, xpixel = 800, ypixel = 360 })
+  eq(2, img.cell_aspect_ratio())
+end
+
 T["fits pixel dimensions using terminal cell aspect ratio"] = function()
   local img = require "obsidian.img"
-  local width, height = img.fit(100, 100, 60, 20, 2)
+  local width, height = img.fit(100, 100, 60, 20)
   eq(40, width)
   eq(20, height)
 
-  width, height = img.fit(200, 100, 60, 20, 2)
+  width, height = img.fit(200, 100, 60, 20)
   eq(60, width)
   eq(15, height)
 end
