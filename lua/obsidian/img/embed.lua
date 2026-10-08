@@ -1,16 +1,22 @@
 local M = {}
 local states = {}
+local max_image_width = 80 -- cells
+local max_image_height = 30 -- cells
 
 local function parse_size(label)
   if type(label) ~= "string" then
     return nil, nil
   end
-  local width, height = label:match "^(%d+)[xX](%d+)$"
-  if width then
-    return tonumber(width), tonumber(height)
+  local width_str, height_str = label:match "^(%d+)[xX](%d+)$"
+  if width_str then
+    local width, height = tonumber(width_str), tonumber(height_str)
+    if width > 0 and height > 0 then
+      return width, height
+    end
+    return nil, nil
   end
-  width = label:match "^(%d+)$"
-  return tonumber(width), nil
+  local width = tonumber(label:match "^(%d+)$")
+  return width and width > 0 and width or nil, nil
 end
 
 local function close_state(bufnr)
@@ -45,28 +51,12 @@ local function text_width(bufnr)
   return width
 end
 
-local function render(bufnr, opts)
-  local state = states[bufnr]
-  if not state or not vim.api.nvim_buf_is_valid(bufnr) then
-    return
-  end
-  state.generation = state.generation + 1
-  local generation = state.generation
-  for _, owner in ipairs(state.owners) do
-    owner:close()
-  end
-  state.owners = {}
-
-  local available_width = text_width(bufnr)
-  if not available_width or available_width < 1 then
-    return
-  end
-  local filename = vim.api.nvim_buf_get_name(bufnr)
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+local function find_embeds(lines)
   local refs = require "obsidian.parse.refs"
   local Document = require "obsidian.parse.document"
   local document = Document.parse(lines)
   local attachment = require "obsidian.attachment"
+  local embeds = {}
   for row, line in ipairs(lines) do
     for _, ref in ipairs(refs.extract(line, { row = row - 1, lexical = true })) do
       if
@@ -75,53 +65,96 @@ local function render(bufnr, opts)
         and attachment.is_attachment_path(ref.target)
         and not document:intersects(ref.range, Document.INLINE_EXCLUSIONS)
       then
-        local width_px, height_px
-        if ref.kind == "wiki" then
-          width_px, height_px = parse_size(ref.label)
-        end
-        local owner = require("obsidian.img").owner {
-          kind = "inline-embed",
-          buf = bufnr,
-          max_bytes = opts.max_file_size,
-        }
-        state.owners[#state.owners + 1] = owner
-        attachment._resolve_async(ref.target, { bufnr = bufnr, filename = filename }, function(path)
-          if state.generation ~= generation or not vim.api.nvim_buf_is_valid(bufnr) or not path then
-            return
-          end
-          local max_width = math.min(opts.embeds.max_width, available_width)
-          local max_height = opts.embeds.max_height
-          if width_px then
-            max_width = math.min(max_width, math.max(1, math.ceil(width_px / 9)))
-          end
-          if height_px then
-            max_height = math.min(max_height, math.max(1, math.ceil(height_px / 18)))
-          end
-          ---@cast max_width integer
-          ---@cast max_height integer
-          owner:show {
-            source = { path = path },
-            placement = {
-              relative = "buffer",
-              buf = bufnr,
-              row = row,
-              col = 1,
-              pad = 0,
-              max_width = max_width,
-              max_height = max_height,
-            },
-            require_buffer_lines = true,
-          }
-        end)
-        -- A buffer-relative image inserts virtual lines below its anchor. One per line
-        -- gives deterministic ordering and avoids overlapping images on a shared row.
+        embeds[#embeds + 1] = { ref = ref, row = row }
         break
       end
     end
   end
+  return embeds
 end
 
-local function schedule_render(bufnr, opts)
+local function embed_signature(ref)
+  return table.concat({ ref.kind, ref.raw, ref.target, ref.label or "" }, "\0")
+end
+
+local function image_placement(bufnr, row, available_width, cell_width, cell_height, width_px, height_px)
+  local max_width = math.min(max_image_width, available_width)
+  local max_height = max_image_height
+  if width_px then
+    max_width = math.min(max_width, math.max(1, math.ceil(width_px / cell_width)))
+  end
+  if height_px then
+    max_height = math.min(max_height, math.max(1, math.ceil(height_px / cell_height)))
+  end
+  return {
+    relative = "buffer",
+    buf = bufnr,
+    row = row,
+    col = 1,
+    pad = 0,
+    max_width = max_width,
+    max_height = max_height,
+  }
+end
+
+local function render(bufnr, opts)
+  local state = states[bufnr]
+  if not state or not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  local available_width = text_width(bufnr)
+  if not available_width or available_width < 1 then
+    return
+  end
+  local filename = vim.api.nvim_buf_get_name(bufnr)
+  local embeds = find_embeds(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+  local attachment = require "obsidian.attachment"
+  local img = require "obsidian.img"
+  local cell_width, cell_height = img.cell_pixels()
+  local signature = {}
+  for _, embed in ipairs(embeds) do
+    local ref = embed.ref
+    signature[#signature + 1] = embed_signature(ref)
+  end
+  if not state.force_render and vim.deep_equal(signature, state.signature) then
+    return
+  end
+  state.force_render = nil
+  state.signature = signature
+  state.generation = state.generation + 1
+  local generation = state.generation
+  for _, owner in ipairs(state.owners) do
+    owner:close()
+  end
+  state.owners = {}
+  for _, embed in ipairs(embeds) do
+    local ref, row = embed.ref, embed.row
+    local width_px, height_px
+    if ref.kind == "wiki" then
+      width_px, height_px = parse_size(ref.label)
+    end
+    local owner = img.owner {
+      kind = "inline-embed",
+      buf = bufnr,
+      max_bytes = opts.max_file_size,
+    }
+    state.owners[#state.owners + 1] = owner
+    attachment._resolve_async(ref.target, { bufnr = bufnr, filename = filename }, function(path)
+      if state.generation ~= generation or not vim.api.nvim_buf_is_valid(bufnr) or not path then
+        return
+      end
+      owner:show {
+        source = { path = path },
+        placement = image_placement(bufnr, row, available_width, cell_width, cell_height, width_px, height_px),
+        require_buffer_lines = true,
+      }
+    end)
+    -- A buffer-relative image inserts virtual lines below its anchor. One per line
+    -- gives deterministic ordering and avoids overlapping images on a shared row.
+  end
+end
+
+local function schedule_render(bufnr, opts, force)
   local state = states[bufnr]
   if not state then
     return
@@ -130,6 +163,7 @@ local function schedule_render(bufnr, opts)
     state.timer:stop()
     state.timer:close()
   end
+  state.force_render = state.force_render or force
   state.timer = vim.defer_fn(function()
     state.timer = nil
     render(bufnr, opts)
@@ -149,6 +183,7 @@ function M.refresh(bufnr)
     state.timer:close()
     state.timer = nil
   end
+  state.force_render = true
   render(bufnr, state.opts)
 end
 
@@ -179,7 +214,18 @@ function M.setup(workspace, img_opts)
     group = group,
     callback = function()
       for bufnr in pairs(states) do
-        schedule_render(bufnr, img_opts)
+        schedule_render(bufnr, img_opts, true)
+      end
+    end,
+  })
+  -- The ui2 :messages pager can clear Kitty images without changing the note.
+  -- Returning to its window needs a retransmit even when embed text is unchanged.
+  vim.api.nvim_create_autocmd("WinEnter", {
+    group = group,
+    callback = function()
+      local bufnr = vim.api.nvim_get_current_buf()
+      if states[bufnr] then
+        schedule_render(bufnr, img_opts, true)
       end
     end,
   })
