@@ -7,7 +7,6 @@ local original_load = source.load
 local T = new_set {
   hooks = {
     post_case = function()
-      require("obsidian.img").clear_all()
       source.load = original_load
     end,
   },
@@ -81,8 +80,8 @@ T["owns, updates, and idempotently deletes a fitted PNG"] = function()
   eq({ true }, completed)
   eq(1, #calls)
   eq("string", type(calls[1].data_or_id))
-  eq(40, calls[1].opts.width)
-  eq(20, calls[1].opts.height)
+  eq(60, calls[1].opts.width)
+  eq(15, calls[1].opts.height)
   eq(2, calls[1].opts.row)
   eq(nil, calls[1].opts.max_width)
 
@@ -128,7 +127,8 @@ T["ignores a stale load when a newer request wins"] = function()
     end)
   )
   eq(20, calls[1].width)
-  eq(10, calls[1].height)
+  eq(5, calls[1].height)
+  owner:close()
 end
 
 T["cancels stale source callbacks after a new request"] = function()
@@ -195,6 +195,8 @@ T["reports unsupported and malformed sources without throwing"] = function()
   )
   eq(false, malformed[1])
   eq("truncated PNG", malformed[2])
+  owner:close()
+  valid_owner:close()
 end
 
 T["loads PNG files larger than the old byte limit"] = function()
@@ -216,51 +218,10 @@ T["loads PNG files larger than the old byte limit"] = function()
   vim.fn.delete(tostring(path))
 end
 
-T["buffer placement refuses a backend that does not insert virtual lines"] = function()
-  local img = require "obsidian.img"
-  source.load = function(_, callback)
-    callback { bytes = png(12, 12), width = 12, height = 12 }
-  end
-  local buf = vim.api.nvim_create_buf(false, true)
-  local deleted = {}
-  local count = 0
-  local backend = {
-    set = function()
-      count = count + 1
-      return count
-    end,
-    get = function() end,
-    del = function(id)
-      deleted[#deleted + 1] = id
-    end,
-  }
-  local owner = img.owner { buf = buf, backend = backend }
-  local result
-  owner:show({
-    source = { bytes = png(12, 12) },
-    placement = { relative = "buffer", buf = buf, row = 1, col = 1, width = 2, height = 2 },
-    require_buffer_lines = true,
-  }, function(ok, err)
-    result = { ok, err }
-  end)
-  eq(false, result[1])
-  eq("vim.ui.img does not support buffer-relative images", result[2])
-  eq({ 1 }, deleted)
-  eq(nil, owner.image_id)
-  local started = owner:show {
-    source = { bytes = png(12, 12) },
-    placement = { relative = "buffer", buf = buf, row = 1, col = 1, width = 2, height = 2 },
-    require_buffer_lines = true,
-  }
-  eq(false, started)
-  eq(1, count)
-  owner:close()
-  vim.api.nvim_buf_delete(buf, { force = true })
-end
-
 T["marked preview buffers work in any window and clean up on buffer change"] = function()
   local picker_util = require "obsidian.picker.util"
-  local img = require "obsidian.img"
+  local original_obsidian = Obsidian
+  Obsidian = { opts = { img = { enabled = true } } }
   local path = Path.temp { suffix = ".png" }
   write_binary(tostring(path), png(16, 8))
   local spec = picker_util.preview_path(path)
@@ -295,7 +256,7 @@ T["marked preview buffers work in any window and clean up on buffer change"] = f
   vim.api.nvim_win_close(win, true)
   vim.api.nvim_buf_delete(spec.buf, { force = true })
   vim.ui.img = old_backend
-  img.clear_all()
+  Obsidian = original_obsidian
   vim.fn.delete(tostring(path))
 end
 

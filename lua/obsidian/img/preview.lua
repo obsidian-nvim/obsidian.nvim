@@ -48,7 +48,7 @@ local function placement(win)
   local width = vim.api.nvim_win_get_width(win)
   local height = vim.api.nvim_win_get_height(win)
   return {
-    relative = "ui",
+    relative = "editor",
     row = pos[1] + border + 1,
     col = pos[2] + border + 1,
     max_width = math.max(1, width),
