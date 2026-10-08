@@ -72,4 +72,18 @@ function M.kind(path)
   end
 end
 
+---@param path string
+---@return string[]
+function M.info_lines(path)
+  local extension = M.extension(path)
+  local stat = assert(vim.uv.fs_stat(path), "failed to stat file: " .. path)
+  return {
+    M.is_attachment(path) and "Attachment Info" or "Unknown Filetype",
+    "",
+    vim.fs.basename(path),
+    string.format("Type: %s", extension:upper()),
+    string.format("Size: %d bytes", stat.size),
+  }
+end
+
 return M
