@@ -217,6 +217,23 @@ function M.check()
     warn_f(":Obsidian paste_img is not implemented for %s", os)
   end
 
+  start "Images"
+  if not setup_complete then
+    info "setup() has not completed; image configuration was not checked"
+  elseif not (state.opts.img and state.opts.img.enabled) then
+    ok "disabled"
+  else
+    local capabilities = require("obsidian.img").capabilities()
+    if capabilities.api then
+      ok "vim.ui.img is available"
+    else
+      error "vim.ui.img is unavailable"
+    end
+    if vim.env.TERM_PROGRAM and vim.env.TERM_PROGRAM:lower() == "wezterm" then
+      warn "WezTerm does not support Kitty graphics protocol Unicode placeholders; inline image rendering will not work. See https://github.com/wezterm/wezterm/pull/7924"
+    end
+  end
+
   if os == api.OSType.Wsl then
     start "Open"
     has_one_of_executable({ "wsl-open" }, {
