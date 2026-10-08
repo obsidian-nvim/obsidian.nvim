@@ -19,10 +19,14 @@ function M.cell_aspect_ratio(size)
   return fallback_cell_height / fallback_cell_width
 end
 
-local function terminal_cell_aspect_ratio()
+---Use the tty's pixel dimensions where available. Upstream's CSI 16t query
+---currently falls back to 10x20 on some terminals; keep this local estimate
+---for fitting constrained images, not for backend placement.
+---@return number, number
+function M.cell_pixels()
   local ok, ffi = pcall(require, "ffi")
   if not ok then
-    return M.cell_aspect_ratio()
+    return fallback_cell_width, fallback_cell_height
   end
   pcall(
     ffi.cdef,
@@ -44,7 +48,7 @@ local function terminal_cell_aspect_ratio()
     ioctl_request = 0x40087468
   end
   if not ioctl_request then
-    return M.cell_aspect_ratio()
+    return fallback_cell_width, fallback_cell_height
   end
 
   local measured
@@ -54,7 +58,10 @@ local function terminal_cell_aspect_ratio()
       measured = { row = size.row, col = size.col, xpixel = size.xpixel, ypixel = size.ypixel }
     end
   end)
-  return M.cell_aspect_ratio(measured)
+  if measured and measured.row > 0 and measured.col > 0 and measured.xpixel > 0 and measured.ypixel > 0 then
+    return measured.xpixel / measured.col, measured.ypixel / measured.row
+  end
+  return fallback_cell_width, fallback_cell_height
 end
 
 ---@class obsidian.img.Placement
@@ -129,7 +136,8 @@ end
 function M.fit(width, height, max_width, max_height)
   max_width = math.max(1, math.floor(max_width))
   max_height = math.max(1, math.floor(max_height))
-  local ratio = (width / height) * terminal_cell_aspect_ratio()
+  local cell_width, cell_height = M.cell_pixels()
+  local ratio = (width / height) * (cell_height / cell_width)
   if max_width / max_height <= ratio then
     return max_width, math.max(1, math.floor(max_width / ratio + 0.5))
   else
