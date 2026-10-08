@@ -121,7 +121,12 @@ assert(vim.wait(1000, function()
   return line == ""
 end))
 local hidden_fallback = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(picker.preview_win), 0, 1, false)[1]
-vim.api.nvim_exec_autocmds("VimResized", {})
+local config = vim.api.nvim_win_get_config(picker.preview_win)
+vim.api.nvim_win_set_config(picker.preview_win, {
+  relative = "editor", row = config.row + 1, col = config.col,
+  width = config.width, height = config.height,
+})
+vim.api.nvim_exec_autocmds("WinScrolled", { pattern = tostring(picker.preview_win) })
 assert(vim.wait(1000, function() return updated > 0 end))
 local after_resize = { created = created, updated = updated }
 
