@@ -6,6 +6,56 @@ local owners = {}
 local next_owner_id = 0
 local exit_autocmd
 
+local fallback_cell_width = 9
+local fallback_cell_height = 18
+
+---@param size { row: number, col: number, xpixel: number, ypixel: number }|nil
+---@return number
+function M.cell_aspect_ratio(size)
+  if size and size.row > 0 and size.col > 0 and size.xpixel > 0 and size.ypixel > 0 then
+    return (size.ypixel / size.row) / (size.xpixel / size.col)
+  end
+  return fallback_cell_height / fallback_cell_width
+end
+
+local function terminal_cell_aspect_ratio()
+  local ok, ffi = pcall(require, "ffi")
+  if not ok then
+    return M.cell_aspect_ratio()
+  end
+  pcall(
+    ffi.cdef,
+    [[
+    typedef struct {
+      unsigned short row;
+      unsigned short col;
+      unsigned short xpixel;
+      unsigned short ypixel;
+    } obsidian_winsize;
+    int ioctl(int, int, ...);
+  ]]
+  )
+
+  local ioctl_request
+  if vim.fn.has "linux" == 1 then
+    ioctl_request = 0x5413
+  elseif vim.fn.has "mac" == 1 or vim.fn.has "bsd" == 1 then
+    ioctl_request = 0x40087468
+  end
+  if not ioctl_request then
+    return M.cell_aspect_ratio()
+  end
+
+  local measured
+  pcall(function()
+    local size = ffi.new "obsidian_winsize"
+    if ffi.C.ioctl(1, ioctl_request, size) == 0 then
+      measured = { row = size.row, col = size.col, xpixel = size.xpixel, ypixel = size.ypixel }
+    end
+  end)
+  return M.cell_aspect_ratio(measured)
+end
+
 ---@class obsidian.img.Placement
 ---@field row? integer 1-indexed editor row
 ---@field col? integer 1-indexed editor column
@@ -13,7 +63,6 @@ local exit_autocmd
 ---@field height? integer
 ---@field max_width? integer
 ---@field max_height? integer
----@field cell_aspect_ratio? number Ratio of cell height to cell width.
 ---@field relative? string
 ---@field zindex? integer
 
@@ -72,12 +121,11 @@ end
 ---@param height integer
 ---@param max_width integer
 ---@param max_height integer
----@param cell_aspect_ratio? number Ratio of cell height to cell width.
 ---@return integer, integer
-function M.fit(width, height, max_width, max_height, cell_aspect_ratio)
+function M.fit(width, height, max_width, max_height)
   max_width = math.max(1, math.floor(max_width))
   max_height = math.max(1, math.floor(max_height))
-  local ratio = (width / height) * (cell_aspect_ratio or 1)
+  local ratio = (width / height) * terminal_cell_aspect_ratio()
   if max_width / max_height <= ratio then
     return max_width, math.max(1, math.floor(max_width / ratio + 0.5))
   else
@@ -119,11 +167,10 @@ local function resolve_placement(owner)
   local dimensions = owner.dimensions
   if dimensions and placement.max_width and placement.max_height then
     placement.width, placement.height =
-      M.fit(dimensions.width, dimensions.height, placement.max_width, placement.max_height, placement.cell_aspect_ratio)
+      M.fit(dimensions.width, dimensions.height, placement.max_width, placement.max_height)
   end
   placement.max_width = nil
   placement.max_height = nil
-  placement.cell_aspect_ratio = nil
   return placement, nil
 end
 
