@@ -252,7 +252,7 @@ T["marked preview buffers work in any window and clean up on buffer change"] = f
   )
   vim.api.nvim_win_set_buf(win, other)
   eq({ 1 }, deleted)
-  eq("Native PNG preview", vim.api.nvim_buf_get_lines(spec.buf, 0, 1, false)[1])
+  eq("Attachment Info", vim.api.nvim_buf_get_lines(spec.buf, 0, 1, false)[1])
   vim.api.nvim_win_close(win, true)
   vim.api.nvim_buf_delete(spec.buf, { force = true })
   vim.ui.img = old_backend
@@ -267,9 +267,9 @@ T["picker path previews never put image bytes in a buffer"] = function()
 
   local spec = picker_util.preview_path(path)
   local lines = vim.api.nvim_buf_get_lines(spec.buf, 0, -1, false)
-  eq("Native PNG preview", lines[1])
+  eq("Attachment Info", lines[1])
   eq("PNG", lines[4]:match "PNG")
-  eq(tostring(path), vim.b[spec.buf].obsidian_image_preview.source.path)
+  eq(tostring(path), vim.api.nvim_buf_get_name(spec.buf))
   eq(false, table.concat(lines, "\n"):find "\0" ~= nil)
 
   vim.api.nvim_buf_delete(spec.buf, { force = true })
