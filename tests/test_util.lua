@@ -1,12 +1,35 @@
 local M = require "obsidian.util"
 local picker_util = require "obsidian.picker.util"
 local compat = require "obsidian.compat"
+local filetypes = require "obsidian.filetypes"
 local Path = require "obsidian.path"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
 T["preview_path"] = new_set()
+
+T["preview_path"]["shows info for every attachment type"] = function()
+  local dir = Path.temp { suffix = "-obsidian-attachment-preview" }
+  dir:mkdir { parents = true }
+
+  for _, extension in ipairs(filetypes.attachment_extensions) do
+    local path = dir / ("attachment." .. extension)
+    M.write_file(tostring(path), "data")
+    local preview = picker_util.preview_path(path)
+
+    eq({
+      "Attachment Info",
+      "",
+      "attachment." .. extension,
+      "Type: " .. extension:upper(),
+      "Size: 4 bytes",
+    }, vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false))
+    vim.api.nvim_buf_delete(preview.buf, { force = true })
+  end
+
+  vim.fn.delete(tostring(dir), "rf")
+end
 
 T["preview_path"]["lists directory contents and marks folders"] = function()
   local dir = Path.temp { suffix = "-obsidian-preview" }

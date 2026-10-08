@@ -1,5 +1,8 @@
--- Image previews belong to marked buffers and their display windows, not to a
--- particular picker implementation. Each window owns only its own image id.
+-- Image previews belong to named path-preview buffers and their display
+-- windows, not to a particular picker implementation. Each window owns only
+-- its own image id.
+local filetypes = require "obsidian.filetypes"
+
 local M = {}
 ---@class obsidian.img.PreviewState
 ---@field owner obsidian.img.Owner
@@ -64,9 +67,10 @@ function M.refresh(win)
     return
   end
   local buf = vim.api.nvim_win_get_buf(win)
-  local preview = enabled() and vim.b[buf].obsidian_image_preview or nil
+  local path = enabled() and vim.api.nvim_buf_get_name(buf) or ""
+  local is_preview = vim.bo[buf].buftype == "nofile" and filetypes.extension(path) == "png"
   local state = windows[win]
-  if not preview then
+  if not is_preview then
     close(win)
     return
   end
@@ -90,9 +94,9 @@ function M.refresh(win)
   end
 
   local owner = require("obsidian.img").owner { kind = "picker-preview", win = win, buf = buf }
-  state = { owner = owner, buf = buf, fallback = preview.lines, placement = placement(win) }
+  state = { owner = owner, buf = buf, fallback = filetypes.info_lines(path), placement = placement(win) }
   windows[win] = state
-  owner:show({ source = preview.source, placement = state.placement }, function(ok, err)
+  owner:show({ source = { path = path }, placement = state.placement }, function(ok, err)
     if windows[win] ~= state or not vim.api.nvim_win_is_valid(win) or vim.api.nvim_win_get_buf(win) ~= buf then
       return
     end
@@ -111,7 +115,7 @@ function M.refresh(win)
   end)
 end
 
----Register autocmds once; called when a path preview buffer is marked.
+---Register autocmds once; called when a PNG path-preview buffer is created.
 function M.setup()
   if installed then
     return
