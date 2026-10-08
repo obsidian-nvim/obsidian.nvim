@@ -83,7 +83,6 @@ end
 ---@field win? integer
 ---@field buf? integer
 ---@field backend? table Test/provider override implementing set/get/del.
----@field max_bytes? integer
 
 ---@class obsidian.img.ShowOpts
 ---@field source obsidian.img.Source
@@ -96,7 +95,6 @@ end
 ---@field win integer|nil
 ---@field buf integer|nil
 ---@field backend table|nil
----@field max_bytes integer|nil
 ---@field image_id integer|nil
 ---@field generation integer
 ---@field closed boolean
@@ -261,7 +259,7 @@ function Owner:show(opts, callback)
     return false, err
   end
 
-  source.load(opts.source, { max_bytes = self.max_bytes }, function(result, load_err)
+  source.load(opts.source, function(result, load_err)
     if self.generation ~= generation or not owner_is_valid(self) then
       return
     elseif not result then
@@ -400,7 +398,6 @@ function M.owner(opts)
     win = opts.win,
     buf = opts.buf,
     backend = opts.backend or native_backend(),
-    max_bytes = opts.max_bytes,
     generation = 0,
     closed = false,
     autocmds = {},
