@@ -41,13 +41,13 @@ local function schedule(callback, ...)
   end)
 end
 
----@alias obsidian.img.Source string|{ path: string }|{ bytes: string, name: string? }
+---@alias obsidian.img.Source string|{ bytes: string }
 
 ---Read and validate a local PNG without blocking the main loop.
 ---@param source obsidian.img.Source
 ---@param callback fun(result: { bytes: string, width: integer, height: integer, path: string? }|nil, err: string|nil)
 function M.load(source, callback)
-  if type(source) == "table" and source.bytes ~= nil then
+  if type(source) == "table" then
     if type(source.bytes) ~= "string" then
       schedule(callback, nil, "image bytes must be a string")
       return
@@ -65,7 +65,7 @@ function M.load(source, callback)
     return
   end
 
-  local path = type(source) == "table" and source.path or source
+  local path = source
   if type(path) ~= "string" or path == "" then
     schedule(callback, nil, "image source must contain a path or PNG bytes")
     return
