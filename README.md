@@ -94,6 +94,7 @@ There's one entry point user command for this plugin: `Obsidian`
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
 - `:Obsidian help` - find files in the help wiki
 - `:Obsidian helpgrep` - grep files in the help wiki
+- `:Obsidian highlights [%]` - get a picker list of highlights across the vault; pass `%` to search only the current note
 - `:Obsidian new [TITLE]` - create a new note
 - `:Obsidian open [QUERY]` - open a note in the Obsidian app
   - query is used to resolve the note to open by ID, path, or alias, else use current note
