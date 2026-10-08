@@ -64,14 +64,16 @@ return {
   eq(false, closed.preview_window_valid)
 end
 
-T["owns native PNG previews across selection changes and close"] = function()
+T["owns every native PNG preview across selection changes and close"] = function()
   local result = child.lua [[
 local Ui = require "obsidian.picker.ui"
 local picker_util = require "obsidian.picker.util"
-local path = vim.fn.tempname() .. ".png"
-local file = assert(io.open(path, "wb"))
-file:write(vim.base64.decode "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGP4z8DwnxLMMGrAqAGjBgwXAwAwxP4QHCfkAAAAAABJRU5ErkJggg==")
-file:close()
+local paths = { vim.fn.tempname() .. ".png", vim.fn.tempname() .. ".png" }
+for _, path in ipairs(paths) do
+  local file = assert(io.open(path, "wb"))
+  file:write(vim.base64.decode "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGP4z8DwnxLMMGrAqAGjBgwXAwAwxP4QHCfkAAAAAABJRU5ErkJggg==")
+  file:close()
+end
 
 Obsidian = {
   opts = {
@@ -102,9 +104,9 @@ vim.ui.img = {
 
 vim.o.columns = 160
 vim.o.lines = 70
-local picker = Ui.select({ path, "text" }, {
+local picker = Ui.select({ paths[1], paths[2], "text" }, {
   preview_item = function(value)
-    if value == path then
+    if value ~= "text" then
       return picker_util.preview_path(value)
     end
     local buf = vim.api.nvim_create_buf(false, true)
@@ -131,11 +133,16 @@ assert(vim.wait(1000, function() return updated > 0 end))
 local after_resize = { created = created, updated = updated }
 
 picker:move(1)
-local after_text = { created = created, deleted = vim.deepcopy(deleted) }
-picker:move(-1)
 assert(vim.wait(1000, function() return created == 2 end))
+local after_second_image = { created = created, deleted = vim.deepcopy(deleted) }
+picker:move(1)
+local after_text = { created = created, deleted = vim.deepcopy(deleted) }
+picker:move(-2)
+assert(vim.wait(1000, function() return created == 3 end))
 picker:cancel()
-vim.fn.delete(path)
+for _, path in ipairs(paths) do
+  vim.fn.delete(path)
+end
 
 return {
   after_resize = after_resize,
@@ -143,6 +150,7 @@ return {
   first_placement = first_placement,
   preview_width = preview_width,
   preview_height = preview_height,
+  after_second_image = after_second_image,
   after_text = after_text,
   created = created,
   updated = updated,
@@ -160,10 +168,12 @@ return {
   eq(true, result.first_placement.height > 20)
   eq("editor", result.first_placement.relative)
   eq(nil, result.first_placement.cell_aspect_ratio)
-  eq(1, result.after_text.created)
-  eq({ 1 }, result.after_text.deleted)
-  eq(2, result.created)
-  eq({ 1, 2 }, result.deleted)
+  eq(2, result.after_second_image.created)
+  eq({ 1 }, result.after_second_image.deleted)
+  eq(2, result.after_text.created)
+  eq({ 1, 2 }, result.after_text.deleted)
+  eq(3, result.created)
+  eq({ 1, 2, 3 }, result.deleted)
 end
 
 T["runs query mappings without installing selection mappings"] = function()
