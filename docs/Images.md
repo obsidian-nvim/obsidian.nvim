@@ -29,12 +29,14 @@ Native inline rendering is experimental and opt-in. It renders local PNG embeds 
 require("obsidian").setup {
   img = {
     enabled = true,
-    embeds = { enabled = true, max_width = 80, max_height = 30 },
+    embeds = { enabled = true },
   },
 }
 ```
 
-Wiki embeds support Obsidian size labels such as `![[image.png|300]]` and `![[image.png|300x200]]`. Markdown image embeds are also shown, but Markdown alt text is not treated as a size. Only local PNG files are rendered; remote URLs, non-PNG formats, ambiguous/missing references and unsupported terminals remain ordinary text. Image graphics are added as virtual lines below the embed, starting at the buffer's text column after the number/sign/fold gutter, so source text is never concealed or modified. The image width is limited to the visible text area. Inline display requires a Neovim build with **buffer-relative** `vim.ui.img` support; older builds with `vim.ui.img` but without buffer placement will not display inline images rather than drawing over note text.
+Wiki embeds support Obsidian pixel-size labels such as `![[image.png|300]]` (width, aspect ratio preserved) and `![[image.png|300x200]]` (width and height bounds, aspect ratio preserved). Inline images are currently limited to 80 cells wide, 30 cells high, and the available text width; these draft limits are local, not configurable. Markdown image embeds are also shown, but Markdown alt text is not treated as a size. Only local PNG files are rendered; remote URLs, non-PNG formats, ambiguous/missing references and unsupported terminals remain ordinary text. Image graphics are added as virtual lines below the embed, starting at the buffer's text column after the number/sign/fold gutter, so source text is never concealed or modified. The image width is limited to the visible text area. Inline display requires a Neovim build with **buffer-relative** `vim.ui.img` support; older builds with `vim.ui.img` but without buffer placement will not display inline images rather than drawing over note text.
+
+Neovim's [#39496](https://github.com/neovim/neovim/pull/39496) code already converts PNG pixels to cell dimensions *when dimensions are omitted*, but does not fit an image to the note's text width, inline height limit, or `|SIZE` bounds. We supply both cell dimensions after aspect-preserving fitting. We currently measure the tty cell size ourselves (falling back to 9×18): the PR's CSI 16t lookup has [a reported issue](https://github.com/neovim/neovim/issues/39496#issuecomment-6018569982) that its author says needs a Neovim C fix. This local measurement and fit should be revisited when upstream sizing is reliable and exposes bounded fitting.
 
 To build the pinned Neovim [#39496](https://github.com/neovim/neovim/pull/39496) branch from this checkout and run it with your usual config:
 
