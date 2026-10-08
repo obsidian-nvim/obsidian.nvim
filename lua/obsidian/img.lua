@@ -19,14 +19,14 @@ function M.cell_aspect_ratio(size)
   return fallback_cell_height / fallback_cell_width
 end
 
----Use the tty's pixel dimensions where available. Upstream's CSI 16t query
----currently falls back to 10x20 on some terminals; keep this local estimate
----for fitting constrained images, not for backend placement.
----@return number, number
+---TODO: Prefer Neovim's CSI 16t cell-pixel query from neovim/neovim#39496
+---once it is public and its timeout/fallback issues are fixed. Until then,
+---use ioctl only for fitting; let vim.ui.img handle backend placement.
+---@return { width: number, height: number }
 function M.cell_pixels()
   local ok, ffi = pcall(require, "ffi")
   if not ok then
-    return fallback_cell_width, fallback_cell_height
+    return { width = fallback_cell_width, height = fallback_cell_height }
   end
   pcall(
     ffi.cdef,
@@ -48,7 +48,7 @@ function M.cell_pixels()
     ioctl_request = 0x40087468
   end
   if not ioctl_request then
-    return fallback_cell_width, fallback_cell_height
+    return { width = fallback_cell_width, height = fallback_cell_height }
   end
 
   local measured
@@ -59,9 +59,9 @@ function M.cell_pixels()
     end
   end)
   if measured and measured.row > 0 and measured.col > 0 and measured.xpixel > 0 and measured.ypixel > 0 then
-    return measured.xpixel / measured.col, measured.ypixel / measured.row
+    return { width = measured.xpixel / measured.col, height = measured.ypixel / measured.row }
   end
-  return fallback_cell_width, fallback_cell_height
+  return { width = fallback_cell_width, height = fallback_cell_height }
 end
 
 ---@class obsidian.img.Placement
@@ -136,8 +136,8 @@ end
 function M.fit(width, height, max_width, max_height)
   max_width = math.max(1, math.floor(max_width))
   max_height = math.max(1, math.floor(max_height))
-  local cell_width, cell_height = M.cell_pixels()
-  local ratio = (width / height) * (cell_height / cell_width)
+  local cell = M.cell_pixels()
+  local ratio = (width / height) * (cell.height / cell.width)
   if max_width / max_height <= ratio then
     return max_width, math.max(1, math.floor(max_width / ratio + 0.5))
   else
