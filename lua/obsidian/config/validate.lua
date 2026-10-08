@@ -395,9 +395,17 @@ function M.validate(opts, skip_workspace_overrides)
       { "max_file_size", positive_integer, "positive integer" },
       { "cell_aspect_ratio", positive_number, "positive number" },
       { "picker", "table" },
+      { "embeds", "table" },
     })
     if type(opts.img.picker) == "table" then
       fields(errors, "img.picker", opts.img.picker, {
+        { "enabled", "boolean" },
+        { "max_width", positive_integer, "positive integer" },
+        { "max_height", positive_integer, "positive integer" },
+      })
+    end
+    if type(opts.img.embeds) == "table" then
+      fields(errors, "img.embeds", opts.img.embeds, {
         { "enabled", "boolean" },
         { "max_width", positive_integer, "positive integer" },
         { "max_height", positive_integer, "positive integer" },
