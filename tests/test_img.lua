@@ -64,7 +64,7 @@ T["owns, updates, and idempotently deletes a fitted PNG"] = function()
   local owner = img.owner { backend = backend }
   local completed
   local started = owner:show({
-    source = { path = tostring(path) },
+    source = tostring(path),
     placement = { row = 2, col = 3, max_width = 60, max_height = 20 },
   }, function(ok, err)
     completed = { ok, err }
@@ -204,7 +204,7 @@ T["loads PNG files larger than the old byte limit"] = function()
   local bytes = png(1, 1) .. string.rep("x", 10 * 1024 * 1024)
   write_binary(tostring(path), bytes)
   local result, err
-  source.load({ path = tostring(path) }, function(value, load_err)
+  source.load(tostring(path), function(value, load_err)
     result, err = value, load_err
   end)
   eq(
