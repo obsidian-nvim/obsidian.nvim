@@ -10,9 +10,8 @@ local M = {}
 local windows = {}
 local installed = false
 
-local function options()
-  local opts = Obsidian and Obsidian.opts and Obsidian.opts.img
-  return opts and opts.enabled and opts.picker and opts.picker.enabled and opts or nil
+local function enabled()
+  return Obsidian and Obsidian.opts and Obsidian.opts.img and Obsidian.opts.img.enabled == true
 end
 
 local function replace_lines(buf, lines)
@@ -42,7 +41,7 @@ local function close(win)
   end
 end
 
-local function placement(win, opts)
+local function placement(win)
   local pos = vim.api.nvim_win_get_position(win)
   local config = vim.api.nvim_win_get_config(win)
   local border = config.border and #config.border > 0 and 1 or 0
@@ -52,8 +51,8 @@ local function placement(win, opts)
     relative = "ui",
     row = pos[1] + border + 1,
     col = pos[2] + border + 1,
-    max_width = math.max(1, math.min(width, opts.picker.max_width or width)),
-    max_height = math.max(1, math.min(height, opts.picker.max_height or height)),
+    max_width = math.max(1, width),
+    max_height = math.max(1, height),
   }
 end
 
@@ -65,10 +64,9 @@ function M.refresh(win)
     return
   end
   local buf = vim.api.nvim_win_get_buf(win)
-  local opts = options()
-  local preview = opts and vim.b[buf].obsidian_image_preview or nil
+  local preview = enabled() and vim.b[buf].obsidian_image_preview or nil
   local state = windows[win]
-  if not opts or not preview then
+  if not preview then
     close(win)
     return
   end
@@ -78,7 +76,7 @@ function M.refresh(win)
   end
   if state then
     if state.owner.image_id then
-      local next_placement = placement(win, opts)
+      local next_placement = placement(win)
       if not vim.deep_equal(next_placement, state.placement) then
         local ok = state.owner:update(next_placement)
         if not ok then
@@ -91,9 +89,8 @@ function M.refresh(win)
     return
   end
 
-  local owner =
-    require("obsidian.img").owner { kind = "picker-preview", win = win, buf = buf, max_bytes = opts.max_file_size }
-  state = { owner = owner, buf = buf, fallback = preview.lines, placement = placement(win, opts) }
+  local owner = require("obsidian.img").owner { kind = "picker-preview", win = win, buf = buf }
+  state = { owner = owner, buf = buf, fallback = preview.lines, placement = placement(win) }
   windows[win] = state
   owner:show({ source = preview.source, placement = state.placement }, function(ok, err)
     if windows[win] ~= state or not vim.api.nvim_win_is_valid(win) or vim.api.nvim_win_get_buf(win) ~= buf then
