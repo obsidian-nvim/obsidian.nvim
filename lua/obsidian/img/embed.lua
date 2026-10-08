@@ -141,7 +141,7 @@ local function render(bufnr)
         return
       end
       owner:show {
-        source = { path = path },
+        source = path,
         placement = image_placement(bufnr, row, available_width, cell.width, cell.height, width_px, height_px),
       }
     end)
