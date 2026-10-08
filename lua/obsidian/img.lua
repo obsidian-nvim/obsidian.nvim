@@ -5,7 +5,6 @@ local M = {}
 local owners = {}
 local next_owner_id = 0
 local exit_autocmd
-local buffer_support = setmetatable({}, { __mode = "k" })
 
 local fallback_cell_width = 9
 local fallback_cell_height = 18
@@ -87,7 +86,6 @@ end
 ---@class obsidian.img.ShowOpts
 ---@field source obsidian.img.Source
 ---@field placement obsidian.img.PlacementProvider|nil
----@field require_buffer_lines? boolean Reject backends that do not reserve virtual lines for buffer images.
 
 ---@class obsidian.img.Owner
 ---@field id integer
@@ -195,24 +193,6 @@ local function owner_is_valid(owner)
   return true
 end
 
--- Older vim.ui.img builds accept `relative = "buffer"` but silently render at
--- terminal coordinates. A new virtual-lines extmark is the observable public
--- contract that distinguishes a real inline placement from that UI fallback.
-local function virtual_line_marks(bufnr)
-  local marks = {}
-  for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, -1, 0, -1, { details = true })) do
-    local details = mark[4]
-    if details and details.virt_lines then
-      marks[details.ns_id .. ":" .. mark[1]] = {
-        row = mark[2],
-        virt_lines = details.virt_lines,
-        leftcol = details.virt_lines_leftcol,
-      }
-    end
-  end
-  return marks
-end
-
 local function call_callback(callback, ok, err)
   if callback then
     local success, callback_err = pcall(callback, ok, err)
@@ -249,15 +229,6 @@ function Owner:show(opts, callback)
     return false, err
   end
   ---@cast backend table
-  if opts.require_buffer_lines and buffer_support[backend] == false then
-    local err = "vim.ui.img does not support buffer-relative images"
-    vim.schedule(function()
-      if self.generation == generation and not self.closed then
-        call_callback(callback, false, err)
-      end
-    end)
-    return false, err
-  end
 
   source.load(opts.source, function(result, load_err)
     if self.generation ~= generation or not owner_is_valid(self) then
@@ -275,26 +246,6 @@ function Owner:show(opts, callback)
       return
     end
 
-    if opts.require_buffer_lines and buffer_support[backend] == false then
-      call_callback(callback, false, "vim.ui.img does not support buffer-relative images")
-      return
-    end
-    local before
-    if opts.require_buffer_lines then
-      if
-        placement.relative ~= "buffer"
-        or not placement.buf
-        or not vim.api.nvim_buf_is_valid(placement.buf)
-        or not placement.row
-        or not placement.height
-      then
-        call_callback(callback, false, "buffer-relative placement requires a valid buffer")
-        return
-      end
-      if buffer_support[backend] ~= true then
-        before = virtual_line_marks(placement.buf)
-      end
-    end
     local ok, id = pcall(backend.set, result.bytes, placement)
     if not ok or type(id) ~= "number" or id % 1 ~= 0 then
       local err = ok and "vim.ui.img.set did not return an image id" or tostring(id)
@@ -303,28 +254,6 @@ function Owner:show(opts, callback)
       return
     end
     self.image_id = math.floor(id)
-    if before then
-      local found = false
-      local anchor_row = assert(placement.row, "buffer image row required")
-      for key, mark in pairs(virtual_line_marks(placement.buf)) do
-        if
-          not before[key]
-          and mark.row == anchor_row - 1
-          and #mark.virt_lines == placement.height
-          and not mark.leftcol
-        then
-          found = true
-          break
-        end
-      end
-      if not found then
-        buffer_support[backend] = false
-        delete_image(self)
-        call_callback(callback, false, "vim.ui.img does not support buffer-relative images")
-        return
-      end
-      buffer_support[backend] = true
-    end
     call_callback(callback, true, nil)
   end)
   return true, nil
@@ -381,7 +310,10 @@ local function ensure_exit_autocmd()
   end
   exit_autocmd = vim.api.nvim_create_autocmd("VimLeavePre", {
     callback = function()
-      M.clear_all()
+      local active = vim.tbl_values(owners)
+      for _, owner in ipairs(active) do
+        owner:close()
+      end
     end,
   })
 end
@@ -424,32 +356,6 @@ function M.owner(opts)
     })
   end
   return owner
-end
-
----Convenience helper that creates an owner and starts one image request.
----@param source_spec obsidian.img.Source
----@param placement? obsidian.img.PlacementProvider
----@param opts? obsidian.img.OwnerOpts
----@param callback? fun(ok: boolean, err: string|nil)
----@return obsidian.img.Owner
-function M.show(source_spec, placement, opts, callback)
-  local owner = M.owner(opts)
-  owner:show({ source = source_spec, placement = placement }, callback)
-  return owner
-end
-
----@param owner obsidian.img.Owner
-function M.clear(owner)
-  if owner and owner.close then
-    owner:close()
-  end
-end
-
-function M.clear_all()
-  local active = vim.tbl_values(owners)
-  for _, owner in ipairs(active) do
-    owner:close()
-  end
 end
 
 return M
