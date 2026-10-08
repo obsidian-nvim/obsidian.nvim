@@ -110,11 +110,11 @@ local function render(bufnr, opts)
   local embeds = find_embeds(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
   local attachment = require "obsidian.attachment"
   local img = require "obsidian.img"
-  local cell_width, cell_height = img.cell_pixels()
+  local cell = img.cell_pixels()
   local signature = {}
   for _, embed in ipairs(embeds) do
     local ref = embed.ref
-    signature[#signature + 1] = embed_signature(ref)
+    signature[#signature + 1] = embed.row .. ":" .. embed_signature(ref)
   end
   if not state.force_render and vim.deep_equal(signature, state.signature) then
     return
@@ -145,7 +145,7 @@ local function render(bufnr, opts)
       end
       owner:show {
         source = { path = path },
-        placement = image_placement(bufnr, row, available_width, cell_width, cell_height, width_px, height_px),
+        placement = image_placement(bufnr, row, available_width, cell.width, cell.height, width_px, height_px),
         require_buffer_lines = true,
       }
     end)

@@ -90,7 +90,7 @@ end
 ---@alias obsidian.PickerEntry obsidian.picker.Entry
 ---@alias obsidian.picker.Entry vim.quickfix.entry
 
----@alias obsidian.picker.PreviewSpec { buf: integer, pos: [integer,integer]?, pos_end: [integer,integer]?, img: { source: obsidian.img.Source }? }
+---@alias obsidian.picker.PreviewSpec { buf: integer, pos: [integer,integer]?, pos_end: [integer,integer]? }
 ---@alias obsidian.ui_select_preview_spec obsidian.picker.PreviewSpec
 
 ---@alias obsidian.PickerSelectOpts obsidian.picker.SelectOpts

@@ -53,10 +53,14 @@ M.preview_path = function(path)
     extension = extension and extension:lower() or ""
     if image_extensions[extension] then
       vim.api.nvim_buf_set_lines(buf, 0, -1, false, image_preview_lines(path, extension, stat.size))
-      return {
-        buf = buf,
-        img = extension == "png" and { source = { path = vim.fs.normalize(path) } } or nil,
-      }
+      if extension == "png" then
+        vim.b[buf].obsidian_image_preview = {
+          source = { path = vim.fs.normalize(path) },
+          lines = image_preview_lines(path, extension, stat.size),
+        }
+        require("obsidian.img.preview").setup()
+      end
+      return { buf = buf }
     end
 
     local ok, lines = pcall(vim.fn.readfile, path)
@@ -119,6 +123,8 @@ M.show_preview_spec = function(winid, spec)
   local buf = spec.buf
   vim.api.nvim_win_set_buf(winid, buf)
   vim.api.nvim_buf_clear_namespace(buf, preview_ns, 0, -1)
+  -- Also covers reusing a preview buffer in an already visible window.
+  require("obsidian.img.preview").refresh(winid)
 
   if spec.pos then
     local lnum = math.max(spec.pos[1] or 1, 1)
