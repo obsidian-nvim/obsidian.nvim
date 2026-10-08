@@ -265,6 +265,8 @@ M.register("open", { nargs = "*", complete = M.note_complete })
 
 M.register("tags", { nargs = "*" })
 
+M.register("properties", { nargs = "*" })
+
 M.register("search", { nargs = "?" })
 
 M.register("sync", {
