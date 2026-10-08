@@ -4,11 +4,12 @@
 local filetypes = require "obsidian.filetypes"
 
 local M = {}
+
 ---@class obsidian.img.PreviewState
 ---@field owner obsidian.img.Owner
 ---@field buf integer
----@field fallback string[]
 ---@field placement obsidian.img.Placement
+
 ---@type table<integer, obsidian.img.PreviewState>
 local windows = {}
 local installed = false
@@ -40,7 +41,7 @@ local function close(win)
     end
   end
   if vim.api.nvim_buf_is_valid(state.buf) then
-    replace_lines(state.buf, state.fallback)
+    replace_lines(state.buf, filetypes.info_lines(vim.api.nvim_buf_get_name(state.buf)))
   end
 end
 
@@ -94,9 +95,9 @@ function M.refresh(win)
   end
 
   local owner = require("obsidian.img").owner { kind = "picker-preview", win = win, buf = buf }
-  state = { owner = owner, buf = buf, fallback = filetypes.info_lines(path), placement = placement(win) }
+  state = { owner = owner, buf = buf, placement = placement(win) }
   windows[win] = state
-  owner:show({ source = { path = path }, placement = state.placement }, function(ok, err)
+  owner:show({ source = path, placement = state.placement }, function(ok, err)
     if windows[win] ~= state or not vim.api.nvim_win_is_valid(win) or vim.api.nvim_win_get_buf(win) ~= buf then
       return
     end
@@ -107,7 +108,7 @@ function M.refresh(win)
       -- every scroll would retry an unsupported terminal or malformed file.
       owner:close()
       if vim.api.nvim_buf_is_valid(buf) then
-        local lines = vim.deepcopy(state.fallback)
+        local lines = filetypes.info_lines(path)
         lines[1] = "Image preview unavailable: " .. tostring(err)
         replace_lines(buf, lines)
       end
