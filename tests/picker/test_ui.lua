@@ -158,7 +158,7 @@ return {
   eq(true, result.first_placement.height <= result.preview_height)
   eq(true, result.first_placement.width > 60)
   eq(true, result.first_placement.height > 20)
-  eq("ui", result.first_placement.relative)
+  eq("editor", result.first_placement.relative)
   eq(nil, result.first_placement.cell_aspect_ratio)
   eq(1, result.after_text.created)
   eq({ 1 }, result.after_text.deleted)
