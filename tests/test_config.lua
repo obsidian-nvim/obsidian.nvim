@@ -82,22 +82,17 @@ T["normalize"]["should validate link.format"] = function()
   eq(true, tostring(err):match "link.format: expected one of" ~= nil)
 end
 
-T["normalize"]["should merge and validate native image options"] = function()
-  local opts = normalize {
-    img = {
-      enabled = true,
-      picker = { enabled = true, max_width = 42 },
-    },
-  }
+T["normalize"]["should validate the single native image toggle"] = function()
+  local opts = normalize { img = { enabled = true } }
+  eq({ enabled = true }, opts.img)
 
-  eq(true, opts.img.enabled)
-  eq(true, opts.img.picker.enabled)
-  eq(42, opts.img.picker.max_width)
-  eq(20, opts.img.picker.max_height)
-
-  local ok, err = pcall(normalize, { img = { max_file_size = 0 } })
+  local ok, err = pcall(normalize, { img = { enabled = "yes" } })
   eq(false, ok)
-  eq(true, tostring(err):match "img.max_file_size: expected positive integer" ~= nil)
+  eq(true, tostring(err):match "img.enabled: expected boolean" ~= nil)
+
+  ok, err = pcall(normalize, { img = { picker = { enabled = true } } })
+  eq(false, ok)
+  eq(true, tostring(err):match "img.picker: unknown option" ~= nil)
 end
 
 T["normalize"]["should validate picker.name during setup"] = function()

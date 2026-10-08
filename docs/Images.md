@@ -4,18 +4,12 @@ Obsidian.nvim can show local PNG files in picker preview windows through Neovim'
 
 ```lua
 require("obsidian").setup {
-  img = {
-    enabled = true,
-    picker = {
-      enabled = true,
-      max_width = 60,
-      max_height = 20,
-    },
-  },
+  img = { enabled = true },
+
 }
 ```
 
-A Neovim build with `vim.ui.img` and a terminal supporting the Kitty graphics protocol are required. There is no stable public terminal capability probe yet, so an unavailable or failed backend falls back to image filename/type/size text. After successful placement, that fallback text is hidden behind the graphical preview. Image files are read asynchronously, are limited to 10 MiB by default (`img.max_file_size`), and are never fetched from the network. The image renderer observes marked preview buffers in any picker backend. It displays an image when the backend shows that buffer in a Neovim window, and cleans up when the window closes or changes buffers; backends without a visible preview window retain text-only previews.
+A Neovim build with `vim.ui.img` and a terminal supporting the Kitty graphics protocol are required. There is no stable public terminal capability probe yet, so an unavailable or failed backend falls back to image filename/type/size text. After successful placement, that fallback text is hidden behind the graphical preview. Images are read asynchronously, fitted to the preview window, and never fetched from the network. There is no image file-size limit; opening a very large file may use substantial memory. The image renderer observes marked preview buffers in any picker backend. It displays an image when the backend shows that buffer in a Neovim window, and cleans up when the window closes or changes buffers; backends without a visible preview window retain text-only previews.
 
 Image pixels and terminal cells have different shapes. Fitting measures terminal pixel and cell dimensions (as Snacks does) to calculate the cell aspect ratio. If the terminal does not report pixel dimensions, it falls back to a 9×18 cell estimate.
 
@@ -23,16 +17,7 @@ The display service is also available experimentally as `require("obsidian.img")
 
 ## Inline Image viewing
 
-Native inline rendering is experimental and opt-in. It renders local PNG embeds below their source line using Neovim's experimental `vim.ui.img` buffer placement. Enable it independently from picker previews:
-
-```lua
-require("obsidian").setup {
-  img = {
-    enabled = true,
-    embeds = { enabled = true },
-  },
-}
-```
+The same `img.enabled` switch also enables native inline rendering of local PNG embeds below their source line, using Neovim's experimental `vim.ui.img` buffer placement. Picker previews and inline embeds cannot be toggled separately.
 
 Wiki embeds support Obsidian pixel-size labels such as `![[image.png|300]]` (width, aspect ratio preserved) and `![[image.png|300x200]]` (width and height bounds, aspect ratio preserved). Inline images are currently limited to 80 cells wide, 30 cells high, and the available text width; these draft limits are local, not configurable. Markdown image embeds are also shown, but Markdown alt text is not treated as a size. Only local PNG files are rendered; remote URLs, non-PNG formats, ambiguous/missing references and unsupported terminals remain ordinary text. Image graphics are added as virtual lines below the embed, starting at the buffer's text column after the number/sign/fold gutter, so source text is never concealed or modified. The image width is limited to the visible text area. Inline display requires a Neovim build with **buffer-relative** `vim.ui.img` support; older builds with `vim.ui.img` but without buffer placement will not display inline images rather than drawing over note text.
 

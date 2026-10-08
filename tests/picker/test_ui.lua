@@ -75,11 +75,7 @@ file:close()
 
 Obsidian = {
   opts = {
-    img = {
-      enabled = true,
-      max_file_size = 1024 * 1024,
-      picker = { enabled = true, max_width = 60, max_height = 20 },
-    },
+    img = { enabled = true },
   },
 }
 
@@ -104,6 +100,8 @@ vim.ui.img = {
   end,
 }
 
+vim.o.columns = 160
+vim.o.lines = 70
 local picker = Ui.select({ path, "text" }, {
   preview_item = function(value)
     if value == path then
@@ -121,6 +119,8 @@ assert(vim.wait(1000, function()
   return line == ""
 end))
 local hidden_fallback = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(picker.preview_win), 0, 1, false)[1]
+local preview_width = vim.api.nvim_win_get_width(picker.preview_win)
+local preview_height = vim.api.nvim_win_get_height(picker.preview_win)
 local config = vim.api.nvim_win_get_config(picker.preview_win)
 vim.api.nvim_win_set_config(picker.preview_win, {
   relative = "editor", row = config.row + 1, col = config.col,
@@ -141,6 +141,8 @@ return {
   after_resize = after_resize,
   hidden_fallback = hidden_fallback,
   first_placement = first_placement,
+  preview_width = preview_width,
+  preview_height = preview_height,
   after_text = after_text,
   created = created,
   updated = updated,
@@ -152,6 +154,10 @@ return {
   eq(true, result.after_resize.updated > 0)
   eq("", result.hidden_fallback)
   eq(result.first_placement.height * 2, result.first_placement.width)
+  eq(true, result.first_placement.width <= result.preview_width)
+  eq(true, result.first_placement.height <= result.preview_height)
+  eq(true, result.first_placement.width > 60)
+  eq(true, result.first_placement.height > 20)
   eq("ui", result.first_placement.relative)
   eq(nil, result.first_placement.cell_aspect_ratio)
   eq(1, result.after_text.created)

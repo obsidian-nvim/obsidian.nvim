@@ -70,15 +70,11 @@ T["embeds reserve rows below the link in the buffer text area"] = function()
     callback(path)
     return function() end
   end
-  source.load = function(_, _, callback)
+  source.load = function(_, callback)
     callback({ bytes = "png", width = 600, height = 300 }, nil)
   end
 
-  embed.setup({ root = dir, name = "test" }, {
-    enabled = true,
-    max_file_size = 1024 * 1024,
-    embeds = { enabled = true },
-  })
+  embed.setup({ root = dir, name = "test" }, { enabled = true })
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_exec_autocmds("BufEnter", { buffer = buf })
   embed.refresh(buf)

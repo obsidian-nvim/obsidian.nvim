@@ -177,31 +177,10 @@ return {
     },
   },
 
-  ---@class obsidian.config.ImgPickerOpts
-  ---@field enabled? boolean
-  ---@field max_width? integer Maximum preview width in terminal cells.
-  ---@field max_height? integer Maximum preview height in terminal cells.
-
-  ---@class obsidian.config.ImgEmbedOpts
-  ---@field enabled? boolean Render local PNG embeds below their Markdown line.
-
   ---@class obsidian.config.ImgOpts
-  ---@field enabled? boolean Master switch for experimental native image display.
-  ---@field max_file_size? integer Maximum number of bytes read for one image.
-  ---@field picker? obsidian.config.ImgPickerOpts
-  ---@field embeds? obsidian.config.ImgEmbedOpts
+  ---@field enabled? boolean Enable experimental native picker previews and inline PNG embeds.
   img = {
     enabled = false,
-    max_file_size = 10 * 1024 * 1024,
-    cell_aspect_ratio = nil,
-    picker = {
-      enabled = false,
-      max_width = 60,
-      max_height = 20,
-    },
-    embeds = {
-      enabled = false,
-    },
   },
 
   ---@class obsidian.config.SearchOpts

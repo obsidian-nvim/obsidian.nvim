@@ -97,7 +97,7 @@ local function image_placement(bufnr, row, available_width, cell_width, cell_hei
   }
 end
 
-local function render(bufnr, opts)
+local function render(bufnr)
   local state = states[bufnr]
   if not state or not vim.api.nvim_buf_is_valid(bufnr) then
     return
@@ -133,11 +133,7 @@ local function render(bufnr, opts)
     if ref.kind == "wiki" then
       width_px, height_px = parse_size(ref.label)
     end
-    local owner = img.owner {
-      kind = "inline-embed",
-      buf = bufnr,
-      max_bytes = opts.max_file_size,
-    }
+    local owner = img.owner { kind = "inline-embed", buf = bufnr }
     state.owners[#state.owners + 1] = owner
     attachment._resolve_async(ref.target, { bufnr = bufnr, filename = filename }, function(path)
       if state.generation ~= generation or not vim.api.nvim_buf_is_valid(bufnr) or not path then
@@ -154,7 +150,7 @@ local function render(bufnr, opts)
   end
 end
 
-local function schedule_render(bufnr, opts, force)
+local function schedule_render(bufnr, force)
   local state = states[bufnr]
   if not state then
     return
@@ -166,7 +162,7 @@ local function schedule_render(bufnr, opts, force)
   state.force_render = state.force_render or force
   state.timer = vim.defer_fn(function()
     state.timer = nil
-    render(bufnr, opts)
+    render(bufnr)
   end, 100)
 end
 
@@ -184,7 +180,7 @@ function M.refresh(bufnr)
     state.timer = nil
   end
   state.force_render = true
-  render(bufnr, state.opts)
+  render(bufnr)
 end
 
 function M.setup(workspace, img_opts)
@@ -193,8 +189,7 @@ function M.setup(workspace, img_opts)
     states[bufnr] = nil
   end
   local group = vim.api.nvim_create_augroup("ObsidianImgEmbed", { clear = true })
-  local opts = img_opts.embeds or {}
-  if not img_opts.enabled or not opts.enabled then
+  if not img_opts.enabled then
     return
   end
 
@@ -205,16 +200,16 @@ function M.setup(workspace, img_opts)
     callback = function(ev)
       local bufnr = ev.buf
       if not states[bufnr] then
-        states[bufnr] = { owners = {}, generation = 0, opts = img_opts }
+        states[bufnr] = { owners = {}, generation = 0 }
       end
-      schedule_render(bufnr, img_opts)
+      schedule_render(bufnr)
     end,
   })
   vim.api.nvim_create_autocmd("WinResized", {
     group = group,
     callback = function()
       for bufnr in pairs(states) do
-        schedule_render(bufnr, img_opts, true)
+        schedule_render(bufnr, true)
       end
     end,
   })
@@ -225,7 +220,7 @@ function M.setup(workspace, img_opts)
     callback = function()
       local bufnr = vim.api.nvim_get_current_buf()
       if states[bufnr] then
-        schedule_render(bufnr, img_opts, true)
+        schedule_render(bufnr, true)
       end
     end,
   })
