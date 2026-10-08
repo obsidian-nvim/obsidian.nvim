@@ -23,8 +23,35 @@ T["extract parses color emojis"] = function()
   eq("red", match.color)
 end
 
-T["extract ignores highlights with surrounding whitespace"] = function()
-  eq({}, highlight.extract "== leading== ==trailing ==")
+T["extract enforces surrounding whitespace grammar"] = function()
+  local matches = highlight.extract "outside ==valid== whitespace == leading== ==trailing =="
+  eq(1, #matches)
+  eq("valid", matches[1].text)
+end
+
+T["extract parses adjacent highlights"] = function()
+  local matches = highlight.extract "==one====two=="
+  eq(2, #matches)
+  eq("one", matches[1].text)
+  eq("two", matches[2].text)
+  eq(Range.new(0, 0, 0, 7), matches[1].range)
+  eq(Range.new(0, 7, 0, 14), matches[2].range)
+end
+
+T["extract allows a single equals sign in highlighted text"] = function()
+  local match = highlight.extract("==one=two==")[1]
+  eq("one=two", match.text)
+  eq("==one=two==", match.raw)
+end
+
+T["extract rejects empty highlights"] = function()
+  eq({}, highlight.extract "before ==== after")
+end
+
+T["extract ranges use byte columns for Unicode"] = function()
+  local match = highlight.extract("é ==你好==", { row = 4 })[1]
+  eq("你好", match.text)
+  eq(Range.new(4, 3, 4, 13), match.range)
 end
 
 T["find_highlight preserves its legacy shape"] = function()
