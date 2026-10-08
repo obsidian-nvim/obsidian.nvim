@@ -103,20 +103,22 @@ T["embeds reserve rows below the link in the buffer text area"] = function()
 
   vim.api.nvim_buf_set_lines(buf, 0, 0, false, { "new first line" })
   vim.api.nvim_exec_autocmds("TextChanged", { buffer = buf })
-  vim.wait(150)
-  eq(1, #placed)
-  eq({}, deleted)
-  local moved_mark = vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, { details = true })[1]
-  eq(2, moved_mark[2])
-
-  embed.refresh(buf)
-  eq(2, #placed)
+  eq(
+    true,
+    vim.wait(1000, function()
+      return #placed == 2
+    end)
+  )
   eq(3, placed[2].row)
   eq({ 1 }, deleted)
 
   vim.api.nvim_exec_autocmds("WinEnter", {}) -- returning from the message pager
-  vim.wait(150)
-  eq(3, #placed)
+  eq(
+    true,
+    vim.wait(1000, function()
+      return #placed == 3
+    end)
+  )
   eq({ 1, 2 }, deleted)
 
   vim.api.nvim_win_set_buf(win, original_buf)

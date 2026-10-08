@@ -44,9 +44,6 @@ local current
 ---@field closed         boolean
 ---@field resize_autocmd integer | nil
 ---@field previewed_item obsidian.picker.ui.Item | nil
----@field image_owner obsidian.img.Owner | nil
----@field image_spec obsidian.ui_select_preview_spec | nil
----@field image_fallback string[] | nil
 local PickerUi = {}
 PickerUi.__index = PickerUi
 
@@ -212,94 +209,6 @@ local function show_preview_message(picker, text)
   vim.api.nvim_set_option_value("modifiable", false, { buf = picker.preview_buf })
 end
 
----@param buf integer
----@param lines string[]
----@return boolean
-local function replace_buffer_lines(buf, lines)
-  if not vim.api.nvim_buf_is_valid(buf) then
-    return false
-  end
-  local modifiable = vim.api.nvim_get_option_value("modifiable", { buf = buf })
-  if not modifiable then
-    pcall(vim.api.nvim_set_option_value, "modifiable", true, { buf = buf })
-  end
-  local ok = pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, lines)
-  if not modifiable then
-    pcall(vim.api.nvim_set_option_value, "modifiable", false, { buf = buf })
-  end
-  return ok
-end
-
----@param picker obsidian.picker.ui.Picker
----@param spec obsidian.ui_select_preview_spec
----@param text string
----@param fallback? string[]
-local function show_image_error(picker, spec, text, fallback)
-  local lines = fallback and vim.deepcopy(fallback) or { text }
-  lines[1] = text
-  if
-    replace_buffer_lines(spec.buf, lines)
-    and picker.preview_win
-    and picker_util.show_preview_spec(picker.preview_win, spec)
-  then
-    return
-  end
-  show_preview_message(picker, text)
-end
-
----@param spec obsidian.ui_select_preview_spec
----@param fallback string[]
-local function hide_image_fallback(spec, fallback)
-  local blank = {}
-  for i = 1, math.max(1, #fallback) do
-    blank[i] = ""
-  end
-  replace_buffer_lines(spec.buf, blank)
-end
-
----@param picker obsidian.picker.ui.Picker
-local function clear_preview_image(picker)
-  if picker.image_owner then
-    picker.image_owner:close()
-    picker.image_owner = nil
-  end
-  picker.image_spec = nil
-  picker.image_fallback = nil
-end
-
----@return obsidian.config.ImgOpts|nil
-local function picker_image_opts()
-  local opts = Obsidian and Obsidian.opts and Obsidian.opts.img
-  if not opts or opts.enabled ~= true or not opts.picker or opts.picker.enabled ~= true then
-    return nil
-  end
-  return opts
-end
-
----@param picker obsidian.picker.ui.Picker
----@param opts table
-local function image_placement(picker, opts)
-  return function()
-    assert(picker.preview_win and vim.api.nvim_win_is_valid(picker.preview_win), "preview window is closed")
-    local pos = vim.api.nvim_win_get_position(picker.preview_win)
-    local config = vim.api.nvim_win_get_config(picker.preview_win)
-    local border_offset = config.border and #config.border > 0 and 1 or 0
-    local width = vim.api.nvim_win_get_width(picker.preview_win)
-    local height = vim.api.nvim_win_get_height(picker.preview_win)
-    return {
-      -- The preview pane already gives us terminal coordinates. Using "ui"
-      -- avoids the editor-mode placeholder float, which is unreliable in
-      -- WezTerm and unnecessary for this window-scoped surface.
-      relative = "ui",
-      row = pos[1] + border_offset + 1,
-      col = pos[2] + border_offset + 1,
-      max_width = math.max(1, math.min(width, opts.picker.max_width or width)),
-      max_height = math.max(1, math.min(height, opts.picker.max_height or height)),
-      zindex = 90,
-    }
-  end
-end
-
 ---@param picker obsidian.picker.ui.Picker
 local function update_preview(picker)
   if not picker.opts.preview_item or not picker.preview_win then
@@ -309,14 +218,12 @@ local function update_preview(picker)
   local item = picker.matches[picker.selection]
   if not item then
     picker.previewed_item = nil
-    clear_preview_image(picker)
     show_preview_message(picker, "No preview")
     return
   elseif picker.previewed_item and picker.previewed_item.id == item.id then
     return
   end
   picker.previewed_item = item
-  clear_preview_image(picker)
 
   local ok, spec = pcall(picker.opts.preview_item, item.value)
   if not ok then
@@ -328,35 +235,6 @@ local function update_preview(picker)
     if not shown or err ~= true then
       show_preview_message(picker, shown and "No preview" or "Preview failed: " .. tostring(err))
       return
-    end
-
-    local img_spec = spec.img
-    local img_opts = img_spec and picker_image_opts() or nil
-    if img_opts and img_spec then
-      local owner = require("obsidian.img").owner {
-        kind = "picker-preview",
-        win = picker.preview_win,
-        max_bytes = img_opts.max_file_size,
-      }
-      local fallback = vim.api.nvim_buf_get_lines(spec.buf, 0, -1, false)
-      picker.image_owner = owner
-      picker.image_spec = spec
-      picker.image_fallback = fallback
-      owner:show({
-        source = img_spec.source,
-        placement = image_placement(picker, img_opts),
-      }, function(success, image_err)
-        local is_current = not picker.closed
-          and picker.image_owner == owner
-          and picker.previewed_item
-          and picker.previewed_item.id == item.id
-        if success and is_current then
-          hide_image_fallback(spec, fallback)
-        elseif not success and is_current then
-          clear_preview_image(picker)
-          show_image_error(picker, spec, "Image preview unavailable: " .. tostring(image_err), fallback)
-        end
-      end)
     end
   end
 end
@@ -397,17 +275,6 @@ local function render(picker)
   end
 
   resize(picker, #lines)
-  if picker.image_owner and picker.image_owner.image_id then
-    local updated, image_err = picker.image_owner:update()
-    if not updated then
-      local spec = picker.image_spec
-      local fallback = picker.image_fallback
-      clear_preview_image(picker)
-      if spec then
-        show_image_error(picker, spec, "Image preview unavailable: " .. tostring(image_err), fallback)
-      end
-    end
-  end
   update_preview(picker)
 end
 
@@ -431,7 +298,6 @@ local function close_windows(picker)
     pcall(vim.api.nvim_del_autocmd, picker.resize_autocmd)
     picker.resize_autocmd = nil
   end
-  clear_preview_image(picker)
 
   for _, win in ipairs { picker.results_win, picker.input_win, picker.preview_win } do
     if win and vim.api.nvim_win_is_valid(win) then

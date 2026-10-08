@@ -131,6 +131,32 @@ T["ignores a stale load when a newer request wins"] = function()
   eq(10, calls[1].height)
 end
 
+T["cancels stale source callbacks after a new request"] = function()
+  local img = require "obsidian.img"
+  local pending = {}
+  source.load = function(_, _, callback)
+    pending[#pending + 1] = callback
+  end
+  local calls = 0
+  local owner = img.owner {
+    backend = {
+      set = function()
+        calls = calls + 1
+        return calls
+      end,
+      get = function() end,
+      del = function() end,
+    },
+  }
+  owner:show { source = { bytes = png(1, 1) } }
+  owner:show { source = { bytes = png(2, 2) } }
+  pending[1] { bytes = png(1, 1), width = 1, height = 1 }
+  eq(0, calls)
+  pending[2] { bytes = png(2, 2), width = 2, height = 2 }
+  eq(1, calls)
+  owner:close()
+end
+
 T["reports unsupported and malformed sources without throwing"] = function()
   local img = require "obsidian.img"
   local unsupported
@@ -213,6 +239,47 @@ T["buffer placement refuses a backend that does not insert virtual lines"] = fun
   vim.api.nvim_buf_delete(buf, { force = true })
 end
 
+T["marked preview buffers work in any window and clean up on buffer change"] = function()
+  local picker_util = require "obsidian.picker.util"
+  local img = require "obsidian.img"
+  local path = Path.temp { suffix = ".png" }
+  write_binary(tostring(path), png(16, 8))
+  local spec = picker_util.preview_path(path)
+  vim.bo[spec.buf].bufhidden = "hide"
+  local other = vim.api.nvim_create_buf(false, true)
+  local win = vim.api.nvim_open_win(other, false, { relative = "editor", row = 1, col = 1, width = 30, height = 10 })
+  local old_backend = vim.ui.img
+  local deleted = {}
+  local created = 0
+  vim.ui.img = {
+    set = function(bytes_or_id)
+      if type(bytes_or_id) ~= "number" then
+        created = created + 1
+      end
+      return created
+    end,
+    get = function() end,
+    del = function(id)
+      deleted[#deleted + 1] = id
+    end,
+  }
+  vim.api.nvim_win_set_buf(win, spec.buf)
+  eq(
+    true,
+    vim.wait(1000, function()
+      return created == 1 and vim.api.nvim_buf_get_lines(spec.buf, 0, 1, false)[1] == ""
+    end)
+  )
+  vim.api.nvim_win_set_buf(win, other)
+  eq({ 1 }, deleted)
+  eq("Native PNG preview", vim.api.nvim_buf_get_lines(spec.buf, 0, 1, false)[1])
+  vim.api.nvim_win_close(win, true)
+  vim.api.nvim_buf_delete(spec.buf, { force = true })
+  vim.ui.img = old_backend
+  img.clear_all()
+  vim.fn.delete(tostring(path))
+end
+
 T["picker path previews never put image bytes in a buffer"] = function()
   local picker_util = require "obsidian.picker.util"
   local path = Path.temp { suffix = ".PNG" }
@@ -222,7 +289,7 @@ T["picker path previews never put image bytes in a buffer"] = function()
   local lines = vim.api.nvim_buf_get_lines(spec.buf, 0, -1, false)
   eq("Native PNG preview", lines[1])
   eq("PNG", lines[4]:match "PNG")
-  eq(tostring(path), spec.img.source.path)
+  eq(tostring(path), vim.b[spec.buf].obsidian_image_preview.source.path)
   eq(false, table.concat(lines, "\n"):find "\0" ~= nil)
 
   vim.api.nvim_buf_delete(spec.buf, { force = true })

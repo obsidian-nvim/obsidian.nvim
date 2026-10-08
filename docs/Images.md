@@ -1,6 +1,6 @@
 ## Native picker previews (experimental)
 
-Obsidian.nvim can show local PNG files in the built-in picker preview pane through Neovim's experimental `vim.ui.img` API. This is opt-in and currently supports only the native picker and PNG files:
+Obsidian.nvim can show local PNG files in picker preview windows through Neovim's experimental `vim.ui.img` API. This is opt-in:
 
 ```lua
 require("obsidian").setup {
@@ -15,7 +15,7 @@ require("obsidian").setup {
 }
 ```
 
-A Neovim build with `vim.ui.img` and a terminal supporting the Kitty graphics protocol are required. There is no stable public terminal capability probe yet, so an unavailable or failed backend falls back to image filename/type/size text. After successful placement, that fallback text is hidden behind the graphical preview. Image files are read asynchronously, are limited to 10 MiB by default (`img.max_file_size`), and are never fetched from the network. Other picker backends retain their text-only previews.
+A Neovim build with `vim.ui.img` and a terminal supporting the Kitty graphics protocol are required. There is no stable public terminal capability probe yet, so an unavailable or failed backend falls back to image filename/type/size text. After successful placement, that fallback text is hidden behind the graphical preview. Image files are read asynchronously, are limited to 10 MiB by default (`img.max_file_size`), and are never fetched from the network. The image renderer observes marked preview buffers in any picker backend. It displays an image when the backend shows that buffer in a Neovim window, and cleans up when the window closes or changes buffers; backends without a visible preview window retain text-only previews.
 
 Image pixels and terminal cells have different shapes. Fitting measures terminal pixel and cell dimensions (as Snacks does) to calculate the cell aspect ratio. If the terminal does not report pixel dimensions, it falls back to a 9×18 cell estimate.
 
@@ -36,7 +36,7 @@ require("obsidian").setup {
 
 Wiki embeds support Obsidian pixel-size labels such as `![[image.png|300]]` (width, aspect ratio preserved) and `![[image.png|300x200]]` (width and height bounds, aspect ratio preserved). Inline images are currently limited to 80 cells wide, 30 cells high, and the available text width; these draft limits are local, not configurable. Markdown image embeds are also shown, but Markdown alt text is not treated as a size. Only local PNG files are rendered; remote URLs, non-PNG formats, ambiguous/missing references and unsupported terminals remain ordinary text. Image graphics are added as virtual lines below the embed, starting at the buffer's text column after the number/sign/fold gutter, so source text is never concealed or modified. The image width is limited to the visible text area. Inline display requires a Neovim build with **buffer-relative** `vim.ui.img` support; older builds with `vim.ui.img` but without buffer placement will not display inline images rather than drawing over note text.
 
-Neovim's [#39496](https://github.com/neovim/neovim/pull/39496) code already converts PNG pixels to cell dimensions *when dimensions are omitted*, but does not fit an image to the note's text width, inline height limit, or `|SIZE` bounds. We supply both cell dimensions after aspect-preserving fitting. We currently measure the tty cell size ourselves (falling back to 9×18): the PR's CSI 16t lookup has [a reported issue](https://github.com/neovim/neovim/issues/39496#issuecomment-6018569982) that its author says needs a Neovim C fix. This local measurement and fit should be revisited when upstream sizing is reliable and exposes bounded fitting.
+Neovim's [#39496](https://github.com/neovim/neovim/pull/39496) code already converts PNG pixels to cell dimensions *when dimensions are omitted*, but does not fit an image to the note's text width, inline height limit, or `|SIZE` bounds. We supply both cell dimensions after aspect-preserving fitting. For fitting within constrained panes we currently measure the tty cell size ourselves (falling back to 9×18): the PR's CSI 16t lookup has a reported timeout/fallback issue. TODO: switch to Neovim's query when it is public and reliable; its result should be used for fitting, while `vim.ui.img` continues to handle placement.
 
 To build the pinned Neovim [#39496](https://github.com/neovim/neovim/pull/39496) branch from this checkout and run it with your usual config:
 
