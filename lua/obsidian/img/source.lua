@@ -3,7 +3,6 @@ local Path = require "obsidian.path"
 local M = {}
 
 local png_signature = "\137PNG\r\n\26\n"
-local default_max_bytes = 10 * 1024 * 1024
 
 local function be32(bytes, offset)
   local a, b, c, d = bytes:byte(offset, offset + 3)
@@ -46,18 +45,11 @@ end
 
 ---Read and validate a local PNG without blocking the main loop.
 ---@param source obsidian.img.Source
----@param opts { max_bytes: integer? }|nil
 ---@param callback fun(result: { bytes: string, width: integer, height: integer, path: string? }|nil, err: string|nil)
-function M.load(source, opts, callback)
-  opts = opts or {}
-  local max_bytes = opts.max_bytes or default_max_bytes
-
+function M.load(source, callback)
   if type(source) == "table" and source.bytes ~= nil then
     if type(source.bytes) ~= "string" then
       schedule(callback, nil, "image bytes must be a string")
-      return
-    elseif #source.bytes > max_bytes then
-      schedule(callback, nil, string.format("image exceeds the %d byte limit", max_bytes))
       return
     end
     local info, err = M.png_info(source.bytes)
@@ -90,9 +82,6 @@ function M.load(source, opts, callback)
       return
     elseif stat.type ~= "file" then
       schedule(callback, nil, "image source is not a file: " .. path)
-      return
-    elseif stat.size > max_bytes then
-      schedule(callback, nil, string.format("image exceeds the %d byte limit", max_bytes))
       return
     end
 

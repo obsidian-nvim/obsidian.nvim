@@ -134,7 +134,7 @@ end
 T["cancels stale source callbacks after a new request"] = function()
   local img = require "obsidian.img"
   local pending = {}
-  source.load = function(_, _, callback)
+  source.load = function(_, callback)
     pending[#pending + 1] = callback
   end
   local calls = 0
@@ -197,9 +197,28 @@ T["reports unsupported and malformed sources without throwing"] = function()
   eq("truncated PNG", malformed[2])
 end
 
+T["loads PNG files larger than the old byte limit"] = function()
+  local path = Path.temp { suffix = ".png" }
+  local bytes = png(1, 1) .. string.rep("x", 10 * 1024 * 1024)
+  write_binary(tostring(path), bytes)
+  local result, err
+  source.load({ path = tostring(path) }, function(value, load_err)
+    result, err = value, load_err
+  end)
+  eq(
+    true,
+    vim.wait(2000, function()
+      return result ~= nil or err ~= nil
+    end)
+  )
+  eq(nil, err)
+  eq(#bytes, #result.bytes)
+  vim.fn.delete(tostring(path))
+end
+
 T["buffer placement refuses a backend that does not insert virtual lines"] = function()
   local img = require "obsidian.img"
-  source.load = function(_, _, callback)
+  source.load = function(_, callback)
     callback { bytes = png(12, 12), width = 12, height = 12 }
   end
   local buf = vim.api.nvim_create_buf(false, true)

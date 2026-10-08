@@ -81,14 +81,6 @@ local integer = function(value)
   return type(value) == "number" and value % 1 == 0
 end
 
-local positive_integer = function(value)
-  return integer(value) and value > 0
-end
-
-local positive_number = function(value)
-  return type(value) == "number" and value > 0
-end
-
 local picker_names = vim.tbl_values(types.Picker)
 table.insert(picker_names, false)
 local sort_values = vim.tbl_values(types.SortBy)
@@ -390,24 +382,11 @@ function M.validate(opts, skip_workspace_overrides)
   end
 
   if type(opts.img) == "table" then
-    fields(errors, "img", opts.img, {
-      { "enabled", "boolean" },
-      { "max_file_size", positive_integer, "positive integer" },
-      { "cell_aspect_ratio", positive_number, "positive number" },
-      { "picker", "table" },
-      { "embeds", "table" },
-    })
-    if type(opts.img.picker) == "table" then
-      fields(errors, "img.picker", opts.img.picker, {
-        { "enabled", "boolean" },
-        { "max_width", positive_integer, "positive integer" },
-        { "max_height", positive_integer, "positive integer" },
-      })
-    end
-    if type(opts.img.embeds) == "table" then
-      fields(errors, "img.embeds", opts.img.embeds, {
-        { "enabled", "boolean" },
-      })
+    fields(errors, "img", opts.img, { { "enabled", "boolean" } })
+    for key in pairs(opts.img) do
+      if key ~= "enabled" then
+        errors[#errors + 1] = "img." .. tostring(key) .. ": unknown option"
+      end
     end
   elseif opts.img ~= nil then
     check(errors, "img", opts.img, "table")
