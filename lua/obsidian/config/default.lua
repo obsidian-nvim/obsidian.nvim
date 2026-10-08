@@ -184,8 +184,6 @@ return {
 
   ---@class obsidian.config.ImgEmbedOpts
   ---@field enabled? boolean Render local PNG embeds below their Markdown line.
-  ---@field max_width? integer Maximum image width in terminal cells.
-  ---@field max_height? integer Maximum image height in terminal cells.
 
   ---@class obsidian.config.ImgOpts
   ---@field enabled? boolean Master switch for experimental native image display.
@@ -203,8 +201,6 @@ return {
     },
     embeds = {
       enabled = false,
-      max_width = 80,
-      max_height = 30,
     },
   },
 

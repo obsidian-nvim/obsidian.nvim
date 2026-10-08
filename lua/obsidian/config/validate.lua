@@ -407,8 +407,6 @@ function M.validate(opts, skip_workspace_overrides)
     if type(opts.img.embeds) == "table" then
       fields(errors, "img.embeds", opts.img.embeds, {
         { "enabled", "boolean" },
-        { "max_width", positive_integer, "positive integer" },
-        { "max_height", positive_integer, "positive integer" },
       })
     end
   elseif opts.img ~= nil then
