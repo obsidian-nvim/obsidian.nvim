@@ -1,6 +1,5 @@
 local eq = MiniTest.expect.equality
 local Path = require "obsidian.path"
-local img = require "obsidian.img"
 local embed = require "obsidian.img.embed"
 local attachment = require "obsidian.attachment"
 local source = require "obsidian.img.source"
@@ -12,7 +11,6 @@ local T = MiniTest.new_set {
   hooks = {
     post_case = function()
       embed.setup({ root = "", name = "test" }, { enabled = false })
-      img.clear_all()
       vim.ui.img = original_img
       attachment._resolve_async = original_resolve
       source.load = original_load

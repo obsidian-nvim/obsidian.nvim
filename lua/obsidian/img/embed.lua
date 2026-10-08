@@ -58,6 +58,7 @@ local function find_embeds(lines)
   local attachment = require "obsidian.attachment"
   local embeds = {}
   for row, line in ipairs(lines) do
+    ---@cast row integer
     for _, ref in ipairs(refs.extract(line, { row = row - 1, lexical = true })) do
       if
         ref.embed
@@ -142,7 +143,6 @@ local function render(bufnr)
       owner:show {
         source = { path = path },
         placement = image_placement(bufnr, row, available_width, cell.width, cell.height, width_px, height_px),
-        require_buffer_lines = true,
       }
     end)
     -- A buffer-relative image inserts virtual lines below its anchor. One per line
