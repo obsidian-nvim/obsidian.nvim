@@ -173,6 +173,7 @@ Workspace.set = function(workspace)
   if has_no_renderer and (options.ui.enable or options.ui.enabled) then
     require("obsidian.ui").setup(workspace, options.ui)
   end
+  require("obsidian.img.embed").setup(workspace, options.img)
 
   if options.sync.enabled then
     local sync = require "obsidian.sync"

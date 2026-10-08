@@ -23,7 +23,29 @@ The display service is also available experimentally as `require("obsidian.img")
 
 ## Inline Image viewing
 
-Inline note rendering remains separate from native picker previews. The only inline image viewing backend that is well tested and supported is [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md).
+Native inline rendering is experimental and opt-in. It renders local PNG embeds below their source line using Neovim's experimental `vim.ui.img` buffer placement. Enable it independently from picker previews:
+
+```lua
+require("obsidian").setup {
+  img = {
+    enabled = true,
+    embeds = { enabled = true, max_width = 80, max_height = 30 },
+  },
+}
+```
+
+Wiki embeds support Obsidian size labels such as `![[image.png|300]]` and `![[image.png|300x200]]`. Markdown image embeds are also shown, but Markdown alt text is not treated as a size. Only local PNG files are rendered; remote URLs, non-PNG formats, ambiguous/missing references and unsupported terminals remain ordinary text. Image graphics are added as virtual lines below the embed, starting at the buffer's text column after the number/sign/fold gutter, so source text is never concealed or modified. The image width is limited to the visible text area. Inline display requires a Neovim build with **buffer-relative** `vim.ui.img` support; older builds with `vim.ui.img` but without buffer placement will not display inline images rather than drawing over note text.
+
+To build the pinned Neovim [#39496](https://github.com/neovim/neovim/pull/39496) branch from this checkout and run it with your usual config:
+
+```sh
+nix build "path:$PWD" -o result-nvim
+./result-nvim/bin/nvim
+```
+
+The old local-image fixture is still available separately with `nix build "path:$PWD#instagram-inline-embed-test" -o result-fixture`. Copy `result-fixture/Instagram.md` and `result-fixture/instagram.png` into a writable vault to try it. A terminal supporting Kitty graphics is required for visual output.
+
+The only other inline image viewing backend that is well tested and supported is [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md).
 
 For proper image path resolving, add the following snippet to your snacks config, it will only effect markdown files in your vault:
 
