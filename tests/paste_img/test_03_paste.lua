@@ -13,7 +13,7 @@ local qeq = MiniTest.new_expectation(
     else
       local new_rhs
       if type(rhs) == "string" then
-        new_rhs = new_rhs:gsub("'", '"')
+        new_rhs = rhs:gsub("'", '"')
       elseif type(rhs) == "table" then
         new_rhs = vim.tbl_map(function(value)
           return value:gsub("'", '"')
@@ -32,9 +32,6 @@ local T, child = h.child_vault {
   pre_case = [[
     api = require "obsidian.api"
     log = require "obsidian.log"
-    img = require "obsidian.img_paste"
-    Path = require "obsidian.path"
-    util = require "obsidian.util"
   ]],
 }
 
@@ -111,15 +108,13 @@ local parametrize_data = vim.tbl_map(function(case)
   return { case }
 end, test_cases)
 
-T["resolve_image_path"] = new_set { parametrize = parametrize_data }
+T["image saving"] = new_set { parametrize = parametrize_data }
 
-T["resolve_image_path"]["Test based on user settings"] = function(case)
-  -- Run the paste_img command in an isolated child process
+T["image saving"]["uses the platform clipboard command"] = function(case)
+  -- Run image saving in an isolated child process
   local results = child.lua(
     [[
     local case = ...
-
-    local async = require("obsidian.async")
 
     Obsidian.opts.attachments = {
       folder = "assets/imgs",
@@ -127,9 +122,6 @@ T["resolve_image_path"]["Test based on user settings"] = function(case)
       img_text_func = require("obsidian.builtin").img_text_func,
       confirm_img_paste = case.confirm_img_paste,
     }
-
-    local vault_root = Obsidian.dir.filename
-    local path_name = string.format("%s/assets/imgs/%s", vault_root, case.file_name)
 
     -- Keep track of state to be analyzed by parent
     _G.captured_warn = nil

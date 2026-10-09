@@ -77,8 +77,6 @@ end
 
 local T = new_set()
 
-T["format using constants"] = function() end
-
 T["format YY"] = function()
   format_eq("YY", "09")
 end

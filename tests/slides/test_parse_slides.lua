@@ -30,7 +30,7 @@ T["should parse a file with one slide"] = function()
   )
 end
 
-T["should parse a file with one slide"] = function()
+T["should parse one slide with a fenced code block"] = function()
   local slides = parse {
     "# This is the first slide",
     "This is the body",

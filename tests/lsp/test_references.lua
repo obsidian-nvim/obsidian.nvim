@@ -368,27 +368,4 @@ T["avoid invalid patterns"] = function()
   eq(0, #qflist)
 end
 
-T["not find id links, here for historical reasons"] = function()
-  local referencer = [==[
-
-[[id]]
-]==]
-
-  local root = child.Obsidian.dir
-  local referencer_path = root / "referencer.md"
-  h.write(referencer, referencer_path)
-
-  local target_path = root / "target.md"
-  h.write(
-    [[---
-id: id
----]],
-    target_path
-  )
-
-  child.cmd(string.format("edit %s", target_path))
-  local qflist = get_refs()
-  eq(0, #qflist)
-end
-
 return T

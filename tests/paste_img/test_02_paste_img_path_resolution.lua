@@ -7,7 +7,6 @@ local T, child = h.child_vault {
     api = require "obsidian.api"
     log = require "obsidian.log"
     img = require "obsidian.img_paste"
-    Path = require "obsidian.path"
   ]],
 }
 
@@ -50,9 +49,9 @@ local parametrize_data = vim.tbl_map(function(case)
   return { case }
 end, test_cases)
 
-T["resolve_image_path"] = new_set { parametrize = parametrize_data }
+T["paste command path resolution"] = new_set { parametrize = parametrize_data }
 
-T["resolve_image_path"]["Test based on user settings"] = function(case)
+T["paste command path resolution"]["uses the configured name and destination"] = function(case)
   -- Run the paste_img command in an isolated child process
   local results = child.lua(
     [[

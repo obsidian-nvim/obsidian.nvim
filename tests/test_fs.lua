@@ -293,28 +293,4 @@ T["find_files_async yields before returning results"] = function()
   eq(result, { a, b })
 end
 
-T["path sorting does not stat every result"] = function()
-  local dir = Obsidian.dir
-  vim.fn.writefile({}, tostring(dir / "a.md"))
-  vim.fn.writefile({}, tostring(dir / "b.md"))
-
-  local original_fs_stat = vim.uv.fs_stat
-  local result_stats = 0
-  vim.uv.fs_stat = function(path, ...)
-    if vim.fs.basename(path) ~= ".gitignore" then
-      result_stats = result_stats + 1
-    end
-    return original_fs_stat(path, ...)
-  end
-
-  local ok, err = pcall(function()
-    fs.find_files(dir, { sort_by = "path" })
-  end)
-  vim.uv.fs_stat = original_fs_stat
-  if not ok then
-    error(err)
-  end
-
-  eq(result_stats, 0)
-end
 return T

@@ -1076,22 +1076,6 @@ T["format_link"]["markdown should respect link.format"] = function()
   eq("[bar](sub/bar.md)", bar_note:format_link())
 end
 
--- T["reference_paths"] = new_set()
---
--- T["reference_paths"]["do four basic paths"] = function()
---   local path = Obsidian.dir / "hi.md"
---   vim.fn.writefile({ "" }, tostring(path))
---   local note = M.from_file(path)
---   eq({ "hi", "hi.md" }, note:get_reference_paths())
---
---   local sub = Obsidian.dir / "sub"
---   path = sub / "hi.md"
---   sub:mkdir()
---   vim.fn.writefile({ "" }, tostring(path))
---   note = M.from_file(path)
---   eq({ "hi", "sub/hi", "sub%2Fhi", "sub%2Fhi.md", "sub/hi.md", "hi.md" }, note:get_reference_paths())
--- end
-
 T["frontmatter_lines"] = new_set()
 
 T["frontmatter_lines"]["respects opts.frontmatter.sort over parsed key order"] = function()
