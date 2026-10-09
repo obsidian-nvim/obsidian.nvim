@@ -106,18 +106,14 @@ T["embeds reserve rows below the link in the buffer text area"] = function()
   eq(3, placed[2].row)
   eq({ 1 }, deleted)
 
-  vim.api.nvim_exec_autocmds("WinEnter", {}) -- returning from the message pager
-  eq(
-    true,
-    vim.wait(1000, function()
-      return #placed == 3
-    end)
-  )
-  eq({ 1, 2 }, deleted)
+  vim.api.nvim_exec_autocmds("WinEnter", {})
+  vim.wait(200)
+  eq(2, #placed) -- a window switch must not delete/retransmit the image
+  eq({ 1 }, deleted)
 
   vim.api.nvim_win_set_buf(win, original_buf)
   vim.api.nvim_buf_delete(buf, { force = true })
-  eq(3, #deleted)
+  eq(2, #deleted)
   vim.wo[win].number = original_number
   vim.fn.delete(tostring(dir), "rf")
 end
