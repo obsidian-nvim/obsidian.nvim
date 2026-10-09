@@ -235,17 +235,19 @@ end
 ---@param opts obsidian.search.FindRefsOpts
 ---@return obsidian.Ref[]
 local function find_refs(term, dir, opts)
-  local root = matching_root(dir)
+  local scope = tostring(Path.new(dir):resolve { strict = true })
+  local root = matching_root(scope)
   local include_notes = opts.include_notes ~= false
   local include_attachments = opts.include_attachments == true
   local include_unresolved = opts.include_unresolved == true
+  local catalog_dir = include_unresolved and root or scope
   local notes = {}
   if include_notes or include_unresolved then
-    notes = async.await(2, M.find_notes_async, "", nil, { dir = dir })
+    notes = async.await(2, M.find_notes_async, "", nil, { dir = catalog_dir })
   end
   local attachments = {}
   if include_attachments or include_unresolved then
-    attachments = async.await(2, M.find_attachments_async, "", nil, { dir = dir })
+    attachments = async.await(2, M.find_attachments_async, "", nil, { dir = catalog_dir })
   end
   local query = vim.trim(term or "")
   local ignore_case = Opts.should_ignore_case(query)
@@ -276,7 +278,7 @@ local function find_refs(term, dir, opts)
     for _, alias in ipairs(note.aliases or {}) do
       lookup[alias:lower()] = true
     end
-    if include_notes then
+    if include_notes and fs_util.is_subpath(path, scope) then
       local rel = fs_util.relpath(root, path) or path
       local text = note_matcher.without_note_extension(rel)
       add_ref { kind = "note", text = text, path = path, note = note, attachment = false }
@@ -294,7 +296,7 @@ local function find_refs(term, dir, opts)
 
   for _, path in ipairs(attachments) do
     add_ref_lookup_path(path, root, lookup)
-    if include_attachments then
+    if include_attachments and fs_util.is_subpath(path, scope) then
       add_ref {
         kind = "attachment",
         text = fs_util.relpath(root, path) or path,
@@ -307,14 +309,17 @@ local function find_refs(term, dir, opts)
   if include_unresolved then
     local note_paths = {}
     for _, note in ipairs(notes) do
-      note_paths[#note_paths + 1] = tostring(note.path)
+      local path = tostring(note.path)
+      if fs_util.is_subpath(path, scope) then
+        note_paths[#note_paths + 1] = path
+      end
     end
 
     local candidates = {}
     if Ripgrep._has_ripgrep() then
       local seen = {}
       local code = async.await(1, function(done)
-        Ripgrep.search_async(dir, { "[[", "](" }, {
+        Ripgrep.search_async(scope, { "[[", "](" }, {
           fixed_strings = true,
           max_count_per_file = 1,
         }, function(match)

@@ -148,7 +148,11 @@ M.find_attachments = function(term, opts)
     if ignore_case then
       haystack = haystack:lower()
     end
-    if fs_util.is_subpath(path, dir) and (query == "" or haystack:find(query, 1, true)) then
+    if
+      fs_util.is_subpath(path, dir)
+      and not path_is_template(path, dir)
+      and (query == "" or haystack:find(query, 1, true))
+    then
       paths[#paths + 1] = path
     end
   end
@@ -305,7 +309,7 @@ M.find_refs = function(term, opts)
 
   if include_attachments then
     for path in pairs(attachments) do
-      if fs_util.is_subpath(path, dir) then
+      if fs_util.is_subpath(path, dir) and not path_is_template(path, dir) then
         add_ref {
           kind = "attachment",
           text = cache.attachments.rel_path(path),
