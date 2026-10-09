@@ -24,8 +24,29 @@ T["preview_path"]["lists directory contents and marks folders"] = function()
   vim.fn.delete(tostring(dir), "rf")
 end
 
-T["list_unique"] = function()
-  eq({ "hi", "hey" }, compat.list_unique { "hi", "hey", "hi", "hi" })
+T["list_unique"] = new_set()
+
+T["list_unique"]["preserves order and mutates in place"] = function()
+  local values = { "hey", "hi", "hey", "hello", "hi" }
+  local result = compat.list_unique(values)
+
+  eq(true, result == values)
+  eq({ "hey", "hi", "hello" }, values)
+end
+
+T["list_unique"]["supports a key function"] = function()
+  local values = {
+    { id = 2, name = "second" },
+    { id = 1, name = "first" },
+    { id = 2, name = "duplicate" },
+  }
+
+  compat.list_unique(values, function(value)
+    return value.id
+  end)
+
+  eq({ values[1], values[2] }, values)
+  eq("second", values[1].name)
 end
 
 T["filename validation distinguishes filesystem and link restrictions"] = function()

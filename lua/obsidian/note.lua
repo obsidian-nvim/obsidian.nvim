@@ -588,7 +588,8 @@ Note.reference_ids = function(self, opts)
     ref_ids = vim.tbl_map(string.lower, ref_ids)
   end
 
-  return compat.list_unique(ref_ids)
+  compat.list_unique(ref_ids)
+  return ref_ids
 end
 
 --- Get a list of all of the different paths that can identify this note
@@ -613,7 +614,7 @@ Note.get_reference_paths = function(self, opts)
     table.insert(raw_refs, no_suffix_relpath)
   end
 
-  raw_refs = compat.list_unique(raw_refs)
+  compat.list_unique(raw_refs)
 
   if opts.urlencode == true then
     local refs = {}

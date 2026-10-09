@@ -112,7 +112,7 @@ local function build_edit(old_path, new_path, callback)
       uri.encode(old_basename),
       uri.encode(old_basename, { keep_path_sep = true }),
     }
-    terms = compat.list_unique(terms)
+    compat.list_unique(terms)
 
     local matches = {}
     require("obsidian.search").search_async(

@@ -1326,7 +1326,7 @@ local function process_search_results(cc, results)
         aliases[#aliases + 1] = note.path.stem
       end
       vim.list_extend(aliases, note.aliases)
-      aliases = compat.list_unique(aliases)
+      compat.list_unique(aliases)
 
       for _, alias in ipairs(aliases) do
         update_completion_options(cc, alias, nil, matching_anchors, matching_blocks, note)
