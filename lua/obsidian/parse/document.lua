@@ -32,7 +32,6 @@ M.BODY_EXCLUSIONS = {
 }
 
 M.COMMENTS = { html_comment = true, obsidian_comment = true }
-M.CODE_BLOCKS = { fenced_code = true, indented_code = true }
 
 ---@alias obsidian.parse.document.RegionKind
 ---| "frontmatter"

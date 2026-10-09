@@ -118,6 +118,6 @@ log.err_once = function(msg, ...)
   log.log_once(msg, vim.log.levels.ERROR, ...)
 end
 
-log.error_once = log.err
+log.error_once = log.err_once
 
 return log
