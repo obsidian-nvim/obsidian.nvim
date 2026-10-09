@@ -131,6 +131,8 @@ vim.api.nvim_win_set_config(picker.preview_win, {
 vim.api.nvim_exec_autocmds("WinScrolled", { pattern = tostring(picker.preview_win) })
 assert(vim.wait(1000, function() return updated > 0 end))
 local after_resize = { created = created, updated = updated }
+vim.api.nvim_exec_autocmds("WinEnter", {})
+local after_win_enter = { created = created, updated = updated, deleted = vim.deepcopy(deleted) }
 
 picker:move(1)
 assert(vim.wait(1000, function() return created == 2 end))
@@ -146,6 +148,7 @@ end
 
 return {
   after_resize = after_resize,
+  after_win_enter = after_win_enter,
   hidden_fallback = hidden_fallback,
   first_placement = first_placement,
   preview_width = preview_width,
@@ -160,6 +163,8 @@ return {
 
   eq(1, result.after_resize.created)
   eq(true, result.after_resize.updated > 0)
+  eq(1, result.after_win_enter.created)
+  eq({}, result.after_win_enter.deleted)
   eq("", result.hidden_fallback)
   eq(result.first_placement.height * 2, result.first_placement.width)
   eq(true, result.first_placement.width <= result.preview_width)
@@ -167,6 +172,7 @@ return {
   eq(true, result.first_placement.width > 60)
   eq(true, result.first_placement.height > 20)
   eq("editor", result.first_placement.relative)
+  eq(51, result.first_placement.zindex) -- above the picker's default-zindex float
   eq(nil, result.first_placement.cell_aspect_ratio)
   eq(2, result.after_second_image.created)
   eq({ 1 }, result.after_second_image.deleted)
