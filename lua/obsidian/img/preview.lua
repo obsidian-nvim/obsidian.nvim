@@ -57,6 +57,7 @@ local function placement(win)
     col = pos[2] + border + 1,
     max_width = math.max(1, width),
     max_height = math.max(1, height),
+    zindex = (config.zindex or 50) + 1,
   }
 end
 
