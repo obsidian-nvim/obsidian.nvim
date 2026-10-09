@@ -279,14 +279,9 @@ local _local_vaults_cache = nil
 ---@type obsidian.sync.RemoteVault[]|nil
 local _remote_vaults_cache = nil
 
-M._local_vaults_cache = _local_vaults_cache
-M._remote_vaults_cache = _remote_vaults_cache
-
 invalidate_cache = function()
   _local_vaults_cache = nil
   _remote_vaults_cache = nil
-  M._local_vaults_cache = nil
-  M._remote_vaults_cache = nil
 end
 
 M.invalidate_vaults_cache = invalidate_cache

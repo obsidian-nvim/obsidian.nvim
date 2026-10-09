@@ -2,7 +2,7 @@ local Document = require "obsidian.parse.document"
 local Note = require "obsidian.note"
 local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
-local parse_tags = require "obsidian.parse.tags"
+local parse_tasks = require "obsidian.parse.line.tasks"
 local tags = require "obsidian.tag"
 
 local M = {}
@@ -35,23 +35,6 @@ local function extract_links(line, lnum, document)
     end
   end
   return out
-end
-
----Match `- [x] foo` / `* [ ] foo` / `1. [ ] foo`. Captures indent, state, text.
----@param line string
----@return integer? indent, string? state, string? text, integer? marker_col
-local function match_task(line)
-  -- bullet list
-  local indent, state, text = line:match "^(%s*)[-%*%+] %[(.)%] (.*)$"
-  if state then
-    return #indent, state, text, assert(line:find("[", 1, true)) - 1
-  end
-  -- numbered list
-  indent, state, text = line:match "^(%s*)%d+%. %[(.)%] (.*)$"
-  if state then
-    return #indent, state, text, assert(line:find("[", 1, true)) - 1
-  end
-  return nil, nil, nil, nil
 end
 
 ---Convert obsidian.Note + stat → CacheNote row.
@@ -129,22 +112,20 @@ function M.build(abs_path, _vault_root)
     for _, link in ipairs(extract_links(line, i, document)) do
       links_out[#links_out + 1] = link
     end
-    for _, tag_match in ipairs(parse_tags.extract(line, { row = i - 1, lexical = true })) do
-      if not document:intersects(tag_match.range, Document.BODY_EXCLUSIONS) then
-        add_tag(tag_match.tag)
-      end
-    end
-    local indent, state, text, marker_col = match_task(line)
+    local task = parse_tasks.extract(line, { row = i - 1 })[1]
     if
-      indent ~= nil
-      and marker_col ~= nil
-      and not document:intersects(Range.new(i - 1, marker_col, i - 1, marker_col + 3), Document.BODY_EXCLUSIONS)
+      task
+      and task.task_marker_col
+      and not document:intersects(
+        Range.new(i - 1, task.task_marker_col, i - 1, task.task_marker_col + 3),
+        Document.BODY_EXCLUSIONS
+      )
     then
       tasks[#tasks + 1] = {
         line = i,
-        indent = indent,
-        state = state,
-        text = text,
+        indent = task.indent,
+        state = task.task_state,
+        text = task.text,
       }
     end
   end

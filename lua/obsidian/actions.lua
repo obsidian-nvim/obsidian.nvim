@@ -1496,7 +1496,9 @@ M.search_tags = function(tags)
 
   if not vim.tbl_isempty(tags) then
     search.find_tags_async(tags, function(tag_locations)
-      return gather_tag_picker_list(tag_locations, compat.list_unique(tags))
+      local unique_tags = vim.list_extend({}, tags)
+      compat.list_unique(unique_tags)
+      return gather_tag_picker_list(tag_locations, unique_tags)
     end, { dir = dir, match = "subtree" })
   else
     pick_tags(function(selected_tags, tag_locations)

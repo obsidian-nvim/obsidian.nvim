@@ -7,7 +7,6 @@ TEST = test/obsidian
 #   make user-docs
 MINITEST = deps/mini.test
 MINIDOC = deps/mini.doc
-# PANVIMDOC_PATH = ../panvimdoc/panvimdoc.sh
 MARKDOC = deps/markdoc.nvim
 NVIM_TREESITTER = deps/nvim-treesitter
 
@@ -20,7 +19,7 @@ VIMRUNTIME ?= $(shell $(NVIM) --clean --headless +'lua io.write(vim.env.VIMRUNTI
 chores: style lint types test ## Run development tasks (lint, style, types, test); PRs must pass this.
 
 ################################################################################
-##@ Developmment
+##@ Development
 .PHONY: lint
 lint: ## Lint the code with selene and typos
 	selene --config selene/config.toml lua/ tests/
@@ -33,7 +32,7 @@ style:  ## Format the code with stylua
 .PHONY: types
 types: ## Type check with EmmyLua
 	VIMRUNTIME=$(VIMRUNTIME) emmylua_check ./lua/ --config .emmyrc.json 
-	# --warnings-as-errors TODO: upstream neovim stdlib is going through some type refactors, wait util 0.13 to add this back
+	# --warnings-as-errors TODO: upstream neovim stdlib is going through some type refactors, wait until 0.13 to add this back
 
 .PHONY: test
 test: $(MINITEST)

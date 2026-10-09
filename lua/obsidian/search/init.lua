@@ -840,7 +840,7 @@ M.find_tags_async = function(term, callback, opts)
     end
   end
 
-  terms = compat.list_unique(terms)
+  compat.list_unique(terms)
 
   -- Maps paths to tag locations.
   ---@type table<string, obsidian.TagLocation[]>

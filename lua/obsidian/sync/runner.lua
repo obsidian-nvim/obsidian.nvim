@@ -118,20 +118,6 @@ function M.make_handler(dir)
   end
 end
 
----@param dir string
----@return { buf: integer }
-function M.open_log_buf(dir)
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, M.logs[dir] or {})
-  vim.bo[buf].modifiable = false
-  vim.api.nvim_buf_set_name(buf, ("Obsidian Sync Recent Output %s"):format(dir))
-  vim.api.nvim_set_current_buf(buf)
-  vim.keymap.set("n", "q", function()
-    vim.api.nvim_buf_delete(buf, { force = true })
-  end, { buffer = buf, silent = true })
-  return { buf = buf }
-end
-
 ---@param path string
 ---@return { buf: integer }
 function M.open_log_file(path)

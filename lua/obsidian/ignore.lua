@@ -5,41 +5,6 @@ local M = {}
 
 M._cache = {}
 
-local SYSNAME = vim.uv.os_uname().sysname
-
-local function is_absolute_path(path)
-  if vim.startswith(path, "/") then
-    return true
-  end
-  if SYSNAME == "Windows_NT" and path:match "^%a:[/\\]" then
-    return true
-  end
-  return false
-end
-
-M._is_absolute_path = is_absolute_path
-
-local function get_vault_relative(path)
-  if not Obsidian or not Obsidian.dir then
-    return nil
-  end
-
-  local vault_root = Obsidian.dir
-  local path_obj = Path.new(path)
-
-  if vault_root:is_parent_of(path_obj) or vault_root == path_obj then
-    local rel = vim.fs.normalize(tostring(path_obj)):sub(#vim.fs.normalize(tostring(vault_root)) + 1)
-    if vim.startswith(rel, "/") then
-      rel = rel:sub(2)
-    end
-    return rel
-  end
-
-  return nil
-end
-
-M._get_vault_relative = get_vault_relative
-
 --- Build a checker function from a list of gitignore-style patterns.
 --- Users should use simple gitignore style globs without modifiers,
 --- and ripgrep compatibility is not guaranteed.
@@ -99,8 +64,9 @@ function M.is_ignored(path)
   end
 
   local rel_path
-  if is_absolute_path(path) then
-    rel_path = get_vault_relative(path) or vim.fs.normalize(path)
+  local path_obj = Path.new(path)
+  if path_obj:is_absolute() then
+    rel_path = path_obj:vault_relative_path() or vim.fs.normalize(path)
   else
     rel_path = vim.fs.normalize(path)
   end

@@ -63,8 +63,6 @@ for _, ext in ipairs(attachment.filetypes) do
   M.by_extension[ext] = M.by_extension[ext] or M.kinds.file
 end
 
-M.by_filetype = M.by_extension
-
 ---@param path string
 ---@return string
 M.extension = function(path)

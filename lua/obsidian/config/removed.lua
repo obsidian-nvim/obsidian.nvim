@@ -75,7 +75,7 @@ return function(user_opts, defaults)
   if opts.detect_cwd ~= nil then
     opts.detect_cwd = nil
     log.warn_once(
-      "The 'detect_cwd' field is deprecated and no longer has any affect.\n"
+      "The 'detect_cwd' field is deprecated and no longer has any effect.\n"
         .. "See https://github.com/epwalsh/obsidian.nvim/pull/366 for more details."
     )
   end
@@ -103,19 +103,19 @@ return function(user_opts, defaults)
   end
 
   if opts.overwrite_mappings ~= nil then
-    log.warn_once "The 'overwrite_mappings' config option is deprecated and no longer has any affect."
+    log.warn_once "The 'overwrite_mappings' config option is deprecated and no longer has any effect."
     opts.overwrite_mappings = nil
   end
 
   ---@diagnostic disable-next-line: undefined-field
   if opts.mappings ~= nil then
-    log.warn_once [[The 'mappings' config option is deprecated and no longer has any affect.
+    log.warn_once [[The 'mappings' config option is deprecated and no longer has any effect.
 See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.overwrite_mappings = nil
   end
 
   if opts.tags ~= nil then
-    log.warn_once "The 'tags' config option is deprecated and no longer has any affect."
+    log.warn_once "The 'tags' config option is deprecated and no longer has any effect."
     opts.tags = nil
   end
 
@@ -125,7 +125,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   end
 
   if opts.ui and opts.ui.checkboxes then
-    log.warn_once [[The 'ui.checkboxes' no longer effect the way checkboxes are ordered, use `checkbox.order`. See: https://github.com/obsidian-nvim/obsidian.nvim/issues/262]]
+    log.warn_once [[The 'ui.checkboxes' no longer affect the way checkboxes are ordered, use `checkbox.order`. See: https://github.com/obsidian-nvim/obsidian.nvim/issues/262]]
   end
 
   if opts.image_name_func then
