@@ -17,6 +17,7 @@ Block target ^block-id
     ["Body.md"] = "body-only phrase",
     ["Source.md"] = "[[Missing]]\n![[Missing.pdf]]",
     ["templates/Template.md"] = "---\naliases:\n  - Friendly Name\n---\n[[Template Missing]]",
+    ["templates/Template-image.png"] = "template image",
     ["Image.PNG"] = "image",
   })
   h.child_setup_cache(child)
@@ -249,6 +250,35 @@ return { cached = cached, filesystem = filesystem }
   eq({ "Note" }, result.cached.notes)
   eq({ "foo.png" }, result.cached.attachments)
   eq({ "sub/Note" }, result.cached.refs)
+  eq(result.cached, result.filesystem)
+end
+
+T["subdirectory unresolved-link searches resolve targets from the whole workspace"] = function()
+  h.child_mock_vault_contents(child, {
+    ["Target.md"] = "# Target",
+    ["Existing.pdf"] = "attachment",
+    ["sub/Source.md"] = "[[Target]]\n![[Existing.pdf]]",
+  })
+  h.child_setup_cache(child)
+
+  local result = child.lua [[
+local search = require "obsidian.search"
+local cache = require "obsidian.cache"
+local dir = Obsidian.dir / "sub"
+local opts = {
+  dir = dir,
+  include_notes = false,
+  include_attachments = true,
+  include_unresolved = true,
+}
+
+local cached = search.find_refs("", opts)
+cache.shutdown()
+local filesystem = search.find_refs("", opts)
+return { cached = cached, filesystem = filesystem }
+  ]]
+
+  eq({}, result.cached)
   eq(result.cached, result.filesystem)
 end
 
