@@ -213,17 +213,6 @@ function M.setup(workspace, img_opts)
       end
     end,
   })
-  -- The ui2 :messages pager can clear Kitty images without changing the note.
-  -- Returning to its window needs a retransmit even when embed text is unchanged.
-  vim.api.nvim_create_autocmd("WinEnter", {
-    group = group,
-    callback = function()
-      local bufnr = vim.api.nvim_get_current_buf()
-      if states[bufnr] then
-        schedule_render(bufnr, true)
-      end
-    end,
-  })
   vim.api.nvim_create_autocmd({ "BufWipeout", "BufUnload" }, {
     group = group,
     pattern = pattern,
