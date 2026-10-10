@@ -69,6 +69,10 @@ local function bufenter_callback(ev)
     vim.keymap.set("n", "[o", function()
       actions.nav_link("prev", true)
     end, { buffer = true, desc = "Obsidian Previous Link" })
+
+    if workspace.name == ".obsidian.wiki" then
+      require("obsidian.code_runner").setup(ev.buf)
+    end
   end
 
   require("obsidian.lsp").start(ev.buf)
