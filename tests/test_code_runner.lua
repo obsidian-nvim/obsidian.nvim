@@ -1,4 +1,4 @@
-local CodeRunner = require "obsidian.code_runner"
+local CodeRunner = require("obsidian").code_runner
 local eq = MiniTest.expect.equality
 local T = MiniTest.new_set()
 
@@ -32,6 +32,37 @@ T["runs Lua and Vim fenced blocks"] = function()
     eq(vim.g.obsidian_code_runner_test, "vim")
   end)
   vim.g.obsidian_code_runner_test = nil
+end
+
+T["passes parsed code and context to custom runners"] = function()
+  local original_system = vim.system
+  local received
+  CodeRunner.add("test-runner", function(bufnr, code, context)
+    received = { bufnr = bufnr, code = code, context = context }
+    return { cmd = { "test-command", "--flag" } }
+  end)
+
+  vim.system = function(cmd, opts, callback)
+    received.cmd = cmd
+    received.stdin = opts.stdin
+    callback { code = 0, stdout = "", stderr = "" }
+  end
+
+  with_buffer({ "```test-runner opts", "print('hello')", "```" }, function(buf)
+    vim.api.nvim_win_set_cursor(0, { 2, 0 })
+    CodeRunner.run()
+
+    eq(received.bufnr, buf)
+    eq(received.code, "print('hello')")
+    eq(received.stdin, received.code)
+    eq(received.cmd, { "test-command", "--flag" })
+    eq(received.context.filetype, "test-runner")
+    eq(received.context.block.kind, "fenced_code")
+    eq(received.context.range, received.context.block.range)
+    eq(received.context.document.lines[1], "```test-runner opts")
+  end)
+
+  vim.system = original_system
 end
 
 T["ignores unsupported blocks and registers the docs keymap"] = function()

@@ -3,6 +3,7 @@ local log = require "obsidian.log"
 local obsidian = {}
 
 obsidian.api = require "obsidian.api"
+obsidian.code_runner = require "obsidian.code_runner"
 obsidian.actions = require "obsidian.actions"
 obsidian.code_action = require "obsidian.lsp.handlers._code_action"
 obsidian.async = require "obsidian.async"
