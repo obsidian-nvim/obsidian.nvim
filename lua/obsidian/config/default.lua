@@ -397,6 +397,9 @@ return {
   ---
   ---Build serializable LSP inlay hints for a note.
   ---@field hints? obsidian.resolver.Hints
+  ---
+  ---Render the preview/documentation lines for a note, e.g. in LSP completion items.
+  ---@field note_preview? obsidian.Resolver
   resolvers = {},
 
   ---@class obsidian.config.FooterOpts

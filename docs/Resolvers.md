@@ -133,3 +133,40 @@ resolvers = {
 ```
 
 The built-in resolver returns link-suggestion hints for the requested range.
+
+## Note preview resolver
+
+`opts.resolvers.note_preview` renders the preview/documentation lines shown for a note, currently as documentation of LSP completion items (wiki links, headings, blocks, and "create new note" entries). Later features like hover or picker previews can reuse it with a different `ctx.scope`.
+
+```lua
+---@class obsidian.resolver.NotePreviewCtx
+---@field scope string e.g. "lsp.completion"
+---@field note obsidian.Note
+---@field label string|?
+---@field anchor obsidian.note.HeaderAnchor|?
+---@field block obsidian.note.Block|?
+
+---@alias obsidian.resolver.NotePreviewResult string Markdown documentation.
+```
+
+The built-in resolver shows the note's path, id, aliases, tags, and a `**title:**` line resolved from the frontmatter `title` (if set), the first H1, or the first non-empty non-comment body line. It also shows the resolved link and the linked anchor/block when present.
+
+Example adding the creation date from frontmatter:
+
+```lua
+require("obsidian").setup {
+  resolvers = {
+    note_preview = function(ctx, done)
+      local created = ctx.note.metadata and ctx.note.metadata.created
+      local base = require("obsidian.resolvers").default_note_preview(ctx)
+      if created then
+        done(base .. "\n**created:** " .. tostring(created))
+      else
+        done(base)
+      end
+    end,
+  },
+}
+```
+
+When a custom resolver cancels or fails, completion items fall back to the built-in rendering.

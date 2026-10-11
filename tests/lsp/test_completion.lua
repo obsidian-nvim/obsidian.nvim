@@ -377,6 +377,156 @@ T["completion"]["cached note references use unsaved loaded metadata"] = function
   assert(not vim.iter(result.items or {}):any(function(candidate)
     return candidate.textEdit and candidate.textEdit.newText == "[[target|Saved Alias]]"
   end), "stale cached alias was offered for a modified buffer")
+T["completion"]["documentation shows title from frontmatter metadata"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = [==[
+---
+id: target
+title: My Target Note
+tags: []
+---
+Some content
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq("markdown", item.documentation.kind)
+  eq(true, item.documentation.value:find("**title:** My Target Note", 1, true) ~= nil)
+end
+
+T["completion"]["documentation falls back to the first H1"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = [==[
+---
+id: target
+tags: []
+---
+
+An intro paragraph before the heading.
+
+# Central Limit Theorem
+
+Body text
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq(true, item.documentation.value:find("**title:** Central Limit Theorem", 1, true) ~= nil)
+end
+
+T["completion"]["documentation falls back to the first non-empty non-comment body line"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = [==[
+---
+id: target
+tags: []
+---
+%% an obsidian comment %%
+<!-- an html comment -->
+%%
+# Not a title
+%%
+Visible intro line.
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq(true, item.documentation.value:find("**title:** Visible intro line.", 1, true) ~= nil)
+end
+
+T["completion"]["documentation truncates long titles"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = [==[
+# ]==] .. string.rep("x", 100),
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  local title = item.documentation.value:match "%*%*title:%*%* (.*)"
+  assert(title, "no title line in documentation")
+  eq(80, vim.fn.strchars(title))
+  eq(true, vim.endswith(title, "…"))
+end
+
+T["completion"]["note_preview resolver overrides documentation"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = "# Target Heading",
+  })
+
+  child.lua [[
+    Obsidian.opts.resolvers.note_preview = function(ctx, done)
+      done("custom preview: " .. tostring(ctx.note.id) .. " (" .. ctx.scope .. ")")
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq("custom preview: target (lsp.completion)", item.documentation.value)
+
+  child.lua [[Obsidian.opts.resolvers.note_preview = nil]]
+end
+
+T["completion"]["documentation falls back to builtin when resolver fails"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = "# Target Heading",
+  })
+
+  child.lua [[
+    Obsidian.opts.resolvers.note_preview = function(_, done)
+      done(nil, "boom")
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq(true, item.documentation.value:find("**title:** Target Heading", 1, true) ~= nil)
+
+  child.lua [[Obsidian.opts.resolvers.note_preview = nil]]
 end
 
 T["completion"]["searches vault headings without cache"] = function()
