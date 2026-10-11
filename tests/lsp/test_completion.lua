@@ -377,6 +377,8 @@ T["completion"]["cached note references use unsaved loaded metadata"] = function
   assert(not vim.iter(result.items or {}):any(function(candidate)
     return candidate.textEdit and candidate.textEdit.newText == "[[target|Saved Alias]]"
   end), "stale cached alias was offered for a modified buffer")
+end
+
 T["completion"]["documentation shows title from frontmatter metadata"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[ta",
@@ -442,6 +444,7 @@ tags: []
 <!-- an html comment -->
 %%
 # Not a title, inside a comment
+Some 100% off line, not a closer
 %%
 Visible intro line.
 ]==],
@@ -571,6 +574,8 @@ T["completion"]["searches vault headings without cache"] = function()
   end)
   assert(item, "no vault heading completion found")
   eq("[[target#HTTP API Guide]]", item.textEdit.newText)
+  eq("markdown", item.documentation.kind)
+  eq(true, item.documentation.value:find("**title:** HTTP API Guide", 1, true) ~= nil)
 end
 
 T["completion"]["searches normalized heading anchors without cache"] = function()
@@ -643,6 +648,10 @@ T["completion"]["disambiguates duplicate note basenames"] = function()
   for _, item in ipairs(result.items or {}) do
     if item.label == "Shared One — target" or item.label == "Shared Two — target" then
       links[#links + 1] = item.textEdit.newText
+      -- Documentation must stay attached through the disambiguation path.
+      local heading = item.label:match "^(.*) — target$"
+      eq("markdown", item.documentation.kind)
+      eq(true, item.documentation.value:find("**title:** " .. heading, 1, true) ~= nil)
     end
   end
   table.sort(links)
@@ -1522,7 +1531,7 @@ end
 T["completion"]["searches and displays existing block IDs"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[^^quote-of-the-day",
-    ["target.md"] = "Unrelated content ^quote-of-the-day",
+    ["target.md"] = "# Target Title\n\nUnrelated content ^quote-of-the-day",
   })
 
   child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
@@ -1535,6 +1544,8 @@ T["completion"]["searches and displays existing block IDs"] = function()
   assert(item, "existing block ID was not searchable and visible")
   eq(nil, item.command)
   eq("[[target#^quote-of-the-day]]", item.textEdit.newText)
+  eq("markdown", item.documentation.kind)
+  eq(true, item.documentation.value:find("**title:** Target Title", 1, true) ~= nil)
 end
 
 T["completion"]["honors min chars for current-note block queries"] = function()
@@ -2258,6 +2269,11 @@ T["completion"]["new-note suggestions do not create notes while typing"] = funct
 
   assert(create_item, "no create item found")
   eq(0, child.lua_get "_G.obsidian_completion_create_count")
+  -- Create items get documentation too, with the "Create: ..." label and no
+  -- title (the note does not exist on disk yet).
+  eq("markdown", create_item.documentation.kind)
+  eq(true, create_item.documentation.value:find("Create: ", 1, true) ~= nil)
+  eq(nil, create_item.documentation.value:find("**title:**", 1, true))
 end
 
 T["completion"]["invalid partial filenames do not prompt during completion"] = function()

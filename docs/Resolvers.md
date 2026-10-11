@@ -169,4 +169,6 @@ require("obsidian").setup {
 }
 ```
 
-When a custom resolver cancels or fails, completion items fall back to the built-in rendering.
+When a custom resolver cancels or fails, completion items fall back to the built-in rendering. As with all resolvers, `done` must eventually be called exactly once, or the completion response will never be sent.
+
+Note: when vault heading completion is served from the note cache (see `cache.enabled`), the resolved notes are built from cached metadata without file contents, so the default rendering shows no title/preview line for those items.

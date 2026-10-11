@@ -10,6 +10,9 @@ local M = {}
 --- Maximum display characters for note preview titles and head snippets.
 local MAX_TITLE_CHARS = 80
 
+--- Matches a code-fence marker line, mirroring the section parser.
+local CODE_FENCE_PATTERN = "^```[%w_-]*$"
+
 ---@class obsidian.resolver.AttachmentCtx
 ---@field bufnr integer
 ---@field source string|?
@@ -237,7 +240,7 @@ local function iter_body_lines(note)
       local line = vim.trim(contents[i] or "")
       i = i + 1
       if in_obsidian_comment then
-        if line:find("%", 1, true) then
+        if line:find("%%", 1, true) then
           in_obsidian_comment = false
         end
       elseif in_html_comment then
@@ -246,7 +249,7 @@ local function iter_body_lines(note)
         end
       elseif line ~= "" and vim.startswith(line, "%%") then
         -- Obsidian comment; only opens a block when not closed on the same line.
-        if not line:find("%", 3, true) then
+        if not line:find("%%", 3, true) then
           in_obsidian_comment = true
         end
       elseif line ~= "" and vim.startswith(line, "<!--") then
@@ -274,15 +277,15 @@ local function note_title(note)
   if type(metadata_title) == "string" then
     metadata_title = vim.trim(metadata_title)
     if metadata_title ~= "" then
-      return metadata_title
+      return truncate(metadata_title, MAX_TITLE_CHARS)
     end
   elseif type(metadata_title) == "number" then
-    return tostring(metadata_title)
+    return truncate(tostring(metadata_title), MAX_TITLE_CHARS)
   end
 
   local in_code_block = false
   for line in iter_body_lines(note) do
-    if line:match "^```" then
+    if line:match(CODE_FENCE_PATTERN) then
       in_code_block = not in_code_block
     elseif not in_code_block then
       local h1 = line:match "^#%s+(.-)%s*$"
@@ -308,9 +311,9 @@ local function note_head(note)
   local parts = {}
 
   for line in iter_body_lines(note) do
-    -- Skip code-fence markers (fenced content is still shown) and headings
-    -- (they read poorly inside a collapsed snippet).
-    if not (line:match "^```" or line:match "^#+%s") then
+    -- Skip code-fence markers (fenced content is still shown), headings (they
+    -- read poorly inside a collapsed snippet), and setext underlines.
+    if not (line:match(CODE_FENCE_PATTERN) or line:match "^#+%s" or line:match "^=+$" or line:match "^-+$") then
       parts[#parts + 1] = line
       if vim.fn.strchars(table.concat(parts, " ")) >= MAX_TITLE_CHARS then
         break
