@@ -236,6 +236,26 @@ T["save"]["should preserve noeol status"] = function()
   vim.fn.delete(temp_path)
 end
 
+T["save"]["should preserve unsaved changes in an open buffer"] = function()
+  local temp_path = "/tmp/" .. builtin.zettel_id() .. ".md"
+  util.write_file(temp_path, "original\n")
+  local note = M.from_file(temp_path)
+
+  vim.cmd.edit(vim.fn.fnameescape(temp_path))
+  local bufnr = vim.api.nvim_get_current_buf()
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "original", "unsaved change" })
+  eq(true, vim.bo[bufnr].modified)
+
+  note:save()
+
+  eq({ "original", "unsaved change" }, vim.fn.readfile(temp_path))
+  eq({ "original", "unsaved change" }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+  eq(false, vim.bo[bufnr].modified)
+
+  vim.cmd "bwipeout!"
+  vim.fn.delete(temp_path)
+end
+
 T["save"]["should not error on :checktime when save path contains regex-special characters"] = function()
   -- Regression: the old code passed `save_path.filename` as a string to
   -- `:checktime`, which treats it as a Vim regex pattern. Paths with `[`,

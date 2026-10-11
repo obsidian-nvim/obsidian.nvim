@@ -111,7 +111,7 @@ return function(user_opts, defaults)
   if opts.mappings ~= nil then
     log.warn_once [[The 'mappings' config option is deprecated and no longer has any effect.
 See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
-    opts.overwrite_mappings = nil
+    opts.mappings = nil
   end
 
   if opts.tags ~= nil then
