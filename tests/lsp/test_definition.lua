@@ -22,6 +22,23 @@ T["follow wiki links"] = function()
   eq({ 1, 0 }, child.api.nvim_win_get_cursor(0))
 end
 
+T["follow CommonMark URI autolinks"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "See <https://example.org/path>.",
+  })
+  child.cmd("edit " .. files["referencer.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 8 })
+  child.lua [[
+    vim.ui.open = function(uri)
+      _G.opened_uri = uri
+    end
+    vim.lsp.buf.definition()
+  ]]
+  h.child_wait(child, [[return _G.opened_uri == "https://example.org/path"]], {
+    desc = "URI autolink opened",
+  })
+end
+
 T["follow markdown links"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = [==[

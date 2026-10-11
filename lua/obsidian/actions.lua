@@ -81,7 +81,7 @@ M.unlink = function(bufnr, position)
   if not ref then
     return log.warn "No link found under cursor"
   end
-  if ref.kind == "wiki" or ref.kind == "markdown" then
+  if ref.kind == "wiki" or ref.kind == "markdown" or ref.kind == "autolink" then
     local display_text = ref.label
     if not display_text or display_text == "" then
       local target = vim.uri_decode(ref.target)

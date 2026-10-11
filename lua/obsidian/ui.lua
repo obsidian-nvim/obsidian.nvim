@@ -358,6 +358,39 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           conceal = "",
         }
       )
+    elseif m_type == "autolink" then
+      -- CommonMark URI autolink of the form <https://example.com>
+      marks[#marks + 1] = ExtMark.new(
+        nil,
+        lnum,
+        to_int(m_start - 1),
+        ExtMarkOpts.from_tbl {
+          end_row = lnum,
+          end_col = to_int(m_start),
+          conceal = "",
+        }
+      )
+      marks[#marks + 1] = ExtMark.new(
+        nil,
+        lnum,
+        to_int(m_start),
+        ExtMarkOpts.from_tbl {
+          end_row = lnum,
+          end_col = to_int(m_end - 1),
+          hl_group = reference_text.hl_group,
+          spell = false,
+        }
+      )
+      marks[#marks + 1] = ExtMark.new(
+        nil,
+        lnum,
+        to_int(m_end - 1),
+        ExtMarkOpts.from_tbl {
+          end_row = lnum,
+          end_col = to_int(m_end),
+          conceal = "",
+        }
+      )
     elseif m_type == "markdown" then
       -- Reference of the form [yyy](xxx)
       local closing_bracket_loc = string.find(line, "]", m_start, true)
