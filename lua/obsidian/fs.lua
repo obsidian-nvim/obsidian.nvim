@@ -235,6 +235,17 @@ local function collect(root, opts)
   return entries
 end
 
+--- Check if a path has any hidden components, i.e. a dot-prefixed file or
+--- directory anywhere along the path. Callers judging vault contents should
+--- pass a path relative to their root, otherwise dot-prefixed ancestors of
+--- the root (e.g. a vault under `~/.vaults/`) count as hidden too.
+---
+---@param path string|obsidian.Path
+---@return boolean
+M.is_hidden = function(path)
+  return is_hidden(tostring(path))
+end
+
 --- Iterate recursively over filesystem entries.
 ---
 --- Paths are absolute and deterministic by default. Traversal respects hidden
