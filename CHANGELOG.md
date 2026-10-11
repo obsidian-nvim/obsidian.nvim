@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Repeated `setup()` calls replace vault configuration without retaining old buffer handlers, LSP clients, cache, UI, footer, or pending sync state. Document vault-local Lua configuration with Neovim's `exrc`.
 - Sync setup now prompts for the end-to-end encryption password when linking an existing encrypted vault (#984).
 - Note saves preserve unsaved changes from an open buffer.
 - Deprecated `mappings` configuration is removed during normalization.

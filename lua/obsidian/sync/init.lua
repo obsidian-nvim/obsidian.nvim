@@ -142,6 +142,9 @@ function M.sync_once_debounced(workspace)
     delay,
     0,
     vim.schedule_wrap(function()
+      if debounce_timers[dir] ~= t then
+        return
+      end
       pcall(function()
         t:stop()
         t:close()
@@ -161,6 +164,19 @@ function M.is_configured(ws, cache)
     return false
   end
   return backend.is_configured(ws, cache)
+end
+
+---Cancel pending syncs before replacing the active configuration.
+M.shutdown = function()
+  for dir, timer in pairs(debounce_timers) do
+    timer:stop()
+    timer:close()
+    debounce_timers[dir] = nil
+  end
+  local opts = Obsidian.opts.sync
+  if opts and opts.enabled and opts.trigger == "continuous" and M.is_configured(Obsidian.workspace) then
+    M.pause(Obsidian.workspace, { silent = true })
+  end
 end
 
 M.setup = function()

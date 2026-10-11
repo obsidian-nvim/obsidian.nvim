@@ -258,6 +258,33 @@ require("obsidian").setup {
 
 To configure obsidian.nvim, pass your custom options that are _different_ from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
 
+### Vault-local Lua configuration
+
+You can keep a vault's settings in a `.nvim.lua` file at its root using Neovim's standard `exrc` option (`:h 'exrc'`). Enable `vim.opt.exrc = true` in your Neovim configuration and make sure obsidian.nvim is available on `runtimepath` before the local file is sourced. For example, a plugin manager configuration that loads obsidian.nvim only on `FileType` will need to load it earlier.
+
+```lua
+-- .nvim.lua in the vault root
+local source = debug.getinfo(1, "S").source:sub(2)
+local root = vim.fs.dirname(vim.fs.normalize(source))
+
+require("obsidian").setup {
+  workspaces = {
+    { name = vim.fs.basename(root), path = root },
+  },
+  notes_subdir = "notes",
+  new_notes_location = "notes_subdir",
+  templates = {
+    folder = "templates",
+  },
+}
+```
+
+Start Neovim with the vault root as its working directory and approve the local file through Neovim's trust prompt. Paths in this example are resolved from the `.nvim.lua` file, so notes in nested folders use the same vault settings. The local file accepts the regular plugin options, including Lua functions and callbacks.
+
+Calling `setup()` again replaces the previous options and workspace list, updates the current note, and removes the previous configuration's buffer handlers, LSP clients, cache, footer, UI marks, and pending sync timers. Include any shared options you want to retain in each call. Invalid options are reported without replacing a working configuration.
+
+`exrc` loads local configuration at startup based on the working directory; opening a note from an unrelated directory or switching between vault buffers does not automatically source that vault's `.nvim.lua`. To apply or reload a vault's settings in an existing session, explicitly run `:source /path/to/vault/.nvim.lua`. For automatic switching among a known list of vaults, use the existing `workspaces` and workspace `overrides` options.
+
 ## 🤝 Contributing
 
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.

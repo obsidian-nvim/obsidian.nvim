@@ -43,12 +43,25 @@ end
 
 obsidian.register_command = require("obsidian.commands").register
 
---- Setup a new Obsidian client. This should only be called once from an Nvim session.
+---Set up or replace the Obsidian configuration.
+---Repeated calls replace the previous options and registered workspaces.
 ---
 ---@param user_opts obsidian.config
 ---
 ---@return obsidian.Client?
 obsidian.setup = function(user_opts)
+  user_opts = user_opts or {}
+  local normalized, opts = pcall(obsidian.config.normalize, user_opts)
+  if Obsidian and Obsidian.opts then
+    if not normalized then
+      log.err("%s\n\nKeeping the previous obsidian.nvim configuration.", opts)
+      return
+    end
+    require("obsidian.sync").shutdown()
+    require("obsidian.autocmds").reset()
+    require("obsidian.cache").shutdown()
+    obsidian.ui.shutdown()
+  end
   ---@class obsidian.state
   ---@field picker     obsidian.Picker          Picker to use.
   ---@field workspace  obsidian.Workspace       Current workspace.
@@ -70,9 +83,7 @@ obsidian.setup = function(user_opts)
   })
 
   Obsidian._setup_called = true
-  Obsidian._user_opts = user_opts or {}
-
-  local normalized, opts = pcall(obsidian.config.normalize, Obsidian._user_opts)
+  Obsidian._user_opts = user_opts
   if not normalized then
     Obsidian._config_error = tostring(opts)
     log.err("%s\n\nobsidian.nvim did not finish setup.", Obsidian._config_error)
@@ -106,9 +117,6 @@ obsidian.setup = function(user_opts)
     obsidian.commands.install_legacy()
   end
 
-  -- Register autocmds for keymaps, options and custom callbacks
-  require "obsidian.autocmds"
-
   -- Set global client.
   obsidian._client = client
 
@@ -116,6 +124,7 @@ obsidian.setup = function(user_opts)
   vim.g.obsidian_sync_on_write_debounce_ms = 2000
 
   obsidian.util.fire_callback("post_setup", Obsidian.opts.callbacks.post_setup)
+  require("obsidian.autocmds").setup()
 
   return client
 end

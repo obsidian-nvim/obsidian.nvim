@@ -46,9 +46,9 @@ local function note_status(buf, update_backlinks, callback)
   if note == nil then
     return callback(nil)
   end
+  local state = attached_bufs[buf]
   note:status(update_backlinks, function(info)
-    local state = attached_bufs[buf]
-    if not state then
+    if not state or attached_bufs[buf] ~= state then
       return callback(nil)
     end
     if info.backlinks ~= nil then
@@ -222,6 +222,19 @@ M.start = function(buf)
       pcall(vim.api.nvim_del_augroup_by_id, group)
     end,
   })
+end
+
+---Remove footer handlers and status from all attached buffers.
+M.shutdown = function()
+  for buf, state in pairs(attached_bufs) do
+    state.unregister()
+    pcall(vim.api.nvim_del_augroup_by_name, "obsidian.footer-" .. buf)
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+      vim.b[buf].obsidian_status = nil
+    end
+  end
+  attached_bufs = {}
 end
 
 M._event_affects_backlinks = event_affects_backlinks

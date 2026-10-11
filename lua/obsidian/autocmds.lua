@@ -5,7 +5,11 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local ignore = require "obsidian.ignore"
 local Workspace = require "obsidian.workspace"
-local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
+local M = {}
+local group = 0
+---@type table<integer, string>
+local includeexpr = {}
+local note_includeexpr = "v:lua.require('obsidian.link').includeexpr(v:fname)"
 
 -- wrapper for creating autocmd events
 ---@param pattern string
@@ -51,8 +55,11 @@ local function bufenter_callback(ev)
 
   local opts = Obsidian.opts
 
+  if includeexpr[ev.buf] == nil then
+    includeexpr[ev.buf] = vim.bo[ev.buf].includeexpr
+  end
   vim.b[ev.buf].obsidian_buffer = true
-  vim.bo[ev.buf].includeexpr = "v:lua.require('obsidian.link').includeexpr(v:fname)"
+  vim.bo[ev.buf].includeexpr = note_includeexpr
 
   if opts.comment.enabled then
     vim.o.commentstring = "%%%s%%"
@@ -80,81 +87,143 @@ local function bufenter_callback(ev)
   exec_autocmds "ObsidianNoteEnter"
 end
 
-vim.api.nvim_create_autocmd("FileType", {
-  group = group,
-  pattern = { "markdown", "quarto" },
-  callback = function(args)
-    create_autocmd("BufEnter", args.buf, bufenter_callback)
-    create_autocmd("BufLeave", args.buf, function(ev)
-      if not vim.b[ev.buf].obsidian_buffer then
-        return
-      end
-      exec_autocmds "ObsidianNoteLeave"
-    end)
-    create_autocmd("BufWritePre", args.buf, function(ev)
-      if not vim.b[ev.buf].obsidian_buffer then
-        return
-      end
-
-      exec_autocmds "ObsidianNoteWritePre"
-      local note = Note.from_buffer(ev.buf)
-      if not vim.b[ev.buf].obsidian_help then
-        pcall(vim.cmd, "undojoin")
-        note:update_frontmatter(ev.buf) -- Update buffer with new frontmatter.
-        pcall(vim.cmd, "undojoin")
-      end
-    end)
-    create_autocmd("BufWritePost", args.buf, function(ev)
-      if not vim.b[ev.buf].obsidian_buffer then
-        return
-      end
-      exec_autocmds "ObsidianNoteWritePost"
-    end)
-  end,
-})
-
--- Run enter_note callback.
-vim.api.nvim_create_autocmd("User", {
-  pattern = "ObsidianNoteEnter",
-  callback = function(ev)
-    util.fire_callback("enter_note", Obsidian.opts.callbacks.enter_note, Note.from_buffer(ev.buf))
-  end,
-})
-
--- Run leave_note callback.
-vim.api.nvim_create_autocmd("User", {
-  pattern = "ObsidianNoteLeave",
-  callback = function(ev)
-    util.fire_callback("leave_note", Obsidian.opts.callbacks.leave_note, Note.from_buffer(ev.buf))
-  end,
-})
-
--- Run pre_write_note callback
-vim.api.nvim_create_autocmd("User", {
-  pattern = "ObsidianNoteWritePre",
-  callback = function(ev)
-    util.fire_callback("pre_write_note", Obsidian.opts.callbacks.pre_write_note, Note.from_buffer(ev.buf))
-  end,
-})
-
--- One-shot sync trigger on buffer write.
-vim.api.nvim_create_autocmd("User", {
-  group = group,
-  pattern = "ObsidianNoteWritePost",
-  callback = function(ev)
-    local sync_opts = Obsidian.opts.sync
-    if not sync_opts or not sync_opts.enabled or sync_opts.trigger ~= "on_write" then
+---@param buf integer
+local function setup_buffer(buf)
+  vim.api.nvim_clear_autocmds { group = group, buffer = buf }
+  create_autocmd("BufEnter", buf, bufenter_callback)
+  create_autocmd("BufLeave", buf, function(ev)
+    if not vim.b[ev.buf].obsidian_buffer then
       return
     end
-    local fname = vim.api.nvim_buf_get_name(ev.buf or 0)
-    local ws = api.find_workspace(fname)
-    if not ws or not api.path_is_note(fname, ws) then
+    exec_autocmds "ObsidianNoteLeave"
+  end)
+  create_autocmd("BufWritePre", buf, function(ev)
+    if not vim.b[ev.buf].obsidian_buffer then
       return
     end
-    local sync = require "obsidian.sync"
-    if not sync.is_configured(ws) then
+
+    exec_autocmds "ObsidianNoteWritePre"
+    local note = Note.from_buffer(ev.buf)
+    if not vim.b[ev.buf].obsidian_help then
+      pcall(vim.cmd, "undojoin")
+      note:update_frontmatter(ev.buf) -- Update buffer with new frontmatter.
+      pcall(vim.cmd, "undojoin")
+    end
+  end)
+  create_autocmd("BufWritePost", buf, function(ev)
+    if not vim.b[ev.buf].obsidian_buffer then
       return
     end
-    sync.sync_once_debounced(ws)
-  end,
-})
+    exec_autocmds "ObsidianNoteWritePost"
+  end)
+end
+
+---Remove buffer state and handlers owned by the previous setup.
+M.reset = function()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) and vim.b[buf].obsidian_buffer then
+      vim.b[buf].obsidian_buffer = nil
+      if vim.bo[buf].includeexpr == note_includeexpr then
+        vim.bo[buf].includeexpr = includeexpr[buf] or ""
+      end
+      for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(buf, "n")) do
+        if
+          mapping.lhs
+          and vim.list_contains(
+            { "Obsidian Smart Action", "Obsidian Next Link", "Obsidian Previous Link" },
+            mapping.desc
+          )
+        then
+          vim.api.nvim_buf_del_keymap(buf, "n", mapping.lhs)
+        end
+      end
+    end
+  end
+  includeexpr = {}
+  local footer = package.loaded["obsidian.footer"]
+  if footer then
+    footer.shutdown()
+  end
+  for _, client in ipairs(vim.lsp.get_clients { name = "obsidian-ls" }) do
+    for _, buf in ipairs(vim.tbl_keys(client.attached_buffers)) do
+      vim.lsp.buf_detach_client(buf, client.id)
+    end
+    client:stop()
+  end
+  if group ~= 0 then
+    vim.api.nvim_clear_autocmds { group = group }
+  end
+end
+
+---Register handlers and apply configuration to the current note.
+M.setup = function()
+  group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
+  vim.api.nvim_create_autocmd("FileType", {
+    group = group,
+    pattern = { "markdown", "quarto" },
+    callback = function(args)
+      setup_buffer(args.buf)
+    end,
+  })
+
+  -- Run enter_note callback.
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = "ObsidianNoteEnter",
+    callback = function(ev)
+      util.fire_callback("enter_note", Obsidian.opts.callbacks.enter_note, Note.from_buffer(ev.buf))
+    end,
+  })
+
+  -- Run leave_note callback.
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = "ObsidianNoteLeave",
+    callback = function(ev)
+      util.fire_callback("leave_note", Obsidian.opts.callbacks.leave_note, Note.from_buffer(ev.buf))
+    end,
+  })
+
+  -- Run pre_write_note callback
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = "ObsidianNoteWritePre",
+    callback = function(ev)
+      util.fire_callback("pre_write_note", Obsidian.opts.callbacks.pre_write_note, Note.from_buffer(ev.buf))
+    end,
+  })
+
+  -- One-shot sync trigger on buffer write.
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = "ObsidianNoteWritePost",
+    callback = function(ev)
+      local sync_opts = Obsidian.opts.sync
+      if not sync_opts or not sync_opts.enabled or sync_opts.trigger ~= "on_write" then
+        return
+      end
+      local fname = vim.api.nvim_buf_get_name(ev.buf or 0)
+      local ws = api.find_workspace(fname)
+      if not ws or not api.path_is_note(fname, ws) then
+        return
+      end
+      local sync = require "obsidian.sync"
+      if not sync.is_configured(ws) then
+        return
+      end
+      sync.sync_once_debounced(ws)
+    end,
+  })
+
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) and vim.list_contains({ "markdown", "quarto" }, vim.bo[buf].filetype) then
+      setup_buffer(buf)
+    end
+  end
+  local buf = vim.api.nvim_get_current_buf()
+  if vim.list_contains({ "markdown", "quarto" }, vim.bo[buf].filetype) then
+    bufenter_callback { buf = buf, file = vim.api.nvim_buf_get_name(buf) }
+  end
+end
+
+return M
