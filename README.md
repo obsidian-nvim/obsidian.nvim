@@ -358,6 +358,9 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/xiangnongWu2233"><img src="https://avatars.githubusercontent.com/u/68880238?v=4?s=100" width="100px;" alt="Xiangnong Wu"/><br /><sub><b>Xiangnong Wu</b></sub></a><br /><a href="#code-xiangnongWu2233" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/MoltenMonster"><img src="https://avatars.githubusercontent.com/u/42647030?v=4?s=100" width="100px;" alt="MoltenMonster"/><br /><sub><b>MoltenMonster</b></sub></a><br /><a href="#code-MoltenMonster" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://sgh.ng"><img src="https://avatars.githubusercontent.com/u/58419736?v=4?s=100" width="100px;" alt="Samuel Huang"/><br /><sub><b>Samuel Huang</b></sub></a><br /><a href="#code-sghng" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
