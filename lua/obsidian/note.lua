@@ -449,7 +449,7 @@ end
 
 --- Get markdown display info about the note.
 ---
----@param opts { label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|?
+---@param opts { label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|?, title: string|? }|?
 ---
 ---@return string
 Note.display_info = function(self, opts)
@@ -475,6 +475,13 @@ Note.display_info = function(self, opts)
 
   if #self.tags > 0 then
     info[#info + 1] = ("**tags:** `#%s`"):format(table.concat(self.tags, "`, `#"))
+  end
+
+  if opts.title ~= nil then
+    local title = vim.trim(opts.title)
+    if title ~= "" then
+      info[#info + 1] = ("**title:** %s"):format(title)
+    end
   end
 
   if opts.anchor or opts.block then

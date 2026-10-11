@@ -1143,4 +1143,23 @@ start: morning
   Obsidian.opts.frontmatter.func = prev_func
 end
 
+T["display_info"] = new_set()
+
+T["display_info"]["should include the title line when given"] = function()
+  local note = M.new("foo", { "Foo" }, { "bar" })
+  local info = note:display_info { title = "Some Title" }
+  eq(true, info:find("**title:** Some Title", 1, true) ~= nil)
+  eq(true, info:find("**id:** `foo`", 1, true) ~= nil)
+end
+
+T["display_info"]["should omit the title line when not given"] = function()
+  local note = M.new("foo", { "Foo" }, { "bar" })
+  eq(nil, note:display_info({}):find("**title:**", 1, true))
+end
+
+T["display_info"]["should omit an empty title"] = function()
+  local note = M.new("foo", { "Foo" }, { "bar" })
+  eq(nil, note:display_info({ title = "  " }):find("**title:**", 1, true))
+end
+
 return T
