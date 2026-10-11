@@ -1087,15 +1087,24 @@ Note.save = function(self, opts)
   local save_path = Path.new(path):resolve()
   assert(save_path:parent()):mkdir { parents = true, exist_ok = true }
 
+  local function buffer_matches_save_path(bufnr)
+    local name = vim.api.nvim_buf_get_name(bufnr)
+    if name == "" then
+      return false
+    end
+
+    local buffer_path = Path.new(name):resolve().filename
+    if vim.fn.has "win32" == 1 then
+      return buffer_path:lower() == save_path.filename:lower()
+    end
+    return buffer_path == save_path.filename
+  end
+
   -- Read contents from a modified buffer when one is open for this file.
   ---@type integer?
   local source_bufnr
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if
-      vim.api.nvim_buf_is_loaded(bufnr)
-      and vim.api.nvim_buf_get_name(bufnr) == save_path.filename
-      and vim.bo[bufnr].modified
-    then
+    if vim.api.nvim_buf_is_loaded(bufnr) and buffer_matches_save_path(bufnr) and vim.bo[bufnr].modified then
       source_bufnr = bufnr
       break
     end
@@ -1189,7 +1198,7 @@ Note.save = function(self, opts)
     -- `*`, etc. raise E94. Pass the bufnr instead, iterating to cover
     -- every buffer loaded from this path.
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.api.nvim_buf_get_name(bufnr) == save_path.filename then
+      if buffer_matches_save_path(bufnr) then
         vim.cmd.checktime(bufnr)
       end
     end
