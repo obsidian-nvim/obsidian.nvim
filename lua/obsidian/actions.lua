@@ -1093,18 +1093,52 @@ local function merge_note(dst_note)
   local current_note = api.current_note()
   assert(current_note, "Must be in a note to merge")
 
+  if current_note.path == dst_note.path then
+    return log.warn "Cannot merge a note into itself"
+  end
+
+  local backlinks = current_note:backlinks()
   local message = ('Are you sure you want to merge "%s" to "%s"? "%s" will be deleted.'):format(
     current_note.id,
     dst_note.id,
     current_note.id
   )
-
-  if api.confirm(message) == "Yes" then
-    dst_note:merge(current_note)
-    dst_note:open { sync = true }
-    vim.fs.rm(tostring(current_note.path))
-    require("obsidian.cache").notes.delete(tostring(current_note.path))
+  if #backlinks > 0 then
+    message = message .. (" %d backlink(s) will still point to the deleted note."):format(#backlinks)
   end
+
+  if api.confirm(message) ~= "Yes" then
+    return
+  end
+
+  local source_body = current_note:body_lines()
+  dst_note:merge(current_note)
+  local ok, err = pcall(function()
+    dst_note:save {
+      insert_frontmatter = dst_note.has_frontmatter,
+      update_content = function(lines)
+        if #source_body == 0 then
+          return lines
+        end
+
+        local merged = vim.deepcopy(lines)
+        if #merged > 0 and merged[#merged] ~= "" and source_body[1] ~= "" then
+          merged[#merged + 1] = ""
+        end
+        vim.list_extend(merged, source_body)
+        return merged
+      end,
+    }
+  end)
+  if not ok then
+    return log.err("Failed to save merged note: " .. tostring(err))
+  end
+
+  dst_note:open { sync = true }
+  vim.fs.rm(tostring(current_note.path))
+  local cache = require "obsidian.cache"
+  cache.notes.delete(tostring(current_note.path))
+  cache.notes.refresh(tostring(dst_note.path))
 end
 
 ---@param dst_note obsidian.Note?
