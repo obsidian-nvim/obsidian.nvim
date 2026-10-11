@@ -7,7 +7,7 @@ local api = require "obsidian.api"
 
 local M = {}
 
---- Maximum display characters for note preview titles.
+--- Maximum display characters for note preview titles and head snippets.
 local MAX_TITLE_CHARS = 80
 
 ---@class obsidian.resolver.AttachmentCtx
@@ -216,11 +216,56 @@ local function truncate(text, max_chars)
   return text
 end
 
+--- Iterate the meaningful body lines of a note (frontmatter, blank lines, and
+--- `%%` / `<!-- -->` comments are skipped). Code-fence markers and fenced
+--- content are yielded like normal lines; callers decide how to treat them.
+---
+---@param note obsidian.Note
+---@return fun(): string|?
+local function iter_body_lines(note)
+  local contents = note.contents
+  if contents == nil then
+    return function() end
+  end
+
+  local i = (note.has_frontmatter and note.frontmatter_end_line or 0) + 1
+  local in_obsidian_comment = false
+  local in_html_comment = false
+
+  return function()
+    while i <= #contents do
+      local line = vim.trim(contents[i] or "")
+      i = i + 1
+      if in_obsidian_comment then
+        if line:find("%", 1, true) then
+          in_obsidian_comment = false
+        end
+      elseif in_html_comment then
+        if line:find("-->", 1, true) then
+          in_html_comment = false
+        end
+      elseif line ~= "" and vim.startswith(line, "%%") then
+        -- Obsidian comment; only opens a block when not closed on the same line.
+        if not line:find("%", 3, true) then
+          in_obsidian_comment = true
+        end
+      elseif line ~= "" and vim.startswith(line, "<!--") then
+        -- HTML comment; only opens a block when not closed on the same line.
+        if not line:find("-->", 5, true) then
+          in_html_comment = true
+        end
+      elseif line ~= "" then
+        return line
+      end
+    end
+    return nil
+  end
+end
+
 --- Extract a human-readable title for a note from already-loaded state.
 ---
---- Priority: frontmatter `title` metadata, the first H1 heading in the body, then the
---- first non-empty body line that is not a comment (`%%` or `<!-- -->`). Returns `nil`
---- when the note has no loaded contents (e.g. notes that only exist in memory).
+--- Priority: frontmatter `title` metadata, then the first H1 heading in the body.
+--- Returns `nil` when the note has no loaded contents or no semantic title.
 ---
 ---@param note obsidian.Note
 ---@return string|?
@@ -235,50 +280,49 @@ local function note_title(note)
     return tostring(metadata_title)
   end
 
-  local contents = note.contents
-  if contents == nil then
-    return nil
-  end
-
-  local body_start = (note.has_frontmatter and note.frontmatter_end_line or 0) + 1
-  local in_obsidian_comment = false
-  local in_html_comment = false
-  local first_line
-
-  for i = body_start, #contents do
-    local line = vim.trim(contents[i])
-    if in_obsidian_comment then
-      if line:find("%", 1, true) then
-        in_obsidian_comment = false
-      end
-    elseif in_html_comment then
-      if line:find("-->", 1, true) then
-        in_html_comment = false
-      end
-    elseif line ~= "" then
-      if vim.startswith(line, "%%") then
-        -- Obsidian comment; only opens a block when not closed on the same line.
-        if not line:find("%", 3, true) then
-          in_obsidian_comment = true
-        end
-      elseif vim.startswith(line, "<!--") then
-        -- HTML comment; only opens a block when not closed on the same line.
-        if not line:find("-->", 5, true) then
-          in_html_comment = true
-        end
-      else
-        local h1 = line:match "^#%s+(.-)%s*$"
-        if h1 and h1 ~= "" then
-          return truncate(h1, MAX_TITLE_CHARS)
-        end
-        if first_line == nil then
-          first_line = truncate(line, MAX_TITLE_CHARS)
-        end
+  local in_code_block = false
+  for line in iter_body_lines(note) do
+    if line:match "^```" then
+      in_code_block = not in_code_block
+    elseif not in_code_block then
+      local h1 = line:match "^#%s+(.-)%s*$"
+      if h1 and h1 ~= "" then
+        return truncate(h1, MAX_TITLE_CHARS)
       end
     end
   end
 
-  return first_line
+  return nil
+end
+
+--- Build a short head snippet from the beginning of the note body.
+---
+--- Blank lines, comments, code-fence markers, and headings are skipped; the
+--- remaining text is whitespace-collapsed and truncated. Returns `nil` when
+--- the note has no loaded contents or no previewable text.
+---
+---@param note obsidian.Note
+---@return string|?
+local function note_head(note)
+  ---@type string[]
+  local parts = {}
+
+  for line in iter_body_lines(note) do
+    -- Skip code-fence markers (fenced content is still shown) and headings
+    -- (they read poorly inside a collapsed snippet).
+    if not (line:match "^```" or line:match "^#+%s") then
+      parts[#parts + 1] = line
+      if vim.fn.strchars(table.concat(parts, " ")) >= MAX_TITLE_CHARS then
+        break
+      end
+    end
+  end
+
+  local head = vim.trim(table.concat(parts, " "))
+  if head == "" then
+    return nil
+  end
+  return truncate(head, MAX_TITLE_CHARS)
 end
 
 --- Render the default note preview.
@@ -286,15 +330,19 @@ end
 ---@param ctx obsidian.resolver.NotePreviewCtx
 ---@return string
 M.default_note_preview = function(ctx)
-  local title
+  local title, preview
   if ctx.scope == "lsp.completion" then
     title = note_title(ctx.note)
+    if title == nil then
+      preview = note_head(ctx.note)
+    end
   end
   return ctx.note:display_info {
     label = ctx.label,
     anchor = ctx.anchor,
     block = ctx.block,
     title = title,
+    preview = preview,
   }
 end
 

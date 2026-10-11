@@ -430,7 +430,7 @@ Body text
   eq(true, item.documentation.value:find("**title:** Central Limit Theorem", 1, true) ~= nil)
 end
 
-T["completion"]["documentation falls back to the first non-empty non-comment body line"] = function()
+T["completion"]["documentation shows preview from first body content"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[ta",
     ["target.md"] = [==[
@@ -441,7 +441,7 @@ tags: []
 %% an obsidian comment %%
 <!-- an html comment -->
 %%
-# Not a title
+# Not a title, inside a comment
 %%
 Visible intro line.
 ]==],
@@ -455,14 +455,23 @@ Visible intro line.
     return candidate.label == "[[target]]"
   end)
   assert(item, "no completion item for target")
-  eq(true, item.documentation.value:find("**title:** Visible intro line.", 1, true) ~= nil)
+  eq(true, item.documentation.value:find("**preview:** Visible intro line.", 1, true) ~= nil)
 end
 
-T["completion"]["documentation truncates long titles"] = function()
+T["completion"]["documentation preview skips fence markers and collapses lines"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[ta",
     ["target.md"] = [==[
-# ]==] .. string.rep("x", 100),
+---
+id: target
+tags: []
+---
+```lua
+local x = 1
+```
+## Sub heading
+Prose continues here.
+]==],
   })
 
   child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
@@ -473,10 +482,27 @@ T["completion"]["documentation truncates long titles"] = function()
     return candidate.label == "[[target]]"
   end)
   assert(item, "no completion item for target")
-  local title = item.documentation.value:match "%*%*title:%*%* (.*)"
-  assert(title, "no title line in documentation")
-  eq(80, vim.fn.strchars(title))
-  eq(true, vim.endswith(title, "…"))
+  eq(true, item.documentation.value:find("**preview:** local x = 1 Prose continues here.", 1, true) ~= nil)
+end
+
+T["completion"]["documentation truncates long previews"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = "[==[" .. string.rep("x", 100) .. "]==]",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  local preview = item.documentation.value:match "%*%*preview:%*%* ([^\n]*)"
+  assert(preview, "no preview line in documentation")
+  eq(80, vim.fn.strchars(preview))
+  eq(true, vim.endswith(preview, "…"))
 end
 
 T["completion"]["note_preview resolver overrides documentation"] = function()
