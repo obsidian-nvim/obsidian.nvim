@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- YAML parsing now preserves sibling fields in arrays of frontmatter objects.
 - Sync setup now prompts for the end-to-end encryption password when linking an existing encrypted vault (#984).
 
 ## [v3.16.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.8) - 2026-09-28

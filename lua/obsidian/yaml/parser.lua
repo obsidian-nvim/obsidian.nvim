@@ -295,6 +295,7 @@ Parser._try_parse_field = function(self, lines, i, text, col)
   col = col or line.content_col
 
   local _, key, value
+  local is_sequence_mapping = type(self._path[#self._path]) == "number"
 
   -- First look for start of mapping, array, block, etc, e.g. 'foo:'
   _, _, key = string.find(text, YAML_MAPPING_START_REGEX)
@@ -335,6 +336,12 @@ Parser._try_parse_field = function(self, lines, i, text, col)
       while next_line ~= nil and (next_line:is_empty() or next_line.indent == continuation_indent) do
         local next_value_str = yaml_util.strip_comments(next_line.content)
         if string.len(next_value_str) > 0 then
+          if
+            is_sequence_mapping
+            and (next_value_str:match(YAML_MAPPING_START_REGEX) or next_value_str:match(YAML_MAPPING_INLINE_REGEX))
+          then
+            break
+          end
           local next_value = self:_parse_inline_value(j, next_value_str, next_line.content_col)
           if type(next_value) ~= "string" then
             error(self:_error_msg("expected a string, found " .. type(next_value), j, next_line.content))
@@ -455,7 +462,7 @@ Parser._try_parse_array_item = function(self, lines, i, text, col)
     return true, i + 1, value
   elseif vim.startswith(text, "- ") then
     local array_item_str = text:sub(3)
-    local value
+    local value, value_type
     -- Check for null entry.
     if array_item_str == "" then
       value = self:_new_null()
@@ -463,7 +470,17 @@ Parser._try_parse_array_item = function(self, lines, i, text, col)
       i = i + 1
     else
       local item_col = col + 2 + #array_item_str - #util.lstrip_whitespace(array_item_str)
-      i, value = self:_parse_next(lines, i, vim.trim(array_item_str), item_col)
+      i, value, value_type = self:_parse_next(lines, i, vim.trim(array_item_str), item_col)
+      if value_type == YamlType.Mapping and lines[i] ~= nil and lines[i].indent > line.indent then
+        local continuation
+        i, continuation = self:_parse_mapping(i, lines)
+        for key, item in pairs(continuation) do
+          if value[key] ~= nil then
+            error(self:_error_msg("duplicate key '" .. key .. "' found in table", i))
+          end
+          value[key] = item
+        end
+      end
     end
     return true, i, value
   else
