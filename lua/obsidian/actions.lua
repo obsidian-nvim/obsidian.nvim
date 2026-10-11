@@ -1647,10 +1647,16 @@ end
 local function property_records_from_notes(notes)
   local records = {}
   for _, note in ipairs(notes) do
+    -- note.metadata excludes `id`, `aliases` and `tags`; include them so records match the cache rows.
+    local properties = vim.tbl_extend("force", note.metadata or {}, {
+      id = note.path and note.id ~= note.path.stem and note.id or nil,
+      aliases = #note.aliases > 0 and note.aliases or nil,
+      tags = #note.tags > 0 and note.tags or nil,
+    })
     records[#records + 1] = {
       path = tostring(note.path),
       display_name = note:display_name(),
-      properties = note.metadata or {},
+      properties = properties,
     }
   end
   return records

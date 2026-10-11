@@ -74,6 +74,11 @@ function M.build(abs_path, _vault_root)
       properties[k] = v
     end
   end
+  -- note.metadata excludes `id`, `aliases` and `tags`; include them so they are searchable as properties.
+  -- An `id` equal to the file stem is the parser's fallback, not a frontmatter value.
+  properties.id = note.path and note.id ~= note.path.stem and note.id or nil
+  properties.aliases = #note.aliases > 0 and note.aliases or nil
+  properties.tags = #note.tags > 0 and note.tags or nil
   local tags_lower = {}
   local tags_seen = {}
   local function add_tag(tag)
