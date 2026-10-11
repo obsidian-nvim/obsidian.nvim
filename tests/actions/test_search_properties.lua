@@ -16,16 +16,14 @@ T["search_properties opens a three-stage picker over frontmatter"] = function()
 
     picker.select = function(items, opts, on_choice)
       if not key_select then
-        key_select = { items = items, prompt = opts.prompt }
-        table.sort(key_select.items)
-        on_choice { "status" }
+        key_select = { items = vim.tbl_map(opts.format_item, items), prompt = opts.prompt }
+        on_choice { items[1] }
         return
       end
 
       if not value_select then
-        value_select = { items = items, prompt = opts.prompt }
-        table.sort(value_select.items)
-        on_choice { "active" }
+        value_select = { items = vim.tbl_map(opts.format_item, items), prompt = opts.prompt }
+        on_choice { items[1] }
         return
       end
 
@@ -45,9 +43,9 @@ T["search_properties opens a three-stage picker over frontmatter"] = function()
     { desc = "search_properties picker" }
   )
 
-  eq({ "status", "type" }, result.key_select.items)
+  eq({ "status (2)", "type (2)" }, result.key_select.items)
   eq("Properties", result.key_select.prompt)
-  eq({ "active", "done" }, result.value_select.items)
+  eq({ "active (1)", "done (1)" }, result.value_select.items)
   eq("status", result.value_select.prompt)
   eq(1, result.note_select.count)
   eq("status: active", result.note_select.prompt)
@@ -80,16 +78,14 @@ T["search_properties uses the cache when enabled, without scanning the filesyste
 
     picker.select = function(items, opts, on_choice)
       if not key_select then
-        key_select = { items = items, prompt = opts.prompt }
-        table.sort(key_select.items)
-        on_choice { "status" }
+        key_select = { items = vim.tbl_map(opts.format_item, items), prompt = opts.prompt }
+        on_choice { items[1] }
         return
       end
 
       if not value_select then
-        value_select = { items = items, prompt = opts.prompt }
-        table.sort(value_select.items)
-        on_choice { "active" }
+        value_select = { items = vim.tbl_map(opts.format_item, items), prompt = opts.prompt }
+        on_choice { items[1] }
         return
       end
 
@@ -110,9 +106,9 @@ T["search_properties uses the cache when enabled, without scanning the filesyste
     { desc = "search_properties picker (cache-enabled)" }
   )
 
-  eq({ "status", "type" }, result.key_select.items)
+  eq({ "status (2)", "type (2)" }, result.key_select.items)
   eq("Properties", result.key_select.prompt)
-  eq({ "active", "done" }, result.value_select.items)
+  eq({ "active (1)", "done (1)" }, result.value_select.items)
   eq("status", result.value_select.prompt)
   eq(1, result.note_select.count)
   eq("status: active", result.note_select.prompt)
@@ -164,8 +160,9 @@ for name, setup in pairs {
     local result = h.child_await(child, setup .. [[
       local picker = require "obsidian.picker"
       picker.select = function(items)
-        table.sort(items)
-        done(items)
+        done(vim.tbl_map(function(item)
+          return item.name
+        end, items))
       end
 
       require("obsidian.actions").search_properties()
@@ -198,6 +195,37 @@ T["properties command joins a value containing spaces"] = function()
   eq(1, result.count)
   eq("status: in progress", result.prompt)
   eq("a", result.text)
+end
+
+T["search_properties counts the notes carrying each key and value"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["a.md"] = "---\ntype: note\ntags: [x, x]\n---\n# A",
+    ["b.md"] = "---\ntype: note\ntags: [x, y]\n---\n# B",
+    ["c.md"] = "---\ntype: idea\n---\n# C",
+  })
+
+  local result = h.child_await(
+    child,
+    [[
+    local picker = require "obsidian.picker"
+    local key_labels
+    picker.select = function(items, opts, on_choice)
+      local labels = vim.tbl_map(opts.format_item, items)
+      if not key_labels then
+        key_labels = labels
+        on_choice { items[2] }
+        return
+      end
+      done { keys = key_labels, values = labels }
+    end
+
+    require("obsidian.actions").search_properties()
+  ]],
+    { desc = "search_properties counts" }
+  )
+
+  eq({ "tags (2)", "type (3)" }, result.keys)
+  eq({ "idea (1)", "note (2)" }, result.values)
 end
 
 return T

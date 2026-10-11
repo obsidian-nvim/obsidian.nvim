@@ -1546,15 +1546,41 @@ end
 ---@field display_name string
 ---@field properties   table<string, any>
 
+---@class obsidian.PropertyCount
+---@field name  string
+---@field count integer number of notes carrying the key or value
+
+---@param counts table<string, integer>
+---@return obsidian.PropertyCount[]
+local function sorted_counts(counts)
+  local entries = {}
+  for name, count in pairs(counts) do
+    entries[#entries + 1] = { name = name, count = count }
+  end
+  table.sort(entries, function(a, b)
+    return a.name < b.name
+  end)
+  return entries
+end
+
+---@param entry obsidian.PropertyCount
+---@return string
+local function format_count(entry)
+  return string.format("%s (%d)", entry.name, entry.count)
+end
+
 ---@param records obsidian.PropertyRecord[]
 ---@param key     string
----@return string[]
+---@return obsidian.PropertyCount[]
 local function collect_property_values(records, key)
-  ---@type table<string, boolean>
-  local seen = {}
+  ---@type table<string, integer>
+  local counts = {}
   for _, record in ipairs(records) do
     local value = record.properties[key]
     if value ~= nil and value ~= vim.NIL then
+      -- A note counts once per value, however often the value repeats in it.
+      ---@type table<string, boolean>
+      local seen = {}
       if vim.islist(value) then
         for _, item in ipairs(value) do
           if item ~= vim.NIL then
@@ -1564,9 +1590,12 @@ local function collect_property_values(records, key)
       else
         seen[tostring(value)] = true
       end
+      for v in pairs(seen) do
+        counts[v] = (counts[v] or 0) + 1
+      end
     end
   end
-  return vim.tbl_keys(seen)
+  return sorted_counts(counts)
 end
 
 ---@param record obsidian.PropertyRecord
@@ -1632,12 +1661,11 @@ local function pick_property_value(records, key)
     log.warn "No values found for that property"
     return
   end
-  table.sort(values)
 
-  picker.select(values, { prompt = key }, function(items)
+  picker.select(values, { prompt = key, format_item = format_count }, function(items)
     local value = items and items[1]
     if value then
-      gather_property_picker_list(records, key, value)
+      gather_property_picker_list(records, key, value.name)
     end
   end)
 end
@@ -1681,23 +1709,23 @@ local function property_records_from_cache(rows)
 end
 
 ---@param records obsidian.PropertyRecord[]
----@return string[]
+---@return obsidian.PropertyCount[]
 local function collect_property_keys(records)
-  ---@type table<string, boolean>
-  local seen = {}
+  ---@type table<string, integer>
+  local counts = {}
   for _, record in ipairs(records) do
     for k, _ in pairs(record.properties) do
-      seen[k] = true
+      counts[k] = (counts[k] or 0) + 1
     end
   end
-  return vim.tbl_keys(seen)
+  return sorted_counts(counts)
 end
 
 --- Enumerate notes for the properties picker. Prefers the vault-wide note
 --- cache (already kept live by file-watch events) over re-scanning and
 --- re-parsing every note on each invocation.
 ---
----@param callback fun(keys: string[], records: obsidian.PropertyRecord[])
+---@param callback fun(keys: obsidian.PropertyCount[], records: obsidian.PropertyRecord[])
 local function list_properties_async(callback)
   local cache = require "obsidian.cache"
   if cache.is_enabled() then
@@ -1732,11 +1760,10 @@ M.search_properties = function(key, value)
       return
     end
 
-    table.sort(keys)
-    picker.select(keys, { prompt = "Properties" }, function(items)
+    picker.select(keys, { prompt = "Properties", format_item = format_count }, function(items)
       local chosen_key = items and items[1]
       if chosen_key then
-        pick_property_value(records, chosen_key)
+        pick_property_value(records, chosen_key.name)
       end
     end)
   end)
