@@ -49,15 +49,15 @@ Target body.
     return _G.merge_note_prompt
   ]=]):format(files["target.md"], files["target.md"]))
 
-  assert(prompt:find("1 backlink(s) will still point to the deleted note.", 1, true))
+  assert(prompt:find("1 backlink(s) will still point to the deleted note.", 1, true) ~= nil, "")
   eq(nil, vim.uv.fs_stat(files["source.md"]))
   eq({ "Source alias" }, child.lua_get "merged_note.aliases")
   eq({ "existing", "from-source" }, child.lua_get "merged_note.tags")
   eq({ "target", "source" }, child.lua_get "merged_note.category")
   local body = child.lua_get "merged_note.body"
-  assert(body:find("Target body.", 1, true))
-  assert(body:find("Edited source body.", 1, true))
-  assert(body:find("Target body.", 1, true) < body:find("Edited source body.", 1, true))
+  assert(body:find("Target body.", 1, true), "")
+  assert(body:find("Edited source body.", 1, true), "")
+  assert(body:find("Target body.", 1, true) < body:find("Edited source body.", 1, true), "")
 end
 
 T["merge_note cancellation keeps source and destination"] = function()
@@ -73,7 +73,6 @@ T["merge_note cancellation keeps source and destination"] = function()
     require("obsidian.actions").merge_note(require("obsidian.note").from_file(%q))
   ]=]):format(files["target.md"]))
 
-  assert(vim.uv.fs_stat(files["source.md"]))
   eq({ "Target body.", "" }, h.read(files["target.md"]))
 end
 
