@@ -1087,16 +1087,32 @@ Note.save = function(self, opts)
   local save_path = Path.new(path):resolve()
   assert(save_path:parent()):mkdir { parents = true, exist_ok = true }
 
-  -- Read contents from existing file or buffer, if there is one.
-  -- TODO: check for open buffer?
+  -- Read contents from a modified buffer when one is open for this file.
+  ---@type integer?
+  local source_bufnr
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if
+      vim.api.nvim_buf_is_loaded(bufnr)
+      and vim.api.nvim_buf_get_name(bufnr) == save_path.filename
+      and vim.bo[bufnr].modified
+    then
+      source_bufnr = bufnr
+      break
+    end
+  end
+
   ---@type string[]
   local content = {}
   ---@type string[]
   local existing_frontmatter
   local replace_frontmatter = true
   local has_trailing_newline = true -- Default to true for new files.
+  local source_lines = {}
 
-  if self.path:is_file() then
+  if source_bufnr then
+    source_lines = vim.api.nvim_buf_get_lines(source_bufnr, 0, -1, false)
+    has_trailing_newline = vim.bo[source_bufnr].endofline
+  elseif self.path:is_file() then
     -- Check if the file ends with a newline.
     local file = io.open(tostring(self.path), "rb")
     if file then
@@ -1109,10 +1125,12 @@ Note.save = function(self, opts)
       file:close()
     end
 
-    local source_lines = {}
     for line in io.lines(tostring(self.path)) do
       source_lines[#source_lines + 1] = line:gsub("\r$", "")
     end
+  end
+
+  if source_bufnr or self.path:is_file() then
     local document = Document.parse(source_lines)
     local frontmatter = document.frontmatter
     existing_frontmatter = {}
@@ -1156,6 +1174,15 @@ Note.save = function(self, opts)
     file_content = file_content .. "\n"
   end
   util.write_file(tostring(save_path), file_content)
+
+  if source_bufnr then
+    local current_lines = vim.api.nvim_buf_get_lines(source_bufnr, 0, -1, false)
+    if not vim.deep_equal(current_lines, new_lines) then
+      vim.api.nvim_buf_set_lines(source_bufnr, 0, -1, false, new_lines)
+    end
+    vim.bo[source_bufnr].endofline = has_trailing_newline
+    vim.bo[source_bufnr].modified = false
+  end
 
   if opts.check_buffers then
     -- `:checktime <name>` parses {name} as a Vim regex, so paths with `[`,

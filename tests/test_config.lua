@@ -37,6 +37,14 @@ T["normalize"]["should migrate preferred_link_style to link.style"] = function()
   eq(nil, opts.preferred_link_style)
 end
 
+T["normalize"]["should remove deprecated mappings"] = function()
+  local opts = normalize {
+    mappings = {},
+  }
+
+  eq(nil, opts.mappings)
+end
+
 T["normalize"]["should prefer explicit link.style over deprecated preferred_link_style"] = function()
   local opts = normalize {
     preferred_link_style = "markdown",
