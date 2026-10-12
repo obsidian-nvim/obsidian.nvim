@@ -135,6 +135,7 @@ T["caches hint responses across document changes until invalidated"] = function(
   eq(1, child.lua_get "_G.inlay_resolver_calls")
 
   child.type_keys "<Esc>"
+  child.lua [[vim.wait(300)]]
   eq(vim.list_extend(link_hints(0, 2, 6), link_hints(0, 7, 11)), run_inlay_hint())
   eq(2, child.lua_get "_G.inlay_resolver_calls")
   child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
@@ -173,6 +174,25 @@ T["caches mention symbols until the note cache changes"] = function()
     child.lua_get [[vim.tbl_contains(vim.tbl_map(function(s) return s.text end, _G.cached_symbols_after_update), "destination")]]
   )
   child.lua [[require("obsidian.cache").notes.all = _G.original_notes_all]]
+end
+
+T["refreshes hints after normal-mode edits and undo"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
+  child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 2]], { desc = "initial native hints" })
+
+  child.lua [[vim.api.nvim_buf_set_lines(0, 0, -1, false, { "no match" })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 0]], { desc = "hints removed after edit" })
+
+  child.lua [[vim.cmd "undo"]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 2]], { desc = "hints restored after undo" })
 end
 
 T["resolves native hints before accepting them"] = function()

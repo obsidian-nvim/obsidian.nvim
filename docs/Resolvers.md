@@ -137,4 +137,4 @@ resolvers = {
 }
 ```
 
-The built-in resolver returns link-suggestion hints for the requested range. Hint results are reused across document-change notifications to avoid re-running resolvers while editing; hints refresh after leaving insert mode or saving the note. Accepting a hint also triggers a refresh.
+The built-in resolver returns link-suggestion hints for the requested range. Hint results are reused across document-change notifications to avoid re-running resolvers while editing. A debounced refresh follows normal-mode edits (including undo), leaving insert mode, and saving the note. Accepting a hint also triggers a refresh.
