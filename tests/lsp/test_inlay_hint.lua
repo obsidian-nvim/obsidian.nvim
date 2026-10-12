@@ -108,6 +108,73 @@ T["publishes link suggestions to native inlay hint interface"] = function()
   )
 end
 
+T["caches hint responses across document changes until invalidated"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  child.lua [[
+    _G.inlay_resolver_calls = 0
+    local resolvers = require "obsidian.resolvers"
+    local original_resolve = resolvers.resolve
+    _G.original_resolve = original_resolve
+    resolvers.resolve = function(...)
+      _G.inlay_resolver_calls = _G.inlay_resolver_calls + 1
+      return original_resolve(...)
+    end
+  ]]
+
+  local first = run_inlay_hint()
+  eq(1, child.lua_get "_G.inlay_resolver_calls")
+
+  child.type_keys "i"
+  child.lua [[vim.api.nvim_buf_set_lines(0, 0, -1, false, { "a test test" })]]
+  eq(first, run_inlay_hint())
+  eq(1, child.lua_get "_G.inlay_resolver_calls")
+
+  child.type_keys "<Esc>"
+  eq(vim.list_extend(link_hints(0, 2, 6), link_hints(0, 7, 11)), run_inlay_hint())
+  eq(2, child.lua_get "_G.inlay_resolver_calls")
+  child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
+end
+
+T["caches mention symbols until the note cache changes"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["target.md"] = "# target",
+    ["source.md"] = "target",
+  })
+  setup_cache()
+
+  child.lua(([=[
+    local cache = require "obsidian.cache"
+    local original_all = cache.notes.all
+    _G.original_notes_all = original_all
+    _G.symbol_rows_reads = 0
+    cache.notes.all = function(...)
+      _G.symbol_rows_reads = _G.symbol_rows_reads + 1
+      return original_all(...)
+    end
+    local symbols = require "obsidian.note.link_suggestion".symbols
+    _G.cached_symbols_first = symbols(%q)
+    _G.cached_symbols_second = symbols(%q)
+  ]=]):format(tostring(files["source.md"]), tostring(files["source.md"])))
+
+  eq(1, child.lua_get "_G.symbol_rows_reads")
+  child.lua(([=[
+    require("obsidian.cache").notes.update(%q, { aliases = { "destination" } })
+    _G.cached_symbols_after_update = require("obsidian.note.link_suggestion").symbols(%q)
+  ]=]):format(tostring(files["target.md"]), tostring(files["source.md"])))
+
+  eq(2, child.lua_get "_G.symbol_rows_reads")
+  eq(
+    true,
+    child.lua_get [[vim.tbl_contains(vim.tbl_map(function(s) return s.text end, _G.cached_symbols_after_update), "destination")]]
+  )
+  child.lua [[require("obsidian.cache").notes.all = _G.original_notes_all]]
+end
+
 T["resolves native hints before accepting them"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",

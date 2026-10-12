@@ -135,6 +135,7 @@ end
 ---@param bufnr integer
 ---@param client_id integer
 local function refresh(bufnr, client_id)
+  require("obsidian.lsp.inlay_hint_cache").invalidate(bufnr)
   local client = vim.lsp.get_client_by_id(client_id)
   local handler = vim.lsp.handlers["workspace/inlayHint/refresh"]
   if client and client.name == "obsidian-ls" and handler then
@@ -143,6 +144,14 @@ local function refresh(bufnr, client_id)
       client_id = client_id,
       method = "workspace/inlayHint/refresh",
     })
+  end
+end
+
+---Refresh native inlay hints after leaving insert mode.
+---@param bufnr integer
+M.refresh = function(bufnr)
+  for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr, name = "obsidian-ls" }) do
+    refresh(bufnr, client.id)
   end
 end
 
@@ -161,7 +170,11 @@ local function apply_hint(bufnr, item, hint)
     execute_lsp_command(command)
   end
 
-  refresh(bufnr, item.client_id)
+  -- LSP commands registered by Obsidian are scheduled; refresh after the
+  -- command has applied its edits so the next response reflects the new text.
+  vim.schedule(function()
+    refresh(bufnr, item.client_id)
+  end)
 end
 
 ---@param bufnr integer | nil

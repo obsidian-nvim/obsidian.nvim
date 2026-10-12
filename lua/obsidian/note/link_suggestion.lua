@@ -6,6 +6,8 @@ local Note = require "obsidian.note"
 local api = require "obsidian.api"
 
 local M = {}
+local symbols_cache = {}
+local symbols_cache_token
 
 ---@class obsidian.LinkSuggestion
 ---@field range obsidian.Range
@@ -89,6 +91,16 @@ function M.symbols(path, opts)
 
   local dir = opts.dir and tostring(opts.dir) or nil
   local current_path = vim.fs.normalize(path) or nil
+  local cache_token = tostring(Obsidian.dir) .. ":" .. tostring(cache.generation())
+  if cache_token ~= symbols_cache_token then
+    symbols_cache = {}
+    symbols_cache_token = cache_token
+  end
+  local key = vim.inspect { current_path = current_path, dir = dir, include_current = opts.include_current }
+  if symbols_cache[key] then
+    return symbols_cache[key]
+  end
+
   local workspace = api.find_workspace(path)
   local rows = {}
   local ok, cached_rows = pcall(cache.notes.all)
@@ -126,6 +138,7 @@ function M.symbols(path, opts)
     return a.text_lower < b.text_lower
   end)
 
+  symbols_cache[key] = symbols
   return symbols
 end
 
