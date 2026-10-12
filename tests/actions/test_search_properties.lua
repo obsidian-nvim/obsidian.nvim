@@ -58,15 +58,11 @@ T["search_properties uses the cache when enabled, without scanning the filesyste
     ["b.md"] = "---\ntype: note\nstatus: done\n---\n# B",
   })
 
+  h.child_setup_cache(child)
+
   local result = h.child_await(
     child,
     [[
-    local cache = require "obsidian.cache"
-    cache.setup { enabled = true, backend = "memory" }
-    vim.wait(1000, function()
-      return cache.is_ready()
-    end)
-
     local search = require "obsidian.search"
     local filesystem_calls = 0
     search.find_async = function()
@@ -141,15 +137,9 @@ T["search_properties KEY VALUE skips straight to matching notes"] = function()
   eq("b", result.text)
 end
 
-for name, setup in pairs {
-  ["without the cache"] = "",
-  ["with the cache"] = [[
-    local cache = require "obsidian.cache"
-    cache.setup { enabled = true, backend = "memory" }
-    vim.wait(1000, function()
-      return cache.is_ready()
-    end)
-  ]],
+for name, use_cache in pairs {
+  ["without the cache"] = false,
+  ["with the cache"] = true,
 } do
   T["search_properties includes id, aliases and tags " .. name] = function()
     h.mock_vault_contents(child.Obsidian.dir, {
@@ -157,7 +147,13 @@ for name, setup in pairs {
       ["b.md"] = "---\nstatus: done\n---\n# B",
     })
 
-    local result = h.child_await(child, setup .. [[
+    if use_cache then
+      h.child_setup_cache(child)
+    end
+
+    local result = h.child_await(
+      child,
+      [[
       local picker = require "obsidian.picker"
       picker.select = function(items)
         done(vim.tbl_map(function(item)
@@ -166,7 +162,9 @@ for name, setup in pairs {
       end
 
       require("obsidian.actions").search_properties()
-    ]], { desc = "search_properties restored keys" })
+    ]],
+      { desc = "search_properties restored keys" }
+    )
 
     eq({ "aliases", "id", "status", "tags" }, result)
   end

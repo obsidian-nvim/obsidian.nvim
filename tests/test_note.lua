@@ -37,6 +37,31 @@ T["from_cache"]["uses the filename stem when no ID is cached"] = function()
   eq("note", note.id)
 end
 
+T["from_cache"]["serializes edited reserved fields without changing the cache row"] = function()
+  local row = {
+    id = "cached-id",
+    aliases = { "Alias" },
+    tags = { "tag" },
+    properties = { id = "cached-id", aliases = { "Alias" }, tags = { "tag" }, custom = { "value" } },
+  }
+  local original_row = vim.deepcopy(row)
+  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", row)
+
+  eq({ custom = { "value" } }, note.metadata)
+  note.id = "edited-id"
+  note:add_alias "New alias"
+  note:add_tag "new-tag"
+  note.metadata.custom[1] = "edited-value"
+
+  eq({
+    id = "edited-id",
+    aliases = { "Alias", "New alias" },
+    tags = { "tag", "new-tag" },
+    custom = { "edited-value" },
+  }, note:frontmatter())
+  eq(original_row, row)
+end
+
 T["create"] = new_set()
 T["create"]["should run configured callback with default scope"] = function()
   local calls = 0
