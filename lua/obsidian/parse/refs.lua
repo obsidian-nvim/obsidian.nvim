@@ -1,9 +1,10 @@
 local Range = require "obsidian.range"
 local link_parser = require "obsidian.link.parser"
+local uri = require "obsidian.uri"
 
 local M = {}
 
----@alias obsidian.parse.RefKind "wiki"|"markdown"|"footnote"
+---@alias obsidian.parse.RefKind "wiki"|"markdown"|"autolink"|"footnote"
 
 ---@class obsidian.parse.Ref : obsidian.parse.line.Match
 ---@field kind obsidian.parse.RefKind
@@ -101,6 +102,30 @@ end
 ---@param raw string
 ---@param range obsidian.Range
 ---@return obsidian.parse.Ref?
+local function parse_autolink(raw, range)
+  local target = raw:match "^<([^<>%s]+)>$"
+  if not target then
+    return nil
+  end
+
+  local scheme = uri.scheme(target)
+  if not scheme or #scheme < 2 or target:sub(#scheme + 2) == "" then
+    return nil
+  end
+
+  return {
+    kind = "autolink",
+    raw = raw,
+    range = range,
+    target = target,
+    label = target,
+    embed = false,
+  }
+end
+
+---@param raw string
+---@param range obsidian.Range
+---@return obsidian.parse.Ref?
 local function parse_footnote(raw, range)
   local id = raw:match "^%[%^([^%]%[%s]+)%]$"
   if not id then
@@ -130,6 +155,7 @@ local patterns = {
   -- as a footnote ref instead of a markdown link.
   { pattern = "%[%^[^%]%[%s]+%]", parser = parse_footnote },
   { pattern = "%[[^][]*%]%([^%)]+%)", parser = parse_markdown },
+  { pattern = "<[^<>%s]+>", parser = parse_autolink },
 }
 
 --- Parse one complete wiki, Markdown, or footnote reference.

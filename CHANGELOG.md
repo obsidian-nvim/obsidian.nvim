@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Support CommonMark autolink navigation (#951).
+
 ### Fixed
 
 - Sync setup now prompts for the end-to-end encryption password when linking an existing encrypted vault (#984).

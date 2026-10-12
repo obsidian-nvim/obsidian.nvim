@@ -269,7 +269,7 @@ return {
       open_block_link(opts.block, wrapped_callback, opts)
     elseif opts.anchor ~= nil and location == "" then
       open_header_link(opts.anchor, wrapped_callback, opts)
-    elseif link_type == "markdown" then
+    elseif link_type == "markdown" or link_type == "autolink" then
       handle_markdown_link(location, wrapped_callback, opts)
     elseif link_type == "wiki" then
       handle_wiki_link(location, wrapped_callback, opts)
