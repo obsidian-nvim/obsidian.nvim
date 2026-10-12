@@ -124,7 +124,8 @@ local default_actions = {
     cond = function(_, params)
       local bufnr, position = resolve_position(params)
       local link_type = select(2, require("obsidian.api").cursor_link(bufnr, position))
-      return link_type == "wiki" or link_type == "markdown"
+      -- TODO: trigger for footnote refs, and prompt to delete footnote entry
+      return link_type == "wiki" or link_type == "markdown" or link_type == "autolink"
     end,
     arguments = function(_, params)
       local bufnr, position = resolve_position(params)
