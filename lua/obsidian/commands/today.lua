@@ -3,6 +3,8 @@ local date_util = require "obsidian.date"
 
 ---@param data obsidian.CommandArgs
 return function(data)
+  local daily = require "obsidian.daily"
+  daily.warn_legacy_command()
   local arg = string.gsub(data.args, " ", "")
   local note
 
@@ -31,9 +33,6 @@ return function(data)
     note = require("obsidian.daily").today()
   end
   if note ~= nil then
-    if not note:exists() then
-      note:write()
-    end
-    note:open()
+    daily.open(note)
   end
 end

@@ -280,6 +280,8 @@ local function validate_callbacks(errors, opts)
   nested_fields(errors, "resolvers", opts.resolvers, {
     { "attachment", "callable" },
     { "date", "callable" },
+    { "date_select", "callable" },
+    { "date_parse", "callable" },
     { "hints", "callable" },
   })
 end

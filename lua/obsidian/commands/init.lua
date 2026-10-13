@@ -20,6 +20,9 @@ local function get_commands_by_context(commands, is_visual, is_note)
   return vim
     .iter(choices)
     :filter(function(config)
+      return not config.hidden
+    end)
+    :filter(function(config)
       if is_visual then
         return config.range ~= nil
       else
@@ -47,10 +50,7 @@ local function get_commands_by_context(commands, is_visual, is_note)
     end)
     :filter(function(config)
       if not Obsidian.opts.daily_notes.enabled then
-        return config.name ~= "dailies"
-          and config.name ~= "today"
-          and config.name ~= "tomorrow"
-          and config.name ~= "yesterday"
+        return config.name ~= "daily" and config.name ~= "dailies"
       end
       return true
     end)
@@ -96,6 +96,7 @@ end
 ---@field func fun(data: obsidian.CommandArgs)?
 ---@field name string?
 ---@field note_action boolean?
+---@field hidden boolean? Exclude from the menu and subcommand completion, but allow explicit invocation.
 
 ---Register a new command.
 ---@param name string
@@ -251,11 +252,13 @@ end
 
 M.register("check", { nargs = 0 })
 
-M.register("today", { nargs = "?" })
+M.register("daily", { nargs = "*" })
 
-M.register("yesterday", { nargs = 0 })
+M.register("today", { nargs = "?", hidden = true })
 
-M.register("tomorrow", { nargs = 0 })
+M.register("yesterday", { nargs = 0, hidden = true })
+
+M.register("tomorrow", { nargs = 0, hidden = true })
 
 M.register("dailies", { nargs = "*" })
 

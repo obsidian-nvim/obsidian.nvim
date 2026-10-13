@@ -78,7 +78,7 @@ end
 
 T["dailies"]["pick should use custom date resolver"] = function()
   local timestamp = os.time { year = 2026, month = 6, day = 25, hour = 12 }
-  Obsidian.opts.resolvers.date = function(ctx, done)
+  Obsidian.opts.resolvers.date_select = function(ctx, done)
     eq("open_daily", ctx.intent)
     eq("daily", ctx.cadence)
     done { timestamp = timestamp, precision = "day" }
@@ -128,6 +128,48 @@ T["dailies"]["picker previews existing notes and prompts to create missing notes
   eq({ "# Today" }, existing_lines)
   eq({ "Select to create this daily note." }, missing_lines)
   eq("wipe", bufhidden)
+end
+
+T["dailies"]["legacy date resolver remains a selection-only alias"] = function()
+  local selected = false
+  Obsidian.opts.resolvers.date = function(_, done)
+    selected = true
+    done { timestamp = os.time { year = 2026, month = 6, day = 25 } }
+  end
+
+  M.pick(-5, 0, function(note)
+    eq("2026-06-25", note.id)
+  end)
+  eq(true, selected)
+
+  local parsed
+  require("obsidian.resolvers").resolve("date_parse", { input = "2026-06-26", intent = "open_daily" }, function(result)
+    parsed = result.timestamp
+  end)
+  eq("2026-06-26", os.date("%Y-%m-%d", parsed))
+end
+
+T["dailies"]["date_select takes precedence over the legacy date resolver"] = function()
+  Obsidian.opts.resolvers.date = function()
+    error "legacy resolver called"
+  end
+  Obsidian.opts.resolvers.date_select = function(_, done)
+    done { timestamp = os.time { year = 2026, month = 6, day = 25 } }
+  end
+
+  M.pick(-5, 0, function(note)
+    eq("2026-06-25", note.id)
+  end)
+end
+
+T["dailies"]["calendar offsets cross DST at the same local hour"] = function()
+  local date = require "obsidian.date"
+  local spring = os.time { year = 2026, month = 3, day = 7, hour = 12 }
+  local next_day = date.add_days(spring, 1)
+  eq("2026-03-08 12", os.date("%Y-%m-%d %H", next_day))
+  local fall = os.time { year = 2026, month = 11, day = 1, hour = 12 }
+  local previous = date.add_days(fall, -1)
+  eq("2026-10-31 12", os.date("%Y-%m-%d %H", previous))
 end
 
 return T

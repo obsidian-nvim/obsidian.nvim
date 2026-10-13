@@ -97,6 +97,11 @@ log.info = function(msg, ...)
 end
 
 ---@param msg string
+log.info_once = function(msg, ...)
+  log.log_once(msg, vim.log.levels.INFO, ...)
+end
+
+---@param msg string
 log.warn = function(msg, ...)
   log.log(msg, vim.log.levels.WARN, ...)
 end

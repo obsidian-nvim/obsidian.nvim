@@ -90,8 +90,9 @@ There's one entry point user command for this plugin: `Obsidian`
 #### Top level commands
 
 - `:Obsidian check` - check for common issues in your vault and plugin setup
-- `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
-  - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
+- `:Obsidian daily [DATE]` - open/create today's daily note or a specific date (offset, formatted date, `tomorrow`, `yesterday`, or a custom parsed expression)
+- `:Obsidian dailies [OFFSET [OFFSET]]` - pick a daily note from an offset range; defaults to five days ago through today
+  - `:Obsidian dailies -2 1` lists dates from two days ago through tomorrow
 - `:Obsidian help` - find files in the plugin help docs
 - `:Obsidian helpgrep` - grep files in the plugin help docs
 - `:Obsidian new [TITLE]` - create a new note
@@ -100,12 +101,6 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian properties [KEY] [VALUE]` - get a picker list of frontmatter properties across the vault
   - with no arguments, opens a three-stage picker: property keys, then values for the chosen key, then notes carrying that key/value pair
   - `KEY` alone skips to the values stage; `KEY VALUE` skips straight to matching notes
-- `:Obsidian today [OFFSET_OR_DATE]` - open/create a new daily note
-  - offset is in days, e.g. use `:Obsidian today -1` to go to yesterday's note.
-  - you can also give an argument like `3-1`/`2026-3-1`, it will parse common date formats and open daily for that specific date.
-  - Unlike `:Obsidian yesterday` and `:Obsidian tomorrow` this command does not differentiate between weekdays and weekends
-- `:Obsidian tomorrow` - open/create the daily note for the next working day
-- `:Obsidian yesterday` - open/create the daily note for the previous working day
 - `:Obsidian new_from_template [TITLE] [TEMPLATE]` - create a new note with `TITLE` from a template with the name `TEMPLATE`
   - both arguments are optional. If not given, the template will be selected from a list using your preferred picker
 - `:Obsidian quick_switch` - switch to another note in your vault, searching by its name with a picker

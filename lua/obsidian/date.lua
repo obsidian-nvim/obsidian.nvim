@@ -48,16 +48,30 @@ M.is_working_day = function(time)
   return weekday ~= "6" and weekday ~= "0"
 end
 
+---Move by calendar days in local time, even across daylight-saving transitions.
+---@param time integer
+---@param days integer
+---@return integer
+M.add_days = function(time, days)
+  local local_date = os.date("*t", time)
+  ---@cast local_date std.osdate
+  local day = local_date.day + days
+  ---@cast day integer
+  local_date.day = day
+  local_date.isdst = nil
+  return os.time(local_date)
+end
+
 ---@param time integer
 ---@return integer
 M.previous_day = function(time)
-  return time - (24 * 60 * 60)
+  return M.add_days(time, -1)
 end
 
 ---@param time integer
 ---@return integer
 M.next_day = function(time)
-  return time + (24 * 60 * 60)
+  return M.add_days(time, 1)
 end
 
 ---@param time integer

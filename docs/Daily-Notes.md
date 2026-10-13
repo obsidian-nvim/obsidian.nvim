@@ -15,21 +15,15 @@ The Daily Notes feature allows you to quickly create and navigate to date-based 
 
 ## Commands
 
-### `:Obsidian today` or `:Obsidian today <offset>`
+### `:Obsidian daily [DATE]`
 
-Open today's daily note. You can optionally specify an offset like `:Obsidian today -1` for yesterday or `:Obsidian today +1` for tomorrow.
+Open or create today's daily note, or a specific date. `DATE` can be an integer calendar-day offset (`+1`, `-1`), `today`, `tomorrow`, `yesterday`, or a formatted date such as `2026-06-25`. Multi-word dates are passed in full to a custom `resolvers.date_parse` (see [[Resolvers]]). `tomorrow` and `yesterday` skip weekends when `workdays_only` is enabled; offsets and explicit dates do not.
 
-### `:Obsidian yesterday`
+### `:Obsidian dailies [OFFSET [OFFSET]]`
 
-Open yesterday's daily note. Equivalent to `:Obsidian today -1`.
+Open a picker showing dates from five days ago through today, including notes that do not exist yet. One integer offset picks between that day and today; two offsets pick between those days, regardless of order. For example, `:Obsidian dailies -2 1` shows two days ago through tomorrow. Selecting a missing note creates it.
 
-### `:Obsidian tomorrow`
-
-Open tomorrow's daily note. Equivalent to `:Obsidian today +1`.
-
-### `:Obsidian dailies`
-
-Open a picker showing all daily notes in chronological order.
+The older `:Obsidian today`, `:Obsidian tomorrow`, and `:Obsidian yesterday` commands still work when invoked explicitly, but are hidden from the command picker and subcommand completion. They will be removed in 4.0; see [[Breaking-Changes#daily-notes-command-redesign]].
 
 ## Usage Examples
 
@@ -81,6 +75,7 @@ daily_notes = {
 ## Notes
 
 - Daily notes are created automatically when you open a date that doesn't have a note yet
+- `workdays_only` changes the meaning of `tomorrow` and `yesterday`, not numeric offsets or explicit dates
 
 ## Options
 

@@ -392,7 +392,13 @@ return {
   ---Resolve an attachment source before `actions.add_attachment` copies/downloads it.
   ---@field attachment? obsidian.Resolver
   ---
-  ---Resolve a date before date-based actions, such as `daily.pick`, continue.
+  ---Select a daily note date through a picker (`daily.pick`).
+  ---@field date_select? obsidian.Resolver
+  ---
+  ---Parse a typed date expression. `ctx.fallback(ctx, done)` calls the built-in resolver.
+  ---@field date_parse? obsidian.Resolver
+  ---
+  ---Deprecated alias for date_select; remove in 4.0.
   ---@field date? obsidian.Resolver
   ---
   ---Build serializable LSP inlay hints for a note.

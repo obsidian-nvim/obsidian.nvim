@@ -19,7 +19,7 @@ require("obsidian").setup {
       done { path = "/tmp/image.png" }
     end,
 
-    date = function(ctx, done)
+    date_select = function(ctx, done)
       done { timestamp = os.time(), precision = "day" }
     end,
 
@@ -69,17 +69,24 @@ require("obsidian").setup {
 
 The built-in resolver keeps the default behavior: explicit file paths are used, directories open a file picker, missing sources prompt for a URL or filepath, and `http(s)` URLs are passed to the attachment API.
 
-## Date resolver
+## Date selection and parsing
 
-`opts.resolvers.date` is used by daily-note picking APIs, including `:Obsidian dailies` through `daily.pick()`.
+`opts.resolvers.date_select` chooses a date in `:Obsidian dailies` through `daily.pick()`. The previous `resolvers.date` name remains a deprecated alias for selection until 4.0. If both are set, `date_select` wins. The built-in selection resolver shows the daily-notes picker.
+
+`opts.resolvers.date_parse` resolves the complete typed expression in `:Obsidian daily <expression>`. Bare `:Obsidian daily` opens today without calling it. The built-in parser accepts integer calendar-day offsets, `today`, `tomorrow`, `yesterday` (respecting `workdays_only`), and the formats accepted by `obsidian.date.parse`. Picker offsets do **not** use `date_parse`.
 
 ```lua
----@class obsidian.resolver.DateCtx
+---@class obsidian.resolver.DateSelectCtx
 ---@field intent string
 ---@field cadence string|?
 ---@field offset_start integer|?
 ---@field offset_end integer|?
 ---@field default_timestamp integer|?
+
+---@class obsidian.resolver.DateParseCtx
+---@field input string Entire date expression, trimmed
+---@field intent "open_daily"
+---@field fallback obsidian.Resolver Built-in date_parse function
 
 ---@class obsidian.resolver.DateResult
 ---@field timestamp integer Unix timestamp.
@@ -88,12 +95,19 @@ The built-in resolver keeps the default behavior: explicit file paths are used, 
 ---@field offset integer|?
 ```
 
-Example using a calendar plugin:
+A custom parser receives **every** nonempty expression. Call `ctx.fallback(ctx, done)` to run the original built-in resolver; it uses the same callback and error handling as a custom resolver. This `ctx.fallback` contract is currently provided for `date_parse` only. As with other resolvers, `done(nil)` cancels rather than falling back.
 
 ```lua
 require("obsidian").setup {
   resolvers = {
-    date = function(ctx, done)
+    date_parse = function(ctx, done)
+      if ctx.input == "next review" then
+        done { timestamp = os.time { year = 2026, month = 6, day = 25 }, precision = "day" }
+      else
+        ctx.fallback(ctx, done)
+      end
+    end,
+    date_select = function(ctx, done)
       require("calendar").pick_day(function(timestamp)
         done { timestamp = timestamp, precision = "day" }
       end)
@@ -101,8 +115,6 @@ require("obsidian").setup {
   },
 }
 ```
-
-The built-in resolver keeps the default `:Obsidian dailies` picker UI.
 
 ## Hints resolver
 

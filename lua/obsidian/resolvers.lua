@@ -15,12 +15,19 @@ local M = {}
 ---@class obsidian.resolver.AttachmentResult
 ---@field path string Local filepath, file URI, or URL accepted by `obsidian.attachment.add`.
 
----@class obsidian.resolver.DateCtx
+---@class obsidian.resolver.DateSelectCtx
 ---@field intent string
 ---@field cadence string|?
 ---@field offset_start integer|?
 ---@field offset_end integer|?
 ---@field default_timestamp integer|?
+
+---@alias obsidian.resolver.DateCtx obsidian.resolver.DateSelectCtx Deprecated; use DateSelectCtx.
+
+---@class obsidian.resolver.DateParseCtx
+---@field input string The entire date expression (with surrounding whitespace removed).
+---@field intent "open_daily"
+---@field fallback obsidian.Resolver The built-in date_parse resolver; call `ctx.fallback(ctx, done)` to delegate.
 
 ---@class obsidian.resolver.DateResult
 ---@field timestamp integer Unix timestamp.
@@ -116,7 +123,7 @@ local function daily_note_path(datetime)
 end
 
 ---@type obsidian.Resolver
-M.builtin.date = function(ctx, done)
+M.builtin.date_select = function(ctx, done)
   if ctx.offset_start == nil or ctx.offset_end == nil then
     done {
       timestamp = ctx.default_timestamp or os.time(),
@@ -128,8 +135,9 @@ M.builtin.date = function(ctx, done)
   ---@type obsidian.PickerEntry[]
   local dailies = {}
   local options = Obsidian.opts
+  local today = os.time()
   for offset = ctx.offset_end, ctx.offset_start, -1 do
-    local datetime = os.time() + (offset * 3600 * 24)
+    local datetime = date.add_days(today, offset)
     local daily_path = daily_note_path(datetime)
     local label = tostring(
       date.format(datetime, options.daily_notes.alias_format or "%A %B %-d, %Y", options.daily_notes.start_of_week)
@@ -184,6 +192,41 @@ M.builtin.date = function(ctx, done)
   end)
 end
 
+-- Retain the old built-in name for callers that use it directly.
+M.builtin.date = M.builtin.date_select
+
+---@type obsidian.Resolver
+M.builtin.date_parse = function(ctx, done)
+  local input = ctx.input
+  local now = os.time()
+  local timestamp
+  if input == "today" then
+    timestamp = now
+  elseif input == "tomorrow" then
+    timestamp = Obsidian.opts.daily_notes.workdays_only and date.working_day_after(now) or date.next_day(now)
+  elseif input == "yesterday" then
+    timestamp = Obsidian.opts.daily_notes.workdays_only and date.working_day_before(now) or date.previous_day(now)
+  elseif input:match "^[+-]?%d+$" then
+    local offset = assert(tonumber(input))
+    ---@cast offset integer
+    timestamp = date.add_days(now, offset)
+  else
+    local parsed = date.parse(input)
+    if parsed then
+      timestamp = os.time(parsed)
+    end
+  end
+
+  if timestamp then
+    done { timestamp = timestamp, precision = "day" }
+  else
+    done(
+      nil,
+      string.format("Invalid date '%s' (expected a date, integer offset, today, tomorrow, or yesterday)", input)
+    )
+  end
+end
+
 ---@type obsidian.Resolver
 M.builtin.hints = function(ctx, done)
   done(require "obsidian.lsp.inlay_hints.link"(ctx.note, ctx.range))
@@ -194,7 +237,18 @@ end
 ---@param done fun(result: table|?, err: string|?)
 M.resolve = function(name, ctx, done)
   ctx = ctx or {}
-  local resolver = Obsidian.opts.resolvers and Obsidian.opts.resolvers[name] or nil
+  local configured = Obsidian.opts.resolvers or {}
+  local resolver = configured[name]
+  if name == "date_select" then
+    if not resolver and configured.date then
+      log.warn_once "resolvers.date is deprecated; rename it to resolvers.date_select before 4.0. See :Obsidian help Breaking-Changes."
+      resolver = configured.date
+    end
+  elseif name == "date_parse" then
+    -- For now only parsing exposes the default resolver as a fallback. Other
+    -- resolvers can adopt this contract separately without changing their API.
+    ctx.fallback = M.builtin.date_parse
+  end
   resolver = resolver or M.builtin[name]
   if not resolver then
     local err = "No resolver registered for '" .. name .. "'"
@@ -202,6 +256,7 @@ M.resolve = function(name, ctx, done)
     done(nil, err)
     return
   end
+  ---@cast resolver obsidian.Resolver
 
   local called = false
   local function once(result, err)

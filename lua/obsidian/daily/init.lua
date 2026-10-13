@@ -3,6 +3,7 @@ local Note = require "obsidian.note"
 local resolvers = require "obsidian.resolvers"
 local date = require "obsidian.date"
 local api = require "obsidian.api"
+local log = require "obsidian.log"
 local M = {}
 
 --- Get the path to a daily note.
@@ -138,7 +139,7 @@ M.daily = function(opts)
 
   if opts.offset then
     assert(type(opts.offset) == "number", "offset must be a number")
-    timestamp = os.time() + (opts.offset * 3600 * 24)
+    timestamp = date.add_days(os.time(), opts.offset)
   else
     timestamp = opts.date or os.time()
   end
@@ -150,7 +151,7 @@ end
 ---@param offset_end integer
 ---@param callback fun(note: obsidian.Note)
 M.pick = function(offset_start, offset_end, callback)
-  resolvers.resolve("date", {
+  resolvers.resolve("date_select", {
     intent = "open_daily",
     cadence = "daily",
     offset_start = offset_start,
@@ -161,6 +162,20 @@ M.pick = function(offset_start, offset_end, callback)
     end
     callback(M.daily { date = result.timestamp })
   end)
+end
+
+---Notify once when a deprecated daily command (including legacy commands) is used.
+M.warn_legacy_command = function()
+  log.info_once "Daily commands today/tomorrow/yesterday are deprecated; use :Obsidian daily. See :Obsidian help Breaking-Changes (Daily notes command redesign)."
+end
+
+---Persist a missing daily note and open it.
+---@param note obsidian.Note
+M.open = function(note)
+  if not note:exists() then
+    note:write()
+  end
+  note:open()
 end
 
 return M
