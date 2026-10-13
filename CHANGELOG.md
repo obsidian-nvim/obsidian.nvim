@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [v3.16.9](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.9) - 2026-10-13
+
 ### Added
 
 - Support CommonMark autolink navigation (#951).
+- Use quartz to build a documentation site.
 
 ### Fixed
 
