@@ -26,15 +26,17 @@ end
 ---items should be inserted.
 ---
 ---@param request obsidian.completion.Request
+---@param opts { allow_empty: boolean? }|?
 ---@return boolean can_complete
 ---@return string|? search_string
 ---@return integer|? insert_start
 ---@return integer|? insert_end
-M.can_complete = function(request)
+M.can_complete = function(request, opts)
+  opts = opts or {}
   local input, search = find_search_start(request.cursor_before_line)
   if input == nil or search == nil then
     return false
-  elseif string.len(search) == 0 or util.is_whitespace(search) then
+  elseif not opts.allow_empty and (string.len(search) == 0 or util.is_whitespace(search)) then
     return false
   end
 

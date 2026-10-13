@@ -1,4 +1,5 @@
 local M = {}
+---@type table<integer, { allow_insert: boolean }>
 local refresh_scheduled = {}
 local last_refreshed = {}
 
@@ -166,22 +167,30 @@ end
 
 ---Schedule one refresh for all changes in the current event-loop turn.
 ---@param bufnr integer
-M.schedule_refresh = function(bufnr)
-  if refresh_scheduled[bufnr] then
+---@param opts { allow_insert: boolean? }|?
+M.schedule_refresh = function(bufnr, opts)
+  opts = opts or {}
+  local scheduled = refresh_scheduled[bufnr]
+  if scheduled then
+    scheduled.allow_insert = scheduled.allow_insert or opts.allow_insert == true
     return
   end
-  refresh_scheduled[bufnr] = true
+
+  scheduled = { allow_insert = opts.allow_insert == true }
+  refresh_scheduled[bufnr] = scheduled
   vim.schedule(function()
-    if not refresh_scheduled[bufnr] then
+    if refresh_scheduled[bufnr] ~= scheduled then
       return
     end
     refresh_scheduled[bufnr] = nil
     if not vim.api.nvim_buf_is_valid(bufnr) or not vim.b[bufnr].obsidian_buffer then
       return
     end
+    local allow_insert = scheduled.allow_insert
     local refreshed = last_refreshed[bufnr]
     if
-      refreshed
+      not allow_insert
+      and refreshed
       and refreshed.changedtick == vim.api.nvim_buf_get_changedtick(bufnr)
       and refreshed.name == vim.api.nvim_buf_get_name(bufnr)
     then
@@ -189,7 +198,13 @@ M.schedule_refresh = function(bufnr)
     end
 
     local ok, mode = pcall(vim.fn.mode, 1)
-    if ok and vim.api.nvim_get_current_buf() == bufnr and type(mode) == "string" and mode:sub(1, 1) == "i" then
+    if
+      not allow_insert
+      and ok
+      and vim.api.nvim_get_current_buf() == bufnr
+      and type(mode) == "string"
+      and mode:sub(1, 1) == "i"
+    then
       return
     end
     M.refresh(bufnr)

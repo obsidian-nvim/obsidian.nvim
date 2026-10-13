@@ -12,8 +12,10 @@ end
 ---@param uri string?
 ---@param bufnr integer
 ---@param range lsp.Range|?
+---@param opts { allow_stale: boolean? }|?
 ---@return lsp.InlayHint[]?
-function M.get(uri, bufnr, range)
+function M.get(uri, bufnr, range, opts)
+  opts = opts or {}
   local key = response_key(uri, bufnr, range)
   local entry = responses[key]
   if not entry then
@@ -21,6 +23,12 @@ function M.get(uri, bufnr, range)
   end
   if entry.generation ~= require("obsidian.cache").generation() then
     responses[key] = nil
+    return nil
+  end
+  if
+    not opts.allow_stale
+    and (not vim.api.nvim_buf_is_valid(bufnr) or entry.changedtick ~= vim.api.nvim_buf_get_changedtick(bufnr))
+  then
     return nil
   end
   return entry.hints
@@ -33,6 +41,7 @@ end
 function M.set(uri, bufnr, range, hints)
   responses[response_key(uri, bufnr, range)] = {
     bufnr = bufnr,
+    changedtick = vim.api.nvim_buf_get_changedtick(bufnr),
     generation = require("obsidian.cache").generation(),
     hints = vim.deepcopy(hints),
   }

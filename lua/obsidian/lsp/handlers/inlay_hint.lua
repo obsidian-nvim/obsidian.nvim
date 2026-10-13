@@ -1,9 +1,13 @@
+local completion = require "obsidian.inlay_hints.completion"
 local hint_cache = require "obsidian.lsp.inlay_hint_cache"
 
+---@param bufnr integer
+---@param changedtick integer
 ---@return boolean
-local function in_insert_mode()
-  local ok, mode = pcall(vim.fn.mode, 1)
-  return ok and type(mode) == "string" and mode:sub(1, 1) == "i"
+local function buffer_changed(bufnr, changedtick)
+  return not vim.api.nvim_buf_is_valid(bufnr)
+    or not vim.api.nvim_buf_is_loaded(bufnr)
+    or vim.api.nvim_buf_get_changedtick(bufnr) ~= changedtick
 end
 
 ---@param params lsp.InlayHintParams
@@ -12,20 +16,40 @@ return function(params, callback)
   local uri = params and params.textDocument and params.textDocument.uri
   local bufnr = uri and vim.uri_to_bufnr(uri) or 0
   local range = params and params.range or nil
-  local cached = hint_cache.get(uri, bufnr, range)
+  local changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
 
-  -- Neovim requests inlay hints on every textDocument/didChange. Keep the last
-  -- result until an explicit refresh (save or InsertLeave), avoiding repeated
-  -- parsing and vault-wide symbol searches while editing.
-  if in_insert_mode() or cached then
-    callback(nil, vim.deepcopy(cached or {}))
+  local function cached_response()
+    return vim.deepcopy(hint_cache.get(uri, bufnr, range, { allow_stale = true }) or {})
+  end
+
+  local function interrupted()
+    local active = completion.observe(bufnr)
+    return active or buffer_changed(bufnr, changedtick)
+  end
+
+  -- Keep the last response while built-in completion is possible at the cursor.
+  -- Outside completion, changedtick-aware cache entries avoid duplicate work while
+  -- still allowing hints to update as the user types.
+  if interrupted() then
+    callback(nil, cached_response())
+    return
+  end
+
+  local cached = hint_cache.get(uri, bufnr, range)
+  if cached then
+    callback(nil, vim.deepcopy(cached))
     return
   end
 
   require("obsidian.cache").when_ready(function()
+    if interrupted() then
+      callback(nil, cached_response())
+      return
+    end
+
     cached = hint_cache.get(uri, bufnr, range)
-    if in_insert_mode() or cached then
-      callback(nil, vim.deepcopy(cached or {}))
+    if cached then
+      callback(nil, vim.deepcopy(cached))
       return
     end
 
@@ -40,9 +64,14 @@ return function(params, callback)
       note = note,
       range = range,
     }, function(hints, err)
+      if interrupted() then
+        callback(nil, cached_response())
+        return
+      end
+
       cached = hint_cache.get(uri, bufnr, range)
-      if in_insert_mode() or cached then
-        callback(nil, vim.deepcopy(cached or {}))
+      if cached then
+        callback(nil, vim.deepcopy(cached))
         return
       end
 
