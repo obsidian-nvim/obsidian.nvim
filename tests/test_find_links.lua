@@ -105,6 +105,39 @@ T["find_outgoing"]["finds plain-text mention of another note"] = function()
   eq(true, found)
 end
 
+T["find_outgoing"]["applies selected target without reopening target picker"] = function()
+  local root = child.Obsidian.dir
+  h.write("# Target\n", root / "target.md")
+  child.lua [[vim.fn.mkdir(tostring(Obsidian.dir / "nested"), "p")]]
+  h.write("# Target\n", root / "nested" / "target.md")
+  h.write("# Source\n\nTarget appears here.\n", root / "source.md")
+  child.cmd("edit " .. tostring(root / "source.md"))
+  setup_cache()
+
+  local result = child.lua [[
+    local picker = require "obsidian.picker"
+    local original_select = picker.select
+    local prompts = {}
+    picker.select = function(items, opts, callback)
+      prompts[#prompts + 1] = opts.prompt
+      callback { items[1] }
+    end
+
+    require("obsidian.commands.find_outgoing")()
+    picker.select = original_select
+
+    return {
+      prompts = prompts,
+      lines = vim.api.nvim_buf_get_lines(0, 0, -1, false),
+    }
+  ]]
+
+  eq({ "Outgoing link targets", "Outgoing locations" }, result.prompts)
+  local content = table.concat(result.lines, "\n")
+  assert(content:find("%[%[", 1, false), "selected mention should be converted to a link: " .. content)
+  assert(content:find("target", 1, true), "link should reference selected target")
+end
+
 T["find_outgoing"]["skips already-linked text"] = function()
   local root = child.Obsidian.dir
   h.write("# Target\n", root / "target.md")

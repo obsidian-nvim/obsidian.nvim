@@ -1345,6 +1345,14 @@ local function apply_link_suggestion(bufnr, suggestion, candidate)
   require("obsidian.ui").update(bufnr)
 end
 
+---Apply a link suggestion to a specific candidate without opening a target picker.
+---@param bufnr integer
+---@param suggestion obsidian.LinkSuggestion
+---@param candidate obsidian.LinkSuggestionCandidate
+M.apply_link_suggestion = function(bufnr, suggestion, candidate)
+  return apply_link_suggestion(bufnr, suggestion, candidate)
+end
+
 --- Apply the link suggestion under the cursor, selecting a target when the
 --- matched note name or alias belongs to more than one note.
 ---@param suggestion obsidian.LinkSuggestion|?

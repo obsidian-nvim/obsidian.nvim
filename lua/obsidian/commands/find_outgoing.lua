@@ -79,7 +79,7 @@ return function()
       for _, choice in ipairs(location_choices or {}) do
         local data = choice.user_data
         if data then
-          actions.link_suggestion(data.suggestion)
+          actions.apply_link_suggestion(bufnr, data.suggestion, data.candidate)
         end
       end
     end)
