@@ -1,4 +1,9 @@
-# Audio recorder
+---
+title: "Audio Recorder"
+tags:
+  - core-plugins
+  - attachments
+---
 
 The audio recorder mirrors Obsidian's core audio recorder: start recording from a note, stop it, then obsidian.nvim attaches the audio file to the vault and inserts the attachment link at the cursor position that started the recording.
 

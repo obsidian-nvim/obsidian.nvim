@@ -1,3 +1,10 @@
+---
+title: "Actions"
+tags:
+  - navigation
+  - actions
+---
+
 See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP interface.
 
 | name                 | mode     | description                           | arguments                |
@@ -27,3 +34,7 @@ See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP inte
 | `unlink`             | `n`      | Replace a link with its display text. | `bufnr`, `position`      |
 | `link_new`           | `v`      | Create a new note and link selection. | `title`                  |
 | `extract_note`       | `v`      | Move selection to a new note.         | `title`                  |
+
+## See also
+
+[[LSP]] · [[Keymaps]] · [[Commands]]

@@ -1,4 +1,9 @@
-# Cache
+---
+title: "Cache"
+tags:
+  - configuration
+  - performance
+---
 
 The cache is disabled by default. To use it, enable it in your `obsidian.nvim` config:
 
@@ -119,3 +124,7 @@ A store implements `get(key)`, `all()`, `put(key, row)`, and `delete(key)`. `flu
 - The cache currently powers `:Obsidian quick_switch`, ordinary note-reference completion, and vault-wide heading completion.
 - Heading and block completion remain query-filtered instead of sending every heading or block to the completion engine.
 - Running several Neovim instances on the same vault can cause cache updates to race.
+
+## See also
+
+[[Completion]] · [[Search]] · [[Workspace]]

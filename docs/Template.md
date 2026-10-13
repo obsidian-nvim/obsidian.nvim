@@ -1,8 +1,16 @@
+---
+title: "Template"
+tags:
+  - core-plugins
+  - notes
+---
+
 - [Date/time formats](#datetime-formats)
 - [Usage](#usage)
 - [Substitutions](#substitutions)
 - [Customizations](#customizations)
 - [Options](#options)
+- [See also](#see-also)
 
 To insert a template in the current note, run the command `:Obsidian template`. This will open a list of available templates in your templates folder with your preferred picker. Select a template and hit `<CR>` to insert.
 
@@ -239,7 +247,7 @@ biography = {
 ---@field time_format string
 --- A map for custom variables, the key should be the variable and the value a function.
 --- Functions are called with obsidian.TemplateContext objects and optional suffix strings.
---- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
+--- See: https://obsidian-nvim.github.io/obsidian.nvim/Template#substitutions
 ---@field substitutions table<string, string|fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
 ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
 templates = {
@@ -274,3 +282,7 @@ templates = {
   customizations = {},
 }
 ```
+
+## See also
+
+[[Note]] · [[Daily-Notes]] · [[Frontmatter]]

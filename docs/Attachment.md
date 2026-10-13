@@ -1,3 +1,10 @@
+---
+title: "Attachment"
+tags:
+  - core-plugins
+  - attachments
+---
+
 - [Save location](#save-location)
 - [Add attachment](#add-attachment)
 - [Rename attachment](#rename-attachment)
@@ -6,6 +13,7 @@
 - [Paste from clipboard path](#paste-from-clipboard-path)
 - [Open](#open)
 - [Options](#options)
+- [See also](#see-also)
 
 ## Save location
 
@@ -178,7 +186,7 @@ Put any where in you config that loads before you open attachments, a good place
 ```lua
 ---@class obsidian.config.AttachmentsOpts
 ---
----Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
+---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://obsidian-nvim.github.io/obsidian.nvim/Attachment#options
 ---@field folder? string
 ---
 ---Default name for pasted images
@@ -198,3 +206,7 @@ attachments = {
   confirm_img_paste = true, -- TODO: move to paste module, paste.confirm
 }
 ```
+
+## See also
+
+[[Images]] · [[Audio-recorder]] · [[File]]

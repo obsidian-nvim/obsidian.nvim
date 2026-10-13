@@ -179,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `attachment.add(src, opts)` and `actions.add_attachment(src, opts)` for adding:
   - filepath and urls for attachment
   - folders will open a file picker
-  - see docs at <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment>
+  - see docs at <https://obsidian-nvim.github.io/obsidian.nvim/Attachment>
 - `Note` class can carry a `template` field.
 - LSP completion replaces completion plugin based completion.
 - Frontmatter tag completion.
@@ -690,7 +690,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `makefile types` target to check types via lua-ls.
 - New `obsidian.config` type for user config type check.
 - More informative healthcheck.
-- A guide to embed images for both viewing in neovim and obsidian app: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images>
+- A guide to embed images for both viewing in neovim and obsidian app: <https://obsidian-nvim.github.io/obsidian.nvim/Images>
 - Added `check_buffers` option to `Note.write` and `Note.save` for automatically reloading buffers with `checktime` after writing them to disk
 - Added footer options.
 - Added default mappings: `]o` and `[o`, for navigating links in note.
@@ -703,7 +703,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `itertools.lua` in favor of `vim.iter`.
 - Commands are now context sensitive (mode and if in note).
 - Remove `debug` command and lazy log functions, and point user to `checkhealth obsidian`.
-- Remove `mappings.lua`, see: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps>
+- Remove `mappings.lua`, see: <https://obsidian-nvim.github.io/obsidian.nvim/Keymaps>
 - Moved `daily` as its own module instead of client method.
 - Refactor the `util` module.
 - Refactor several note functionalities from `Client` into `Note`:
@@ -763,7 +763,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `backlinks` module with the associated `obsidian.config.BacklinkOpts`.
   - Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
 - Added `open` module for `Obsidian open` related options.
-- Added autocmd events for user scripting, see [wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Autocmds).
+- Added autocmd events for user scripting, see [wiki](https://obsidian-nvim.github.io/obsidian.nvim/Autocmds).
 - Added `opts.ui.ignore_conceal_warn` option to ignore conceal-related warnings.
 - Added `vsplit_force` and `hsplit_force` open strategies. These will always open a vertical/horizontal split if the file is not already in the adjacent split.
 

@@ -1,3 +1,10 @@
+---
+title: "Open"
+tags:
+  - editor
+  - navigation
+---
+
 ## Options
 
 ```lua

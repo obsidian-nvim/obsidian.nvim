@@ -1,3 +1,10 @@
+---
+title: "Folding"
+tags:
+  - editor
+  - lsp
+---
+
 ## Fold setup
 
 This plugin will not override your fold options. Pick one folding source and set it for markdown buffers.
@@ -84,3 +91,7 @@ vim.wo.foldtext = "MarkdownFoldText()"
 ## Fold cycling
 
 When folding is configured, the `smart_action` action cycles the fold under the cursor when the cursor is on a heading or in frontmatter.
+
+## See also
+
+[[LSP]] · [[Keymaps]]

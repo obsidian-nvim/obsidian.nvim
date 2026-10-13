@@ -1,11 +1,11 @@
---- Generate wiki documentation from config/default.lua annotations.
---- Run with: nvim --headless --noplugin -c "luafile scripts/generate_wiki_docs.lua" -c "qa!"
+--- Generate configuration reference pages from config/default.lua annotations.
+--- Run with: nvim --headless --noplugin -c "luafile scripts/generate_docs.lua" -c "qa!"
 
 local project_root = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h")
 local config_path = project_root .. "/lua/obsidian/config/default.lua"
 local docs_dir = project_root .. "/docs"
 
---- Hard-coded mapping: config key -> wiki page filename.
+--- Hard-coded mapping: config key -> documentation page filename.
 --- Only pages in this list are updated.
 ---@type table<string, string>
 local module_pages = {
@@ -15,7 +15,7 @@ local module_pages = {
   frontmatter = "Frontmatter.md",
   templates = "Template.md",
   search = "Search.md",
-  daily_notes = "Daily Notes.md",
+  daily_notes = "Daily-Notes.md",
   unique_note = "Unique-Note.md",
   attachments = "Attachment.md",
   footer = "Footer.md",
@@ -213,10 +213,11 @@ local function build_options_section(block)
     result[#result + 1] = line
   end
   result[#result + 1] = "```"
+  result[#result + 1] = ""
   return result
 end
 
---- Update a single wiki page.
+--- Update a single documentation page.
 ---@param page_path string
 ---@param options_block string|nil
 local function update_page(page_path, options_block)
@@ -283,14 +284,30 @@ local function update_page(page_path, options_block)
         end
         lines = new_lines
       else
-        -- Insert TOC at the top.
+        -- Insert the TOC after YAML frontmatter, which must remain at the top.
+        local insert_at = 0
+        if lines[1] == "---" then
+          for i = 2, #lines do
+            if lines[i] == "---" then
+              insert_at = i
+              if lines[i + 1] == "" then
+                insert_at = i + 1
+              end
+              break
+            end
+          end
+        end
+
         local new_lines = {}
+        for i = 1, insert_at do
+          new_lines[#new_lines + 1] = lines[i]
+        end
         for _, l in ipairs(toc_lines) do
           new_lines[#new_lines + 1] = l
         end
         new_lines[#new_lines + 1] = ""
-        for _, l in ipairs(lines) do
-          new_lines[#new_lines + 1] = l
+        for i = insert_at + 1, #lines do
+          new_lines[#new_lines + 1] = lines[i]
         end
         lines = new_lines
       end

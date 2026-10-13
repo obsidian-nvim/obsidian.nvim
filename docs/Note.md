@@ -1,8 +1,16 @@
+---
+title: "Note"
+tags:
+  - notes
+  - configuration
+---
+
 - [Default Note Template](#default-note-template)
 - [Creation Callback](#creation-callback)
 - [Deleting Notes](#deleting-notes)
 - [Note ID Presets](#note-id-presets)
 - [Options](#options)
+- [See also](#see-also)
 
 ## Default Note Template
 
@@ -136,3 +144,7 @@ note = {
   end)(),
 }
 ```
+
+## See also
+
+[[Frontmatter]] · [[Template]] · [[Workspace]]

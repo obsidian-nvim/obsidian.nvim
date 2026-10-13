@@ -9,6 +9,8 @@ MINITEST = deps/mini.test
 MINIDOC = deps/mini.doc
 MARKDOC = deps/markdoc.nvim
 NVIM_TREESITTER = deps/nvim-treesitter
+QUARTZ = deps/quartz
+QUARTZ_REV = d25a6eabf96751ffca56f8a8139272def7a65041
 
 NVIM ?= nvim
 VIMRUNTIME ?= $(shell $(NVIM) --clean --headless +'lua io.write(vim.env.VIMRUNTIME)' +q 2>/dev/null)
@@ -67,16 +69,51 @@ api-docs: $(MINIDOC) ## Generate API documentation with mini.doc
 		-c "qa!"
 
 .PHONY: docgen
-docgen: ## Generate wiki documentation from config annotations
+docgen: ## Generate configuration reference from annotations
 	nvim \
 		--headless \
 		--noplugin \
-		-c "luafile scripts/generate_wiki_docs.lua" \
+		-c "luafile scripts/generate_docs.lua" \
 		-c "qa!"
 
 $(MINIDOC):
 	git clone --depth 1 https://github.com/echasnovski/mini.doc $(MINIDOC)
 
+$(QUARTZ)/.git:
+	mkdir -p $(QUARTZ)
+	git -C $(QUARTZ) init
+	git -C $(QUARTZ) remote add origin https://github.com/jackyzha0/quartz.git
+
+$(QUARTZ)/.revision-$(QUARTZ_REV): | $(QUARTZ)/.git
+	git -C $(QUARTZ) fetch --depth 1 origin $(QUARTZ_REV)
+	git -C $(QUARTZ) checkout --force --detach $(QUARTZ_REV)
+	rm -f $(QUARTZ)/.revision-*
+	touch $@
+
+$(QUARTZ)/.npm-installed: $(QUARTZ)/.revision-$(QUARTZ_REV)
+	cd $(QUARTZ) && npm ci
+	touch $@
+
+.PHONY: docs-site docs-serve
+##@ Documentation
+
+docs-site: $(QUARTZ)/.npm-installed ## Build the Quartz site from Markdown in docs/
+	cp quartz.config.ts $(QUARTZ)/quartz.config.ts
+	rm -rf $(QUARTZ)/content
+	mkdir -p $(QUARTZ)/content
+	cp -R docs/. $(QUARTZ)/content/
+	cp docs/Home.md $(QUARTZ)/content/index.md
+	rm -rf $(QUARTZ)/content/.obsidian
+	cd $(QUARTZ) && npx quartz build
+
+docs-serve: $(QUARTZ)/.npm-installed ## Serve the Quartz site locally
+	cp quartz.config.ts $(QUARTZ)/quartz.config.ts
+	rm -rf $(QUARTZ)/content
+	mkdir -p $(QUARTZ)/content
+	cp -R docs/. $(QUARTZ)/content/
+	cp docs/Home.md $(QUARTZ)/content/index.md
+	rm -rf $(QUARTZ)/content/.obsidian
+	cd $(QUARTZ) && npx quartz build --serve --port 9876
 
 ################################################################################
 ##@ Helpers

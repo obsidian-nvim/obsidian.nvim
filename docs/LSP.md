@@ -1,3 +1,10 @@
+---
+title: "LSP"
+tags:
+  - lsp
+  - reference
+---
+
 See also: [[LSP-Progress]]
 
 ## Definition
@@ -73,3 +80,7 @@ API:
   - `fn`: function invoked when the action is executed.
   - `cond` (optional): a filter function that gets the current note object, determines whether actions is listed.
 - `require("obsidian").code_action.del(name)` removes a previously registered action.
+
+## See also
+
+[[Completion]] · [[Actions]] · [[LSP-Progress]]

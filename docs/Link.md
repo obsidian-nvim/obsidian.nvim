@@ -1,7 +1,15 @@
+---
+title: "Link"
+tags:
+  - links
+  - navigation
+---
+
 - [Link Format](#link-format)
 - [Link Style](#link-style)
 - [Link Rename](#link-rename)
 - [Options](#options)
+- [See also](#see-also)
 
 ## Link Format
 
@@ -107,3 +115,7 @@ link = {
   auto_update = false,
 }
 ```
+
+## See also
+
+[[Navigation]] · [[LSP]] · [[Note]]
