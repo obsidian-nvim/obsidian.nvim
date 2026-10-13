@@ -169,6 +169,17 @@ return function()
     if not choices then
       return
     end
+    table.sort(choices, function(a, b)
+      local a_data, b_data = a.user_data, b.user_data
+      if a_data.path ~= b_data.path then
+        return a_data.path > b_data.path
+      end
+      local a_range, b_range = a_data.suggestion.range, b_data.suggestion.range
+      if a_range.start_row ~= b_range.start_row then
+        return a_range.start_row > b_range.start_row
+      end
+      return a_range.start_col > b_range.start_col
+    end)
     for _, choice in ipairs(choices) do
       ---@cast choice obsidian.PickerEntry
       local data = choice.user_data

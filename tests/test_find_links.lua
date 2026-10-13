@@ -138,6 +138,30 @@ T["find_outgoing"]["applies selected target without reopening target picker"] = 
   assert(content:find("target", 1, true), "link should reference selected target")
 end
 
+T["find_outgoing"]["applies multiple locations from right to left"] = function()
+  local root = child.Obsidian.dir
+  h.write("# Target\n", root / "target.md")
+  h.write("# Source\n\nTarget, then Target.\n", root / "source.md")
+  child.cmd("edit " .. tostring(root / "source.md"))
+  setup_cache()
+
+  local content = child.lua [[
+    local picker = require "obsidian.picker"
+    local original_select = picker.select
+    local calls = 0
+    picker.select = function(items, _, callback)
+      calls = calls + 1
+      callback(calls == 1 and { items[1] } or items)
+    end
+
+    require("obsidian.commands.find_outgoing")()
+    picker.select = original_select
+    return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  ]]
+
+  eq(true, content:find("Target, then Target.", 1, true) == nil, content)
+end
+
 T["find_outgoing"]["skips already-linked text"] = function()
   local root = child.Obsidian.dir
   h.write("# Target\n", root / "target.md")
@@ -261,6 +285,33 @@ T["find_incoming"]["filters same-name symbols to the current note path"] = funct
   eq(1, #symbols)
   eq("alpha", symbols[1].text_lower)
   eq({ tostring(root / "alpha.md") }, symbols[1].target_paths)
+end
+
+T["find_incoming"]["applies multiple locations in one file from right to left"] = function()
+  local root = child.Obsidian.dir
+  h.write("# Alpha\n", root / "alpha.md")
+  h.write("# Beta\n\nAlpha, then Alpha.\n", root / "beta.md")
+  child.cmd("edit " .. tostring(root / "alpha.md"))
+  setup_cache()
+
+  local lines = child.lua [[
+    local picker = require "obsidian.picker"
+    local original_select = picker.select
+    picker.select = function(items, _, callback)
+      callback(items)
+    end
+    require("obsidian.commands.find_incoming")()
+    picker.select = original_select
+    return {
+      lines = vim.fn.readfile(vim.fs.joinpath(tostring(Obsidian.dir), "beta.md")),
+      buffers = vim.tbl_map(function(bufnr)
+        return { name = vim.api.nvim_buf_get_name(bufnr), lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false) }
+      end, vim.api.nvim_list_bufs()),
+    }
+  ]]
+
+  local content = table.concat(lines.lines, "\n")
+  eq(true, content:lower():find("alpha, then alpha.", 1, true) == nil, vim.inspect(lines))
 end
 
 T["find_incoming"]["does not match text inside existing wikilinks"] = function()

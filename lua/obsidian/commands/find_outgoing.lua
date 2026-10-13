@@ -76,7 +76,15 @@ return function()
         return preview
       end,
     }, function(location_choices)
-      for _, choice in ipairs(location_choices or {}) do
+      location_choices = location_choices or {}
+      table.sort(location_choices, function(a, b)
+        local a_range, b_range = a.user_data.suggestion.range, b.user_data.suggestion.range
+        if a_range.start_row ~= b_range.start_row then
+          return a_range.start_row > b_range.start_row
+        end
+        return a_range.start_col > b_range.start_col
+      end)
+      for _, choice in ipairs(location_choices) do
         local data = choice.user_data
         if data then
           actions.apply_link_suggestion(bufnr, data.suggestion, data.candidate)
