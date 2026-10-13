@@ -449,7 +449,13 @@ end
 
 --- Get markdown display info about the note.
 ---
----@param opts { label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|?
+---@param opts {
+---   label: string|?,
+---   anchor: obsidian.note.HeaderAnchor|?,
+---   block: obsidian.note.Block|?,
+---   title: string|?,
+---   preview: string|?,
+--- }|?
 ---
 ---@return string
 Note.display_info = function(self, opts)
@@ -465,6 +471,20 @@ Note.display_info = function(self, opts)
 
   if self.path ~= nil then
     info[#info + 1] = ("**path:** `%s`"):format(self.path)
+  end
+
+  if opts.title ~= nil then
+    local title = vim.trim(opts.title)
+    if title ~= "" then
+      info[#info + 1] = ("**title:** %s"):format(title)
+    end
+  end
+
+  if opts.preview ~= nil then
+    local preview = vim.trim(opts.preview)
+    if preview ~= "" then
+      info[#info + 1] = ("**preview:** %s"):format(preview)
+    end
   end
 
   info[#info + 1] = ("**id:** `%s`"):format(self.id)

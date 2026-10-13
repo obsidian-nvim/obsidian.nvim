@@ -1,4 +1,5 @@
 local completion = require "obsidian.completion.refs"
+local docs = require "obsidian.completion.docs"
 local util = require "obsidian.util"
 local date = require "obsidian.date"
 local link_parser = require "obsidian.link.parser"
@@ -125,6 +126,8 @@ function M.process_completion(callback, request)
 
   -- Completion items.
   local items = {}
+  ---@type obsidian.completion.docs.Entry[]
+  local doc_entries = {}
 
   for _, new_note_opts in ipairs(new_notes_opts) do
     local new_note = new_note_opts.note
@@ -148,12 +151,6 @@ function M.process_completion(callback, request)
       block = block,
       dir = source_path ~= "" and vim.fs.dirname(source_path) or nil,
     }
-    local documentation = {
-      kind = "markdown",
-      value = new_note:display_info {
-        label = "Create: " .. new_text,
-      },
-    }
 
     ---@type lsp.Range
     local range = {
@@ -171,7 +168,6 @@ function M.process_completion(callback, request)
 
     ---@type lsp.CompletionItem
     local item = {
-      documentation = documentation,
       sortText = new_note_opts.label,
       filterText = completion.get_filter_text(new_note_opts.label),
       label = label,
@@ -194,12 +190,19 @@ function M.process_completion(callback, request)
     }
 
     items[#items + 1] = item
+    doc_entries[#doc_entries + 1] = { note = new_note, label = "Create: " .. new_text }
   end
 
-  callback {
-    isIncomplete = true,
-    items = items,
-  }
+  docs.resolve_all(doc_entries, function(values)
+    for i, item in ipairs(items) do
+      item.documentation = { kind = "markdown", value = values[i] or "" }
+    end
+
+    callback {
+      isIncomplete = true,
+      items = items,
+    }
+  end)
 end
 
 return M

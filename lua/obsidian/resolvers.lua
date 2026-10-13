@@ -7,6 +7,12 @@ local api = require "obsidian.api"
 
 local M = {}
 
+--- Maximum display characters for note preview titles and head snippets.
+local MAX_TITLE_CHARS = 80
+
+--- Matches a code-fence marker line, mirroring the section parser.
+local CODE_FENCE_PATTERN = "^```[%w_-]*$"
+
 ---@class obsidian.resolver.AttachmentCtx
 ---@field bufnr integer
 ---@field source string|?
@@ -36,7 +42,19 @@ local M = {}
 ---@alias obsidian.resolver.HintsResult lsp.InlayHint[]
 ---@alias obsidian.resolver.Hints fun(ctx: obsidian.resolver.HintsCtx, done: fun(result: obsidian.resolver.HintsResult|?, err: string|?))
 
----@alias obsidian.Resolver fun(ctx: table, done: fun(result: table|?, err: string|?))
+--- Context for the `note_preview` resolver.
+---
+---@class obsidian.resolver.NotePreviewCtx
+---@field scope string Where the preview is displayed, e.g. `"lsp.completion"` (completion documentation).
+---@field note obsidian.Note The note being previewed.
+---@field label string|? The resolved link text to show at the top, if any.
+---@field anchor obsidian.note.HeaderAnchor|? Heading anchor being linked to, if any.
+---@field block obsidian.note.Block|? Block being linked to, if any.
+
+--- Markdown documentation for a note preview.
+---@alias obsidian.resolver.NotePreviewResult string
+
+---@alias obsidian.Resolver fun(ctx: table, done: fun(result: any, err: string|?))
 
 ---@type table<string, obsidian.Resolver>
 M.builtin = {}
@@ -189,9 +207,156 @@ M.builtin.hints = function(ctx, done)
   done(require "obsidian.lsp.inlay_hints.link"(ctx.note, ctx.range))
 end
 
+--- Truncate a string to `max_chars` display characters, appending an ellipsis when truncated.
+---
+---@param text string
+---@param max_chars integer
+---@return string
+local function truncate(text, max_chars)
+  if vim.fn.strchars(text) > max_chars then
+    return vim.fn.strcharpart(text, 0, max_chars - 1) .. "…"
+  end
+  return text
+end
+
+--- Iterate the meaningful body lines of a note (frontmatter, blank lines, and
+--- `%%` / `<!-- -->` comments are skipped). Code-fence markers and fenced
+--- content are yielded like normal lines; callers decide how to treat them.
+---
+---@param note obsidian.Note
+---@return fun(): string|?
+local function iter_body_lines(note)
+  local contents = note.contents
+  if contents == nil then
+    return function() end
+  end
+
+  local i = (note.has_frontmatter and note.frontmatter_end_line or 0) + 1
+  local in_obsidian_comment = false
+  local in_html_comment = false
+
+  return function()
+    while i <= #contents do
+      local line = vim.trim(contents[i] or "")
+      i = i + 1
+      if in_obsidian_comment then
+        if line:find("%%", 1, true) then
+          in_obsidian_comment = false
+        end
+      elseif in_html_comment then
+        if line:find("-->", 1, true) then
+          in_html_comment = false
+        end
+      elseif line ~= "" and vim.startswith(line, "%%") then
+        -- Obsidian comment; only opens a block when not closed on the same line.
+        if not line:find("%%", 3, true) then
+          in_obsidian_comment = true
+        end
+      elseif line ~= "" and vim.startswith(line, "<!--") then
+        -- HTML comment; only opens a block when not closed on the same line.
+        if not line:find("-->", 5, true) then
+          in_html_comment = true
+        end
+      elseif line ~= "" then
+        return line
+      end
+    end
+    return nil
+  end
+end
+
+--- Extract a human-readable title for a note from already-loaded state.
+---
+--- Priority: frontmatter `title` metadata, then the first H1 heading in the body.
+--- Returns `nil` when the note has no loaded contents or no semantic title.
+---
+---@param note obsidian.Note
+---@return string|?
+local function note_title(note)
+  local metadata_title = note.metadata and note.metadata.title or nil
+  if type(metadata_title) == "string" then
+    metadata_title = vim.trim(metadata_title)
+    if metadata_title ~= "" then
+      return truncate(metadata_title, MAX_TITLE_CHARS)
+    end
+  elseif type(metadata_title) == "number" then
+    return truncate(tostring(metadata_title), MAX_TITLE_CHARS)
+  end
+
+  local in_code_block = false
+  for line in iter_body_lines(note) do
+    if line:match(CODE_FENCE_PATTERN) then
+      in_code_block = not in_code_block
+    elseif not in_code_block then
+      local h1 = line:match "^#%s+(.-)%s*$"
+      if h1 and h1 ~= "" then
+        return truncate(h1, MAX_TITLE_CHARS)
+      end
+    end
+  end
+
+  return nil
+end
+
+--- Build a short head snippet from the beginning of the note body.
+---
+--- Blank lines, comments, code-fence markers, and headings are skipped; the
+--- remaining text is whitespace-collapsed and truncated. Returns `nil` when
+--- the note has no loaded contents or no previewable text.
+---
+---@param note obsidian.Note
+---@return string|?
+local function note_head(note)
+  ---@type string[]
+  local parts = {}
+
+  for line in iter_body_lines(note) do
+    -- Skip code-fence markers (fenced content is still shown), headings (they
+    -- read poorly inside a collapsed snippet), and setext underlines.
+    if not (line:match(CODE_FENCE_PATTERN) or line:match "^#+%s" or line:match "^=+$" or line:match "^-+$") then
+      parts[#parts + 1] = line
+      if vim.fn.strchars(table.concat(parts, " ")) >= MAX_TITLE_CHARS then
+        break
+      end
+    end
+  end
+
+  local head = vim.trim(table.concat(parts, " "))
+  if head == "" then
+    return nil
+  end
+  return truncate(head, MAX_TITLE_CHARS)
+end
+
+--- Render the default note preview.
+---
+---@param ctx obsidian.resolver.NotePreviewCtx
+---@return string
+M.default_note_preview = function(ctx)
+  local title, preview
+  if ctx.scope == "lsp.completion" then
+    title = note_title(ctx.note)
+    if title == nil then
+      preview = note_head(ctx.note)
+    end
+  end
+  return ctx.note:display_info {
+    label = ctx.label,
+    anchor = ctx.anchor,
+    block = ctx.block,
+    title = title,
+    preview = preview,
+  }
+end
+
+---@type obsidian.Resolver
+M.builtin.note_preview = function(ctx, done)
+  done(M.default_note_preview(ctx))
+end
+
 ---@param name string
 ---@param ctx table|?
----@param done fun(result: table|?, err: string|?)
+---@param done fun(result: any, err: string|?)
 M.resolve = function(name, ctx, done)
   ctx = ctx or {}
   local resolver = Obsidian.opts.resolvers and Obsidian.opts.resolvers[name] or nil

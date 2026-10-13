@@ -1143,4 +1143,37 @@ start: morning
   Obsidian.opts.frontmatter.func = prev_func
 end
 
+T["display_info"] = new_set()
+
+T["display_info"]["should include the title line when given"] = function()
+  local note = M.new("foo", { "Foo" }, { "bar" }, "/tmp/vault/foo.md")
+  local info = note:display_info { title = "Some Title" }
+  eq(true, info:find("**title:** Some Title", 1, true) ~= nil)
+  -- Title is the most identifying info, so it comes right after the path.
+  local path_i = assert(info:find("**path:**", 1, true))
+  local title_i = assert(info:find("**title:**", 1, true))
+  local id_i = assert(info:find("**id:**", 1, true))
+  eq(true, path_i < title_i and title_i < id_i)
+end
+
+T["display_info"]["should omit the title line when not given"] = function()
+  local note = M.new("foo", { "Foo" }, { "bar" })
+  eq(nil, note:display_info({}):find("**title:**", 1, true))
+end
+
+T["display_info"]["should include the preview line when given"] = function()
+  local note = M.new("foo", { "Foo" }, { "bar" }, "/tmp/vault/foo.md")
+  local info = note:display_info { preview = "Some snippet" }
+  eq(true, info:find("**preview:** Some snippet", 1, true) ~= nil)
+  local path_i = assert(info:find("**path:**", 1, true))
+  local preview_i = assert(info:find("**preview:**", 1, true))
+  local id_i = assert(info:find("**id:**", 1, true))
+  eq(true, path_i < preview_i and preview_i < id_i)
+end
+
+T["display_info"]["should omit an empty title"] = function()
+  local note = M.new("foo", { "Foo" }, { "bar" })
+  eq(nil, note:display_info({ title = "  " }):find("**title:**", 1, true))
+end
+
 return T

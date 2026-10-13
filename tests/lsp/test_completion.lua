@@ -379,6 +379,185 @@ T["completion"]["cached note references use unsaved loaded metadata"] = function
   end), "stale cached alias was offered for a modified buffer")
 end
 
+T["completion"]["documentation shows title from frontmatter metadata"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = [==[
+---
+id: target
+title: My Target Note
+tags: []
+---
+Some content
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq("markdown", item.documentation.kind)
+  eq(true, item.documentation.value:find("**title:** My Target Note", 1, true) ~= nil)
+end
+
+T["completion"]["documentation falls back to the first H1"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = [==[
+---
+id: target
+tags: []
+---
+
+An intro paragraph before the heading.
+
+# Central Limit Theorem
+
+Body text
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq(true, item.documentation.value:find("**title:** Central Limit Theorem", 1, true) ~= nil)
+end
+
+T["completion"]["documentation shows preview from first body content"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = [==[
+---
+id: target
+tags: []
+---
+%% an obsidian comment %%
+<!-- an html comment -->
+%%
+# Not a title, inside a comment
+Some 100% off line, not a closer
+%%
+Visible intro line.
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq(true, item.documentation.value:find("**preview:** Visible intro line.", 1, true) ~= nil)
+end
+
+T["completion"]["documentation preview skips fence markers and collapses lines"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = [==[
+---
+id: target
+tags: []
+---
+```lua
+local x = 1
+```
+## Sub heading
+Prose continues here.
+]==],
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq(true, item.documentation.value:find("**preview:** local x = 1 Prose continues here.", 1, true) ~= nil)
+end
+
+T["completion"]["documentation truncates long previews"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = "[==[" .. string.rep("x", 100) .. "]==]",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  local preview = item.documentation.value:match "%*%*preview:%*%* ([^\n]*)"
+  assert(preview, "no preview line in documentation")
+  eq(80, vim.fn.strchars(preview))
+  eq(true, vim.endswith(preview, "…"))
+end
+
+T["completion"]["note_preview resolver overrides documentation"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = "# Target Heading",
+  })
+
+  child.lua [[
+    Obsidian.opts.resolvers.note_preview = function(ctx, done)
+      done("custom preview: " .. tostring(ctx.note.id) .. " (" .. ctx.scope .. ")")
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq("custom preview: target (lsp.completion)", item.documentation.value)
+
+  child.lua [[Obsidian.opts.resolvers.note_preview = nil]]
+end
+
+T["completion"]["documentation falls back to builtin when resolver fails"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "[[ta",
+    ["target.md"] = "# Target Heading",
+  })
+
+  child.lua [[
+    Obsidian.opts.resolvers.note_preview = function(_, done)
+      done(nil, "boom")
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+
+  local result = run_completion(0, 4)
+  local item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.label == "[[target]]"
+  end)
+  assert(item, "no completion item for target")
+  eq(true, item.documentation.value:find("**title:** Target Heading", 1, true) ~= nil)
+
+  child.lua [[Obsidian.opts.resolvers.note_preview = nil]]
+end
+
 T["completion"]["searches vault headings without cache"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[##api",
@@ -395,6 +574,8 @@ T["completion"]["searches vault headings without cache"] = function()
   end)
   assert(item, "no vault heading completion found")
   eq("[[target#HTTP API Guide]]", item.textEdit.newText)
+  eq("markdown", item.documentation.kind)
+  eq(true, item.documentation.value:find("**title:** HTTP API Guide", 1, true) ~= nil)
 end
 
 T["completion"]["searches normalized heading anchors without cache"] = function()
@@ -467,6 +648,10 @@ T["completion"]["disambiguates duplicate note basenames"] = function()
   for _, item in ipairs(result.items or {}) do
     if item.label == "Shared One — target" or item.label == "Shared Two — target" then
       links[#links + 1] = item.textEdit.newText
+      -- Documentation must stay attached through the disambiguation path.
+      local heading = item.label:match "^(.*) — target$"
+      eq("markdown", item.documentation.kind)
+      eq(true, item.documentation.value:find("**title:** " .. heading, 1, true) ~= nil)
     end
   end
   table.sort(links)
@@ -1346,7 +1531,7 @@ end
 T["completion"]["searches and displays existing block IDs"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[^^quote-of-the-day",
-    ["target.md"] = "Unrelated content ^quote-of-the-day",
+    ["target.md"] = "# Target Title\n\nUnrelated content ^quote-of-the-day",
   })
 
   child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
@@ -1359,6 +1544,8 @@ T["completion"]["searches and displays existing block IDs"] = function()
   assert(item, "existing block ID was not searchable and visible")
   eq(nil, item.command)
   eq("[[target#^quote-of-the-day]]", item.textEdit.newText)
+  eq("markdown", item.documentation.kind)
+  eq(true, item.documentation.value:find("**title:** Target Title", 1, true) ~= nil)
 end
 
 T["completion"]["honors min chars for current-note block queries"] = function()
@@ -2082,6 +2269,11 @@ T["completion"]["new-note suggestions do not create notes while typing"] = funct
 
   assert(create_item, "no create item found")
   eq(0, child.lua_get "_G.obsidian_completion_create_count")
+  -- Create items get documentation too, with the "Create: ..." label and no
+  -- title (the note does not exist on disk yet).
+  eq("markdown", create_item.documentation.kind)
+  eq(true, create_item.documentation.value:find("Create: ", 1, true) ~= nil)
+  eq(nil, create_item.documentation.value:find("**title:**", 1, true))
 end
 
 T["completion"]["invalid partial filenames do not prompt during completion"] = function()

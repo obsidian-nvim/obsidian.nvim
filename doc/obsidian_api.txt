@@ -134,7 +134,13 @@ Keep in mind that you have to call `note:save(...)` to create/update the note on
 Get markdown display info about the note.
 
 Parameters ~
-{opts} `({ label: string|?, anchor: obsidian.note.HeaderAnchor|?, block: obsidian.note.Block|? }|)`?
+{opts} {
+  label: string|?,
+  anchor: obsidian.note.HeaderAnchor|?,
+  block: obsidian.note.Block|?,
+  title: string|?,
+  preview: string|?,
+}|?
 
 Return ~
 `(string)`

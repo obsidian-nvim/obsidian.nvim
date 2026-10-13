@@ -281,6 +281,7 @@ local function validate_callbacks(errors, opts)
     { "attachment", "callable" },
     { "date", "callable" },
     { "hints", "callable" },
+    { "note_preview", "callable" },
   })
 end
 
