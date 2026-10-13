@@ -91,6 +91,24 @@ vim.api.nvim_create_autocmd("FileType", {
       end
       exec_autocmds "ObsidianNoteLeave"
     end)
+    create_autocmd({ "InsertLeave", "TextChanged" }, args.buf, function(ev)
+      if not vim.b[ev.buf].obsidian_buffer then
+        return
+      end
+      if ev.event == "InsertLeave" then
+        require("obsidian.inlay_hints.completion").observe(ev.buf)
+      end
+      require("obsidian.inlay_hints").schedule_refresh(ev.buf)
+    end)
+    create_autocmd("CursorMovedI", args.buf, function(ev)
+      if not vim.b[ev.buf].obsidian_buffer then
+        return
+      end
+      local _, left_completion = require("obsidian.inlay_hints.completion").observe(ev.buf)
+      if left_completion then
+        require("obsidian.inlay_hints").schedule_refresh(ev.buf, { allow_insert = true })
+      end
+    end)
     create_autocmd("BufWritePre", args.buf, function(ev)
       if not vim.b[ev.buf].obsidian_buffer then
         return

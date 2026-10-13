@@ -137,4 +137,4 @@ resolvers = {
 }
 ```
 
-The built-in resolver returns link-suggestion hints for the requested range.
+The built-in resolver returns link-suggestion hints for the requested range. In insert mode, hints update with document changes except while the cursor is in a built-in completion expression (`[[`, `#`, or `[^`). During completion, the previous hint result is reused and no resolver is started; hints resume when completion ends or the cursor leaves the expression. A debounced refresh also follows normal-mode edits (including undo), leaving insert mode, and saving the note. Accepting a hint triggers a refresh.

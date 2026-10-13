@@ -56,8 +56,10 @@ local function in_frontmatter_tags_list(bufnr, cursor_line, cursor_before_line)
 end
 
 ---@param request obsidian.completion.Request
+---@param opts { allow_empty: boolean? }|?
 ---@return boolean, string|?, boolean|?
-M.can_complete = function(request)
+M.can_complete = function(request, opts)
+  opts = opts or {}
   local line = request.line + 1 -- 1-indexed
   local document = BufferDocument.get(request.bufnr)
   local cursor = Pos.new(request.line, #request.cursor_before_line)
@@ -77,7 +79,7 @@ M.can_complete = function(request)
   end
 
   local search = M.find_tags_start(request.cursor_before_line)
-  if not search or string.len(search) == 0 then
+  if search == nil or (not opts.allow_empty and string.len(search) == 0) then
     return false
   end
 

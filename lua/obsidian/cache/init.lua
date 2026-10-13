@@ -60,6 +60,7 @@ local backends = {
 
 ---@type obsidian.cache.State?
 local state = nil
+local generation = 0
 
 local FLUSH_DEBOUNCE_MS = 2000
 
@@ -118,7 +119,11 @@ local function is_internal(abs_path)
 end
 
 local function schedule_flush()
-  if not state or not state.backend.flush then
+  if not state then
+    return
+  end
+  generation = generation + 1
+  if not state.backend.flush then
     return
   end
   if state.flush_timer then
@@ -342,6 +347,12 @@ end
 ---@return boolean
 function M.is_enabled()
   return state ~= nil
+end
+
+---Return a version that changes whenever cached rows are mutated.
+---@return integer
+function M.generation()
+  return generation
 end
 
 ---Register a cache backend.

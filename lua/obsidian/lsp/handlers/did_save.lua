@@ -10,6 +10,7 @@ return function(params, dispatchers)
   if ok then
     require("obsidian.cache").notes.refresh(path)
   end
+  require("obsidian.lsp.inlay_hint_cache").invalidate(vim.uri_to_bufnr(uri))
 
   if dispatchers then
     dispatchers.server_request "workspace/inlayHint/refresh"

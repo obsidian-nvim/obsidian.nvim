@@ -1,4 +1,7 @@
 local M = {}
+---@type table<integer, { allow_insert: boolean }>
+local refresh_scheduled = {}
+local last_refreshed = {}
 
 local function is_lsp_range(range)
   return type(range) == "table" and range.start ~= nil and range["end"] ~= nil
@@ -135,6 +138,7 @@ end
 ---@param bufnr integer
 ---@param client_id integer
 local function refresh(bufnr, client_id)
+  require("obsidian.lsp.inlay_hint_cache").invalidate(bufnr)
   local client = vim.lsp.get_client_by_id(client_id)
   local handler = vim.lsp.handlers["workspace/inlayHint/refresh"]
   if client and client.name == "obsidian-ls" and handler then
@@ -144,6 +148,67 @@ local function refresh(bufnr, client_id)
       method = "workspace/inlayHint/refresh",
     })
   end
+end
+
+---Refresh native inlay hints for a buffer.
+---@param bufnr integer
+M.refresh = function(bufnr)
+  refresh_scheduled[bufnr] = nil
+  if vim.api.nvim_buf_is_valid(bufnr) then
+    last_refreshed[bufnr] = {
+      changedtick = vim.api.nvim_buf_get_changedtick(bufnr),
+      name = vim.api.nvim_buf_get_name(bufnr),
+    }
+  end
+  for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr, name = "obsidian-ls" }) do
+    refresh(bufnr, client.id)
+  end
+end
+
+---Schedule one refresh for all changes in the current event-loop turn.
+---@param bufnr integer
+---@param opts { allow_insert: boolean? }|?
+M.schedule_refresh = function(bufnr, opts)
+  opts = opts or {}
+  local scheduled = refresh_scheduled[bufnr]
+  if scheduled then
+    scheduled.allow_insert = scheduled.allow_insert or opts.allow_insert == true
+    return
+  end
+
+  scheduled = { allow_insert = opts.allow_insert == true }
+  refresh_scheduled[bufnr] = scheduled
+  vim.schedule(function()
+    if refresh_scheduled[bufnr] ~= scheduled then
+      return
+    end
+    refresh_scheduled[bufnr] = nil
+    if not vim.api.nvim_buf_is_valid(bufnr) or not vim.b[bufnr].obsidian_buffer then
+      return
+    end
+    local allow_insert = scheduled.allow_insert
+    local refreshed = last_refreshed[bufnr]
+    if
+      not allow_insert
+      and refreshed
+      and refreshed.changedtick == vim.api.nvim_buf_get_changedtick(bufnr)
+      and refreshed.name == vim.api.nvim_buf_get_name(bufnr)
+    then
+      return
+    end
+
+    local ok, mode = pcall(vim.fn.mode, 1)
+    if
+      not allow_insert
+      and ok
+      and vim.api.nvim_get_current_buf() == bufnr
+      and type(mode) == "string"
+      and mode:sub(1, 1) == "i"
+    then
+      return
+    end
+    M.refresh(bufnr)
+  end)
 end
 
 ---@param bufnr integer
@@ -161,7 +226,11 @@ local function apply_hint(bufnr, item, hint)
     execute_lsp_command(command)
   end
 
-  refresh(bufnr, item.client_id)
+  -- LSP commands registered by Obsidian are scheduled; refresh after the
+  -- command has applied its edits so the next response reflects the new text.
+  vim.schedule(function()
+    M.refresh(bufnr)
+  end)
 end
 
 ---@param bufnr integer | nil
