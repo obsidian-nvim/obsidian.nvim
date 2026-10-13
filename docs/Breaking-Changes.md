@@ -1,3 +1,10 @@
+---
+title: "Breaking Changes"
+tags:
+  - migration
+  - reference
+---
+
 <!-- TODO: list all the things that you need to migrate -->
 
 1. Follow any warning that pops up when you enter neovim. We group config options more logically to have better docs and improve feature accessibility.

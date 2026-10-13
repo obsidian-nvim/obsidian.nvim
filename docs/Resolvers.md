@@ -1,4 +1,9 @@
-# Resolvers
+---
+title: "Resolvers"
+tags:
+  - developers
+  - configuration
+---
 
 Resolvers are user-provided functions that choose or acquire input before an action continues.
 

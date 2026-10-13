@@ -1,3 +1,10 @@
+---
+title: "Extensions"
+tags:
+  - developers
+  - extensions
+---
+
 **This is for developers**
 
 Example plugin of integrating: [obsidian-markmap.nvim](https://github.com/obsidian-nvim/obsidian-markmap.nvim)

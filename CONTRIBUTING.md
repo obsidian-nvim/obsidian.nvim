@@ -80,6 +80,6 @@ TL;DR: `make api-docs`
 - The API docs lives in `doc/obsidian_api.txt` and is generated from the source code using [`mini.docs`](https://github.com/echasnovski/mini.doc).
 - This step don't need to be done locally since CI will auto run.
 
-### Contribute to the user wiki
+### Contribute to the documentation
 
-See [Edit user wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Editing-this-wiki)
+Documentation is maintained in [`docs/`](docs/) and published with Quartz. See the [documentation contribution guide](docs/Contributing-to-docs.md) for local preview and writing conventions.

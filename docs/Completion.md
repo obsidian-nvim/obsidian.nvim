@@ -1,3 +1,10 @@
+---
+title: "Completion"
+tags:
+  - completion
+  - lsp
+---
+
 ## Plugin Completion
 
 This plugin provides plugin-agnostic completion via in-process LSP, you only need to make sure you are triggering LSP completions in markdown buffers.
@@ -53,3 +60,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
   end,
 })
 ```
+
+## See also
+
+[[LSP]] · [[Link]] · [[Tag]]

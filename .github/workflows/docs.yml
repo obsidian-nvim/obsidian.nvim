@@ -32,7 +32,7 @@ jobs:
           mkdir -p ${{ env.runtime }}
           mkdir -p _neovim
           curl -sL ${{ env.nvim_url }} | tar xzf - --strip-components=1 -C "${PWD}/_neovim"
-          ln -s $(pwd) ${{ env.runtime }}
+          ln -s "${PWD}" ${{ env.runtime }}
 
       - name: Generate API docs
         run: |
@@ -40,11 +40,19 @@ jobs:
           export VIM="${PWD}/_neovim/share/nvim/runtime"
           make api-docs
 
-      - name: Generate wiki docs
+      - name: Generate configuration reference
         run: |
           export PATH="${PWD}/_neovim/bin:${PATH}"
           export VIM="${PWD}/_neovim/share/nvim/runtime"
           make docgen
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build Quartz site
+        run: make docs-site
 
       - name: Clean up
         run: |

@@ -15,8 +15,33 @@ on:
       - 'v*.*.*'
 
 jobs:
+  build-docs:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build Quartz documentation
+        run: make docs-site
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: deps/quartz/public
+
   release:
     name: Release
+    needs: build-docs
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -37,54 +62,38 @@ jobs:
 
       - name: Prepare environment
         run: |
-          echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_ENV"
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
 
       - name: Generate release notes
         run: |
           python scripts/release_notes.py > ${{ github.workspace }}-RELEASE_NOTES.md
 
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           body_path: ${{ github.workspace }}-RELEASE_NOTES.md
-          prerelease: ${{ contains(env.TAG, 'rc') }}
+          prerelease: ${{ contains(env.TAG, '-') }}
 
-      - name: Sync docs to wiki
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # Clone wiki repo
-          git clone "https://github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
-          cd wiki
-
-          # Force the correct remote (CI-safe) with token auth
-          git remote remove origin || true
-          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.wiki.git"
-
-          # Guard: only wiki allowed
-          REMOTE=$(git remote get-url origin)
-          case "$REMOTE" in
-            *".wiki.git") ;;
-            *)
-              echo "❌ Refusing to push to non-wiki remote: $REMOTE"
-              exit 1
-              ;;
-          esac
-
-          # CI identity
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
-          # Sync docs -> wiki root
-          rsync -av --delete --exclude '.git' --exclude '.*' "${GITHUB_WORKSPACE}/docs/" .
-
-          # Commit only if changes exist
-          git add -A
-          git diff --cached --quiet || git commit -m "Sync docs from main repo (${GITHUB_REF#refs/tags/})"
-
-          # Push changes (wiki default branch is often master)
-          git push origin HEAD:master
+  deploy-pages:
+    name: Deploy documentation
+    needs: [build-docs, release]
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

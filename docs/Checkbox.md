@@ -1,6 +1,14 @@
+---
+title: "Checkbox"
+tags:
+  - core-plugins
+  - editor
+---
+
 - [Create new](#create-new)
 - [Checkbox to list item](#checkbox-to-list-item)
 - [Options](#options)
+- [See also](#see-also)
 
 ## Create new
 
@@ -28,3 +36,7 @@ checkbox = {
   order = { " ", "~", "!", ">", "x" },
 }
 ```
+
+## See also
+
+[[Keymaps]] · [[Actions]]
