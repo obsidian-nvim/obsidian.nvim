@@ -142,6 +142,24 @@ function M.symbols(path, opts)
   return symbols
 end
 
+---Return symbols that resolve only to the requested note path.
+---@param path string
+---@param opts { dir: string|obsidian.Path|? }?
+---@return obsidian.LinkSuggestionSymbol[]
+function M.symbols_for_path(path, opts)
+  local normalized_path = vim.fs.normalize(path)
+  local symbols = M.symbols(path, { include_current = true, dir = opts and opts.dir })
+  local matching_symbols = {}
+  for _, symbol in ipairs(symbols) do
+    if vim.tbl_contains(symbol.target_paths, normalized_path) then
+      matching_symbols[#matching_symbols + 1] = vim.tbl_extend("force", {}, symbol, {
+        target_paths = { normalized_path },
+      })
+    end
+  end
+  return matching_symbols
+end
+
 ---@param byte integer?
 ---@return boolean
 local function is_ascii_word_byte(byte)

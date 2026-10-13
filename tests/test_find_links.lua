@@ -243,6 +243,26 @@ T["find_incoming"]["matches aliases of current note"] = function()
   eq(true, found_alias)
 end
 
+T["find_incoming"]["filters same-name symbols to the current note path"] = function()
+  local root = child.Obsidian.dir
+  child.lua [[vim.fn.mkdir(tostring(Obsidian.dir / "history"), "p")]]
+  h.write("# Alpha\n", root / "alpha.md")
+  h.write("# Alpha\n", root / "history" / "alpha.md")
+  child.cmd("edit " .. tostring(root / "alpha.md"))
+  setup_cache()
+
+  local symbols = child.lua_get [[
+    (function()
+      local path = vim.api.nvim_buf_get_name(0)
+      return require("obsidian.note.link_suggestion").symbols_for_path(path)
+    end)()
+  ]]
+
+  eq(1, #symbols)
+  eq("alpha", symbols[1].text_lower)
+  eq({ tostring(root / "alpha.md") }, symbols[1].target_paths)
+end
+
 T["find_incoming"]["does not match text inside existing wikilinks"] = function()
   local root = child.Obsidian.dir
   h.write("# Alpha\n", root / "alpha.md")

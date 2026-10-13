@@ -123,17 +123,7 @@ return function()
 
   -- Build the symbol list from the current note's title + aliases.
   -- Filter link_suggestion.symbols to only those resolving to the current note's path.
-  local all_symbols = link_suggestion.symbols(current_path, { include_current = true })
-  ---@type obsidian.LinkSuggestionSymbol[]
-  local self_symbols = {}
-  for _, sym in ipairs(all_symbols) do
-    for _, tp in ipairs(sym.target_paths) do
-      if vim.fs.normalize(tp) == vim.fs.normalize(current_path) then
-        self_symbols[#self_symbols + 1] = sym
-        break
-      end
-    end
-  end
+  local self_symbols = link_suggestion.symbols_for_path(current_path)
 
   if #self_symbols == 0 then
     return log.info "No symbols found for current note (title/aliases not in cache)"
