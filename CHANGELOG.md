@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `resolvers.note_preview` for customizing the preview/documentation lines of LSP completion items, resolved lazily per item via `completionItem/resolve`; the default rendering shows a `**title:**` line (frontmatter `title` or first H1), and the `**id:**` line is now only shown when the id is set explicitly in frontmatter (#966).
+
 ### Fixed
 
 - Sync setup now prompts for the end-to-end encryption password when linking an existing encrypted vault (#984).
@@ -28,7 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Line-level Markdown list item and task parsers (`obsidian.parse.line.list_items`, `obsidian.parse.line.tasks`) with unified marker, indentation, and task-state metadata.
 - Edits to frontmatter upon editing notes are now merged with said edits in the undo tree. Now you only need to press undo once to revert said note changes instead of twice to revert the frontmattter change as well.
 - Dedicated date, URI, link-location, and Markdown heading APIs.
-- `resolvers.note_preview` for customizing the preview/documentation lines of LSP completion items, resolved lazily per item via `completionItem/resolve`; the default rendering shows a `**title:**` line (frontmatter `title` or first H1), and the `**id:**` line is now only shown when the id is set explicitly in frontmatter (#966).
 
 ### Changed
 

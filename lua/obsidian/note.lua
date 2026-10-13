@@ -756,6 +756,9 @@ Note.from_cache = function(path, row)
   path = Path.new(path)
   local note = Note.new(row.id or path.stem, vim.deepcopy(row.aliases or {}), vim.deepcopy(row.tags or {}), path)
   note.metadata = vim.deepcopy(row.properties or {})
+  -- The cache only stores the id when it differs from the filename, so a
+  -- stored id is exactly one that was set explicitly.
+  note.has_explicit_id = row.id ~= nil
   return note
 end
 

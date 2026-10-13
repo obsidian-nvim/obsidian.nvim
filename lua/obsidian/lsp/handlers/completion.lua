@@ -2,6 +2,7 @@ local Ref = require "obsidian.completion.sources.refs"
 local Tag = require "obsidian.completion.sources.tags"
 local NewNote = require "obsidian.completion.sources.new"
 local Footnote = require "obsidian.completion.sources.footnotes"
+local docs = require "obsidian.completion.docs"
 
 ---@class obsidian.completion.Request
 ---@field bufnr integer
@@ -77,6 +78,8 @@ end
 ---@param params lsp.CompletionParams
 ---@param callback fun(err: any, result: lsp.CompletionList)
 return function(params, callback, _)
+  docs.begin_request()
+
   local request = build_request(params)
 
   -- Collect results from up to 3 sources and merge before calling the LSP callback.

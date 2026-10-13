@@ -232,6 +232,18 @@ local function iter_body_lines(note)
   end
 
   local i = (note.has_frontmatter and note.frontmatter_end_line or 0) + 1
+
+  if note.frontmatter_end_line == nil and contents[1] and contents[1]:match "^%-%-%-+$" then
+    -- Contents may be lazily loaded without frontmatter metadata (e.g. notes
+    -- built from the cache), in which case the frontmatter is still part of
+    -- `contents`. Skip it so its comments are never mistaken for content.
+    i = 2
+    while i <= #contents and not (contents[i] or ""):match "^%-%-%-+$" do
+      i = i + 1
+    end
+    i = i + 1
+  end
+
   local in_obsidian_comment = false
   local in_html_comment = false
 

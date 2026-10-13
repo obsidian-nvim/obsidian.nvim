@@ -340,6 +340,13 @@ Cached note content
     end),
     "cached ID candidate was missing"
   )
+
+  -- An id stored in the cache was set explicitly, so documentation shows it.
+  local id_item = vim.iter(result.items or {}):find(function(candidate)
+    return candidate.textEdit and candidate.textEdit.newText == "[[test-document|cached-id]]"
+  end)
+  local id_resolved = run_resolve(id_item)
+  eq(true, id_resolved.documentation.value:find("**id:** `cached-id`", 1, true) ~= nil)
   assert(
     vim.iter(result.items or {}):any(function(candidate)
       return candidate.textEdit and candidate.textEdit.newText == "[[test-document|Friendly Target]]"
@@ -804,6 +811,10 @@ T["completion"]["preserves heading case in current-note wiki-link labels"] = fun
 
   assert(item, "no case-preserving current-note heading completion found")
   eq("[[#HTTP API Guide]]", item.label)
+  -- In-buffer anchor items keep their static inline documentation and are not
+  -- registered for lazy resolution.
+  eq(true, item.documentation ~= nil and item.documentation.value:find("[[#HTTP API Guide]]", 1, true) ~= nil)
+  eq(nil, item.data)
 end
 
 T["completion"]["preserves heading case in named-note wiki links"] = function()
