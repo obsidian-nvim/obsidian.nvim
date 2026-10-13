@@ -93,7 +93,7 @@ vim.api.nvim_create_autocmd("FileType", {
     end)
     create_autocmd({ "InsertLeave", "TextChanged" }, args.buf, function(ev)
       if vim.b[ev.buf].obsidian_buffer then
-        require("obsidian.inlay_hints").refresh(ev.buf)
+        require("obsidian.inlay_hints").schedule_refresh(ev.buf)
       end
     end)
     create_autocmd("BufWritePre", args.buf, function(ev)

@@ -1,15 +1,6 @@
 local M = {}
----@type table<integer, uv.uv_timer_t>
-local refresh_timers = {}
-
-local function cancel_scheduled_refresh(bufnr)
-  local timer = refresh_timers[bufnr]
-  if timer then
-    refresh_timers[bufnr] = nil
-    timer:stop()
-    timer:close()
-  end
-end
+local refresh_scheduled = {}
+local last_refreshed = {}
 
 local function is_lsp_range(range)
   return type(range) == "table" and range.start ~= nil and range["end"] ~= nil
@@ -161,43 +152,49 @@ end
 ---Refresh native inlay hints for a buffer.
 ---@param bufnr integer
 M.refresh = function(bufnr)
-  cancel_scheduled_refresh(bufnr)
+  refresh_scheduled[bufnr] = nil
+  if vim.api.nvim_buf_is_valid(bufnr) then
+    last_refreshed[bufnr] = {
+      changedtick = vim.api.nvim_buf_get_changedtick(bufnr),
+      name = vim.api.nvim_buf_get_name(bufnr),
+    }
+  end
   for _, client in ipairs(vim.lsp.get_clients { bufnr = bufnr, name = "obsidian-ls" }) do
     refresh(bufnr, client.id)
   end
 end
 
--- ---Debounce refreshes from normal-mode edits and undo/redo.
--- ---@param bufnr integer
--- M.schedule_refresh = function(bufnr)
---   cancel_scheduled_refresh(bufnr)
---   local timer = vim.uv.new_timer()
---   if not timer then
---     return
---   end
---   refresh_timers[bufnr] = timer
---   timer:start(
---     120,
---     0,
---     vim.schedule_wrap(function()
---       if refresh_timers[bufnr] ~= timer then
---         return
---       end
---       refresh_timers[bufnr] = nil
---       timer:stop()
---       timer:close()
---
---       if not vim.api.nvim_buf_is_valid(bufnr) or not vim.b[bufnr].obsidian_buffer then
---         return
---       end
---       local ok, mode = pcall(vim.fn.mode, 1)
---       if ok and vim.api.nvim_get_current_buf() == bufnr and type(mode) == "string" and mode:sub(1, 1) == "i" then
---         return
---       end
---       M.refresh(bufnr)
---     end)
---   )
--- end
+---Schedule one refresh for all changes in the current event-loop turn.
+---@param bufnr integer
+M.schedule_refresh = function(bufnr)
+  if refresh_scheduled[bufnr] then
+    return
+  end
+  refresh_scheduled[bufnr] = true
+  vim.schedule(function()
+    if not refresh_scheduled[bufnr] then
+      return
+    end
+    refresh_scheduled[bufnr] = nil
+    if not vim.api.nvim_buf_is_valid(bufnr) or not vim.b[bufnr].obsidian_buffer then
+      return
+    end
+    local refreshed = last_refreshed[bufnr]
+    if
+      refreshed
+      and refreshed.changedtick == vim.api.nvim_buf_get_changedtick(bufnr)
+      and refreshed.name == vim.api.nvim_buf_get_name(bufnr)
+    then
+      return
+    end
+
+    local ok, mode = pcall(vim.fn.mode, 1)
+    if ok and vim.api.nvim_get_current_buf() == bufnr and type(mode) == "string" and mode:sub(1, 1) == "i" then
+      return
+    end
+    M.refresh(bufnr)
+  end)
+end
 
 ---@param bufnr integer
 ---@param item vim.lsp.inlay_hint.get.ret
