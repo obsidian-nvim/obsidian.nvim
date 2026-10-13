@@ -7,7 +7,7 @@ local api = require "obsidian.api"
 
 local M = {}
 
---- Maximum display characters for note preview titles and head snippets.
+--- Maximum display characters for note preview titles.
 local MAX_TITLE_CHARS = 80
 
 --- Matches a code-fence marker line, mirroring the section parser.
@@ -298,54 +298,20 @@ local function note_title(note)
   return nil
 end
 
---- Build a short head snippet from the beginning of the note body.
----
---- Blank lines, comments, code-fence markers, and headings are skipped; the
---- remaining text is whitespace-collapsed and truncated. Returns `nil` when
---- the note has no loaded contents or no previewable text.
----
----@param note obsidian.Note
----@return string|?
-local function note_head(note)
-  ---@type string[]
-  local parts = {}
-
-  for line in iter_body_lines(note) do
-    -- Skip code-fence markers (fenced content is still shown), headings (they
-    -- read poorly inside a collapsed snippet), and setext underlines.
-    if not (line:match(CODE_FENCE_PATTERN) or line:match "^#+%s" or line:match "^=+$" or line:match "^-+$") then
-      parts[#parts + 1] = line
-      if vim.fn.strchars(table.concat(parts, " ")) >= MAX_TITLE_CHARS then
-        break
-      end
-    end
-  end
-
-  local head = vim.trim(table.concat(parts, " "))
-  if head == "" then
-    return nil
-  end
-  return truncate(head, MAX_TITLE_CHARS)
-end
-
 --- Render the default note preview.
 ---
 ---@param ctx obsidian.resolver.NotePreviewCtx
 ---@return string
 M.default_note_preview = function(ctx)
-  local title, preview
+  local title
   if ctx.scope == "lsp.completion" then
     title = note_title(ctx.note)
-    if title == nil then
-      preview = note_head(ctx.note)
-    end
   end
   return ctx.note:display_info {
     label = ctx.label,
     anchor = ctx.anchor,
     block = ctx.block,
     title = title,
-    preview = preview,
   }
 end
 

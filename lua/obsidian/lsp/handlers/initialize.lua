@@ -33,7 +33,7 @@ local initializeResult = {
       },
     },
     completionProvider = {
-      resolveProvider = false,
+      resolveProvider = true,
       triggerCharacters = { "[", "#", "^" },
     },
     foldingRangeProvider = true,

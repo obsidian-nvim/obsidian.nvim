@@ -149,7 +149,11 @@ The built-in resolver returns link-suggestion hints for the requested range.
 ---@alias obsidian.resolver.NotePreviewResult string Markdown documentation.
 ```
 
-The built-in resolver shows the note's path, then a `**title:**` line resolved from the frontmatter `title` (if set) or the first H1, or a `**preview:**` snippet of the first ~80 characters of body text when the note has no semantic title. The id, aliases, and tags follow. It also shows the resolved link and the linked anchor/block when present.
+The built-in resolver shows the note's path, then a `**title:**` line resolved from the frontmatter `title` (if set) or the first H1, followed by the id (only when set explicitly in frontmatter), aliases, and tags. It also shows the resolved link and the linked anchor/block when present.
+
+Documentation is resolved lazily: completion items carry an opaque `data` payload and the LSP `completionItem/resolve` request renders it through this resolver only for the item a client actually previews. When a custom resolver cancels or fails, the item falls back to the built-in rendering. As with all resolvers, `done` must eventually be called exactly once, or the resolve response will never be sent.
+
+Note: when candidates are served from the note cache (see `cache.enabled`), the resolved notes are built from cached metadata without file contents, so the default rendering shows no title line for those items.
 
 Example adding the creation date from frontmatter:
 
@@ -169,6 +173,42 @@ require("obsidian").setup {
 }
 ```
 
-When a custom resolver cancels or fails, completion items fall back to the built-in rendering. As with all resolvers, `done` must eventually be called exactly once, or the completion response will never be sent.
+Recipe: a `**preview:**` snippet fallback for notes without a title. The default intentionally only resolves semantic titles; if you also want a snippet of the body text when a note has neither a frontmatter `title` nor an H1, add it yourself:
 
-Note: when vault heading completion is served from the note cache (see `cache.enabled`), the resolved notes are built from cached metadata without file contents, so the default rendering shows no title/preview line for those items.
+```lua
+require("obsidian").setup {
+  resolvers = {
+    note_preview = function(ctx, done)
+      local base = require("obsidian.resolvers").default_note_preview(ctx)
+      local note = ctx.note
+      if base:find("**title:**", 1, true) or note.contents == nil then
+        done(base)
+        return
+      end
+
+      -- First ~80 chars of body text, skipping frontmatter, blank lines,
+      -- code-fence markers, and headings.
+      local parts = {}
+      local first = (note.has_frontmatter and note.frontmatter_end_line or 0) + 1
+      for i = first, #note.contents do
+        local line = vim.trim(note.contents[i])
+        if line ~= "" and not line:match "^```" and not line:match "^#+%s" then
+          parts[#parts + 1] = line
+          if #table.concat(parts, " ") >= 80 then
+            break
+          end
+        end
+      end
+
+      local head = vim.trim(table.concat(parts, " "))
+      if head == "" then
+        done(base)
+      elseif #head > 80 then
+        done(base .. "\n**preview:** " .. head:sub(1, 79) .. "…")
+      else
+        done(base .. "\n**preview:** " .. head)
+      end
+    end,
+  },
+}
+```

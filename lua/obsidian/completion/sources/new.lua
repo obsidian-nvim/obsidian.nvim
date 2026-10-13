@@ -126,8 +126,6 @@ function M.process_completion(callback, request)
 
   -- Completion items.
   local items = {}
-  ---@type obsidian.completion.docs.Entry[]
-  local doc_entries = {}
 
   for _, new_note_opts in ipairs(new_notes_opts) do
     local new_note = new_note_opts.note
@@ -187,22 +185,16 @@ function M.process_completion(callback, request)
         newText = new_text,
         range = range,
       },
+      data = docs.register { note = new_note, label = "Create: " .. new_text },
     }
 
     items[#items + 1] = item
-    doc_entries[#doc_entries + 1] = { note = new_note, label = "Create: " .. new_text }
   end
 
-  docs.resolve_all(doc_entries, function(values)
-    for i, item in ipairs(items) do
-      item.documentation = { kind = "markdown", value = values[i] or "" }
-    end
-
-    callback {
-      isIncomplete = true,
-      items = items,
-    }
-  end)
+  callback {
+    isIncomplete = true,
+    items = items,
+  }
 end
 
 return M

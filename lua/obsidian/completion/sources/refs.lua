@@ -296,6 +296,7 @@ local function make_block_completion_item(cc, range, placeholder, spec)
       newText = spec.new_target and placeholder or spec.link,
       range = range,
     },
+    data = docs.register { note = spec.note, label = spec.link, block = spec.block },
   }
 
   local target = spec.new_target
@@ -370,8 +371,6 @@ local function process_block_search_results(cc, scope, query, results)
   local lowered_query = vim.fn.tolower(query)
   ---@type lsp.CompletionItem[]
   local items = {}
-  ---@type obsidian.completion.docs.Entry[]
-  local doc_entries = {}
 
   for note_idx, note in ipairs(results) do
     local same_note = vim.fs.normalize(tostring(note.path)) == source_path
@@ -428,19 +427,12 @@ local function process_block_search_results(cc, scope, query, results)
             link = link,
             new_target = new_target,
           })
-          doc_entries[#doc_entries + 1] = { note = note, label = link, block = block }
         end
       end
     end
   end
 
-  docs.resolve_all(doc_entries, function(values)
-    for i, item in ipairs(items) do
-      item.documentation = { kind = "markdown", value = values[i] or "" }
-    end
-
-    cc.completion_resolve_callback { isIncomplete = true, items = items }
-  end)
+  cc.completion_resolve_callback { isIncomplete = true, items = items }
 end
 
 ---@param note obsidian.Note
@@ -732,8 +724,6 @@ local function process_vault_block_search_results(cc, query, index, dir, note_op
   local overlays = vault_block_overlays(index, dir, note_opts)
   ---@type lsp.CompletionItem[]
   local items = {}
-  ---@type obsidian.completion.docs.Entry[]
-  local doc_entries = {}
 
   ---@param candidate obsidian.completion.sources.refs.block_search_candidate
   local function add_match(candidate)
@@ -768,7 +758,6 @@ local function process_vault_block_search_results(cc, query, index, dir, note_op
         link = link,
         new_target = new_target,
       })
-      doc_entries[#doc_entries + 1] = { note = owner.note, label = link, block = candidate.block }
     end
   end
 
@@ -787,13 +776,7 @@ local function process_vault_block_search_results(cc, query, index, dir, note_op
     end
   end
 
-  docs.resolve_all(doc_entries, function(values)
-    for i, item in ipairs(items) do
-      item.documentation = { kind = "markdown", value = values[i] or "" }
-    end
-
-    cc.completion_resolve_callback { isIncomplete = true, items = items }
-  end)
+  cc.completion_resolve_callback { isIncomplete = true, items = items }
 end
 
 ---@param cc obsidian.completion.sources.refs.context
@@ -1059,8 +1042,6 @@ local function process_heading_search_results(cc, query, results)
   local source_dir = source_name ~= "" and vim.fs.dirname(source_name) or nil
   local needle = vim.fn.tolower(query)
   local items = {}
-  ---@type obsidian.completion.docs.Entry[]
-  local doc_entries = {}
   local seen = {}
   local basename_paths = {}
 
@@ -1110,19 +1091,13 @@ local function process_heading_search_results(cc, query, results)
           newText = link,
           range = range,
         },
+        data = docs.register { note = note, label = link, anchor = anchor },
       }
       items[#items + 1] = item
-      doc_entries[#doc_entries + 1] = { note = note, label = link, anchor = anchor }
     end
   end
 
-  docs.resolve_all(doc_entries, function(values)
-    for i, item in ipairs(items) do
-      item.documentation = { kind = "markdown", value = values[i] or "" }
-    end
-
-    cc.completion_resolve_callback { isIncomplete = true, items = items }
-  end)
+  cc.completion_resolve_callback { isIncomplete = true, items = items }
 end
 
 ---@param cc obsidian.completion.sources.refs.context
@@ -1364,11 +1339,6 @@ local function process_search_results(cc, results)
     end
   end
 
-  ---@type lsp.CompletionItem[]
-  local doc_items = {}
-  ---@type obsidian.completion.docs.Entry[]
-  local doc_entries = {}
-
   for _, option in pairs(cc.new_text_to_option) do
     local option_label = option.display_label or option.label or ""
     local filter_label = option.label or option_label
@@ -1409,28 +1379,22 @@ local function process_search_results(cc, results)
       },
     }
 
-    completion_items[#completion_items + 1] = item
     if option.note ~= nil then
-      doc_items[#doc_items + 1] = item
-      doc_entries[#doc_entries + 1] = {
+      item.data = docs.register {
         note = option.note,
         label = option.new_text,
         anchor = option.anchor,
         block = option.block,
       }
     end
+
+    completion_items[#completion_items + 1] = item
   end
 
-  docs.resolve_all(doc_entries, function(values)
-    for i, item in ipairs(doc_items) do
-      item.documentation = { kind = "markdown", value = values[i] or "" }
-    end
-
-    cc.completion_resolve_callback {
-      isIncomplete = true,
-      items = completion_items,
-    }
-  end)
+  cc.completion_resolve_callback {
+    isIncomplete = true,
+    items = completion_items,
+  }
 end
 
 ---Use cached metadata to return the complete ordinary note-reference candidate set.

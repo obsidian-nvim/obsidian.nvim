@@ -41,6 +41,7 @@ Fields ~
 {path} `(obsidian.Path|)`?
 {has_frontmatter} `(boolean|)`?
 {frontmatter_end_line} `(integer|)`?
+{has_explicit_id} `(boolean|? Whether)` the id was set explicitly (e.g. in frontmatter) instead of being derived from the filename.
 {frontmatter_elements} `(obsidian.yaml.Element[]?)` Scalar occurrences in document coordinates.
 {anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
 {blocks} `(table<string, obsidian.note.Block>?)`
@@ -139,7 +140,6 @@ Parameters ~
   anchor: obsidian.note.HeaderAnchor|?,
   block: obsidian.note.Block|?,
   title: string|?,
-  preview: string|?,
 }|?
 
 Return ~

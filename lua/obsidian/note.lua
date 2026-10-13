@@ -71,6 +71,7 @@ end
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
+---@field has_explicit_id boolean|? Whether the id was set explicitly (e.g. in frontmatter) instead of being derived from the filename.
 ---@field frontmatter_elements obsidian.yaml.Element[]? Scalar occurrences in document coordinates.
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
@@ -444,6 +445,7 @@ Note.new = function(id, aliases, tags, path, title)
   self.metadata = nil
   self.has_frontmatter = nil
   self.frontmatter_end_line = nil
+  self.has_explicit_id = nil
   return setmetatable(self, Note)
 end
 
@@ -454,7 +456,6 @@ end
 ---   anchor: obsidian.note.HeaderAnchor|?,
 ---   block: obsidian.note.Block|?,
 ---   title: string|?,
----   preview: string|?,
 --- }|?
 ---
 ---@return string
@@ -480,14 +481,11 @@ Note.display_info = function(self, opts)
     end
   end
 
-  if opts.preview ~= nil then
-    local preview = vim.trim(opts.preview)
-    if preview ~= "" then
-      info[#info + 1] = ("**preview:** %s"):format(preview)
-    end
+  -- The id is only interesting when it was set explicitly (e.g. in frontmatter)
+  -- and is not just the filename.
+  if self.id ~= nil and self.has_explicit_id then
+    info[#info + 1] = ("**id:** `%s`"):format(self.id)
   end
-
-  info[#info + 1] = ("**id:** `%s`"):format(self.id)
 
   if #self.aliases > 0 then
     info[#info + 1] = ("**aliases:** '%s'"):format(table.concat(self.aliases, "', '"))
@@ -906,6 +904,9 @@ Note.from_lines = function(lines, path, opts)
 
   local id, aliases, tags = info.id, info.aliases, info.tags
 
+  -- Whether the id was set explicitly instead of derived from the filename.
+  local has_explicit_id = id ~= nil
+
   -- ID should default to the filename without the extension.
   if id == nil or (path and id == path.name) then
     id = path and path.stem
@@ -916,6 +917,7 @@ Note.from_lines = function(lines, path, opts)
   n.metadata = metadata
   n.has_frontmatter = has_frontmatter
   n.frontmatter_end_line = frontmatter_end_line
+  n.has_explicit_id = has_explicit_id
   n.frontmatter_elements = frontmatter_elements
   n.contents = contents
   n.raw_contents = raw_contents
