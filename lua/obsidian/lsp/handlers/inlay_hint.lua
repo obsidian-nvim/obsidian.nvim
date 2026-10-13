@@ -59,6 +59,7 @@ return function(params, callback)
       return
     end
 
+    local cache_generation = require("obsidian.cache").generation()
     require("obsidian.resolvers").resolve("hints", {
       bufnr = bufnr,
       note = note,
@@ -72,6 +73,11 @@ return function(params, callback)
       cached = hint_cache.get(uri, bufnr, range)
       if cached then
         callback(nil, vim.deepcopy(cached))
+        return
+      end
+
+      if cache_generation ~= require("obsidian.cache").generation() then
+        callback(nil, cached_response())
         return
       end
 

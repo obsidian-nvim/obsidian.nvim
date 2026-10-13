@@ -265,6 +265,27 @@ T["discards a resolver result when the buffer changes while it runs"] = function
   )
 end
 
+T["discards a resolver result when the note cache changes while it runs"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  child.lua(([[
+    local resolvers = require "obsidian.resolvers"
+    _G.original_resolve = resolvers.resolve
+    resolvers.resolve = function(_, _, done)
+      require("obsidian.cache").notes.update(%q, { aliases = { "updated" } })
+      done({ { position = { line = 0, character = 0 }, label = "stale" } })
+    end
+  ]]):format(tostring(files["test.md"])))
+
+  eq({}, run_inlay_hint())
+  child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
+  eq(link_hints(0, 2, 6), run_inlay_hint())
+end
+
 T["discards a resolver result when completion starts while it runs"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",
