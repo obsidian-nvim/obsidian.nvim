@@ -149,14 +149,6 @@ M.register(
 
 M.register("ObsidianBacklinks", { opts = { nargs = 0, desc = "Collect backlinks" } })
 
-M.register("ObsidianFindIncomingLinks", {
-  opts = { nargs = 0, desc = "Find unlinked incoming mentions of current note across vault" },
-})
-
-M.register("ObsidianFindOutgoingLinks", {
-  opts = { nargs = 0, desc = "Find unlinked outgoing mentions of other notes in current buffer" },
-})
-
 M.register("ObsidianTags", { opts = { nargs = "*", range = true, desc = "Find tags" } })
 
 M.register("ObsidianSearch", { opts = { nargs = "?", desc = "Search vault" } })
