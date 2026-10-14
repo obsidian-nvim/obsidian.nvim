@@ -16,6 +16,7 @@ local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
 local list_items = require "obsidian.parse.line.list_items"
 local tag_module = require "obsidian.tag"
+local link_suggestion = require "obsidian.note.link_suggestion"
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
@@ -1319,40 +1320,6 @@ M.block_reference_new = function(opts)
   require("obsidian.ui").update(opts.source_bufnr)
 end
 
----@param bufnr      integer
----@param suggestion obsidian.LinkSuggestion
----@param candidate  obsidian.LinkSuggestionCandidate
-local function apply_link_suggestion(bufnr, suggestion, candidate)
-  if not vim.api.nvim_buf_is_valid(bufnr) then
-    return
-  end
-
-  local range = suggestion.range
-  local current_text =
-    vim.api.nvim_buf_get_text(bufnr, range.start_row, range.start_col, range.end_row, range.end_col, {})
-  if #current_text ~= 1 or current_text[1] ~= suggestion.text then
-    return log.warn "Link suggestion is no longer current"
-  end
-
-  vim.api.nvim_buf_set_text(
-    bufnr,
-    range.start_row,
-    range.start_col,
-    range.end_row,
-    range.end_col,
-    { candidate.new_text }
-  )
-  require("obsidian.ui").update(bufnr)
-end
-
----Apply a link suggestion to a specific candidate without opening a target picker.
----@param bufnr integer
----@param suggestion obsidian.LinkSuggestion
----@param candidate obsidian.LinkSuggestionCandidate
-M.apply_link_suggestion = function(bufnr, suggestion, candidate)
-  return apply_link_suggestion(bufnr, suggestion, candidate)
-end
-
 --- Apply the link suggestion under the cursor, selecting a target when the
 --- matched note name or alias belongs to more than one note.
 ---@param suggestion obsidian.LinkSuggestion|?
@@ -1388,7 +1355,7 @@ M.link_suggestion = function(suggestion)
     log.info "No Link Suggestion Candidates"
     return
   elseif #suggestion.candidates == 1 then
-    return apply_link_suggestion(bufnr, suggestion, suggestion.candidates[1])
+    return link_suggestion.apply(bufnr, suggestion, suggestion.candidates[1])
   end
 
   picker.select(suggestion.candidates, {
@@ -1403,7 +1370,7 @@ M.link_suggestion = function(suggestion)
     if not candidates or not candidates[1] then
       return
     end
-    apply_link_suggestion(bufnr, suggestion, candidates[1])
+    link_suggestion.apply(bufnr, suggestion, candidates[1])
   end)
 end
 
@@ -1420,29 +1387,6 @@ local function suggestion_later_first(a, b)
     return a_range.start_row > b_range.start_row
   end
   return a_range.start_col > b_range.start_col
-end
-
----Apply a link suggestion to a possibly unloaded file, writing it to disk.
----@param path string
----@param suggestion obsidian.LinkSuggestion
----@param candidate obsidian.LinkSuggestionCandidate
-local function apply_link_suggestion_to_file(path, suggestion, candidate)
-  local bufnr = vim.fn.bufnr(path)
-  local was_loaded = bufnr > 0 and vim.api.nvim_buf_is_loaded(bufnr)
-  if bufnr < 1 then
-    bufnr = vim.fn.bufadd(path)
-  end
-  vim.fn.bufload(bufnr)
-
-  apply_link_suggestion(bufnr, suggestion, candidate)
-  vim.api.nvim_buf_call(bufnr, function()
-    vim.cmd "write"
-  end)
-
-  -- Do not pollute the buffer list with files that were not open before.
-  if not was_loaded then
-    vim.api.nvim_buf_delete(bufnr, { unload = true })
-  end
 end
 
 ---@param path string
@@ -1525,7 +1469,7 @@ M.link_suggestions = function()
         for _, choice in ipairs(location_choices) do
           local data = choice.user_data
           if data then
-            apply_link_suggestion(bufnr, data.suggestion, data.candidate)
+            link_suggestion.apply(bufnr, data.suggestion, data.candidate)
           end
         end
       end)
@@ -1583,7 +1527,7 @@ M.backlink_suggestions = function()
       for _, choice in ipairs(choices) do
         local data = choice.user_data
         if data then
-          apply_link_suggestion_to_file(data.path, data.suggestion, data.candidate)
+          link_suggestion.apply_to_file(data.path, data.suggestion, data.candidate)
         end
       end
     end)
