@@ -302,10 +302,6 @@ M.register("bookmarks", { nargs = 0 })
 
 M.register("backlinks", { nargs = 0, note_action = true })
 
-M.register("find_incoming", { nargs = 0, note_action = true })
-
-M.register("find_outgoing", { nargs = 0, note_action = true })
-
 M.register("template", { nargs = "?", note_action = true })
 
 M.register("link_new", { nargs = "?", range = true, note_action = true })

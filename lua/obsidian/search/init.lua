@@ -786,6 +786,116 @@ M.find_backlinks = function(note, opts)
   return result or {}
 end
 
+---Find unlinked plain-text mentions of other notes inside `note` ("outgoing" suggestions).
+---
+---@param note obsidian.Note
+---@param opts { include_current: boolean?, range: obsidian.Range? }?
+---@param callback fun(suggestions: obsidian.LinkSuggestion[])
+M.find_link_suggestions_async = function(note, opts, callback)
+  callback = vim.schedule_wrap(callback)
+  callback(require("obsidian.note.link_suggestion").find(note, opts))
+end
+
+---@class obsidian.BacklinkSuggestion
+---
+---@field path string Path of the note containing the unlinked mention.
+---@field suggestion obsidian.LinkSuggestion
+---@field candidate obsidian.LinkSuggestionCandidate
+
+---Scan a single note file for mentions of `symbols`.
+---@param path string
+---@param symbols obsidian.LinkSuggestionSymbol[]
+---@param results obsidian.BacklinkSuggestion[]
+local function scan_note_for_mentions(path, symbols, results)
+  local link_suggestion = require "obsidian.note.link_suggestion"
+
+  -- Fast pre-filter: check if any symbol text appears in the raw file before a full parse.
+  local raw_file = io.open(path, "r")
+  if not raw_file then
+    return
+  end
+  local raw_content = raw_file:read("*a"):lower()
+  raw_file:close()
+
+  local has_candidate = false
+  for _, sym in ipairs(symbols) do
+    if raw_content:find(sym.text_lower, 1, true) then
+      has_candidate = true
+      break
+    end
+  end
+  if not has_candidate then
+    return
+  end
+
+  local ok_note, other_note = pcall(require("obsidian.note").from_file, path)
+  if not ok_note or not other_note then
+    return
+  end
+
+  local fm_end = other_note.frontmatter_end_line or 1
+  local source_dir = vim.fs.dirname(vim.fs.normalize(path))
+  local code_fence = nil
+
+  local function path_exists(p)
+    return vim.uv.fs_stat(p) ~= nil
+  end
+
+  for row = fm_end, #other_note.contents do
+    local line = other_note.contents[row]
+    ---@cast line string
+    local fence = line:match "^%s*(```+)" or line:match "^%s*(~~~+)"
+    if fence then
+      if not code_fence then
+        code_fence = fence
+      elseif fence:sub(1, 1) == code_fence:sub(1, 1) and #fence >= #code_fence then
+        code_fence = nil
+      end
+    elseif not code_fence then
+      for _, suggestion in ipairs(link_suggestion.find_in_line(line, row, symbols, path_exists, source_dir)) do
+        for _, candidate in ipairs(suggestion.candidates) do
+          results[#results + 1] = { path = path, suggestion = suggestion, candidate = candidate }
+        end
+      end
+    end
+  end
+end
+
+---Find unlinked plain-text mentions of `note` (by title or alias) in other notes ("incoming" suggestions).
+---Requires the cache to be enabled.
+---
+---@param note obsidian.Note
+---@param opts { dir: string|obsidian.Path? }?
+---@param callback fun(suggestions: obsidian.BacklinkSuggestion[])
+M.find_backlinks_suggestions_async = function(note, opts, callback)
+  opts = opts or {}
+  callback = vim.schedule_wrap(callback)
+
+  ---@type obsidian.BacklinkSuggestion[]
+  local results = {}
+  local cache = require "obsidian.cache"
+  if not note.path or not cache.is_enabled() then
+    return callback(results)
+  end
+
+  local current_path = vim.fs.normalize(tostring(note.path))
+  local symbols = require("obsidian.note.link_suggestion").symbols_for_path(current_path)
+  local ok, cached_rows = pcall(cache.notes.all)
+  if #symbols == 0 or not ok or not cached_rows then
+    return callback(results)
+  end
+
+  local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)):gsub("/+$", "") or nil
+  for path, _ in pairs(cached_rows) do
+    local norm_path = vim.fs.normalize(path)
+    if norm_path ~= current_path and (not dir or vim.startswith(norm_path, dir .. "/")) then
+      scan_note_for_mentions(path, symbols, results)
+    end
+  end
+
+  callback(results)
+end
+
 ---@class obsidian.TagLocation
 ---
 ---@field tag string The tag found.

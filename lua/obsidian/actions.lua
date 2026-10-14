@@ -1407,6 +1407,189 @@ M.link_suggestion = function(suggestion)
   end)
 end
 
+---@param a obsidian.PickerEntry
+---@param b obsidian.PickerEntry
+---@return boolean
+local function suggestion_later_first(a, b)
+  local a_data, b_data = a.user_data, b.user_data
+  if a_data.path and a_data.path ~= b_data.path then
+    return a_data.path > b_data.path
+  end
+  local a_range, b_range = a_data.suggestion.range, b_data.suggestion.range
+  if a_range.start_row ~= b_range.start_row then
+    return a_range.start_row > b_range.start_row
+  end
+  return a_range.start_col > b_range.start_col
+end
+
+---Apply a link suggestion to a possibly unloaded file, writing it to disk.
+---@param path string
+---@param suggestion obsidian.LinkSuggestion
+---@param candidate obsidian.LinkSuggestionCandidate
+local function apply_link_suggestion_to_file(path, suggestion, candidate)
+  local bufnr = vim.fn.bufnr(path)
+  local was_loaded = bufnr > 0 and vim.api.nvim_buf_is_loaded(bufnr)
+  if bufnr < 1 then
+    bufnr = vim.fn.bufadd(path)
+  end
+  vim.fn.bufload(bufnr)
+
+  apply_link_suggestion(bufnr, suggestion, candidate)
+  vim.api.nvim_buf_call(bufnr, function()
+    vim.cmd "write"
+  end)
+
+  -- Do not pollute the buffer list with files that were not open before.
+  if not was_loaded then
+    vim.api.nvim_buf_delete(bufnr, { unload = true })
+  end
+end
+
+---@param path string
+---@param suggestion obsidian.LinkSuggestion
+---@param candidate obsidian.LinkSuggestionCandidate
+---@return string
+local function suggestion_text(path, suggestion, candidate)
+  local lnum = suggestion.range.start_row + 1
+  local col = suggestion.range.start_col + 1
+  local name = vim.fn.fnamemodify(path, ":t")
+  return string.format("%s:%d:%d  %s → %s", name, lnum, col, suggestion.text, candidate.new_text)
+end
+
+--- Pick unlinked mentions of other notes in the current note, grouped by target note,
+--- then pick locations to convert to links.
+M.link_suggestions = function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  if not note then
+    return log.info "Not in a note"
+  end
+
+  if not require("obsidian.cache").is_enabled() then
+    return log.warn "Cache is not enabled; cannot search for unlinked mentions"
+  end
+
+  search.find_link_suggestions_async(note, nil, function(suggestions)
+    if #suggestions == 0 then
+      return log.info "No unlinked outgoing mentions found"
+    end
+
+    local note_path = tostring(note.path)
+
+    ---@type table<string, obsidian.PickerEntry>
+    local targets = {}
+    for _, suggestion in ipairs(suggestions) do
+      for _, candidate in ipairs(suggestion.candidates) do
+        local target = targets[candidate.target_path]
+        if not target then
+          target = {
+            filename = candidate.target_path,
+            text = tostring(Path.new(candidate.target_path):vault_relative_path()),
+            user_data = { locations = {} },
+          }
+          targets[candidate.target_path] = target
+        end
+        target.user_data.locations[#target.user_data.locations + 1] = {
+          filename = note_path,
+          lnum = suggestion.range.start_row + 1,
+          col = suggestion.range.start_col + 1,
+          text = suggestion_text(note_path, suggestion, candidate),
+          user_data = { suggestion = suggestion, candidate = candidate },
+        }
+      end
+    end
+
+    local entries = vim.tbl_values(targets)
+    table.sort(entries, function(a, b)
+      return a.filename < b.filename
+    end)
+
+    picker.select(entries, {
+      prompt = "Outgoing link targets",
+      preview_item = function(entry)
+        return util.preview_path(entry.filename)
+      end,
+    }, function(choices)
+      local target = choices and choices[1]
+      local locations = target and target.user_data and target.user_data.locations
+      if not locations then
+        return
+      end
+      picker.select(locations, {
+        prompt = "Outgoing locations",
+        allow_multiple = true,
+        preview_item = preview_entry,
+      }, function(location_choices)
+        location_choices = location_choices or {}
+        table.sort(location_choices, suggestion_later_first)
+        for _, choice in ipairs(location_choices) do
+          local data = choice.user_data
+          if data then
+            apply_link_suggestion(bufnr, data.suggestion, data.candidate)
+          end
+        end
+      end)
+    end)
+  end)
+end
+
+--- Pick unlinked plain-text mentions of the current note in other notes and convert them to links.
+M.backlink_suggestions = function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  if not note then
+    return log.info "Not in a note"
+  end
+
+  if not require("obsidian.cache").is_enabled() then
+    return log.warn "Cache is not enabled; cannot search for unlinked mentions"
+  end
+
+  search.find_backlinks_suggestions_async(note, nil, function(results)
+    if #results == 0 then
+      return log.info "No unlinked incoming mentions found"
+    end
+
+    ---@type obsidian.PickerEntry[]
+    local entries = {}
+    for _, result in ipairs(results) do
+      entries[#entries + 1] = {
+        filename = result.path,
+        lnum = result.suggestion.range.start_row + 1,
+        col = result.suggestion.range.start_col + 1,
+        text = suggestion_text(result.path, result.suggestion, result.candidate),
+        user_data = result,
+      }
+    end
+
+    picker.select(entries, {
+      prompt = "Incoming unlinked mentions",
+      allow_multiple = true,
+      selection_mappings = {
+        ["<C-o>"] = {
+          desc = "open location",
+          allow_multiple = true,
+          callback = function(...)
+            require("obsidian.picker.util").open_notes { ... }
+          end,
+        },
+      },
+      preview_item = preview_entry,
+    }, function(choices)
+      if not choices then
+        return
+      end
+      table.sort(choices, suggestion_later_first)
+      for _, choice in ipairs(choices) do
+        local data = choice.user_data
+        if data then
+          apply_link_suggestion_to_file(data.path, data.suggestion, data.candidate)
+        end
+      end
+    end)
+  end)
+end
+
 --- write note to disk, for lsp completion create note
 ---
 ---@param note obsidian.Note

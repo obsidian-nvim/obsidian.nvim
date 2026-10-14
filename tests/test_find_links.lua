@@ -123,7 +123,10 @@ T["find_outgoing"]["applies selected target without reopening target picker"] = 
       callback { items[1] }
     end
 
-    require("obsidian.commands.find_outgoing")()
+    require("obsidian.actions").link_suggestions()
+    vim.wait(1000, function()
+      return #prompts >= 2
+    end)
     picker.select = original_select
 
     return {
@@ -154,7 +157,10 @@ T["find_outgoing"]["applies multiple locations from right to left"] = function()
       callback(calls == 1 and { items[1] } or items)
     end
 
-    require("obsidian.commands.find_outgoing")()
+    require("obsidian.actions").link_suggestions()
+    vim.wait(1000, function()
+      return calls >= 2
+    end)
     picker.select = original_select
     return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
   ]]
@@ -297,10 +303,15 @@ T["find_incoming"]["applies multiple locations in one file from right to left"] 
   local lines = child.lua [[
     local picker = require "obsidian.picker"
     local original_select = picker.select
+    local called = false
     picker.select = function(items, _, callback)
+      called = true
       callback(items)
     end
-    require("obsidian.commands.find_incoming")()
+    require("obsidian.actions").backlink_suggestions()
+    vim.wait(1000, function()
+      return called
+    end)
     picker.select = original_select
     return {
       lines = vim.fn.readfile(vim.fs.joinpath(tostring(Obsidian.dir), "beta.md")),
