@@ -24,23 +24,22 @@ local function close_state(bufnr)
   if not state then
     return
   end
-  state.generation = state.generation + 1
   if state.timer then
     state.timer:stop()
     state.timer:close()
     state.timer = nil
   end
-  for _, owner in ipairs(state.owners) do
-    owner:close()
+  for _, entry in ipairs(state.entries) do
+    entry.owner:close()
   end
-  state.owners = {}
+  state.entries = {}
 end
 
 -- Buffer placements start at the text column, not the terminal's left edge.
 -- Account for the number/sign/fold gutter when fitting the image to a split.
 local function text_width(bufnr)
   local width
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     if vim.api.nvim_win_get_buf(win) == bufnr and vim.api.nvim_win_get_config(win).relative == "" then
       local info = vim.fn.getwininfo(win)[1]
       if info then
@@ -72,10 +71,6 @@ local function find_embeds(lines)
     end
   end
   return embeds
-end
-
-local function embed_signature(ref)
-  return table.concat({ ref.kind, ref.raw, ref.target, ref.label or "" }, "\0")
 end
 
 local function image_placement(bufnr, row, available_width, cell_width, cell_height, width_px, height_px)
@@ -112,45 +107,58 @@ local function render(bufnr)
   local attachment = require "obsidian.attachment"
   local img = require "obsidian.img"
   local cell = img.cell_pixels()
-  local signature = {}
-  for _, embed in ipairs(embeds) do
-    local ref = embed.ref
-    signature[#signature + 1] = embed.row .. ":" .. embed_signature(ref)
+  -- Match occurrences independently of their row: edits above an embed move
+  -- its anchor, but do not change the image bytes or invalidate other embeds.
+  local previous = {}
+  for _, entry in ipairs(state.entries) do
+    previous[entry.signature] = previous[entry.signature] or {}
+    table.insert(previous[entry.signature], entry)
   end
-  if not state.force_render and vim.deep_equal(signature, state.signature) then
-    return
-  end
-  state.force_render = nil
-  state.signature = signature
-  state.generation = state.generation + 1
-  local generation = state.generation
-  for _, owner in ipairs(state.owners) do
-    owner:close()
-  end
-  state.owners = {}
+  local entries = {}
   for _, embed in ipairs(embeds) do
     local ref, row = embed.ref, embed.row
+    local signature = filename .. "\0" .. ref.target
+    local matches = previous[signature]
+    local entry = matches and table.remove(matches, 1)
+    local fresh = not entry
+    if fresh then
+      entry = { signature = signature, owner = img.owner { kind = "inline-embed", buf = bufnr }, request = 0 }
+    end
+    entries[#entries + 1] = entry
     local width_px, height_px
     if ref.kind == "wiki" then
       width_px, height_px = parse_size(ref.label)
     end
-    local owner = img.owner { kind = "inline-embed", buf = bufnr }
-    state.owners[#state.owners + 1] = owner
-    attachment._resolve_async(ref.target, { bufnr = bufnr, filename = filename }, function(path)
-      if state.generation ~= generation or not vim.api.nvim_buf_is_valid(bufnr) or not path then
-        return
+    local next_placement = image_placement(bufnr, row, available_width, cell.width, cell.height, width_px, height_px)
+    if not vim.deep_equal(next_placement, entry.placement) then
+      -- Also update pending loads, so they use the latest row and pane size.
+      local ok = entry.owner:update(next_placement)
+      if ok or not entry.owner.image_id then
+        entry.placement = next_placement
       end
-      owner:show {
-        source = path,
-        placement = image_placement(bufnr, row, available_width, cell.width, cell.height, width_px, height_px),
-      }
-    end)
-    -- A buffer-relative image inserts virtual lines below its anchor. One per line
-    -- gives deterministic ordering and avoids overlapping images on a shared row.
+    end
+    if fresh or state.force_render then
+      entry.request = entry.request + 1
+      local request = entry.request
+      attachment._resolve_async(ref.target, { bufnr = bufnr, filename = filename }, function(path)
+        if entry.owner.closed or entry.request ~= request or not vim.api.nvim_buf_is_valid(bufnr) or not path then
+          return
+        end
+        entry.owner:show { source = path, placement = entry.placement }
+      end)
+    end
+    -- One image per line keeps virtual lines deterministic and non-overlapping.
   end
+  for _, matches in pairs(previous) do
+    for _, entry in ipairs(matches) do
+      entry.owner:close()
+    end
+  end
+  state.entries = entries
+  state.force_render = nil
 end
 
-local function schedule_render(bufnr, force)
+local function schedule_render(bufnr)
   local state = states[bufnr]
   if not state then
     return
@@ -159,7 +167,6 @@ local function schedule_render(bufnr, force)
     state.timer:stop()
     state.timer:close()
   end
-  state.force_render = state.force_render or force
   state.timer = vim.defer_fn(function()
     state.timer = nil
     render(bufnr)
@@ -192,26 +199,36 @@ function M.setup(workspace, img_opts)
   if not img_opts.enabled then
     return
   end
+  if not require("obsidian.img").capabilities().buffer then
+    require("obsidian.log").warn_once "Inline images require vim.ui.img buffer placement support (neovim/neovim#39496); run :checkhealth obsidian"
+    return
+  end
 
   local pattern = tostring(workspace.root) .. "/**.md"
-  vim.api.nvim_create_autocmd({ "BufEnter", "TextChanged", "TextChangedI", "TextChangedP" }, {
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "TextChanged", "TextChangedI", "TextChangedP" }, {
     group = group,
     pattern = pattern,
     callback = function(ev)
       local bufnr = ev.buf
       if not states[bufnr] then
-        states[bufnr] = { owners = {}, generation = 0 }
+        states[bufnr] = { entries = {} }
       end
       schedule_render(bufnr)
     end,
   })
-  vim.api.nvim_create_autocmd("WinResized", {
+  local function refresh_layout()
+    for bufnr in pairs(states) do
+      schedule_render(bufnr)
+    end
+  end
+  vim.api.nvim_create_autocmd({ "WinResized", "WinClosed", "VimResized", "TabEnter" }, {
     group = group,
-    callback = function()
-      for bufnr in pairs(states) do
-        schedule_render(bufnr, true)
-      end
-    end,
+    callback = refresh_layout,
+  })
+  vim.api.nvim_create_autocmd("OptionSet", {
+    group = group,
+    pattern = { "number", "relativenumber", "numberwidth", "signcolumn", "foldcolumn" },
+    callback = refresh_layout,
   })
   vim.api.nvim_create_autocmd({ "BufWipeout", "BufUnload" }, {
     group = group,
