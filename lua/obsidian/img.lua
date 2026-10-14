@@ -107,21 +107,37 @@ local function native_backend()
 end
 
 ---@param backend? table
----@return { api: boolean, png: boolean, terminal: string, editor: boolean }
+---@return { api: boolean, png: boolean, terminal: string, editor: boolean, buffer: boolean }
 function M.capabilities(backend)
   backend = backend or native_backend()
   local api = type(backend) == "table"
     and type(backend.set) == "function"
     and type(backend.get) == "function"
     and type(backend.del) == "function"
+  local placements = api
+  if api and backend == package.loaded["vim.ui.img"] then
+    -- Older native backends silently ignore relative/buf and draw absolute
+    -- terminal images, which ordinary text redraws (including completion) erase.
+    local ok, placement = pcall(require, "vim.ui.img._placement")
+    placements = ok and type(placement) == "table" and type(placement.new) == "function"
+  end
   return {
     api = api,
     png = api,
     -- There is no stable public terminal support probe. Actual placement is
     -- guarded and failures are returned to the caller.
     terminal = api and "unknown" or "unsupported",
-    editor = api,
+    editor = placements,
+    buffer = placements,
   }
+end
+
+local function placement_error(backend, placement)
+  local relative = placement.relative or (placement.buf ~= nil and "buffer")
+  local capabilities = M.capabilities(backend)
+  if (relative == "buffer" and not capabilities.buffer) or (relative == "editor" and not capabilities.editor) then
+    return "vim.ui.img lacks " .. relative .. " placement support; use a Neovim build with neovim/neovim#39496"
+  end
 end
 
 ---@param width integer
@@ -156,7 +172,7 @@ end
 ---@param owner obsidian.img.Owner
 ---@return obsidian.img.Placement|nil
 ---@return string|nil
-local function resolve_placement(owner)
+local function resolve_placement(owner, dimensions)
   ---@type obsidian.img.PlacementProvider|nil
   local placement = owner.placement
   if type(placement) == "function" then
@@ -172,7 +188,7 @@ local function resolve_placement(owner)
     placement = vim.deepcopy(placement)
   end
 
-  local dimensions = owner.dimensions
+  dimensions = dimensions or owner.dimensions
   if dimensions and placement.max_width and placement.max_height then
     placement.width, placement.height =
       M.fit(dimensions.width, dimensions.height, placement.max_width, placement.max_height)
@@ -214,8 +230,7 @@ function Owner:show(opts, callback)
   opts = opts or {}
   self.generation = self.generation + 1
   local generation = self.generation
-  delete_image(self)
-  self.dimensions = nil
+  -- Keep the current image until its replacement has loaded and been placed.
   self.placement = opts.placement
 
   local backend = self.backend
@@ -239,9 +254,10 @@ function Owner:show(opts, callback)
       return
     end
 
-    self.dimensions = { width = result.width, height = result.height }
-    local placement, placement_err = resolve_placement(self)
-    if not placement then
+    local dimensions = { width = result.width, height = result.height }
+    local placement, placement_err = resolve_placement(self, dimensions)
+    placement_err = placement_err or (placement and placement_error(backend, placement))
+    if placement_err then
       call_callback(callback, false, placement_err)
       return
     end
@@ -253,7 +269,9 @@ function Owner:show(opts, callback)
       call_callback(callback, false, err)
       return
     end
+    delete_image(self)
     self.image_id = math.floor(id)
+    self.dimensions = dimensions
     call_callback(callback, true, nil)
   end)
   return true, nil
@@ -275,15 +293,18 @@ function Owner:update(placement)
     return false, err
   end
   local backend = self.backend
+  local unsupported = placement_error(backend, resolved)
+  if unsupported then
+    return false, unsupported
+  end
   if not backend or type(backend.set) ~= "function" then
-    delete_image(self)
     return false, "vim.ui.img is unavailable"
   end
   local ok, result = pcall(backend.set, self.image_id, resolved)
-  if not ok or type(result) ~= "number" then
+  if not ok or type(result) ~= "number" or result % 1 ~= 0 then
     local update_err = ok and "vim.ui.img.set did not return an image id" or tostring(result)
     log.debug("Image update failed: %s", update_err)
-    delete_image(self)
+    -- A failed update does not mean the previous placement is no longer needed.
     return false, update_err
   end
   return true, nil
@@ -347,7 +368,7 @@ function M.owner(opts)
     })
   end
   if owner.buf and vim.api.nvim_buf_is_valid(owner.buf) then
-    owner.autocmds[#owner.autocmds + 1] = vim.api.nvim_create_autocmd("BufWipeout", {
+    owner.autocmds[#owner.autocmds + 1] = vim.api.nvim_create_autocmd({ "BufUnload", "BufWipeout" }, {
       buffer = owner.buf,
       once = true,
       callback = function()

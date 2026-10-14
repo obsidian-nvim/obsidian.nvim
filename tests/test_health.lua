@@ -108,6 +108,20 @@ T["images"]["reports when native images are disabled"] = function()
   eq("disabled", reports[1].message)
 end
 
+T["images"]["rejects the legacy absolute-only native API"] = function()
+  local img = require "obsidian.img"
+  local original = img.capabilities
+  img.capabilities = function()
+    return { api = true, editor = false, buffer = false }
+  end
+  local reports = section_reports("Images", setup_state(true), "kitty")
+  img.capabilities = original
+  eq("ok", reports[1].kind)
+  eq("error", reports[2].kind)
+  eq(true, reports[2].message:find("completion and text redraws can erase", 1, true) ~= nil)
+  eq(true, reports[2].message:find("neovim/neovim#39496", 1, true) ~= nil)
+end
+
 T["images"]["warns that WezTerm cannot render inline images"] = function()
   local reports = section_reports("Images", setup_state(true), "WezTerm")
   eq("warn", reports[#reports].kind)
