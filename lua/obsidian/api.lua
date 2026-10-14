@@ -27,9 +27,7 @@ M._workspace_opts = function(workspace)
     return Obsidian.opts
   end
 
-  local overrides = workspace.overrides or {}
-  ---@cast overrides obsidian.config
-  return config.normalize(overrides, Obsidian._opts)
+  return config.resolve_workspace(workspace)
 end
 
 --- TODO: will not work if plugin is managed by nix

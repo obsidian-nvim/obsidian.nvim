@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Read shared Obsidian app settings per workspace for note and attachment locations, links, templates, daily/unique notes, and core-plugin state. Existing app files override Lua options and use app defaults for absent keys; missing files preserve Lua configuration.
+
 ### Fixed
 
 - Repeated `setup()` calls replace vault configuration without retaining old buffer handlers, LSP clients, cache, UI, footer, or pending sync state. Document vault-local Lua configuration with Neovim's `exrc`.

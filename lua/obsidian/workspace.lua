@@ -37,14 +37,15 @@ end
 
 --- Find the vault root from a given directory.
 ---
---- This will traverse the directory tree upwards until a '.obsidian/' folder is found to
+--- This will traverse the directory tree upwards until the app's configuration folder is found to
 --- indicate the root of a vault, otherwise the given directory is used as-is.
 ---
 ---@param base_dir string|obsidian.Path
+---@param config_dir? string
 ---
 ---@return obsidian.Path|?
-local function find_vault_root(base_dir)
-  local vault_indicator_folder = ".obsidian"
+local function find_vault_root(base_dir, config_dir)
+  local vault_indicator_folder = config_dir or ".obsidian"
   base_dir = Path.new(base_dir)
   local dirs = Path.new(base_dir):parents()
   table.insert(dirs, 1, base_dir)
@@ -103,7 +104,10 @@ Workspace.new = function(spec)
   if workspace_spec.strict then
     self.root = self.path
   else
-    local vault_root = find_vault_root(self.path)
+    local global_settings = Obsidian and Obsidian._opts and Obsidian._opts.app_settings or config.default.app_settings
+    local overrides = workspace_spec.overrides or {}
+    local config_dir = overrides.app_settings and overrides.app_settings.config_dir or global_settings.config_dir
+    local vault_root = find_vault_root(self.path, config_dir)
     if vault_root then
       self.root = vault_root
     else
@@ -137,9 +141,7 @@ Workspace.set = function(workspace)
   end
 
   local dir = workspace.root
-  local overrides = workspace.overrides or {}
-  ---@cast overrides obsidian.config
-  local options = config.normalize(overrides, Obsidian._opts)
+  local options = config.resolve_workspace(workspace)
 
   local previous_workspace = Obsidian.workspace
   Obsidian.workspace = workspace

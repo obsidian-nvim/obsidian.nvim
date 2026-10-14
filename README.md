@@ -258,6 +258,39 @@ require("obsidian").setup {
 
 To configure obsidian.nvim, pass your custom options that are _different_ from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
 
+### Obsidian app settings
+
+obsidian.nvim automatically reads supported settings from the app's configuration folder for each workspace. The default folder is `.obsidian`; for another app profile, set `app_settings.config_dir` to its dot-prefixed directory name in `setup()` or workspace `overrides`:
+
+```lua
+require("obsidian").setup {
+  workspaces = { { path = "~/vaults/work" } },
+  app_settings = { config_dir = ".obsidian-work" },
+}
+```
+
+| App file | Shared settings | Plugin options |
+| --- | --- | --- |
+| `app.json` | `newFileLocation`, `newFileFolderPath` | `new_notes_location`, `notes_subdir` |
+| `app.json` | `attachmentFolderPath` | `attachments.folder` |
+| `app.json` | `useMarkdownLinks`, `newLinkFormat`, `alwaysUpdateLinks` | `link.style`, `link.format`, `link.auto_update` |
+| `templates.json` | `folder`, `dateFormat`, `timeFormat` | `templates.folder`, `templates.date_format`, `templates.time_format` |
+| `daily-notes.json` | `folder`, `format`, `template` | `daily_notes.folder`, `daily_notes.date_format`, `daily_notes.template` |
+| `zk-prefixer.json` | `folder`, `format`, `template` | `unique_note.folder`, `unique_note.format`, `unique_note.template` |
+| `core-plugins.json` | `templates`, `daily-notes`, `zk-prefixer` | The corresponding `enabled` options |
+
+Shared settings from a valid app file take precedence over explicit Lua options, including workspace overrides. An absent key in that file uses the app's default for the corresponding setting. For example, an empty `templates.json` clears the Lua template folder and selects `YYYY-MM-DD` / `HH:mm`; an empty `app.json` selects vault-root notes and attachments, Wikilinks, shortest link paths, and no automatic link updates.
+
+A missing file leaves its Lua options and plugin defaults unchanged. Each file is handled independently, so a vault can use app settings for attachments and Lua settings for templates. Lua functions, template customizations, substitutions, callbacks, frontmatter rules, and other options without an app equivalent are retained. A vault configured entirely in Lua works without app JSON files. Reading settings never creates or rewrites those files.
+
+App attachment paths `/`, `.`, and `./images` mean the vault root, the note's folder, and a subfolder of the note's folder. A folder such as `.images` is relative to the vault root. Empty daily/unique folders follow the app's default new-note folder; when the app uses the current-folder mode without an active source file, these notes go to the vault root. Daily/unique template paths are resolved from the vault root, independently of Neovim's working directory or the Templates folder.
+
+Modern core-plugin objects use the app's defaults for omitted IDs: Templates and Daily notes are enabled, Unique note creator is disabled. Legacy arrays list the enabled plugins, so an omitted ID is disabled. Invalid or unreadable files produce a warning and fall back to Lua for that file; invalid supported fields use the app's defaults. Other fields are ignored.
+
+Settings are read during setup, workspace selection, and resolution of another workspace's options. Repeat `setup()` or source the vault's `.nvim.lua` to reload settings for the active workspace. App settings are not watched for changes.
+
+The mapping covers the common settings of [Files and links](https://obsidian.md/help/settings), [Templates](https://obsidian.md/help/plugins/templates), [Daily notes](https://obsidian.md/help/plugins/daily-notes), and [Unique note creator](https://obsidian.md/help/plugins/unique-note). Editor appearance, hotkeys, window layout, community-plugin data, and app startup actions have no matching plugin configuration and are not imported. App excluded-file patterns differ from the plugin's gitignore-style filters, and the app's Sync toggle does not configure the plugin's headless sync backend; these settings are not mapped.
+
 ### Vault-local Lua configuration
 
 You can keep a vault's settings in a `.nvim.lua` file at its root using Neovim's standard `exrc` option (`:h 'exrc'`). Enable `vim.opt.exrc = true` in your Neovim configuration and make sure obsidian.nvim is available on `runtimepath` before the local file is sourced. For example, a plugin manager configuration that loads obsidian.nvim only on `FileType` will need to load it earlier.

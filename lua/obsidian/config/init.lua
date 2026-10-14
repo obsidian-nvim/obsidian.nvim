@@ -73,6 +73,7 @@ config.normalize = function(opts, defaults)
   opts.unique_note = tbl_override(defaults.unique_note, opts.unique_note)
   opts.sync = tbl_override(defaults.sync, opts.sync)
   opts.file = tbl_override(defaults.file, opts.file)
+  opts.app_settings = tbl_override(defaults.app_settings, opts.app_settings)
 
   ---------------
   -- Validate. --
@@ -96,6 +97,21 @@ see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
     table.insert(opts.workspaces, 1, { path = opts.dir })
   end
 
+  return opts
+end
+
+---Resolve Lua workspace options, then apply the app's shared settings.
+---@param workspace obsidian.Workspace
+---@return obsidian.config.Internal
+config.resolve_workspace = function(workspace)
+  local overrides = workspace.overrides or {}
+  ---@cast overrides obsidian.config
+  local opts = config.normalize(overrides, Obsidian._opts)
+  local shared = require("obsidian.config.app_settings").read(workspace.root, opts.app_settings.config_dir)
+  if next(shared) ~= nil then
+    ---@cast shared obsidian.config
+    opts = config.normalize(shared, opts)
+  end
   return opts
 end
 

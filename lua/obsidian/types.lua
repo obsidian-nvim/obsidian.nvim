@@ -113,6 +113,7 @@ M.SyncConfigCategory = {
 ---The table passed to user substitution functions. Use `ctx.type` to distinguish between the different kinds.
 
 ---@class obsidian.config
+---@field app_settings? obsidian.config.AppSettingsOpts
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
 ---@field log_level? integer
 ---@field notes_subdir? string
@@ -147,6 +148,7 @@ M.SyncConfigCategory = {
 ---@field cache? obsidian.config.CacheOpts
 
 ---@class obsidian.config.Internal
+---@field app_settings obsidian.config.AppSettingsOpts
 ---@field workspaces obsidian.workspace.WorkspaceSpec[]
 ---@field log_level integer
 ---@field notes_subdir string|?

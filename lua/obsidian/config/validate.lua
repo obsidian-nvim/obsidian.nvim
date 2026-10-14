@@ -94,6 +94,7 @@ local sync_file_types = vim.tbl_values(types.SyncFileType)
 local sync_config_categories = vim.tbl_values(types.SyncConfigCategory)
 
 local config_sections = {
+  "app_settings",
   "attachments",
   "backlinks",
   "cache",
@@ -302,6 +303,19 @@ function M.validate(opts, skip_workspace_overrides)
     { "note_path_func", "callable" },
     { "open_notes_in", one_of(open_strategies), choices(open_strategies) },
     { "legacy_commands", "boolean" },
+  })
+  nested_fields(errors, "app_settings", opts.app_settings, {
+    {
+      "config_dir",
+      function(dir)
+        return type(dir) == "string"
+          and vim.startswith(dir, ".")
+          and dir ~= "."
+          and dir ~= ".."
+          and not dir:find "[/\\]"
+      end,
+      "a dot-prefixed directory name within the vault",
+    },
   })
   validate_workspaces(errors, opts, skip_workspace_overrides)
 
