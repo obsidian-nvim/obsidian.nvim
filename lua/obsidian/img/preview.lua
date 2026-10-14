@@ -48,7 +48,8 @@ end
 local function placement(win)
   local pos = vim.api.nvim_win_get_position(win)
   local config = vim.api.nvim_win_get_config(win)
-  local border = config.border and #config.border > 0 and 1 or 0
+  local border = config.border and #config.border > 0 and config.border ~= "none" and config.border ~= "shadow" and 1
+    or 0
   local width = vim.api.nvim_win_get_width(win)
   local height = vim.api.nvim_win_get_height(win)
   return {
@@ -81,15 +82,13 @@ function M.refresh(win)
     state = windows[win]
   end
   if state then
-    if state.owner.image_id then
-      local next_placement = placement(win)
-      if not vim.deep_equal(next_placement, state.placement) then
-        local ok = state.owner:update(next_placement)
-        if not ok then
-          close(win)
-        else
-          state.placement = next_placement
-        end
+    local next_placement = placement(win)
+    if not vim.deep_equal(next_placement, state.placement) then
+      local ok = state.owner:update(next_placement)
+      -- Pending loads need current geometry too. Failed updates retain the
+      -- previous image and are retried on the next layout event.
+      if ok or not state.owner.image_id then
+        state.placement = next_placement
       end
     end
     return
@@ -98,7 +97,12 @@ function M.refresh(win)
   local owner = require("obsidian.img").owner { kind = "picker-preview", win = win, buf = buf }
   state = { owner = owner, buf = buf, placement = placement(win) }
   windows[win] = state
-  owner:show({ source = path, placement = state.placement }, function(ok, err)
+  owner:show({
+    source = path,
+    placement = function()
+      return state.placement
+    end,
+  }, function(ok, err)
     if windows[win] ~= state or not vim.api.nvim_win_is_valid(win) or vim.api.nvim_win_get_buf(win) ~= buf then
       return
     end

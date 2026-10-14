@@ -227,6 +227,9 @@ function M.check()
     local capabilities = require("obsidian.img").capabilities()
     if capabilities.api then
       ok "vim.ui.img is available"
+      if not capabilities.editor or not capabilities.buffer then
+        error "vim.ui.img lacks editor/buffer placement support. This older backend draws terminal-absolute images that completion and text redraws can erase. Use a Neovim build with neovim/neovim#39496."
+      end
     else
       error "vim.ui.img is unavailable"
     end
