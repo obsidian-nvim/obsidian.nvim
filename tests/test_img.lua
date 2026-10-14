@@ -3,11 +3,16 @@ local new_set = MiniTest.new_set
 local Path = require "obsidian.path"
 local source = require "obsidian.img.source"
 local original_load = source.load
+local restore_native
 
 local T = new_set {
   hooks = {
     post_case = function()
       source.load = original_load
+      if restore_native then
+        restore_native()
+        restore_native = nil
+      end
     end,
   },
 }
@@ -274,6 +279,174 @@ T["picker path previews never put image bytes in a buffer"] = function()
 
   vim.api.nvim_buf_delete(spec.buf, { force = true })
   vim.fn.delete(tostring(path))
+end
+
+T["replacement loads and failures retain the current image until success"] = function()
+  local img = require "obsidian.img"
+  local pending, deleted, events = {}, {}, {}
+  source.load = function(_, callback)
+    pending[#pending + 1] = callback
+  end
+  local count = 0
+  local fail_update = false
+  local owner = img.owner {
+    backend = {
+      set = function(data)
+        if type(data) == "number" then
+          if fail_update then
+            error "temporary layout failure"
+          end
+          return data
+        end
+        count = count + 1
+        events[#events + 1] = "set:" .. count
+        return count
+      end,
+      get = function() end,
+      del = function(id)
+        deleted[#deleted + 1] = id
+        events[#events + 1] = "del:" .. id
+      end,
+    },
+  }
+  local result = { bytes = "png", width = 10, height = 10 }
+  owner:show { source = "first" }
+  pending[1](result)
+  eq(1, owner.image_id)
+  owner:show { source = "replacement" }
+  eq(1, owner.image_id)
+  eq({}, deleted)
+  pending[2](nil, "load failed")
+  eq(1, owner.image_id)
+  eq({}, deleted)
+  fail_update = true
+  eq(false, owner:update { row = 2 })
+  eq(1, owner.image_id)
+  eq({}, deleted)
+  fail_update = false
+  eq(true, owner:update { row = 2 })
+
+  owner:show { source = "replacement" }
+  pending[3](result)
+  eq(2, owner.image_id)
+  eq({ "set:1", "set:2", "del:1" }, events)
+  owner:show { source = "pending at close" }
+  owner:close()
+  pending[4](result)
+  eq(2, count)
+  eq({ 1, 2 }, deleted)
+end
+
+T["preview pending loads track geometry and failed updates keep the image"] = function()
+  local picker_util = require "obsidian.picker.util"
+  local preview = require "obsidian.img.preview"
+  local old_obsidian, old_backend = Obsidian, vim.ui.img
+  Obsidian = { opts = { img = { enabled = true } } }
+  local path = Path.temp { suffix = ".png" }
+  write_binary(tostring(path), png(16, 8))
+  local spec = picker_util.preview_path(path)
+  local pending
+  source.load = function(_, callback)
+    pending = callback
+  end
+  local created, deleted, last = 0, {}, nil
+  local fail = false
+  vim.ui.img = {
+    set = function(data, opts)
+      if fail then
+        error "temporary layout failure"
+      end
+      if type(data) == "string" then
+        created = created + 1
+      end
+      last = opts
+      return 1
+    end,
+    get = function() end,
+    del = function(id)
+      deleted[#deleted + 1] = id
+    end,
+  }
+  local win = vim.api.nvim_open_win(spec.buf, false, {
+    relative = "editor",
+    row = 1,
+    col = 1,
+    width = 30,
+    height = 10,
+  })
+  preview.refresh(win)
+  vim.api.nvim_win_set_config(win, { relative = "editor", row = 5, col = 7, width = 12, height = 6 })
+  preview.refresh(win)
+  pending { bytes = "png", width = 16, height = 8 }
+  eq(1, created)
+  eq(6, last.row)
+  eq(8, last.col)
+  eq(true, last.width <= 12)
+
+  fail = true
+  vim.api.nvim_win_set_config(win, { relative = "editor", row = 6, col = 7 })
+  preview.refresh(win)
+  eq({}, deleted)
+  eq("", vim.api.nvim_buf_get_lines(spec.buf, 0, 1, false)[1])
+  fail = false
+  preview.refresh(win)
+  eq(7, last.row)
+  eq(1, created)
+  vim.api.nvim_win_close(win, true)
+  eq({ 1 }, deleted)
+  vim.ui.img, Obsidian = old_backend, old_obsidian
+  vim.fn.delete(tostring(path))
+end
+
+T["rejects legacy native placement instead of drawing erasable absolute images"] = function()
+  local img = require "obsidian.img"
+  local old_native = package.loaded["vim.ui.img"]
+  local old_placement = package.loaded["vim.ui.img._placement"]
+  local old_preload = package.preload["vim.ui.img._placement"]
+  restore_native = function()
+    package.loaded["vim.ui.img"] = old_native
+    package.loaded["vim.ui.img._placement"] = old_placement
+    package.preload["vim.ui.img._placement"] = old_preload
+  end
+  local set_calls = 0
+  local legacy = {
+    set = function()
+      set_calls = set_calls + 1
+      return 1
+    end,
+    get = function() end,
+    del = function() end,
+  }
+  package.loaded["vim.ui.img"] = legacy
+  package.loaded["vim.ui.img._placement"] = nil
+  package.preload["vim.ui.img._placement"] = function()
+    error "no buffer placement in this build"
+  end
+  local capabilities = img.capabilities(legacy)
+  eq(true, capabilities.api)
+  eq(false, capabilities.buffer)
+  eq(false, capabilities.editor)
+  source.load = function(_, callback)
+    callback { bytes = "png", width = 10, height = 10 }
+  end
+  local owner = img.owner { backend = legacy }
+  for _, relative in ipairs { "buffer", "editor" } do
+    local failed
+    owner:show({ source = "test", placement = { relative = relative } }, function(ok, err)
+      failed = { ok, err }
+    end)
+    eq(false, failed[1])
+    eq(true, failed[2]:find("lacks " .. relative .. " placement support", 1, true) ~= nil)
+  end
+  eq(0, set_calls)
+  owner:show { source = "test", placement = { relative = "ui" } }
+  eq(1, set_calls) -- terminal-absolute placement remains available explicitly
+  owner:close()
+
+  package.loaded["vim.ui.img._placement"] = { new = function() end }
+  capabilities = img.capabilities(legacy)
+  eq(true, capabilities.buffer)
+  eq(true, capabilities.editor)
 end
 
 return T
