@@ -304,8 +304,10 @@ T["find_incoming"]["applies multiple locations in one file from right to left"] 
     local picker = require "obsidian.picker"
     local original_select = picker.select
     local called = false
+    local picker_opts
     picker.select = function(items, _, callback)
       called = true
+      picker_opts = _
       callback(items)
     end
     require("obsidian.actions").backlink_suggestions()
@@ -315,6 +317,7 @@ T["find_incoming"]["applies multiple locations in one file from right to left"] 
     picker.select = original_select
     return {
       lines = vim.fn.readfile(vim.fs.joinpath(tostring(Obsidian.dir), "beta.md")),
+      has_selection_mappings = picker_opts.selection_mappings ~= nil,
       buffers = vim.tbl_map(function(bufnr)
         return { name = vim.api.nvim_buf_get_name(bufnr), lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false) }
       end, vim.api.nvim_list_bufs()),
@@ -322,6 +325,7 @@ T["find_incoming"]["applies multiple locations in one file from right to left"] 
   ]]
 
   local content = table.concat(lines.lines, "\n")
+  eq(false, lines.has_selection_mappings)
   eq(true, content:lower():find("alpha, then alpha.", 1, true) == nil, vim.inspect(lines))
 end
 

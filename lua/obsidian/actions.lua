@@ -1509,15 +1509,6 @@ M.backlink_suggestions = function()
     picker.select(entries, {
       prompt = "Incoming unlinked mentions",
       allow_multiple = true,
-      selection_mappings = {
-        ["<C-o>"] = {
-          desc = "open location",
-          allow_multiple = true,
-          callback = function(...)
-            require("obsidian.picker.util").open_notes { ... }
-          end,
-        },
-      },
       preview_item = preview_entry,
     }, function(choices)
       if not choices then
