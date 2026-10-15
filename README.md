@@ -360,6 +360,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://sgh.ng"><img src="https://avatars.githubusercontent.com/u/58419736?v=4?s=100" width="100px;" alt="Samuel Huang"/><br /><sub><b>Samuel Huang</b></sub></a><br /><a href="#code-sghng" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/schmoelder"><img src="https://avatars.githubusercontent.com/u/20299934?v=4?s=100" width="100px;" alt="Johannes Schmölder"/><br /><sub><b>Johannes Schmölder</b></sub></a><br /><a href="#code-schmoelder" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
