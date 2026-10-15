@@ -37,6 +37,20 @@ T["from_cache"]["uses the filename stem when no ID is cached"] = function()
   eq("note", note.id)
 end
 
+T["from_cache"]["reconstructs heading-only sections from cached headings"] = function()
+  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", {
+    headings = {
+      { header = "First H1", anchor = "#first-h1", level = 1, line = 3 },
+      { header = "Nested", anchor = "#nested", level = 2, line = 5 },
+    },
+  })
+
+  eq(2, #note.sections)
+  eq("First H1", note.sections[1].header)
+  eq(1, note.sections[1].level)
+  eq(nil, rawget(note, "contents"))
+end
+
 T["create"] = new_set()
 T["create"]["should run configured callback with default scope"] = function()
   local calls = 0
@@ -1147,7 +1161,6 @@ T["display_info"] = new_set()
 
 T["display_info"]["should include the title line when given"] = function()
   local note = M.new("foo", { "Foo" }, { "bar" }, "/tmp/vault/foo.md")
-  note.has_explicit_id = true
   local info = note:display_info { title = "Some Title" }
   eq(true, info:find("**title:** Some Title", 1, true) ~= nil)
   -- Title is the most identifying info, so it comes right after the path.
@@ -1160,14 +1173,6 @@ end
 T["display_info"]["should omit the title line when not given"] = function()
   local note = M.new("foo", { "Foo" }, { "bar" })
   eq(nil, note:display_info({}):find("**title:**", 1, true))
-end
-
-T["display_info"]["should hide the id when it is not explicit"] = function()
-  local note = M.new("foo", { "Foo" }, { "bar" }, "/tmp/vault/foo.md")
-  eq(nil, note:display_info({}):find("**id:**", 1, true))
-
-  note.has_explicit_id = true
-  eq(true, note:display_info({}):find("**id:** `foo`", 1, true) ~= nil)
 end
 
 T["display_info"]["should omit an empty title"] = function()

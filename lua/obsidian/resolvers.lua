@@ -279,8 +279,10 @@ end
 
 --- Extract a human-readable title for a note from already-loaded state.
 ---
---- Priority: frontmatter `title` metadata, then the first H1 heading in the body.
---- Returns `nil` when the note has no loaded contents or no semantic title.
+--- Priority: frontmatter `title` metadata, then the first H1 heading, which is
+--- read from the note's sections when available (notes built from the cache
+--- reconstruct them from the cached headings) and otherwise searched in
+--- already-loaded contents. Returns `nil` when the note has no semantic title.
 ---
 ---@param note obsidian.Note
 ---@return string|?
@@ -295,14 +297,25 @@ local function note_title(note)
     return truncate(tostring(metadata_title), MAX_TITLE_CHARS)
   end
 
-  local in_code_block = false
-  for line in iter_body_lines(note) do
-    if line:match(CODE_FENCE_PATTERN) then
-      in_code_block = not in_code_block
-    elseif not in_code_block then
-      local h1 = line:match "^#%s+(.-)%s*$"
-      if h1 and h1 ~= "" then
-        return truncate(h1, MAX_TITLE_CHARS)
+  for _, section in ipairs(note.sections or {}) do
+    if section.level == 1 and section.header then
+      return truncate(section.header, MAX_TITLE_CHARS)
+    end
+  end
+
+  -- Notes loaded from a plain file scan have their contents in memory but no
+  -- parsed sections; search those. Lazily loaded contents are never read here,
+  -- so resolving a preview never touches the disk.
+  if rawget(note, "contents") ~= nil then
+    local in_code_block = false
+    for line in iter_body_lines(note) do
+      if line:match(CODE_FENCE_PATTERN) then
+        in_code_block = not in_code_block
+      elseif not in_code_block then
+        local h1 = line:match "^#%s+(.-)%s*$"
+        if h1 and h1 ~= "" then
+          return truncate(h1, MAX_TITLE_CHARS)
+        end
       end
     end
   end

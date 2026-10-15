@@ -311,6 +311,8 @@ id: cached-id
 aliases:
   - Friendly Target
 ---
+# Cached Note Title
+
 Cached note content
 ]==],
     ["unrelated.md"] = "Unrelated note content",
@@ -334,19 +336,18 @@ Cached note content
   end)
   assert(path_item, "cached filename candidate was missing")
   eq("[[test-document", path_item.filterText)
+
+  -- The cached headings give the title without reading the note from disk.
+  local resolved = run_resolve(path_item)
+  eq(true, resolved.documentation.value:find("**title:** Cached Note Title", 1, true) ~= nil)
+  eq(true, resolved.documentation.value:find("**id:** `cached-id`", 1, true) ~= nil)
+
   assert(
     vim.iter(result.items or {}):any(function(candidate)
       return candidate.textEdit and candidate.textEdit.newText == "[[test-document|cached-id]]"
     end),
     "cached ID candidate was missing"
   )
-
-  -- An id stored in the cache was set explicitly, so documentation shows it.
-  local id_item = vim.iter(result.items or {}):find(function(candidate)
-    return candidate.textEdit and candidate.textEdit.newText == "[[test-document|cached-id]]"
-  end)
-  local id_resolved = run_resolve(id_item)
-  eq(true, id_resolved.documentation.value:find("**id:** `cached-id`", 1, true) ~= nil)
   assert(
     vim.iter(result.items or {}):any(function(candidate)
       return candidate.textEdit and candidate.textEdit.newText == "[[test-document|Friendly Target]]"
@@ -432,7 +433,6 @@ Some content
   local resolved = run_resolve(item)
   eq("markdown", resolved.documentation.kind)
   eq(true, resolved.documentation.value:find("**title:** My Target Note", 1, true) ~= nil)
-  -- Explicitly set ids are still shown.
   eq(true, resolved.documentation.value:find("**id:** `explicit-id`", 1, true) ~= nil)
 end
 
@@ -462,8 +462,8 @@ Body text
   assert(item, "no completion item for target")
   local resolved = run_resolve(item)
   eq(true, resolved.documentation.value:find("**title:** Central Limit Theorem", 1, true) ~= nil)
-  -- The id was derived from the filename, so it is hidden.
-  eq(nil, resolved.documentation.value:find("**id:**", 1, true))
+  -- The id derived from the filename is shown as before.
+  eq(true, resolved.documentation.value:find("**id:** `target`", 1, true) ~= nil)
 end
 
 T["completion"]["documentation omits title when note has none"] = function()

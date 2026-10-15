@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `resolvers.note_preview` for customizing the preview/documentation lines of LSP completion items, resolved lazily per item via `completionItem/resolve`; the default rendering shows a `**title:**` line (frontmatter `title` or first H1), and the `**id:**` line is now only shown when the id is set explicitly in frontmatter (#966).
+- `resolvers.note_preview` for customizing the preview/documentation lines of LSP completion items, resolved lazily per item via `completionItem/resolve`; the default rendering shows a `**title:**` line (frontmatter `title` or first H1) (#966).
 
 ### Fixed
 

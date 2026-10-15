@@ -41,12 +41,11 @@ Fields ~
 {path} `(obsidian.Path|)`?
 {has_frontmatter} `(boolean|)`?
 {frontmatter_end_line} `(integer|)`?
-{has_explicit_id} `(boolean|? Whether)` the id was set explicitly (e.g. in frontmatter) instead of being derived from the filename.
 {frontmatter_elements} `(obsidian.yaml.Element[]?)` Scalar occurrences in document coordinates.
 {anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
 {blocks} `(table<string, obsidian.note.Block>?)`
 {block_candidates} `(obsidian.Section[]|? paragraphs)` that can receive block identifiers.
-{sections} `(obsidian.Section[]|? document)`-ordered sections, the first one is always the preamble.
+{sections} `(obsidian.Section[]|? document)`-ordered sections, the first one is always the preamble. Notes built from the cache carry heading-only sections (header, anchor, level) reconstructed from the cached headings.
 {alt_alias} `(string|)`?
 {bufnr} `(integer|)`?
 {template} `(string|? Template)` name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.

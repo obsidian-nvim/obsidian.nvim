@@ -71,12 +71,11 @@ end
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
----@field has_explicit_id boolean|? Whether the id was set explicitly (e.g. in frontmatter) instead of being derived from the filename.
 ---@field frontmatter_elements obsidian.yaml.Element[]? Scalar occurrences in document coordinates.
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field block_candidates obsidian.Section[]|? paragraphs that can receive block identifiers.
----@field sections obsidian.Section[]|? document-ordered sections, the first one is always the preamble.
+---@field sections obsidian.Section[]|? document-ordered sections, the first one is always the preamble. Notes built from the cache carry heading-only sections (header, anchor, level) reconstructed from the cached headings.
 ---@field alt_alias string|?
 ---@field bufnr integer|?
 ---@field template string|? Template name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
@@ -445,7 +444,6 @@ Note.new = function(id, aliases, tags, path, title)
   self.metadata = nil
   self.has_frontmatter = nil
   self.frontmatter_end_line = nil
-  self.has_explicit_id = nil
   return setmetatable(self, Note)
 end
 
@@ -481,9 +479,7 @@ Note.display_info = function(self, opts)
     end
   end
 
-  -- The id is only interesting when it was set explicitly (e.g. in frontmatter)
-  -- and is not just the filename.
-  if self.id ~= nil and self.has_explicit_id then
+  if self.id ~= nil then
     info[#info + 1] = ("**id:** `%s`"):format(self.id)
   end
 
@@ -756,9 +752,21 @@ Note.from_cache = function(path, row)
   path = Path.new(path)
   local note = Note.new(row.id or path.stem, vim.deepcopy(row.aliases or {}), vim.deepcopy(row.tags or {}), path)
   note.metadata = vim.deepcopy(row.properties or {})
-  -- The cache only stores the id when it differs from the filename, so a
-  -- stored id is exactly one that was set explicitly.
-  note.has_explicit_id = row.id ~= nil
+  if row.headings then
+    -- Reconstruct heading-only sections from the cached headings so the first
+    -- H1 is available without reading the note from disk. The other section
+    -- fields (ranges, parents) are not part of the cache rows.
+    local sections = {}
+    for _, heading in ipairs(row.headings) do
+      sections[#sections + 1] = {
+        header = heading.header,
+        anchor = heading.anchor,
+        level = heading.level,
+        heading_range = { start_row = heading.line - 1 },
+      }
+    end
+    note.sections = sections
+  end
   return note
 end
 
@@ -907,9 +915,6 @@ Note.from_lines = function(lines, path, opts)
 
   local id, aliases, tags = info.id, info.aliases, info.tags
 
-  -- Whether the id was set explicitly instead of derived from the filename.
-  local has_explicit_id = id ~= nil
-
   -- ID should default to the filename without the extension.
   if id == nil or (path and id == path.name) then
     id = path and path.stem
@@ -920,7 +925,6 @@ Note.from_lines = function(lines, path, opts)
   n.metadata = metadata
   n.has_frontmatter = has_frontmatter
   n.frontmatter_end_line = frontmatter_end_line
-  n.has_explicit_id = has_explicit_id
   n.frontmatter_elements = frontmatter_elements
   n.contents = contents
   n.raw_contents = raw_contents

@@ -25,6 +25,29 @@ T["default_note_preview"]["resolves the title from frontmatter metadata"] = func
   eq(true, out:find("**title:** Metadata Title", 1, true) ~= nil)
 end
 
+T["default_note_preview"]["resolves the title from the first H1 section"] = function()
+  local note = Note.new("foo", {}, {}, "/tmp/vault/foo.md")
+  note.sections = {
+    { header = nil, level = nil, anchor = nil },
+    { header = "Intro", level = 1, anchor = "#intro" },
+    { header = "Nested", level = 2, anchor = "#intro#nested" },
+  }
+  -- No contents at all: the title comes from the sections alone.
+  local out = resolvers.default_note_preview { scope = "lsp.completion", note = note }
+  eq(true, out:find("**title:** Intro", 1, true) ~= nil)
+end
+
+T["default_note_preview"]["skips sub-headings when looking for the H1 section"] = function()
+  local note = Note.new("foo", {}, {}, "/tmp/vault/foo.md")
+  note.sections = {
+    { header = "Only H2", level = 2, anchor = "#only-h2" },
+  }
+  note.contents = { "# Real Title" }
+  local out = resolvers.default_note_preview { scope = "lsp.completion", note = note }
+  eq(nil, out:find("Only H2", 1, true))
+  eq(true, out:find("**title:** Real Title", 1, true) ~= nil)
+end
+
 T["default_note_preview"]["skips frontmatter when contents were not parsed"] = function()
   local note = raw_note { "---", "# a yaml comment", "title: x", "---", "", "# Real Title" }
   note.metadata = { title = "x" }

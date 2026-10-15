@@ -149,11 +149,11 @@ The built-in resolver returns link-suggestion hints for the requested range.
 ---@alias obsidian.resolver.NotePreviewResult string Markdown documentation.
 ```
 
-The built-in resolver shows the note's path, then a `**title:**` line resolved from the frontmatter `title` (if set) or the first H1, followed by the id (only when set explicitly in frontmatter), aliases, and tags. It also shows the resolved link and the linked anchor/block when present.
+The built-in resolver shows the note's path, then a `**title:**` line resolved from the frontmatter `title` (if set) or the first H1, followed by the id, aliases, and tags. It also shows the resolved link and the linked anchor/block when present. The H1 is read from the note's sections when they are available — including for notes served from the cache, whose sections are reconstructed from the cached headings — so resolving a preview never reads the note from disk.
 
 Documentation is resolved lazily: completion items carry an opaque `data` payload and the LSP `completionItem/resolve` request renders it through this resolver only for the item a client actually previews. When a custom resolver cancels or fails, the item falls back to the built-in rendering. As with all resolvers, `done` must eventually be called exactly once: the resolve response will never be sent otherwise, and clients that defer item acceptance until resolution (e.g. Neovim's built-in completion) will also not execute the item's command until then.
 
-Note: when candidates are served from the note cache (see `cache.enabled`), the notes are built from cached metadata; frontmatter `title`s come from the cached properties, and `contents` are read lazily from disk at resolve time for the H1 fallback (one file read per previewed item).
+Note: notes served from the note cache (see `cache.enabled`) carry heading-only sections reconstructed from the cached headings, so their H1 titles resolve without any file reads; frontmatter `title`s come from the cached properties.
 
 Example adding the creation date from frontmatter:
 
