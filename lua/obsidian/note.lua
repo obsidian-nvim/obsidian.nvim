@@ -738,6 +738,9 @@ Note.from_cache = function(path, row)
   path = Path.new(path)
   local note = Note.new(row.id or path.stem, vim.deepcopy(row.aliases or {}), vim.deepcopy(row.tags or {}), path)
   note.metadata = vim.deepcopy(row.properties or {})
+  note.metadata.id = nil
+  note.metadata.aliases = nil
+  note.metadata.tags = nil
   return note
 end
 

@@ -1541,6 +1541,234 @@ M.search_tags = function(tags)
   end
 end
 
+---@class obsidian.PropertyRecord
+---@field path         string
+---@field display_name string
+---@field properties   table<string, any>
+
+---@class obsidian.PropertyCount
+---@field name  string
+---@field count integer number of notes carrying the key or value
+
+---@param counts table<string, integer>
+---@return obsidian.PropertyCount[]
+local function sorted_counts(counts)
+  local entries = {}
+  for name, count in pairs(counts) do
+    entries[#entries + 1] = { name = name, count = count }
+  end
+  table.sort(entries, function(a, b)
+    return a.name < b.name
+  end)
+  return entries
+end
+
+---@param entry obsidian.PropertyCount
+---@return string
+local function format_count(entry)
+  return string.format("%s (%d)", entry.name, entry.count)
+end
+
+---@param records obsidian.PropertyRecord[]
+---@param key     string
+---@return obsidian.PropertyCount[]
+local function collect_property_values(records, key)
+  ---@type table<string, integer>
+  local counts = {}
+  for _, record in ipairs(records) do
+    local value = record.properties[key]
+    if value ~= nil and value ~= vim.NIL then
+      -- A note counts once per value, however often the value repeats in it.
+      ---@type table<string, boolean>
+      local seen = {}
+      if vim.islist(value) then
+        for _, item in ipairs(value) do
+          if item ~= vim.NIL then
+            seen[tostring(item)] = true
+          end
+        end
+      else
+        seen[tostring(value)] = true
+      end
+      for v in pairs(seen) do
+        counts[v] = (counts[v] or 0) + 1
+      end
+    end
+  end
+  return sorted_counts(counts)
+end
+
+---@param record obsidian.PropertyRecord
+---@param key    string
+---@param value  string
+---@return boolean
+local function record_has_property_value(record, key, value)
+  local prop = record.properties[key]
+  if prop == nil or prop == vim.NIL then
+    return false
+  end
+  if vim.islist(prop) then
+    for _, item in ipairs(prop) do
+      if item ~= vim.NIL and tostring(item) == value then
+        return true
+      end
+    end
+    return false
+  end
+  return tostring(prop) == value
+end
+
+---@param records obsidian.PropertyRecord[]
+---@param key     string
+---@param value   string
+local function gather_property_picker_list(records, key, value)
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for _, record in ipairs(records) do
+    if record_has_property_value(record, key, value) then
+      entries[#entries + 1] = {
+        text = record.display_name,
+        filename = record.path,
+      }
+    end
+  end
+
+  if vim.tbl_isempty(entries) then
+    log.warn "No notes found with that property value"
+    return
+  end
+
+  vim.schedule(function()
+    picker.select(entries, {
+      prompt = string.format("%s: %s", key, value),
+      format_item = function(entry)
+        return entry.text
+      end,
+      preview_item = preview_entry,
+    }, function(items)
+      if not vim.tbl_isempty(items) then
+        api.open_note(items[1])
+      end
+    end)
+  end)
+end
+
+---@param records obsidian.PropertyRecord[]
+---@param key     string
+local function pick_property_value(records, key)
+  local values = collect_property_values(records, key)
+  if vim.tbl_isempty(values) then
+    log.warn "No values found for that property"
+    return
+  end
+
+  picker.select(values, { prompt = key, format_item = format_count }, function(items)
+    local value = items and items[1]
+    if value then
+      gather_property_picker_list(records, key, value.name)
+    end
+  end)
+end
+
+---@param notes obsidian.Note[]
+---@return obsidian.PropertyRecord[]
+local function property_records_from_notes(notes)
+  local records = {}
+  for _, note in ipairs(notes) do
+    -- note.metadata excludes `id`, `aliases` and `tags`; include them so records match the cache rows.
+    local properties = vim.tbl_extend("force", note.metadata or {}, {
+      id = note.path and note.id ~= note.path.stem and note.id or nil,
+      aliases = #note.aliases > 0 and note.aliases or nil,
+      tags = #note.tags > 0 and note.tags or nil,
+    })
+    records[#records + 1] = {
+      path = tostring(note.path),
+      display_name = note:display_name(),
+      properties = properties,
+    }
+  end
+  return records
+end
+
+---@param rows table<string, table>
+---@return obsidian.PropertyRecord[]
+local function property_records_from_cache(rows)
+  local cache = require "obsidian.cache"
+  local records = {}
+  for path, row in pairs(rows) do
+    local display_name = (row.id and tostring(row.id))
+      or (row.aliases and row.aliases[#row.aliases])
+      or cache.notes.basename(path)
+    records[#records + 1] = {
+      path = path,
+      display_name = display_name,
+      properties = row.properties or {},
+    }
+  end
+  return records
+end
+
+---@param records obsidian.PropertyRecord[]
+---@return obsidian.PropertyCount[]
+local function collect_property_keys(records)
+  ---@type table<string, integer>
+  local counts = {}
+  for _, record in ipairs(records) do
+    for k, _ in pairs(record.properties) do
+      counts[k] = (counts[k] or 0) + 1
+    end
+  end
+  return sorted_counts(counts)
+end
+
+--- Enumerate notes for the properties picker. Prefers the vault-wide note
+--- cache (already kept live by file-watch events) over re-scanning and
+--- re-parsing every note on each invocation.
+---
+---@param callback fun(keys: obsidian.PropertyCount[], records: obsidian.PropertyRecord[])
+local function list_properties_async(callback)
+  local cache = require "obsidian.cache"
+  if cache.is_enabled() then
+    cache.when_ready(function()
+      local records = property_records_from_cache(cache.notes.all())
+      callback(collect_property_keys(records), records)
+    end)
+    return
+  end
+
+  local dir = api.resolve_workspace_dir()
+  search.find_notes_async("", function(notes)
+    local records = property_records_from_notes(notes)
+    callback(collect_property_keys(records), records)
+  end, { dir = dir })
+end
+
+--- Open a three-stage picker over frontmatter properties: keys, then values
+--- for the chosen key, then notes carrying that key/value pair.
+---
+---@param key   string |?
+---@param value string |?
+M.search_properties = function(key, value)
+  list_properties_async(function(keys, records)
+    if key and value then
+      gather_property_picker_list(records, key, value)
+      return
+    end
+
+    if key then
+      pick_property_value(records, key)
+      return
+    end
+
+    picker.select(keys, { prompt = "Properties", format_item = format_count }, function(items)
+      local chosen_key = items and items[1]
+      if chosen_key then
+        pick_property_value(records, chosen_key.name)
+      end
+    end)
+  end)
+end
+
 M.insert_tag = function()
   pick_tags(function(tags)
     for i, tag in ipairs(tags) do
