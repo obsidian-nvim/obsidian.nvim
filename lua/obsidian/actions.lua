@@ -1451,7 +1451,7 @@ M.link_suggestions = function()
     picker.select(entries, {
       prompt = "Outgoing link targets",
       preview_item = function(entry)
-        return util.preview_path(entry.filename)
+        return require("obsidian.picker.util").preview_path(entry.filename)
       end,
     }, function(choices)
       local target = choices and choices[1]
