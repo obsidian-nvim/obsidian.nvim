@@ -13,7 +13,7 @@ local note_matcher = require "obsidian.search.note_matcher"
 
 ---@class obsidian.Picker
 ---@field find_files fun(opts: obsidian.PickerFindOpts|?)
----@field find_refs fun(opts: obsidian.PickerFindOpts|?)
+---@field find_notes fun(opts: obsidian.PickerFindOpts|?)
 ---@field grep fun(opts: obsidian.PickerGrepOpts|?)
 ---@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
 ---@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
@@ -162,29 +162,14 @@ local function preview_ref_entry(entry)
   return { buf = buf }
 end
 
----Present typed note, attachment, and unresolved-link targets.
----@param refs obsidian.Ref[]
+---Present composed note and attachment search results.
+---@param entries obsidian.PickerEntry[]
 ---@param opts obsidian.PickerFindOpts|?
-local pick_refs = function(refs, opts)
+local pick_entries = function(entries, opts)
   opts = opts or {}
   local query = opts.query and vim.trim(opts.query) or nil
   if query == "" then
     query = nil
-  end
-
-  ---@type obsidian.PickerEntry[]
-  local entries = {}
-  for _, ref in ipairs(refs) do
-    entries[#entries + 1] = {
-      text = ref.text,
-      filename = ref.path,
-      user_data = {
-        attachment = ref.attachment == true,
-        missing = ref.kind == "unresolved",
-        references = ref.references,
-        target = ref.target,
-      },
-    }
   end
 
   local pick_query = opts.query
@@ -337,24 +322,6 @@ M.find_files = find_files
 ---  `no_default_mappings`: Don't apply picker's default mappings.
 M.find_notes = function(opts)
   state.calling_bufnr = vim.api.nvim_get_current_buf()
-
-  opts = opts or {}
-
-  return M.find_refs {
-    query = opts.query,
-    prompt_title = opts.prompt_title or "Notes",
-    dir = opts.dir or api.resolve_workspace_dir(),
-    callback = opts.callback,
-    no_default_mappings = true,
-    show_existing_only = opts.show_existing_only,
-    show_attachments = opts.show_attachments,
-  }
-end
-
----Find note, attachment, and unresolved references for quick switch.
----@param opts obsidian.PickerFindOpts|?
-M.find_refs = function(opts)
-  state.calling_bufnr = vim.api.nvim_get_current_buf()
   opts = opts or {}
 
   local query_mappings = opts.query_mappings
@@ -366,7 +333,7 @@ M.find_refs = function(opts)
 
   local find_opts = {
     query = opts.query,
-    prompt_title = opts.prompt_title or "References",
+    prompt_title = opts.prompt_title or "Notes",
     dir = opts.dir or api.resolve_workspace_dir(),
     callback = opts.callback,
     no_default_mappings = opts.no_default_mappings,
@@ -375,19 +342,85 @@ M.find_refs = function(opts)
     show_existing_only = opts.show_existing_only,
     show_attachments = opts.show_attachments,
   }
-  -- TODO: let the minimal picker filter a single reference snapshot interactively.
-  return search.find_refs_async(opts.query or "", function(refs, err)
-    if err then
-      log.err("Failed to find references: %s", err)
+  local query = opts.query or ""
+  local include_unresolved = opts.show_existing_only == false
+  local root = Path.new(find_opts.dir):resolve { strict = true }
+  local workspace = Obsidian and api.find_workspace(root) or nil
+  if workspace then
+    root = Path.new(workspace.root):resolve { strict = true }
+  end
+
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  local ignore_case = SearchOpts.should_ignore_case(query)
+  local normalized_query = vim.trim(query)
+  if ignore_case then
+    normalized_query = normalized_query:lower()
+  end
+
+  ---@param text string
+  ---@param path string
+  ---@param attachment boolean
+  ---@param missing obsidian.search.Unresolved|?
+  local function add_entry(text, path, attachment, missing)
+    local haystack = ignore_case and text:lower() or text
+    if normalized_query ~= "" and not haystack:find(normalized_query, 1, true) then
+      return
     end
-    pick_refs(refs, find_opts)
-  end, {
-    dir = find_opts.dir,
-    include_notes = true,
-    include_attachments = opts.show_attachments == true,
-    include_unresolved = opts.show_existing_only == false,
-    include_tags = false,
-  })
+    entries[#entries + 1] = {
+      text = text,
+      filename = path,
+      user_data = {
+        attachment = attachment,
+        missing = missing ~= nil,
+        references = missing and missing.references or nil,
+        target = missing and missing.target or nil,
+      },
+    }
+  end
+
+  local pending = opts.show_attachments == true and 2 or 1
+  local function finish()
+    pending = pending - 1
+    if pending > 0 then
+      return
+    end
+    table.sort(entries, function(a, b)
+      if a.text ~= b.text then
+        return a.text < b.text
+      end
+      return (a.filename or "") < (b.filename or "")
+    end)
+    pick_entries(entries, find_opts)
+  end
+
+  search.find_notes_async(query, function(notes, missing)
+    for _, note in ipairs(notes) do
+      local path = tostring(note.path)
+      local rel = fs_util.relpath(tostring(root), path) or path
+      local text = note_matcher.without_note_extension(rel)
+      add_entry(text, path, false)
+      for _, alias in ipairs(note.aliases or {}) do
+        add_entry(text .. " | " .. alias, path, false)
+      end
+    end
+    for _, item in ipairs(missing or {}) do
+      add_entry(item.text, item.path, false, item)
+    end
+    finish()
+  end, { dir = find_opts.dir, include_unresolved = include_unresolved })
+
+  if opts.show_attachments == true then
+    search.find_attachments_async(query, function(paths, missing)
+      for _, path in ipairs(paths) do
+        add_entry(fs_util.relpath(tostring(root), path) or path, path, true)
+      end
+      for _, item in ipairs(missing or {}) do
+        add_entry(item.text, item.path, true, item)
+      end
+      finish()
+    end, { dir = find_opts.dir, include_unresolved = include_unresolved })
+  end
 end
 
 --- Grep search in notes.

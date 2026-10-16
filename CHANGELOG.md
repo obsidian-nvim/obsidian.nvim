@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `search.find_refs()` and `search.find_refs_async()` for searching typed note, attachment, and unresolved-link references.
 - `picker.find_refs()` and `picker.pick_refs()` for presenting and acting on those references.
 - Native filesystem fallback for file search when `ripgrep` is unavailable or fails.
+- `search.find_notes()` and `search.find_attachments()` can optionally return unresolved targets as a second result
 
 ### Changed
 
@@ -23,8 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cache inlay hints in memory for performance.
 - Build vault-wide block and tag indexes lazily in memory, update them after file changes, and share buffer-aware cache lifecycle handling across parsed documents, inlay hints, and link-suggestion symbols.
 - Search now shares structured matching semantics across the cache and filesystem backends, including note IDs, aliases, paths, headings, anchors, block IDs, and block content.
-- **Breaking:** asynchronous search callbacks now receive an optional error and return cancellable handles; synchronous search APIs return results and an optional error.
-- Quick switch and note pickers now use reference search, with optional attachments and unresolved links.
+- Quick switch and note pickers now compose note and attachment searches, with optional unresolved links.
 - `search.max_lines` is applied consistently when loading notes; set it to `nil` for unlimited parsing.
 
 ### Fixed

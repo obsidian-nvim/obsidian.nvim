@@ -1,6 +1,5 @@
 local Path = require "obsidian.path"
 local async = require "obsidian.async"
-local Handle = require "obsidian.search.handle"
 local SearchOpts = require "obsidian.search.opts"
 local fs = require "obsidian.fs"
 local gitignore = require("obsidian.lib.glob").gitignore
@@ -162,27 +161,19 @@ end
 ---@param opts obsidian.search.BackendOpts|?
 ---@param on_match fun(match: obsidian.search.MatchData)
 ---@param on_exit fun(exit_code: integer)|?
----@return obsidian.search.AsyncHandle
+---@return vim.SystemObj
 M.search_async = function(dir, term, opts, on_match, on_exit)
   opts = SearchOpts.resolve(dir, opts)
   local cmd = M.build_search_cmd(dir, term, opts)
-  local cancelled = false
-  local job = async.run_job_async(cmd, function(line)
-    if cancelled then
-      return
-    end
+  return async.run_job_async(cmd, function(line)
     local data = vim.json.decode(line)
     if data["type"] == "match" then
       on_match(data.data)
     end
   end, function(code)
-    if not cancelled and on_exit then
+    if on_exit then
       on_exit(code)
     end
-  end)
-  return Handle.new(function()
-    cancelled = true
-    job:kill(15)
   end)
 end
 
@@ -199,7 +190,7 @@ end
 ---@param opts obsidian.search.BackendOpts|?
 ---@param on_match fun(path: string)
 ---@param on_exit fun(exit_code: integer)|?
----@return obsidian.search.AsyncHandle
+---@return fun() cancel
 M.find_async = function(dir, term, opts, on_match, on_exit)
   local norm_dir = Path.new(dir):resolve { strict = true }
   opts = SearchOpts.resolve(norm_dir, opts)
@@ -277,12 +268,12 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
     find_with_fs()
   end
 
-  return Handle.new(function()
+  return function()
     cancelled = true
     if cancel_backend then
       cancel_backend()
     end
-  end)
+  end
 end
 
 return M

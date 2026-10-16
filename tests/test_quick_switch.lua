@@ -6,17 +6,17 @@ local T, child = h.child_vault()
 
 T["quick switch"] = MiniTest.new_set()
 
-T["quick switch"]["passes config to find refs"] = function()
+T["quick switch"]["passes config to find notes"] = function()
   local captured = child.lua [[
 local captured
-local original = Obsidian.picker.find_refs
+local original = Obsidian.picker.find_notes
 Obsidian.opts.quick_switch.show_existing_only = false
 Obsidian.opts.quick_switch.show_attachments = true
-Obsidian.picker.find_refs = function(opts)
+Obsidian.picker.find_notes = function(opts)
   captured = opts
 end
 require "obsidian.commands.quick_switch" { args = "foo" }
-Obsidian.picker.find_refs = original
+Obsidian.picker.find_notes = original
 return captured
   ]]
 
@@ -26,25 +26,36 @@ return captured
   eq(true, captured.show_attachments)
 end
 
-T["quick switch"]["find notes passes options to find refs"] = function()
+T["quick switch"]["find notes composes note and attachment searches"] = function()
   local captured = child.lua [[
 local picker = require "obsidian.picker"
-local captured
-local original = picker.find_refs
-picker.find_refs = function(opts)
-  captured = opts
+local search = require "obsidian.search"
+local original_notes = search.find_notes_async
+local original_attachments = search.find_attachments_async
+local original_select = picker.select
+local captured = {}
+search.find_notes_async = function(_, callback, opts)
+  captured.notes = opts
+  callback({}, {})
 end
+search.find_attachments_async = function(_, callback, opts)
+  captured.attachments = opts
+  callback({}, {})
+end
+picker.select = function() end
 picker.find_notes {
   no_default_mappings = true,
   show_existing_only = false,
   show_attachments = true,
 }
-picker.find_refs = original
+search.find_notes_async = original_notes
+search.find_attachments_async = original_attachments
+picker.select = original_select
 return captured
   ]]
 
-  eq(false, captured.show_existing_only)
-  eq(true, captured.show_attachments)
+  eq(true, captured.notes.include_unresolved)
+  eq(true, captured.attachments.include_unresolved)
 end
 
 T["quick switch"]["cache picker filters attachments and missing links"] = function()

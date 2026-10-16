@@ -13,7 +13,6 @@ local note_matcher = require "obsidian.search.note_matcher"
 local M = {}
 
 local Filesystem = require "obsidian.search.filesystem"
-local Handle = require "obsidian.search.handle"
 local Ripgrep = require "obsidian.search.ripgrep"
 
 local TAG_CHARS_REQUIRED_RG = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L}\p{N}_/-]*]]
@@ -25,7 +24,7 @@ local TAG_CHARS_REQUIRED_RG = [[[\p{L}\p{N}_/-]+[\p{L}\p{N}_/-]*[\p{L}_/-]+[\p{L
 ---@param opts obsidian.search.BackendOpts|?
 ---@param on_match fun(match: obsidian.search.MatchData)
 ---@param on_exit fun(exit_code: integer)|?
----@return obsidian.search.AsyncHandle
+---@return vim.SystemObj
 M.search_async = function(dir, term, opts, on_match, on_exit)
   return Ripgrep.search_async(dir, term, opts, on_match, on_exit)
 end
@@ -39,7 +38,7 @@ end
 ---@param opts obsidian.search.BackendOpts|?
 ---@param on_match fun(path: string)
 ---@param on_exit fun(exit_code: integer)|?
----@return obsidian.search.AsyncHandle
+---@return fun() cancel
 M.find_async = function(dir, term, opts, on_match, on_exit)
   return Ripgrep.find_async(dir, term, opts, on_match, on_exit)
 end
@@ -59,52 +58,35 @@ end
 local filesystem_methods = {
   find_notes = Filesystem.find_notes_async,
   find_attachments = Filesystem.find_attachments_async,
-  find_refs = Filesystem.find_refs_async,
 }
 
----@param method "find_notes"|"find_attachments"|"find_refs"
+---@param method "find_notes"|"find_attachments"
 ---@param term string
 ---@param opts table
----@param callback fun(results: any[], err: string?)
----@return obsidian.search.AsyncHandle
+---@param callback fun(results: any[], unresolved: obsidian.search.Unresolved[]?)
 local function dispatch_async(method, term, opts, callback)
-  local cancelled = false
-  local child
-  local scheduled_callback = vim.schedule_wrap(function(...)
-    if not cancelled then
-      callback(...)
-    end
-  end)
-  local handle = Handle.new(function()
-    cancelled = true
-    Handle.cancel(child)
-  end)
-
+  callback = vim.schedule_wrap(callback)
   if not cache_can_search(opts.dir) then
-    child = filesystem_methods[method](term, scheduled_callback, opts)
-    return handle
+    filesystem_methods[method](term, callback, opts)
+    return
   end
 
   local cache = require "obsidian.cache"
   cache.when_ready(function()
-    if cancelled then
-      return
-    end
-    local ok, result = pcall(cache[method], term, opts)
-    if ok then
-      scheduled_callback(result)
+    local result = vim.F.pack_len(pcall(cache[method], term, opts))
+    if result[1] then
+      callback(unpack(result, 2, result.n))
     else
-      scheduled_callback({}, tostring(result))
+      log.err("Failed to find %s: %s", method == "find_notes" and "notes" or "attachments", result[2])
+      callback {}
     end
   end)
-  return handle
 end
 
 ---Find notes using the cache backend when possible, otherwise the filesystem backend.
 ---@param term string
----@param callback fun(notes: obsidian.Note[], err: string?)
+---@param callback fun(notes: obsidian.Note[], unresolved: obsidian.search.Unresolved[]?)
 ---@param opts obsidian.search.FindNotesOpts|?
----@return obsidian.search.AsyncHandle
 M.find_notes_async = function(term, callback, opts)
   opts = opts or {}
   opts.dir = opts.dir or api.resolve_workspace_dir()
@@ -115,16 +97,15 @@ end
 ---@param term string
 ---@param opts obsidian.search.FindNotesOpts|?
 ---@return obsidian.Note[] notes
----@return string? err
+---@return obsidian.search.Unresolved[]? unresolved
 M.find_notes = function(term, opts)
   opts = opts or {}
-  local result, err = async.block_on(function(cb)
-    return M.find_notes_async(term, cb, opts)
+  local result, unresolved = async.block_on(function(cb)
+    M.find_notes_async(term, cb, opts)
   end, opts.timeout or 3000)
-  if result == nil then
-    return {}, err or "note search timed out"
-  end
-  return result, err
+  ---@cast result obsidian.Note[]?
+  ---@cast unresolved obsidian.search.Unresolved[]?
+  return result or {}, unresolved
 end
 
 ---Find block-reference candidates. Vault searches use a process-local index
@@ -199,9 +180,8 @@ M.find_blocks_async = function(term, callback, opts)
 end
 ---Find attachment paths matching a filename or vault-relative path.
 ---@param term string
----@param callback fun(paths: string[], err: string?)
+---@param callback fun(paths: string[], unresolved: obsidian.search.Unresolved[]?)
 ---@param opts obsidian.search.FindAttachmentsOpts|?
----@return obsidian.search.AsyncHandle
 M.find_attachments_async = function(term, callback, opts)
   opts = opts or {}
   opts.dir = opts.dir or api.resolve_workspace_dir()
@@ -211,63 +191,22 @@ end
 ---@param term string
 ---@param opts obsidian.search.FindAttachmentsOpts|?
 ---@return string[] paths
----@return string? err
+---@return obsidian.search.Unresolved[]? unresolved
 M.find_attachments = function(term, opts)
   opts = opts or {}
-  local result, err = async.block_on(function(cb)
-    return M.find_attachments_async(term, cb, opts)
+  local result, unresolved = async.block_on(function(cb)
+    M.find_attachments_async(term, cb, opts)
   end, opts.timeout or 3000)
-  if result == nil then
-    return {}, err or "attachment search timed out"
-  end
-  return result, err
-end
-
----Find typed note, attachment, and unresolved-link targets.
----@param term string
----@param callback fun(refs: obsidian.Ref[], err: string?)
----@param opts obsidian.search.FindRefsOpts|?
----@return obsidian.search.AsyncHandle
-M.find_refs_async = function(term, callback, opts)
-  opts = opts or {}
-  opts.dir = opts.dir or api.resolve_workspace_dir()
-  return dispatch_async("find_refs", term, opts, callback)
-end
-
----@param term string
----@param opts obsidian.search.FindRefsOpts|?
----@return obsidian.Ref[] refs
----@return string? err
-M.find_refs = function(term, opts)
-  opts = opts or {}
-  local result, err = async.block_on(function(cb)
-    return M.find_refs_async(term, cb, opts)
-  end, opts.timeout or 5000)
-  if result == nil then
-    return {}, err or "reference search timed out"
-  end
-  return result, err
+  ---@cast result string[]?
+  ---@cast unresolved obsidian.search.Unresolved[]?
+  return result or {}, unresolved
 end
 
 ---@param query string
----@param callback fun(notes: obsidian.Note[], err: string?)
+---@param callback fun(notes: obsidian.Note[])
 ---@param opts { collect: obsidian.search.NoteCollectOpts|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
----@return obsidian.search.AsyncHandle
 M.resolve_note_async = function(query, callback, opts)
-  local cancelled = false
-  local scheduled_callback = vim.schedule_wrap(function(...)
-    if not cancelled then
-      callback(...)
-    end
-  end)
-  local child
-  local handle = Handle.new(function()
-    cancelled = true
-    Handle.cancel(child)
-  end)
-  local function finish(notes, err)
-    scheduled_callback(notes, err)
-  end
+  callback = vim.schedule_wrap(callback)
   opts = opts or {}
   local parse_opts = note_matcher.parse_opts { collect = opts.collect }
   local Note = require "obsidian.note"
@@ -277,8 +216,8 @@ M.resolve_note_async = function(query, callback, opts)
   local note_path, count = string.gsub(query, "^.*  ", "")
   if count > 0 then
     local full_path = workspace_dir / note_path
-    finish { Note.from_file(full_path, parse_opts) }
-    return handle
+    callback { Note.from_file(full_path, parse_opts) }
+    return
   end
 
   -- Query might be a path.
@@ -324,15 +263,11 @@ M.resolve_note_async = function(query, callback, opts)
   end
 
   if not vim.tbl_isempty(paths_found) then
-    finish(paths_found)
-    return handle
+    callback(paths_found)
+    return
   end
 
-  child = M.find_notes_async(query, function(results, err)
-    if err then
-      finish({}, err)
-      return
-    end
+  M.find_notes_async(query, function(results)
     local query_lwr = string.lower(query)
 
     -- `.base` files only resolve when the query explicitly names them.
@@ -371,28 +306,23 @@ M.resolve_note_async = function(query, callback, opts)
     end
 
     if #exact_matches > 0 then
-      finish(exact_matches)
+      callback(exact_matches)
     else
-      finish(fuzzy_matches)
+      callback(fuzzy_matches)
     end
   end, { dir = workspace_dir, collect = opts.collect, ignore_case = true })
-  return handle
 end
 
 ---@param query string
 ---@param opts { collect: obsidian.search.NoteCollectOpts|?, timeout: integer|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
 ---@return obsidian.Note[] notes
----@return string? err
 M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
-  local result, err = async.block_on(function(cb)
-    return M.resolve_note_async(query, cb, { collect = opts.collect, dir = opts.dir, buf_dir = opts.buf_dir })
+  local result = async.block_on(function(cb)
+    M.resolve_note_async(query, cb, { collect = opts.collect, dir = opts.dir, buf_dir = opts.buf_dir })
   end, opts.timeout)
-  if result == nil then
-    return {}, err or "note resolution timed out"
-  end
-  return result, err
+  return result or {}
 end
 
 ---Gather all unique links from a note.
@@ -520,18 +450,13 @@ local function get_in_note_backlink(note, term)
 end
 
 ---@param note obsidian.Note|?
----@param callback fun(matches: obsidian.BacklinkMatch[], err: string?)
+---@param callback fun(matches: obsidian.BacklinkMatch[])
 ---@param opts { anchor: string|?, block: string|?, dir: string|obsidian.Path|?, refs: string[]|? }|?
----@return obsidian.search.AsyncHandle
+---@return vim.SystemObj
 M.find_backlinks_async = function(note, callback, opts)
   -- vim.validate("note", note, "table")
   -- vim.validate("callback", callback, "function")
-  local cancelled = false
-  local scheduled_callback = vim.schedule_wrap(function(...)
-    if not cancelled then
-      callback(...)
-    end
-  end)
+  callback = vim.schedule_wrap(callback)
   opts = opts or {}
   local dir = opts.dir or (note and api.resolve_workspace_dir(note.path)) or api.resolve_workspace_dir()
   local block = opts.block and block_id.normalize(opts.block) or nil
@@ -639,43 +564,31 @@ M.find_backlinks_async = function(note, callback, opts)
     error "no valid refs for backlinks search"
   end
 
-  local child = M.search_async(
+  return M.search_async(
     dir,
     build_backlink_search_term(refs, anchor, block),
     { fixed_strings = true, ignore_case = true },
     _on_match,
-    function(code)
-      if code > 1 then
-        scheduled_callback(results, ("backlink search failed with exit code %d"):format(code))
-      else
-        scheduled_callback(results)
-      end
+    function()
+      callback(results)
     end
   )
-  return Handle.new(function()
-    cancelled = true
-    Handle.cancel(child)
-  end)
 end
 
 ---@param note obsidian.Note
 ---@param opts { anchor: string?, block: string?, timeout: integer?, dir: string|obsidian.Path?, refs: string[]? }?
 ---@return obsidian.BacklinkMatch[] matches
----@return string? err
 M.find_backlinks = function(note, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
-  local result, err = async.block_on(function(cb)
+  local result = async.block_on(function(cb)
     return M.find_backlinks_async(
       note,
       cb,
       { anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
     )
   end, opts.timeout)
-  if result == nil then
-    return {}, err or "backlink search timed out"
-  end
-  return result, err
+  return result or {}
 end
 
 ---Find unlinked plain-text mentions of other notes inside `note` ("outgoing" suggestions).
@@ -793,17 +706,13 @@ end
 ---@param term string|string[] The search term.
 ---@param opts { timeout: integer|?, dir: obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
 ---@return obsidian.TagLocation[] tags
----@return string? err
 M.find_tags = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
-  local result, err = async.block_on(function(cb)
-    return M.find_tags_async(term, cb, { dir = opts.dir, match = opts.match })
+  local result = async.block_on(function(cb)
+    M.find_tags_async(term, cb, { dir = opts.dir, match = opts.match })
   end, opts.timeout)
-  if result == nil then
-    return {}, err or "tag search timed out"
-  end
-  return result, err
+  return result or {}
 end
 
 ---@param note obsidian.Note
@@ -929,16 +838,11 @@ end
 
 --- An async version of 'find_tags()'.
 ---@param term string|string[] The search term.
----@param callback fun(tags: obsidian.TagLocation[], err: string?)
+---@param callback fun(tags: obsidian.TagLocation[])
 ---@param opts { dir: obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
----@return obsidian.search.AsyncHandle
+---@return vim.SystemObj
 M.find_tags_async = function(term, callback, opts)
-  local cancelled = false
-  local scheduled_callback = vim.schedule_wrap(function(...)
-    if not cancelled then
-      callback(...)
-    end
-  end)
+  callback = vim.schedule_wrap(callback)
   opts = opts or {}
   local dir = opts.dir or api.resolve_workspace_dir()
   local dir_string = tostring(dir)
@@ -951,7 +855,12 @@ M.find_tags_async = function(term, callback, opts)
     ignore_filters = workspace_opts.file and workspace_opts.file.ignore_filters or {},
   }
 
-  require("obsidian.search.tag_index").find(term, scheduled_callback, {
+  require("obsidian.search.tag_index").find(term, function(results, err)
+    if err then
+      log.err("Tag search failed: %s", err)
+    end
+    callback(results)
+  end, {
     dir = dir_string,
     workspace = workspace,
     workspace_root = workspace and tostring(workspace.root) or dir_string,
@@ -968,10 +877,6 @@ M.find_tags_async = function(term, callback, opts)
     end,
     parse_buffer = parse_tag_buffer,
   })
-
-  return Handle.new(function()
-    cancelled = true
-  end)
 end
 
 return M
