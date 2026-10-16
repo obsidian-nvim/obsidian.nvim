@@ -5,7 +5,6 @@ local link_parser = require "obsidian.link.parser"
 local uri = require "obsidian.uri"
 local log = require "obsidian.log"
 local filetypes = require "obsidian.filetypes"
-local SearchHandle = require "obsidian.search.handle"
 
 ---@enum obsidian.attachment.ft
 local supported_filetypes = {
@@ -129,7 +128,7 @@ end
 ---@param term string
 ---@param opts obsidian.AttachmentResolveOpts|?
 ---@param callback fun(matches: obsidian.AttachmentMatch[])
----@return obsidian.search.AsyncHandle
+---@return fun() cancel
 M._find_async = function(term, opts, callback)
   local _, workspace_dir = resolve_context(opts)
   local matches = {}
@@ -269,14 +268,14 @@ end
 ---@param src string
 ---@param opts obsidian.AttachmentResolveOpts|?
 ---@param callback fun(path: string?, err: string?, candidates: string[]?)
----@return obsidian.search.AsyncHandle
+---@return fun() cancel
 M._resolve_async = function(src, opts, callback)
   local path, err, candidates = M._resolve_reference(src, opts, nil)
   if path or err then
     vim.schedule(function()
       callback(path, err, candidates)
     end)
-    return SearchHandle.noop()
+    return function() end
   end
 
   local normalized = assert(normalize_reference(src))
