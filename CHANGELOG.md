@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Don't inject inlay hints when an completion is active.
 - Cache inlay hints in memory for performance.
 
+### Fixed
+
+- Keep reserved frontmatter fields synchronized between note attributes, metadata, and cached notes.
+
 ## [v3.16.9](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.9) - 2026-10-13
 
 ### Added

@@ -67,7 +67,7 @@ end
 ---@field tags string[]
 ---@field contents string[]
 ---@field raw_contents string[]? source-preserving lines when loaded from a file or buffer.
----@field metadata table
+---@field metadata table All normalized frontmatter properties, including `id`, `aliases`, and `tags`.
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
 ---@field frontmatter_end_line integer|?
@@ -118,14 +118,74 @@ local function cached_get(path, k, factory)
   return coerce(v)
 end
 
-Note.__index = function(self, k)
-  local raw = rawget(Note, k)
-  if raw then
-    return raw
+local frontmatter_fields = { id = true, aliases = true, tags = true }
+
+---@param note obsidian.Note|table
+---@return table
+local function note_metadata(note)
+  ---@type table?
+  local metadata = rawget(note, "metadata")
+  if metadata == nil then
+    metadata = {}
+    rawset(note, "metadata", metadata)
   end
-  if k == "contents" then
+  return metadata
+end
+
+---@param note obsidian.Note|table
+---@return obsidian.Note
+local function attach_note_metatable(note)
+  local metadata = note_metadata(note)
+  for field in pairs(frontmatter_fields) do
+    local value = rawget(note, field)
+    if value ~= nil then
+      metadata[field] = value
+      rawset(note, field, nil)
+    end
+  end
+  metadata.aliases = metadata.aliases or {}
+  metadata.tags = metadata.tags or {}
+  return setmetatable(note, Note)
+end
+
+Note.__index = function(self, k)
+  local method = rawget(Note, k)
+  if method ~= nil then
+    return method
+  end
+
+  if frontmatter_fields[k] then
+    local metadata = note_metadata(self)
+    local value = metadata[k]
+    if value == nil and k == "id" then
+      local path = rawget(self, "path")
+      return path and path.stem or nil
+    elseif value == nil then
+      value = {}
+      metadata[k] = value
+    end
+    return value
+  elseif k == "contents" then
     return cached_get(self, "contents", load_contents)
   end
+end
+
+Note.__newindex = function(self, k, value)
+  if frontmatter_fields[k] then
+    local metadata = note_metadata(self)
+    if value == nil and (k == "aliases" or k == "tags") then
+      value = {}
+    end
+    metadata[k] = value
+  else
+    rawset(self, k, value)
+  end
+end
+
+---@param note table
+---@return obsidian.Note
+Note.from_table = function(note)
+  return attach_note_metatable(note)
 end
 
 Note.__tostring = function(self)
@@ -428,23 +488,25 @@ end
 ---
 --- Keep in mind that you have to call `note:save(...)` to create/update the note on disk.
 ---
---- @param id string|number
+--- @param id string|number|?
 --- @param aliases string[]|?
 --- @param tags string[]|?
 --- @param path string|obsidian.Path|?
 --- @param title string|?
 --- @return obsidian.Note
 Note.new = function(id, aliases, tags, path, title)
-  local self = {}
-  self.id = id
-  self.aliases = aliases and aliases or {}
-  self.tags = tags and tags or {}
-  self.path = path and Path.new(path) or nil
-  self.title = title
-  self.metadata = nil
-  self.has_frontmatter = nil
-  self.frontmatter_end_line = nil
-  return setmetatable(self, Note)
+  local metadata = {
+    aliases = aliases or {},
+    tags = tags or {},
+  }
+  if id ~= nil then
+    metadata.id = id
+  end
+  return attach_note_metatable {
+    path = path and Path.new(path) or nil,
+    title = title,
+    metadata = metadata,
+  }
 end
 
 --- Get markdown display info about the note.
@@ -736,11 +798,12 @@ end
 ---@return obsidian.Note
 Note.from_cache = function(path, row)
   path = Path.new(path)
-  local note = Note.new(row.id or path.stem, vim.deepcopy(row.aliases or {}), vim.deepcopy(row.tags or {}), path)
-  note.metadata = vim.deepcopy(row.properties or {})
-  note.metadata.id = nil
-  note.metadata.aliases = nil
-  note.metadata.tags = nil
+  local metadata = vim.deepcopy(row.properties or {})
+  metadata.id = metadata.id or row.id
+  metadata.aliases = metadata.aliases or vim.deepcopy(row.aliases or {})
+  metadata.tags = metadata.tags or vim.deepcopy(row.tags or {})
+  local note = Note.new(nil, nil, nil, path)
+  note.metadata = metadata
   return note
 end
 
@@ -764,7 +827,7 @@ Note.from_buffer = function(bufnr, opts)
   local cache_note = vim.b[bufnr].note
   if cache_note ~= nil then
     note = vim.tbl_extend("keep", note, cache_note)
-    setmetatable(note, { __index = Note }) -- removes metatable for some reason ...
+    attach_note_metatable(note)
   end
   return note
 end
@@ -889,14 +952,15 @@ Note.from_lines = function(lines, path, opts)
 
   local id, aliases, tags = info.id, info.aliases, info.tags
 
-  -- ID should default to the filename without the extension.
-  if id == nil or (path and id == path.name) then
-    id = path and path.stem
+  -- An absent ID (or one equal to the filename) falls back to the path stem through Note.__index.
+  if path and id == path.name then
+    id = nil
   end
-  ---@cast id string
 
   local n = Note.new(id, aliases, tags, path)
-  n.metadata = metadata
+  for k, v in pairs(metadata) do
+    n.metadata[k] = v
+  end
   n.has_frontmatter = has_frontmatter
   n.frontmatter_end_line = frontmatter_end_line
   n.frontmatter_elements = frontmatter_elements
