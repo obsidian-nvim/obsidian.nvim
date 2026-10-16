@@ -33,14 +33,11 @@
 ---@field suggestion obsidian.note.LinkSuggestion
 ---@field candidate obsidian.note.LinkSuggestionCandidate
 
----@class obsidian.Ref
----@field kind "note"|"attachment"|"unresolved"|"tag"
+---@class obsidian.search.Unresolved
 ---@field text string
----@field path string|?
----@field note obsidian.Note|?
----@field attachment boolean|?
----@field target string|?
----@field references obsidian.NoteCreationReference[]|?
+---@field path string
+---@field target string
+---@field references obsidian.NoteCreationReference[]
 
 ---@class obsidian.search.SortOpts
 ---
@@ -67,19 +64,13 @@
 ---@field collect obsidian.search.NoteCollectOpts|? Additional parsed domains to return beyond those selected by `match`.
 ---@field match obsidian.search.NoteMatchOpts|?
 ---@field ignore_case boolean|? Override the editor's `ignorecase` and `smartcase` settings.
+---@field include_unresolved boolean|? Also return unresolved note targets as the second result.
 ---@field timeout integer|?
 
 ---@class obsidian.search.FindAttachmentsOpts: obsidian.search.SortOpts
 ---
 ---@field dir string|obsidian.Path|?
----@field timeout integer|?
-
----@class obsidian.search.FindRefsOpts
----@field dir string|obsidian.Path|?
----@field include_notes boolean|?
----@field include_attachments boolean|?
----@field include_unresolved boolean|?
----@field include_tags boolean|? Reserved until tags are cache-powered.
+---@field include_unresolved boolean|? Also return unresolved attachment targets as the second result.
 ---@field timeout integer|?
 
 ---@class obsidian.search.MatchText

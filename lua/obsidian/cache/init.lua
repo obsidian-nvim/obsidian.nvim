@@ -13,7 +13,6 @@ local M = {}
 local cache_api = require "obsidian.cache.api"
 M.find_notes = cache_api.find_notes
 M.find_attachments = cache_api.find_attachments
-M.find_refs = cache_api.find_refs
 
 ---@class obsidian.cache.Backend
 ---@field open fun(opts: table): obsidian.cache.Store

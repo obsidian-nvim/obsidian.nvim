@@ -57,19 +57,17 @@ local cached = {
   case_sensitive = case_sensitive,
 }
 
-local ref_opts = {
-  include_notes = false,
-  include_attachments = true,
-  include_unresolved = true,
-  include_tags = true,
-}
-local function simple_refs(refs)
-  return vim.tbl_map(function(ref)
-    return { kind = ref.kind, text = ref.text, attachment = ref.attachment == true }
-  end, refs)
+local function primitive_results(term)
+  local _, missing_notes = search.find_notes(term, { include_unresolved = true })
+  local attachments, missing_attachments = search.find_attachments(term, { include_unresolved = true })
+  return {
+    attachments = vim.tbl_map(vim.fs.basename, attachments),
+    missing_notes = vim.tbl_map(function(item) return item.text end, missing_notes),
+    missing_attachments = vim.tbl_map(function(item) return item.text end, missing_attachments),
+  }
 end
-cached.refs = simple_refs(search.find_refs("", ref_opts))
-cached.template_refs = search.find_refs("Template", {})
+cached.primitives = primitive_results("")
+cached.template_primitives = primitive_results("Template")
 
 local original_sort = table.sort
 local sort_called = false
@@ -98,15 +96,15 @@ local filesystem = {
   attachments = vim.tbl_map(vim.fs.basename, search.find_attachments("image", opts)),
   smartcase_alias = names(search.find_notes("FRIENDLY", opts)),
   smartcase_attachments = search.find_attachments("IMAGE", opts),
-  refs = simple_refs(search.find_refs("", ref_opts)),
+  primitives = primitive_results(""),
 }
-filesystem.template_refs = search.find_refs("Template", ref_opts)
+filesystem.template_primitives = primitive_results("Template")
 local ripgrep = require "obsidian.search.ripgrep"
 local original_has_ripgrep = ripgrep._has_ripgrep
 ripgrep._has_ripgrep = function()
   return false
 end
-filesystem.refs_without_rg = simple_refs(search.find_refs("", ref_opts))
+filesystem.primitives_without_rg = primitive_results("")
 ripgrep._has_ripgrep = original_has_ripgrep
 return { cached = cached, filesystem = filesystem }
   ]]
@@ -127,14 +125,14 @@ return { cached = cached, filesystem = filesystem }
   eq({}, result.cached.smartcase_attachments)
   eq(result.cached.smartcase_attachments, result.filesystem.smartcase_attachments)
   eq({
-    { attachment = true, kind = "attachment", text = "Image.PNG" },
-    { attachment = false, kind = "unresolved", text = "Missing" },
-    { attachment = true, kind = "unresolved", text = "Missing.pdf" },
-  }, result.cached.refs)
-  eq(result.cached.refs, result.filesystem.refs)
-  eq(result.filesystem.refs, result.filesystem.refs_without_rg)
-  eq({}, result.cached.template_refs)
-  eq({}, result.filesystem.template_refs)
+    attachments = { "Image.PNG" },
+    missing_notes = { "Missing" },
+    missing_attachments = { "Missing.pdf" },
+  }, result.cached.primitives)
+  eq(result.cached.primitives, result.filesystem.primitives)
+  eq(result.filesystem.primitives, result.filesystem.primitives_without_rg)
+  eq({ attachments = {}, missing_notes = {}, missing_attachments = {} }, result.cached.template_primitives)
+  eq(result.cached.template_primitives, result.filesystem.template_primitives)
   eq(true, result.cached.respected_disabled_sort)
 end
 
@@ -223,33 +221,20 @@ local function basenames(paths)
   return vim.tbl_map(vim.fs.basename, paths)
 end
 
-local function note_ref_texts(refs)
-  local texts = {}
-  for _, ref in ipairs(refs) do
-    if ref.kind == "note" then
-      texts[#texts + 1] = ref.text
-    end
-  end
-  return texts
-end
-
 local cached = {
   notes = stems(search.find_notes("sub/Note", { dir = dir })),
   attachments = basenames(search.find_attachments("sub/images/foo.png", { dir = dir })),
-  refs = note_ref_texts(search.find_refs("", { dir = dir })),
 }
 cache.shutdown()
 local filesystem = {
   notes = stems(search.find_notes("sub/Note", { dir = dir })),
   attachments = basenames(search.find_attachments("sub/images/foo.png", { dir = dir })),
-  refs = note_ref_texts(search.find_refs("", { dir = dir })),
 }
 return { cached = cached, filesystem = filesystem }
   ]]
 
   eq({ "Note" }, result.cached.notes)
   eq({ "foo.png" }, result.cached.attachments)
-  eq({ "sub/Note" }, result.cached.refs)
   eq(result.cached, result.filesystem)
 end
 
@@ -265,20 +250,19 @@ T["subdirectory unresolved-link searches resolve targets from the whole workspac
 local search = require "obsidian.search"
 local cache = require "obsidian.cache"
 local dir = Obsidian.dir / "sub"
-local opts = {
-  dir = dir,
-  include_notes = false,
-  include_attachments = true,
-  include_unresolved = true,
-}
+local opts = { dir = dir, include_unresolved = true }
 
-local cached = search.find_refs("", opts)
+local _, cached_notes = search.find_notes("", opts)
+local _, cached_attachments = search.find_attachments("", opts)
 cache.shutdown()
-local filesystem = search.find_refs("", opts)
+local _, filesystem_notes = search.find_notes("", opts)
+local _, filesystem_attachments = search.find_attachments("", opts)
+local cached = { notes = #cached_notes, attachments = #cached_attachments }
+local filesystem = { notes = #filesystem_notes, attachments = #filesystem_attachments }
 return { cached = cached, filesystem = filesystem }
   ]]
 
-  eq({}, result.cached)
+  eq({ notes = 0, attachments = 0 }, result.cached)
   eq(result.cached, result.filesystem)
 end
 
