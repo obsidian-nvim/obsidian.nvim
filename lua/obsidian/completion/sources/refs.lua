@@ -160,6 +160,26 @@ end
 
 ---@param note obsidian.Note
 ---@param section obsidian.Section
+---@return string[]
+local function block_section_lines(note, section)
+  if section.cached_contents then
+    return section.cached_contents
+  end
+  local contents = note.contents
+  return vim.list_slice(contents, section.range.start_row + 1, section.range.end_row)
+end
+
+---@param note obsidian.Note
+---@return string
+local function block_note_checksum(note)
+  if note.cache_checksum then
+    return note.cache_checksum
+  end
+  return vim.fn.sha256(table.concat(note.contents, "\n"))
+end
+
+---@param note obsidian.Note
+---@param section obsidian.Section
 ---@param text string
 ---@param reserved table<string, boolean>
 ---@return string
@@ -372,7 +392,7 @@ local function process_block_search_results(cc, scope, query, results)
     local reserved_ids = {}
     for _, section in ipairs(note.block_candidates or {}) do
       if not (same_note and section.range.start_row <= cc.request.line and cc.request.line < section.range.end_row) then
-        local lines = vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row)
+        local lines = block_section_lines(note, section)
         local existing = existing_block(note, section)
         local text = block_text(lines, existing and existing.id)
         local searchable = text .. (existing and " " .. existing.id or "")
@@ -409,7 +429,7 @@ local function process_block_search_results(cc, scope, query, results)
                 start = { line = section.range.start_row, character = 0 },
                 ["end"] = { line = section.range.end_row, character = 0 },
               },
-              checksum = vim.fn.sha256(table.concat(note.contents, "\n")),
+              checksum = block_note_checksum(note),
               placement = placement,
               indent = indent,
             }
@@ -440,7 +460,7 @@ local function build_vault_block_owner(note, note_idx)
     note = note,
     path = path,
     note_idx = note_idx,
-    checksum = vim.fn.sha256(table.concat(note.contents, "\n")),
+    checksum = block_note_checksum(note),
     candidates = {},
   }
   ---@type table<obsidian.Section, obsidian.note.Block>
@@ -454,7 +474,7 @@ local function build_vault_block_owner(note, note_idx)
   local reserved_ids = {}
 
   for _, section in ipairs(note.block_candidates or {}) do
-    local lines = vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row)
+    local lines = block_section_lines(note, section)
     local existing = existing_by_section[section]
     local text = block_text(lines, existing and existing.id)
     if text ~= "" then
@@ -1377,7 +1397,7 @@ function M.process_completion(completion_resolve_callback, request)
     end
   else
     local source_path = vim.api.nvim_buf_get_name(cc.request.bufnr)
-    search.find_notes_async(cc.search, function(results)
+    search.find_notes_async("", function(results)
       process_search_results(cc, results)
     end, {
       dir = api.resolve_workspace_dir(source_path),

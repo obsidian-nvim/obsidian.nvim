@@ -66,6 +66,7 @@ local function primitive_results(term)
     missing_attachments = vim.tbl_map(function(item) return item.text end, missing_attachments),
   }
 end
+
 cached.primitives = primitive_results("")
 cached.template_primitives = primitive_results("Template")
 
@@ -134,6 +135,41 @@ return { cached = cached, filesystem = filesystem }
   eq({ attachments = {}, missing_notes = {}, missing_attachments = {} }, result.cached.template_primitives)
   eq(result.cached.template_primitives, result.filesystem.template_primitives)
   eq(true, result.cached.respected_disabled_sort)
+end
+
+T["cached structured searches do not read note files"] = function()
+  h.child_mock_vault_contents(child, {
+    ["Alpha.md"] = "# HTTP API\nBlock target ^block-id",
+  })
+  h.child_setup_cache(child)
+
+  local result = child.lua [==[
+local cache = require "obsidian.cache"
+local Note = require "obsidian.note"
+local original_from_file = Note.from_file
+Note.from_file = function()
+  error "cached search read a note file"
+end
+
+local ok, value = pcall(function()
+  local headings = cache.find_notes("http-api", {
+    match = { references = false, headings = true },
+  })
+  local blocks = cache.find_notes("block-id", {
+    match = { references = false, blocks = true },
+  })
+  return {
+    heading = headings[1] and headings[1]:resolve_anchor_link "#http-api" and headings[1].path.stem,
+    block = blocks[1] and blocks[1].path.stem,
+  }
+end)
+
+Note.from_file = original_from_file
+assert(ok, value)
+return value
+  ]==]
+
+  eq({ heading = "Alpha", block = "Alpha" }, result)
 end
 
 T["resolve_note remains case insensitive when ignorecase is disabled"] = function()

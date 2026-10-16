@@ -83,6 +83,11 @@ end
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field block_candidates obsidian.Section[]|? paragraphs that can receive block identifiers.
 ---@field sections obsidian.Section[]|? document-ordered sections, the first one is always the preamble.
+---@field headings obsidian.cache.HeadingRow[]|? cached heading rows.
+---@field blocks_search string[]|? cached searchable block values.
+---@field links_out table[]|? cached outgoing links.
+---@field tasks table[]|? cached task rows.
+---@field cache_checksum string|? checksum of normalized cached contents.
 ---@field alt_alias string|?
 ---@field bufnr integer|?
 ---@field template string|? Template name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
@@ -797,10 +802,78 @@ Note.from_file = function(path, opts)
   return note
 end
 
+---@param row obsidian.cache.RangeRow|?
+---@param fallback obsidian.Range
+---@return obsidian.Range
+local function range_from_cache(row, fallback)
+  if row == nil then
+    return fallback
+  end
+  return Range.new(row.start_row, row.start_col, row.end_row, row.end_col)
+end
+
+---@param row obsidian.cache.SectionRow|obsidian.cache.HeadingRow
+---@return obsidian.Section
+local function section_from_cache(row)
+  local start_row = math.max((row.line or 1) - 1, 0)
+  local heading_range = Range.new(start_row, 0, start_row + 1, 0)
+  return {
+    header = row.header,
+    level = row.level,
+    anchor = row.anchor,
+    range = range_from_cache(row.range, heading_range),
+    heading_range = range_from_cache(row.heading_range, heading_range),
+    content_range = range_from_cache(row.content_range, Range.new(start_row + 1, 0, start_row + 1, 0)),
+    block_type = row.block_type,
+    cached_contents = row.contents and vim.deepcopy(row.contents) or nil,
+  }
+end
+
+---@param note obsidian.Note
+---@param rows obsidian.cache.HeadingRow[]
+local function hydrate_cached_headings(note, rows)
+  note.sections = {}
+  note.anchor_links = {}
+  ---@type table<integer, obsidian.note.HeaderAnchor>
+  local parents = {}
+  local max_level = 0
+
+  for _, row in ipairs(rows) do
+    local section = section_from_cache(row)
+    local parent
+    for level = row.level - 1, 1, -1 do
+      if parents[level] then
+        parent = parents[level]
+        break
+      end
+    end
+    section.parent = parent and parent.section or nil
+
+    local anchor = new_header_anchor(section, parent)
+    note.sections[#note.sections + 1] = section
+    note.anchor_links[anchor.anchor] = anchor
+    for level = row.level, max_level do
+      parents[level] = nil
+    end
+    parents[row.level] = anchor
+    max_level = row.level
+
+    if parent then
+      local nested_anchor = anchor.anchor
+      local current = parent
+      while current do
+        nested_anchor = current.anchor .. nested_anchor
+        current = current.parent
+      end
+      note.anchor_links[nested_anchor] = new_header_anchor(section, parent, nested_anchor)
+    end
+  end
+end
+
 --- Initialize a note from a cache row without reading the file.
 ---
 ---@param path string|obsidian.Path
----@param row table
+---@param row obsidian.cache.NoteRow
 ---
 ---@return obsidian.Note
 Note.from_cache = function(path, row)
@@ -811,6 +884,29 @@ Note.from_cache = function(path, row)
   metadata.tags = metadata.tags or vim.deepcopy(row.tags or {})
   local note = Note.new(nil, nil, nil, path)
   note.metadata = metadata
+  note.headings = vim.deepcopy(row.headings or {})
+  note.blocks_search = vim.deepcopy(row.blocks_search or {})
+  note.links_out = vim.deepcopy(row.links_out or {})
+  note.tasks = vim.deepcopy(row.tasks or {})
+  note.cache_checksum = row.checksum
+  hydrate_cached_headings(note, note.headings)
+
+  note.block_candidates = {}
+  for _, candidate in ipairs(row.block_candidates or {}) do
+    note.block_candidates[#note.block_candidates + 1] = section_from_cache(candidate)
+  end
+
+  note.blocks = {}
+  for id, block in pairs(row.blocks or {}) do
+    local section = block.candidate and note.block_candidates[block.candidate]
+      or (block.section and section_from_cache(block.section) or nil)
+    note.blocks[id] = {
+      id = block.id,
+      line = block.line,
+      block = block.block,
+      section = section,
+    }
+  end
   return note
 end
 

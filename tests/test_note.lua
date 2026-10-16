@@ -59,6 +59,55 @@ T["from_cache"]["uses the filename stem when no ID is cached"] = function()
   eq("note", note.id)
 end
 
+T["from_cache"]["hydrates structured cache fields"] = function()
+  local range = { start_row = 6, start_col = 0, end_row = 7, end_col = 0 }
+  local row = {
+    headings = {
+      { anchor = "#parent", header = "Parent", level = 1, line = 3 },
+      { anchor = "#child", header = "Child", level = 2, line = 5 },
+    },
+    blocks_search = { "^block-id", "Block text" },
+    blocks = {
+      ["^block-id"] = {
+        id = "^block-id",
+        line = 7,
+        block = "Block text ^block-id",
+        candidate = 1,
+      },
+    },
+    block_candidates = {
+      {
+        range = range,
+        heading_range = { start_row = 6, start_col = 0, end_row = 6, end_col = 0 },
+        content_range = range,
+        block_type = "paragraph",
+        contents = { "Block text ^block-id" },
+      },
+    },
+    checksum = "cached-checksum",
+    links_out = { { target = "Other" } },
+    tasks = { { line = 7, text = "Task" } },
+  }
+  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", row)
+
+  eq(2, #note.sections)
+  eq("Parent", note.sections[1].header)
+  eq("Child", note.sections[2].header)
+  eq(note.sections[1], note.sections[2].parent)
+  eq("Parent", note:resolve_anchor_link("#parent").header)
+  eq("Child", note:resolve_anchor_link("#parent#child").header)
+  eq(row.headings, note.headings)
+  eq(row.blocks_search, note.blocks_search)
+  eq({ "Block text ^block-id" }, note.block_candidates[1].cached_contents)
+  eq(note.block_candidates[1], note:resolve_block("^block-id").section)
+  eq("cached-checksum", note.cache_checksum)
+  eq(row.links_out, note.links_out)
+  eq(row.tasks, note.tasks)
+
+  note.headings[1].header = "Edited"
+  eq("Parent", row.headings[1].header)
+end
+
 T["from_cache"]["serializes edited reserved fields without changing the cache row"] = function()
   local row = {
     id = "cached-id",

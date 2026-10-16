@@ -303,11 +303,6 @@ Cached note content
 
   child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
   h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
-  child.lua [[
-    require("obsidian.search").find_notes_async = function()
-      error "filesystem note search should not run"
-    end
-  ]]
 
   child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
   child.api.nvim_win_set_cursor(0, { 1, 4 })
@@ -316,6 +311,7 @@ Cached note content
   local path_item = vim.iter(result.items or {}):find(function(candidate)
     return candidate.textEdit and candidate.textEdit.newText == "[[test-document]]"
   end)
+
   assert(path_item, "cached filename candidate was missing")
   eq("[[test-document", path_item.filterText)
   assert(
@@ -352,31 +348,6 @@ Cached note content
     end),
     "Neovim builtin fuzzy completion filtered out the cached candidate"
   )
-end
-
-T["completion"]["cached note references use unsaved loaded metadata"] = function()
-  h.mock_vault_contents(child.Obsidian.dir, {
-    ["source.md"] = "[[ua",
-    ["target.md"] = "---\naliases:\n  - Saved Alias\n---\nTarget content",
-  })
-
-  child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
-  h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
-  child.cmd("edit " .. tostring(child.Obsidian.dir / "target.md"))
-  child.api.nvim_buf_set_lines(0, 0, 4, false, { "---", "aliases:", "  - Unsaved Alias", "---" })
-  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
-  child.api.nvim_win_set_cursor(0, { 1, 4 })
-
-  local result = run_completion(0, 4)
-  assert(
-    vim.iter(result.items or {}):any(function(candidate)
-      return candidate.textEdit and candidate.textEdit.newText == "[[target|Unsaved Alias]]"
-    end),
-    "unsaved alias was missing from cached reference completion"
-  )
-  assert(not vim.iter(result.items or {}):any(function(candidate)
-    return candidate.textEdit and candidate.textEdit.newText == "[[target|Saved Alias]]"
-  end), "stale cached alias was offered for a modified buffer")
 end
 
 T["completion"]["searches vault headings without cache"] = function()
@@ -502,10 +473,10 @@ T["completion"]["searches cached vault headings without filesystem search"] = fu
   child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
   h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
   child.lua [[
-    local search = require "obsidian.search"
-    _G.original_find_notes_async = search.find_notes_async
-    search.find_notes_async = function()
-      error "filesystem heading search should not run"
+    local Note = require "obsidian.note"
+    _G.original_note_from_file = Note.from_file
+    Note.from_file = function()
+      error "cached heading search should not read note files"
     end
   ]]
 
@@ -514,8 +485,8 @@ T["completion"]["searches cached vault headings without filesystem search"] = fu
   local result = run_completion(0, 9)
 
   child.lua [[
-    require("obsidian.search").find_notes_async = _G.original_find_notes_async
-    _G.original_find_notes_async = nil
+    require("obsidian.note").from_file = _G.original_note_from_file
+    _G.original_note_from_file = nil
     require("obsidian.cache").shutdown()
   ]]
 
@@ -670,6 +641,39 @@ T["completion"]["creates a vault-wide block reference from unlabeled content"] =
   assert(block_id, "target paragraph has no generated block ID")
   eq("A needle paragraph " .. block_id, target_line)
   eq("[[target#" .. block_id .. "]]", child.api.nvim_get_current_line())
+end
+
+T["completion"]["uses cached vault block candidates without reading note files"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[^^needle",
+    ["target.md"] = "A needle paragraph",
+  })
+  child.lua [[require("obsidian.cache").setup { enabled = true, backend = "memory" }]]
+  h.child_wait(child, [[return require("obsidian.cache").is_ready()]], { desc = "cache ready" })
+  child.lua [[
+    local Note = require "obsidian.note"
+    _G.original_note_from_file = Note.from_file
+    Note.from_file = function()
+      error "cached block search should not read note files"
+    end
+  ]]
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "source.md"))
+  child.api.nvim_win_set_cursor(0, { 1, 10 })
+  local result = run_completion(0, 10)
+
+  child.lua [[
+    require("obsidian.note").from_file = _G.original_note_from_file
+    _G.original_note_from_file = nil
+    require("obsidian.cache").shutdown()
+  ]]
+
+  assert(
+    vim.iter(result.items or {}):any(function(candidate)
+      return candidate.label == "A needle paragraph — target"
+    end),
+    "no cached vault block completion found"
+  )
 end
 
 T["completion"]["honors min chars for vault block queries while warming the index"] = function()

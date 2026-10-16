@@ -38,7 +38,7 @@ T["json backend"]["persists schema v2 entries"] = function()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
   eq(2, decoded.schema_version)
-  eq(5, decoded.indexer_version)
+  eq(6, decoded.indexer_version)
   eq(vault, decoded.vault)
   eq("note", decoded.entries[note_path].kind)
   eq(nil, decoded.notes)
@@ -69,9 +69,38 @@ T["json backend"]["rebuilds incompatible cache envelopes"] = function()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
   eq(2, decoded.schema_version)
-  eq(5, decoded.indexer_version)
+  eq(6, decoded.indexer_version)
   eq(nil, decoded.version)
   eq(nil, decoded.notes)
+end
+
+T["json backend"]["rebuilds version 5 indexes without block metadata"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache-json" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+  local path = tostring(dir / "index.json")
+  local vault = vim.fs.normalize(tostring(dir / "vault"))
+  local note_path = vim.fs.joinpath(vault, "Stale.md")
+  vim.fn.writefile({
+    vim.json.encode {
+      schema_version = 2,
+      indexer_version = 5,
+      vault = vault,
+      entries = {
+        [note_path] = {
+          kind = "note",
+          stat = { mtime_sec = 1, mtime_nsec = 2, size = 3 },
+        },
+      },
+    },
+  }, path)
+
+  local backend = require("obsidian.cache.json_backend").open { path = path, vault = vault }
+  eq({}, backend:all())
+  backend:flush()
+
+  local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
+  eq(6, decoded.indexer_version)
 end
 
 T["cache backends"]["uses a registered backend by name"] = function()
@@ -168,7 +197,11 @@ T["cache backends"]["stores typed compact note rows"] = function()
   eq("custom-note", row.id)
   eq(nil, row.aliases)
   eq({ id = "custom-note", tags = { "Foo" } }, row.properties)
-  eq({ { anchor = "#note", header = "Note", level = 1, line = 5 } }, row.headings)
+  eq(1, #row.headings)
+  eq("#note", row.headings[1].anchor)
+  eq("Note", row.headings[1].header)
+  eq(1, row.headings[1].level)
+  eq(5, row.headings[1].line)
   eq(nil, row.links_out)
   eq(nil, row.tasks)
 end
@@ -715,7 +748,11 @@ T["cache backends"]["filters links, tags, tasks, and headings through document e
   eq("Shown", row.links_out[1].target)
   eq(1, #row.tasks)
   eq("shown task", row.tasks[1].text)
-  eq({ { anchor = "#real", header = "Real", level = 1, line = 7 } }, row.headings)
+  eq(1, #row.headings)
+  eq("#real", row.headings[1].anchor)
+  eq("Real", row.headings[1].header)
+  eq(1, row.headings[1].level)
+  eq(7, row.headings[1].line)
 end
 
 return T
