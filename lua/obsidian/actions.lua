@@ -1533,7 +1533,7 @@ M.write_note = function(note, scope)
   -- Make sure `note` is actually an `obsidian.Note` object.
   -- If it gets serialized by server commands, it will lose its metatable.
   if not Note.is_note_obj(note) then
-    note = setmetatable(note, Note)
+    note = Note.from_table(note)
     if note.path then
       note.path = setmetatable(note.path, Path)
     end
@@ -1801,12 +1801,13 @@ end
 local function property_records_from_notes(notes)
   local records = {}
   for _, note in ipairs(notes) do
-    -- note.metadata excludes `id`, `aliases` and `tags`; include them so records match the cache rows.
-    local properties = vim.tbl_extend("force", note.metadata or {}, {
-      id = note.path and note.id ~= note.path.stem and note.id or nil,
-      aliases = #note.aliases > 0 and note.aliases or nil,
-      tags = #note.tags > 0 and note.tags or nil,
-    })
+    local properties = vim.deepcopy(note.metadata or {})
+    if #note.aliases == 0 then
+      properties.aliases = nil
+    end
+    if #note.tags == 0 then
+      properties.tags = nil
+    end
     records[#records + 1] = {
       path = tostring(note.path),
       display_name = note:display_name(),
