@@ -24,6 +24,12 @@ Bare Links in the wild like `https://nevoim.io`, `mailto:example@gmail.com` and 
 
 Attachments and URIs are opened with neovim's default `vim.ui.open`, to customize the behavior, see [[Attachment#open]]
 
+## Document Highlights
+
+The language server marks a frontmatter tag as actionable when the cursor is on its tag name. Scalar, flow-list, and block-list `tags` values are supported. Invoke `vim.lsp.buf.document_highlight()` directly or from your usual `CursorHold` LSP autocmd; clear stale highlights with `vim.lsp.buf.clear_references()`.
+
+For now this is limited to frontmatter tags. Other frontmatter keys and values may become actionable in a future release.
+
 ## Rename
 
 Use `vim.lsp.buf.rename()` or default neovim mapping `grn` to rename the target note and update all references across your vault.

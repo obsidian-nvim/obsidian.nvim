@@ -25,13 +25,13 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [x] Inlay Hint (`textDocument/inlayHint`) - adds virtual text link suggestions
 - [x] Inlay Hint Refresh (`workspace/inlayHint/refresh`) - refreshes hints after a note is saved
 - [x] Document Link (`textDocument/documentLink`)
+- [x] Document Highlight (`textDocument/documentHighlight`) - marks actionable frontmatter tags under the cursor
 - [ ] Inlay Hint Resolve (`inlayHint/resolve`)
 - [ ] Hover (`textDocument/hover`)
 - [ ] Completion Item Resolve (`completionItem/resolve`)
 - [ ] Publish Diagnostics (`textDocument/publishDiagnostics`)
 - [ ] Code Action Resolve (`codeAction/resolve`)
 - [ ] Document Link Resolve (`documentLink/resolve`)
-- [ ] Document Highlight (`textDocument/documentHighlight`)
 - [ ] Code Lens (`textDocument/codeLens`)
 - [ ] Code Lens Refresh (`codeLens/refresh`)
 - [ ] Selection Range (`textDocument/selectionRange`)

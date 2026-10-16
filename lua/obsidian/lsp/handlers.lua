@@ -12,6 +12,7 @@ return {
   ["textDocument/definition"] = require "obsidian.lsp.handlers.definition",
   ["textDocument/didSave"] = require "obsidian.lsp.handlers.did_save",
   ["textDocument/documentSymbol"] = require "obsidian.lsp.handlers.document_symbol",
+  ["textDocument/documentHighlight"] = require "obsidian.lsp.handlers.document_highlight",
   ["textDocument/codeAction"] = require "obsidian.lsp.handlers.code_action",
   ["textDocument/completion"] = require "obsidian.lsp.handlers.completion",
   ["textDocument/foldingRange"] = require "obsidian.lsp.handlers.folding_range",

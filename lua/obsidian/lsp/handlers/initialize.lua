@@ -18,6 +18,7 @@ local initializeResult = {
     referencesProvider = true,
     definitionProvider = true,
     documentSymbolProvider = true,
+    documentHighlightProvider = true,
     documentLinkProvider = {
       resolveProvider = false,
     },
