@@ -8,7 +8,6 @@ local header_parser = require "obsidian.parse.header"
 local block_ids = require "obsidian.parse.block_id"
 local api = require "obsidian.api"
 local search = require "obsidian.search"
-local cache = require "obsidian.cache"
 local ignore = require "obsidian.ignore"
 
 ---@class obsidian.completion.sources.refs.options
@@ -939,44 +938,6 @@ local function process_block_search(cc, scope, query, target)
   process_vault_block_search(cc, query, dir, parse_opts)
 end
 
----@param query string
----@return obsidian.Note[]
-local function cached_heading_notes(query)
-  local Note = require "obsidian.note"
-  ---@type obsidian.Note[]
-  local notes = {}
-  ---@type table<string, obsidian.Note>
-  local path_to_note = {}
-  ---@type table<string, table<string, obsidian.note.HeaderAnchor>>
-  local path_to_anchors = {}
-
-  for _, heading in ipairs(cache.notes.find_headings(query)) do
-    if api.path_is_note(heading.path) then
-      local note = path_to_note[heading.path]
-      local anchors = path_to_anchors[heading.path]
-      if not note then
-        local row = cache.notes.get(heading.path)
-        local created = Note.from_cache(heading.path, row)
-        local created_anchors = {}
-        rawset(created, "anchor_links", created_anchors)
-        path_to_note[heading.path] = created
-        path_to_anchors[heading.path] = created_anchors
-        notes[#notes + 1] = created
-        note = created
-        anchors = created_anchors
-      end
-      anchors[heading.anchor .. ":" .. heading.line] = {
-        anchor = heading.anchor,
-        header = heading.header,
-        level = heading.level,
-        line = heading.line,
-      }
-    end
-  end
-
-  return notes
-end
-
 ---@param anchor obsidian.note.HeaderAnchor
 ---@return obsidian.note.HeaderAnchor
 local function heading_completion_anchor(anchor)
@@ -1104,18 +1065,14 @@ local function process_heading_search(cc, query)
     process_heading_search_results(cc, query, include_loaded_notes(results, dir, parse_opts, true))
   end
 
-  if cache.is_enabled() and cache.is_ready() then
-    finish(cached_heading_notes(query))
-  else
-    -- Heading queries also match normalized anchors, which cannot be mapped
-    -- reliably back to raw file text (e.g. `http-api` vs `HTTP API`). Enumerate
-    -- notes first, then filter their parsed headings below.
-    search.find_notes_async("", finish, {
-      dir = dir,
-      sort_by = false,
-      match = { headings = true },
-    })
-  end
+  -- Heading queries also match normalized anchors, which cannot be mapped
+  -- reliably back to raw file text (e.g. `http-api` vs `HTTP API`). Enumerate
+  -- notes first, then filter their parsed headings below.
+  search.find_notes_async("", finish, {
+    dir = dir,
+    sort_by = false,
+    match = { headings = true },
+  })
 end
 
 --- Determines whatever the in_buffer_only should be enabled
@@ -1385,38 +1342,6 @@ end
 ---Completion clients can then apply their own fuzzy matcher without a filesystem search.
 ---@param cc obsidian.completion.sources.refs.context
 ---@return boolean handled
-local function process_cached_search(cc)
-  if not cache.is_enabled() or not cache.is_ready() or cc.anchor_link ~= nil or cc.block_link ~= nil then
-    return false
-  end
-
-  local source_path = vim.api.nvim_buf_get_name(cc.request.bufnr)
-  local dir = api.resolve_workspace_dir(source_path ~= "" and source_path or nil)
-  local workspace = api.find_workspace(dir)
-  local templates_dir = api.templates_dir(workspace)
-  local rows = cache.notes.all()
-  local paths = {}
-
-  for path in pairs(rows) do
-    if
-      fs_util.is_subpath(path, tostring(dir))
-      and (not templates_dir or not fs_util.is_subpath(path, tostring(templates_dir)))
-    then
-      paths[#paths + 1] = path
-    end
-  end
-  table.sort(paths)
-
-  local Note = require "obsidian.note"
-  ---@type obsidian.Note[]
-  local notes = {}
-  for _, path in ipairs(paths) do
-    notes[#notes + 1] = Note.from_cache(path, rows[path])
-  end
-
-  process_search_results(cc, include_loaded_notes(notes, dir, {}, true))
-  return true
-end
 
 ---@param completion_resolve_callback function
 ---@param request obsidian.completion.Request
@@ -1456,10 +1381,6 @@ function M.process_completion(completion_resolve_callback, request)
       cc.completion_resolve_callback(EMPTY_RESPONSE)
     end
   else
-    if process_cached_search(cc) then
-      return
-    end
-
     local source_path = vim.api.nvim_buf_get_name(cc.request.bufnr)
     search.find_notes_async(cc.search, function(results)
       process_search_results(cc, results)
