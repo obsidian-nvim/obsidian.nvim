@@ -29,6 +29,7 @@ local H2_UNDERLINE_PATTERN = "^(-+)$"
 ---@field content_range obsidian.Range own content (sub-sections excluded), trimmed of leading and trailing blank lines.
 ---@field parent obsidian.Section|? the nearest section above with a lower heading level.
 ---@field block_type "paragraph"|"list"|"list-item"|"quote"|"table"|? present on block-completion candidates.
+---@field cached_contents? string[] cached normalized lines for an indexed block candidate.
 
 ---@class obsidian.section.ParseOpts
 ---@field start_row integer|? 0-based row where parsing begins, e.g. just past the frontmatter. Defaults to `0`.
@@ -64,6 +65,7 @@ local function block_candidate_type(line, detail)
   end
   return "text"
 end
+
 
 local M = {}
 

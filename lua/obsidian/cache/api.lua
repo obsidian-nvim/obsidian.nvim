@@ -7,6 +7,111 @@ local log = require "obsidian.log"
 
 local M = {}
 
+local DEFAULT_MAX_LINES = 500
+
+---@return integer
+local function search_max_lines()
+  local configured = Obsidian and Obsidian.opts and Obsidian.opts.search and Obsidian.opts.search.max_lines
+  return configured or DEFAULT_MAX_LINES
+end
+
+---@param values string[]
+---@param seen table<string, boolean>
+---@param value string?
+local function add_unique(values, seen, value)
+  value = vim.trim(value or "")
+  if value ~= "" and not seen[value] then
+    values[#values + 1] = value
+    seen[value] = true
+  end
+end
+
+---@param row obsidian.cache.RangeRow
+---@return obsidian.cache.RangeRow
+local function copy_range(row)
+  return {
+    start_row = row.start_row,
+    start_col = row.start_col,
+    end_row = row.end_row,
+    end_col = row.end_col,
+  }
+end
+
+---@param row obsidian.cache.NoteRow
+---@param opts obsidian.search.FindNotesOpts
+---@return obsidian.cache.NoteRow
+local function limit_structured_row(row, opts)
+  local max_lines = search_max_lines()
+  local match = opts.match or {}
+  local collect = opts.collect or {}
+  local limit_headings = match.headings or collect.headings
+  local limit_blocks = match.blocks or collect.blocks
+  if max_lines == math.huge or (not limit_headings and not limit_blocks) then
+    return row
+  end
+
+  ---@type obsidian.cache.NoteRow
+  local limited = vim.tbl_extend("force", {}, row)
+  if limit_headings then
+    limited.headings = vim.tbl_filter(function(heading)
+      return heading.line <= max_lines
+    end, row.headings or {})
+  end
+
+  if limit_blocks then
+    ---@type obsidian.cache.SectionRow[]
+    local candidates = {}
+    local candidate_indexes = {}
+    for old_idx, candidate in ipairs(row.block_candidates or {}) do
+      if candidate.range.start_row < max_lines then
+        ---@type obsidian.cache.SectionRow
+        local copy = {
+          header = candidate.header,
+          level = candidate.level,
+          anchor = candidate.anchor,
+          range = copy_range(candidate.range),
+          heading_range = copy_range(candidate.heading_range),
+          content_range = copy_range(candidate.content_range),
+          block_type = candidate.block_type,
+          line = candidate.line,
+        }
+        local line_count = math.max(max_lines - candidate.range.start_row, 0)
+        if candidate.contents then
+          copy.contents = vim.list_slice(candidate.contents, 1, line_count)
+        end
+        copy.range.end_row = math.min(copy.range.end_row, max_lines)
+        copy.content_range.end_row = math.min(copy.content_range.end_row, max_lines)
+        candidates[#candidates + 1] = copy
+        candidate_indexes[old_idx] = #candidates
+      end
+    end
+    limited.block_candidates = candidates
+
+    ---@type table<string, obsidian.cache.BlockRow>
+    local blocks = {}
+    for id, block in pairs(row.blocks or {}) do
+      if block.line <= max_lines and (not block.candidate or candidate_indexes[block.candidate]) then
+        local copy = vim.deepcopy(block)
+        copy.candidate = copy.candidate and candidate_indexes[copy.candidate] or nil
+        blocks[id] = copy
+      end
+    end
+    limited.blocks = blocks
+
+    local blocks_search = {}
+    local seen = {}
+    for id, block in pairs(blocks) do
+      add_unique(blocks_search, seen, id)
+      add_unique(blocks_search, seen, block.block)
+    end
+    for _, candidate in ipairs(candidates) do
+      add_unique(blocks_search, seen, table.concat(candidate.contents or {}, "\n"))
+    end
+    limited.blocks_search = blocks_search
+  end
+  return limited
+end
+
 ---@param path string
 ---@param dir string
 ---@return boolean
@@ -97,34 +202,27 @@ M.find_notes = function(term, opts)
     ignore_case = SearchOpts.should_ignore_case(term)
   end
 
+  local selected_rows = {}
   for path, row in pairs(rows) do
+    local selected = limit_structured_row(row, opts)
     if
       fs_util.is_subpath(path, dir)
       and not path_is_template(path, dir)
-      and note_matcher.matches(path, root, row, term, opts.match, ignore_case)
+      and note_matcher.matches(path, root, selected, term, opts.match, ignore_case)
     then
       paths[#paths + 1] = path
+      selected_rows[path] = selected
     end
   end
   sort_cached_paths(paths, rows, backend_opts)
 
   local Note = require "obsidian.note"
-  local parse_opts = note_matcher.parse_opts(opts)
-  local parse_file = parse_opts.collect_sections
-    or parse_opts.collect_anchor_links
-    or parse_opts.collect_blocks
-    or parse_opts.collect_block_candidates
   local notes = {}
   local first_err, first_err_path
   local err_count = 0
   for _, path in ipairs(paths) do
-    local ok, note
-    if parse_file then
-      ok, note = pcall(Note.from_file, path, parse_opts)
-    else
-      ok, note = pcall(Note.from_cache, path, rows[path])
-    end
-    if ok and (not parse_file or note_matcher.matches(path, root, note, term, opts.match, ignore_case)) then
+    local ok, note = pcall(Note.from_cache, path, selected_rows[path])
+    if ok then
       notes[#notes + 1] = note
     elseif not ok then
       err_count = err_count + 1

@@ -67,6 +67,20 @@ local function block_text(lines, block_id)
   return vim.trim(table.concat(visible, "\n"))
 end
 
+local function section_lines(note, section)
+  if section.cached_contents then
+    return section.cached_contents
+  end
+  return vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row)
+end
+
+local function note_checksum(note)
+  if note.cache_checksum then
+    return note.cache_checksum
+  end
+  return vim.fn.sha256(table.concat(note.contents, "\n"))
+end
+
 local function generated_block_id(note, section, text, reserved)
   local salt = 0
   while true do
@@ -95,7 +109,7 @@ local function build_owner(note, note_index)
     note = note,
     path = normalize_path(tostring(note.path)),
     note_index = note_index,
-    checksum = vim.fn.sha256(table.concat(note.contents, "\n")),
+    checksum = note_checksum(note),
     candidates = {},
   }
   local existing_by_section = {}
@@ -106,7 +120,7 @@ local function build_owner(note, note_index)
   end
   local reserved = {}
   for _, section in ipairs(note.block_candidates or {}) do
-    local lines = vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row)
+    local lines = section_lines(note, section)
     local existing = existing_by_section[section]
     local text = block_text(lines, existing and existing.id)
     if text ~= "" then

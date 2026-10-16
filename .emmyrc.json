@@ -12,7 +12,8 @@
   },
   "diagnostics": {
     "disable": [
-      "unnecessary-if"
+      "unnecessary-if",
+      "unnecessary-assert"
     ]
   },
   "strict": {
