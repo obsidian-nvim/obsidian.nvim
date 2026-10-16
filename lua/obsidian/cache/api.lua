@@ -38,27 +38,20 @@ local function copy_range(row)
 end
 
 ---@param row obsidian.cache.NoteRow
----@param opts obsidian.search.FindNotesOpts
 ---@return obsidian.cache.NoteRow
-local function limit_structured_row(row, opts)
+local function limit_structured_row(row)
   local max_lines = search_max_lines()
-  local match = opts.match or {}
-  local collect = opts.collect or {}
-  local limit_headings = match.headings or collect.headings
-  local limit_blocks = match.blocks or collect.blocks
-  if max_lines == math.huge or (not limit_headings and not limit_blocks) then
+  if max_lines == math.huge then
     return row
   end
 
   ---@type obsidian.cache.NoteRow
   local limited = vim.tbl_extend("force", {}, row)
-  if limit_headings then
-    limited.headings = vim.tbl_filter(function(heading)
-      return heading.line <= max_lines
-    end, row.headings or {})
-  end
+  limited.headings = vim.tbl_filter(function(heading)
+    return heading.line <= max_lines
+  end, row.headings or {})
 
-  if limit_blocks then
+  do
     ---@type obsidian.cache.SectionRow[]
     local candidates = {}
     local candidate_indexes = {}
@@ -75,7 +68,7 @@ local function limit_structured_row(row, opts)
           block_type = candidate.block_type,
           line = candidate.line,
         }
-        local line_count = math.max(max_lines - candidate.range.start_row, 0)
+        local line_count = max_lines - candidate.range.start_row
         if candidate.contents then
           copy.contents = vim.list_slice(candidate.contents, 1, line_count)
         end
@@ -182,7 +175,7 @@ end
 ---Find existing cached notes using the same structured domains as search.find_notes().
 ---The cache must be ready before calling this function.
 ---@param term string
----@param opts obsidian.search.FindNotesOpts|?
+---@param opts obsidian.search.FindNotesBackendOpts|?
 ---@return obsidian.Note[] notes
 ---@return obsidian.search.Unresolved[]? unresolved
 M.find_notes = function(term, opts)
@@ -203,15 +196,14 @@ M.find_notes = function(term, opts)
   end
 
   local selected_rows = {}
+  local structured_domain = opts.domain == "headings" or opts.domain == "blocks"
   for path, row in pairs(rows) do
-    local selected = limit_structured_row(row, opts)
-    if
-      fs_util.is_subpath(path, dir)
-      and not path_is_template(path, dir)
-      and note_matcher.matches(path, root, selected, term, opts.match, ignore_case)
-    then
-      paths[#paths + 1] = path
-      selected_rows[path] = selected
+    if fs_util.is_subpath(path, dir) and not path_is_template(path, dir) then
+      local selected = structured_domain and limit_structured_row(row) or row
+      if note_matcher.matches(path, root, selected, term, opts.domain, ignore_case) then
+        paths[#paths + 1] = path
+        selected_rows[path] = selected
+      end
     end
   end
   sort_cached_paths(paths, rows, backend_opts)
@@ -221,7 +213,7 @@ M.find_notes = function(term, opts)
   local first_err, first_err_path
   local err_count = 0
   for _, path in ipairs(paths) do
-    local ok, note = pcall(Note.from_cache, path, selected_rows[path])
+    local ok, note = pcall(Note.from_cache, path, selected_rows[path], search_max_lines())
     if ok then
       notes[#notes + 1] = note
     elseif not ok then

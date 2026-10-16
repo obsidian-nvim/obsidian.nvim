@@ -46,18 +46,35 @@
 ---@field escape_path boolean|?
 ---@field include_non_markdown boolean|?
 
----@class obsidian.search.NoteCollectOpts
----@field headings boolean|? Include parsed headings and anchors on returned notes.
----@field blocks boolean|? Include parsed block IDs and block candidates on returned notes.
+---@alias obsidian.search.NoteSearchDomain "references"|"headings"|"blocks"
+
+---@class obsidian.search.FindDomainOpts: obsidian.search.SortOpts
+---@field dir string|obsidian.Path|?
+---@field ignore_case boolean|? Override the editor's `ignorecase` and `smartcase` settings.
+---@field timeout integer|?
+
+---@class obsidian.search.HeadingMatch
+---@field note obsidian.Note The note containing the heading.
+---@field heading obsidian.note.HeaderAnchor The matching heading, including its section and source location.
+
+---@class obsidian.search.BlockMatch
+---@field note obsidian.Note The note containing the block candidate or identifier.
+---@field section obsidian.Section|? The matching block candidate section, when available.
+---@field blocks obsidian.note.Block[] Explicit block identifiers associated with the match.
+
+---@class obsidian.search.FindHeadingsOpts: obsidian.search.FindDomainOpts
+
+---@class obsidian.search.FindBlocksOpts: obsidian.search.FindDomainOpts
 
 ---@class obsidian.search.FindNotesOpts: obsidian.search.SortOpts
 ---
 ---@field dir string|obsidian.Path|?
----@field collect obsidian.search.NoteCollectOpts|? Additional parsed domains to return beyond those selected by `match`.
----@field match obsidian.search.NoteMatchOpts|?
 ---@field ignore_case boolean|? Override the editor's `ignorecase` and `smartcase` settings.
 ---@field include_unresolved boolean|? Also return unresolved note targets as the second result.
 ---@field timeout integer|?
+
+---@class obsidian.search.FindNotesBackendOpts: obsidian.search.FindNotesOpts
+---@field domain obsidian.search.NoteSearchDomain|? Internal domain selector; defaults to note references.
 
 ---@class obsidian.search.FindAttachmentsOpts: obsidian.search.SortOpts
 ---

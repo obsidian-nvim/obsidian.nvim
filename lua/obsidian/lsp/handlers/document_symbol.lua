@@ -6,7 +6,7 @@ return function(_, handler)
   ---@type lsp.DocumentSymbol[]
   local symbols = {}
 
-  local note = obsidian.Note.from_buffer(0, { collect_sections = true })
+  local note = obsidian.Note.from_buffer(0)
   if not note then -- HACK: somehow DocumentSymbol gets called with no valid note
     return handler(nil, symbols)
   end

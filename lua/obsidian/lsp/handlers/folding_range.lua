@@ -6,7 +6,7 @@ return function(params, handler)
   local ranges = {}
 
   local bufnr = vim.uri_to_bufnr(params.textDocument.uri)
-  local note = Note.from_buffer(bufnr, { collect_sections = true })
+  local note = Note.from_buffer(bufnr)
 
   -- Frontmatter fold.
   if note.has_frontmatter and note.frontmatter_end_line then

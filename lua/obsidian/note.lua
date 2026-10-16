@@ -88,10 +88,21 @@ end
 ---@field links_out table[]|? cached outgoing links.
 ---@field tasks table[]|? cached task rows.
 ---@field cache_checksum string|? checksum of normalized cached contents.
+---@field __cache_row obsidian.cache.NoteRow|? Internal cache row used for lazy structure hydration.
+---@field __cache_max_lines number|? Search parsing limit applied when hydrating cached structures.
+---@field __structure_source { contents: string[], start_row: integer, document: obsidian.parse.Document }|? Source snapshot for lazy parsing.
+---@field __headings_loaded boolean|?
+---@field __blocks_loaded boolean|?
 ---@field alt_alias string|?
 ---@field bufnr integer|?
 ---@field template string|? Template name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
 local Note = {}
+---@type fun(note: obsidian.Note)?
+local ensure_headings
+---@type fun(note: obsidian.Note)?
+local ensure_blocks
+local heading_fields = { sections = true, anchor_links = true, headings = true }
+local block_fields = { blocks = true, block_candidates = true, blocks_search = true }
 
 local load_contents = function(note)
   local contents = {}
@@ -179,6 +190,18 @@ Note.__index = function(self, k)
     return value
   elseif k == "contents" then
     return cached_get(self, "contents", load_contents)
+  elseif heading_fields[k] then
+    local load = ensure_headings
+    if load then
+      load(self)
+    end
+    return rawget(self, k)
+  elseif block_fields[k] then
+    local load = ensure_blocks
+    if load then
+      load(self)
+    end
+    return rawget(self, k)
   end
 end
 
@@ -870,13 +893,187 @@ local function hydrate_cached_headings(note, rows)
   end
 end
 
+---@param sections obsidian.Section[]
+---@return table<string, obsidian.note.HeaderAnchor>
+local function anchor_links_from_sections(sections)
+  local anchor_links = {}
+  ---@type table<obsidian.Section, obsidian.note.HeaderAnchor>
+  local section_to_anchor = {}
+  for _, section in ipairs(sections) do
+    if section.header then
+      local data = new_header_anchor(section, section.parent and section_to_anchor[section.parent], nil)
+      section_to_anchor[section] = data
+      anchor_links[section.anchor] = data
+      if data.parent then
+        local nested_anchor = data.anchor
+        ---@type obsidian.note.HeaderAnchor|?
+        local parent = data.parent
+        while parent do
+          nested_anchor = parent.anchor .. nested_anchor
+          parent = parent.parent
+        end
+        anchor_links[nested_anchor] = new_header_anchor(section, data.parent, nested_anchor)
+      end
+    end
+  end
+  return anchor_links
+end
+
+---@param note obsidian.Note
+---@return { contents: string[], start_row: integer, document: obsidian.parse.Document }
+local function structure_source(note)
+  local source = rawget(note, "__structure_source")
+  if source then
+    return source
+  end
+
+  local contents = rawget(note, "contents")
+  local raw_contents = rawget(note, "raw_contents")
+  if contents then
+    source = {
+      contents = contents,
+      start_row = rawget(note, "frontmatter_end_line") or 0,
+      document = Document.parse(raw_contents or contents),
+    }
+  elseif rawget(note, "path") then
+    local path = assert(rawget(note, "path"), "note path is missing")
+    local loaded = Note.from_file(path)
+    source = assert(rawget(loaded, "__structure_source"), "loaded note source is missing")
+  else
+    contents = {}
+    source = { contents = contents, start_row = 0, document = Document.parse(contents) }
+  end
+  rawset(note, "__structure_source", source)
+  return source
+end
+
+ensure_headings = function(note)
+  if rawget(note, "__headings_loaded") then
+    return
+  end
+
+  local row = rawget(note, "__cache_row")
+  if row then
+    local max_lines = rawget(note, "__cache_max_lines") or math.huge
+    local headings = vim.tbl_filter(function(heading)
+      return heading.line <= max_lines
+    end, vim.deepcopy(row.headings or {}))
+    rawset(note, "headings", headings)
+    hydrate_cached_headings(note, headings)
+  else
+    local sections = rawget(note, "sections")
+    if sections == nil then
+      local source = structure_source(note)
+      sections = Section.parse(source.contents, { start_row = source.start_row, document = source.document })
+      rawset(note, "sections", sections)
+    end
+    if rawget(note, "anchor_links") == nil then
+      rawset(note, "anchor_links", anchor_links_from_sections(sections))
+    end
+  end
+  rawset(note, "__headings_loaded", true)
+end
+
+---@param blocks table<string, obsidian.note.Block>
+---@param candidates obsidian.Section[]
+---@param contents string[]
+---@return string[]
+local function blocks_search_values(blocks, candidates, contents)
+  local values, seen = {}, {}
+  local function add(value)
+    value = vim.trim(value or "")
+    if value ~= "" and not seen[value] then
+      values[#values + 1] = value
+      seen[value] = true
+    end
+  end
+  for id, block in pairs(blocks) do
+    add(id)
+    add(block.id)
+    add(block.block)
+  end
+  for _, section in ipairs(candidates) do
+    local lines = section.cached_contents
+      or vim.list_slice(contents, section.range.start_row + 1, section.range.end_row)
+    add(table.concat(lines, "\n"))
+  end
+  return values
+end
+
+ensure_blocks = function(note)
+  if rawget(note, "__blocks_loaded") then
+    return
+  end
+
+  local row = rawget(note, "__cache_row")
+  if row then
+    local max_lines = rawget(note, "__cache_max_lines") or math.huge
+    local candidates = {}
+    local candidate_indexes = {}
+    for old_idx, candidate in ipairs(row.block_candidates or {}) do
+      if candidate.range.start_row < max_lines then
+        local section = section_from_cache(candidate)
+        if max_lines ~= math.huge then
+          local line_count = max_lines - candidate.range.start_row
+          ---@cast line_count integer
+          section.cached_contents = vim.list_slice(section.cached_contents or {}, 1, line_count)
+          section.range.end_row = math.min(section.range.end_row, max_lines)
+          section.content_range.end_row = math.min(section.content_range.end_row, max_lines)
+        end
+        candidates[#candidates + 1] = section
+        candidate_indexes[old_idx] = #candidates
+      end
+    end
+    rawset(note, "block_candidates", candidates)
+    local blocks = {}
+    for id, block in pairs(row.blocks or {}) do
+      local candidate_idx = block.candidate and candidate_indexes[block.candidate] or nil
+      if block.line <= max_lines and (not block.candidate or candidate_idx) then
+        local section = candidate_idx and candidates[candidate_idx]
+          or (block.section and section_from_cache(block.section) or nil)
+        blocks[id] = {
+          id = block.id,
+          line = block.line,
+          block = block.block,
+          section = section,
+        }
+      end
+    end
+    rawset(note, "blocks", blocks)
+    rawset(
+      note,
+      "blocks_search",
+      max_lines == math.huge and vim.deepcopy(row.blocks_search or {}) or blocks_search_values(blocks, candidates, {})
+    )
+    if rawget(note, "sections") == nil then
+      ensure_headings(note)
+    end
+  else
+    local source = structure_source(note)
+    local sections, blocks, candidates = Section.parse(source.contents, {
+      start_row = source.start_row,
+      collect_blocks = true,
+      collect_block_candidates = true,
+      document = source.document,
+    })
+    if rawget(note, "sections") == nil then
+      rawset(note, "sections", sections)
+    end
+    rawset(note, "blocks", blocks or {})
+    rawset(note, "block_candidates", candidates or {})
+    rawset(note, "blocks_search", blocks_search_values(blocks or {}, candidates or {}, source.contents))
+  end
+  rawset(note, "__blocks_loaded", true)
+end
+
 --- Initialize a note from a cache row without reading the file.
 ---
 ---@param path string|obsidian.Path
 ---@param row obsidian.cache.NoteRow
+---@param max_lines integer|?
 ---
 ---@return obsidian.Note
-Note.from_cache = function(path, row)
+Note.from_cache = function(path, row, max_lines)
   path = Path.new(path)
   local metadata = vim.deepcopy(row.properties or {})
   metadata.id = metadata.id or row.id
@@ -884,29 +1081,11 @@ Note.from_cache = function(path, row)
   metadata.tags = metadata.tags or vim.deepcopy(row.tags or {})
   local note = Note.new(nil, nil, nil, path)
   note.metadata = metadata
-  note.headings = vim.deepcopy(row.headings or {})
-  note.blocks_search = vim.deepcopy(row.blocks_search or {})
+  note.__cache_row = row
+  note.__cache_max_lines = max_lines or math.huge
   note.links_out = vim.deepcopy(row.links_out or {})
   note.tasks = vim.deepcopy(row.tasks or {})
   note.cache_checksum = row.checksum
-  hydrate_cached_headings(note, note.headings)
-
-  note.block_candidates = {}
-  for _, candidate in ipairs(row.block_candidates or {}) do
-    note.block_candidates[#note.block_candidates + 1] = section_from_cache(candidate)
-  end
-
-  note.blocks = {}
-  for id, block in pairs(row.blocks or {}) do
-    local section = block.candidate and note.block_candidates[block.candidate]
-      or (block.section and section_from_cache(block.section) or nil)
-    note.blocks[id] = {
-      id = block.id,
-      line = block.line,
-      block = block.block,
-      section = section,
-    }
-  end
   return note
 end
 
@@ -929,7 +1108,20 @@ Note.from_buffer = function(bufnr, opts)
   ---@type obsidian.Note
   local cache_note = vim.b[bufnr].note
   if cache_note ~= nil then
+    local headings_loaded = rawget(note, "__headings_loaded")
+    local blocks_loaded = rawget(note, "__blocks_loaded")
     note = vim.tbl_extend("keep", note, cache_note)
+    rawset(note, "__cache_row", nil)
+    if not headings_loaded then
+      for _, field in ipairs { "sections", "anchor_links", "headings", "__headings_loaded" } do
+        rawset(note, field, nil)
+      end
+    end
+    if not blocks_loaded then
+      for _, field in ipairs { "blocks", "block_candidates", "blocks_search", "__blocks_loaded" } do
+        rawset(note, field, nil)
+      end
+    end
     attach_note_metatable(note)
   end
   return note
@@ -1003,45 +1195,6 @@ Note.from_lines = function(lines, path, opts)
     end
   end
 
-  ---@type obsidian.Section[]|?, table<string, obsidian.note.Block>|?, obsidian.Section[]|?
-  local sections, blocks, block_candidates
-  if opts.collect_sections or opts.collect_anchor_links or opts.collect_blocks or opts.collect_block_candidates then
-    sections, blocks, block_candidates = Section.parse(contents, {
-      start_row = frontmatter and frontmatter.range.end_row or 0,
-      collect_blocks = opts.collect_blocks,
-      collect_block_candidates = opts.collect_block_candidates,
-      document = document,
-    })
-  end
-
-  ---@type table<string, obsidian.note.HeaderAnchor>|?
-  local anchor_links
-  if opts.collect_anchor_links then
-    anchor_links = {}
-    ---@type table<obsidian.Section, obsidian.note.HeaderAnchor>
-    local section_to_anchor = {}
-    for _, section in ipairs(assert(sections, "sections must be parsed when collecting anchor links")) do
-      if section.header then
-        -- We collect up to two anchors for each header. One standalone, e.g. '#header1', and
-        -- one with the parents, e.g. '#header1#header2'.
-        local data = new_header_anchor(section, section.parent and section_to_anchor[section.parent], nil)
-        section_to_anchor[section] = data
-        anchor_links[section.anchor] = data
-
-        if data.parent ~= nil then
-          local nested_anchor = data.anchor
-          ---@type obsidian.note.HeaderAnchor|?
-          local parent = data.parent
-          while parent ~= nil do
-            nested_anchor = parent.anchor .. nested_anchor
-            parent = parent.parent
-          end
-          anchor_links[nested_anchor] = new_header_anchor(section, data.parent, nested_anchor)
-        end
-      end
-    end
-  end
-
   local info = {}
   local warnings = {}
 
@@ -1068,10 +1221,17 @@ Note.from_lines = function(lines, path, opts)
   n.frontmatter_elements = frontmatter_elements
   n.contents = contents
   n.raw_contents = raw_contents
-  n.anchor_links = anchor_links
-  n.blocks = blocks
-  n.block_candidates = block_candidates
-  n.sections = sections
+  n.__structure_source = {
+    contents = contents,
+    start_row = frontmatter and frontmatter.range.end_row or 0,
+    document = document,
+  }
+  if opts.collect_sections or opts.collect_anchor_links then
+    ensure_headings(n)
+  end
+  if opts.collect_blocks or opts.collect_block_candidates then
+    ensure_blocks(n)
+  end
   -- TODO: reflect the warnings in `:Obsidian check`
   return n, warnings
 end
@@ -1446,14 +1606,7 @@ end
 Note.resolve_anchor_link = function(self, anchor_link)
   anchor_link = header_parser.normalize_anchor(anchor_link)
 
-  if self.anchor_links ~= nil then
-    return self.anchor_links[anchor_link]
-  end
-
-  assert(self.path, "'note.path' is not set")
-  local n = Note.from_file(self.path, { collect_anchor_links = true })
-  self.anchor_links = n.anchor_links
-  return n:resolve_anchor_link(anchor_link)
+  return self.anchor_links[anchor_link]
 end
 
 --- Try to resolve a block identifier.
@@ -1464,16 +1617,7 @@ end
 Note.resolve_block = function(self, block_id)
   block_id = block_ids.normalize(block_id)
 
-  if self.blocks ~= nil then
-    return self.blocks[block_id]
-  end
-
-  assert(self.path, "'note.path' is not set")
-  local n = Note.from_file(self.path, { collect_blocks = true })
-  self.blocks = n.blocks
-  local blocks = self.blocks
-  ---@cast blocks -nil
-  return blocks[block_id]
+  return self.blocks[block_id]
 end
 
 --- Open a note in a buffer.

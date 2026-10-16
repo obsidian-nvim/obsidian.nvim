@@ -94,36 +94,10 @@ local function section_to_symbol(note, section)
   }
 end
 
----@param section obsidian.Section
----@param query string
----@return boolean
-local function section_matches_query(section, query)
-  return query == "" or string.find(string.lower(section.header or ""), string.lower(query), 1, true) ~= nil
-end
-
----@param note obsidian.Note
----@param query string
----@return lsp.WorkspaceSymbol[]
-local function note_section_symbols(note, query)
-  ---@type obsidian.Section[]
-  local sections = {}
-
-  for _, section in ipairs(note.sections or {}) do
-    if section.header and section_matches_query(section, query) then
-      sections[#sections + 1] = section
-    end
-  end
-
-  table.sort(sections, function(a, b)
-    if a.heading_range.start_row ~= b.heading_range.start_row then
-      return a.heading_range.start_row < b.heading_range.start_row
-    end
-    return (a.anchor or "") < (b.anchor or "")
-  end)
-
-  return vim.tbl_map(function(section)
-    return section_to_symbol(note, section)
-  end, sections)
+---@param match obsidian.search.HeadingMatch
+---@return lsp.WorkspaceSymbol
+local function heading_to_symbol(match)
+  return section_to_symbol(match.note, assert(match.heading.section, "heading match has no section"))
 end
 
 ---@param query string
@@ -136,13 +110,14 @@ return function(query, callback)
     ---@type lsp.WorkspaceSymbol[]
     local symbols = {}
 
-    local notes = async.await(2, search.find_notes_async, query, nil, {
-      match = { references = true, headings = true },
-    })
+    local notes = async.await(2, search.find_notes_async, query, nil)
+    local headings = async.await(2, search.find_headings_async, query, nil)
 
     for _, note in ipairs(notes) do
       vim.list_extend(symbols, note_to_symbols(note))
-      vim.list_extend(symbols, note_section_symbols(note, query))
+    end
+    for _, heading in ipairs(headings) do
+      symbols[#symbols + 1] = heading_to_symbol(heading)
     end
 
     callback(symbols)

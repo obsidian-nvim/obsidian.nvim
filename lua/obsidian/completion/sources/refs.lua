@@ -48,7 +48,6 @@ local EMPTY_RESPONSE = {
 ---@field owners_by_path table<string, obsidian.completion.sources.refs.block_search_owner>|?
 ---@field overlays table<string, obsidian.completion.sources.refs.block_search_owner>
 ---@field next_note_idx integer
----@field parse_opts obsidian.note.LoadOpts
 ---@field workspace obsidian.Workspace
 ---@field ignore_checker Glob|?
 
@@ -93,7 +92,6 @@ local EMPTY_RESPONSE = {
 ---@field query string
 ---@field dir obsidian.Path
 ---@field dir_key string
----@field parse_opts obsidian.note.LoadOpts
 
 ---@class obsidian.completion.sources.refs.block_file_event
 ---@field type integer|string
@@ -345,10 +343,9 @@ end
 
 ---@param results obsidian.Note[]
 ---@param dir obsidian.Path
----@param parse_opts obsidian.note.LoadOpts
 ---@param include_unmatched boolean|?
 ---@return obsidian.Note[]
-local function include_loaded_notes(results, dir, parse_opts, include_unmatched)
+local function include_loaded_notes(results, dir, include_unmatched)
   local path_to_idx = {}
   for idx, note in ipairs(results) do
     path_to_idx[tostring(note.path)] = idx
@@ -362,7 +359,7 @@ local function include_loaded_notes(results, dir, parse_opts, include_unmatched)
       if path and fs_util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
         local idx = path_to_idx[path]
         if not idx or vim.bo[bufnr].modified then
-          local note = Note.from_buffer(bufnr, parse_opts)
+          local note = Note.from_buffer(bufnr)
           idx = path_to_idx[tostring(note.path)]
           if idx then
             results[idx] = note
@@ -597,7 +594,7 @@ local function refresh_vault_block_owner(index, path, preferred_note_idx)
   end
 
   local Note = require "obsidian.note"
-  local ok, note = pcall(Note.from_file, path, index.parse_opts)
+  local ok, note = pcall(Note.from_file, path)
   if not ok then
     owners_by_path[path] = nil
     return old_owner ~= nil
@@ -690,9 +687,8 @@ end)
 
 ---@param index obsidian.completion.sources.refs.block_search_index
 ---@param dir obsidian.Path
----@param parse_opts obsidian.note.LoadOpts
 ---@return table<string, obsidian.completion.sources.refs.block_search_owner>
-local function vault_block_overlays(index, dir, parse_opts)
+local function vault_block_overlays(index, dir)
   local owners_by_path = assert(index.owners_by_path, "vault block index owners are missing")
   local Note = require "obsidian.note"
   local active = {}
@@ -710,7 +706,7 @@ local function vault_block_overlays(index, dir, parse_opts)
           local changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
           local owner = cached
           if not owner or owner.bufnr ~= bufnr or owner.changedtick ~= changedtick then
-            local note = Note.from_buffer(bufnr, parse_opts)
+            local note = Note.from_buffer(bufnr)
             owner = build_vault_block_owner(note, base and base.note_idx or index.next_note_idx + overlay_idx - 1)
             owner.bufnr = bufnr
             owner.changedtick = changedtick
@@ -729,11 +725,10 @@ end
 ---@param query string
 ---@param index obsidian.completion.sources.refs.block_search_index
 ---@param dir obsidian.Path
----@param parse_opts obsidian.note.LoadOpts
-local function process_vault_block_search_results(cc, query, index, dir, parse_opts)
+local function process_vault_block_search_results(cc, query, index, dir)
   local range, placeholder, source_path = block_completion_request_context(cc)
   local lowered_query = vim.fn.tolower(query)
-  local overlays = vault_block_overlays(index, dir, parse_opts)
+  local overlays = vault_block_overlays(index, dir)
   ---@type lsp.CompletionItem[]
   local items = {}
 
@@ -814,8 +809,7 @@ end
 ---@param cc obsidian.completion.sources.refs.context
 ---@param query string
 ---@param dir obsidian.Path
----@param parse_opts obsidian.note.LoadOpts
-local function queue_vault_block_request(cc, query, dir, parse_opts)
+local function queue_vault_block_request(cc, query, dir)
   local key = vault_block_request_key(cc)
   local pending = vault_block_search_pending[key]
   if pending then
@@ -827,7 +821,6 @@ local function queue_vault_block_request(cc, query, dir, parse_opts)
     query = query,
     dir = dir,
     dir_key = tostring(dir),
-    parse_opts = parse_opts,
   }
 end
 
@@ -844,10 +837,10 @@ local function take_pending_vault_block_requests(dir_key)
   return pending
 end
 
----@type fun(dir: obsidian.Path, parse_opts: obsidian.note.LoadOpts)
+---@type fun(dir: obsidian.Path)
 local start_vault_block_search_index
 
-start_vault_block_search_index = function(dir, parse_opts)
+start_vault_block_search_index = function(dir)
   local dir_key = tostring(dir)
   if vault_block_search_indexes[dir_key] then
     return
@@ -859,46 +852,52 @@ start_vault_block_search_index = function(dir, parse_opts)
     dir = dir_key,
     overlays = {},
     next_note_idx = 1,
-    parse_opts = parse_opts,
     workspace = workspace,
     ignore_checker = ignore._build_ignore_checker(workspace_opts.file.ignore_filters),
   }
   vault_block_search_indexes[dir_key] = index
   local generation = vault_block_search_generation
-  search.find_notes_async("", function(results)
+  search.find_blocks_async("", function(matches)
     if generation ~= vault_block_search_generation or vault_block_search_indexes[dir_key] ~= index then
       if vault_block_search_indexes[dir_key] == index then
         vault_block_search_indexes[dir_key] = nil
       end
       if not vault_block_search_indexes[dir_key] then
-        local restart_dir, restart_parse_opts = dir, parse_opts
+        local restart_dir = dir
         for _, request in pairs(vault_block_search_pending) do
           if request.dir_key == dir_key then
-            restart_dir, restart_parse_opts = request.dir, request.parse_opts
+            restart_dir = request.dir
             break
           end
         end
-        start_vault_block_search_index(restart_dir, restart_parse_opts)
+        start_vault_block_search_index(restart_dir)
       end
       return
     end
 
+    local results = {}
+    local seen = {}
+    for _, match in ipairs(matches) do
+      local path = tostring(match.note.path)
+      if not seen[path] then
+        seen[path] = true
+        results[#results + 1] = match.note
+      end
+    end
     build_vault_block_index(index, results)
     for _, request in ipairs(take_pending_vault_block_requests(dir_key)) do
-      process_vault_block_search_results(request.cc, request.query, index, request.dir, request.parse_opts)
+      process_vault_block_search_results(request.cc, request.query, index, request.dir)
     end
   end, {
     dir = dir,
     sort_by = false,
-    match = { blocks = true },
   })
 end
 
 ---@param cc obsidian.completion.sources.refs.context
 ---@param query string
 ---@param dir obsidian.Path
----@param parse_opts obsidian.note.LoadOpts
-local function process_vault_block_search(cc, query, dir, parse_opts)
+local function process_vault_block_search(cc, query, dir)
   local dir_key = tostring(dir)
   local index = vault_block_search_indexes[dir_key]
   local has_index = index ~= nil
@@ -908,18 +907,18 @@ local function process_vault_block_search(cc, query, dir, parse_opts)
     cancel_pending_vault_block_request(cc)
     cc.completion_resolve_callback(EMPTY_RESPONSE)
     if not has_index then
-      start_vault_block_search_index(dir, parse_opts)
+      start_vault_block_search_index(dir)
     end
     return
   end
 
   if not has_index then
-    queue_vault_block_request(cc, query, dir, parse_opts)
-    start_vault_block_search_index(dir, parse_opts)
+    queue_vault_block_request(cc, query, dir)
+    start_vault_block_search_index(dir)
   elseif index.candidates then
-    process_vault_block_search_results(cc, query, index, dir, parse_opts)
+    process_vault_block_search_results(cc, query, index, dir)
   else
-    queue_vault_block_request(cc, query, dir, parse_opts)
+    queue_vault_block_request(cc, query, dir)
   end
 end
 
@@ -934,28 +933,20 @@ local function process_block_search(cc, scope, query, target)
   end
 
   if scope == "current" then
-    local note = api.current_note(cc.request.bufnr, {
-      collect_blocks = true,
-      collect_block_candidates = true,
-    })
+    local note = api.current_note(cc.request.bufnr)
     process_block_search_results(cc, scope, query, note and { note } or {})
     return
   end
 
   local dir = api.resolve_workspace_dir()
-  local parse_opts = { collect_blocks = true, collect_block_candidates = true }
   local function on_results(results)
-    process_block_search_results(cc, scope, query, include_loaded_notes(results, dir, parse_opts, false))
+    process_block_search_results(cc, scope, query, include_loaded_notes(results, dir, false))
   end
   if scope == "note" then
-    search.resolve_note_async(
-      assert(target, "named-note block search requires a target"),
-      on_results,
-      { collect = { blocks = true } }
-    )
+    search.resolve_note_async(assert(target, "named-note block search requires a target"), on_results)
     return
   end
-  process_vault_block_search(cc, query, dir, parse_opts)
+  process_vault_block_search(cc, query, dir)
 end
 
 ---@param anchor obsidian.note.HeaderAnchor
@@ -1080,18 +1071,20 @@ end
 local function process_heading_search(cc, query)
   local source_name = vim.api.nvim_buf_get_name(cc.request.bufnr)
   local dir = api.resolve_workspace_dir(source_name ~= "" and source_name or nil)
-  local parse_opts = { collect_sections = true }
-  local function finish(results)
-    process_heading_search_results(cc, query, include_loaded_notes(results, dir, parse_opts, true))
-  end
-
-  -- Heading queries also match normalized anchors, which cannot be mapped
-  -- reliably back to raw file text (e.g. `http-api` vs `HTTP API`). Enumerate
-  -- notes first, then filter their parsed headings below.
-  search.find_notes_async("", finish, {
+  search.find_headings_async(query, function(matches)
+    local results = {}
+    local seen = {}
+    for _, match in ipairs(matches) do
+      local path = tostring(match.note.path)
+      if not seen[path] then
+        seen[path] = true
+        results[#results + 1] = match.note
+      end
+    end
+    process_heading_search_results(cc, query, include_loaded_notes(results, dir, true))
+  end, {
     dir = dir,
     sort_by = false,
-    match = { headings = true },
   })
 end
 
@@ -1389,7 +1382,7 @@ function M.process_completion(completion_resolve_callback, request)
   determine_buffer_only_search_scope(cc)
 
   if cc.in_buffer_only then
-    local note = api.current_note(cc.request.bufnr, { collect_anchor_links = true, collect_blocks = true })
+    local note = api.current_note(cc.request.bufnr)
     if note then
       process_search_results(cc, { note })
     else
@@ -1402,7 +1395,6 @@ function M.process_completion(completion_resolve_callback, request)
     end, {
       dir = api.resolve_workspace_dir(source_path),
       sort_by = false,
-      collect = { headings = cc.anchor_link ~= nil, blocks = cc.block_link ~= nil },
     })
   end
 end

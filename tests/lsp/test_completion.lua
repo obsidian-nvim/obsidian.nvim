@@ -1020,11 +1020,11 @@ T["completion"]["restarts a bare vault block warm-up invalidated while loading"]
     Obsidian.opts.completion.min_chars = 2
     _G.block_search_scans = 0
     local search = require "obsidian.search"
-    local find_notes_async = search.find_notes_async
-    search.find_notes_async = function(term, callback, ...)
+    local find_blocks_async = search.find_blocks_async
+    search.find_blocks_async = function(term, callback, ...)
       _G.block_search_scans = _G.block_search_scans + 1
       local scan = _G.block_search_scans
-      return find_notes_async(term, function(results)
+      return find_blocks_async(term, function(results)
         if scan == 1 then
           local target = tostring(Obsidian.dir / "target.md")
           vim.fn.writefile({ "Fresh target block" }, target)
@@ -1067,11 +1067,11 @@ T["completion"]["rebuilds a vault block index invalidated while loading"] = func
 
     _G.block_search_scans = 0
     local search = require "obsidian.search"
-    local find_notes_async = search.find_notes_async
-    search.find_notes_async = function(term, callback, ...)
+    local find_blocks_async = search.find_blocks_async
+    search.find_blocks_async = function(term, callback, ...)
       _G.block_search_scans = _G.block_search_scans + 1
       if _G.block_search_scans == 1 then
-        return find_notes_async(term, function(results)
+        return find_blocks_async(term, function(results)
           vim.fn.writefile({ "Fresh external target" }, target_path)
           require("obsidian.lsp.handlers.did_change_watched_files") {
             changes = {
@@ -1081,7 +1081,7 @@ T["completion"]["rebuilds a vault block index invalidated while loading"] = func
           callback(results)
         end, ...)
       end
-      return find_notes_async(term, callback, ...)
+      return find_blocks_async(term, callback, ...)
     end
   ]]
 
@@ -1112,7 +1112,7 @@ T["completion"]["keeps a newer vault block index build when a stale build finish
       local completion_handler = require "obsidian.lsp.handlers.completion"
       local watch_handler = require "obsidian.lsp.handlers.did_change_watched_files"
       local search = require "obsidian.search"
-      local find_notes_async = search.find_notes_async
+      local find_blocks_async = search.find_blocks_async
       local scan_callbacks = {}
       local scans = 0
       local latest_response
@@ -1123,12 +1123,12 @@ T["completion"]["keeps a newer vault block index build when a stale build finish
         }
       end
 
-      search.find_notes_async = function(term, callback, ...)
+      search.find_blocks_async = function(term, callback, ...)
         scans = scans + 1
         local scan = scans
         scan_callbacks[scan] = callback
         if scan == 1 then
-          return find_notes_async(term, function(results)
+          return find_blocks_async(term, function(results)
             watch_handler {
               changes = {
                 {

@@ -35,6 +35,27 @@ local function names(notes)
   return out
 end
 
+local function heading_matches(query)
+  return vim.tbl_map(function(match)
+    return {
+      note = match.note.path.stem,
+      header = match.heading.header,
+      anchor = match.heading.anchor,
+      line = match.heading.line,
+    }
+  end, search.find_headings(query, { sort_by = false }))
+end
+
+local function block_matches(query)
+  return vim.tbl_map(function(match)
+    return {
+      note = match.note.path.stem,
+      section = match.section ~= nil,
+      blocks = vim.tbl_map(function(block) return block.id end, match.blocks),
+    }
+  end, search.find_blocks(query, { sort_by = false }))
+end
+
 local opts = { sort_by = false }
 vim.o.ignorecase = false
 local case_sensitive = names(search.find_notes("friendly", opts))
@@ -42,14 +63,8 @@ vim.o.ignorecase = true
 vim.o.smartcase = true
 local cached = {
   alias = names(search.find_notes("friendly", opts)),
-  heading = names(search.find_notes("http-api", {
-    sort_by = opts.sort_by,
-    match = { references = false, headings = true },
-  })),
-  block = names(search.find_notes("block-id", {
-    sort_by = opts.sort_by,
-    match = { references = false, blocks = true },
-  })),
+  heading_matches = heading_matches("http-api"),
+  block_matches = block_matches("block-id"),
   body = names(search.find_notes("body-only", opts)),
   attachments = vim.tbl_map(vim.fs.basename, search.find_attachments("image", opts)),
   smartcase_alias = names(search.find_notes("FRIENDLY", opts)),
@@ -85,14 +100,8 @@ cached.respected_disabled_sort = not sort_called
 cache.shutdown()
 local filesystem = {
   alias = names(search.find_notes("friendly", opts)),
-  heading = names(search.find_notes("http-api", {
-    sort_by = opts.sort_by,
-    match = { references = false, headings = true },
-  })),
-  block = names(search.find_notes("block-id", {
-    sort_by = opts.sort_by,
-    match = { references = false, blocks = true },
-  })),
+  heading_matches = heading_matches("http-api"),
+  block_matches = block_matches("block-id"),
   body = names(search.find_notes("body-only", opts)),
   attachments = vim.tbl_map(vim.fs.basename, search.find_attachments("image", opts)),
   smartcase_alias = names(search.find_notes("FRIENDLY", opts)),
@@ -112,10 +121,10 @@ return { cached = cached, filesystem = filesystem }
 
   eq({ "Alpha" }, result.cached.alias)
   eq(result.cached.alias, result.filesystem.alias)
-  eq({ "Alpha" }, result.cached.heading)
-  eq(result.cached.heading, result.filesystem.heading)
-  eq({ "Alpha" }, result.cached.block)
-  eq(result.cached.block, result.filesystem.block)
+  eq({ { note = "Alpha", header = "HTTP API", anchor = "#http-api", line = 6 } }, result.cached.heading_matches)
+  eq(result.cached.heading_matches, result.filesystem.heading_matches)
+  eq({ { note = "Alpha", section = true, blocks = { "^block-id" } } }, result.cached.block_matches)
+  eq(result.cached.block_matches, result.filesystem.block_matches)
   eq({}, result.cached.body)
   eq(result.cached.body, result.filesystem.body)
   eq({ "Image.PNG" }, result.cached.attachments)
@@ -144,7 +153,7 @@ T["cached structured searches do not read note files"] = function()
   h.child_setup_cache(child)
 
   local result = child.lua [==[
-local cache = require "obsidian.cache"
+local search = require "obsidian.search"
 local Note = require "obsidian.note"
 local original_from_file = Note.from_file
 Note.from_file = function()
@@ -152,15 +161,14 @@ Note.from_file = function()
 end
 
 local ok, value = pcall(function()
-  local headings = cache.find_notes("http-api", {
-    match = { references = false, headings = true },
-  })
-  local blocks = cache.find_notes("block-id", {
-    match = { references = false, blocks = true },
-  })
+  local headings = search.find_headings("http-api")
+  local blocks = search.find_blocks("block-id")
+  local note = search.find_notes("Alpha")[1]
   return {
-    heading = headings[1] and headings[1]:resolve_anchor_link "#http-api" and headings[1].path.stem,
-    block = blocks[1] and blocks[1].path.stem,
+    heading = headings[1] and headings[1].note:resolve_anchor_link "#http-api" and headings[1].note.path.stem,
+    block = blocks[1] and blocks[1].note.path.stem,
+    lazy_heading = note and note:resolve_anchor_link "#http-api" and note.path.stem,
+    lazy_block = note and note:resolve_block "block-id" and note.path.stem,
   }
 end)
 
@@ -169,7 +177,7 @@ assert(ok, value)
 return value
   ]==]
 
-  eq({ heading = "Alpha", block = "Alpha" }, result)
+  eq({ heading = "Alpha", block = "Alpha", lazy_heading = "Alpha", lazy_block = "Alpha" }, result)
 end
 
 T["resolve_note remains case insensitive when ignorecase is disabled"] = function()
@@ -217,16 +225,14 @@ local search = require "obsidian.search"
 local cache = require "obsidian.cache"
 
 Obsidian.opts.search.max_lines = 1
-local match_heading = { references = false, headings = true }
-local match_block = { references = false, blocks = true }
 local cached = {
-  heading = #search.find_notes("hidden-heading", { match = match_heading }),
-  block = #search.find_notes("hidden-block", { match = match_block }),
+  heading = #search.find_headings("hidden-heading"),
+  block = #search.find_blocks("hidden-block"),
 }
 cache.shutdown()
 local filesystem = {
-  heading = #search.find_notes("hidden-heading", { match = match_heading }),
-  block = #search.find_notes("hidden-block", { match = match_block }),
+  heading = #search.find_headings("hidden-heading"),
+  block = #search.find_blocks("hidden-block"),
 }
 return { cached = cached, filesystem = filesystem }
   ]]

@@ -3,28 +3,6 @@ local fs_util = require "obsidian.util.fs"
 
 local M = {}
 
----@class obsidian.search.NoteMatchOpts
----@field references boolean|? Match note IDs, aliases, filenames, and relative paths. Defaults to true.
----@field headings boolean|? Match heading text and normalized anchors.
----@field blocks boolean|? Match block text and block IDs.
-
----Build the note parser options needed by a note search.
----
----`match` controls which domains are searched and guarantees that those
----domains are present on returned notes. `collect` adds result data without
----changing which notes match.
----@param opts obsidian.search.FindNotesOpts
----@return obsidian.note.LoadOpts
-function M.parse_opts(opts)
-  local headings = (opts.match and opts.match.headings) or (opts.collect and opts.collect.headings)
-  local blocks = (opts.match and opts.match.blocks) or (opts.collect and opts.collect.blocks)
-  return {
-    collect_anchor_links = headings == true,
-    collect_blocks = blocks == true,
-    collect_block_candidates = blocks == true,
-  }
-end
-
 ---@param path string
 ---@return string
 local function without_note_extension(path)
@@ -81,13 +59,6 @@ local function heading_values(source)
     add(values, section.header)
     add(values, section.anchor)
   end
-  if source.anchor_links then
-    for anchor, data in pairs(source.anchor_links) do
-      add(values, anchor)
-      add(values, data.header)
-      add(values, data.anchor)
-    end
-  end
   return values
 end
 
@@ -136,29 +107,147 @@ end
 ---@param root string
 ---@param source table obsidian.Note or obsidian.cache.NoteRow
 ---@param query string
----@param opts obsidian.search.NoteMatchOpts|?
+---@param domain obsidian.search.NoteSearchDomain|?
 ---@param ignore_case boolean|?
 ---@return boolean
-function M.matches(path, root, source, query, opts, ignore_case)
+function M.matches(path, root, source, query, domain, ignore_case)
   query = vim.trim(query or "")
   if query == "" then
     return true
   end
 
-  opts = opts or {}
-  local match_references = opts.references ~= false
+  domain = domain or "references"
   ignore_case = ignore_case == true
-
-  if match_references and any_contains(query, reference_values(path, root, source), ignore_case) then
-    return true
-  end
-  if opts.headings and any_contains(query, heading_values(source), ignore_case) then
-    return true
-  end
-  if opts.blocks and any_contains(query, block_values(source), ignore_case) then
-    return true
+  if domain == "references" then
+    return any_contains(query, reference_values(path, root, source), ignore_case)
+  elseif domain == "headings" then
+    return any_contains(query, heading_values(source), ignore_case)
+  elseif domain == "blocks" then
+    return any_contains(query, block_values(source), ignore_case)
   end
   return false
+end
+
+---@param section obsidian.Section
+---@return string[]
+local function section_values(section)
+  return { section.header, section.anchor }
+end
+
+---Return matching heading anchors, with one result per heading section.
+---@param note obsidian.Note
+---@param query string
+---@param ignore_case boolean
+---@return obsidian.note.HeaderAnchor[]
+function M.matching_headings(note, query, ignore_case)
+  query = vim.trim(query or "")
+  local matches = {}
+  for _, section in ipairs(note.sections or {}) do
+    if section.header and any_contains(query, section_values(section), ignore_case) then
+      local heading = note.anchor_links and note.anchor_links[section.anchor]
+      if not heading then
+        heading = {
+          anchor = section.anchor,
+          header = section.header,
+          level = section.level,
+          line = section.heading_range.start_row + 1,
+          section = section,
+        }
+      end
+      matches[#matches + 1] = heading
+    end
+  end
+  return matches
+end
+
+---@param note obsidian.Note
+---@param section obsidian.Section
+---@return string
+local function section_text(note, section)
+  local contents = section.cached_contents
+  if contents == nil and note.contents then
+    contents = vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row)
+  end
+  return table.concat(contents or {}, "\n")
+end
+
+---Return matching block candidates and explicit block identifiers.
+---@param note obsidian.Note
+---@param query string
+---@param ignore_case boolean
+---@return obsidian.search.BlockMatch[]
+function M.matching_blocks(note, query, ignore_case)
+  query = vim.trim(query or "")
+  local result = {}
+  ---@type table<obsidian.Section, obsidian.note.Block[]>
+  local blocks_by_section = {}
+  ---@type obsidian.note.Block[]
+  local orphan_blocks = {}
+  ---@type table<string, obsidian.note.Block>
+  local blocks = note.blocks or {}
+  ---@type string[]
+  local block_ids = vim.tbl_keys(blocks)
+  table.sort(block_ids)
+
+  for _, id in ipairs(block_ids) do
+    local block = assert(blocks[id], "block row is missing")
+    if block.section then
+      local section_blocks = blocks_by_section[block.section] or {}
+      section_blocks[#section_blocks + 1] = block
+      blocks_by_section[block.section] = section_blocks
+    else
+      orphan_blocks[#orphan_blocks + 1] = block
+    end
+  end
+
+  local candidate_sections = {}
+  for _, section in ipairs(note.block_candidates or {}) do
+    candidate_sections[section] = true
+    local section_blocks = blocks_by_section[section] or {}
+    local values = { section_text(note, section) }
+    for _, block in ipairs(section_blocks) do
+      values[#values + 1] = block.id
+      values[#values + 1] = block.block
+    end
+    if any_contains(query, values, ignore_case) then
+      result[#result + 1] = {
+        note = note,
+        section = section,
+        blocks = section_blocks,
+      }
+    end
+  end
+
+  local emitted_sections = {}
+  for _, id in ipairs(block_ids) do
+    local section = assert(blocks[id], "block row is missing").section
+    if section and not candidate_sections[section] and not emitted_sections[section] then
+      emitted_sections[section] = true
+      local section_blocks = assert(blocks_by_section[section], "section blocks are missing")
+      local values = {}
+      for _, block in ipairs(section_blocks) do
+        values[#values + 1] = block.id
+        values[#values + 1] = block.block
+      end
+      if any_contains(query, values, ignore_case) then
+        result[#result + 1] = {
+          note = note,
+          section = section,
+          blocks = section_blocks,
+        }
+      end
+    end
+  end
+
+  for _, block in ipairs(orphan_blocks) do
+    if any_contains(query, { block.id, block.block }, ignore_case) then
+      result[#result + 1] = {
+        note = note,
+        blocks = { block },
+      }
+    end
+  end
+  return result
 end
 
 M.without_note_extension = without_note_extension

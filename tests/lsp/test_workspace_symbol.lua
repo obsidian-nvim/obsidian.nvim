@@ -153,6 +153,26 @@ body mentions alpha
   eq("heading-query#Alpha heading", heading_names[1])
 end
 
+T["merges note and heading results"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["alpha.md"] = "# Alpha heading",
+  })
+  ensure_lsp(files)
+
+  local symbols = get_symbols "alpha"
+  local note_found = false
+  local heading_found = false
+  for _, symbol in ipairs(symbols) do
+    if symbol.containerName == "alpha" and symbol.kind == 1 then
+      note_found = true
+    elseif symbol.name == "alpha#Alpha heading" and symbol.kind == 15 then
+      heading_found = true
+    end
+  end
+  eq(true, note_found)
+  eq(true, heading_found)
+end
+
 T["empty query returns all notes"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["one.md"] = "",

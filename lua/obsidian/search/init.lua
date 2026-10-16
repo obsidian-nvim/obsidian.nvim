@@ -10,6 +10,7 @@ local api = require "obsidian.api"
 local tags = require "obsidian.tag"
 local fs_util = require "obsidian.util.fs"
 local note_matcher = require "obsidian.search.note_matcher"
+local SearchOpts = require "obsidian.search.opts"
 
 local M = {}
 
@@ -84,17 +85,27 @@ local function dispatch_async(method, term, opts, callback)
   end)
 end
 
----Find notes using the cache backend when possible, otherwise the filesystem backend.
+---@param term string
+---@param callback fun(notes: obsidian.Note[], unresolved: obsidian.search.Unresolved[]?)
+---@param opts obsidian.search.FindNotesOpts|?
+---@param domain obsidian.search.NoteSearchDomain
+local function find_notes_by_domain_async(term, callback, opts, domain)
+  ---@type obsidian.search.FindNotesBackendOpts
+  local backend_opts = vim.tbl_extend("force", {}, opts or {})
+  backend_opts.domain = domain
+  backend_opts.dir = backend_opts.dir or api.resolve_workspace_dir()
+  return dispatch_async("find_notes", term, backend_opts, callback)
+end
+
+---Find notes by references using the cache backend when possible, otherwise the filesystem backend.
 ---@param term string
 ---@param callback fun(notes: obsidian.Note[], unresolved: obsidian.search.Unresolved[]?)
 ---@param opts obsidian.search.FindNotesOpts|?
 M.find_notes_async = function(term, callback, opts)
-  opts = opts or {}
-  opts.dir = opts.dir or api.resolve_workspace_dir()
-  return dispatch_async("find_notes", term, opts, callback)
+  return find_notes_by_domain_async(term, callback, opts, "references")
 end
 
----Find notes matching a structured search term.
+---Find notes whose references match a search term.
 ---@param term string
 ---@param opts obsidian.search.FindNotesOpts|?
 ---@return obsidian.Note[] notes
@@ -107,6 +118,85 @@ M.find_notes = function(term, opts)
   ---@cast result obsidian.Note[]?
   ---@cast unresolved obsidian.search.Unresolved[]?
   return result or {}, unresolved
+end
+
+---@generic T
+---@param domain "headings"|"blocks"
+---@param term string
+---@param callback fun(matches: T[])
+---@param opts obsidian.search.FindDomainOpts|?
+local function find_domain_async(domain, term, callback, opts)
+  opts = opts or {}
+  local find_opts = {
+    dir = opts.dir,
+    sort_by = opts.sort_by,
+    sort_reversed = opts.sort_reversed,
+    ignore_case = opts.ignore_case,
+  }
+  local ignore_case = opts.ignore_case
+  if ignore_case == nil then
+    ignore_case = SearchOpts.should_ignore_case(term)
+  end
+
+  find_notes_by_domain_async(term, function(notes)
+    ---@type T[]
+    local matches = {}
+    for _, note in ipairs(notes) do
+      local note_matches
+      if domain == "headings" then
+        note_matches = note_matcher.matching_headings(note, term, ignore_case)
+        for _, heading in ipairs(note_matches) do
+          matches[#matches + 1] = { note = note, heading = heading }
+        end
+      else
+        note_matches = note_matcher.matching_blocks(note, term, ignore_case)
+        vim.list_extend(matches, note_matches)
+      end
+    end
+    callback(matches)
+  end, find_opts, domain)
+end
+
+---Find headings by their original text or normalized anchor.
+---Each result contains the note and matching heading; results are ordered by note, then document position.
+---@param term string
+---@param callback fun(matches: obsidian.search.HeadingMatch[])
+---@param opts obsidian.search.FindHeadingsOpts|?
+M.find_headings_async = function(term, callback, opts)
+  find_domain_async("headings", term, callback, opts)
+end
+
+---@param term string
+---@param opts obsidian.search.FindHeadingsOpts|?
+---@return obsidian.search.HeadingMatch[]
+M.find_headings = function(term, opts)
+  opts = opts or {}
+  local result = async.block_on(function(cb)
+    M.find_headings_async(term, cb, opts)
+  end, opts.timeout or 3000)
+  ---@cast result obsidian.search.HeadingMatch[]?
+  return result or {}
+end
+
+---Find block candidates or explicit block identifiers by their text or ID.
+---Each result contains the note, its matching section when available, and associated explicit blocks.
+---@param term string
+---@param callback fun(matches: obsidian.search.BlockMatch[])
+---@param opts obsidian.search.FindBlocksOpts|?
+M.find_blocks_async = function(term, callback, opts)
+  find_domain_async("blocks", term, callback, opts)
+end
+
+---@param term string
+---@param opts obsidian.search.FindBlocksOpts|?
+---@return obsidian.search.BlockMatch[]
+M.find_blocks = function(term, opts)
+  opts = opts or {}
+  local result = async.block_on(function(cb)
+    M.find_blocks_async(term, cb, opts)
+  end, opts.timeout or 3000)
+  ---@cast result obsidian.search.BlockMatch[]?
+  return result or {}
 end
 
 ---Find attachment paths matching a filename or vault-relative path.
@@ -135,11 +225,10 @@ end
 
 ---@param query string
 ---@param callback fun(notes: obsidian.Note[])
----@param opts { collect: obsidian.search.NoteCollectOpts|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
+---@param opts { dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
 M.resolve_note_async = function(query, callback, opts)
   callback = vim.schedule_wrap(callback)
   opts = opts or {}
-  local parse_opts = note_matcher.parse_opts { collect = opts.collect }
   local Note = require "obsidian.note"
   local workspace_dir = Path.new(opts.dir or api.resolve_workspace_dir())
 
@@ -147,7 +236,7 @@ M.resolve_note_async = function(query, callback, opts)
   local note_path, count = string.gsub(query, "^.*  ", "")
   if count > 0 then
     local full_path = workspace_dir / note_path
-    callback { Note.from_file(full_path, parse_opts) }
+    callback { Note.from_file(full_path) }
     return
   end
 
@@ -189,7 +278,7 @@ M.resolve_note_async = function(query, callback, opts)
 
   for path in pairs(paths_lookup) do
     if Path.new(path):is_file() then
-      paths_found[#paths_found + 1] = Note.from_file(path, parse_opts)
+      paths_found[#paths_found + 1] = Note.from_file(path)
     end
   end
 
@@ -241,17 +330,17 @@ M.resolve_note_async = function(query, callback, opts)
     else
       callback(fuzzy_matches)
     end
-  end, { dir = workspace_dir, collect = opts.collect, ignore_case = true })
+  end, { dir = workspace_dir, ignore_case = true })
 end
 
 ---@param query string
----@param opts { collect: obsidian.search.NoteCollectOpts|?, timeout: integer|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
+---@param opts { timeout: integer|?, dir: string|obsidian.Path|?, buf_dir: string|obsidian.Path|? }|?
 ---@return obsidian.Note[] notes
 M.resolve_note = function(query, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    M.resolve_note_async(query, cb, { collect = opts.collect, dir = opts.dir, buf_dir = opts.buf_dir })
+    M.resolve_note_async(query, cb, { dir = opts.dir, buf_dir = opts.buf_dir })
   end, opts.timeout)
   return result or {}
 end

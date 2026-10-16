@@ -149,7 +149,6 @@ local function open_note(location, callback, opts)
   end, {
     dir = workspace_dir,
     buf_dir = source ~= "" and vim.fs.dirname(source) or nil,
-    collect = { headings = anchor_link ~= nil, blocks = block_link ~= nil },
   })
 end
 
@@ -173,7 +172,7 @@ local handle_markdown_link = function(location, callback, opts)
 end
 
 local function open_header_link(location, callback, opts)
-  local note = api.current_note(opts.bufnr, { collect_anchor_links = true })
+  local note = api.current_note(opts.bufnr)
   if not note or vim.tbl_isempty(note.anchor_links or {}) then
     return
   end
@@ -222,7 +221,7 @@ local handle_footnote = function(location, callback, opts)
 end
 
 local function open_block_link(location, callback, opts)
-  local note = api.current_note(opts.bufnr, { collect_blocks = true })
+  local note = api.current_note(opts.bufnr)
   if not note or vim.tbl_isempty(note.blocks or {}) then
     return
   end

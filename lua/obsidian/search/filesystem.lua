@@ -33,10 +33,10 @@ local function matching_root(dir)
   return resolved_dir
 end
 
----Find notes by structured identity, heading, or block fields.
+---Find notes within one internal search domain.
 ---@param term string
 ---@param callback fun(notes: obsidian.Note[], unresolved: obsidian.search.Unresolved[]?)
----@param opts obsidian.search.FindNotesOpts|?
+---@param opts obsidian.search.FindNotesBackendOpts|?
 M.find_notes_async = function(term, callback, opts)
   opts = opts or {}
   local dir = opts.dir or api.resolve_workspace_dir()
@@ -44,7 +44,6 @@ M.find_notes_async = function(term, callback, opts)
   async.run(function()
     local Note = require "obsidian.note"
     local root = matching_root(dir)
-    local parse_opts = note_matcher.parse_opts(opts)
 
     local paths_found = {} ---@type string[]
     local ignore_case = opts.ignore_case
@@ -66,9 +65,9 @@ M.find_notes_async = function(term, callback, opts)
       10,
       vim.tbl_map(function(path)
         return function()
-          local ok, note = pcall(Note.from_file, path, parse_opts)
+          local ok, note = pcall(Note.from_file, path)
           if ok then
-            if note_matcher.matches(path, root, note, term, opts.match, ignore_case) then
+            if note_matcher.matches(path, root, note, term, opts.domain, ignore_case) then
               notes_by_path[path] = note
             end
           else

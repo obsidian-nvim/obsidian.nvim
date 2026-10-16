@@ -604,6 +604,18 @@ T["from_lines"]["should be able to collect anchor links"] = function()
   }, anchor_fields(note:resolve_anchor_link "#Header 1"))
 end
 
+T["from_lines"]["lazily loads heading and block structures without load options"] = function()
+  local heading_note = from_str(note_with_headers, "lazy-anchors.md")
+  eq(nil, rawget(heading_note, "sections"))
+  eq("Header 1", heading_note.anchor_links["#header-1"].header)
+  not_eq(nil, rawget(heading_note, "sections"))
+
+  local block_note = from_str("---\nid: lazy-blocks\n---\n\nThis is a block ^1234", "lazy-blocks.md")
+  eq(nil, rawget(block_note, "blocks"))
+  eq("This is a block ^1234", block_note.blocks["^1234"].block)
+  not_eq(nil, rawget(block_note, "block_candidates"))
+end
+
 T["from_lines"]["should collect sections with full ranges for anchors"] = function()
   local note = from_str(note_with_headers, "anchors.md", {
     collect_anchor_links = true,

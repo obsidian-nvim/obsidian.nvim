@@ -52,10 +52,7 @@ local function handle_note_ref(link, callback, request_opts)
   end
 
   if location == "" and (anchor_link or block_link) then
-    local note = api.current_note(request_opts.bufnr, {
-      collect_anchor_links = anchor_link ~= nil,
-      collect_blocks = block_link ~= nil,
-    })
+    local note = api.current_note(request_opts.bufnr)
     if not note then
       return log.err "Current buffer does not appear to be a note inside the vault"
     end
@@ -66,10 +63,6 @@ local function handle_note_ref(link, callback, request_opts)
     end, {
       dir = request_opts.dir,
       buf_dir = request_opts.buf_dir,
-      collect = {
-        headings = anchor_link ~= nil,
-        blocks = block_link ~= nil,
-      },
     })
   else
     find_backlinks(nil)
@@ -125,10 +118,7 @@ local function collect_current_note(link, link_type, callback, opts)
     end
   end
 
-  local note = api.current_note(opts.bufnr, {
-    collect_anchor_links = anchor ~= nil,
-    collect_blocks = block ~= nil,
-  })
+  local note = api.current_note(opts.bufnr)
 
   if not note then
     return log.err "Current buffer does not appear to be a note inside the vault"
