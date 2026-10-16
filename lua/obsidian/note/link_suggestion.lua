@@ -4,6 +4,7 @@ local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
 local Note = require "obsidian.note"
 local api = require "obsidian.api"
+local log = require "obsidian.log"
 
 local M = {}
 local symbols_cache = {}
@@ -140,6 +141,24 @@ function M.symbols(path, opts)
 
   symbols_cache[key] = symbols
   return symbols
+end
+
+---Return symbols that resolve only to the requested note path.
+---@param path string
+---@param opts { dir: string|obsidian.Path|? }?
+---@return obsidian.LinkSuggestionSymbol[]
+function M.symbols_for_path(path, opts)
+  local normalized_path = vim.fs.normalize(path)
+  local symbols = M.symbols(path, { include_current = true, dir = opts and opts.dir })
+  local matching_symbols = {}
+  for _, symbol in ipairs(symbols) do
+    if vim.tbl_contains(symbol.target_paths, normalized_path) then
+      matching_symbols[#matching_symbols + 1] = vim.tbl_extend("force", {}, symbol, {
+        target_paths = { normalized_path },
+      })
+    end
+  end
+  return matching_symbols
 end
 
 ---@param byte integer?
@@ -372,6 +391,56 @@ function M.find(note, opts)
   end)
 
   return suggestions
+end
+
+---Apply a link suggestion candidate to a buffer.
+---@param bufnr integer
+---@param suggestion obsidian.LinkSuggestion
+---@param candidate obsidian.LinkSuggestionCandidate
+function M.apply(bufnr, suggestion, candidate)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+
+  local range = suggestion.range
+  local current_text =
+    vim.api.nvim_buf_get_text(bufnr, range.start_row, range.start_col, range.end_row, range.end_col, {})
+  if #current_text ~= 1 or current_text[1] ~= suggestion.text then
+    return log.warn "Link suggestion is no longer current"
+  end
+
+  vim.api.nvim_buf_set_text(
+    bufnr,
+    range.start_row,
+    range.start_col,
+    range.end_row,
+    range.end_col,
+    { candidate.new_text }
+  )
+  require("obsidian.ui").update(bufnr)
+end
+
+---Apply a link suggestion candidate to a possibly unloaded file, writing it to disk.
+---@param path string
+---@param suggestion obsidian.LinkSuggestion
+---@param candidate obsidian.LinkSuggestionCandidate
+function M.apply_to_file(path, suggestion, candidate)
+  local bufnr = vim.fn.bufnr(path)
+  local was_loaded = bufnr > 0 and vim.api.nvim_buf_is_loaded(bufnr)
+  if bufnr < 1 then
+    bufnr = vim.fn.bufadd(path)
+  end
+  vim.fn.bufload(bufnr)
+
+  M.apply(bufnr, suggestion, candidate)
+  vim.api.nvim_buf_call(bufnr, function()
+    vim.cmd "write"
+  end)
+
+  -- Do not pollute the buffer list with files that were not open before.
+  if not was_loaded then
+    vim.api.nvim_buf_delete(bufnr, { unload = true })
+  end
 end
 
 return M

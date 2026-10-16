@@ -125,7 +125,7 @@ return {
   eq(true, result.stayed_open)
   eq(true, result.closed)
   eq(true, result.has_query_mapping)
-  eq(false, result.has_selection_mapping)
+  eq(true, result.has_selection_mapping)
   eq(true, result.windows_closed)
   eq(true, result.buffers_deleted)
 end

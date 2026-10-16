@@ -59,6 +59,8 @@ Available actions:
   - Delete current note (`delete_note`)
   - Merge current note into another note (`merge_note`)
   - Start presentation (`start_presentation`, requires slides enabled)
+  - List unlinked outgoing mentions in the current note, grouped by target note (`link_suggestions`, requires cache)
+  - List unlinked incoming mentions of the current note in other notes (`backlink_suggestions`, requires cache)
   - Insert internal link at cursor (`insert_link`)
   - Remove the link under the cursor, preserving its display text (`unlink`)
   - Insert tag at cursor (`insert_tag`)
