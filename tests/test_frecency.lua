@@ -4,6 +4,33 @@ local frecency = require "obsidian.frecency"
 local T, child = h.child_vault()
 
 T["frecency"] = MiniTest.new_set()
+T["frecency"]["normalizes each candidate once per sort"] = function()
+  local calls = child.lua [[
+    local Path = require "obsidian.path"
+    local frecency = require "obsidian.frecency"
+    local vault = tostring(Obsidian.dir)
+    local first = tostring(Obsidian.dir / "First.md")
+    local second = tostring(Obsidian.dir / "Second.md")
+    frecency.score(first, vault)
+
+    local original_resolve = Path.resolve
+    local resolve_calls = 0
+    Path.resolve = function(self, opts)
+      resolve_calls = resolve_calls + 1
+      return original_resolve(self, opts)
+    end
+
+    local less = frecency.comparator(vault)
+    for _ = 1, 100 do
+      less(first, second)
+      less(second, first)
+    end
+    Path.resolve = original_resolve
+    return resolve_calls
+  ]]
+
+  eq(2, calls)
+end
 
 T["frecency"]["weights recent visits and ignores expired visits"] = function()
   local day = 24 * 60 * 60

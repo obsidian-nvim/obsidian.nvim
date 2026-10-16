@@ -213,24 +213,33 @@ end
 ---@param now integer?
 ---@return fun(a: string, b: string): boolean
 function M.comparator(vault, reversed, now)
-  local scores = {}
-  local function score(path)
-    if not scores[path] then
-      scores[path] = { M.score(path, vault, now) }
+  local store = get_store(vault)
+  now = now or os.time()
+  local ranks = {}
+  local function rank(path)
+    if not ranks[path] then
+      local normalized = normalize_path(path)
+      local score, last_visit = score_visits(store.visits[normalized] or {}, now)
+      ranks[path] = {
+        score = score,
+        last_visit = last_visit,
+        path = normalized:lower(),
+      }
     end
-    return unpack(scores[path])
+    return ranks[path]
   end
 
   return function(a, b)
-    local a_score, a_last_visit = score(a)
-    local b_score, b_last_visit = score(b)
-    if a_score ~= b_score then
-      return reversed ~= false and a_score > b_score or reversed == false and a_score < b_score
-    elseif a_last_visit ~= b_last_visit then
-      return reversed ~= false and a_last_visit > b_last_visit or reversed == false and a_last_visit < b_last_visit
+    local a_rank = rank(a)
+    local b_rank = rank(b)
+    if a_rank.score ~= b_rank.score then
+      return reversed ~= false and a_rank.score > b_rank.score or reversed == false and a_rank.score < b_rank.score
+    elseif a_rank.last_visit ~= b_rank.last_visit then
+      return reversed ~= false and a_rank.last_visit > b_rank.last_visit
+        or reversed == false and a_rank.last_visit < b_rank.last_visit
     end
 
-    return normalize_path(a):lower() < normalize_path(b):lower()
+    return a_rank.path < b_rank.path
   end
 end
 
