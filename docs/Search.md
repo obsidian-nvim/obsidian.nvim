@@ -13,11 +13,13 @@ tags:
 
 ## Sort By
 
-`opts.search.sort_by` controls how search results are sorted. Valid values are `"modified"` (default), `"created"`, `"accessed"`, and `"path"`. Set to `false` to disable sorting entirely, which can improve performance in large vaults.
+`opts.search.sort_by` controls how file results are sorted. Valid values are `"modified"` (default), `"created"`, `"accessed"`, `"frecency"`, and `"path"`. Set to `false` to disable sorting entirely, which can improve performance in large vaults.
+
+`"frecency"` ranks notes by accumulated visits, weighting recent visits more heavily. Visits are recorded when a note buffer is entered, with a 30-second per-note cooldown. Visit history is persisted separately from the optional metadata cache, retained for 90 days, and capped at 100 visits per note. Higher scores sort first when `sort_reversed` is `true` (the default). Picker fuzzy matching can still reorder candidates as you type.
 
 ## Sort Reversed
 
-`opts.search.sort_reversed` controls the sort direction. Defaults to `true` (newest/last first). Set to `false` to sort ascending.
+`opts.search.sort_reversed` controls the sort direction. Defaults to `true` (descending by sort value); `"frecency"` puts higher scores first. Set to `false` to sort ascending. Equal frecency scores use normalized path order as a stable tie-break.
 
 ## Max Lines
 
@@ -32,7 +34,7 @@ tags:
 ---@field sort_reversed boolean
 ---@field max_lines integer
 search = {
-  sort_by = "modified",
+  sort_by = "modified", -- also: "created", "accessed", "frecency", "path", or false
   sort_reversed = true,
   max_lines = 1000,
 }

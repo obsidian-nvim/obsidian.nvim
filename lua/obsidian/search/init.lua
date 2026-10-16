@@ -129,6 +129,7 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
   end
 
   local query = term and string.lower(term) or nil
+  local frecency_sort = opts.sort_by == "frecency"
   local exclude = opts.exclude and gitignore(opts.exclude, { ignoreCase = true }) or nil
   local markdown_extensions = { [".md"] = true, [".qmd"] = true, [".base"] = true }
 
@@ -148,6 +149,33 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
   end
 
   local function find_with_fs()
+    if frecency_sort then
+      local frecency = require "obsidian.frecency"
+      cancel_backend = fs.find_files_async(norm_dir, {
+        sort_by = false,
+        include_non_markdown = opts.include_non_markdown,
+        exclude = opts.exclude,
+        ignore = function(path)
+          if not exclude then
+            return false
+          end
+          local relative_path = tostring(Path.new(path):relative_to(norm_dir))
+          return exclude:check(relative_path)
+        end,
+        predicate = function(path)
+          local extension = "." .. vim.fn.fnamemodify(path, ":e"):lower()
+          if not opts.include_non_markdown and not markdown_extensions[extension] then
+            return false
+          end
+          return not query or string.find(string.lower(vim.fs.basename(path)), query, 1, true) ~= nil
+        end,
+      }, function(paths)
+        frecency.sort_paths(paths, tostring(workspace and workspace.root or norm_dir), opts.sort_reversed)
+        finish(paths, 0)
+      end)
+      return
+    end
+
     cancel_backend = fs.find_files_async(norm_dir, {
       sort_by = opts.sort_by,
       sort_reversed = opts.sort_reversed,
@@ -170,7 +198,7 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
     end)
   end
 
-  if M._has_ripgrep() then
+  if M._has_ripgrep() and not frecency_sort then
     local handle = vim.system(Ripgrep.build_find_cmd(tostring(norm_dir), opts), { text = true }, function(result)
       vim.schedule(function()
         if cancelled then
