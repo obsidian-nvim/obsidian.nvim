@@ -774,11 +774,6 @@ local function process_search_results(cc, results)
   }
 end
 
----Use cached metadata to return the complete ordinary note-reference candidate set.
----Completion clients can then apply their own fuzzy matcher without a filesystem search.
----@param cc obsidian.completion.sources.refs.context
----@return boolean handled
-
 ---@param completion_resolve_callback function
 ---@param request obsidian.completion.Request
 function M.process_completion(completion_resolve_callback, request)
