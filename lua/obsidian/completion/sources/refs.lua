@@ -264,7 +264,7 @@ local function process_block_search_results(cc, scope, matches)
       label = label .. " " .. match.block.id
     end
     if scope == "vault" then
-      label = label .. " — " .. match.note:display_name()
+      label = label .. " — " .. tostring(match.note:display_name())
     end
 
     local new_target
@@ -284,7 +284,7 @@ local function process_block_search_results(cc, scope, matches)
     items[#items + 1] = make_block_completion_item(cc, range, placeholder, {
       note = match.note,
       block = match.block,
-      label = label,
+      label = tostring(label),
       sort_text = ("%08d:%08d"):format(match.note_index, match.section.range.start_row),
       link = link,
       new_target = new_target,
@@ -813,7 +813,7 @@ function M.process_completion(completion_resolve_callback, request)
     end
   else
     local source_path = vim.api.nvim_buf_get_name(cc.request.bufnr)
-    search.find_notes_async(cc.search, function(results)
+    search.find_notes_async("", function(results)
       process_search_results(cc, results)
     end, {
       dir = api.resolve_workspace_dir(source_path),

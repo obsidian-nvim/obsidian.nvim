@@ -39,8 +39,35 @@ M.find_attachments = cache_api.find_attachments
 ---@field properties? table<string, any>
 ---@field headings? obsidian.cache.HeadingRow[]
 ---@field blocks_search? string[]
+---@field blocks? table<string, obsidian.cache.BlockRow>
+---@field block_candidates? obsidian.cache.SectionRow[]
+---@field checksum string
 ---@field links_out? table[]
 ---@field tasks? table[]
+
+---@class obsidian.cache.RangeRow
+---@field start_row integer
+---@field start_col integer
+---@field end_row integer
+---@field end_col integer
+
+---@class obsidian.cache.SectionRow
+---@field header? string
+---@field level? integer
+---@field anchor? string
+---@field range obsidian.cache.RangeRow
+---@field heading_range obsidian.cache.RangeRow
+---@field content_range obsidian.cache.RangeRow
+---@field block_type? "paragraph"|"list"|"list-item"|"quote"|"table"
+---@field contents? string[]
+---@field line? integer
+
+---@class obsidian.cache.BlockRow
+---@field id string
+---@field line integer
+---@field block string
+---@field candidate? integer
+---@field section? obsidian.cache.SectionRow
 
 ---@class obsidian.cache.AttachmentRow
 ---@field kind "attachment"
@@ -528,6 +555,9 @@ end
 ---@field anchor string
 ---@field level integer
 ---@field line integer 1-based
+---@field range? obsidian.cache.RangeRow
+---@field heading_range? obsidian.cache.RangeRow
+---@field content_range? obsidian.cache.RangeRow
 
 ---Find cached headings whose original text or normalized anchor contains `query`.
 ---@param query string?
@@ -543,7 +573,13 @@ function M.notes.find_headings(query)
     for _, heading in ipairs(row.headings or {}) do
       local searchable = heading.header .. " " .. heading.anchor
       if needle == "" or vim.fn.tolower(searchable):find(needle, 1, true) then
-        results[#results + 1] = vim.tbl_extend("force", heading, { path = path })
+        results[#results + 1] = {
+          path = path,
+          header = heading.header,
+          anchor = heading.anchor,
+          level = heading.level,
+          line = heading.line,
+        }
       end
     end
   end

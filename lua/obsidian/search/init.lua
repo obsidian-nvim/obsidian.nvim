@@ -144,10 +144,15 @@ M.find_blocks_async = function(term, callback, opts)
   local ignore_checker = require("obsidian.ignore")._build_ignore_checker(ignore_filters)
   local Note = require "obsidian.note"
 
+  ---@type string?
   local source_path = opts.source_path and tostring(vim.fn.resolve(opts.source_path)) or nil
-  local real_source_path = source_path and vim.uv.fs_realpath(source_path) or nil
-  ---@cast real_source_path string?
-  source_path = source_path and vim.fs.normalize(real_source_path or source_path) or nil
+  if source_path then
+    local real_source_path = vim.uv.fs_realpath(source_path)
+    if type(real_source_path) == "string" then
+      source_path = real_source_path
+    end
+    source_path = vim.fs.normalize(source_path)
+  end
 
   block_index.find(term, callback, {
     dir = dir_string,
@@ -322,6 +327,7 @@ M.resolve_note = function(query, opts)
   local result = async.block_on(function(cb)
     M.resolve_note_async(query, cb, { collect = opts.collect, dir = opts.dir, buf_dir = opts.buf_dir })
   end, opts.timeout)
+  ---@cast result obsidian.Note[]?
   return result or {}
 end
 
@@ -588,6 +594,7 @@ M.find_backlinks = function(note, opts)
       { anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
     )
   end, opts.timeout)
+  ---@cast result obsidian.BacklinkMatch[]?
   return result or {}
 end
 
@@ -712,6 +719,7 @@ M.find_tags = function(term, opts)
   local result = async.block_on(function(cb)
     M.find_tags_async(term, cb, { dir = opts.dir, match = opts.match })
   end, opts.timeout)
+  ---@cast result obsidian.TagLocation[]?
   return result or {}
 end
 
@@ -741,7 +749,7 @@ local function tag_locations(note, path)
 end
 
 ---@param path string|obsidian.Path
----@param max_lines integer
+---@param max_lines integer?
 ---@return obsidian.TagLocation[]
 local function parse_tag_path(path, max_lines)
   local Note = require "obsidian.note"
@@ -772,8 +780,8 @@ end
 ---Scan the vault for all tag occurrences. Ripgrep only identifies candidate
 ---files; source-aware parsing decides what is actually a tag.
 ---@param callback fun(tags: obsidian.TagLocation[], err: string?)
----@param opts { dir: obsidian.Path|string, max_lines: integer }
----@return obsidian.search.AsyncHandle
+---@param opts { dir: obsidian.Path|string, max_lines: integer? }
+---@return vim.SystemObj
 local function scan_tags_async(callback, opts)
   local path_to_tag_loc = {}
   local processed_paths = {}
@@ -840,7 +848,6 @@ end
 ---@param term string|string[] The search term.
 ---@param callback fun(tags: obsidian.TagLocation[])
 ---@param opts { dir: obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
----@return vim.SystemObj
 M.find_tags_async = function(term, callback, opts)
   callback = vim.schedule_wrap(callback)
   opts = opts or {}

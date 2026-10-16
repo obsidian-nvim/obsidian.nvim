@@ -7,6 +7,33 @@ local tags = require "obsidian.tag"
 
 local M = {}
 
+---@param range obsidian.Range
+---@return obsidian.cache.RangeRow
+local function range_row(range)
+  return {
+    start_row = range.start_row,
+    start_col = range.start_col,
+    end_row = range.end_row,
+    end_col = range.end_col,
+  }
+end
+
+---@param section obsidian.Section
+---@param contents string[]?
+---@return obsidian.cache.SectionRow
+local function section_row(section, contents)
+  return {
+    header = section.header,
+    level = section.level,
+    anchor = section.anchor,
+    range = range_row(section.range),
+    heading_range = range_row(section.heading_range),
+    content_range = range_row(section.content_range),
+    block_type = section.block_type,
+    contents = contents,
+  }
+end
+
 ---Convert obsidian.Note + stat → CacheNote row.
 ---@param abs_path string
 ---@param _vault_root string
@@ -69,12 +96,9 @@ function M.build(abs_path, _vault_root)
   local headings = {}
   for _, section in ipairs(note.sections or {}) do
     if section.header then
-      headings[#headings + 1] = {
-        header = section.header,
-        anchor = section.anchor,
-        level = section.level,
-        line = section.heading_range.start_row + 1,
-      }
+      local heading = section_row(section)
+      heading.line = section.heading_range.start_row + 1
+      headings[#headings + 1] = heading
     end
   end
 
@@ -92,7 +116,29 @@ function M.build(abs_path, _vault_root)
     add_block_search(block.block)
   end
   for _, section in ipairs(note.block_candidates or {}) do
-    add_block_search(table.concat(vim.list_slice(lines, section.range.start_row + 1, section.range.end_row), "\n"))
+    add_block_search(
+      table.concat(vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row), "\n")
+    )
+  end
+
+  local block_candidates = {}
+  local block_candidate_indexes = {}
+  for idx, section in ipairs(note.block_candidates or {}) do
+    block_candidate_indexes[section] = idx
+    block_candidates[idx] =
+      section_row(section, vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row))
+  end
+
+  local blocks = {}
+  for id, block in pairs(note.blocks or {}) do
+    local candidate = block.section and block_candidate_indexes[block.section] or nil
+    blocks[id] = {
+      id = block.id,
+      line = block.line,
+      block = block.block,
+      candidate = candidate,
+      section = block.section and not candidate and section_row(block.section) or nil,
+    }
   end
 
   local links_out = {}
@@ -150,6 +196,13 @@ function M.build(abs_path, _vault_root)
   if #blocks_search > 0 then
     row.blocks_search = blocks_search
   end
+  if next(blocks) ~= nil then
+    row.blocks = blocks
+  end
+  if #block_candidates > 0 then
+    row.block_candidates = block_candidates
+  end
+  row.checksum = vim.fn.sha256(table.concat(note.contents, "\n"))
   if #tasks > 0 then
     row.tasks = tasks
   end

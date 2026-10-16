@@ -58,6 +58,7 @@ end
 ---@field content_range obsidian.Range own content (sub-sections excluded), trimmed of leading and trailing blank lines.
 ---@field parent obsidian.Section|? the nearest section above with a lower heading level.
 ---@field block_type "paragraph"|"list"|"list-item"|"quote"|"table"|? present on block-completion candidates.
+---@field cached_contents? string[] cached normalized lines for an indexed block candidate.
 
 local M = {}
 
