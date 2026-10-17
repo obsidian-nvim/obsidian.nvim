@@ -251,6 +251,8 @@ end
 
 M.register("check", { nargs = 0 })
 
+M.register("export_settings", { nargs = 0 })
+
 M.register("today", { nargs = "?" })
 
 M.register("yesterday", { nargs = 0 })

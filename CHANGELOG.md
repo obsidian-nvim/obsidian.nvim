@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `:Obsidian export_settings` to generate the app's shared JSON settings from Lua defaults and workspace overrides. Preserve unrelated settings and core-plugin states, validate before writing, replace files atomically, and reload the selected workspace. Export is explicit; plugin-only functions and rules remain in Lua.
 - Add a complete vault-local Lua example for ordinary note folders, template-specific routing, and custom naming functions.
 - Read shared Obsidian app settings per workspace for note and attachment locations, links, templates, daily/unique notes, and core-plugin state. Existing app files override Lua options and use app defaults for absent keys; missing files preserve Lua configuration.
 

@@ -90,6 +90,7 @@ There's one entry point user command for this plugin: `Obsidian`
 #### Top level commands
 
 - `:Obsidian check` - check for common issues in your vault and plugin setup
+- `:Obsidian export_settings` - write shared Lua settings for the current workspace to the Obsidian app's JSON files
 - `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
 - `:Obsidian help` - find files in the help wiki
@@ -290,6 +291,24 @@ Modern core-plugin objects use the app's defaults for omitted IDs: Templates and
 Settings are read during setup, workspace selection, and resolution of another workspace's options. Repeat `setup()` or source the vault's `.nvim.lua` to reload settings for the active workspace. App settings are not watched for changes.
 
 The mapping covers the common settings of [Files and links](https://obsidian.md/help/settings), [Templates](https://obsidian.md/help/plugins/templates), [Daily notes](https://obsidian.md/help/plugins/daily-notes), and [Unique note creator](https://obsidian.md/help/plugins/unique-note). Editor appearance, hotkeys, window layout, community-plugin data, and app startup actions have no matching plugin configuration and are not imported. App excluded-file patterns differ from the plugin's gitignore-style filters, and the app's Sync toggle does not configure the plugin's headless sync backend; these settings are not mapped.
+
+### Export app settings
+
+To share a vault configured in Lua with Obsidian app users, apply its configuration and run:
+
+```vim
+:Obsidian export_settings
+```
+
+The command takes no arguments and exports the selected workspace. Its source is the plugin defaults, the latest options passed to `setup()`, and that workspace's Lua overrides, before app settings are applied. For example, if Lua selects `Templates` and an existing `templates.json` selects `Old templates`, export writes `Templates`. Re-source the vault's `.nvim.lua` first if you have edited it since the last setup.
+
+Export creates or updates `app.json`, `templates.json`, `daily-notes.json`, `zk-prefixer.json`, and `core-plugins.json` inside the workspace's `app_settings.config_dir` (default `.obsidian`). It writes all shared fields listed in the table above, including normalized plugin defaults and the enabled state of Templates, Daily notes, and Unique note creator. Existing mapped values are replaced; unrelated keys, other core-plugin states, and the object/array form of `core-plugins.json` are preserved. JSON formatting may change. Other app files and the Lua configuration are left untouched. Export does not copy template content; keep the referenced templates and folders in the shared vault.
+
+Paths are stored relative to the vault. Relative daily/unique template names are resolved against the Lua Templates folder; absolute template paths inside the vault are also supported. Empty daily/unique folders are written as `/` to retain the explicit vault root instead of inheriting the app's new-note folder. Attachment paths preserve `/`, `.`, and `./images` semantics. The command reloads the selected workspace after a successful export, so subsequent plugin operations use the generated app settings.
+
+Only representable shared values are exported. Date/time formats must be nonempty Moment-style strings (`DD-MM-YYYY`, `HH:mm`); strftime formats and a function-valued `unique_note.format` stop the export. Paths outside the vault and a Templates folder equal to the vault root also stop it. Lua naming functions, template customizations, substitutions, callbacks, frontmatter rules, and other plugin-only settings are neither executed nor serialized.
+
+All existing target files and exported values are validated before writing. Malformed or unreadable JSON stops the export without replacing files. The output is staged in temporary files in the configuration directory before each destination is replaced atomically. If a replacement fails, the error identifies that file; earlier replacements may already have succeeded. Export runs only on this explicit command. If the Obsidian app is open, close the vault before exporting and reopen it afterward so it loads the generated settings.
 
 ### Vault-local Lua configuration
 
