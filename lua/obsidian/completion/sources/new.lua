@@ -1,11 +1,9 @@
 local completion = require "obsidian.completion.refs"
 local util = require "obsidian.util"
-local date = require "obsidian.date"
 local link_parser = require "obsidian.link.parser"
 local header = require "obsidian.parse.header"
 local block_ids = require "obsidian.parse.block_id"
 local Note = require "obsidian.note"
-local api = require "obsidian.api"
 
 local M = {}
 
@@ -90,37 +88,9 @@ function M.process_completion(callback, request)
   local new_notes_opts = {}
 
   local source_path = vim.api.nvim_buf_get_name(request.bufnr)
-  local workspace_dir = api.resolve_workspace_dir(source_path)
   local note = preview_note { id = term, template = Obsidian.opts.note.template, source_path = source_path }
   if note and note.id and string.len(note.id) > 0 then
     new_notes_opts[#new_notes_opts + 1] = { label = term, note = note, scope = "plain" }
-  end
-
-  -- Check for datetime macros. Build missing daily notes directly instead of
-  -- calling daily(), which would call Note.create for every completion request.
-  for _, dt_offset in ipairs(date.resolve_macro(term)) do
-    if dt_offset.cadence == "daily" then
-      local daily = require "obsidian.daily"
-      local timestamp = os.time() + (dt_offset.offset * 3600 * 24)
-      local path, id = daily.daily_note_path(timestamp, workspace_dir)
-      local aliases = {}
-      if Obsidian.opts.daily_notes.alias_format ~= nil then
-        aliases[1] = tostring(date.format(timestamp, Obsidian.opts.daily_notes.alias_format))
-      end
-      note = preview_note {
-        id = id,
-        verbatim = true,
-        aliases = aliases,
-        tags = Obsidian.opts.daily_notes.default_tags or {},
-        dir = path:parent(),
-        template = Obsidian.opts.daily_notes.template,
-        source_path = source_path,
-        scope = "daily",
-      }
-      if note and not note:exists() then
-        new_notes_opts[#new_notes_opts + 1] = { label = dt_offset.macro, note = note, scope = "daily" }
-      end
-    end
   end
 
   -- Completion items.

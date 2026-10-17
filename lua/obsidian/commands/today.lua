@@ -4,7 +4,7 @@ local date_util = require "obsidian.date"
 ---@param data obsidian.CommandArgs
 return function(data)
   local daily = require "obsidian.daily"
-  daily.warn_legacy_command()
+  log.info_once "Daily commands today/tomorrow/yesterday are deprecated; use :Obsidian daily. See :Obsidian help Breaking-Changes (Daily notes command redesign)."
   local arg = string.gsub(data.args, " ", "")
   local note
 
@@ -30,9 +30,9 @@ return function(data)
       end
     end
   else
-    note = require("obsidian.daily").today()
+    note = daily.daily {}
   end
   if note ~= nil then
-    daily.open(note)
+    note:open { write_if_missing = true }
   end
 end

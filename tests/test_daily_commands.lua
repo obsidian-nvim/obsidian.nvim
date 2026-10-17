@@ -1,6 +1,7 @@
 local h = dofile "tests/helpers.lua"
 local daily = require "obsidian.daily"
 local resolvers = require "obsidian.resolvers"
+local date = require "obsidian.date"
 local commands = require "obsidian.commands"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
@@ -23,7 +24,7 @@ T["daily commands"]["bare daily opens today without invoking the parse resolver"
     error "bare daily must not parse"
   end
   run "daily"
-  local note = daily.today()
+  local note = daily.daily {}
   eq(true, note:exists())
   wait_for_note(note.id)
   eq(tostring(note.path), vim.api.nvim_buf_get_name(0))
@@ -41,8 +42,13 @@ T["daily commands"]["default parser handles calendar offsets, formatted dates, a
 
   eq(daily.daily({ offset = 1 }).id, daily.daily({ date = parse "+1" }).id)
   eq("2026-06-25", daily.daily({ date = parse "2026-06-25" }).id)
-  eq(daily.tomorrow().id, daily.daily({ date = parse "tomorrow" }).id)
-  eq(daily.yesterday().id, daily.daily({ date = parse "yesterday" }).id)
+  local now = os.time()
+  local expected_tomorrow = Obsidian.opts.daily_notes.workdays_only and date.working_day_after(now)
+    or date.next_day(now)
+  local expected_yesterday = Obsidian.opts.daily_notes.workdays_only and date.working_day_before(now)
+    or date.previous_day(now)
+  eq(daily.daily({ date = parse "tomorrow" }).id, daily.daily({ date = expected_tomorrow }).id)
+  eq(daily.daily({ date = parse "yesterday" }).id, daily.daily({ date = expected_yesterday }).id)
   Obsidian.opts.daily_notes.workdays_only = false
   eq(daily.daily({ offset = 1 }).id, daily.daily({ date = parse "tomorrow" }).id)
 end
@@ -194,11 +200,15 @@ T["daily commands"]["legacy commands share the migration message"] = function()
   end
   local ok, err = pcall(function()
     run "today"
-    wait_for_note(daily.today().id)
+    wait_for_note((daily.daily {}).id)
     run "tomorrow"
-    wait_for_note(daily.tomorrow().id)
+    local now = os.time()
+    local tomorrow = Obsidian.opts.daily_notes.workdays_only and date.working_day_after(now) or date.next_day(now)
+    wait_for_note(daily.daily({ date = tomorrow }).id)
     require("obsidian.commands.init-legacy").ObsidianYesterday()
-    wait_for_note(daily.yesterday().id)
+    now = os.time()
+    local yesterday = Obsidian.opts.daily_notes.workdays_only and date.working_day_before(now) or date.previous_day(now)
+    wait_for_note(daily.daily({ date = yesterday }).id)
   end)
   vim.notify_once = original
   if not ok then

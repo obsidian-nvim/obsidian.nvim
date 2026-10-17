@@ -6,7 +6,7 @@ local resolvers = require "obsidian.resolvers"
 return function(data)
   local input = vim.trim(data.args or "")
   if input == "" then
-    daily.open(daily.today())
+    daily.daily({}):open { write_if_missing = true }
     return
   end
 
@@ -20,6 +20,6 @@ return function(data)
       return
     end
     ---@cast timestamp integer
-    daily.open(daily.daily { date = timestamp })
+    daily.daily({ date = timestamp }):open { write_if_missing = true }
   end)
 end

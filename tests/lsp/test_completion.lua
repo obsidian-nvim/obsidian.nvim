@@ -2145,7 +2145,7 @@ Existing note content
   assert(existing_idx < create_idx, "existing note item should sort before create item")
 end
 
-T["completion"]["daily create command carries daily scope"] = function()
+T["completion"]["date macros do not add daily-note suggestions"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "[[@today",
   })
@@ -2154,41 +2154,11 @@ T["completion"]["daily create command carries daily scope"] = function()
   child.api.nvim_win_set_cursor(0, { 1, 8 })
 
   local result = run_completion(0, 8)
-  local daily_item = vim.iter(result.items or {}):find(function(item)
+  local has_daily_item = vim.iter(result.items or {}):any(function(item)
     return item.command and item.command.command == "obsidian.write_note" and item.command.arguments[2] == "daily"
   end)
 
-  assert(daily_item, "no daily create item found")
-end
-
-T["completion"]["does not offer a daily create item when its resolved path exists"] = function()
-  h.mock_vault_contents(child.Obsidian.dir, {
-    ["test.md"] = "[[@today",
-    ["redirected.md"] = "Existing note content",
-  })
-
-  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
-  child.api.nvim_win_set_cursor(0, { 1, 8 })
-  child.lua [[
-    local _, daily_id = require("obsidian.daily").daily_note_path()
-    Obsidian.opts.note_id_func = function()
-      return "plain-note"
-    end
-    Obsidian.opts.note_path_func = function(spec)
-      if spec.id == daily_id then
-        return Obsidian.dir / "redirected.md"
-      end
-      return (spec.dir / tostring(spec.id)):with_suffix(".md", true)
-    end
-  ]]
-
-  local result = run_completion(0, 8)
-  local create_items = vim.tbl_filter(function(item)
-    return item.command and item.command.command == "obsidian.write_note"
-  end, result.items or {})
-
-  eq(1, #create_items)
-  eq("plain", create_items[1].command.arguments[2])
+  eq(false, has_daily_item)
 end
 
 T["completion"]["create_new emits write_note command that writes file"] = function()

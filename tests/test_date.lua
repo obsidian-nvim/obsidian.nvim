@@ -35,11 +35,4 @@ T["working_day_after"] = function()
   eq(date.working_day_after(now), os.time { year = 2025, month = 4, day = 28 })
 end
 
-T["resolve_macro completes relative dates"] = function()
-  local matches = date.resolve_macro "@tom"
-  eq(1, #matches)
-  eq("@tomorrow", matches[1].macro)
-  eq(1, matches[1].offset)
-end
-
 return T

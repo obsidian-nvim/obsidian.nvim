@@ -1,6 +1,7 @@
 local h = dofile "tests/helpers.lua"
 local Note = require "obsidian.note"
 local M = require "obsidian.daily"
+local date_util = require "obsidian.date"
 local moment = require "obsidian.lib.moment"
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
@@ -46,7 +47,7 @@ T["daily_note_path"]["should resolve from an explicit vault directory"] = functi
 end
 
 T["daily_note_path"]["should be able to initialize a daily note"] = function()
-  local note = M.today()
+  local note = M.daily {}
   eq(true, note.path ~= nil)
   note:write()
   eq(true, note:exists())
@@ -54,7 +55,7 @@ end
 
 T["daily_note_path"]["should not add frontmatter for today when disabled"] = function()
   Obsidian.opts.frontmatter.enabled = false
-  local new_note = M.today()
+  local new_note = M.daily {}
   new_note:write()
 
   local saved_note = Note.from_file(new_note.path)
@@ -63,7 +64,7 @@ end
 
 T["daily_note_path"]["should not add frontmatter for yesterday when disabled"] = function()
   Obsidian.opts.frontmatter.enabled = false
-  local new_note = M.yesterday()
+  local new_note = M.daily { date = date_util.previous_day(os.time()) }
   new_note:write()
   local saved_note = Note.from_file(new_note.path)
   eq(false, saved_note.has_frontmatter)
