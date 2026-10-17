@@ -318,6 +318,31 @@ Calling `setup()` again replaces the previous options and workspace list, update
 
 `exrc` loads local configuration at startup based on the working directory; opening a note from an unrelated directory or switching between vault buffers does not automatically source that vault's `.nvim.lua`. To apply or reload a vault's settings in an existing session, explicitly run `:source /path/to/vault/.nvim.lua`. For automatic switching among a known list of vaults, use the existing `workspaces` and workspace `overrides` options.
 
+### Vault-specific note creation
+
+The [complete vault-local example](./examples/vault.lua) uses ordinary plugin options and Lua functions. Copy it to `.nvim.lua` in the vault root and adjust the folders and naming rules. No custom JSON file or conversion layer is needed.
+
+Set both `notes_subdir` and `new_notes_location = "notes_subdir"` to place ordinary notes in that folder instead of the current note's folder. Templates without a customization use the same folder and global `note_id_func`. The example preserves manually entered names and uses a timestamp when the name is empty.
+
+Use `templates.customizations` for template-specific folders and names:
+
+```lua
+customizations = {
+  ["daily-plan"] = {
+    notes_subdir = "Personal/Schedule Daily",
+    note_id_func = function()
+      return "SD - " .. os.date "%d-%m-%Y"
+    end,
+  },
+}
+```
+
+Place this table inside `templates`. Keys match the template's filename stem, without `.md`, case-insensitively. A matching customization uses `notes_subdir`; omitted folders and naming functions fall back to the workspace options. Avoid duplicate template stems in different subfolders when using customizations.
+
+The naming function above always uses the date, even if a title was entered. To preserve manual names for this template, accept `title` and return `title or ("SD - " .. os.date "%d-%m-%Y")` instead. A path entered explicitly, such as `Projects/My note`, chooses the folder before the naming function runs. These rules apply when creating notes with `new`, `new_from_template`, or a default `note.template`; inserting a template into an existing note does not move or rename it.
+
+Template and daily-note date formats use Moment-style tokens such as `DD-MM-YYYY`; the example's naming functions call Lua's `os.date` and therefore use `%d-%m-%Y`. Existing app JSON settings still take priority for shared fields, including the ordinary note folder. Template customizations and naming functions have no core-app equivalent and remain local Lua rules.
+
 ## 🤝 Contributing
 
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.

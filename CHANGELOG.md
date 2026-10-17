@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a complete vault-local Lua example for ordinary note folders, template-specific routing, and custom naming functions.
 - Read shared Obsidian app settings per workspace for note and attachment locations, links, templates, daily/unique notes, and core-plugin state. Existing app files override Lua options and use app defaults for absent keys; missing files preserve Lua configuration.
 
 ### Fixed
