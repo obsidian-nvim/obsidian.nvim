@@ -1,5 +1,3 @@
-local daily = require "obsidian.daily"
-
 ---@param arg string
 ---@return integer
 local function parse_offset(arg)
@@ -33,7 +31,7 @@ return function(data)
 
   ---@cast offset_start integer
   ---@cast offset_end integer
-  daily.pick(offset_start, offset_end, function(note)
+  require("obsidian.interface.daily").open({ offset_start = offset_start, offset_end = offset_end }, function(note)
     if not note:exists() then
       note:write()
     end
