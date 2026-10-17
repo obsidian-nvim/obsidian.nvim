@@ -12,12 +12,12 @@ return function(data)
     local offset = tonumber(arg)
     if offset ~= nil then -- It's a numeric offset
       ---@diagnostic disable-next-line: param-type-mismatch
-      note = require("obsidian.daily").daily { offset = offset }
+      note = require("obsidian.daily").new_daily_note { offset = offset }
     else -- Try parsing as a formatted date
       local date, err = date_util.parse(arg)
       if date then
         ---@diagnostic disable-next-line: param-type-mismatch
-        note = require("obsidian.daily").daily { date = os.time(date) }
+        note = require("obsidian.daily").new_daily_note { date = os.time(date) }
       else
         log.err(
           string.format(
@@ -30,7 +30,7 @@ return function(data)
       end
     end
   else
-    note = daily.daily {}
+    note = daily.new_daily_note {}
   end
   if note ~= nil then
     if not note:exists() then

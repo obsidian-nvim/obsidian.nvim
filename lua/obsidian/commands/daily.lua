@@ -4,7 +4,7 @@ local resolvers = require "obsidian.resolvers"
 
 ---@param opts obsidian.daily.DailyOpts
 local function open_daily(opts)
-  local note = daily.daily(opts)
+  local note = daily.new_daily_note(opts)
   if not note:exists() then
     note:write()
   end

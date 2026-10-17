@@ -13,7 +13,7 @@ return function()
     tomorrow = date.next_day(now)
   end
 
-  local note = daily.daily { date = tomorrow }
+  local note = daily.new_daily_note { date = tomorrow }
   if not note:exists() then
     note:write()
   end

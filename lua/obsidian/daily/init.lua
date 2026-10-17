@@ -93,7 +93,7 @@ end
 ---@param opts obsidian.daily.DailyOpts|?
 ---
 ---@return obsidian.Note
-M.daily = function(opts)
+M.new_daily_note = function(opts)
   opts = opts or {}
   local timestamp
 
@@ -105,23 +105,6 @@ M.daily = function(opts)
   end
 
   return _daily(timestamp, opts)
-end
-
----@param offset_start integer
----@param offset_end integer
----@param callback fun(note: obsidian.Note)
-M.pick = function(offset_start, offset_end, callback)
-  resolvers.resolve("date_select", {
-    intent = "open_daily",
-    cadence = "daily",
-    offset_start = offset_start,
-    offset_end = offset_end,
-  }, function(result)
-    if not result or not result.timestamp then
-      return
-    end
-    callback(M.daily { date = result.timestamp })
-  end)
 end
 
 return M
