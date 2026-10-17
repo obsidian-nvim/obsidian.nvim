@@ -33,6 +33,9 @@ return function(data)
     note = daily.daily {}
   end
   if note ~= nil then
-    note:open { write_if_missing = true }
+    if not note:exists() then
+      note:write()
+    end
+    note:open()
   end
 end

@@ -13,5 +13,9 @@ return function()
     tomorrow = date.next_day(now)
   end
 
-  daily.daily({ date = tomorrow }):open { write_if_missing = true }
+  local note = daily.daily { date = tomorrow }
+  if not note:exists() then
+    note:write()
+  end
+  note:open()
 end

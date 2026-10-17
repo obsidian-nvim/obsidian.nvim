@@ -34,6 +34,9 @@ return function(data)
   ---@cast offset_start integer
   ---@cast offset_end integer
   daily.pick(offset_start, offset_end, function(note)
-    note:open { write_if_missing = true }
+    if not note:exists() then
+      note:write()
+    end
+    note:open()
   end)
 end

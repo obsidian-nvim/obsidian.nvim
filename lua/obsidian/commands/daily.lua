@@ -2,11 +2,20 @@ local daily = require "obsidian.daily"
 local log = require "obsidian.log"
 local resolvers = require "obsidian.resolvers"
 
+---@param opts obsidian.daily.DailyOpts
+local function open_daily(opts)
+  local note = daily.daily(opts)
+  if not note:exists() then
+    note:write()
+  end
+  note:open()
+end
+
 ---@param data obsidian.CommandArgs
 return function(data)
   local input = vim.trim(data.args or "")
   if input == "" then
-    daily.daily({}):open { write_if_missing = true }
+    open_daily {}
     return
   end
 
@@ -20,6 +29,6 @@ return function(data)
       return
     end
     ---@cast timestamp integer
-    daily.daily({ date = timestamp }):open { write_if_missing = true }
+    open_daily { date = timestamp }
   end)
 end

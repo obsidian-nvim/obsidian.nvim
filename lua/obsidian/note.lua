@@ -1376,13 +1376,9 @@ end
 
 --- Open a note in a buffer.
 ---
----@param opts { line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|?, write_if_missing: boolean|? }|?
+---@param opts { line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|?
 Note.open = function(self, opts)
   opts = opts or {}
-
-  if opts.write_if_missing and not self:exists() then
-    self:write()
-  end
 
   local function open_it()
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)

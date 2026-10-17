@@ -13,5 +13,9 @@ return function()
     yesterday = date.previous_day(now)
   end
 
-  daily.daily({ date = yesterday }):open { write_if_missing = true }
+  local note = daily.daily { date = yesterday }
+  if not note:exists() then
+    note:write()
+  end
+  note:open()
 end
