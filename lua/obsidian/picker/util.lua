@@ -2,34 +2,33 @@ local preview_ns = vim.api.nvim_create_namespace "obsidian.picker.preview"
 
 local icons = require "obsidian.icons"
 local Path = require "obsidian.path"
+local preview = require "obsidian.preview"
+local Range = require "obsidian.range"
 
 local M = {}
 
 ---@param path string|obsidian.Path
 ---@return obsidian.ui_select_preview_spec
 M.preview_path = function(path)
-  path = tostring(path)
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.bo[buf].bufhidden = "wipe"
+  return preview.path(path)
+end
 
-  local stat = vim.uv.fs_stat(path)
-  if stat and stat.type == "directory" then
-    local entries = {}
-    for name, kind in vim.fs.dir(path) do
-      entries[#entries + 1] = name .. (kind == "directory" and "/" or "")
-    end
-    table.sort(entries)
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, entries)
-    vim.bo[buf].filetype = "directory"
-  else
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(path))
-    local filetype = vim.filetype.match { filename = path }
-    if filetype then
-      vim.bo[buf].filetype = filetype
-    end
+---@param entry obsidian.PickerEntry
+---@return obsidian.ui_select_preview_spec
+M.preview_entry = function(entry)
+  if type(entry) ~= "table" then
+    return preview.text { "Preview unavailable: item is not a file" }
   end
-
-  return { buf = buf }
+  return preview.location {
+    path = entry.filename,
+    bufnr = entry.bufnr,
+    lnum = entry.lnum,
+    col = entry.col,
+    end_lnum = entry.end_lnum,
+    end_col = entry.end_col,
+    range = rawget(entry, "range"),
+    encoding = rawget(entry, "encoding"),
+  }
 end
 
 ---@param opts { prompt_title: string|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
@@ -102,25 +101,120 @@ M.show_preview_spec = function(winid, spec)
   return true
 end
 
----Open one picker result directly, or put multiple results in the quickfix list.
----@param entries (string|obsidian.PickerEntry)[]
-M.open_notes = function(entries)
+---@class obsidian.picker.QuickfixOpts
+---@field title? string
+---@field strings_are_paths? boolean
+---@field eligible? fun(value: any): boolean
+---@field to_entry? fun(value: any): obsidian.PickerEntry?
+
+---@param entry any
+---@param opts obsidian.picker.QuickfixOpts
+---@return obsidian.PickerEntry|?
+local function to_quickfix_entry(entry, opts)
+  if opts.eligible and not opts.eligible(entry) then
+    return nil
+  end
+  if type(entry) == "string" then
+    if not opts.strings_are_paths then
+      return nil
+    end
+    entry = { filename = entry }
+  elseif opts.to_entry then
+    entry = opts.to_entry(entry)
+  end
+  if type(entry) ~= "table" or type(entry.filename) ~= "string" or entry.filename == "" then
+    return nil
+  end
+
+  local item = {
+    filename = entry.filename,
+    lnum = entry.lnum,
+    col = entry.col,
+    end_lnum = entry.end_lnum,
+    end_col = entry.end_col,
+    text = entry.text or entry.link or entry.display_name or entry.filename,
+    user_data = entry.user_data or entry,
+  }
+  local range = rawget(entry, "range")
+  if type(range) == "table" then
+    if type(range.start_row) == "number" then
+      item.lnum = range.start_row + 1
+      item.col = range.start_col + 1
+      item.end_lnum = range.end_row + 1
+      item.end_col = range.end_col + 1
+    elseif range.start and range["end"] then
+      local lines = preview.read_path(entry.filename)
+      local native = Range.from_lsp(range, entry.encoding or "utf-16", lines)
+      item.lnum = native.start_row + 1
+      item.col = native.start_col + 1
+      item.end_lnum = native.end_row + 1
+      item.end_col = native.end_col + 1
+    end
+  end
+  return item
+end
+
+---Create a new titled quickfix list and open it, preserving list history.
+---@param entries any[]
+---@param opts obsidian.picker.QuickfixOpts|?
+---@return boolean
+M.send_to_qf = function(entries, opts)
+  opts = opts or {}
+  local items = {}
+  for _, entry in ipairs(entries or {}) do
+    local item = to_quickfix_entry(entry, opts)
+    if item then
+      items[#items + 1] = item
+    end
+  end
+  if #items == 0 then
+    return false
+  end
+
+  vim.fn.setqflist({}, " ", { title = opts.title or "Obsidian results", items = items })
+  vim.cmd "copen"
+  return true
+end
+
+---Build the standard `<C-q>` quickfix selection mapping.
+---@param opts obsidian.picker.QuickfixOpts|?
+---@return obsidian.PickerMappingOpts
+M.send_to_qf_mapping = function(opts)
+  opts = opts or {}
+  return {
+    desc = "send to quickfix",
+    allow_multiple = true,
+    quickfix = opts,
+    callback = function(first, ...)
+      local entries = { first, ... }
+      M.send_to_qf(entries, opts)
+    end,
+  }
+end
+
+---Open one picker result directly, or export multiple file/location results to quickfix.
+---@param entries any[]
+---@param opts obsidian.picker.QuickfixOpts|?
+M.open_notes = function(entries, opts)
+  opts = opts or {}
   if #entries == 0 then
     return
   elseif #entries == 1 then
-    require("obsidian.api").open_note(entries[1])
+    local entry = entries[1]
+    if type(entry) == "string" then
+      if not opts.strings_are_paths then
+        return
+      end
+      entry = { filename = entry }
+    end
+    if type(entry) ~= "table" or type(entry.filename) ~= "string" then
+      return
+    end
+    require("obsidian.api").open_note(entry)
     return
   end
 
-  local items = vim.tbl_map(function(entry)
-    if type(entry) == "string" then
-      return { filename = entry }
-    else
-      return entry
-    end
-  end, entries)
-  vim.fn.setqflist(items, "r")
-  vim.cmd "copen"
+  M.send_to_qf(entries, opts)
 end
 
 ---@param entry obsidian.PickerEntry|string

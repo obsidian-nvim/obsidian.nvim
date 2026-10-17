@@ -26,6 +26,10 @@ require("obsidian").setup {
     hints = function(ctx, done)
       done {}
     end,
+
+    url_preview = function(ctx, done)
+      done { lines = { ctx.url }, filetype = "markdown" }
+    end,
   },
 }
 ```
@@ -138,3 +142,23 @@ resolvers = {
 ```
 
 The built-in resolver returns link-suggestion hints for the requested range. In insert mode, hints update with document changes except while the cursor is in a built-in completion expression (`[[`, `#`, or `[^`). During completion, the previous hint result is reused and no resolver is started; hints resume when completion ends or the cursor leaves the expression. A debounced refresh also follows normal-mode edits (including undo), leaving insert mode, and saving the note. Accepting a hint triggers a refresh.
+
+## URL preview resolver
+
+`opts.resolvers.url_preview` supplies display content for URL previews in links and bookmarks. This resolver does not acquire action input: it returns a list of text lines and an optional filetype. The picker owns scratch-buffer creation, rendering, and cleanup. The resolver may complete synchronously or asynchronously and must call `done` at most once.
+
+```lua
+---@class obsidian.resolver.UrlPreviewCtx
+---@field url string
+---@field bufnr integer|?
+---@field source_path string|?
+---@field workspace_dir string|?
+
+---@class obsidian.resolver.UrlPreviewResult
+---@field lines string[]
+---@field filetype string|?
+```
+
+The built-in resolver displays the URL and help routing for `:Obsidian help resolvers`; it makes no network request and never launches an external application. Missing, failed, or invalid custom content falls back to the built-in text. A resolver error is logged once by the resolver dispatcher. A preview failure does not prevent selecting the link or bookmark.
+
+For optional network-powered previews, use the [Defuddle URL preview recipe](recipes/url_preview.md). It contacts a third party and is opt-in. Avoid sending URLs containing private identifiers, access tokens, or other sensitive query parameters.

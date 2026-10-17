@@ -5,6 +5,38 @@ local picker = require "obsidian.picker"
 
 local T = new_set {}
 
+T["find_files_data returns cache candidates without opening a picker"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache-data" }
+  dir:mkdir { parents = true }
+  h.write("# Agenda", dir / "Agenda.md")
+  h.write("# Other", dir / "Other.md")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local original_select = picker.select
+  picker.select = function()
+    error "data collection must not open a picker"
+  end
+  local result
+  cache.find_files_data({ dir = tostring(dir), query = "agenda" }, function(entries, query)
+    result = { entries = entries, query = query }
+  end)
+  vim.wait(1000, function()
+    return result ~= nil
+  end)
+  picker.select = original_select
+
+  eq(1, #result.entries)
+  eq("Agenda", result.entries[1].label)
+  eq(tostring(dir / "Agenda.md"), result.entries[1].path)
+  eq(nil, result.query)
+end
+
 T["find_files applies initial query case-insensitively"] = function()
   local dir = Path.temp { suffix = "-obsidian-picker" }
   dir:mkdir { parents = true }

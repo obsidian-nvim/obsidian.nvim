@@ -7,43 +7,28 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local uri = require "obsidian.uri"
-local compat = require "obsidian.compat"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
+local picker_util = require "obsidian.picker.util"
 local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
 local list_items = require "obsidian.parse.line.list_items"
-local tag_module = require "obsidian.tag"
 local link_suggestion = require "obsidian.note.link_suggestion"
-
----@param entry obsidian.PickerEntry
----@return obsidian.ui_select_preview_spec
-local function preview_entry(entry)
-  local filename = entry.filename
-  ---@cast filename - nil
-  local preview = picker.preview_path(filename)
-  local range = rawget(entry, "range")
-  ---@cast range lsp.Range?
-  if range then
-    preview.pos = { range.start.line + 1, range.start.character }
-    preview.pos_end = { range["end"].line + 1, range["end"].character }
-  elseif entry.lnum then
-    preview.pos = { entry.lnum, entry.col and math.max(entry.col - 1, 0) or 0 }
-  end
-  return preview
-end
 
 --- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
 ---
 ---@param link string?
----@param opts { open_strategy: obsidian.config.OpenStrategy |? } |?
+---@param opts { open_strategy: obsidian.config.OpenStrategy?, bufnr: integer?, winid: integer?, cursor_row: integer?, workspace_dir: string? }|?
 M.follow_link = function(link, opts)
-  opts = opts and opts or {}
+  opts = opts or {}
+  local interface_util = require "obsidian.interfaces.util"
+  local context = interface_util.capture_context(opts)
   local range
   if not link then
-    local cursor_link = { api.cursor_link() }
+    local cursor = vim.api.nvim_win_get_cursor(context.winid)
+    local cursor_link = { api.cursor_link(context.bufnr, { line = cursor[1] - 1, character = cursor[2] }) }
     link, range = cursor_link[1], cursor_link[3]
   end
 
@@ -52,22 +37,41 @@ M.follow_link = function(link, opts)
   end
 
   require("obsidian.lsp.handlers._definition").follow_link(link, function(_, locations)
+    if not interface_util.context_is_valid(context) then
+      return
+    end
     local items = vim.lsp.util.locations_to_items(locations, "utf-8")
     local cmd = opts.open_strategy or api.get_open_strategy(Obsidian.opts.open_notes_in)
     if #items == 1 then
-      api.open_note(items[1], cmd)
+      vim.api.nvim_win_call(context.winid, function()
+        api.open_note(items[1], cmd)
+      end)
     else
-      picker.select(items, {
-        prompt = "Resolve link",
-        preview_item = preview_entry,
-      }, function(choices)
-        local entry = choices and choices[1]
-        if entry then
-          api.open_note(entry, cmd)
-        end
+      vim.api.nvim_win_call(context.winid, function()
+        picker.select(items, {
+          prompt = "Resolve link",
+          allow_multiple = true,
+          selection_mappings = {
+            ["<C-q>"] = require("obsidian.picker.util").send_to_qf_mapping { title = "Link targets" },
+          },
+        }, function(choices)
+          if choices and #choices > 0 and interface_util.context_is_valid(context) then
+            vim.api.nvim_win_call(context.winid, function()
+              if #choices == 1 then
+                api.open_note(choices[1], cmd)
+              else
+                require("obsidian.picker.util").send_to_qf(choices, { title = "Link targets" })
+              end
+            end)
+          end
+        end)
       end)
     end
-  end, { range = range })
+  end, {
+    range = range,
+    bufnr = context.bufnr,
+    cursor_row = opts.cursor_row,
+  })
 end
 
 ---Replace the wiki or Markdown link under the cursor with its display text.
@@ -643,42 +647,37 @@ M.new_from_template = function(id, template, callback, opts)
     return
   end
 
-  picker.find_files {
-    prompt_title = "Templates",
-    dir = templates_dir,
-    no_default_mappings = true,
-    callback = function(template_paths)
-      local template_path = template_paths[1]
-      if not template_path then
-        return
-      end
-      if id == nil or id == "" then
-        -- Must use pcall in case of KeyboardInterrupt
-        -- We cannot place `title` where `safe_title` is because it would be redeclaring it
-        local success, safe_title = pcall(api.input, "Enter title or path (optional): ", { completion = "file" })
-        id = safe_title
-        if not success or not safe_title then
-          log.warn "Aborted"
-          return
-        elseif safe_title == "" then
-          id = nil
-        end
-      end
-
-      if template_path == nil or template_path == "" then
+  require("obsidian.interfaces.templates").pick({ picker = { prompt = "Templates" } }, function(template_paths)
+    local template_path = template_paths[1]
+    if not template_path then
+      return
+    end
+    if id == nil or id == "" then
+      -- Must use pcall in case of KeyboardInterrupt
+      -- We cannot place `title` where `safe_title` is because it would be redeclaring it
+      local success, safe_title = pcall(api.input, "Enter title or path (optional): ", { completion = "file" })
+      id = safe_title
+      if not success or not safe_title then
         log.warn "Aborted"
         return
+      elseif safe_title == "" then
+        id = nil
       end
+    end
 
-      ---@type obsidian.Note
-      local note = Note.create { id = id, template = template_path, source_path = opts.source_path }
-      note:write()
+    if template_path == nil or template_path == "" then
+      log.warn "Aborted"
+      return
+    end
 
-      if callback then
-        callback(note)
-      end
-    end,
-  }
+    ---@type obsidian.Note
+    local note = Note.create { id = id, template = template_path, source_path = opts.source_path }
+    note:write()
+
+    if callback then
+      callback(note)
+    end
+  end)
 end
 
 -- https://help.obsidian.md/plugins/unique-note
@@ -943,15 +942,9 @@ M.insert_template = function(template_name)
     return
   end
 
-  picker.find_files {
-    dir = templates_dir,
-    callback = function(paths)
-      local path = paths[1]
-      if path then
-        insert_template(path)
-      end
-    end,
-  }
+  require("obsidian.interfaces.templates").pick({}, function(paths)
+    insert_template(paths[1])
+  end)
 end
 
 ---@param buf integer |?
@@ -974,59 +967,47 @@ local function symbol_to_entry(symbol)
 end
 
 ---@param query    string |?
----@param callback fun(entry: obsidian.PickerEntry) |?
+---@param callback fun(entries: obsidian.PickerEntry[]) |?
 M.workspace_symbol = function(query, callback)
   query = query or ""
+  local interface_util = require "obsidian.interfaces.util"
+  local context = interface_util.capture_context()
   require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
     local entries = vim.tbl_map(symbol_to_entry, symbols)
     picker.select(entries, {
       prompt = "Workspace Symbols",
-      preview_item = preview_entry,
+      allow_multiple = true,
+      selection_mappings = {
+        ["<C-q>"] = require("obsidian.picker.util").send_to_qf_mapping { title = "Workspace Symbols" },
+      },
     }, function(items)
-      local entry = items and items[1]
-      if not entry then
+      if not items or #items == 0 then
         return
       elseif callback then
-        callback(unpack(items))
-      else
-        api.open_note(entry)
+        callback(items)
+      elseif interface_util.context_is_valid(context) then
+        vim.api.nvim_win_call(context.winid, function()
+          if #items == 1 then
+            api.open_note(items[1])
+          else
+            require("obsidian.picker.util").send_to_qf(items, { title = "Workspace Symbols" })
+          end
+        end)
       end
     end)
   end)
 end
 
---- Pick a folder under the vault root.
----@param callback fun(directory: string, text: string)
-local function pick_folder(callback)
-  local root = tostring(api.resolve_workspace_dir())
-  local choices = { { filename = root, text = "/" } }
+-- TODO: note:move as higher level rename wrapper?
 
-  ---@diagnostic disable-next-line: param-type-mismatch
-  for path, t in vim.fs.dir(root, { depth = math.huge }) do
-    if t == "directory" then
-      choices[#choices + 1] = { filename = vim.fs.joinpath(root, path), text = path .. "/" }
-    end
-  end
-
-  picker.select(choices, {
-    format_item = function(v)
-      return tostring(v.text)
-    end,
-    preview_item = function(entry)
-      return picker.preview_path(entry.filename)
-    end,
-  }, function(items)
-    local entry = items[1]
-    if entry and entry.filename and entry.text then
-      callback(entry.filename, entry.text)
-    end
-  end)
-end
-
+---@param context { bufnr: integer, winid: integer, workspace_dir: string? }
 ---@param directory string
 ---@param text      string
-local function move_note(directory, text)
-  local bufnr = vim.api.nvim_get_current_buf()
+local function move_note(context, directory, text)
+  if not require("obsidian.interfaces.util").context_is_valid(context) then
+    return
+  end
+  local bufnr = context.bufnr
   local src = vim.api.nvim_buf_get_name(bufnr)
   local dest = vim.fs.joinpath(directory, vim.fs.basename(src))
   if src == dest then
@@ -1038,7 +1019,7 @@ local function move_note(directory, text)
   end
   require("obsidian.cache").notes.rename(src, dest)
   vim.api.nvim_buf_set_name(bufnr, dest)
-  local write_ok, write_err = pcall(function()
+  local write_ok, write_err = pcall(vim.api.nvim_buf_call, bufnr, function()
     vim.cmd "silent write!"
   end)
   if not write_ok then
@@ -1048,11 +1029,15 @@ local function move_note(directory, text)
 end
 
 M.move_note = function()
-  if not vim.b.obsidian_buffer then
+  local interface_util = require "obsidian.interfaces.util"
+  local context = interface_util.capture_context()
+  if not vim.b[context.bufnr].obsidian_buffer then
     log.info "Not in an obsidian buffer"
     return
   end
-  pick_folder(move_note)
+  require("obsidian.interfaces.folders").open(function(directory, text)
+    move_note(context, directory, text)
+  end, { workspace_dir = context.workspace_dir })
 end
 
 M.delete_note = function()
@@ -1403,7 +1388,9 @@ end
 --- Pick unlinked mentions of other notes in the current note, grouped by target note,
 --- then pick locations to convert to links.
 M.link_suggestions = function()
+  local interface_util = require "obsidian.interfaces.util"
   local bufnr = vim.api.nvim_get_current_buf()
+  local context = interface_util.capture_context { bufnr = bufnr }
   local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
   if not note then
     return log.info "Not in a note"
@@ -1414,6 +1401,9 @@ M.link_suggestions = function()
   end
 
   search.find_link_suggestions_async(note, nil, function(suggestions)
+    if not interface_util.context_is_valid(context) then
+      return
+    end
     if #suggestions == 0 then
       return log.info "No unlinked outgoing mentions found"
     end
@@ -1450,9 +1440,6 @@ M.link_suggestions = function()
 
     picker.select(entries, {
       prompt = "Outgoing link targets",
-      preview_item = function(entry)
-        return require("obsidian.picker.util").preview_path(entry.filename)
-      end,
     }, function(choices)
       local target = choices and choices[1]
       local locations = target and target.user_data and target.user_data.locations
@@ -1462,9 +1449,13 @@ M.link_suggestions = function()
       picker.select(locations, {
         prompt = "Outgoing locations",
         allow_multiple = true,
-        preview_item = preview_entry,
+        selection_mappings = {
+          ["<C-q>"] = picker_util.send_to_qf_mapping { title = "Outgoing locations" },
+        },
       }, function(location_choices)
-        location_choices = location_choices or {}
+        if not interface_util.context_is_valid(context) then
+          return
+        end
         table.sort(location_choices, suggestion_later_first)
         for _, choice in ipairs(location_choices) do
           local data = choice.user_data
@@ -1479,7 +1470,9 @@ end
 
 --- Pick unlinked plain-text mentions of the current note in other notes and convert them to links.
 M.backlink_suggestions = function()
+  local interface_util = require "obsidian.interfaces.util"
   local bufnr = vim.api.nvim_get_current_buf()
+  local context = interface_util.capture_context { bufnr = bufnr }
   local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
   if not note then
     return log.info "Not in a note"
@@ -1490,6 +1483,9 @@ M.backlink_suggestions = function()
   end
 
   search.find_backlinks_suggestions_async(note, nil, function(results)
+    if not interface_util.context_is_valid(context) then
+      return
+    end
     if #results == 0 then
       return log.info "No unlinked incoming mentions found"
     end
@@ -1509,9 +1505,11 @@ M.backlink_suggestions = function()
     picker.select(entries, {
       prompt = "Incoming unlinked mentions",
       allow_multiple = true,
-      preview_item = preview_entry,
+      selection_mappings = {
+        ["<C-q>"] = picker_util.send_to_qf_mapping { title = "Incoming unlinked mentions" },
+      },
     }, function(choices)
-      if not choices then
+      if not interface_util.context_is_valid(context) then
         return
       end
       table.sort(choices, suggestion_later_first)
@@ -1559,87 +1557,49 @@ M.insert_link = function(query)
   }
 end
 
----@param tag_locations obsidian.TagLocation[]
----@return string[]
-local list_tags = function(tag_locations)
-  local result = {}
-  local seen = {}
-  for _, tag_loc in ipairs(tag_locations) do
-    local key = tag_module.normalize(tag_loc.tag)
-    if not seen[key] then
-      result[#result + 1] = tag_loc.tag
-      seen[key] = true
+---Handle the action-specific results of cached note/attachment/missing-reference selection.
+---@param items obsidian.PickerEntry[]
+---@param opts { bufnr: integer?, workspace_dir: string? }|?
+M._open_cached_file_choices = function(items, opts)
+  opts = opts or {}
+  local cache = require "obsidian.cache"
+  local selected_notes = {}
+  for _, item in ipairs(items) do
+    local path = item.filename
+    local data = item.user_data or {}
+    local missing_attachment = data.attachment and data.missing
+    if path and missing_attachment then
+      M.add_attachment(nil, { insert = false, bufnr = opts.bufnr, dst = path })
+    elseif path and data.attachment then
+      vim.ui.open(path)
+    elseif path and data.missing then
+      local choice = api.confirm("How to handle missing reference?", "&Create New Note\n&Open References")
+      if choice == "Create New Note" then
+        local location = data.target or cache.notes.rel_path(path):gsub("%.md$", "")
+        api.create_new_note(location, function(locations)
+          if locations and locations[1] then
+            api.open_note(vim.uri_to_fname(locations[1].uri))
+          end
+        end, {
+          references = data.references,
+          source_path = data.references and data.references[1] and data.references[1].filename or nil,
+        })
+      elseif choice == "Open References" then
+        picker.select(data.references, {
+          prompt = "Unresolved References",
+          allow_multiple = true,
+          selection_mappings = {
+            ["<C-q>"] = picker_util.send_to_qf_mapping { title = "Unresolved References" },
+          },
+        }, function(choices)
+          picker_util.open_notes(choices, { title = "Unresolved References" })
+        end)
+      end
+    elseif path then
+      selected_notes[#selected_notes + 1] = item
     end
   end
-  return result
-end
-
----@param tag_locations obsidian.TagLocation[]
----@param tags          string[]
-local function gather_tag_picker_list(tag_locations, tags)
-  ---@type obsidian.PickerEntry[]
-  local entries = {}
-  for _, tag_loc in ipairs(tag_locations) do
-    for _, tag in ipairs(tags) do
-      if tag_module.matches(tag_loc.tag, tag, "subtree") then
-        local display = string.format("%s [%s] %s", tag_loc.note:display_name(), tag_loc.line, tag_loc.text)
-        entries[#entries + 1] = {
-          text = display,
-          filename = tostring(tag_loc.path),
-          lnum = tag_loc.line,
-          col = tag_loc.tag_start,
-        }
-        break
-      end
-    end
-  end
-  if vim.tbl_isempty(entries) then
-    if #tags == 1 then
-      log.warn "Tag not found"
-    else
-      log.warn "Tags not found"
-    end
-    return
-  end
-
-  vim.schedule(function()
-    picker.select(entries, {
-      prompt = "#" .. table.concat(tags, ", #"),
-      format_item = function(entry)
-        return entry.text
-      end,
-      preview_item = preview_entry,
-    }, function(items)
-      if not vim.tbl_isempty(items) then
-        api.open_note(items[1])
-      end
-    end)
-  end)
-end
-
-local function list_tags_async(callback)
-  local dir = api.resolve_workspace_dir()
-
-  search.find_tags_async("", function(tag_locations)
-    local tags = list_tags(tag_locations)
-    callback(tags, tag_locations)
-  end, { dir = dir })
-end
-
----@param callback fun(tags: string[], tag_locations: obsidian.TagLocation[])
----@param title    string |?
-local function pick_tags(callback, title)
-  list_tags_async(function(tags, tag_locations)
-    picker.select(tags, {
-      prompt = title,
-      allow_multiple = true,
-      selection_mappings = picker._tag_selection_mappings(),
-    }, function(items)
-      if not vim.tbl_isempty(items) then
-        callback(items, tag_locations)
-      end
-    end)
-  end)
+  picker_util.open_notes(selected_notes)
 end
 
 ---@param tags string[] |?
@@ -1652,222 +1612,13 @@ M.search_tags = function(tags)
     end
   end
 
-  local dir = api.resolve_workspace_dir()
-
-  if not vim.tbl_isempty(tags) then
-    search.find_tags_async(tags, function(tag_locations)
-      local unique_tags = vim.list_extend({}, tags)
-      compat.list_unique(unique_tags)
-      return gather_tag_picker_list(tag_locations, unique_tags)
-    end, { dir = dir, match = "subtree" })
-  else
-    pick_tags(function(selected_tags, tag_locations)
-      gather_tag_picker_list(tag_locations, selected_tags)
-    end)
+  local tag_interface = require "obsidian.interfaces.tags"
+  if #tags > 0 then
+    return tag_interface.search(tags)
   end
-end
-
----@class obsidian.PropertyRecord
----@field path         string
----@field display_name string
----@field properties   table<string, any>
-
----@class obsidian.PropertyCount
----@field name  string
----@field count integer number of notes carrying the key or value
-
----@param counts table<string, integer>
----@return obsidian.PropertyCount[]
-local function sorted_counts(counts)
-  local entries = {}
-  for name, count in pairs(counts) do
-    entries[#entries + 1] = { name = name, count = count }
-  end
-  table.sort(entries, function(a, b)
-    return a.name < b.name
+  tag_interface.pick({}, function(selected_tags)
+    tag_interface.search(selected_tags)
   end)
-  return entries
-end
-
----@param entry obsidian.PropertyCount
----@return string
-local function format_count(entry)
-  return string.format("%s (%d)", entry.name, entry.count)
-end
-
----@param records obsidian.PropertyRecord[]
----@param key     string
----@return obsidian.PropertyCount[]
-local function collect_property_values(records, key)
-  ---@type table<string, integer>
-  local counts = {}
-  for _, record in ipairs(records) do
-    local value = record.properties[key]
-    if value ~= nil and value ~= vim.NIL then
-      -- A note counts once per value, however often the value repeats in it.
-      ---@type table<string, boolean>
-      local seen = {}
-      if vim.islist(value) then
-        for _, item in ipairs(value) do
-          if item ~= vim.NIL then
-            seen[tostring(item)] = true
-          end
-        end
-      else
-        seen[tostring(value)] = true
-      end
-      for v in pairs(seen) do
-        counts[v] = (counts[v] or 0) + 1
-      end
-    end
-  end
-  return sorted_counts(counts)
-end
-
----@param record obsidian.PropertyRecord
----@param key    string
----@param value  string
----@return boolean
-local function record_has_property_value(record, key, value)
-  local prop = record.properties[key]
-  if prop == nil or prop == vim.NIL then
-    return false
-  end
-  if vim.islist(prop) then
-    for _, item in ipairs(prop) do
-      if item ~= vim.NIL and tostring(item) == value then
-        return true
-      end
-    end
-    return false
-  end
-  return tostring(prop) == value
-end
-
----@param records obsidian.PropertyRecord[]
----@param key     string
----@param value   string
-local function gather_property_picker_list(records, key, value)
-  ---@type obsidian.PickerEntry[]
-  local entries = {}
-  for _, record in ipairs(records) do
-    if record_has_property_value(record, key, value) then
-      entries[#entries + 1] = {
-        text = record.display_name,
-        filename = record.path,
-      }
-    end
-  end
-
-  if vim.tbl_isempty(entries) then
-    log.warn "No notes found with that property value"
-    return
-  end
-
-  vim.schedule(function()
-    picker.select(entries, {
-      prompt = string.format("%s: %s", key, value),
-      format_item = function(entry)
-        return entry.text
-      end,
-      preview_item = preview_entry,
-    }, function(items)
-      if not vim.tbl_isempty(items) then
-        api.open_note(items[1])
-      end
-    end)
-  end)
-end
-
----@param records obsidian.PropertyRecord[]
----@param key     string
-local function pick_property_value(records, key)
-  local values = collect_property_values(records, key)
-  if vim.tbl_isempty(values) then
-    log.warn "No values found for that property"
-    return
-  end
-
-  picker.select(values, { prompt = key, format_item = format_count }, function(items)
-    local value = items and items[1]
-    if value then
-      gather_property_picker_list(records, key, value.name)
-    end
-  end)
-end
-
----@param notes obsidian.Note[]
----@return obsidian.PropertyRecord[]
-local function property_records_from_notes(notes)
-  local records = {}
-  for _, note in ipairs(notes) do
-    local properties = vim.deepcopy(note.metadata or {})
-    if #note.aliases == 0 then
-      properties.aliases = nil
-    end
-    if #note.tags == 0 then
-      properties.tags = nil
-    end
-    records[#records + 1] = {
-      path = tostring(note.path),
-      display_name = note:display_name(),
-      properties = properties,
-    }
-  end
-  return records
-end
-
----@param rows table<string, table>
----@return obsidian.PropertyRecord[]
-local function property_records_from_cache(rows)
-  local cache = require "obsidian.cache"
-  local records = {}
-  for path, row in pairs(rows) do
-    local display_name = (row.id and tostring(row.id))
-      or (row.aliases and row.aliases[#row.aliases])
-      or cache.notes.basename(path)
-    records[#records + 1] = {
-      path = path,
-      display_name = display_name,
-      properties = row.properties or {},
-    }
-  end
-  return records
-end
-
----@param records obsidian.PropertyRecord[]
----@return obsidian.PropertyCount[]
-local function collect_property_keys(records)
-  ---@type table<string, integer>
-  local counts = {}
-  for _, record in ipairs(records) do
-    for k, _ in pairs(record.properties) do
-      counts[k] = (counts[k] or 0) + 1
-    end
-  end
-  return sorted_counts(counts)
-end
-
---- Enumerate notes for the properties picker. Prefers the vault-wide note
---- cache (already kept live by file-watch events) over re-scanning and
---- re-parsing every note on each invocation.
----
----@param callback fun(keys: obsidian.PropertyCount[], records: obsidian.PropertyRecord[])
-local function list_properties_async(callback)
-  local cache = require "obsidian.cache"
-  if cache.is_enabled() then
-    cache.when_ready(function()
-      local records = property_records_from_cache(cache.notes.all())
-      callback(collect_property_keys(records), records)
-    end)
-    return
-  end
-
-  local dir = api.resolve_workspace_dir()
-  search.find_notes_async("", function(notes)
-    local records = property_records_from_notes(notes)
-    callback(collect_property_keys(records), records)
-  end, { dir = dir })
 end
 
 --- Open a three-stage picker over frontmatter properties: keys, then values
@@ -1876,28 +1627,11 @@ end
 ---@param key   string |?
 ---@param value string |?
 M.search_properties = function(key, value)
-  list_properties_async(function(keys, records)
-    if key and value then
-      gather_property_picker_list(records, key, value)
-      return
-    end
-
-    if key then
-      pick_property_value(records, key)
-      return
-    end
-
-    picker.select(keys, { prompt = "Properties", format_item = format_count }, function(items)
-      local chosen_key = items and items[1]
-      if chosen_key then
-        pick_property_value(records, chosen_key.name)
-      end
-    end)
-  end)
+  require("obsidian.interfaces.properties").open(key, value)
 end
 
 M.insert_tag = function()
-  pick_tags(function(tags)
+  require("obsidian.interfaces.tags").pick({ picker = { prompt = "Tag to insert" } }, function(tags)
     for i, tag in ipairs(tags) do
       local put_text = "#" .. tag
       if i ~= #tags then
@@ -1905,7 +1639,7 @@ M.insert_tag = function()
       end
       vim.api.nvim_put({ put_text }, "", true, true)
     end
-  end, "Tag to insert")
+  end)
 end
 
 ---@param tag string
@@ -1924,11 +1658,11 @@ local tag_note = function(tag)
 end
 
 M.add_tag = function()
-  pick_tags(function(tags)
+  require("obsidian.interfaces.tags").pick({ picker = { prompt = "Add tags to current note" } }, function(tags)
     for _, tag in ipairs(tags) do
       tag_note(tag)
     end
-  end, "Add tags to current note")
+  end)
 end
 
 return M

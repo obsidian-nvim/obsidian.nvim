@@ -11,6 +11,7 @@ local ignore = require "obsidian.ignore"
 
 local M = {}
 M.find_files = require("obsidian.cache.api").find_files
+M.find_files_data = require("obsidian.cache.api").find_files_data
 
 ---@class obsidian.cache.Backend
 ---@field open fun(opts: table): obsidian.cache.Store

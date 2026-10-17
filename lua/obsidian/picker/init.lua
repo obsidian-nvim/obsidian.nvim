@@ -1,10 +1,8 @@
 local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
-local icons = require "obsidian.icons"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.types").Picker
 local Mappings = require "obsidian.picker.mappings"
-local Path = require "obsidian.path"
 local search = require "obsidian.search"
 
 ---@class obsidian.Picker
@@ -55,8 +53,9 @@ end
 ---@field fallback_to_query boolean|?
 ---@field keep_open boolean|?
 ---@field allow_multiple boolean|?
+---@field quickfix obsidian.picker.QuickfixOpts|?
 
----@alias obsidian.PickerMappingTable table<string, obsidian.PickerMappingOpts>
+---@alias obsidian.PickerMappingTable table<string, obsidian.PickerMappingOpts|false>
 
 ---@class obsidian.PickerFindOpts
 ---
@@ -70,6 +69,7 @@ end
 ---@field include_non_markdown boolean|?
 ---@field show_existing_only boolean|?
 ---@field show_attachments boolean|?
+---@field allow_multiple boolean|?
 
 ---@class obsidian.PickerGrepOpts
 ---
@@ -84,6 +84,8 @@ end
 
 ---@alias obsidian.PickerEntry vim.quickfix.entry
 
+---Preview positions use one-based rows and zero-based byte columns; `pos_end` is half-open.
+---Quickfix columns are one-based and converted at the preview boundary.
 ---@alias obsidian.ui_select_preview_spec { buf: integer, pos: [integer,integer]?, pos_end: [integer,integer]? }
 
 ---@class obsidian.PickerSelectOpts
@@ -95,7 +97,8 @@ end
 ---@field query_mappings obsidian.PickerMappingTable|?
 ---@field selection_mappings obsidian.PickerMappingTable|?
 ---@field format_item (fun(value: any): string)|?
----@field preview_item (fun(value: any): obsidian.ui_select_preview_spec)?
+--- Defaults to a file preview when the first value has a `filename`.
+---@field preview_item (fun(value: any): obsidian.ui_select_preview_spec)|false|?
 ---@field query string|?
 ---
 ---@class obsidian.PickerEntryUserData
@@ -141,56 +144,17 @@ local pick = function(values, opts)
       end, choices)
       opts.callback(unpack(choices))
     else
-      picker_util.open_notes(choices)
+      picker_util.open_notes(choices, { strings_are_paths = true })
     end
   end)
 end
 
 M.pick = pick
 
---- Find files using the shared filesystem iterator and present them with the active picker.
----
+---Compatibility wrapper for the note/resource selection interface.
 ---@param opts obsidian.PickerFindOpts?
 local find_files = function(opts)
-  opts = opts or {}
-
-  if require("obsidian.cache").find_files(opts) then
-    return
-  end
-
-  -- search.find_async() resolves its root before enumerating files. Use the
-  -- same canonical root here so aliases such as macOS's /var -> /private/var
-  -- and Windows short paths remain relative to the picker directory.
-  local dir = Path.new(opts.dir or api.resolve_workspace_dir()):resolve { strict = true }
-  local paths = {}
-
-  search.find_async(dir, nil, {
-    sort_by = Obsidian.opts.search.sort_by,
-    sort_reversed = Obsidian.opts.search.sort_reversed,
-    include_non_markdown = opts.include_non_markdown,
-  }, function(path)
-    paths[#paths + 1] = path
-  end, function(code)
-    if code ~= 0 then
-      log.err("Failed to enumerate files in '%s'", dir)
-      return
-    end
-
-    M.select(paths, {
-      prompt = opts.prompt_title,
-      allow_multiple = true,
-      query = opts.query,
-      query_mappings = opts.query_mappings,
-      selection_mappings = opts.selection_mappings,
-      format_item = function(path)
-        return icons.get_path_icon(path) .. " " .. tostring(Path.new(path):relative_to(dir))
-      end,
-      preview_item = picker_util.preview_path,
-    }, function(items)
-      local callback = opts.callback or picker_util.open_notes
-      callback(items)
-    end)
-  end)
+  return require("obsidian.interfaces.notes").find_files(opts)
 end
 
 M.find_files = find_files
@@ -301,7 +265,9 @@ end
 ---@return obsidian.PickerMappingTable
 M._note_selection_mappings = function()
   ---@type obsidian.PickerMappingTable
-  local mappings = {}
+  local mappings = {
+    ["<C-q>"] = picker_util.send_to_qf_mapping { title = "Notes", strings_are_paths = true },
+  }
 
   local note_mappings = Obsidian.opts.picker.note_mappings or {}
   if key_is_set(note_mappings.insert_link) then
@@ -352,7 +318,27 @@ end
 local function patch(modname)
   local picker = require(modname)
   for name, f in pairs(picker) do
-    if name ~= "pick" then
+    if name == "select" then
+      ---@param values any[]
+      ---@param opts obsidian.PickerSelectOpts|?
+      ---@param on_choice fun(choices: any[])|?
+      M[name] = function(values, opts, on_choice)
+        opts = opts or {}
+        local has_file_entry = false
+        if opts.preview_item == nil then
+          for _, value in ipairs(values or {}) do
+            if type(value) == "table" and type(value.filename) == "string" then
+              has_file_entry = true
+              break
+            end
+          end
+        end
+        if has_file_entry then
+          opts = vim.tbl_extend("force", {}, opts, { preview_item = picker_util.preview_entry })
+        end
+        return f(values, opts, on_choice)
+      end
+    elseif name ~= "pick" then
       M[name] = f
     end
   end

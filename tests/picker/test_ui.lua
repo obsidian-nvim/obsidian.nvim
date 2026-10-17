@@ -203,6 +203,59 @@ return geom
   eq(true, large.preview_height >= small.preview_height)
 end
 
+T["quickfix mapping exports filtered results and marked results take precedence"] = function()
+  local result = child.lua [=[
+local Ui = require "obsidian.picker.ui"
+local picker_util = require "obsidian.picker.util"
+local values = {
+  { filename = "/tmp/a.md", text = "Duplicate" },
+  { filename = "/tmp/b.md", text = "Duplicate" },
+  { filename = "/tmp/c.md", text = "Third" },
+}
+local callback_count = 0
+local mapping = picker_util.send_to_qf_mapping { title = "Locations" }
+local picker = Ui.select(values, {
+  allow_multiple = true,
+  selection_mappings = { ["<C-q>"] = mapping },
+}, function()
+  callback_count = callback_count + 1
+end)
+picker.matches = { picker.items[2], picker.items[3] }
+picker:run_selection_mapping(mapping)
+local first_qf = vim.fn.getqflist({ title = 1, items = 1, nr = 0 })
+vim.cmd.cclose()
+
+local second_picker = Ui.select(values, {
+  allow_multiple = true,
+  selection_mappings = { ["<C-q>"] = picker_util.send_to_qf_mapping { title = "Marked" } },
+}, function()
+  callback_count = callback_count + 1
+end)
+second_picker:toggle_mark()
+second_picker.matches = { second_picker.items[2], second_picker.items[3] }
+second_picker:run_selection_mapping(second_picker.opts.selection_mappings["<C-q>"])
+local second_qf = vim.fn.getqflist({ title = 1, items = 1, nr = 0 })
+vim.cmd.cclose()
+return {
+  first_title = first_qf.title,
+  first_count = #first_qf.items,
+  first_paths = vim.tbl_map(function(item) return item.filename or vim.api.nvim_buf_get_name(item.bufnr) end, first_qf.items),
+  second_title = second_qf.title,
+  second_count = #second_qf.items,
+  second_path = second_qf.items[1].filename or vim.api.nvim_buf_get_name(second_qf.items[1].bufnr),
+  callback_count = callback_count,
+}
+  ]=]
+
+  eq("Locations", result.first_title)
+  eq(2, result.first_count)
+  eq({ "/tmp/b.md", "/tmp/c.md" }, result.first_paths)
+  eq("Marked", result.second_title)
+  eq(1, result.second_count)
+  eq("/tmp/a.md", result.second_path)
+  eq(0, result.callback_count)
+end
+
 T["preserves values and returns the selected value"] = function()
   local result = child.lua [[
 local Ui = require "obsidian.picker.ui"

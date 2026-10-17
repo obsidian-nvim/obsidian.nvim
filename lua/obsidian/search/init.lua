@@ -491,6 +491,7 @@ end
 ---@field line integer
 ---@field start integer 0-indexed
 ---@field end integer 0-indexed
+---@field path string? Source note path, added by link interfaces.
 
 -- Gather all unique links from the a note.
 --
@@ -501,8 +502,16 @@ M.find_links = function(note)
   ---@type table<string, boolean>
   local found = {}
   local lines = {}
-  for line in io.lines(tostring(note.path)) do
-    lines[#lines + 1] = line:gsub("\r$", "")
+  if
+    note.bufnr
+    and vim.api.nvim_buf_is_loaded(note.bufnr)
+    and vim.fs.normalize(vim.api.nvim_buf_get_name(note.bufnr)) == vim.fs.normalize(tostring(note.path))
+  then
+    lines = vim.api.nvim_buf_get_lines(note.bufnr, 0, -1, false)
+  else
+    for line in io.lines(tostring(note.path)) do
+      lines[#lines + 1] = line:gsub("\r$", "")
+    end
   end
   local document = Document.parse(lines)
 
@@ -510,7 +519,7 @@ M.find_links = function(note)
   for lnum, line in ipairs(lines) do
     for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1, lexical = true })) do
       local link = ref.embed and ref.raw:sub(2) or ref.raw
-      if ref_is_eligible(document, ref) and not found[link] then
+      if ref.kind ~= "footnote" and ref_is_eligible(document, ref) and not found[link] then
         local match = {
           link = link,
           line = lnum,

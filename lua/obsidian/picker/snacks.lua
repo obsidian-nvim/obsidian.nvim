@@ -1,6 +1,7 @@
 ---@diagnostic disable: unresolved-require
 local Picker = require "obsidian.picker"
-local ut = require "obsidian.picker.util"
+local picker_util = require "obsidian.picker.util"
+local ut = picker_util
 local api = require "obsidian.api"
 
 --- Build snacks pick opts (keymaps + actions) for query-style mappings. The
@@ -31,6 +32,7 @@ local function query_mappings(mapping, live)
     opts.actions[name] = function(picker)
       local query = live and picker.input.filter.search or picker.input.filter.pattern
       picker:close()
+      require("obsidian.preview").cleanup_unshown()
       vim.schedule(function()
         v.callback(query)
       end)
@@ -69,7 +71,19 @@ local function notes_mappings(mapping, selection_value)
       ---@diagnostic disable-next-line: assign-type-mismatch
       opts.win.input.keys[k] = { name, mode = { "n", "i" }, desc = v.desc }
       opts.actions[name] = function(picker, item)
+        if v.quickfix then
+          local marked = picker:selected { fallback = false }
+          local selected = marked and #marked > 0 and marked or (picker.list and picker.list.items) or {}
+          local values = vim.tbl_map(selection_value, selected)
+          picker:close()
+          require("obsidian.preview").cleanup_unshown()
+          vim.schedule(function()
+            picker_util.send_to_qf(values, v.quickfix)
+          end)
+          return
+        end
         picker:close()
+        require("obsidian.preview").cleanup_unshown()
         if v.allow_multiple then
           local selected = picker:selected { fallback = true }
           local values = vim.tbl_map(selection_value, selected)
@@ -215,6 +229,9 @@ M.select = function(values, opts, on_choice)
   end
 
   local pick_opts = vim.tbl_extend("force", map or {}, {
+    on_close = function()
+      require("obsidian.preview").cleanup_unshown()
+    end,
     title = opts.prompt,
     pattern = opts.query,
     items = entries,
@@ -227,6 +244,7 @@ M.select = function(values, opts, on_choice)
     confirm = function(picker, item)
       local selected = opts.allow_multiple and picker:selected { fallback = true } or (item and { item } or {})
       picker:close()
+      require("obsidian.preview").cleanup_unshown()
       on_choice(vim.tbl_map(function(selected_item)
         return selected_item.obsidian_item
       end, selected))

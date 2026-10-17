@@ -164,6 +164,112 @@ M.resolve_link_path = function(location, source_path)
   end
 end
 
+---@class obsidian.LinkTargetPreview
+---@field kind "url"|"file"|"note"|"ambiguous"|"missing"
+---@field url string|?
+---@field path string|?
+---@field notes obsidian.Note[]|?
+---@field anchor string|?
+---@field block string|?
+---@field error string|?
+
+---Resolve a link target for preview without opening, prompting, or creating anything.
+---@param reference string
+---@param opts { bufnr: integer?, source_path: string?, workspace_dir: string? }|?
+---@param callback fun(target: obsidian.LinkTargetPreview)
+M.resolve_target_async = function(reference, opts, callback)
+  opts = opts or {}
+  local parsed = require("obsidian.parse.refs").parse(reference)
+  if not parsed then
+    callback { kind = "missing", error = "Invalid link" }
+    return
+  end
+
+  local location = parsed.target or ""
+  local anchor, block = parsed.anchor, parsed.block
+  local bufnr = opts.bufnr
+  local source_path = opts.source_path
+    or (bufnr and vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr))
+    or vim.api.nvim_buf_get_name(0)
+  local workspace_dir = opts.workspace_dir or api.resolve_workspace_dir(source_path ~= "" and source_path or nil)
+
+  local function finish_notes(notes)
+    if block then
+      notes = vim.tbl_filter(function(note)
+        return note:resolve_block(block) ~= nil
+      end, notes)
+    elseif anchor then
+      local anchor_link = vim.startswith(anchor, "#") and anchor or ("#" .. anchor)
+      notes = vim.tbl_filter(function(note)
+        return note:resolve_anchor_link(anchor_link) ~= nil
+      end, notes)
+    end
+
+    if #notes == 1 then
+      callback { kind = "note", notes = notes, anchor = anchor, block = block }
+    elseif #notes > 1 then
+      callback { kind = "ambiguous", notes = notes, anchor = anchor, block = block }
+    else
+      callback {
+        kind = "missing",
+        path = M.missing_link_path(location, source_path),
+        anchor = anchor,
+        block = block,
+        error = (anchor or block) and "Target section not found" or "Target not found",
+      }
+    end
+  end
+
+  if location ~= "" then
+    local is_uri, scheme = uri.is_uri(location)
+    if is_uri and scheme ~= "file" then
+      callback { kind = "url", url = location }
+      return
+    elseif is_uri and scheme == "file" then
+      location = vim.uri_to_fname(location)
+    end
+
+    local decoded = decode_link_target(location)
+    local candidates = {}
+    if Path.new(decoded):is_absolute() then
+      candidates[#candidates + 1] = decoded
+    else
+      if source_path ~= "" then
+        candidates[#candidates + 1] = vim.fs.joinpath(vim.fs.dirname(source_path), decoded)
+      end
+      candidates[#candidates + 1] = vim.fs.joinpath(tostring(workspace_dir), decoded)
+    end
+    for _, candidate in ipairs(candidates) do
+      local stat = vim.uv.fs_stat(candidate)
+      local extension = vim.fn.fnamemodify(candidate, ":e"):lower()
+      if stat and (stat.type == "directory" or (extension ~= "md" and extension ~= "qmd" and extension ~= "base")) then
+        callback { kind = "file", path = candidate, anchor = anchor, block = block }
+        return
+      end
+    end
+  else
+    local Note = require "obsidian.note"
+    local ok, note
+    if bufnr and vim.api.nvim_buf_is_loaded(bufnr) then
+      ok, note = pcall(Note.from_buffer, bufnr)
+    elseif source_path ~= "" and vim.uv.fs_stat(source_path) then
+      ok, note = pcall(Note.from_file, source_path)
+    end
+    if ok and note then
+      finish_notes { note }
+    else
+      callback { kind = "missing", error = "Source note is unavailable" }
+    end
+    return
+  end
+
+  search.resolve_note_async(location, finish_notes, {
+    dir = workspace_dir,
+    buf_dir = source_path ~= "" and vim.fs.dirname(source_path) or nil,
+    notes = { collect_anchor_links = anchor ~= nil, collect_blocks = block ~= nil },
+  })
+end
+
 --- For gf and other goto file operations to work.
 ---@param fname string|?
 ---@return string|?

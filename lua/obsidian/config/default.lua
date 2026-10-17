@@ -397,6 +397,8 @@ return {
   ---
   ---Build serializable LSP inlay hints for a note.
   ---@field hints? obsidian.resolver.Hints
+  ---Provide content for URL previews. The result contains lines, not a buffer.
+  ---@field url_preview? obsidian.resolver.UrlPreview
   resolvers = {},
 
   ---@class obsidian.config.FooterOpts

@@ -2,6 +2,7 @@ local Document = require "obsidian.parse.document"
 local Range = require "obsidian.range"
 local parse_tags = require "obsidian.parse.tags"
 local yaml = require "obsidian.yaml"
+local api = require "obsidian.api"
 
 local M = {}
 
@@ -154,6 +155,34 @@ M.extract = function(lines, opts)
     return a.range.start_col < b.range.start_col
   end)
   return out
+end
+
+---@param tag_locations obsidian.TagLocation[]
+---@return string[]
+local collect_tag_list = function(tag_locations)
+  local result = {}
+  local seen = {}
+  for _, tag_loc in ipairs(tag_locations) do
+    local key = M.normalize(tag_loc.tag)
+    if not seen[key] then
+      result[#result + 1] = tag_loc.tag
+      seen[key] = true
+    end
+  end
+  return result
+end
+
+---@param callback fun(tags: string[], tag_locations: obsidian.TagLocation[])
+---@param opts { dir: string? }|?
+function M.list(callback, opts)
+  opts = opts or {}
+  local dir = opts.dir or api.resolve_workspace_dir()
+  local search = require "obsidian.search"
+
+  search.find_tags_async("", function(tag_locations)
+    local tags = collect_tag_list(tag_locations)
+    callback(tags, tag_locations)
+  end, { dir = dir })
 end
 
 return M

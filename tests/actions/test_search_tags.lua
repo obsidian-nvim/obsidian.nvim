@@ -27,7 +27,8 @@ T["search_tags uses select for tag choice"] = function()
         return
       end
 
-      local preview = opts.preview_item(items[1])
+      local preview_item = opts.preview_item or require("obsidian.picker.util").preview_entry
+      local preview = preview_item(items[1])
       done {
         tag_select = tag_select,
         result_select = {
@@ -57,6 +58,24 @@ T["search_tags uses select for tag choice"] = function()
   eq({ 1, 0 }, result.result_select.preview_pos)
   eq(true, vim.startswith(result.result_select.preview_line, "#alpha"))
   eq("wipe", result.result_select.preview_bufhidden)
+end
+
+T["tags command forwards explicit arguments to the action"] = function()
+  local tags = h.child_await(
+    child,
+    [[
+    local actions = require "obsidian.actions"
+    local original = actions.search_tags
+    actions.search_tags = function(args)
+      done(args)
+    end
+    require("obsidian.commands.tags") { fargs = { "Work", "project" } }
+    actions.search_tags = original
+  ]],
+    { desc = "tags command arguments" }
+  )
+
+  eq({ "Work", "project" }, tags)
 end
 
 T["tag choice deduplicates case-insensitively"] = function()

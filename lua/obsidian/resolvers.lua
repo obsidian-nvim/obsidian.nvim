@@ -36,6 +36,18 @@ local M = {}
 ---@alias obsidian.resolver.HintsResult lsp.InlayHint[]
 ---@alias obsidian.resolver.Hints fun(ctx: obsidian.resolver.HintsCtx, done: fun(result: obsidian.resolver.HintsResult|?, err: string|?))
 
+---@class obsidian.resolver.UrlPreviewCtx
+---@field url string
+---@field bufnr integer|?
+---@field source_path string|?
+---@field workspace_dir string|?
+
+---@class obsidian.resolver.UrlPreviewResult
+---@field lines string[]
+---@field filetype string|?
+
+---@alias obsidian.resolver.UrlPreview fun(ctx: obsidian.resolver.UrlPreviewCtx, done: fun(result: obsidian.resolver.UrlPreviewResult|?, err: string|?))
+
 ---@alias obsidian.Resolver fun(ctx: table, done: fun(result: table|?, err: string|?))
 
 ---@type table<string, obsidian.Resolver>
@@ -187,6 +199,19 @@ end
 ---@type obsidian.Resolver
 M.builtin.hints = function(ctx, done)
   done(require "obsidian.lsp.inlay_hints.link"(ctx.note, ctx.range))
+end
+
+---@type obsidian.resolver.UrlPreview
+M.builtin.url_preview = function(ctx, done)
+  done {
+    lines = {
+      ctx.url,
+      "",
+      "Customize URL previews with resolvers.url_preview.",
+      "See :Obsidian help resolvers",
+    },
+    filetype = "markdown",
+  }
 end
 
 ---@param name string

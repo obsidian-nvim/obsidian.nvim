@@ -25,8 +25,38 @@ local function get_entry(prompt_bufnr, keep_open)
   local entry = require("telescope.actions.state").get_selected_entry()
   if entry and not keep_open then
     require("telescope.actions").close(prompt_bufnr)
+    require("obsidian.preview").cleanup_unshown()
   end
   return entry
+end
+
+---@param selection table
+---@return any
+local function selection_to_entry(selection)
+  if selection.obsidian_item ~= nil then
+    return selection.obsidian_item
+  end
+
+  local raw = selection.raw
+  local value = selection.value
+  local filename = selection.path or selection.filename
+  if filename == nil and type(value) == "table" then
+    filename = value.path or value.filename
+  end
+  local user_data
+  if raw and raw.user_data ~= nil then
+    user_data = raw.user_data
+  elseif filename == nil then
+    user_data = value
+  end
+
+  return {
+    filename = filename,
+    lnum = selection.lnum,
+    col = selection.col,
+    user_data = user_data,
+    text = raw and raw.text or selection.text or selection[1],
+  }
 end
 
 ---@param prompt_bufnr integer
@@ -34,34 +64,6 @@ end
 ---@param allow_multiple boolean|?
 ---@return any[]?
 local function get_selected(prompt_bufnr, keep_open, allow_multiple)
-  ---@return any
-  local function selection_to_entry(selection)
-    if selection.obsidian_item ~= nil then
-      return selection.obsidian_item
-    end
-
-    local raw = selection.raw
-    local value = selection.value
-    local filename = selection.path or selection.filename
-    if filename == nil and type(value) == "table" then
-      filename = value.path or value.filename
-    end
-    local user_data
-    if raw and raw.user_data ~= nil then
-      user_data = raw.user_data
-    elseif filename == nil then
-      user_data = value
-    end
-
-    return {
-      filename = filename,
-      lnum = selection.lnum,
-      col = selection.col,
-      user_data = user_data,
-      text = raw and raw.text or selection.text or selection[1],
-    }
-  end
-
   local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
   local entries = picker:get_multi_selection()
   if entries and #entries > 0 then
@@ -72,6 +74,7 @@ local function get_selected(prompt_bufnr, keep_open, allow_multiple)
 
     if not keep_open then
       require("telescope.actions").close(prompt_bufnr)
+      require("obsidian.preview").cleanup_unshown()
     end
 
     return vim.tbl_map(selection_to_entry, entries)
@@ -96,6 +99,7 @@ local function get_query(prompt_bufnr, keep_open, initial_query)
   if query and string.len(query) > 0 then
     if not keep_open then
       require("telescope.actions").close(prompt_bufnr)
+      require("obsidian.preview").cleanup_unshown()
     end
     return query
   else
@@ -110,32 +114,63 @@ local function attach_picker_mappings(map, opts)
 
   if opts.query_mappings then
     for key, mapping in pairs(opts.query_mappings) do
-      map({ "i", "n" }, key, function(prompt_bufnr)
-        local query = get_query(prompt_bufnr, false, opts.initial_query)
-        if query then
-          mapping.callback(query)
-        end
-      end)
+      if mapping then
+        map({ "i", "n" }, key, function(prompt_bufnr)
+          local query = get_query(prompt_bufnr, false, opts.initial_query)
+          if query then
+            mapping.callback(query)
+          end
+        end)
+      end
     end
   end
 
   if opts.selection_mappings then
     for key, mapping in pairs(opts.selection_mappings) do
-      map({ "i", "n" }, key, function(prompt_bufnr)
-        local entries = get_selected(prompt_bufnr, mapping.keep_open, mapping.allow_multiple)
-        if entries then
-          local values = opts.selection_value and vim.tbl_map(opts.selection_value, entries) or entries
-          local value = values[1]
-          if value then
-            mapping.callback(value, unpack(values, 2))
+      if mapping then
+        map({ "i", "n" }, key, function(prompt_bufnr)
+          if mapping.quickfix then
+            local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
+            local marked = picker:get_multi_selection()
+            local entries = {}
+            if marked and #marked > 0 then
+              local marked_set = {}
+              for _, entry in ipairs(marked) do
+                marked_set[entry] = true
+              end
+              for index = 1, picker.manager:num_results() do
+                local entry = picker.manager:get_entry(index)
+                if marked_set[entry] then
+                  entries[#entries + 1] = selection_to_entry(entry)
+                end
+              end
+            else
+              for index = 1, picker.manager:num_results() do
+                entries[#entries + 1] = selection_to_entry(picker.manager:get_entry(index))
+              end
+            end
+            require("telescope.actions").close(prompt_bufnr)
+            require("obsidian.preview").cleanup_unshown()
+            vim.schedule(function()
+              ut.send_to_qf(entries, mapping.quickfix)
+            end)
+            return
           end
-        elseif mapping.fallback_to_query then
-          local query = get_query(prompt_bufnr, mapping.keep_open)
-          if query then
-            mapping.callback(query)
+          local entries = get_selected(prompt_bufnr, mapping.keep_open, mapping.allow_multiple)
+          if entries then
+            local values = opts.selection_value and vim.tbl_map(opts.selection_value, entries) or entries
+            local value = values[1]
+            if value then
+              mapping.callback(value, unpack(values, 2))
+            end
+          elseif mapping.fallback_to_query then
+            local query = get_query(prompt_bufnr, mapping.keep_open)
+            if query then
+              mapping.callback(query)
+            end
           end
-        end
-      end)
+        end)
+      end
     end
   end
 
@@ -251,6 +286,9 @@ M.select = function(values, opts, on_choice)
   local previewer
   if opts.preview_item then
     previewer = require("telescope.previewers").new_buffer_previewer {
+      teardown = function()
+        require("obsidian.preview").cleanup_unshown()
+      end,
       define_preview = function(self, entry)
         local spec = opts.preview_item(entry.obsidian_item)
         vim.schedule(function()
