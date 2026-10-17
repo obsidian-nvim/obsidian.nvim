@@ -9,6 +9,7 @@ local current
 ---@field value   any
 ---@field display string
 ---@field search  string
+---@field index   integer
 
 ---@class obsidian.picker.ui.Layout
 ---@field row            integer
@@ -25,6 +26,7 @@ local current
 ---@field preview_item   (fun(value: any): obsidian.ui_select_preview_spec | nil) | nil
 ---@field query_mappings obsidian.PickerMappingTable | nil
 ---@field selection_mappings obsidian.PickerMappingTable | nil
+---@field allow_multiple boolean|?
 
 ---@class obsidian.picker.ui.Picker
 ---@field input_buf      integer
@@ -39,6 +41,7 @@ local current
 ---@field items          obsidian.picker.ui.Item[]
 ---@field matches        obsidian.picker.ui.Item[]
 ---@field selection      integer
+---@field marked         table<integer, boolean>
 ---@field max_results    integer
 ---@field query          string
 ---@field closed         boolean
@@ -69,13 +72,14 @@ end
 ---@param value any
 ---@param opts  obsidian.picker.ui.Opts
 ---@return obsidian.picker.ui.Item
-local function make_item(value, opts)
+local function make_item(value, opts, index)
   local display = opts.format_item and opts.format_item(value) or picker_util.make_display(value)
   display = tostring(display or ""):gsub("[\r\n]+", " ")
   return {
     value = value,
     display = display,
     search = display, -- TODO: ordinal?
+    index = index,
   }
 end
 
@@ -83,9 +87,11 @@ end
 ---@param opts   obsidian.picker.ui.Opts
 ---@return obsidian.picker.ui.Item[]
 local function make_items(values, opts)
-  return vim.tbl_map(function(value)
-    return make_item(value, opts)
-  end, values)
+  local items = {}
+  for index, value in ipairs(values) do
+    items[#items + 1] = make_item(value, opts, index)
+  end
+  return items
 end
 
 ---@param picker obsidian.picker.ui.Picker
@@ -254,7 +260,8 @@ local function render(picker)
   local lines = {}
   for i = 1, visible_count do
     local item = assert(picker.matches[i], "picker match is missing")
-    lines[#lines + 1] = " " .. item.display
+    local marker = picker.marked[item.index] and "✓ " or "  "
+    lines[#lines + 1] = marker .. item.display
   end
   if #lines == 0 then
     lines[1] = "  No results"
@@ -304,6 +311,7 @@ local function close_windows(picker)
       pcall(vim.api.nvim_buf_delete, buf, { force = true })
     end
   end
+  require("obsidian.preview").cleanup_unshown()
   restore_focus(picker)
 end
 
@@ -344,7 +352,14 @@ local function set_mappings(picker)
       picker:move(1)
     end)
     map(buf, "<Tab>", function()
-      picker:move(1)
+      if picker.opts.allow_multiple then
+        picker:toggle_mark()
+      else
+        picker:move(1)
+      end
+    end)
+    map(buf, "<C-space>", function()
+      picker:toggle_mark()
     end)
     nmap(buf, "j", function()
       picker:move(1)
@@ -363,21 +378,21 @@ local function set_mappings(picker)
     end)
 
     for lhs, mapping in pairs(picker.opts.query_mappings or {}) do
-      local query_mapping = mapping
-      map(buf, lhs, function()
-        picker:run_query_mapping(query_mapping)
-      end)
+      if mapping then
+        local query_mapping = mapping
+        map(buf, lhs, function()
+          picker:run_query_mapping(query_mapping)
+        end)
+      end
     end
 
     for lhs, mapping in pairs(picker.opts.selection_mappings or {}) do
-      local selection_mapping = mapping
-      map(buf, lhs, function()
-        local choice = picker:selected()
-        if choice ~= nil then
-          close_windows(picker)
-          selection_mapping.callback(choice)
-        end
-      end)
+      if mapping then
+        local selection_mapping = mapping
+        map(buf, lhs, function()
+          picker:run_selection_mapping(selection_mapping)
+        end)
+      end
     end
   end
 end
@@ -386,6 +401,34 @@ end
 function PickerUi:selected()
   local item = self.matches[self.selection]
   return item and item.value or nil
+end
+
+---@param mapping obsidian.PickerMappingOpts
+function PickerUi:run_selection_mapping(mapping)
+  if self.closed then
+    return
+  end
+  if mapping.quickfix then
+    local choices = self:marked_values()
+    if #choices == 0 then
+      choices = self:filtered_values()
+    end
+    close_windows(self)
+    require("obsidian.picker.util").send_to_qf(choices, mapping.quickfix)
+    return
+  end
+
+  local choices = mapping.allow_multiple and self:marked_values() or {}
+  if #choices == 0 then
+    local choice = self:selected()
+    if choice ~= nil then
+      choices = { choice }
+    end
+  end
+  if #choices > 0 then
+    close_windows(self)
+    mapping.callback(unpack(choices))
+  end
 end
 
 ---@param delta integer
@@ -411,12 +454,44 @@ function PickerUi:confirm()
   if self.closed then
     return
   end
-  local choice = self:selected()
-  if choice == nil then
-    return
+  local choices = self:marked_values()
+  if #choices == 0 then
+    local choice = self:selected()
+    if choice == nil then
+      return
+    end
+    choices = { choice }
   end
   close_windows(self)
-  self.on_choice { choice }
+  self.on_choice(choices)
+end
+
+function PickerUi:marked_values()
+  local choices = {}
+  for _, item in ipairs(self.items) do
+    if self.marked[item.index] then
+      choices[#choices + 1] = item.value
+    end
+  end
+  return choices
+end
+
+function PickerUi:filtered_values()
+  return vim.tbl_map(function(item)
+    return item.value
+  end, self.matches)
+end
+
+function PickerUi:toggle_mark()
+  if self.closed or not self.opts.allow_multiple then
+    return
+  end
+  local item = self.matches[self.selection]
+  if not item then
+    return
+  end
+  self.marked[item.index] = not self.marked[item.index] or nil
+  render(self)
 end
 
 function PickerUi:cancel()
@@ -452,6 +527,7 @@ function PickerUi:set_items(values)
     return
   end
   self.items = make_items(values, self.opts)
+  self.marked = {}
   self.selection = 1
   self.previewed_item = nil
   render(self)
@@ -492,6 +568,7 @@ function M.select(values, opts, on_choice)
     on_choice = on_choice or function() end,
     items = make_items(values, opts),
     matches = {},
+    marked = {},
     selection = 1,
     max_results = math.max(1, opts.max_results or default_max_results),
     query = opts.query or "",

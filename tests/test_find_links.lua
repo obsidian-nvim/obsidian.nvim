@@ -325,7 +325,7 @@ T["find_incoming"]["applies multiple locations in one file from right to left"] 
   ]]
 
   local content = table.concat(lines.lines, "\n")
-  eq(false, lines.has_selection_mappings)
+  eq(true, lines.has_selection_mappings)
   eq(true, content:lower():find("alpha, then alpha.", 1, true) == nil, vim.inspect(lines))
 end
 

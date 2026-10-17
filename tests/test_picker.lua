@@ -98,6 +98,50 @@ T["get lazy-resolves select when it is the first picker call"] = function()
   end)
 end
 
+T["select defaults to safe filename previews without affecting other values"] = function()
+  local options
+  local path = vim.fn.tempname()
+  vim.fn.writefile({ "first", "second", "third" }, path)
+  local entry = { filename = path, lnum = 3, col = 5 }
+  local custom_preview = function()
+    return { buf = 99 }
+  end
+
+  local ok, err = pcall(function()
+    with_picker_stubs({
+      default = {
+        select = function(_, opts)
+          options = opts
+        end,
+      },
+    }, function()
+      picker.get(false)
+      picker.select({ entry }, { prompt = "Notes" })
+      local spec = options.preview_item(entry)
+      eq({ 3, 4 }, spec.pos)
+      eq("third", vim.api.nvim_buf_get_lines(spec.buf, 2, 3, false)[1])
+
+      picker.select({ "primitive" }, {})
+      eq(nil, options.preview_item)
+
+      picker.select({ "primitive", entry }, {})
+      local mixed_spec = options.preview_item "primitive"
+      eq("Preview unavailable: item is not a file", vim.api.nvim_buf_get_lines(mixed_spec.buf, 0, 1, false)[1])
+
+      picker.select({ entry }, { preview_item = custom_preview })
+      eq(custom_preview, options.preview_item)
+
+      picker.select({ entry }, { preview_item = false })
+      eq(false, options.preview_item)
+    end)
+  end)
+
+  vim.fn.delete(path)
+  if not ok then
+    error(err, 0)
+  end
+end
+
 T["get uses configured picker if it becomes available before first picker call"] = function()
   local available = false
   local calls = 0
@@ -210,22 +254,22 @@ T["open_notes opens a single result directly"] = function()
   eq(entry, opened)
 end
 
-T["open_notes sends multiple results to quickfix"] = function()
+T["open_notes delegates multiple results to the shared quickfix exporter"] = function()
   local picker_util = require "obsidian.picker.util"
-  picker_util.open_notes {
-    { filename = "/vault/one.md", lnum = 2, col = 3 },
-    { filename = "/vault/one.md", lnum = 4, col = 5 },
-  }
+  local original_send_to_qf = picker_util.send_to_qf
+  local exported
+  picker_util.send_to_qf = function(entries, opts)
+    exported = { entries = entries, opts = opts }
+  end
 
-  local items = vim.fn.getqflist()
-  eq(2, #items)
-  eq(vim.fs.normalize "/vault/one.md", vim.fs.normalize(vim.fn.bufname(items[1].bufnr)))
-  eq(2, items[1].lnum)
-  eq(3, items[1].col)
-  eq(vim.fs.normalize "/vault/one.md", vim.fs.normalize(vim.fn.bufname(items[2].bufnr)))
-  eq(4, items[2].lnum)
-  eq(5, items[2].col)
-  vim.cmd "cclose"
+  local entries = {
+    { filename = "/vault/one.md", lnum = 2, col = 3 },
+    { filename = "/vault/two.md", lnum = 4, col = 5 },
+  }
+  picker_util.open_notes(entries)
+  picker_util.send_to_qf = original_send_to_qf
+
+  eq(entries, exported.entries)
 end
 
 T["note and tag mappings accept string values"] = function()

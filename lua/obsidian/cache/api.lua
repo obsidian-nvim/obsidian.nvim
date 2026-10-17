@@ -1,51 +1,7 @@
 local fs_util = require "obsidian.util.fs"
 local attachment = require "obsidian.attachment"
 local link = require "obsidian.link"
-local api = require "obsidian.api"
-local picker_util = require "obsidian.picker.util"
-
 local M = {}
-
----@param entry obsidian.PickerEntry
----@return obsidian.ui_select_preview_spec
-local function preview_picker_entry(entry)
-  local cache = require "obsidian.cache"
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.bo[buf].bufhidden = "wipe"
-
-  local data = entry.user_data or {}
-  if data.missing then
-    local references = vim.deepcopy(data.references or {})
-    table.sort(references, function(a, b)
-      local a_path = cache.notes.rel_path(a.filename)
-      local b_path = cache.notes.rel_path(b.filename)
-      if a_path ~= b_path then
-        return a_path < b_path
-      elseif a.lnum ~= b.lnum then
-        return a.lnum < b.lnum
-      else
-        return a.col < b.col
-      end
-    end)
-    local lines = {}
-    for i, reference in ipairs(references) do
-      if i > 1 then
-        lines[#lines + 1] = ""
-      end
-      lines[#lines + 1] = ("%s:%d:%d"):format(cache.notes.rel_path(reference.filename), reference.lnum, reference.col)
-      lines[#lines + 1] = ""
-      lines[#lines + 1] = "```markdown"
-      lines[#lines + 1] = reference.raw
-      lines[#lines + 1] = "```"
-    end
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    vim.bo[buf].filetype = "markdown"
-  elseif entry.filename then
-    return picker_util.preview_path(entry.filename)
-  end
-
-  return { buf = buf }
-end
 
 ---@param target string?
 ---@return boolean
@@ -125,12 +81,26 @@ local function missing_entry_key(target, source_path, target_path, is_attachment
   return normalize_link_target(decoded):lower()
 end
 
+---@class obsidian.cache.FileCandidateData
+---@field attachment? boolean
+---@field missing? boolean
+---@field references? obsidian.NoteCreationReference[]
+---@field target? string
+
+---@class obsidian.cache.FileCandidate
+---@field path string
+---@field label string
+---@field attachment? boolean
+---@field missing? boolean
+---@field references? obsidian.NoteCreationReference[]
+---@field target? string
+
 ---@param is_attachment boolean
 ---@param missing boolean
 ---@param references obsidian.NoteCreationReference[]?
 ---@param target string?
----@return obsidian.PickerEntryUserData
-local function entry_user_data(is_attachment, missing, references, target)
+---@return obsidian.cache.FileCandidateData
+local function file_candidate_data(is_attachment, missing, references, target)
   return {
     attachment = is_attachment,
     missing = missing,
@@ -140,8 +110,9 @@ local function entry_user_data(is_attachment, missing, references, target)
 end
 
 ---@param opts obsidian.PickerFindOpts|?
+---@param on_data fun(candidates: obsidian.cache.FileCandidate[], query: string?)
 ---@return boolean handled
-M.find_files = function(opts)
+local function find_files_data(opts, on_data)
   opts = opts or {}
   local cache = require "obsidian.cache"
   if not cache.is_enabled() or opts.include_non_markdown then
@@ -162,27 +133,23 @@ M.find_files = function(opts)
     end
     local query_lower = query and string.lower(query) or nil
 
-    ---@type obsidian.PickerEntry[]
+    ---@type obsidian.cache.FileCandidate[]
     local entries = {}
     local lookup = {}
-    ---@type table<string, obsidian.PickerEntry>
+    ---@type table<string, obsidian.cache.FileCandidate>
     local missing_entries = {}
     local notes = cache.notes.all()
     local attachments = cache.attachments.all()
 
-    ---@param text string
+    ---@param label string
     ---@param path string
-    ---@param user_data obsidian.PickerEntryUserData
-    ---@return obsidian.PickerEntry?
-    local function add_entry(text, path, user_data)
-      if query_lower and not string.find(string.lower(text), query_lower, 1, true) then
+    ---@param data obsidian.cache.FileCandidateData
+    ---@return obsidian.cache.FileCandidate?
+    local function add_entry(label, path, data)
+      if query_lower and not string.find(string.lower(label), query_lower, 1, true) then
         return
       end
-      local entry = {
-        text = text,
-        filename = path,
-        user_data = user_data,
-      }
+      local entry = vim.tbl_extend("force", {}, data, { label = label, path = path })
       entries[#entries + 1] = entry
       return entry
     end
@@ -200,17 +167,17 @@ M.find_files = function(opts)
     for path, note in pairs(notes) do
       if fs_util.is_subpath(path, dir) then
         local rel_path = cache.notes.rel_path(path):gsub("%.md$", "")
-        local user_data = entry_user_data(false, false)
-        add_entry(rel_path, path, user_data)
+        local data = file_candidate_data(false, false)
+        add_entry(rel_path, path, data)
         for _, alias in ipairs(note.aliases or {}) do
-          add_entry(rel_path .. " | " .. alias, path, user_data)
+          add_entry(rel_path .. " | " .. alias, path, data)
         end
       end
     end
     if show_attachments then
       for path in pairs(attachments) do
         if fs_util.is_subpath(path, dir) then
-          add_entry(cache.attachments.rel_path(path), path, entry_user_data(true, false))
+          add_entry(cache.attachments.rel_path(path), path, file_candidate_data(true, false))
         end
       end
     end
@@ -234,14 +201,18 @@ M.find_files = function(opts)
                 }
                 local entry = missing_entries[missing_key]
                 if entry then
-                  local data = entry.user_data
-                  data.references[#data.references + 1] = reference
+                  entry.references[#entry.references + 1] = reference
                 else
                   local text = normalize_link_target(target)
                   local added = add_entry(
                     text,
                     target_path,
-                    entry_user_data(missing_is_attachment, true, { reference }, vim.uri_decode(target):gsub("\\", "/"))
+                    file_candidate_data(
+                      missing_is_attachment,
+                      true,
+                      { reference },
+                      vim.uri_decode(target):gsub("\\", "/")
+                    )
                   )
                   if added then
                     missing_entries[missing_key] = added
@@ -259,70 +230,28 @@ M.find_files = function(opts)
       pick_query = nil
     end
 
-    local picker = require "obsidian.picker"
-
-    picker.select(entries, {
-      prompt = opts.prompt_title,
-      allow_multiple = true,
-      -- The cache has already applied the initial query case-insensitively.
-      -- Don't pass it through, since some pickers would filter again case-sensitively.
-      query = pick_query,
-      query_mappings = opts.query_mappings,
-      selection_mappings = opts.selection_mappings,
-      preview_item = preview_picker_entry,
-    }, function(items)
-      local paths = vim.tbl_filter(
-        function(path)
-          return path ~= nil
-        end,
-        vim.tbl_map(function(item)
-          return item["filename"]
-        end, items)
-      )
-      if opts.callback then
-        opts.callback(paths)
-        return
-      end
-
-      local selected_notes = {}
-      for _, item in ipairs(items) do
-        local path = item.filename
-        local data = item.user_data or {}
-        local is_missing_attachment = data.attachment and data.missing
-        if path and is_missing_attachment then
-          require("obsidian.actions").add_attachment(nil, {
-            insert = false,
-            bufnr = require("obsidian.picker").state.calling_bufnr,
-            dst = path,
-          })
-        elseif path and data.attachment then
-          vim.ui.open(path)
-        elseif path and data.missing then
-          local choice = api.confirm("How to handle missing reference?", "&Create New Note\n&Open References")
-          if choice == "Create New Note" then
-            local location = data.target or cache.notes.rel_path(path):gsub("%.md$", "")
-            api.create_new_note(location, function(locations)
-              if locations and locations[1] then
-                api.open_note(vim.uri_to_fname(locations[1].uri))
-              end
-            end, {
-              references = data.references,
-              source_path = data.references and data.references[1] and data.references[1].filename or nil,
-            })
-          elseif choice == "Open References" then
-            picker.select(data.references, { prompt = "Unresolved References" }, function(choices)
-              picker_util.open_notes(choices)
-            end)
-          end
-        elseif path then
-          selected_notes[#selected_notes + 1] = item
-        end
-      end
-      picker_util.open_notes(selected_notes)
-    end)
+    on_data(entries, pick_query)
   end)
 
   return true
+end
+
+M.find_files_data = find_files_data
+
+---Compatibility wrapper; picker composition lives in `obsidian.interfaces.notes`.
+---@param opts obsidian.PickerFindOpts|?
+---@return boolean handled
+M.find_files = function(opts)
+  opts = opts or {}
+  local cache = require "obsidian.cache"
+  if not cache.is_enabled() or opts.include_non_markdown then
+    return false
+  end
+  local dir = opts.dir and vim.fs.normalize(tostring(opts.dir)) or vim.fs.normalize(tostring(Obsidian.dir))
+  if not fs_util.is_subpath(dir, tostring(Obsidian.dir)) then
+    return false
+  end
+  return require("obsidian.interfaces.notes").find_files(opts)
 end
 
 return M

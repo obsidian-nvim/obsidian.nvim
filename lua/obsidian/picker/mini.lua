@@ -2,6 +2,7 @@
 local Picker = require "obsidian.picker"
 local Path = require "obsidian.path"
 local ut = require "obsidian.picker.util"
+local picker_util = ut
 local api = require "obsidian.api"
 
 ---@param entry string
@@ -84,11 +85,10 @@ end
 M.select = function(values, opts, on_choice)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()
 
-  opts = opts and opts or {}
+  opts = opts or {}
   on_choice = on_choice or function() end
 
   local mini_pick = require "mini.pick"
-
   local entries = {}
   for _, value in ipairs(values) do
     entries[#entries + 1] = {
@@ -97,19 +97,73 @@ M.select = function(values, opts, on_choice)
     }
   end
 
+  local mappings = {}
+  local quickfix_entries
+  local quickfix_opts
+  local marked_entries
+  for lhs, mapping in pairs(opts.selection_mappings or {}) do
+    if mapping then
+      local name = "obsidian_selection_" .. tostring(lhs):gsub("[^%w]", "_")
+      mappings[name] = {
+        char = lhs,
+        func = function()
+          local matches = mini_pick.get_picker_matches() or {}
+          if mapping.quickfix then
+            local choices = matches.marked and #matches.marked > 0 and matches.marked or matches.all or {}
+            quickfix_entries = vim.tbl_map(function(item)
+              return item.obsidian_item or item
+            end, choices)
+            quickfix_opts = mapping.quickfix
+            return true
+          end
+
+          local choices = mapping.allow_multiple and matches.marked or nil
+          if not choices or #choices == 0 then
+            choices = matches.current and { matches.current } or {}
+          end
+          if #choices == 0 and mapping.fallback_to_query then
+            local query = table.concat(mini_pick.get_picker_query() or {})
+            if query ~= "" then
+              mapping.callback(query)
+            end
+          elseif #choices > 0 then
+            local items = vim.tbl_map(function(item)
+              return item.obsidian_item or item
+            end, choices)
+            mapping.callback(unpack(items))
+          end
+          return not mapping.keep_open
+        end,
+      }
+    end
+  end
+  for lhs, mapping in pairs(opts.query_mappings or {}) do
+    if mapping then
+      local name = "obsidian_query_" .. tostring(lhs):gsub("[^%w]", "_")
+      mappings[name] = {
+        char = lhs,
+        func = function()
+          local query = table.concat(mini_pick.get_picker_query() or {})
+          if query ~= "" then
+            mapping.callback(query)
+          end
+          return not mapping.keep_open
+        end,
+      }
+    end
+  end
+
   local source = {
     name = opts.prompt,
     items = entries,
     choose = function() end,
   }
-
-  local marked_entries
   if opts.allow_multiple then
     source.choose_marked = function(items)
       marked_entries = items
+      return items
     end
   end
-
   if opts.preview_item then
     source.preview = function(buf_id, item)
       local winid = vim.fn.bufwinid(buf_id)
@@ -119,14 +173,30 @@ M.select = function(values, opts, on_choice)
     end
   end
 
-  local entry = mini_pick.start {
-    source = source,
-  }
+  if opts.query and opts.query ~= "" then
+    vim.schedule(function()
+      vim.schedule(function()
+        if mini_pick.is_picker_active() then
+          mini_pick.set_picker_query(vim.split(opts.query, "", { plain = true }))
+        end
+      end)
+    end)
+  end
 
-  local selected = marked_entries or (entry and { entry }) or {}
+  local selected = mini_pick.start {
+    source = source,
+    mappings = mappings,
+  }
+  require("obsidian.preview").cleanup_unshown()
+
+  if quickfix_entries then
+    picker_util.send_to_qf(quickfix_entries, quickfix_opts)
+    return
+  end
+  local choices = marked_entries or (selected and { selected }) or {}
   on_choice(vim.tbl_map(function(item)
     return item.obsidian_item or item
-  end, selected))
+  end, choices))
 end
 
 return M

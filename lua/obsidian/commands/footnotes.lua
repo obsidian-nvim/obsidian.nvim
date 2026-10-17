@@ -1,3 +1,3 @@
 return function()
-  require("obsidian.footnotes").pick()
+  require("obsidian.interfaces.footnotes").open()
 end

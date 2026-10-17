@@ -1,5 +1,7 @@
 local api = require "obsidian.api"
 local picker = require "obsidian.picker"
+local picker_util = require "obsidian.picker.util"
+local interface_util = require "obsidian.interfaces.util"
 
 --- Deduplicate items by filename (multiple LSP clients may return same file)
 ---@param items table[]
@@ -19,6 +21,7 @@ end
 
 ---@param data obsidian.CommandArgs
 return function(data)
+  local context = interface_util.capture_context()
   local open_strategy
   if data.args and string.len(data.args) > 0 then
     local strategy = data.args
@@ -32,24 +35,30 @@ return function(data)
   vim.lsp.buf.definition {
     on_list = function(t)
       local items = dedupe_items(t.items or {})
-      if #items == 1 then
-        api.open_note(items[1], open_strategy)
+      if #items == 0 or not interface_util.context_is_valid(context) then
+        return
+      elseif #items == 1 then
+        vim.api.nvim_win_call(context.winid, function()
+          api.open_note(items[1], open_strategy)
+        end)
       else
         picker.select(items, {
           prompt = "Resolve link",
-          preview_item = function(entry)
-            ---@cast entry obsidian.PickerEntry
-            local filename = entry.filename
-            ---@cast filename -nil
-            local preview = picker.preview_path(filename)
-            preview.pos = { entry.lnum or 1, entry.col and math.max(entry.col - 1, 0) or 0 }
-            return preview
-          end,
+          allow_multiple = true,
+          selection_mappings = {
+            ["<C-q>"] = picker_util.send_to_qf_mapping { title = "Link targets" },
+          },
         }, function(choices)
-          local entry = choices and choices[1]
-          if entry then
-            api.open_note(entry)
+          if not choices or #choices == 0 or not interface_util.context_is_valid(context) then
+            return
           end
+          vim.api.nvim_win_call(context.winid, function()
+            if #choices == 1 then
+              api.open_note(choices[1], open_strategy)
+            else
+              picker_util.send_to_qf(choices, { title = "Link targets" })
+            end
+          end)
         end)
       end
     end,

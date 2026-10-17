@@ -17,9 +17,6 @@ return function(data)
     end, Obsidian.workspaces)
     picker.select(items, {
       prompt = "Obsidian Workspace",
-      preview_item = function(entry)
-        return picker.preview_path(entry.filename)
-      end,
     }, function(choices)
       local entry = choices[1]
       if entry then

@@ -90,6 +90,15 @@ T["normalize"]["should validate link.format"] = function()
   eq(true, tostring(err):match "link.format: expected one of" ~= nil)
 end
 
+T["normalize"]["should validate resolver functions"] = function()
+  local ok, err = pcall(normalize, {
+    resolvers = { url_preview = "not a function" },
+  })
+
+  eq(false, ok)
+  eq(true, tostring(err):match "resolvers.url_preview: expected callable" ~= nil)
+end
+
 T["normalize"]["should validate picker.name during setup"] = function()
   local ok, err = pcall(normalize, {
     picker = {

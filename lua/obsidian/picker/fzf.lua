@@ -96,11 +96,18 @@ local function get_selection_actions(opts, path_only)
   if opts.selection_mappings then
     for key, mapping in pairs(opts.selection_mappings) do
       actions[format_keymap(key)] = function(selected, fzf_opts)
+        if mapping.quickfix then
+          -- fzf-lua reports marked rows or the current row, but not the filtered result set.
+          ut.send_to_qf(get_entries(selected, fzf_opts, false), mapping.quickfix)
+          require("obsidian.preview").cleanup_unshown()
+          return
+        end
         local paths = get_entries(selected, fzf_opts, true)
         if #paths > 1 and not mapping.allow_multiple then
           log.err "This mapping does not allow multiple entries"
           return
         end
+        require("obsidian.preview").cleanup_unshown()
         mapping.callback(unpack(paths))
       end
     end
@@ -118,8 +125,63 @@ local function get_selection_actions(opts, path_only)
   return actions
 end
 
+---@param entries string[]
+---@param query string
+---@param fzf_opts table|?
+---@return string[]|?
+local function get_filtered_entries(entries, query, fzf_opts)
+  if query == "" then
+    return vim.list_extend({}, entries)
+  end
+
+  local command = { (fzf_opts and fzf_opts.fzf_bin) or "fzf", "--filter", query }
+  local all_opts = fzf_opts and fzf_opts.fzf_opts or {}
+  local option_names = {
+    "--delimiter",
+    "--with-nth",
+    "--nth",
+    "--algo",
+    "--case-sensitive",
+    "--ignore-case",
+    "--smart-case",
+    "--no-sort",
+    "--tiebreak",
+    "--scheme",
+    "--exact",
+    "--extended",
+    "--no-extended",
+    "--literal",
+    "--ansi",
+  }
+  for _, name in ipairs(option_names) do
+    local value = all_opts[name]
+    if value == nil then
+      value = name == "--delimiter" and "\t" or name == "--with-nth" and "2.." or nil
+    end
+    if value ~= nil and value ~= false then
+      command[#command + 1] = name
+      if type(value) ~= "boolean" then
+        command[#command + 1] = tostring(value)
+      end
+    end
+  end
+
+  local ok, process = pcall(vim.system, command, { stdin = table.concat(entries, "\n"), text = true })
+  if not ok then
+    log.err("Failed to query filtered fzf results: %s", process)
+    return
+  end
+  local result = process:wait(5000)
+  if not result or (result.code ~= 0 and result.code ~= 1) then
+    log.err "Failed to query filtered fzf results"
+    return
+  end
+
+  return vim.split((result.stdout or ""):gsub("\r", ""), "\n", { plain = true, trimempty = true })
+end
+
 ---@param entry_to_value_map table<string, any>
----@param opts { on_choice: fun(choices: any[])|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+---@param opts { on_choice: fun(choices: any[])|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|?, entries: string[], marked_ids: table<string, boolean>, initial_query: string? }
 local function get_value_actions(entry_to_value_map, opts)
   ---@param allow_multiple boolean|?
   ---@return any[]|?
@@ -160,26 +222,74 @@ local function get_value_actions(entry_to_value_map, opts)
       end
 
       opts.on_choice(values)
+      require("obsidian.preview").cleanup_unshown()
     end,
   }
 
   if opts.selection_mappings then
     for key, mapping in pairs(opts.selection_mappings) do
-      actions[format_keymap(key)] = function(selected)
-        local values = get_values(selected, mapping.allow_multiple)
-        if not values then
-          return
-        end
+      if mapping then
+        actions[format_keymap(key)] = function(selected, fzf_opts)
+          if mapping.quickfix then
+            local marked_ids = vim.deepcopy(opts.marked_ids or {})
+            if (not next(marked_ids)) and selected and #selected > 1 then
+              for _, entry in ipairs(selected) do
+                local id = entry:match "^(%d+)\t"
+                if id then
+                  marked_ids[id] = true
+                end
+              end
+            end
 
-        mapping.callback(unpack(values))
+            local fzf = require "fzf-lua"
+            local query = fzf_opts and fzf_opts.query
+            if type(fzf.get_last_query) == "function" then
+              local last_query = fzf.get_last_query()
+              if type(last_query) == "string" then
+                query = last_query
+              end
+            end
+            query = type(query) == "string" and query or opts.initial_query or ""
+            local filtered = get_filtered_entries(opts.entries or {}, query, fzf_opts) or {}
+            local values, included = {}, {}
+            for _, entry in ipairs(filtered) do
+              local id = entry:match "^(%d+)\t"
+              if not next(marked_ids) or (id and marked_ids[id]) then
+                values[#values + 1] = entry_to_value_map[entry]
+                if id then
+                  included[id] = true
+                end
+              end
+            end
+            for _, entry in ipairs(opts.entries or {}) do
+              local id = entry:match "^(%d+)\t"
+              if id and marked_ids[id] and not included[id] then
+                values[#values + 1] = entry_to_value_map[entry]
+              end
+            end
+            ut.send_to_qf(values, mapping.quickfix)
+            require("obsidian.preview").cleanup_unshown()
+            return
+          end
+          local values = get_values(selected, mapping.allow_multiple)
+          if not values then
+            return
+          end
+
+          require("obsidian.preview").cleanup_unshown()
+          mapping.callback(unpack(values))
+        end
       end
     end
   end
 
   if opts.query_mappings then
     for key, mapping in pairs(opts.query_mappings) do
-      actions[format_keymap(key)] = function(_, fzf_opts)
-        mapping.callback(fzf_opts.query)
+      if mapping then
+        actions[format_keymap(key)] = function(_, fzf_opts)
+          require("obsidian.preview").cleanup_unshown()
+          mapping.callback(fzf_opts.query)
+        end
       end
     end
   end
@@ -227,7 +337,7 @@ local function needs_multi(opts)
   end
 
   for _, mapping in pairs(opts.selection_mappings or {}) do
-    if mapping.allow_multiple then
+    if mapping and mapping.allow_multiple then
       return true
     end
   end
@@ -292,11 +402,59 @@ M.select = function(values, opts, on_choice)
     end
   end
 
+  local marked_ids = {}
+  local has_quickfix_mapping = false
+  for _, mapping in pairs(opts.selection_mappings or {}) do
+    if mapping and mapping.quickfix then
+      has_quickfix_mapping = true
+      break
+    end
+  end
+  local keymap
+  if has_quickfix_mapping then
+    local function transform_binding(action, clear_marks)
+      local transform = require("fzf-lua.shell").stringify_data(function(items)
+        if clear_marks then
+          for id in pairs(marked_ids) do
+            marked_ids[id] = nil
+          end
+        else
+          local entry = items and items[1]
+          local id = type(entry) == "string" and entry:match "^(%d+)\t" or nil
+          if id then
+            marked_ids[id] = not marked_ids[id] or nil
+          end
+        end
+        return action
+      end, {}, "{}")
+      return "transform:" .. transform
+    end
+    keymap = {
+      fzf = {
+        tab = transform_binding "toggle+down",
+        btab = transform_binding "toggle+up",
+        ["ctrl-i"] = transform_binding "toggle+down",
+        ["alt-a"] = transform_binding("toggle-all", true),
+      },
+    }
+  end
   local allow_multiple = needs_multi(opts)
+  local winopts = previewer and builtin_previewer_winopts() or {}
+  local ok, config = pcall(require, "fzf-lua.config")
+  local user_on_close = ok and config.globals.winopts and config.globals.winopts.on_close or nil
+  winopts = vim.tbl_extend("force", {}, winopts or {}, {
+    on_close = function(...)
+      if type(user_on_close) == "function" then
+        pcall(user_on_close, ...)
+      end
+      require("obsidian.preview").cleanup_unshown()
+    end,
+  })
   require("fzf-lua").fzf_exec(entries, {
     query = opts.query,
+    keymap = keymap,
     previewer = previewer,
-    winopts = previewer and builtin_previewer_winopts() or nil,
+    winopts = winopts,
     prompt = format_prompt(ut.build_prompt {
       prompt_title = opts.prompt,
       query_mappings = opts.query_mappings,
@@ -313,6 +471,9 @@ M.select = function(values, opts, on_choice)
       allow_multiple = opts.allow_multiple,
       selection_mappings = opts.selection_mappings,
       query_mappings = opts.query_mappings,
+      entries = entries,
+      marked_ids = marked_ids,
+      initial_query = opts.query,
     }),
   })
 end

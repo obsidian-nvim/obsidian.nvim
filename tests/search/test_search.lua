@@ -32,6 +32,40 @@ _G.res = search.find_links(note, {})
   }, res)
 end
 
+T["find_links"]["does not include footnote references"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "footnotes.md")
+  vim.fn.writefile({ "[[target]] and [^source]", "[^source]: Footnote body" }, filepath)
+  child.lua(string.format(
+    [=[
+    local note = require("obsidian.note").from_file(%q)
+    _G.res = require("obsidian.search").find_links(note)
+  ]=],
+    filepath
+  ))
+
+  eq({ { ["end"] = 9, line = 1, link = "[[target]]", start = 0 } }, child.lua_get [[res]])
+end
+
+T["find_links"]["reads the live buffer when it is loaded"] = function()
+  local root = child.lua_get [[tostring(Obsidian.dir)]]
+  local filepath = vim.fs.joinpath(root, "live.md")
+  vim.fn.writefile({ "[[on-disk]]" }, filepath)
+  child.lua(string.format(
+    [=[
+    vim.cmd.edit(vim.fn.fnameescape(%q))
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "[[unsaved]]" })
+    local note = require("obsidian.note").from_buffer(0)
+    _G.res = require("obsidian.search").find_links(note)
+  ]=],
+    filepath
+  ))
+
+  eq({
+    { ["end"] = 10, line = 1, link = "[[unsaved]]", start = 0 },
+  }, child.lua_get [[res]])
+end
+
 T["find_links"]["should find links in frontmatter"] = function()
   local root = child.lua_get [[tostring(Obsidian.dir)]]
   local filepath = vim.fs.joinpath(root, "frontmatter.md")
