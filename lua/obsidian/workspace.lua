@@ -165,7 +165,11 @@ Workspace.set = function(workspace)
     (dir / options.daily_notes.folder):mkdir { parents = true }
   end
 
-  -- Keep the single-vault cache aligned with the selected workspace.
+  -- Keep process-local derived values and the persisted metadata cache aligned
+  -- with the selected workspace. Buffer values reset on every switch; indexes
+  -- for configured vault roots may remain warm until that root is reconfigured.
+  local same_root = previous_workspace and tostring(previous_workspace.root) == tostring(dir)
+  require("obsidian.cache.volatile").reset_workspace { vaults = same_root == true }
   require("obsidian.cache").setup(options.cache)
 
   -- Setup UI add-ons.

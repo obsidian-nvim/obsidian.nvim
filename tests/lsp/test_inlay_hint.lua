@@ -140,6 +140,43 @@ T["updates hint responses during ordinary insert-mode changes"] = function()
   child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
 end
 
+T["coalesces concurrent requests for the same buffer revision"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["hints.md"] = "plain text",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+
+  local result = h.child_await(
+    child,
+    [[
+      local resolvers = require "obsidian.resolvers"
+      local original = resolvers.resolve
+      local resolver_done
+      local calls, responses = 0, 0
+      resolvers.resolve = function(_, _, finish)
+        calls = calls + 1
+        resolver_done = finish
+      end
+      local handler = require "obsidian.lsp.handlers.inlay_hint"
+      local params = { textDocument = { uri = vim.uri_from_bufnr(0) } }
+      local function response()
+        responses = responses + 1
+        if responses == 2 then
+          resolvers.resolve = original
+          done({ calls = calls, responses = responses })
+        end
+      end
+      handler(params, response)
+      handler(params, response)
+      assert(calls == 1, "duplicate inlay resolver started")
+      resolver_done({})
+    ]],
+    { desc = "coalesced inlay responses" }
+  )
+  eq({ calls = 1, responses = 2 }, result)
+end
+
 T["freezes hint responses at built-in completion openers"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",

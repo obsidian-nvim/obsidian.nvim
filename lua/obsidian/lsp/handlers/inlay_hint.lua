@@ -1,6 +1,9 @@
 local completion = require "obsidian.inlay_hints.completion"
 local hint_cache = require "obsidian.lsp.inlay_hint_cache"
 
+---@type table<string, fun(_: any, hints: lsp.InlayHint[])[]>
+local pending = {}
+
 ---@param bufnr integer
 ---@param changedtick integer
 ---@return boolean
@@ -60,30 +63,55 @@ return function(params, callback)
     end
 
     local cache_generation = require("obsidian.cache").generation()
+    local workspace_root = Obsidian and Obsidian.dir and tostring(Obsidian.dir) or ""
+    local pending_key = table.concat({
+      workspace_root,
+      uri or tostring(bufnr),
+      vim.inspect(range),
+      tostring(changedtick),
+      tostring(cache_generation),
+    }, ":")
+    if pending[pending_key] then
+      pending[pending_key][#pending[pending_key] + 1] = callback
+      return
+    end
+    pending[pending_key] = { callback }
+
+    local function finish(result)
+      local callbacks = pending[pending_key] or {}
+      pending[pending_key] = nil
+      for _, waiting_callback in ipairs(callbacks) do
+        waiting_callback(nil, vim.deepcopy(result))
+      end
+    end
+
     require("obsidian.resolvers").resolve("hints", {
       bufnr = bufnr,
       note = note,
       range = range,
     }, function(hints, err)
       if interrupted() then
-        callback(nil, cached_response())
+        finish(cached_response())
         return
       end
 
       cached = hint_cache.get(uri, bufnr, range)
       if cached then
-        callback(nil, vim.deepcopy(cached))
+        finish(cached)
         return
       end
 
-      if cache_generation ~= require("obsidian.cache").generation() then
-        callback(nil, cached_response())
+      if
+        cache_generation ~= require("obsidian.cache").generation()
+        or workspace_root ~= (Obsidian and Obsidian.dir and tostring(Obsidian.dir) or "")
+      then
+        finish(cached_response())
         return
       end
 
       local result = err and {} or hints or {}
       hint_cache.set(uri, bufnr, range, result)
-      callback(nil, result)
+      finish(result)
     end)
   end)
 end
