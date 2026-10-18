@@ -205,10 +205,10 @@ end
 M.builtin.url_preview = function(ctx, done)
   done {
     lines = {
-      ctx.url,
+      "<" .. ctx.url .. ">",
       "",
       "Customize URL previews with resolvers.url_preview.",
-      "See :Obsidian help resolvers",
+      "See `:Obsidian help resolvers`",
     },
     filetype = "markdown",
   }

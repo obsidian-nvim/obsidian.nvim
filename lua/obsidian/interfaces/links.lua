@@ -104,8 +104,10 @@ local function preview_link(match, context)
       filetype = target_filetype or "markdown"
       pos = { prefix + 1, 0 }
     else
-      local path = target.path and ("\nExpected path: " .. target.path) or ""
-      append(lines, { "Missing link target" .. path })
+      append(lines, { "Missing link target" })
+      if target.path then
+        lines[#lines + 1] = "Expected path: " .. target.path
+      end
       pos = { 4, 0 }
     end
 

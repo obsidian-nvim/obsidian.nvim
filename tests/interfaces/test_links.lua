@@ -68,6 +68,43 @@ T["Links picker excludes footnote references"] = function()
   eq({ "[[target]]" }, child.lua_get [[links_labels]])
 end
 
+T["missing link preview puts expected path on its own line"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["source.md"] = "[[Missing]]\n",
+  })
+
+  local lines = h.child_await(
+    child,
+    [=[
+    local source = tostring(Obsidian.dir / "source.md")
+    vim.cmd.edit(vim.fn.fnameescape(source))
+    local picker = require "obsidian.picker"
+    picker.select = function(items, opts, on_choice)
+      local link = require "obsidian.link"
+      local resolve_target_async = link.resolve_target_async
+      link.resolve_target_async = function(_, _, callback)
+        callback { kind = "missing", path = tostring(Obsidian.dir / "Missing.md") }
+      end
+
+      local ok, spec = pcall(opts.preview_item, items[1])
+      link.resolve_target_async = resolve_target_async
+      assert(ok, spec)
+      local preview_lines = vim.api.nvim_buf_get_lines(spec.buf, 0, -1, false)
+      done(preview_lines)
+      on_choice({ items[1] })
+    end
+    require("obsidian.interfaces.links").pick({}, function() end)
+  ]=],
+    { desc = "missing link preview" }
+  )
+
+  eq("Missing link target", lines[4])
+  eq("Expected path: " .. tostring(child.Obsidian.dir / "Missing.md"), lines[5])
+  for _, line in ipairs(lines) do
+    eq(false, line:find("\n", 1, true) ~= nil)
+  end
+end
+
 T["link target resolution is read-only and distinguishes URL, note, and missing"] = function()
   h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "[[Target#Heading]]\n[[missing]]\n",
