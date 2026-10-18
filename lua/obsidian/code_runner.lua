@@ -61,12 +61,7 @@ M.run = function()
     return
   end
 
-  local end_row = block.closer_range and block.closer_range.start_row or block.range.end_row
-  local source = {}
-  for row = block.opener_range.start_row + 1, end_row - 1 do
-    source[#source + 1] = document.lines[row + 1]
-  end
-  local code = table.concat(source, "\n")
+  local code = table.concat(document:fenced_code_lines(block), "\n")
 
   local ok, err = pcall(function()
     if builtin_runner and not custom_runner then

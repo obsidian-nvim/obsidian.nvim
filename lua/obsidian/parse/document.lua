@@ -49,6 +49,8 @@ M.COMMENTS = { html_comment = true, obsidian_comment = true }
 ---@field opener_range obsidian.Range?
 ---@field closer_range obsidian.Range?
 ---@field body_range obsidian.Range?
+---@field _containers obsidian.parse.document.Container[]?
+---@field _fence_indent integer?
 
 ---@class obsidian.parse.Document
 ---@field lines string[]
@@ -696,6 +698,28 @@ local function ends_after(region, position)
   return Pos.compare(Range.end_pos(region.range), position) > 0
 end
 
+--- Return a fenced code block's contents with Markdown container prefixes removed.
+---@param region obsidian.parse.document.Region
+---@return string[]
+Document.fenced_code_lines = function(self, region)
+  assert(region.kind == "fenced_code" and region.opener_range, "fenced code block required")
+  local containers = assert(region._containers, "fenced code containers are missing")
+  local indent = assert(region._fence_indent, "fenced code indent is missing")
+  local end_row = region.closer_range and region.closer_range.start_row or region.range.end_row
+  local lines = {}
+  for row = region.opener_range.start_row + 1, end_row - 1 do
+    local line = assert(self.lines[row + 1], "code block line is missing")
+    local index = continue_container(line, containers, false)
+    if index == nil then
+      lines[#lines + 1] = ""
+    else
+      index = consume_up_to(line, index, indent)
+      lines[#lines + 1] = line:sub(index)
+    end
+  end
+  return lines
+end
+
 ---@param lines string[]
 ---@return obsidian.parse.Document
 M.parse = function(lines)
@@ -854,6 +878,8 @@ M.parse = function(lines)
             termination = termination,
             opener_range = opener,
             closer_range = closer,
+            _containers = containers,
+            _fence_indent = indent,
           }
           paragraph_open = false
           row = close_row and close_row + 1 or scan

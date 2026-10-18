@@ -65,6 +65,50 @@ T["passes parsed code and context to custom runners"] = function()
   vim.system = original_system
 end
 
+T["strips Markdown container prefixes from code"] = function()
+  vim.g.obsidian_code_runner_test = nil
+  local original_system = vim.system
+  local received
+  CodeRunner.add("nested-test-runner", function(_, code)
+    received = code
+    return { cmd = { "test-command" } }
+  end)
+  vim.system = function(_, _, callback)
+    callback { code = 0, stdout = "", stderr = "" }
+  end
+
+  with_buffer({
+    "> ```lua",
+    "> vim.g.obsidian_code_runner_test = 'quote'",
+    "> ```",
+    "",
+    "- outer",
+    "  - ~~~nested-test-runner",
+    "    print('list')",
+    "    ~~~",
+    "",
+    "1. item",
+    "    > ~~~nested-test-runner",
+    "    > print('continued list quote')",
+    "    > ~~~",
+  }, function()
+    vim.api.nvim_win_set_cursor(0, { 2, 0 })
+    CodeRunner.run()
+    eq(vim.g.obsidian_code_runner_test, "quote")
+
+    vim.api.nvim_win_set_cursor(0, { 7, 0 })
+    CodeRunner.run()
+    eq(received, "print('list')")
+
+    vim.api.nvim_win_set_cursor(0, { 11, 0 })
+    CodeRunner.run()
+    eq(received, "print('continued list quote')")
+  end)
+
+  vim.system = original_system
+  vim.g.obsidian_code_runner_test = nil
+end
+
 T["ignores unsupported blocks and registers the docs keymap"] = function()
   vim.g.obsidian_code_runner_test = nil
   with_buffer({ "```bash", "echo no", "```" }, function(buf)
