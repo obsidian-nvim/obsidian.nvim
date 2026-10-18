@@ -121,27 +121,34 @@ local function open_note(location, callback, opts)
 
   search.resolve_note_async(location, function(notes)
     -- TODO: integrate into resolve_note?
+    local resolved_notes = notes
     if block_link then
-      notes = vim.tbl_filter(function(note)
+      resolved_notes = vim.tbl_filter(function(note)
         return not vim.tbl_isempty(note.blocks or {}) and note:resolve_block(block_link) ~= nil
-      end, notes)
+      end, resolved_notes)
     end
 
     if anchor_link then
-      notes = vim.tbl_filter(function(note)
+      resolved_notes = vim.tbl_filter(function(note)
         return not vim.tbl_isempty(note.anchor_links or {}) and note:resolve_anchor_link(anchor_link) ~= nil
-      end, notes)
+      end, resolved_notes)
     end
 
-    if vim.tbl_isempty(notes) then
+    if vim.tbl_isempty(resolved_notes) and not vim.tbl_isempty(notes) then
+      log.warn("Link target '%s' does not exist in note '%s'", block_link or anchor_link, location)
+      resolved_notes = notes
+      block_link, anchor_link = nil, nil
+    end
+
+    if vim.tbl_isempty(resolved_notes) then
       opts.anchor = raw_anchor ~= nil and link_parser.format("", raw_anchor) or nil
       opts.block = raw_block ~= nil and link_parser.format("", nil, raw_block) or nil
       create_new_note(location, callback, opts)
-    elseif #notes == 1 then
-      callback { notes[1]:_location { block = block_link, anchor = anchor_link } }
-    elseif #notes > 1 then
+    elseif #resolved_notes == 1 then
+      callback { resolved_notes[1]:_location { block = block_link, anchor = anchor_link } }
+    elseif #resolved_notes > 1 then
       local locations = {}
-      for _, note in ipairs(notes) do
+      for _, note in ipairs(resolved_notes) do
         locations[#locations + 1] = note:_location { block = block_link, anchor = anchor_link }
       end
       callback(locations)
