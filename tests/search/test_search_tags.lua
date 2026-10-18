@@ -289,6 +289,76 @@ T["search and cache reuse YAML scalar occurrences"] = function()
   eq(8, result.locations[2].range.end_col)
 end
 
+T["reuses the lazy tag index across filtered queries"] = function()
+  local path = vim.fs.joinpath(child.lua_get [[tostring(Obsidian.dir)]], "test.md")
+  h.write("#Book #Movie", path)
+  local result = h.child_await(
+    child,
+    [[
+      local search = require "obsidian.search"
+      local original = search.search_async
+      local scans = 0
+      search.search_async = function(...)
+        scans = scans + 1
+        return original(...)
+      end
+      search.find_tags_async("book", function(first)
+        search.find_tags_async("movie", function(second)
+          search.search_async = original
+          done({ scans = scans, first = #first, second = #second })
+        end)
+      end)
+    ]],
+    { desc = "reused tag index" }
+  )
+  eq({ scans = 1, first = 1, second = 1 }, result)
+end
+
+T["incrementally refreshes tags after watched file changes"] = function()
+  local path = vim.fs.joinpath(child.lua_get [[tostring(Obsidian.dir)]], "test.md")
+  h.write("#Old", path)
+  local result = h.child_await(
+    child,
+    ([=[
+      local search = require "obsidian.search"
+      search.find_tags_async("old", function(first)
+        vim.fn.writefile({ "#New" }, %q)
+        require("obsidian.lsp.watchfiles").handle { {
+          path = %q,
+          type = vim.lsp.protocol.FileChangeType.Changed,
+        } }
+        search.find_tags_async("new", function(second)
+          done({ first = #first, second = #second })
+        end)
+      end)
+    ]=]):format(path, path),
+    { desc = "incrementally refreshed tag index" }
+  )
+  eq({ first = 1, second = 1 }, result)
+end
+
+T["overlays unsaved buffer tags"] = function()
+  local path = vim.fs.joinpath(child.lua_get [[tostring(Obsidian.dir)]], "test.md")
+  h.write("#Disk", path)
+  local result = h.child_await(
+    child,
+    ([=[
+      local search = require "obsidian.search"
+      search.find_tags_async("disk", function(first)
+        vim.cmd("edit " .. vim.fn.fnameescape(%q))
+        vim.api.nvim_buf_set_lines(0, 0, -1, false, { "#Memory" })
+        search.find_tags_async("memory", function(memory)
+          search.find_tags_async("disk", function(disk)
+            done({ first = #first, memory = #memory, disk = #disk })
+          end)
+        end)
+      end)
+    ]=]):format(path),
+    { desc = "unsaved tag overlay" }
+  )
+  eq({ first = 1, memory = 1, disk = 0 }, result)
+end
+
 T["invokes its callback exactly once when search fails"] = function()
   local count = h.child_await(
     child,

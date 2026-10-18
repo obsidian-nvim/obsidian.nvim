@@ -7,8 +7,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 
 local M = {}
-local symbols_cache = {}
-local symbols_cache_token
+local symbol_index
 
 ---@class obsidian.LinkSuggestion
 ---@field range obsidian.Range
@@ -79,6 +78,33 @@ local function path_in_dir(path, dir)
   return path == dir or vim.startswith(path, dir .. "/")
 end
 
+symbol_index = require("obsidian.cache.volatile").vault_index {
+  version = function(context)
+    return context.generation
+  end,
+  build = function(context, done)
+    local cache = require "obsidian.cache"
+    local ok, rows = pcall(cache.notes.all)
+    if not ok then
+      done {}
+      return
+    end
+
+    ---@type table<string, obsidian.LinkSuggestionSymbol>
+    local by_text = {}
+    for path, row in pairs(rows) do
+      path = vim.fs.normalize(path)
+      if not context.workspace or api.path_is_note(path, context.workspace) then
+        add_symbol(by_text, basename(path), path)
+        for _, alias in ipairs(row.aliases or {}) do
+          add_symbol(by_text, alias, path)
+        end
+      end
+    end
+    done(vim.tbl_values(by_text))
+  end,
+}
+
 ---Build mention symbols from notes in the requested workspace.
 ---@param path string
 ---@param opts { include_current: boolean?, dir: string|obsidian.Path|? }?
@@ -86,60 +112,47 @@ end
 function M.symbols(path, opts)
   opts = opts or {}
   local cache = require "obsidian.cache"
-  if not cache.is_enabled() then
+  if not cache.is_enabled() or not cache.is_ready() then
     return {}
   end
 
   local dir = opts.dir and tostring(opts.dir) or nil
   local current_path = vim.fs.normalize(path) or nil
-  local cache_token = tostring(Obsidian.dir) .. ":" .. tostring(cache.generation())
-  if cache_token ~= symbols_cache_token then
-    symbols_cache = {}
-    symbols_cache_token = cache_token
-  end
-  local key = vim.inspect { current_path = current_path, dir = dir, include_current = opts.include_current }
-  if symbols_cache[key] then
-    return symbols_cache[key]
+  local all_symbols
+  symbol_index:get(tostring(Obsidian.dir), {
+    generation = cache.generation(),
+    workspace = api.find_workspace(path),
+  }, function(value)
+    all_symbols = value
+  end)
+  if not all_symbols then
+    return {}
   end
 
-  local workspace = api.find_workspace(path)
-  local rows = {}
-  local ok, cached_rows = pcall(cache.notes.all)
-  if ok then
-    for p, row in pairs(cached_rows) do
-      p = vim.fs.normalize(p)
-      if path_in_dir(p, dir) and (not workspace or api.path_is_note(p, workspace)) then
-        rows[p] = row
+  local symbols = {}
+  for _, symbol in ipairs(all_symbols) do
+    local target_paths = {}
+    for _, target_path in ipairs(symbol.target_paths) do
+      if path_in_dir(target_path, dir) and (opts.include_current or target_path ~= current_path) then
+        target_paths[#target_paths + 1] = target_path
       end
+    end
+    if #target_paths > 0 then
+      table.sort(target_paths)
+      symbols[#symbols + 1] = {
+        text = symbol.text,
+        text_lower = symbol.text_lower,
+        target_paths = target_paths,
+      }
     end
   end
 
-  ---@type table<string, obsidian.LinkSuggestionSymbol>
-  local symbols_by_text = {}
-
-  for p, row in pairs(rows) do
-    p = vim.fs.normalize(p)
-    if opts.include_current or p ~= current_path then
-      local name = basename(p)
-      add_symbol(symbols_by_text, name, p)
-      for _, alias in ipairs(row.aliases or {}) do
-        add_symbol(symbols_by_text, alias, p)
-      end
-    end
-  end
-
-  local symbols = vim.tbl_values(symbols_by_text)
-  for _, symbol in ipairs(symbols) do
-    table.sort(symbol.target_paths)
-  end
   table.sort(symbols, function(a, b)
     if #a.text ~= #b.text then
       return #a.text > #b.text
     end
     return a.text_lower < b.text_lower
   end)
-
-  symbols_cache[key] = symbols
   return symbols
 end
 

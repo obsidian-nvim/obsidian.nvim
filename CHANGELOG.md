@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `:Obsidian properties [KEY] [VALUE]`, a three-stage picker over frontmatter properties (keys, then values, then matching notes), mirroring `:Obsidian tags`.
+- `search.find_blocks_async()` for finding existing and unlabeled block-reference candidates.
 - Code action `link_suggestions` ("List unlinked outgoing mentions") - select an unlinked target note, then select locations in the current buffer to convert them to links. Scanning skips existing links, code blocks, inline code, frontmatter, tags, and URLs. Requires cache.
 - Code action `backlink_suggestions` ("List unlinked incoming mentions") - find unlinked plain-text mentions of the current note (by title or alias) across the vault and convert them to links. Requires cache.
 
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Don't inject inlay hints when an completion is active.
 - Cache inlay hints in memory for performance.
+- Build vault-wide block and tag indexes lazily in memory, update them after file changes, and share buffer-aware cache lifecycle handling across parsed documents, inlay hints, and link-suggestion symbols.
 
 ### Fixed
 

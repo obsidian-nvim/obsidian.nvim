@@ -37,6 +37,28 @@ Attachment content is not stored in the metadata cache.
 
 The cache is derived data. You can delete it at any time; `obsidian.nvim` will rebuild it on the next startup or file change.
 
+## Volatile indexes
+
+Some derived data is intentionally kept in memory and is never written to the
+configured backend. These values are built only when the corresponding feature
+is first used:
+
+- vault-wide block candidates
+- source-aware tag occurrences and completion counts
+- per-buffer parsed documents and inlay-hint responses
+- note-name and alias lookup symbols used by link suggestions
+
+Vault indexes react to normalized create, change, delete, and rename events.
+Loaded modified buffers overlay their on-disk entries where applicable.
+Per-buffer values use the buffer's changed tick and are removed when the buffer
+is detached. Workspace and relevant configuration changes invalidate these
+values automatically.
+
+The `memory` backend is different: it is an in-memory implementation of the
+persistent metadata store and still performs that store's startup scan.
+Volatile indexes do not perform work at startup and cannot be replaced with a
+custom backend.
+
 ## Quick Switch Options
 
 By default quick switch only shows existing notes, not attachments. With the cache enabled you can opt into missing links and attachments:

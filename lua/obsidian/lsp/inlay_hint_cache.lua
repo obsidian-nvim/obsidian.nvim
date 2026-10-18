@@ -1,12 +1,31 @@
+local volatile = require "obsidian.cache.volatile"
+
 local M = {}
-local responses = {}
+local values = volatile.buffer_values { max_entries_per_buffer = 16 }
 
 ---@param uri string?
----@param bufnr integer
 ---@param range lsp.Range|?
 ---@return string
-local function response_key(uri, bufnr, range)
-  return (uri or tostring(bufnr)) .. ":" .. vim.inspect(range)
+local function response_key(uri, range)
+  return (uri or "buffer") .. ":" .. vim.inspect(range)
+end
+
+---@return string
+local function epoch()
+  local root = Obsidian and Obsidian.dir and tostring(Obsidian.dir) or ""
+  return root .. ":" .. tostring(require("obsidian.cache").generation())
+end
+
+---@param bufnr integer
+---@return table
+local function revision(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return { valid = false }
+  end
+  return {
+    changedtick = vim.api.nvim_buf_get_changedtick(bufnr),
+    name = vim.api.nvim_buf_get_name(bufnr),
+  }
 end
 
 ---@param uri string?
@@ -15,23 +34,10 @@ end
 ---@param opts { allow_stale: boolean? }|?
 ---@return lsp.InlayHint[]?
 function M.get(uri, bufnr, range, opts)
-  opts = opts or {}
-  local key = response_key(uri, bufnr, range)
-  local entry = responses[key]
-  if not entry then
-    return nil
-  end
-  if entry.generation ~= require("obsidian.cache").generation() then
-    responses[key] = nil
-    return nil
-  end
-  if
-    not opts.allow_stale
-    and (not vim.api.nvim_buf_is_valid(bufnr) or entry.changedtick ~= vim.api.nvim_buf_get_changedtick(bufnr))
-  then
-    return nil
-  end
-  return entry.hints
+  return values:get(bufnr, response_key(uri, range), {
+    epoch = epoch(),
+    revision = revision(bufnr),
+  }, opts)
 end
 
 ---@param uri string?
@@ -39,31 +45,15 @@ end
 ---@param range lsp.Range|?
 ---@param hints lsp.InlayHint[]
 function M.set(uri, bufnr, range, hints)
-  responses[response_key(uri, bufnr, range)] = {
-    bufnr = bufnr,
-    changedtick = vim.api.nvim_buf_get_changedtick(bufnr),
-    generation = require("obsidian.cache").generation(),
-    hints = vim.deepcopy(hints),
-  }
+  values:set(bufnr, response_key(uri, range), {
+    epoch = epoch(),
+    revision = revision(bufnr),
+  }, vim.deepcopy(hints))
 end
 
 ---@param bufnr integer|?
 function M.invalidate(bufnr)
-  if bufnr == 0 then
-    bufnr = vim.api.nvim_get_current_buf()
-  end
-  if bufnr then
-    local name = vim.api.nvim_buf_get_name(bufnr)
-    local uri = name ~= "" and vim.uri_from_fname(name) or nil
-    local prefix = uri and (uri .. ":") or nil
-    for key, entry in pairs(responses) do
-      if entry.bufnr == bufnr or (prefix and vim.startswith(key, prefix)) then
-        responses[key] = nil
-      end
-    end
-  else
-    responses = {}
-  end
+  values:invalidate(bufnr)
 end
 
 return M
