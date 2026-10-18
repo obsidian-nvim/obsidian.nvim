@@ -22,6 +22,52 @@ T["follow wiki links"] = function()
   eq({ 1, 0 }, child.api.nvim_win_get_cursor(0))
 end
 
+T["follow wiki links with missing headings without creating a note"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[target#missing-heading]]",
+    ["target.md"] = "# Existing heading",
+  })
+  child.cmd("edit " .. files["referencer.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua [[
+    local obsidian = require "obsidian"
+    _G.definition_warning = nil
+    obsidian.log.warn = function(msg, ...)
+      _G.definition_warning = string.format(msg, ...)
+    end
+    obsidian.api.confirm = function()
+      error "should not prompt to create an existing note"
+    end
+    vim.lsp.buf.definition()
+  ]]
+  h.child_wait_for_buf_name(child, files["target.md"])
+  eq({ 1, 0 }, child.api.nvim_win_get_cursor(0))
+  eq("Link target '#missing-heading' does not exist in note 'target'", child.lua_get "_G.definition_warning")
+end
+
+T["follow wiki links with missing block IDs without creating a note"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[target#^missing-block]]",
+    ["target.md"] = "Existing paragraph",
+  })
+  child.cmd("edit " .. files["referencer.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua [[
+    local obsidian = require "obsidian"
+    _G.definition_warning = nil
+    obsidian.log.warn = function(msg, ...)
+      _G.definition_warning = string.format(msg, ...)
+    end
+    obsidian.api.confirm = function()
+      error "should not prompt to create an existing note"
+    end
+    vim.lsp.buf.definition()
+  ]]
+  h.child_wait_for_buf_name(child, files["target.md"])
+  eq({ 1, 0 }, child.api.nvim_win_get_cursor(0))
+  eq("Link target '^missing-block' does not exist in note 'target'", child.lua_get "_G.definition_warning")
+end
+
 T["follow CommonMark URI autolinks"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = "See <https://example.org/path>.",
