@@ -37,7 +37,7 @@ local function highlights()
   for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(preview_buf, ns, 0, -1, { details = true })) do
     local details = mark[4]
     result.line = result.line or details.line_hl_group == "CursorLine"
-    result.word = result.word or details.hl_group == "IncSearch"
+    result.word = result.word or details.hl_group == "Search"
   end
   return result
 end
@@ -53,7 +53,7 @@ return {
   eq({ "one" }, initial.values)
   eq(child.lua_get "preview_buf", initial.shown_buf)
   eq({ 2, 0 }, initial.cursor)
-  eq({ line = true, word = true }, initial.highlights)
+  eq({ line = false, word = true }, initial.highlights)
 
   local moved = child.lua [[
 picker:move(1)
@@ -77,6 +77,56 @@ return {
   ]]
   eq(true, closed.preview_buffer_valid)
   eq(false, closed.preview_window_valid)
+end
+
+T["highlights preview only when the entry has a location"] = function()
+  local result = child.lua [[
+local Ui = require "obsidian.picker.ui"
+local buf = vim.api.nvim_create_buf(false, true)
+vim.bo[buf].bufhidden = "hide"
+vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "first line", "second line" })
+local picker = Ui.select({ "filename", "line", "column", "range" }, {
+  preview_item = function(value)
+    if value == "line" then
+      return { buf = buf, pos = { 2 } }
+    elseif value == "column" then
+      return { buf = buf, pos = { 1, 0 } }
+    elseif value == "range" then
+      return { buf = buf, pos = { 2, 1 }, pos_end = { 2, 6 } }
+    end
+    return { buf = buf }
+  end,
+})
+local ns = vim.api.nvim_get_namespaces()["obsidian.picker.preview"]
+local function marks()
+  return vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, { details = true })
+end
+local filename = marks()
+picker:move(1)
+local line = marks()
+picker:move(1)
+local column = marks()
+picker:move(1)
+local range = marks()
+picker:cancel()
+return { filename = filename, line = line, column = column, range = range }
+  ]]
+
+  eq({}, result.filename)
+  eq(1, #result.line)
+  eq(1, result.line[1][2])
+  eq("CursorLine", result.line[1][4].line_hl_group)
+  eq(1, #result.column)
+  eq(0, result.column[1][2])
+  eq(0, result.column[1][3])
+  eq(1, result.column[1][4].end_col)
+  eq("Search", result.column[1][4].hl_group)
+  eq(nil, result.column[1][4].line_hl_group)
+  eq(1, #result.range)
+  eq(1, result.range[1][2])
+  eq(1, result.range[1][3])
+  eq(6, result.range[1][4].end_col)
+  eq("Search", result.range[1][4].hl_group)
 end
 
 T["runs query mappings without installing selection mappings"] = function()

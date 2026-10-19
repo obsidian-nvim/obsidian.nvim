@@ -168,7 +168,7 @@ M.pick = function(bufnr)
     vim.bo[buf].bufhidden = "wipe"
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, note_lines)
     vim.bo[buf].filetype = "markdown"
-    return { buf = buf, pos = { def.lnum, 0 } }
+    return { buf = buf, pos = { def.lnum } }
   end
 
   ---@param def obsidian.footnote.Definition

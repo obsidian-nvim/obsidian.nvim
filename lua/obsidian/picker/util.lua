@@ -86,15 +86,15 @@ M.show_preview_spec = function(winid, spec)
       vim.cmd "normal! zt"
     end)
 
-    pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, 0, {
-      line_hl_group = "CursorLine",
-    })
-    if spec.pos_end then
+    if spec.pos_end or spec.pos[2] ~= nil then
       pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, col, {
-        end_row = math.max(spec.pos_end[1] or lnum, 1) - 1,
-        end_col = math.max(spec.pos_end[2] or col + 1, col + 1),
-        hl_group = "IncSearch",
-        priority = 200,
+        end_row = spec.pos_end and math.max(spec.pos_end[1] or lnum, 1) - 1 or lnum - 1,
+        end_col = spec.pos_end and math.max(spec.pos_end[2] or col + 1, 0) or col + 1,
+        hl_group = "Search",
+      })
+    else
+      pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, 0, {
+        line_hl_group = "CursorLine",
       })
     end
   end

@@ -4,6 +4,7 @@ local picker = require "obsidian.picker"
 local picker_util = require "obsidian.picker.util"
 local Query = require "obsidian.search.query"
 local api = require "obsidian.api"
+local util = require "obsidian.util"
 
 local M = {}
 
@@ -183,7 +184,7 @@ local function preview_file(bookmark)
   local bookmark_path = entry.filename
   ---@cast bookmark_path -nil
   local preview = picker.preview_path(bookmark_path)
-  preview.pos = entry.lnum and { entry.lnum, 0 } or nil
+  preview.pos = entry.lnum and { entry.lnum, entry.col and math.max(entry.col - 1, 0) or nil } or nil
   return preview
 end
 

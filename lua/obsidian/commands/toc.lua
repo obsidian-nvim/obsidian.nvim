@@ -11,7 +11,9 @@ return function()
           local filename = entry.filename
           ---@cast filename -nil
           local preview = picker.preview_path(filename)
-          preview.pos = { entry.lnum or 1, entry.col and math.max(entry.col - 1, 0) or 0 }
+          if entry.lnum then
+            preview.pos = { entry.lnum, entry.col and math.max(entry.col - 1, 0) or nil }
+          end
           return preview
         end,
       }, function(items)
