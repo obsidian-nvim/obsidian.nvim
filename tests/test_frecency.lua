@@ -84,7 +84,7 @@ T["frecency"]["tracks note buffer entry only when enabled"] = function()
   ]=]):format(disabled_path))
   h.child_wait(child, [[return _G.frecency_bufenter_checked == true]])
 
-  eq(nil, child.lua_get [[ package.loaded["obsidian.frecency"] ]])
+  child.lua [[ assert(package.loaded["obsidian.frecency"] == nil) ]]
 
   child.lua [[ Obsidian.opts.search.sort_by = "frecency" ]]
   child.lua(([=[vim.cmd.edit(vim.fn.fnameescape(%q))]=]):format(enabled_path))
