@@ -259,15 +259,13 @@ function M.sort_paths(paths, vault, reversed)
   return paths
 end
 
----@param path string
----@param vault string
+---@type fun(path: string, vault: string): obsidian.frecency.Store
 M._load_store = load_store
 
----@param store obsidian.frecency.Store
+---@type fun(store: obsidian.frecency.Store)
 M._flush = flush
 
----@param visits integer[]
----@param now integer
+---@type fun(visits: integer[], now: integer): integer, integer
 M._score_visits = score_visits
 
 vim.api.nvim_create_autocmd("VimLeavePre", {
