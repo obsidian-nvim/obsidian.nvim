@@ -109,6 +109,9 @@ LSP `textDocument/didSave` notifications refresh saved notes immediately. Plugin
 The cache follows your existing `file.ignore_filters` setting. Vault
 configuration files and Git internals are excluded.
 
+Frecency visit history is stored separately from the optional metadata cache,
+so `search.sort_by = "frecency"` works whether this cache is enabled or not.
+
 To force a full rescan after external changes or suspected stale data, run:
 
 ```vim

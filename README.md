@@ -261,6 +261,10 @@ require("obsidian").setup {
 
 To configure obsidian.nvim, pass your custom options that are _different_ from [default options](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/config/default.lua) to `require"obsidian".setup()`.
 
+### Search result ranking
+
+Set `search.sort_by = "frecency"` to rank note results by recent and frequent visits. Visit history persists independently from metadata cache. See [Search](https://obsidian-nvim.github.io/obsidian.nvim/Search#sort-by) for cooldown, retention, and sorting details.
+
 ## 🤝 Contributing
 
 Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/CONTRIBUTING.md) guide before submitting a pull request.

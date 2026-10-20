@@ -17,6 +17,7 @@ M.SortBy = {
   modified = "modified",
   accessed = "accessed",
   created = "created",
+  frecency = "frecency",
 }
 
 ---@enum obsidian.config.Picker
