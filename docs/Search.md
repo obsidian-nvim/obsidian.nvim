@@ -15,7 +15,7 @@ tags:
 
 `opts.search.sort_by` controls how file results are sorted. Valid values are `"modified"` (default), `"created"`, `"accessed"`, `"frecency"`, and `"path"`. Set to `false` to disable sorting entirely, which can improve performance in large vaults.
 
-`"frecency"` ranks notes by accumulated visits, weighting recent visits more heavily. Visits are recorded when a note buffer is entered, with a 30-second per-note cooldown. Visit history is persisted separately from the optional metadata cache, retained for 90 days, and capped at 100 visits per note. Higher scores sort first when `sort_reversed` is `true` (the default). Picker fuzzy matching can still reorder candidates as you type.
+`"frecency"` ranks notes by accumulated visits, weighting recent visits more heavily. While this option is selected, visits are recorded when a note buffer is entered, with a 30-second per-note cooldown. Visit history is persisted separately from the optional metadata cache, retained for 90 days, and capped at 100 visits per note. Higher scores sort first when `sort_reversed` is `true` (the default). Picker fuzzy matching can still reorder candidates as you type.
 
 ## Sort Reversed
 

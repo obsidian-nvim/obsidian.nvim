@@ -41,6 +41,27 @@ local function store_path(vault)
   return vim.fs.joinpath(root, "frecency.json")
 end
 
+---@param visits integer[]
+---@param now integer
+---@param new_visit integer?
+---@return integer[]
+local function retain_visits(visits, now, new_visit)
+  local retained = {}
+  local cutoff = now - HISTORY_DAYS * DAY
+  for _, timestamp in ipairs(visits) do
+    if type(timestamp) == "number" and timestamp % 1 == 0 and timestamp >= cutoff then
+      retained[#retained + 1] = timestamp
+    end
+  end
+  if new_visit ~= nil then
+    retained[#retained + 1] = new_visit
+  end
+  while #retained > MAX_VISITS do
+    table.remove(retained, 1)
+  end
+  return retained
+end
+
 ---@param path string
 ---@param vault string
 ---@return obsidian.frecency.Store
@@ -58,22 +79,14 @@ local function load_store(path, vault)
       and decoded.vault == vault
       and type(decoded.visits) == "table"
     then
-      local cutoff = os.time() - HISTORY_DAYS * DAY
+      local now = os.time()
       for note_path, timestamps in pairs(decoded.visits) do
         if
           type(note_path) == "string"
           and fs_util.is_subpath(normalize_path(note_path), vault)
           and type(timestamps) == "table"
         then
-          local retained = {}
-          for _, timestamp in ipairs(timestamps) do
-            if type(timestamp) == "number" and timestamp % 1 == 0 and timestamp >= cutoff then
-              retained[#retained + 1] = timestamp
-            end
-          end
-          while #retained > MAX_VISITS do
-            table.remove(retained, 1)
-          end
+          local retained = retain_visits(timestamps, now)
           if #retained > 0 then
             visits[normalize_path(note_path)] = retained
           end
@@ -181,16 +194,7 @@ function M.record(path, vault, now)
     return false
   end
 
-  local retained = {}
-  for _, timestamp in ipairs(visits) do
-    if now - timestamp < HISTORY_DAYS * DAY then
-      retained[#retained + 1] = timestamp
-    end
-  end
-  retained[#retained + 1] = now
-  while #retained > MAX_VISITS do
-    table.remove(retained, 1)
-  end
+  local retained = retain_visits(visits, now, now)
 
   store.visits[path] = retained
   store.dirty = true

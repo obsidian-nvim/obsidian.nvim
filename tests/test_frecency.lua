@@ -70,17 +70,30 @@ T["frecency"]["persists history independently from metadata cache"] = function()
   eq(store.visits[vault_path], loaded.visits[vault_path])
 end
 
-T["frecency"]["tracks note buffer entry"] = function()
-  h.child_mock_vault_contents(child, { ["Visited.md"] = "# Visited" })
-  local path = child.lua_get [[ tostring(Obsidian.dir / "Visited.md") ]]
+T["frecency"]["tracks note buffer entry only when enabled"] = function()
+  h.child_mock_vault_contents(child, { ["Disabled.md"] = "# Disabled", ["Enabled.md"] = "# Enabled" })
+  local disabled_path = child.lua_get [[ tostring(Obsidian.dir / "Disabled.md") ]]
+  local enabled_path = child.lua_get [[ tostring(Obsidian.dir / "Enabled.md") ]]
 
-  child.lua(([=[vim.cmd.edit(vim.fn.fnameescape(%q))]=]):format(path))
+  child.lua(([=[
+    vim.cmd.edit(vim.fn.fnameescape(%q))
+    vim.schedule(function() _G.frecency_bufenter_checked = true end)
+  ]=]):format(disabled_path))
+  h.child_wait(child, [[return _G.frecency_bufenter_checked == true]])
+
+  eq(nil, child.lua_get [[ return package.loaded["obsidian.frecency"] ]])
+
+  child.lua [[ Obsidian.opts.search.sort_by = "frecency" ]]
+  child.lua(([=[vim.cmd.edit(vim.fn.fnameescape(%q))]=]):format(enabled_path))
   h.child_wait(child, ([=[
     local score = require("obsidian.frecency").score(%q, tostring(Obsidian.dir))
     return score > 0
-  ]=]):format(path))
+  ]=]):format(enabled_path))
 
-  eq(true, child.lua_get(([=[require("obsidian.frecency").score(%q, tostring(Obsidian.dir)) > 0]=]):format(path)))
+  eq(
+    true,
+    child.lua_get(([=[require("obsidian.frecency").score(%q, tostring(Obsidian.dir)) > 0]=]):format(enabled_path))
+  )
 end
 
 T["frecency"]["sorts uncached filesystem results by visits"] = function()

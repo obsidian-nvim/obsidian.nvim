@@ -5,12 +5,11 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local ignore = require "obsidian.ignore"
 local Workspace = require "obsidian.workspace"
-local frecency = require "obsidian.frecency"
 local fs_util = require "obsidian.util.fs"
 local group = vim.api.nvim_create_augroup("obsidian_setup", { clear = true })
 
--- Track note visits independently from the optional metadata cache. Deferred
--- until other BufEnter callbacks have had a chance to switch workspaces.
+-- Track visits only when frecency is enabled for entered note's workspace.
+-- Deferred until other BufEnter callbacks have had a chance to switch workspaces.
 vim.api.nvim_create_autocmd("BufEnter", {
   group = group,
   callback = function(ev)
@@ -26,6 +25,10 @@ vim.api.nvim_create_autocmd("BufEnter", {
       end
 
       local opts = api._workspace_opts(workspace)
+      if opts.search.sort_by ~= "frecency" then
+        return
+      end
+
       local ignore_checker = ignore._build_ignore_checker(opts.file and opts.file.ignore_filters or {})
       if ignore_checker then
         local rel_path = fs_util.relpath(tostring(workspace.root), path)
@@ -34,7 +37,7 @@ vim.api.nvim_create_autocmd("BufEnter", {
         end
       end
 
-      frecency.record(path, tostring(workspace.root))
+      require("obsidian.frecency").record(path, tostring(workspace.root))
     end)
   end,
 })

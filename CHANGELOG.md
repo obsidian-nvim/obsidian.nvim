@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `search.find_blocks_async()` for finding existing and unlabeled block-reference candidates.
 - Code action `link_suggestions` ("List unlinked outgoing mentions") - select an unlinked target note, then select locations in the current buffer to convert them to links. Scanning skips existing links, code blocks, inline code, frontmatter, tags, and URLs. Requires cache.
 - Code action `backlink_suggestions` ("List unlinked incoming mentions") - find unlinked plain-text mentions of the current note (by title or alias) across the vault and convert them to links. Requires cache.
+- `search.sort_by = "frecency"` ranks note results by recent and frequent visits.
 
 ### Changed
 
