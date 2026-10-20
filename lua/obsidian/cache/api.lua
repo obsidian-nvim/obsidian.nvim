@@ -256,10 +256,7 @@ M.find_files = function(opts)
 
     local search_opts = Obsidian and Obsidian.opts and Obsidian.opts.search
     if search_opts and search_opts.sort_by == "frecency" then
-      local less = require("obsidian.frecency").comparator(
-        tostring(Obsidian.dir),
-        search_opts.sort_reversed
-      )
+      local less = require("obsidian.frecency").comparator(tostring(Obsidian.dir), search_opts.sort_reversed)
       table.sort(entries, function(a, b)
         local a_path, b_path = a.filename or a.text, b.filename or b.text
         if a_path == b_path then

@@ -22,7 +22,7 @@ T["enums"]["includes frecency sort"] = function()
 end
 
 T["normalize"]["accepts frecency sort"] = function()
-  eq("frecency", normalize { search = { sort_by = "frecency" } }.search.sort_by)
+  eq("frecency", normalize({ search = { sort_by = "frecency" } }).search.sort_by)
 end
 
 T["normalize"]["should migrate completion.preferred_link_style to link.style"] = function()

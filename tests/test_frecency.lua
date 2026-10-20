@@ -52,9 +52,12 @@ T["frecency"]["records visits with cooldown and sorts by score"] = function()
   eq(true, child.lua_get(([=[require("obsidian.frecency").record(%q, %q, %d)]=]):format(recent, vault, now)))
   eq(true, child.lua_get(([=[require("obsidian.frecency").record(%q, %q, %d)]=]):format(frequent, vault, now - 50)))
 
-  eq({ recent, frequent }, child.lua_get(([=[
+  eq(
+    { recent, frequent },
+    child.lua_get(([=[
     require("obsidian.frecency").sort_paths({ %q, %q }, %q)
-  ]=]):format(frequent, recent, vault)))
+  ]=]):format(frequent, recent, vault))
+  )
 end
 
 T["frecency"]["persists history independently from metadata cache"] = function()
@@ -85,10 +88,13 @@ T["frecency"]["tracks note buffer entry only when enabled"] = function()
 
   child.lua [[ Obsidian.opts.search.sort_by = "frecency" ]]
   child.lua(([=[vim.cmd.edit(vim.fn.fnameescape(%q))]=]):format(enabled_path))
-  h.child_wait(child, ([=[
+  h.child_wait(
+    child,
+    ([=[
     local score = require("obsidian.frecency").score(%q, tostring(Obsidian.dir))
     return score > 0
-  ]=]):format(enabled_path))
+  ]=]):format(enabled_path)
+  )
 
   eq(
     true,

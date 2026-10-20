@@ -172,7 +172,11 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
       predicate = matches_file,
     }, function(paths)
       if frecency_sort then
-        require("obsidian.frecency").sort_paths(paths, tostring(workspace and workspace.root or norm_dir), opts.sort_reversed)
+        require("obsidian.frecency").sort_paths(
+          paths,
+          tostring(workspace and workspace.root or norm_dir),
+          opts.sort_reversed
+        )
       end
       finish(paths, 0)
     end)

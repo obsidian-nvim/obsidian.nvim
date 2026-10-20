@@ -33,11 +33,7 @@ end
 ---@param vault string
 ---@return string
 local function store_path(vault)
-  local root = vim.fs.joinpath(
-    vim.fn.stdpath "cache",
-    "obsidian.nvim",
-    vim.fn.sha256(vault):sub(1, 16)
-  )
+  local root = vim.fs.joinpath(vim.fn.stdpath "cache", "obsidian.nvim", vim.fn.sha256(vault):sub(1, 16))
   return vim.fs.joinpath(root, "frecency.json")
 end
 
@@ -122,11 +118,14 @@ local function flush(store)
 
   local root = vim.fs.dirname(store.path)
   vim.fn.mkdir(root, "p")
-  fs_util.atomic_write(store.path, vim.json.encode {
-    version = 1,
-    vault = store.vault,
-    visits = store.visits,
-  })
+  fs_util.atomic_write(
+    store.path,
+    vim.json.encode {
+      version = 1,
+      vault = store.vault,
+      visits = store.visits,
+    }
+  )
   store.dirty = false
 end
 
@@ -137,17 +136,21 @@ local function schedule_flush(store)
     store.timer:close()
   end
   store.timer = vim.uv.new_timer()
-  assert(store.timer, "failed to create frecency flush timer"):start(FLUSH_DEBOUNCE_MS, 0, vim.schedule_wrap(function()
-    local timer = store.timer
-    store.timer = nil
-    if timer then
-      timer:close()
-    end
-    local ok, err = pcall(flush, store)
-    if not ok then
-      require("obsidian.log").err("[frecency] flush failed: %s", err)
-    end
-  end))
+  assert(store.timer, "failed to create frecency flush timer"):start(
+    FLUSH_DEBOUNCE_MS,
+    0,
+    vim.schedule_wrap(function()
+      local timer = store.timer
+      store.timer = nil
+      if timer then
+        timer:close()
+      end
+      local ok, err = pcall(flush, store)
+      if not ok then
+        require("obsidian.log").err("[frecency] flush failed: %s", err)
+      end
+    end)
+  )
 end
 
 ---@param visits integer[]
