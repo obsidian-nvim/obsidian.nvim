@@ -17,6 +17,7 @@ local function iter(t)
 end
 
 local M = {}
+local generation = 0
 
 local NAMESPACE = "ObsidianUI"
 
@@ -642,8 +643,13 @@ end
 local function get_extmarks_autocmd_callback(ui_opts, throttle)
   local ns_id = vim.api.nvim_create_namespace(NAMESPACE)
 
+  local current_generation = generation
   local callback = function(ev)
-    if not should_update(ui_opts, ev.bufnr) then
+    if
+      current_generation ~= generation
+      or not vim.api.nvim_buf_is_valid(ev.buf)
+      or not should_update(ui_opts, ev.buf)
+    then
       return
     end
     update_extmarks(ev.buf, ns_id, ui_opts)
@@ -667,6 +673,21 @@ M.update = function(bufnr)
   end
   local ns_id = vim.api.nvim_create_namespace(NAMESPACE)
   update_extmarks(bufnr, ns_id, ui_opts)
+end
+
+---Remove UI handlers and marks owned by the current configuration.
+M.shutdown = function()
+  generation = generation + 1
+  for _, workspace in ipairs(Obsidian.workspaces or {}) do
+    pcall(vim.api.nvim_del_augroup_by_name, "ObsidianUI" .. workspace.name)
+  end
+  local ns_id = vim.api.nvim_create_namespace(NAMESPACE)
+  for buf in pairs(M._buf_mark_cache) do
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+    end
+  end
+  M._buf_mark_cache = vim.defaulttable()
 end
 
 ---@param workspace obsidian.Workspace

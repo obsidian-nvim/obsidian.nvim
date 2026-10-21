@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `:Obsidian export_settings` to generate the app's shared JSON settings from Lua defaults and workspace overrides. Preserve unrelated settings and core-plugin states, validate before writing, replace files atomically, and reload the selected workspace. Export is explicit; plugin-only functions and rules remain in Lua.
+- Add a complete vault-local Lua example for ordinary note folders, template-specific routing, and custom naming functions.
+- Read shared Obsidian app settings per workspace for note and attachment locations, links, templates, daily/unique notes, and core-plugin state. Existing app files override Lua options and use app defaults for absent keys; missing files preserve Lua configuration.
 - `:Obsidian properties [KEY] [VALUE]`, a three-stage picker over frontmatter properties (keys, then values, then matching notes), mirroring `:Obsidian tags`.
 - `search.find_blocks_async()` for finding existing and unlabeled block-reference candidates.
 - Code action `link_suggestions` ("List unlinked outgoing mentions") - select an unlinked target note, then select locations in the current buffer to convert them to links. Scanning skips existing links, code blocks, inline code, frontmatter, tags, and URLs. Requires cache.
@@ -22,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Export the effective daily note folder, falling back to `notes_subdir` when `daily_notes.folder` is omitted while preserving an explicitly empty folder as the vault root.
+- Export daily and unique template paths with the `.md` extension so Obsidian can validate them in its settings UI.
+- Preserve the vault root when reloading the vault-local Lua example from the current buffer with `:source`, including Windows drive letters.
+- Repeated `setup()` calls replace vault configuration without retaining old buffer handlers, LSP clients, cache, UI, footer, or pending sync state. Document vault-local Lua configuration with Neovim's `exrc`.
 - Keep reserved frontmatter fields synchronized between note attributes, metadata, and cached notes.
 - Note navigation when note is resolved, but failed to resolve section suffixes like `#heaing` and `#^block_id` will not prompt to create note.
 

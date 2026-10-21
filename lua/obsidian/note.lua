@@ -393,6 +393,10 @@ Note._resolve_id_path = function(opts, prompt_invalid_filename)
       end
 
       local daily_notes_dir = Path.new(vim.fs.joinpath(tostring(workspace_dir), daily_notes_folder))
+      -- Daily notes in the vault root do not reserve every folder for daily notes.
+      if daily_notes_dir == workspace_dir then
+        return false
+      end
       return path == daily_notes_dir or daily_notes_dir:is_parent_of(path)
     end
 

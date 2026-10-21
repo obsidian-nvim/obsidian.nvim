@@ -12,6 +12,13 @@ return {
     enabled = true,
   },
 
+  ---@class obsidian.config.AppSettingsOpts
+  ---Directory containing the app's JSON settings, relative to the vault root.
+  ---@field config_dir? string
+  app_settings = {
+    config_dir = ".obsidian",
+  },
+
   notes_subdir = nil,
   new_notes_location = "current_dir",
 

@@ -5,6 +5,10 @@ tags:
   - vaults
 ---
 
+## Vault configuration
+
+See [[Vault-Configuration]] for vault-local `.nvim.lua` configuration, shared Obsidian app settings, and `:Obsidian export_settings`.
+
 ## Vault-based workspaces
 
 For most Obsidian users, each workspace you configure in your obsidian.nvim config should correspond to a unique Obsidian vault, in which case the `path` of each workspace should be set to the corresponding vault root path.

@@ -46,9 +46,10 @@ M.destination_path = function(src, bufnr_or_filename)
   local fname = type(bufnr_or_filename) == "string" and bufnr_or_filename
     or vim.api.nvim_buf_get_name(bufnr_or_filename or 0)
   ---@cast fname -nil
-  if vim.startswith(attachment_folder, ".") then
+  if attachment_folder == "." or vim.startswith(attachment_folder, "./") then
     ---TODO: verify is obsidian buffer
-    local dirname = Path.new(vim.fs.dirname(fname))
+    local base = fname ~= "" and vim.fs.dirname(fname) or tostring(require("obsidian.api").resolve_workspace_dir())
+    local dirname = Path.new(base)
     return tostring(dirname / attachment_folder / src)
   else
     local workspace_dir = require("obsidian.api").resolve_workspace_dir(fname ~= "" and fname or nil)
