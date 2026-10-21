@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Export the effective daily note folder, falling back to `notes_subdir` when `daily_notes.folder` is omitted while preserving an explicitly empty folder as the vault root.
 - Export daily and unique template paths with the `.md` extension so Obsidian can validate them in its settings UI.
 - Preserve the vault root when reloading the vault-local Lua example from the current buffer with `:source`, including Windows drive letters.
 - Repeated `setup()` calls replace vault configuration without retaining old buffer handlers, LSP clients, cache, UI, footer, or pending sync state. Document vault-local Lua configuration with Neovim's `exrc`.

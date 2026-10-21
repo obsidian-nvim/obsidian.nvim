@@ -158,7 +158,7 @@ end
 
 T["root note and daily folders round-trip without inheriting another folder"] = function()
   child.lua [[
-    configure { notes_subdir = "Notes", daily_notes = { folder = vim.NIL }, unique_note = { folder = "" } }
+    configure { notes_subdir = "Notes", daily_notes = { folder = "" }, unique_note = { folder = "" } }
     export()
     _G.shared = require("obsidian.config.app_settings").read(vault)
   ]]
@@ -168,6 +168,41 @@ T["root note and daily folders round-trip without inheriting another folder"] = 
   eq("", child.lua_get "shared.unique_note.folder")
   child.lua "configure { notes_subdir = vim.NIL }; export()"
   eq("root", child.lua_get 'read_config("app.json").newFileLocation')
+end
+
+T["daily note folders keep the same location after export"] = MiniTest.new_set {
+  parametrize = {
+    { false, "Notes", "Notes", "Notes", "notes_subdir" },
+    { "", "Notes", "/", "", "notes_subdir" },
+    { "Daily", "Notes", "Daily", "Daily", "notes_subdir" },
+    { false, false, "/", "", "notes_subdir" },
+    { false, "Notes", "Notes", "Notes", "current_dir" },
+  },
+}
+T["daily note folders keep the same location after export"]["uses the effective Lua folder"] = function(
+  daily_folder,
+  notes_subdir,
+  exported,
+  resolved,
+  location
+)
+  child.lua(
+    [[
+    local daily_folder, notes_subdir, location = ...
+    configure {
+      notes_subdir = notes_subdir or vim.NIL,
+      new_notes_location = location,
+      daily_notes = { folder = daily_folder or vim.NIL },
+    }
+    _G.before = tostring(require("obsidian.daily").daily_note_path(1700000000))
+    vim.cmd "Obsidian export_settings"
+    _G.after = tostring(require("obsidian.daily").daily_note_path(1700000000))
+  ]],
+    { daily_folder, notes_subdir, location }
+  )
+  eq(exported, child.lua_get 'read_config("daily-notes.json").folder')
+  eq(resolved, child.lua_get "Obsidian.opts.daily_notes.folder")
+  eq(child.lua_get "before", child.lua_get "after")
 end
 
 T["current-folder mode is exported explicitly"] = function()

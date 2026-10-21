@@ -118,7 +118,7 @@ local function shared_settings(workspace)
   if opts.templates.folder and templates == "" then
     error("templates.folder must name a non-root folder to round-trip through app settings", 0)
   end
-  local daily = relative_path(root, opts.daily_notes.folder, "daily_notes.folder")
+  local daily = relative_path(root, opts.daily_notes.folder or opts.notes_subdir, "daily_notes.folder")
   local unique = relative_path(root, opts.unique_note.folder, "unique_note.folder")
   return {
     ["app.json"] = {
