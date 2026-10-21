@@ -1,7 +1,15 @@
+---
+title: "Daily Notes"
+tags:
+  - core-plugins
+  - notes
+---
+
 - [Commands](#commands)
 - [Usage Examples](#usage-examples)
 - [Notes](#notes)
 - [Options](#options)
+- [See also](#see-also)
 
 The Daily Notes feature allows you to quickly create and navigate to date-based notes in your vault. This is useful for journaling, tracking daily tasks, or maintaining a chronological record of your work.
 
@@ -94,6 +102,10 @@ daily_notes = {
   alias_format = nil,
   default_tags = { "daily-notes" },
   workdays_only = true,
-  start_of_week = 1, -- Monday; use 0 for Sunday
+  start_of_week = 1, -- Monday
 }
 ```
+
+## See also
+
+[[Template]] · [[Workspace]] · [[Note]]

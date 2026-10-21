@@ -86,7 +86,7 @@ config.normalize = function(opts, defaults)
       "legacy_commands",
       [[move from commands like `ObsidianBacklinks` to `Obsidian backlinks`
 and set `opts.legacy_commands` to false to get rid of this warning.
-see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands for details.
+see https://obsidian-nvim.github.io/obsidian.nvim/Commands for details.
     ]],
       "4.0"
     )

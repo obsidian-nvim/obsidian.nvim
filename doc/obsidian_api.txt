@@ -37,7 +37,7 @@ Fields ~
 {tags} `(string[])`
 {contents} `(string[])`
 {raw_contents} `(string[]?)` source-preserving lines when loaded from a file or buffer.
-{metadata} `(table)`
+{metadata} `(table)` All normalized frontmatter properties, including `id`, `aliases`, and `tags`.
 {path} `(obsidian.Path|)`?
 {has_frontmatter} `(boolean|)`?
 {frontmatter_end_line} `(integer|)`?
@@ -49,6 +49,30 @@ Fields ~
 {alt_alias} `(string|)`?
 {bufnr} `(integer|)`?
 {template} `(string|? Template)` name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
+
+------------------------------------------------------------------------------
+                                                               *note_metadata()*
+                            `note_metadata`({note})
+Parameters ~
+{note} `(obsidian.Note|table)`
+Return ~
+`(table)`
+
+------------------------------------------------------------------------------
+                                                       *attach_note_metatable()*
+                        `attach_note_metatable`({note})
+Parameters ~
+{note} `(obsidian.Note|table)`
+Return ~
+`(obsidian.Note)`
+
+------------------------------------------------------------------------------
+                                                             *Note.from_table()*
+                           `Note.from_table`({note})
+Parameters ~
+{note} `(table)`
+Return ~
+`(obsidian.Note)`
 
 ------------------------------------------------------------------------------
                                                                  *generate_id()*
@@ -121,7 +145,7 @@ Instantiates a new Note object
 
 Keep in mind that you have to call `note:save(...)` to create/update the note on disk.
 
-@param id string|number
+@param id string|number|?
 @param aliases string[]|?
 @param tags string[]|?
 @param path string|obsidian.Path|?

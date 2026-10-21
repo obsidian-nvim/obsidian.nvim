@@ -1,3 +1,10 @@
+---
+title: "Commands"
+tags:
+  - commands
+  - reference
+---
+
 ## Deprecation of legacy commands
 
 Currently commands are available in two formats, for example:
@@ -34,3 +41,7 @@ vim.api.nvim_create_autocmd("CmdlineChanged", {
   end,
 })
 ```
+
+## See also
+
+[[Actions]] · [[Keymaps]] · [[Completion]]

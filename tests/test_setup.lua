@@ -65,6 +65,36 @@ T["repeated setup updates the current note without duplicating callbacks"] = fun
   eq(true, child.lua_get "vim.b.obsidian_buffer")
 end
 
+T["repeated setup preserves completion refresh handlers without duplicates"] = function()
+  child.lua [[
+    configure(vault_a)
+    open_note(vault_a)
+    _G.observed, _G.refreshed = 0, 0
+    require("obsidian.inlay_hints.completion").observe = function()
+      observed = observed + 1
+      return false, true
+    end
+    require("obsidian.inlay_hints").schedule_refresh = function()
+      refreshed = refreshed + 1
+    end
+    configure(vault_a)
+    configure(vault_a)
+    for _, event in ipairs { "TextChanged", "InsertLeave", "CursorMovedI" } do
+      vim.api.nvim_exec_autocmds(event, { buffer = 0 })
+    end
+  ]]
+  eq(2, child.lua_get "observed")
+  eq(3, child.lua_get "refreshed")
+  child.lua [[
+    configure(vault_b)
+    for _, event in ipairs { "TextChanged", "InsertLeave", "CursorMovedI" } do
+      vim.api.nvim_exec_autocmds(event, { buffer = 0 })
+    end
+  ]]
+  eq(2, child.lua_get "observed")
+  eq(3, child.lua_get "refreshed")
+end
+
 T["setup recovers from an incomplete previous state"] = function()
   child.lua [[
     _G.Obsidian = { opts = {} }
@@ -136,6 +166,21 @@ T["workspace overrides and cache stay isolated after reconfiguration"] = functio
   eq(true, child.lua_get 'require("obsidian.cache").notes.all()[vim.fs.joinpath(vault_b, "note.md")] ~= nil')
   child.lua "open_note(vault_a)"
   eq("notes-a", child.lua_get "Obsidian.opts.notes_subdir")
+end
+
+T["reconfiguration rebuilds volatile vault indexes with the new options"] = function()
+  child.lua [[
+    configure(vault_a, { notes_subdir = "first" })
+    _G.index = require("obsidian.cache.volatile").vault_index {
+      build = function(_, done) done(Obsidian.opts.notes_subdir) end,
+    }
+    index:get(vault_a, {}, function(value) _G.before = value end)
+    configure(vault_a, { notes_subdir = "second" })
+    index:get(vault_a, {}, function(value) _G.after = value end)
+    index:dispose()
+  ]]
+  eq("first", child.lua_get "before")
+  eq("second", child.lua_get "after")
 end
 
 T["reconfiguration removes disabled footer and UI handlers"] = function()

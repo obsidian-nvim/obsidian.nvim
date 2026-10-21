@@ -1,3 +1,10 @@
+---
+title: "File"
+tags:
+  - configuration
+  - files
+---
+
 - [Ignore Filters](#ignore-filters)
 - [Options](#options)
 
@@ -63,3 +70,7 @@ file = {
   ignore_filters = {},
 }
 ```
+
+## See also
+
+[[Workspace]] · [[Note]] · [[Frontmatter]]

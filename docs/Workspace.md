@@ -1,3 +1,14 @@
+---
+title: "Workspace"
+tags:
+  - configuration
+  - vaults
+---
+
+## Vault configuration
+
+See [[Vault-Configuration]] for vault-local `.nvim.lua` configuration, shared Obsidian app settings, and `:Obsidian export_settings`.
+
 ## Vault-based workspaces
 
 For most Obsidian users, each workspace you configure in your obsidian.nvim config should correspond to a unique Obsidian vault, in which case the `path` of each workspace should be set to the corresponding vault root path.
@@ -101,3 +112,6 @@ With this configuration, anytime you enter a markdown buffer outside of "~/vault
 Please note that in order to avoid unexpected behavior (like a new directory being created for `notes_subdir`) it's important to carefully set the workspace `overrides` options.
 And keep in mind that to reset a configuration option to `nil` you'll have to use `vim.NIL` there instead of the builtin Lua `nil` due to the way Lua tables work.
 
+## See also
+
+[[File]] · [[Daily-Notes]] · [[Note]]

@@ -1,3 +1,10 @@
+---
+title: "Keymaps"
+tags:
+  - editor
+  - configuration
+---
+
 ## Create new mapping
 
 See: [[Autocmds]]
@@ -94,3 +101,7 @@ require("obsidian").setup {
   },
 }
 ```
+
+## See also
+
+[[Actions]] · [[Autocmds]] · [[Commands]]

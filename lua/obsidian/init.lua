@@ -60,6 +60,7 @@ obsidian.setup = function(user_opts)
     require("obsidian.sync").shutdown()
     require("obsidian.autocmds").reset()
     require("obsidian.cache").shutdown()
+    require("obsidian.cache.volatile").reset_workspace { vaults = true }
     obsidian.ui.shutdown()
   end
   ---@class obsidian.state

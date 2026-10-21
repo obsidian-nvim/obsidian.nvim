@@ -65,6 +65,10 @@ local function is_recording_audio()
   return require("obsidian.core-plugins.audio_recorder").is_recording()
 end
 
+local function cache_enabled()
+  return require("obsidian.cache").is_enabled()
+end
+
 local default_actions = {
   add_property = {
     title = "Add file property",
@@ -115,6 +119,16 @@ local default_actions = {
     title = "Add attachment from folder, filepath or url",
   },
 
+  link_suggestions = {
+    title = "List unlinked outgoing mentions",
+    cond = cache_enabled,
+  },
+
+  backlink_suggestions = {
+    title = "List unlinked incoming mentions",
+    cond = cache_enabled,
+  },
+
   insert_link = {
     title = "Insert internal link at cursor",
   },
@@ -124,7 +138,8 @@ local default_actions = {
     cond = function(_, params)
       local bufnr, position = resolve_position(params)
       local link_type = select(2, require("obsidian.api").cursor_link(bufnr, position))
-      return link_type == "wiki" or link_type == "markdown"
+      -- TODO: trigger for footnote refs, and prompt to delete footnote entry
+      return link_type == "wiki" or link_type == "markdown" or link_type == "autolink"
     end,
     arguments = function(_, params)
       local bufnr, position = resolve_position(params)

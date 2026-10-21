@@ -16,6 +16,7 @@ local search = require "obsidian.search"
 local resolvers = require "obsidian.resolvers"
 local list_items = require "obsidian.parse.line.list_items"
 local tag_module = require "obsidian.tag"
+local link_suggestion = require "obsidian.note.link_suggestion"
 
 ---@param entry obsidian.PickerEntry
 ---@return obsidian.ui_select_preview_spec
@@ -81,7 +82,7 @@ M.unlink = function(bufnr, position)
   if not ref then
     return log.warn "No link found under cursor"
   end
-  if ref.kind == "wiki" or ref.kind == "markdown" then
+  if ref.kind == "wiki" or ref.kind == "markdown" or ref.kind == "autolink" then
     local display_text = ref.label
     if not display_text or display_text == "" then
       local target = vim.uri_decode(ref.target)
@@ -1319,32 +1320,6 @@ M.block_reference_new = function(opts)
   require("obsidian.ui").update(opts.source_bufnr)
 end
 
----@param bufnr      integer
----@param suggestion obsidian.LinkSuggestion
----@param candidate  obsidian.LinkSuggestionCandidate
-local function apply_link_suggestion(bufnr, suggestion, candidate)
-  if not vim.api.nvim_buf_is_valid(bufnr) then
-    return
-  end
-
-  local range = suggestion.range
-  local current_text =
-    vim.api.nvim_buf_get_text(bufnr, range.start_row, range.start_col, range.end_row, range.end_col, {})
-  if #current_text ~= 1 or current_text[1] ~= suggestion.text then
-    return log.warn "Link suggestion is no longer current"
-  end
-
-  vim.api.nvim_buf_set_text(
-    bufnr,
-    range.start_row,
-    range.start_col,
-    range.end_row,
-    range.end_col,
-    { candidate.new_text }
-  )
-  require("obsidian.ui").update(bufnr)
-end
-
 --- Apply the link suggestion under the cursor, selecting a target when the
 --- matched note name or alias belongs to more than one note.
 ---@param suggestion obsidian.LinkSuggestion|?
@@ -1380,7 +1355,7 @@ M.link_suggestion = function(suggestion)
     log.info "No Link Suggestion Candidates"
     return
   elseif #suggestion.candidates == 1 then
-    return apply_link_suggestion(bufnr, suggestion, suggestion.candidates[1])
+    return link_suggestion.apply(bufnr, suggestion, suggestion.candidates[1])
   end
 
   picker.select(suggestion.candidates, {
@@ -1395,7 +1370,158 @@ M.link_suggestion = function(suggestion)
     if not candidates or not candidates[1] then
       return
     end
-    apply_link_suggestion(bufnr, suggestion, candidates[1])
+    link_suggestion.apply(bufnr, suggestion, candidates[1])
+  end)
+end
+
+---@param a obsidian.PickerEntry
+---@param b obsidian.PickerEntry
+---@return boolean
+local function suggestion_later_first(a, b)
+  local a_data, b_data = a.user_data, b.user_data
+  if a_data.path and a_data.path ~= b_data.path then
+    return a_data.path > b_data.path
+  end
+  local a_range, b_range = a_data.suggestion.range, b_data.suggestion.range
+  if a_range.start_row ~= b_range.start_row then
+    return a_range.start_row > b_range.start_row
+  end
+  return a_range.start_col > b_range.start_col
+end
+
+---@param path string
+---@param suggestion obsidian.LinkSuggestion
+---@param candidate obsidian.LinkSuggestionCandidate
+---@return string
+local function suggestion_text(path, suggestion, candidate)
+  local lnum = suggestion.range.start_row + 1
+  local col = suggestion.range.start_col + 1
+  local name = vim.fn.fnamemodify(path, ":t")
+  return string.format("%s:%d:%d  %s → %s", name, lnum, col, suggestion.text, candidate.new_text)
+end
+
+--- Pick unlinked mentions of other notes in the current note, grouped by target note,
+--- then pick locations to convert to links.
+M.link_suggestions = function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  if not note then
+    return log.info "Not in a note"
+  end
+
+  if not require("obsidian.cache").is_enabled() then
+    return log.warn "Cache is not enabled; cannot search for unlinked mentions"
+  end
+
+  search.find_link_suggestions_async(note, nil, function(suggestions)
+    if #suggestions == 0 then
+      return log.info "No unlinked outgoing mentions found"
+    end
+
+    local note_path = tostring(note.path)
+
+    ---@type table<string, obsidian.PickerEntry>
+    local targets = {}
+    for _, suggestion in ipairs(suggestions) do
+      for _, candidate in ipairs(suggestion.candidates) do
+        local target = targets[candidate.target_path]
+        if not target then
+          target = {
+            filename = candidate.target_path,
+            text = tostring(Path.new(candidate.target_path):vault_relative_path()),
+            user_data = { locations = {} },
+          }
+          targets[candidate.target_path] = target
+        end
+        target.user_data.locations[#target.user_data.locations + 1] = {
+          filename = note_path,
+          lnum = suggestion.range.start_row + 1,
+          col = suggestion.range.start_col + 1,
+          text = suggestion_text(note_path, suggestion, candidate),
+          user_data = { suggestion = suggestion, candidate = candidate },
+        }
+      end
+    end
+
+    local entries = vim.tbl_values(targets)
+    table.sort(entries, function(a, b)
+      return a.filename < b.filename
+    end)
+
+    picker.select(entries, {
+      prompt = "Outgoing link targets",
+      preview_item = function(entry)
+        return require("obsidian.picker.util").preview_path(entry.filename)
+      end,
+    }, function(choices)
+      local target = choices and choices[1]
+      local locations = target and target.user_data and target.user_data.locations
+      if not locations then
+        return
+      end
+      picker.select(locations, {
+        prompt = "Outgoing locations",
+        allow_multiple = true,
+        preview_item = preview_entry,
+      }, function(location_choices)
+        location_choices = location_choices or {}
+        table.sort(location_choices, suggestion_later_first)
+        for _, choice in ipairs(location_choices) do
+          local data = choice.user_data
+          if data then
+            link_suggestion.apply(bufnr, data.suggestion, data.candidate)
+          end
+        end
+      end)
+    end)
+  end)
+end
+
+--- Pick unlinked plain-text mentions of the current note in other notes and convert them to links.
+M.backlink_suggestions = function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  if not note then
+    return log.info "Not in a note"
+  end
+
+  if not require("obsidian.cache").is_enabled() then
+    return log.warn "Cache is not enabled; cannot search for unlinked mentions"
+  end
+
+  search.find_backlinks_suggestions_async(note, nil, function(results)
+    if #results == 0 then
+      return log.info "No unlinked incoming mentions found"
+    end
+
+    ---@type obsidian.PickerEntry[]
+    local entries = {}
+    for _, result in ipairs(results) do
+      entries[#entries + 1] = {
+        filename = result.path,
+        lnum = result.suggestion.range.start_row + 1,
+        col = result.suggestion.range.start_col + 1,
+        text = suggestion_text(result.path, result.suggestion, result.candidate),
+        user_data = result,
+      }
+    end
+
+    picker.select(entries, {
+      prompt = "Incoming unlinked mentions",
+      allow_multiple = true,
+      preview_item = preview_entry,
+    }, function(choices)
+      if not choices then
+        return
+      end
+      table.sort(choices, suggestion_later_first)
+      for _, choice in ipairs(choices) do
+        local data = choice.user_data
+        if data then
+          link_suggestion.apply_to_file(data.path, data.suggestion, data.candidate)
+        end
+      end
+    end)
   end)
 end
 
@@ -1407,7 +1533,7 @@ M.write_note = function(note, scope)
   -- Make sure `note` is actually an `obsidian.Note` object.
   -- If it gets serialized by server commands, it will lose its metatable.
   if not Note.is_note_obj(note) then
-    note = setmetatable(note, Note)
+    note = Note.from_table(note)
     if note.path then
       note.path = setmetatable(note.path, Path)
     end
@@ -1539,6 +1665,235 @@ M.search_tags = function(tags)
       gather_tag_picker_list(tag_locations, selected_tags)
     end)
   end
+end
+
+---@class obsidian.PropertyRecord
+---@field path         string
+---@field display_name string
+---@field properties   table<string, any>
+
+---@class obsidian.PropertyCount
+---@field name  string
+---@field count integer number of notes carrying the key or value
+
+---@param counts table<string, integer>
+---@return obsidian.PropertyCount[]
+local function sorted_counts(counts)
+  local entries = {}
+  for name, count in pairs(counts) do
+    entries[#entries + 1] = { name = name, count = count }
+  end
+  table.sort(entries, function(a, b)
+    return a.name < b.name
+  end)
+  return entries
+end
+
+---@param entry obsidian.PropertyCount
+---@return string
+local function format_count(entry)
+  return string.format("%s (%d)", entry.name, entry.count)
+end
+
+---@param records obsidian.PropertyRecord[]
+---@param key     string
+---@return obsidian.PropertyCount[]
+local function collect_property_values(records, key)
+  ---@type table<string, integer>
+  local counts = {}
+  for _, record in ipairs(records) do
+    local value = record.properties[key]
+    if value ~= nil and value ~= vim.NIL then
+      -- A note counts once per value, however often the value repeats in it.
+      ---@type table<string, boolean>
+      local seen = {}
+      if vim.islist(value) then
+        for _, item in ipairs(value) do
+          if item ~= vim.NIL then
+            seen[tostring(item)] = true
+          end
+        end
+      else
+        seen[tostring(value)] = true
+      end
+      for v in pairs(seen) do
+        counts[v] = (counts[v] or 0) + 1
+      end
+    end
+  end
+  return sorted_counts(counts)
+end
+
+---@param record obsidian.PropertyRecord
+---@param key    string
+---@param value  string
+---@return boolean
+local function record_has_property_value(record, key, value)
+  local prop = record.properties[key]
+  if prop == nil or prop == vim.NIL then
+    return false
+  end
+  if vim.islist(prop) then
+    for _, item in ipairs(prop) do
+      if item ~= vim.NIL and tostring(item) == value then
+        return true
+      end
+    end
+    return false
+  end
+  return tostring(prop) == value
+end
+
+---@param records obsidian.PropertyRecord[]
+---@param key     string
+---@param value   string
+local function gather_property_picker_list(records, key, value)
+  ---@type obsidian.PickerEntry[]
+  local entries = {}
+  for _, record in ipairs(records) do
+    if record_has_property_value(record, key, value) then
+      entries[#entries + 1] = {
+        text = record.display_name,
+        filename = record.path,
+      }
+    end
+  end
+
+  if vim.tbl_isempty(entries) then
+    log.warn "No notes found with that property value"
+    return
+  end
+
+  vim.schedule(function()
+    picker.select(entries, {
+      prompt = string.format("%s: %s", key, value),
+      format_item = function(entry)
+        return entry.text
+      end,
+      preview_item = preview_entry,
+    }, function(items)
+      if not vim.tbl_isempty(items) then
+        api.open_note(items[1])
+      end
+    end)
+  end)
+end
+
+---@param records obsidian.PropertyRecord[]
+---@param key     string
+local function pick_property_value(records, key)
+  local values = collect_property_values(records, key)
+  if vim.tbl_isempty(values) then
+    log.warn "No values found for that property"
+    return
+  end
+
+  picker.select(values, { prompt = key, format_item = format_count }, function(items)
+    local value = items and items[1]
+    if value then
+      gather_property_picker_list(records, key, value.name)
+    end
+  end)
+end
+
+---@param notes obsidian.Note[]
+---@return obsidian.PropertyRecord[]
+local function property_records_from_notes(notes)
+  local records = {}
+  for _, note in ipairs(notes) do
+    local properties = vim.deepcopy(note.metadata or {})
+    if #note.aliases == 0 then
+      properties.aliases = nil
+    end
+    if #note.tags == 0 then
+      properties.tags = nil
+    end
+    records[#records + 1] = {
+      path = tostring(note.path),
+      display_name = note:display_name(),
+      properties = properties,
+    }
+  end
+  return records
+end
+
+---@param rows table<string, table>
+---@return obsidian.PropertyRecord[]
+local function property_records_from_cache(rows)
+  local cache = require "obsidian.cache"
+  local records = {}
+  for path, row in pairs(rows) do
+    local display_name = (row.id and tostring(row.id))
+      or (row.aliases and row.aliases[#row.aliases])
+      or cache.notes.basename(path)
+    records[#records + 1] = {
+      path = path,
+      display_name = display_name,
+      properties = row.properties or {},
+    }
+  end
+  return records
+end
+
+---@param records obsidian.PropertyRecord[]
+---@return obsidian.PropertyCount[]
+local function collect_property_keys(records)
+  ---@type table<string, integer>
+  local counts = {}
+  for _, record in ipairs(records) do
+    for k, _ in pairs(record.properties) do
+      counts[k] = (counts[k] or 0) + 1
+    end
+  end
+  return sorted_counts(counts)
+end
+
+--- Enumerate notes for the properties picker. Prefers the vault-wide note
+--- cache (already kept live by file-watch events) over re-scanning and
+--- re-parsing every note on each invocation.
+---
+---@param callback fun(keys: obsidian.PropertyCount[], records: obsidian.PropertyRecord[])
+local function list_properties_async(callback)
+  local cache = require "obsidian.cache"
+  if cache.is_enabled() then
+    cache.when_ready(function()
+      local records = property_records_from_cache(cache.notes.all())
+      callback(collect_property_keys(records), records)
+    end)
+    return
+  end
+
+  local dir = api.resolve_workspace_dir()
+  search.find_notes_async("", function(notes)
+    local records = property_records_from_notes(notes)
+    callback(collect_property_keys(records), records)
+  end, { dir = dir })
+end
+
+--- Open a three-stage picker over frontmatter properties: keys, then values
+--- for the chosen key, then notes carrying that key/value pair.
+---
+---@param key   string |?
+---@param value string |?
+M.search_properties = function(key, value)
+  list_properties_async(function(keys, records)
+    if key and value then
+      gather_property_picker_list(records, key, value)
+      return
+    end
+
+    if key then
+      pick_property_value(records, key)
+      return
+    end
+
+    picker.select(keys, { prompt = "Properties", format_item = format_count }, function(items)
+      local chosen_key = items and items[1]
+      if chosen_key then
+        pick_property_value(records, chosen_key.name)
+      end
+    end)
+  end)
 end
 
 M.insert_tag = function()

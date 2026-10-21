@@ -101,7 +101,7 @@ return {
   ---@field time_format string
   --- A map for custom variables, the key should be the variable and the value a function.
   --- Functions are called with obsidian.TemplateContext objects and optional suffix strings.
-  --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
+  --- See: https://obsidian-nvim.github.io/obsidian.nvim/Template#substitutions
   ---@field substitutions table<string, string|fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
   ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
   templates = {
@@ -302,7 +302,7 @@ return {
 
   ---@class obsidian.config.AttachmentsOpts
   ---
-  ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
+  ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://obsidian-nvim.github.io/obsidian.nvim/Attachment#options
   ---@field folder? string
   ---
   ---Default name for pasted images

@@ -1,3 +1,10 @@
+---
+title: "Navigation"
+tags:
+  - navigation
+  - links
+---
+
 move to [[Link]]
 
 ## Follow Link via `actions.follow_link`

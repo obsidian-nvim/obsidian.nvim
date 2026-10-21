@@ -16,6 +16,28 @@ T["new"]["should be able to be initialize directly"] = function()
   eq(true, M.is_note_obj(note))
 end
 
+T["new"]["proxies reserved fields through metadata"] = function()
+  local note = M.new("FOO", { "foo" }, { "bar" }, Obsidian.dir / "note.md")
+
+  eq(nil, rawget(note, "id"))
+  eq(nil, rawget(note, "aliases"))
+  eq(nil, rawget(note, "tags"))
+  eq("FOO", note.metadata.id)
+  eq(note.metadata.aliases, note.aliases)
+  eq(note.metadata.tags, note.tags)
+
+  note.id = "edited-id"
+  note.metadata.aliases[1] = "edited-alias"
+  note:add_tag "new-tag"
+
+  eq("edited-id", note.metadata.id)
+  eq("edited-alias", note.aliases[1])
+  eq({ "bar", "new-tag" }, note.metadata.tags)
+
+  note.metadata.id = nil
+  eq("note", note.id)
+end
+
 T["from_cache"] = new_set()
 T["from_cache"]["uses cached metadata without reading the file"] = function()
   local note = M.from_cache(Obsidian.dir / "missing" / "note.md", {
@@ -35,6 +57,36 @@ end
 T["from_cache"]["uses the filename stem when no ID is cached"] = function()
   local note = M.from_cache(Obsidian.dir / "missing" / "note.md", {})
   eq("note", note.id)
+end
+
+T["from_cache"]["serializes edited reserved fields without changing the cache row"] = function()
+  local row = {
+    id = "cached-id",
+    aliases = { "Alias" },
+    tags = { "tag" },
+    properties = { id = "cached-id", aliases = { "Alias" }, tags = { "tag" }, custom = { "value" } },
+  }
+  local original_row = vim.deepcopy(row)
+  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", row)
+
+  eq({
+    id = "cached-id",
+    aliases = { "Alias" },
+    tags = { "tag" },
+    custom = { "value" },
+  }, note.metadata)
+  note.id = "edited-id"
+  note:add_alias "New alias"
+  note:add_tag "new-tag"
+  note.metadata.custom[1] = "edited-value"
+
+  eq({
+    id = "edited-id",
+    aliases = { "Alias", "New alias" },
+    tags = { "tag", "new-tag" },
+    custom = { "edited-value" },
+  }, note:frontmatter())
+  eq(original_row, row)
 end
 
 T["create"] = new_set()
@@ -390,6 +442,7 @@ T["from_lines"]["should work from a lines"] = function()
   eq(note.id, "foo")
   eq(note.aliases[1], "foo")
   eq(note.aliases[2], "Foo")
+  eq({ id = "foo", aliases = { "foo", "Foo" }, tags = {} }, note.metadata)
   eq(note:fname(), "foo.md")
   eq(true, note.has_frontmatter)
   eq(#note.tags, 0)
@@ -580,6 +633,7 @@ end
 T["from_lines"]["should work from a file w/o frontmatter"] = function()
   local note = from_str("# Hey there", "note_without_frontmatter.md")
   eq(note.id, "note_without_frontmatter")
+  eq(nil, note.metadata.id)
   eq(#note.aliases, 0)
   eq(#note.tags, 0)
   not_eq(note:fname(), nil)

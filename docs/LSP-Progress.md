@@ -1,4 +1,9 @@
-# LSP Progress
+---
+title: "LSP Progress"
+tags:
+  - lsp
+  - reference
+---
 
 Tracking implementation status of [LSP 3.17](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/) features in `obsidian-ls`.
 
@@ -63,7 +68,6 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
   - [ ] [[Cache]] partial updates
   - [ ] [[Sync]] `on_write` mode
 - [ ] Will Delete Files (`workspace/willDeleteFiles`)
-  - [[Trash]]
   - Prompt to remove attachment
   - Prompt if backlinks
 - [ ] Will Create Files (`workspace/willCreateFiles`)

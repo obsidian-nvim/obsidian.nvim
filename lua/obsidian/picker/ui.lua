@@ -24,6 +24,7 @@ local current
 ---@field format_item    (fun(value: any): string) | nil
 ---@field preview_item   (fun(value: any): obsidian.ui_select_preview_spec | nil) | nil
 ---@field query_mappings obsidian.PickerMappingTable | nil
+---@field selection_mappings obsidian.PickerMappingTable | nil
 
 ---@class obsidian.picker.ui.Picker
 ---@field input_buf      integer
@@ -365,6 +366,17 @@ local function set_mappings(picker)
       local query_mapping = mapping
       map(buf, lhs, function()
         picker:run_query_mapping(query_mapping)
+      end)
+    end
+
+    for lhs, mapping in pairs(picker.opts.selection_mappings or {}) do
+      local selection_mapping = mapping
+      map(buf, lhs, function()
+        local choice = picker:selected()
+        if choice ~= nil then
+          close_windows(picker)
+          selection_mapping.callback(choice)
+        end
       end)
     end
   end

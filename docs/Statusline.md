@@ -1,3 +1,10 @@
+---
+title: "Statusline"
+tags:
+  - editor
+  - deprecated
+---
+
 > [!Warning]
 > Deprecated in favor of [[Footer]].
 > However, only the configuration options will be deprecated, you can still access the buffer local variable to get access to the note status string.
