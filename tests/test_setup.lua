@@ -246,7 +246,7 @@ T["local Lua configuration resolves its vault independently of cwd"] = function(
   child.lua [[
     local config_path = vim.fs.joinpath(vault_a, ".nvim.lua")
     vim.fn.writefile({
-      'local source = debug.getinfo(1, "S").source:sub(2)',
+      'local source = debug.getinfo(1, "S").source:gsub("^@", "")',
       'local root = vim.fs.dirname(vim.fs.normalize(source))',
       'configure(root, { notes_subdir = "notes", new_notes_location = "notes_subdir", note_id_func = function(title) return title end })',
     }, config_path)
@@ -273,7 +273,7 @@ T["exrc applies vault setup at startup before opening a nested note"] = function
   vim.fn.mkdir(vim.fs.dirname(note_path), "p")
   vim.fn.writefile({ "# Nested note" }, note_path)
   vim.fn.writefile({
-    'local source = debug.getinfo(1, "S").source:sub(2)',
+    'local source = debug.getinfo(1, "S").source:gsub("^@", "")',
     "local root = vim.fs.dirname(vim.fs.normalize(source))",
     'require("obsidian").setup {',
     "  legacy_commands = false, workspaces = { { path = root } },",

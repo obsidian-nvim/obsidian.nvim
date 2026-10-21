@@ -1,5 +1,9 @@
 -- Copy this file to .nvim.lua in the vault root and enable Neovim's 'exrc'.
-local source = debug.getinfo(1, "S").source:sub(2)
+local source = debug.getinfo(1, "S").source:gsub("^@", "")
+local buffer = source:match "^:source buffer=(%d+)$"
+if buffer then
+  source = vim.api.nvim_buf_get_name(tonumber(buffer))
+end
 local root = vim.fs.dirname(vim.fs.normalize(source))
 
 require("obsidian").setup {

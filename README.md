@@ -316,7 +316,11 @@ You can keep a vault's settings in a `.nvim.lua` file at its root using Neovim's
 
 ```lua
 -- .nvim.lua in the vault root
-local source = debug.getinfo(1, "S").source:sub(2)
+local source = debug.getinfo(1, "S").source:gsub("^@", "")
+local buffer = source:match("^:source buffer=(%d+)$")
+if buffer then
+  source = vim.api.nvim_buf_get_name(tonumber(buffer))
+end
 local root = vim.fs.dirname(vim.fs.normalize(source))
 
 require("obsidian").setup {
@@ -335,7 +339,7 @@ Start Neovim with the vault root as its working directory and approve the local 
 
 Calling `setup()` again replaces the previous options and workspace list, updates the current note, and removes the previous configuration's buffer handlers, LSP clients, cache, footer, UI marks, and pending sync timers. Include any shared options you want to retain in each call. Invalid options are reported without replacing a working configuration.
 
-`exrc` loads local configuration at startup based on the working directory; opening a note from an unrelated directory or switching between vault buffers does not automatically source that vault's `.nvim.lua`. To apply or reload a vault's settings in an existing session, explicitly run `:source /path/to/vault/.nvim.lua`. For automatic switching among a known list of vaults, use the existing `workspaces` and workspace `overrides` options.
+`exrc` loads local configuration at startup based on the working directory; opening a note from an unrelated directory or switching between vault buffers does not automatically source that vault's `.nvim.lua`. To apply or reload a vault's settings in an existing session, explicitly run `:source /path/to/vault/.nvim.lua`, or `:source` while editing that file. The example handles both filenames and Neovim 0.11 buffer-source labels; reloading retains the vault root. For automatic switching among a known list of vaults, use the existing `workspaces` and workspace `overrides` options.
 
 ### Vault-specific note creation
 

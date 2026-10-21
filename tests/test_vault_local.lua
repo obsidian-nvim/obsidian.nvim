@@ -142,4 +142,26 @@ T["an app file without a note folder applies the app default"] = function()
   eq(true, child.lua_get 'tostring(created.path) == vim.fs.joinpath(vault, "Manual note.md")')
 end
 
+T["reloading the open local config preserves its vault root"] = MiniTest.new_set {
+  parametrize = { { "source" }, { "source %" }, { "luafile %" } },
+}
+T["reloading the open local config preserves its vault root"]["applies the edited options"] = function(command)
+  child.lua [[
+    vim.cmd("edit " .. vim.fn.fnameescape(vim.fs.joinpath(vault, ".nvim.lua")))
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    for i, line in ipairs(lines) do
+      lines[i] = line:gsub('notes_subdir = "Notes"', 'notes_subdir = "Reloaded notes"')
+    end
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+    vim.cmd "write"
+  ]]
+  child.cmd(command)
+  child.cmd(command)
+  eq(child.lua_get "vim.fs.normalize(vault)", child.lua_get "vim.fs.normalize(tostring(Obsidian.dir))")
+  eq("Reloaded notes", child.lua_get "Obsidian.opts.notes_subdir")
+  child.lua 'create_note("After reload")'
+  eq(true, child.lua_get 'tostring(created.path) == vim.fs.joinpath(vault, "Reloaded notes/After reload.md")')
+  eq(1, child.lua_get "vim.fn.filereadable(tostring(created.path))")
+end
+
 return T
