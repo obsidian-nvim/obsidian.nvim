@@ -7,6 +7,7 @@ local T = MiniTest.new_set {
     pre_case = function()
       root = vim.fn.tempname()
       vim.fn.mkdir(root, "p")
+      root = vim.fs.normalize(assert(vim.uv.fs_realpath(root)))
       child.restart { "-u", "scripts/minimal_init.lua", "-i", "NONE" }
       child.lua(
         [[

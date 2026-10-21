@@ -9,6 +9,7 @@ local T = MiniTest.new_set {
       root = vim.fn.tempname()
       assert(root ~= "", "Could not allocate a test directory")
       vim.fn.mkdir(root, "p")
+      root = vim.fs.normalize(assert(vim.uv.fs_realpath(root)))
       child.restart { "-u", "scripts/minimal_init.lua", "-i", "NONE" }
       child.lua(
         [[
