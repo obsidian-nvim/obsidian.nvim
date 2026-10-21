@@ -88,7 +88,11 @@ local function template_path(root, opts, value, field)
     end
     path = base / path
   end
-  return relative_path(root, path, field)
+  local relative = relative_path(root, path, field)
+  if not vim.endswith(relative, ".md") then
+    relative = relative .. ".md"
+  end
+  return relative
 end
 
 ---@param value string|function|nil

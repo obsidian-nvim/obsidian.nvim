@@ -69,11 +69,11 @@ T["a Lua-only vault writes all supported app settings on request"] = function()
     child.lua_get 'read_config("templates.json")'
   )
   eq(
-    { folder = "Daily", format = "DD-MM-YYYY", template = "Templates/daily" },
+    { folder = "Daily", format = "DD-MM-YYYY", template = "Templates/daily.md" },
     child.lua_get 'read_config("daily-notes.json")'
   )
   eq(
-    { folder = "Unique", format = "YYYYMMDDHHmmss", template = "Templates/unique" },
+    { folder = "Unique", format = "YYYYMMDDHHmmss", template = "Templates/unique.md" },
     child.lua_get 'read_config("zk-prefixer.json")'
   )
   eq(
@@ -201,7 +201,7 @@ T["absolute vault paths become portable paths without using the working director
   ]]
   eq("Templates", child.lua_get 'read_config("templates.json").folder')
   eq("Other/Daily.md", child.lua_get 'read_config("daily-notes.json").template')
-  eq("Templates/unique", child.lua_get 'read_config("zk-prefixer.json").template')
+  eq("Templates/unique.md", child.lua_get 'read_config("zk-prefixer.json").template')
   eq("Media", child.lua_get 'read_config("app.json").attachmentFolderPath')
 end
 
@@ -357,6 +357,50 @@ T["the command is available outside notes even when core features are disabled"]
   child.lua 'Obsidian.workspace = nil; vim.cmd "Obsidian export_settings"'
   eq(1, child.lua_get "#errors")
   eq(0, child.lua_get 'vim.fn.isdirectory(vim.fs.joinpath(vault, ".obsidian"))')
+end
+
+T["exported template paths identify the actual Markdown files"] = MiniTest.new_set {
+  parametrize = {
+    { "daily", "daily.md", "unique", "unique.md" },
+    { "daily.md", "daily.md", "unique.md", "unique.md" },
+    { "daily.v1", "daily.v1.md", "unique.v2", "unique.v2.md" },
+  },
+}
+T["exported template paths identify the actual Markdown files"]["pass an exact file lookup"] = function(
+  daily,
+  daily_file,
+  unique,
+  unique_file
+)
+  child.lua(
+    [[
+    local daily, daily_file, unique, unique_file = ...
+    local templates = vim.fs.joinpath(vault, "Templates")
+    vim.fn.writefile({ "# Daily template" }, vim.fs.joinpath(templates, daily_file))
+    vim.fn.writefile({ "# Unique template" }, vim.fs.joinpath(templates, unique_file))
+    configure { daily_notes = { template = daily }, unique_note = { template = unique } }
+    export()
+  ]],
+    { daily, daily_file, unique, unique_file }
+  )
+  eq("Templates/" .. daily_file, child.lua_get 'read_config("daily-notes.json").template')
+  eq("Templates/" .. unique_file, child.lua_get 'read_config("zk-prefixer.json").template')
+  eq(1, child.lua_get 'vim.fn.filereadable(vim.fs.joinpath(vault, read_config("daily-notes.json").template))')
+  eq(1, child.lua_get 'vim.fn.filereadable(vim.fs.joinpath(vault, read_config("zk-prefixer.json").template))')
+end
+
+T["generated settings reload and create daily and unique notes from the templates"] = function()
+  child.lua [[
+    vim.fn.mkdir(vim.fs.joinpath(vault, "Unique"), "p")
+    vim.fn.writefile({ "# Daily template" }, vim.fs.joinpath(vault, "Templates/daily.md"))
+    vim.fn.writefile({ "# Unique template" }, vim.fs.joinpath(vault, "Templates/unique.md"))
+    configure { unique_note = { enabled = true } }
+    vim.cmd "Obsidian export_settings"
+    _G.daily_note = require("obsidian.daily").today():write()
+    _G.unique_note = require("obsidian.unique").new_unique_note()
+  ]]
+  eq({ "# Daily template" }, child.lua_get "vim.fn.readfile(tostring(daily_note.path))")
+  eq({ "# Unique template" }, child.lua_get "vim.fn.readfile(tostring(unique_note.path))")
 end
 
 return T
