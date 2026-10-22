@@ -185,7 +185,7 @@ M.parse = function(lines, opts)
   ---@type table<string, obsidian.note.Block>|?
   local blocks = opts.collect_blocks and {} or nil
   ---@type obsidian.Section[]|?
-  local block_candidates = opts.collect_block_candidates and {} or nil
+  local block_candidates = (opts.collect_blocks or opts.collect_block_candidates) and {} or nil
   ---@type integer|?
   local para_beg
   ---@type "list-item"|"quote"|"table"|"text"|?
@@ -425,7 +425,7 @@ M.parse = function(lines, opts)
     sections[i] = section
   end
 
-  return sections, blocks, block_candidates
+  return sections, blocks, opts.collect_block_candidates and block_candidates or nil
 end
 
 return M

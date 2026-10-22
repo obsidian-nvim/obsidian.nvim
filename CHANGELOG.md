@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Keep reserved frontmatter fields synchronized between note attributes, metadata, and cached notes.
 - Note navigation when note is resolved, but failed to resolve section suffixes like `#heaing` and `#^block_id` will not prompt to create note.
+- Following a block link such as `[[note#^id]]` to a list item now lands on that item instead of the first item of the whole list. Block IDs in lists, quotes, and tables now resolve to the same boundaries as block completion.
 
 ## [v3.16.9](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.9) - 2026-10-13
 
