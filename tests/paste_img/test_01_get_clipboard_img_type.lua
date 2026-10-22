@@ -38,11 +38,12 @@ local test_cases = {
     expected_img_type = "jpeg",
   },
   {
-    name = "WSL with a png",
-    os_type = api.OSType.Wsl,
-    expected_cmd = 'powershell.exe "Get-Clipboard -Format Image"',
-    mock_output = "Some clipboard content\n",
-    expected_img_type = "png",
+    name = "Darwin without pngpaste installed",
+    os_type = api.OSType.Darwin,
+    clip_exe = "pngpaste",
+    executable_missing = true,
+    expected_img_type = nil,
+    expected_err = "Could not read image from clipboard: `pngpaste` is not installed",
   },
 }
 
@@ -68,6 +69,14 @@ T["get_clipboard_img_type"]["should return correct image type for OS"] = functio
         return api.get_os()
       end
 
+      vim.fn.executable = function(name)
+        if case.executable_missing then
+          assert(case.clip_exe, name, "The wrong clipboard executable was checked.")
+          return 0
+        end
+        return 1
+      end
+
       vim.fn.system = function(cmd)
         assert(case.expected_cmd, cmd, "The wrong system command was called.")
         return case.mock_output
@@ -77,9 +86,13 @@ T["get_clipboard_img_type"]["should return correct image type for OS"] = functio
   )
 
   -- Run get_clipboard_img_type
-  local result = child.lua_get [[require('obsidian.img_paste').get_clipboard_img_type()]]
+  local result = child.lua [[
+    local img_type, err = require('obsidian.img_paste').get_clipboard_img_type()
+    return { img_type = img_type, err = err }
+  ]]
 
-  eq(case.expected_img_type, result)
+  eq(case.expected_img_type, result.img_type)
+  eq(case.expected_err, result.err)
 end
 
 return T
