@@ -51,11 +51,16 @@ end
 --- Get the type of image on the clipboard.
 ---
 ---@return obsidian.ImageType?
+---@return string? err set when the clipboard tool is not installed
 function M.get_clipboard_img_type()
   local this_os = api.get_os()
   local check_cmd = get_clip_check_command(this_os)
   if not check_cmd then
     error("image saving not implemented for OS '" .. this_os .. "'")
+  end
+  local tool = check_cmd:match "^%S+"
+  if vim.fn.executable(tool) ~= 1 then
+    return nil, string.format("`%s` was not found in PATH; it is needed to read images from the clipboard", tool)
   end
   local result_string = vim.fn.system(check_cmd)
   local content = vim.split(result_string, "\n")
