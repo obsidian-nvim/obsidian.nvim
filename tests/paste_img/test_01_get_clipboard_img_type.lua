@@ -38,6 +38,14 @@ local test_cases = {
     expected_img_type = "jpeg",
   },
   {
+    name = "WSL with a png",
+    os_type = api.OSType.Wsl,
+    expected_cmd = 'powershell.exe "Get-Clipboard -Format Image"',
+    mock_output = "Some clipboard content\n",
+    expected_img_type = "png",
+    expected_err = nil,
+  },
+  {
     name = "Darwin without pngpaste installed",
     os_type = api.OSType.Darwin,
     clip_exe = "pngpaste",
