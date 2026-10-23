@@ -10,6 +10,8 @@ local uri = require "obsidian.uri"
 local compat = require "obsidian.compat"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
+local Link = require "obsidian.link"
+local Range = require "obsidian.range"
 local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 local search = require "obsidian.search"
@@ -83,27 +85,10 @@ M.unlink = function(bufnr, position)
     return log.warn "No link found under cursor"
   end
   if ref.kind == "wiki" or ref.kind == "markdown" or ref.kind == "autolink" then
-    local display_text = ref.label
-    if not display_text or display_text == "" then
-      local target = vim.uri_decode(ref.target)
-      display_text = Path.new(target).stem
-      if not display_text or display_text == "" then
-        display_text = Path.buffer(bufnr).stem
-      end
-    end
-
-    if not display_text or display_text == "" then
+    local display_text = Link.unlink { bufnr = bufnr, ref = ref }
+    if not display_text then
       return log.warn "Could not determine link display text"
     end
-
-    vim.api.nvim_buf_set_text(
-      bufnr,
-      ref.range.start_row,
-      ref.range.start_col,
-      ref.range.end_row,
-      ref.range.end_col,
-      { display_text }
-    )
     require("obsidian.ui").update(bufnr)
 
     if ref.embed == true and api.confirm "Remove Attachment?" == "Yes" then
@@ -430,64 +415,16 @@ local function get_utf8_char_end(line, byte_pos)
   return byte_pos + vim.str_utf_end(line, byte_pos) + 1
 end
 
-local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
-
---- Create an LSP TextEdit from a visual selection.
---- The edit uses UTF-8 byte offsets (matching our LSP server's offset_encoding).
----
----@param viz      obsidian.selection The visual selection
----@param new_text string             The replacement text
----@param bufnr    integer?           Buffer number (defaults to current buffer)
----@return lsp.TextDocumentEdit?
-local function make_text_edit(viz, new_text, bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
+---@param viz obsidian.selection
+---@param bufnr integer
+---@return obsidian.Range?
+local function selection_range(viz, bufnr)
   local line = vim.api.nvim_buf_get_lines(bufnr, viz.cerow - 1, viz.cerow, false)[1]
-
   if not line then
     return
   end
-
-  -- Calculate the exclusive end position (byte after the last selected character)
   local end_col = get_utf8_char_end(line, viz.cecol)
-
-  ---@diagnostic disable-next-line: return-type-mismatch TODO: emmylua bug?
-  return {
-    textDocument = {
-      uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(bufnr)),
-      version = has_nvim_0_12 and vim.NIL or nil,
-    },
-    edits = {
-      {
-        range = {
-          -- LSP positions are 0-indexed
-          start = { line = viz.csrow - 1, character = viz.cscol - 1 },
-          ["end"] = { line = viz.cerow - 1, character = end_col - 1 },
-        },
-        newText = new_text,
-      },
-    },
-  }
-end
-
---- Replace the visual selection with new text.
---- Returns the text edit that was (or would be) applied.
----
----@param viz      obsidian.selection
----@param new_text string
----@param opts     { apply: boolean? }? Options. apply defaults to true.
----@return lsp.TextDocumentEdit |?
-local function replace_selection(viz, new_text, opts)
-  opts = opts or {}
-  local apply = opts.apply ~= false -- default to true
-
-  local text_edit = make_text_edit(viz, new_text)
-
-  if apply and text_edit then
-    vim.lsp.util.apply_workspace_edit({ documentChanges = { text_edit } }, "utf-8")
-    require("obsidian.ui").update(0)
-  end
-
-  return text_edit
+  return Range.new(viz.csrow - 1, viz.cscol - 1, viz.cerow - 1, end_col - 1)
 end
 
 ---@param line string
@@ -642,7 +579,11 @@ M.link = function(context, bufnr)
         return
       end
       local note = require("obsidian.note").from_file(path)
-      replace_selection(viz, note:format_link { label = query })
+      local range = selection_range(viz, bufnr)
+      if range then
+        Link.replace { bufnr = bufnr, range = range, text = note:format_link { label = query } }
+        require("obsidian.ui").update(bufnr)
+      end
     end,
   }
 end
@@ -683,7 +624,16 @@ M.link_new = function(label, context, bufnr)
   end
 
   local note = require("obsidian.note").create { id = label }
-  replace_selection(viz, note:format_link { label = label })
+  local range = selection_range(viz, bufnr or vim.api.nvim_get_current_buf())
+  if not range then
+    return
+  end
+  Link.replace {
+    bufnr = bufnr or vim.api.nvim_get_current_buf(),
+    range = range,
+    text = note:format_link { label = label },
+  }
+  require("obsidian.ui").update(bufnr or vim.api.nvim_get_current_buf())
 
   -- Save file so backlinks search (ripgrep) can find the new link
   vim.cmd "silent! write"
@@ -718,8 +668,11 @@ M.extract_note = function(label)
   note:write()
 
   -- replace selection with link to new note
-  local link = note:format_link()
-  replace_selection(viz, link)
+  local range = selection_range(viz, vim.api.nvim_get_current_buf())
+  if range then
+    Link.replace { bufnr = vim.api.nvim_get_current_buf(), range = range, text = note:format_link() }
+    require("obsidian.ui").update(0)
+  end
 
   -- Save file so backlinks search (ripgrep) can find the new link
   vim.cmd "silent! write"

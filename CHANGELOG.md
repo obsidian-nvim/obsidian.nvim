@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `require("obsidian.link")` exposes `replace`, `insert`, and `unlink` for replacing ranges, inserting link text at a position, and removing link markup; link actions and suggestions use these operations.
 - `:Obsidian properties [KEY] [VALUE]`, a three-stage picker over frontmatter properties (keys, then values, then matching notes), mirroring `:Obsidian tags`.
 - `search.find_blocks_async()` for finding existing and unlabeled block-reference candidates.
 - Code action `link_suggestions` ("List unlinked outgoing mentions") - select an unlinked target note, then select locations in the current buffer to convert them to links. Scanning skips existing links, code blocks, inline code, frontmatter, tags, and URLs. Requires cache.

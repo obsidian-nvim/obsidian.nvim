@@ -306,9 +306,9 @@ M.register("backlinks", { nargs = 0, note_action = true })
 
 M.register("template", { nargs = "?", note_action = true })
 
-M.register("link_new", { nargs = "?", range = true, note_action = true })
+M.register("link_new", { nargs = "?", note_action = true })
 
-M.register("link", { nargs = "?", range = true, complete = M.note_complete, note_action = true })
+M.register("link", { nargs = "?", complete = M.note_complete, note_action = true })
 
 M.register("links", { nargs = 0, note_action = true })
 
