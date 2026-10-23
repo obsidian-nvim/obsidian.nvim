@@ -612,4 +612,43 @@ end
   eq(content, table.concat(h.read(files["A.md"]), "\n"))
 end
 
+T["rename footnote rewrites definition and references in the note only"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "text[^1] more[^1]\n\n[^1]: def",
+    ["B.md"] = "x[^1]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.lua [[
+require"obsidian.log".err = function(msg)
+  _G.err_msg = msg
+end
+  ]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 6 })
+
+  rename "bad name"
+  eq('Invalid footnote name "bad name"', child.lua_get "err_msg")
+
+  rename "src"
+  child.cmd "wa"
+
+  eq({ "text[^src] more[^src]", "", "[^src]: def" }, h.read(files["A.md"]))
+  eq({ "x[^1]" }, h.read(files["B.md"]))
+end
+
+T["rename footnote from its definition"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, { ["A.md"] = "text[^1]\n\n[^1]: def" })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 2 })
+  rename "src"
+  child.cmd "wa"
+
+  eq({ "text[^src]", "", "[^src]: def" }, h.read(files["A.md"]))
+end
+
 return T

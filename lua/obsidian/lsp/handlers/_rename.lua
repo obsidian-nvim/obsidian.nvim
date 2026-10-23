@@ -470,4 +470,34 @@ M.build_heading_edit = function(target, new_name, callback)
   end)
 end
 
+--- Rewrite a footnote name in its definition and every reference. Footnotes are
+--- scoped to their note, so only the buffer is touched.
+---@param target obsidian.lsp.RenameTarget
+---@param new_name string
+---@param callback fun(edit: lsp.WorkspaceEdit|?)
+M.build_footnote_edit = function(target, new_name, callback)
+  local footnotes = require "obsidian.footnotes"
+  local new_id = (vim.trim(new_name):gsub("^%^", ""))
+  if not new_id:match "^[^%]%[%s%^]+$" then
+    log.err(('Invalid footnote name "%s"'):format(new_id))
+    return callback(nil)
+  end
+  if new_id == target.id then
+    log.info "Identical name"
+    return callback(nil)
+  end
+  if #footnotes.find_refs(target.bufnr, new_id) > 0 then
+    log.err(('Footnote "[^%s]" already exists in this note'):format(new_id))
+    return callback(nil)
+  end
+
+  ---@type obsidian.lsp.FileEdits
+  local file_edits = {}
+  local path = path_key(vim.api.nvim_buf_get_name(target.bufnr))
+  for _, occurrence in ipairs(footnotes.find_refs(target.bufnr, target.id)) do
+    add_edit(file_edits, path, occurrence.lnum - 1, occurrence.start_col + 2, occurrence.end_col - 1, new_id)
+  end
+  callback(to_workspace_edit(file_edits))
+end
+
 return M
