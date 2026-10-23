@@ -239,12 +239,14 @@ T["note and tag mappings accept string values"] = function()
   local inserted = {}
 
   local ok, err = pcall(function()
+    Obsidian = { opts = { link = { format = "shortest" } }, workspaces = {} }
     vim.uv.fs_stat = function()
       return {}
     end
     Note.from_file = function(path)
       eq("/vault/note.md", path)
       return {
+        path = path,
         format_link = function()
           return "[[note]]"
         end,

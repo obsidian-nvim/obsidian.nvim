@@ -1094,7 +1094,7 @@ T["format_link"]["opts.format should override global link.format"] = function()
 
   Obsidian.opts.link.format = "absolute"
   eq("[[foo]]", note:format_link { format = "shortest", label = "foo" })
-  eq("[[notes/foo|foo]]", note:format_link { format = "absolute", label = "foo" })
+  eq("[[/notes/foo|foo]]", note:format_link { format = "absolute", label = "foo" })
 end
 
 T["format_link"]["relative format should fallback to vault root when current note dir is unavailable"] = function()
@@ -1113,7 +1113,7 @@ T["format_link"]["wiki should respect link.format"] = function()
   local note = from_str("", Obsidian.dir / "notes/foo.md")
   eq("[[foo]]", note:format_link())
   Obsidian.opts.link.format = "absolute"
-  eq("[[notes/foo|foo]]", note:format_link())
+  eq("[[/notes/foo|foo]]", note:format_link())
 
   Obsidian.opts.link.format = "relative"
 
@@ -1135,7 +1135,7 @@ T["format_link"]["markdown should respect link.format"] = function()
   local note = from_str("", Obsidian.dir / "notes/foo.md")
   eq("[foo](foo.md)", note:format_link())
   Obsidian.opts.link.format = "absolute"
-  eq("[foo](notes/foo.md)", note:format_link())
+  eq("[foo](/notes/foo.md)", note:format_link())
 
   Obsidian.opts.link.format = "relative"
 

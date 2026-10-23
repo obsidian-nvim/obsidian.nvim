@@ -53,6 +53,17 @@ T["detects note ref kinds"] = function()
   end
 end
 
+T["finds rooted wiki and markdown backlinks"] = function()
+  local root = child.Obsidian.dir
+  h.write("# A", root / "A.md")
+  local nested = root / "nested"
+  nested:mkdir()
+  h.write("[[/A]] [A](/A.md)", root / "nested" / "B.md")
+  child.cmd("edit " .. tostring(root / "A.md"))
+  local matches = get_backlinks "{}"
+  eq(2, #matches)
+end
+
 T["anchor filtering works"] = function()
   local root = child.Obsidian.dir
   setup_vault(root)

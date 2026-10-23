@@ -22,6 +22,22 @@ T["follow wiki links"] = function()
   eq({ 1, 0 }, child.api.nvim_win_get_cursor(0))
 end
 
+T["rooted links bypass neighboring notes"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["root.md"] = "[[/entity]]\n[Root](/entity.md)",
+    ["entity.md"] = "root note",
+    ["nested/entity.md"] = "neighbor note",
+    ["nested/source.md"] = "[[/entity]]\n[Root](/entity.md)",
+  })
+  for row = 1, 2 do
+    child.cmd("edit " .. files["nested/source.md"])
+    child.api.nvim_win_set_cursor(0, { row, 2 })
+    child.lua "vim.lsp.buf.definition()"
+    h.child_wait_for_buf_name(child, files["entity.md"])
+    eq(files["entity.md"], child.api.nvim_buf_get_name(0))
+  end
+end
+
 T["follow wiki links with missing headings without creating a note"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = "[[target#missing-heading]]",

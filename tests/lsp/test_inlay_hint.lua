@@ -830,8 +830,8 @@ T["selects between multiple link suggestion candidates"] = function()
     require("obsidian.actions").link_suggestion()
   ]]
 
-  eq({ "[[one/test|test]]", "[[two/test|test]]" }, child.lua_get [[_G.link_suggestion_options]])
-  eq("a [[two/test|test]]", child.lua_get [[vim.api.nvim_get_current_line()]])
+  eq({ "[[/one/test|test]]", "[[/two/test|test]]" }, child.lua_get [[_G.link_suggestion_options]])
+  eq("a [[/two/test|test]]", child.lua_get [[vim.api.nvim_get_current_line()]])
 end
 
 T["does nothing when link suggestion selection is cancelled"] = function()

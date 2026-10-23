@@ -325,11 +325,11 @@ function M.find_in_line(line, row, symbols, path_exists, source_dir, document)
         local candidates = {}
         for _, path in ipairs(target_paths) do
           local ok_link, new_text = pcall(function()
-            return Note.new(basename(path), nil, nil, path):format_link {
+            return require("obsidian.link").render(Note.new(basename(path), nil, nil, path), {
               label = label,
               format = #target_paths > 1 and "absolute" or nil,
               dir = source_dir,
-            }
+            })
           end)
 
           if ok_link then

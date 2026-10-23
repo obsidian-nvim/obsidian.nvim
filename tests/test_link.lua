@@ -35,6 +35,47 @@ return vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
   eq("See [[target]] now", line)
 end
 
+T["explicit root paths resolve independently of a neighboring note"] = function()
+  local result = child.lua [=[
+local root = tostring(Obsidian.dir)
+vim.fn.mkdir(root .. "/nested", "p")
+vim.fn.writefile({ "root" }, root .. "/entity.md")
+vim.fn.writefile({ "local" }, root .. "/nested/entity.md")
+local source = root .. "/nested/source.md"
+vim.fn.writefile({ "[[/entity]] [root](/entity.md)" }, source)
+local Link = require "obsidian.link"
+local search = require "obsidian.search"
+local api = require "obsidian.api"
+local resolved = search.resolve_note("/entity", { dir = api.resolve_workspace_dir(source), buf_dir = root .. "/nested" })
+return {
+  Link.resolve_link_path("entity", source),
+  Link.resolve_link_path("/entity", source),
+  Link.resolve_link_path("/entity.md", source),
+  tostring(resolved[1].path),
+}
+  ]=]
+  local root = tostring(child.Obsidian.dir)
+  eq({ root .. "/nested/entity.md", root .. "/entity.md", root .. "/entity.md", root .. "/entity.md" }, result)
+end
+
+T["render uses a rooted path for colliding stems"] = function()
+  local result = child.lua [=[
+local root = tostring(Obsidian.dir)
+vim.fn.mkdir(root .. "/lib", "p")
+vim.fn.writefile({ "old" }, root .. "/lib/entity.md")
+vim.fn.writefile({ "new" }, root .. "/entity.md")
+local Note = require "obsidian.note"
+local Link = require "obsidian.link"
+local opts = { label = "entity", source_path = root .. "/other.md" }
+local old = Link.render(Note.from_file(root .. "/lib/entity.md"), opts)
+local new = Link.render(Note.from_file(root .. "/entity.md"), opts)
+Obsidian.opts.link.style = "markdown"
+local markdown = Link.render(Note.from_file(root .. "/entity.md"), opts)
+return { old, new, markdown }
+  ]=]
+  eq({ "[[/lib/entity|entity]]", "[[/entity|entity]]", "[entity](/entity.md)" }, result)
+end
+
 T["includeexpr"] = new_set()
 
 T["includeexpr"]["should resolve notes, anchors, and urls for gf"] = function()
