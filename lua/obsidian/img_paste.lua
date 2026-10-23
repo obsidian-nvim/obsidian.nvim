@@ -18,6 +18,26 @@ local img_types = {
 
 -- Image pasting adapted from https://github.com/ekickx/clipboard-image.nvim
 
+--- The clipboard executable used by the clipboard check command on this system.
+---
+---@param this_os OSType
+---@return string|?
+local function get_clip_exe(this_os)
+  if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
+    local display_server = os.getenv "XDG_SESSION_TYPE"
+    if display_server == "x11" or display_server == "tty" then
+      return "xclip"
+    elseif display_server == "wayland" then
+      return "wl-paste"
+    end
+  elseif this_os == api.OSType.Darwin then
+    return "pngpaste"
+  elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
+    return "powershell.exe"
+  end
+  return nil
+end
+
 ---@param this_os OSType
 ---@return string|?
 local function get_clip_check_command(this_os)
@@ -50,9 +70,15 @@ end
 
 --- Get the type of image on the clipboard.
 ---
----@return obsidian.ImageType?
+---@return obsidian.ImageType? img_type
+---@return string? err Set when the clipboard could not be inspected, e.g. when the clipboard executable is missing.
 function M.get_clipboard_img_type()
   local this_os = api.get_os()
+  local clip_exe = get_clip_exe(this_os)
+  if clip_exe and vim.fn.executable(clip_exe) ~= 1 then
+    return nil, string.format("Could not read image from clipboard: `%s` is not installed", clip_exe)
+  end
+
   local check_cmd = get_clip_check_command(this_os)
   if not check_cmd then
     error("image saving not implemented for OS '" .. this_os .. "'")
