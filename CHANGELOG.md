@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Don't inject inlay hints when an completion is active.
 - Cache inlay hints in memory for performance.
 - Build vault-wide block and tag indexes lazily in memory, update them after file changes, and share buffer-aware cache lifecycle handling across parsed documents, inlay hints, and link-suggestion symbols.
+- Actions `link` and `link_new` actions now run in normal mode, using current word or link suggestions under the cursor.
 
 ### Fixed
 

@@ -574,10 +574,55 @@ local function link_selection(context, bufnr)
   return api.get_visual_selection { strict = true } or current_word_selection(bufnr)
 end
 
+---@param note obsidian.Note
+---@return obsidian.LinkSuggestion?
+local function link_suggestion_under_cursor(note)
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local row, col = cursor[1] - 1, cursor[2]
+  for _, suggestion in ipairs(note:link_suggestions()) do
+    local range = suggestion.range
+    if
+      range.start_row <= row
+      and row <= range.end_row
+      and (row ~= range.start_row or range.start_col <= col)
+      and (row ~= range.end_row or col < range.end_col)
+    then
+      return suggestion
+    end
+  end
+end
+
+local function current_link_suggestion(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if bufnr ~= vim.api.nvim_get_current_buf() then
+    return
+  end
+  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  return note and link_suggestion_under_cursor(note) or nil
+end
+
+local function in_visual_mode()
+  local mode = vim.api.nvim_get_mode().mode
+  return mode:find "[vV]" ~= nil or mode == "\22"
+end
+
+---@param bufnr integer
+---@param suggestion obsidian.LinkSuggestion
+---@return obsidian.selection?
+local function selection_from_link_suggestion(suggestion, bufnr)
+  local range = suggestion.range
+  return selection_from_range({
+    start = { line = range.start_row, character = range.start_col },
+    ["end"] = { line = range.end_row, character = range.end_col },
+  }, bufnr)
+end
+
 ---@param context obsidian.selection|lsp.Range|?
 ---@param bufnr integer|?
 M.link = function(context, bufnr)
-  local viz = link_selection(context, bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local suggestion = not context and not in_visual_mode() and current_link_suggestion(bufnr) or nil
+  local viz = suggestion and selection_from_link_suggestion(suggestion, bufnr) or link_selection(context, bufnr)
   if not viz then
     log.err "No text under cursor to link"
     return
@@ -616,6 +661,13 @@ M.link_new = function(label, context, bufnr)
     selection_context = context
   end
   ---@cast label string?
+
+  if (not label or label == "") and not selection_context and not in_visual_mode() then
+    local suggestion = current_link_suggestion(bufnr)
+    if suggestion then
+      return M.link_suggestion(suggestion)
+    end
+  end
 
   local viz = link_selection(selection_context, bufnr)
   if not viz then
@@ -1418,21 +1470,7 @@ M.link_suggestion = function(suggestion)
   end
 
   if not suggestion then
-    -- TODO: a find_cursor
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    local row, col = cursor[1] - 1, cursor[2]
-    for _, current in ipairs(note:link_suggestions()) do
-      local range = current.range
-      if
-        range.start_row <= row
-        and row <= range.end_row
-        and (row ~= range.start_row or range.start_col <= col)
-        and (row ~= range.end_row or col < range.end_col)
-      then
-        suggestion = current
-        break
-      end
-    end
+    suggestion = link_suggestion_under_cursor(note)
     if not suggestion then
       return
     end

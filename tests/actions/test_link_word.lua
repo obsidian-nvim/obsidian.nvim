@@ -37,6 +37,33 @@ T["creates and links a note from the word under cursor"] = function()
   eq(true, child.api.nvim_get_current_line():match "^Make %[%[%d+%-[A-Z]+|Fresh%]%] now$" ~= nil)
 end
 
+T["link accepts a suggestion under the cursor"] = function()
+  open_source("Evergreen notes are useful", { ["Evergreen notes.md"] = "# Evergreen notes" })
+  h.child_setup_cache(child)
+  child.api.nvim_win_set_cursor(0, { 1, 2 })
+
+  child.lua [[require("obsidian.actions").link_new()]]
+
+  eq("[[Evergreen notes]] are useful", child.api.nvim_get_current_line())
+end
+
+T["link picker uses the full suggested text"] = function()
+  local files = open_source("Evergreen notes are useful", { ["Evergreen notes.md"] = "# Evergreen notes" })
+  h.child_setup_cache(child)
+  child.api.nvim_win_set_cursor(0, { 1, 2 })
+
+  child.lua(([=[
+    require("obsidian.picker").find_notes = function(opts)
+      _G.link_suggestion_query = opts.query
+      opts.callback { %q }
+    end
+    require("obsidian.actions").link()
+  ]=]):format(files["Evergreen notes.md"]))
+
+  eq("Evergreen notes", child.lua_get [[_G.link_suggestion_query]])
+  eq("[[Evergreen notes]] are useful", child.api.nvim_get_current_line())
+end
+
 T["uses an explicit visual range from a code action"] = function()
   local files = open_source("first target last", { ["target.md"] = "# Target" })
   child.api.nvim_win_set_cursor(0, { 1, 1 })
