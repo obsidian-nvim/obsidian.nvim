@@ -18,12 +18,12 @@ local function rename(new_name)
   )
 end
 
-local function prepare_rename_placeholder()
+local function prepare_rename()
   return h.child_await(
     child,
     [[
       require("obsidian.lsp.handlers.prepare_rename")(nil, function(_, result)
-        done(result.placeholder)
+        done(result and { placeholder = result.placeholder, range = result.range } or false)
       end)
     ]],
     { desc = "prepare rename" }
@@ -193,10 +193,57 @@ T["prepare rename keeps fragment-only placeholders"] = function()
 
   child.cmd("edit " .. files[ref])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
-  eq("#header", prepare_rename_placeholder())
+  eq("header", prepare_rename().placeholder)
 
   child.api.nvim_win_set_cursor(0, { 2, 13 })
-  eq("#^block", prepare_rename_placeholder())
+  eq("block", prepare_rename().placeholder)
+end
+
+T["prepare rename answers per element under the cursor"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["P.md"] = table.concat({
+      "plain text #tag", -- 1
+      "## Old Title", -- 2
+      "para ^blk-1", -- 3
+      "text[^1]", -- 4
+      "[[target]]", -- 5
+    }, "\n"),
+  })
+
+  child.cmd("edit " .. files["P.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 2 })
+  eq(false, prepare_rename())
+  child.api.nvim_win_set_cursor(0, { 1, 12 }) -- tags are not renameable yet
+  eq(false, prepare_rename())
+
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  eq("Old Title", prepare_rename().placeholder)
+
+  child.api.nvim_win_set_cursor(0, { 3, 5 })
+  local block = prepare_rename()
+  eq("blk-1", block.placeholder)
+  eq({ start = { line = 2, character = 6 }, ["end"] = { line = 2, character = 11 } }, block.range)
+
+  child.api.nvim_win_set_cursor(0, { 4, 5 })
+  eq("1", prepare_rename().placeholder)
+
+  child.api.nvim_win_set_cursor(0, { 5, 3 })
+  eq("target", prepare_rename().placeholder)
+end
+
+T["rename on plain text does nothing"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, { [target] = target_content })
+
+  child.cmd("edit " .. files[target])
+  child.api.nvim_win_set_cursor(0, { 6, 1 }) -- on "hello"
+
+  rename "x"
+  child.cmd "wa"
+
+  eq(false, (root / "x.md"):exists())
+  eq(target_content, table.concat(h.read(files[target]), "\n"))
 end
 
 local referencer2_expected = [==[
