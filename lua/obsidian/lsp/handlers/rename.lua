@@ -44,6 +44,10 @@ return function(params, handler, _)
     rename.build_block_edit(target, new_name, function(edit)
       handler(nil, edit)
     end)
+  elseif target.kind == "heading" then
+    rename.build_heading_edit(target, new_name, function(edit)
+      handler(nil, edit)
+    end)
   else
     handler(nil, nil)
   end

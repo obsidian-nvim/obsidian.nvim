@@ -363,4 +363,111 @@ M.build_block_edit = function(target, new_name, callback)
   end)
 end
 
+--- ATX headings of the buffer, outside code and comments.
+---@param bufnr integer
+---@return { row: integer, text: string, anchor: string, start_col: integer, end_col: integer }[]
+local function headings(bufnr)
+  local document = BufferDocument.get(bufnr)
+  local out = {}
+  for row, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
+    local parsed = header.parse(line)
+    local first_byte = line:find "%S"
+    if parsed and first_byte then
+      local marker = Range.new(row - 1, first_byte - 1, row - 1, first_byte)
+      if not document:intersects(marker, Document.BODY_EXCLUSIONS) then
+        local s, e = line:find(parsed.header, parsed.level + 1, true)
+        out[#out + 1] = { row = row - 1, text = parsed.header, anchor = parsed.anchor, start_col = s - 1, end_col = e }
+      end
+    end
+  end
+  return out
+end
+
+--- A heading component of a link keeps the style it was written in: raw text,
+--- URL-encoded, or slug.
+---@param component string
+---@param old_text string
+---@param new_text string
+---@return string
+local function restyle(component, old_text, new_text)
+  if component == old_text then
+    return new_text
+  end
+  if vim.uri_decode(component) ~= component then
+    return require("obsidian.uri").encode(new_text)
+  end
+  if component == header.normalize_anchor(component):sub(2) then
+    return header.to_anchor(new_text):sub(2)
+  end
+  return new_text
+end
+
+--- Rewrite a heading's text and every link component that names it. Refused when
+--- the heading is not unique in its note, because a link cannot say which one it means.
+---@param target obsidian.lsp.RenameTarget
+---@param new_name string
+---@param callback fun(edit: lsp.WorkspaceEdit|?)
+M.build_heading_edit = function(target, new_name, callback)
+  local new_text = vim.trim(new_name)
+  if new_text == "" or new_text:find("\n", 1, true) or vim.startswith(new_text, "#") then
+    log.err(('Invalid heading "%s"'):format(new_text))
+    return callback(nil)
+  end
+
+  local all = headings(target.bufnr)
+  local same = vim.tbl_filter(function(h)
+    return h.anchor == target.anchor
+  end, all)
+  local definition = same[1]
+  if target.header then
+    -- Cursor on the heading line itself.
+    definition = vim.iter(all):find(function(h)
+      return h.row == target.range.start.line
+    end)
+  end
+  if not definition then
+    log.err(('Heading "%s" not found in this note'):format(target.placeholder))
+    return callback(nil)
+  end
+  if #same > 1 then
+    log.err(('Heading "%s" is not unique in this note'):format(definition.text))
+    return callback(nil)
+  end
+  if new_text == definition.text then
+    log.info "Identical name"
+    return callback(nil)
+  end
+  local new_anchor = header.to_anchor(new_text)
+  for _, other in ipairs(all) do
+    if other ~= definition and other.anchor == new_anchor then
+      log.err(('Heading "%s" already exists in this note'):format(new_text))
+      return callback(nil)
+    end
+  end
+
+  collect_refs(target.bufnr, function(collected)
+    ---@type obsidian.lsp.FileEdits
+    local file_edits = {}
+    add_edit(
+      file_edits,
+      path_key(vim.api.nvim_buf_get_name(target.bufnr)),
+      definition.row,
+      definition.start_col,
+      definition.end_col,
+      new_text
+    )
+    for _, item in ipairs(collected) do
+      for _, comp in ipairs(M.fragment_components(item.ref)) do
+        if
+          not vim.startswith(comp.text, "^") and header.normalize_anchor(vim.uri_decode(comp.text)) == target.anchor
+        then
+          local replacement = restyle(comp.text, definition.text, new_text)
+          add_edit(file_edits, item.path, item.row, comp.col, comp.col + #comp.text, replacement)
+        end
+      end
+    end
+    callback(to_workspace_edit(file_edits))
+  end)
+end
+
 return M

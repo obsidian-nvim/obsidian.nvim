@@ -541,4 +541,75 @@ T["rename block id edits a modified buffer of another note"] = function()
   eq({ "[[A#^novo-id]]", "unsaved" }, h.read(files["B.md"]))
 end
 
+T["rename heading rewrites text and every reference style"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = table.concat({
+      "# Top",
+      "## Old Title",
+      "### Child",
+      "see [[#Old Title]] [[#old-title]]",
+    }, "\n"),
+    ["B.md"] = table.concat({
+      "[[A#Old Title]] ![[A#Old Title]] [[A#Old Title|alias]] [[A#Top#Old Title]] [[A#Old Title#Child]]"
+        .. " [z](A.md#old-title) [w](A.md#Old%20Title)",
+    }, "\n"),
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 2, 4 })
+  rename "New Name"
+  child.cmd "wa"
+
+  eq({ "# Top", "## New Name", "### Child", "see [[#New Name]] [[#new-name]]" }, h.read(files["A.md"]))
+  eq({
+    "[[A#New Name]] ![[A#New Name]] [[A#New Name|alias]] [[A#Top#New Name]] [[A#New Name#Child]]"
+      .. " [z](A.md#new-name) [w](A.md#New%20Name)",
+  }, h.read(files["B.md"]))
+end
+
+T["rename heading from a reference to it"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "## Old Title\n\nsee [[#Old Title]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 8 })
+  rename "Other"
+  child.cmd "wa"
+
+  eq({ "## Other", "", "see [[#Other]]" }, h.read(files["A.md"]))
+end
+
+T["rename heading refuses duplicates"] = function()
+  local root = child.Obsidian.dir
+  local content = "## Same\n\n## Same\n\n## A1\n\n## B1"
+  local files = h.mock_vault_contents(root, { ["A.md"] = content })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.lua [[
+require"obsidian.log".err = function(msg)
+  _G.err_msg = msg
+end
+  ]]
+
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+  rename "Other"
+  eq('Heading "Same" is not unique in this note', child.lua_get "err_msg")
+
+  child.api.nvim_win_set_cursor(0, { 5, 4 })
+  rename "B1"
+  eq('Heading "B1" already exists in this note', child.lua_get "err_msg")
+
+  rename "# bad"
+  eq('Invalid heading "# bad"', child.lua_get "err_msg")
+
+  child.cmd "wa"
+  eq(content, table.concat(h.read(files["A.md"]), "\n"))
+end
+
 return T
