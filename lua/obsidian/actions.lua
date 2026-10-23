@@ -603,7 +603,11 @@ M.link = function(context, bufnr)
       local note = require("obsidian.note").from_file(path)
       local range = selection_range(viz, bufnr)
       if range then
-        Link.replace { bufnr = bufnr, range = range, text = note:format_link { label = query } }
+        Link.replace {
+          bufnr = bufnr,
+          range = range,
+          text = Link.render(note, { label = query, source_path = vim.api.nvim_buf_get_name(bufnr) }),
+        }
         require("obsidian.ui").update(bufnr)
       end
     end,
@@ -653,7 +657,7 @@ M.link_new = function(label, context, bufnr)
   Link.replace {
     bufnr = bufnr or vim.api.nvim_get_current_buf(),
     range = range,
-    text = note:format_link { label = label },
+    text = Link.render(note, { label = label, source_path = vim.api.nvim_buf_get_name(bufnr or 0) }),
   }
   require("obsidian.ui").update(bufnr or vim.api.nvim_get_current_buf())
 
@@ -692,7 +696,11 @@ M.extract_note = function(label)
   -- replace selection with link to new note
   local range = selection_range(viz, vim.api.nvim_get_current_buf())
   if range then
-    Link.replace { bufnr = vim.api.nvim_get_current_buf(), range = range, text = note:format_link() }
+    Link.replace {
+      bufnr = vim.api.nvim_get_current_buf(),
+      range = range,
+      text = Link.render(note, { source_path = vim.api.nvim_buf_get_name(0) }),
+    }
     require("obsidian.ui").update(0)
   end
 
@@ -1630,6 +1638,7 @@ M.write_note = function(note, scope)
 end
 
 M.insert_link = function(query)
+  local source_path = vim.api.nvim_buf_get_name(0)
   picker.find_files {
     query = query,
     no_default_mappings = true,
@@ -1639,8 +1648,8 @@ M.insert_link = function(query)
         return
       end
       local note = Note.from_file(path)
-      local link = note:format_link()
-      vim.api.nvim_put({ link }, "", true, true)
+      local text = Link.render(note, { source_path = source_path })
+      vim.api.nvim_put({ text }, "", true, true)
       require("obsidian.ui").update(0)
     end,
   }

@@ -471,8 +471,8 @@ T["completion"]["disambiguates duplicate note basenames"] = function()
   end
   table.sort(links)
   eq({
-    "[[one/target#Shared One|target ❯ Shared One]]",
-    "[[two/target#Shared Two|target ❯ Shared Two]]",
+    "[[/one/target#Shared One|target ❯ Shared One]]",
+    "[[/two/target#Shared Two|target ❯ Shared Two]]",
   }, links)
 end
 

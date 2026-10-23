@@ -4,6 +4,8 @@ local Path = require "obsidian.path"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local refs = require "obsidian.parse.refs"
+local Document = require "obsidian.parse.document"
+local Range = require "obsidian.range"
 local search = require "obsidian.search"
 local uri = require "obsidian.uri"
 
@@ -86,8 +88,8 @@ end
 
 local function find_target_replacement(ref, replacements)
   local body_offset = 0
-  if ref.kind == "markdown" then
-    if vim.startswith(ref.target, "./") then
+  if ref.kind == "markdown" or ref.kind == "wiki" then
+    if ref.kind == "markdown" and vim.startswith(ref.target, "./") then
       body_offset = 2
     elseif vim.startswith(ref.target, "/") then
       body_offset = 1
@@ -181,33 +183,67 @@ M.build_edit_for_paths = function(path_pairs, opts, callback)
     local file_edits = {}
     local file_order = {}
     local processed_lines = {}
+    local was_loaded = {}
+    local originals = {}
+    local documents = {}
+
+    local function process_line(path, line, lnum)
+      local line_key = path .. ":" .. lnum
+      if processed_lines[line_key] then
+        return
+      end
+      processed_lines[line_key] = true
+      local document = documents[path]
+      if not document then
+        local bufnr = vim.fn.bufnr(path)
+        local lines = bufnr > 0
+            and vim.api.nvim_buf_is_loaded(bufnr)
+            and vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+          or vim.fn.readfile(path)
+        document = Document.parse(lines)
+        documents[path] = document
+      end
+      local row0 = lnum - 1
+      ---@cast row0 integer
+      for _, ref in ipairs(refs.extract(line, { row = row0, lexical = true })) do
+        local origin = Range.new(row0, ref.range.start_col, row0, ref.range.start_col + 1)
+        local offset = target_offset(ref)
+        local body_offset, replacement = find_target_replacement(ref, replacements)
+        if offset and body_offset and replacement and not document:intersects(origin, Document.INLINE_EXCLUSIONS) then
+          local start_col = ref.range.start_col + offset + body_offset
+          if not file_edits[path] then
+            file_edits[path] = {}
+            file_order[#file_order + 1] = path
+          end
+          file_edits[path][#file_edits[path] + 1] = {
+            range = {
+              start = { line = lnum - 1, character = start_col },
+              ["end"] = { line = lnum - 1, character = start_col + #replacement.old },
+            },
+            newText = replacement.new,
+          }
+          originals[path] = originals[path] or {}
+          originals[path][#originals[path] + 1] = { row = lnum - 1, col = start_col, text = replacement.old }
+          count = count + 1
+        end
+      end
+    end
 
     for _, match in ipairs(matches) do
-      local match_path = tostring(match.path)
-      local line_key = match_path .. ":" .. match.line
-
-      if not processed_lines[line_key] then
-        processed_lines[line_key] = true
-
-        for _, ref in ipairs(refs.extract(match.text)) do
-          local offset = target_offset(ref)
-          local body_offset, replacement = find_target_replacement(ref, replacements)
-          if offset and body_offset and replacement then
-            local start_col = ref.range.start_col + offset + body_offset
-
-            if not file_edits[match_path] then
-              file_edits[match_path] = {}
-              file_order[#file_order + 1] = match_path
-            end
-
-            file_edits[match_path][#file_edits[match_path] + 1] = {
-              range = {
-                start = { line = match.line - 1, character = start_col },
-                ["end"] = { line = match.line - 1, character = start_col + #replacement.old },
-              },
-              newText = replacement.new,
-            }
-            count = count + 1
+      local path = tostring(match.path)
+      local bufnr = vim.fn.bufnr(path)
+      if bufnr < 1 or not vim.api.nvim_buf_is_loaded(bufnr) then
+        process_line(path, match.text, match.line)
+      end
+    end
+    -- A loaded buffer is authoritative even if its unsaved links are absent
+    -- from the ripgrep results on disk.
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_loaded(bufnr) then
+        local path = vim.api.nvim_buf_get_name(bufnr)
+        if path ~= "" and api.path_is_note(path, api.find_workspace(assert(dir, "rename workspace is required"))) then
+          for row, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
+            process_line(path, line, row)
           end
         end
       end
@@ -229,6 +265,8 @@ M.build_edit_for_paths = function(path_pairs, opts, callback)
         edits = file_edits[path],
       }
 
+      local existing_buf = vim.fn.bufnr(path)
+      was_loaded[path] = existing_buf > 0 and vim.api.nvim_buf_is_loaded(existing_buf)
       buf_list[#buf_list + 1] = vim.fn.bufnr(path, true)
       path_lookup[path] = true
     end
@@ -253,6 +291,8 @@ M.build_edit_for_paths = function(path_pairs, opts, callback)
       count = count,
       path_lookup = path_lookup,
       buf_list = buf_list,
+      was_loaded = was_loaded,
+      originals = originals,
       old_path = first and first.old_path or "",
       new_path = first and first.new_path or "",
     })
@@ -279,7 +319,67 @@ M.build_edit = function(note, new_name, opts, callback)
     include_file_rename = opts.include_file_rename,
     include_stem_refs = opts.include_stem_refs,
     dir = opts.dir,
-  }, callback)
+  }, function(edit, meta)
+    if opts.repair_collisions ~= true then
+      return callback(edit, meta)
+    end
+
+    local plan = require("obsidian.link.collision").plan { old_path = old_path, new_path = new_path }
+    meta.collision_plan = plan
+    if not plan or plan.count == 0 then
+      return callback(edit, meta)
+    end
+    edit = edit or { documentChanges = {} }
+    local changes = assert(edit.documentChanges, "rename edit must use documentChanges")
+    for path, edits in pairs(plan.edits) do
+      local change
+      for _, entry in ipairs(changes) do
+        if entry.textDocument and vim.uri_to_fname(entry.textDocument.uri) == path then
+          change = entry
+          break
+        end
+      end
+      if not change then
+        change = {
+          textDocument = {
+            uri = vim.uri_from_fname(path),
+            version = has_nvim_0_12 and vim.NIL or nil,
+          },
+          edits = {},
+        }
+        table.insert(changes, 1, change)
+      end
+      for _, target_edit in ipairs(edits) do
+        local overlaps = false
+        for _, existing in ipairs(change.edits) do
+          if vim.deep_equal(existing.range, target_edit.range) then
+            overlaps = true
+            break
+          end
+        end
+        if not overlaps then
+          change.edits[#change.edits + 1] = target_edit
+          local original
+          -- Match originals by range; the ordinary rename edits may already
+          -- occupy this document's edit list.
+          for i, candidate in ipairs(edits) do
+            if candidate == target_edit then
+              original = plan.original[path][i]
+              break
+            end
+          end
+          meta.originals[path] = meta.originals[path] or {}
+          meta.originals[path][#meta.originals[path] + 1] = original
+          meta.count = meta.count + 1
+        end
+      end
+      meta.path_lookup[path] = true
+      local existing_buf = vim.fn.bufnr(path)
+      meta.was_loaded[path] = existing_buf > 0 and vim.api.nvim_buf_is_loaded(existing_buf)
+      meta.buf_list[#meta.buf_list + 1] = vim.fn.bufnr(path, true)
+    end
+    callback(edit, meta)
+  end)
 end
 
 ---@param note obsidian.Note
@@ -305,17 +405,66 @@ local function finish_rename(note, new_name, meta)
   note.path = Path.new(new_path)
   note:update_frontmatter(note.bufnr)
 
-  vim.cmd "silent! wall"
+  -- Write only files opened for this edit; leave pre-existing dirty buffers
+  -- (including unrelated notes) under the user's control.
+  for path, loaded in pairs(meta.was_loaded) do
+    if not loaded then
+      local bufnr = vim.fn.bufnr(path)
+      if bufnr > 0 and vim.api.nvim_buf_is_loaded(bufnr) then
+        vim.api.nvim_buf_call(bufnr, function()
+          vim.cmd "silent noautocmd write"
+        end)
+        vim.api.nvim_buf_delete(bufnr, { unload = true })
+      end
+    end
+  end
+  if note.bufnr and vim.api.nvim_buf_is_valid(note.bufnr) then
+    vim.api.nvim_buf_call(note.bufnr, function()
+      vim.cmd "silent write"
+    end)
+  end
   require("obsidian.cache").notes.rename(old_path, new_path)
   if current_file == old_path then
     vim.cmd("edit " .. vim.fn.fnameescape(new_path))
-  elseif current_file ~= "" then
-    vim.cmd("edit " .. vim.fn.fnameescape(current_file))
   end
 
   require("obsidian.lsp").start(note.bufnr or vim.api.nvim_get_current_buf())
 
-  log.info("renamed " .. meta.count .. " reference(s) across " .. vim.tbl_count(meta.path_lookup) .. " file(s)")
+  log.info("Updated %d links in %d notes", meta.count, vim.tbl_count(meta.path_lookup))
+end
+
+---@param edit lsp.WorkspaceEdit
+---@param old_path string
+---@param new_path string
+---@return table<string, table<integer, string>>
+local function expected_rename_lines(edit, old_path, new_path)
+  local apply = require "obsidian.link.collision_apply"
+  local expected = {}
+  for _, change in ipairs(edit.documentChanges or {}) do
+    if change.textDocument then
+      local source = vim.uri_to_fname(change.textDocument.uri)
+      local edits = vim.deepcopy(change.edits)
+      table.sort(edits, function(a, b)
+        local x, y = a.range.start, b.range.start
+        return x.line > y.line or (x.line == y.line and x.character > y.character)
+      end)
+      expected[source == old_path and new_path or source] = apply.expected_lines(source, edits)
+    end
+  end
+  return expected
+end
+
+local function rename_edit_applied(expected, old_path, new_path)
+  if not Path.new(new_path):is_file() or Path.new(old_path):is_file() then
+    return false
+  end
+  local apply = require "obsidian.link.collision_apply"
+  for path, lines in pairs(expected) do
+    if not apply.edits_applied(path, lines) then
+      return false
+    end
+  end
+  return true
 end
 
 ---@param note obsidian.Note
@@ -359,23 +508,142 @@ M.rename = function(note, new_name, opts, callback)
     return fail(err, callback)
   end
 
-  M.build_edit(note, new_name, opts, function(edit, meta)
-    if opts.apply ~= false and edit then
-      vim.lsp.util.apply_workspace_edit(edit, opts.offset_encoding or "utf-8")
-    end
+  local build_opts = vim.tbl_extend("force", { repair_collisions = true }, opts)
+  local release = function() end
+  local function build(attempt)
+    M.build_edit(note, new_name, build_opts, function(edit, meta)
+      if not meta then
+        if callback then
+          callback(nil, edit, nil)
+        end
+        release()
+        return
+      end
+      local plan = meta.collision_plan
+      if
+        plan
+        and plan.count > 0
+        and not require("obsidian.link.collision_apply").confirm(plan, {
+          count = meta.count,
+          notes = vim.tbl_count(meta.path_lookup),
+          edit = edit,
+          rename = true,
+        })
+      then
+        if callback then
+          callback("Aborted", nil, nil)
+        end
+        release()
+        return
+      end
+      if plan then
+        local fresh = require("obsidian.link.collision").plan { old_path = old_path, new_path = new_path }
+        if not fresh or not vim.deep_equal(plan.edits, fresh.edits) then
+          if attempt == 0 then
+            return build(1)
+          end
+          release()
+          return fail("Link collision changed during rename; retry", callback)
+        end
+      end
+      if not edit then
+        if callback then
+          callback(nil, nil, meta)
+        end
+        release()
+        return
+      end
+      local current_lines = require("obsidian.link.collision_apply").current_lines
+      for path, originals in pairs(meta.originals) do
+        local lines = current_lines(path)
+        for _, original in ipairs(originals) do
+          local line = lines[original.row + 1]
+          if not line or line:sub(original.col + 1, original.col + #original.text) ~= original.text then
+            if attempt == 0 then
+              return build(1)
+            end
+            release()
+            return fail("Link target changed during rename; retry", callback)
+          end
+        end
+      end
+      for _, change in ipairs(edit.documentChanges or {}) do
+        if change.textDocument then
+          local path = vim.uri_to_fname(change.textDocument.uri)
+          local bufnr = vim.fn.bufnr(path)
+          if
+            (
+              bufnr > 0
+              and vim.api.nvim_buf_is_loaded(bufnr)
+              and (vim.bo[bufnr].readonly or not vim.bo[bufnr].modifiable)
+            ) or ((bufnr < 1 or not vim.api.nvim_buf_is_loaded(bufnr)) and vim.fn.filewritable(path) ~= 1)
+          then
+            release()
+            return fail("Reference note is not writable: " .. path, callback)
+          end
+        end
+      end
 
-    if callback then
-      callback(nil, edit, meta)
+      local expected = expected_rename_lines(edit, old_path, new_path)
+      if opts.apply ~= false then
+        local applied, apply_err = pcall(vim.lsp.util.apply_workspace_edit, edit, opts.offset_encoding or "utf-8")
+        if not applied or not rename_edit_applied(expected, old_path, new_path) then
+          release()
+          return fail("Rename edit failed: " .. tostring(apply_err), callback)
+        end
+        if callback then
+          callback(nil, edit, meta)
+        end
+        if opts.update_buffers ~= false then
+          vim.schedule(function()
+            local ok_finish, finish_err = pcall(finish_rename, note, new_name, meta)
+            if not ok_finish then
+              log.err("Rename applied, but post-rename update failed: %s", finish_err)
+            end
+            release()
+          end)
+        else
+          release()
+        end
+      else
+        -- The LSP rename response has no apply acknowledgment. Only finish if
+        -- a later filesystem check proves that the client applied the rename.
+        if callback then
+          callback(nil, edit, meta)
+        end
+        if opts.update_buffers ~= false then
+          local tries = 0
+          local function verify()
+            tries = tries + 1
+            if rename_edit_applied(expected, old_path, new_path) then
+              local ok_finish, finish_err = pcall(finish_rename, note, new_name, meta)
+              if not ok_finish then
+                log.err("Rename applied, but post-rename update failed: %s", finish_err)
+              end
+              release()
+            elseif tries < 100 then
+              vim.defer_fn(verify, 10)
+            else
+              log.warn "Rename edit was not confirmed; no links reported as updated"
+              release()
+            end
+          end
+          vim.schedule(verify)
+        else
+          release()
+        end
+      end
+    end)
+  end
+  require("obsidian.link.queue").run(new_path, function(done)
+    release = done
+    local valid, reason = M.validate(note, new_name, opts)
+    if not valid then
+      release()
+      return fail(assert(reason, "rename validation failed"), callback)
     end
-
-    if opts.update_buffers ~= false then
-      -- Run after the edit has been applied. With opts.apply=false the caller is
-      -- expected to apply the returned edit synchronously from the callback.
-      vim.schedule(function()
-        finish_rename(note, new_name, meta)
-      end)
-    end
-  end)
+    build(0)
+  end, { immediate = true })
 end
 
 return M

@@ -66,12 +66,12 @@ local function create_new_note(location, callback, opts)
   local function update_link(note)
     if opts.range and vim.api.nvim_buf_is_valid(bufnr) then
       local source = vim.api.nvim_buf_get_name(bufnr)
-      local new_link = note:format_link {
+      local new_link = require("obsidian.link").render(note, {
         label = opts.label or location,
         anchor = opts.anchor,
         block = opts.block,
-        dir = source ~= "" and vim.fs.dirname(source) or nil,
-      }
+        source_path = source,
+      })
       vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
     end
   end

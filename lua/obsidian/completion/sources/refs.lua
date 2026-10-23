@@ -7,6 +7,7 @@ local link_parser = require "obsidian.link.parser"
 local header_parser = require "obsidian.parse.header"
 local block_ids = require "obsidian.parse.block_id"
 local api = require "obsidian.api"
+local Link = require "obsidian.link"
 local search = require "obsidian.search"
 local cache = require "obsidian.cache"
 
@@ -264,7 +265,12 @@ local function process_block_search_results(cc, scope, matches)
   local items = {}
   for _, match in ipairs(matches) do
     local link = scope == "current" and format_current_block_link(match.block)
-      or match.note:format_link { label = match.note:display_name(), block = match.block }
+      or Link.render(match.note, {
+        label = match.note:display_name(),
+        block = match.block,
+        source_path = vim.api.nvim_buf_get_name(cc.request.bufnr),
+      })
+    ---@type string
     local label = block_label(match.text)
     ---@cast label -nil
     if match.existing then
@@ -515,12 +521,13 @@ local function process_heading_search_results(cc, query, results)
       local basename = vim.fs.basename(tostring(note.path))
       local paths = basename_paths[basename]
       local link_format = paths and vim.tbl_count(paths) > 1 and "absolute" or nil
-      local link = note:format_link {
+      local link = Link.render(note, {
         label = note:display_name(),
         anchor = heading_completion_anchor(anchor),
+        source_path = source_name,
         dir = source_dir,
         format = link_format,
-      }
+      })
       local label = anchor.header .. " — " .. note:display_name()
       items[#items + 1] = {
         label = label,
@@ -624,7 +631,12 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
     local final_label, display_label, sort_text, new_text, documentation
     local formatted_anchor = wiki_completion_anchor(option.anchor)
     if option.label then
-      new_text = note:format_link { label = option.label, anchor = formatted_anchor, block = option.block }
+      new_text = Link.render(note, {
+        label = option.label,
+        anchor = formatted_anchor,
+        block = option.block,
+        source_path = vim.api.nvim_buf_get_name(cc.request.bufnr),
+      })
 
       final_label = option.alt_label or option.label
       display_label = final_label
@@ -697,23 +709,25 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
         -- Different notes produced the same link text: disambiguate using vault-relative paths.
         if not existing.disambiguated then
           cc.new_text_to_option[new_text] = nil
-          local ex_new_text = existing.note:format_link {
+          local ex_new_text = Link.render(existing.note, {
             label = existing.label,
             format = resolve_link_format,
             anchor = existing.anchor,
             block = existing.block,
-          }
+            source_path = vim.api.nvim_buf_get_name(cc.request.bufnr),
+          })
           existing.new_text = ex_new_text
           existing.disambiguated = true
           cc.new_text_to_option[ex_new_text] = existing
         end
 
-        local cur_new_text = note:format_link {
+        local cur_new_text = Link.render(note, {
           label = final_label,
           format = resolve_link_format,
           anchor = formatted_anchor,
           block = option.block,
-        }
+          source_path = vim.api.nvim_buf_get_name(cc.request.bufnr),
+        })
         if not cc.new_text_to_option[cur_new_text] then
           cc.new_text_to_option[cur_new_text] = {
             label = final_label,

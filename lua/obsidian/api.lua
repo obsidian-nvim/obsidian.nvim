@@ -140,7 +140,7 @@ local function format_path(path, style, base_dir)
   end
 
   if style == "absolute" then
-    return rel_path
+    return "/" .. tostring(rel_path)
   elseif style == "relative" then
     base_dir = base_dir or Obsidian.buf_dir or M.resolve_workspace_dir()
     if base_dir == nil then
@@ -492,12 +492,12 @@ M.create_new_note = function(location, callback, opts)
   local function update_link(note)
     if opts.range and vim.api.nvim_buf_is_valid(bufnr) then
       local source = vim.api.nvim_buf_get_name(bufnr)
-      local new_link = note:format_link {
+      local new_link = require("obsidian.link").render(note, {
         label = opts.label or location,
         anchor = opts.anchor,
         block = opts.block,
-        dir = source ~= "" and vim.fs.dirname(source) or nil,
-      }
+        source_path = source,
+      })
       vim.api.nvim_buf_set_text(bufnr, cursor_row - 1, opts.range[1] - 1, cursor_row - 1, opts.range[2], { new_link })
     end
   end
@@ -511,20 +511,15 @@ M.create_new_note = function(location, callback, opts)
       return nil
     end
 
-    -- Relative links must be formatted from the referencing note's directory,
-    -- which may not be the current buffer when creation starts from a picker.
-    local previous_buf_dir = Obsidian.buf_dir
-    local reference_dir = vim.fs.dirname(reference.filename)
-    if reference_dir then
-      Obsidian.buf_dir = Path.new(reference_dir)
-    end
-    local ok, new_link = pcall(note.format_link, note, {
+    -- Format from the referencing file, not whichever buffer is active while
+    -- the user decides whether to create the missing note.
+    local ok, new_link = pcall(require("obsidian.link").render, note, {
       label = parsed.label or location,
       anchor = parsed.anchor,
       block = parsed.block,
       style = parsed.kind,
+      source_path = reference.filename,
     })
-    Obsidian.buf_dir = previous_buf_dir
     if not ok then
       log.err(new_link)
       return nil

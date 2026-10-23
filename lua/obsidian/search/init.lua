@@ -8,6 +8,7 @@ local async = require "obsidian.async"
 local fs = require "obsidian.fs"
 local gitignore = require("obsidian.lib.glob").gitignore
 local api = require "obsidian.api"
+local fs_util = require "obsidian.util.fs"
 local tags = require "obsidian.tag"
 
 local M = {}
@@ -482,10 +483,18 @@ M.resolve_note_async = function(query, callback, opts)
     return
   end
 
-  -- Query might be a path.
-  local fname = query
+  -- A leading slash anchors the link at the workspace root, even when a
+  -- same-named note exists next to the source buffer.
+  local rooted = vim.startswith(query, "/")
+  local fname = rooted and query:sub(2) or query
   if not vim.endswith(fname, ".md") and not vim.endswith(fname, ".qmd") and not vim.endswith(fname, ".base") then
     fname = fname .. ".md"
+  end
+  if rooted then
+    local candidate = workspace_dir / fname
+    local safe = fs_util.is_subpath(tostring(candidate:resolve()), tostring(workspace_dir))
+    callback(safe and candidate:is_file() and { Note.from_file(candidate, opts.notes) } or {})
+    return
   end
 
   local paths_lookup = setmetatable({}, {

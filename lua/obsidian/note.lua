@@ -202,6 +202,9 @@ local Note = {}
 ---@field count integer Number of reference replacements.
 ---@field path_lookup table<string, boolean> Files with reference replacements.
 ---@field buf_list integer[] Buffers touched by reference replacements.
+---@field was_loaded table<string, boolean> Whether each reference buffer was loaded before the edit.
+---@field originals table<string, { row: integer, col: integer, text: string }[]> Target text expected by each edit.
+---@field collision_plan? obsidian.link.CollisionPlan Additional short-link repairs.
 ---@field old_path string Original note path.
 ---@field new_path string New note path.
 
@@ -210,6 +213,7 @@ local Note = {}
 ---@field new_path? string Destination path. Defaults to sibling path using `new_name .. ".md"`.
 ---@field include_file_rename? boolean Include a file rename operation in the generated edit. Defaults to true.
 ---@field include_stem_refs? boolean Update stem-only references. Defaults to true.
+---@field repair_collisions? boolean Include short-link collision repairs. Defaults to true for managed renames.
 ---@field dir? string|obsidian.Path Workspace directory used to find references.
 ---@field apply? boolean Apply the workspace edit directly. Defaults to true.
 ---@field update_buffers? boolean Update the note object/frontmatter and reload buffers after applying. Defaults to true.
@@ -807,8 +811,10 @@ Note.get_reference_paths = function(self, opts)
   local relpath = self.path:vault_relative_path()
   if relpath then
     table.insert(raw_refs, relpath)
-    local no_suffix_relpath = relpath:gsub(".md", "")
+    table.insert(raw_refs, "/" .. relpath)
+    local no_suffix_relpath = relpath:gsub("%.md$", "")
     table.insert(raw_refs, no_suffix_relpath)
+    table.insert(raw_refs, "/" .. no_suffix_relpath)
   end
 
   compat.list_unique(raw_refs)
@@ -1405,6 +1411,45 @@ Note.save = function(self, opts)
       end
     end
   end
+end
+
+-- A template clone creates its destination before Note.save is called. Capture
+-- the collision snapshot at the outer write boundary, and suppress the nested
+-- save's notification so a successful creation is processed exactly once.
+local save_without_collision = Note.save
+local write_without_collision = Note.write
+local writing_paths = {}
+
+Note.save = function(self, opts)
+  local path = tostring(assert(opts and opts.path or self.path, "a path is required"))
+  local fresh = not Path.new(path):is_file()
+  local collision = fresh and require "obsidian.link.collision" or nil
+  local before = collision and collision.capture(path) or nil
+  local result = save_without_collision(self, opts)
+  if collision and before and not writing_paths[path] and Path.new(path):is_file() then
+    collision.created(path, before)
+  end
+  return result
+end
+
+Note.write = function(self, opts)
+  local path = tostring(assert(self.path, "a path is required"))
+  local fresh = not Path.new(path):is_file()
+  local collision = fresh and require "obsidian.link.collision" or nil
+  local before = collision and collision.capture(path) or nil
+  writing_paths[path] = true
+  local ok, result = pcall(write_without_collision, self, opts)
+  writing_paths[path] = nil
+  if not ok then
+    if fresh and Path.new(path):is_file() then
+      log.warn("Note creation failed after '%s' was written; link repairs were not run", path)
+    end
+    error(result, 2)
+  end
+  if collision and before and Path.new(path):is_file() then
+    collision.created(path, before)
+  end
+  return result
 end
 
 --- Write the note to a buffer.

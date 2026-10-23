@@ -11,6 +11,7 @@ local operations = require "obsidian.link.operations"
 local M = {
   parse = parser.parse,
   format = parser.format,
+  render = require("obsidian.link.render").render,
   replace = operations.replace,
   insert = operations.insert,
   unlink = operations.unlink,
@@ -142,6 +143,18 @@ M.resolve_link_path = function(location, source_path)
   local current_path = source_path or vim.api.nvim_buf_get_name(0)
   local current_dir = current_path ~= "" and vim.fs.dirname(current_path) or nil
   local workspace_dir = api.resolve_workspace_dir(current_path ~= "" and current_path or nil)
+
+  if vim.startswith(location, "/") then
+    local name = vim.uri_decode(location:sub(2))
+    if not vim.endswith(name, ".md") and not vim.endswith(name, ".qmd") and not vim.endswith(name, ".base") then
+      name = name .. ".md"
+    end
+    local path = workspace_dir / name
+    if fs_util.is_subpath(tostring(path:resolve()), tostring(workspace_dir)) and path:is_file() then
+      return tostring(normalize_path(path))
+    end
+    return nil
+  end
 
   -- Prefer an exact note next to the source over a same-named note elsewhere.
   if current_dir and not Path.new(location):is_absolute() then

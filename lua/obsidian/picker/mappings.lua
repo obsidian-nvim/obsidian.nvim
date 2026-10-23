@@ -17,7 +17,11 @@ M.insert_link = function(arg)
     link = api.format_link { path = path }
   else
     local note = Note.from_file(path)
-    link = note:format_link()
+    local bufnr = require("obsidian.picker").state.calling_bufnr
+    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+      bufnr = vim.api.nvim_get_current_buf()
+    end
+    link = require("obsidian.link").render(note, { source_path = vim.api.nvim_buf_get_name(bufnr) })
   end
   vim.api.nvim_put({ link }, "", false, true)
   require("obsidian.ui").update(0)

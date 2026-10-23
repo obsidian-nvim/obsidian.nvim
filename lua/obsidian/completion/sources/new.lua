@@ -6,6 +6,7 @@ local header = require "obsidian.parse.header"
 local block_ids = require "obsidian.parse.block_id"
 local Note = require "obsidian.note"
 local api = require "obsidian.api"
+local Link = require "obsidian.link"
 
 local M = {}
 
@@ -142,12 +143,12 @@ function M.process_completion(callback, request)
       error "not implemented"
     end
 
-    local new_text = new_note:format_link {
+    local new_text = Link.render(new_note, {
       label = new_note_opts.label,
       anchor = anchor,
       block = block,
-      dir = source_path ~= "" and vim.fs.dirname(source_path) or nil,
-    }
+      source_path = source_path,
+    })
     local documentation = {
       kind = "markdown",
       value = new_note:display_info {
