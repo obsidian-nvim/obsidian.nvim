@@ -130,10 +130,10 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian links` - get a picker list of all links in current note
 - `:Obsidian paste_img [IMGNAME]` - paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link
   - [Attachment options](https://obsidian-nvim.github.io/obsidian.nvim/Attachment#options)
-- `:Obsidian rename [NEWNAME]` - rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault
+- `:Obsidian rename [NEWNAME]` - rename the note of the current buffer (wherever the cursor is), updating all backlinks across the vault
   - runs `:wa` before renaming, and loads every note with backlinks into your buffer-list
   - after renaming you need to do `:wa` again for changes to take effect
-  - alternatively, call `vim.lsp.buf.rename` or use `grn`
+  - to rename the element under the cursor (note link, block id, heading, footnote), call `vim.lsp.buf.rename` or use `grn`
 - `:Obsidian toggle_checkbox` - cycle through checkbox options
 
 #### Visual mode commands

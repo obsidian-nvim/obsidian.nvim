@@ -63,7 +63,7 @@ T["rename current note"] = function()
   local new_target_path = root / "new_target.md"
 
   child.cmd("edit " .. files[target])
-  rename "new_target"
+  child.cmd "Obsidian rename new_target"
   h.child_wait_for_path(child, new_target_path)
   eq(true, new_target_path:exists())
   local lines = child.api.nvim_buf_get_lines(1, 0, -1, false) -- new_target
@@ -80,7 +80,7 @@ T["rename current note does not insert frontmatter when disabled"] = function()
 
   child.lua [[Obsidian.opts.frontmatter.enabled = false]]
   child.cmd("edit " .. files["plain.md"])
-  rename "renamed-plain"
+  child.cmd "Obsidian rename renamed-plain"
   h.child_wait_for_path(child, new_target_path)
   eq(true, new_target_path:exists())
   local lines = child.api.nvim_buf_get_lines(1, 0, -1, false)
@@ -100,7 +100,7 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  rename "target"
+  child.cmd "Obsidian rename target"
   h.child_wait(child, [[return _G.msg == "Identical name"]], { desc = "rename no-op message" })
   eq("Identical name", child.lua_get "msg")
 end
@@ -119,7 +119,7 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  rename "existing"
+  child.cmd "Obsidian rename existing"
   h.child_wait(child, [[return _G.msg == "Note with same name exists"]], { desc = "rename no-op message" })
   eq("Note with same name exists", child.lua_get "msg")
 end
@@ -137,7 +137,7 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  rename "bad:name"
+  child.cmd "Obsidian rename bad:name"
   h.child_wait(child, [[return _G.err_msg ~= nil]], { desc = "rename invalid filename message" })
   eq('Invalid filename "bad:name": contains forbidden character: ":"', child.lua_get "err_msg")
   eq(true, (root / target):exists())
@@ -156,7 +156,7 @@ T["rename current note allows same name in a different folder"] = function()
   local new_target_path = root / "existing.md"
 
   child.cmd("edit " .. files[target])
-  rename "existing"
+  child.cmd "Obsidian rename existing"
   h.child_wait_for_path(child, new_target_path)
   eq(true, new_target_path:exists())
 end
@@ -361,6 +361,22 @@ T["rename note with markdown link reference"] = function()
   local ref_lines = h.read(files["notea.md"])
   local md_ref_result = table.concat(ref_lines, "\n")
   eq(true, md_ref_result:find "%[Note B%]%(renamed%-note%.md%)" ~= nil, "Link should be updated to renamed-note.md")
+end
+
+T["Obsidian rename renames the current note even on a link"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    [target] = target_content,
+    [ref] = ref_content,
+  })
+
+  child.cmd("edit " .. files[ref])
+  child.api.nvim_win_set_cursor(0, { 2, 0 }) -- on [[target]]
+
+  child.cmd "Obsidian rename ref-new"
+  h.child_wait_for_path(child, root / "ref-new.md")
+  eq(true, (root / "ref-new.md"):exists())
+  eq(true, (root / target):exists())
 end
 
 return T
