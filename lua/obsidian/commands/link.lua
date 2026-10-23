@@ -1,5 +1,5 @@
 local obsidian = require "obsidian"
 
 return function()
-  obsidian.api.link()
+  obsidian.actions.link(obsidian.api.get_visual_selection())
 end

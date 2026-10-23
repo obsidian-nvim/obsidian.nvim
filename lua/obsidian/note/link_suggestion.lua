@@ -422,14 +422,7 @@ function M.apply(bufnr, suggestion, candidate)
     return log.warn "Link suggestion is no longer current"
   end
 
-  vim.api.nvim_buf_set_text(
-    bufnr,
-    range.start_row,
-    range.start_col,
-    range.end_row,
-    range.end_col,
-    { candidate.new_text }
-  )
+  require("obsidian.link").replace { bufnr = bufnr, range = range, text = candidate.new_text }
   require("obsidian.ui").update(bufnr)
 end
 

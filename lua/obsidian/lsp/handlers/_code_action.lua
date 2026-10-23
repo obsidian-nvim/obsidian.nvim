@@ -87,13 +87,17 @@ local default_actions = {
   },
 
   link = {
-    title = "Link selection as name for a existing note",
-    cond = in_visual,
+    title = "Link cursor text to an existing note",
+    arguments = function(_, params)
+      return { params.range, vim.uri_to_bufnr(params.textDocument.uri) }
+    end,
   },
 
   link_new = {
-    title = "Link selection as name for a new note",
-    cond = in_visual,
+    title = "Link cursor text to a new note",
+    arguments = function(_, params)
+      return { params.range, vim.uri_to_bufnr(params.textDocument.uri) }
+    end,
   },
 
   extract_note = {

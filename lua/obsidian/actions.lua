@@ -10,6 +10,8 @@ local uri = require "obsidian.uri"
 local compat = require "obsidian.compat"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
+local Link = require "obsidian.link"
+local Range = require "obsidian.range"
 local attachment = require "obsidian.attachment"
 local picker = require "obsidian.picker"
 local search = require "obsidian.search"
@@ -83,27 +85,10 @@ M.unlink = function(bufnr, position)
     return log.warn "No link found under cursor"
   end
   if ref.kind == "wiki" or ref.kind == "markdown" or ref.kind == "autolink" then
-    local display_text = ref.label
-    if not display_text or display_text == "" then
-      local target = vim.uri_decode(ref.target)
-      display_text = Path.new(target).stem
-      if not display_text or display_text == "" then
-        display_text = Path.buffer(bufnr).stem
-      end
-    end
-
-    if not display_text or display_text == "" then
+    local display_text = Link.unlink { bufnr = bufnr, ref = ref }
+    if not display_text then
       return log.warn "Could not determine link display text"
     end
-
-    vim.api.nvim_buf_set_text(
-      bufnr,
-      ref.range.start_row,
-      ref.range.start_col,
-      ref.range.end_row,
-      ref.range.end_col,
-      { display_text }
-    )
     require("obsidian.ui").update(bufnr)
 
     if ref.embed == true and api.confirm "Remove Attachment?" == "Yes" then
@@ -426,86 +411,157 @@ local function get_utf8_char_end(line, byte_pos)
   if not line or byte_pos > #line then
     return byte_pos
   end
-  local byte = line:byte(byte_pos)
-  if not byte then
-    return byte_pos
-  end
-  -- Determine UTF-8 character byte length from lead byte
-  local char_bytes = 1
-  if byte >= 240 then -- 11110xxx: 4-byte char
-    char_bytes = 4
-  elseif byte >= 224 then -- 1110xxxx: 3-byte char
-    char_bytes = 3
-  elseif byte >= 192 then -- 110xxxxx: 2-byte char
-    char_bytes = 2
-  end
-  return byte_pos + char_bytes
+  -- Byte after the character that byte_pos points into (1-indexed).
+  return byte_pos + vim.str_utf_end(line, byte_pos) + 1
 end
 
-local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
-
---- Create an LSP TextEdit from a visual selection.
---- The edit uses UTF-8 byte offsets (matching our LSP server's offset_encoding).
----
----@param viz      obsidian.selection The visual selection
----@param new_text string             The replacement text
----@param bufnr    integer?           Buffer number (defaults to current buffer)
----@return lsp.TextDocumentEdit?
-local function make_text_edit(viz, new_text, bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
+---@param viz obsidian.selection
+---@param bufnr integer
+---@return obsidian.Range?
+local function selection_range(viz, bufnr)
   local line = vim.api.nvim_buf_get_lines(bufnr, viz.cerow - 1, viz.cerow, false)[1]
-
   if not line then
     return
   end
-
-  -- Calculate the exclusive end position (byte after the last selected character)
   local end_col = get_utf8_char_end(line, viz.cecol)
+  return Range.new(viz.csrow - 1, viz.cscol - 1, viz.cerow - 1, end_col - 1)
+end
 
-  ---@diagnostic disable-next-line: return-type-mismatch TODO: emmylua bug?
+---@param line string
+---@param byte_pos integer 1-indexed byte position
+---@return integer
+local function utf8_char_start(line, byte_pos)
+  while byte_pos > 1 do
+    local byte = line:byte(byte_pos)
+    if not byte or byte < 128 or byte >= 192 then
+      break
+    end
+    byte_pos = byte_pos - 1
+  end
+  return byte_pos
+end
+
+---@param range lsp.Range
+---@param bufnr integer
+---@return obsidian.selection?
+local function selection_from_range(range, bufnr)
+  if range.start.line == range["end"].line and range.start.character == range["end"].character then
+    return
+  end
+
+  local text = vim.api.nvim_buf_get_text(
+    bufnr,
+    range.start.line,
+    range.start.character,
+    range["end"].line,
+    range["end"].character,
+    {}
+  )
+  local end_line = vim.api.nvim_buf_get_lines(bufnr, range["end"].line, range["end"].line + 1, false)[1] or ""
   return {
-    textDocument = {
-      uri = vim.uri_from_fname(vim.api.nvim_buf_get_name(bufnr)),
-      version = has_nvim_0_12 and vim.NIL or nil,
-    },
-    edits = {
-      {
-        range = {
-          -- LSP positions are 0-indexed
-          start = { line = viz.csrow - 1, character = viz.cscol - 1 },
-          ["end"] = { line = viz.cerow - 1, character = end_col - 1 },
-        },
-        newText = new_text,
-      },
-    },
+    lines = text,
+    selection = table.concat(text, "\n"),
+    csrow = range.start.line + 1,
+    cscol = range.start.character + 1,
+    cerow = range["end"].line + 1,
+    cecol = utf8_char_start(end_line, range["end"].character),
   }
 end
 
---- Replace the visual selection with new text.
---- Returns the text edit that was (or would be) applied.
----
----@param viz      obsidian.selection
----@param new_text string
----@param opts     { apply: boolean? }? Options. apply defaults to true.
----@return lsp.TextDocumentEdit |?
-local function replace_selection(viz, new_text, opts)
-  opts = opts or {}
-  local apply = opts.apply ~= false -- default to true
-
-  local text_edit = make_text_edit(viz, new_text)
-
-  if apply and text_edit then
-    vim.lsp.util.apply_workspace_edit({ documentChanges = { text_edit } }, "utf-8")
-    require("obsidian.ui").update(0)
+---@param bufnr integer
+---@return obsidian.selection?
+local function current_word_selection(bufnr)
+  local word = vim.fn.expand "<cword>"
+  if type(word) ~= "string" or word == "" then
+    return
   end
 
-  return text_edit
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
+  local search_from = 1
+  while true do
+    local start_col, end_col = line:find(word, search_from, true)
+    if not start_col then
+      return
+    end
+    if start_col - 1 <= col and col < end_col then
+      return {
+        lines = { line },
+        selection = word,
+        csrow = row,
+        cscol = start_col,
+        cerow = row,
+        cecol = utf8_char_start(line, assert(end_col, "word end is required")),
+      }
+    end
+    search_from = assert(end_col, "word end is required") + 1
+  end
 end
 
-M.link = function()
-  local viz = api.get_visual_selection()
+---@param context obsidian.selection|lsp.Range|?
+---@param bufnr integer|?
+---@return obsidian.selection?
+local function link_selection(context, bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if context and context.csrow then
+    return context
+  elseif context then
+    return selection_from_range(context, bufnr) or current_word_selection(bufnr)
+  end
+  return api.get_visual_selection { strict = true } or current_word_selection(bufnr)
+end
+
+---@param note obsidian.Note
+---@return obsidian.LinkSuggestion?
+local function link_suggestion_under_cursor(note)
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local row, col = cursor[1] - 1, cursor[2]
+  for _, suggestion in ipairs(note:link_suggestions()) do
+    local range = suggestion.range
+    if
+      range.start_row <= row
+      and row <= range.end_row
+      and (row ~= range.start_row or range.start_col <= col)
+      and (row ~= range.end_row or col < range.end_col)
+    then
+      return suggestion
+    end
+  end
+end
+
+local function current_link_suggestion(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if bufnr ~= vim.api.nvim_get_current_buf() then
+    return
+  end
+  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  return note and link_suggestion_under_cursor(note) or nil
+end
+
+local function in_visual_mode()
+  local mode = vim.api.nvim_get_mode().mode
+  return mode:find "[vV]" ~= nil or mode == "\22"
+end
+
+---@param bufnr integer
+---@param suggestion obsidian.LinkSuggestion
+---@return obsidian.selection?
+local function selection_from_link_suggestion(suggestion, bufnr)
+  local range = suggestion.range
+  return selection_from_range({
+    start = { line = range.start_row, character = range.start_col },
+    ["end"] = { line = range.end_row, character = range.end_col },
+  }, bufnr)
+end
+
+---@param context obsidian.selection|lsp.Range|?
+---@param bufnr integer|?
+M.link = function(context, bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local suggestion = not context and not in_visual_mode() and current_link_suggestion(bufnr) or nil
+  local viz = suggestion and selection_from_link_suggestion(suggestion, bufnr) or link_selection(context, bufnr)
   if not viz then
-    log.err "`Obsidian link` must be called in visual mode"
+    log.err "No text under cursor to link"
     return
   elseif #viz.lines ~= 1 then
     log.err "Only in-line visual selections allowed"
@@ -523,16 +579,40 @@ M.link = function()
         return
       end
       local note = require("obsidian.note").from_file(path)
-      replace_selection(viz, note:format_link { label = query })
+      local range = selection_range(viz, bufnr)
+      if range then
+        Link.replace { bufnr = bufnr, range = range, text = note:format_link { label = query } }
+        require("obsidian.ui").update(bufnr)
+      end
     end,
   }
 end
 
----@param label string?
-M.link_new = function(label)
-  local viz = api.get_visual_selection()
+---@param label string|obsidian.selection|lsp.Range|?
+---@param context obsidian.selection|lsp.Range|integer|?
+---@param bufnr integer|?
+M.link_new = function(label, context, bufnr)
+  ---@type obsidian.selection|lsp.Range|?
+  local selection_context
+  if type(label) == "table" then
+    selection_context = label
+    bufnr = type(context) == "number" and context or bufnr
+    label = nil
+  elseif type(context) == "table" then
+    selection_context = context
+  end
+  ---@cast label string?
+
+  if (not label or label == "") and not selection_context and not in_visual_mode() then
+    local suggestion = current_link_suggestion(bufnr)
+    if suggestion then
+      return M.link_suggestion(suggestion)
+    end
+  end
+
+  local viz = link_selection(selection_context, bufnr)
   if not viz then
-    log.err "`Obsidian link_new` must be called in visual mode"
+    log.err "No text under cursor to link"
     return
   elseif #viz.lines ~= 1 then
     log.err "Only in-line visual selections allowed"
@@ -544,7 +624,16 @@ M.link_new = function(label)
   end
 
   local note = require("obsidian.note").create { id = label }
-  replace_selection(viz, note:format_link { label = label })
+  local range = selection_range(viz, bufnr or vim.api.nvim_get_current_buf())
+  if not range then
+    return
+  end
+  Link.replace {
+    bufnr = bufnr or vim.api.nvim_get_current_buf(),
+    range = range,
+    text = note:format_link { label = label },
+  }
+  require("obsidian.ui").update(bufnr or vim.api.nvim_get_current_buf())
 
   -- Save file so backlinks search (ripgrep) can find the new link
   vim.cmd "silent! write"
@@ -579,8 +668,11 @@ M.extract_note = function(label)
   note:write()
 
   -- replace selection with link to new note
-  local link = note:format_link()
-  replace_selection(viz, link)
+  local range = selection_range(viz, vim.api.nvim_get_current_buf())
+  if range then
+    Link.replace { bufnr = vim.api.nvim_get_current_buf(), range = range, text = note:format_link() }
+    require("obsidian.ui").update(0)
+  end
 
   -- Save file so backlinks search (ripgrep) can find the new link
   vim.cmd "silent! write"
@@ -1331,21 +1423,7 @@ M.link_suggestion = function(suggestion)
   end
 
   if not suggestion then
-    -- TODO: a find_cursor
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    local row, col = cursor[1] - 1, cursor[2]
-    for _, current in ipairs(note:link_suggestions()) do
-      local range = current.range
-      if
-        range.start_row <= row
-        and row <= range.end_row
-        and (row ~= range.start_row or range.start_col <= col)
-        and (row ~= range.end_row or col < range.end_col)
-      then
-        suggestion = current
-        break
-      end
-    end
+    suggestion = link_suggestion_under_cursor(note)
     if not suggestion then
       return
     end
