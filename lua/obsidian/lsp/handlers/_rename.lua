@@ -1,9 +1,15 @@
 local BufferDocument = require "obsidian.document"
 local Document = require "obsidian.parse.document"
+local Path = require "obsidian.path"
 local Range = require "obsidian.range"
 local api = require "obsidian.api"
 local header = require "obsidian.parse.header"
+local log = require "obsidian.log"
 local parse_block_id = require "obsidian.parse.block_id"
+local refs = require "obsidian.parse.refs"
+local search = require "obsidian.search"
+
+local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
 
 local M = {}
 
@@ -184,6 +190,177 @@ M.target_at = function(bufnr, position)
       }
     end
   end
+end
+
+---@param path string|obsidian.Path
+---@return string
+local function path_key(path)
+  return vim.fs.normalize(tostring(Path.new(path):resolve()))
+end
+
+---@alias obsidian.lsp.FileEdits table<string, lsp.TextEdit[]>
+
+---@param file_edits obsidian.lsp.FileEdits
+---@param path string
+---@param row integer
+---@param start_col integer
+---@param end_col integer
+---@param text string
+local function add_edit(file_edits, path, row, start_col, end_col, text)
+  file_edits[path] = file_edits[path] or {}
+  table.insert(file_edits[path], { range = range(row, start_col, end_col), newText = text })
+end
+
+--- One `WorkspaceEdit`: identical ranges deduplicated, edits sorted last to first.
+---@param file_edits obsidian.lsp.FileEdits
+---@return lsp.WorkspaceEdit|?
+local function to_workspace_edit(file_edits)
+  local changes = {}
+  for path, edits in pairs(file_edits) do
+    local seen, unique = {}, {}
+    for _, edit in ipairs(edits) do
+      local r = edit.range
+      local key = ("%d:%d:%d:%d"):format(r.start.line, r.start.character, r["end"].line, r["end"].character)
+      if not seen[key] then
+        seen[key] = true
+        unique[#unique + 1] = edit
+      end
+    end
+    table.sort(unique, function(a, b)
+      if a.range.start.line == b.range.start.line then
+        return a.range.start.character > b.range.start.character
+      end
+      return a.range.start.line > b.range.start.line
+    end)
+    changes[#changes + 1] = {
+      textDocument = { uri = vim.uri_from_fname(path), version = has_nvim_0_12 and vim.NIL or nil },
+      edits = unique,
+    }
+  end
+  table.sort(changes, function(a, b)
+    return a.textDocument.uri < b.textDocument.uri
+  end)
+  return #changes > 0 and { documentChanges = changes } or nil
+end
+
+---@class obsidian.lsp.CollectedRef
+---@field path string
+---@field row integer
+---@field ref obsidian.parse.Ref
+
+--- Every ref pointing at the note of `bufnr`: `[[#...]]` refs of the buffer itself
+--- plus every link to the note found in the vault. The vault search already drops
+--- code and comments.
+---@param bufnr integer
+---@param callback fun(collected: obsidian.lsp.CollectedRef[])
+local function collect_refs(bufnr, callback)
+  local note = api.current_note(bufnr)
+  if not note then
+    log.err "Current buffer is not a note inside the vault"
+    return callback {}
+  end
+
+  ---@type obsidian.lsp.CollectedRef[]
+  local out = {}
+  local own = path_key(vim.api.nvim_buf_get_name(bufnr))
+  local document = BufferDocument.get(bufnr)
+  for row, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
+    for _, ref in ipairs(refs.extract(line, { row = row - 1, lexical = true })) do
+      local origin = Range.new(row - 1, ref.range.start_col, row - 1, ref.range.start_col + 1)
+      if
+        ref.target == ""
+        and not document:intersects(origin, Document.INLINE_EXCLUSIONS)
+        and not document:intersects(ref.range, Document.COMMENTS)
+      then
+        out[#out + 1] = { path = own, row = row - 1, ref = ref }
+      end
+    end
+  end
+
+  search.find_backlinks_async(note, function(matches)
+    for _, match in ipairs(matches) do
+      for _, ref in ipairs(refs.extract(match.text, { row = match.line - 1, lexical = true })) do
+        if ref.range.start_col + (ref.embed and 1 or 0) == match.start then
+          out[#out + 1] = { path = path_key(match.path), row = match.line - 1, ref = ref }
+        end
+      end
+    end
+    callback(out)
+  end, { dir = api.resolve_workspace_dir(note.path) })
+end
+
+--- Block ids defined in the buffer, outside code and comments.
+---@param bufnr integer
+---@return { id: string, row: integer, start_col: integer, end_col: integer }[]
+local function block_definitions(bufnr)
+  local document = BufferDocument.get(bufnr)
+  local out = {}
+  for row, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
+    for _, block in ipairs(parse_block_id.extract(line, { row = row - 1, lexical = true })) do
+      if not document:intersects(block.range, Document.BODY_EXCLUSIONS) then
+        out[#out + 1] = {
+          id = block.raw:sub(2),
+          row = row - 1,
+          start_col = block.range.start_col + 1,
+          end_col = block.range.end_col,
+        }
+      end
+    end
+  end
+  return out
+end
+
+--- Rewrite a block id in its definition and in every reference to it.
+---@param target obsidian.lsp.RenameTarget
+---@param new_name string
+---@param callback fun(edit: lsp.WorkspaceEdit|?)
+M.build_block_edit = function(target, new_name, callback)
+  local new_id = (vim.trim(new_name):gsub("^%^", ""))
+  if not new_id:match "^%w[%w-]*$" then
+    log.err(('Invalid block id "%s": use letters, digits and "-"'):format(new_id))
+    return callback(nil)
+  end
+  if new_id == target.id then
+    log.info "Identical name"
+    return callback(nil)
+  end
+
+  local definition
+  for _, def in ipairs(block_definitions(target.bufnr)) do
+    if def.id == target.id then
+      definition = def
+    elseif def.id == new_id then
+      log.err(('Block id "^%s" already exists in this note'):format(new_id))
+      return callback(nil)
+    end
+  end
+  if not definition then
+    log.err(('Block "^%s" not found in this note'):format(target.id))
+    return callback(nil)
+  end
+
+  collect_refs(target.bufnr, function(collected)
+    ---@type obsidian.lsp.FileEdits
+    local file_edits = {}
+    add_edit(
+      file_edits,
+      path_key(vim.api.nvim_buf_get_name(target.bufnr)),
+      definition.row,
+      definition.start_col,
+      definition.end_col,
+      new_id
+    )
+    for _, item in ipairs(collected) do
+      if item.ref.block == target.id then
+        for _, comp in ipairs(M.fragment_components(item.ref)) do
+          if comp.text == "^" .. target.id then
+            add_edit(file_edits, item.path, item.row, comp.col + 1, comp.col + #comp.text, new_id)
+          end
+        end
+      end
+    end
+    callback(to_workspace_edit(file_edits))
+  end)
 end
 
 return M

@@ -40,6 +40,10 @@ return function(params, handler, _)
       end
       do_rename(notes[1])
     end, { dir = workspace_dir, buf_dir = source_path ~= "" and vim.fs.dirname(source_path) or nil })
+  elseif target.kind == "block" then
+    rename.build_block_edit(target, new_name, function(edit)
+      handler(nil, edit)
+    end)
   else
     handler(nil, nil)
   end
