@@ -69,11 +69,14 @@ local Link = require "obsidian.link"
 local opts = { label = "entity", source_path = root .. "/other.md" }
 local old = Link.render(Note.from_file(root .. "/lib/entity.md"), opts)
 local new = Link.render(Note.from_file(root .. "/entity.md"), opts)
+local explicit_shortest = Link.render(Note.from_file(root .. "/entity.md"), vim.tbl_extend("force", opts, {
+  format = "shortest",
+}))
 Obsidian.opts.link.style = "markdown"
 local markdown = Link.render(Note.from_file(root .. "/entity.md"), opts)
-return { old, new, markdown }
+return { old, new, explicit_shortest, markdown }
   ]=]
-  eq({ "[[/lib/entity|entity]]", "[[/entity|entity]]", "[entity](/entity.md)" }, result)
+  eq({ "[[/lib/entity|entity]]", "[[/entity|entity]]", "[[/entity|entity]]", "[entity](/entity.md)" }, result)
 end
 
 T["includeexpr"] = new_set()
