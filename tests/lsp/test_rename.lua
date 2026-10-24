@@ -638,6 +638,28 @@ T["rename setext heading keeps the underline and rewrites references"] = functio
   eq(false, prepare_rename())
 end
 
+T["rename multi-line setext heading renames the line above the underline"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "Intro line\n  Old Title\n=========\n\nsee [[#Old Title]]",
+    ["B.md"] = "[[A#Old Title]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 2 })
+  eq("Old Title", prepare_rename().placeholder)
+  rename "New Title"
+  child.cmd "wa"
+
+  eq({ "Intro line", "  New Title", "=========", "", "see [[#New Title]]" }, h.read(files["A.md"]))
+  eq({ "[[A#New Title]]" }, h.read(files["B.md"]))
+
+  -- The earlier line of the paragraph is plain text, as for the plugin's anchors.
+  child.api.nvim_win_set_cursor(0, { 1, 2 })
+  eq(false, prepare_rename())
+end
+
 T["rename heading refuses duplicates"] = function()
   local root = child.Obsidian.dir
   local content = "## Same\n\n## Same\n\n## A1\n\n## B1"

@@ -148,8 +148,10 @@ local function link_target(ref, bufnr, row)
   end
 end
 
---- ATX and setext headings of the buffer, outside code and comments. A setext
---- heading spanning several lines is skipped: its text cannot be replaced in place.
+--- ATX and setext headings of the buffer, outside code and comments. The section
+--- parser takes the line right above the underline as the label of a setext heading
+--- (earlier lines of the paragraph stay text), as do the anchors of every link the
+--- plugin resolves, so that line is the text renamed here.
 ---@param bufnr integer
 ---@return { row: integer, last_row: integer, text: string, anchor: string, start_col: integer, end_col: integer }[]
 M.headings = function(bufnr)
@@ -158,7 +160,7 @@ M.headings = function(bufnr)
   for _, section in ipairs(sections.parse(lines, { document = BufferDocument.get(bufnr) })) do
     local hr = section.heading_range
     local rows = hr.end_row - hr.start_row
-    if section.header and rows <= 2 then
+    if section.header then
       local line = lines[hr.start_row + 1]
       -- ATX: skip the `#` marker; setext: the text is the whole first line.
       local s, e = line:find(section.header, rows == 1 and section.level + 1 or 1, true)
