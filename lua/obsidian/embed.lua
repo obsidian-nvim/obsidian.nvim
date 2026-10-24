@@ -14,6 +14,7 @@ local MAX_NOTE_LINES = 2147483647
 ---@field note obsidian.Note
 ---@field fragment string|nil
 ---@field range obsidian.Range|nil
+---@field missing_fragment "heading"|"block"|nil
 
 ---@class obsidian.embed.State
 ---@field buf integer
@@ -97,6 +98,11 @@ end
 ---@param context obsidian.embed.Context
 ---@return table[]
 local function render_note(context)
+  if context.missing_fragment then
+    local label = context.missing_fragment == "block" and "Block" or "Heading"
+    return { with_separator { { label .. " not found: " .. context.fragment, "Comment" } } }
+  end
+
   local path = context.path and normalize(context.path)
   local cache_key = path and path .. "\0" .. (context.fragment or "")
   local cached = cache_key and note_cache[cache_key]
@@ -221,16 +227,21 @@ local function resolve_context(match, buf)
 
   ---@type obsidian.Range|nil
   local range
+  ---@type "heading"|"block"|nil
+  local missing_fragment
   if fragment then
     if vim.startswith(fragment, "^") then
       local block = note:resolve_block(fragment)
       range = block and block.section and block.section.range or nil
+      if not range then
+        missing_fragment = "block"
+      end
     else
       local anchor = note:resolve_anchor_link(fragment)
       range = anchor and anchor.section and anchor.section.range or nil
-    end
-    if not range then
-      return nil
+      if not range then
+        missing_fragment = "heading"
+      end
     end
   end
 
@@ -239,6 +250,7 @@ local function resolve_context(match, buf)
     note = note,
     fragment = fragment,
     range = range,
+    missing_fragment = missing_fragment,
   }
 end
 

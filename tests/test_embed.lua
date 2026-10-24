@@ -230,6 +230,32 @@ T["block embeds render the full block without truncation"] = function()
   end
 end
 
+T["missing heading and block embeds render fallback text"] = function()
+  local original_resolve_note = search.resolve_note
+  local ok, err = pcall(function()
+    search.resolve_note = function(_, opts)
+      if opts.notes.collect_blocks then
+        return { Note.from_lines({ "text ^other" }, nil, opts.notes) }
+      end
+      return { Note.from_lines({ "# Other", "text" }, nil, opts.notes) }
+    end
+
+    local heading_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(heading_buf, 0, -1, false, { "![[target#Missing]]" })
+    embed.attach(heading_buf)
+    eq("▏Heading not found: Missing", virt_text(virt_lines(heading_buf)))
+
+    local block_buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(block_buf, 0, -1, false, { "![[target#^missing]]" })
+    embed.attach(block_buf)
+    eq("▏Block not found: ^missing", virt_text(virt_lines(block_buf)))
+  end)
+  search.resolve_note = original_resolve_note
+  if not ok then
+    error(err)
+  end
+end
+
 T["non-Markdown embeds are ignored"] = function()
   local original_resolve_note = search.resolve_note
   local resolve_count = 0

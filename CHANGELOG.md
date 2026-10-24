@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Inline Markdown note embeds with Tree-sitter highlighting, live refresh, full heading and block transclusion, paged whole-note previews, and `<C-a>` / `<C-x>` navigation.
 - `require("obsidian.link")` exposes `replace`, `insert`, and `unlink` for replacing ranges, inserting link text at a position, and removing link markup; link actions and suggestions use these operations.
 - `:Obsidian properties [KEY] [VALUE]`, a three-stage picker over frontmatter properties (keys, then values, then matching notes), mirroring `:Obsidian tags`.
 - `search.find_blocks_async()` for finding existing and unlabeled block-reference candidates.
