@@ -33,7 +33,7 @@ return function(data)
     on_list = function(t)
       local items = dedupe_items(t.items or {})
       if #items == 1 then
-        api.open_note(items[1], open_strategy)
+        api.jump_to_note(items[1], open_strategy)
       else
         picker.select(items, {
           prompt = "Resolve link",
@@ -48,7 +48,7 @@ return function(data)
         }, function(choices)
           local entry = choices and choices[1]
           if entry then
-            api.open_note(entry)
+            api.jump_to_note(entry, open_strategy)
           end
         end)
       end

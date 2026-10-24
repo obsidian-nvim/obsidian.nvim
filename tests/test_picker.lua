@@ -197,15 +197,15 @@ end
 
 T["open_notes opens a single result directly"] = function()
   local picker_util = require "obsidian.picker.util"
-  local original_open_note = api.open_note
+  local original_jump_to_note = api.jump_to_note
   local entry = { filename = "/vault/one.md", lnum = 2 }
   local opened
 
-  api.open_note = function(value)
+  api.jump_to_note = function(value)
     opened = value
   end
   picker_util.open_notes { entry }
-  api.open_note = original_open_note
+  api.jump_to_note = original_jump_to_note
 
   eq(entry, opened)
 end
