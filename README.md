@@ -57,6 +57,8 @@ Vault-wide block candidates are indexed in memory on first use and updated per n
 
 📷 **Images:** Paste images into notes.
 
+📎 **Embeds:** Render Markdown notes, headings, and blocks inline, with paged whole-note previews. See [Embeds](https://obsidian-nvim.github.io/obsidian.nvim/Embeds).
+
 📈 **Status:** See note status in footer like obsidian app.
 
 🔄 **Sync:** [Sync](https://obsidian-nvim.github.io/obsidian.nvim/Sync) support for [Obsidian Sync](https://obsidian.md/help/sync).

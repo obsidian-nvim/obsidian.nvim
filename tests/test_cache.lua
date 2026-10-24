@@ -436,7 +436,7 @@ T["cache backends"]["indexes typed attachment rows separately from notes"] = fun
   eq(true, cache.attachments.find(paths[1]) ~= nil)
 end
 
-T["cache backends"]["file watcher registers attachments only when cache is enabled"] = function()
+T["cache backends"]["file watcher registers notes and attachments"] = function()
   Obsidian = { opts = { cache = { enabled = false } } }
   local captured
   require "obsidian.lsp.handlers.initialized"(nil, {
@@ -451,20 +451,8 @@ T["cache backends"]["file watcher registers attachments only when cache is enabl
     watched[ext] = true
   end
 
-  eq(true, watched.md)
-  eq(nil, watched.png)
-
-  Obsidian.opts.cache.enabled = true
-  require "obsidian.lsp.handlers.initialized"(nil, {
-    server_request = function(_, registration)
-      captured = registration
-    end,
-  })
-
-  watched = {}
-  for _, watcher in ipairs(captured.registrations[1].registerOptions.watchers) do
-    local ext = watcher.globPattern:match "%.([^%.]+)$"
-    watched[ext] = true
+  for _, ext in ipairs(require("obsidian.filetypes").note_extensions) do
+    eq(true, watched[ext])
   end
   for _, ext in ipairs(require("obsidian.filetypes").attachment_extensions) do
     eq(true, watched[ext])
