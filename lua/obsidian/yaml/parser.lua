@@ -471,9 +471,17 @@ Parser._try_parse_array_item = function(self, lines, i, text, col)
     else
       local item_col = col + 2 + #array_item_str - #util.lstrip_whitespace(array_item_str)
       i, value, value_type = self:_parse_next(lines, i, vim.trim(array_item_str), item_col)
-      if value_type == YamlType.Mapping and lines[i] ~= nil and lines[i].indent > line.indent then
+      local continuation_i = i
+      while lines[continuation_i] and lines[continuation_i]:is_empty() do
+        continuation_i = continuation_i + 1
+      end
+      if
+        value_type == YamlType.Mapping
+        and lines[continuation_i] ~= nil
+        and lines[continuation_i].indent > line.indent
+      then
         local continuation
-        i, continuation = self:_parse_mapping(i, lines)
+        i, continuation = self:_parse_mapping(continuation_i, lines)
         for key, item in pairs(continuation) do
           if value[key] ~= nil then
             error(self:_error_msg("duplicate key '" .. key .. "' found in table", i))
