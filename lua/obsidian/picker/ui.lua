@@ -22,9 +22,9 @@ local current
 ---@field query          string | nil
 ---@field max_results    integer | nil
 ---@field format_item    (fun(value: any): string) | nil
----@field preview_item   (fun(value: any): obsidian.ui_select_preview_spec | nil) | nil
----@field query_mappings obsidian.PickerMappingTable | nil
----@field selection_mappings obsidian.PickerMappingTable | nil
+---@field preview_item   (fun(value: any): obsidian.picker.PreviewSpec | nil) | nil
+---@field query_mappings obsidian.picker.MappingTable | nil
+---@field selection_mappings obsidian.picker.MappingTable | nil
 
 ---@class obsidian.picker.ui.Picker
 ---@field input_buf      integer
@@ -427,7 +427,7 @@ function PickerUi:cancel()
   self.on_choice {}
 end
 
----@param mapping obsidian.PickerMappingOpts
+---@param mapping obsidian.picker.MappingOpts
 function PickerUi:run_query_mapping(mapping)
   if self.closed then
     return

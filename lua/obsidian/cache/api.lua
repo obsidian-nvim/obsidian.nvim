@@ -6,8 +6,8 @@ local picker_util = require "obsidian.picker.util"
 
 local M = {}
 
----@param entry obsidian.PickerEntry
----@return obsidian.ui_select_preview_spec
+---@param entry obsidian.picker.Entry
+---@return obsidian.picker.PreviewSpec
 local function preview_picker_entry(entry)
   local cache = require "obsidian.cache"
   local buf = vim.api.nvim_create_buf(false, true)
@@ -127,9 +127,9 @@ end
 
 ---@param is_attachment boolean
 ---@param missing boolean
----@param references obsidian.NoteCreationReference[]?
+---@param references obsidian.api.NoteCreationReference[]?
 ---@param target string?
----@return obsidian.PickerEntryUserData
+---@return obsidian.picker.EntryUserData
 local function entry_user_data(is_attachment, missing, references, target)
   return {
     attachment = is_attachment,
@@ -139,7 +139,7 @@ local function entry_user_data(is_attachment, missing, references, target)
   }
 end
 
----@param opts obsidian.PickerFindOpts|?
+---@param opts obsidian.picker.FindOpts|?
 ---@return boolean handled
 M.find_files = function(opts)
   opts = opts or {}
@@ -162,18 +162,18 @@ M.find_files = function(opts)
     end
     local query_lower = query and string.lower(query) or nil
 
-    ---@type obsidian.PickerEntry[]
+    ---@type obsidian.picker.Entry[]
     local entries = {}
     local lookup = {}
-    ---@type table<string, obsidian.PickerEntry>
+    ---@type table<string, obsidian.picker.Entry>
     local missing_entries = {}
     local notes = cache.notes.all()
     local attachments = cache.attachments.all()
 
     ---@param text string
     ---@param path string
-    ---@param user_data obsidian.PickerEntryUserData
-    ---@return obsidian.PickerEntry?
+    ---@param user_data obsidian.picker.EntryUserData
+    ---@return obsidian.picker.Entry?
     local function add_entry(text, path, user_data)
       if query_lower and not string.find(string.lower(text), query_lower, 1, true) then
         return
@@ -225,7 +225,7 @@ M.find_files = function(opts)
               local target_path = link.missing_link_path(target, path)
               if target_path and fs_util.is_subpath(target_path, dir) then
                 local missing_key = missing_entry_key(target, path, target_path, missing_is_attachment)
-                ---@type obsidian.NoteCreationReference
+                ---@type obsidian.api.NoteCreationReference
                 local reference = {
                   filename = path,
                   lnum = outgoing.line or 1,

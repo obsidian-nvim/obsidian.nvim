@@ -9,7 +9,7 @@ local ut = require "obsidian.picker.util"
 ---
 M.select = require("obsidian.picker.ui").select
 
----@param match MatchData
+---@param match obsidian.search.ripgrep.MatchData
 ---@return vim.quickfix.entry
 local function match_data_to_qfitem(match)
   local filename = match.path.text
@@ -23,7 +23,7 @@ end
 
 --- Grep for a string.
 ---
----@param opts obsidian.PickerGrepOpts|? Options.
+---@param opts obsidian.picker.GrepOpts|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -36,7 +36,7 @@ end
 ---
 M.grep = function(opts)
   local o = opts or {}
-  ---@cast o obsidian.PickerGrepOpts
+  ---@cast o obsidian.picker.GrepOpts
 
   local query
   if o.query and vim.trim(o.query) ~= "" then

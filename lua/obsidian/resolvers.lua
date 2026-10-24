@@ -36,9 +36,10 @@ local M = {}
 ---@alias obsidian.resolver.HintsResult lsp.InlayHint[]
 ---@alias obsidian.resolver.Hints fun(ctx: obsidian.resolver.HintsCtx, done: fun(result: obsidian.resolver.HintsResult|?, err: string|?))
 
----@alias obsidian.Resolver fun(ctx: table, done: fun(result: table|?, err: string|?))
+---@alias obsidian.Resolver obsidian.resolver.Resolver
+---@alias obsidian.resolver.Resolver fun(ctx: table, done: fun(result: table|?, err: string|?))
 
----@type table<string, obsidian.Resolver>
+---@type table<string, obsidian.resolver.Resolver>
 M.builtin = {}
 
 ---@param src string
@@ -81,7 +82,7 @@ local function resolve_attachment_source(src, done)
   end
 end
 
----@type obsidian.Resolver
+---@type obsidian.resolver.Resolver
 M.builtin.attachment = function(ctx, done)
   if ctx.source ~= nil and vim.trim(ctx.source) ~= "" then
     resolve_attachment_source(ctx.source, done)
@@ -115,7 +116,7 @@ local function daily_note_path(datetime)
   return daily_path
 end
 
----@type obsidian.Resolver
+---@type obsidian.resolver.Resolver
 M.builtin.date = function(ctx, done)
   if ctx.offset_start == nil or ctx.offset_end == nil then
     done {
@@ -125,7 +126,7 @@ M.builtin.date = function(ctx, done)
     return
   end
 
-  ---@type obsidian.PickerEntry[]
+  ---@type obsidian.picker.Entry[]
   local dailies = {}
   local options = Obsidian.opts
   for offset = ctx.offset_end, ctx.offset_start, -1 do
@@ -184,7 +185,7 @@ M.builtin.date = function(ctx, done)
   end)
 end
 
----@type obsidian.Resolver
+---@type obsidian.resolver.Resolver
 M.builtin.hints = function(ctx, done)
   done(require "obsidian.lsp.inlay_hints.link"(ctx.note, ctx.range))
 end

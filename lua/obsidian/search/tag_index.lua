@@ -118,7 +118,7 @@ local function normalize_terms(term)
 end
 
 ---@param term string|string[]
----@param callback fun(locations: obsidian.TagLocation[])
+---@param callback fun(locations: obsidian.search.TagLocation[])
 ---@param context table
 function M.find(term, callback, context)
   index:get(context.dir, context, function(value)

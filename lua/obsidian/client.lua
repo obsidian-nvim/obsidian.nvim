@@ -1,6 +1,7 @@
 local log = require "obsidian.log"
 
----@class obsidian.Client
+---@alias obsidian.Client obsidian.client.Client
+---@class obsidian.client.Client
 local Client = {}
 
 local deprecated_lookup = {
@@ -25,7 +26,7 @@ client is going to be removed in the future as well.]],
   end
 end
 
----@return obsidian.Client
+---@return obsidian.client.Client
 Client.new = function()
   return setmetatable({}, Client)
 end

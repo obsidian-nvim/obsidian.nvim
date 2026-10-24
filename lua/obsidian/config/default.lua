@@ -381,7 +381,7 @@ return {
   ---@field pre_write_note? fun(note: obsidian.Note)
   ---
   ---Runs after adding an attachment.
-  ---@field add_attachment? fun(path: string, ctx: obsidian.AddAttachmentContext)
+  ---@field add_attachment? fun(path: string, ctx: obsidian.attachment.AddContext)
   ---
   ---Runs anytime the workspace is set/changed.
   ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
@@ -390,10 +390,10 @@ return {
   ---@class obsidian.config.ResolverConfig
   ---
   ---Resolve an attachment source before `actions.add_attachment` copies/downloads it.
-  ---@field attachment? obsidian.Resolver
+  ---@field attachment? obsidian.resolver.Resolver
   ---
   ---Resolve a date before date-based actions, such as `daily.pick`, continue.
-  ---@field date? obsidian.Resolver
+  ---@field date? obsidian.resolver.Resolver
   ---
   ---Build serializable LSP inlay hints for a note.
   ---@field hints? obsidian.resolver.Hints

@@ -2,7 +2,7 @@ local api = require "obsidian.api"
 local log = require "obsidian.log"
 local img = require "obsidian.img_paste"
 
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   local img_type = img.get_clipboard_img_type()
   if not img_type then

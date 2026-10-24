@@ -5,7 +5,8 @@ local yaml = require "obsidian.yaml"
 
 local M = {}
 
----@class obsidian.TagOccurrence
+---@alias obsidian.TagOccurrence obsidian.tag.Occurrence
+---@class obsidian.tag.Occurrence
 ---@field tag string Tag text without a leading `#`.
 ---@field raw string Matched source text; inline tags include `#`, while YAML quotes are excluded.
 ---@field source "inline"|"frontmatter"
@@ -49,7 +50,7 @@ end
 ---Keep source bytes (including escapes) separate from the decoded tag value.
 ---@param lines string[]
 ---@param element obsidian.yaml.Element
----@return obsidian.TagOccurrence?
+---@return obsidian.tag.Occurrence?
 local function frontmatter_tag(lines, element)
   local path, range = element.path, element.range
   if path[1] ~= "tags" or not (#path == 1 or (#path == 2 and type(path[2]) == "number")) then
@@ -88,7 +89,7 @@ end
 
 ---@param lines string[]
 ---@param last_line integer 1-based closing frontmatter boundary.
----@param out obsidian.TagOccurrence[]
+---@param out obsidian.tag.Occurrence[]
 ---@param elements obsidian.yaml.Element[]? Already parsed from the same snapshot, in document coordinates.
 local function extract_frontmatter_tags(lines, last_line, out, elements)
   if elements == nil then
@@ -110,7 +111,7 @@ end
 ---Extract source-aware tag occurrences from Markdown lines.
 ---@param lines string[]
 ---@param opts? { frontmatter_end_line: integer?, frontmatter_elements: obsidian.yaml.Element[]?, document: obsidian.parse.Document? }
----@return obsidian.TagOccurrence[]
+---@return obsidian.tag.Occurrence[]
 M.extract = function(lines, opts)
   opts = opts or {}
   local out = {}

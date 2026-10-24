@@ -117,9 +117,13 @@ vim.api.nvim_create_autocmd("FileType", {
       exec_autocmds "ObsidianNoteWritePre"
       local note = Note.from_buffer(ev.buf)
       if not vim.b[ev.buf].obsidian_help then
-        pcall(vim.cmd, "undojoin")
+        pcall(function()
+          vim.cmd "undojoin"
+        end)
         note:update_frontmatter(ev.buf) -- Update buffer with new frontmatter.
-        pcall(vim.cmd, "undojoin")
+        pcall(function()
+          vim.cmd "undojoin"
+        end)
       end
     end)
     create_autocmd("BufWritePost", args.buf, function(ev)

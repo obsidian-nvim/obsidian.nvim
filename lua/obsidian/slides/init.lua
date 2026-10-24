@@ -169,17 +169,17 @@ M.start_presentation = function(note)
     },
   }
 
-  -- Set the options we want during presentation
+  -- Set the options we want during presentation.
   for option, config in pairs(restore) do
-    vim.opt[option] = config.present
+    vim.api.nvim_set_option_value(option, config.present, {})
   end
 
   vim.api.nvim_create_autocmd("BufLeave", {
     buffer = state.floats.body.buf,
     callback = function()
-      -- Reset the values when we are done with the presentation
+      -- Reset the values when we are done with the presentation.
       for option, config in pairs(restore) do
-        vim.opt[option] = config.original
+        vim.api.nvim_set_option_value(option, config.original, {})
       end
 
       foreach_float(function(_, float)

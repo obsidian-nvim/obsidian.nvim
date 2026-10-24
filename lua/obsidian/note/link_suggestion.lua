@@ -9,17 +9,20 @@ local log = require "obsidian.log"
 local M = {}
 local symbol_index
 
----@class obsidian.LinkSuggestion
+---@alias obsidian.LinkSuggestion obsidian.note.LinkSuggestion
+---@class obsidian.note.LinkSuggestion
 ---@field range obsidian.Range
 ---@field text string
----@field candidates obsidian.LinkSuggestionCandidate[]
+---@field candidates obsidian.note.LinkSuggestionCandidate[]
 
----@class obsidian.LinkSuggestionCandidate
+---@alias obsidian.LinkSuggestionCandidate obsidian.note.LinkSuggestionCandidate
+---@class obsidian.note.LinkSuggestionCandidate
 ---@field new_text string
 ---@field symbol string
 ---@field target_path string
 
----@class obsidian.LinkSuggestionSymbol
+---@alias obsidian.LinkSuggestionSymbol obsidian.note.LinkSuggestionSymbol
+---@class obsidian.note.LinkSuggestionSymbol
 ---@field text string
 ---@field text_lower string
 ---@field target_paths string[]
@@ -43,7 +46,7 @@ local function normalize_symbol_text(s)
   return s
 end
 
----@param symbols table<string, obsidian.LinkSuggestionSymbol>
+---@param symbols table<string, obsidian.note.LinkSuggestionSymbol>
 ---@param text string?
 ---@param target_path string
 local function add_symbol(symbols, text, target_path)
@@ -90,7 +93,7 @@ symbol_index = require("obsidian.cache.volatile").vault_index {
       return
     end
 
-    ---@type table<string, obsidian.LinkSuggestionSymbol>
+    ---@type table<string, obsidian.note.LinkSuggestionSymbol>
     local by_text = {}
     for path, row in pairs(rows) do
       path = vim.fs.normalize(path)
@@ -108,7 +111,7 @@ symbol_index = require("obsidian.cache.volatile").vault_index {
 ---Build mention symbols from notes in the requested workspace.
 ---@param path string
 ---@param opts { include_current: boolean?, dir: string|obsidian.Path|? }?
----@return obsidian.LinkSuggestionSymbol[]
+---@return obsidian.note.LinkSuggestionSymbol[]
 function M.symbols(path, opts)
   opts = opts or {}
   local cache = require "obsidian.cache"
@@ -159,7 +162,7 @@ end
 ---Return symbols that resolve only to the requested note path.
 ---@param path string
 ---@param opts { dir: string|obsidian.Path|? }?
----@return obsidian.LinkSuggestionSymbol[]
+---@return obsidian.note.LinkSuggestionSymbol[]
 function M.symbols_for_path(path, opts)
   local normalized_path = vim.fs.normalize(path)
   local symbols = M.symbols(path, { include_current = true, dir = opts and opts.dir })
@@ -216,7 +219,7 @@ local function overlaps_ranges(ranges, row, start_col, end_col)
   return false
 end
 
----@param suggestions obsidian.LinkSuggestion[]
+---@param suggestions obsidian.note.LinkSuggestion[]
 ---@param row integer
 ---@param start_col integer
 ---@param end_col integer
@@ -273,7 +276,7 @@ end
 
 ---@param line string
 ---@param row integer 1-indexed row number
----@param symbols obsidian.LinkSuggestionSymbol[]
+---@param symbols obsidian.note.LinkSuggestionSymbol[]
 ---@param path_exists fun(path: string): boolean|nil
 ---@param source_dir string|obsidian.Path|nil
 ---@param document obsidian.parse.Document|nil
@@ -281,7 +284,7 @@ function M.find_in_line(line, row, symbols, path_exists, source_dir, document)
   path_exists = path_exists or function(path)
     return vim.uv.fs_stat(path) ~= nil
   end
-  ---@type obsidian.LinkSuggestion[]
+  ---@type obsidian.note.LinkSuggestion[]
   local suggestions = {}
   local row0 = row - 1
 
@@ -355,7 +358,7 @@ end
 
 ---@param note obsidian.Note
 ---@param opts { include_current: boolean?, range: obsidian.Range? }?
----@return obsidian.LinkSuggestion[]
+---@return obsidian.note.LinkSuggestion[]
 function M.find(note, opts)
   opts = opts or {}
   local current_path = note.path and tostring(note.path)
@@ -408,8 +411,8 @@ end
 
 ---Apply a link suggestion candidate to a buffer.
 ---@param bufnr integer
----@param suggestion obsidian.LinkSuggestion
----@param candidate obsidian.LinkSuggestionCandidate
+---@param suggestion obsidian.note.LinkSuggestion
+---@param candidate obsidian.note.LinkSuggestionCandidate
 function M.apply(bufnr, suggestion, candidate)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
@@ -428,8 +431,8 @@ end
 
 ---Apply a link suggestion candidate to a possibly unloaded file, writing it to disk.
 ---@param path string
----@param suggestion obsidian.LinkSuggestion
----@param candidate obsidian.LinkSuggestionCandidate
+---@param suggestion obsidian.note.LinkSuggestion
+---@param candidate obsidian.note.LinkSuggestionCandidate
 function M.apply_to_file(path, suggestion, candidate)
   local bufnr = vim.fn.bufnr(path)
   local was_loaded = bufnr > 0 and vim.api.nvim_buf_is_loaded(bufnr)

@@ -2,15 +2,16 @@ local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
 local picker = require "obsidian.picker"
 
----@class obsidian.CommandsModule
----@field commands table<string, obsidian.CommandConfig>
+---@alias obsidian.CommandsModule obsidian.commands.Module
+---@class obsidian.commands.Module
+---@field commands table<string, obsidian.commands.Config>
 local M = { commands = {} }
 
 local function in_note()
   return vim.bo.filetype == "markdown"
 end
 
----@param commands table<string,obsidian.CommandConfig>
+---@param commands table<string,obsidian.commands.Config>
 ---@param is_visual boolean
 ---@param is_note boolean
 ---@return string[]
@@ -89,17 +90,18 @@ function M.show_menu(data)
   )
 end
 
----@class obsidian.CommandConfig
+---@alias obsidian.CommandConfig obsidian.commands.Config
+---@class obsidian.commands.Config
 ---@field complete function|string|?
 ---@field nargs string|integer|?
 ---@field range boolean|?
----@field func fun(data: obsidian.CommandArgs)?
+---@field func fun(data: obsidian.commands.Args)?
 ---@field name string?
 ---@field note_action boolean?
 
 ---Register a new command.
 ---@param name string
----@param config obsidian.CommandConfig
+---@param config obsidian.commands.Config
 M.register = function(name, config)
   if not config.func then
     config.func = function(data)
@@ -120,7 +122,7 @@ M.handle_command = function(data)
   data.args = table.concat(data.fargs, " ")
   local nargs = #data.fargs
 
-  ---@type obsidian.CommandConfig?
+  ---@type obsidian.commands.Config?
   local cmdconfig = M.commands[cmd]
   if cmdconfig == nil then
     log.err("Command '" .. cmd .. "' not found")
@@ -171,7 +173,7 @@ M.get_completions = function(arg_lead, cmdline, cursor_pos)
       return s:sub(1, #obsidiancmd) == obsidiancmd
     end, cmds)
   end
-  ---@type obsidian.CommandConfig?
+  ---@type obsidian.commands.Config?
   local cmdconfig = M.commands[obsidiancmd]
   if cmdconfig == nil then
     return

@@ -20,8 +20,30 @@ local list_items = require "obsidian.parse.line.list_items"
 local tag_module = require "obsidian.tag"
 local link_suggestion = require "obsidian.note.link_suggestion"
 
----@param entry obsidian.PickerEntry
----@return obsidian.ui_select_preview_spec
+---@class obsidian.actions.BlockReferenceOpts
+---@field target_path string
+---@field target_bufnr integer|?
+---@field target_range lsp.Range
+---@field target_checksum string
+---@field block_id string
+---@field placement "inline"|"list-item"|"standalone"
+---@field indent string|?
+---@field source_bufnr integer
+---@field source_range lsp.Range
+---@field source_text string
+---@field placeholder string
+
+---@class obsidian.actions.PropertyRecord
+---@field path string
+---@field display_name string
+---@field properties table<string, any>
+
+---@class obsidian.actions.PropertyCount
+---@field name string
+---@field count integer number of notes carrying the key or value
+
+---@param entry obsidian.picker.Entry
+---@return obsidian.picker.PreviewSpec
 local function preview_entry(entry)
   local filename = entry.filename
   ---@cast filename - nil
@@ -415,7 +437,7 @@ local function get_utf8_char_end(line, byte_pos)
   return byte_pos + vim.str_utf_end(line, byte_pos) + 1
 end
 
----@param viz obsidian.selection
+---@param viz obsidian.api.Selection
 ---@param bufnr integer
 ---@return obsidian.Range?
 local function selection_range(viz, bufnr)
@@ -443,7 +465,7 @@ end
 
 ---@param range lsp.Range
 ---@param bufnr integer
----@return obsidian.selection?
+---@return obsidian.api.Selection?
 local function selection_from_range(range, bufnr)
   if range.start.line == range["end"].line and range.start.character == range["end"].character then
     return
@@ -469,7 +491,7 @@ local function selection_from_range(range, bufnr)
 end
 
 ---@param bufnr integer
----@return obsidian.selection?
+---@return obsidian.api.Selection?
 local function current_word_selection(bufnr)
   local word = vim.fn.expand "<cword>"
   if type(word) ~= "string" or word == "" then
@@ -498,9 +520,9 @@ local function current_word_selection(bufnr)
   end
 end
 
----@param context obsidian.selection|lsp.Range|?
+---@param context obsidian.api.Selection|lsp.Range|?
 ---@param bufnr integer|?
----@return obsidian.selection?
+---@return obsidian.api.Selection?
 local function link_selection(context, bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if context and context.csrow then
@@ -512,7 +534,7 @@ local function link_selection(context, bufnr)
 end
 
 ---@param note obsidian.Note
----@return obsidian.LinkSuggestion?
+---@return obsidian.note.LinkSuggestion?
 local function link_suggestion_under_cursor(note)
   local cursor = vim.api.nvim_win_get_cursor(0)
   local row, col = cursor[1] - 1, cursor[2]
@@ -544,8 +566,8 @@ local function in_visual_mode()
 end
 
 ---@param bufnr integer
----@param suggestion obsidian.LinkSuggestion
----@return obsidian.selection?
+---@param suggestion obsidian.note.LinkSuggestion
+---@return obsidian.api.Selection?
 local function selection_from_link_suggestion(suggestion, bufnr)
   local range = suggestion.range
   return selection_from_range({
@@ -554,7 +576,7 @@ local function selection_from_link_suggestion(suggestion, bufnr)
   }, bufnr)
 end
 
----@param context obsidian.selection|lsp.Range|?
+---@param context obsidian.api.Selection|lsp.Range|?
 ---@param bufnr integer|?
 M.link = function(context, bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
@@ -588,11 +610,11 @@ M.link = function(context, bufnr)
   }
 end
 
----@param label string|obsidian.selection|lsp.Range|?
----@param context obsidian.selection|lsp.Range|integer|?
+---@param label string|obsidian.api.Selection|lsp.Range|?
+---@param context obsidian.api.Selection|lsp.Range|integer|?
 ---@param bufnr integer|?
 M.link_new = function(label, context, bufnr)
-  ---@type obsidian.selection|lsp.Range|?
+  ---@type obsidian.api.Selection|lsp.Range|?
   local selection_context
   if type(label) == "table" then
     selection_context = label
@@ -798,7 +820,7 @@ M.unique_link = function(timestamp)
 end
 
 ---@param src  string?
----@param opts obsidian.AddAttachmentOpts |?
+---@param opts obsidian.attachment.AddOpts |?
 M.add_attachment = function(src, opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -1053,7 +1075,7 @@ M.start_presentation = function(buf)
 end
 
 ---@param symbol lsp.WorkspaceSymbol
----@return obsidian.PickerEntry
+---@return obsidian.picker.Entry
 local function symbol_to_entry(symbol)
   local range = symbol.location.range
   return {
@@ -1066,7 +1088,7 @@ local function symbol_to_entry(symbol)
 end
 
 ---@param query    string |?
----@param callback fun(entry: obsidian.PickerEntry) |?
+---@param callback fun(entry: obsidian.picker.Entry) |?
 M.workspace_symbol = function(query, callback)
   query = query or ""
   require "obsidian.lsp.handlers._workspace_symbol"(query, function(symbols)
@@ -1277,19 +1299,6 @@ local function contains_block_id(lines, block_id)
   return false
 end
 
----@class obsidian.actions.BlockReferenceOpts
----@field target_path string
----@field target_bufnr integer|?
----@field target_range lsp.Range
----@field target_checksum string
----@field block_id string
----@field placement "inline"|"list-item"|"standalone"
----@field indent string|?
----@field source_bufnr integer
----@field source_range lsp.Range
----@field source_text string
----@field placeholder string
-
 --- Add an ID to an unlabeled block and replace the accepted completion with its link.
 ---@param opts obsidian.actions.BlockReferenceOpts|?
 M.block_reference_new = function(opts)
@@ -1414,7 +1423,7 @@ end
 
 --- Apply the link suggestion under the cursor, selecting a target when the
 --- matched note name or alias belongs to more than one note.
----@param suggestion obsidian.LinkSuggestion|?
+---@param suggestion obsidian.note.LinkSuggestion|?
 M.link_suggestion = function(suggestion)
   local bufnr = vim.api.nvim_get_current_buf()
   local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
@@ -1452,8 +1461,8 @@ M.link_suggestion = function(suggestion)
   end)
 end
 
----@param a obsidian.PickerEntry
----@param b obsidian.PickerEntry
+---@param a obsidian.picker.Entry
+---@param b obsidian.picker.Entry
 ---@return boolean
 local function suggestion_later_first(a, b)
   local a_data, b_data = a.user_data, b.user_data
@@ -1468,8 +1477,8 @@ local function suggestion_later_first(a, b)
 end
 
 ---@param path string
----@param suggestion obsidian.LinkSuggestion
----@param candidate obsidian.LinkSuggestionCandidate
+---@param suggestion obsidian.note.LinkSuggestion
+---@param candidate obsidian.note.LinkSuggestionCandidate
 ---@return string
 local function suggestion_text(path, suggestion, candidate)
   local lnum = suggestion.range.start_row + 1
@@ -1498,7 +1507,7 @@ M.link_suggestions = function()
 
     local note_path = tostring(note.path)
 
-    ---@type table<string, obsidian.PickerEntry>
+    ---@type table<string, obsidian.picker.Entry>
     local targets = {}
     for _, suggestion in ipairs(suggestions) do
       for _, candidate in ipairs(suggestion.candidates) do
@@ -1572,7 +1581,7 @@ M.backlink_suggestions = function()
       return log.info "No unlinked incoming mentions found"
     end
 
-    ---@type obsidian.PickerEntry[]
+    ---@type obsidian.picker.Entry[]
     local entries = {}
     for _, result in ipairs(results) do
       entries[#entries + 1] = {
@@ -1637,7 +1646,7 @@ M.insert_link = function(query)
   }
 end
 
----@param tag_locations obsidian.TagLocation[]
+---@param tag_locations obsidian.search.TagLocation[]
 ---@return string[]
 local list_tags = function(tag_locations)
   local result = {}
@@ -1652,10 +1661,10 @@ local list_tags = function(tag_locations)
   return result
 end
 
----@param tag_locations obsidian.TagLocation[]
+---@param tag_locations obsidian.search.TagLocation[]
 ---@param tags          string[]
 local function gather_tag_picker_list(tag_locations, tags)
-  ---@type obsidian.PickerEntry[]
+  ---@type obsidian.picker.Entry[]
   local entries = {}
   for _, tag_loc in ipairs(tag_locations) do
     for _, tag in ipairs(tags) do
@@ -1704,7 +1713,7 @@ local function list_tags_async(callback)
   end, { dir = dir })
 end
 
----@param callback fun(tags: string[], tag_locations: obsidian.TagLocation[])
+---@param callback fun(tags: string[], tag_locations: obsidian.search.TagLocation[])
 ---@param title    string |?
 local function pick_tags(callback, title)
   list_tags_async(function(tags, tag_locations)
@@ -1745,17 +1754,8 @@ M.search_tags = function(tags)
   end
 end
 
----@class obsidian.PropertyRecord
----@field path         string
----@field display_name string
----@field properties   table<string, any>
-
----@class obsidian.PropertyCount
----@field name  string
----@field count integer number of notes carrying the key or value
-
 ---@param counts table<string, integer>
----@return obsidian.PropertyCount[]
+---@return obsidian.actions.PropertyCount[]
 local function sorted_counts(counts)
   local entries = {}
   for name, count in pairs(counts) do
@@ -1767,15 +1767,15 @@ local function sorted_counts(counts)
   return entries
 end
 
----@param entry obsidian.PropertyCount
+---@param entry obsidian.actions.PropertyCount
 ---@return string
 local function format_count(entry)
   return string.format("%s (%d)", entry.name, entry.count)
 end
 
----@param records obsidian.PropertyRecord[]
+---@param records obsidian.actions.PropertyRecord[]
 ---@param key     string
----@return obsidian.PropertyCount[]
+---@return obsidian.actions.PropertyCount[]
 local function collect_property_values(records, key)
   ---@type table<string, integer>
   local counts = {}
@@ -1802,7 +1802,7 @@ local function collect_property_values(records, key)
   return sorted_counts(counts)
 end
 
----@param record obsidian.PropertyRecord
+---@param record obsidian.actions.PropertyRecord
 ---@param key    string
 ---@param value  string
 ---@return boolean
@@ -1822,11 +1822,11 @@ local function record_has_property_value(record, key, value)
   return tostring(prop) == value
 end
 
----@param records obsidian.PropertyRecord[]
+---@param records obsidian.actions.PropertyRecord[]
 ---@param key     string
 ---@param value   string
 local function gather_property_picker_list(records, key, value)
-  ---@type obsidian.PickerEntry[]
+  ---@type obsidian.picker.Entry[]
   local entries = {}
   for _, record in ipairs(records) do
     if record_has_property_value(record, key, value) then
@@ -1857,7 +1857,7 @@ local function gather_property_picker_list(records, key, value)
   end)
 end
 
----@param records obsidian.PropertyRecord[]
+---@param records obsidian.actions.PropertyRecord[]
 ---@param key     string
 local function pick_property_value(records, key)
   local values = collect_property_values(records, key)
@@ -1875,7 +1875,7 @@ local function pick_property_value(records, key)
 end
 
 ---@param notes obsidian.Note[]
----@return obsidian.PropertyRecord[]
+---@return obsidian.actions.PropertyRecord[]
 local function property_records_from_notes(notes)
   local records = {}
   for _, note in ipairs(notes) do
@@ -1896,7 +1896,7 @@ local function property_records_from_notes(notes)
 end
 
 ---@param rows table<string, table>
----@return obsidian.PropertyRecord[]
+---@return obsidian.actions.PropertyRecord[]
 local function property_records_from_cache(rows)
   local cache = require "obsidian.cache"
   local records = {}
@@ -1913,8 +1913,8 @@ local function property_records_from_cache(rows)
   return records
 end
 
----@param records obsidian.PropertyRecord[]
----@return obsidian.PropertyCount[]
+---@param records obsidian.actions.PropertyRecord[]
+---@return obsidian.actions.PropertyCount[]
 local function collect_property_keys(records)
   ---@type table<string, integer>
   local counts = {}
@@ -1930,7 +1930,7 @@ end
 --- cache (already kept live by file-watch events) over re-scanning and
 --- re-parsing every note on each invocation.
 ---
----@param callback fun(keys: obsidian.PropertyCount[], records: obsidian.PropertyRecord[])
+---@param callback fun(keys: obsidian.actions.PropertyCount[], records: obsidian.actions.PropertyRecord[])
 local function list_properties_async(callback)
   local cache = require "obsidian.cache"
   if cache.is_enabled() then

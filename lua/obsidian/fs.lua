@@ -34,7 +34,7 @@ local function is_hidden(path)
 end
 
 ---@class obsidian.fs.GitignoreRecord
----@field parser Glob
+---@field parser obsidian.lib.Glob
 ---@field path string
 ---@field kind "file"|"directory"
 
