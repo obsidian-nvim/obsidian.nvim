@@ -16,7 +16,7 @@ local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
 local M = {}
 
 ---@class obsidian.lsp.RenameTarget
----@field kind "note"|"block"|"heading"|"footnote"|"tag"
+---@field kind "note"|"block"|"heading"|"footnote"|"tag"|"attachment"
 ---@field bufnr integer
 ---@field range lsp.Range -- text replaced in bufnr (utf-8 byte columns)
 ---@field placeholder string
@@ -136,11 +136,12 @@ local function link_target(ref, bufnr, row)
       return nil
     end
     local col = ref.range.start_col + s - 1
+    local is_attachment = api.is_attachment_path(ref.target)
     return {
-      kind = "note",
+      kind = is_attachment and "attachment" or "note",
       bufnr = bufnr,
       ref = ref,
-      placeholder = ref.target,
+      placeholder = is_attachment and vim.fs.basename(vim.uri_decode(ref.target)) or ref.target,
       range = range(row, col, col + #ref.target),
     }
   end
@@ -546,6 +547,22 @@ M.build_tag_edit = function(target, new_name, callback)
     end
     callback(to_workspace_edit(file_edits))
   end, { dir = dir, match = "subtree" })
+end
+
+--- Rename the attachment a link points to, and every reference to it. The file
+--- rename and the reference edits come from `attachment.rename()`.
+---@param target obsidian.lsp.RenameTarget
+---@param new_name string
+---@param callback fun(edit: lsp.WorkspaceEdit|?)
+M.build_attachment_edit = function(target, new_name, callback)
+  require("obsidian.attachment").rename(
+    target.ref.target,
+    new_name,
+    { apply = false, filename = vim.api.nvim_buf_get_name(target.bufnr) },
+    function(err, edit)
+      callback(not err and edit or nil)
+    end
+  )
 end
 
 return M

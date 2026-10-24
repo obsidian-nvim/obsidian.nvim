@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- LSP rename (`vim.lsp.buf.rename()`) renames block ids, headings (with the links naming them), footnotes and tags (inline and in the frontmatter, with their subtags; renaming onto an existing tag merges them) under the cursor.
+- LSP rename (`vim.lsp.buf.rename()`) renames block ids, headings (with the links naming them), footnotes, tags (inline and in the frontmatter, with their subtags; renaming onto an existing tag merges them) and attachments (the file and every reference) under the cursor.
 - `require("obsidian.link")` exposes `replace`, `insert`, and `unlink` for replacing ranges, inserting link text at a position, and removing link markup; link actions and suggestions use these operations.
 - `:Obsidian properties [KEY] [VALUE]`, a three-stage picker over frontmatter properties (keys, then values, then matching notes), mirroring `:Obsidian tags`.
 - `search.find_blocks_async()` for finding existing and unlabeled block-reference candidates.

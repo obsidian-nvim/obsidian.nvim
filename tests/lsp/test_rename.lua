@@ -735,4 +735,51 @@ end
   eq({ "#a" }, h.read(files["A.md"]))
 end
 
+T["rename attachment renames the file and every reference"] = function()
+  local root = child.Obsidian.dir
+  local assets = root / "assets"
+  assets:mkdir()
+  h.write("image", assets / "old image.png")
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "![[assets/old image.png]]\n![alt](assets/old%20image.png)\n![[old image.png|100]]\n`![[old image.png]]`",
+    ["B.md"] = "[[old image.png]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+
+  child.api.nvim_win_set_cursor(0, { 2, 14 })
+  eq("old image.png", prepare_rename().placeholder)
+
+  rename "new image"
+  h.child_wait_for_path(child, assets / "new image.png")
+  child.cmd "wa"
+
+  eq(false, (assets / "old image.png"):exists())
+  eq(true, (assets / "new image.png"):exists())
+  eq({
+    "![[assets/new image.png]]",
+    "![alt](assets/new%20image.png)",
+    "![[new image.png|100]]",
+    "`![[old image.png]]`",
+  }, h.read(files["A.md"]))
+  eq({ "[[new image.png]]" }, h.read(files["B.md"]))
+end
+
+T["rename attachment refuses an existing name"] = function()
+  local root = child.Obsidian.dir
+  h.write("one", root / "one.png")
+  h.write("two", root / "two.png")
+  local files = h.mock_vault_contents(root, { ["A.md"] = "![[one.png]]" })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+  rename "two"
+  child.cmd "wa"
+
+  eq(true, (root / "one.png"):exists())
+  eq({ "![[one.png]]" }, h.read(files["A.md"]))
+end
+
 return T
