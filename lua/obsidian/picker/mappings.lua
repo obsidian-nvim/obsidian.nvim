@@ -72,7 +72,7 @@ M.new_note = function(query)
     return
   end
   ---@diagnostic disable-next-line: missing-fields,param-type-mismatch
-  require "obsidian.commands.new" { args = query }
+  require("obsidian.commands").commands.new.fn { args = query }
 end
 
 ---@param arg string|obsidian.picker.Entry
