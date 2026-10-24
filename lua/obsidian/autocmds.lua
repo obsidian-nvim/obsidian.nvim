@@ -61,6 +61,8 @@ local function bufenter_callback(ev)
   -- Register keymap.
   if vim.g.obsidian_default_keymap ~= false then -- NOTE: not in config since not sure whether the confusion and the small interface is worth it, might remove in major release
     vim.keymap.set("n", "<CR>", actions.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
+    vim.keymap.set("n", "<C-a>", actions.increment, { expr = true, buffer = true, desc = "Obsidian Increment" })
+    vim.keymap.set("n", "<C-x>", actions.decrement, { expr = true, buffer = true, desc = "Obsidian Decrement" })
 
     vim.keymap.set("n", "]o", function()
       actions.nav_link("next", true)

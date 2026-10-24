@@ -44,6 +44,8 @@ vim.api.nvim_create_autocmd("User", {
   callback = function(ev)
     -- remove the default mappings
     vim.keymap.del("n", "<CR>", { buffer = true })
+    vim.keymap.del("n", "<C-a>", { buffer = true })
+    vim.keymap.del("n", "<C-x>", { buffer = true })
     vim.keymap.del("n", "]o", { buffer = true })
     vim.keymap.del("n", "[o", { buffer = true })
 
@@ -68,6 +70,10 @@ The plugin provides the following remappable functions:
   - If cursor is on a tag, show all notes with that tag in a picker
   - If cursor is on a checkbox, toggle the checkbox
   - If cursor is on a heading, cycle the fold of that heading
+- `increment`
+  - Scrolls a note embed under the cursor up; otherwise behaves like `<C-a>`
+- `decrement`
+  - Scrolls a note embed under the cursor down; otherwise behaves like `<C-x>`
 - `nav_link ["next"|"prev"] [include_hints]`
   - Will navigate cursor to the next valid link in the buffer
   - If `include_hints` is `true` and the cache is enabled, link suggestion hints are included

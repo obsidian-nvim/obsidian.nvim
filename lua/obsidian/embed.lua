@@ -6,25 +6,40 @@ local M = {}
 
 local ns_id = vim.api.nvim_create_namespace "obsidian-nvim-embeds"
 local LEFT_SEP = "▏"
+local MAX_PREVIEW_LINES = 10
+local MAX_NOTE_LINES = 2147483647
 
 ---@class obsidian.embed.Context
 ---@field path string|nil
 ---@field note obsidian.Note
+---@field fragment string|nil
+---@field range obsidian.Range|nil
 
 ---@class obsidian.embed.State
 ---@field buf integer
 ---@field group integer
 ---@field dependencies table<string, boolean>
 ---@field source_path string|nil
+---@field previews table<string, obsidian.embed.Preview>
 
 ---@class obsidian.embed.Match
 ---@field col integer 0-indexed
+---@field end_col integer 0-indexed, exclusive
 ---@field target string
+
+---@class obsidian.embed.Preview
+---@field offset integer
+---@field total integer
+---@field limit integer
+
+---@class obsidian.embed.CacheEntry
+---@field path string
+---@field lines table[]
 
 ---@type table<integer, obsidian.embed.State>
 local states = {}
 
----@type table<string, table[]>
+---@type table<string, obsidian.embed.CacheEntry>
 local note_cache = {}
 
 local unregister_watchfiles
@@ -62,13 +77,19 @@ local function with_separator(line)
   return line
 end
 
----@param note obsidian.Note
+---@param context obsidian.embed.Context
 ---@return string[]
-local function note_body(note)
+local function note_lines(context)
   local lines = {}
-  local start_line = note.frontmatter_end_line and note.frontmatter_end_line + 1 or 1
-  for line_num = start_line, #note.contents do
-    lines[#lines + 1] = note.contents[line_num]
+  if context.range then
+    for row = context.range.start_row, context.range.end_row - 1 do
+      lines[#lines + 1] = context.note.contents[row + 1]
+    end
+  else
+    local start_line = context.note.frontmatter_end_line and context.note.frontmatter_end_line + 1 or 1
+    for line_num = start_line, #context.note.contents do
+      lines[#lines + 1] = context.note.contents[line_num]
+    end
   end
   return lines
 end
@@ -76,17 +97,19 @@ end
 ---@param context obsidian.embed.Context
 ---@return table[]
 local function render_note(context)
-  local cache_key = context.path and normalize(context.path)
-  if cache_key and note_cache[cache_key] then
-    return note_cache[cache_key]
+  local path = context.path and normalize(context.path)
+  local cache_key = path and path .. "\0" .. (context.fragment or "")
+  local cached = cache_key and note_cache[cache_key]
+  if cached then
+    return cached.lines
   end
 
-  local virt_lines = ts.to_virt_lines(note_body(context.note))
+  local virt_lines = ts.to_virt_lines(note_lines(context))
   for _, line in ipairs(virt_lines) do
     with_separator(line)
   end
-  if cache_key then
-    note_cache[cache_key] = virt_lines
+  if cache_key and path then
+    note_cache[cache_key] = { path = path, lines = virt_lines }
   end
   return virt_lines
 end
@@ -110,15 +133,17 @@ end
 ---@return obsidian.embed.Match[]
 local function find_embeds(line)
   local matches = {}
-  for col, body in line:gmatch "()!%[%[([^%]]+)%]%]" do
+  for col, body, end_pos in line:gmatch "()!%[%[([^%]]+)%]%]()" do
     matches[#matches + 1] = {
       col = col - 1,
+      end_col = end_pos - 1,
       target = clean_wiki_target(body),
     }
   end
-  for col, body in line:gmatch "()!%[[^%]]*%]%(([^%)]+)%)" do
+  for col, body, end_pos in line:gmatch "()!%[[^%]]*%]%(([^%)]+)%)()" do
     matches[#matches + 1] = {
       col = col - 1,
+      end_col = end_pos - 1,
       target = clean_markdown_target(body),
     }
   end
@@ -130,35 +155,103 @@ end
 
 ---@param target string
 ---@return string
-local function target_without_fragment(target)
-  return (target:gsub("#.*$", ""):gsub("%?.*$", ""))
+---@return string|nil
+local function target_parts(target)
+  local path, fragment = target:match "^(.-)#(.*)$"
+  path = (path or target):gsub("%?.*$", "")
+  if fragment then
+    fragment = fragment:gsub("%?.*$", "")
+  end
+  return path, fragment ~= "" and fragment or nil
+end
+
+---@param row integer 0-indexed
+---@param match obsidian.embed.Match
+---@return string
+local function preview_key(row, match)
+  return table.concat({ row, match.col, match.end_col, match.target }, ":")
+end
+
+---@param lines table[]
+---@param offset integer
+---@param limit integer
+---@return table[]
+local function slice(lines, offset, limit)
+  local result = {}
+  for i = offset + 1, math.min(#lines, offset + limit) do
+    result[#result + 1] = lines[i]
+  end
+  return result
 end
 
 ---@param match obsidian.embed.Match
+---@param buf integer
 ---@return obsidian.embed.Context|nil
-local function resolve_context(match)
-  local target = target_without_fragment(match.target)
+local function resolve_context(match, buf)
+  local target, fragment = target_parts(match.target)
   if not is_markdown(target) then
     return nil
   end
 
-  local ok, notes = pcall(search.resolve_note, target, {})
-  if not ok or not notes or not notes[1] then
-    return nil
+  local note_opts = { max_lines = MAX_NOTE_LINES }
+  if fragment then
+    if vim.startswith(fragment, "^") then
+      note_opts.collect_blocks = true
+    else
+      note_opts.collect_anchor_links = true
+    end
   end
-  local note = notes[1]
+
+  ---@type obsidian.Note|nil
+  local note
+  if target == "" then
+    local ok, result = pcall(require("obsidian.note").from_buffer, buf, note_opts)
+    if not ok then
+      return nil
+    end
+    note = result
+  else
+    local ok, notes = pcall(search.resolve_note, target, { notes = note_opts })
+    if not ok or not notes or not notes[1] then
+      return nil
+    end
+    note = notes[1]
+  end
   ---@cast note -nil
+
+  ---@type obsidian.Range|nil
+  local range
+  if fragment then
+    if vim.startswith(fragment, "^") then
+      local block = note:resolve_block(fragment)
+      range = block and block.section and block.section.range or nil
+    else
+      local anchor = note:resolve_anchor_link(fragment)
+      range = anchor and anchor.section and anchor.section.range or nil
+    end
+    if not range then
+      return nil
+    end
+  end
 
   return {
     path = note.path and normalize(tostring(note.path)) or nil,
     note = note,
+    fragment = fragment,
+    range = range,
   }
 end
 
 ---@param path string|nil
 local function invalidate(path)
-  if path then
-    note_cache[normalize(path)] = nil
+  if not path then
+    return
+  end
+  path = normalize(path)
+  for key, cached in pairs(note_cache) do
+    if cached.path == path then
+      note_cache[key] = nil
+    end
   end
 end
 
@@ -169,9 +262,9 @@ local function prune_cache()
       active[path] = true
     end
   end
-  for path in pairs(note_cache) do
-    if not active[path] then
-      note_cache[path] = nil
+  for key, cached in pairs(note_cache) do
+    if not active[cached.path] then
+      note_cache[key] = nil
     end
   end
 end
@@ -241,20 +334,28 @@ M.refresh = function(buf)
   state.source_path = vim.api.nvim_buf_get_name(buf)
   state.source_path = state.source_path ~= "" and normalize(state.source_path) or nil
   state.dependencies = {}
+  local previous_previews = state.previews
+  state.previews = {}
   vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
 
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   for line_num, line in ipairs(lines) do
     local rendered = {}
     for _, match in ipairs(find_embeds(line)) do
-      local context = resolve_context(match)
+      local context = resolve_context(match, buf)
       if context then
         if context.path then
           state.dependencies[normalize(context.path)] = true
         end
         local ok, virt_lines = pcall(render_note, context)
         if ok and virt_lines then
-          vim.list_extend(rendered, virt_lines)
+          local key = preview_key(line_num - 1, match)
+          local previous = previous_previews[key]
+          local limit = context.range and #virt_lines or MAX_PREVIEW_LINES
+          local max_offset = math.max(0, #virt_lines - limit)
+          local offset = math.min(previous and previous.offset or 0, max_offset)
+          state.previews[key] = { offset = offset, total = #virt_lines, limit = limit }
+          vim.list_extend(rendered, slice(virt_lines, offset, limit))
         end
       end
     end
@@ -266,6 +367,50 @@ M.refresh = function(buf)
     end
   end
   prune_cache()
+end
+
+---Scroll the note embed under the cursor by virtual lines.
+---Positive values move the preview up; negative values move it down.
+---@param delta integer
+---@return boolean|nil changed `nil` when the cursor is not on a rendered note embed.
+M.scroll_under_cursor = function(delta)
+  local buf = vim.api.nvim_get_current_buf()
+  local state = states[buf]
+  if not state or delta == 0 then
+    return nil
+  end
+
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local row, col = cursor[1] - 1, cursor[2]
+  local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1]
+  if not line then
+    return nil
+  end
+
+  for _, match in ipairs(find_embeds(line)) do
+    if match.col <= col and col < match.end_col then
+      local key = preview_key(row, match)
+      local preview = state.previews[key]
+      if not preview then
+        M.refresh(buf)
+        state = states[buf]
+        preview = state and state.previews[key] or nil
+      end
+      if not preview then
+        return nil
+      end
+
+      local next_offset = math.max(0, math.min(preview.total - preview.limit, preview.offset + delta))
+      if next_offset == preview.offset then
+        return false
+      end
+
+      preview.offset = next_offset
+      M.refresh(buf)
+      return true
+    end
+  end
+  return nil
 end
 
 ---@param buf integer
@@ -285,6 +430,7 @@ M.attach = function(buf)
     group = vim.api.nvim_create_augroup("obsidian.embed." .. buf, { clear = true }),
     dependencies = {},
     source_path = nil,
+    previews = {},
   }
   states[buf] = state
   ensure_watchfiles_handler()
