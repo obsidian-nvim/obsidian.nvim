@@ -103,7 +103,7 @@ local function get_query(prompt_bufnr, keep_open, initial_query)
   end
 end
 
----@param opts { callback: (fun(entries: obsidian.PickerEntry[]))|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|?, selection_value: (fun(entry: any): string)|?, initial_query: string|? }
+---@param opts { callback: (fun(entries: obsidian.picker.Entry[]))|?, query_mappings: obsidian.picker.MappingTable|?, selection_mappings: obsidian.picker.MappingTable|?, selection_value: (fun(entry: any): string)|?, initial_query: string|? }
 local function attach_picker_mappings(map, opts)
   -- Docs for telescope actions:
   -- https://github.com/nvim-telescope/telescope.nvim/blob/master/lua/telescope/actions/init.lua
@@ -149,7 +149,7 @@ local function attach_picker_mappings(map, opts)
   end
 end
 
----@param opts obsidian.PickerGrepOpts Options.
+---@param opts obsidian.picker.GrepOpts Options.
 M.grep = function(opts)
   vim.validate("opts", opts, "table")
 
@@ -191,7 +191,7 @@ M.grep = function(opts)
 end
 
 ---@param values any[]
----@param opts obsidian.PickerSelectOpts|? Options.
+---@param opts obsidian.picker.SelectOpts|? Options.
 ---@param on_choice fun(choices: any[])|?
 M.select = function(values, opts, on_choice)
   local pickers = require "telescope.pickers"

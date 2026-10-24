@@ -10,7 +10,7 @@ return function()
       picker.select(items, {
         prompt = "Resolve link",
         preview_item = function(entry)
-          ---@cast entry obsidian.PickerEntry
+          ---@cast entry obsidian.picker.Entry
           local filename = entry.filename
           ---@cast filename -nil
           local preview = picker.preview_path(filename)

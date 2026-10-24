@@ -12,10 +12,46 @@ local tags = require "obsidian.tag"
 
 local M = {}
 
----@param t table|function
-local function iter(t)
-  ---@diagnostic disable-next-line: call-non-callable
-  return vim.iter(t)
+---@class obsidian.search.LinkMatch
+---@field link string
+---@field line integer
+---@field start integer 0-indexed
+---@field end integer 0-indexed
+
+---@alias obsidian.LinkMatch obsidian.search.LinkMatch
+
+---@class obsidian.search.BacklinkMatch
+---@field path string|obsidian.Path The path to the note where the backlinks were found.
+---@field line integer The line number (1-indexed) where the backlink was found.
+---@field text string The text of the line where the backlink was found.
+---@field start integer|? The start of match (0-indexed)
+---@field end integer|? The end of match (0-indexed)
+---@field link string actual matched link text
+
+---@alias obsidian.BacklinkMatch obsidian.search.BacklinkMatch
+
+---@class obsidian.search.BacklinkSuggestion
+---@field path string Path of the note containing the unlinked mention.
+---@field suggestion obsidian.note.LinkSuggestion
+---@field candidate obsidian.note.LinkSuggestionCandidate
+
+---@alias obsidian.BacklinkSuggestion obsidian.search.BacklinkSuggestion
+
+---@class obsidian.search.TagLocation
+---@field tag string The tag found.
+---@field note obsidian.Note The note instance where the tag was found.
+---@field path string|obsidian.Path The path to the note where the tag was found.
+---@field line integer The line number (1-indexed) where the tag was found.
+---@field text string The original source line where the tag was found.
+---@field range obsidian.Range The exact source range of the tag.
+---@field tag_start integer The 1-based byte column where the tag starts.
+---@field tag_end integer The 1-based exclusive byte column where the tag ends.
+
+---@alias obsidian.TagLocation obsidian.search.TagLocation
+
+---@param values string[]
+local function iter(values)
+  return vim.iter(values)
 end
 
 local Opts = require "obsidian.search.opts" -- general class to handle options
@@ -58,34 +94,34 @@ M.find_highlight = function(s)
   return matches
 end
 
----@class MatchPath
+---@class obsidian.search.ripgrep.MatchPath
 ---
 ---@field text string
 
----@class MatchText
+---@class obsidian.search.ripgrep.MatchText
 ---
 ---@field text string
 
----@class SubMatch
+---@class obsidian.search.ripgrep.Submatch
 ---
----@field match MatchText
+---@field match obsidian.search.ripgrep.MatchText
 ---@field start integer
 ---@field end integer
 
----@class MatchData
+---@class obsidian.search.ripgrep.MatchData
 ---
----@field path MatchPath
----@field lines MatchText
----@field line_number integer 0-indexed
+---@field path obsidian.search.ripgrep.MatchPath
+---@field lines obsidian.search.ripgrep.MatchText
+---@field line_number integer 1-indexed
 ---@field absolute_offset integer
----@field submatches SubMatch[]
+---@field submatches obsidian.search.ripgrep.Submatch[]
 
 --- Search markdown files in a directory for a given term. Each match is passed to the `on_match` callback.
 ---
 ---@param dir string|obsidian.Path
 ---@param term string|string[]
 ---@param opts obsidian.search.SearchOpts|?
----@param on_match fun(match: MatchData)
+---@param on_match fun(match: obsidian.search.ripgrep.MatchData)
 ---@param on_exit fun(exit_code: integer)|?
 ---@return vim.SystemObj handle
 M.search_async = function(dir, term, opts, on_match, on_exit)
@@ -383,9 +419,13 @@ M.find_blocks_async = function(term, callback, opts)
   local Note = require "obsidian.note"
 
   local source_path = opts.source_path and tostring(vim.fn.resolve(opts.source_path)) or nil
-  local real_source_path = source_path and vim.uv.fs_realpath(source_path) or nil
-  ---@cast real_source_path string?
-  source_path = source_path and vim.fs.normalize(real_source_path or source_path) or nil
+  if source_path then
+    local real_source_path = vim.uv.fs_realpath(source_path)
+    if type(real_source_path) == "string" then
+      source_path = tostring(real_source_path)
+    end
+    source_path = vim.fs.normalize(source_path --[[@as string]])
+  end
 
   block_index.find(term, callback, {
     dir = dir_string,
@@ -556,16 +596,10 @@ local function ref_is_eligible(document, ref)
     and not document:intersects(ref.range, Document.COMMENTS)
 end
 
----@class obsidian.LinkMatch
----@field link string
----@field line integer
----@field start integer 0-indexed
----@field end integer 0-indexed
-
 -- Gather all unique links from the a note.
 --
 ---@param note obsidian.Note
----@return obsidian.LinkMatch[]
+---@return obsidian.search.LinkMatch[]
 M.find_links = function(note)
   local matches = {}
   ---@type table<string, boolean>
@@ -665,7 +699,7 @@ local function build_in_note_search_term(term)
 end
 
 ---@param note obsidian.Note
----@return obsidian.BacklinkMatch[]
+---@return obsidian.search.BacklinkMatch[]
 local function get_in_note_backlink(note, term)
   local matches = {}
 
@@ -704,17 +738,8 @@ local function get_in_note_backlink(note, term)
   return matches
 end
 
----@class obsidian.BacklinkMatch
----
----@field path string|obsidian.Path The path to the note where the backlinks were found.
----@field line integer The line number (1-indexed) where the backlink was found.
----@field text string The text of the line where the backlink was found.
----@field start integer|? The start of match (0-indexed)
----@field end integer|? The end of match (0-indexed)
----@field link string actual matched link text
-
 ---@param note obsidian.Note|?
----@param callback fun(matches: obsidian.BacklinkMatch[])
+---@param callback fun(matches: obsidian.search.BacklinkMatch[])
 ---@param opts { search: obsidian.SearchOpts|?, anchor: string|?, block: string|?, dir: string|obsidian.Path|?, refs: string[]|? }|?
 ---@return vim.SystemObj handle
 M.find_backlinks_async = function(note, callback, opts)
@@ -729,7 +754,7 @@ M.find_backlinks_async = function(note, callback, opts)
   if anchor and note then
     anchor_obj = note:resolve_anchor_link(anchor)
   end
-  ---@type obsidian.BacklinkMatch[]
+  ---@type obsidian.search.BacklinkMatch[]
   local results = {}
   ---@type table<string, obsidian.parse.Document>
   local documents = {}
@@ -738,7 +763,7 @@ M.find_backlinks_async = function(note, callback, opts)
     vim.list_extend(results, get_in_note_backlink(note, block or anchor))
   end
 
-  ---@param submatches SubMatch[]
+  ---@param submatches obsidian.search.ripgrep.Submatch[]
   ---@param ref_start integer
   ---@param ref_end integer
   ---@return boolean
@@ -754,7 +779,7 @@ M.find_backlinks_async = function(note, callback, opts)
     return false
   end
 
-  ---@param match MatchData
+  ---@param match obsidian.search.ripgrep.MatchData
   local _on_match = function(match)
     local path = Path.new(match.path.text):resolve { strict = true }
     local path_key = tostring(path)
@@ -841,7 +866,7 @@ end
 
 ---@param note obsidian.Note
 ---@param opts { search: obsidian.SearchOpts?, anchor: string?, block: string?, timeout: integer?, dir: string|obsidian.Path?, refs: string[]? }?
----@return obsidian.BacklinkMatch[] matches always returns a list (empty on timeout)
+---@return obsidian.search.BacklinkMatch[] matches always returns a list (empty on timeout)
 M.find_backlinks = function(note, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
@@ -852,7 +877,7 @@ M.find_backlinks = function(note, opts)
       { search = opts.search, anchor = opts.anchor, block = opts.block, dir = opts.dir, refs = opts.refs }
     )
   end, opts.timeout)
-  ---@cast result obsidian.BacklinkMatch[]?
+  ---@cast result obsidian.search.BacklinkMatch[]?
   return result or {}
 end
 
@@ -860,22 +885,16 @@ end
 ---
 ---@param note obsidian.Note
 ---@param opts { include_current: boolean?, range: obsidian.Range? }?
----@param callback fun(suggestions: obsidian.LinkSuggestion[])
+---@param callback fun(suggestions: obsidian.note.LinkSuggestion[])
 M.find_link_suggestions_async = function(note, opts, callback)
   callback = vim.schedule_wrap(callback)
   callback(require("obsidian.note.link_suggestion").find(note, opts))
 end
 
----@class obsidian.BacklinkSuggestion
----
----@field path string Path of the note containing the unlinked mention.
----@field suggestion obsidian.LinkSuggestion
----@field candidate obsidian.LinkSuggestionCandidate
-
 ---Scan a single note file for mentions of `symbols`.
 ---@param path string
----@param symbols obsidian.LinkSuggestionSymbol[]
----@param results obsidian.BacklinkSuggestion[]
+---@param symbols obsidian.note.LinkSuggestionSymbol[]
+---@param results obsidian.search.BacklinkSuggestion[]
 local function scan_note_for_mentions(path, symbols, results)
   local link_suggestion = require "obsidian.note.link_suggestion"
 
@@ -936,12 +955,12 @@ end
 ---
 ---@param note obsidian.Note
 ---@param opts { dir: string|obsidian.Path? }?
----@param callback fun(suggestions: obsidian.BacklinkSuggestion[])
+---@param callback fun(suggestions: obsidian.search.BacklinkSuggestion[])
 M.find_backlinks_suggestions_async = function(note, opts, callback)
   opts = opts or {}
   callback = vim.schedule_wrap(callback)
 
-  ---@type obsidian.BacklinkSuggestion[]
+  ---@type obsidian.search.BacklinkSuggestion[]
   local results = {}
   local cache = require "obsidian.cache"
   if not note.path or not cache.is_enabled() then
@@ -966,35 +985,24 @@ M.find_backlinks_suggestions_async = function(note, opts, callback)
   callback(results)
 end
 
----@class obsidian.TagLocation
----
----@field tag string The tag found.
----@field note obsidian.Note The note instance where the tag was found.
----@field path string|obsidian.Path The path to the note where the tag was found.
----@field line integer The line number (1-indexed) where the tag was found.
----@field text string The original source line where the tag was found.
----@field range obsidian.Range The exact source range of the tag.
----@field tag_start integer The 1-based byte column where the tag starts.
----@field tag_end integer The 1-based exclusive byte column where the tag ends.
-
 --- Find all tags starting with the given search term(s).
 ---
 ---@param term string|string[] The search term.
 ---@param opts { search: obsidian.SearchOpts|?, timeout: integer|?, dir: obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
----@return obsidian.TagLocation[] tags always returns a list (empty on timeout)
+---@return obsidian.search.TagLocation[] tags always returns a list (empty on timeout)
 M.find_tags = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
     M.find_tags_async(term, cb, { search = opts.search, dir = opts.dir, match = opts.match })
   end, opts.timeout)
-  ---@cast result obsidian.TagLocation[]?
+  ---@cast result obsidian.search.TagLocation[]?
   return result or {}
 end
 
 ---@param note obsidian.Note
 ---@param path string|obsidian.Path
----@return obsidian.TagLocation[]
+---@return obsidian.search.TagLocation[]
 local function tag_locations(note, path)
   local locations = {}
   for _, occurrence in
@@ -1019,7 +1027,7 @@ end
 
 ---@param path string|obsidian.Path
 ---@param max_lines integer
----@return obsidian.TagLocation[]
+---@return obsidian.search.TagLocation[]
 local function parse_tag_path(path, max_lines)
   local Note = require "obsidian.note"
   local ok, note = pcall(Note.from_file, path, {
@@ -1033,7 +1041,7 @@ local function parse_tag_path(path, max_lines)
 end
 
 ---@param bufnr integer
----@return obsidian.TagLocation[]
+---@return obsidian.search.TagLocation[]
 local function parse_tag_buffer(bufnr)
   local Note = require "obsidian.note"
   local ok, note = pcall(Note.from_buffer, bufnr, {
@@ -1048,7 +1056,7 @@ end
 
 ---Scan the vault for all tag occurrences. Ripgrep only identifies candidate
 ---files; source-aware parsing decides what is actually a tag.
----@param callback fun(tags: obsidian.TagLocation[], err: any?)
+---@param callback fun(tags: obsidian.search.TagLocation[], err: any?)
 ---@param opts { search: obsidian.SearchOpts|?, dir: obsidian.Path|string, max_lines: integer }
 local function scan_tags_async(callback, opts)
   local path_to_tag_loc = {}
@@ -1110,10 +1118,10 @@ local function scan_tags_async(callback, opts)
   )
 end
 
----@param locations obsidian.TagLocation[]
+---@param locations obsidian.search.TagLocation[]
 ---@param term string|string[]
 ---@param mode "exact"|"subtree"|"prefix"|?
----@return obsidian.TagLocation[]
+---@return obsidian.search.TagLocation[]
 local function filter_tag_locations(locations, term, mode)
   ---@type string[]
   local input
@@ -1142,7 +1150,7 @@ end
 
 --- An async version of 'find_tags()'.
 ---@param term string|string[] The search term.
----@param callback fun(tags: obsidian.TagLocation[])
+---@param callback fun(tags: obsidian.search.TagLocation[])
 ---@param opts { search: obsidian.SearchOpts|?, dir: obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
 M.find_tags_async = function(term, callback, opts)
   callback = vim.schedule_wrap(callback)

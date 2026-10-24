@@ -17,7 +17,7 @@ local function dedupe_items(items)
   return result
 end
 
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   local open_strategy
   if data.args and string.len(data.args) > 0 then
@@ -38,7 +38,7 @@ return function(data)
         picker.select(items, {
           prompt = "Resolve link",
           preview_item = function(entry)
-            ---@cast entry obsidian.PickerEntry
+            ---@cast entry obsidian.picker.Entry
             local filename = entry.filename
             ---@cast filename -nil
             local preview = picker.preview_path(filename)

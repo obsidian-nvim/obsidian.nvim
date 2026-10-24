@@ -6,6 +6,35 @@ local T, child = h.child_vault {
   pre_case = [[M = require"obsidian.link"]],
 }
 
+T["replace and unlink edit an explicit buffer range"] = function()
+  local result = child.lua [=[
+local buf = vim.api.nvim_create_buf(true, false)
+vim.api.nvim_buf_set_name(buf, tostring(Obsidian.dir / "source.md"))
+vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "See target now" })
+local Range = require "obsidian.range"
+M.replace { bufnr = buf, range = Range.new(0, 4, 0, 10), text = "[[target|Target]]" }
+local linked = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
+local ref = require("obsidian.parse.refs").extract(linked, { row = 0 })[1]
+local display = M.unlink { bufnr = buf, ref = ref }
+return { linked, display, vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] }
+  ]=]
+  eq({ "See [[target|Target]] now", "Target", "See Target now" }, result)
+end
+
+T["insert adds link text at an explicit position"] = function()
+  local line = child.lua [=[
+local buf = vim.api.nvim_create_buf(true, false)
+vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "See  now" })
+require("obsidian.link").insert {
+  bufnr = buf,
+  pos = require("obsidian.pos").new(0, 4),
+  text = "[[target]]",
+}
+return vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
+  ]=]
+  eq("See [[target]] now", line)
+end
+
 T["includeexpr"] = new_set()
 
 T["includeexpr"]["should resolve notes, anchors, and urls for gf"] = function()

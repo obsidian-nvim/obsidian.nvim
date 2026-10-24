@@ -44,6 +44,13 @@ M.find_files = require("obsidian.cache.api").find_files
 
 ---@alias obsidian.cache.Row obsidian.cache.NoteRow|obsidian.cache.AttachmentRow
 
+---@class obsidian.cache.HeadingRow
+---@field path string
+---@field header string
+---@field anchor string
+---@field level integer
+---@field line integer 1-based
+
 ---@type table<string, any>
 local backends = {
   json = require "obsidian.cache.json_backend",
@@ -516,13 +523,6 @@ function M.notes.backlink_count(note)
   end
   return count
 end
-
----@class obsidian.cache.HeadingRow
----@field path string
----@field header string
----@field anchor string
----@field level integer
----@field line integer 1-based
 
 ---Find cached headings whose original text or normalized anchor contains `query`.
 ---@param query string?

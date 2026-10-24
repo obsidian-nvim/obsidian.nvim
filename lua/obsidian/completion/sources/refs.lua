@@ -10,7 +10,7 @@ local api = require "obsidian.api"
 local search = require "obsidian.search"
 local cache = require "obsidian.cache"
 
----@class obsidian.completion.sources.refs.options
+---@class obsidian.completion.sources.refs.Options
 ---@field label string|?
 ---@field display_label string|?
 ---@field new_text string
@@ -23,7 +23,7 @@ local cache = require "obsidian.cache"
 
 ---Used to track variables that are used between reusable method calls. This is required, because each
 ---call to the sources's completion hook won't create a new source object, but will reuse the same one.
----@class obsidian.completion.sources.refs.context
+---@class obsidian.completion.sources.refs.Context
 ---@field completion_resolve_callback fun(resp: lsp.CompletionList)
 ---@field request obsidian.completion.Request
 ---@field in_buffer_only boolean
@@ -32,7 +32,7 @@ local cache = require "obsidian.cache"
 ---@field insert_end integer|?
 ---@field block_link string|?
 ---@field anchor_link string|?
----@field new_text_to_option table<string, obsidian.completion.sources.refs.options>
+---@field new_text_to_option table<string, obsidian.completion.sources.refs.Options>
 
 local M = {}
 
@@ -45,7 +45,7 @@ local EMPTY_RESPONSE = {
 ---@type integer
 local ALL_LINES = 2147483647
 
----@class obsidian.completion.sources.refs.new_block_target
+---@class obsidian.completion.sources.refs.NewBlockTarget
 ---@field path string
 ---@field bufnr integer|?
 ---@field range lsp.Range
@@ -53,19 +53,19 @@ local ALL_LINES = 2147483647
 ---@field placement "inline"|"list-item"|"standalone"
 ---@field indent string|?
 
----@class obsidian.completion.sources.refs.block_item_spec
+---@class obsidian.completion.sources.refs.BlockItemSpec
 ---@field note obsidian.Note
 ---@field block obsidian.note.Block
 ---@field label string
 ---@field sort_text string
 ---@field link string
----@field new_target obsidian.completion.sources.refs.new_block_target|?
+---@field new_target obsidian.completion.sources.refs.NewBlockTarget|?
 
 ---@type table<string, table>
 local block_search_pending = {}
 
 --- Returns whether it's possible to complete the search and sets up the search related variables in cc
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@return boolean success provides a chance to return early if the request didn't meet the requirements
 local function can_complete_request(cc)
   local can_complete
@@ -150,7 +150,7 @@ local function current_completion_text(request, range)
   return request.cursor_before_line:sub(range.start.character + 1) .. request.cursor_after_line:sub(1, suffix_len)
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@return lsp.Range
 ---@return string placeholder
 ---@return string source_path
@@ -171,10 +171,10 @@ local function block_completion_request_context(cc)
   return range, current_completion_text(cc.request, range), source_path
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@param range lsp.Range
 ---@param placeholder string
----@param spec obsidian.completion.sources.refs.block_item_spec
+---@param spec obsidian.completion.sources.refs.BlockItemSpec
 ---@return lsp.CompletionItem
 local function make_block_completion_item(cc, range, placeholder, spec)
   ---@type lsp.CompletionItem
@@ -256,7 +256,7 @@ local function include_loaded_notes(results, dir, note_opts, include_unmatched)
   return results
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@param scope "current"|"note"|"vault"
 ---@param matches obsidian.search.BlockSearchMatch[]
 local function process_block_search_results(cc, scope, matches)
@@ -265,13 +265,16 @@ local function process_block_search_results(cc, scope, matches)
   for _, match in ipairs(matches) do
     local link = scope == "current" and format_current_block_link(match.block)
       or match.note:format_link { label = match.note:display_name(), block = match.block }
-    ---@type string
     local label = block_label(match.text)
+    ---@cast label -nil
     if match.existing then
       label = label .. " " .. match.block.id
     end
     if scope == "vault" then
       label = label .. " — " .. match.note:display_name()
+    end
+    if type(label) ~= "string" then
+      error "block label must be a string"
     end
 
     local new_target
@@ -300,7 +303,7 @@ local function process_block_search_results(cc, scope, matches)
   cc.completion_resolve_callback { isIncomplete = true, items = items }
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@return string
 local function block_request_key(cc)
   return ("%d:%d:%d"):format(
@@ -310,7 +313,7 @@ local function block_request_key(cc)
   )
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 local function cancel_block_request(cc)
   local key = block_request_key(cc)
   local pending = block_search_pending[key]
@@ -320,7 +323,7 @@ local function cancel_block_request(cc)
   end
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@param scope "current"|"note"|"vault"
 ---@param query string
 ---@param target string|?
@@ -464,7 +467,7 @@ local function note_headings(note)
   return headings
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@param query string
 ---@param results obsidian.Note[]
 local function process_heading_search_results(cc, query, results)
@@ -539,7 +542,7 @@ local function process_heading_search_results(cc, query, results)
   cc.completion_resolve_callback { isIncomplete = true, items = items }
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@param query string
 local function process_heading_search(cc, query)
   local source_name = vim.api.nvim_buf_get_name(cc.request.bufnr)
@@ -564,7 +567,7 @@ local function process_heading_search(cc, query)
 end
 
 --- Determines whatever the in_buffer_only should be enabled
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 local function determine_buffer_only_search_scope(cc)
   if not cc.search then
     return
@@ -576,7 +579,7 @@ local function determine_buffer_only_search_scope(cc)
 end
 
 --- Strips block and anchor links from the current search string
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 local function strip_links(cc)
   if not cc.search then
     return
@@ -587,7 +590,7 @@ local function strip_links(cc)
   cc.anchor_link = anchor ~= nil and header_parser.normalize_anchor(anchor) or nil
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@param label string|?
 ---@param alt_label string|?
 ---@param note obsidian.Note
@@ -738,7 +741,7 @@ local function update_completion_options(cc, label, alt_label, matching_anchors,
   end
 end
 
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@param results obsidian.Note[]
 local function process_search_results(cc, results)
   if not cc.search then
@@ -828,7 +831,7 @@ end
 
 ---Use cached metadata to return the complete ordinary note-reference candidate set.
 ---Completion clients can then apply their own fuzzy matcher without a filesystem search.
----@param cc obsidian.completion.sources.refs.context
+---@param cc obsidian.completion.sources.refs.Context
 ---@return boolean handled
 local function process_cached_search(cc)
   if not cache.is_enabled() or not cache.is_ready() or cc.anchor_link ~= nil or cc.block_link ~= nil then

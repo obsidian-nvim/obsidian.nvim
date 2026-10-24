@@ -1,4 +1,4 @@
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   local new_name
   if data.args and string.len(data.args) > 0 then

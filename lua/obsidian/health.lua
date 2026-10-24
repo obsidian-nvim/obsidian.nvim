@@ -52,12 +52,13 @@ local function has_plugin(plugin, optional)
   end
 end
 
----@class obsidian.DependencyInfo
+---@alias obsidian.DependencyInfo obsidian.health.DependencyInfo
+---@class obsidian.health.DependencyInfo
 ---@field path string
 ---@field version string
 
 ---@param name string
----@return obsidian.DependencyInfo
+---@return obsidian.health.DependencyInfo
 local function get_exe_info(name)
   local path = vim.fn.exepath(name)
   local out = vim.trim(vim.fn.system { name, "--version" })

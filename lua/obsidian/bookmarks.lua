@@ -25,7 +25,8 @@ M.new_ctime = function()
   return ctime
 end
 
----@class obsidian.Bookmark
+---@alias obsidian.Bookmark obsidian.bookmarks.Bookmark
+---@class obsidian.bookmarks.Bookmark
 ---@field ctime integer
 ---@field type "group" | "file" | "folder" | "search" | "url"
 ---@field path string?
@@ -33,14 +34,14 @@ end
 ---@field subpath string?
 ---@field title string?
 ---@field query string?
----@field items obsidian.Bookmark[]?
+---@field items obsidian.bookmarks.Bookmark[]?
 ---@field url string?
 
 ---Resolve a bookmark's vault-relative path against the current workspace,
 ---caching the result on `bookmark._path`. Bookmarks without a `path`, or whose
 ---`path` is the empty string (e.g. the vault root), resolve to nil.
 ---
----@param bookmark obsidian.Bookmark
+---@param bookmark obsidian.bookmarks.Bookmark
 ---@return string?
 local function resolve_bookmark(bookmark)
   if bookmark._path ~= nil then
@@ -56,8 +57,8 @@ local function resolve_bookmark(bookmark)
   return bookmark._path
 end
 
----@param bookmark obsidian.Bookmark
----@return obsidian.PickerEntry entry
+---@param bookmark obsidian.bookmarks.Bookmark
+---@return obsidian.picker.Entry entry
 local function bookmark_to_picker_entry(bookmark)
   local entry = { text = bookmark.title, user_data = bookmark }
 
@@ -96,11 +97,13 @@ end
 ---@type table<string, string[]>
 local url_cache = {}
 
+---@param bookmark obsidian.bookmarks.Bookmark
+---@return string
 local function format_bookmark(bookmark)
   if bookmark.type == "folder" then
-    return bookmark.path .. "/"
+    return assert(bookmark.path, "folder bookmark path is missing") .. "/"
   elseif bookmark.type == "group" then
-    return "> " .. bookmark.title
+    return "> " .. assert(bookmark.title, "group bookmark title is missing")
   elseif bookmark.title then
     return bookmark.title
   elseif bookmark.query then
@@ -108,12 +111,12 @@ local function format_bookmark(bookmark)
   elseif bookmark.path then
     return bookmark.path .. (bookmark.subpath and bookmark.subpath or "")
   end
-  return bookmark.title
+  return ""
 end
 
----@param bookmark obsidian.Bookmark
+---@param bookmark obsidian.bookmarks.Bookmark
 ---@param buf integer
----@return obsidian.ui_select_preview_spec
+---@return obsidian.picker.PreviewSpec
 local function preview_url(bookmark, buf)
   local url = bookmark.url
   if not url then
@@ -144,9 +147,9 @@ local function preview_url(bookmark, buf)
   return { buf = buf }
 end
 
----@param bookmark obsidian.Bookmark
+---@param bookmark obsidian.bookmarks.Bookmark
 ---@param buf integer
----@return obsidian.ui_select_preview_spec
+---@return obsidian.picker.PreviewSpec
 local function preview_group(bookmark, buf)
   vim.bo[buf].filetype = "markdown"
   local lines = vim.tbl_map(function(bm)
@@ -158,9 +161,9 @@ end
 
 --  TODO: proper obsidian search term parser, like the explain search term feature
 --
----@param bookmark obsidian.Bookmark
+---@param bookmark obsidian.bookmarks.Bookmark
 ---@param buf integer
----@return obsidian.ui_select_preview_spec
+---@return obsidian.picker.PreviewSpec
 local function preview_query(bookmark, buf)
   vim.bo[buf].filetype = "markdown"
   local lines = { "query: " .. bookmark.query }
@@ -168,8 +171,8 @@ local function preview_query(bookmark, buf)
   return { buf = buf }
 end
 
----@param bookmark obsidian.Bookmark
----@return obsidian.ui_select_preview_spec
+---@param bookmark obsidian.bookmarks.Bookmark
+---@return obsidian.picker.PreviewSpec
 local function preview_file(bookmark)
   local path = resolve_bookmark(bookmark)
   if not path or vim.uv.fs_stat(path) == nil then
@@ -187,8 +190,8 @@ local function preview_file(bookmark)
   return preview
 end
 
----@param bookmark obsidian.Bookmark
----@return obsidian.ui_select_preview_spec
+---@param bookmark obsidian.bookmarks.Bookmark
+---@return obsidian.picker.PreviewSpec
 local function preview_bookmark(bookmark)
   if bookmark.type == "file" or bookmark.type == "folder" then
     return preview_file(bookmark)
@@ -235,7 +238,7 @@ M.resolve_bookmark_file = function(opts)
 end
 
 ---@param create boolean
----@return string?, { items: obsidian.Bookmark[] }?
+---@return string?, { items: obsidian.bookmarks.Bookmark[] }?
 local function read_bookmark_file(create)
   local fp = M.resolve_bookmark_file { create = create }
   if not fp then
@@ -265,7 +268,7 @@ local function read_bookmark_file(create)
 end
 
 ---@param fp string
----@param obj { items: obsidian.Bookmark[] }
+---@param obj { items: obsidian.bookmarks.Bookmark[] }
 ---@return boolean ok
 local function write_bookmark_file(fp, obj)
   local out = io.open(fp, "w")
@@ -279,7 +282,7 @@ local function write_bookmark_file(fp, obj)
 end
 
 ---Append a bookmark to the vault's bookmarks.json file.
----@param bookmark obsidian.Bookmark
+---@param bookmark obsidian.bookmarks.Bookmark
 ---@return boolean ok
 M.add = function(bookmark)
   local fp, obj = read_bookmark_file(true)
@@ -291,9 +294,9 @@ M.add = function(bookmark)
   return write_bookmark_file(fp, obj)
 end
 
----@param items obsidian.Bookmark[]
+---@param items obsidian.bookmarks.Bookmark[]
 ---@param ctime integer
----@return obsidian.Bookmark?
+---@return obsidian.bookmarks.Bookmark?
 local function remove_bookmark(items, ctime)
   for i, bookmark in ipairs(items) do
     if bookmark.ctime == ctime then
@@ -308,7 +311,7 @@ local function remove_bookmark(items, ctime)
   end
 end
 
----@param bookmark obsidian.Bookmark
+---@param bookmark obsidian.bookmarks.Bookmark
 ---@return boolean ok
 M.del = function(bookmark)
   local fp, obj = read_bookmark_file(false)
@@ -318,11 +321,11 @@ M.del = function(bookmark)
   return write_bookmark_file(fp, obj)
 end
 
----@type obsidian.Bookmark
+---@type obsidian.bookmarks.Bookmark
 local CREATE_NEW_GROUP = { ctime = -1, type = "group", title = "", items = {} }
 
----@param items obsidian.Bookmark[]
----@param groups obsidian.Bookmark[]
+---@param items obsidian.bookmarks.Bookmark[]
+---@param groups obsidian.bookmarks.Bookmark[]
 local function collect_groups(items, groups)
   for _, bookmark in ipairs(items) do
     if bookmark.type == "group" then
@@ -332,7 +335,7 @@ local function collect_groups(items, groups)
   end
 end
 
----@param bookmark obsidian.Bookmark
+---@param bookmark obsidian.bookmarks.Bookmark
 M.move_to_group = function(bookmark)
   local fp, obj = read_bookmark_file(false)
   if not fp or not obj then
@@ -358,7 +361,7 @@ M.move_to_group = function(bookmark)
       return group.title or "Untitled group"
     end,
   }, function(choices)
-    ---@type obsidian.Bookmark?
+    ---@type obsidian.bookmarks.Bookmark?
     local group = choices[1]
     if not group then
       return
@@ -385,13 +388,13 @@ M.move_to_group = function(bookmark)
 end
 
 ---@param src string
----@return obsidian.Bookmark[]
+---@return obsidian.bookmarks.Bookmark[]
 M.parse = function(src)
   local obj = vim.json.decode(src)
   return obj.items
 end
 
----@param bookmark obsidian.Bookmark?
+---@param bookmark obsidian.bookmarks.Bookmark?
 local function open_bookmark(bookmark)
   if not bookmark then
     return
@@ -423,7 +426,7 @@ local function open_bookmark(bookmark)
   end
 end
 
----@param bookmarks obsidian.Bookmark[]
+---@param bookmarks obsidian.bookmarks.Bookmark[]
 M.pick = function(bookmarks)
   picker.select(bookmarks, {
     prompt = "Bookmarks",

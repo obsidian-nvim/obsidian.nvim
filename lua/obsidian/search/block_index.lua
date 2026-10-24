@@ -41,7 +41,7 @@ local M = {}
 ---@field dir string
 ---@field workspace obsidian.Workspace
 ---@field note_opts obsidian.note.LoadOpts
----@field ignore_checker Glob?
+---@field ignore_checker obsidian.lib.Glob?
 ---@field parse_path fun(path: string): obsidian.Note?
 ---@field parse_buffer fun(bufnr: integer): obsidian.Note?
 ---@field owners_by_path table<string, obsidian.search.BlockIndexOwner>

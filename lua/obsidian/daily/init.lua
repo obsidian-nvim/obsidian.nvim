@@ -5,6 +5,12 @@ local date = require "obsidian.date"
 local api = require "obsidian.api"
 local M = {}
 
+---@class obsidian.daily.DailyOpts
+---@field offset? integer Offset in days from today (e.g. -1 for yesterday,
+---@field date? integer|? Specific date as a timestamp (overrides offset)
+---@field load? obsidian.note.LoadOpts|? Options to pass to Note.from_file when loading an existing note
+---@field dir? string|obsidian.Path Vault root in which to resolve the daily note
+
 --- Get the path to a daily note.
 ---
 ---@param datetime integer|?
@@ -120,12 +126,6 @@ M.tomorrow = function()
 
   return _daily(tomorrow, {})
 end
-
----@class obsidian.daily.DailyOpts
----@field offset? integer Offset in days from today (e.g. -1 for yesterday,
----@field date? integer|? Specific date as a timestamp (overrides offset)
----@field load? obsidian.note.LoadOpts|? Options to pass to Note.from_file when loading an existing note
----@field dir? string|obsidian.Path Vault root in which to resolve the daily note
 
 --- Open (or create) the daily note for today + `offset_days`.
 ---
