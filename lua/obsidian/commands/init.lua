@@ -2,136 +2,192 @@ local log = require "obsidian.log"
 local legacycommands = require "obsidian.commands.init-legacy"
 local picker = require "obsidian.picker"
 
+---@class obsidian.commands.Context
+---@field bufnr integer Originating buffer.
+---@field in_note boolean Whether the buffer is marked as an Obsidian buffer.
+---@field has_range boolean Whether an explicit Ex range was supplied.
+
+---@alias obsidian.commands.Nargs integer|'0'|'1'|'?'|'+'|'*'
+
+---@class obsidian.commands.Spec
+---@field name string Unique subcommand name.
+---@field fn fun(data: obsidian.commands.Args)
+---@field cond? fun(ctx: obsidian.commands.Context): boolean Checked for discovery and execution; must not have side effects.
+---@field complete? function|string
+---@field nargs? obsidian.commands.Nargs Defaults to zero arguments.
+---@field range? boolean Accept an explicit range (not a visibility condition).
+
 ---@alias obsidian.CommandsModule obsidian.commands.Module
 ---@class obsidian.commands.Module
----@field commands table<string, obsidian.commands.Config>
+---@field commands table<string, obsidian.commands.Spec>
 local M = { commands = {} }
 
-local function in_note()
-  return vim.bo.filetype == "markdown"
+---Add or replace a command. Handlers are always supplied explicitly.
+---@param spec obsidian.commands.Spec
+M.add = function(spec)
+  vim.validate("spec", spec, "table")
+  vim.validate("name", spec.name, function(name)
+    return type(name) == "string" and name:match "^[%w_%-]+$" ~= nil
+  end, "a nonempty subcommand name without whitespace")
+  vim.validate("fn", spec.fn, "function")
+  vim.validate("cond", spec.cond, "function", true)
+  vim.validate("complete", spec.complete, { "function", "string" }, true)
+  vim.validate("range", spec.range, "boolean", true)
+  vim.validate("nargs", spec.nargs, function(nargs)
+    return nargs == nil
+      or (type(nargs) == "number" and nargs >= 0 and nargs == math.floor(nargs))
+      or nargs == "0"
+      or nargs == "1"
+      or nargs == "?"
+      or nargs == "+"
+      or nargs == "*"
+  end, "a nonnegative integer, '0', '1', '?', '+', or '*'")
+  assert(
+    rawget(spec, "func") == nil and rawget(spec, "note_action") == nil,
+    "Use fn and cond instead of func and note_action"
+  )
+
+  M.commands[spec.name] = vim.tbl_extend("force", { nargs = 0 }, spec)
 end
 
----@param commands table<string,obsidian.commands.Config>
----@param is_visual boolean
----@param is_note boolean
----@return string[]
-local function get_commands_by_context(commands, is_visual, is_note)
-  local choices = vim.tbl_values(commands)
-  ---@diagnostic disable-next-line: call-non-callable
-  return vim
-    .iter(choices)
-    :filter(function(config)
-      if is_visual then
-        return config.range ~= nil
-      else
-        return config.range == nil
-      end
-    end)
-    :filter(function(config)
-      if is_note then
-        return true
-      else
-        return not config.note_action
-      end
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.templates.enabled then
-        return config.name ~= "template" and config.name ~= "new_from_template"
-      end
-      return true
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.checkbox.enabled then
-        return config.name ~= "toggle_checkbox"
-      end
-      return true
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.daily_notes.enabled then
-        return config.name ~= "dailies"
-          and config.name ~= "today"
-          and config.name ~= "tomorrow"
-          and config.name ~= "yesterday"
-      end
-      return true
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.unique_note.enabled then
-        return config.name ~= "unique_note"
-      end
-      return true
-    end)
-    :filter(function(config)
-      if not Obsidian.opts.sync.enabled then
-        return config.name ~= "sync"
-      end
-      return true
-    end)
-    :map(function(config)
-      return config.name
-    end)
-    :totable()
+---Remove a command. Removing an unknown name is a no-op.
+---@param name string
+M.del = function(name)
+  M.commands[name] = nil
 end
+
+---@alias obsidian.CommandConfig obsidian.commands.Config
+---@class obsidian.commands.Config
+---@field complete? function|string
+---@field nargs? obsidian.commands.Nargs
+---@field range? boolean
+---@field func? fun(data: obsidian.commands.Args)
+---@field name? string
+---@field note_action? boolean
+---@field cond? fun(ctx: obsidian.commands.Context): boolean
+
+---Register a command using the deprecated filename-based API.
+---@deprecated Use commands.add { name = name, fn = handler, ... } instead.
+---@param name string
+---@param config obsidian.commands.Config
+M.register = function(name, config)
+  log.warn_once "register_command()/commands.register() is deprecated; use commands.add { name = ..., fn = ... } instead"
+  local cond = config.cond
+  if config.note_action then
+    cond = function(ctx)
+      return ctx.in_note and (config.cond == nil or config.cond(ctx))
+    end
+  end
+  M.add {
+    name = name,
+    fn = config.func or function(data)
+      return require("obsidian.commands." .. name)(data)
+    end,
+    cond = cond,
+    complete = config.complete,
+    nargs = config.nargs,
+    range = config.range,
+  }
+end
+
+M.install_legacy = legacycommands.install
+
+---@param has_range boolean
+---@return obsidian.commands.Context
+local function context(has_range)
+  local bufnr = vim.api.nvim_get_current_buf()
+  return {
+    bufnr = bufnr,
+    in_note = vim.b[bufnr].obsidian_buffer == true,
+    has_range = has_range,
+  }
+end
+
+---@param spec obsidian.commands.Spec
+---@param ctx obsidian.commands.Context
+---@return boolean
+local function available(spec, ctx)
+  if ctx.has_range and not spec.range then
+    return false
+  end
+  if not spec.cond then
+    return true
+  end
+  local ok, result = pcall(spec.cond, ctx)
+  if ok and type(result) == "boolean" then
+    return result
+  end
+  log.warn_once("Command '%s' condition failed: %s", spec.name, ok and "expected a boolean result" or result)
+  return false
+end
+
+---@param ctx obsidian.commands.Context
+---@return string[]
+local function get_commands_by_context(ctx)
+  local choices = {}
+  for name, spec in pairs(M.commands) do
+    if available(spec, ctx) then
+      choices[#choices + 1] = name
+    end
+  end
+  table.sort(choices)
+  return choices
+end
+
+---@param data obsidian.commands.Args
 function M.show_menu(data)
-  local is_visual, is_note = data.range ~= 0, in_note()
-  local choices = get_commands_by_context(M.commands, is_visual, is_note)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local winid = vim.api.nvim_get_current_win()
+  local args = vim.deepcopy(data)
+  local choices = get_commands_by_context(context(data.range > 0))
 
   picker.select(
     choices,
     { prompt = "Obsidian Commands" },
     vim.schedule_wrap(function(items)
       local item = items[1]
-      if item then
-        return vim.cmd.Obsidian(item)
-      else
+      if not item then
         vim.notify("Aborted", 3)
+        return
       end
+      if not vim.api.nvim_buf_is_valid(bufnr) or not vim.api.nvim_buf_is_loaded(bufnr) then
+        log.err "Command buffer is no longer available"
+        return
+      end
+      if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
+        vim.api.nvim_set_current_win(winid)
+      else
+        vim.api.nvim_set_current_buf(bufnr)
+      end
+      local selected_args = vim.deepcopy(args)
+      table.insert(selected_args.fargs, 1, item)
+      M.handle_command(selected_args)
     end)
   )
 end
 
----@alias obsidian.CommandConfig obsidian.commands.Config
----@class obsidian.commands.Config
----@field complete function|string|?
----@field nargs string|integer|?
----@field range boolean|?
----@field func fun(data: obsidian.commands.Args)?
----@field name string?
----@field note_action boolean?
-
----Register a new command.
----@param name string
----@param config obsidian.commands.Config
-M.register = function(name, config)
-  if not config.func then
-    config.func = function(data)
-      local mod = require("obsidian.commands." .. name)
-      mod(data)
-      return
-    end
-  end
-  config.name = name
-  M.commands[name] = config
-end
-
-M.install_legacy = legacycommands.install
-
+---@param data obsidian.commands.Args
 M.handle_command = function(data)
-  local cmd = data.fargs[1]
-  table.remove(data.fargs, 1)
+  data = vim.deepcopy(data)
+  local cmd = table.remove(data.fargs, 1)
   data.args = table.concat(data.fargs, " ")
   local nargs = #data.fargs
-
-  ---@type obsidian.commands.Config?
-  local cmdconfig = M.commands[cmd]
-  if cmdconfig == nil then
-    log.err("Command '" .. cmd .. "' not found")
+  local spec = M.commands[cmd]
+  if spec == nil then
+    log.err("Command '" .. tostring(cmd) .. "' not found")
     return
   end
 
-  local exp_nargs = cmdconfig.nargs
-  local range_allowed = cmdconfig.range
+  if data.range > 0 and not spec.range then
+    log.err("Command '" .. cmd .. "' does not accept a range")
+    return
+  end
+  if not available(spec, context(data.range > 0)) then
+    log.err("Command '" .. cmd .. "' is not available in this context")
+    return
+  end
 
+  local exp_nargs = spec.nargs
   if exp_nargs == "?" then
     if nargs > 1 then
       log.err("Command '" .. cmd .. "' expects 0 or 1 arguments, but " .. nargs .. " were provided")
@@ -142,52 +198,42 @@ M.handle_command = function(data)
       log.err("Command '" .. cmd .. "' expects at least one argument, but none were provided")
       return
     end
-  elseif exp_nargs ~= "*" and exp_nargs ~= nargs then
+  elseif exp_nargs ~= "*" and tonumber(exp_nargs) ~= nargs then
     log.err("Command '" .. cmd .. "' expects " .. exp_nargs .. " arguments, but " .. nargs .. " were provided")
     return
   end
 
-  if not range_allowed and data.range > 0 then
-    log.error("Command '" .. cmd .. "' does not accept a range")
-    return
-  end
-
-  local func = assert(cmdconfig.func, "command missing function")
-  func(data)
+  spec.fn(data)
 end
 
 ---@param arg_lead string
 ---@param cmdline string
----@param cursor_pos number
+---@param cursor_pos integer
 M.get_completions = function(arg_lead, cmdline, cursor_pos)
-  local obspat = "^['<,'>]*Obsidian[!]?"
-  local splitcmd = vim.split(cmdline, " ", { plain = true, trimempty = true })
-  local obsidiancmd = splitcmd[2]
-  local is_visual = vim.startswith(cmdline, "'<,'>")
-  local cmds = get_commands_by_context(M.commands, is_visual, in_note())
-  if cmdline:match(obspat .. "%s$") then
-    return cmds
+  local prefix, tail = cmdline:sub(1, cursor_pos):match "^%s*:?(.-)Obsidian!?%s+(.*)$"
+  if not prefix or not tail then
+    return {}
   end
-  if cmdline:match(obspat .. "%s%S+$") then
-    return vim.tbl_filter(function(s)
-      return s:sub(1, #obsidiancmd) == obsidiancmd
-    end, cmds)
+  local ctx = context(vim.trim(prefix) ~= "")
+  local name = tail:match "^(%S+)" or ""
+  if not tail:match "^%S+%s" then
+    return vim.tbl_filter(function(choice)
+      return vim.startswith(choice, name)
+    end, get_commands_by_context(ctx))
   end
-  ---@type obsidian.commands.Config?
-  local cmdconfig = M.commands[obsidiancmd]
-  if cmdconfig == nil then
-    return
+
+  local spec = M.commands[name]
+  if not spec or not available(spec, ctx) then
+    return {}
   end
-  if cmdline:match(obspat .. "%s%S+%s.*$") then
-    local complete_type = type(cmdconfig.complete)
-    if complete_type == "function" then
-      return cmdconfig.complete(arg_lead, cmdline, cursor_pos)
-    end
-    if complete_type == "string" then
-      local cmd_arg = table.concat(vim.list_slice(splitcmd, 3), " ")
-      return vim.fn.getcompletion(cmd_arg, cmdconfig.complete)
-    end
+  if type(spec.complete) == "function" then
+    return spec.complete(arg_lead, cmdline, cursor_pos)
   end
+  if type(spec.complete) == "string" then
+    local cmd_arg = tail:match "^%S+%s+(.*)$" or ""
+    return vim.fn.getcompletion(cmd_arg, spec.complete)
+  end
+  return {}
 end
 
 ---@param _ string
@@ -247,85 +293,6 @@ M.note_complete = function(_, cmdline)
   return completions
 end
 
-------------------------
----- general action ----
-------------------------
-
-M.register("check", { nargs = 0 })
-
-M.register("today", { nargs = "?" })
-
-M.register("yesterday", { nargs = 0 })
-
-M.register("tomorrow", { nargs = 0 })
-
-M.register("dailies", { nargs = "*" })
-
-M.register("new", { nargs = "*" })
-
-M.register("open", { nargs = "*", complete = M.note_complete })
-
-M.register("tags", { nargs = "*" })
-
-M.register("properties", { nargs = "*" })
-
-M.register("search", { nargs = "?" })
-
-M.register("sync", {
-  nargs = "?",
-  complete = function(arg)
-    local choices = vim.tbl_map(function(action)
-      return action.name
-    end, require("obsidian.sync")._actions)
-
-    return vim.tbl_filter(function(s)
-      return vim.startswith(s, arg)
-    end, choices)
-  end,
-})
-
-M.register("new_from_template", { nargs = "*" })
-
-M.register("quick_switch", { nargs = "?" })
-
-M.register("rebuild_cache", { nargs = 0 })
-
-M.register("workspace", { nargs = "?" })
-
-M.register("help", { nargs = "?", complete = M.help_complete })
-
-M.register("helpgrep", { nargs = "?" })
-
-M.register("unique_note", { nargs = "?" })
-
-M.register("bookmarks", { nargs = 0 })
-
----------------------
----- note action ----
----------------------
-
-M.register("backlinks", { nargs = 0, note_action = true })
-
-M.register("template", { nargs = "?", note_action = true })
-
-M.register("link_new", { nargs = "?", note_action = true })
-
-M.register("link", { nargs = "?", complete = M.note_complete, note_action = true })
-
-M.register("links", { nargs = 0, note_action = true })
-
-M.register("follow_link", { nargs = "?", note_action = true })
-
-M.register("toggle_checkbox", { nargs = 0, range = true, note_action = true })
-
-M.register("rename", { nargs = "?", note_action = true })
-
-M.register("paste_img", { nargs = "?", note_action = true })
-
-M.register("extract_note", { nargs = "?", range = true, note_action = true })
-
-M.register("toc", { nargs = 0, note_action = true })
-
-M.register("footnotes", { nargs = 0, note_action = true })
+require "obsidian.commands.builtin"(M)
 
 return M

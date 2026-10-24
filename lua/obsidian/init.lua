@@ -41,6 +41,7 @@ obsidian.get_client = function()
   return client
 end
 
+---@deprecated Use obsidian.commands.add { name = ..., fn = ... } instead.
 obsidian.register_command = require("obsidian.commands").register
 
 --- Setup a new Obsidian client. This should only be called once from an Nvim session.

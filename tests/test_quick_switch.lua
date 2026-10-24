@@ -15,7 +15,7 @@ Obsidian.opts.quick_switch.show_attachments = true
 Obsidian.picker.find_notes = function(opts)
   captured = opts
 end
-require "obsidian.commands.quick_switch" { args = "foo" }
+require("obsidian.commands").commands.quick_switch.fn { args = "foo" }
 Obsidian.picker.find_notes = original
 return captured
   ]]

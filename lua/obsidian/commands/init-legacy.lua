@@ -2,44 +2,49 @@ local util = require "obsidian.util"
 local search = require "obsidian.search"
 
 local command_lookups = {
-  ObsidianCheck = "obsidian.commands.check",
-  ObsidianToggleCheckbox = "obsidian.commands.toggle_checkbox",
-  ObsidianToday = "obsidian.commands.today",
-  ObsidianYesterday = "obsidian.commands.yesterday",
-  ObsidianTomorrow = "obsidian.commands.tomorrow",
-  ObsidianDailies = "obsidian.commands.dailies",
-  ObsidianNew = "obsidian.commands.new",
-  ObsidianOpen = "obsidian.commands.open",
-  ObsidianBacklinks = "obsidian.commands.backlinks",
-  ObsidianSearch = "obsidian.commands.search",
-  ObsidianTags = "obsidian.commands.tags",
-  ObsidianTemplate = "obsidian.commands.template",
-  ObsidianNewFromTemplate = "obsidian.commands.new_from_template",
-  ObsidianQuickSwitch = "obsidian.commands.quick_switch",
-  ObsidianLinkNew = "obsidian.commands.link_new",
-  ObsidianLink = "obsidian.commands.link",
-  ObsidianLinks = "obsidian.commands.links",
-  ObsidianFollowLink = "obsidian.commands.follow_link",
-  ObsidianWorkspace = "obsidian.commands.workspace",
-  ObsidianRename = "obsidian.commands.rename",
-  ObsidianPasteImg = "obsidian.commands.paste_img",
-  ObsidianExtractNote = "obsidian.commands.extract_note",
-  ObsidianTOC = "obsidian.commands.toc",
+  ObsidianCheck = "check",
+  ObsidianToggleCheckbox = "toggle_checkbox",
+  ObsidianToday = "today",
+  ObsidianYesterday = "yesterday",
+  ObsidianTomorrow = "tomorrow",
+  ObsidianDailies = "dailies",
+  ObsidianNew = "new",
+  ObsidianOpen = "open",
+  ObsidianBacklinks = "backlinks",
+  ObsidianSearch = "search",
+  ObsidianTags = "tags",
+  ObsidianTemplate = "template",
+  ObsidianNewFromTemplate = "new_from_template",
+  ObsidianQuickSwitch = "quick_switch",
+  ObsidianLinkNew = "link_new",
+  ObsidianLink = "link",
+  ObsidianLinks = "links",
+  ObsidianFollowLink = "follow_link",
+  ObsidianWorkspace = "workspace",
+  ObsidianRename = "rename",
+  ObsidianPasteImg = "paste_img",
+  ObsidianExtractNote = "extract_note",
+  ObsidianTOC = "toc",
 }
 
 local M = setmetatable({
   commands = {},
 }, {
   __index = function(t, k)
-    local require_path = command_lookups[k]
-    if not require_path then
+    local name = command_lookups[k]
+    if not name then
       return
     end
 
-    local mod = require(require_path)
-    t[k] = mod
+    local handler = function(data)
+      ---@type obsidian.commands.Spec?
+      local command = require("obsidian.commands").commands[name]
+      assert(command, "Command '" .. name .. "' not found")
+      return command.fn(data)
+    end
+    t[k] = handler
 
-    return mod
+    return handler
   end,
 })
 
