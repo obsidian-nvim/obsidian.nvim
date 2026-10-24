@@ -7,6 +7,7 @@ local header = require "obsidian.parse.header"
 local log = require "obsidian.log"
 local parse_block_id = require "obsidian.parse.block_id"
 local parse_tags = require "obsidian.parse.tags"
+local sections = require "obsidian.section"
 local refs = require "obsidian.parse.refs"
 local search = require "obsidian.search"
 local tags = require "obsidian.tag"
@@ -147,6 +148,35 @@ local function link_target(ref, bufnr, row)
   end
 end
 
+--- ATX and setext headings of the buffer, outside code and comments. A setext
+--- heading spanning several lines is skipped: its text cannot be replaced in place.
+---@param bufnr integer
+---@return { row: integer, last_row: integer, text: string, anchor: string, start_col: integer, end_col: integer }[]
+M.headings = function(bufnr)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local out = {}
+  for _, section in ipairs(sections.parse(lines, { document = BufferDocument.get(bufnr) })) do
+    local hr = section.heading_range
+    local rows = hr.end_row - hr.start_row
+    if section.header and rows <= 2 then
+      local line = lines[hr.start_row + 1]
+      -- ATX: skip the `#` marker; setext: the text is the whole first line.
+      local s, e = line:find(section.header, rows == 1 and section.level + 1 or 1, true)
+      if s then
+        out[#out + 1] = {
+          row = hr.start_row,
+          last_row = hr.end_row - 1,
+          text = section.header,
+          anchor = section.anchor,
+          start_col = s - 1,
+          end_col = e,
+        }
+      end
+    end
+  end
+  return out
+end
+
 --- Find what a rename request at `position` acts on.
 ---@param bufnr integer
 ---@param position lsp.Position
@@ -191,19 +221,15 @@ M.target_at = function(bufnr, position)
     end
   end
 
-  local parsed = header.parse(line)
-  local first_byte = line:find "%S"
-  if parsed and first_byte then
-    local marker = Range.new(row, first_byte - 1, row, first_byte)
-    if not document:intersects(marker, Document.BODY_EXCLUSIONS) then
-      local s, e = line:find(parsed.header, parsed.level + 1, true)
+  for _, heading in ipairs(M.headings(bufnr)) do
+    if heading.row <= row and row <= heading.last_row then
       return {
         kind = "heading",
         bufnr = bufnr,
-        header = parsed.header,
-        anchor = parsed.anchor,
-        placeholder = parsed.header,
-        range = range(row, s - 1, e),
+        header = heading.text,
+        anchor = heading.anchor,
+        placeholder = heading.text,
+        range = range(heading.row, heading.start_col, heading.end_col),
       }
     end
   end
@@ -380,26 +406,6 @@ M.build_block_edit = function(target, new_name, callback)
   end)
 end
 
---- ATX headings of the buffer, outside code and comments.
----@param bufnr integer
----@return { row: integer, text: string, anchor: string, start_col: integer, end_col: integer }[]
-local function headings(bufnr)
-  local document = BufferDocument.get(bufnr)
-  local out = {}
-  for row, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
-    local parsed = header.parse(line)
-    local first_byte = line:find "%S"
-    if parsed and first_byte then
-      local marker = Range.new(row - 1, first_byte - 1, row - 1, first_byte)
-      if not document:intersects(marker, Document.BODY_EXCLUSIONS) then
-        local s, e = line:find(parsed.header, parsed.level + 1, true)
-        out[#out + 1] = { row = row - 1, text = parsed.header, anchor = parsed.anchor, start_col = s - 1, end_col = e }
-      end
-    end
-  end
-  return out
-end
-
 --- A heading component of a link keeps the style it was written in: raw text,
 --- URL-encoded, or slug.
 ---@param component string
@@ -431,7 +437,7 @@ M.build_heading_edit = function(target, new_name, callback)
     return callback(nil)
   end
 
-  local all = headings(target.bufnr)
+  local all = M.headings(target.bufnr)
   local same = vim.tbl_filter(function(h)
     return h.anchor == target.anchor
   end, all)

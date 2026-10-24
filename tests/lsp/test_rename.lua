@@ -586,6 +586,58 @@ T["rename heading from a reference to it"] = function()
   eq({ "## Other", "", "see [[#Other]]" }, h.read(files["A.md"]))
 end
 
+T["rename setext heading keeps the underline and rewrites references"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = table.concat({
+      "Old Title",
+      "=========",
+      "",
+      "Sub Old",
+      "-------",
+      "",
+      "see [[#Old Title]] [[#Sub Old]]",
+      "",
+      "```",
+      "Fake",
+      "====",
+      "```",
+    }, "\n"),
+    ["B.md"] = "[[A#Old Title]] [[A#Old Title#Sub Old]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+
+  -- Cursor on the underline renames the heading above it.
+  child.api.nvim_win_set_cursor(0, { 2, 3 })
+  eq("Old Title", prepare_rename().placeholder)
+  rename "New Name"
+
+  child.api.nvim_win_set_cursor(0, { 4, 2 })
+  rename "Sub New"
+  child.cmd "wa"
+
+  eq({
+    "New Name",
+    "=========",
+    "",
+    "Sub New",
+    "-------",
+    "",
+    "see [[#New Name]] [[#Sub New]]",
+    "",
+    "```",
+    "Fake",
+    "====",
+    "```",
+  }, h.read(files["A.md"]))
+  eq({ "[[A#New Name]] [[A#New Name#Sub New]]" }, h.read(files["B.md"]))
+
+  child.api.nvim_win_set_cursor(0, { 10, 1 })
+  eq(false, prepare_rename())
+end
+
 T["rename heading refuses duplicates"] = function()
   local root = child.Obsidian.dir
   local content = "## Same\n\n## Same\n\n## A1\n\n## B1"
