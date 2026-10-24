@@ -1,5 +1,3 @@
-local attachment = require "obsidian.attachment"
-local icons = require "obsidian.icons"
 local search = require "obsidian.search"
 local ts = require "obsidian.ts"
 local watchfiles = require "obsidian.lsp.watchfiles"
@@ -9,22 +7,9 @@ local M = {}
 local ns_id = vim.api.nvim_create_namespace "obsidian-nvim-embeds"
 local LEFT_SEP = "▏"
 
----@alias obsidian.embed.Kind "note"|"base"|"canvas"|"image"|"audio"|"video"|"pdf"|"file"
-
 ---@class obsidian.embed.Context
----@field buf integer
----@field row integer 0-indexed
----@field col integer 0-indexed
----@field end_col integer 0-indexed, exclusive
----@field target string Resolved link target without alias or size spec.
----@field raw_target string Unmodified target body.
----@field label string|nil Alias, alt text, or Obsidian size specification.
----@field syntax "wiki"|"markdown"
 ---@field path string|nil
----@field kind obsidian.embed.Kind
----@field note obsidian.Note|nil
-
----@alias obsidian.embed.Renderer fun(context: obsidian.embed.Context): table[]|nil
+---@field note obsidian.Note
 
 ---@class obsidian.embed.State
 ---@field buf integer
@@ -34,11 +19,7 @@ local LEFT_SEP = "▏"
 
 ---@class obsidian.embed.Match
 ---@field col integer 0-indexed
----@field end_col integer 0-indexed, exclusive
 ---@field target string
----@field raw_target string
----@field label string|nil
----@field syntax "wiki"|"markdown"
 
 ---@type table<integer, obsidian.embed.State>
 local states = {}
@@ -46,29 +27,14 @@ local states = {}
 ---@type table<string, table[]>
 local note_cache = {}
 
----@type table<obsidian.embed.Kind, obsidian.embed.Renderer>
-local renderers = {}
-
 local unregister_watchfiles
 local watch_refresh_pending = {}
 
----@type table<string, obsidian.embed.Kind>
-local extension_kinds = {}
-for kind, extensions in pairs(icons.extensions) do
-  if
-    kind == "note"
-    or kind == "base"
-    or kind == "canvas"
-    or kind == "image"
-    or kind == "audio"
-    or kind == "video"
-    or kind == "pdf"
-  then
-    for _, item in ipairs(extensions) do
-      extension_kinds[item] = kind
-    end
-  end
-end
+local markdown_extensions = {
+  md = true,
+  markdown = true,
+  qmd = true,
+}
 
 ---@param path string
 ---@return string
@@ -83,24 +49,10 @@ local function extension(path)
 end
 
 ---@param target string
----@return obsidian.embed.Kind
-local function classify(target)
-  local kind = extension_kinds[extension(target)]
-  if
-    kind == "note"
-    or kind == "base"
-    or kind == "canvas"
-    or kind == "image"
-    or kind == "audio"
-    or kind == "video"
-    or kind == "pdf"
-  then
-    return kind
-  elseif extension(target) == "" then
-    return "note"
-  else
-    return "file"
-  end
+---@return boolean
+local function is_markdown(target)
+  local ext = extension(target)
+  return ext == "" or markdown_extensions[ext] == true
 end
 
 ---@param line table[]
@@ -124,10 +76,6 @@ end
 ---@param context obsidian.embed.Context
 ---@return table[]
 local function render_note(context)
-  if not context.note then
-    return {}
-  end
-
   local cache_key = context.path and normalize(context.path)
   if cache_key and note_cache[cache_key] then
     return note_cache[cache_key]
@@ -141,36 +89,6 @@ local function render_note(context)
     note_cache[cache_key] = virt_lines
   end
   return virt_lines
-end
-
-local preview_messages = {
-  base = "Base previews are not supported",
-  canvas = "Canvas previews are not supported",
-  image = "Image preview renderer is not available",
-  audio = "Audio previews are not supported",
-  video = "Video previews are not supported",
-  pdf = "PDF preview renderer is not available",
-  file = "Attachment previews are not supported",
-}
-
----@param context obsidian.embed.Context
----@return table[]
-local function render_message(context)
-  local message = preview_messages[context.kind] or preview_messages.file
-  local icon = icons.kinds[context.kind] or icons.kinds.file
-  local name = vim.fs.basename(context.path or context.target)
-  return {
-    with_separator {
-      { icon .. " ", "Comment" },
-      { message .. ": ", "Comment" },
-      { name, "Directory" },
-    },
-  }
-end
-
-renderers.note = render_note
-for _, kind in ipairs { "base", "canvas", "image", "audio", "video", "pdf", "file" } do
-  renderers[kind] = render_message
 end
 
 ---@param body string
@@ -192,24 +110,16 @@ end
 ---@return obsidian.embed.Match[]
 local function find_embeds(line)
   local matches = {}
-  for col, body, end_pos in line:gmatch "()!%[%[([^%]]+)%]%]()" do
+  for col, body in line:gmatch "()!%[%[([^%]]+)%]%]" do
     matches[#matches + 1] = {
       col = col - 1,
-      end_col = end_pos - 1,
       target = clean_wiki_target(body),
-      raw_target = body,
-      label = body:match "|(.+)$",
-      syntax = "wiki",
     }
   end
-  for col, label, body, end_pos in line:gmatch "()!%[([^%]]*)%]%(([^%)]+)%)()" do
+  for col, body in line:gmatch "()!%[[^%]]*%]%(([^%)]+)%)" do
     matches[#matches + 1] = {
       col = col - 1,
-      end_col = end_pos - 1,
       target = clean_markdown_target(body),
-      raw_target = body,
-      label = label ~= "" and label or nil,
-      syntax = "markdown",
     }
   end
   table.sort(matches, function(left, right)
@@ -224,98 +134,23 @@ local function target_without_fragment(target)
   return (target:gsub("#.*$", ""):gsub("%?.*$", ""))
 end
 
----@param target string
----@param buf integer
----@return string|nil
-local function resolve_file(target, buf)
-  target = target_without_fragment(vim.uri_decode(target) or target)
-  ---@cast target string
-  if target == "" then
-    return nil
-  elseif vim.startswith(target, "file:/") then
-    return normalize(vim.uri_to_fname(target))
-  end
-
-  local is_uri = target:match "^%a[%w+.-]*:"
-  if is_uri then
-    return nil
-  end
-
-  local candidates = {}
-  local seen = {}
-  ---@param path string|nil
-  local function add(path)
-    if not path then
-      return
-    end
-    path = normalize(path)
-    if not seen[path] then
-      seen[path] = true
-      candidates[#candidates + 1] = path
-    end
-  end
-
-  if vim.startswith(target, "/") or target:match "^%a:[/\\]" then
-    add(target)
-  else
-    local bufname = vim.api.nvim_buf_get_name(buf)
-    local bufdir = bufname ~= "" and vim.fs.dirname(bufname) or nil
-    if bufdir then
-      add(vim.fs.joinpath(bufdir, target))
-    end
-    if Obsidian and Obsidian.dir then
-      add(vim.fs.joinpath(tostring(Obsidian.dir), target))
-    end
-    if Obsidian and Obsidian.opts and Obsidian.opts.attachments then
-      local ok, path = pcall(attachment.resolve_attachment_path, target, buf)
-      if ok then
-        add(path)
-      end
-    end
-  end
-
-  for _, candidate in ipairs(candidates) do
-    if vim.uv.fs_stat(candidate) then
-      return candidate
-    end
-  end
-  return candidates[#candidates]
-end
-
 ---@param match obsidian.embed.Match
----@param buf integer
----@param row integer
 ---@return obsidian.embed.Context|nil
-local function resolve_context(match, buf, row)
-  local target = match.target
-  local clean_target = target_without_fragment(target)
-  local kind = classify(clean_target)
-  local note
-  local path
-
-  if kind == "note" then
-    local ok, notes = pcall(search.resolve_note, clean_target, {})
-    if not ok or not notes or not notes[1] then
-      return nil
-    end
-    note = notes[1]
-    ---@cast note -nil
-    path = note.path and normalize(tostring(note.path)) or nil
-  else
-    path = resolve_file(clean_target, buf)
+local function resolve_context(match)
+  local target = target_without_fragment(match.target)
+  if not is_markdown(target) then
+    return nil
   end
+
+  local ok, notes = pcall(search.resolve_note, target, {})
+  if not ok or not notes or not notes[1] then
+    return nil
+  end
+  local note = notes[1]
+  ---@cast note -nil
 
   return {
-    buf = buf,
-    row = row,
-    col = match.col,
-    end_col = match.end_col,
-    target = target,
-    raw_target = match.raw_target,
-    label = match.label,
-    syntax = match.syntax,
-    path = path,
-    kind = kind,
+    path = note.path and normalize(tostring(note.path)) or nil,
     note = note,
   }
 end
@@ -412,16 +247,12 @@ M.refresh = function(buf)
   for line_num, line in ipairs(lines) do
     local rendered = {}
     for _, match in ipairs(find_embeds(line)) do
-      local context = resolve_context(match, buf, line_num - 1)
+      local context = resolve_context(match)
       if context then
         if context.path then
           state.dependencies[normalize(context.path)] = true
         end
-        local renderer = renderers[context.kind]
-        local ok, virt_lines = false, nil
-        if renderer then
-          ok, virt_lines = pcall(renderer, context)
-        end
+        local ok, virt_lines = pcall(render_note, context)
         if ok and virt_lines then
           vim.list_extend(rendered, virt_lines)
         end
@@ -501,27 +332,6 @@ end
 function M.detach_all()
   for _, buf in ipairs(vim.tbl_keys(states)) do
     M.detach(buf)
-  end
-end
-
----Register or replace a renderer for an embed kind.
----@param kind obsidian.embed.Kind
----@param renderer obsidian.embed.Renderer
----@return fun() unregister
-M.register_renderer = function(kind, renderer)
-  local previous = renderers[kind]
-  renderers[kind] = renderer
-  for buf in pairs(states) do
-    M.refresh(buf)
-  end
-
-  return function()
-    if renderers[kind] == renderer then
-      renderers[kind] = previous
-      for buf in pairs(states) do
-        M.refresh(buf)
-      end
-    end
   end
 end
 

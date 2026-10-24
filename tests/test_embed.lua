@@ -1,5 +1,4 @@
 local embed = require "obsidian.embed"
-local icons = require "obsidian.icons"
 local search = require "obsidian.search"
 local watchfiles = require "obsidian.lsp.watchfiles"
 
@@ -68,41 +67,26 @@ T["attach renders the note body below an embed"] = function()
   end
 end
 
-T["unsupported embed types render a small preview message"] = function()
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "![[board.canvas]]" })
-  embed.attach(buf)
+T["non-Markdown embeds are ignored"] = function()
+  local original_resolve_note = search.resolve_note
+  local resolve_count = 0
+  local ok, err = pcall(function()
+    search.resolve_note = function()
+      resolve_count = resolve_count + 1
+      return {}
+    end
 
-  eq(virt_lines(buf), {
-    {
-      { "▏", "NonText" },
-      { icons.kinds.canvas .. " ", "Comment" },
-      { "Canvas previews are not supported: ", "Comment" },
-      { "board.canvas", "Directory" },
-    },
-  })
-end
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "![[board.canvas]]", "![](picture.png)" })
+    embed.attach(buf)
 
-T["attachment renderers can replace fallback previews"] = function()
-  local rendered_context
-  local unregister = embed.register_renderer("image", function(context)
-    rendered_context = context
-    return { { { "future image renderer", "Comment" } } }
+    eq(virt_lines(buf), nil)
+    eq(resolve_count, 0)
   end)
-
-  local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "![](picture.png)" })
-  embed.attach(buf)
-
-  eq(rendered_context.kind, "image")
-  eq(rendered_context.target, "picture.png")
-  eq(rendered_context.raw_target, "picture.png")
-  eq(rendered_context.label, nil)
-  eq(rendered_context.syntax, "markdown")
-  eq(rendered_context.col, 0)
-  eq(rendered_context.end_col, 16)
-  eq(virt_lines(buf), { { { "future image renderer", "Comment" } } })
-  unregister()
+  search.resolve_note = original_resolve_note
+  if not ok then
+    error(err)
+  end
 end
 
 T["watched target changes invalidate cached note previews"] = function()
