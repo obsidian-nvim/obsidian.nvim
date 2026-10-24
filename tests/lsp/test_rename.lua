@@ -18,12 +18,12 @@ local function rename(new_name)
   )
 end
 
-local function prepare_rename_placeholder()
+local function prepare_rename()
   return h.child_await(
     child,
     [[
       require("obsidian.lsp.handlers.prepare_rename")(nil, function(_, result)
-        done(result.placeholder)
+        done(result and { placeholder = result.placeholder, range = result.range } or false)
       end)
     ]],
     { desc = "prepare rename" }
@@ -63,7 +63,7 @@ T["rename current note"] = function()
   local new_target_path = root / "new_target.md"
 
   child.cmd("edit " .. files[target])
-  rename "new_target"
+  child.cmd "Obsidian rename new_target"
   h.child_wait_for_path(child, new_target_path)
   eq(true, new_target_path:exists())
   local lines = child.api.nvim_buf_get_lines(1, 0, -1, false) -- new_target
@@ -80,7 +80,7 @@ T["rename current note does not insert frontmatter when disabled"] = function()
 
   child.lua [[Obsidian.opts.frontmatter.enabled = false]]
   child.cmd("edit " .. files["plain.md"])
-  rename "renamed-plain"
+  child.cmd "Obsidian rename renamed-plain"
   h.child_wait_for_path(child, new_target_path)
   eq(true, new_target_path:exists())
   local lines = child.api.nvim_buf_get_lines(1, 0, -1, false)
@@ -100,7 +100,7 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  rename "target"
+  child.cmd "Obsidian rename target"
   h.child_wait(child, [[return _G.msg == "Identical name"]], { desc = "rename no-op message" })
   eq("Identical name", child.lua_get "msg")
 end
@@ -119,7 +119,7 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  rename "existing"
+  child.cmd "Obsidian rename existing"
   h.child_wait(child, [[return _G.msg == "Note with same name exists"]], { desc = "rename no-op message" })
   eq("Note with same name exists", child.lua_get "msg")
 end
@@ -137,7 +137,7 @@ end
   ]]
 
   child.cmd("edit " .. files[target])
-  rename "bad:name"
+  child.cmd "Obsidian rename bad:name"
   h.child_wait(child, [[return _G.err_msg ~= nil]], { desc = "rename invalid filename message" })
   eq('Invalid filename "bad:name": contains forbidden character: ":"', child.lua_get "err_msg")
   eq(true, (root / target):exists())
@@ -156,7 +156,7 @@ T["rename current note allows same name in a different folder"] = function()
   local new_target_path = root / "existing.md"
 
   child.cmd("edit " .. files[target])
-  rename "existing"
+  child.cmd "Obsidian rename existing"
   h.child_wait_for_path(child, new_target_path)
   eq(true, new_target_path:exists())
 end
@@ -193,10 +193,59 @@ T["prepare rename keeps fragment-only placeholders"] = function()
 
   child.cmd("edit " .. files[ref])
   child.api.nvim_win_set_cursor(0, { 2, 0 })
-  eq("#header", prepare_rename_placeholder())
+  eq("header", prepare_rename().placeholder)
 
   child.api.nvim_win_set_cursor(0, { 2, 13 })
-  eq("#^block", prepare_rename_placeholder())
+  eq("block", prepare_rename().placeholder)
+end
+
+T["prepare rename answers per element under the cursor"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["P.md"] = table.concat({
+      "plain text #tag", -- 1
+      "## Old Title", -- 2
+      "para ^blk-1", -- 3
+      "text[^1]", -- 4
+      "[[target]]", -- 5
+    }, "\n"),
+  })
+
+  child.cmd("edit " .. files["P.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 2 })
+  eq(false, prepare_rename())
+  child.api.nvim_win_set_cursor(0, { 1, 12 })
+  local tag = prepare_rename()
+  eq("tag", tag.placeholder)
+  eq({ start = { line = 0, character = 12 }, ["end"] = { line = 0, character = 15 } }, tag.range)
+
+  child.api.nvim_win_set_cursor(0, { 2, 0 })
+  eq("Old Title", prepare_rename().placeholder)
+
+  child.api.nvim_win_set_cursor(0, { 3, 5 })
+  local block = prepare_rename()
+  eq("blk-1", block.placeholder)
+  eq({ start = { line = 2, character = 6 }, ["end"] = { line = 2, character = 11 } }, block.range)
+
+  child.api.nvim_win_set_cursor(0, { 4, 5 })
+  eq("1", prepare_rename().placeholder)
+
+  child.api.nvim_win_set_cursor(0, { 5, 3 })
+  eq("target", prepare_rename().placeholder)
+end
+
+T["rename on plain text does nothing"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, { [target] = target_content })
+
+  child.cmd("edit " .. files[target])
+  child.api.nvim_win_set_cursor(0, { 6, 1 }) -- on "hello"
+
+  rename "x"
+  child.cmd "wa"
+
+  eq(false, (root / "x.md"):exists())
+  eq(target_content, table.concat(h.read(files[target]), "\n"))
 end
 
 local referencer2_expected = [==[
@@ -361,6 +410,450 @@ T["rename note with markdown link reference"] = function()
   local ref_lines = h.read(files["notea.md"])
   local md_ref_result = table.concat(ref_lines, "\n")
   eq(true, md_ref_result:find "%[Note B%]%(renamed%-note%.md%)" ~= nil, "Link should be updated to renamed-note.md")
+end
+
+T["Obsidian rename renames the current note even on a link"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    [target] = target_content,
+    [ref] = ref_content,
+  })
+
+  child.cmd("edit " .. files[ref])
+  child.api.nvim_win_set_cursor(0, { 2, 0 }) -- on [[target]]
+
+  child.cmd "Obsidian rename ref-new"
+  h.child_wait_for_path(child, root / "ref-new.md")
+  eq(true, (root / "ref-new.md"):exists())
+  eq(true, (root / target):exists())
+end
+
+T["rename on block id renames only the block id"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "paragraph with id ^blk-1",
+    ["B.md"] = "[[A#^blk-1]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 18 })
+
+  rename "novo-id"
+  child.cmd "wa"
+
+  eq({ "paragraph with id ^novo-id" }, h.read(files["A.md"]))
+  eq({ "[[A#^novo-id]]" }, h.read(files["B.md"]))
+  eq(false, (root / "novo-id.md"):exists())
+end
+
+T["rename block id rewrites definition and every reference"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = table.concat({
+      "para ^blk-1",
+      "",
+      "see [[#^blk-1]] and [x](#^blk-1)",
+      "```",
+      "[[A#^blk-1]]",
+      "```",
+    }, "\n"),
+    ["B.md"] = table.concat({
+      "[[A#^blk-1]] ![[A#^blk-1]] [[A#^blk-1|alias]] [y](A.md#^blk-1) [[C#^blk-1]]",
+      "`[[A#^blk-1]]`",
+    }, "\n"),
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+  rename "novo-id"
+  child.cmd "wa"
+
+  eq({
+    "para ^novo-id",
+    "",
+    "see [[#^novo-id]] and [x](#^novo-id)",
+    "```",
+    "[[A#^blk-1]]",
+    "```",
+  }, h.read(files["A.md"]))
+  eq({
+    "[[A#^novo-id]] ![[A#^novo-id]] [[A#^novo-id|alias]] [y](A.md#^novo-id) [[C#^blk-1]]",
+    "`[[A#^blk-1]]`",
+  }, h.read(files["B.md"]))
+  eq(false, (root / "novo-id.md"):exists())
+end
+
+T["rename block id from a reference to it"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "para ^blk-1\n\nsee [[#^blk-1]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 6 })
+  rename "other"
+  child.cmd "wa"
+
+  eq({ "para ^other", "", "see [[#^other]]" }, h.read(files["A.md"]))
+end
+
+T["rename block id rejects invalid and duplicate ids"] = function()
+  local root = child.Obsidian.dir
+  local content = "one ^a\n\ntwo ^b"
+  local files = h.mock_vault_contents(root, { ["A.md"] = content })
+
+  child.lua [[
+require"obsidian.log".err = function(msg)
+  _G.err_msg = msg
+end
+  ]]
+
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+
+  rename "bad id"
+  eq('Invalid block id "bad id": use letters, digits and "-"', child.lua_get "err_msg")
+
+  child.lua [[_G.err_msg = nil]]
+  rename "b"
+  eq('Block id "^b" already exists in this note', child.lua_get "err_msg")
+
+  child.cmd "wa"
+  eq(content, table.concat(h.read(files["A.md"]), "\n"))
+end
+
+T["rename block id edits a modified buffer of another note"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "para ^blk-1",
+    ["B.md"] = "[[A#^blk-1]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["B.md"])
+  child.api.nvim_buf_set_lines(0, -1, -1, false, { "unsaved" })
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+  rename "novo-id"
+  child.cmd "wa"
+
+  eq({ "[[A#^novo-id]]", "unsaved" }, h.read(files["B.md"]))
+end
+
+T["rename heading rewrites text and every reference style"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = table.concat({
+      "# Top",
+      "## Old Title",
+      "### Child",
+      "see [[#Old Title]] [[#old-title]]",
+    }, "\n"),
+    ["B.md"] = table.concat({
+      "[[A#Old Title]] ![[A#Old Title]] [[A#Old Title|alias]] [[A#Top#Old Title]] [[A#Old Title#Child]]"
+        .. " [z](A.md#old-title) [w](A.md#Old%20Title)",
+    }, "\n"),
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 2, 4 })
+  rename "New Name"
+  child.cmd "wa"
+
+  eq({ "# Top", "## New Name", "### Child", "see [[#New Name]] [[#new-name]]" }, h.read(files["A.md"]))
+  eq({
+    "[[A#New Name]] ![[A#New Name]] [[A#New Name|alias]] [[A#Top#New Name]] [[A#New Name#Child]]"
+      .. " [z](A.md#new-name) [w](A.md#New%20Name)",
+  }, h.read(files["B.md"]))
+end
+
+T["rename heading from a reference to it"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "## Old Title\n\nsee [[#Old Title]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 8 })
+  rename "Other"
+  child.cmd "wa"
+
+  eq({ "## Other", "", "see [[#Other]]" }, h.read(files["A.md"]))
+end
+
+T["rename setext heading keeps the underline and rewrites references"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = table.concat({
+      "Old Title",
+      "=========",
+      "",
+      "Sub Old",
+      "-------",
+      "",
+      "see [[#Old Title]] [[#Sub Old]]",
+      "",
+      "```",
+      "Fake",
+      "====",
+      "```",
+    }, "\n"),
+    ["B.md"] = "[[A#Old Title]] [[A#Old Title#Sub Old]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+
+  -- Cursor on the underline renames the heading above it.
+  child.api.nvim_win_set_cursor(0, { 2, 3 })
+  eq("Old Title", prepare_rename().placeholder)
+  rename "New Name"
+
+  child.api.nvim_win_set_cursor(0, { 4, 2 })
+  rename "Sub New"
+  child.cmd "wa"
+
+  eq({
+    "New Name",
+    "=========",
+    "",
+    "Sub New",
+    "-------",
+    "",
+    "see [[#New Name]] [[#Sub New]]",
+    "",
+    "```",
+    "Fake",
+    "====",
+    "```",
+  }, h.read(files["A.md"]))
+  eq({ "[[A#New Name]] [[A#New Name#Sub New]]" }, h.read(files["B.md"]))
+
+  child.api.nvim_win_set_cursor(0, { 10, 1 })
+  eq(false, prepare_rename())
+end
+
+T["rename multi-line setext heading renames the line above the underline"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "Intro line\n  Old Title\n=========\n\nsee [[#Old Title]]",
+    ["B.md"] = "[[A#Old Title]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 2 })
+  eq("Old Title", prepare_rename().placeholder)
+  rename "New Title"
+  child.cmd "wa"
+
+  eq({ "Intro line", "  New Title", "=========", "", "see [[#New Title]]" }, h.read(files["A.md"]))
+  eq({ "[[A#New Title]]" }, h.read(files["B.md"]))
+
+  -- The earlier line of the paragraph is plain text, as for the plugin's anchors.
+  child.api.nvim_win_set_cursor(0, { 1, 2 })
+  eq(false, prepare_rename())
+end
+
+T["rename heading refuses duplicates"] = function()
+  local root = child.Obsidian.dir
+  local content = "## Same\n\n## Same\n\n## A1\n\n## B1"
+  local files = h.mock_vault_contents(root, { ["A.md"] = content })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.lua [[
+require"obsidian.log".err = function(msg)
+  _G.err_msg = msg
+end
+  ]]
+
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+  rename "Other"
+  eq('Heading "Same" is not unique in this note', child.lua_get "err_msg")
+
+  child.api.nvim_win_set_cursor(0, { 5, 4 })
+  rename "B1"
+  eq('Heading "B1" already exists in this note', child.lua_get "err_msg")
+
+  rename "# bad"
+  eq('Invalid heading "# bad"', child.lua_get "err_msg")
+
+  child.cmd "wa"
+  eq(content, table.concat(h.read(files["A.md"]), "\n"))
+end
+
+T["rename footnote rewrites definition and references in the note only"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "text[^1] more[^1]\n\n[^1]: def",
+    ["B.md"] = "x[^1]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.lua [[
+require"obsidian.log".err = function(msg)
+  _G.err_msg = msg
+end
+  ]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 6 })
+
+  rename "bad name"
+  eq('Invalid footnote name "bad name"', child.lua_get "err_msg")
+
+  rename "src"
+  child.cmd "wa"
+
+  eq({ "text[^src] more[^src]", "", "[^src]: def" }, h.read(files["A.md"]))
+  eq({ "x[^1]" }, h.read(files["B.md"]))
+end
+
+T["rename footnote from its definition"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, { ["A.md"] = "text[^1]\n\n[^1]: def" })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 2 })
+  rename "src"
+  child.cmd "wa"
+
+  eq({ "text[^src]", "", "[^src]: def" }, h.read(files["A.md"]))
+end
+
+T["rename tag rewrites inline tags, frontmatter and subtags across the vault"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = table.concat({
+      "---",
+      "tags: [proj, proj/sub, other]",
+      "---",
+      "text #proj and #proj/sub/deep and #projx and `#proj`",
+    }, "\n"),
+    ["B.md"] = "see #proj/sub",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 4, 7 })
+  rename "work"
+  child.cmd "wa"
+
+  eq({
+    "---",
+    "tags: [work, work/sub, other]",
+    "---",
+    "text #work and #work/sub/deep and #projx and `#proj`",
+  }, h.read(files["A.md"]))
+  eq({ "see #work/sub" }, h.read(files["B.md"]))
+end
+
+T["rename tag from the frontmatter"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "---\ntags:\n  - proj\n---\ntext #proj",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 5 })
+  rename "#work"
+  child.cmd "wa"
+
+  eq({ "---", "tags:", "  - work", "---", "text #work" }, h.read(files["A.md"]))
+end
+
+T["rename tag onto an existing tag merges them"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "#a and #b",
+    ["B.md"] = "#a/x",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 1 })
+  rename "b"
+  child.cmd "wa"
+
+  eq({ "#b and #b" }, h.read(files["A.md"]))
+  eq({ "#b/x" }, h.read(files["B.md"]))
+end
+
+T["rename tag rejects invalid names"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, { ["A.md"] = "#a" })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.lua [[
+require"obsidian.log".err = function(msg)
+  _G.err_msg = msg
+end
+  ]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 1 })
+
+  rename "bad tag"
+  eq('Invalid tag "bad tag": use letters, digits, "_", "-" and "/"', child.lua_get "err_msg")
+  child.lua [[_G.err_msg = nil]]
+  rename "a/"
+  eq('Invalid tag "a/": use letters, digits, "_", "-" and "/"', child.lua_get "err_msg")
+
+  child.cmd "wa"
+  eq({ "#a" }, h.read(files["A.md"]))
+end
+
+T["rename attachment renames the file and every reference"] = function()
+  local root = child.Obsidian.dir
+  local assets = root / "assets"
+  assets:mkdir()
+  h.write("image", assets / "old image.png")
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "![[assets/old image.png]]\n![alt](assets/old%20image.png)\n![[old image.png|100]]\n`![[old image.png]]`",
+    ["B.md"] = "[[old image.png]]",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+
+  child.api.nvim_win_set_cursor(0, { 2, 14 })
+  eq("old image.png", prepare_rename().placeholder)
+
+  rename "new image"
+  h.child_wait_for_path(child, assets / "new image.png")
+  child.cmd "wa"
+
+  eq(false, (assets / "old image.png"):exists())
+  eq(true, (assets / "new image.png"):exists())
+  eq({
+    "![[assets/new image.png]]",
+    "![alt](assets/new%20image.png)",
+    "![[new image.png|100]]",
+    "`![[old image.png]]`",
+  }, h.read(files["A.md"]))
+  eq({ "[[new image.png]]" }, h.read(files["B.md"]))
+end
+
+T["rename attachment refuses an existing name"] = function()
+  local root = child.Obsidian.dir
+  h.write("one", root / "one.png")
+  h.write("two", root / "two.png")
+  local files = h.mock_vault_contents(root, { ["A.md"] = "![[one.png]]" })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 4 })
+  rename "two"
+  child.cmd "wa"
+
+  eq(true, (root / "one.png"):exists())
+  eq({ "![[one.png]]" }, h.read(files["A.md"]))
 end
 
 return T
