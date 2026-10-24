@@ -107,8 +107,8 @@ local function link_target(ref, bufnr, row)
     return nil
   end
 
-  local last = M.fragment_components(ref)
-  last = last[#last]
+  local components = M.fragment_components(ref)
+  local last = components[#components]
 
   if ref.target == "" and ref.block and last then
     return {
@@ -161,9 +161,9 @@ M.headings = function(bufnr)
     local hr = section.heading_range
     local rows = hr.end_row - hr.start_row
     if section.header then
-      local line = lines[hr.start_row + 1]
+      local line = lines[hr.start_row + 1] or ""
       -- ATX: skip the `#` marker; setext: the text is the whole first line.
-      local s, e = line:find(section.header, rows == 1 and section.level + 1 or 1, true)
+      local s, e = line:find(section.header, rows == 1 and (section.level or 0) + 1 or 1, true)
       if s then
         out[#out + 1] = {
           row = hr.start_row,
@@ -446,9 +446,9 @@ M.build_heading_edit = function(target, new_name, callback)
   local definition = same[1]
   if target.header then
     -- Cursor on the heading line itself.
-    definition = vim.iter(all):find(function(h)
+    definition = vim.tbl_filter(function(h)
       return h.row == target.range.start.line
-    end)
+    end, all)[1]
   end
   if not definition then
     log.err(('Heading "%s" not found in this note'):format(target.placeholder))
@@ -519,7 +519,8 @@ M.build_footnote_edit = function(target, new_name, callback)
   ---@type obsidian.lsp.FileEdits
   local file_edits = {}
   local path = path_key(vim.api.nvim_buf_get_name(target.bufnr))
-  for _, occurrence in ipairs(footnotes.find_refs(target.bufnr, target.id)) do
+  local id = target.id --[[@as string]]
+  for _, occurrence in ipairs(footnotes.find_refs(target.bufnr, id)) do
     add_edit(file_edits, path, occurrence.lnum - 1, occurrence.start_col + 2, occurrence.end_col - 1, new_id)
   end
   callback(to_workspace_edit(file_edits))
@@ -544,7 +545,7 @@ M.build_tag_edit = function(target, new_name, callback)
   end
 
   local dir = api.resolve_workspace_dir(vim.api.nvim_buf_get_name(target.bufnr))
-  search.find_tags_async(target.id, function(locations)
+  search.find_tags_async(target.id --[[@as string]], function(locations)
     ---@type obsidian.lsp.FileEdits
     local file_edits = {}
     for _, location in ipairs(locations) do
@@ -564,7 +565,7 @@ end
 ---@param callback fun(edit: lsp.WorkspaceEdit|?)
 M.build_attachment_edit = function(target, new_name, callback)
   require("obsidian.attachment").rename(
-    target.ref.target,
+    target.ref and target.ref.target or "",
     new_name,
     { apply = false, filename = vim.api.nvim_buf_get_name(target.bufnr) },
     function(err, edit)

@@ -32,17 +32,20 @@ return function(params, handler, _)
     end)
   end
 
-  if target.kind == "note" then
+  if target.kind == "note" and target.ref then
     search.resolve_note_async(target.ref.target, function(notes)
       -- TODO: pick note
       if vim.tbl_isempty(notes) then
-        return handler(nil, nil)
+        handler(nil, nil)
+        return
       end
       do_rename(notes[1])
     end, { dir = workspace_dir, buf_dir = source_path ~= "" and vim.fs.dirname(source_path) or nil })
   else
-    -- block, heading, footnote: build_<kind>_edit
-    rename["build_" .. target.kind .. "_edit"](target, new_name, function(edit)
+    -- block, heading, footnote, tag, attachment: build_<kind>_edit
+    local build = rename["build_" .. target.kind .. "_edit"]
+    ---@cast build fun(target: obsidian.lsp.RenameTarget, new_name: string, callback: fun(edit: lsp.WorkspaceEdit|?))
+    build(target, new_name, function(edit)
       handler(nil, edit)
     end)
   end
