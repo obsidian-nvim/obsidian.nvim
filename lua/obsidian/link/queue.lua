@@ -17,12 +17,13 @@ function M.run(path, task, opts)
   local root = tostring(workspace.root)
   local queue = queues[root] or { running = false, tasks = {} }
   queues[root] = queue
-  queue.tasks[#queue.tasks + 1] = task
+  queue.tasks[#queue.tasks + 1] = { callback = task, immediate = opts and opts.immediate }
 
   local function next_task()
     local pending = table.remove(queue.tasks, 1)
     if not pending then
       queue.running = false
+      queues[root] = nil
       return
     end
     queue.running = true
@@ -35,13 +36,13 @@ function M.run(path, task, opts)
         finished = true
         next_task()
       end
-      local ok, err = pcall(pending, done)
+      local ok, err = pcall(pending.callback, done)
       if not ok then
         log.err("Link update failed: %s", err)
         done()
       end
     end
-    if opts and opts.immediate and not vim.in_fast_event() then
+    if pending.immediate and not vim.in_fast_event() then
       execute()
     else
       vim.schedule(execute)

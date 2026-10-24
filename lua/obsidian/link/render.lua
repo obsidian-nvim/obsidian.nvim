@@ -32,12 +32,12 @@ function M.render(note, opts)
   local format = opts.format or Obsidian.opts.link.format
   local conflict = workspace and vim.endswith(path, ".md") and has_stem_conflict(path, workspace) or false
 
-  if conflict and format == "shortest" then
-    if opts.format then
-      error("shortest link cannot identify note with a duplicate filename: " .. path)
-    end
-    format = "absolute"
-  elseif conflict and format == "relative" and workspace and vim.fs.dirname(path) == tostring(workspace.root) then
+  if
+    conflict
+    and (
+      format == "shortest" or (format == "relative" and workspace and vim.fs.dirname(path) == tostring(workspace.root))
+    )
+  then
     format = "absolute"
   end
 

@@ -17,7 +17,9 @@ tags:
 
 - `shortest`: shortest file path when possible.
 - `relative`: relative path from the current note file.
-- `absolute`: vault-relative absolute path.
+- `absolute`: vault-relative absolute path, beginning with `/`.
+
+When multiple notes have the same filename, generated `shortest` links automatically use an absolute path so the destination remains unambiguous. A leading slash also makes manually written wiki and Markdown links resolve from the vault root, for example `[[/projects/plan]]` or `[Plan](/projects/plan.md)`.
 
 ## Link Style
 
@@ -100,7 +102,9 @@ require("obsidian").setup {
 
 ## Link Rename
 
-See [LSP rename](LSP.md#rename)
+See [LSP rename](LSP.md#rename).
+
+Creating or renaming a note whose filename collides with another note can change the destination of existing short links. In that case, obsidian.nvim offers to update the affected links to absolute paths. Choose **Inspect** to review the proposed edits in the quickfix list. Existing open buffers are updated but left unsaved; closed notes are saved automatically. Declining a creation repair keeps the new note and leaves links unchanged, while declining a rename repair cancels the rename.
 
 ## Options
 
@@ -112,6 +116,7 @@ See [LSP rename](LSP.md#rename)
 link = {
   style = "wiki",
   format = "shortest",
+  -- Apply rename and filename-collision link updates without confirmation.
   auto_update = false,
 }
 ```

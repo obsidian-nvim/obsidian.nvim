@@ -236,15 +236,18 @@ T["note and tag mappings accept string values"] = function()
   local original_fs_stat = vim.uv.fs_stat
   local original_put = vim.api.nvim_put
   local original_update = ui.update
+  local original_obsidian = Obsidian
   local inserted = {}
 
   local ok, err = pcall(function()
+    Obsidian = { opts = { link = { format = "shortest" } }, workspaces = {} }
     vim.uv.fs_stat = function()
       return {}
     end
     Note.from_file = function(path)
       eq("/vault/note.md", path)
       return {
+        path = "/vault/note.md",
         format_link = function()
           return "[[note]]"
         end,
@@ -263,6 +266,7 @@ T["note and tag mappings accept string values"] = function()
   vim.uv.fs_stat = original_fs_stat
   vim.api.nvim_put = original_put
   ui.update = original_update
+  Obsidian = original_obsidian
   if not ok then
     error(err)
   end

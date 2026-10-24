@@ -25,23 +25,24 @@ local function strip_md_suffix(path)
   return path
 end
 
-local function add_replacement(replacements, seen, old_ref, new_ref)
+local function add_replacement(replacements, seen, old_ref, new_ref, target_path)
   if not old_ref or not new_ref or old_ref == "" or seen[old_ref] then
     return
   end
 
   seen[old_ref] = true
-  replacements[#replacements + 1] = { old = old_ref, new = new_ref }
+  replacements[#replacements + 1] = { old = old_ref, new = new_ref, target_path = target_path }
 end
 
-local function add_replacement_variants(replacements, seen, old_ref, new_ref)
-  add_replacement(replacements, seen, old_ref, new_ref)
-  add_replacement(replacements, seen, uri.encode(old_ref), uri.encode(new_ref))
+local function add_replacement_variants(replacements, seen, old_ref, new_ref, target_path)
+  add_replacement(replacements, seen, old_ref, new_ref, target_path)
+  add_replacement(replacements, seen, uri.encode(old_ref), uri.encode(new_ref), target_path)
   add_replacement(
     replacements,
     seen,
     uri.encode(old_ref, { keep_path_sep = true }),
-    uri.encode(new_ref, { keep_path_sep = true })
+    uri.encode(new_ref, { keep_path_sep = true }),
+    target_path
   )
 end
 
@@ -62,8 +63,19 @@ local function path_replacements(old_path, new_path, include_stem_refs, dir)
   local seen = {}
 
   if include_stem_refs then
-    add_replacement_variants(replacements, seen, old_path.name, new_path.name)
-    add_replacement_variants(replacements, seen, old_path.stem, new_path.stem)
+    local target_path
+    local workspace = api.find_workspace(old_path)
+    if workspace and old_path:is_file() then
+      local normalized_old_path = vim.fs.normalize(tostring(old_path:resolve()))
+      local name = assert(old_path.name, "note filename is required"):lower()
+      local matches = vim.fs.find(function(entry, parent)
+        local candidate = vim.fs.normalize(vim.fs.joinpath(parent, entry))
+        return entry:lower() == name and candidate ~= normalized_old_path and api.path_is_note(candidate, workspace)
+      end, { path = tostring(workspace.root), type = "file", limit = 1 })
+      target_path = #matches > 0 and normalized_old_path or nil
+    end
+    add_replacement_variants(replacements, seen, old_path.name, new_path.name, target_path)
+    add_replacement_variants(replacements, seen, old_path.stem, new_path.stem, target_path)
   end
 
   local old_relpath = relative_path(old_path, dir)
@@ -209,7 +221,18 @@ M.build_edit_for_paths = function(path_pairs, opts, callback)
         local origin = Range.new(row0, ref.range.start_col, row0, ref.range.start_col + 1)
         local offset = target_offset(ref)
         local body_offset, replacement = find_target_replacement(ref, replacements)
-        if offset and body_offset and replacement and not document:intersects(origin, Document.INLINE_EXCLUSIONS) then
+        local target_matches = true
+        if replacement and replacement.target_path then
+          local resolved = require("obsidian.link").resolve_link_path(ref.target, path)
+          target_matches = resolved ~= nil and vim.fs.normalize(resolved) == replacement.target_path
+        end
+        if
+          offset
+          and body_offset
+          and replacement
+          and target_matches
+          and not document:intersects(origin, Document.INLINE_EXCLUSIONS)
+        then
           local start_col = ref.range.start_col + offset + body_offset
           if not file_edits[path] then
             file_edits[path] = {}
@@ -237,11 +260,12 @@ M.build_edit_for_paths = function(path_pairs, opts, callback)
       end
     end
     -- A loaded buffer is authoritative even if its unsaved links are absent
-    -- from the ripgrep results on disk.
+    -- from the ripgrep results on disk. Do not scan notes from another workspace.
+    local workspace = api.find_workspace(assert(dir, "rename workspace is required")) or Obsidian.workspace
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_is_loaded(bufnr) then
         local path = vim.api.nvim_buf_get_name(bufnr)
-        if path ~= "" and api.path_is_note(path, api.find_workspace(assert(dir, "rename workspace is required"))) then
+        if path ~= "" and api.path_is_note(path, workspace) then
           for row, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
             process_line(path, line, row)
           end

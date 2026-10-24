@@ -160,6 +160,25 @@ require("obsidian.note").from_file(tostring(Obsidian.dir / "lib/entity.md")):ren
   eq(false, vim.uv.fs_stat(root .. "/lib/entity.md") ~= nil)
 end
 
+T["rename updates only short links that resolve to the renamed duplicate"] = function()
+  local root = tostring(child.Obsidian.dir)
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["entity.md"] = "root target",
+    ["lib/entity.md"] = "renamed target",
+    ["source.md"] = "[[entity]]",
+    ["lib/source.md"] = "[[entity]]",
+  })
+  child.lua [[
+Obsidian.opts.link.auto_update = true
+require("obsidian.note").from_file(tostring(Obsidian.dir / "lib/entity.md")):rename("renamed")
+  ]]
+  h.child_wait_for_path(child, root .. "/lib/renamed.md")
+  h.child_wait(child, ([=[return vim.fn.readfile(%q)[1] == "[[renamed]]"]=]):format(root .. "/lib/source.md"), {
+    desc = "resolved duplicate link renamed",
+  })
+  eq("[[entity]]", vim.fn.readfile(root .. "/source.md")[1])
+end
+
 T["declining creation repair leaves old links and the new file"] = function()
   local root = tostring(child.Obsidian.dir)
   h.mock_vault_contents(child.Obsidian.dir, {

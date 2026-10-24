@@ -146,10 +146,11 @@ M.resolve_link_path = function(location, source_path)
 
   if vim.startswith(location, "/") then
     local name = vim.uri_decode(location:sub(2))
+    ---@cast name string
     if not vim.endswith(name, ".md") and not vim.endswith(name, ".qmd") and not vim.endswith(name, ".base") then
       name = name .. ".md"
     end
-    local path = workspace_dir / name
+    local path = Path.new(vim.fs.joinpath(tostring(workspace_dir), name))
     if fs_util.is_subpath(tostring(path:resolve()), tostring(workspace_dir)) and path:is_file() then
       return tostring(normalize_path(path))
     end
