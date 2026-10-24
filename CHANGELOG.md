@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Keep reserved frontmatter fields synchronized between note attributes, metadata, and cached notes.
 - Note navigation when note is resolved, but failed to resolve section suffixes like `#heaing` and `#^block_id` will not prompt to create note.
+- `:Obsidian paste_img` reports a missing clipboard tool (such as `pngpaste`) instead of saying the clipboard has no image.
 
 ## [v3.16.9](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.9) - 2026-10-13
 
