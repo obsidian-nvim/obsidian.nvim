@@ -303,7 +303,7 @@ M.find_files = function(opts)
             local location = data.target or cache.notes.rel_path(path):gsub("%.md$", "")
             api.create_new_note(location, function(locations)
               if locations and locations[1] then
-                api.open_note(vim.uri_to_fname(locations[1].uri))
+                api.jump_to_note(vim.uri_to_fname(locations[1].uri))
               end
             end, {
               references = data.references,

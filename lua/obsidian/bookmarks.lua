@@ -412,7 +412,7 @@ local function open_bookmark(bookmark)
   elseif bookmark.type == "file" then
     local entry = bookmark_to_picker_entry(bookmark)
     if entry.filename and vim.uv.fs_stat(entry.filename) ~= nil then
-      api.open_note(entry)
+      api.jump_to_note(entry)
     else
       log.warn("Bookmark target is missing: %s", bookmark.path or bookmark.title)
     end

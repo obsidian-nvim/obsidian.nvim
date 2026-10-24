@@ -184,7 +184,7 @@ M.pick = function(bufnr)
   }, function(items)
     local def = items[1]
     if def then
-      vim.api.nvim_win_set_cursor(0, { def.lnum, 0 })
+      api.jump_to_note { filename = vim.api.nvim_buf_get_name(bufnr), lnum = def.lnum, col = 1 }
     end
   end)
 end

@@ -17,7 +17,7 @@ return function()
       }, function(items)
         local entry = items and items[1]
         if entry then
-          api.open_note(entry)
+          api.jump_to_note(entry)
         end
       end)
     end,

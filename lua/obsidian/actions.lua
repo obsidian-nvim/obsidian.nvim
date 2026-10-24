@@ -79,32 +79,8 @@ M.follow_link = function(link, opts)
     local items = vim.lsp.util.locations_to_items(locations, "utf-8")
     local cmd = opts.open_strategy or api.get_open_strategy(Obsidian.opts.open_notes_in)
 
-    local function open_entry(entry)
-      local location = entry.user_data
-      local target_bufnr = vim.uri_to_bufnr(location.uri or location.targetUri)
-      -- api.open_note uses :drop for visible targets regardless of strategy.
-      -- :drop switches windows, whose jumplists are independent, so use the
-      -- source window for these jumps instead.
-      if vim.trim(cmd) == "e" or #vim.fn.win_findbuf(target_bufnr) > 0 then
-        -- LSP's show_document saves the source position in the jumplist and
-        -- tagstack before switching buffers (including same-buffer jumps).
-        if vim.lsp.util.show_document(location, "utf-8") then
-          local target_range = location.range or location.targetSelectionRange
-          local blink_range = Range.from_lsp(target_range, "utf-8")
-          if not Range.is_empty(blink_range) then
-            api.blink(blink_range)
-          end
-        end
-      else
-        -- Keep the configured split strategy, but record the source position
-        -- before the Ex command moves the cursor.
-        vim.cmd "normal! m'"
-        api.open_note(entry, cmd)
-      end
-    end
-
     if #items == 1 then
-      open_entry(items[1])
+      api.jump_to_note(items[1], cmd)
     else
       picker.select(items, {
         prompt = "Resolve link",
@@ -112,7 +88,7 @@ M.follow_link = function(link, opts)
       }, function(choices)
         local entry = choices and choices[1]
         if entry then
-          open_entry(entry)
+          api.jump_to_note(entry, cmd)
         end
       end)
     end
@@ -1128,7 +1104,7 @@ M.workspace_symbol = function(query, callback)
       elseif callback then
         callback(unpack(items))
       else
-        api.open_note(entry)
+        api.jump_to_note(entry)
       end
     end)
   end)
@@ -1723,7 +1699,7 @@ local function gather_tag_picker_list(tag_locations, tags)
       preview_item = preview_entry,
     }, function(items)
       if not vim.tbl_isempty(items) then
-        api.open_note(items[1])
+        api.jump_to_note(items[1])
       end
     end)
   end)
@@ -1876,7 +1852,7 @@ local function gather_property_picker_list(records, key, value)
       preview_item = preview_entry,
     }, function(items)
       if not vim.tbl_isempty(items) then
-        api.open_note(items[1])
+        api.jump_to_note(items[1])
       end
     end)
   end)

@@ -691,6 +691,66 @@ M.open_note = function(entry, cmd)
   return result_bufnr
 end
 
+local function record_jump()
+  vim.cmd "normal! m'"
+  local from = { vim.fn.bufnr "%", vim.fn.line ".", vim.fn.col ".", 0 }
+  vim.fn.settagstack(vim.api.nvim_get_current_win(), {
+    items = { { tagname = vim.fn.expand "<cword>", from = from } },
+  }, "t")
+end
+
+--- Navigate to a note or quickfix result, recording the source like an LSP jump.
+--- Use open_note instead for ordinary file opening (e.g. newly created notes).
+---@param entry obsidian.PickerEntry|vim.quickfix.entry|string
+---@param cmd string? Ex opening strategy for splits; defaults to the current window.
+---@return integer? bufnr
+M.jump_to_note = function(entry, cmd)
+  local path = type(entry) == "string" and entry or entry.filename
+  if path == "" then
+    -- Unnamed buffers (e.g. scratch notes in tests) have no file URI.
+    if type(entry) == "table" and entry.lnum then
+      local row = tonumber(entry.lnum)
+      local col = math.max((tonumber(entry.col) or 1) - 1, 0)
+      ---@cast row integer
+      ---@cast col integer
+      record_jump()
+      vim.api.nvim_win_set_cursor(0, { row, col })
+    end
+    return vim.api.nvim_get_current_buf()
+  end
+  local location = type(entry) == "table" and entry.user_data or nil
+  if type(location) ~= "table" or not (location.uri or location.targetUri) then
+    local range = type(entry) == "table" and entry_range(entry) or nil
+    if not range and type(entry) == "table" and entry.lnum then
+      local row = tonumber(entry.lnum)
+      local col = math.max((tonumber(entry.col) or 1) - 1, 0)
+      ---@cast row integer
+      ---@cast col integer
+      range = Range.new(row - 1, col, row - 1, col)
+    end
+    location = { uri = vim.uri_from_fname(tostring(path)), range = range and Range.to_lsp(range, "utf-8") or nil }
+  end
+
+  local bufnr = vim.uri_to_bufnr(location.uri or location.targetUri)
+  -- :drop changes windows, which have independent jumplists. Keep jumps to
+  -- already visible buffers in the source window, even for split strategies.
+  if not cmd or vim.trim(cmd) == "e" or #vim.fn.win_findbuf(bufnr) > 0 then
+    if vim.lsp.util.show_document(location, "utf-8") then
+      local range = type(entry) == "table" and entry_range(entry) or nil
+      if range and not Range.is_empty(range) then
+        M.blink(range)
+      end
+      return vim.api.nvim_get_current_buf()
+    end
+    return nil
+  end
+
+  -- show_document cannot open a split. Mirror its source mark and tagstack
+  -- before delegating the configured Ex command to open_note.
+  record_jump()
+  return M.open_note(entry, cmd)
+end
+
 ----------------
 --- text api ---
 ----------------
