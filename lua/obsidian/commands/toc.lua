@@ -7,7 +7,7 @@ return function()
       picker.select(t.items, {
         prompt = "Table of Contents",
         preview_item = function(entry)
-          ---@cast entry obsidian.PickerEntry
+          ---@cast entry obsidian.picker.Entry
           local filename = entry.filename
           ---@cast filename -nil
           local preview = picker.preview_path(filename)

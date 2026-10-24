@@ -25,15 +25,15 @@ obsidian.VERSION = require "obsidian.version"
 obsidian.Workspace = require "obsidian.workspace"
 obsidian.yaml = require "obsidian.yaml"
 
----@type obsidian.Client |?
+---@type obsidian.client.Client |?
 obsidian._client = nil
 
 --- TODO: remove in 4.0.0
 
 --- Get the current obsidian client.
----@return obsidian.Client
+---@return obsidian.client.Client
 obsidian.get_client = function()
-  ---@type obsidian.Client?
+  ---@type obsidian.client.Client?
   local client = rawget(obsidian, "_client")
   if client == nil then
     error "Obsidian client has not been set! Did you forget to call 'setup()'?"
@@ -47,10 +47,10 @@ obsidian.register_command = require("obsidian.commands").register
 ---
 ---@param user_opts obsidian.config
 ---
----@return obsidian.Client?
+---@return obsidian.client.Client?
 obsidian.setup = function(user_opts)
   ---@class obsidian.state
-  ---@field picker     obsidian.Picker          Picker to use.
+  ---@field picker     obsidian.picker.Module          Picker to use.
   ---@field workspace  obsidian.Workspace       Current workspace.
   ---@field workspaces obsidian.Workspace[]     All workspaces.
   ---@field dir        obsidian.Path            Root of the vault for the current workspace.

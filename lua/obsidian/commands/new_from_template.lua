@@ -1,4 +1,4 @@
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   local id = table.concat(data.fargs, " ", 1, #data.fargs - 1)
   local template = data.fargs[#data.fargs]

@@ -1,4 +1,5 @@
----@class obsidian.Logger
+---@alias obsidian.Logger obsidian.log.Logger
+---@class obsidian.log.Logger
 local log = {}
 
 log._log_level = vim.log.levels.INFO

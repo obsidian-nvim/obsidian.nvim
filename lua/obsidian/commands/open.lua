@@ -35,7 +35,7 @@ local function open_in_app(path, workspace_dir)
   open_func(uri)
 end
 
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   ---@type string|?
   local search_term, path

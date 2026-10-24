@@ -39,13 +39,13 @@ end
 -- For example, "󰄱" is turned into "1\1\15".
 -- TODO: if we knew how to un-mangle the conceal char we wouldn't need the cache.
 
----@type table<integer, table<integer, table<integer, ExtMark>>>
+---@type table<integer, table<integer, table<integer, obsidian.ui.ExtMark>>>
 M._buf_mark_cache = vim.defaulttable()
 
 ---@param bufnr integer
 ---@param ns_id integer
 ---@param mark_id integer
----@return ExtMark|?
+---@return obsidian.ui.ExtMark|?
 local function cache_get(bufnr, ns_id, mark_id)
   local buf_ns_cache = M._buf_mark_cache[bufnr][ns_id]
   return buf_ns_cache[mark_id]
@@ -53,8 +53,8 @@ end
 
 ---@param bufnr integer
 ---@param ns_id integer
----@param mark ExtMark
----@return ExtMark|?
+---@param mark obsidian.ui.ExtMark
+---@return obsidian.ui.ExtMark|?
 local function cache_set(bufnr, ns_id, mark)
   assert(mark.id ~= nil, "")
   M._buf_mark_cache[bufnr][ns_id][mark.id] = mark
@@ -73,11 +73,11 @@ local function cache_clear(bufnr, ns_id)
   M._buf_mark_cache[bufnr][ns_id] = {}
 end
 
----@class ExtMark
+---@class obsidian.ui.ExtMark
 ---@field id integer|? ID of the mark, only set for marks that are actually materialized in the buffer.
 ---@field row integer 0-based row index to place the mark.
 ---@field col integer 0-based col index to place the mark.
----@field opts ExtMarkOpts Optional parameters passed directly to `nvim_buf_set_extmark()`.
+---@field opts obsidian.ui.ExtMarkOpts Optional parameters passed directly to `nvim_buf_set_extmark()`.
 local ExtMark = {}
 ExtMark.__index = ExtMark
 
@@ -87,7 +87,7 @@ end
 
 M.ExtMark = ExtMark
 
----@class ExtMarkOpts
+---@class obsidian.ui.ExtMarkOpts
 ---@field end_row integer
 ---@field end_col integer
 ---@field conceal string|?
@@ -105,7 +105,7 @@ end
 M.ExtMarkOpts = ExtMarkOpts
 
 ---@param data table
----@return ExtMarkOpts
+---@return obsidian.ui.ExtMarkOpts
 ExtMarkOpts.from_tbl = function(data)
   local self = {}
   self.end_row = data.end_row
@@ -116,7 +116,7 @@ ExtMarkOpts.from_tbl = function(data)
   return setmetatable(self, ExtMarkOpts)
 end
 
----@param self ExtMarkOpts
+---@param self obsidian.ui.ExtMarkOpts
 ---@return table
 ExtMarkOpts.to_tbl = function(self)
   return {
@@ -131,8 +131,8 @@ end
 ---@param id integer|?
 ---@param row integer
 ---@param col integer
----@param opts ExtMarkOpts
----@return ExtMark
+---@param opts obsidian.ui.ExtMarkOpts
+---@return obsidian.ui.ExtMark
 ExtMark.new = function(id, row, col, opts)
   local self = {}
   self.id = id
@@ -143,10 +143,10 @@ ExtMark.new = function(id, row, col, opts)
 end
 
 ---Materialize the ExtMark if needed. After calling this the 'id' will be set if it wasn't already.
----@param self ExtMark
+---@param self obsidian.ui.ExtMark
 ---@param bufnr integer
 ---@param ns_id integer
----@return ExtMark
+---@return obsidian.ui.ExtMark
 ExtMark.materialize = function(self, bufnr, ns_id)
   if self.id == nil then
     self.id = vim.api.nvim_buf_set_extmark(bufnr, ns_id, self.row, self.col, self.opts:to_tbl())
@@ -155,7 +155,7 @@ ExtMark.materialize = function(self, bufnr, ns_id)
   return self
 end
 
----@param self ExtMark
+---@param self obsidian.ui.ExtMark
 ---@param bufnr integer
 ---@param ns_id integer
 ---@return boolean
@@ -173,7 +173,7 @@ end
 ---@param ns_id integer
 ---@param region_start integer|integer[]|?
 ---@param region_end integer|integer[]|?
----@return ExtMark[]
+---@return obsidian.ui.ExtMark[]
 ExtMark.collect = function(bufnr, ns_id, region_start, region_end)
   region_start = region_start and region_start or 0
   region_end = region_end and region_end or -1
@@ -211,10 +211,10 @@ ExtMark.clear_line = function(bufnr, ns_id, line)
   return ExtMark.clear_range(bufnr, ns_id, line, line + 1)
 end
 
----@param marks ExtMark[]
+---@param marks obsidian.ui.ExtMark[]
 ---@param lnum integer
 ---@param ui_opts obsidian.config.UIOpts
----@return ExtMark[]
+---@return obsidian.ui.ExtMark[]
 local function get_line_check_extmarks(marks, line, lnum, ui_opts)
   local task = parse_tasks.extract(line)[1]
   if task then
@@ -254,10 +254,10 @@ local function get_line_check_extmarks(marks, line, lnum, ui_opts)
   return marks
 end
 
----@param marks ExtMark[]
+---@param marks obsidian.ui.ExtMark[]
 ---@param lnum integer
 ---@param ui_opts obsidian.config.UIOpts
----@return ExtMark[]
+---@return obsidian.ui.ExtMark[]
 local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
   local reference_text = assert(ui_opts.reference_text, "ui reference_text options are required")
   local external_link_icon = assert(ui_opts.external_link_icon, "ui external_link_icon options are required")
@@ -487,10 +487,10 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
   return marks
 end
 
----@param marks ExtMark[]
+---@param marks obsidian.ui.ExtMark[]
 ---@param lnum integer
 ---@param ui_opts obsidian.config.UIOpts
----@return ExtMark[]
+---@return obsidian.ui.ExtMark[]
 local function get_line_highlight_extmarks(marks, line, lnum, ui_opts)
   local highlight_text = assert(ui_opts.highlight_text, "ui highlight_text options are required")
   local matches = search.find_highlight(line)
@@ -536,7 +536,7 @@ end
 
 ---@param lnum integer
 ---@param ui_opts obsidian.config.UIOpts
----@return ExtMark[]
+---@return obsidian.ui.ExtMark[]
 local get_line_marks = function(line, lnum, ui_opts)
   local marks = {}
   get_line_check_extmarks(marks, line, lnum, ui_opts)
@@ -546,7 +546,7 @@ local get_line_marks = function(line, lnum, ui_opts)
 end
 
 ---@param document obsidian.parse.Document
----@return ExtMark[]
+---@return obsidian.ui.ExtMark[]
 local function filter_excluded_marks(marks, document)
   local result = {}
   for _, mark in ipairs(marks) do
@@ -566,7 +566,7 @@ local function update_extmarks(bufnr, ns_id, ui_opts)
   local n_marks_cleared = 0
 
   -- Collect all current marks, grouped by line.
-  ---@type table<integer, ExtMark[]>
+  ---@type table<integer, obsidian.ui.ExtMark[]>
   local cur_marks_by_line = vim.defaulttable()
   for mark in iter(ExtMark.collect(bufnr, ns_id)) do
     local cur_line_marks = cur_marks_by_line[mark.row]

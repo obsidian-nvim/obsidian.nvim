@@ -3,8 +3,16 @@ local log = require "obsidian.log"
 
 ---@class obsidian.sync.Client
 ---@field cmd string?  -- path to CLI, if available
----@field cli obsidian.CLI?  -- CLI instance, if available
+---@field cli obsidian.cli.CLI?  -- CLI instance, if available
 local M = {}
+
+---@class obsidian.sync.LocalVault
+---@field hash string
+---@field host string
+
+---@class obsidian.sync.RemoteVault
+---@field hash string
+---@field name string
 
 local function get_plugin_root()
   for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
@@ -54,7 +62,7 @@ local function install_local_cli()
   end
 end
 
----@return obsidian.CLI|nil
+---@return obsidian.cli.CLI|nil
 local function ensure_cli()
   local CLI = require "obsidian.cli"
   if M.cmd then
@@ -315,10 +323,6 @@ function M.setup(vault, path, opts)
   return out
 end
 
----@class obsidian.sync.LocalVault
----@field hash string
----@field host string
-
 ---@param use_cache boolean? -- if true (default), return cached result when available
 ---@return table<string, obsidian.sync.LocalVault>
 function M.list_local(use_cache)
@@ -362,10 +366,6 @@ function M.list_local(use_cache)
   M._local_vaults_cache = res
   return res
 end
-
----@class obsidian.sync.RemoteVault
----@field hash string
----@field name string
 
 ---@param use_cache boolean? -- if true (default), return cached result when available
 ---@return obsidian.sync.RemoteVault[]  -- list of remote vaults

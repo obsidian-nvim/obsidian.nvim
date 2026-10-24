@@ -155,7 +155,8 @@ local function last_region_start(regions, pos, inclusive)
   local low, high, result = 1, #regions, 0
   while low <= high do
     local middle = math.floor((low + high) / 2)
-    local comparison = Pos.compare(Range.start_pos(regions[middle].range), pos)
+    local region = assert(regions[middle], "region index is missing")
+    local comparison = Pos.compare(Range.start_pos(region.range), pos)
     if comparison < 0 or (inclusive and comparison == 0) then
       result = middle
       low = middle + 1
@@ -431,10 +432,11 @@ local function continue_container(line, containers, consume_final_indent)
         index = index + 1
       end
     else
-      index = consume_columns(line, index, assert(container.width, "list container width is missing"))
-      if index == nil then
+      local next_index = consume_columns(line, index, assert(container.width, "list container width is missing"))
+      if next_index == nil then
         return nil
       end
+      index = next_index
     end
   end
   if consume_final_indent ~= false then
@@ -617,10 +619,14 @@ end
 ---@return obsidian.Pos
 local function inline_block_end(lines, row, containers)
   local last = row
-  while last + 1 < #lines and not interrupts_inline_block(lines[last + 2], containers) do
+  while last + 1 < #lines do
+    local next_line = assert(lines[last + 2], "inline continuation line is missing")
+    if interrupts_inline_block(next_line, containers) then
+      break
+    end
     last = last + 1
   end
-  return Pos.new(last, #lines[last + 1])
+  return Pos.new(last, #assert(lines[last + 1], "inline block line is missing"))
 end
 
 ---@param line string
@@ -643,7 +649,7 @@ end
 local function find_code_span_close(lines, row, index, run_length, containers)
   local current_row, current_index = row, index
   while current_row < #lines do
-    local line = lines[current_row + 1]
+    local line = assert(lines[current_row + 1], "code span line is missing")
     local found = line:find("`", current_index, true)
     while found do
       local length = backtick_run_length(line, found)
@@ -653,10 +659,14 @@ local function find_code_span_close(lines, row, index, run_length, containers)
       found = line:find("`", found + length, true)
     end
     current_row = current_row + 1
-    if current_row >= #lines or interrupts_inline_block(lines[current_row + 1], containers) then
+    if current_row >= #lines then
       break
     end
-    current_index = assert(inline_start(lines[current_row + 1], containers), "inline continuation is missing")
+    local next_line = assert(lines[current_row + 1], "code span continuation line is missing")
+    if interrupts_inline_block(next_line, containers) then
+      break
+    end
+    current_index = assert(inline_start(next_line, containers), "inline continuation is missing")
   end
 end
 
@@ -671,7 +681,7 @@ end
 local function find_delimiter(lines, row, index, delimiter, stop_at_block_end, backslash_escapes, containers)
   local current_row, current_index = row, index
   while current_row < #lines do
-    local line = lines[current_row + 1]
+    local line = assert(lines[current_row + 1], "delimiter line is missing")
     local found = line:find(delimiter, current_index, true)
     while found do
       if backslash_escapes == false or not escaped(line, found) then
@@ -680,11 +690,14 @@ local function find_delimiter(lines, row, index, delimiter, stop_at_block_end, b
       found = line:find(delimiter, found + #delimiter, true)
     end
     current_row = current_row + 1
-    if current_row >= #lines or (stop_at_block_end and interrupts_inline_block(lines[current_row + 1], containers)) then
+    if current_row >= #lines then
       break
     end
-    current_index = stop_at_block_end
-        and assert(inline_start(lines[current_row + 1], containers), "inline continuation is missing")
+    local next_line = assert(lines[current_row + 1], "delimiter continuation line is missing")
+    if stop_at_block_end and interrupts_inline_block(next_line, containers) then
+      break
+    end
+    current_index = stop_at_block_end and assert(inline_start(next_line, containers), "inline continuation is missing")
       or 1
   end
 end
@@ -724,12 +737,13 @@ M.parse = function(lines)
 
   -- Frontmatter is recognized before all Markdown block syntax.
   if #source > 0 then
-    local first = assert(source[1], "first line is missing")
+    local first = source[1]
     local delimiter_col = first:sub(1, 3) == BOM and 3 or 0
     if first:sub(delimiter_col + 1):match "^%-%-%-+[ \t]*$" then
       local close_row
       for row = 1, #source - 1 do
-        if source[row + 1]:match "^%-%-%-+[ \t]*$" then
+        local candidate = assert(source[row + 1], "frontmatter line is missing")
+        if candidate:match "^%-%-%-+[ \t]*$" then
           close_row = row
           break
         end
@@ -776,7 +790,7 @@ M.parse = function(lines)
           resumed_inline = true
         else
           row = row + 1
-          line = source[row + 1]
+          line = source[row + 1] or ""
         end
       end
     else
@@ -784,12 +798,12 @@ M.parse = function(lines)
     end
 
     if row < #source and not shield then
-      line = line or source[row + 1]
       if blank(line) then
         paragraph_open = false
         row = row + 1
       else
-        local content_index, containers, indent
+        ---@type integer, obsidian.parse.document.Container[], integer
+        local content_index, containers, indent = 1, {}, 0
         local continued_list = false
         if active_list_containers then
           local continuation_index = continue_container(line, active_list_containers, false)
@@ -829,7 +843,7 @@ M.parse = function(lines)
           local termination = "eof"
           local scan = row + 1
           while scan < #source do
-            local candidate = source[scan + 1]
+            local candidate = assert(source[scan + 1], "fenced code line is missing")
             local candidate_index = continue_container(candidate, containers)
             if candidate_index == nil and (not blank(candidate) or has_quote_container(containers)) then
               termination = "block_end"
@@ -882,7 +896,7 @@ M.parse = function(lines)
           local scan = row
           local last_code_row = row
           while scan < #source do
-            local candidate = source[scan + 1]
+            local candidate = assert(source[scan + 1], "indented code line is missing")
             if blank(candidate) then
               scan = scan + 1
             else

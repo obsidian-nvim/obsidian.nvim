@@ -3,7 +3,8 @@ local M = {}
 local attachment = require "obsidian.attachment"
 local log = require "obsidian.log"
 
----@class obsidian.DeleteAttachmentOpts : obsidian.AttachmentResolveOpts
+---@alias obsidian.DeleteAttachmentOpts obsidian.attachment.DeleteOpts
+---@class obsidian.attachment.DeleteOpts : obsidian.attachment.ResolveOpts
 
 ---@param err string
 ---@param callback? fun(err: string?, path: string?)
@@ -16,7 +17,7 @@ end
 
 --- Delete an existing attachment.
 ---@param src string Attachment reference or path.
----@param opts obsidian.DeleteAttachmentOpts|?
+---@param opts obsidian.attachment.DeleteOpts|?
 ---@param callback? fun(err: string?, path: string?)
 function M.delete(src, opts, callback)
   if type(opts) == "function" then

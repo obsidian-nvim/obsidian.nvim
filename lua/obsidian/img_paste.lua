@@ -5,7 +5,8 @@ local util = require "obsidian.util"
 
 local M = {}
 
----@alias obsidian.ImageType "avif"|"bmp"|"gif"|"jpeg"|"png"|"webp"
+---@alias obsidian.ImageType obsidian.img_paste.ImageType
+---@alias obsidian.img_paste.ImageType "avif"|"bmp"|"gif"|"jpeg"|"png"|"webp"
 
 local img_types = {
   ["image/jpeg"] = "jpeg",
@@ -18,7 +19,7 @@ local img_types = {
 
 -- Image pasting adapted from https://github.com/ekickx/clipboard-image.nvim
 
----@param this_os OSType
+---@param this_os obsidian.api.OSType
 ---@return string|?
 local function get_clip_check_command(this_os)
   local check_cmd
@@ -38,7 +39,7 @@ local function get_clip_check_command(this_os)
 end
 
 ---@param content string[]
----@return obsidian.ImageType?
+---@return obsidian.img_paste.ImageType?
 local function get_image_type(content)
   for _, line in ipairs(content) do
     if img_types[line] ~= nil then
@@ -50,7 +51,7 @@ end
 
 --- Get the type of image on the clipboard.
 ---
----@return obsidian.ImageType?
+---@return obsidian.img_paste.ImageType?
 function M.get_clipboard_img_type()
   local this_os = api.get_os()
   local check_cmd = get_clip_check_command(this_os)
@@ -97,7 +98,7 @@ end
 
 --- Save image from clipboard to `path`.
 ---@param path string
----@param img_type obsidian.ImageType
+---@param img_type obsidian.img_paste.ImageType
 ---
 ---@return boolean|? result
 local function save_clipboard_image(path, img_type)

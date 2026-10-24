@@ -89,9 +89,14 @@ M.SyncConfigCategory = {
   community_plugin_data = "community-plugin-data",
 }
 
----@alias obsidian.CommandArgs vim.api.keyset.create_user_command.command_args
+---@alias obsidian.CommandArgs obsidian.commands.Args
+---@alias obsidian.commands.Args vim.api.keyset.create_user_command.command_args
 
----@class obsidian.InsertTemplateContext
+---@alias obsidian.InsertTemplateContext obsidian.templates.InsertContext
+---@alias obsidian.CloneTemplateContext obsidian.templates.CloneContext
+---@alias obsidian.TemplateContext obsidian.templates.Context
+
+---@class obsidian.templates.InsertContext
 ---The table passed to user substitution functions when inserting templates into a buffer.
 ---
 ---@field type "insert_template"
@@ -100,7 +105,7 @@ M.SyncConfigCategory = {
 ---@field location [integer, integer, integer, integer] `{ buf, win, row, col }` location from which the request was made.
 ---@field partial_note? obsidian.Note An optional note with fields to copy from.
 
----@class obsidian.CloneTemplateContext
+---@class obsidian.templates.CloneContext
 ---The table passed to user substitution functions when cloning template files to create new notes.
 ---
 ---@field type "clone_template"
@@ -109,7 +114,7 @@ M.SyncConfigCategory = {
 ---@field destination_path obsidian.Path The path the cloned template will be written to.
 ---@field partial_note obsidian.Note The note being written.
 
----@alias obsidian.TemplateContext obsidian.InsertTemplateContext | obsidian.CloneTemplateContext
+---@alias obsidian.templates.Context obsidian.templates.InsertContext | obsidian.templates.CloneContext
 ---The table passed to user substitution functions. Use `ctx.type` to distinguish between the different kinds.
 
 ---@class obsidian.config

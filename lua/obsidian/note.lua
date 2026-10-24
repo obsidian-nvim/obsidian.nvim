@@ -81,6 +81,141 @@ end
 ---@field template string|? Template name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
 local Note = {}
 
+---@class (exact) obsidian.note.LoadOpts
+---@field max_lines integer|?
+---@field collect_anchor_links boolean|?
+---@field collect_blocks boolean|?
+---@field collect_block_candidates boolean|?
+---@field collect_sections boolean|?
+---@field document obsidian.parse.Document? internal shared source snapshot.
+
+---@class (exact) obsidian.note.NoteCreationOpts
+---@field notes_subdir string?
+---@field note_id_func fun(title: string|?, path: obsidian.Path|?): string
+---@field note_path_func fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path
+---@field new_notes_location obsidian.config.NewNotesLocation
+
+---@class (exact) obsidian.note.NoteOpts
+---@field id string|? An ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true
+---@field title string|? Readable title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
+---@field verbatim boolean|? whether to skip applying `note_id_func`
+---@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
+---relative to the workspace / vault root.
+---@field source_path string|obsidian.Path|? Source note used to resolve the workspace and current-directory strategy.
+---@field aliases string[]|? Aliases for the note
+---@field tags string[]|?  Tags for this note
+---@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
+---@field scope string|? Arbitrary note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
+---@field check_invalid_filename boolean|?
+
+---@class (exact) obsidian.note.CreateCallbackOpts
+---@field scope string Scope inherited from the `Note.create` opts, or `"plain"` when not set.
+
+---@class (exact) obsidian.note.DeleteOpts
+--- Whether to prompt when backlinks exist. Defaults to true.
+---@field confirm_backlinks? boolean
+--- Whether to prompt for linked attachments. Defaults to true.
+---@field confirm_attachments? boolean
+
+---@class (exact) obsidian.note.DeleteAttachmentResult
+---@field path string
+---@field deleted boolean
+
+---@class (exact) obsidian.note.DeleteResult
+---@field deleted boolean
+---@field cancelled boolean
+---@field attachments obsidian.note.DeleteAttachmentResult[]
+
+---@class (exact) obsidian.note.NoteSaveOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- Whether to insert/update frontmatter. Defaults to `true`.
+---@field insert_frontmatter? boolean
+--- Override the frontmatter. Defaults to the result of `self:frontmatter()`.
+---@field frontmatter? table
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
+
+---@class (exact) obsidian.note.NoteWriteOpts
+--- Specify a path to save to. Defaults to `self.path`.
+---@field path? string|obsidian.Path
+--- The name of a template to use if the note file doesn't already exist.
+---@field template? string
+--- A function to update the contents of the note. This takes a list of lines representing the text to be written
+--- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
+---@field update_content? fun(lines: string[]): string[]
+--- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
+--- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
+--- See `:help checktime` to learn more.
+---@field check_buffers? boolean
+
+---@class (exact) obsidian.note.InsertTextOpts: obsidian.note.NoteSaveOpts
+--- Specifies the section to insert text under. When neither `header` nor `level` are provided, then the "preamble" will
+--- be targeted (i.e. everything from the beginning of the file up to, but not including, the first heading).
+--- Defaults to the preamble.
+---@field section? obsidian.note.insert_text.SectionChoice
+--- Decides what to do when the specified section is not found in the note. Defaults to `create`.
+---@field on_section_missing? obsidian.note.insert_text.OnSectionMissing
+--- Whether a blank line is inserted between frontmatter/top-of-file and the first heading of a note.
+--- Defaults to the expression: `note.has_frontmatter`.
+---@field padding_top? boolean
+--- Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
+---@field placement? "top"|"bot"
+
+--- Selects a section by preamble, header, level, or both.
+--- - `nil`, `{ header = nil, level = nil }`, or `{ nil, nil }`: preamble.
+--- - `string`, `{ header = string }`, or `{ string, nil }`: first matching header.
+--- - `integer`, `{ level = integer }`, or `{ nil, integer }`: first matching level.
+--- - `{ header = string, level = integer }` or `{ string, integer }`: first matching pair.
+---@alias obsidian.note.insert_text.SectionChoice nil|string|integer|[string?, integer?]|{header: string?, level: integer?}
+
+---@alias obsidian.note.insert_text.OnSectionMissing
+---| "create" Create the missing section where text will be inserted under.
+---| "error"  Force user to handle the missing section by raising an error.
+---| "cancel" Silently abandon the insert operation altogether.
+
+---@class obsidian.note.HeaderAnchor
+---
+---@field anchor string
+---@field header string
+---@field level integer
+---@field line integer
+---@field parent obsidian.note.HeaderAnchor|?
+---@field section? obsidian.Section the full section this header begins.
+
+---@class obsidian.note.Block
+---
+---@field id string
+---@field line integer
+---@field block string
+---@field section? obsidian.Section the paragraph carrying the block identifier.
+
+---@class obsidian.note.FormatLinkOpts : obsidian.link.LinkCreationOpts
+---@field dir? string|obsidian.Path Base directory for relative links.
+
+---@class obsidian.note.RenameMeta
+---@field count integer Number of reference replacements.
+---@field path_lookup table<string, boolean> Files with reference replacements.
+---@field buf_list integer[] Buffers touched by reference replacements.
+---@field old_path string Original note path.
+---@field new_path string New note path.
+
+---@class (exact) obsidian.note.RenameOpts
+---@field old_path? string Existing path to rename from. Defaults to `note.path`.
+---@field new_path? string Destination path. Defaults to sibling path using `new_name .. ".md"`.
+---@field include_file_rename? boolean Include a file rename operation in the generated edit. Defaults to true.
+---@field include_stem_refs? boolean Update stem-only references. Defaults to true.
+---@field dir? string|obsidian.Path Workspace directory used to find references.
+---@field apply? boolean Apply the workspace edit directly. Defaults to true.
+---@field update_buffers? boolean Update the note object/frontmatter and reload buffers after applying. Defaults to true.
+---@field check_unique? boolean Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
+---@field offset_encoding? "utf-8"|"utf-16"|"utf-32" Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
+
 local load_contents = function(note)
   local contents = {}
   local path = tostring(rawget(note, "path"))
@@ -1401,7 +1536,7 @@ Note.open = function(self, opts)
 end
 
 ---@param opts { search: obsidian.SearchOpts?, anchor: string?, block: string?, timeout: integer?, dir: string|obsidian.Path?, refs: string[]? }?
----@return obsidian.BacklinkMatch[]
+---@return obsidian.search.BacklinkMatch[]
 Note.backlinks = function(self, opts)
   local backlink_opts = opts or {}
   backlink_opts.dir = backlink_opts.dir or api.resolve_workspace_dir(self.path or nil)
@@ -1409,22 +1544,19 @@ Note.backlinks = function(self, opts)
 end
 
 ---@param opts { search: obsidian.SearchOpts?, anchor: string?, block: string?, dir: string|obsidian.Path?, refs: string[]? }?
----@param callback fun(matches: obsidian.BacklinkMatch[])
+---@param callback fun(matches: obsidian.search.BacklinkMatch[])
 Note.backlinks_async = function(self, opts, callback)
   local backlink_opts = opts or {}
   backlink_opts.dir = backlink_opts.dir or api.resolve_workspace_dir(self.path or nil)
   return search.find_backlinks_async(self, callback, backlink_opts)
 end
 
----@return obsidian.LinkMatch[]
+---@return obsidian.search.LinkMatch[]
 Note.links = function(self)
   return search.find_links(self)
 end
 
 Note.delete = require("obsidian.note.delete").delete
-
----@class obsidian.note.FormatLinkOpts : obsidian.link.LinkCreationOpts
----@field dir? string|obsidian.Path Base directory for relative links.
 
 --- Create a formatted markdown / wiki link for a note.
 ---
@@ -1619,139 +1751,7 @@ Note.link_suggestions = function(note, opts)
   return require("obsidian.note.link_suggestion").find(note, opts)
 end
 
----@class (exact) obsidian.note.LoadOpts
----@field max_lines integer|?
----@field collect_anchor_links boolean|?
----@field collect_blocks boolean|?
----@field collect_block_candidates boolean|?
----@field collect_sections boolean|?
----@field document obsidian.parse.Document? internal shared source snapshot.
-
----@class (exact) obsidian.note.NoteCreationOpts
----@field notes_subdir string?
----@field note_id_func fun(title: string|?, path: obsidian.Path|?): string
----@field note_path_func fun(spec: { id: string, dir: obsidian.Path }): string|obsidian.Path
----@field new_notes_location obsidian.config.NewNotesLocation
-
----@class (exact) obsidian.note.NoteOpts
----@field id string|? An ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true
----@field title string|? Readable title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
----@field verbatim boolean|? whether to skip applying `note_id_func`
----@field dir string|obsidian.Path|? An optional directory to place the note in. Relative paths will be interpreted
----relative to the workspace / vault root.
----@field source_path string|obsidian.Path|? Source note used to resolve the workspace and current-directory strategy.
----@field aliases string[]|? Aliases for the note
----@field tags string[]|?  Tags for this note
----@field template string|? Template name used to resolve template-specific path/customization (does NOT write the template; pass `template` to `note:write` for that).
----@field scope string|? Arbitrary note creation scope passed through to `opts.callbacks.create_note`; defaults to `"plain"`.
----@field check_invalid_filename boolean|?
-
----@class (exact) obsidian.note.CreateCallbackOpts
----@field scope string Scope inherited from the `Note.create` opts, or `"plain"` when not set.
-
----@class (exact) obsidian.note.DeleteOpts
---- Whether to prompt when backlinks exist. Defaults to true.
----@field confirm_backlinks? boolean
---- Whether to prompt for linked attachments. Defaults to true.
----@field confirm_attachments? boolean
-
----@class (exact) obsidian.note.DeleteAttachmentResult
----@field path string
----@field deleted boolean
-
----@class (exact) obsidian.note.DeleteResult
----@field deleted boolean
----@field cancelled boolean
----@field attachments obsidian.note.DeleteAttachmentResult[]
-
----@class (exact) obsidian.note.NoteSaveOpts
---- Specify a path to save to. Defaults to `self.path`.
----@field path? string|obsidian.Path
---- Whether to insert/update frontmatter. Defaults to `true`.
----@field insert_frontmatter? boolean
---- Override the frontmatter. Defaults to the result of `self:frontmatter()`.
----@field frontmatter? table
---- A function to update the contents of the note. This takes a list of lines representing the text to be written
---- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
----@field update_content? fun(lines: string[]): string[]
---- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
---- When enabled, Neovim will warn the user if changes would be lost and/or reload the updated file.
---- See `:help checktime` to learn more.
----@field check_buffers? boolean
-
----@class (exact) obsidian.note.NoteWriteOpts
---- Specify a path to save to. Defaults to `self.path`.
----@field path? string|obsidian.Path
---- The name of a template to use if the note file doesn't already exist.
----@field template? string
---- A function to update the contents of the note. This takes a list of lines representing the text to be written
---- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
----@field update_content? fun(lines: string[]): string[]
---- Whether to call |checktime| on open buffers pointing to the written note. Defaults to true.
---- When enabled, Neovim will warn the user if changes would be lost and/or reload each buffer's content.
---- See `:help checktime` to learn more.
----@field check_buffers? boolean
-
----@class (exact) obsidian.note.InsertTextOpts: obsidian.note.NoteSaveOpts
---- Specifies the section to insert text under. When neither `header` nor `level` are provided, then the "preamble" will
---- be targeted (i.e. everything from the beginning of the file up to, but not including, the first heading).
---- Defaults to the preamble.
----@field section? obsidian.note.insert_text.SectionChoice
---- Decides what to do when the specified section is not found in the note. Defaults to `create`.
----@field on_section_missing? obsidian.note.insert_text.OnSectionMissing
---- Whether a blank line is inserted between frontmatter/top-of-file and the first heading of a note.
---- Defaults to the expression: `note.has_frontmatter`.
----@field padding_top? boolean
---- Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
----@field placement? "top"|"bot"
-
---- Selects a section by preamble, header, level, or both.
---- - `nil`, `{ header = nil, level = nil }`, or `{ nil, nil }`: preamble.
---- - `string`, `{ header = string }`, or `{ string, nil }`: first matching header.
---- - `integer`, `{ level = integer }`, or `{ nil, integer }`: first matching level.
---- - `{ header = string, level = integer }` or `{ string, integer }`: first matching pair.
----@alias obsidian.note.insert_text.SectionChoice nil|string|integer|[string?, integer?]|{header: string?, level: integer?}
-
----@alias obsidian.note.insert_text.OnSectionMissing
----| "create" Create the missing section where text will be inserted under.
----| "error"  Force user to handle the missing section by raising an error.
----| "cancel" Silently abandon the insert operation altogether.
-
----@class obsidian.note.HeaderAnchor
----
----@field anchor string
----@field header string
----@field level integer
----@field line integer
----@field parent obsidian.note.HeaderAnchor|?
----@field section? obsidian.Section the full section this header begins.
-
----@class obsidian.note.Block
----
----@field id string
----@field line integer
----@field block string
----@field section? obsidian.Section the paragraph carrying the block identifier.
-
 local rename = require "obsidian.note.rename"
-
----@class obsidian.note.RenameMeta
----@field count integer Number of reference replacements.
----@field path_lookup table<string, boolean> Files with reference replacements.
----@field buf_list integer[] Buffers touched by reference replacements.
----@field old_path string Original note path.
----@field new_path string New note path.
-
----@class (exact) obsidian.note.RenameOpts
----@field old_path? string Existing path to rename from. Defaults to `note.path`.
----@field new_path? string Destination path. Defaults to sibling path using `new_name .. ".md"`.
----@field include_file_rename? boolean Include a file rename operation in the generated edit. Defaults to true.
----@field include_stem_refs? boolean Update stem-only references. Defaults to true.
----@field dir? string|obsidian.Path Workspace directory used to find references.
----@field apply? boolean Apply the workspace edit directly. Defaults to true.
----@field update_buffers? boolean Update the note object/frontmatter and reload buffers after applying. Defaults to true.
----@field check_unique? boolean Check whether `new_name` conflicts with existing note ids/stems. Defaults to true.
----@field offset_encoding? "utf-8"|"utf-16"|"utf-32" Offset encoding used when applying edits directly. Defaults to `"utf-8"`.
 
 Note.build_rename_edit = rename.build_edit
 Note.rename = rename.rename

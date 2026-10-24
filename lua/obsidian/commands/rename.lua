@@ -3,7 +3,7 @@ local log = require("obsidian").log
 
 --- Rename the note of the current buffer, whatever is under the cursor.
 --- (`vim.lsp.buf.rename` renames the element under the cursor instead.)
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   local note = api.current_note(0)
   if not note then
