@@ -6,15 +6,17 @@ local api = require "obsidian.api"
 local header = require "obsidian.parse.header"
 local log = require "obsidian.log"
 local parse_block_id = require "obsidian.parse.block_id"
+local parse_tags = require "obsidian.parse.tags"
 local refs = require "obsidian.parse.refs"
 local search = require "obsidian.search"
+local tags = require "obsidian.tag"
 
 local has_nvim_0_12 = (vim.fn.has "nvim-0.12.0" == 1)
 
 local M = {}
 
 ---@class obsidian.lsp.RenameTarget
----@field kind "note"|"block"|"heading"|"footnote"
+---@field kind "note"|"block"|"heading"|"footnote"|"tag"
 ---@field bufnr integer
 ---@field range lsp.Range -- text replaced in bufnr (utf-8 byte columns)
 ---@field placeholder string
@@ -156,6 +158,20 @@ M.target_at = function(bufnr, position)
   local _, kind, _, ref = api.cursor_link(bufnr, position)
   if kind and ref then
     return link_target(ref, bufnr, row)
+  end
+
+  -- Inline `#tag` and `tags:` entries of the frontmatter.
+  for _, occurrence in ipairs(tags.extract(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), { document = document })) do
+    local r = occurrence.range
+    if r.start_row == row and r.start_col <= cur_col and cur_col < r.end_col then
+      return {
+        kind = "tag",
+        bufnr = bufnr,
+        id = occurrence.tag,
+        placeholder = occurrence.tag,
+        range = range(row, occurrence.source == "inline" and r.start_col + 1 or r.start_col, r.end_col),
+      }
+    end
   end
 
   for _, block in ipairs(parse_block_id.extract(line, { row = row, lexical = true })) do
@@ -498,6 +514,38 @@ M.build_footnote_edit = function(target, new_name, callback)
     add_edit(file_edits, path, occurrence.lnum - 1, occurrence.start_col + 2, occurrence.end_col - 1, new_id)
   end
   callback(to_workspace_edit(file_edits))
+end
+
+--- Rewrite a tag, and every tag below it (`a` also renames `a/b`), in the inline
+--- text and the frontmatter of the whole vault. Renaming onto an existing tag
+--- merges the two.
+---@param target obsidian.lsp.RenameTarget
+---@param new_name string
+---@param callback fun(edit: lsp.WorkspaceEdit|?)
+M.build_tag_edit = function(target, new_name, callback)
+  local new_tag = (vim.trim(new_name):gsub("^#", ""))
+  local parsed = parse_tags.extract("#" .. new_tag, { lexical = true })[1]
+  if not parsed or parsed.tag ~= new_tag or new_tag:find("//", 1, true) or new_tag:match "/$" then
+    log.err(('Invalid tag "%s": use letters, digits, "_", "-" and "/"'):format(new_tag))
+    return callback(nil)
+  end
+  if new_tag == target.id then
+    log.info "Identical name"
+    return callback(nil)
+  end
+
+  local dir = api.resolve_workspace_dir(vim.api.nvim_buf_get_name(target.bufnr))
+  search.find_tags_async(target.id, function(locations)
+    ---@type obsidian.lsp.FileEdits
+    local file_edits = {}
+    for _, location in ipairs(locations) do
+      local r = location.range
+      -- Inline ranges include the `#`, frontmatter ranges do not.
+      local start_col = location.text:sub(r.start_col + 1, r.start_col + 1) == "#" and r.start_col + 1 or r.start_col
+      add_edit(file_edits, path_key(location.path), r.start_row, start_col, start_col + #target.id, new_tag)
+    end
+    callback(to_workspace_edit(file_edits))
+  end, { dir = dir, match = "subtree" })
 end
 
 return M

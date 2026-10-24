@@ -28,14 +28,15 @@ Attachments and URIs are opened with neovim's default `vim.ui.open`, to customiz
 
 Use `vim.lsp.buf.rename()` or default neovim mapping `grn` to rename the element under the cursor and update all references across your vault. On plain text it answers "Nothing to rename".
 
-| Under the cursor                     | What is renamed                                                                                                  |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| A link to a note                     | The linked note, and every link to it                                                                            |
-| A block id `^id`, or `[[#^id]]`      | The id and every `[[Note#^id]]`, `![[Note#^id]]`, `[[#^id]]`, `[x](Note.md#^id)` (letters, digits and `-` only)   |
-| An ATX heading, or `[[#Heading]]`    | The heading text and every link component naming it, in the style it was written (text, slug or URL-encoded)     |
-| A footnote `[^name]`                 | The definition and every reference in the same note                                                              |
+| Under the cursor                   | What is renamed                                                                                                 |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| A link to a note                   | The linked note, and every link to it                                                                           |
+| A block id `^id`, or `[[#^id]]`    | The id and every `[[Note#^id]]`, `![[Note#^id]]`, `[[#^id]]`, `[x](Note.md#^id)` (letters, digits and `-` only) |
+| An ATX heading, or `[[#Heading]]`  | The heading text and every link component naming it, in the style it was written (text, slug or URL-encoded)    |
+| A footnote `[^name]`               | The definition and every reference in the same note                                                             |
+| A tag `#a/b`, inline or in `tags:` | The tag and every tag below it (`a/b/c`) in the whole vault. Renaming onto an existing tag merges the two       |
 
-A block id or heading that already exists in the note is refused, and so is a heading that is not unique in the note. No file is renamed and no frontmatter is changed.
+A block id or heading that already exists in the note is refused, and so is a heading that is not unique in the note. After a tag merge a note can list the same tag twice in its frontmatter. No file is renamed and no frontmatter fields are added.
 
 To rename the note of the current buffer, wherever the cursor is, use `:Obsidian rename [NEWNAME]`.
 

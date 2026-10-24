@@ -214,8 +214,10 @@ T["prepare rename answers per element under the cursor"] = function()
   child.cmd("edit " .. files["P.md"])
   child.api.nvim_win_set_cursor(0, { 1, 2 })
   eq(false, prepare_rename())
-  child.api.nvim_win_set_cursor(0, { 1, 12 }) -- tags are not renameable yet
-  eq(false, prepare_rename())
+  child.api.nvim_win_set_cursor(0, { 1, 12 })
+  local tag = prepare_rename()
+  eq("tag", tag.placeholder)
+  eq({ start = { line = 0, character = 12 }, ["end"] = { line = 0, character = 15 } }, tag.range)
 
   child.api.nvim_win_set_cursor(0, { 2, 0 })
   eq("Old Title", prepare_rename().placeholder)
@@ -649,6 +651,88 @@ T["rename footnote from its definition"] = function()
   child.cmd "wa"
 
   eq({ "text[^src]", "", "[^src]: def" }, h.read(files["A.md"]))
+end
+
+T["rename tag rewrites inline tags, frontmatter and subtags across the vault"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = table.concat({
+      "---",
+      "tags: [proj, proj/sub, other]",
+      "---",
+      "text #proj and #proj/sub/deep and #projx and `#proj`",
+    }, "\n"),
+    ["B.md"] = "see #proj/sub",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 4, 7 })
+  rename "work"
+  child.cmd "wa"
+
+  eq({
+    "---",
+    "tags: [work, work/sub, other]",
+    "---",
+    "text #work and #work/sub/deep and #projx and `#proj`",
+  }, h.read(files["A.md"]))
+  eq({ "see #work/sub" }, h.read(files["B.md"]))
+end
+
+T["rename tag from the frontmatter"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "---\ntags:\n  - proj\n---\ntext #proj",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 3, 5 })
+  rename "#work"
+  child.cmd "wa"
+
+  eq({ "---", "tags:", "  - work", "---", "text #work" }, h.read(files["A.md"]))
+end
+
+T["rename tag onto an existing tag merges them"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["A.md"] = "#a and #b",
+    ["B.md"] = "#a/x",
+  })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 1 })
+  rename "b"
+  child.cmd "wa"
+
+  eq({ "#b and #b" }, h.read(files["A.md"]))
+  eq({ "#b/x" }, h.read(files["B.md"]))
+end
+
+T["rename tag rejects invalid names"] = function()
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, { ["A.md"] = "#a" })
+
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.lua [[
+require"obsidian.log".err = function(msg)
+  _G.err_msg = msg
+end
+  ]]
+  child.cmd("edit " .. files["A.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 1 })
+
+  rename "bad tag"
+  eq('Invalid tag "bad tag": use letters, digits, "_", "-" and "/"', child.lua_get "err_msg")
+  child.lua [[_G.err_msg = nil]]
+  rename "a/"
+  eq('Invalid tag "a/": use letters, digits, "_", "-" and "/"', child.lua_get "err_msg")
+
+  child.cmd "wa"
+  eq({ "#a" }, h.read(files["A.md"]))
 end
 
 return T
