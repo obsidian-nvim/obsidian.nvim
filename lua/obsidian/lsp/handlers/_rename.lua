@@ -23,7 +23,6 @@ local M = {}
 ---@field placeholder string
 ---@field ref obsidian.parse.Ref|? -- kind == "note": the link under the cursor
 ---@field id string|? -- block id without "^", footnote name
----@field header string|? -- heading text; nil when coming from `[[#Heading]]`
 ---@field anchor string|? -- normalized "#anchor"
 
 ---@param row integer
@@ -228,7 +227,6 @@ M.target_at = function(bufnr, position)
       return {
         kind = "heading",
         bufnr = bufnr,
-        header = heading.text,
         anchor = heading.anchor,
         placeholder = heading.text,
         range = range(heading.row, heading.start_col, heading.end_col),
@@ -271,12 +269,6 @@ local function to_workspace_edit(file_edits)
         unique[#unique + 1] = edit
       end
     end
-    table.sort(unique, function(a, b)
-      if a.range.start.line == b.range.start.line then
-        return a.range.start.character > b.range.start.character
-      end
-      return a.range.start.line > b.range.start.line
-    end)
     changes[#changes + 1] = {
       textDocument = { uri = vim.uri_from_fname(path), version = has_nvim_0_12 and vim.NIL or nil },
       edits = unique,
@@ -444,12 +436,6 @@ M.build_heading_edit = function(target, new_name, callback)
     return h.anchor == target.anchor
   end, all)
   local definition = same[1]
-  if target.header then
-    -- Cursor on the heading line itself.
-    definition = vim.tbl_filter(function(h)
-      return h.row == target.range.start.line
-    end, all)[1]
-  end
   if not definition then
     log.err(('Heading "%s" not found in this note'):format(target.placeholder))
     return callback(nil)
