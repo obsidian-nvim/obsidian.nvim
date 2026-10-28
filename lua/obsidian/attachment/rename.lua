@@ -9,18 +9,20 @@ local compat = require "obsidian.compat"
 
 local has_nvim_0_12 = vim.fn.has "nvim-0.12.0" == 1
 
----@class obsidian.RenameAttachmentOpts : obsidian.AttachmentResolveOpts
+---@alias obsidian.RenameAttachmentOpts obsidian.attachment.RenameOpts
+---@class obsidian.attachment.RenameOpts : obsidian.attachment.ResolveOpts
 ---@field apply? boolean Apply the workspace edit. Defaults to true.
 ---@field offset_encoding? "utf-8"|"utf-16"|"utf-32" LSP offset encoding. Defaults to utf-8.
 
----@class obsidian.RenameAttachmentMeta
+---@alias obsidian.RenameAttachmentMeta obsidian.attachment.RenameMeta
+---@class obsidian.attachment.RenameMeta
 ---@field count integer Number of updated references.
 ---@field path_lookup table<string, boolean> Files containing updated references.
 ---@field old_path string
 ---@field new_path string
 
 ---@param err string
----@param callback? fun(err: string?, edit: lsp.WorkspaceEdit?, meta: obsidian.RenameAttachmentMeta?)
+---@param callback? fun(err: string?, edit: lsp.WorkspaceEdit?, meta: obsidian.attachment.RenameMeta?)
 local function fail(err, callback)
   log.err(err)
   if callback then
@@ -103,7 +105,7 @@ end
 
 ---@param old_path obsidian.Path
 ---@param new_path obsidian.Path
----@param callback fun(edit: lsp.WorkspaceEdit, meta: obsidian.RenameAttachmentMeta)
+---@param callback fun(edit: lsp.WorkspaceEdit, meta: obsidian.attachment.RenameMeta)
 local function build_edit(old_path, new_path, callback)
   local old_basename = assert(old_path.name, "attachment has no basename")
   attachment._find_async(old_basename, { filename = tostring(old_path) }, function(attachments)
@@ -201,8 +203,8 @@ end
 --- Rename an attachment and update references that resolve to it.
 ---@param src string Attachment reference or path.
 ---@param new_name string New basename. The old extension is retained when omitted.
----@param opts obsidian.RenameAttachmentOpts|?
----@param callback? fun(err: string?, edit: lsp.WorkspaceEdit?, meta: obsidian.RenameAttachmentMeta?)
+---@param opts obsidian.attachment.RenameOpts|?
+---@param callback? fun(err: string?, edit: lsp.WorkspaceEdit?, meta: obsidian.attachment.RenameMeta?)
 function M.rename(src, new_name, opts, callback)
   if type(opts) == "function" then
     callback = opts

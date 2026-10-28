@@ -6,9 +6,14 @@ local parser = require "obsidian.link.parser"
 local uri = require "obsidian.uri"
 local fs_util = require "obsidian.util.fs"
 
+local operations = require "obsidian.link.operations"
+
 local M = {
   parse = parser.parse,
   format = parser.format,
+  replace = operations.replace,
+  insert = operations.insert,
+  unlink = operations.unlink,
 }
 
 ---@param path string|obsidian.Path

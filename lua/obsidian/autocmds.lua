@@ -61,6 +61,8 @@ local function bufenter_callback(ev)
   -- Register keymap.
   if vim.g.obsidian_default_keymap ~= false then -- NOTE: not in config since not sure whether the confusion and the small interface is worth it, might remove in major release
     vim.keymap.set("n", "<CR>", actions.smart_action, { expr = true, buffer = true, desc = "Obsidian Smart Action" })
+    vim.keymap.set("n", "<C-a>", actions.increment, { expr = true, buffer = true, desc = "Obsidian Increment" })
+    vim.keymap.set("n", "<C-x>", actions.decrement, { expr = true, buffer = true, desc = "Obsidian Decrement" })
 
     vim.keymap.set("n", "]o", function()
       actions.nav_link("next", true)
@@ -72,6 +74,7 @@ local function bufenter_callback(ev)
   end
 
   require("obsidian.lsp").start(ev.buf)
+  require("obsidian.embed").attach(ev.buf)
 
   if opts.footer.enabled then
     require("obsidian.footer").start(ev.buf)
@@ -117,9 +120,13 @@ vim.api.nvim_create_autocmd("FileType", {
       exec_autocmds "ObsidianNoteWritePre"
       local note = Note.from_buffer(ev.buf)
       if not vim.b[ev.buf].obsidian_help then
-        pcall(vim.cmd, "undojoin")
+        pcall(function()
+          vim.cmd "undojoin"
+        end)
         note:update_frontmatter(ev.buf) -- Update buffer with new frontmatter.
-        pcall(vim.cmd, "undojoin")
+        pcall(function()
+          vim.cmd "undojoin"
+        end)
       end
     end)
     create_autocmd("BufWritePost", args.buf, function(ev)

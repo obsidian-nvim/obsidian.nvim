@@ -13,6 +13,29 @@ local Range = require "obsidian.range"
 local H1_UNDERLINE_PATTERN = "^(=+)$"
 local H2_UNDERLINE_PATTERN = "^(-+)$"
 
+--- A contiguous region of a markdown document.
+---
+--- All ranges are |obsidian.Range|s over *lines* of the parsed document:
+--- cols are always 0 and end rows are exclusive, i.e. a range covering lines
+--- 5-7 (1-based) is `{ start_row = 4, start_col = 0, end_row = 7, end_col = 0 }`.
+---
+---@class obsidian.Section
+---
+---@field header string|? raw heading label. `nil` for the preamble and for block paragraphs.
+---@field level integer|? heading level. `nil` for the preamble and for block paragraphs.
+---@field anchor string|? standardized anchor, e.g. "#my-heading".
+---@field range obsidian.Range full extent: heading through the content of the last descendant section. This is the range to highlight when navigating here.
+---@field heading_range obsidian.Range the heading line(s). Empty for the preamble.
+---@field content_range obsidian.Range own content (sub-sections excluded), trimmed of leading and trailing blank lines.
+---@field parent obsidian.Section|? the nearest section above with a lower heading level.
+---@field block_type "paragraph"|"list"|"list-item"|"quote"|"table"|? present on block-completion candidates.
+
+---@class obsidian.section.ParseOpts
+---@field start_row integer|? 0-based row where parsing begins, e.g. just past the frontmatter. Defaults to `0`.
+---@field collect_blocks boolean|? also collect block identifiers (`^block-id`).
+---@field collect_block_candidates boolean|? also collect paragraphs that can receive block identifiers.
+---@field document obsidian.parse.Document? parsed snapshot for exclusion filtering.
+
 ---@param line string
 ---@return integer|? indent
 ---@return "bullet"|"ordered"|? kind
@@ -41,23 +64,6 @@ local function block_candidate_type(line, detail)
   end
   return "text"
 end
-
---- A contiguous region of a markdown document.
----
---- All ranges are |obsidian.Range|s over *lines* of the parsed document:
---- cols are always 0 and end rows are exclusive, i.e. a range covering lines
---- 5-7 (1-based) is `{ start_row = 4, start_col = 0, end_row = 7, end_col = 0 }`.
----
----@class obsidian.Section
----
----@field header string|? raw heading label. `nil` for the preamble and for block paragraphs.
----@field level integer|? heading level. `nil` for the preamble and for block paragraphs.
----@field anchor string|? standardized anchor, e.g. "#my-heading".
----@field range obsidian.Range full extent: heading through the content of the last descendant section. This is the range to highlight when navigating here.
----@field heading_range obsidian.Range the heading line(s). Empty for the preamble.
----@field content_range obsidian.Range own content (sub-sections excluded), trimmed of leading and trailing blank lines.
----@field parent obsidian.Section|? the nearest section above with a lower heading level.
----@field block_type "paragraph"|"list"|"list-item"|"quote"|"table"|? present on block-completion candidates.
 
 local M = {}
 
@@ -140,12 +146,6 @@ local function get_line_details(lines, first, document)
 
   return details
 end
-
----@class obsidian.section.ParseOpts
----@field start_row integer|? 0-based row where parsing begins, e.g. just past the frontmatter. Defaults to `0`.
----@field collect_blocks boolean|? also collect block identifiers (`^block-id`).
----@field collect_block_candidates boolean|? also collect paragraphs that can receive block identifiers.
----@field document obsidian.parse.Document? parsed snapshot for exclusion filtering.
 
 --- Parse markdown lines into a document-ordered list of sections.
 ---

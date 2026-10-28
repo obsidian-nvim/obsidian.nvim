@@ -43,7 +43,7 @@ end
 --- Substitute variables inside the given text.
 ---
 ---@param text string
----@param ctx obsidian.TemplateContext
+---@param ctx obsidian.templates.Context
 ---
 ---@return string
 M.substitute_template_variables = function(text, ctx)
@@ -78,7 +78,7 @@ end
 
 --- Clone template to a new note.
 ---
----@param ctx obsidian.CloneTemplateContext
+---@param ctx obsidian.templates.CloneContext
 ---
 ---@return obsidian.Note
 M.clone_template = function(ctx)
@@ -125,7 +125,7 @@ end
 
 ---Insert a template at the given location.
 ---
----@param ctx obsidian.InsertTemplateContext
+---@param ctx obsidian.templates.InsertContext
 ---
 ---@return obsidian.Note
 M.insert_template = function(ctx)

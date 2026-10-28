@@ -57,6 +57,8 @@ Vault-wide block candidates are indexed in memory on first use and updated per n
 
 📷 **Images:** Paste images into notes.
 
+📎 **Embeds:** Render Markdown notes, headings, and blocks inline, with paged whole-note previews. See [Embeds](https://obsidian-nvim.github.io/obsidian.nvim/Embeds).
+
 📈 **Status:** See note status in footer like obsidian app.
 
 🔄 **Sync:** [Sync](https://obsidian-nvim.github.io/obsidian.nvim/Sync) support for [Obsidian Sync](https://obsidian.md/help/sync).
@@ -364,6 +366,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://sgh.ng"><img src="https://avatars.githubusercontent.com/u/58419736?v=4?s=100" width="100px;" alt="Samuel Huang"/><br /><sub><b>Samuel Huang</b></sub></a><br /><a href="#code-sghng" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/schmoelder"><img src="https://avatars.githubusercontent.com/u/20299934?v=4?s=100" width="100px;" alt="Johannes Schmölder"/><br /><sub><b>Johannes Schmölder</b></sub></a><br /><a href="#code-schmoelder" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/bercedev"><img src="https://avatars.githubusercontent.com/u/75228263?v=4?s=100" width="100px;" alt="berce"/><br /><sub><b>berce</b></sub></a><br /><a href="#code-bercedev" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

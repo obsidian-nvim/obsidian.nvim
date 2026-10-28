@@ -1,7 +1,7 @@
 local sync = require "obsidian.sync"
 local api = require "obsidian.api"
 
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   local subcmd = data.args:len() > 0 and data.args or nil
 

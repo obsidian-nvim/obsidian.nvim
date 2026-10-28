@@ -1,7 +1,7 @@
 local log = require "obsidian.log"
 local date_util = require "obsidian.date"
 
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   local arg = string.gsub(data.args, " ", "")
   local note

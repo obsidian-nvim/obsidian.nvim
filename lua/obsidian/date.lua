@@ -80,13 +80,13 @@ M.working_day_after = function(time)
   return M.working_day_after(next)
 end
 
----@alias datetime_cadence "daily"
+---@alias obsidian.date.Cadence "daily"
 
 --- Resolve a partial relative-date macro such as `@tom`.
 ---@param macro string
----@return { macro: string, offset: integer, cadence: datetime_cadence }[]
+---@return { macro: string, offset: integer, cadence: obsidian.date.Cadence }[]
 M.resolve_macro = function(macro)
-  ---@type { macro: string, offset: integer, cadence: datetime_cadence }[]
+  ---@type { macro: string, offset: integer, cadence: obsidian.date.Cadence }[]
   local out = {}
   for name, offset in pairs { today = 0, tomorrow = 1, yesterday = -1 } do
     name = "@" .. name

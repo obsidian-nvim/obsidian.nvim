@@ -16,6 +16,28 @@ local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
 local parse_tasks = require "obsidian.parse.line.tasks"
 
+---@class obsidian.link.FormatLinkOpts : obsidian.link.LinkCreationOpts
+---@field path string
+---@field dir? string|obsidian.Path Base directory for relative links.
+
+---@alias obsidian.NoteCreationReference obsidian.api.NoteCreationReference
+---@class obsidian.api.NoteCreationReference
+---@field filename string
+---@field lnum integer
+---@field col integer
+---@field raw string
+
+---@alias obsidian.Selection obsidian.api.Selection
+---@class obsidian.api.Selection
+---@field lines string[]
+---@field selection string
+---@field csrow integer
+---@field cerow integer
+---@field cecol integer
+---@field cscol integer
+
+---@alias obsidian.selection obsidian.api.Selection
+
 M.dir = require("obsidian.fs").dir
 
 --- Get the normalized options for a workspace without changing the active workspace.
@@ -132,10 +154,6 @@ local function format_path(path, style, base_dir)
     return vim.fs.basename(path)
   end
 end
-
----@class obsidian.link.FormatLinkOpts : obsidian.link.LinkCreationOpts
----@field path string
----@field dir? string|obsidian.Path Base directory for relative links.
 
 ---@param opts obsidian.link.FormatLinkOpts
 ---@return string
@@ -422,7 +440,7 @@ local function normalize_range(range)
   end
 end
 
----@param entry obsidian.PickerEntry|vim.quickfix.entry
+---@param entry obsidian.picker.Entry|vim.quickfix.entry
 ---@return obsidian.Range|?
 local function entry_range(entry)
   local range = rawget(entry, "range")
@@ -447,17 +465,11 @@ local function entry_range(entry)
   end
 end
 
----@class obsidian.NoteCreationReference
----@field filename string
----@field lnum integer
----@field col integer
----@field raw string
-
 --- Prompt to create a new note when a link target does not exist.
 ---
 ---@param location string Note id or path.
 ---@param callback (fun(locations: lsp.Location[]|nil)|nil)?
----@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|?, anchor: string|?, block: string|?, references: obsidian.NoteCreationReference[]|?, source_path: string|? }|?
+---@param opts { range: [integer, integer]|?, label: string|?, bufnr: integer|?, cursor_row: integer|?, anchor: string|?, block: string|?, references: obsidian.api.NoteCreationReference[]|?, source_path: string|? }|?
 M.create_new_note = function(location, callback, opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -491,7 +503,7 @@ M.create_new_note = function(location, callback, opts)
   end
 
   ---@param note obsidian.Note
-  ---@param reference obsidian.NoteCreationReference
+  ---@param reference obsidian.api.NoteCreationReference
   ---@return string?
   local function format_reference(note, reference)
     local parsed = parse_refs.extract(reference.raw or "")[1]
@@ -629,7 +641,7 @@ M.create_new_note = function(location, callback, opts)
 end
 
 --- Open a quickfix entry in buffer, with open strategy
----@param entry obsidian.PickerEntry|vim.quickfix.entry|string
+---@param entry obsidian.picker.Entry|vim.quickfix.entry|string
 ---@param cmd string?
 ---@return integer
 M.open_note = function(entry, cmd)
@@ -683,19 +695,11 @@ end
 --- text api ---
 ----------------
 
----@class obsidian.selection
----@field lines string[]
----@field selection string
----@field csrow integer
----@field cerow integer
----@field cecol integer
----@field cscol integer
-
 --- Get the current visual selection of text and exit visual mode.
 ---
 ---@param opts { strict: boolean|? }|?
 ---
----@return obsidian.selection|?
+---@return obsidian.api.Selection|?
 M.get_visual_selection = function(opts)
   opts = opts or {}
   -- Adapted from fzf-lua:
@@ -748,32 +752,17 @@ M.get_visual_selection = function(opts)
     cecol = vim.fn.strlen(lines[#lines] or "")
   end
 
-  -- Use nvim_buf_get_text which properly handles UTF-8 byte positions
-  -- getpos() returns byte-indexed positions (1-indexed)
-  -- Visual selection is inclusive, so cecol points to the last selected byte
-  -- But if that byte is the start of a multi-byte UTF-8 character, we need all its bytes
+  -- Use nvim_buf_get_text which properly handles UTF-8 byte positions.
+  -- getpos() returns byte-indexed positions (1-indexed). Visual selection is
+  -- inclusive, so cecol points to the first byte of the last selected
+  -- character; advance past the full character for the exclusive end.
   local bufnr = vim.api.nvim_get_current_buf()
 
   local line = vim.api.nvim_buf_get_lines(bufnr, cerow - 1, cerow, false)[1]
 
-  -- Calculate the end position for text extraction (needs to account for UTF-8)
   local end_col_for_extraction = cecol
   if line and cecol <= #line then
-    local byte = line:byte(cecol)
-    if byte then
-      -- Determine UTF-8 character byte length
-      local char_bytes = 1
-      if byte >= 240 then -- 11110xxx: 4-byte char
-        char_bytes = 4
-      elseif byte >= 224 then -- 1110xxxx: 3-byte char
-        char_bytes = 3
-      elseif byte >= 192 then -- 110xxxxx: 2-byte char
-        char_bytes = 2
-        -- else: 0xxxxxxx (1-byte) or 10xxxxxx (continuation byte, shouldn't happen)
-      end
-      -- Move end position to point AFTER the last byte of this character (exclusive end)
-      end_col_for_extraction = cecol + char_bytes
-    end
+    end_col_for_extraction = cecol + vim.str_utf_end(line, cecol) + 1
   end
 
   local selection_lines = vim.api.nvim_buf_get_text(
@@ -919,7 +908,7 @@ M.confirm = function(prompt, choices)
   return user_choice
 end
 
----@enum OSType
+---@enum obsidian.api.OSType
 M.OSType = {
   Linux = "Linux",
   Wsl = "Wsl",
@@ -928,19 +917,19 @@ M.OSType = {
   FreeBSD = "FreeBSD",
 }
 
----@type OSType?
+---@type obsidian.api.OSType?
 M._current_os = nil
 
 ---Get the running operating system.
 ---Reference https://vi.stackexchange.com/a/2577/33116
----@return OSType
+---@return obsidian.api.OSType
 M.get_os = function()
   if M._current_os ~= nil then
     ---@diagnostic disable-next-line: return-type-mismatch
     return M._current_os
   end
 
-  ---@type OSType
+  ---@type obsidian.api.OSType
   local this_os
   if vim.fn.has "win32" == 1 then
     this_os = M.OSType.Windows
@@ -950,7 +939,7 @@ M.get_os = function()
     if sysname:lower() == "linux" and string.find(release, "microsoft") then
       this_os = M.OSType.Wsl
     else
-      ---@cast sysname OSType
+      ---@cast sysname obsidian.api.OSType
       this_os = sysname
     end
   end

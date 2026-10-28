@@ -8,18 +8,20 @@ local ns = vim.api.nvim_create_namespace "obsidian.audio_recorder"
 local STOP_SIGNAL = 2
 local STOP_TIMEOUT_MS = 3000
 
----@class obsidian.AudioRecorderRecording
+---@alias obsidian.AudioRecorderRecording obsidian.core_plugins.AudioRecorderRecording
+---@class obsidian.core_plugins.AudioRecorderRecording
 ---@field temp_path string Temporary recording path.
 ---@field name string Destination attachment basename.
 ---@field bufnr integer Target buffer for link insertion.
 ---@field mark_id integer Extmark tracking the insertion point.
 ---@field job? vim.SystemObj Recording process handle.
 
----@class obsidian.AudioRecorderState
----@field recording obsidian.AudioRecorderRecording|nil Active recording, if any.
+---@alias obsidian.AudioRecorderState obsidian.core_plugins.AudioRecorderState
+---@class obsidian.core_plugins.AudioRecorderState
+---@field recording obsidian.core_plugins.AudioRecorderRecording|nil Active recording, if any.
 ---@field processing boolean Whether a stopped recording is being attached.
 
----@type obsidian.AudioRecorderState
+---@type obsidian.core_plugins.AudioRecorderState
 local state = {
   recording = nil,
   processing = false,
@@ -32,14 +34,14 @@ local function cleanup(recording)
   end
 end
 
----@param recording obsidian.AudioRecorderRecording
+---@param recording obsidian.core_plugins.AudioRecorderRecording
 local function delete_mark(recording)
   if recording.bufnr and recording.mark_id and vim.api.nvim_buf_is_valid(recording.bufnr) then
     vim.api.nvim_buf_del_extmark(recording.bufnr, ns, recording.mark_id)
   end
 end
 
----@param recording obsidian.AudioRecorderRecording
+---@param recording obsidian.core_plugins.AudioRecorderRecording
 local function clear_recording(recording)
   if state.recording == recording then
     state.recording = nil
@@ -59,8 +61,8 @@ local function cursor_insert_col_after(bufnr, row, col)
   return vim.str_byteindex(line, "utf-8", vim.str_utfindex(line, "utf-8", col) + 1)
 end
 
----@param recording obsidian.AudioRecorderRecording
----@return obsidian.AttachmentPosition? position
+---@param recording obsidian.core_plugins.AudioRecorderRecording
+---@return obsidian.attachment.Position? position
 ---@return string? error
 local function take_insert_position(recording)
   if not (recording.bufnr and vim.api.nvim_buf_is_valid(recording.bufnr)) then

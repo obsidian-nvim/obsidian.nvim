@@ -35,7 +35,7 @@ M.setup = function()
   end
 end
 
----@param opts obsidian.PickerGrepOpts Options.
+---@param opts obsidian.picker.GrepOpts Options.
 M.grep = function(opts)
   vim.validate("opts", opts, "table")
   local callback = opts.callback or ut.open_notes
@@ -79,7 +79,7 @@ M.grep = function(opts)
 end
 
 ---@param values any[]
----@param opts obsidian.PickerSelectOpts|? Options.
+---@param opts obsidian.picker.SelectOpts|? Options.
 ---@param on_choice fun(choices: any[])|?
 M.select = function(values, opts, on_choice)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()

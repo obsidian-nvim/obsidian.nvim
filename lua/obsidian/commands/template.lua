@@ -1,4 +1,4 @@
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   local template_name
   if string.len(data.args) > 0 then

@@ -1,10 +1,11 @@
----@class obsidian.CLI
+---@alias obsidian.CLI obsidian.cli.CLI
+---@class obsidian.cli.CLI
 local M = {}
 
 M.__index = M
 
 ---@param cmd string
----@return obsidian.CLI
+---@return obsidian.cli.CLI
 M.new = function(cmd)
   return setmetatable({ cmd = cmd }, M)
 end

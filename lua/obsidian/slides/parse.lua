@@ -4,7 +4,8 @@ local Range = require "obsidian.range"
 local footnotes = require "obsidian.footnotes"
 local header = require "obsidian.parse.header"
 
----@class obsidian.Slide
+---@alias obsidian.Slide obsidian.slides.Slide
+---@class obsidian.slides.Slide
 ---@field title string: The title of the slide
 ---@field body string[]: The body of slide
 
@@ -123,7 +124,7 @@ local function collect_footnote_refs(line, refs, seen)
   end
 end
 
----@param slides obsidian.Slide[]
+---@param slides obsidian.slides.Slide[]
 ---@param defs table<string, string>
 local function append_referenced_footnotes(slides, defs)
   for _, slide in ipairs(slides) do
@@ -195,7 +196,7 @@ end
 
 --- Takes a markdown document and parse them into a list of slides
 ---@param lines string[]: The lines in the buffer
----@return obsidian.Slide[]
+---@return obsidian.slides.Slide[]
 M.parse = function(lines)
   local document = Document.parse(lines)
   local defs

@@ -8,7 +8,7 @@ local parse_block_id = require "obsidian.parse.block_id"
 local parse_refs = require "obsidian.parse.refs"
 local header = require "obsidian.parse.header"
 
----@param match obsidian.BacklinkMatch
+---@param match obsidian.search.BacklinkMatch
 ---@return lsp.Location
 local function backlink_to_lsp_location(match)
   local start_col = match.start or 0
@@ -22,7 +22,7 @@ local function backlink_to_lsp_location(match)
   }
 end
 
----@param tag_loc obsidian.TagLocation
+---@param tag_loc obsidian.search.TagLocation
 ---@return lsp.Location
 local function tag_loc_to_lsp_location(tag_loc)
   return {

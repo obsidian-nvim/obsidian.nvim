@@ -44,6 +44,13 @@ M.find_files = require("obsidian.cache.api").find_files
 
 ---@alias obsidian.cache.Row obsidian.cache.NoteRow|obsidian.cache.AttachmentRow
 
+---@class obsidian.cache.HeadingRow
+---@field path string
+---@field header string
+---@field anchor string
+---@field level integer
+---@field line integer 1-based
+
 ---@type table<string, any>
 local backends = {
   json = require "obsidian.cache.json_backend",
@@ -130,21 +137,22 @@ local function schedule_flush()
     state.flush_timer:stop()
     state.flush_timer:close()
   end
-  state.flush_timer = vim.uv.new_timer()
-  assert(state.flush_timer, "failed to create cache flush timer"):start(
-    FLUSH_DEBOUNCE_MS,
-    0,
-    vim.schedule_wrap(function()
-      if state and state.backend then
-        local ok, err = pcall(function()
-          state.backend:flush()
-        end)
-        if not ok then
-          log.err("[cache] flush failed: %s", err)
-        end
+  local timer
+  timer = vim.defer_fn(function()
+    if not state or state.flush_timer ~= timer then
+      return
+    end
+    state.flush_timer = nil
+    if state.backend then
+      local ok, err = pcall(function()
+        state.backend:flush()
+      end)
+      if not ok then
+        log.err("[cache] flush failed: %s", err)
       end
-    end)
-  )
+    end
+  end, FLUSH_DEBOUNCE_MS)
+  state.flush_timer = timer
 end
 
 ---@param abs_path string
@@ -516,13 +524,6 @@ function M.notes.backlink_count(note)
   end
   return count
 end
-
----@class obsidian.cache.HeadingRow
----@field path string
----@field header string
----@field anchor string
----@field level integer
----@field line integer 1-based
 
 ---Find cached headings whose original text or normalized anchor contains `query`.
 ---@param query string?

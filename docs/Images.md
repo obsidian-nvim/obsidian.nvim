@@ -52,4 +52,4 @@ The general principle to keep in mind is you want to use the encoded base name f
 
 ## See also
 
-[[Attachment]] · [[Open]]
+[[Attachment]] · [[Embeds]] · [[Open]]
