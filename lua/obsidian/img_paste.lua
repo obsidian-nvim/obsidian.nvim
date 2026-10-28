@@ -59,7 +59,7 @@ function M.get_clipboard_img_type()
   if not check_cmd then
     error("image saving not implemented for OS '" .. this_os .. "'")
   end
-  local tool = check_cmd:match "^%S+"
+  local tool = check_cmd:match "^%S+" or check_cmd
   if vim.fn.executable(tool) ~= 1 then
     return nil, string.format("`%s` was not found in PATH; it is needed to read images from the clipboard", tool)
   end
