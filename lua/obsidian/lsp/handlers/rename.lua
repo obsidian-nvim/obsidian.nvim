@@ -42,11 +42,25 @@ return function(params, handler, _)
       do_rename(notes[1])
     end, { dir = workspace_dir, buf_dir = source_path ~= "" and vim.fs.dirname(source_path) or nil })
   else
-    -- block, heading, footnote, tag, attachment: build_<kind>_edit
-    local build = rename["build_" .. target.kind .. "_edit"]
-    ---@cast build fun(target: obsidian.lsp.RenameTarget, new_name: string, callback: fun(edit: lsp.WorkspaceEdit|?))
-    build(target, new_name, function(edit)
-      handler(nil, edit)
-    end)
+    local function done(err, edit)
+      handler(nil, not err and edit or nil)
+    end
+    local opts = { apply = false }
+    if target.kind == "block" then
+      require("obsidian.block").rename(bufnr, target.id --[[@as string]], new_name, opts, done)
+    elseif target.kind == "heading" then
+      require("obsidian.header").rename(bufnr, target.anchor --[[@as string]], new_name, opts, done)
+    elseif target.kind == "footnote" then
+      require("obsidian.footnotes").rename(bufnr, target.id --[[@as string]], new_name, opts, done)
+    elseif target.kind == "tag" then
+      require("obsidian.tag").rename(target.id --[[@as string]], new_name, { apply = false, dir = workspace_dir }, done)
+    elseif target.kind == "attachment" then
+      require("obsidian.attachment").rename(
+        target.ref and target.ref.target or "",
+        new_name,
+        { apply = false, filename = source_path },
+        done
+      )
+    end
   end
 end

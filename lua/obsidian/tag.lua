@@ -157,4 +157,45 @@ M.extract = function(lines, opts)
   return out
 end
 
+---@class obsidian.tag.RenameOpts : obsidian.rename.Opts
+---@field dir? string|obsidian.Path Vault directory searched. Defaults to the current workspace.
+
+--- Rewrite a tag, and every tag below it (`a` also renames `a/b`), in the inline
+--- text and the frontmatter of the whole vault. Renaming onto an existing tag
+--- merges the two.
+---@param old string Tag, with or without `#`.
+---@param new_name string
+---@param opts obsidian.tag.RenameOpts|obsidian.rename.Callback|?
+---@param callback obsidian.rename.Callback|?
+M.rename = function(old, new_name, opts, callback)
+  local util = require "obsidian.util.rename"
+  opts, callback = util.args(opts, callback)
+  if not opts then
+    return
+  end
+  old = M.normalize(old)
+  local new_tag = (vim.trim(new_name):gsub("^#", ""))
+  local parsed = parse_tags.extract("#" .. new_tag, { lexical = true })[1]
+  if not parsed or parsed.tag ~= new_tag or new_tag:find("//", 1, true) or new_tag:match "/$" then
+    return util.fail(('Invalid tag "%s": use letters, digits, "_", "-" and "/"'):format(new_tag), callback)
+  end
+  if new_tag == old then
+    require("obsidian.log").info "Identical name"
+    return util.finish(opts, callback, nil)
+  end
+
+  local dir = opts.dir or require("obsidian.api").resolve_workspace_dir()
+  require("obsidian.search").find_tags_async(old, function(locations)
+    ---@type obsidian.rename.FileEdits
+    local file_edits = {}
+    for _, location in ipairs(locations) do
+      local r = location.range
+      -- Inline ranges include the `#`, frontmatter ranges do not.
+      local start_col = location.text:sub(r.start_col + 1, r.start_col + 1) == "#" and r.start_col + 1 or r.start_col
+      util.add_edit(file_edits, util.path_key(location.path), r.start_row, start_col, start_col + #old, new_tag)
+    end
+    util.finish(opts, callback, util.to_workspace_edit(file_edits))
+  end, { dir = dir, match = "subtree" })
+end
+
 return M
