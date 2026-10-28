@@ -7,6 +7,23 @@ local tags = require "obsidian.tag"
 
 local M = {}
 
+---@param value any
+---@return boolean
+local function is_cacheable_property(value)
+  if type(value) ~= "table" then
+    return true
+  end
+  if not vim.islist(value) or next(value) == nil then
+    return false
+  end
+  for _, item in ipairs(value) do
+    if type(item) == "table" then
+      return false
+    end
+  end
+  return true
+end
+
 ---Extract outgoing links from a single line.
 ---@param line string
 ---@param lnum integer  1-based
@@ -71,7 +88,9 @@ function M.build(abs_path, _vault_root)
   local properties = {}
   if note.metadata then
     for k, v in pairs(note.metadata) do
-      properties[k] = v
+      if is_cacheable_property(v) then
+        properties[k] = v
+      end
     end
   end
   local tags_lower = {}

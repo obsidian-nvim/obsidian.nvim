@@ -172,6 +172,20 @@ T["cache backends"]["stores typed compact note rows"] = function()
   eq(nil, row.tasks)
 end
 
+T["cache backends"]["omits nested frontmatter properties but keeps scalar lists"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+  local note_path = tostring(dir / "Nested.md")
+  helpers.write(
+    "---\ncustom: value\nlabels: [one, two]\nnested:\n  child: hidden\nempty: {}\nitems:\n  - name: hidden\n---\n# Note",
+    note_path
+  )
+
+  local row = require("obsidian.cache.note").build(note_path, tostring(dir))
+  eq({ custom = "value", labels = { "one", "two" } }, row.properties)
+end
+
 T["cache backends"]["computes backlink counts from cached links"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
