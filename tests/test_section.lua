@@ -63,6 +63,41 @@ T["block candidates include whole lists and split adjacent list items"] = functi
   eq({ start_row = 3, start_col = 0, end_row = 4, end_col = 0 }, candidates[4].range)
 end
 
+T["blocks split adjacent list items without block candidates"] = function()
+  local _, blocks, candidates = Section.parse({
+    "- first ^first",
+    "- second ^second",
+    "  - nested ^nested",
+    "- third ^third",
+  }, { collect_blocks = true })
+
+  eq(nil, candidates)
+  eq({ start_row = 0, start_col = 0, end_row = 1, end_col = 0 }, blocks["^first"].section.range)
+  eq({ start_row = 1, start_col = 0, end_row = 2, end_col = 0 }, blocks["^second"].section.range)
+  eq({ start_row = 2, start_col = 0, end_row = 3, end_col = 0 }, blocks["^nested"].section.range)
+  eq({ start_row = 3, start_col = 0, end_row = 4, end_col = 0 }, blocks["^third"].section.range)
+end
+
+T["standalone block ID after a list covers the whole list"] = function()
+  local lines = { "- a", "- b", "- c", "", "^whole" }
+
+  local _, blocks = Section.parse(lines, { collect_blocks = true })
+  eq({ start_row = 0, start_col = 0, end_row = 3, end_col = 0 }, blocks["^whole"].section.range)
+
+  local _, with_candidates = Section.parse(lines, { collect_blocks = true, collect_block_candidates = true })
+  eq(blocks["^whole"].section.range, with_candidates["^whole"].section.range)
+end
+
+T["blocks split paragraphs from adjacent quotes"] = function()
+  local _, blocks = Section.parse({
+    "paragraph ^para",
+    "> quote ^quote",
+  }, { collect_blocks = true })
+
+  eq({ start_row = 0, start_col = 0, end_row = 1, end_col = 0 }, blocks["^para"].section.range)
+  eq({ start_row = 1, start_col = 0, end_row = 2, end_col = 0 }, blocks["^quote"].section.range)
+end
+
 T["full ranges include nested descendants only"] = function()
   local sections = Section.parse {
     "# H1",
