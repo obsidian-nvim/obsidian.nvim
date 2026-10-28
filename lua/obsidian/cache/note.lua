@@ -85,12 +85,16 @@ function M.build(abs_path, _vault_root)
     return nil
   end
 
-  local properties = {}
-  if note.metadata then
-    for k, v in pairs(note.metadata) do
-      if is_cacheable_property(v) then
-        properties[k] = v
-      end
+  local properties = vim.deepcopy(note.metadata or {})
+  if #note.aliases == 0 then
+    properties.aliases = nil
+  end
+  if #note.tags == 0 then
+    properties.tags = nil
+  end
+  for k, v in pairs(properties) do
+    if not is_cacheable_property(v) then
+      properties[k] = nil
     end
   end
   local tags_lower = {}

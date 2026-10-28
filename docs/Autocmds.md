@@ -1,3 +1,10 @@
+---
+title: "Autocmds"
+tags:
+  - events
+  - configuration
+---
+
 ## Conventions
 
 Autocmd events provide by this plugin follows following conventions:
@@ -58,3 +65,7 @@ vim.api.nvim_create_autocmd("User", {
   end,
 })
 ```
+
+## See also
+
+[[Keymaps]] · [[Extensions]] · [[Commands]]

@@ -63,7 +63,7 @@ M.setup = function()
   end, {}, true)
 end
 
----@param opts { callback: (fun(selections: any[]))|?, no_default_mappings: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+---@param opts { callback: (fun(selections: any[]))|?, no_default_mappings: boolean|?, selection_mappings: obsidian.picker.MappingTable|?, query_mappings: obsidian.picker.MappingTable|? }
 ---@param path_only? boolean HACK:
 local function get_selection_actions(opts, path_only)
   local entry_to_file = require("fzf-lua.path").entry_to_file
@@ -119,7 +119,7 @@ local function get_selection_actions(opts, path_only)
 end
 
 ---@param entry_to_value_map table<string, any>
----@param opts { on_choice: fun(choices: any[])|?, allow_multiple: boolean|?, selection_mappings: obsidian.PickerMappingTable|?, query_mappings: obsidian.PickerMappingTable|? }
+---@param opts { on_choice: fun(choices: any[])|?, allow_multiple: boolean|?, selection_mappings: obsidian.picker.MappingTable|?, query_mappings: obsidian.picker.MappingTable|? }
 local function get_value_actions(entry_to_value_map, opts)
   ---@param allow_multiple boolean|?
   ---@return any[]|?
@@ -187,7 +187,7 @@ local function get_value_actions(entry_to_value_map, opts)
   return actions
 end
 
----@param opts obsidian.PickerGrepOpts Options.
+---@param opts obsidian.picker.GrepOpts Options.
 M.grep = function(opts)
   vim.validate("opts", opts, "table")
 
@@ -219,7 +219,7 @@ M.grep = function(opts)
   end
 end
 
----@param opts obsidian.PickerSelectOpts
+---@param opts obsidian.picker.SelectOpts
 ---@return boolean
 local function needs_multi(opts)
   if opts.allow_multiple then
@@ -235,7 +235,7 @@ local function needs_multi(opts)
   return false
 end
 
----@param spec obsidian.ui_select_preview_spec|?
+---@param spec obsidian.picker.PreviewSpec|?
 ---@return table
 local preview_spec_to_fzf_entry = function(spec)
   if not spec then
@@ -254,7 +254,7 @@ local preview_spec_to_fzf_entry = function(spec)
 end
 
 ---@param values any[]
----@param opts obsidian.PickerSelectOpts|? Options.
+---@param opts obsidian.picker.SelectOpts|? Options.
 ---@param on_choice fun(choices: any[])|?
 M.select = function(values, opts, on_choice)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()

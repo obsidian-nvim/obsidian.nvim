@@ -33,6 +33,21 @@ T["extract parses embeds and block refs"] = function()
   }, refs.extract(line))
 end
 
+T["extract parses CommonMark URI autolinks"] = function()
+  local raw = "<https://example.com/path>"
+  eq({
+    {
+      kind = "autolink",
+      raw = raw,
+      range = Range.new(1, 4, 1, 4 + #raw),
+      target = "https://example.com/path",
+      label = "https://example.com/path",
+      embed = false,
+    },
+  }, refs.extract("See " .. raw, { row = 1 }))
+  eq({}, refs.extract "<not a URI>")
+end
+
 T["extract parses Markdown links without labels"] = function()
   local line = "[](folder/note.md)"
   eq({

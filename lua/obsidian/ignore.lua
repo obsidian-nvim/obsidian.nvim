@@ -9,7 +9,7 @@ M._cache = {}
 --- Users should use simple gitignore style globs without modifiers,
 --- and ripgrep compatibility is not guaranteed.
 ---@param patterns string[]
----@return Glob|nil
+---@return obsidian.lib.Glob|nil
 local function build_ignore_checker(patterns)
   if not patterns or vim.tbl_isempty(patterns) then
     return nil

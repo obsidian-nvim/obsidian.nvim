@@ -68,6 +68,10 @@ T["get_clipboard_img_type"]["should return correct image type for OS"] = functio
         return api.get_os()
       end
 
+      vim.fn.executable = function()
+        return 1
+      end
+
       vim.fn.system = function(cmd)
         assert(case.expected_cmd, cmd, "The wrong system command was called.")
         return case.mock_output
@@ -80,6 +84,45 @@ T["get_clipboard_img_type"]["should return correct image type for OS"] = functio
   local result = child.lua_get [[require('obsidian.img_paste').get_clipboard_img_type()]]
 
   eq(case.expected_img_type, result)
+end
+
+T["get_clipboard_img_type"]["reports a missing clipboard tool instead of an empty clipboard"] = function(case)
+  child.lua(
+    [[
+      local case = ...
+      api.get_os = function()
+        return case.os_type
+      end
+
+      os.getenv = function(var)
+        if var == "XDG_SESSION_TYPE" then
+          return case.display_server
+        end
+        return api.get_os()
+      end
+
+      vim.fn.executable = function()
+        return 0
+      end
+
+      _G.system_called = false
+      vim.fn.system = function()
+        _G.system_called = true
+        return case.mock_output
+      end
+  ]],
+    { case }
+  )
+
+  local result = child.lua [[
+    local img_type, err = require("obsidian.img_paste").get_clipboard_img_type()
+    return { found = img_type ~= nil, err = err }
+  ]]
+  local tool = case.expected_cmd:match "^%S+"
+
+  eq(false, result.found)
+  eq(string.format("`%s` was not found in PATH; it is needed to read images from the clipboard", tool), result.err)
+  eq(false, child.lua_get "_G.system_called")
 end
 
 return T

@@ -7,10 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Inline Markdown note embeds with Tree-sitter highlighting, live refresh, full heading and block transclusion, paged whole-note previews, and `<C-a>` / `<C-x>` navigation.
+- `require("obsidian.link")` exposes `replace`, `insert`, and `unlink` for replacing ranges, inserting link text at a position, and removing link markup; link actions and suggestions use these operations.
+- `:Obsidian properties [KEY] [VALUE]`, a three-stage picker over frontmatter properties (keys, then values, then matching notes), mirroring `:Obsidian tags`.
+- `search.find_blocks_async()` for finding existing and unlabeled block-reference candidates.
+- Code action `link_suggestions` ("List unlinked outgoing mentions") - select an unlinked target note, then select locations in the current buffer to convert them to links. Scanning skips existing links, code blocks, inline code, frontmatter, tags, and URLs. Requires cache.
+- Code action `backlink_suggestions` ("List unlinked incoming mentions") - find unlinked plain-text mentions of the current note (by title or alias) across the vault and convert them to links. Requires cache.
+
+### Changed
+
+- Don't inject inlay hints when an completion is active.
+- Cache inlay hints in memory for performance.
+- Build vault-wide block and tag indexes lazily in memory, update them after file changes, and share buffer-aware cache lifecycle handling across parsed documents, inlay hints, and link-suggestion symbols.
+- Actions `link` and `link_new` actions now run in normal mode, using current word or link suggestions under the cursor.
+
+### Fixed
+
+- Keep reserved frontmatter fields synchronized between note attributes, metadata, and cached notes.
+- Note navigation when note is resolved, but failed to resolve section suffixes like `#heaing` and `#^block_id` will not prompt to create note.
+- Following a block link such as `[[note#^id]]` to a list item now lands on that item instead of the first item of the whole list. Block IDs in lists, quotes, and tables now resolve to the same boundaries as block completion.
+- `:Obsidian paste_img` reports a missing clipboard tool (such as `pngpaste`) instead of saying the clipboard has no image.
+
+## [v3.16.9](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.9) - 2026-10-13
+
+### Added
+
+- Support CommonMark autolink navigation (#951).
+- Use quartz to build a documentation site.
+
 ### Fixed
 
 - YAML parsing now preserves sibling fields in arrays of frontmatter objects.
 - Sync setup now prompts for the end-to-end encryption password when linking an existing encrypted vault (#984).
+- Note saves preserve unsaved changes from an open buffer.
+- Deprecated `mappings` configuration is removed during normalization.
+- Properly merge note not incorporating the original source note (#982).
 
 ## [v3.16.8](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.8) - 2026-09-28
 
@@ -173,7 +206,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `attachment.add(src, opts)` and `actions.add_attachment(src, opts)` for adding:
   - filepath and urls for attachment
   - folders will open a file picker
-  - see docs at <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment>
+  - see docs at <https://obsidian-nvim.github.io/obsidian.nvim/Attachment>
 - `Note` class can carry a `template` field.
 - LSP completion replaces completion plugin based completion.
 - Frontmatter tag completion.
@@ -684,7 +717,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `makefile types` target to check types via lua-ls.
 - New `obsidian.config` type for user config type check.
 - More informative healthcheck.
-- A guide to embed images for both viewing in neovim and obsidian app: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images>
+- A guide to embed images for both viewing in neovim and obsidian app: <https://obsidian-nvim.github.io/obsidian.nvim/Images>
 - Added `check_buffers` option to `Note.write` and `Note.save` for automatically reloading buffers with `checktime` after writing them to disk
 - Added footer options.
 - Added default mappings: `]o` and `[o`, for navigating links in note.
@@ -697,7 +730,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove `itertools.lua` in favor of `vim.iter`.
 - Commands are now context sensitive (mode and if in note).
 - Remove `debug` command and lazy log functions, and point user to `checkhealth obsidian`.
-- Remove `mappings.lua`, see: <https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps>
+- Remove `mappings.lua`, see: <https://obsidian-nvim.github.io/obsidian.nvim/Keymaps>
 - Moved `daily` as its own module instead of client method.
 - Refactor the `util` module.
 - Refactor several note functionalities from `Client` into `Note`:
@@ -757,7 +790,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `backlinks` module with the associated `obsidian.config.BacklinkOpts`.
   - Added `parse_headers` toggle that disables markdown header parsing for `ObsidianBacklinks`.
 - Added `open` module for `Obsidian open` related options.
-- Added autocmd events for user scripting, see [wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Autocmds).
+- Added autocmd events for user scripting, see [wiki](https://obsidian-nvim.github.io/obsidian.nvim/Autocmds).
 - Added `opts.ui.ignore_conceal_warn` option to ignore conceal-related warnings.
 - Added `vsplit_force` and `hsplit_force` open strategies. These will always open a vertical/horizontal split if the file is not already in the adjacent split.
 

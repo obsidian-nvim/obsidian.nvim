@@ -7,7 +7,7 @@ local api = require "obsidian.api"
 --- callback receives the currently typed query string, mirroring the behavior
 --- of the telescope/fzf integrations.
 ---
----@param mapping obsidian.PickerMappingTable|?
+---@param mapping obsidian.picker.MappingTable|?
 ---@param live boolean Whether the picker runs in live mode (grep). When true
 ---  the query is read from `picker.input.filter.search`, otherwise from
 ---  `picker.input.filter.pattern`.
@@ -39,7 +39,7 @@ local function query_mappings(mapping, live)
   return opts
 end
 
----@param mapping obsidian.PickerMappingTable|?
+---@param mapping obsidian.picker.MappingTable|?
 ---@param selection_value fun(item: table): any
 ---@return table
 local function notes_mappings(mapping, selection_value)
@@ -130,7 +130,7 @@ M.setup = function()
   })
 end
 
----@param opts obsidian.PickerGrepOpts Options.
+---@param opts obsidian.picker.GrepOpts Options.
 M.grep = function(opts)
   vim.validate("opts", opts, "table")
 
@@ -172,7 +172,7 @@ M.grep = function(opts)
 end
 
 ---@param values any[]
----@param opts obsidian.PickerSelectOpts|? Options.
+---@param opts obsidian.picker.SelectOpts|? Options.
 ---@param on_choice fun(choices: any[])|?
 M.select = function(values, opts, on_choice)
   Picker.state.calling_bufnr = vim.api.nvim_get_current_buf()

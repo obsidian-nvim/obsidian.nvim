@@ -4,20 +4,25 @@ local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
 local Note = require "obsidian.note"
 local api = require "obsidian.api"
+local log = require "obsidian.log"
 
 local M = {}
+local symbol_index
 
----@class obsidian.LinkSuggestion
+---@alias obsidian.LinkSuggestion obsidian.note.LinkSuggestion
+---@class obsidian.note.LinkSuggestion
 ---@field range obsidian.Range
 ---@field text string
----@field candidates obsidian.LinkSuggestionCandidate[]
+---@field candidates obsidian.note.LinkSuggestionCandidate[]
 
----@class obsidian.LinkSuggestionCandidate
+---@alias obsidian.LinkSuggestionCandidate obsidian.note.LinkSuggestionCandidate
+---@class obsidian.note.LinkSuggestionCandidate
 ---@field new_text string
 ---@field symbol string
 ---@field target_path string
 
----@class obsidian.LinkSuggestionSymbol
+---@alias obsidian.LinkSuggestionSymbol obsidian.note.LinkSuggestionSymbol
+---@class obsidian.note.LinkSuggestionSymbol
 ---@field text string
 ---@field text_lower string
 ---@field target_paths string[]
@@ -41,7 +46,7 @@ local function normalize_symbol_text(s)
   return s
 end
 
----@param symbols table<string, obsidian.LinkSuggestionSymbol>
+---@param symbols table<string, obsidian.note.LinkSuggestionSymbol>
 ---@param text string?
 ---@param target_path string
 local function add_symbol(symbols, text, target_path)
@@ -76,57 +81,100 @@ local function path_in_dir(path, dir)
   return path == dir or vim.startswith(path, dir .. "/")
 end
 
+symbol_index = require("obsidian.cache.volatile").vault_index {
+  version = function(context)
+    return context.generation
+  end,
+  build = function(context, done)
+    local cache = require "obsidian.cache"
+    local ok, rows = pcall(cache.notes.all)
+    if not ok then
+      done {}
+      return
+    end
+
+    ---@type table<string, obsidian.note.LinkSuggestionSymbol>
+    local by_text = {}
+    for path, row in pairs(rows) do
+      path = vim.fs.normalize(path)
+      if not context.workspace or api.path_is_note(path, context.workspace) then
+        add_symbol(by_text, basename(path), path)
+        for _, alias in ipairs(row.aliases or {}) do
+          add_symbol(by_text, alias, path)
+        end
+      end
+    end
+    done(vim.tbl_values(by_text))
+  end,
+}
+
 ---Build mention symbols from notes in the requested workspace.
 ---@param path string
 ---@param opts { include_current: boolean?, dir: string|obsidian.Path|? }?
----@return obsidian.LinkSuggestionSymbol[]
+---@return obsidian.note.LinkSuggestionSymbol[]
 function M.symbols(path, opts)
   opts = opts or {}
   local cache = require "obsidian.cache"
-  if not cache.is_enabled() then
+  if not cache.is_enabled() or not cache.is_ready() then
     return {}
   end
 
   local dir = opts.dir and tostring(opts.dir) or nil
   local current_path = vim.fs.normalize(path) or nil
-  local workspace = api.find_workspace(path)
-  local rows = {}
-  local ok, cached_rows = pcall(cache.notes.all)
-  if ok then
-    for p, row in pairs(cached_rows) do
-      p = vim.fs.normalize(p)
-      if path_in_dir(p, dir) and (not workspace or api.path_is_note(p, workspace)) then
-        rows[p] = row
+  local all_symbols
+  symbol_index:get(tostring(Obsidian.dir), {
+    generation = cache.generation(),
+    workspace = api.find_workspace(path),
+  }, function(value)
+    all_symbols = value
+  end)
+  if not all_symbols then
+    return {}
+  end
+
+  local symbols = {}
+  for _, symbol in ipairs(all_symbols) do
+    local target_paths = {}
+    for _, target_path in ipairs(symbol.target_paths) do
+      if path_in_dir(target_path, dir) and (opts.include_current or target_path ~= current_path) then
+        target_paths[#target_paths + 1] = target_path
       end
+    end
+    if #target_paths > 0 then
+      table.sort(target_paths)
+      symbols[#symbols + 1] = {
+        text = symbol.text,
+        text_lower = symbol.text_lower,
+        target_paths = target_paths,
+      }
     end
   end
 
-  ---@type table<string, obsidian.LinkSuggestionSymbol>
-  local symbols_by_text = {}
-
-  for p, row in pairs(rows) do
-    p = vim.fs.normalize(p)
-    if opts.include_current or p ~= current_path then
-      local name = basename(p)
-      add_symbol(symbols_by_text, name, p)
-      for _, alias in ipairs(row.aliases or {}) do
-        add_symbol(symbols_by_text, alias, p)
-      end
-    end
-  end
-
-  local symbols = vim.tbl_values(symbols_by_text)
-  for _, symbol in ipairs(symbols) do
-    table.sort(symbol.target_paths)
-  end
   table.sort(symbols, function(a, b)
     if #a.text ~= #b.text then
       return #a.text > #b.text
     end
     return a.text_lower < b.text_lower
   end)
-
   return symbols
+end
+
+---Return symbols that resolve only to the requested note path.
+---@param path string
+---@param opts { dir: string|obsidian.Path|? }?
+---@return obsidian.note.LinkSuggestionSymbol[]
+function M.symbols_for_path(path, opts)
+  local normalized_path = vim.fs.normalize(path)
+  local symbols = M.symbols(path, { include_current = true, dir = opts and opts.dir })
+  local matching_symbols = {}
+  for _, symbol in ipairs(symbols) do
+    if vim.tbl_contains(symbol.target_paths, normalized_path) then
+      matching_symbols[#matching_symbols + 1] = vim.tbl_extend("force", {}, symbol, {
+        target_paths = { normalized_path },
+      })
+    end
+  end
+  return matching_symbols
 end
 
 ---@param byte integer?
@@ -171,7 +219,7 @@ local function overlaps_ranges(ranges, row, start_col, end_col)
   return false
 end
 
----@param suggestions obsidian.LinkSuggestion[]
+---@param suggestions obsidian.note.LinkSuggestion[]
 ---@param row integer
 ---@param start_col integer
 ---@param end_col integer
@@ -228,7 +276,7 @@ end
 
 ---@param line string
 ---@param row integer 1-indexed row number
----@param symbols obsidian.LinkSuggestionSymbol[]
+---@param symbols obsidian.note.LinkSuggestionSymbol[]
 ---@param path_exists fun(path: string): boolean|nil
 ---@param source_dir string|obsidian.Path|nil
 ---@param document obsidian.parse.Document|nil
@@ -236,7 +284,7 @@ function M.find_in_line(line, row, symbols, path_exists, source_dir, document)
   path_exists = path_exists or function(path)
     return vim.uv.fs_stat(path) ~= nil
   end
-  ---@type obsidian.LinkSuggestion[]
+  ---@type obsidian.note.LinkSuggestion[]
   local suggestions = {}
   local row0 = row - 1
 
@@ -310,7 +358,7 @@ end
 
 ---@param note obsidian.Note
 ---@param opts { include_current: boolean?, range: obsidian.Range? }?
----@return obsidian.LinkSuggestion[]
+---@return obsidian.note.LinkSuggestion[]
 function M.find(note, opts)
   opts = opts or {}
   local current_path = note.path and tostring(note.path)
@@ -359,6 +407,49 @@ function M.find(note, opts)
   end)
 
   return suggestions
+end
+
+---Apply a link suggestion candidate to a buffer.
+---@param bufnr integer
+---@param suggestion obsidian.note.LinkSuggestion
+---@param candidate obsidian.note.LinkSuggestionCandidate
+function M.apply(bufnr, suggestion, candidate)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+
+  local range = suggestion.range
+  local current_text =
+    vim.api.nvim_buf_get_text(bufnr, range.start_row, range.start_col, range.end_row, range.end_col, {})
+  if #current_text ~= 1 or current_text[1] ~= suggestion.text then
+    return log.warn "Link suggestion is no longer current"
+  end
+
+  require("obsidian.link").replace { bufnr = bufnr, range = range, text = candidate.new_text }
+  require("obsidian.ui").update(bufnr)
+end
+
+---Apply a link suggestion candidate to a possibly unloaded file, writing it to disk.
+---@param path string
+---@param suggestion obsidian.note.LinkSuggestion
+---@param candidate obsidian.note.LinkSuggestionCandidate
+function M.apply_to_file(path, suggestion, candidate)
+  local bufnr = vim.fn.bufnr(path)
+  local was_loaded = bufnr > 0 and vim.api.nvim_buf_is_loaded(bufnr)
+  if bufnr < 1 then
+    bufnr = vim.fn.bufadd(path)
+  end
+  vim.fn.bufload(bufnr)
+
+  M.apply(bufnr, suggestion, candidate)
+  vim.api.nvim_buf_call(bufnr, function()
+    vim.cmd "write"
+  end)
+
+  -- Do not pollute the buffer list with files that were not open before.
+  if not was_loaded then
+    vim.api.nvim_buf_delete(bufnr, { unload = true })
+  end
 end
 
 return M

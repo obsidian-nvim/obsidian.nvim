@@ -1,9 +1,17 @@
+---
+title: "Sync"
+tags:
+  - core-plugins
+  - integrations
+---
+
 - [Commands](#commands)
 - [Statusline Component](#statusline-component)
 - [Sync Settings](#sync-settings)
 - [Available API (`require("obsidian.sync")`)](#available-api-requireobsidiansync)
 - [Quirks](#quirks)
 - [Options](#options)
+- [See also](#see-also)
 
 The Sync module integrates with [Obsidian Headless](https://help.obsidian.md/sync/headless) to sync vaults without requiring the desktop app.
 
@@ -189,3 +197,7 @@ sync = {
   config_dir = ".obsidian",
 }
 ```
+
+## See also
+
+[[Workspace]] · [[Note]]

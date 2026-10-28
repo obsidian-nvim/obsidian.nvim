@@ -51,8 +51,24 @@ TL;DR: `make lint`
 
 TL;DR: `make types`
 
-- We use [EmmyLua Analyzer Rust](https://github.com/CppCXY/emmylua-analyzer-rust) to check the type annotations in the lua code.
-- Contributions should have type annotations.
+- We use [EmmyLua Analyzer Rust](https://github.com/CppCXY/emmylua-analyzer-rust) to check the type annotations in the Lua code.
+- Type-check warnings fail CI. Avoid `---@diagnostic disable`; when an external definition makes one unavoidable, keep it to one line and explain why.
+- Project types must be namespaced. Reserve `obsidian.TypeName` for foundational public types and use `obsidian.<lowercase-domain>.<PascalCaseType>` otherwise.
+- Put public and module interface types near the top of their owning module. Put private implementation records immediately before the implementation that owns them. Use a separate type-only file only when several sibling modules share a type and none clearly owns it.
+- Use `snake_case` fields, retaining established Neovim names such as `bufnr` and `winnr`.
+
+#### Source coordinates
+
+Internal document coordinates use `obsidian.Pos` and `obsidian.Range`: rows and columns are zero-based, columns are byte offsets, and range ends are exclusive. Use `row` and `col` for scalar internal coordinates.
+
+External coordinate names belong only at their adapters:
+
+- Neovim cursor tuples use one-based `lnum` and zero-based byte `col`.
+- Quickfix entries use `lnum`, `col`, `end_lnum`, and `end_col`.
+- LSP structures use `line` and `character` and must be converted with `Pos`/`Range` helpers.
+- Provider-specific fields such as ripgrep's `line_number`, `start`, and `end` stay in the provider module and are normalized before reaching callers.
+
+Do not add duplicate convenience fields when a position can be derived from a `Pos` or `Range`. Document any unavoidable exception at the declaration.
 
 ### Running tests
 
@@ -80,6 +96,6 @@ TL;DR: `make api-docs`
 - The API docs lives in `doc/obsidian_api.txt` and is generated from the source code using [`mini.docs`](https://github.com/echasnovski/mini.doc).
 - This step don't need to be done locally since CI will auto run.
 
-### Contribute to the user wiki
+### Contribute to the documentation
 
-See [Edit user wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Editing-this-wiki)
+Documentation is maintained in [`docs/`](docs/) and published with Quartz. See the [documentation contribution guide](docs/Contributing-to-docs.md) for local preview and writing conventions.

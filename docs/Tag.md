@@ -1,3 +1,10 @@
+---
+title: "Tag"
+tags:
+  - core-plugins
+  - metadata
+---
+
 Docs for obsidian tags mostly applies: https://help.obsidian.md/tags
 
 Tags are:

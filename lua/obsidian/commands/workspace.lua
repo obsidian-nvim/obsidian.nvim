@@ -1,10 +1,10 @@
 local Workspace = require "obsidian.workspace"
 local picker = require "obsidian.picker"
 
----@param data obsidian.CommandArgs
+---@param data obsidian.commands.Args
 return function(data)
   if not data.args or string.len(data.args) == 0 then
-    ---@type obsidian.PickerEntry[]
+    ---@type obsidian.picker.Entry[]
     local items = vim.tbl_map(function(ws)
       if ws.name == ".obsidian.wiki" then
         return

@@ -22,8 +22,9 @@ local current
 ---@field query          string | nil
 ---@field max_results    integer | nil
 ---@field format_item    (fun(value: any): string) | nil
----@field preview_item   (fun(value: any): obsidian.ui_select_preview_spec | nil) | nil
----@field query_mappings obsidian.PickerMappingTable | nil
+---@field preview_item   (fun(value: any): obsidian.picker.PreviewSpec | nil) | nil
+---@field query_mappings obsidian.picker.MappingTable | nil
+---@field selection_mappings obsidian.picker.MappingTable | nil
 
 ---@class obsidian.picker.ui.Picker
 ---@field input_buf      integer
@@ -367,6 +368,17 @@ local function set_mappings(picker)
         picker:run_query_mapping(query_mapping)
       end)
     end
+
+    for lhs, mapping in pairs(picker.opts.selection_mappings or {}) do
+      local selection_mapping = mapping
+      map(buf, lhs, function()
+        local choice = picker:selected()
+        if choice ~= nil then
+          close_windows(picker)
+          selection_mapping.callback(choice)
+        end
+      end)
+    end
   end
 end
 
@@ -415,7 +427,7 @@ function PickerUi:cancel()
   self.on_choice {}
 end
 
----@param mapping obsidian.PickerMappingOpts
+---@param mapping obsidian.picker.MappingOpts
 function PickerUi:run_query_mapping(mapping)
   if self.closed then
     return

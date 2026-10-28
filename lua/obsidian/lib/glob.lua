@@ -1,18 +1,18 @@
 --- credit to: https://github.com/sumneko/lua-glob/blob/master/glob.lua
 
----@class Glob
+---@class obsidian.lib.Glob
 ---@field patternMap table<string, table[]?>
----@field options Glob.Options
----@field interface Glob.Interface
+---@field options obsidian.lib.GlobOptions
+---@field interface obsidian.lib.GlobInterface
 local M = {}
 M.__index = M
 
----@class Glob.Options
+---@class obsidian.lib.GlobOptions
 ---@field ignoreCase? boolean
 ---@field asGitIgnore? boolean
 ---@field root? string
 
----@class Glob.Interface
+---@class obsidian.lib.GlobInterface
 ---@field type? fun(path: string):('file'|'directory'|nil)
 ---@field list? fun(path: string):string[]?
 ---@field patterns? fun(path: string):string[]?
@@ -246,9 +246,9 @@ function M:setOption(op, val)
   self.options[op] = val
 end
 
----@overload fun(self: Glob, key: 'type', func: fun(path: string):('file'|'directory'|nil))
----@overload fun(self: Glob, key: 'list', func: fun(path: string):string[]?)
----@overload fun(self: Glob, key: 'patterns', func: fun(path: string):string[]?)
+---@overload fun(self: obsidian.lib.Glob, key: 'type', func: fun(path: string):('file'|'directory'|nil))
+---@overload fun(self: obsidian.lib.Glob, key: 'list', func: fun(path: string):string[]?)
+---@overload fun(self: obsidian.lib.Glob, key: 'patterns', func: fun(path: string):string[]?)
 function M:setInterface(key, func)
   if type(func) ~= "function" then
     return
@@ -616,17 +616,17 @@ function M:__call(...)
 end
 
 ---@param pattern? string|string[]
----@param options? Glob.Options
----@param interface? Glob.Interface
----@return Glob
+---@param options? obsidian.lib.GlobOptions
+---@param interface? obsidian.lib.GlobInterface
+---@return obsidian.lib.Glob
 local function createGlob(pattern, options, interface)
-  ---@class Glob
+  ---@type obsidian.lib.Glob
   local glob = setmetatable({
     ---@type table<string, table[]?>
     patternMap = {},
-    ---@type Glob.Options
+    ---@type obsidian.lib.GlobOptions
     options = {},
-    ---@type Glob.Interface
+    ---@type obsidian.lib.GlobInterface
     interface = {},
   }, M)
 
@@ -654,9 +654,9 @@ local function createGlob(pattern, options, interface)
 end
 
 ---@param pattern? string|string[]
----@param options? Glob.Options
----@param interface? Glob.Interface
----@return Glob
+---@param options? obsidian.lib.GlobOptions
+---@param interface? obsidian.lib.GlobInterface
+---@return obsidian.lib.Glob
 local function createGitIgnore(pattern, options, interface)
   local glob = createGlob(pattern, options, interface)
   glob:setOption("asGitIgnore", true)

@@ -94,7 +94,7 @@ return {
   ---@field time_format string
   --- A map for custom variables, the key should be the variable and the value a function.
   --- Functions are called with obsidian.TemplateContext objects and optional suffix strings.
-  --- See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template#substitutions
+  --- See: https://obsidian-nvim.github.io/obsidian.nvim/Template#substitutions
   ---@field substitutions table<string, string|fun(ctx: obsidian.TemplateContext, suffix: string|?):string|?>
   ---@field customizations table<string, obsidian.config.CustomTemplateOpts>|?
   templates = {
@@ -295,7 +295,7 @@ return {
 
   ---@class obsidian.config.AttachmentsOpts
   ---
-  ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location
+  ---Default folder to save images to, relative to the vault root (/) or current dir (.), see https://obsidian-nvim.github.io/obsidian.nvim/Attachment#options
   ---@field folder? string
   ---
   ---Default name for pasted images
@@ -381,7 +381,7 @@ return {
   ---@field pre_write_note? fun(note: obsidian.Note)
   ---
   ---Runs after adding an attachment.
-  ---@field add_attachment? fun(path: string, ctx: obsidian.AddAttachmentContext)
+  ---@field add_attachment? fun(path: string, ctx: obsidian.attachment.AddContext)
   ---
   ---Runs anytime the workspace is set/changed.
   ---@field post_set_workspace? fun(workspace: obsidian.Workspace)
@@ -390,10 +390,10 @@ return {
   ---@class obsidian.config.ResolverConfig
   ---
   ---Resolve an attachment source before `actions.add_attachment` copies/downloads it.
-  ---@field attachment? obsidian.Resolver
+  ---@field attachment? obsidian.resolver.Resolver
   ---
   ---Resolve a date before date-based actions, such as `daily.pick`, continue.
-  ---@field date? obsidian.Resolver
+  ---@field date? obsidian.resolver.Resolver
   ---
   ---Build serializable LSP inlay hints for a note.
   ---@field hints? obsidian.resolver.Hints

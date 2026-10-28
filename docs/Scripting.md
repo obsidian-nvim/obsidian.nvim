@@ -1,3 +1,10 @@
+---
+title: "Scripting"
+tags:
+  - developers
+  - api
+---
+
 ## `Obsidian` global variable
 
 Get the current state of obsidian, with `Obsidian`, it is useful for making plugin integrations or your own scripts.

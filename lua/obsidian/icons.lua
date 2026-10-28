@@ -89,7 +89,7 @@ local spec_for_path = function(path)
   return M.by_extension[M.extension(path)] or M.kinds.file
 end
 
----@param bookmark obsidian.Bookmark
+---@param bookmark obsidian.bookmarks.Bookmark
 ---@return string
 local spec_for_bookmark = function(bookmark)
   if bookmark.type == "file" and bookmark._path then
@@ -99,7 +99,7 @@ local spec_for_bookmark = function(bookmark)
   return M.by_bookmark_type[bookmark.type] or M.kinds.bookmark
 end
 
----@param entry obsidian.PickerEntry|string
+---@param entry obsidian.picker.Entry|string
 ---@return string
 local spec_for_entry = function(entry)
   if type(entry) == "string" then
@@ -135,13 +135,13 @@ M.get_path_icon = function(path)
   return spec_for_path(path)
 end
 
----@param bookmark obsidian.Bookmark
+---@param bookmark obsidian.bookmarks.Bookmark
 ---@return string icon
 M.get_bookmark_icon = function(bookmark)
   return spec_for_bookmark(bookmark)
 end
 
----@param entry obsidian.PickerEntry|string
+---@param entry obsidian.picker.Entry|string
 ---@return string icon
 M.get_icon = function(entry)
   return spec_for_entry(entry)

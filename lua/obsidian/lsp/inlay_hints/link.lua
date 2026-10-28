@@ -16,7 +16,7 @@ end
 
 ---@param value string
 ---@param position lsp.Position
----@param suggestion obsidian.LinkSuggestion
+---@param suggestion obsidian.note.LinkSuggestion
 ---@return lsp.InlayHint
 local function link_suggestion_hint(value, position, suggestion)
   ---@type lsp.Command
@@ -44,7 +44,7 @@ local function link_suggestion_hint(value, position, suggestion)
 end
 
 ---@param hints lsp.InlayHint[]
----@param suggestion obsidian.LinkSuggestion
+---@param suggestion obsidian.note.LinkSuggestion
 ---@param requested_range lsp.Range|?
 local function add_link_suggestion_hints(hints, suggestion, requested_range)
   local range = suggestion.range

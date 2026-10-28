@@ -6,7 +6,7 @@ local uri = require "obsidian.uri"
 local log = require "obsidian.log"
 local filetypes = require "obsidian.filetypes"
 
----@enum obsidian.attachment.ft
+---@enum obsidian.attachment.FileType
 local supported_filetypes = {
   -- markdown
   "md",
@@ -59,17 +59,46 @@ end
 --- Compatibility alias for `destination_path`.
 M.resolve_attachment_path = M.destination_path
 
----@class obsidian.AttachmentResolveOpts
+---@alias obsidian.AttachmentResolveOpts obsidian.attachment.ResolveOpts
+---@class obsidian.attachment.ResolveOpts
 ---@field bufnr? integer Buffer containing the attachment reference.
 ---@field filename? string File containing the attachment reference.
 
----@class obsidian.AttachmentMatch
+---@alias obsidian.AttachmentMatch obsidian.attachment.Match
+---@class obsidian.attachment.Match
 ---@field path string Absolute attachment path.
 ---@field rel_path string Vault-relative attachment path.
 ---@field basename string Attachment basename.
 ---@field ambiguous boolean Whether another match has the same basename.
 
----@param opts obsidian.AttachmentResolveOpts|?
+---@alias obsidian.AttachmentPosition obsidian.attachment.Position
+---@class obsidian.attachment.Position
+---@field row integer 1-indexed row.
+---@field col integer 0-indexed column.
+
+---@alias obsidian.AddAttachmentContext obsidian.attachment.AddContext
+---@class obsidian.attachment.AddContext
+---@field scope string Context where the attachment was added.
+---@field buffer integer Buffer associated with the action.
+---@field bufnr integer Deprecated alias for `buffer`.
+
+---@alias obsidian.AddAttachmentOpts obsidian.attachment.AddOpts
+---@class obsidian.attachment.AddOpts
+---@field insert? boolean Insert the generated attachment link. Defaults to true.
+---@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
+---@field new_name? string Destination attachment basename. Path separators are rejected.
+---@field dst? string Exact destination path. Must be inside the vault.
+---@field position? obsidian.attachment.Position|integer[] Exact position where the link should be inserted.
+---@field scope? string Context where the attachment is added.
+
+---@alias obsidian.AttachmentLinkOpts obsidian.attachment.LinkOpts
+---@class obsidian.attachment.LinkOpts : obsidian.attachment.ResolveOpts
+---@field embed? boolean Prefix the link with `!`.
+---@field format? obsidian.link.LinkFormat
+---@field label? string
+---@field style? obsidian.link.LinkStyleOption
+
+---@param opts obsidian.attachment.ResolveOpts|?
 ---@return string filename
 ---@return string workspace_dir
 ---@return string source_dir
@@ -126,8 +155,8 @@ end
 ---
 --- Private for now; completion and attachment operations may use it internally.
 ---@param term string
----@param opts obsidian.AttachmentResolveOpts|?
----@param callback fun(matches: obsidian.AttachmentMatch[])
+---@param opts obsidian.attachment.ResolveOpts|?
+---@param callback fun(matches: obsidian.attachment.Match[])
 ---@return fun() cancel
 M._find_async = function(term, opts, callback)
   local _, workspace_dir = resolve_context(opts)
@@ -174,8 +203,8 @@ local function normalize_reference(src)
 end
 
 ---@param src string
----@param opts obsidian.AttachmentResolveOpts|?
----@param matches obsidian.AttachmentMatch[]|nil
+---@param opts obsidian.attachment.ResolveOpts|?
+---@param matches obsidian.attachment.Match[]|nil
 ---@return string? path
 ---@return string? err
 ---@return string[]? candidates
@@ -266,7 +295,7 @@ end
 --- Private for now; mutation and navigation operations should use this instead
 --- of treating the configured destination as an existing file.
 ---@param src string
----@param opts obsidian.AttachmentResolveOpts|?
+---@param opts obsidian.attachment.ResolveOpts|?
 ---@param callback fun(path: string?, err: string?, candidates: string[]?)
 ---@return fun() cancel
 M._resolve_async = function(src, opts, callback)
@@ -286,7 +315,7 @@ M._resolve_async = function(src, opts, callback)
 end
 
 ---@param src string
----@param opts obsidian.AttachmentResolveOpts|?
+---@param opts obsidian.attachment.ResolveOpts|?
 ---@return string? path
 ---@return string? err
 ---@return string[]? candidates
@@ -473,25 +502,8 @@ local function unique_dst(dst)
   return dst
 end
 
----@class obsidian.AttachmentPosition
----@field row integer 1-indexed row.
----@field col integer 0-indexed column.
-
----@class obsidian.AddAttachmentContext
----@field scope string Context where the attachment was added.
----@field buffer integer Buffer associated with the action.
----@field bufnr integer Deprecated alias for `buffer`.
-
----@class obsidian.AddAttachmentOpts
----@field insert? boolean Insert the generated attachment link. Defaults to true.
----@field bufnr? integer Buffer used for relative attachment resolution and link insertion. Defaults to current buffer.
----@field new_name? string Destination attachment basename. Path separators are rejected.
----@field dst? string Exact destination path. Must be inside the vault.
----@field position? obsidian.AttachmentPosition|integer[] Exact position where the link should be inserted.
----@field scope? string Context where the attachment is added.
-
----@param pos obsidian.AttachmentPosition|integer[]|?
----@return obsidian.AttachmentPosition|?
+---@param pos obsidian.attachment.Position|integer[]|?
+---@return obsidian.attachment.Position|?
 local function normalize_position(pos)
   if not pos then
     return nil
@@ -503,7 +515,7 @@ local function normalize_position(pos)
 end
 
 ---@param path string
----@param ctx obsidian.AddAttachmentContext
+---@param ctx obsidian.attachment.AddContext
 local function fire_add_attachment(path, ctx)
   util.fire_callback("add_attachment", Obsidian.opts.callbacks.add_attachment, path, ctx)
   vim.api.nvim_exec_autocmds("User", {
@@ -513,7 +525,7 @@ local function fire_add_attachment(path, ctx)
 end
 
 ---@param src string
----@param opts obsidian.AddAttachmentOpts|?
+---@param opts obsidian.attachment.AddOpts|?
 ---@return string|?
 M.add = function(src, opts)
   opts = opts or {}
@@ -567,15 +579,9 @@ M.add = function(src, opts)
   return resolved_dst
 end
 
----@class obsidian.AttachmentLinkOpts : obsidian.AttachmentResolveOpts
----@field embed? boolean Prefix the link with `!`.
----@field format? obsidian.link.LinkFormat
----@field label? string
----@field style? obsidian.link.LinkStyleOption
-
 ---@param dst string
 ---@param format obsidian.link.LinkFormat
----@param opts obsidian.AttachmentLinkOpts
+---@param opts obsidian.attachment.LinkOpts
 ---@return string
 local function format_path(dst, format, opts)
   if format == "absolute" then
@@ -590,7 +596,7 @@ end
 
 --- Format a reference to an attachment.
 ---@param dst string
----@param opts obsidian.AttachmentLinkOpts|?
+---@param opts obsidian.attachment.LinkOpts|?
 ---@return string
 M.format_reference = function(dst, opts)
   opts = opts or {}
@@ -624,7 +630,7 @@ end
 
 --- Format an embedded attachment link.
 ---@param dst string
----@param opts obsidian.AttachmentLinkOpts|?
+---@param opts obsidian.attachment.LinkOpts|?
 ---@return string
 M.format_link = function(dst, opts)
   opts = vim.tbl_extend("force", opts or {}, { embed = true })
@@ -634,15 +640,15 @@ end
 --- Rename an attachment and update references that resolve to it.
 ---@param src string Attachment reference or path.
 ---@param new_name string New basename. The old extension is retained when omitted.
----@param opts obsidian.RenameAttachmentOpts|?
----@param callback? fun(err: string?, edit: lsp.WorkspaceEdit?, meta: obsidian.RenameAttachmentMeta?)
+---@param opts obsidian.attachment.RenameOpts|?
+---@param callback? fun(err: string?, edit: lsp.WorkspaceEdit?, meta: obsidian.attachment.RenameMeta?)
 M.rename = function(src, new_name, opts, callback)
   return require("obsidian.attachment.rename").rename(src, new_name, opts, callback)
 end
 
 --- Delete an existing attachment.
 ---@param src string Attachment reference or path.
----@param opts obsidian.DeleteAttachmentOpts|?
+---@param opts obsidian.attachment.DeleteOpts|?
 ---@param callback? fun(err: string?, path: string?)
 M.delete = function(src, opts, callback)
   return require("obsidian.attachment.delete").delete(src, opts, callback)

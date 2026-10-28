@@ -1,3 +1,10 @@
+---
+title: "Images"
+tags:
+  - editor
+  - attachments
+---
+
 ## Inline Image viewing
 
 The only image viewing backend that is well tested and supported is [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md), and for extra info there's work being done that will give neovim an native [API rendering images](https://github.com/neovim/neovim/pull/31399), so eventually we will just move to that.
@@ -42,3 +49,7 @@ require("obsidian").setup {
 ```
 
 The general principle to keep in mind is you want to use the encoded base name for compatibility for snacks.nvim and obsidian app.
+
+## See also
+
+[[Attachment]] · [[Embeds]] · [[Open]]

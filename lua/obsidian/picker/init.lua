@@ -7,11 +7,12 @@ local Mappings = require "obsidian.picker.mappings"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 
----@class obsidian.Picker
----@field find_files fun(opts: obsidian.PickerFindOpts|?)
----@field grep fun(opts: obsidian.PickerGrepOpts|?)
----@field select fun(items: any[], opts: obsidian.PickerSelectOpts|?, on_choice: fun(choices: any[])|?)
----@field pick fun(values: obsidian.PickerEntry[]|string[], opts: obsidian.PickerPickOpts|?)
+---@alias obsidian.Picker obsidian.picker.Module
+---@class obsidian.picker.Module
+---@field find_files fun(opts: obsidian.picker.FindOpts|?)
+---@field grep fun(opts: obsidian.picker.GrepOpts|?)
+---@field select fun(items: any[], opts: obsidian.picker.SelectOpts|?, on_choice: fun(choices: any[])|?)
+---@field pick fun(values: obsidian.picker.Entry[]|string[], opts: obsidian.picker.PickOpts|?)
 local M = {
   preview_path = picker_util.preview_path,
 }
@@ -48,66 +49,75 @@ end
 --- Abstract methods that need to be implemented by subclasses. ---
 -------------------------------------------------------------------
 
----@class obsidian.PickerMappingOpts
+---@alias obsidian.PickerMappingOpts obsidian.picker.MappingOpts
+---@class obsidian.picker.MappingOpts
 ---
 ---@field desc string
----@field callback fun(...: obsidian.PickerEntry|string)
+---@field callback fun(...: any)
 ---@field fallback_to_query boolean|?
 ---@field keep_open boolean|?
 ---@field allow_multiple boolean|?
 
----@alias obsidian.PickerMappingTable table<string, obsidian.PickerMappingOpts>
+---@alias obsidian.PickerMappingTable obsidian.picker.MappingTable
+---@alias obsidian.picker.MappingTable table<string, obsidian.picker.MappingOpts>
 
----@class obsidian.PickerFindOpts
+---@alias obsidian.PickerFindOpts obsidian.picker.FindOpts
+---@class obsidian.picker.FindOpts
 ---
 ---@field prompt_title string|?
 ---@field dir string|obsidian.Path|?
 ---@field callback fun(paths: string[])|?
 ---@field no_default_mappings boolean|?
 ---@field query string|?
----@field query_mappings obsidian.PickerMappingTable|?
----@field selection_mappings obsidian.PickerMappingTable|?
+---@field query_mappings obsidian.picker.MappingTable|?
+---@field selection_mappings obsidian.picker.MappingTable|?
 ---@field include_non_markdown boolean|?
 ---@field show_existing_only boolean|?
 ---@field show_attachments boolean|?
 
----@class obsidian.PickerGrepOpts
+---@alias obsidian.PickerGrepOpts obsidian.picker.GrepOpts
+---@class obsidian.picker.GrepOpts
 ---
 ---@field prompt_title string|?
 ---@field dir string|obsidian.Path
 ---@field query string|?
----@field callback fun(entries: obsidian.PickerEntry[])|?
+---@field callback fun(entries: obsidian.picker.Entry[])|?
 ---@field no_default_mappings boolean|?
----@field query_mappings obsidian.PickerMappingTable|?
----@field selection_mappings obsidian.PickerMappingTable|?
+---@field query_mappings obsidian.picker.MappingTable|?
+---@field selection_mappings obsidian.picker.MappingTable|?
 ---@field cmd string[]
 
----@alias obsidian.PickerEntry vim.quickfix.entry
+---@alias obsidian.PickerEntry obsidian.picker.Entry
+---@alias obsidian.picker.Entry vim.quickfix.entry
 
----@alias obsidian.ui_select_preview_spec { buf: integer, pos: [integer,integer]?, pos_end: [integer,integer]? }
+---@alias obsidian.picker.PreviewSpec { buf: integer, pos: [integer,integer]?, pos_end: [integer,integer]? }
+---@alias obsidian.ui_select_preview_spec obsidian.picker.PreviewSpec
 
----@class obsidian.PickerSelectOpts
+---@alias obsidian.PickerSelectOpts obsidian.picker.SelectOpts
+---@class obsidian.picker.SelectOpts
 ---
 ---@field prompt string|?
 ---@field kind string|?
 ---@field allow_multiple boolean|?
 ---@field no_default_mappings boolean|?
----@field query_mappings obsidian.PickerMappingTable|?
----@field selection_mappings obsidian.PickerMappingTable|?
+---@field query_mappings obsidian.picker.MappingTable|?
+---@field selection_mappings obsidian.picker.MappingTable|?
 ---@field format_item (fun(value: any): string)|?
----@field preview_item (fun(value: any): obsidian.ui_select_preview_spec)?
+---@field preview_item (fun(value: any): obsidian.picker.PreviewSpec)?
 ---@field query string|?
 ---
----@class obsidian.PickerEntryUserData
+---@alias obsidian.PickerEntryUserData obsidian.picker.EntryUserData
+---@class obsidian.picker.EntryUserData
 ---@field attachment boolean|?
 ---@field missing boolean|?
----@field references obsidian.NoteCreationReference[]|?
+---@field references obsidian.api.NoteCreationReference[]|?
 ---@field target string|?
 ---
----@class obsidian.PickerPickOpts: obsidian.PickerSelectOpts
+---@alias obsidian.PickerPickOpts obsidian.picker.PickOpts
+---@class obsidian.picker.PickOpts: obsidian.picker.SelectOpts
 ---
 ---@field prompt_title string|?
----@field callback fun(value: obsidian.PickerEntry, ...: obsidian.PickerEntry)|?
+---@field callback fun(value: obsidian.picker.Entry, ...: obsidian.picker.Entry)|?
 
 ------------------------------------------------------------------
 --- Concrete methods with a default implementation subclasses. ---
@@ -115,8 +125,8 @@ end
 
 --- Backwards-compatible shim for the old picker API.
 ---
----@param values string[]|obsidian.PickerEntry[] Items to pick from.
----@param opts obsidian.PickerPickOpts|? Options.
+---@param values string[]|obsidian.picker.Entry[] Items to pick from.
+---@param opts obsidian.picker.PickOpts|? Options.
 local pick = function(values, opts)
   opts = opts or {}
 
@@ -150,7 +160,7 @@ M.pick = pick
 
 --- Find files using the shared filesystem iterator and present them with the active picker.
 ---
----@param opts obsidian.PickerFindOpts?
+---@param opts obsidian.picker.FindOpts?
 local find_files = function(opts)
   opts = opts or {}
 
@@ -230,7 +240,7 @@ end
 
 --- Grep search in notes.
 ---
----@param opts { prompt_title: string|?, query: string|?, callback: fun(entries: obsidian.PickerEntry[])|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
+---@param opts { prompt_title: string|?, query: string|?, callback: fun(entries: obsidian.picker.Entry[])|?, no_default_mappings: boolean|?, dir: obsidian.Path|? }|? Options.
 ---
 --- Options:
 ---  `prompt_title`: Title for the prompt window.
@@ -281,9 +291,9 @@ local function key_is_set(key)
 end
 
 --- Get query mappings to use for `find_notes()` or `grep_notes()`.
----@return obsidian.PickerMappingTable
+---@return obsidian.picker.MappingTable
 M._note_query_mappings = function()
-  ---@type obsidian.PickerMappingTable
+  ---@type obsidian.picker.MappingTable
   local mappings = {}
 
   local note_mappings = Obsidian.opts.picker.note_mappings or {}
@@ -298,9 +308,9 @@ M._note_query_mappings = function()
 end
 
 --- Get selection mappings to use for `find_notes()` or `grep_notes()`.
----@return obsidian.PickerMappingTable
+---@return obsidian.picker.MappingTable
 M._note_selection_mappings = function()
-  ---@type obsidian.PickerMappingTable
+  ---@type obsidian.picker.MappingTable
   local mappings = {}
 
   local note_mappings = Obsidian.opts.picker.note_mappings or {}
@@ -322,9 +332,9 @@ M._note_selection_mappings = function()
 end
 
 --- Get selection mappings to use for `pick_tag()`.
----@return obsidian.PickerMappingTable
+---@return obsidian.picker.MappingTable
 M._tag_selection_mappings = function()
-  ---@type obsidian.PickerMappingTable
+  ---@type obsidian.picker.MappingTable
   local mappings = {}
 
   local tag_mappings = Obsidian.opts.picker.tag_mappings or {}

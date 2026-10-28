@@ -51,7 +51,7 @@ Parser.__index = Parser
 
 m.Parser = Parser
 
----@enum YamlType
+---@enum obsidian.yaml.Type
 local YamlType = {
   Scalar = "Scalar", -- a boolean, string, number, or NULL
   Mapping = "Mapping",

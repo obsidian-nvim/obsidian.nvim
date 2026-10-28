@@ -110,8 +110,8 @@ return function(user_opts, defaults)
   ---@diagnostic disable-next-line: undefined-field
   if opts.mappings ~= nil then
     log.warn_once [[The 'mappings' config option is deprecated and no longer has any effect.
-See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
-    opts.overwrite_mappings = nil
+See: https://obsidian-nvim.github.io/obsidian.nvim/Keymaps]]
+    opts.mappings = nil
   end
 
   if opts.tags ~= nil then
@@ -139,7 +139,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
   if opts.statusline and opts.statusline.enabled then
     util.deprecate(
       "statusline.{enabled,format} and vim.g.obsidian",
-      "footer.{enabled,format}, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Statusline",
+      "footer.{enabled,format}, see https://obsidian-nvim.github.io/obsidian.nvim/Statusline",
       "4.0"
     )
   end
@@ -197,7 +197,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.follow_url_func = nil
     util.deprecate(
       "follow_url_func",
-      "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
+      "vim.ui.open, see https://obsidian-nvim.github.io/obsidian.nvim/Attachment",
       "3.18"
     )
   end
@@ -206,7 +206,7 @@ See: https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps]]
     opts.follow_img_func = nil
     util.deprecate(
       "follow_img_func",
-      "vim.ui.open, see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Attachment",
+      "vim.ui.open, see https://obsidian-nvim.github.io/obsidian.nvim/Attachment",
       "3.18"
     )
   end

@@ -1,3 +1,10 @@
+---
+title: "Unique Note"
+tags:
+  - core-plugins
+  - notes
+---
+
 - [Format](#format)
 - [Folder](#folder)
 - [Template](#template)

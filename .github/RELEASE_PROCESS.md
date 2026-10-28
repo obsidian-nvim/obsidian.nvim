@@ -1,24 +1,16 @@
 # GitHub Release Process
 
-## Steps
+## Release
 
 1. Update the version in `lua/obsidian/version.lua`.
+2. Run `make docgen` and `make user-docs`, review the generated changes, and commit them before tagging.
+3. Run `./scripts/release.sh`. This updates the changelog/module files, commits the changes, and creates and pushes a version tag.
+4. The `Main` workflow builds the documentation from that tag before publishing the GitHub release. Stable releases then deploy the built artifact to GitHub Pages. Prerelease tags (for example, `v3.0.0-rc.1`) publish a prerelease without replacing the stable documentation.
 
-3. Run the release script:
+## Retry a failed deployment
 
-    ```bash
-    ./scripts/release.sh
-    ```
+- For a transient failure or a corrected Pages/environment setting, open **Actions → Main → the failed run → Re-run failed jobs**. Do not delete the release or tag just to retry Pages.
+- If the Pages artifact has expired, use **Re-run all jobs** to rebuild it before deploying.
+- Reruns use the original tag's commit. If source content or workflow code needs a fix, commit the fix and publish a new version tag instead of moving an existing release tag.
 
-    This will commit the changes to the CHANGELOG and module files and then create a new tag in git
-    which will trigger a workflow on GitHub Actions that handles the rest.
-
-## Fixing a failed release
-
-If for some reason the GitHub Actions release workflow failed with an error that needs to be fixed, you'll have to delete both the tag and corresponding release from GitHub. After you've pushed a fix, delete the tag from your local clone with
-
-```bash
-git tag -l | xargs git tag -d && git fetch -t
-```
-
-Then repeat the steps above.
+The site is published on stable releases, not prereleases or every commit to `main`. The old GitHub Wiki is no longer synchronized; after confirming the Pages site is live, archive or disable the wiki in repository settings and replace any remaining external links to it.

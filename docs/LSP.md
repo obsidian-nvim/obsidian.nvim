@@ -1,3 +1,10 @@
+---
+title: "LSP"
+tags:
+  - lsp
+  - reference
+---
+
 See also: [[LSP-Progress]]
 
 ## Definition
@@ -52,10 +59,14 @@ Available actions:
   - Delete current note (`delete_note`)
   - Merge current note into another note (`merge_note`)
   - Start presentation (`start_presentation`, requires slides enabled)
+  - List unlinked outgoing mentions in the current note, grouped by target note (`link_suggestions`, requires cache)
+  - List unlinked incoming mentions of the current note in other notes (`backlink_suggestions`, requires cache)
   - Insert internal link at cursor (`insert_link`)
   - Remove the link under the cursor, preserving its display text (`unlink`)
   - Insert tag at cursor (`insert_tag`)
   - Add tag to frontmatter (`add_tag`)
+  - Link word under cursor to an existing note (`link`)
+  - Link word under cursor to a new note (`link_new`)
 - Visual mode:
   - Link selection as name for an existing note (`link`)
   - Link selection as name for a new note (`link_new`)
@@ -73,3 +84,7 @@ API:
   - `fn`: function invoked when the action is executed.
   - `cond` (optional): a filter function that gets the current note object, determines whether actions is listed.
 - `require("obsidian").code_action.del(name)` removes a previously registered action.
+
+## See also
+
+[[Completion]] · [[Actions]] · [[LSP-Progress]]

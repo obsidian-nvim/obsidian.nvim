@@ -41,9 +41,9 @@ The original project has not been actively maintained for quite a while and with
 
 - Discussions are happening in [GitHub Discussions](https://github.com/obsidian-nvim/obsidian.nvim/discussions/6)
 - Sponsor the project at [Open Collective](https://opencollective.com/nvim-obsidian)
-- To migrate from original repo or older releases, see [Breaking changes](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Breaking-Changes)
+- To migrate from original repo or older releases, see [Breaking changes](https://obsidian-nvim.github.io/obsidian.nvim/Breaking-Changes)
 - See the documentation:
-  - [obsidian.nvim wiki](https://github.com/obsidian-nvim/obsidian.nvim/wiki) for documentation of the latest release.
+  - [obsidian.nvim documentation](https://obsidian-nvim.github.io/obsidian.nvim/) for documentation of the latest release.
   - `:Obsidian help` or `:Obsidian helpgrep` for documentation update to date with your current installation.
   - `:h obsidian-api` for API reference.
 
@@ -57,20 +57,22 @@ Vault-wide block candidates are indexed in memory on first use and updated per n
 
 📷 **Images:** Paste images into notes.
 
+📎 **Embeds:** Render Markdown notes, headings, and blocks inline, with paged whole-note previews. See [Embeds](https://obsidian-nvim.github.io/obsidian.nvim/Embeds).
+
 📈 **Status:** See note status in footer like obsidian app.
 
-🔄 **Sync:** [Sync](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Sync) support for [Obsidian Sync](https://obsidian.md/help/sync).
+🔄 **Sync:** [Sync](https://obsidian-nvim.github.io/obsidian.nvim/Sync) support for [Obsidian Sync](https://obsidian.md/help/sync).
 
 ### Keymaps
 
 - `smart_action`, bind to `<CR>` will:
   - If cursor is on a link, follow the link.
   - If cursor is on a tag, show all notes with that tag in a picker.
-  - If cursor is on a checkbox, toggle the checkbox, see [Checkbox.create_new](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Checkbox#create-new).
-  - If cursor is on a heading, cycle the fold of that heading, see [Folding](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Folding) to set this up.
+  - If cursor is on a checkbox, toggle the checkbox, see [Checkbox.create_new](https://obsidian-nvim.github.io/obsidian.nvim/Checkbox#create-new).
+  - If cursor is on a heading, cycle the fold of that heading, see [Folding](https://obsidian-nvim.github.io/obsidian.nvim/Folding) to set this up.
 - `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in the buffer.
 
-For other available actions and remapping default ones, see [Keymaps](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Keymaps)
+For other available actions and remapping default ones, see [Keymaps](https://obsidian-nvim.github.io/obsidian.nvim/Keymaps)
 
 ### Commands
 
@@ -81,7 +83,7 @@ There's one entry point user command for this plugin: `Obsidian`
 - Sub commands are context sensitive, meaning some actions will only appear when:
   - you are in a note.
   - you are in visual mode.
-- See [Commands](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Commands) for more info.
+- See [Commands](https://obsidian-nvim.github.io/obsidian.nvim/Commands) for more info.
 
 > [!Warning]
 > Note subcommands related to refactoring, like `rename` and `template`
@@ -92,11 +94,14 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian check` - check for common issues in your vault and plugin setup
 - `:Obsidian dailies [OFFSET ...]` - open a picker list of daily notes
   - `:Obsidian dailies -2 1` to list daily notes from 2 days ago until tomorrow
-- `:Obsidian help` - find files in the help wiki
-- `:Obsidian helpgrep` - grep files in the help wiki
+- `:Obsidian help` - find files in the plugin help docs
+- `:Obsidian helpgrep` - grep files in the plugin help docs
 - `:Obsidian new [TITLE]` - create a new note
 - `:Obsidian open [QUERY]` - open a note in the Obsidian app
   - query is used to resolve the note to open by ID, path, or alias, else use current note
+- `:Obsidian properties [KEY] [VALUE]` - get a picker list of frontmatter properties across the vault
+  - with no arguments, opens a three-stage picker: property keys, then values for the chosen key, then notes carrying that key/value pair
+  - `KEY` alone skips to the values stage; `KEY VALUE` skips straight to matching notes
 - `:Obsidian today [OFFSET_OR_DATE]` - open/create a new daily note
   - offset is in days, e.g. use `:Obsidian today -1` to go to yesterday's note.
   - you can also give an argument like `3-1`/`2026-3-1`, it will parse common date formats and open daily for that specific date.
@@ -108,7 +113,7 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian quick_switch` - switch to another note in your vault, searching by its name with a picker
 - `:Obsidian rebuild_cache` - force a full cache rescan and flush
 - `:Obsidian search [QUERY]` - search for (or create) notes in your vault using `ripgrep` with your preferred picker
-- `:Obsidian sync [SUBCMD]` - use [obsidian-headless](https://obsidian.md/help/sync/headless) to access official obsidian sync service. Default off, enable with `opts.sync.enabled = true`, for more see [Sync](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Sync).
+- `:Obsidian sync [SUBCMD]` - use [obsidian-headless](https://obsidian.md/help/sync/headless) to access official obsidian sync service. Default off, enable with `opts.sync.enabled = true`, for more see [Sync](https://obsidian-nvim.github.io/obsidian.nvim/Sync).
 - `:Obsidian tags [TAG ...]` - get a picker list of all occurrences of the given tags
 - `:Obsidian unique_note [TITLE]` - create a new note with a unique, timestamp-based ID
 - `:Obsidian workspace [NAME]` - switch to another workspace
@@ -123,10 +128,10 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian toc` - get a picker list of table of contents for current note
 - `:Obsidian footnotes` - get a select list of all footnotes in current note, with preview
 - `:Obsidian template [NAME]` - insert a template from the templates folder, selecting from a list using your preferred picker
-  - [Template](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Template)
+  - [Template](https://obsidian-nvim.github.io/obsidian.nvim/Template)
 - `:Obsidian links` - get a picker list of all links in current note
 - `:Obsidian paste_img [IMGNAME]` - paste an image from the clipboard into the note at the cursor position by saving it to the vault and adding a markdown image link
-  - [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images#change-image-save-location)
+  - [Attachment options](https://obsidian-nvim.github.io/obsidian.nvim/Attachment#options)
 - `:Obsidian rename [NEWNAME]` - rename the note of the current buffer or reference under the cursor, updating all backlinks across the vault
   - runs `:wa` before renaming, and loads every note with backlinks into your buffer-list
   - after renaming you need to do `:wa` again for changes to take effect
@@ -144,7 +149,7 @@ There's one entry point user command for this plugin: `Obsidian`
 ### LSP code actions
 
 - Use `gra` or `:=vim.lsp.buf.code_action()` to trigger note specific actions.
-- See [LSP code actions](https://github.com/obsidian-nvim/obsidian.nvim/wiki/LSP#code-actions) and [Actions](docs/Actions.md) for more info.
+- See [LSP code actions](https://obsidian-nvim.github.io/obsidian.nvim/LSP#code-actions) and [Actions](https://obsidian-nvim.github.io/obsidian.nvim/Actions) for more info.
 
 ## 📝 Requirements
 
@@ -182,10 +187,10 @@ require("obsidian").setup {
 
 - **Image viewing:**
   - [snacks.image](https://github.com/folke/snacks.nvim/blob/main/docs/image.md)
-  - See [Images](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Images) for configuration.
+  - See [Images](https://obsidian-nvim.github.io/obsidian.nvim/Images) for configuration.
 
 - **Completion**
-  - See [Completion](https://github.com/obsidian-nvim/obsidian.nvim/wiki/Completion)
+  - See [Completion](https://obsidian-nvim.github.io/obsidian.nvim/Completion)
 
 ## 📥 Installation
 
@@ -360,6 +365,9 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://sgh.ng"><img src="https://avatars.githubusercontent.com/u/58419736?v=4?s=100" width="100px;" alt="Samuel Huang"/><br /><sub><b>Samuel Huang</b></sub></a><br /><a href="#code-sghng" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/schmoelder"><img src="https://avatars.githubusercontent.com/u/20299934?v=4?s=100" width="100px;" alt="Johannes Schmölder"/><br /><sub><b>Johannes Schmölder</b></sub></a><br /><a href="#code-schmoelder" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/bercedev"><img src="https://avatars.githubusercontent.com/u/75228263?v=4?s=100" width="100px;" alt="berce"/><br /><sub><b>berce</b></sub></a><br /><a href="#code-bercedev" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Necrom4"><img src="https://avatars.githubusercontent.com/u/162458559?v=4?s=100" width="100px;" alt="Diogo Pombeiro"/><br /><sub><b>Diogo Pombeiro</b></sub></a><br /><a href="#code-Necrom4" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

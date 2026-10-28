@@ -1,9 +1,17 @@
+---
+title: "Frontmatter"
+tags:
+  - configuration
+  - metadata
+---
+
 - [Special keys](#special-keys)
 - [Syntax](#syntax)
 - [Example](#example)
 - [Disabling frontmatter](#disabling-frontmatter)
 - [Sorting frontmatter](#sorting-frontmatter)
 - [Options](#options)
+- [See also](#see-also)
 
 obsidian.nvim reads YAML frontmatter at the top of a note (between `---` lines). It validates a small set of keys used by the plugin and leaves any other fields untouched as metadata.
 
@@ -99,3 +107,7 @@ frontmatter = {
   sort = { "id", "aliases", "tags" },
 }
 ```
+
+## See also
+
+[[Note]] · [[Tag]] · [[Template]]

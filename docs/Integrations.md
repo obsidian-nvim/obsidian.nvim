@@ -1,3 +1,9 @@
+---
+title: "Integrations"
+tags:
+  - integrations
+---
+
 **WIP**
 
 ## Community Plugins
@@ -18,4 +24,3 @@ Close to the idea of community plugins for the app. They work in obsidian vaults
 - [markdowny.nvim](https://github.com/antonk52/markdowny.nvim) keymaps for adding links, bold, italic and inlines
 - [hamidi-dev/org-list.nvim](https://github.com/hamidi-dev/org-list.nvim) orgmode-inspired, cycle through list states, make child parent checkboxes share states.
 - [Thiago4532/mdmath.nvim](https://github.com/Thiago4532/mdmath.nvim) inline render markdown math
-

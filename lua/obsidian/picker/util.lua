@@ -6,7 +6,7 @@ local Path = require "obsidian.path"
 local M = {}
 
 ---@param path string|obsidian.Path
----@return obsidian.ui_select_preview_spec
+---@return obsidian.picker.PreviewSpec
 M.preview_path = function(path)
   path = tostring(path)
   local buf = vim.api.nvim_create_buf(false, true)
@@ -32,7 +32,7 @@ M.preview_path = function(path)
   return { buf = buf }
 end
 
----@param opts { prompt_title: string|?, query_mappings: obsidian.PickerMappingTable|?, selection_mappings: obsidian.PickerMappingTable|? }|?
+---@param opts { prompt_title: string|?, query_mappings: obsidian.picker.MappingTable|?, selection_mappings: obsidian.picker.MappingTable|? }|?
 ---@return string
 M.build_prompt = function(opts)
   opts = opts or {}
@@ -67,7 +67,7 @@ M.build_prompt = function(opts)
 end
 
 ---@param winid integer
----@param spec obsidian.ui_select_preview_spec|?
+---@param spec obsidian.picker.PreviewSpec|?
 ---@return boolean
 M.show_preview_spec = function(winid, spec)
   if not spec or not vim.api.nvim_win_is_valid(winid) then
@@ -103,7 +103,7 @@ M.show_preview_spec = function(winid, spec)
 end
 
 ---Open one picker result directly, or put multiple results in the quickfix list.
----@param entries (string|obsidian.PickerEntry)[]
+---@param entries (string|obsidian.picker.Entry)[]
 M.open_notes = function(entries)
   if #entries == 0 then
     return
@@ -123,7 +123,7 @@ M.open_notes = function(entries)
   vim.cmd "copen"
 end
 
----@param entry obsidian.PickerEntry|string
+---@param entry obsidian.picker.Entry|string
 ---
 ---@return string
 M.make_display = function(entry)

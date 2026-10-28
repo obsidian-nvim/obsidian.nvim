@@ -646,6 +646,33 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "schmoelder",
+      "name": "Johannes Schmölder",
+      "avatar_url": "https://avatars.githubusercontent.com/u/20299934?v=4",
+      "profile": "https://github.com/schmoelder",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "bercedev",
+      "name": "berce",
+      "avatar_url": "https://avatars.githubusercontent.com/u/75228263?v=4",
+      "profile": "https://github.com/bercedev",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Necrom4",
+      "name": "Diogo Pombeiro",
+      "avatar_url": "https://avatars.githubusercontent.com/u/162458559?v=4",
+      "profile": "https://github.com/Necrom4",
+      "contributions": [
+        "code"
+      ]
     }
   ]
 }

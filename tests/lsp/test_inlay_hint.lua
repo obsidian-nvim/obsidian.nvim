@@ -108,6 +108,329 @@ T["publishes link suggestions to native inlay hint interface"] = function()
   )
 end
 
+T["updates hint responses during ordinary insert-mode changes"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  child.lua [[
+    _G.inlay_resolver_calls = 0
+    local resolvers = require "obsidian.resolvers"
+    local original_resolve = resolvers.resolve
+    _G.original_resolve = original_resolve
+    resolvers.resolve = function(...)
+      _G.inlay_resolver_calls = _G.inlay_resolver_calls + 1
+      return original_resolve(...)
+    end
+  ]]
+
+  run_inlay_hint()
+  eq(1, child.lua_get "_G.inlay_resolver_calls")
+
+  child.type_keys "i"
+  child.lua [[vim.api.nvim_buf_set_lines(0, 0, -1, false, { "a test test" })]]
+  local updated = vim.list_extend(link_hints(0, 2, 6), link_hints(0, 7, 11))
+  eq(updated, run_inlay_hint())
+  eq(2, child.lua_get "_G.inlay_resolver_calls")
+
+  eq(updated, run_inlay_hint())
+  eq(2, child.lua_get "_G.inlay_resolver_calls")
+  child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
+end
+
+T["coalesces concurrent requests for the same buffer revision"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["hints.md"] = "plain text",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+
+  local result = h.child_await(
+    child,
+    [[
+      local resolvers = require "obsidian.resolvers"
+      local original = resolvers.resolve
+      local resolver_done
+      local calls, responses = 0, 0
+      resolvers.resolve = function(_, _, finish)
+        calls = calls + 1
+        resolver_done = finish
+      end
+      local handler = require "obsidian.lsp.handlers.inlay_hint"
+      local params = { textDocument = { uri = vim.uri_from_bufnr(0) } }
+      local function response()
+        responses = responses + 1
+        if responses == 2 then
+          resolvers.resolve = original
+          done({ calls = calls, responses = responses })
+        end
+      end
+      handler(params, response)
+      handler(params, response)
+      assert(calls == 1, "duplicate inlay resolver started")
+      resolver_done({})
+    ]],
+    { desc = "coalesced inlay responses" }
+  )
+  eq({ calls = 1, responses = 2 }, result)
+end
+
+T["freezes hint responses at built-in completion openers"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  child.lua [[
+    _G.inlay_resolver_calls = 0
+    local resolvers = require "obsidian.resolvers"
+    _G.original_resolve = resolvers.resolve
+    resolvers.resolve = function(...)
+      _G.inlay_resolver_calls = _G.inlay_resolver_calls + 1
+      return _G.original_resolve(...)
+    end
+  ]]
+
+  local cached = run_inlay_hint()
+  eq(1, child.lua_get "_G.inlay_resolver_calls")
+  child.type_keys "i"
+
+  for _, line in ipairs { "[[", "[[test", "#", "#test", "[^", "[^test" } do
+    child.lua(([[
+      local line = %q
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, { line })
+      vim.api.nvim_win_set_cursor(0, { 1, #line })
+    ]]):format(line))
+    eq(cached, run_inlay_hint())
+  end
+
+  eq(1, child.lua_get "_G.inlay_resolver_calls")
+  child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
+end
+
+T["does not freeze a heading or normal-mode completion-shaped text"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  child.lua [[
+    _G.inlay_resolver_calls = 0
+    local resolvers = require "obsidian.resolvers"
+    _G.original_resolve = resolvers.resolve
+    resolvers.resolve = function(...)
+      _G.inlay_resolver_calls = _G.inlay_resolver_calls + 1
+      return _G.original_resolve(...)
+    end
+  ]]
+
+  run_inlay_hint()
+  child.type_keys "i"
+  child.lua [[
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# heading" })
+    vim.api.nvim_win_set_cursor(0, { 1, 9 })
+  ]]
+  run_inlay_hint()
+  eq(2, child.lua_get "_G.inlay_resolver_calls")
+
+  child.type_keys "<Esc>"
+  child.lua [[
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "[[test" })
+    vim.api.nvim_win_set_cursor(0, { 1, 5 })
+  ]]
+  run_inlay_hint()
+  eq(3, child.lua_get "_G.inlay_resolver_calls")
+  child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
+end
+
+T["does not freeze custom hints in frontmatter tag lists"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["hints.md"] = "---\ntags:\n  - \n---\nbody",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  child.lua [[
+    _G.inlay_resolver_calls = 0
+    local resolvers = require "obsidian.resolvers"
+    _G.original_resolve = resolvers.resolve
+    resolvers.resolve = function(_, _, done)
+      _G.inlay_resolver_calls = _G.inlay_resolver_calls + 1
+      done({})
+    end
+  ]]
+
+  run_inlay_hint()
+  child.type_keys "i"
+  child.lua [[
+    vim.api.nvim_buf_set_lines(0, 2, 3, false, { "  - n" })
+    vim.api.nvim_win_set_cursor(0, { 3, 5 })
+  ]]
+  run_inlay_hint()
+  eq(2, child.lua_get "_G.inlay_resolver_calls")
+  child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
+end
+
+T["discards a resolver result when the buffer changes while it runs"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  local cached = run_inlay_hint()
+
+  child.type_keys "i"
+  child.lua [[
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "a test test" })
+    local resolvers = require "obsidian.resolvers"
+    _G.original_resolve = resolvers.resolve
+    resolvers.resolve = function(_, _, done)
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, { "a test test test" })
+      done({ { position = { line = 0, character = 0 }, label = "stale" } })
+    end
+  ]]
+
+  eq(cached, run_inlay_hint())
+  child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
+  eq(
+    vim.list_extend(vim.list_extend(link_hints(0, 2, 6), link_hints(0, 7, 11)), link_hints(0, 12, 16)),
+    run_inlay_hint()
+  )
+end
+
+T["discards a resolver result when the note cache changes while it runs"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  child.lua(([[
+    local resolvers = require "obsidian.resolvers"
+    _G.original_resolve = resolvers.resolve
+    resolvers.resolve = function(_, _, done)
+      require("obsidian.cache").notes.update(%q, { aliases = { "updated" } })
+      done({ { position = { line = 0, character = 0 }, label = "stale" } })
+    end
+  ]]):format(tostring(files["test.md"])))
+
+  eq({}, run_inlay_hint())
+  child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
+  eq(link_hints(0, 2, 6), run_inlay_hint())
+end
+
+T["discards a resolver result when completion starts while it runs"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "[[test\na test",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  child.lua [[vim.api.nvim_win_set_cursor(0, { 2, 5 })]]
+  local cached = run_inlay_hint()
+
+  child.type_keys "i"
+  child.lua [[
+    vim.api.nvim_buf_set_lines(0, 1, 2, false, { "a test test" })
+    vim.api.nvim_win_set_cursor(0, { 2, 11 })
+    local resolvers = require "obsidian.resolvers"
+    _G.original_resolve = resolvers.resolve
+    resolvers.resolve = function(_, _, done)
+      vim.api.nvim_win_set_cursor(0, { 1, 6 })
+      done({ { position = { line = 0, character = 0 }, label = "stale" } })
+    end
+  ]]
+
+  eq(cached, run_inlay_hint())
+  child.lua [[require("obsidian.resolvers").resolve = _G.original_resolve]]
+end
+
+T["refreshes after the insert cursor leaves a completion expression"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "[[test\nplain",
+  })
+  setup_cache()
+  child.cmd("edit " .. files["hints.md"])
+  child.type_keys "i"
+  child.lua [[
+    vim.api.nvim_win_set_cursor(0, { 1, 6 })
+    require("obsidian.inlay_hints.completion").observe(0)
+    local inlay_hints = require "obsidian.inlay_hints"
+    _G.original_schedule_refresh = inlay_hints.schedule_refresh
+    _G.cursor_leave_refreshes = 0
+    inlay_hints.schedule_refresh = function(_, opts)
+      if opts and opts.allow_insert then
+        _G.cursor_leave_refreshes = _G.cursor_leave_refreshes + 1
+      end
+    end
+    vim.api.nvim_win_set_cursor(0, { 2, 0 })
+    vim.api.nvim_exec_autocmds("CursorMovedI", { buffer = 0 })
+    vim.api.nvim_exec_autocmds("CursorMovedI", { buffer = 0 })
+  ]]
+
+  eq(1, child.lua_get "_G.cursor_leave_refreshes")
+  child.lua [[require("obsidian.inlay_hints").schedule_refresh = _G.original_schedule_refresh]]
+end
+
+T["caches mention symbols until the note cache changes"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["target.md"] = "# target",
+    ["source.md"] = "target",
+  })
+  setup_cache()
+
+  child.lua(([=[
+    local cache = require "obsidian.cache"
+    local original_all = cache.notes.all
+    _G.original_notes_all = original_all
+    _G.symbol_rows_reads = 0
+    cache.notes.all = function(...)
+      _G.symbol_rows_reads = _G.symbol_rows_reads + 1
+      return original_all(...)
+    end
+    local symbols = require "obsidian.note.link_suggestion".symbols
+    _G.cached_symbols_first = symbols(%q)
+    _G.cached_symbols_second = symbols(%q)
+  ]=]):format(tostring(files["source.md"]), tostring(files["source.md"])))
+
+  eq(1, child.lua_get "_G.symbol_rows_reads")
+  child.lua(([=[
+    require("obsidian.cache").notes.update(%q, { aliases = { "destination" } })
+    _G.cached_symbols_after_update = require("obsidian.note.link_suggestion").symbols(%q)
+  ]=]):format(tostring(files["target.md"]), tostring(files["source.md"])))
+
+  eq(2, child.lua_get "_G.symbol_rows_reads")
+  eq(
+    true,
+    child.lua_get [[vim.tbl_contains(vim.tbl_map(function(s) return s.text end, _G.cached_symbols_after_update), "destination")]]
+  )
+  child.lua [[require("obsidian.cache").notes.all = _G.original_notes_all]]
+end
+
+T["refreshes hints after normal-mode edits and undo"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "# test",
+    ["hints.md"] = "a test",
+  })
+  setup_cache()
+
+  child.cmd("edit " .. files["hints.md"])
+  h.child_wait_for_lsp_client(child, "obsidian-ls")
+  child.lua [[vim.lsp.inlay_hint.enable(true, { bufnr = 0 })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 2]], { desc = "initial native hints" })
+
+  child.lua [[vim.api.nvim_buf_set_lines(0, 0, -1, false, { "no match" })]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 0]], { desc = "hints removed after edit" })
+
+  child.lua [[vim.cmd "undo"]]
+  h.child_wait(child, [[return #vim.lsp.inlay_hint.get { bufnr = 0 } == 2]], { desc = "hints restored after undo" })
+end
+
 T["resolves native hints before accepting them"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["test.md"] = "# test",

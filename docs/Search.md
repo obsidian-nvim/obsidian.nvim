@@ -1,7 +1,15 @@
+---
+title: "Search"
+tags:
+  - search
+  - configuration
+---
+
 - [Sort By](#sort-by)
 - [Sort Reversed](#sort-reversed)
 - [Max Lines](#max-lines)
 - [Options](#options)
+- [See also](#see-also)
 
 ## Sort By
 
@@ -29,3 +37,7 @@ search = {
   max_lines = 1000,
 }
 ```
+
+## See also
+
+[[Completion]] · [[Cache]] · [[Tag]]
