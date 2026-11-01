@@ -130,26 +130,19 @@ function M.sync_once_debounced(workspace)
 
   local prev = debounce_timers[dir]
   if prev then
-    pcall(function()
-      prev:stop()
-      prev:close()
-    end)
+    prev:stop()
+    prev:close()
   end
 
-  local t = assert(vim.uv.new_timer(), "failed to spawn timer")
-  debounce_timers[dir] = t
-  t:start(
-    delay,
-    0,
-    vim.schedule_wrap(function()
-      pcall(function()
-        t:stop()
-        t:close()
-      end)
-      debounce_timers[dir] = nil
-      M.sync_once(workspace, { silent = true })
-    end)
-  )
+  local timer
+  timer = vim.defer_fn(function()
+    if debounce_timers[dir] ~= timer then
+      return
+    end
+    debounce_timers[dir] = nil
+    M.sync_once(workspace, { silent = true })
+  end, delay)
+  debounce_timers[dir] = timer
 end
 
 ---@param ws obsidian.Workspace

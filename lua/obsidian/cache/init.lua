@@ -137,21 +137,22 @@ local function schedule_flush()
     state.flush_timer:stop()
     state.flush_timer:close()
   end
-  state.flush_timer = vim.uv.new_timer()
-  assert(state.flush_timer, "failed to create cache flush timer"):start(
-    FLUSH_DEBOUNCE_MS,
-    0,
-    vim.schedule_wrap(function()
-      if state and state.backend then
-        local ok, err = pcall(function()
-          state.backend:flush()
-        end)
-        if not ok then
-          log.err("[cache] flush failed: %s", err)
-        end
+  local timer
+  timer = vim.defer_fn(function()
+    if not state or state.flush_timer ~= timer then
+      return
+    end
+    state.flush_timer = nil
+    if state.backend then
+      local ok, err = pcall(function()
+        state.backend:flush()
+      end)
+      if not ok then
+        log.err("[cache] flush failed: %s", err)
       end
-    end)
-  )
+    end
+  end, FLUSH_DEBOUNCE_MS)
+  state.flush_timer = timer
 end
 
 ---@param abs_path string

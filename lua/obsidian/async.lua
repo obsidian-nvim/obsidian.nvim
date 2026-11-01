@@ -83,31 +83,20 @@ M.throttle = function(fn, timeout)
   return function(...)
     if timer ~= nil then
       timer:stop()
+      timer:close()
+      timer = nil
     end
 
     local ms_remaining = timeout - (vim.uv.now() - last_call)
 
     if ms_remaining > 0 then
-      if timer == nil then
-        timer = assert(vim.uv.new_timer())
-      end
-
       local args = { ... }
 
-      timer:start(
-        ms_remaining,
-        0,
-        vim.schedule_wrap(function()
-          if timer ~= nil then
-            timer:stop()
-            timer:close()
-            timer = nil
-          end
-
-          last_call = vim.uv.now()
-          fn(unpack(args))
-        end)
-      )
+      timer = vim.defer_fn(function()
+        timer = nil
+        last_call = vim.uv.now()
+        fn(unpack(args))
+      end, ms_remaining)
     else
       last_call = vim.uv.now()
       fn(...)

@@ -857,6 +857,26 @@ M.toggle_recording = function()
   require("obsidian.core-plugins.audio_recorder").toggle()
 end
 
+---@param delta integer
+---@param fallback string
+---@return string
+local function scroll_embed_or(delta, fallback)
+  local changed = require("obsidian.embed").scroll_under_cursor(delta * vim.v.count1)
+  return changed == nil and fallback or "<Ignore>"
+end
+
+---Scroll the note embed under the cursor up, or pass through to |CTRL-A|.
+---@return string
+M.increment = function()
+  return scroll_embed_or(1, "<C-a>")
+end
+
+---Scroll the note embed under the cursor down, or pass through to |CTRL-X|.
+---@return string
+M.decrement = function()
+  return scroll_embed_or(-1, "<C-x>")
+end
+
 ---@param line string
 ---@param row integer
 ---@return string?

@@ -68,6 +68,22 @@ T["follow wiki links with missing block IDs without creating a note"] = function
   eq("Link target '^missing-block' does not exist in note 'target'", child.lua_get "_G.definition_warning")
 end
 
+T["follow wiki links to block IDs on list items"] = function()
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[target#^second]]",
+    ["target.md"] = [==[
+- first ^first
+- second ^second
+- third ^third
+]==],
+  })
+  child.cmd("edit " .. files["referencer.md"])
+  child.api.nvim_win_set_cursor(0, { 1, 0 })
+  child.lua "vim.lsp.buf.definition()"
+  h.child_wait_for_buf_name(child, files["target.md"])
+  eq({ 2, 0 }, child.api.nvim_win_get_cursor(0))
+end
+
 T["follow CommonMark URI autolinks"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["referencer.md"] = "See <https://example.org/path>.",

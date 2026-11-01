@@ -36,6 +36,8 @@ See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP inte
 | `unlink`               | `n`      | Replace a link with its display text.                        | `bufnr`, `position`          |
 | `link_new`             | `n`, `v` | Create a note and link cursor word or selection.             | `title`                      |
 | `extract_note`         | `v`      | Move selection to a new note.                                | `title`                      |
+| `increment`            | `n`      | Scroll a note embed up; otherwise pass through `<C-a>`.       |                              |
+| `decrement`            | `n`      | Scroll a note embed down; otherwise pass through `<C-x>`.     |                              |
 
 ## See also
 

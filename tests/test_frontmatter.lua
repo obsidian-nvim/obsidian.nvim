@@ -89,6 +89,22 @@ T["dump"]["dump default frontmatter"] = function()
   eq(expected, lines)
 end
 
+T["dump"]["preserves mappings in arrays of frontmatter objects"] = function()
+  local _, metadata = M.parse {
+    "lifts:",
+    '  - name: "[[Barbell Back Squat]]"',
+    "    orm: 140",
+  }
+  eq({ lifts = { { name = "[[Barbell Back Squat]]", orm = 140 } } }, metadata)
+  eq({
+    "---",
+    "lifts:",
+    '  - name: "[[Barbell Back Squat]]"',
+    "    orm: 140",
+    "---",
+  }, M.dump(metadata))
+end
+
 T["dump"]["dump random attributes"] = function()
   local lines = M.dump(
     { random = "stuff", id = "id", aliases = { "id", "alias" }, tags = { "tag1", "tag2" } },

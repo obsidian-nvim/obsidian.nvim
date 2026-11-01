@@ -4,9 +4,9 @@ local img = require "obsidian.img_paste"
 
 ---@param data obsidian.commands.Args
 return function(data)
-  local img_type = img.get_clipboard_img_type()
+  local img_type, err = img.get_clipboard_img_type()
   if not img_type then
-    return log.err "There is no image data in the clipboard"
+    return log.err(err or "There is no image data in the clipboard")
   end
 
   local img_name_func = Obsidian.opts.attachments.img_name_func

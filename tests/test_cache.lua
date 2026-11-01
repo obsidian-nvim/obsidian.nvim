@@ -38,7 +38,7 @@ T["json backend"]["persists schema v2 entries"] = function()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
   eq(2, decoded.schema_version)
-  eq(5, decoded.indexer_version)
+  eq(6, decoded.indexer_version)
   eq(vault, decoded.vault)
   eq("note", decoded.entries[note_path].kind)
   eq(nil, decoded.notes)
@@ -69,7 +69,7 @@ T["json backend"]["rebuilds incompatible cache envelopes"] = function()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
   eq(2, decoded.schema_version)
-  eq(5, decoded.indexer_version)
+  eq(6, decoded.indexer_version)
   eq(nil, decoded.version)
   eq(nil, decoded.notes)
 end
@@ -171,6 +171,20 @@ T["cache backends"]["stores typed compact note rows"] = function()
   eq({ { anchor = "#note", header = "Note", level = 1, line = 5 } }, row.headings)
   eq(nil, row.links_out)
   eq(nil, row.tasks)
+end
+
+T["cache backends"]["omits nested frontmatter properties but keeps scalar lists"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  Obsidian = { dir = dir }
+  local note_path = tostring(dir / "Nested.md")
+  helpers.write(
+    "---\ncustom: value\nlabels: [one, two]\nnested:\n  child: hidden\nempty: {}\nitems:\n  - name: hidden\n---\n# Note",
+    note_path
+  )
+
+  local row = require("obsidian.cache.note").build(note_path, tostring(dir))
+  eq({ custom = "value", labels = { "one", "two" } }, row.properties)
 end
 
 T["cache backends"]["computes backlink counts from cached links"] = function()
@@ -436,7 +450,7 @@ T["cache backends"]["indexes typed attachment rows separately from notes"] = fun
   eq(true, cache.attachments.find(paths[1]) ~= nil)
 end
 
-T["cache backends"]["file watcher registers attachments only when cache is enabled"] = function()
+T["cache backends"]["file watcher registers notes and attachments"] = function()
   Obsidian = { opts = { cache = { enabled = false } } }
   local captured
   require "obsidian.lsp.handlers.initialized"(nil, {
@@ -451,20 +465,8 @@ T["cache backends"]["file watcher registers attachments only when cache is enabl
     watched[ext] = true
   end
 
-  eq(true, watched.md)
-  eq(nil, watched.png)
-
-  Obsidian.opts.cache.enabled = true
-  require "obsidian.lsp.handlers.initialized"(nil, {
-    server_request = function(_, registration)
-      captured = registration
-    end,
-  })
-
-  watched = {}
-  for _, watcher in ipairs(captured.registrations[1].registerOptions.watchers) do
-    local ext = watcher.globPattern:match "%.([^%.]+)$"
-    watched[ext] = true
+  for _, ext in ipairs(require("obsidian.filetypes").note_extensions) do
+    eq(true, watched[ext])
   end
   for _, ext in ipairs(require("obsidian.filetypes").attachment_extensions) do
     eq(true, watched[ext])

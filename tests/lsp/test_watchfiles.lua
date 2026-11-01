@@ -62,10 +62,9 @@ T["saving an attached note emits didSave"] = function()
   eq({ "two" }, child.lua_get "did_save_tags")
 end
 
-T["initialized dynamically registers file watchers"] = function()
+T["initialized dynamically registers note and attachment watchers"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.initialized"
-    Obsidian.opts.cache.enabled = true
 
     handler(vim.empty_dict(), {
       server_request = function(method, params)
@@ -88,14 +87,10 @@ T["initialized dynamically registers file watchers"] = function()
     glob_to_kind[watcher.globPattern] = watcher.kind
   end
 
-  eq(
-    vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete,
-    glob_to_kind["**/*.md"]
-  )
-  eq(
-    vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete,
-    glob_to_kind["**/*.png"]
-  )
+  local kind = vim.lsp.protocol.WatchKind.Create + vim.lsp.protocol.WatchKind.Change + vim.lsp.protocol.WatchKind.Delete
+  eq(kind, glob_to_kind["**/*.md"])
+  eq(kind, glob_to_kind["**/*.markdown"])
+  eq(kind, glob_to_kind["**/*.png"])
 end
 
 T["didChangeWatchedFiles emits LSP create and delete events"] = function()

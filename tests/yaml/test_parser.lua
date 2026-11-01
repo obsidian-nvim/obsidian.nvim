@@ -244,6 +244,16 @@ T["should parse inline mappings"] = function()
   eq({ foo = { bar = 1, baz = "Baz" } }, result)
 end
 
+T["should parse array mapping continuations after blank lines"] = function()
+  local result = parser:parse(table.concat({
+    "items:",
+    "  - count: 1",
+    "",
+    "    name: foo",
+  }, "\n"))
+  eq({ items = { { count = 1, name = "foo" } } }, result)
+end
+
 T["should parse array item strings with ':' in them"] = function()
   local result = parser:parse(table.concat({
     "aliases:",
