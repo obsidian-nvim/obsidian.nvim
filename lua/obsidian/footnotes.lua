@@ -189,4 +189,45 @@ M.pick = function(bufnr)
   end)
 end
 
+---@class obsidian.footnote.RenameOpts : obsidian.rename.Opts
+
+--- Rewrite a footnote name in its definition and every reference. Footnotes are
+--- scoped to their note, so only the buffer is touched.
+---@param bufnr integer Buffer of the note; 0 for the current one.
+---@param old_id string Footnote name, with or without `^`.
+---@param new_id string
+---@param opts obsidian.footnote.RenameOpts|obsidian.rename.Callback|?
+---@param callback obsidian.rename.Callback|?
+M.rename = function(bufnr, old_id, new_id, opts, callback)
+  local util = require "obsidian.util.rename"
+  opts, callback = util.args(opts, callback)
+  if not opts then
+    return
+  end
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+  old_id = old_id:gsub("^%^", "")
+  new_id = vim.trim(new_id):gsub("^%^", "")
+
+  if not new_id:match "^[^%]%[%s%^]+$" then
+    return util.fail(('Invalid footnote name "%s"'):format(new_id), callback)
+  end
+  if new_id == old_id then
+    log.info "Identical name"
+    return util.finish(opts, callback, nil)
+  end
+  if #M.find_refs(bufnr, new_id) > 0 then
+    return util.fail(('Footnote "[^%s]" already exists in this note'):format(new_id), callback)
+  end
+
+  ---@type obsidian.rename.FileEdits
+  local file_edits = {}
+  local path = util.path_key(vim.api.nvim_buf_get_name(bufnr))
+  for _, occurrence in ipairs(M.find_refs(bufnr, old_id)) do
+    util.add_edit(file_edits, path, occurrence.lnum - 1, occurrence.start_col + 2, occurrence.end_col - 1, new_id)
+  end
+  util.finish(opts, callback, util.to_workspace_edit(file_edits))
+end
+
 return M
