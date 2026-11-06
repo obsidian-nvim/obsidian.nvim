@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- JXL/JPEG XL Support.
+
 ## [v3.16.10](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.10) - 2026-10-28
 
 ### Added
