@@ -26,7 +26,9 @@ local generate_args = function(opts)
 
   local ret = {}
 
-  if opts.sort_by then
+  -- Frecency ordering is applied by search.find_async after filesystem scan;
+  -- ripgrep does not support it as a --sort key.
+  if opts.sort_by and opts.sort_by ~= "frecency" then
     local sort = "sortr" -- default sort is reverse
     if opts.sort_reversed == false then
       sort = "sort"
