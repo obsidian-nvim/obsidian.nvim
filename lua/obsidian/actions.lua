@@ -2029,14 +2029,44 @@ M.add_tag = function()
   end, "Add tags to current note")
 end
 
---- Show references for a header at a given line (used by codelens).
-M.show_references = function()
-  require "obsidian.lsp.handlers._references"(nil, { tag = false }, function(_, locations)
+--- Show backlinks for the section at a heading (used by codelens).
+---@param document_uri string
+---@param row integer 0-based heading row
+---@param anchor string normalized section anchor
+M.show_section_references = function(document_uri, row, anchor)
+  local bufnr = vim.uri_to_bufnr(document_uri)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  local note = Note.from_buffer(bufnr, { collect_anchor_links = true })
+  if not note or not anchor then
+    return
+  end
+  local section = vim.iter(note.sections or {}):find(function(item)
+    return item.heading_range.start_row == row and item.anchor == anchor
+  end)
+  if not section then
+    return
+  end
+  note:backlinks_async({ anchor = anchor }, function(matches)
+    local locations = vim.tbl_map(function(match)
+      return {
+        uri = vim.uri_from_fname(tostring(match.path)),
+        range = {
+          start = { line = match.line - 1, character = match.start or 0 },
+          ["end"] = { line = match.line - 1, character = match["end"] or 0 },
+        },
+      }
+    end, matches)
     local items = vim.lsp.util.locations_to_items(locations, "utf-8")
     if #items == 1 then
-      M.open_note(items[1])
-    else
-      Obsidian.picker.pick(items, { prompt_title = "Resolve link" }) -- calls open_qf_entry by default
+      api.open_note(items[1])
+    elseif #items > 1 then
+      picker.select(items, { prompt = "Section backlinks" }, function(choices)
+        if choices and choices[1] then
+          api.open_note(choices[1])
+        end
+      end)
     end
   end)
 end

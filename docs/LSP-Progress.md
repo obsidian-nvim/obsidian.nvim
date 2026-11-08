@@ -32,7 +32,7 @@ Tracking implementation status of [LSP 3.17](https://microsoft.github.io/languag
 - [ ] Code Action Resolve (`codeAction/resolve`)
 - [ ] Document Link Resolve (`documentLink/resolve`)
 - [ ] Document Highlight (`textDocument/documentHighlight`)
-- [ ] Code Lens (`textDocument/codeLens`)
+- [x] Code Lens (`textDocument/codeLens`) - per-heading word counts, replaced by backlink counts when referenced
 - [ ] Code Lens Refresh (`codeLens/refresh`)
 - [ ] Selection Range (`textDocument/selectionRange`)
 - [ ] Formatting (`textDocument/formatting`)
