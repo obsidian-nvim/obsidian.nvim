@@ -441,6 +441,11 @@ function M.validate(opts, skip_workspace_overrides)
     },
   })
 
+  nested_fields(errors, "uri", opts.uri, {
+    { "enabled", "boolean" },
+    { "require_confirmation", "boolean" },
+  })
+
   if type(opts.open) == "table" then
     fields(errors, "open", opts.open, {
       { "use_advanced_uri", "boolean" },
