@@ -418,7 +418,7 @@ return {
   ---@field enabled? boolean
   ---
   ---Confirm URI actions that can create or modify files when followed from a note.
-  ---Direct Lua calls are not prompted.
+  ---Direct Lua and OS-launcher calls are not prompted.
   ---@field require_confirmation? boolean
   uri = {
     enabled = true,

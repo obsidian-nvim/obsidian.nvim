@@ -174,6 +174,24 @@ T["absolute paths select the most specific workspace"] = function()
   eq("nested", result.note.path:parent().name)
 end
 
+T["x-success receives note callback parameters"] = function()
+  plain_notes()
+  local opened
+  local original = vim.ui.open
+  vim.ui.open = function(value)
+    opened = value
+  end
+
+  local ok, result = pcall(uri.handle, "obsidian://new?name=Callback&silent&x-success=test%3A%2F%2Fdone")
+  vim.ui.open = original
+
+  assert(ok, result)
+  eq(true, result.ok)
+  eq(true, opened:find("^test://done?", 1) ~= nil)
+  eq(true, opened:find("name=Callback", 1, true) ~= nil)
+  eq(true, opened:find("url=obsidian%3a%2f%2fopen", 1, true) ~= nil)
+end
+
 T["markdown URI handling preserves encoded query delimiters"] = function()
   Obsidian.opts.uri.require_confirmation = false
   local definition = require "obsidian.lsp.handlers._definition"
@@ -332,6 +350,44 @@ T["dispatch does not mutate its parsed request"] = function()
   eq(before, parsed)
 end
 
+T["successful operations do not invoke x-error"] = function()
+  plain_notes()
+  local calls = 0
+  local result = with_mock(vim.ui, "open", function()
+    calls = calls + 1
+  end, function()
+    return uri.handle "obsidian://new?name=Callback&content=body&silent&x-error=test%3A%2F%2Ferror"
+  end)
+  eq(true, result.ok)
+  eq(0, calls)
+end
+
+T["callback failure does not retry or fail a completed write"] = function()
+  plain_notes()
+  local calls = 0
+  local result = with_mock(vim.ui, "open", function()
+    calls = calls + 1
+    error "callback application unavailable"
+  end, function()
+    return uri.handle "obsidian://new?name=Callback&content=body&silent&x-success=test%3A%2F%2Fdone&x-error=test%3A%2F%2Ferror"
+  end)
+  eq(true, result.ok)
+  eq(1, calls)
+  eq({ "body" }, h.read(result.note.path))
+end
+
+T["failed operations deliver one error callback"] = function()
+  local calls = {}
+  local result = with_mock(vim.ui, "open", function(value)
+    calls[#calls + 1] = value
+  end, function()
+    return uri.handle "obsidian://unknown?x-error=test%3A%2F%2Ferror%3Fexisting%3D1"
+  end)
+  eq(false, result.ok)
+  eq(1, #calls)
+  eq(true, calls[1]:find("test://error?existing=1&errorMessage=", 1, true) ~= nil)
+end
+
 T["search uses the shared picker API"] = function()
   local received
   local result = with_mock(require "obsidian.picker", "grep_notes", function(opts)
@@ -404,7 +460,43 @@ T["unique URI creates its folder without prompting"] = function()
 end
 
 local C, child = h.child_vault()
-T["internal navigation"] = C
+T["outbound URLs"] = C
+
+C["command and Hook share note URL generation"] = function()
+  local result = child.lua [[
+    local uri = require "obsidian.uri"
+    local Note = require "obsidian.note"
+    local path = Obsidian.dir / "A & B.md"
+    vim.fn.writefile({ "body" }, tostring(path))
+    vim.cmd.edit(tostring(path))
+    local urls = {}
+    Obsidian.opts.open.func = function(value)
+      urls[#urls + 1] = value
+    end
+    Obsidian.opts.open.use_advanced_uri = false
+    require("obsidian.commands.open") { args = "" }
+    local native = uri.for_note(Note.from_file(path))
+    Obsidian.opts.open.use_advanced_uri = true
+    require("obsidian.commands.open") { args = "" }
+    local advanced = uri.parse(urls[2])
+    local copied
+    vim.fn.setreg = function(register, value)
+      assert(register == "+")
+      copied = value
+    end
+    local hook = uri.handle "obsidian://hook-get-address"
+    return {
+      urls[1] == native,
+      advanced.action,
+      advanced.params.filepath,
+      advanced.params.line,
+      hook.ok,
+      copied:find(native, 1, true) ~= nil,
+      Note.from_file(path):uri():match("^file://") ~= nil,
+    }
+  ]]
+  eq({ true, "advanced-uri", "A & B.md", "1", true, true, true }, result)
+end
 
 C["daily unique and search honor the URI vault rather than the source buffer"] = function()
   local result = child.lua [[
@@ -556,23 +648,6 @@ C["disabling internal URI handling preserves external opening policy"] = functio
     return { received, prompts }
   ]]
   eq({ "obsidian://open?file=Note", 1 }, result)
-end
-
-C["external integration parameters do not launch applications"] = function()
-  local result = child.lua [[
-    local external = 0
-    vim.ui.open = function()
-      external = external + 1
-    end
-    require("obsidian.api").confirm = function()
-      return "Yes"
-    end
-    local actions = require "obsidian.actions"
-    actions.follow_link "[Create](obsidian://new?file=Internal&content=body&silent&x-success=test%3A%2F%2Fdone)"
-    actions.follow_link "[Hook](obsidian://hook-get-address?x-error=test%3A%2F%2Ferror)"
-    return { external, vim.fn.readfile(tostring(Obsidian.dir / "Internal.md")) }
-  ]]
-  eq({ 0, { "body" } }, result)
 end
 
 return T

@@ -68,6 +68,22 @@ There's an additional action exposed via lua function, to insert a unique link a
 :lua require"obsidian.actions".unique_link()
 ```
 
+## Programmatic creation
+
+`new_unique_note(timestamp, opts)` writes the note by default. Pass `write = false` to build it in memory, or `create_dir = true` to create a missing unique-note folder without a confirmation prompt:
+
+```lua
+local note = require("obsidian.unique").new_unique_note(nil, {
+  write = false,
+  create_dir = true,
+})
+if note then
+  note:write()
+end
+```
+
+An in-memory note does not reserve its ID until you persist it. Keep the default eager write when creating several unique notes in succession.
+
 ## Options
 
 ```lua

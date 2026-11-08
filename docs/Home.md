@@ -19,7 +19,7 @@ Documentation for obsidian.nvim, a Neovim plugin for working with Obsidian vault
 - **Links and navigation:** [[Link]], [[Navigation]], [[Bookmarks]], [[Search]], [[Tag]]
 - **Editor integration:** [[Completion]], [[Embeds]], [[Folding]], [[Footer]], [[Images]], [[Open]], [[Checkbox]]
 - **Configuration and extensions:** [[Frontmatter]], [[File]], [[Cache]], [[Autocmds]], [[Resolvers]], [[Extensions]]
-- **Integrations:** [[Sync]], [[Integrations]], [[Scripting]]
+- **Integrations:** [[Sync]], [[Integrations]], [[Scripting]], [[Obsidian-URI]], [[Obsidian-URI-Registration]]
 
 ## Reference
 

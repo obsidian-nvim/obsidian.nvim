@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Opt-in system URI launchers and registration installers for Linux, macOS, and Windows, with Web Clipper setup and standalone URI documentation.
+- Hook address generation and `x-success`/`x-error` callback delivery, with shared outbound URL generation for Hook and `:Obsidian open`.
+
 - Follow `obsidian://` Markdown links and autolinks inside Neovim through link navigation. Supports `open`, `new`, `daily`, `unique`, `search`, and `choose-vault`, including heading/block targets, section content insertion, and tab/split opening. File-modifying links require confirmation by default; URI targets stay inside configured workspaces. See [Navigation](docs/Navigation.md#obsidian-uri-links).
 - Shared note APIs for whole-body and descendant-section insertion, explicit spacing modes, case-insensitive heading selection, exact-path creation, and noninteractive filename validation. URI actions reuse these APIs rather than maintaining a separate editing implementation.
 

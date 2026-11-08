@@ -51,6 +51,7 @@ local known_actions = {
   unique = true,
   search = true,
   ["choose-vault"] = true,
+  ["hook-get-address"] = true,
 }
 
 ---@class obsidian.uri.Operation
@@ -64,6 +65,43 @@ local known_actions = {
 ---@field interactive boolean
 ---@field silent boolean
 ---@field error string|?
+
+--- Append encoded query parameters to a URI.
+---@param base string
+---@param params table<string, string>
+---@return string
+local function append_query(base, params)
+  local values = {}
+  for key, value in pairs(params) do
+    values[#values + 1] = vim.uri_encode(key, "rfc2396") .. "=" .. vim.uri_encode(value, "rfc2396")
+  end
+  table.sort(values)
+  if #values == 0 then
+    return base
+  end
+  local separator = base:find("?", 1, true) and "&" or "?"
+  return base .. separator .. table.concat(values, "&")
+end
+
+--- Build an Obsidian URL. Parameters are encoded once, as complete values.
+---@param action string
+---@param params table<string, string>
+---@return string
+M.build = function(action, params)
+  return append_query("obsidian://" .. action, params)
+end
+
+--- Build an open URL for a note. Note:uri() continues to return a file:// URL.
+---@param note obsidian.Note
+---@return string
+M.for_note = function(note)
+  local path = assert(note.path, "note path is required")
+  local workspace = require("obsidian.api").find_workspace(path) or Obsidian.workspace
+  return M.build("open", {
+    vault = vim.fs.basename(tostring(workspace.root)),
+    file = tostring(path:relative_to(workspace.root)),
+  })
+end
 
 --- Parse query string into decoded key/value pairs.
 --- Bare keys are represented as the string "true"; URI flags use presence semantics.
@@ -123,6 +161,8 @@ end
 ---@field prepend boolean
 ---@field overwrite boolean
 ---@field pane_type string|?
+---@field x_success string|?
+---@field x_error string|?
 
 --- Parse an `obsidian://` URI.
 ---
@@ -202,6 +242,8 @@ M.parse = function(uri)
     prepend = params.prepend ~= nil,
     overwrite = params.overwrite ~= nil,
     pane_type = params.paneType,
+    x_success = params["x-success"],
+    x_error = params["x-error"],
   }
 end
 
@@ -314,7 +356,7 @@ local function resolve_target(parsed)
 end
 
 --- Dispatch a parsed URI. Handlers resolve operations; this boundary owns URI
---- content/opening policy and results. External callbacks are not executed.
+--- content/opening policy, results, and exactly one callback delivery attempt.
 ---@param parsed obsidian.uri.Parsed
 ---@return obsidian.uri.Result
 M.dispatch = function(parsed)
@@ -354,7 +396,7 @@ M.dispatch = function(parsed)
     local handler = require("obsidian.uri.handlers." .. parsed.action)
     local resolved = handler(parsed, resolve_target(parsed))
     local note = resolved.note
-    if note then
+    if note and parsed.action ~= "hook-get-address" then
       local existed = note:exists()
       local content = parsed.content
       if not existed then
@@ -414,6 +456,31 @@ M.dispatch = function(parsed)
     log.err("Obsidian URI '%s' failed: %s", parsed.action, result.error)
   end
 
+  local callback
+  if ok then
+    callback = parsed.x_success
+  else
+    callback = parsed.x_error
+  end
+  if callback and (not ok or result.note) then
+    local delivered, err = pcall(function()
+      ---@type table<string, string>
+      local params
+      if result.note then
+        params = {
+          name = assert(result.note.path, "callback note path is required").stem,
+          url = M.for_note(result.note),
+          file = assert(result.note:uri(), "callback file URI is required"),
+        }
+      else
+        params = { errorMessage = assert(result.error, "callback error is required") }
+      end
+      vim.ui.open(append_query(callback, params))
+    end)
+    if not delivered then
+      log.err("Obsidian URI callback failed: %s", err)
+    end
+  end
   return result
 end
 

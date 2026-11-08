@@ -74,4 +74,4 @@ Following `new`, `daily`, `unique`, or a file-modifying `open` URI prompts for c
 
 Set `uri.enabled = false` to use the existing external-link opening policy instead. Other URI schemes keep that policy regardless of this setting. Direct Lua calls to the URI handler do not prompt.
 
-This feature covers links followed inside Neovim. It does not register a system opener, launch Neovim from a browser, or provide Web Clipper integration. Hook actions and external `x-success`/`x-error` callbacks are outside this MVP; callback parameters do not launch other applications.
+Internal link navigation does not require a system URI association. For browser and Web Clipper entrypoints, see [[Obsidian-URI-Registration]]. See [[Obsidian-URI]] for the full action and callback reference.

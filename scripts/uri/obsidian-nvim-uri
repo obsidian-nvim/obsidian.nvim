@@ -1,0 +1,88 @@
+#!/bin/sh
+# Launch obsidian.nvim for one obsidian:// URI without interpolating URI data
+# into shell or Lua source.
+set -eu
+
+URI=${1-}
+if [ -z "${NVIM:-}" ]; then
+  if [ -r "$0.nvim" ]; then
+    IFS= read -r NVIM <"$0.nvim"
+  else
+    NVIM=nvim
+  fi
+fi
+LUA_COMMAND="+lua local r=require('obsidian.uri').handle(vim.env.OBSIDIAN_NVIM_URI); vim.g.obsidian_uri_failed=not r.ok"
+QUIT_COMMAND="+lua if vim.g.obsidian_uri_failed then vim.cmd('cquit') else vim.cmd('quitall') end"
+
+case "$URI" in
+  obsidian://*) ;;
+  *)
+    printf '%s\n' "usage: obsidian-nvim-uri 'obsidian://...'" >&2
+    exit 2
+    ;;
+esac
+
+if ! command -v "$NVIM" >/dev/null 2>&1; then
+  printf 'obsidian-nvim-uri: Neovim executable not found: %s\n' "$NVIM" >&2
+  exit 127
+fi
+
+export OBSIDIAN_NVIM_URI="$URI"
+
+action=${URI#obsidian://}
+action=${action%%\?*}
+query=${URI#*\?}
+silent=false
+case "$action" in
+  new|daily)
+    case "&$query&" in
+      *'&silent&'*|*'&silent='*) silent=true ;;
+    esac
+    ;;
+esac
+
+if [ "$silent" = true ]; then
+  exec "$NVIM" --headless "$LUA_COMMAND" "$QUIT_COMMAND"
+fi
+
+if [ -t 0 ] && [ -t 1 ]; then
+  exec "$NVIM" "$LUA_COMMAND"
+fi
+
+if [ "$(uname -s)" = Darwin ]; then
+  exec /usr/bin/osascript - "$URI" "$NVIM" "$LUA_COMMAND" <<'APPLESCRIPT'
+on run argv
+  set uriValue to item 1 of argv
+  set nvimPath to item 2 of argv
+  set luaCommand to item 3 of argv
+  set shellCommand to "OBSIDIAN_NVIM_URI=" & quoted form of uriValue & " " & quoted form of nvimPath & " " & quoted form of luaCommand
+  tell application "Terminal"
+    activate
+    do script shellCommand
+  end tell
+end run
+APPLESCRIPT
+fi
+
+if command -v xdg-terminal-exec >/dev/null 2>&1; then
+  exec xdg-terminal-exec "$NVIM" "$LUA_COMMAND"
+elif command -v kitty >/dev/null 2>&1; then
+  exec kitty "$NVIM" "$LUA_COMMAND"
+elif command -v alacritty >/dev/null 2>&1; then
+  exec alacritty -e "$NVIM" "$LUA_COMMAND"
+elif command -v wezterm >/dev/null 2>&1; then
+  exec wezterm start -- "$NVIM" "$LUA_COMMAND"
+elif command -v foot >/dev/null 2>&1; then
+  exec foot -e "$NVIM" "$LUA_COMMAND"
+elif command -v ghostty >/dev/null 2>&1; then
+  exec ghostty -e "$NVIM" "$LUA_COMMAND"
+elif command -v gnome-terminal >/dev/null 2>&1; then
+  exec gnome-terminal -- "$NVIM" "$LUA_COMMAND"
+elif command -v konsole >/dev/null 2>&1; then
+  exec konsole -e "$NVIM" "$LUA_COMMAND"
+elif command -v xterm >/dev/null 2>&1; then
+  exec xterm -e "$NVIM" "$LUA_COMMAND"
+else
+  printf '%s\n' 'obsidian-nvim-uri: no supported terminal found' >&2
+  exit 1
+fi

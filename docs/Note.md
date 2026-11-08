@@ -7,6 +7,8 @@ tags:
 
 - [Default Note Template](#default-note-template)
 - [Creation Callback](#creation-callback)
+- [Creating and Saving Notes](#creating-and-saving-notes)
+- [Inserting Text](#inserting-text)
 - [Deleting Notes](#deleting-notes)
 - [Note ID Presets](#note-id-presets)
 - [Options](#options)
@@ -87,6 +89,56 @@ local note = require("obsidian.note").create {
   scope = "media",
 }
 ```
+
+## Creating and Saving Notes
+
+Use `Note.resolve_path(opts)` to resolve a destination without creating a note or running creation callbacks. It follows the configured ID, path, and new-note-location settings. Invalid filenames raise an error unless you pass `prompt_invalid_filename = true`.
+
+Use `Note.create { path = absolute_path }` for an exact destination that bypasses ID and path generation. Creation builds an in-memory note and runs the creation lifecycle; it does not write the file. For generated paths, `Note.create` prompts for invalid filenames by default; pass `prompt_invalid_filename = false` for automation.
+
+Choose the persistence method based on the content you want:
+
+- `note:write()` initializes missing notes with their configured template and applies the frontmatter policy.
+- `note:save { content = text, insert_frontmatter = false }` replaces the body without applying a template or rewriting existing frontmatter. Pass an empty string or empty list to clear the body.
+- `note:save { update_content = function(lines) ... end }` transforms existing body lines. Do not combine `content` and `update_content`.
+
+`save()` returns the written lines, including frontmatter. It preserves modified buffer content when reading the existing note.
+
+## Inserting Text
+
+Use `note:insert_text(text, opts)` for a string, multiline string, or list of lines:
+
+```lua
+local row, col = note:insert_text("- Buy milk", {
+  section = "Tasks",
+  placement = "bot",
+  include_children = true,
+  ignore_case = true,
+  spacing = "newline",
+  on_section_missing = "error",
+  insert_frontmatter = false,
+})
+```
+
+| Option | Behavior |
+| --- | --- |
+| `target = "body"` | Insert at the beginning or end of the entire body, after frontmatter. |
+| `section` | Select a heading by label, level, or both. Omit it to select the preamble before the first heading. |
+| `placement = "top" / "bot"` | Prepend or append within the target. Defaults to `top`. |
+| `include_children = true` | Append after descendant sections too. Defaults to `false`. |
+| `ignore_case = true` | Match heading labels without regard to case. Defaults to `false`. |
+| `spacing = "auto"` | Leave a blank line between existing and inserted content. |
+| `spacing = "newline"` | Separate content with a newline. |
+| `spacing = "inline"` | Add no separator. |
+| `on_section_missing` | `create` (default), `error`, or `cancel`. |
+
+Omit `spacing` to retain the existing section layout rules. Existing callers keep their preamble targeting and padding behavior. Section parsing excludes headings inside code blocks and supports setext headings.
+
+Insertion accepts the save options `path`, `insert_frontmatter`, `frontmatter`, and `check_buffers`. It manages the content transformation itself, so do not supply `content` or `update_content`.
+
+The return values are a 1-based row, including frontmatter, and a 0-based byte column. Empty or cancelled insertions return `0, 0`.
+
+You can also navigate when opening a note with `note:open { anchor = "Heading" }` or `note:open { block = "block-id" }`. Opening resolves these targets against the current buffer or file content.
 
 ## Deleting Notes
 

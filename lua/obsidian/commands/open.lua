@@ -11,7 +11,7 @@ local function open_in_app(path, workspace_dir)
   local open_func = Obsidian.opts.open.func
   ---@cast open_func -nil
   if not path then
-    return open_func("obsidian://open?vault=" .. vim.uri_encode(vault_name))
+    return open_func(require("obsidian.uri").build("open", { vault = vault_name }))
   end
   path = tostring(path)
   local this_os = api.get_os()
@@ -21,18 +21,15 @@ local function open_in_app(path, workspace_dir)
     path = string.gsub(path, "/", "\\")
   end
 
-  local encoded_vault = vim.uri_encode(vault_name)
-  local encoded_path = vim.uri_encode(path)
-
-  local uri
-  if Obsidian.opts.open.use_advanced_uri then
-    local line = vim.api.nvim_win_get_cursor(0)[1] or 1
-    uri = ("obsidian://advanced-uri?vault=%s&filepath=%s&line=%i"):format(encoded_vault, encoded_path, line)
+  local action = Obsidian.opts.open.use_advanced_uri and "advanced-uri" or "open"
+  local params = { vault = vault_name }
+  if action == "advanced-uri" then
+    params.filepath = path
+    params.line = tostring(vim.api.nvim_win_get_cursor(0)[1])
   else
-    uri = ("obsidian://open?vault=%s&file=%s"):format(encoded_vault, encoded_path)
+    params.file = path
   end
-
-  open_func(uri)
+  open_func(require("obsidian.uri").build(action, params))
 end
 
 ---@param data obsidian.commands.Args

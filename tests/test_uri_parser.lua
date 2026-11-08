@@ -162,6 +162,11 @@ T["parse_new"]["new with prepend flag"] = function()
   eq(true, p.prepend)
 end
 
+T["parse_new"]["new with x-success callback"] = function()
+  local p = uri.parse "obsidian://new?vault=vault&name=note&x-success=myapp%3A%2F%2Fx-callback-url"
+  eq("myapp://x-callback-url", p.x_success)
+end
+
 ------------------------------
 --- parse: daily action ------
 ------------------------------
@@ -225,6 +230,24 @@ T["parse_choose_vault"] = new_set()
 T["parse_choose_vault"]["choose-vault"] = function()
   local p = uri.parse "obsidian://choose-vault"
   eq("choose-vault", p.action)
+end
+
+-------------------------------------------
+--- parse: hook-get-address action ------
+-------------------------------------------
+
+T["parse_hook"] = new_set()
+
+T["parse_hook"]["hook-get-address"] = function()
+  local p = uri.parse "obsidian://hook-get-address?vault=vault"
+  eq("hook-get-address", p.action)
+  eq("vault", p.vault)
+end
+
+T["parse_hook"]["hook-get-address with x-success"] = function()
+  local p = uri.parse "obsidian://hook-get-address?vault=vault&x-success=hook%3A%2F%2Fcallback"
+  eq("hook-get-address", p.action)
+  eq("hook://callback", p.x_success)
 end
 
 -----------------------------------------

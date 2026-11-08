@@ -78,4 +78,23 @@ T["is_uri_negative"]["do not treat non-uris as uri"] = function(s)
   eq(false, is_uri)
 end
 
+T["build encodes complete parameter values exactly once"] = function()
+  local value = "a&b=c+100% café"
+  local built = M.build("new", { file = "Folder/Note", content = value })
+  local parsed = M.parse(built)
+  eq(value, parsed.content)
+  eq("Folder/Note", parsed.file)
+  eq(true, built:find("file=Folder%2fNote", 1, true) ~= nil)
+end
+
+T["build supports vault-only and advanced URLs"] = function()
+  eq("obsidian://choose-vault", M.build("choose-vault", {}))
+  local built = M.build("advanced-uri", { vault = "My Vault", filepath = "Folder/Note.md", line = "12" })
+  local parsed = M.parse(built)
+  eq("advanced-uri", parsed.action)
+  eq("My Vault", parsed.vault)
+  eq("Folder/Note.md", parsed.params.filepath)
+  eq("12", parsed.params.line)
+end
+
 return T
