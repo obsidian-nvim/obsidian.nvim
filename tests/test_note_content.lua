@@ -214,15 +214,21 @@ C["insertion uses unsaved body and frontmatter for returned positions"] = functi
     vim.fn.writefile({ "old" }, tostring(path))
     local note = Note.from_file(path)
     vim.cmd.edit(tostring(path))
+    vim.bo.fileformat = "unix"
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { "---", "status: unsaved", "---", "## Log", "unsaved" })
     local row, col = note:insert_text("new", {
       section = "Log", placement = "bot", spacing = "inline", insert_frontmatter = false,
     })
-    return { row, col, vim.fn.readfile(tostring(path)), vim.api.nvim_buf_get_lines(0, 0, -1, false) }
+    local file = assert(io.open(tostring(path), "rb"), "saved note must be readable")
+    local bytes = file:read "*a"
+    file:close()
+    return { row, col, vim.fn.readfile(tostring(path)), vim.api.nvim_buf_get_lines(0, 0, -1, false), bytes, vim.bo.fileformat }
   ]]
   eq({ 5, 7 }, { result[1], result[2] })
   eq({ "---", "status: unsaved", "---", "## Log", "unsavednew" }, result[3])
   eq(result[3], result[4])
+  eq("---\nstatus: unsaved\n---\n## Log\nunsavednew\n", result[5])
+  eq("unix", result[6])
 end
 
 C["open resolves navigation against a changed buffer"] = function()

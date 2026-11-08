@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Write note content without Windows text-mode newline conversion, preventing stray carriage returns in open buffers after saving.
 - Preserve percent-encoded query values when following URI links instead of decoding query delimiters before dispatch.
 
 ## [v3.16.10](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.10) - 2026-10-28
