@@ -1,21 +1,10 @@
-local api = require "obsidian.api"
-local refs = require "obsidian.parse.refs"
-local link_parser = require "obsidian.link.parser"
+local rename = require "obsidian.lsp.handlers._rename"
 
----@param _ lsp.PrepareRenameParams
-return function(_, handler)
-  local link = api.cursor_link()
-  local placeholder
-  if link then
-    local ref = assert(refs.parse(link), "wrong link format")
-    placeholder = ref.target ~= "" and ref.target or link_parser.format(ref.target, ref.anchor, ref.block)
-  else
-    local note = api.current_note(0)
-    assert(note, "not in a obsidian note")
-    placeholder = note.id
-  end
+--- Answer with the element under the cursor, or nothing ("Nothing to rename").
+---@param params lsp.PrepareRenameParams|?
+return function(params, handler)
+  local bufnr, position = rename.resolve_params(params)
+  local target = rename.target_at(bufnr, position)
 
-  handler(nil, {
-    placeholder = placeholder,
-  })
+  handler(nil, target and { range = target.range, placeholder = target.placeholder } or nil)
 end
