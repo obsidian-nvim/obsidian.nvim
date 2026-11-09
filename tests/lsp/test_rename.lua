@@ -994,7 +994,6 @@ T["rename a heading that differs from the file name or is not first leaves the f
 end
 
 T["rename first heading fails whole when the new file name exists"] = function()
-  local root = child.Obsidian.dir
   child.lua [[
 require"obsidian.log".err = function(msg)
   _G.err_msg = msg
