@@ -209,6 +209,7 @@ local Note = {}
 ---@field old_path? string Existing path to rename from. Defaults to `note.path`.
 ---@field new_path? string Destination path. Defaults to sibling path using `new_name .. ".md"`.
 ---@field include_file_rename? boolean Include a file rename operation in the generated edit. Defaults to true.
+---@field sync_heading? boolean Also rename the first heading equal to the old id when `note.sync_heading` is set. Defaults to true; false skips it.
 ---@field include_stem_refs? boolean Update stem-only references. Defaults to true.
 ---@field dir? string|obsidian.Path Workspace directory used to find references.
 ---@field apply? boolean Apply the workspace edit directly. Defaults to true.

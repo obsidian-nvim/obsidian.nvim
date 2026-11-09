@@ -42,6 +42,9 @@ return {
   ---Default template to use, relative to template.folder or an absolute path.
   ---
   ---@field template string|?
+  ---
+  ---Whether the first heading of a note equal to its `id` is renamed along with the note, together with the links naming it.
+  ---@field sync_heading? boolean
   note = {
     template = (function()
       local root
@@ -56,6 +59,7 @@ return {
       end
       return vim.fs.joinpath(root, "data/default_template.md")
     end)(),
+    sync_heading = false,
   },
 
   ---@class obsidian.config.FileOpts

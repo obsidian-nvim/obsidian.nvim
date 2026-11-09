@@ -41,6 +41,8 @@ A block id or heading that already exists in the note is refused, and so is a he
 
 To rename the note of the current buffer, wherever the cursor is, use `:Obsidian rename [NEWNAME]`.
 
+With `note.sync_heading` and `frontmatter.sync_title`, `:Obsidian rename` also renames the first heading and the `title` property that equal the old id: see [[Note#Renaming the first heading with the note]] and [[Frontmatter#Keeping title in step with id|Frontmatter]].
+
 ## Auto Rename
 
 When a `.md` file is renamed (e.g. via a file explorer or `:mv`), the LSP server detects the rename and updates all links pointing to that note across your vault.

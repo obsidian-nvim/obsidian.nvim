@@ -899,4 +899,50 @@ T["rename current note leaves title alone when sync_title is off"] = function()
   eq(true, text:find 'title: "?same"?\n' ~= nil)
 end
 
+--- Rename `same.md` (first heading `first`, linked from `B.md`) to `same-new` and return the
+--- text of its buffer and the lines of `B.md`.
+---@param first string
+---@param sync_heading boolean
+---@return string, string[]
+local function renamed_heading(first, sync_heading)
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["same.md"] = "---\nid: same\n---\n# " .. first .. "\n\nsee [[#" .. first .. "]]",
+    ["B.md"] = "[[same#" .. first .. "]] [[same]]",
+  })
+
+  child.lua("Obsidian.opts.note.sync_heading = " .. tostring(sync_heading))
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["same.md"])
+  child.cmd "Obsidian rename same-new"
+  h.child_wait_for_path(child, root / "same-new.md")
+  local text = child.lua_get [[(function()
+    vim.wait(3000, function()
+      return table.concat(vim.api.nvim_buf_get_lines(1, 0, -1, false), "\n"):find("same-new", 1, true) ~= nil
+    end)
+    return table.concat(vim.api.nvim_buf_get_lines(1, 0, -1, false), "\n")
+  end)()]]
+  child.cmd "wa"
+  return text, h.read(files["B.md"])
+end
+
+T["rename current note moves a first heading equal to the id when sync_heading is on"] = function()
+  local text, linked = renamed_heading("same", true)
+  eq(true, text:find("# same-new\n", 1, true) ~= nil)
+  eq(true, text:find("[[#same-new]]", 1, true) ~= nil)
+  eq({ "[[same-new#same-new]] [[same-new]]" }, linked)
+end
+
+T["rename current note keeps a first heading that differs from the id"] = function()
+  local text, linked = renamed_heading("Readable Title", true)
+  eq(true, text:find("# Readable Title\n", 1, true) ~= nil)
+  eq({ "[[same-new#Readable Title]] [[same-new]]" }, linked)
+end
+
+T["rename current note leaves the first heading alone when sync_heading is off"] = function()
+  local text, linked = renamed_heading("same", false)
+  eq(true, text:find("# same\n", 1, true) ~= nil)
+  eq({ "[[same-new#same]] [[same-new]]" }, linked)
+end
+
 return T
