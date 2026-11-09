@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSP rename (`vim.lsp.buf.rename()`) renames block ids, headings (ATX and setext, with the links naming them), footnotes, tags (inline and in the frontmatter, with their subtags; renaming onto an existing tag merges them) and attachments (the file and every reference) under the cursor.
 - `frontmatter.sync_title` (default `false`): a `title` property equal to the note's `id` is changed along with the `id`, e.g. when the note is renamed.
 - `note.sync_heading` (default `false`): the first heading of a note equal to its `id` is renamed along with the note, and so are the links naming it, in the same edit as the file rename.
+- `note.sync_filename` (default `false`): renaming the first heading of a note with `vim.lsp.buf.rename()`, when it equals the file name, also renames the note file together with its backlinks, `id` and, with `frontmatter.sync_title`, `title`.
 
 ### Changed
 

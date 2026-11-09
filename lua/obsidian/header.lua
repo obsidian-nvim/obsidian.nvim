@@ -1,4 +1,5 @@
 local BufferDocument = require "obsidian.document"
+local api = require "obsidian.api"
 local log = require "obsidian.log"
 local parse_header = require "obsidian.parse.header"
 local sections = require "obsidian.section"
@@ -57,6 +58,7 @@ local function restyle(component, old_text, new_text)
 end
 
 ---@class obsidian.header.RenameOpts : obsidian.rename.Opts
+---@field sync_filename? boolean Also rename the file when the heading is the first one and equals the file stem, under `note.sync_filename`. Defaults to true; false skips it.
 
 --- Rewrite a heading's text and every link component that names it. Refused when
 --- the heading is not unique in its note, because a link cannot say which one it means.
@@ -123,7 +125,44 @@ M.rename = function(bufnr, old, new_name, opts, callback)
         end
       end
     end
-    util.finish(opts, callback, util.to_workspace_edit(file_edits))
+    local edit = util.to_workspace_edit(file_edits)
+
+    -- The first heading equal to the file stem drags the file along; the rename goes
+    -- through `Note:rename`, so backlinks, `id` and `title` follow it.
+    local sync = opts.sync_filename ~= false and Obsidian.opts.note.sync_filename
+    local note = sync and api.current_note(bufnr)
+    local first = sync and M.headings(bufnr)[1]
+    if not (note and note.path and first and first.row == definition.row and definition.text == note.path.stem) then
+      return util.finish(opts, callback, edit)
+    end
+    note:rename(new_text, { apply = false, sync_heading = false }, function(err, file_edit)
+      if err then
+        return util.fail(('Heading "%s" not renamed: %s'):format(definition.text, err), callback)
+      end
+      if not file_edit then
+        return util.finish(opts, callback, edit)
+      end
+      -- nvim only moves a modified buffer along with its file when the rename comes
+      -- first, so the edits of the note itself go after it, addressed to the new uri.
+      local own = vim.uri_from_bufnr(bufnr)
+      local rename = vim.tbl_filter(function(change)
+        return change.kind == "rename" and change.oldUri == own
+      end, file_edit.documentChanges or {})[1]
+      local rest, mine = {}, nil
+      for _, change in ipairs(edit and edit.documentChanges or {}) do
+        if change.textDocument.uri == own then
+          mine = change
+        else
+          rest[#rest + 1] = change
+        end
+      end
+      local merged = require("obsidian.note.rename").merge_edits(file_edit, { documentChanges = rest })
+      if merged and mine and rename then
+        mine.textDocument.uri = rename.newUri
+        table.insert(merged.documentChanges or {}, mine)
+      end
+      util.finish(opts, callback, merged)
+    end)
   end)
 end
 

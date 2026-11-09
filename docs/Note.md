@@ -112,6 +112,16 @@ require("obsidian").setup {
 
 Pair it with `frontmatter.sync_title` to keep the `title` property in step as well; see [[Frontmatter#Keeping title in step with id|Frontmatter]].
 
+## Renaming the file with the first heading
+
+When `note.sync_filename` is `true` (default `false`), renaming the first heading of a note with `vim.lsp.buf.rename()` also renames the note file if the heading equals the file name without extension. The file goes through `Note:rename`, so backlinks, the `id` and, with `frontmatter.sync_title`, the `title` follow it. A heading that differs from the file name, or is not the first one, leaves the file alone. When a note with the new name already exists nothing is renamed and the error `Heading "<old>" not renamed: Note with same name exists` is logged.
+
+```lua
+require("obsidian").setup {
+  note = { sync_filename = true },
+}
+```
+
 ## Note ID Presets
 
 By default obsidian.nvim uses random zettel IDs. (**Legacy design decision, in 4.0.0 will be default to human readable input title**)
@@ -143,6 +153,9 @@ When creating notes in a directory where the slug already exists, this preset ap
 ---
 ---Whether the first heading of a note equal to its `id` is renamed along with the note, together with the links naming it.
 ---@field sync_heading? boolean
+---
+---Whether renaming the first heading of a note, when it equals the file name, also renames the note file (with its backlinks, `id`, and `title` when `frontmatter.sync_title` is set).
+---@field sync_filename? boolean
 note = {
   template = (function()
     local root
@@ -158,6 +171,7 @@ note = {
     return vim.fs.joinpath(root, "data/default_template.md")
   end)(),
   sync_heading = false,
+  sync_filename = false,
 }
 ```
 

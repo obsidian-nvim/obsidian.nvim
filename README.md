@@ -136,6 +136,7 @@ There's one entry point user command for this plugin: `Obsidian`
   - runs `:wa` before renaming, and loads every note with backlinks into your buffer-list
   - after renaming you need to do `:wa` again for changes to take effect
   - with `frontmatter.sync_title` and `note.sync_heading` set, a `title` property and the first heading that equal the old id are renamed too ([Frontmatter](https://obsidian-nvim.github.io/obsidian.nvim/Frontmatter#keeping-title-in-step-with-id), [Note](https://obsidian-nvim.github.io/obsidian.nvim/Note#renaming-the-first-heading-with-the-note))
+  - with `note.sync_filename` set, renaming the first heading of a note (`vim.lsp.buf.rename`) renames the file too when the heading equals the file name ([Note](https://obsidian-nvim.github.io/obsidian.nvim/Note#renaming-the-file-with-the-first-heading))
   - to rename the element under the cursor (note link, attachment, block id, heading, footnote, tag), call `vim.lsp.buf.rename` or use `grn`
 - `:Obsidian toggle_checkbox` - cycle through checkbox options
 

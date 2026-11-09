@@ -327,7 +327,12 @@ function M.validate(opts, skip_workspace_overrides)
     check(errors, "link", opts.link, "table")
   end
 
-  nested_fields(errors, "note", opts.note, { { "template", "string" }, { "sync_heading", "boolean" } })
+  nested_fields(
+    errors,
+    "note",
+    opts.note,
+    { { "template", "string" }, { "sync_heading", "boolean" }, { "sync_filename", "boolean" } }
+  )
 
   if type(opts.file) == "table" then
     list_of(errors, "file.ignore_filters", opts.file.ignore_filters, "string")

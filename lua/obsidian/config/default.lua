@@ -45,6 +45,9 @@ return {
   ---
   ---Whether the first heading of a note equal to its `id` is renamed along with the note, together with the links naming it.
   ---@field sync_heading? boolean
+  ---
+  ---Whether renaming the first heading of a note, when it equals the file name, also renames the note file (with its backlinks, `id`, and `title` when `frontmatter.sync_title` is set).
+  ---@field sync_filename? boolean
   note = {
     template = (function()
       local root
@@ -60,6 +63,7 @@ return {
       return vim.fs.joinpath(root, "data/default_template.md")
     end)(),
     sync_heading = false,
+    sync_filename = false,
   },
 
   ---@class obsidian.config.FileOpts

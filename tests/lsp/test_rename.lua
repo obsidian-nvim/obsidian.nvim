@@ -945,4 +945,66 @@ T["rename current note leaves the first heading alone when sync_heading is off"]
   eq({ "[[same-new#same]] [[same-new]]" }, linked)
 end
 
+--- Rename the heading of `same.md` (linked from `B.md`) to `fresh` over LSP.
+---@param content string
+---@param sync_filename boolean
+---@param cursor integer[]
+---@param extra? table<string, string>
+---@return table<string, string>
+local function renamed_first_heading(content, sync_filename, cursor, extra)
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(
+    root,
+    vim.tbl_extend("force", { ["same.md"] = content, ["B.md"] = "[[same#same]] [[same]]" }, extra or {})
+  )
+  child.lua("Obsidian.opts.note.sync_filename = " .. tostring(sync_filename))
+  child.lua [[Obsidian.opts.frontmatter.enabled = false]]
+  child.cmd("edit " .. files["same.md"])
+  child.api.nvim_win_set_cursor(0, cursor)
+  rename "fresh"
+  return files
+end
+
+T["rename first heading equal to the file name renames the file when sync_filename is on"] = function()
+  local root = child.Obsidian.dir
+  local files = renamed_first_heading("# same\n\nsee [[#same]]", true, { 1, 2 })
+  h.child_wait_for_path(child, root / "fresh.md")
+  eq(false, (root / "same.md"):exists())
+  child.cmd "wa"
+  eq({ "# fresh", "", "see [[#fresh]]" }, h.read(tostring(root / "fresh.md")))
+  eq({ "[[fresh#fresh]] [[fresh]]" }, h.read(files["B.md"]))
+end
+
+T["rename first heading leaves the file alone when sync_filename is off"] = function()
+  local root = child.Obsidian.dir
+  local files = renamed_first_heading("# same\n\nsee [[#same]]", false, { 1, 2 })
+  child.cmd "wa"
+  eq(true, (root / "same.md"):exists())
+  eq(false, (root / "fresh.md"):exists())
+  eq("# fresh", h.read(files["same.md"])[1])
+  eq({ "[[same#fresh]] [[same]]" }, h.read(files["B.md"]))
+end
+
+T["rename a heading that differs from the file name or is not first leaves the file alone"] = function()
+  local root = child.Obsidian.dir
+  local files = renamed_first_heading("# Intro\n\n## same", true, { 3, 3 })
+  child.cmd "wa"
+  eq(false, (root / "fresh.md"):exists())
+  eq("## fresh", h.read(files["same.md"])[3])
+end
+
+T["rename first heading fails whole when the new file name exists"] = function()
+  local root = child.Obsidian.dir
+  child.lua [[
+require"obsidian.log".err = function(msg)
+  _G.err_msg = msg
+end
+  ]]
+  local files = renamed_first_heading("# same", true, { 1, 2 }, { ["fresh.md"] = "other" })
+  eq('Heading "same" not renamed: Note with same name exists', child.lua_get "err_msg")
+  child.cmd "wa"
+  eq({ "# same" }, h.read(files["same.md"]))
+  eq({ "other" }, h.read(files["fresh.md"]))
+end
+
 return T

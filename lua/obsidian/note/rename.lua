@@ -381,7 +381,7 @@ local function with_heading_edit(opts, note, old_path, new_name, edit, callback)
   if not first or first.text ~= note.id then
     return callback(edit)
   end
-  header.rename(bufnr, first.anchor, new_name, { apply = false }, function(_, heading_edit)
+  header.rename(bufnr, first.anchor, new_name, { apply = false, sync_filename = false }, function(_, heading_edit)
     callback(M.merge_edits(edit, heading_edit))
   end)
 end
