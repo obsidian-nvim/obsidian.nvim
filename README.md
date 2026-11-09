@@ -135,6 +135,7 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian rename [NEWNAME]` - rename the note of the current buffer (wherever the cursor is), updating all backlinks across the vault
   - runs `:wa` before renaming, and loads every note with backlinks into your buffer-list
   - after renaming you need to do `:wa` again for changes to take effect
+  - with `frontmatter.sync_title` set, a `title` property equal to the old id is renamed too ([Frontmatter](https://obsidian-nvim.github.io/obsidian.nvim/Frontmatter#keeping-title-in-step-with-id))
   - to rename the element under the cursor (note link, attachment, block id, heading, footnote, tag), call `vim.lsp.buf.rename` or use `grn`
 - `:Obsidian toggle_checkbox` - cycle through checkbox options
 

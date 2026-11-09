@@ -79,10 +79,14 @@ return {
   ---
   --- List of string that sorts frontmatter properties, or a function that compares two values, set to vim.NIL/false to do no sorting
   ---@field sort? string[] | (fun(a: any, b: any): boolean) | vim.NIL | boolean
+  ---
+  --- Whether a `title` property equal to the note's `id` is changed along with the `id`, e.g. when the note is renamed.
+  ---@field sync_title? boolean
   frontmatter = {
     enabled = true,
     func = require("obsidian.builtin").frontmatter,
     sort = { "id", "aliases", "tags" },
+    sync_title = false,
   },
 
   ---@class obsidian.config.TemplateOpts

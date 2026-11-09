@@ -308,6 +308,12 @@ end
 Note.__newindex = function(self, k, value)
   if frontmatter_fields[k] then
     local metadata = note_metadata(self)
+    -- A `title` equal to the id follows it, whatever sets the id (rename, template, ...).
+    if k == "id" and Obsidian and Obsidian.opts.frontmatter.sync_title and metadata.title ~= nil then
+      if metadata.title == self.id then
+        metadata.title = value
+      end
+    end
     if value == nil and (k == "aliases" or k == "tags") then
       value = {}
     end

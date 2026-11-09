@@ -856,4 +856,47 @@ T["rename attachment refuses an existing name"] = function()
   eq({ "![[one.png]]" }, h.read(files["A.md"]))
 end
 
+--- Rename the current note `same.md` (`id: same`, `title: <title>`) to `same-new` and return the
+--- frontmatter written to its buffer, which keeps buffer number 1 in this harness.
+---@param title string
+---@param sync_title boolean
+---@return string
+local function renamed_frontmatter(title, sync_title)
+  local root = child.Obsidian.dir
+  local files = h.mock_vault_contents(root, {
+    ["same.md"] = "---\nid: same\ntitle: " .. title .. "\n---\nbody",
+  })
+
+  child.lua("Obsidian.opts.frontmatter.sync_title = " .. tostring(sync_title))
+  child.cmd("edit " .. files["same.md"])
+  child.cmd "Obsidian rename same-new"
+  h.child_wait_for_path(child, root / "same-new.md")
+  return child.lua_get [[(function()
+    local text = ""
+    vim.wait(3000, function()
+      text = table.concat(vim.api.nvim_buf_get_lines(1, 0, -1, false), "\n")
+      return text:find("id: same-new", 1, true) ~= nil
+    end)
+    return text
+  end)()]]
+end
+
+T["rename current note moves a title equal to the id when sync_title is on"] = function()
+  local text = renamed_frontmatter("same", true)
+  eq(true, text:find("id: same-new", 1, true) ~= nil)
+  eq(true, text:find 'title: "?same%-new"?\n' ~= nil)
+end
+
+T["rename current note keeps a title that differs from the id"] = function()
+  local text = renamed_frontmatter("Readable Title", true)
+  eq(true, text:find("id: same-new", 1, true) ~= nil)
+  eq(true, text:find 'title: "?Readable Title"?\n' ~= nil)
+end
+
+T["rename current note leaves title alone when sync_title is off"] = function()
+  local text = renamed_frontmatter("same", false)
+  eq(true, text:find("id: same-new", 1, true) ~= nil)
+  eq(true, text:find 'title: "?same"?\n' ~= nil)
+end
+
 return T

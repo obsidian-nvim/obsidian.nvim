@@ -340,6 +340,7 @@ function M.validate(opts, skip_workspace_overrides)
       { "enabled", { "boolean", "callable" } },
       { "func", "callable" },
       { "sort", { "table", "callable", "boolean" } },
+      { "sync_title", "boolean" },
     })
     if type(opts.frontmatter.sort) == "table" and opts.frontmatter.sort ~= vim.NIL then
       list_of(errors, "frontmatter.sort", opts.frontmatter.sort, "string")
