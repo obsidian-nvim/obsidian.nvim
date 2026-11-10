@@ -8,7 +8,8 @@ local util = {}
 ---@param file string
 ---@param contents string
 util.write_file = function(file, contents)
-  local fd = assert(io.open(file, "w+"))
+  -- Preserve caller-provided line endings instead of Windows text-mode translation.
+  local fd = assert(io.open(file, "wb"))
   fd:write(contents)
   fd:close()
 end
