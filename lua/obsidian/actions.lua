@@ -556,7 +556,7 @@ local function current_link_suggestion(bufnr)
   if bufnr ~= vim.api.nvim_get_current_buf() then
     return
   end
-  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  local note = api.current_note(bufnr)
   return note and link_suggestion_under_cursor(note) or nil
 end
 
@@ -1446,7 +1446,7 @@ end
 ---@param suggestion obsidian.note.LinkSuggestion|?
 M.link_suggestion = function(suggestion)
   local bufnr = vim.api.nvim_get_current_buf()
-  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  local note = api.current_note(bufnr)
   if not note then
     return
   end
@@ -1511,7 +1511,7 @@ end
 --- then pick locations to convert to links.
 M.link_suggestions = function()
   local bufnr = vim.api.nvim_get_current_buf()
-  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  local note = api.current_note(bufnr)
   if not note then
     return log.info "Not in a note"
   end
@@ -1587,7 +1587,7 @@ end
 --- Pick unlinked plain-text mentions of the current note in other notes and convert them to links.
 M.backlink_suggestions = function()
   local bufnr = vim.api.nvim_get_current_buf()
-  local note = api.current_note(bufnr, { max_lines = vim.api.nvim_buf_line_count(bufnr) })
+  local note = api.current_note(bufnr)
   if not note then
     return log.info "Not in a note"
   end

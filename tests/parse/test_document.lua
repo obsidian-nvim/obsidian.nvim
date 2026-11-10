@@ -21,13 +21,21 @@ T["preserves source and recognizes frontmatter boundaries"] = function()
   eq(doc.frontmatter.closer_range, Range.new(2, 0, 2, 3))
   eq(doc.frontmatter.body_range, Range.new(1, 0, 2, 0))
   eq(doc.frontmatter.termination, "delimiter")
+  eq(doc:body_start_row(), 3)
+  eq(doc:replaceable_frontmatter_range(), Range.new(0, 0, 3, 0))
 end
 
 T["protects an unfinished frontmatter and does not accept later openers"] = function()
   local unfinished = Document.parse { "---", "key: value" }
   eq(unfinished.frontmatter.range, Range.new(0, 0, 2, 0))
   eq(unfinished.frontmatter.termination, "eof")
-  eq(Document.parse({ "", "---", "body" }).frontmatter, nil)
+  eq(unfinished:body_start_row(), 2)
+  eq(unfinished:replaceable_frontmatter_range(), nil)
+
+  local no_frontmatter = Document.parse { "", "---", "body" }
+  eq(no_frontmatter.frontmatter, nil)
+  eq(no_frontmatter:body_start_row(), 0)
+  eq(no_frontmatter:replaceable_frontmatter_range(), nil)
 end
 
 T["recognizes backtick and tilde fences and their exact closers"] = function()
@@ -172,6 +180,8 @@ end
 T["validates snapshot coordinates and handles empty snapshots"] = function()
   local empty = Document.parse {}
   eq(empty.regions, {})
+  eq(empty:body_start_row(), 0)
+  eq(empty:replaceable_frontmatter_range(), nil)
   eq(
     pcall(function()
       empty:context_at(Pos.new(0, 0))

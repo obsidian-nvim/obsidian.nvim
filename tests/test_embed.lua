@@ -38,12 +38,7 @@ T["attach renders the note body below an embed"] = function()
   local ok, err = pcall(function()
     search.resolve_note = function(note_id)
       eq(note_id, "target")
-      return {
-        {
-          contents = { "---", "title: Target", "---", "**body**" },
-          frontmatter_end_line = 3,
-        },
-      }
+      return { Note.from_lines { "---", "title: Target", "---", "**body**" } }
     end
 
     local buf = vim.api.nvim_create_buf(false, true)
@@ -75,21 +70,19 @@ T["long previews are truncated and scroll under the cursor"] = function()
   local ok, err = pcall(function()
     search.resolve_note = function()
       return {
-        {
-          contents = {
-            "one",
-            "two",
-            "three",
-            "four",
-            "five",
-            "six",
-            "seven",
-            "eight",
-            "nine",
-            "ten",
-            "eleven",
-            "twelve",
-          },
+        Note.from_lines {
+          "one",
+          "two",
+          "three",
+          "four",
+          "five",
+          "six",
+          "seven",
+          "eight",
+          "nine",
+          "ten",
+          "eleven",
+          "twelve",
         },
       }
     end
@@ -287,12 +280,7 @@ T["watched target changes invalidate cached note previews"] = function()
   local ok, err = pcall(function()
     search.resolve_note = function()
       resolve_count = resolve_count + 1
-      return {
-        {
-          path = target_path,
-          contents = { "**" .. body .. "**" },
-        },
-      }
+      return { Note.from_lines({ "**" .. body .. "**" }, target_path) }
     end
 
     local buf = vim.api.nvim_create_buf(false, true)

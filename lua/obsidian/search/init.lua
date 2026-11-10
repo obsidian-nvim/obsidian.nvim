@@ -450,10 +450,7 @@ M.find_blocks_async = function(term, callback, opts)
       return ok and note or nil
     end,
     parse_buffer = function(bufnr)
-      local buffer_opts = vim.tbl_extend("force", note_opts, {
-        max_lines = vim.api.nvim_buf_line_count(bufnr),
-      })
-      local ok, note = pcall(Note.from_buffer, bufnr, buffer_opts)
+      local ok, note = pcall(Note.from_buffer, bufnr, note_opts)
       return ok and note or nil
     end,
   })
@@ -922,7 +919,7 @@ local function scan_note_for_mentions(path, symbols, results)
     return
   end
 
-  local fm_end = other_note.frontmatter_end_line or 1
+  local body_first = other_note:parsed_document():body_start_row() + 1
   local source_dir = vim.fs.dirname(vim.fs.normalize(path))
   local code_fence = nil
 
@@ -930,7 +927,7 @@ local function scan_note_for_mentions(path, symbols, results)
     return vim.uv.fs_stat(p) ~= nil
   end
 
-  for row = fm_end, #other_note.contents do
+  for row = body_first, #other_note.contents do
     local line = other_note.contents[row]
     ---@cast line string
     local fence = line:match "^%s*(```+)" or line:match "^%s*(~~~+)"
@@ -1007,8 +1004,8 @@ local function tag_locations(note, path)
   local locations = {}
   for _, occurrence in
     ipairs(tags.extract(note.raw_contents or note.contents, {
-      frontmatter_end_line = note.frontmatter_end_line,
       frontmatter_elements = note.frontmatter_elements,
+      document = note:parsed_document(),
     }))
   do
     locations[#locations + 1] = {
@@ -1044,10 +1041,7 @@ end
 ---@return obsidian.search.TagLocation[]
 local function parse_tag_buffer(bufnr)
   local Note = require "obsidian.note"
-  local ok, note = pcall(Note.from_buffer, bufnr, {
-    load_contents = true,
-    max_lines = vim.api.nvim_buf_line_count(bufnr),
-  })
+  local ok, note = pcall(Note.from_buffer, bufnr)
   if not ok then
     return {}
   end
