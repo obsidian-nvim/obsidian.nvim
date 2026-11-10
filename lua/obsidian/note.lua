@@ -221,6 +221,7 @@ local Note = {}
 ---@field old_path? string Existing path to rename from. Defaults to `note.path`.
 ---@field new_path? string Destination path. Defaults to sibling path using `new_name .. ".md"`.
 ---@field include_file_rename? boolean Include a file rename operation in the generated edit. Defaults to true.
+---@field sync_heading? boolean Also rename the first heading equal to the old id when `note.sync_heading` is set. Defaults to true; false skips it.
 ---@field include_stem_refs? boolean Update stem-only references. Defaults to true.
 ---@field dir? string|obsidian.Path Workspace directory used to find references.
 ---@field apply? boolean Apply the workspace edit directly. Defaults to true.
@@ -320,6 +321,12 @@ end
 Note.__newindex = function(self, k, value)
   if frontmatter_fields[k] then
     local metadata = note_metadata(self)
+    -- A `title` equal to the id follows it, whatever sets the id (rename, template, ...).
+    if k == "id" and Obsidian and Obsidian.opts.frontmatter.sync_title and metadata.title ~= nil then
+      if metadata.title == self.id then
+        metadata.title = value
+      end
+    end
     if value == nil and (k == "aliases" or k == "tags") then
       value = {}
     end

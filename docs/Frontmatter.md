@@ -6,6 +6,7 @@ tags:
 ---
 
 - [Special keys](#special-keys)
+- [Keeping `title` in step with `id`](#keeping-title-in-step-with-id)
 - [Syntax](#syntax)
 - [Example](#example)
 - [Disabling frontmatter](#disabling-frontmatter)
@@ -22,6 +23,18 @@ obsidian.nvim reads YAML frontmatter at the top of a note (between `---` lines).
 - `tags`: string or list of strings
 
 Invalid types are ignored with a warning.
+
+## Keeping `title` in step with `id`
+
+A `title` property that equals the note's `id` is changed along with it when `frontmatter.sync_title` is `true` (default `false`). This happens whenever the `id` is assigned a new value, for instance by `:Obsidian rename`. A `title` that differs from the `id` is left alone.
+
+```lua
+require("obsidian").setup {
+  frontmatter = { sync_title = true },
+}
+```
+
+Before the rename, `id: draft` and `title: draft` become `id: final` and `title: final` for `:Obsidian rename final`, while `title: Readable title` stays as written.
 
 ## Syntax
 
@@ -101,10 +114,14 @@ TODO:
 ---
 --- List of string that sorts frontmatter properties, or a function that compares two values, set to vim.NIL/false to do no sorting
 ---@field sort? string[] | (fun(a: any, b: any): boolean) | vim.NIL | boolean
+---
+--- Whether a `title` property equal to the note's `id` is changed along with the `id`, e.g. when the note is renamed.
+---@field sync_title? boolean
 frontmatter = {
   enabled = true,
   func = require("obsidian.builtin").frontmatter,
   sort = { "id", "aliases", "tags" },
+  sync_title = false,
 }
 ```
 

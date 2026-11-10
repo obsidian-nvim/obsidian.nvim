@@ -42,6 +42,12 @@ return {
   ---Default template to use, relative to template.folder or an absolute path.
   ---
   ---@field template string|?
+  ---
+  ---Whether the first heading of a note equal to its `id` is renamed along with the note, together with the links naming it.
+  ---@field sync_heading? boolean
+  ---
+  ---Whether renaming the first heading of a note, when it equals the file name, also renames the note file (with its backlinks, `id`, and `title` when `frontmatter.sync_title` is set).
+  ---@field sync_filename? boolean
   note = {
     template = (function()
       local root
@@ -56,6 +62,8 @@ return {
       end
       return vim.fs.joinpath(root, "data/default_template.md")
     end)(),
+    sync_heading = false,
+    sync_filename = false,
   },
 
   ---@class obsidian.config.FileOpts
@@ -79,10 +87,14 @@ return {
   ---
   --- List of string that sorts frontmatter properties, or a function that compares two values, set to vim.NIL/false to do no sorting
   ---@field sort? string[] | (fun(a: any, b: any): boolean) | vim.NIL | boolean
+  ---
+  --- Whether a `title` property equal to the note's `id` is changed along with the `id`, e.g. when the note is renamed.
+  ---@field sync_title? boolean
   frontmatter = {
     enabled = true,
     func = require("obsidian.builtin").frontmatter,
     sort = { "id", "aliases", "tags" },
+    sync_title = false,
   },
 
   ---@class obsidian.config.TemplateOpts

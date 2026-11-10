@@ -37,9 +37,11 @@ Use `vim.lsp.buf.rename()` or default neovim mapping `grn` to rename the element
 | A tag `#a/b`, inline or in `tags:`           | The tag and every tag below it (`a/b/c`) in the whole vault. Renaming onto an existing tag merges the two                                     |
 | A link to an attachment                      | The attachment file and every reference to it, keeping its extension when the new name has none                                               |
 
-A block id or heading that already exists in the note is refused, and so is a heading that is not unique in the note. After a tag merge a note can list the same tag twice in its frontmatter. Only renaming a note or an attachment renames a file, and no rename adds frontmatter fields.
+A block id or heading that already exists in the note is refused, and so is a heading that is not unique in the note. After a tag merge a note can list the same tag twice in its frontmatter. Only renaming a note or an attachment renames a file (and, with `note.sync_filename`, renaming the first heading of a note equal to its file name: see [[Note#Renaming the file with the first heading]]), and no rename adds frontmatter fields.
 
 To rename the note of the current buffer, wherever the cursor is, use `:Obsidian rename [NEWNAME]`.
+
+With `note.sync_heading` and `frontmatter.sync_title`, `:Obsidian rename` also renames the first heading and the `title` property that equal the old id: see [[Note#Renaming the first heading with the note]] and [[Frontmatter#Keeping title in step with id|Frontmatter]].
 
 ## Auto Rename
 
