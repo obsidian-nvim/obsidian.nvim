@@ -12,7 +12,12 @@ local M = {}
 ---@param opts obsidian.link.ReplaceOpts
 function M.replace(opts)
   local range = opts.range
-  vim.api.nvim_buf_set_text(opts.bufnr, range.start_row, range.start_col, range.end_row, range.end_col, { opts.text })
+  local text = opts.text
+  local line = vim.api.nvim_buf_get_lines(opts.bufnr, range.start_row, range.start_row + 1, false)[1] or ""
+  if line:match "^%s*|" then
+    text = text:gsub("\\?|", "\\|")
+  end
+  vim.api.nvim_buf_set_text(opts.bufnr, range.start_row, range.start_col, range.end_row, range.end_col, { text })
 end
 
 ---@class obsidian.link.InsertOpts

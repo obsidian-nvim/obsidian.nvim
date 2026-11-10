@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Write note content without Windows text-mode newline conversion, preventing stray carriage returns in open buffers after saving.
 - Preserve percent-encoded query values when following URI links instead of decoding query delimiters before dispatch.
 - LSP rename (`vim.lsp.buf.rename()`) renames block ids, headings (ATX and setext, with the links naming them), footnotes, tags (inline and in the frontmatter, with their subtags; renaming onto an existing tag merges them) and attachments (the file and every reference) under the cursor.
+- Escape the alias pipe (`[[Note\|alias]]`) when a link is inserted into a table row, so the link no longer splits the cell.
 
 ### Changed
 
