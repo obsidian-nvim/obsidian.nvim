@@ -1,6 +1,7 @@
 local actions = require "obsidian.actions"
 local embed = require "obsidian.embed"
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local watchfiles = require "obsidian.lsp.watchfiles"
 
@@ -273,7 +274,7 @@ end
 
 T["watched target changes invalidate cached note previews"] = function()
   local original_resolve_note = search.resolve_note
-  local target_path = vim.fs.normalize(vim.fn.tempname() .. ".md")
+  local target_path = tostring(Path.new(vim.fn.tempname() .. ".md"):resolve())
   local body = "old"
   local resolve_count = 0
 
