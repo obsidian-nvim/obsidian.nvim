@@ -82,9 +82,10 @@ end
 
 ---Resolve the directory where a unique note will be created.
 ---@param dir string|obsidian.Path|?
+---@param source_path string|obsidian.Path|?
 ---@return obsidian.Path
-local function resolve_unique_note_dir(dir)
-  local workspace_dir = api.resolve_workspace_dir()
+local function resolve_unique_note_dir(dir, source_path)
+  local workspace_dir = api.resolve_workspace_dir(source_path)
   if dir then
     local path = Path.new(dir)
     return path:is_absolute() and path:resolve() or workspace_dir / path
@@ -96,17 +97,20 @@ end
 
 ---@param timestamp integer?
 ---@param dir string|obsidian.Path|? Directory in which to check for an existing unique note ID.
+---@param opts { create_dir: boolean|? }|?
 ---@return string? A unique note ID based on the timestamp and format, ensuring no collisions with existing
-function M.new_unique_id(timestamp, dir)
+function M.new_unique_id(timestamp, dir, opts)
   timestamp = timestamp or os.time()
 
   local folder_path = resolve_unique_note_dir(dir)
 
   if folder_path:is_dir() == false then
-    local choice =
-      api.confirm("Unique note folder does not exist: \n" .. tostring(folder_path) .. "\n" .. "Crete it now?")
-
-    if choice == "Yes" then
+    local create = opts and opts.create_dir
+    if not create then
+      create = api.confirm("Unique note folder does not exist: \n" .. tostring(folder_path) .. "\nCreate it now?")
+        == "Yes"
+    end
+    if create then
       folder_path:mkdir { parents = true }
     else
       return
@@ -134,13 +138,17 @@ function M.new_unique_id(timestamp, dir)
   return date_id
 end
 
+---@class obsidian.unique.NoteOpts: obsidian.note.NoteOpts
+---@field write? boolean Persist the note immediately. Defaults to true.
+---@field create_dir? boolean Create a missing unique folder without prompting. Defaults to false.
+
 ---@param timestamp integer?
----@param opts obsidian.note.NoteOpts?
+---@param opts obsidian.unique.NoteOpts?
 ---@return obsidian.Note? A new unique note instance with a unique ID based on the timestamp and format.
 function M.new_unique_note(timestamp, opts)
   opts = opts or {}
-  local dir = resolve_unique_note_dir(opts.dir)
-  local unique_id = M.new_unique_id(timestamp, dir)
+  local dir = resolve_unique_note_dir(opts.dir, opts.source_path)
+  local unique_id = M.new_unique_id(timestamp, dir, { create_dir = opts.create_dir })
   if not unique_id then
     return
   end
@@ -156,7 +164,9 @@ function M.new_unique_note(timestamp, opts)
   opts = vim.tbl_extend("force", default, opts)
 
   local note = Note.create(opts)
-  note:write()
+  if opts.write ~= false then
+    note = note:write()
+  end
   return note
 end
 

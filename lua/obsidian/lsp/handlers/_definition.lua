@@ -11,7 +11,18 @@ local uri_util = require "obsidian.uri"
 local attachment = require "obsidian.attachment"
 
 local function open_uri(uri, scheme)
-  if vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
+  if scheme == "obsidian" and Obsidian.opts.uri.enabled then
+    local parsed = uri_util.parse(uri)
+    if
+      parsed
+      and Obsidian.opts.uri.require_confirmation
+      and uri_util.is_mutating(parsed)
+      and api.confirm(("Run file-modifying URI action? %s"):format(uri)) ~= "Yes"
+    then
+      return
+    end
+    uri_util.handle(uri)
+  elseif vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
     vim.ui.open(uri)
   else
     local choice = api.confirm(("Open external link? %s"):format(uri))
@@ -252,11 +263,14 @@ return {
       label = link_parser.format(ref.target, ref.anchor, ref.block)
     end
 
-    local decoded_location = vim.uri_decode(location)
-    if decoded_location then
-      ---@cast decoded_location string
-      location = decoded_location
+    -- URI query delimiters must remain encoded until the scheme-specific parser
+    -- processes them. Decoding the whole URI turns values such as `%26` into a
+    -- new query parameter.
+    local is_uri = uri_util.is_uri(location)
+    if not is_uri then
+      location = vim.uri_decode(location)
     end
+    ---@cast location string
 
     local decoded_anchor, decoded_block
     location, decoded_anchor, decoded_block = link_parser.parse(location)

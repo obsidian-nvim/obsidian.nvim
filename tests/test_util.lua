@@ -6,6 +6,24 @@ local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 
 local T = new_set()
 
+T["write_file"] = new_set {
+  parametrize = {
+    { "first\nsecond\n" },
+    { "first\r\nsecond\r\n" },
+    { "no trailing newline" },
+  },
+}
+
+T["write_file"]["preserves exact bytes without newline translation"] = function(contents)
+  local path = vim.fn.tempname()
+  M.write_file(path, contents)
+  local file = assert(io.open(path, "rb"), "written file must be readable")
+  local actual = file:read "*a"
+  file:close()
+  vim.fn.delete(path)
+  eq(contents, actual)
+end
+
 T["preview_path"] = new_set()
 
 T["preview_path"]["lists directory contents and marks folders"] = function()

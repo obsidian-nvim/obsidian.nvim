@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Follow `obsidian://` Markdown links and autolinks inside Neovim through link navigation. Supports `open`, `new`, `daily`, `unique`, `search`, and `choose-vault`, including heading/block targets, section content insertion, and tab/split opening. File-modifying links require confirmation by default; URI targets stay inside configured workspaces. See [Navigation](docs/Navigation.md#obsidian-uri-links).
+- Shared note APIs for whole-body and descendant-section insertion, explicit spacing modes, case-insensitive heading selection, exact-path creation, and noninteractive filename validation. URI actions reuse these APIs rather than maintaining a separate editing implementation.
+
+### Fixed
+
+- Write note content without Windows text-mode newline conversion, preventing stray carriage returns in open buffers after saving.
+- Preserve percent-encoded query values when following URI links instead of decoding query delimiters before dispatch.
 - LSP rename (`vim.lsp.buf.rename()`) renames block ids, headings (ATX and setext, with the links naming them), footnotes, tags (inline and in the frontmatter, with their subtags; renaming onto an existing tag merges them) and attachments (the file and every reference) under the cursor.
 
 ### Changed
