@@ -74,6 +74,8 @@ Fields ~
 Class ~
 {(exact)} obsidian.note.NoteOpts
 Fields ~
+{path} `(string|obsidian.Path|? Exact)` absolute destination; bypasses ID and path generation.
+{prompt_invalid_filename} `(boolean|? Prompt)` for invalid generated filenames. Defaults to true for create, false for resolve_path.
 {id} `(string|? An)` ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true
 {title} `(string|? Readable)` title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
 {verbatim} `(boolean|? whether)` to skip applying `note_id_func`
@@ -126,6 +128,8 @@ Whether to insert/update frontmatter. Defaults to `true`.
 {insert_frontmatter} `(optional)` `(boolean)`
 Override the frontmatter. Defaults to the result of `self:frontmatter()`.
 {frontmatter} `(optional)` `(table)`
+Replace body content without applying a template. Mutually exclusive with update_content.
+{content} `(optional)` `(string|string[])`
 A function to update the contents of the note. This takes a list of lines representing the text to be written
 excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
 {update_content} `(optional)` `(fun(lines: string[]): string[])`
@@ -165,6 +169,14 @@ Defaults to the expression: `note.has_frontmatter`.
 {padding_top} `(optional)` `(boolean)`
 Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
 {placement} `(optional)` "`(top)`"|"bot"
+Target the entire body instead of a section. Defaults to section (the preamble when section is nil).
+{target} `(optional)` "`(section)`"|"body"
+Include descendant sections when appending. Defaults to false.
+{include_children} `(optional)` `(boolean)`
+Match section headers without regard to case. Defaults to false.
+{ignore_case} `(optional)` `(boolean)`
+Separation from existing content. Omit to preserve the legacy section layout.
+{spacing} `(optional)` "`(auto)`"|"newline"|"inline"
 
 ------------------------------------------------------------------------------
 Selects a section by preamble, header, level, or both.
@@ -298,6 +310,15 @@ Return ~
 `(obsidian.Path)` path
 Return ~
 `(string| `(optional))`` title
+
+------------------------------------------------------------------------------
+                                                           *Note.resolve_path()*
+                          `Note.resolve_path`({opts})
+Resolve a destination without creating a note or running creation callbacks.
+Parameters ~
+{opts} `(obsidian.note.NoteOpts)`
+Return ~
+`(obsidian.Path)`
 
 ------------------------------------------------------------------------------
                                                                  *Note.create()*
@@ -575,6 +596,8 @@ unless you use the `update_content()` callback.
 
 Parameters ~
 {opts} `(optional)` `(obsidian.note.NoteSaveOpts)`
+Return ~
+`(string[])` lines The written snapshot, including frontmatter.
 
 ------------------------------------------------------------------------------
                                                         *Note.write_to_buffer()*
@@ -629,7 +652,7 @@ Return ~
 Open a note in a buffer.
 
 Parameters ~
-{opts} `({ line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
+{opts} `({ line: integer|?, col: integer|?, anchor: string|?, block: string|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|)`?
 
 ------------------------------------------------------------------------------
                                                               *Note.backlinks()*
@@ -680,21 +703,15 @@ Return ~
 `(string[])`
 
 ------------------------------------------------------------------------------
-                                                    *normalize_section_choice()*
-                      `normalize_section_choice`({choice})
-Parameters ~
-{choice} `(nil|string|integer|[string?, integer?]|{header: string?, level: integer?})`
-Return ~
-`({ header?: string, level?: integer })`
-
-------------------------------------------------------------------------------
                                                             *Note.insert_text()*
                    `Note.insert_text`({self}, {text}, {opts})
 Parameters ~
 {text} `(string|string[])` The text to insert into the note.
 {opts} `(obsidian.note.InsertTextOpts?)` The options for constraining where text can be inserted.
 Return ~
-`(integer)` text_idx where the text begins in the file (_including_ frontmatter) or `0` when insert is cancelled.
+`(integer)` row 1-based row including frontmatter, or 0 when cancelled/empty.
+Return ~
+`(integer)` col 0-based byte column (nonzero for inline append).
 
 ------------------------------------------------------------------------------
                                                                   *Note.merge()*
@@ -791,6 +808,11 @@ Parameters ~
 {specs} `(obsidian.workspace.WorkspaceSpec[])`
 Return ~
 `(obsidian.Workspace[])`
+
+------------------------------------------------------------------------------
+                                                              *Workspace.pick()*
+                               `Workspace.pick`()
+Choose and switch to a configured workspace using the shared picker.
 
 
 ==============================================================================
