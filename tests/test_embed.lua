@@ -1,6 +1,7 @@
 local actions = require "obsidian.actions"
 local embed = require "obsidian.embed"
 local Note = require "obsidian.note"
+local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local watchfiles = require "obsidian.lsp.watchfiles"
 
@@ -38,12 +39,7 @@ T["attach renders the note body below an embed"] = function()
   local ok, err = pcall(function()
     search.resolve_note = function(note_id)
       eq(note_id, "target")
-      return {
-        {
-          contents = { "---", "title: Target", "---", "**body**" },
-          frontmatter_end_line = 3,
-        },
-      }
+      return { Note.from_lines { "---", "title: Target", "---", "**body**" } }
     end
 
     local buf = vim.api.nvim_create_buf(false, true)
@@ -75,21 +71,19 @@ T["long previews are truncated and scroll under the cursor"] = function()
   local ok, err = pcall(function()
     search.resolve_note = function()
       return {
-        {
-          contents = {
-            "one",
-            "two",
-            "three",
-            "four",
-            "five",
-            "six",
-            "seven",
-            "eight",
-            "nine",
-            "ten",
-            "eleven",
-            "twelve",
-          },
+        Note.from_lines {
+          "one",
+          "two",
+          "three",
+          "four",
+          "five",
+          "six",
+          "seven",
+          "eight",
+          "nine",
+          "ten",
+          "eleven",
+          "twelve",
         },
       }
     end
@@ -280,19 +274,14 @@ end
 
 T["watched target changes invalidate cached note previews"] = function()
   local original_resolve_note = search.resolve_note
-  local target_path = vim.fs.normalize(vim.fn.tempname() .. ".md")
+  local target_path = tostring(Path.new(vim.fn.tempname() .. ".md"):resolve())
   local body = "old"
   local resolve_count = 0
 
   local ok, err = pcall(function()
     search.resolve_note = function()
       resolve_count = resolve_count + 1
-      return {
-        {
-          path = target_path,
-          contents = { "**" .. body .. "**" },
-        },
-      }
+      return { Note.from_lines({ "**" .. body .. "**" }, target_path) }
     end
 
     local buf = vim.api.nvim_create_buf(false, true)

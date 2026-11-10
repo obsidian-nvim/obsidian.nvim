@@ -238,10 +238,7 @@ local function include_loaded_notes(results, dir, note_opts, include_unmatched)
       if path and fs_util.is_subpath(path, tostring(dir)) and api.path_is_note(path) then
         local idx = path_to_idx[path]
         if not idx or vim.bo[bufnr].modified then
-          local opts = vim.tbl_extend("force", note_opts, {
-            max_lines = vim.api.nvim_buf_line_count(bufnr),
-          })
-          local note = Note.from_buffer(bufnr, opts)
+          local note = Note.from_buffer(bufnr, note_opts)
           idx = path_to_idx[tostring(note.path)]
           if idx then
             results[idx] = note
@@ -367,12 +364,11 @@ local function process_block_search(cc, scope, query, target)
   end
 
   if scope == "current" then
-    local note = api.current_note(cc.request.bufnr, {
-      max_lines = vim.api.nvim_buf_line_count(cc.request.bufnr),
+    local note = require("obsidian.note").from_buffer(cc.request.bufnr, {
       collect_blocks = true,
       collect_block_candidates = true,
     })
-    search_notes(note and { note } or {})
+    search_notes { note }
   elseif scope == "note" then
     search.resolve_note_async(assert(target, "named-note block search requires a target"), search_notes, {
       notes = note_opts,
@@ -897,12 +893,11 @@ function M.process_completion(completion_resolve_callback, request)
   determine_buffer_only_search_scope(cc)
 
   if cc.in_buffer_only then
-    local note = api.current_note(cc.request.bufnr, { collect_anchor_links = true, collect_blocks = true })
-    if note then
-      process_search_results(cc, { note })
-    else
-      cc.completion_resolve_callback(EMPTY_RESPONSE)
-    end
+    local note = require("obsidian.note").from_buffer(cc.request.bufnr, {
+      collect_anchor_links = true,
+      collect_blocks = true,
+    })
+    process_search_results(cc, { note })
   else
     if process_cached_search(cc) then
       return

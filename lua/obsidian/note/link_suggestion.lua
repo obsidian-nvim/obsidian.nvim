@@ -374,7 +374,7 @@ function M.find(note, opts)
   local suggestions = {}
   local document = Document.parse(note.raw_contents or note.contents)
 
-  local body_first = document.frontmatter and document.frontmatter.range.end_row + 1 or 1
+  local body_first = document:body_start_row() + 1
   local start_line = opts.range and math.max(body_first, opts.range.start_row + 1) or body_first
   local end_line = #note.contents
   if opts.range then
