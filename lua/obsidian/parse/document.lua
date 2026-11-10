@@ -527,8 +527,10 @@ end
 local function escaped(line, index)
   local count = 0
   index = index - 1
+  ---@diagnostic disable-next-line: param-type-mismatch -- Integer subtraction is inferred as number by EmmyLua.
   while index > 0 and line:sub(index, index) == "\\" do
     count = count + 1
+    ---@diagnostic disable-next-line: assign-type-mismatch -- The index remains an integer.
     index = index - 1
   end
   return count % 2 == 1
