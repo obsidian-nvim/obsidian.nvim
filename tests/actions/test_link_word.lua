@@ -47,6 +47,26 @@ T["link accepts a suggestion under the cursor"] = function()
   eq("[[Evergreen notes]] are useful", child.api.nvim_get_current_line())
 end
 
+T["escapes the alias pipe when linking inside a table row"] = function()
+  open_source("| a target row | 1 |", { ["Target.md"] = "# Target" })
+  h.child_setup_cache(child)
+  child.api.nvim_win_set_cursor(0, { 1, 5 })
+
+  child.lua [[require("obsidian.actions").link_new()]]
+
+  eq([=[| a [[Target\|target]] row | 1 |]=], child.api.nvim_get_current_line())
+end
+
+T["keeps the alias pipe bare outside a table row"] = function()
+  open_source("a target row", { ["Target.md"] = "# Target" })
+  h.child_setup_cache(child)
+  child.api.nvim_win_set_cursor(0, { 1, 3 })
+
+  child.lua [[require("obsidian.actions").link_new()]]
+
+  eq("a [[Target|target]] row", child.api.nvim_get_current_line())
+end
+
 T["link picker uses the full suggested text"] = function()
   local files = open_source("Evergreen notes are useful", { ["Evergreen notes.md"] = "# Evergreen notes" })
   h.child_setup_cache(child)
