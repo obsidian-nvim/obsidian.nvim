@@ -11,11 +11,10 @@ local uri_util = require "obsidian.uri"
 local attachment = require "obsidian.attachment"
 
 local function open_uri(uri, scheme)
-  if scheme == "obsidian" and Obsidian.opts.uri.enabled then
+  if scheme == "obsidian" then
     local parsed = uri_util.parse(uri)
     if
       parsed
-      and Obsidian.opts.uri.require_confirmation
       and uri_util.is_mutating(parsed)
       and api.confirm(("Run file-modifying URI action? %s"):format(uri)) ~= "Yes"
     then

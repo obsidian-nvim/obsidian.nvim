@@ -61,17 +61,6 @@ A new `new` note with explicit content does not gain a template or managed front
 
 ### Confirmation and scope
 
-```lua
-require("obsidian").setup {
-  uri = {
-    enabled = true,
-    require_confirmation = true,
-  },
-}
-```
-
-Following `new`, `daily`, `unique`, or a file-modifying `open` URI prompts for confirmation before dispatch. Declining leaves the note and workspace unchanged. Keep confirmation enabled for links from untrusted notes.
-
-Set `uri.enabled = false` to use the existing external-link opening policy instead. Other URI schemes keep that policy regardless of this setting. Direct Lua calls to the URI handler do not prompt.
+Following `new`, `daily`, `unique`, or a file-modifying `open` URI prompts for confirmation before dispatch. Declining leaves the note and workspace unchanged.
 
 This feature covers links followed inside Neovim. It does not register a system opener, launch Neovim from a browser, or provide Web Clipper integration. Hook actions and external `x-success`/`x-error` callbacks are outside this MVP; callback parameters do not launch other applications.

@@ -29,6 +29,16 @@ T["new persists an exact nested file silently"] = function()
   eq(false, vim.api.nvim_buf_get_name(0) == tostring(path))
 end
 
+T["new appends markdown extension to dotted file names"] = function()
+  plain_notes()
+  local result = uri.handle "obsidian://new?file=Release.v2&content=notes&silent"
+  local path = Obsidian.dir / "Release.v2.md"
+
+  eq(true, result.ok)
+  eq(true, path:is_file())
+  eq(false, (Obsidian.dir / "Release.v2"):exists())
+end
+
 T["new content does not gain plugin frontmatter or a template"] = function()
   local result = uri.handle "obsidian://new?name=Clipped&content=%23%20Clipped&silent"
 
@@ -172,60 +182,6 @@ T["absolute paths select the most specific workspace"] = function()
   assert(ok, result)
   eq(true, result.ok)
   eq("nested", result.note.path:parent().name)
-end
-
-T["markdown URI handling preserves encoded query delimiters"] = function()
-  Obsidian.opts.uri.require_confirmation = false
-  local definition = require "obsidian.lsp.handlers._definition"
-  local received
-  local original = uri.handle
-  uri.handle = function(value)
-    received = value
-    return {
-      ok = true,
-      action = "new",
-      interactive = false,
-      silent = false,
-    }
-  end
-
-  local ok, err = pcall(function()
-    definition.follow_link("[URI](obsidian://new?content=a%26b%3Dc)", function() end)
-  end)
-  uri.handle = original
-
-  assert(ok, err)
-  eq("obsidian://new?content=a%26b%3Dc", received)
-end
-
-T["markdown mutating URIs require confirmation"] = function()
-  Obsidian.opts.uri.require_confirmation = true
-  local definition = require "obsidian.lsp.handlers._definition"
-  local api = require "obsidian.api"
-  local handled = false
-  local original_handle = uri.handle
-  local original_confirm = api.confirm
-  uri.handle = function()
-    handled = true
-    return {
-      ok = true,
-      action = "new",
-      interactive = false,
-      silent = false,
-    }
-  end
-  api.confirm = function()
-    return "No"
-  end
-
-  local ok, err = pcall(function()
-    definition.follow_link("[URI](obsidian://new?name=Blocked)", function() end)
-  end)
-  uri.handle = original_handle
-  api.confirm = original_confirm
-
-  assert(ok, err)
-  eq(false, handled)
 end
 
 T["unsupported actions return an error result"] = function()
@@ -489,6 +445,24 @@ C["follow_link confirms writes and preserves encoded content"] = function()
   eq({ { "a&b=c" }, 2, 0, false, true }, result)
 end
 
+C["follow_link confirms open overwrite before modifying"] = function()
+  local result = child.lua [[
+    local target = Obsidian.dir / "Target.md"
+    local source = Obsidian.dir / "Source.md"
+    vim.fn.writefile({ "old" }, tostring(target))
+    vim.fn.writefile({ "source" }, tostring(source))
+    vim.cmd.edit(tostring(source))
+    local prompts = 0
+    require("obsidian.api").confirm = function()
+      prompts = prompts + 1
+      return "No"
+    end
+    require("obsidian.actions").follow_link "<obsidian://open?file=Target&overwrite&content=new>"
+    return { prompts, vim.fn.readfile(tostring(target)) }
+  ]]
+  eq({ 1, { "old" } }, result)
+end
+
 C["search and workspace URIs use internal pickers through navigation"] = function()
   local result = child.lua [[
     local grep, choose, external = 0, 0, 0
@@ -538,24 +512,6 @@ C["daily and unique links run internally after confirmation"] = function()
     }
   ]]
   eq({ 2, 0, { "journal" }, { "unique" }, true }, result)
-end
-
-C["disabling internal URI handling preserves external opening policy"] = function()
-  local result = child.lua [[
-    Obsidian.opts.uri.enabled = false
-    local received, prompts
-    prompts = 0
-    vim.ui.open = function(value)
-      received = value
-    end
-    require("obsidian.api").confirm = function()
-      prompts = prompts + 1
-      return "Yes"
-    end
-    require("obsidian.actions").follow_link "[External](obsidian://open?file=Note)"
-    return { received, prompts }
-  ]]
-  eq({ "obsidian://open?file=Note", 1 }, result)
 end
 
 C["external integration parameters do not launch applications"] = function()

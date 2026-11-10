@@ -92,13 +92,7 @@ end
 ---@return string file
 ---@return string|? anchor
 local function split_fragment(value)
-  ---@type integer|?
-  local hash_pos
-  for i = 1, #value do
-    if value:sub(i, i) == "#" then
-      hash_pos = i
-    end
-  end
+  local hash_pos = value:find("#", 1, true)
   if hash_pos then
     return value:sub(1, hash_pos - 1), value:sub(hash_pos)
   end
@@ -267,7 +261,7 @@ M.is_mutating = function(parsed)
   return parsed.action == "new"
     or parsed.action == "daily"
     or parsed.action == "unique"
-    or (parsed.action == "open" and (parsed.append or parsed.prepend))
+    or (parsed.action == "open" and (parsed.append or parsed.prepend or parsed.overwrite))
 end
 
 --- Resolve URI target precedence and enforce workspace confinement before creation callbacks.
@@ -299,9 +293,11 @@ local function resolve_target(parsed)
     return nil
   end
 
-  if path.suffix == nil then
+  if parsed.file and parsed.action == "new" then
+    path = path:with_suffix(".md", true)
+  elseif path.suffix == nil then
     local markdown = path:with_suffix ".md"
-    if parsed.action == "new" or not path:is_file() then
+    if not path:is_file() then
       path = markdown
     end
   end

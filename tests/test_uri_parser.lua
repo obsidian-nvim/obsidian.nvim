@@ -55,6 +55,12 @@ T["parse_open"]["open with heading anchor"] = function()
   eq("#Heading", p.anchor)
 end
 
+T["parse_open"]["heading anchor preserves additional hashes"] = function()
+  local p = uri.parse "obsidian://open?vault=vault&file=Note%23C%23%20notes"
+  eq("Note", p.file)
+  eq("#C# notes", p.anchor)
+end
+
 T["parse_open"]["open with block reference"] = function()
   local p = uri.parse "obsidian://open?vault=vault&file=Note%23%5EBlock"
   eq("open", p.action)
@@ -75,6 +81,11 @@ end
 T["parse_open"]["paneType is parsed"] = function()
   local p = uri.parse "obsidian://open?vault=vault&file=note&paneType=tab"
   eq("tab", p.pane_type)
+end
+
+T["parse_open"]["open with overwrite is mutating"] = function()
+  local p = uri.parse "obsidian://open?file=Note&overwrite&content=new"
+  eq(true, uri.is_mutating(p))
 end
 
 ---------------------------------
