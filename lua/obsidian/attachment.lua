@@ -373,6 +373,7 @@ local function resolve_declared_dst(dst)
   if not dst_path:is_absolute() then
     dst = tostring(Obsidian.dir / dst)
   end
+  ---@diagnostic disable-next-line: param-type-mismatch -- expand() without the list flag returns a string.
   dst = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(dst), ":p"))
 
   local vault_dir = vim.fs.normalize(vim.fn.fnamemodify(tostring(Obsidian.dir), ":p"))
