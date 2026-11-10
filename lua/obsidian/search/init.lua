@@ -1145,7 +1145,7 @@ end
 --- An async version of 'find_tags()'.
 ---@param term string|string[] The search term.
 ---@param callback fun(tags: obsidian.search.TagLocation[])
----@param opts { search: obsidian.SearchOpts|?, dir: obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
+---@param opts { search: obsidian.SearchOpts|?, dir: string|obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
 M.find_tags_async = function(term, callback, opts)
   callback = vim.schedule_wrap(callback)
   opts = opts or {}
