@@ -282,6 +282,9 @@ M.select = function(values, opts, on_choice)
             end,
             ordinal = display,
             obsidian_item = v,
+            path = v.filename,
+            lnum = v.lnum,
+            col = v.col,
           }
         end,
       },
