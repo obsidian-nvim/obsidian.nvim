@@ -372,6 +372,9 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/pyroMain404"><img src="https://avatars.githubusercontent.com/u/57687781?v=4&size=100" width="100px" height="100px" alt="Gaetano Esposito"/><br /><sub><b>Gaetano Esposito</b></sub></a><br /><a href="#code-pyroMain404" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://nnra6864.github.io/nnra/"><img src="https://avatars.githubusercontent.com/u/104775644?v=4&size=100" width="100px" height="100px" alt="nnra"/><br /><sub><b>nnra</b></sub></a><br /><a href="#code-nnra6864" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/kagayakuhari"><img src="https://avatars.githubusercontent.com/u/124624102?v=4&size=100" width="100px" height="100px" alt="kagayakuhari"/><br /><sub><b>kagayakuhari</b></sub></a><br /><a href="#code-kagayakuhari" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
