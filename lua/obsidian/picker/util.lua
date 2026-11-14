@@ -35,7 +35,7 @@ M.preview_path = function(path)
         require("obsidian.img.preview").setup()
       end
       return { buf = buf }
-    elseif filetypes.is_note(path) then
+    else
       local ok, lines = pcall(vim.fn.readfile, path)
       if ok then
         vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)

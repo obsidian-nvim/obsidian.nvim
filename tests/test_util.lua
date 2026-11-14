@@ -27,6 +27,18 @@ end
 
 T["preview_path"] = new_set()
 
+T["preview_path"]["shows contents for unclassified files"] = function()
+  local path = vim.fn.tempname() .. ".txt"
+  M.write_file(path, "first\nsecond")
+
+  local preview = picker_util.preview_path(path)
+  eq({ "first", "second" }, vim.api.nvim_buf_get_lines(preview.buf, 0, -1, false))
+  eq("text", vim.bo[preview.buf].filetype)
+
+  vim.api.nvim_buf_delete(preview.buf, { force = true })
+  vim.fn.delete(path)
+end
+
 T["preview_path"]["shows info for every attachment type"] = function()
   local dir = Path.temp { suffix = "-obsidian-attachment-preview" }
   dir:mkdir { parents = true }
