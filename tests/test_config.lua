@@ -17,6 +17,14 @@ T["enums"] = new_set()
 T["normalize"] = new_set()
 T["setup"] = new_set()
 
+T["enums"]["includes frecency sort"] = function()
+  eq(true, vim.list_contains(vim.tbl_values(require("obsidian.types").SortBy), "frecency"))
+end
+
+T["normalize"]["accepts frecency sort"] = function()
+  eq("frecency", normalize({ search = { sort_by = "frecency" } }).search.sort_by)
+end
+
 T["normalize"]["should migrate completion.preferred_link_style to link.style"] = function()
   local opts = normalize {
     completion = {
