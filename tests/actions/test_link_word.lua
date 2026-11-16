@@ -48,13 +48,23 @@ T["link accepts a suggestion under the cursor"] = function()
 end
 
 T["escapes the alias pipe when linking inside a table row"] = function()
-  open_source("| a target row | 1 |", { ["Target.md"] = "# Target" })
+  open_source("| a | b |\n| - | - |\n| a target row | 1 |", { ["Target.md"] = "# Target" })
   h.child_setup_cache(child)
-  child.api.nvim_win_set_cursor(0, { 1, 5 })
+  child.api.nvim_win_set_cursor(0, { 3, 5 })
 
   child.lua [[require("obsidian.actions").link_new()]]
 
   eq([=[| a [[Target\|target]] row | 1 |]=], child.api.nvim_get_current_line())
+end
+
+T["escapes the alias pipe in a table without outer pipes"] = function()
+  open_source("a | b\n- | -\na target row | 1", { ["Target.md"] = "# Target" })
+  h.child_setup_cache(child)
+  child.api.nvim_win_set_cursor(0, { 3, 3 })
+
+  child.lua [[require("obsidian.actions").link_new()]]
+
+  eq([=[a [[Target\|target]] row | 1]=], child.api.nvim_get_current_line())
 end
 
 T["keeps the alias pipe bare outside a table row"] = function()

@@ -1,5 +1,6 @@
 local Path = require "obsidian.path"
 local Range = require "obsidian.range"
+local Section = require "obsidian.section"
 
 local M = {}
 
@@ -12,12 +13,19 @@ local M = {}
 ---@param opts obsidian.link.ReplaceOpts
 function M.replace(opts)
   local range = opts.range
-  local text = opts.text
-  local line = vim.api.nvim_buf_get_lines(opts.bufnr, range.start_row, range.start_row + 1, false)[1] or ""
-  if line:match "^%s*|" then
-    text = text:gsub("\\?|", "\\|")
-  end
+  local in_table = Section._is_table_row(vim.api.nvim_buf_get_lines(opts.bufnr, 0, -1, false), range.start_row)
+  local text = M._prepare_text(opts.text, in_table)
   vim.api.nvim_buf_set_text(opts.bufnr, range.start_row, range.start_col, range.end_row, range.end_col, { text })
+end
+
+---@param text string
+---@param in_table boolean
+---@return string
+function M._prepare_text(text, in_table)
+  if not in_table then
+    return text
+  end
+  return (text:gsub("\\?|", "\\|"))
 end
 
 ---@class obsidian.link.InsertOpts

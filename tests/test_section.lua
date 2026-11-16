@@ -154,4 +154,13 @@ T["ignores headings and block IDs in document exclusions"] = function()
   eq(blocks["^indented"].line, 9)
 end
 
+T["_is_table_row detects rows with and without outer pipes"] = function()
+  local lines = { "| a | b |", "| - | - |", "| 1 | 2 |", "", "a | b", "- | -", "1 | 2", "", "| not a table |" }
+  eq(true, Section._is_table_row(lines, 0))
+  eq(true, Section._is_table_row(lines, 2))
+  eq(false, Section._is_table_row(lines, 3))
+  eq(true, Section._is_table_row(lines, 6))
+  eq(false, Section._is_table_row(lines, 8))
+end
+
 return T
