@@ -285,6 +285,27 @@ Target note content
   eq(true, found)
 end
 
+T["completion"]["escapes the alias pipe inside a table row"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "| a | b |\n| - | - |\n| [[ta | 1 |",
+    ["target.md"] = "---\nid: target\naliases:\n  - Target alias\n---\nTarget note content\n",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 3, 6 })
+
+  local result = run_completion(2, 6)
+  local escaped = vim.tbl_filter(function(item)
+    return item.textEdit and item.textEdit.newText:find("\\|", 1, true) ~= nil
+  end, result.items or {})
+  eq(true, #escaped > 0)
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit then
+      eq(nil, item.textEdit.newText:gsub("\\|", ""):find("|", 1, true))
+    end
+  end
+end
+
 T["completion"]["returns all cached note references for client-side fuzzy filtering"] = function()
   child.fn.mkdir(tostring(child.Obsidian.dir / "templates"), "p")
   h.mock_vault_contents(child.Obsidian.dir, {
