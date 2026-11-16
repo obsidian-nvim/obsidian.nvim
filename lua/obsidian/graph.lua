@@ -1,18 +1,13 @@
----Analyze and render a vault graph from the note cache.
----
----A graph is an immutable snapshot of the ready cache. It never scans or reads
----the vault. Create a new graph after the cache changes.
----
----TODO: once attachments are cached, do broken links for attachment links
+---Storage-independent, on-disk vault graph snapshots. No renderer or watchers.
+---Rebuild a snapshot after files/cache rows change. Public results are copies.
+local filetypes = require "obsidian.filetypes"
+local tag = require "obsidian.tag"
 
-local cache = require "obsidian.cache"
-
-local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = true }
-
----@alias obsidian.graph.NodeType "note"|"tag"|"missing"
+---@alias obsidian.graph.NodeType "note"|"attachment"|"tag"|"missing"
+---@alias obsidian.graph.References table<string, string[]>
 
 ---@class obsidian.graph.Node
----@field id string Vault-relative path without its Markdown suffix for note nodes.
+---@field id string Namespaced identity; file IDs retain the vault-relative extension.
 ---@field type obsidian.graph.NodeType
 ---@field title string
 ---@field path string?
@@ -27,69 +22,61 @@ local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = tru
 
 ---@class obsidian.graph.BrokenLink
 ---@field source string Source note node ID.
----@field path string Source note path.
----@field target string Target as written in the cached link.
+---@field path string Absolute source path.
+---@field target string Target as written in the source.
 ---@field kind string?
 ---@field raw string?
 ---@field line integer?
 ---@field col integer?
+---@field candidates? string[] Present only for ambiguous references.
+
+---@class obsidian.graph.AmbiguousLink : obsidian.graph.BrokenLink
+---@field candidates string[] Candidate node IDs, sorted by identity.
 
 ---@class obsidian.graph.Table
 ---@field nodes obsidian.graph.Node[]
 ---@field links obsidian.graph.Link[]
 
 ---@class obsidian.graph.RenderOpts
----@field include_tag_nodes? boolean Add tag nodes and note-to-tag links. Defaults to false.
+---@field include_tag_nodes? boolean Defaults to false. Attachments are always included.
 
 ---@class obsidian.graph.OrphanOpts
----@field include_tag_nodes? boolean Count note-to-tag links when finding orphans. Defaults to false.
+---@field include_tag_nodes? boolean Count tag memberships as connections. Defaults to false.
+---@field include_attachments? boolean Also return unreferenced attachment paths. Defaults to false.
 
----@class obsidian.graph.CachedLink
----@field target any
----@field kind string?
----@field raw string?
----@field line integer?
----@field col integer?
+---@class obsidian.graph.LoadOpts
+---@field dir? string|obsidian.Path Vault root. Defaults to the active workspace root.
 
----@class obsidian.graph.Entry
----@field id string
+---@class obsidian.graph.Entry : obsidian.graph.Node
 ---@field path string
----@field folder string
----@field stem string
----@field title string
----@field aliases string[]
----@field tags string[]
----@field links_out obsidian.graph.CachedLink[]
+---@field rel string Vault-relative path, including extension.
+---@field links_out table[]
 
 ---@class obsidian.graph.UnresolvedLink
 ---@field entry obsidian.graph.Entry
 ---@field link table
----@field target string Normalized, vault-relative target.
+---@field target string Expected vault-relative path.
+---@field type "note"|"attachment"
+---@field candidates string[]
 
 ---@class obsidian.graph.Analysis
----@field links obsidian.graph.Link[] Resolved note-to-note links.
+---@field links obsidian.graph.Link[]
 ---@field broken obsidian.graph.UnresolvedLink[]
+---@field ambiguous obsidian.graph.UnresolvedLink[]
 ---@field connected table<string, boolean>
 
 ---@class obsidian.Graph
 ---@field _entries obsidian.graph.Entry[]
----@field _refs table<string, string|false>
+---@field _by_id table<string, obsidian.graph.Entry>
+---@field _paths table<string, string>
+---@field _folded_paths obsidian.graph.References
+---@field _note_refs obsidian.graph.References
+---@field _attachment_refs obsidian.graph.References
+---@field _attachment_folder string
+---@field _vault string
 ---@field _analysis obsidian.graph.Analysis?
----@field _broken_links obsidian.graph.BrokenLink[]?
----@field _orphan_files string[]?
----@field _orphan_files_with_tag_nodes string[]?
 local Graph = {}
 Graph.__index = Graph
-
----@param path string
----@return string
-local function strip_markdown_suffix(path)
-  local ext = (path:match "%.([^./]+)$" or ""):lower()
-  if MARKDOWN_EXTENSIONS[ext] then
-    return path:sub(1, #path - #ext - 1)
-  end
-  return path
-end
 
 ---@param path string
 ---@return string
@@ -103,20 +90,42 @@ local function basename(path)
   return path:match "([^/]+)$" or path
 end
 
----@param raw_tag string
+---@param path string
 ---@return string
-local function tag_name(raw_tag)
-  return (raw_tag:gsub("^#", ""))
+local function note_stem(path)
+  return (path:gsub("%.[^./]+$", ""))
+end
+
+---Normalize a vault-relative path, rejecting paths which escape the vault.
+---@param path string
+---@return string?
+local function normalize_path(path)
+  local parts = {}
+  for part in path:gsub("\\", "/"):gmatch "[^/]+" do
+    if part == ".." then
+      if #parts == 0 then
+        return nil
+      end
+      parts[#parts] = nil
+    elseif part ~= "." then
+      parts[#parts + 1] = part
+    end
+  end
+  return table.concat(parts, "/")
+end
+
+---@param base string
+---@param path string
+---@return string?
+local function join(base, path)
+  return normalize_path(base ~= "" and (base .. "/" .. path) or path)
 end
 
 ---@param value any
 ---@return string[]
 local function string_list(value)
   local out = {}
-  if type(value) ~= "table" then
-    return out
-  end
-  for _, item in ipairs(value) do
+  for _, item in ipairs(type(value) == "table" and value or {}) do
     if type(item) == "string" and item ~= "" then
       out[#out + 1] = item
     end
@@ -125,119 +134,32 @@ local function string_list(value)
 end
 
 ---@param value any
----@return obsidian.graph.CachedLink[]
-local function link_list(value)
-  local out = {}
-  if type(value) ~= "table" then
-    return out
-  end
-  for _, link in ipairs(value) do
-    if type(link) == "table" then
-      out[#out + 1] = {
-        target = link.target,
-        kind = link.kind,
-        raw = link.raw,
-        line = link.line,
-        col = link.col,
-      }
+---@return string[]
+local function tag_list(value)
+  local out, seen = {}, {}
+  for _, raw in ipairs(string_list(value)) do
+    local name = tag.normalize(raw)
+    if name ~= "" and not seen[name] then
+      out[#out + 1] = name
+      seen[name] = true
     end
   end
+  table.sort(out)
   return out
 end
 
----@param path string
----@return string
-local function normalize_path(path)
-  local parts = {}
-  for part in path:gsub("\\", "/"):gmatch "[^/]+" do
-    if part == ".." then
-      if #parts > 0 then
-        parts[#parts] = nil
-      end
-    elseif part ~= "." and part ~= "" then
-      parts[#parts + 1] = part
-    end
-  end
-  return table.concat(parts, "/")
-end
-
----@param target any
----@return string?
-local function normalize_target(target)
-  if type(target) ~= "string" then
-    return nil
-  end
-  target = vim.trim(target)
-  if target == "" or target:sub(1, 1) == "#" or target:match "^[%w+.-]+:" then
-    return nil
-  end
-
-  if target:sub(1, 1) == "<" and target:sub(-1) == ">" then
-    target = target:sub(2, -2)
-  end
-  local ok, decoded = pcall(vim.uri_decode, target)
-  if ok then
-    target = decoded
-  end
-  if target:match "^[%w+.-]+:" then
-    return nil
-  end
-  return target:gsub("\\", "/")
-end
-
----@param target string
----@return boolean
-local function can_be_note(target)
-  local ext = (target:match "%.([^./]+)$" or ""):lower()
-  return ext == "" or MARKDOWN_EXTENSIONS[ext] == true
-end
-
----@param refs table<string, string|false>
+---@param refs obsidian.graph.References
 ---@param ref string
 ---@param id string
 local function add_reference(refs, ref, id)
-  ref = strip_markdown_suffix(normalize_path(vim.trim(ref))):lower()
+  ref = vim.fn.tolower(vim.trim(ref))
   if ref == "" then
     return
   end
-  if refs[ref] == nil then
-    refs[ref] = id
-  elseif refs[ref] ~= id then
-    refs[ref] = false
-  end
-end
-
----@param target string
----@param entry obsidian.graph.Entry
----@param kind string?
----@return string[]
-local function target_candidates(target, entry, kind)
-  local absolute = vim.startswith(target, "/")
-  local explicitly_relative = vim.startswith(target, "./") or vim.startswith(target, "../")
-  local candidates = {}
-
-  if not absolute and (kind == "markdown" or explicitly_relative) then
-    candidates[#candidates + 1] = normalize_path(entry.folder .. "/" .. target)
-  end
-  if not explicitly_relative or absolute then
-    candidates[#candidates + 1] = normalize_path(target)
-  end
-
-  for i, candidate in ipairs(candidates) do
-    candidates[i] = strip_markdown_suffix(candidate)
-  end
-  return candidates
-end
-
----@param candidates string[]
----@param refs table<string, string|false>
----@return string?
-local function resolve_target(candidates, refs)
-  for _, candidate in ipairs(candidates) do
-    local id = refs[candidate:lower()]
-    if id then
-      return id
-    end
+  refs[ref] = refs[ref] or {}
+  if not vim.tbl_contains(refs[ref], id) then
+    refs[ref][#refs[ref] + 1] = id
+    table.sort(refs[ref])
   end
 end
 
@@ -253,66 +175,285 @@ local function note_title(row, fallback)
   return fallback
 end
 
----@param a obsidian.graph.Link
----@param b obsidian.graph.Link
----@return boolean
-local function link_less(a, b)
-  if a.source ~= b.source then
-    return a.source < b.source
-  end
-  return a.target < b.target
-end
-
----@param a obsidian.graph.BrokenLink
----@param b obsidian.graph.BrokenLink
----@return boolean
-local function broken_link_less(a, b)
-  if a.path ~= b.path then
-    return a.path < b.path
-  elseif (a.line or 0) ~= (b.line or 0) then
-    return (a.line or 0) < (b.line or 0)
-  end
-  return (a.col or 0) < (b.col or 0)
-end
-
----Create an immutable graph snapshot from the ready note cache.
+---@param rows table<string, table>
+---@param relative fun(path: string): string
+---@param attachment_folder string
+---@param vault string
 ---@return obsidian.Graph
-function Graph.from_cache()
+local function build(rows, relative, attachment_folder, vault)
   local self = setmetatable({
     _entries = {},
-    _refs = {},
+    _by_id = {},
+    _paths = {},
+    _folded_paths = {},
+    _note_refs = {},
+    _attachment_refs = {},
+    _attachment_folder = attachment_folder,
+    _vault = vault,
   }, Graph)
 
-  for path, row in pairs(cache.notes.all()) do
-    local rel = cache.notes.rel_path(path):gsub("\\", "/")
-    local id = strip_markdown_suffix(rel)
-    local stem = basename(id)
+  for path, row in pairs(rows) do
+    local rel = assert(normalize_path(relative(path)))
+    local kind = row.kind or "note"
+    local id = kind .. ":" .. rel
     local entry = {
       id = id,
+      type = kind,
       path = path,
-      folder = folder(id),
-      stem = stem,
-      title = note_title(row, stem),
+      rel = rel,
+      folder = folder(rel),
+      title = kind == "note" and note_title(row, note_stem(basename(rel))) or basename(rel),
       aliases = string_list(row.aliases),
-      tags = string_list(row.tags),
-      links_out = link_list(row.links_out),
+      tags = tag_list(row.tags),
+      links_out = vim.deepcopy(row.links_out or {}),
+      exists = true,
     }
     self._entries[#self._entries + 1] = entry
+    self._by_id[id] = entry
+    self._paths[rel] = id
+    add_reference(self._folded_paths, rel, id)
 
-    add_reference(self._refs, entry.id, entry.id)
-    add_reference(self._refs, entry.stem, entry.id)
-    if type(row.id) == "string" then
-      add_reference(self._refs, row.id, entry.id)
-    end
-    for _, alias in ipairs(entry.aliases) do
-      add_reference(self._refs, alias, entry.id)
+    if kind == "note" then
+      add_reference(self._note_refs, basename(rel), id)
+      -- Bases require an explicit extension, as in normal note resolution.
+      if filetypes.extension(rel) ~= "base" then
+        add_reference(self._note_refs, note_stem(basename(rel)), id)
+        if type(row.id) == "string" or type(row.id) == "number" then
+          add_reference(self._note_refs, tostring(row.id), id)
+        end
+        for _, alias in ipairs(entry.aliases) do
+          add_reference(self._note_refs, alias, id)
+        end
+      end
+    else
+      add_reference(self._attachment_refs, basename(rel), id)
     end
   end
-
   table.sort(self._entries, function(a, b)
     return a.id < b.id
   end)
   return self
+end
+
+---Create a snapshot from the ready cache, without reading the filesystem.
+---@return obsidian.Graph
+function Graph.from_cache()
+  local cache = require "obsidian.cache"
+  ---@type table<string, table>
+  local rows = cache.notes.all()
+  for path, row in pairs(cache.attachments.all()) do
+    rows[path] = row
+  end
+  return build(
+    rows,
+    cache.notes.rel_path,
+    Obsidian.opts.attachments.folder or "",
+    vim.fs.normalize(tostring(Obsidian.dir))
+  )
+end
+
+---Build an on-disk snapshot using rg file enumeration (filesystem fallback).
+---Reads complete notes, not search.max_lines-limited excerpts. Unsaved buffers
+---are deliberately excluded, just as in from_cache(). An error returns no graph.
+---@param callback fun(graph: obsidian.Graph?, err: string?)
+---@param opts obsidian.graph.LoadOpts?
+---@return fun() cancel Suppress the callback and stop pending work.
+function Graph.from_vault_async(callback, opts)
+  opts = opts or {}
+  local api = require "obsidian.api"
+  local vault =
+    vim.fs.normalize(tostring(require("obsidian.path").new(opts.dir or api.resolve_workspace_dir()):resolve()))
+  local stat = vim.uv.fs_stat(vault)
+  if not stat or stat.type ~= "directory" then
+    local cancelled = false
+    vim.schedule(function()
+      if not cancelled then
+        callback(nil, "graph: not a vault directory: " .. vault)
+      end
+    end)
+    return function()
+      cancelled = true
+    end
+  end
+  local workspace = api.find_workspace(vault)
+  local config = workspace and api._workspace_opts(workspace) or Obsidian.opts
+  local attachment_folder = config.attachments.folder or ""
+  return require("obsidian.graph.scan").scan(vault, {
+    config_dir = config.sync.config_dir or ".obsidian",
+    ignore_checker = require("obsidian.ignore")._build_ignore_checker(config.file.ignore_filters or {}),
+  }, function(rows, err)
+    if not rows then
+      callback(nil, err)
+      return
+    end
+    callback(build(rows, function(path)
+      return path:sub(#vault + 2)
+    end, attachment_folder, vault))
+  end)
+end
+
+---@param self obsidian.Graph
+---@param target any
+---@return string?
+local function normalize_target(self, target)
+  if type(target) ~= "string" then
+    return nil
+  end
+  target = vim.trim(target)
+  if target:sub(1, 1) == "<" and target:sub(-1) == ">" then
+    target = target:sub(2, -2)
+  end
+  if target == "" or target:sub(1, 1) == "#" then
+    return nil
+  end
+  local uri = require "obsidian.uri"
+  local scheme = uri.scheme(target)
+  if scheme and scheme ~= "file" then
+    return nil
+  end
+  local ok, decoded
+  if scheme == "file" then
+    -- URI fragments are not part of an attachment's filename.
+    ok, decoded = pcall(vim.uri_to_fname, (target:gsub("[?#].*$", "")))
+  else
+    ok, decoded = pcall(vim.uri_decode, target)
+  end
+  if not ok then
+    return nil
+  end
+  decoded = decoded:gsub("\\", "/")
+  local prefix = self._vault:gsub("/+$", "") .. "/"
+  if vim.startswith(decoded, prefix) then
+    return "/" .. decoded:sub(#prefix + 1)
+  elseif scheme == "file" or decoded:match "^%a:/" or uri.is_uri(decoded) then
+    return nil
+  end
+  return decoded
+end
+
+---@param self obsidian.Graph
+---@param path string
+---@param kind "note"|"attachment"
+---@return string[]
+local function exact_path(self, path, kind)
+  local id = self._paths[path]
+  if id and self._by_id[id].type == kind then
+    return { id }
+  end
+  local matches = {}
+  for _, candidate in ipairs(self._folded_paths[vim.fn.tolower(path)] or {}) do
+    if self._by_id[candidate].type == kind then
+      matches[#matches + 1] = candidate
+    end
+  end
+  return matches
+end
+
+---@param self obsidian.Graph
+---@param path string
+---@return string[]
+local function note_path(self, path)
+  if filetypes.is_note(path) then
+    return exact_path(self, path, "note")
+  end
+  local matches = {}
+  for _, ext in ipairs(filetypes.note_extensions) do
+    if ext ~= "base" then
+      vim.list_extend(matches, exact_path(self, path .. "." .. ext, "note"))
+    end
+  end
+  table.sort(matches)
+  return matches
+end
+
+---@param target string
+---@param entry obsidian.graph.Entry
+---@return string[]
+local function target_candidates(target, entry)
+  if vim.startswith(target, "/") then
+    local path = normalize_path(target)
+    return path and { path } or {}
+  end
+  local local_path = join(entry.folder, target)
+  if vim.startswith(target, "./") or vim.startswith(target, "../") then
+    return local_path and { local_path } or {}
+  end
+  local root_path = normalize_path(target)
+  local paths = {}
+  if local_path then
+    paths[#paths + 1] = local_path
+  end
+  if root_path and root_path ~= local_path then
+    paths[#paths + 1] = root_path
+  end
+  return paths
+end
+
+---@param self obsidian.Graph
+---@param target string
+---@param entry obsidian.graph.Entry
+---@param link table
+---@return string[] ids
+---@return string? expected_path
+local function resolve_note(self, target, entry, link)
+  local paths = target_candidates(target, entry)
+  for _, path in ipairs(paths) do
+    local matches = note_path(self, path)
+    if #matches > 0 then
+      return matches, path
+    end
+  end
+  -- Paths always beat aliases/IDs/basenames. Explicit relative links never
+  -- fall back to a same-named note in a different directory.
+  local relative = vim.startswith(target, "./") or vim.startswith(target, "../")
+  if not relative and not vim.startswith(target, "/") then
+    local matches = self._note_refs[vim.fn.tolower(target)]
+    if matches then
+      return matches, paths[1]
+    end
+  end
+  local expected = paths[1]
+  if link.kind ~= "markdown" and not relative then
+    expected = normalize_path(target)
+  end
+  if expected and not filetypes.is_note(expected) then
+    expected = expected .. ".md"
+  end
+  return {}, expected
+end
+
+---@param self obsidian.Graph
+---@param target string
+---@param entry obsidian.graph.Entry
+---@return string[] ids
+---@return string? expected_path
+local function resolve_attachment(self, target, entry)
+  local has_path = target:find "/" ~= nil
+  local configured
+  if not has_path then
+    local base = self._attachment_folder
+    configured = vim.startswith(base, ".") and join(entry.folder, base .. "/" .. target) or join(base, target)
+    if configured then
+      local matches = exact_path(self, configured, "attachment")
+      if #matches > 0 then
+        return matches, configured
+      end
+    end
+    return self._attachment_refs[vim.fn.tolower(target)] or {}, configured
+  end
+  -- Attachment navigation treats two existing source/root paths as ambiguous.
+  local matches, seen = {}, {}
+  local paths = target_candidates(target, entry)
+  for _, path in ipairs(paths) do
+    for _, id in ipairs(exact_path(self, path, "attachment")) do
+      if not seen[id] then
+        matches[#matches + 1] = id
+        seen[id] = true
+      end
+    end
+  end
+  table.sort(matches)
+  return matches, paths[1]
 end
 
 ---@param self obsidian.Graph
@@ -321,21 +462,22 @@ local function analyze(self)
   if self._analysis then
     return self._analysis
   end
-
-  local analysis = {
-    links = {},
-    broken = {},
-    connected = {},
-  }
+  ---@type obsidian.graph.Analysis
+  local analysis = { links = {}, broken = {}, ambiguous = {}, connected = {} }
   local link_ids = {}
-
   for _, entry in ipairs(self._entries) do
     for _, link in ipairs(entry.links_out) do
-      local target = normalize_target(link.target)
+      local target = normalize_target(self, link.target)
       if target then
-        local candidates = target_candidates(target, entry, link.kind)
-        local resolved = resolve_target(candidates, self._refs)
-        if resolved then
+        local kind = filetypes.is_attachment(target) and "attachment" or "note"
+        local matches, expected
+        if kind == "attachment" then
+          matches, expected = resolve_attachment(self, target, entry)
+        else
+          matches, expected = resolve_note(self, target, entry, link)
+        end
+        if #matches == 1 then
+          local resolved = matches[1]
           if resolved ~= entry.id then
             local key = entry.id .. "\0" .. resolved
             if not link_ids[key] then
@@ -345,171 +487,158 @@ local function analyze(self)
             analysis.connected[entry.id] = true
             analysis.connected[resolved] = true
           end
-        elseif can_be_note(target) and candidates[1] and candidates[1] ~= "" then
-          analysis.broken[#analysis.broken + 1] = {
+        elseif #matches > 1 or (expected and (filetypes.kind(target) or filetypes.extension(target) == "")) then
+          local unresolved = {
             entry = entry,
             link = link,
-            target = candidates[1],
+            target = expected or target,
+            type = kind,
+            candidates = matches,
           }
+          local list = #matches > 1 and analysis.ambiguous or analysis.broken
+          list[#list + 1] = unresolved
         end
       end
     end
   end
-
   self._analysis = analysis
   return analysis
 end
 
----Return missing internal note links.
----
----Attachment links are not checked because attachments are not in the note cache.
+---@param unresolved obsidian.graph.UnresolvedLink
+---@return obsidian.graph.BrokenLink
+local function diagnostic(unresolved)
+  local link = unresolved.link
+  return {
+    source = unresolved.entry.id,
+    path = unresolved.entry.path,
+    target = link.target,
+    kind = link.kind,
+    raw = link.raw,
+    line = link.line,
+    col = link.col,
+  }
+end
+
+---@param a obsidian.graph.BrokenLink
+---@param b obsidian.graph.BrokenLink
+---@return boolean
+local function diagnostic_less(a, b)
+  if a.path ~= b.path then
+    return a.path < b.path
+  elseif (a.line or 0) ~= (b.line or 0) then
+    return (a.line or 0) < (b.line or 0)
+  elseif (a.col or 0) ~= (b.col or 0) then
+    return (a.col or 0) < (b.col or 0)
+  end
+  return a.target < b.target
+end
+
+---Return missing internal note and attachment links. Ambiguity is not missing.
 ---@return obsidian.graph.BrokenLink[]
 function Graph:broken_links()
-  if self._broken_links then
-    return self._broken_links
-  end
-
   local result = {}
   for _, broken in ipairs(analyze(self).broken) do
-    local link = broken.link
-    result[#result + 1] = {
-      source = broken.entry.id,
-      path = broken.entry.path,
-      target = link.target,
-      kind = link.kind,
-      raw = link.raw,
-      line = link.line,
-      col = link.col,
-    }
+    result[#result + 1] = diagnostic(broken)
   end
-  table.sort(result, broken_link_less)
-  self._broken_links = result
+  table.sort(result, diagnostic_less)
   return result
 end
 
----Return absolute paths of notes with no resolved incoming or outgoing links.
----Broken links do not prevent a note from being an orphan. Tag links only count
----when `include_tag_nodes` is enabled.
+---Return ambiguous references, without inventing missing nodes for them.
+---@return obsidian.graph.AmbiguousLink[]
+function Graph:ambiguous_links()
+  local result = {}
+  for _, ambiguous in ipairs(analyze(self).ambiguous) do
+    local item = diagnostic(ambiguous)
+    item.candidates = vim.deepcopy(ambiguous.candidates)
+    result[#result + 1] = item
+  end
+  table.sort(result, diagnostic_less)
+  return result
+end
+
+---Return absolute paths with no resolved incoming or outgoing connections.
+---By default only notes are returned. Self-links, missing and ambiguous links
+---do not count; resolved attachment links do. Tag memberships are opt-in.
 ---@param opts obsidian.graph.OrphanOpts?
 ---@return string[]
 function Graph:orphan_files(opts)
   opts = opts or {}
-  if opts.include_tag_nodes and self._orphan_files_with_tag_nodes then
-    return self._orphan_files_with_tag_nodes
-  elseif not opts.include_tag_nodes and self._orphan_files then
-    return self._orphan_files
-  end
-
   local analysis = analyze(self)
   local result = {}
   for _, entry in ipairs(self._entries) do
-    local connected = analysis.connected[entry.id]
-    if opts.include_tag_nodes and not connected then
-      for _, raw_tag in ipairs(entry.tags) do
-        if tag_name(raw_tag) ~= "" then
-          connected = true
-          break
-        end
-      end
-    end
-    if not connected then
+    local connected = analysis.connected[entry.id] or (opts.include_tag_nodes and #entry.tags > 0)
+    if not connected and (entry.type == "note" or opts.include_attachments) then
       result[#result + 1] = entry.path
     end
   end
   table.sort(result)
-  if opts.include_tag_nodes then
-    self._orphan_files_with_tag_nodes = result
-  else
-    self._orphan_files = result
-  end
   return result
 end
 
----Materialize visualization nodes and links from this graph snapshot.
+---Materialize detached visualization nodes and deduplicated directed links.
 ---@param opts obsidian.graph.RenderOpts?
 ---@return obsidian.graph.Table
 function Graph:to_table(opts)
   opts = opts or {}
   local analysis = analyze(self)
-  local nodes = {}
-  local links = {}
-  local node_ids = {}
-  local link_ids = {}
-
+  local nodes, node_ids = {}, {}
+  local links = vim.deepcopy(analysis.links)
   local function add_node(node)
     if not node_ids[node.id] then
       nodes[#nodes + 1] = node
       node_ids[node.id] = true
     end
   end
-
-  local function add_link(source, target)
-    if source == target then
-      return
-    end
-    local key = source .. "\0" .. target
-    if not link_ids[key] then
-      links[#links + 1] = { source = source, target = target }
-      link_ids[key] = true
-    end
-  end
-
   for _, entry in ipairs(self._entries) do
     add_node {
       id = entry.id,
-      type = "note",
+      type = entry.type,
       title = entry.title,
       path = entry.path,
       folder = entry.folder,
-      aliases = entry.aliases,
-      tags = entry.tags,
+      aliases = vim.deepcopy(entry.aliases),
+      tags = vim.deepcopy(entry.tags),
       exists = true,
     }
   end
-
-  for _, link in ipairs(analysis.links) do
-    add_link(link.source, link.target)
-  end
-
+  local missing_links = {}
   for _, broken in ipairs(analysis.broken) do
-    local missing_id = "missing:" .. broken.target
+    local id = "missing:" .. broken.type .. ":" .. broken.target
     add_node {
-      id = missing_id,
+      id = id,
       type = "missing",
-      title = basename(broken.target),
+      title = broken.type == "note" and note_stem(basename(broken.target)) or basename(broken.target),
       folder = folder(broken.target),
       aliases = {},
       tags = {},
       exists = false,
     }
-    add_link(broken.entry.id, missing_id)
+    local key = broken.entry.id .. "\0" .. id
+    if not missing_links[key] then
+      links[#links + 1] = { source = broken.entry.id, target = id }
+      missing_links[key] = true
+    end
   end
-
   if opts.include_tag_nodes then
     for _, entry in ipairs(self._entries) do
-      for _, raw_tag in ipairs(entry.tags) do
-        local tag = tag_name(raw_tag)
-        if tag ~= "" then
-          local tag_id = "tag:" .. tag
-          add_node {
-            id = tag_id,
-            type = "tag",
-            title = "#" .. tag,
-            folder = "",
-            aliases = {},
-            tags = {},
-            exists = true,
-          }
-          add_link(entry.id, tag_id)
-        end
+      for _, name in ipairs(entry.tags) do
+        local id = "tag:" .. name
+        add_node { id = id, type = "tag", title = "#" .. name, folder = "", aliases = {}, tags = {}, exists = true }
+        links[#links + 1] = { source = entry.id, target = id }
       end
     end
   end
-
   table.sort(nodes, function(a, b)
     return a.id < b.id
   end)
-  table.sort(links, link_less)
+  table.sort(links, function(a, b)
+    if a.source ~= b.source then
+      return a.source < b.source
+    end
+    return a.target < b.target
+  end)
   return { nodes = nodes, links = links }
 end
 

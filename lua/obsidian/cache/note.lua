@@ -1,60 +1,8 @@
-local Document = require "obsidian.parse.document"
-local Note = require "obsidian.note"
-local Range = require "obsidian.range"
-local parse_refs = require "obsidian.parse.refs"
-local parse_tasks = require "obsidian.parse.line.tasks"
-local tags = require "obsidian.tag"
+local parse_note = require "obsidian.parse.note"
 
 local M = {}
 
----@param value any
----@return boolean
-local function is_cacheable_property(value)
-  if type(value) ~= "table" then
-    return true
-  end
-  if not vim.islist(value) or next(value) == nil then
-    return false
-  end
-  for _, item in ipairs(value) do
-    if type(item) == "table" then
-      return false
-    end
-  end
-  return true
-end
-
----Extract outgoing links from a single line.
----@param line string
----@param lnum integer  1-based
----@param document obsidian.parse.Document
----@return table[]
-local function extract_links(line, lnum, document)
-  local out = {}
-  for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1, lexical = true })) do
-    local origin = Range.new(lnum - 1, ref.range.start_col, lnum - 1, ref.range.start_col + 1)
-    if
-      (ref.kind == "wiki" or ref.kind == "markdown")
-      and not document:intersects(origin, Document.INLINE_EXCLUSIONS)
-      and not document:intersects(ref.range, Document.COMMENTS)
-    then
-      out[#out + 1] = {
-        kind = ref.kind,
-        raw = ref.raw,
-        target = ref.target,
-        label = ref.label,
-        anchor = ref.anchor,
-        block = ref.block,
-        embed = ref.embed,
-        line = lnum,
-        col = ref.range.start_col + 1,
-      }
-    end
-  end
-  return out
-end
-
----Convert obsidian.Note + stat → CacheNote row.
+---Convert a file to a cache note row. Invalid files must not retain stale data.
 ---@param abs_path string
 ---@param _vault_root string
 ---@return table? row
@@ -63,125 +11,15 @@ function M.build(abs_path, _vault_root)
   if not stat or stat.type ~= "file" then
     return nil
   end
-
-  -- Read file once; reuse lines for both Note parser and link/task extractors.
-  local fh = io.open(abs_path, "r")
-  if not fh then
+  local ok, row = pcall(parse_note.from_file, abs_path)
+  if not ok then
     return nil
   end
-  local lines = {}
-  for line in fh:lines() do
-    lines[#lines + 1] = line
-  end
-  fh:close()
-
-  local document = Document.parse(lines)
-  local ok, note = pcall(Note.from_lines, lines, abs_path, {
-    collect_sections = true,
-    max_lines = #lines,
-    document = document,
-  })
-  if not ok or not note then
-    return nil
-  end
-
-  local properties = vim.deepcopy(note.metadata or {})
-  if #note.aliases == 0 then
-    properties.aliases = nil
-  end
-  if #note.tags == 0 then
-    properties.tags = nil
-  end
-  for k, v in pairs(properties) do
-    if not is_cacheable_property(v) then
-      properties[k] = nil
-    end
-  end
-  local tags_lower = {}
-  local tags_seen = {}
-  local function add_tag(tag)
-    tag = tags.normalize(tag)
-    if tag ~= "" and not tags_seen[tag] then
-      tags_lower[#tags_lower + 1] = tag
-      tags_seen[tag] = true
-    end
-  end
-  for _, occurrence in
-    ipairs(tags.extract(lines, {
-      frontmatter_elements = note.frontmatter_elements,
-      document = document,
-    }))
-  do
-    add_tag(occurrence.tag)
-  end
-
-  local headings = {}
-  for _, section in ipairs(note.sections or {}) do
-    if section.header then
-      headings[#headings + 1] = {
-        header = section.header,
-        anchor = section.anchor,
-        level = section.level,
-        line = section.heading_range.start_row + 1,
-      }
-    end
-  end
-
-  local links_out = {}
-  local tasks = {}
-  for i = 1, #lines do
-    local line = lines[i] or ""
-    for _, link in ipairs(extract_links(line, i, document)) do
-      links_out[#links_out + 1] = link
-    end
-    local task = parse_tasks.extract(line, { row = i - 1 })[1]
-    if
-      task
-      and task.task_marker_col
-      and not document:intersects(
-        Range.new(i - 1, task.task_marker_col, i - 1, task.task_marker_col + 3),
-        Document.BODY_EXCLUSIONS
-      )
-    then
-      tasks[#tasks + 1] = {
-        line = i,
-        indent = task.indent,
-        state = task.task_state,
-        text = task.text,
-      }
-    end
-  end
-
-  local row = {
-    kind = "note",
-    stat = {
-      mtime_sec = stat.mtime.sec,
-      mtime_nsec = stat.mtime.nsec,
-      size = stat.size,
-    },
+  row.stat = {
+    mtime_sec = stat.mtime.sec,
+    mtime_nsec = stat.mtime.nsec,
+    size = stat.size,
   }
-  local basename = vim.fn.fnamemodify(abs_path, ":t:r")
-  if tostring(note.id) ~= basename then
-    row.id = note.id
-  end
-  if note.aliases and #note.aliases > 0 then
-    row.aliases = note.aliases
-  end
-  if #tags_lower > 0 then
-    row.tags = tags_lower
-  end
-  if next(properties) ~= nil then
-    row.properties = properties
-  end
-  if #headings > 0 then
-    row.headings = headings
-  end
-  if #links_out > 0 then
-    row.links_out = links_out
-  end
-  if #tasks > 0 then
-    row.tasks = tasks
-  end
   return row
 end
 

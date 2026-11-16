@@ -135,7 +135,10 @@ local function scanner(root, opts)
   opts = opts or {}
   ---@cast opts obsidian.fs.WalkOpts
   root = vim.fs.normalize(vim.fs.abspath(tostring(root)))
-  local is_gitignored = opts.gitignore == false and nil or gitignore_checker(root)
+  local is_gitignored
+  if opts.gitignore ~= false then
+    is_gitignored = gitignore_checker(root)
+  end
   local use_configured_ignores = opts.ignore ~= false and is_in_vault(root)
   local entry_type = opts.type or "file"
   local sort_by = opts.sort_by
