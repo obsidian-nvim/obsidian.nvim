@@ -25,6 +25,8 @@ M._graph_cache = nil
 M._graph_by_id = nil
 ---@type string?
 M._graph_cache_dir = nil
+---@type string?
+M._last_graph_signature = nil
 
 local SSE_HEARTBEAT_MS = 25000
 local MARKDOWN_EXTENSIONS = { md = true, markdown = true, qmd = true, base = true }
@@ -96,6 +98,40 @@ local function get_graph(force)
 
   ---@diagnostic disable-next-line: return-type-mismatch
   return M._graph_cache
+end
+
+---@param graph obsidian.graph.Table
+---@return string
+local function graph_signature(graph)
+  local nodes, links = {}, {}
+  for _, node in ipairs(graph.nodes or {}) do
+    local aliases = vim.deepcopy(node.aliases or {})
+    local tags = vim.deepcopy(node.tags or {})
+    table.sort(aliases)
+    table.sort(tags)
+    nodes[#nodes + 1] = {
+      node.id or "",
+      node.type or "",
+      node.title or "",
+      node.path or "",
+      node.folder or "",
+      node.exists ~= false,
+      aliases,
+      tags,
+    }
+  end
+  table.sort(nodes, function(a, b)
+    return a[1] < b[1]
+  end)
+
+  for _, link in ipairs(graph.links or {}) do
+    links[#links + 1] = { link.source or "", link.target or "" }
+  end
+  table.sort(links, function(a, b)
+    return a[1] == b[1] and a[2] < b[2] or a[1] < b[1]
+  end)
+
+  return vim.json.encode(nodes) .. vim.json.encode(links)
 end
 
 ---@param id string
@@ -261,8 +297,12 @@ function M.broadcast_graph_update(reason)
     return
   end
 
-  local ok, graph = pcall(get_graph, true)
-  if ok then
+  local ok, graph, signature = pcall(function()
+    local current = get_graph(true)
+    return current, graph_signature(current)
+  end)
+  if ok and signature ~= M._last_graph_signature then
+    M._last_graph_signature = signature
     M.broadcast { type = "graph:update", graph = graph, reason = reason }
   end
 end
@@ -367,13 +407,18 @@ local function respond_events(client)
     "",
   }, "\r\n")
 
+  local has_clients = M._sse_clients and next(M._sse_clients) ~= nil
   M._sse_clients = M._sse_clients or {}
   M._sse_clients[client] = true
   client:write(header)
   client:unref()
   start_sse_heartbeat()
 
-  send_sse(client, { type = "graph:update", graph = get_graph(false), reason = "connect" })
+  local graph = get_graph(false)
+  if not has_clients then
+    M._last_graph_signature = graph_signature(graph)
+  end
+  send_sse(client, { type = "graph:update", graph = graph, reason = "connect" })
   local id = current_note_id()
   if id then
     send_sse(client, { type = "active:set", id = id })
@@ -537,6 +582,7 @@ function M.start_server(port)
   M._port = server.port
   M._token = make_token()
   M._sse_clients = {}
+  M._last_graph_signature = nil
   M.invalidate_graph_cache()
   ensure_live_hooks()
   if cache.is_enabled() and not cache.is_ready() then
@@ -581,6 +627,7 @@ function M.stop_server()
     M._watchfiles_unregister = nil
   end
   M._live_hooks_started = nil
+  M._last_graph_signature = nil
 end
 
 ---@param arg string?

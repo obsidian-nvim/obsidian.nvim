@@ -32,6 +32,7 @@
   var settings = {
     search: "",
     tags: true,
+    attachments: false,
     existingOnly: false,
     showOrphans: true,
     textFadeThreshold: 0,
@@ -187,9 +188,10 @@
       var text = (n.title + " " + n.id + " " + (n.path || "") + " " + (n.folder || "") + " " + (n.aliases || []).join(" ") + " " + nodeTags.join(" ")).toLowerCase();
       var matchesSearch = search === "" || text.indexOf(search) !== -1;
       var isTag = n.type === "tag";
+      var isAttachment = n.type === "attachment";
       var exists = n.exists !== false;
       var hasLinks = degree[n.id] > 0 || n.id === localRoot;
-      var ok = matchesSearch && (settings.tags || !isTag) && (!settings.existingOnly || exists) && (settings.showOrphans || hasLinks);
+      var ok = matchesSearch && (settings.tags || !isTag) && (settings.attachments || !isAttachment) && (!settings.existingOnly || exists) && (settings.showOrphans || hasLinks);
       if (ok) keep[n.id] = true;
       return ok;
     });
@@ -292,6 +294,7 @@
     if (isRoot) return "#f59e0b";
     if (!node.exists) return isHover ? "#9ca3af" : "#6b7280";
     if (node.type === "tag") return isHover ? "#86efac" : "#22c55e";
+    if (node.type === "attachment") return isHover ? "#fef08a" : "#eab308";
     return isHover ? "#c084fc" : "#7c3aed";
   }
 
@@ -299,6 +302,7 @@
     if (isRoot) return "#fbbf24";
     if (!node.exists) return "#d1d5db";
     if (node.type === "tag") return "#bbf7d0";
+    if (node.type === "attachment") return isActive ? "#38bdf8" : "#fef08a";
     if (isActive) return "#38bdf8";
     return "#a78bfa";
   }
@@ -417,7 +421,7 @@
     if (nodes.length === 0) {
       var div = document.createElement("div");
       div.id = "empty";
-      div.textContent = localRoot ? "No notes match the local graph settings" : "No notes match the graph settings";
+      div.textContent = localRoot ? "No graph nodes match the local graph settings" : "No graph nodes match the graph settings";
       document.body.appendChild(div);
     }
 
@@ -436,6 +440,10 @@
     });
     document.getElementById("show-tags").addEventListener("change", function(e) {
       settings.tags = e.target.checked;
+      rerender();
+    });
+    document.getElementById("show-attachments").addEventListener("change", function(e) {
+      settings.attachments = e.target.checked;
       rerender();
     });
     document.getElementById("existing-only").addEventListener("change", function(e) {

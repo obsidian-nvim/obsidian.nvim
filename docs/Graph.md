@@ -106,7 +106,7 @@ are not authorization to delete files: other applications or unsupported file
 types may refer to them.
 ## Open and interact with the graph
 
-Open the vault graph with `:Obsidian graph`. Use `:Obsidian graph %` for the current note's local graph, or pass a note path or vault folder. Enable `cache.enabled` to use the graph.
+Open the vault graph with `:Obsidian graph`. Use `:Obsidian graph %` for the current note's local graph, or pass a note path or vault folder. Enable `cache.enabled` to use the graph. Attachment nodes are hidden by default. Turn on the settings panel's **Attachments** toggle to display them as yellow circles.
 
 ## Node context menu
 

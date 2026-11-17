@@ -90,6 +90,55 @@ T["open_note_by_id"] = function()
   vim.cmd "enew!"
 end
 
+T["live graph suppresses unchanged graph updates"] = function()
+  local graph = require "obsidian.core-plugins.graph"
+  local path = Obsidian.dir / "A.md"
+  local other = Obsidian.dir / "B.md"
+  helpers.write("# A\n\nOriginal prose", path)
+  start_cache()
+
+  local previous_clients = graph._sse_clients
+  local previous_signature = graph._last_graph_signature
+  local previous_broadcast = graph.broadcast
+  local events = {}
+  graph._sse_clients = { test = true }
+  graph._last_graph_signature = nil
+  graph.broadcast = function(event)
+    events[#events + 1] = event
+  end
+
+  local ok, err = pcall(function()
+    graph.invalidate_graph_cache()
+    graph.broadcast_graph_update "initial"
+    MiniTest.expect.equality(1, #events)
+
+    cache.notes.refresh(tostring(path))
+    graph.broadcast_graph_update "write"
+    MiniTest.expect.equality(1, #events)
+
+    helpers.write("# A\n\nUpdated prose only", path)
+    cache.notes.refresh(tostring(path))
+    graph.broadcast_graph_update "write"
+    MiniTest.expect.equality(1, #events)
+
+    helpers.write("[[B]]", path)
+    helpers.write("# B", other)
+    cache.notes.refresh(tostring(path))
+    cache.notes.refresh(tostring(other))
+    graph.broadcast_graph_update "write"
+    MiniTest.expect.equality(2, #events)
+    MiniTest.expect.equality("graph:update", events[2].type)
+  end)
+
+  graph._sse_clients = previous_clients
+  graph._last_graph_signature = previous_signature
+  graph.broadcast = previous_broadcast
+  graph.invalidate_graph_cache()
+  if not ok then
+    error(err)
+  end
+end
+
 T["live graph watches cache file changes"] = function()
   local graph = require "obsidian.core-plugins.graph"
   local watchfiles = require "obsidian.lsp.watchfiles"
