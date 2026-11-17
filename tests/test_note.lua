@@ -437,6 +437,35 @@ end
 
 T["from_lines"] = new_set()
 
+T["from_lines"]["buffer notes reuse their parsed document and always load all lines"] = function()
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(bufnr, tostring(Obsidian.dir / "full_buffer.md"))
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "---", "id: x", "---", "body" })
+  local note = M.from_buffer(bufnr, { max_lines = 1 })
+  eq(nil, rawget(note, "frontmatter_end_line"))
+  eq(require("obsidian.document").get(bufnr), note:parsed_document())
+  eq({ "---", "id: x", "---", "body" }, note.contents)
+
+  Obsidian.opts.search.max_lines = 1
+  eq({ "---", "id: x", "---", "body" }, api.current_note(bufnr).contents)
+  vim.api.nvim_buf_delete(bufnr, { force = true })
+end
+
+T["from_lines"]["deprecated frontmatter end line is lazy and follows the document"] = function()
+  local closed = M.from_lines { "---", "tags: [one]", "---", "body" }
+  eq(nil, rawget(closed, "frontmatter_end_line"))
+  eq(nil, rawget(closed, "__document"))
+  eq(3, closed.frontmatter_end_line)
+  eq(3, closed.frontmatter_end_line)
+  eq(nil, rawget(closed, "frontmatter_end_line"))
+  eq(true, rawget(closed, "__document") ~= nil)
+
+  local unfinished = M.from_lines { "---", "tags: one" }
+  eq(nil, unfinished.frontmatter_end_line)
+  eq({}, unfinished:body_lines())
+  eq(nil, M.from_lines({ "body" }).frontmatter_end_line)
+end
+
 T["from_lines"]["should work from a lines"] = function()
   local note = from_str(foo, "foo.md")
   eq(note.id, "foo")

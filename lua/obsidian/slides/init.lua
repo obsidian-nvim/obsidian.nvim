@@ -79,18 +79,7 @@ end
 
 ---@param note obsidian.Note
 M.start_presentation = function(note)
-  local lines = {}
-
-  --- TODO: note:body_lines()
-  if note.has_frontmatter and note.frontmatter_end_line then
-    for i = note.frontmatter_end_line + 1, #note.contents do
-      lines[#lines + 1] = note.contents[i]
-    end
-  else
-    lines = note.contents
-  end
-
-  state.slides = parser.parse(lines)
+  state.slides = parser.parse(note:body_lines())
   state.current_slide = 1
 
   local windows = create_window_configurations()

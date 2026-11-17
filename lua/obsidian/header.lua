@@ -13,9 +13,10 @@ local M = {}
 ---@param bufnr integer
 ---@return { row: integer, last_row: integer, text: string, anchor: string, start_col: integer, end_col: integer }[]
 M.headings = function(bufnr)
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local document = BufferDocument.get(bufnr)
+  local lines = document.lines
   local out = {}
-  for _, section in ipairs(sections.parse(lines, { document = BufferDocument.get(bufnr) })) do
+  for _, section in ipairs(sections.parse(lines, { document = document })) do
     local hr = section.heading_range
     local rows = hr.end_row - hr.start_row
     if section.header then

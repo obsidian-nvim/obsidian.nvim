@@ -9,8 +9,9 @@ return function(params, handler)
   local note = Note.from_buffer(bufnr, { collect_sections = true })
 
   -- Frontmatter fold.
-  if note.has_frontmatter and note.frontmatter_end_line then
-    local fm_end = note.frontmatter_end_line -- 1-based
+  local frontmatter_range = note:parsed_document():replaceable_frontmatter_range()
+  if frontmatter_range then
+    local fm_end = frontmatter_range.end_row -- 1-based closing delimiter
     local range = {
       startLine = 0,
       endLine = fm_end - 1, -- 0-based

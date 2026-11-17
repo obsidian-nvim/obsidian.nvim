@@ -11,7 +11,7 @@ local M = {}
 local function block_definitions(bufnr)
   local document = BufferDocument.get(bufnr)
   local out = {}
-  for row, line in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
+  for row, line in ipairs(document.lines) do
     for _, block in ipairs(parse_block_id.extract(line, { row = row - 1, lexical = true })) do
       if not document:intersects(block.range, Document.BODY_EXCLUSIONS) then
         out[#out + 1] = {

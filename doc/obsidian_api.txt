@@ -40,7 +40,7 @@ Fields ~
 {metadata} `(table)` All normalized frontmatter properties, including `id`, `aliases`, and `tags`.
 {path} `(obsidian.Path|)`?
 {has_frontmatter} `(boolean|)`?
-{frontmatter_end_line} `(integer|)`?
+{frontmatter_end_line} `(integer|? Deprecated)`; use note:parsed_document():replaceable_frontmatter_range() instead.
 {frontmatter_elements} `(obsidian.yaml.Element[]?)` Scalar occurrences in document coordinates.
 {anchor_links} `(table<string, obsidian.note.HeaderAnchor>|)`?
 {blocks} `(table<string, obsidian.note.Block>?)`
@@ -257,6 +257,13 @@ Parameters ~
 {note} `(obsidian.Note|table)`
 Return ~
 `(obsidian.Note)`
+
+------------------------------------------------------------------------------
+                                                        *Note.parsed_document()*
+                         `Note.parsed_document`({self})
+Parse the note's source lines on first access and reuse that snapshot.
+Return ~
+`(obsidian.parse.Document)`
 
 ------------------------------------------------------------------------------
                                                              *Note.from_table()*
@@ -506,7 +513,7 @@ Return ~
 ------------------------------------------------------------------------------
                                                             *Note.from_buffer()*
                       `Note.from_buffer`({bufnr}, {opts})
-Initialize a note from a buffer.
+Initialize a note from a buffer. Always reads all lines; `max_lines` only limits file loading.
 
 Parameters ~
 {bufnr} `(integer|)`?

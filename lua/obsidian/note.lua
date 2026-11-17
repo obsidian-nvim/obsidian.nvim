@@ -70,7 +70,7 @@ end
 ---@field metadata table All normalized frontmatter properties, including `id`, `aliases`, and `tags`.
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
----@field frontmatter_end_line integer|?
+---@field frontmatter_end_line integer|? Deprecated; use note:parsed_document():replaceable_frontmatter_range() instead.
 ---@field frontmatter_elements obsidian.yaml.Element[]? Scalar occurrences in document coordinates.
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
@@ -267,6 +267,14 @@ end
 
 local frontmatter_fields = { id = true, aliases = true, tags = true }
 
+local frontmatter_end_line_warned = false
+local function warn_frontmatter_end_line()
+  if not frontmatter_end_line_warned then
+    frontmatter_end_line_warned = true
+    util.deprecate("note.frontmatter_end_line", "note:parsed_document():replaceable_frontmatter_range()", "4.0")
+  end
+end
+
 ---@param note obsidian.Note|table
 ---@return table
 local function note_metadata(note)
@@ -314,7 +322,19 @@ Note.__index = function(self, k)
     return value
   elseif k == "contents" then
     return cached_get(self, "contents", load_contents)
+  elseif k == "frontmatter_end_line" then
+    warn_frontmatter_end_line()
+    local range = self:parsed_document():replaceable_frontmatter_range()
+    return range and range.end_row or nil
   end
+end
+
+--- Parse the note's source lines on first access and reuse that snapshot.
+---@return obsidian.parse.Document
+Note.parsed_document = function(self)
+  return cached_get(self, "document", function(note)
+    return Document.parse(rawget(note, "raw_contents") or note.contents)
+  end)
 end
 
 Note.__newindex = function(self, k, value)
@@ -973,7 +993,7 @@ Note.from_cache = function(path, row)
   return note
 end
 
---- Initialize a note from a buffer.
+--- Initialize a note from a buffer. Always reads all lines; `max_lines` only limits file loading.
 ---
 ---@param bufnr integer|?
 ---@param opts obsidian.note.LoadOpts|?
@@ -982,11 +1002,11 @@ end
 Note.from_buffer = function(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local path = vim.api.nvim_buf_get_name(bufnr)
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local document = require("obsidian.document").get(bufnr)
   opts = vim.deepcopy(opts or {})
-  opts.max_lines = #lines
-  opts.document = require("obsidian.document").get(bufnr)
-  local note = Note.from_lines(lines, path, opts)
+  opts.max_lines = #document.lines
+  opts.document = document
+  local note = Note.from_lines(document.lines, path, opts)
   note.bufnr = bufnr
 
   ---@type obsidian.Note
@@ -995,6 +1015,7 @@ Note.from_buffer = function(bufnr, opts)
     note = vim.tbl_extend("keep", note, cache_note)
     attach_note_metatable(note)
   end
+  rawset(note, "__document", document)
   return note
 end
 
@@ -1058,8 +1079,6 @@ Note.from_lines = function(lines, path, opts)
   local document = opts.document or Document.parse(raw_contents)
   local frontmatter = document.frontmatter
   local has_frontmatter = frontmatter ~= nil
-  local frontmatter_end_line = frontmatter and frontmatter.termination == "delimiter" and frontmatter.range.end_row
-    or nil
   local frontmatter_lines = {}
   if frontmatter and frontmatter.body_range then
     for source_idx = frontmatter.body_range.start_row + 1, frontmatter.body_range.end_row do
@@ -1071,7 +1090,7 @@ Note.from_lines = function(lines, path, opts)
   local sections, blocks, block_candidates
   if opts.collect_sections or opts.collect_anchor_links or opts.collect_blocks or opts.collect_block_candidates then
     sections, blocks, block_candidates = Section.parse(contents, {
-      start_row = frontmatter and frontmatter.range.end_row or 0,
+      start_row = document:body_start_row(),
       collect_blocks = opts.collect_blocks,
       collect_block_candidates = opts.collect_block_candidates,
       document = document,
@@ -1128,7 +1147,6 @@ Note.from_lines = function(lines, path, opts)
     n.metadata[k] = v
   end
   n.has_frontmatter = has_frontmatter
-  n.frontmatter_end_line = frontmatter_end_line
   n.frontmatter_elements = frontmatter_elements
   n.contents = contents
   n.raw_contents = raw_contents
@@ -1378,14 +1396,15 @@ Note.save = function(self, opts)
     local frontmatter = document.frontmatter
     existing_frontmatter = {}
     if frontmatter then
-      for idx = 1, frontmatter.range.end_row do
+      local body_start_row = document:body_start_row()
+      for idx = 1, body_start_row do
         existing_frontmatter[#existing_frontmatter + 1] = source_lines[idx]
       end
-      for idx = frontmatter.range.end_row + 1, #source_lines do
+      for idx = body_start_row + 1, #source_lines do
         content[#content + 1] = source_lines[idx]
       end
       -- An unmatched opener is protected source, not a safe replacement range.
-      replace_frontmatter = frontmatter.termination == "delimiter"
+      replace_frontmatter = document:replaceable_frontmatter_range() ~= nil
     else
       content = source_lines
     end
@@ -1489,12 +1508,13 @@ Note.save_to_buffer = function(self, opts)
     bufnr = self.bufnr or 0
   end
 
-  local frontmatter_end_line = self.frontmatter_end_line
+  local frontmatter_range = self:parsed_document():replaceable_frontmatter_range()
+  local frontmatter_end_row = frontmatter_range and frontmatter_range.end_row or 0
 
   ---@type string[]
   local current_lines = {}
   if self.has_frontmatter then
-    current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, frontmatter_end_line or 0, false)
+    current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, frontmatter_end_row, false)
   end
 
   ---@type string[]
@@ -1506,7 +1526,7 @@ Note.save_to_buffer = function(self, opts)
   end
 
   if not vim.deep_equal(current_lines, new_lines) then
-    vim.api.nvim_buf_set_lines(bufnr, 0, frontmatter_end_line and frontmatter_end_line or 0, false, new_lines)
+    vim.api.nvim_buf_set_lines(bufnr, 0, frontmatter_end_row, false, new_lines)
     return true
   else
     return false
@@ -1699,7 +1719,7 @@ Note.body_lines = function(self)
     return self.contents
   end
   local lines = {}
-  for i = self.frontmatter_end_line + 1, #self.contents do
+  for i = self:parsed_document():body_start_row() + 1, #self.contents do
     lines[#lines + 1] = self.contents[i]
   end
   return lines
@@ -1731,12 +1751,16 @@ end
 ---@param other obsidian.Note
 ---@return obsidian.Note
 Note.merge = function(self, other)
-  if not other.has_frontmatter or not other.frontmatter_end_line then
+  if not other.has_frontmatter then
+    return self
+  end
+  local range = other:parsed_document():replaceable_frontmatter_range()
+  if not range then
     return self
   end
   local frontmatter_lines = {}
 
-  for i = 2, other.frontmatter_end_line - 1 do
+  for i = 2, range.end_row - 1 do
     frontmatter_lines[#frontmatter_lines + 1] = other.contents[i]
   end
 
