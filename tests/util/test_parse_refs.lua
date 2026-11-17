@@ -130,6 +130,14 @@ T["extract prefers footnotes over markdown links"] = function()
   eq(Range.new(0, 5, 0, 10), out[1].range)
 end
 
+T["extract does not return a Markdown link enclosing an earlier wiki match"] = function()
+  -- An unmatched opener can consume a later Markdown link's closing paren.
+  local line = "[x](bad [[nested]] [link](target.md)"
+  local out = refs.extract(line, { lexical = true })
+  eq(1, #out)
+  eq("[[nested]]", out[1].raw)
+end
+
 T["extract does not parse block IDs"] = function()
   eq({}, refs.extract "Paragraph with block ^block-id")
 end

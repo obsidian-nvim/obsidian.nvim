@@ -22,7 +22,7 @@ local function overlaps_ref(refs, start_col, end_col)
   for _, ref in ipairs(refs) do
     local ref_start = ref.range.start_col + 1
     local ref_end = ref.range.end_col
-    if (ref_start <= start_col and start_col <= ref_end) or (ref_start <= end_col and end_col <= ref_end) then
+    if ref_start <= end_col and start_col <= ref_end then
       return true
     end
   end

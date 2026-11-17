@@ -39,6 +39,12 @@ types: ## Type check with EmmyLua
 test: $(MINITEST)
 	nvim --headless --clean --noplugin -u ./scripts/minimal_init.lua -c "lua MiniTest.run()"
 
+# Override with `make fuzz FUZZ_CASES=5000 OBSIDIAN_FUZZ_SEED=42`.
+FUZZ_CASES ?= 2000
+.PHONY: fuzz
+fuzz: $(MINITEST) ## Run high-volume deterministic parser fuzz properties
+	OBSIDIAN_FUZZ_CASES=$(FUZZ_CASES) $(NVIM) --headless --clean --noplugin -u ./scripts/minimal_init.lua -c 'lua MiniTest.run_file("tests/fuzz/test_parsers.lua")'
+
 $(MINITEST):
 	mkdir -p deps
 	git clone --filter=blob:none https://github.com/echasnovski/mini.test $(MINITEST)

@@ -80,6 +80,7 @@ TL;DR: `make test`
   - `h.child_await(child, lua, { desc = "..." })` for callback-style child-Neovim async code.
   - `h.child_wait(child, lua, { desc = "..." })` or focused helpers like `h.child_wait_for_buf_name()` for eventual child state.
   - Avoid raw `vim.wait()` and fixed sleeps in tests; always wait for a specific condition with a timeout message.
+- Parser property tests in `tests/fuzz/test_parsers.lua` run 100 deterministic inputs per property during `make test`. Run a larger, isolated pass with `make fuzz` (default: 2,000 inputs per property). Override the budget and seed with `make fuzz FUZZ_CASES=5000 OBSIDIAN_FUZZ_SEED=42`. Failures print the seed, iteration, and input; turn any discovered failure into a fixed regression test. The scheduled/manual fuzz workflow exercises additional seeds.
 
 ### Building the vim user documentation
 

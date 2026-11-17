@@ -1,0 +1,26 @@
+name: Parser fuzz properties
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 0'
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [1, 42, 2026]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: v0.11.4
+      - name: Run parser properties
+        env:
+          OBSIDIAN_FUZZ_SEED: ${{ matrix.seed }}
+        run: make fuzz FUZZ_CASES=5000
