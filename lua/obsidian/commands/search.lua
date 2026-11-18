@@ -1,8 +1,9 @@
-local picker = require "obsidian.picker"
+local Ui = require "obsidian.picker.ui"
 
 ---@param data obsidian.CommandArgs
 return function(data)
-  picker.grep_notes {
+  Ui.search {
+    dir = Obsidian.dir,
     query = data.args,
   }
 end

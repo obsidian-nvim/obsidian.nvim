@@ -86,11 +86,11 @@ M.show_preview_spec = function(winid, spec)
       vim.cmd "normal! zt"
     end)
 
-    if spec.pos_end then
+    if spec.pos_end or spec.pos[2] ~= nil then
       pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, col, {
-        end_row = math.max(spec.pos_end[1] or lnum, 1) - 1,
-        end_col = math.max(spec.pos_end[2] or col + 1, 0),
-        hl_group = "Visual",
+        end_row = spec.pos_end and math.max(spec.pos_end[1] or lnum, 1) - 1 or lnum - 1,
+        end_col = spec.pos_end and math.max(spec.pos_end[2] or col + 1, 0) or col + 1,
+        hl_group = "Search",
       })
     else
       pcall(vim.api.nvim_buf_set_extmark, buf, preview_ns, lnum - 1, 0, {
@@ -155,6 +155,23 @@ M.make_display = function(entry)
     end
   end
 
+  if entry.text == nil then
+    local text
+    if entry.filename and entry.lnum and entry.lnum > 0 then
+      local ok, lines = pcall(vim.fn.readfile, entry.filename, "", entry.lnum)
+      if ok then
+        text = lines[entry.lnum]
+      end
+    end
+
+    if text then
+      buf[#buf + 1] = " "
+      buf[#buf + 1] = text
+    elseif entry.user_data then
+      buf[#buf + 1] = " "
+      buf[#buf + 1] = tostring(entry.user_data)
+    end
+  end
   return table.concat(buf, "")
 end
 

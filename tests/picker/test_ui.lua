@@ -1,5 +1,6 @@
 local child = MiniTest.new_child_neovim()
 local eq = MiniTest.expect.equality
+local h = require "tests.helpers"
 
 local T = MiniTest.new_set {
   hooks = {
@@ -25,20 +26,34 @@ _G.picker = Ui.select({ "one", "two" }, {
   prompt = "Preview",
   preview_item = function(value)
     preview_values[#preview_values + 1] = value
-    return { buf = preview_buf, pos = { value == "one" and 2 or 3, 0 } }
+    local line = value == "one" and 2 or 3
+    return { buf = preview_buf, pos = { line, 0 }, pos_end = { line, #value } }
   end,
 })
+
+local function highlights()
+  local result = {}
+  local ns = vim.api.nvim_create_namespace "obsidian.picker.preview"
+  for _, mark in ipairs(vim.api.nvim_buf_get_extmarks(preview_buf, ns, 0, -1, { details = true })) do
+    local details = mark[4]
+    result.line = result.line or details.line_hl_group == "CursorLine"
+    result.word = result.word or details.hl_group == "Search"
+  end
+  return result
+end
 
 return {
   values = preview_values,
   shown_buf = vim.api.nvim_win_get_buf(picker.preview_win),
   cursor = vim.api.nvim_win_get_cursor(picker.preview_win),
+  highlights = highlights(),
 }
   ]]
 
   eq({ "one" }, initial.values)
   eq(child.lua_get "preview_buf", initial.shown_buf)
   eq({ 2, 0 }, initial.cursor)
+  eq({ line = false, word = true }, initial.highlights)
 
   local moved = child.lua [[
 picker:move(1)
@@ -62,6 +77,56 @@ return {
   ]]
   eq(true, closed.preview_buffer_valid)
   eq(false, closed.preview_window_valid)
+end
+
+T["highlights preview only when the entry has a location"] = function()
+  local result = child.lua [[
+local Ui = require "obsidian.picker.ui"
+local buf = vim.api.nvim_create_buf(false, true)
+vim.bo[buf].bufhidden = "hide"
+vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "first line", "second line" })
+local picker = Ui.select({ "filename", "line", "column", "range" }, {
+  preview_item = function(value)
+    if value == "line" then
+      return { buf = buf, pos = { 2 } }
+    elseif value == "column" then
+      return { buf = buf, pos = { 1, 0 } }
+    elseif value == "range" then
+      return { buf = buf, pos = { 2, 1 }, pos_end = { 2, 6 } }
+    end
+    return { buf = buf }
+  end,
+})
+local ns = vim.api.nvim_get_namespaces()["obsidian.picker.preview"]
+local function marks()
+  return vim.api.nvim_buf_get_extmarks(buf, ns, 0, -1, { details = true })
+end
+local filename = marks()
+picker:move(1)
+local line = marks()
+picker:move(1)
+local column = marks()
+picker:move(1)
+local range = marks()
+picker:cancel()
+return { filename = filename, line = line, column = column, range = range }
+  ]]
+
+  eq({}, result.filename)
+  eq(1, #result.line)
+  eq(1, result.line[1][2])
+  eq("CursorLine", result.line[1][4].line_hl_group)
+  eq(1, #result.column)
+  eq(0, result.column[1][2])
+  eq(0, result.column[1][3])
+  eq(1, result.column[1][4].end_col)
+  eq("Search", result.column[1][4].hl_group)
+  eq(nil, result.column[1][4].line_hl_group)
+  eq(1, #result.range)
+  eq(1, result.range[1][2])
+  eq(1, result.range[1][3])
+  eq(6, result.range[1][4].end_col)
+  eq("Search", result.range[1][4].hl_group)
 end
 
 T["runs query mappings without installing selection mappings"] = function()
@@ -226,6 +291,179 @@ return { first = first, choices = choices }
 
   eq({ id = 2, label = "second" }, result.first)
   eq({ { id = 1, label = "first" } }, result.choices)
+end
+
+T["live_grep cancels stale jobs and streams only the latest results"] = function()
+  local result = child.lua [[
+local Search = require "obsidian.search"
+local original = Search.search_async
+local jobs = {}
+Search.search_async = function(_, query, _, on_match)
+  local job = { query = query, on_match = on_match, killed = false }
+  function job:kill()
+    self.killed = true
+  end
+  jobs[#jobs + 1] = job
+  return job
+end
+
+local preview_buf = vim.api.nvim_create_buf(false, true)
+local Util = require "obsidian.util"
+local original_preview_path = Util.preview_path
+Util.preview_path = function(entry)
+  local lnum = entry.lnum or 1
+  return {
+    buf = preview_buf,
+    pos = { lnum, math.max(0, (entry.col or 1) - 1) },
+    pos_end = entry.end_col and { entry.end_lnum or lnum, entry.end_col - 1 } or nil,
+  }
+end
+local picker = require("obsidian.picker.ui").live_grep {
+  dir = ".",
+  query = "old",
+  debounce = 0,
+  format_item = function(entry)
+    return entry.text
+  end,
+}
+assert(vim.wait(1000, function() return #jobs == 1 end, 10))
+vim.api.nvim_buf_set_lines(picker.input_buf, 0, -1, false, { "new" })
+vim.api.nvim_exec_autocmds("TextChanged", { buffer = picker.input_buf })
+assert(vim.wait(1000, function() return #jobs == 2 end, 10))
+
+jobs[1].on_match {
+  path = { text = "old.md" }, line_number = 1,
+  lines = { text = "old result\n" }, submatches = { { start = 0, ["end"] = 3 } },
+}
+jobs[2].on_match {
+  path = { text = "new.md" }, line_number = 2,
+  lines = { text = "new result\n" }, submatches = { { start = 4, ["end"] = 7 } },
+}
+assert(vim.wait(1000, function() return #picker.items == 1 end, 10))
+local value = picker.items[1].value
+local preview_spec = picker.opts.preview_item(value)
+local out = {
+  old_killed = jobs[1].killed,
+  queries = { jobs[1].query, jobs[2].query },
+  value = value,
+  preview = { pos = preview_spec.pos, pos_end = preview_spec.pos_end },
+}
+picker:cancel()
+Search.search_async = original
+Util.preview_path = original_preview_path
+return out
+  ]]
+
+  eq(true, result.old_killed)
+  eq({ "old", "new" }, result.queries)
+  eq({ filename = "new.md", lnum = 2, col = 5, end_lnum = 2, end_col = 8, text = "new result" }, result.value)
+  eq({ pos = { 2, 4 }, pos_end = { 2, 7 } }, result.preview)
+end
+
+T["search streams Obsidian query results"] = function()
+  local result = child.lua [[
+local Query = require "obsidian.search.query"
+local original = Query.search
+local query_opts
+Query.search = function(_, opts, callback)
+  query_opts = opts
+  callback({ {
+    document = {
+      path = "/vault/work.md",
+      relative_path = "work.md",
+      filename = "work.md",
+      lines = { "---", "tags: [work]", "---", "needle" },
+      properties = { tags = { "work" } },
+      tags = { { text = "#work", line = 2 } },
+      tasks = {},
+    },
+    line = 4,
+    col = 1,
+    end_col = 7,
+    score = 10,
+    context = "needle",
+  } })
+  return function() end
+end
+
+local preview_buf = vim.api.nvim_create_buf(false, true)
+local picker = require("obsidian.picker.ui").search {
+  dir = "/vault",
+  query = "content:needle",
+  debounce = 0,
+  format_item = function(entry)
+    return entry.filename
+  end,
+  preview_item = function()
+    return { buf = preview_buf }
+  end,
+}
+assert(vim.wait(1000, function() return #picker.items == 1 end, 10))
+local value = picker.items[1].value
+local out = {
+  filename = value.filename,
+  lnum = value.lnum,
+  col = value.col,
+  end_lnum = value.end_lnum,
+  end_col = value.end_col,
+  text = value.text,
+  include_non_markdown = query_opts.include_non_markdown,
+}
+picker:cancel()
+Query.search = original
+return out
+  ]]
+
+  eq({
+    filename = "/vault/work.md",
+    lnum = 4,
+    col = 1,
+    end_lnum = 4,
+    end_col = 7,
+    text = "needle",
+    include_non_markdown = true,
+  }, result)
+end
+
+T["search reports Obsidian query execution errors"] = function()
+  child.lua [[
+local Query = require "obsidian.search.query"
+_G.original_query_search = Query.search
+Query.search = function(_, _, callback)
+  callback({}, "Obsidian query search requires the cache to be enabled")
+  return function() end
+end
+
+_G.original_notify_once = vim.notify_once
+vim.notify_once = function(message, level, opts)
+  _G.search_error = { message = message, level = level, title = opts and opts.title }
+end
+
+_G.search_error_picker = require("obsidian.picker.ui").search {
+  dir = "/vault",
+  query = "content:needle",
+  debounce = 0,
+}
+  ]]
+
+  h.child_wait(child, "return _G.search_error ~= nil", { desc = "query error notification" })
+  local result = child.lua [[
+local result = search_error
+search_error_picker:cancel()
+require("obsidian.search.query").search = original_query_search
+vim.notify_once = original_notify_once
+_G.original_query_search = nil
+_G.original_notify_once = nil
+_G.search_error = nil
+_G.search_error_picker = nil
+return result
+  ]]
+
+  eq({
+    message = "Obsidian search failed: Obsidian query search requires the cache to be enabled",
+    level = vim.log.levels.ERROR,
+    title = "Obsidian.nvim",
+  }, result)
 end
 
 return T

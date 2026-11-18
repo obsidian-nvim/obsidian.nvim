@@ -84,7 +84,7 @@ T["pick uses picker.select with preview"] = function()
   eq("[^1]: the footnote", select_opts.format_item(select_items[1]))
 
   local preview = select_opts.preview_item(select_items[1])
-  eq({ 3, 0 }, preview.pos)
+  eq({ 3 }, preview.pos)
   eq("[^1]: the footnote", vim.api.nvim_buf_get_lines(preview.buf, 2, 3, false)[1])
   eq("wipe", vim.bo[preview.buf].bufhidden)
 

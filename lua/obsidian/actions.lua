@@ -30,7 +30,7 @@ local function preview_entry(entry)
     preview.pos = { range.start.line + 1, range.start.character }
     preview.pos_end = { range["end"].line + 1, range["end"].character }
   elseif entry.lnum then
-    preview.pos = { entry.lnum, entry.col and math.max(entry.col - 1, 0) or 0 }
+    preview.pos = { entry.lnum, entry.col and math.max(entry.col - 1, 0) or nil }
   end
   return preview
 end
