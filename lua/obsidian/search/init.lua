@@ -9,6 +9,7 @@ local fs = require "obsidian.fs"
 local gitignore = require("obsidian.lib.glob").gitignore
 local api = require "obsidian.api"
 local tags = require "obsidian.tag"
+local search_files = require "obsidian.search.files"
 
 local M = {}
 
@@ -166,7 +167,6 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
 
   local query = term and string.lower(term) or nil
   local exclude = opts.exclude and gitignore(opts.exclude, { ignoreCase = true }) or nil
-  local markdown_extensions = { [".md"] = true, [".qmd"] = true, [".base"] = true }
 
   local cancelled = false
   local cancel_backend
@@ -195,8 +195,7 @@ M.find_async = function(dir, term, opts, on_match, on_exit)
         return exclude:check(relative_path)
       end,
       predicate = function(path)
-        local extension = "." .. vim.fn.fnamemodify(path, ":e"):lower()
-        if not opts.include_non_markdown and not markdown_extensions[extension] then
+        if not opts.include_non_markdown and not search_files.is_markdown(path) then
           return false
         end
         return not query or string.find(string.lower(vim.fs.basename(path)), query, 1, true) ~= nil
@@ -297,7 +296,7 @@ end
 ---
 ---@param term string The term to search for
 ---@param callback fun(notes: obsidian.Note[])
----@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|? }|?
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, symbols_only: boolean|nil }|?
 M.find_notes_async = function(term, callback, opts)
   callback = vim.schedule_wrap(callback)
   async.run(function()
@@ -334,9 +333,30 @@ M.find_notes_async = function(term, callback, opts)
     end
 
     local paths_found = {} ---@type string[]
-    async.await(6, _search_async, term, opts.dir, opts.search, nil, function(path)
-      paths_found[#paths_found + 1] = path
-    end)
+    local cache = require "obsidian.cache"
+    if opts.symbols_only and cache.is_enabled() then
+      async.await(1, cache.when_ready)
+      local extensions = search_files.markdown_extensions
+      local search_dir = Path.new(opts.dir or api.resolve_workspace_dir()):resolve()
+      local prepared_opts = Opts._prepare(opts.search)
+      local exclude = prepared_opts.exclude and gitignore(prepared_opts.exclude, { ignoreCase = true }) or nil
+      for _, entry in
+        ipairs(cache.notes.symbols {
+          query = term,
+          dir = search_dir,
+          extensions = extensions,
+        })
+      do
+        local relative_path = tostring(Path.new(entry.path):relative_to(search_dir))
+        if not exclude or not exclude:check(relative_path) then
+          paths_found[#paths_found + 1] = entry.path
+        end
+      end
+    else
+      async.await(6, _search_async, term, opts.dir, opts.search, nil, function(path)
+        paths_found[#paths_found + 1] = path
+      end)
+    end
 
     async.join(
       10,
@@ -372,13 +392,18 @@ end
 --- (`includeexpr`, command-completion `customlist` functions).
 ---
 ---@param term string The term to search for
----@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|? }
+---@param opts { search: obsidian.SearchOpts|?, notes: obsidian.note.LoadOpts|?, dir: obsidian.Path|?, timeout: integer|?, symbols_only: boolean|nil }
 ---@return obsidian.Note[] notes always returns a list (empty on timeout)
 M.find_notes = function(term, opts)
   opts = opts or {}
   opts.timeout = opts.timeout or 1000
   local result = async.block_on(function(cb)
-    M.find_notes_async(term, cb, { search = opts.search, notes = opts.notes })
+    M.find_notes_async(term, cb, {
+      search = opts.search,
+      notes = opts.notes,
+      dir = opts.dir,
+      symbols_only = opts.symbols_only,
+    })
   end, opts.timeout)
   ---@cast result obsidian.Note[]?
   return result or {}
@@ -481,7 +506,7 @@ M.resolve_note_async = function(query, callback, opts)
 
   -- Query might be a path.
   local fname = query
-  if not vim.endswith(fname, ".md") and not vim.endswith(fname, ".qmd") and not vim.endswith(fname, ".base") then
+  if not search_files.is_markdown(fname) then
     fname = fname .. ".md"
   end
 
@@ -528,13 +553,6 @@ M.resolve_note_async = function(query, callback, opts)
   M.find_notes_async(query, function(results)
     local query_lwr = string.lower(query)
 
-    -- `.base` files only resolve when the query explicitly names them.
-    if not vim.endswith(query_lwr, ".base") then
-      results = vim.tbl_filter(function(note)
-        return not vim.endswith(tostring(note.path), ".base")
-      end, results)
-    end
-
     -- We'll gather both exact matches (of ID, filename, and aliases) and fuzzy matches.
     -- If we end up with any exact matches, we'll return those. Otherwise we fall back to fuzzy
     -- matches.
@@ -568,7 +586,7 @@ M.resolve_note_async = function(query, callback, opts)
     else
       callback(fuzzy_matches)
     end
-  end, { dir = workspace_dir, search = { ignore_case = true }, notes = opts.notes })
+  end, { dir = workspace_dir, search = { ignore_case = true }, notes = opts.notes, symbols_only = true })
 end
 
 ---@param query string
