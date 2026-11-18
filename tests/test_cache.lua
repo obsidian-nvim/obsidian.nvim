@@ -21,7 +21,7 @@ local T = new_set {
 T["cache backends"] = new_set()
 T["json backend"] = new_set()
 
-T["json backend"]["persists schema v2 entries"] = function()
+T["json backend"]["persists schema v3 entries"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache-json" }
   dir:mkdir { parents = true }
   Obsidian = { dir = dir }
@@ -37,7 +37,7 @@ T["json backend"]["persists schema v2 entries"] = function()
   backend:flush()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
-  eq(2, decoded.schema_version)
+  eq(3, decoded.schema_version)
   eq(5, decoded.indexer_version)
   eq(vault, decoded.vault)
   eq("note", decoded.entries[note_path].kind)
@@ -68,7 +68,7 @@ T["json backend"]["rebuilds incompatible cache envelopes"] = function()
   backend:flush()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
-  eq(2, decoded.schema_version)
+  eq(3, decoded.schema_version)
   eq(5, decoded.indexer_version)
   eq(nil, decoded.version)
   eq(nil, decoded.notes)
@@ -117,6 +117,59 @@ T["cache backends"]["uses a registered backend by name"] = function()
   eq(1, cache.notes.count())
 end
 
+T["cache backends"]["round trips query metadata through JSON"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache-json" }
+  dir:mkdir { parents = true }
+  local cache_path = tostring(dir / "cache.json")
+  local backend = require "obsidian.cache.json_backend"
+  local store = backend.open { path = cache_path, vault = tostring(dir) }
+  store:put("/vault/Note.md", {
+    frontmatter = {
+      present = true,
+      values = {
+        empty_list = {},
+        empty_string = "",
+        explicit_null = vim.NIL,
+        flag = false,
+        number = 3,
+      },
+    },
+    tag_locations = { { text = "#Work", normalized = "#work", line = 4, col = 2 } },
+    tasks = { { line = 5, col = 7, state = " ", text = "todo", raw = "- [ ] todo" } },
+  })
+  store:flush()
+
+  local reopened = backend.open { path = cache_path, vault = tostring(dir) }
+  local row = reopened:get "/vault/Note.md"
+  eq(vim.NIL, row.frontmatter.values.explicit_null)
+  eq("", row.frontmatter.values.empty_string)
+  eq({}, row.frontmatter.values.empty_list)
+  eq(false, row.frontmatter.values.flag)
+  eq(3, row.frontmatter.values.number)
+  eq("#Work", row.tag_locations[1].text)
+  eq("- [ ] todo", row.tasks[1].raw)
+  vim.fn.delete(tostring(dir), "rf")
+end
+
+T["cache backends"]["discards caches from an older schema"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache-json" }
+  dir:mkdir { parents = true }
+  local cache_path = tostring(dir / "cache.json")
+  helpers.write(
+    vim.json.encode {
+      version = 2,
+      vault = tostring(dir),
+      notes = { ["/vault/Stale.md"] = { mtime = 1, size = 1 } },
+    },
+    cache_path
+  )
+
+  local backend = require "obsidian.cache.json_backend"
+  local store = backend.open { path = cache_path, vault = tostring(dir) }
+  eq(nil, store:get "/vault/Stale.md")
+  vim.fn.delete(tostring(dir), "rf")
+end
+
 T["cache backends"]["uses file ignore filters"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
@@ -139,7 +192,7 @@ T["cache backends"]["uses file ignore filters"] = function()
   eq(nil, cache.notes.find(tostring(dir / "skip" / "Skip.md")))
 end
 
-T["cache backends"]["stores typed compact note rows"] = function()
+T["cache backends"]["stores typed searchable note rows"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   local note_path = tostring(dir / "Note.md")
@@ -159,8 +212,16 @@ T["cache backends"]["stores typed compact note rows"] = function()
   eq("number", type(row.stat.mtime_sec))
   eq("number", type(row.stat.size))
   eq(nil, row.path)
-  eq(nil, row.rel_path)
-  eq(nil, row.basename)
+  eq("Note.md", row.relative_path)
+  eq("Note.md", row.filename)
+  eq("Note", row.basename)
+  eq("md", row.extension)
+  eq("markdown", row.search_kind)
+  eq(6, row.line_count)
+  eq(true, row.frontmatter.present)
+  eq({ "Foo" }, row.frontmatter.values.tags)
+  eq("#Inline", row.tag_locations[2].text)
+  eq(6, row.tag_locations[2].line)
   eq(nil, row.ext)
   eq(nil, row.folder)
   eq(nil, row.has_frontmatter)
@@ -380,13 +441,15 @@ T["cache backends"]["removes stale data when parsing fails"] = function()
   eq(nil, cache.notes.find(note_path))
 end
 
-T["cache backends"]["indexes markdown-like extensions"] = function()
+T["cache backends"]["indexes notes and generic searchable files"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache" }
   dir:mkdir { parents = true }
   helpers.write("# Note", dir / "Note.md")
   helpers.write("# Page", dir / "Page.markdown")
   helpers.write("# Query", dir / "Query.qmd")
-  helpers.write("# Base", dir / "Base.base")
+  helpers.write("filters:\n  and:\n    - 'tag == #project'", dir / "Base.base")
+  helpers.write('{"nodes":[]}', dir / "Board.canvas")
+  helpers.write('{"type":"excalidraw"}', dir / "Drawing.excalidraw")
   Obsidian = { dir = dir }
 
   local cache = require "obsidian.cache"
@@ -395,10 +458,45 @@ T["cache backends"]["indexes markdown-like extensions"] = function()
     return cache.is_ready()
   end)
 
-  eq(4, cache.notes.count())
+  eq(3, cache.notes.count())
+  eq(0, cache.attachments.count())
   eq(true, cache.notes.find(tostring(dir / "Page.markdown")) ~= nil)
   eq(true, cache.notes.find(tostring(dir / "Query.qmd")) ~= nil)
-  eq(true, cache.notes.find(tostring(dir / "Base.base")) ~= nil)
+  eq(nil, cache.notes.find(tostring(dir / "Base.base")))
+
+  local rows = cache.notes.snapshot().rows
+  for _, filename in ipairs { "Base.base", "Board.canvas", "Drawing.excalidraw" } do
+    local row = rows[tostring(dir / filename)]
+    eq("file", row.kind)
+    eq("generic", row.search_kind)
+    eq(nil, row.tags)
+  end
+end
+
+T["cache backends"]["publishes snapshots and indexed symbols"] = function()
+  local dir = Path.temp { suffix = "-obsidian-cache" }
+  dir:mkdir { parents = true }
+  local note_path = tostring(dir / "Project.md")
+  helpers.write("---\nid: project-id\naliases: [Roadmap]\n---\n# Project", note_path)
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local snapshot = cache.notes.snapshot()
+  eq(true, snapshot.generation > 0)
+  eq("Project.md", snapshot.rows[note_path].relative_path)
+  eq(note_path, cache.notes.symbols({ query = "road" })[1].path)
+  eq(note_path, cache.notes.symbols({ query = "project-id", exact = true })[1].path)
+
+  helpers.write("---\naliases: [Launch]\n---\n# Project", note_path)
+  cache.notes.refresh(note_path)
+  eq(0, #cache.notes.symbols { query = "Roadmap" })
+  eq(note_path, cache.notes.symbols({ query = "Launch" })[1].path)
+  eq(true, cache.generation() > snapshot.generation)
 end
 
 T["cache backends"]["indexes typed attachment rows separately from notes"] = function()

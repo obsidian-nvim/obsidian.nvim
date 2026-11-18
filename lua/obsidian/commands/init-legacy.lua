@@ -110,7 +110,7 @@ M.complete_args_search = function(_, cmd_line, _)
 
   local completions = {}
   local query_lower = string.lower(query)
-  for _, note in ipairs(search.find_notes(query, {})) do
+  for _, note in ipairs(search.find_notes(query, { symbols_only = true })) do
     local path = note.path
     ---@cast path -nil
     local note_path = path:vault_relative_path { strict = true }
