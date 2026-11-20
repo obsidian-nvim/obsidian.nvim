@@ -69,6 +69,128 @@ T["get_visual_selection"]["should handle single multibyte character"] = function
   eq("Я", result.selection)
 end
 
+local function live_select_and_get(child_instance, lines, cursor, keys)
+  child_instance.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+  child_instance.api.nvim_win_set_cursor(0, cursor)
+  child_instance.type_keys(unpack(keys))
+  return child_instance.lua_get [[M.get_visual_selection()]]
+end
+
+T["get_visual_selection"]["should handle live V downward multi-line selection"] = function()
+  local result = live_select_and_get(child, { "A", "B", "C" }, { 1, 0 }, { "V", "j" })
+  eq("A\nB", result.selection)
+  eq(1, result.csrow)
+  eq(1, result.cscol)
+  eq(2, result.cerow)
+  eq(1, result.cecol)
+end
+
+T["get_visual_selection"]["should handle live V upward multi-line selection"] = function()
+  local result = live_select_and_get(child, { "A", "B", "C" }, { 2, 0 }, { "V", "k" })
+  eq("A\nB", result.selection)
+  eq(1, result.csrow)
+  eq(1, result.cscol)
+  eq(2, result.cerow)
+  eq(1, result.cecol)
+end
+
+T["get_visual_selection"]["should handle live V single-line selection"] = function()
+  local result = live_select_and_get(child, { "Hello", "World" }, { 1, 2 }, { "V" })
+  eq("Hello", result.selection)
+  eq(1, result.csrow)
+  eq(1, result.cscol)
+  eq(1, result.cerow)
+  eq(5, result.cecol)
+end
+
+T["get_visual_selection"]["should handle live V lines longer than 999 bytes"] = function()
+  local long_a = string.rep("a", 1200)
+  local long_b = string.rep("b", 1200)
+  local result = live_select_and_get(child, { long_a, long_b }, { 1, 0 }, { "V", "j" })
+  eq(long_a .. "\n" .. long_b, result.selection)
+  eq(1, result.cscol)
+  eq(1200, result.cecol)
+end
+
+T["get_visual_selection"]["should handle live V ending on empty line"] = function()
+  local result = live_select_and_get(child, { "A", "", "C" }, { 1, 0 }, { "V", "j" })
+  eq("A\n", result.selection)
+  eq(1, result.csrow)
+  eq(1, result.cscol)
+  eq(2, result.cerow)
+  eq(1, result.cecol)
+end
+
+T["get_visual_selection"]["should handle live V on single empty line"] = function()
+  local result = live_select_and_get(child, { "" }, { 1, 0 }, { "V" })
+  eq("", result.selection)
+  eq(1, result.csrow)
+  eq(1, result.cscol)
+  eq(1, result.cerow)
+  eq(1, result.cecol)
+end
+
+T["get_visual_selection"]["should handle V marks on empty lines"] = function()
+  local maxcol = child.api.nvim_get_vvar "maxcol"
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "A", "" })
+  child.fn.setpos("'<", { 0, 1, 1, 0 })
+  child.fn.setpos("'>", { 0, 2, maxcol, 0 })
+  local result = child.lua_get [[M.get_visual_selection()]]
+  eq("A\n", result.selection)
+  eq(1, result.cscol)
+  eq(1, result.cecol)
+
+  child.api.nvim_buf_set_lines(0, 0, -1, false, { "" })
+  child.fn.setpos("'<", { 0, 1, 1, 0 })
+  child.fn.setpos("'>", { 0, 1, maxcol, 0 })
+  local single_empty = child.lua_get [[M.get_visual_selection()]]
+  eq("", single_empty.selection)
+  eq(1, single_empty.cscol)
+  eq(1, single_empty.cecol)
+end
+
+T["get_visual_selection"]["should handle live V ending on multibyte UTF-8 line"] = function()
+  local result = live_select_and_get(child, { "first", "мир 😀" }, { 1, 0 }, { "V", "j" })
+  eq("first\nмир 😀", result.selection)
+  eq(1, result.cscol)
+  eq(11, result.cecol)
+end
+
+T["get_visual_selection"]["should handle live v single-line, reverse, and multi-line selections"] = function()
+  local forward = live_select_and_get(child, { "Hello World" }, { 1, 0 }, { "v", "4l" })
+  eq("Hello", forward.selection)
+  eq(1, forward.cscol)
+  eq(5, forward.cecol)
+
+  local reverse = live_select_and_get(child, { "Hello World" }, { 1, 4 }, { "v", "4h" })
+  eq("Hello", reverse.selection)
+  eq(1, reverse.cscol)
+  eq(5, reverse.cecol)
+
+  local multi_down = live_select_and_get(child, { "first line", "second line" }, { 1, 6 }, { "v", "j", "0", "2l" })
+  eq("line\nsec", multi_down.selection)
+  eq(1, multi_down.csrow)
+  eq(7, multi_down.cscol)
+  eq(2, multi_down.cerow)
+  eq(3, multi_down.cecol)
+
+  local multi_up = live_select_and_get(child, { "first line", "second line" }, { 2, 2 }, { "v", "k", "4l" })
+  eq("line\nsec", multi_up.selection)
+  eq(1, multi_up.csrow)
+  eq(7, multi_up.cscol)
+  eq(2, multi_up.cerow)
+  eq(3, multi_up.cecol)
+end
+
+T["get_visual_selection"]["should handle live blockwise visual mode"] = function()
+  local result = live_select_and_get(child, { "12345", "abcde" }, { 1, 0 }, { "<C-v>", "j", "2l" })
+  eq("12345\nabc", result.selection)
+  eq(1, result.csrow)
+  eq(1, result.cscol)
+  eq(2, result.cerow)
+  eq(3, result.cecol)
+end
+
 T["text_edit_utf8"] = new_set()
 
 -- Helper to apply text replacement using the same UTF-8 logic as replace_selection
