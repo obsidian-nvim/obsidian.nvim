@@ -430,7 +430,7 @@ end
 ---@param byte_pos integer The 1-indexed byte position of the character start
 ---@return integer The 1-indexed byte position after the character (exclusive end)
 local function get_utf8_char_end(line, byte_pos)
-  if not line or byte_pos > #line then
+  if not line or byte_pos < 1 or byte_pos > #line then
     return byte_pos
   end
   -- Byte after the character that byte_pos points into (1-indexed).
