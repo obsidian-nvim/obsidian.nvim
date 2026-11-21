@@ -827,7 +827,7 @@ T["selects between multiple link suggestion candidates"] = function()
       end, candidates)
       callback({ candidates[2] })
     end
-    require("obsidian.actions").link_suggestion()
+    require("obsidian.note.link_suggestion").accept()
   ]]
 
   eq({ "[[one/test|test]]", "[[two/test|test]]" }, child.lua_get [[_G.link_suggestion_options]])
@@ -852,7 +852,7 @@ T["does nothing when link suggestion selection is cancelled"] = function()
     require("obsidian.picker").select = function(_, _, callback)
       callback({})
     end
-    require("obsidian.actions").link_suggestion()
+    require("obsidian.note.link_suggestion").accept()
   ]]
 
   eq("a test", child.lua_get [[vim.api.nvim_get_current_line()]])

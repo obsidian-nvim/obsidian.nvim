@@ -83,8 +83,10 @@ local function escape_table_pipes(items)
       item.textEdit.newText = Link._prepare_text(item.textEdit.newText, true)
     end
     if item.command and item.command.command == "obsidian.block_reference_new" then
-      local args = item.command.arguments[1]
-      args.source_text = Link._prepare_text(args.source_text, true)
+      local args = (item.command.arguments and item.command.arguments[1]) --[[@as obsidian.lsp.BlockReferenceArgs?]]
+      if args then
+        args.source_text = Link._prepare_text(args.source_text, true)
+      end
     end
   end
 end

@@ -1,4 +1,5 @@
 local Document = require "obsidian.parse.document"
+local Pos = require "obsidian.pos"
 local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
@@ -407,6 +408,60 @@ function M.find(note, opts)
   end)
 
   return suggestions
+end
+
+--- Find a suggestion containing a zero-based byte position in a note.
+---@param note obsidian.Note
+---@param pos obsidian.Pos
+---@return obsidian.note.LinkSuggestion?
+function M.at(note, pos)
+  for _, suggestion in ipairs(M.find(note)) do
+    if Range.contains_pos(suggestion.range, pos) then
+      return suggestion
+    end
+  end
+end
+
+--- Apply a suggestion, prompting only when it has multiple possible targets.
+--- When omitted, find the suggestion under the cursor in the current buffer.
+---@param bufnr integer?
+---@param suggestion obsidian.note.LinkSuggestion?
+function M.accept(bufnr, suggestion)
+  if not bufnr or bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+  local note = api.current_note(bufnr)
+  if not note then
+    return
+  end
+  if not suggestion and bufnr == vim.api.nvim_get_current_buf() then
+    suggestion = M.at(note, Pos.from_cursor(vim.api.nvim_win_get_cursor(0)))
+  end
+  if not suggestion then
+    return
+  end
+
+  local candidates = suggestion.candidates
+  if #candidates == 0 then
+    return log.info "No Link Suggestion Candidates"
+  elseif #candidates == 1 then
+    return M.apply(bufnr, suggestion, candidates[1])
+  end
+
+  local picker = require "obsidian.picker"
+  picker.select(candidates, {
+    prompt = "Select link target",
+    format_item = function(candidate)
+      return candidate.new_text
+    end,
+    preview_item = function(candidate)
+      return picker.preview_path(candidate.target_path)
+    end,
+  }, function(choices)
+    if choices and choices[1] then
+      M.apply(bufnr, suggestion, choices[1])
+    end
+  end)
 end
 
 ---Apply a link suggestion candidate to a buffer.

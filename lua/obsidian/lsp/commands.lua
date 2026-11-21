@@ -21,8 +21,14 @@ local builtins = {}
 ---@type table<string, obsidian.lsp.CommandHandler>
 local custom = {}
 
+---@param name string
+---@param fn function
+local function add_builtin(name, fn)
+  builtins["obsidian." .. name] = handler(fn)
+end
+
+-- Code actions delegate to the scriptable workflows.
 for _, name in ipairs {
-  -- Code actions.
   "add_attachment",
   "add_bookmark",
   "add_property",
@@ -41,17 +47,59 @@ for _, name in ipairs {
   "start_presentation",
   "toggle_recording",
   "unlink",
-  -- Completion and inlay-hint continuations.
-  "block_reference_new",
-  "footnote_new",
-  "link_suggestion",
-  "write_note",
 } do
-  builtins["obsidian." .. name] = handler(function(...)
+  add_builtin(name, function(...)
     local action = require("obsidian.actions")[name]
     action(...)
   end)
 end
+
+---@class obsidian.lsp.BlockReferenceArgs
+---@field target_path string
+---@field target_bufnr integer?
+---@field target_range lsp.Range
+---@field target_checksum string
+---@field block_id string
+---@field placement "inline"|"list-item"|"standalone"
+---@field indent string?
+---@field source_bufnr integer
+---@field source_range lsp.Range
+---@field source_text string
+---@field placeholder string
+
+-- Continuations are internal LSP adapters, not scripting actions.
+add_builtin("block_reference_new", function(args)
+  ---@cast args obsidian.lsp.BlockReferenceArgs?
+  if not args then
+    return
+  end
+  local Range = require "obsidian.range"
+  local opts = vim.tbl_extend("force", args, {
+    target_range = Range.from_lsp(args.target_range, "utf-8"),
+    source_range = Range.from_lsp(args.source_range, "utf-8"),
+  }) --[[@as obsidian.block.CreateReferenceOpts]]
+  require("obsidian.block").create_reference(opts)
+end)
+
+add_builtin("footnote_new", function(...)
+  require("obsidian.footnotes").create(...)
+end)
+
+add_builtin("link_suggestion", function(suggestion)
+  require("obsidian.note.link_suggestion").accept(nil, suggestion)
+end)
+
+add_builtin("write_note", function(note, scope)
+  local Note = require "obsidian.note"
+  -- Command payloads can round-trip through clients without Lua metatables.
+  if not Note.is_note_obj(note) then
+    note = Note.from_table(note)
+    if note.path then
+      note.path = setmetatable(note.path, require "obsidian.path")
+    end
+  end
+  note:write_new(scope)
+end)
 
 --- The built-in server commands advertised at initialization. Custom code actions
 --- can be registered later; their responses carry the command ID to the client.

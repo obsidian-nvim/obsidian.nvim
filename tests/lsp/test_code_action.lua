@@ -56,6 +56,10 @@ T["only intentional command IDs are installed and advertised"] = function()
     end, vim.tbl_keys(vim.lsp.commands))
     table.sort(installed)
     assert(vim.deep_equal(ids, installed))
+    local actions = require "obsidian.actions"
+    for _, id in ipairs({ "write_note", "footnote_new", "block_reference_new", "link_suggestion" }) do
+      assert(actions[id] == nil, id .. " must not be exported as a scripting action")
+    end
     local missing = {}
     for _, id in ipairs({ "unlink", "write_note", "footnote_new", "block_reference_new", "link_suggestion" }) do
       if not vim.tbl_contains(ids, "obsidian." .. id) then

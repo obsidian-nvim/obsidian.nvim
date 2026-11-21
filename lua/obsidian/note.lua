@@ -670,6 +670,15 @@ Note._run_creation_lifecycle = function(note, scope)
   })
 end
 
+--- Run creation hooks for a prepared note, then persist it. Use only when the
+--- hooks have not already run (e.g. a draft made with `Note.new`, not `Note.create`).
+---@param scope string?
+---@return obsidian.Note
+Note.write_new = function(self, scope)
+  Note._run_creation_lifecycle(self, scope)
+  return self:write()
+end
+
 --- Instantiates a new Note object
 ---
 --- Keep in mind that you have to call `note:save(...)` to create/update the note on disk.
