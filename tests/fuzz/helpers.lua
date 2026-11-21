@@ -85,6 +85,42 @@ function Generator:document()
   return lines
 end
 
+local yaml_strings = {
+  "plain",
+  "hello world",
+  "",
+  " leading",
+  "trailing ",
+  "true",
+  "null",
+  "yes",
+  "2026-03-04",
+  "#tag",
+  "[[note]]",
+  "a: b",
+  "it's here",
+  'a "quote"',
+  "a\\b",
+  "é🎵",
+}
+
+function Generator:yaml_value()
+  return self:pick(yaml_strings)
+end
+
+function Generator:yaml_document()
+  local tags = {}
+  for _ = 1, self:int(4) do
+    tags[#tags + 1] = self:yaml_value()
+  end
+  return {
+    title = self:yaml_value(),
+    tags = tags,
+    meta = { author = self:yaml_value(), published = self:int(2) == 1 },
+    count = self:int(100) - 1,
+  }
+end
+
 local function environment_integer(name, default, max)
   local value = os.getenv(name)
   if value == nil or value == "" then

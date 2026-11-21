@@ -43,7 +43,7 @@ test: $(MINITEST)
 FUZZ_CASES ?= 2000
 .PHONY: fuzz
 fuzz: $(MINITEST) ## Run high-volume deterministic parser fuzz properties
-	OBSIDIAN_FUZZ_CASES=$(FUZZ_CASES) $(NVIM) --headless --clean --noplugin -u ./scripts/minimal_init.lua -c 'lua MiniTest.run_file("tests/fuzz/test_parsers.lua")'
+	OBSIDIAN_FUZZ_CASES=$(FUZZ_CASES) $(NVIM) --headless --clean --noplugin -u ./scripts/minimal_init.lua -c 'lua MiniTest.run({ collect = { find_files = function() return vim.fn.globpath("tests/fuzz", "test_*.lua", true, true) end } })'
 
 $(MINITEST):
 	mkdir -p deps
