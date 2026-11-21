@@ -375,6 +375,7 @@ Please read the [CONTRIBUTING](https://github.com/obsidian-nvim/obsidian.nvim/bl
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/kagayakuhari"><img src="https://avatars.githubusercontent.com/u/124624102?v=4&size=100" width="100px" height="100px" alt="kagayakuhari"/><br /><sub><b>kagayakuhari</b></sub></a><br /><a href="#code-kagayakuhari" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="http://joelazar.dev"><img src="https://avatars.githubusercontent.com/u/16268238?v=4&size=100" width="100px" height="100px" alt="Jozsef Lazar"/><br /><sub><b>Jozsef Lazar</b></sub></a><br /><a href="#code-joelazar" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://savethefrogs.com/"><img src="https://avatars.githubusercontent.com/u/129575317?v=4&size=100" width="100px" height="100px" alt="Nathan"/><br /><sub><b>Nathan</b></sub></a><br /><a href="#code-barthollomew" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
