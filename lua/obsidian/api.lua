@@ -712,10 +712,6 @@ M.get_visual_selection = function(opts)
     -- if we are in visual mode use the live position
     _, csrow, cscol, _ = unpack(vim.fn.getpos ".")
     _, cerow, cecol, _ = unpack(vim.fn.getpos "v")
-    if mode == "V" then
-      -- visual line doesn't provide columns
-      cscol, cecol = 0, 999
-    end
     -- exit visual mode
     vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
   else
@@ -741,11 +737,26 @@ M.get_visual_selection = function(opts)
   -- When the whole line is selected via visual line mode ("V"), cscol / cecol will be equal to "v:maxcol"
   -- for some odd reason. So change that to what they should be here. See ':h getpos' for more info.
   local maxcol = vim.api.nvim_get_vvar "maxcol"
-  if cscol == maxcol then
-    cscol = vim.fn.strlen(lines[1] or "")
-  end
-  if cecol == maxcol then
+  if mode == "V" then
+    -- visual line doesn't provide columns
+    cscol = 1
     cecol = vim.fn.strlen(lines[#lines] or "")
+    if cecol < 1 then
+      cecol = 1
+    end
+  else
+    if cscol == maxcol then
+      cscol = vim.fn.strlen(lines[1] or "")
+      if cscol < 1 then
+        cscol = 1
+      end
+    end
+    if cecol == maxcol then
+      cecol = vim.fn.strlen(lines[#lines] or "")
+      if cecol < 1 then
+        cecol = 1
+      end
+    end
   end
 
   -- Use nvim_buf_get_text which properly handles UTF-8 byte positions.
@@ -757,7 +768,7 @@ M.get_visual_selection = function(opts)
   local line = vim.api.nvim_buf_get_lines(bufnr, cerow - 1, cerow, false)[1]
 
   local end_col_for_extraction = cecol
-  if line and cecol <= #line then
+  if line and cecol >= 1 and cecol <= #line then
     end_col_for_extraction = cecol + vim.str_utf_end(line, cecol) + 1
   end
 
