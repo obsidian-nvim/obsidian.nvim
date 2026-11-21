@@ -51,6 +51,19 @@ M.OSType = platform.OSType
 M.input = prompts.input
 M.confirm = prompts.confirm
 
+--- Get the icon associated with a path.
+---
+---@deprecated use `require("obsidian.icons").get_path_icon` instead.
+---@param path string
+---@return string icon
+M.get_icon = function(path)
+  return require("obsidian.icons").get_path_icon(path)
+end
+
+M.resolve_attachment_path = attachment.resolve_attachment_path
+M.resolve_image_path = attachment.resolve_attachment_path
+M.is_attachment_path = attachment.is_attachment_path
+
 --- Get the normalized options for a workspace without changing the active workspace.
 ---@param workspace obsidian.Workspace|?
 ---@return obsidian.config.Internal
@@ -818,19 +831,6 @@ M.get_open_strategy = function(opt)
     return "e "
   end
 end
-
---- Get the icon associated with a path.
----
----@deprecated use `require("obsidian.icons").get_path_icon` instead.
----@param path string
----@return string icon
-M.get_icon = function(path)
-  return require("obsidian.icons").get_path_icon(path)
-end
-
-M.resolve_attachment_path = attachment.resolve_attachment_path
-M.resolve_image_path = attachment.resolve_attachment_path
-M.is_attachment_path = attachment.is_attachment_path
 
 setmetatable(M, {
   __index = function(_, k)
