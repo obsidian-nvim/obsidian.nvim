@@ -98,7 +98,8 @@ add_builtin("write_note", function(note, scope)
       note.path = setmetatable(note.path, require "obsidian.path")
     end
   end
-  note:write_new(scope)
+  note:_run_creation_lifecycle(scope)
+  note:write()
 end)
 
 --- The built-in server commands advertised at initialization. Custom code actions
