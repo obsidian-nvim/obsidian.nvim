@@ -1,3 +1,5 @@
+local commands = require "obsidian.lsp.commands"
+
 local function send_progress(dispatchers, kind, title, percentage)
   dispatchers.notification("$/progress", {
     token = "obsidian-ls-progress",
@@ -25,12 +27,7 @@ local initializeResult = {
     workspaceSymbolProvider = true,
     codeActionProvider = true,
     executeCommandProvider = {
-      commands = {
-        "obsidian.write_note",
-        "obsidian.footnote_new",
-        "obsidian.block_reference_new",
-        "obsidian.link_suggestion",
-      },
+      commands = commands.advertised(),
     },
     completionProvider = {
       resolveProvider = false,
@@ -78,11 +75,6 @@ return function(_, handler, dispatchers)
   send_progress(dispatchers, "begin", "Initializing obsidian LSP server...", 0)
   handler(nil, initializeResult)
 
-  -- NOTE: seems the only sensible place to initialize client commands
-  for k, f in pairs(require "obsidian.actions") do
-    vim.lsp.commands["obsidian." .. k] = vim.schedule_wrap(function(params)
-      f(unpack(params.arguments or {}))
-    end)
-  end
+  commands.install_client_commands()
   send_progress(dispatchers, "end", "Obsidian LSP server loaded.", 100)
 end

@@ -24,7 +24,7 @@ local function get_commands_by_context(code_actions, note, params)
       if data.arguments then
         command.arguments = data.arguments(note, params)
       end
-      out[#out + 1] = vim.tbl_extend("force", code_action, { title = title, command = command })
+      out[#out + 1] = { title = title, command = command }
     end
   end
   return out

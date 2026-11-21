@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- LSP command dispatch exposes only commands used by built-in code actions, completion, and inlay hints, plus registered custom handlers. Lua actions remain callable directly from Lua.
 - LSP rename on plain text and other elements no longer renames the current note; `prepareRename` answers "Nothing to rename". Use `:Obsidian rename` to rename the note of the current buffer.
 - `:Obsidian rename [NEWNAME]` renames the note of the current buffer directly, wherever the cursor is, instead of going through LSP.
 

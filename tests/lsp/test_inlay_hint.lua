@@ -865,9 +865,9 @@ T["uses a custom hints resolver with an LSP command"] = function()
   setup_cache()
 
   child.lua [[
-require("obsidian.actions").speak_ipa = function(ipa)
+require("obsidian").register_lsp_command("speak_ipa", function(ipa)
   _G.spoken_ipa = ipa
-end
+end)
 Obsidian.opts.resolvers.hints = function(ctx, done)
   local line = ctx.note.contents[1]
   local leading, ipa = line:match("(%s+)/([^/]+)/")
