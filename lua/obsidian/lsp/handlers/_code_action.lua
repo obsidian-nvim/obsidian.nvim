@@ -1,3 +1,5 @@
+local commands = require "obsidian.lsp.commands"
+
 ---@class obsidian.lsp.CodeActionData
 ---@field title string|fun(note: obsidian.Note): string
 ---@field cond fun(note: obsidian.Note, params: lsp.CodeActionParams?): boolean
@@ -8,6 +10,16 @@
 
 ---@type table<string, obsidian.lsp.CodeAction>
 local code_actions = {}
+---@type table<string, fun()>
+local unregister_commands = {}
+
+local function unregister(name)
+  local cleanup = unregister_commands[name]
+  if cleanup then
+    cleanup()
+    unregister_commands[name] = nil
+  end
+end
 
 ---@class obsidian.lsp.CodeActionOpts
 ---@field name string unique name
@@ -38,10 +50,9 @@ local add = function(opts)
     },
   }
 
+  unregister(opts.name)
   if opts.fn then
-    vim.lsp.commands["obsidian." .. opts.name] = vim.schedule_wrap(function(params)
-      opts.fn(unpack(params.arguments or {}))
-    end)
+    unregister_commands[opts.name] = commands.register(opts.name, opts.fn)
   end
   code_actions[opts.name] = action
 end
@@ -181,6 +192,7 @@ local default_actions = {
 ---@param name string
 local del = function(name)
   code_actions[name] = nil
+  unregister(name)
 end
 
 for name, opts in pairs(default_actions) do
