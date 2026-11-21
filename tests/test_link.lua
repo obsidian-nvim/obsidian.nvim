@@ -173,14 +173,15 @@ Obsidian.opts.note_id_func = function(id)
 end
 local source = tostring(Obsidian.dir / "nested" / "Current.md")
 local api = require "obsidian.api"
-local original_confirm = api.confirm
-api.confirm = function()
+local prompts = require "obsidian.editor.prompt"
+local original_confirm = prompts.confirm
+prompts.confirm = function()
   return "Yes"
 end
 api.create_new_note("./Created", nil, { source_path = source })
 api.create_new_note("../Root", nil, { source_path = source })
 api.create_new_note("/Absolute", nil, { source_path = source })
-api.confirm = original_confirm
+prompts.confirm = original_confirm
 return {
   sibling = M.missing_link_path("./Sibling", source),
   parent = M.missing_link_path("../Parent", source),

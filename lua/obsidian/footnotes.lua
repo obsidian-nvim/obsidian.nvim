@@ -1,7 +1,7 @@
 local BufferDocument = require "obsidian.document"
 local Document = require "obsidian.parse.document"
 local Range = require "obsidian.range"
-local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local log = require "obsidian.log"
 local picker = require "obsidian.picker"
 
@@ -126,7 +126,7 @@ M.create = function(id, bufnr, restore_cursor)
   end
 
   if not id or id == "" then
-    id = api.input "Footnote id"
+    id = prompts.input "Footnote id"
     if not id or id == "" then
       return log.warn "Aborted"
     end
@@ -138,7 +138,7 @@ M.create = function(id, bufnr, restore_cursor)
     return log.info("Footnote [^%s] already defined on line %d", id, def.lnum)
   end
 
-  local text = api.input(("[^%s]"):format(id))
+  local text = prompts.input(("[^%s]"):format(id))
   if not text then
     restore_completion_cursor()
     return log.warn "Aborted"

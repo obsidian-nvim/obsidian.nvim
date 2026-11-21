@@ -285,6 +285,7 @@ end
 
   local result = child.lua [[
 local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local picker = require "obsidian.picker"
 local cache = require "obsidian.cache"
 local create_calls = 0
@@ -297,7 +298,7 @@ Obsidian.opts.callbacks.create_note = function()
 end
 
 local original_select = picker.select
-local original_confirm = api.confirm
+local original_confirm = prompts.confirm
 local original_open_note = api.open_note
 picker.select = function(values, _, callback)
   local missing
@@ -312,7 +313,7 @@ picker.select = function(values, _, callback)
   enumeration_create_calls = create_calls
   callback { missing }
 end
-api.confirm = function(prompt)
+prompts.confirm = function(prompt)
   if prompt == "How to handle missing reference?" then
     return "Create New Note"
   end
@@ -326,7 +327,7 @@ cache.find_files {
 }
 
 picker.select = original_select
-api.confirm = original_confirm
+prompts.confirm = original_confirm
 api.open_note = original_open_note
 
 local note_path = tostring(Obsidian.dir / "generated-Missing.md")

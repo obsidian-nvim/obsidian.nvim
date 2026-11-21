@@ -11,8 +11,7 @@ T["delete_note removes file and wipes current buffer"] = function()
   local bufnr = child.api.nvim_get_current_buf()
 
   child.lua [[
-    local api = require "obsidian.api"
-    api.confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       return "Yes"
     end
     require("obsidian.actions").delete_note()
@@ -31,8 +30,7 @@ T["delete_note keeps file and buffer when cancelled"] = function()
   local bufnr = child.api.nvim_get_current_buf()
 
   child.lua [[
-    local api = require "obsidian.api"
-    api.confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       return "No"
     end
     require("obsidian.actions").delete_note()

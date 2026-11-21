@@ -1,4 +1,4 @@
-local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local log = require "obsidian.log"
 
 ---@class obsidian.sync.Client
@@ -68,7 +68,7 @@ local function ensure_cli()
   if M.cmd then
     return CLI.new(M.cmd)
   end
-  if api.confirm "Obsidian CLI not found. Would you like to install it locally for obsidian.nvim?" == "Yes" then
+  if prompts.confirm "Obsidian CLI not found. Would you like to install it locally for obsidian.nvim?" == "Yes" then
     local success, new_cmd = install_local_cli()
     if success and new_cmd then
       return CLI.new(new_cmd)
@@ -174,7 +174,7 @@ function M.run(subcmd, flags)
 
   local out = M.cli:run_sync(subcmd, flags)
   if is_not_logged_in(out) then
-    if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
+    if prompts.confirm "Not logged in, login to your obsidian account?" == "Yes" then
       local success = M.login()
       if success then
         return M.cli:run_sync(subcmd, flags)
@@ -218,7 +218,7 @@ function M.run_async(subcmd, flags, sys_opts, callback, opts)
     sys_opts,
     vim.schedule_wrap(function(out)
       if is_not_logged_in(out) then
-        if api.confirm "Not logged in, login to your obsidian account?" == "Yes" then
+        if prompts.confirm "Not logged in, login to your obsidian account?" == "Yes" then
           local success = M.login()
           if success then
             M.cli:run(subcmd, flags, sys_opts, callback)
@@ -260,7 +260,7 @@ local invalidate_cache
 ---@param password string|?
 ---@return boolean
 function M.login(email, password)
-  email = email or api.input "Email"
+  email = email or prompts.input "Email"
   password = password or vim.fn.inputsecret "Password: "
 
   if not email or not password then

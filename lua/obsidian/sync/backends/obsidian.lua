@@ -1,4 +1,4 @@
-local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local log = require "obsidian.log"
 local client = require "obsidian.sync.client"
 local picker = require "obsidian.picker"
@@ -148,14 +148,14 @@ local function connect_and_configure(remote, workspace, setup_opts)
     client.set_config(path, Obsidian.opts.sync)
   end
 
-  if api.confirm "Start syncing now?" == "Yes" then
+  if prompts.confirm "Start syncing now?" == "Yes" then
     require("obsidian.sync").start(workspace)
   end
 end
 
 ---@param workspace obsidian.Workspace
 local function create_and_connect(workspace)
-  local name = api.input "New remote vault name"
+  local name = prompts.input "New remote vault name"
   if not name or name == "" then
     return
   end
@@ -193,7 +193,7 @@ local function select_remote(workspace, remotes, local_vaults)
   end
 
   if #remotes == 0 then
-    if api.confirm "No remote vaults found. Create one now?" == "Yes" then
+    if prompts.confirm "No remote vaults found. Create one now?" == "Yes" then
       create_and_connect(workspace)
     end
     return

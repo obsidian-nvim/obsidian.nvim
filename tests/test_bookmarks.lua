@@ -213,11 +213,11 @@ T["groups"]["creates a new group when moving a bookmark"] = function()
 
   child.lua [[
 local picker = require "obsidian.picker"
-local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 picker.select = function(items, _, callback)
   callback { items[#items] }
 end
-api.input = function(prompt)
+prompts.input = function(prompt)
   _G.group_name_prompt = prompt
   return "Personal"
 end

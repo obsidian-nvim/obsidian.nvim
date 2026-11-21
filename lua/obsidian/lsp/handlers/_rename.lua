@@ -1,6 +1,7 @@
 local BufferDocument = require "obsidian.document"
 local Document = require "obsidian.parse.document"
 local api = require "obsidian.api"
+local attachment = require "obsidian.attachment"
 local header = require "obsidian.parse.header"
 local parse_block_id = require "obsidian.parse.block_id"
 local tags = require "obsidian.tag"
@@ -81,7 +82,7 @@ local function link_target(ref, bufnr, row)
       return nil
     end
     local col = ref.range.start_col + s - 1
-    local is_attachment = api.is_attachment_path(ref.target)
+    local is_attachment = attachment.is_attachment_path(ref.target)
     return {
       kind = is_attachment and "attachment" or "note",
       bufnr = bufnr,

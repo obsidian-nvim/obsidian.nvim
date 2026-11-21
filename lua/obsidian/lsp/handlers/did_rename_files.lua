@@ -2,6 +2,8 @@ local obsidian = require "obsidian"
 local Note = obsidian.Note
 local Path = obsidian.Path
 local api = obsidian.api
+local fs = require "obsidian.fs"
+local prompts = require "obsidian.editor.prompt"
 local rename = require "obsidian.note.rename"
 
 local function apply_reference_edit(edit, meta, kind, name, dispatchers)
@@ -16,7 +18,7 @@ local function apply_reference_edit(edit, meta, kind, name, dispatchers)
       kind,
       name
     )
-    local choice = api.confirm(prompt)
+    local choice = prompts.confirm(prompt)
     if choice ~= "Yes" then
       return
     end
@@ -55,7 +57,7 @@ local function rename_folder(file, dispatchers)
   local new_folder = Path.new(vim.uri_to_fname(file.newUri))
   local path_pairs = {}
 
-  for path in api.dir(new_folder) do
+  for path in fs.dir(new_folder) do
     local new_path = Path.new(path)
     local rel_path = new_path:relative_to(new_folder)
     path_pairs[#path_pairs + 1] = {

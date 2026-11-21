@@ -9,6 +9,7 @@ local header = require "obsidian.parse.header"
 local block_ids = require "obsidian.parse.block_id"
 local uri_util = require "obsidian.uri"
 local attachment = require "obsidian.attachment"
+local prompts = require "obsidian.editor.prompt"
 
 local function open_uri(uri, scheme)
   if scheme == "obsidian" then
@@ -16,7 +17,7 @@ local function open_uri(uri, scheme)
     if
       parsed
       and uri_util.is_mutating(parsed)
-      and api.confirm(("Run file-modifying URI action? %s"):format(uri)) ~= "Yes"
+      and prompts.confirm(("Run file-modifying URI action? %s"):format(uri)) ~= "Yes"
     then
       return
     end
@@ -24,7 +25,7 @@ local function open_uri(uri, scheme)
   elseif vim.list_contains(Obsidian.opts.open.schemes or {}, scheme) then
     vim.ui.open(uri)
   else
-    local choice = api.confirm(("Open external link? %s"):format(uri))
+    local choice = prompts.confirm(("Open external link? %s"):format(uri))
 
     if choice == "Yes" then
       vim.ui.open(uri)
@@ -89,7 +90,7 @@ local function create_new_note(location, callback, opts)
   local source_path = vim.api.nvim_buf_get_name(bufnr)
   local action_opts = { source_path = source_path ~= "" and source_path or nil }
   local workspace_dir = api.resolve_workspace_dir(action_opts.source_path)
-  local confirm = api.confirm(("Create new note '%s'?"):format(location), format_options)
+  local confirm = prompts.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
     actions.new(location, function(note)
       update_link(note)
@@ -171,7 +172,7 @@ local function open_note(location, callback, opts)
 end
 
 local handle_wiki_link = function(location, callback, opts)
-  if api.is_attachment_path(location) then
+  if attachment.is_attachment_path(location) then
     open_attachment(location, opts)
   else
     open_note(location, callback, opts)
@@ -182,7 +183,7 @@ local handle_markdown_link = function(location, callback, opts)
   local is_uri, scheme = uri_util.is_uri(location)
   if is_uri then
     open_uri(location, scheme)
-  elseif api.is_attachment_path(location) then
+  elseif attachment.is_attachment_path(location) then
     open_attachment(location, opts)
   else
     open_note(location, callback, opts)

@@ -2,6 +2,7 @@ local moment = require "obsidian.lib.moment"
 local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 
 local M = {}
 
@@ -107,7 +108,7 @@ function M.new_unique_id(timestamp, dir, opts)
   if folder_path:is_dir() == false then
     local create = opts and opts.create_dir
     if not create then
-      create = api.confirm("Unique note folder does not exist: \n" .. tostring(folder_path) .. "\nCreate it now?")
+      create = prompts.confirm("Unique note folder does not exist: \n" .. tostring(folder_path) .. "\nCreate it now?")
         == "Yes"
     end
     if create then

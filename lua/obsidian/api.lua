@@ -15,6 +15,9 @@ local Range = require "obsidian.range"
 local parse_refs = require "obsidian.parse.refs"
 local parse_tags = require "obsidian.parse.tags"
 local parse_tasks = require "obsidian.parse.line.tasks"
+local platform = require "obsidian.platform"
+local prompts = require "obsidian.editor.prompt"
+local runtime = require "obsidian.runtime"
 
 ---@class obsidian.link.FormatLinkOpts : obsidian.link.LinkCreationOpts
 ---@field path string
@@ -38,7 +41,15 @@ local parse_tasks = require "obsidian.parse.line.tasks"
 
 ---@alias obsidian.selection obsidian.api.Selection
 
+-- Compatibility exports. Internal callers use the owning modules directly.
 M.dir = require("obsidian.fs").dir
+M.docs_dir = runtime.docs_dir
+M.get_plugin_info = runtime.get_plugin_info
+M.get_os = platform.get_os
+---@alias obsidian.api.OSType obsidian.platform.OSType
+M.OSType = platform.OSType
+M.input = prompts.input
+M.confirm = prompts.confirm
 
 --- Get the normalized options for a workspace without changing the active workspace.
 ---@param workspace obsidian.Workspace|?
@@ -52,20 +63,6 @@ M._workspace_opts = function(workspace)
   local overrides = workspace.overrides or {}
   ---@cast overrides obsidian.config
   return config.normalize(overrides, Obsidian._opts)
-end
-
---- TODO: will not work if plugin is managed by nix
----
----@return obsidian.Path|?
-M.docs_dir = function()
-  local info = M.get_plugin_info "obsidian.nvim"
-  if not info then
-    return
-  end
-
-  ---@type obsidian.Path
-  local dir = Path.new(info.path) / "docs"
-  return dir
 end
 
 --- Get the templates folder.
@@ -619,7 +616,7 @@ M.create_new_note = function(location, callback, opts)
     end
   end
 
-  local confirm = M.confirm(("Create new note '%s'?"):format(location), format_options)
+  local confirm = prompts.confirm(("Create new note '%s'?"):format(location), format_options)
   if confirm == "Yes" then
     require("obsidian.actions").new(creation_location, on_created, action_opts)
   elseif confirm == "Yes with Template" then
@@ -820,130 +817,6 @@ M.get_open_strategy = function(opt)
     log.err("undefined open strategy '%s'", opt)
     return "e "
   end
-end
-
-----------------------------
---- Integration helpers ----
-----------------------------
-
---- Get the path to where a plugin is installed.
----
----@param name string
----@return string|?
-local get_src_root = function(name)
-  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
-    if vim.endswith(path, name) then
-      return path
-    end
-  end
-end
-
---- Get info about a plugin.
----
----@param name string
----
----@return { commit: string|?, path: string }|?
-M.get_plugin_info = function(name)
-  local src_root = get_src_root(name)
-  if not src_root then
-    return
-  end
-  local out = { path = src_root }
-  local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
-  if obj.code == 0 then
-    out.commit = vim.trim(obj.stdout or "")
-  else
-    out.commit = "unknown"
-  end
-  return out
-end
-
-------------------
---- UI helpers ---
-------------------
-
-local INPUT_CANCELLED = "~~~INPUT-CANCELLED~~~"
-
---- Prompt user for an input. Returns nil if canceled, otherwise a string (possibly empty).
----
----@param prompt string
----@param opts { completion: string|?, default: string|? }|?
----
----@return string|?
-M.input = function(prompt, opts)
-  opts = opts or {}
-
-  if not vim.endswith(prompt, ": ") then
-    prompt = prompt .. ": "
-  end
-
-  local input = vim.trim(
-    vim.fn.input { prompt = prompt, completion = opts.completion, default = opts.default, cancelreturn = INPUT_CANCELLED }
-  )
-
-  if input ~= INPUT_CANCELLED then
-    return input
-  else
-    return nil
-  end
-end
-
---- Prompt user for a confirmation.
----@return "Yes"|"No"|string|nil
-M.confirm = function(prompt, choices)
-  choices = choices or "&Yes\n&No"
-  local choices_tbl = vim.split(choices, "\n")
-  choices_tbl = vim.tbl_map(function(choice)
-    local str = choice:gsub("&", "")
-    return str
-  end, choices_tbl)
-
-  local choice_idx = vim.fn.confirm(prompt, choices)
-  local user_choice = choices_tbl[choice_idx]
-  if not user_choice then
-    return nil
-  end
-  return user_choice
-end
-
----@enum obsidian.api.OSType
-M.OSType = {
-  Linux = "Linux",
-  Wsl = "Wsl",
-  Windows = "Windows",
-  Darwin = "Darwin",
-  FreeBSD = "FreeBSD",
-}
-
----@type obsidian.api.OSType?
-M._current_os = nil
-
----Get the running operating system.
----Reference https://vi.stackexchange.com/a/2577/33116
----@return obsidian.api.OSType
-M.get_os = function()
-  if M._current_os ~= nil then
-    ---@diagnostic disable-next-line: return-type-mismatch
-    return M._current_os
-  end
-
-  ---@type obsidian.api.OSType
-  local this_os
-  if vim.fn.has "win32" == 1 then
-    this_os = M.OSType.Windows
-  else
-    local sysname = vim.uv.os_uname().sysname
-    local release = vim.uv.os_uname().release:lower()
-    if sysname:lower() == "linux" and string.find(release, "microsoft") then
-      this_os = M.OSType.Wsl
-    else
-      ---@cast sysname obsidian.api.OSType
-      this_os = sysname
-    end
-  end
-
-  M._current_os = this_os
-  return this_os
 end
 
 --- Get the icon associated with a path.

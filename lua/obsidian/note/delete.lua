@@ -1,5 +1,5 @@
 local refs = require "obsidian.parse.refs"
-local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local attachment = require "obsidian.attachment"
 local Path = require "obsidian.path"
 
@@ -36,7 +36,7 @@ M.delete = function(self, opts)
     local matches = self:backlinks()
     if matches and #matches > 0 then
       local prompt = ("'%s' is referenced in %d place(s). Delete anyway?"):format(self:display_name(), #matches)
-      if api.confirm(prompt) ~= "Yes" then
+      if prompts.confirm(prompt) ~= "Yes" then
         result.cancelled = true
         return result
       end
@@ -51,7 +51,7 @@ M.delete = function(self, opts)
         local resolved = attachment.resolve_attachment_path(loc, abs_path)
         if resolved and vim.uv.fs_stat(resolved) then
           local prompt = ("Note contains attachment '%s'. Delete it too?"):format(vim.fs.basename(resolved))
-          if api.confirm(prompt) == "Yes" then
+          if prompts.confirm(prompt) == "Yes" then
             local attachment_result = {
               path = resolved,
               deleted = rm(resolved),

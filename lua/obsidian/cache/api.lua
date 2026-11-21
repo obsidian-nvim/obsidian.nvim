@@ -2,6 +2,7 @@ local fs_util = require "obsidian.util.fs"
 local attachment = require "obsidian.attachment"
 local link = require "obsidian.link"
 local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local picker_util = require "obsidian.picker.util"
 
 local M = {}
@@ -298,7 +299,7 @@ M.find_files = function(opts)
         elseif path and data.attachment then
           vim.ui.open(path)
         elseif path and data.missing then
-          local choice = api.confirm("How to handle missing reference?", "&Create New Note\n&Open References")
+          local choice = prompts.confirm("How to handle missing reference?", "&Create New Note\n&Open References")
           if choice == "Create New Note" then
             local location = data.target or cache.notes.rel_path(path):gsub("%.md$", "")
             api.create_new_note(location, function(locations)

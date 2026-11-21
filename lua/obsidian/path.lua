@@ -1,3 +1,5 @@
+local platform = require "obsidian.platform"
+
 local function coerce(v)
   if v == vim.NIL then
     return nil
@@ -232,18 +234,11 @@ end
 ---
 ---@return boolean
 Path.is_absolute = function(self)
-  local api = require "obsidian.api"
-  if
-    vim.startswith(self.filename, "/")
-    or (
-      (api.get_os() == api.OSType.Windows or api.get_os() == api.OSType.Wsl)
-      and string.match(self.filename, "^[%a]:/.*$")
-    )
-  then
+  if vim.startswith(self.filename, "/") then
     return true
-  else
-    return false
   end
+  local os = platform.get_os()
+  return (os == platform.OSType.Windows or os == platform.OSType.Wsl) and self.filename:match "^[%a]:/.*$" ~= nil
 end
 
 --- Try to resolve a version of the path relative to the other.

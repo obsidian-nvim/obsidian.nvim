@@ -2,6 +2,7 @@ local Note = require "obsidian.note"
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
 local api = require "obsidian.api"
+local fs = require "obsidian.fs"
 
 return function()
   local start_time = vim.uv.hrtime()
@@ -10,7 +11,7 @@ return function()
   local warnings = {}
   local dir = api.resolve_workspace_dir()
 
-  for path in api.dir(dir) do
+  for path in fs.dir(dir) do
     local relative_path = Path.new(path):vault_relative_path { strict = true }
     local ok, res = pcall(Note.from_file, path)
 

@@ -2117,7 +2117,7 @@ T["completion"]["invalid partial filenames do not prompt during completion"] = f
       return title
     end
     _G.obsidian_completion_input_count = 0
-    require("obsidian.api").input = function()
+    require("obsidian.editor.prompt").input = function()
       _G.obsidian_completion_input_count = _G.obsidian_completion_input_count + 1
       return "replacement"
     end

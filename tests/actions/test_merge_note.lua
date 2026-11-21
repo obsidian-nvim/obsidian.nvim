@@ -32,8 +32,7 @@ Target body.
 
   local prompt = child.lua(([=[
     Obsidian.opts.frontmatter.enabled = false
-    local api = require "obsidian.api"
-    api.confirm = function(message)
+    require("obsidian.editor.prompt").confirm = function(message)
       _G.merge_note_prompt = message
       return "Yes"
     end
@@ -67,7 +66,7 @@ T["merge_note cancellation keeps source and destination"] = function()
   })
   child.cmd("edit " .. vim.fn.fnameescape(files["source.md"]))
   child.lua(([=[
-    require("obsidian.api").confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       return "No"
     end
     require("obsidian.actions").merge_note(require("obsidian.note").from_file(%q))

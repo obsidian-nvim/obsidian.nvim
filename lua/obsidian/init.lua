@@ -1,4 +1,5 @@
 local log = require "obsidian.log"
+local runtime = require "obsidian.runtime"
 
 local obsidian = {}
 
@@ -84,7 +85,7 @@ obsidian.setup = function(user_opts)
 
   obsidian.Workspace.setup(opts.workspaces)
 
-  local docs_dir = obsidian.api.docs_dir()
+  local docs_dir = runtime.docs_dir()
 
   if docs_dir then
     Obsidian.workspaces[#Obsidian.workspaces + 1] = obsidian.Workspace.new {

@@ -1,5 +1,6 @@
 local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
+local runtime = require "obsidian.runtime"
 local icons = require "obsidian.icons"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.types").Picker
@@ -37,7 +38,7 @@ local function picker_available(picker_name)
   end
 
   for _, plugin in ipairs(plugins) do
-    if api.get_plugin_info(plugin) ~= nil then
+    if runtime.get_plugin_info(plugin) ~= nil then
       return true
     end
   end

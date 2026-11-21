@@ -2,6 +2,7 @@ local log = require "obsidian.log"
 local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 
 local M = {}
 
@@ -368,7 +369,7 @@ M.move_to_group = function(bookmark)
     end
 
     if group == CREATE_NEW_GROUP then
-      local title = api.input "New bookmark group name"
+      local title = prompts.input "New bookmark group name"
       if not title or title == "" then
         return
       end

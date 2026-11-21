@@ -2,6 +2,7 @@ local Path = require "obsidian.path"
 local Note = require "obsidian.note"
 local util = require "obsidian.util"
 local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 
 local M = {}
 
@@ -67,7 +68,7 @@ M.substitute_template_variables = function(text, ctx)
   -- Find unknown variables and prompt for them.
   for m_start, m_end in util.gfind(text, "{{[^}]+}}") do
     local key = vim.trim(string.sub(text, m_start + 2, m_end - 2))
-    local value = api.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
+    local value = prompts.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
     if value and string.len(value) > 0 then
       text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
     end

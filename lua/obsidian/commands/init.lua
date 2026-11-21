@@ -194,8 +194,7 @@ end
 ---@param cmdline string
 ---@return string[]
 M.help_complete = function(_, cmdline)
-  local api = require "obsidian.api"
-  local docs_dir = api.docs_dir()
+  local docs_dir = require("obsidian.runtime").docs_dir()
   if not docs_dir then
     return {}
   end

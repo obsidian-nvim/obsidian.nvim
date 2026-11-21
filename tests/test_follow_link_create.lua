@@ -18,7 +18,7 @@ T["follow link to non-existing note and create it"] = function()
     Obsidian.opts.note_id_func = function(title)
       return "fixed-id-" .. (title or "none")
     end
-    M.confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       return "Yes"
     end
   ]]
@@ -54,7 +54,7 @@ T["follow link with alias to non-existing note and create it"] = function()
     Obsidian.opts.note_id_func = function(title)
       return "fixed-id-" .. (title or "none")
     end
-    M.confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       return "Yes"
     end
   ]]
@@ -83,7 +83,7 @@ T["follow link with anchor to non-existing note and create it"] = function()
     Obsidian.opts.note_id_func = function(title)
       return "fixed-id-" .. (title or "none")
     end
-    M.confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       return "Yes"
     end
   ]]

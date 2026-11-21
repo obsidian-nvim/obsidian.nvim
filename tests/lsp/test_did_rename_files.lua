@@ -27,10 +27,10 @@ T["didRenameFiles applies reference edits without file rename"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.did_rename_files"
     local note_mod = require "obsidian.note"
-    local api = require "obsidian.api"
+    local prompts = require "obsidian.editor.prompt"
     local Path = require "obsidian.path"
     local old_from_file = note_mod.from_file
-    local old_confirm = api.confirm
+    local old_confirm = prompts.confirm
 
     note_mod.from_file = function(path)
       return {
@@ -62,7 +62,7 @@ T["didRenameFiles applies reference edits without file rename"] = function()
       }
     end
 
-    api.confirm = function(prompt)
+    prompts.confirm = function(prompt)
       _G.confirm_prompt = prompt
       return "Yes"
     end
@@ -82,7 +82,7 @@ T["didRenameFiles applies reference edits without file rename"] = function()
     })
 
     note_mod.from_file = old_from_file
-    api.confirm = old_confirm
+    prompts.confirm = old_confirm
   ]]
 
   eq("new", child.lua_get "captured_name")
@@ -99,10 +99,10 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.did_rename_files"
     local note_mod = require "obsidian.note"
-    local api = require "obsidian.api"
+    local prompts = require "obsidian.editor.prompt"
     local Path = require "obsidian.path"
     local old_from_file = note_mod.from_file
-    local old_confirm = api.confirm
+    local old_confirm = prompts.confirm
 
     _G.request_called = false
 
@@ -131,7 +131,7 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
       }
     end
 
-    api.confirm = function(prompt)
+    prompts.confirm = function(prompt)
       _G.confirm_prompt = prompt
       return "No"
     end
@@ -150,7 +150,7 @@ T["didRenameFiles skips applyEdit when confirmation is declined"] = function()
     })
 
     note_mod.from_file = old_from_file
-    api.confirm = old_confirm
+    prompts.confirm = old_confirm
   ]]
 
   eq("Update 1 reference(s) across 1 file(s) for renamed note 'new'?", child.lua_get "confirm_prompt")
@@ -202,10 +202,10 @@ T["didRenameFiles skips confirmation when auto_update is enabled"] = function()
   child.lua [[
     local handler = require "obsidian.lsp.handlers.did_rename_files"
     local note_mod = require "obsidian.note"
-    local api = require "obsidian.api"
+    local prompts = require "obsidian.editor.prompt"
     local Path = require "obsidian.path"
     local old_from_file = note_mod.from_file
-    local old_confirm = api.confirm
+    local old_confirm = prompts.confirm
 
     _G.request_called = false
     _G.confirm_called = false
@@ -226,7 +226,7 @@ T["didRenameFiles skips confirmation when auto_update is enabled"] = function()
       }
     end
 
-    api.confirm = function()
+    prompts.confirm = function()
       _G.confirm_called = true
       return "No"
     end
@@ -246,7 +246,7 @@ T["didRenameFiles skips confirmation when auto_update is enabled"] = function()
 
     Obsidian.opts.link.auto_update = false
     note_mod.from_file = old_from_file
-    api.confirm = old_confirm
+    prompts.confirm = old_confirm
   ]]
 
   eq(false, child.lua_get "confirm_called")

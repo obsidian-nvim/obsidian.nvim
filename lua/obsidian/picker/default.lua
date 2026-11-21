@@ -2,6 +2,7 @@ local M = {}
 
 local log = require "obsidian.log"
 local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local search = require "obsidian.search"
 local ut = require "obsidian.picker.util"
 
@@ -42,7 +43,7 @@ M.grep = function(opts)
   if o.query and vim.trim(o.query) ~= "" then
     query = o.query
   else
-    query = api.input(o.prompt_title or "Grep")
+    query = prompts.input(o.prompt_title or "Grep")
   end
 
   if not query then

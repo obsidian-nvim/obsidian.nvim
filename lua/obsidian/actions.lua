@@ -4,6 +4,7 @@ local Document = require "obsidian.parse.document"
 local Pos = require "obsidian.pos"
 local parse_block_id = require "obsidian.parse.block_id"
 local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local log = require "obsidian.log"
 local util = require "obsidian.util"
 local uri = require "obsidian.uri"
@@ -113,7 +114,7 @@ M.unlink = function(bufnr, position)
     end
     require("obsidian.ui").update(bufnr)
 
-    if ref.embed == true and api.confirm "Remove Attachment?" == "Yes" then
+    if ref.embed == true and prompts.confirm "Remove Attachment?" == "Yes" then
       attachment.delete(ref.target, {}, function(err, path)
         if err then
           log.err(err)
@@ -676,7 +677,7 @@ M.extract_note = function(label)
   if label ~= nil and string.len(label) > 0 then
     label = vim.trim(label)
   else
-    label = api.input "Enter title (optional): "
+    label = prompts.input "Enter title (optional): "
     if not label then
       log.warn "Aborted"
       return
@@ -715,7 +716,7 @@ end
 M.new = function(id, callback, opts)
   opts = opts or {}
   if not id then
-    id = api.input("Enter id or path (optional): ", { completion = "file" })
+    id = prompts.input("Enter id or path (optional): ", { completion = "file" })
     if not id then
       return log.warn "Aborted"
     elseif id == "" then
@@ -769,7 +770,7 @@ M.new_from_template = function(id, template, callback, opts)
       if id == nil or id == "" then
         -- Must use pcall in case of KeyboardInterrupt
         -- We cannot place `title` where `safe_title` is because it would be redeclaring it
-        local success, safe_title = pcall(api.input, "Enter title or path (optional): ", { completion = "file" })
+        local success, safe_title = pcall(prompts.input, "Enter title or path (optional): ", { completion = "file" })
         id = safe_title
         if not success or not safe_title then
           log.warn "Aborted"
@@ -1010,8 +1011,8 @@ M.add_property = function()
   endfunction
      ]]
 
-  local key = api.input("key: ", { completion = "customlist,ObsidianPropertyComplete" })
-  local value = api.input "value: "
+  local key = prompts.input("key: ", { completion = "customlist,ObsidianPropertyComplete" })
+  local value = prompts.input "value: "
 
   if not key or not value then
     return log.info "Aborted"
@@ -1199,7 +1200,7 @@ M.delete_note = function()
 
   local path = assert(note.path, "note has no path")
   local prompt = ("Are you sure you want to permanently delete '%s'?"):format(note:display_name())
-  if api.confirm(prompt) ~= "Yes" then
+  if prompts.confirm(prompt) ~= "Yes" then
     return
   end
 
@@ -1242,7 +1243,7 @@ local function merge_note(dst_note)
     message = message .. (" %d backlink(s) will still point to the deleted note."):format(#backlinks)
   end
 
-  if api.confirm(message) ~= "Yes" then
+  if prompts.confirm(message) ~= "Yes" then
     return
   end
 

@@ -1,5 +1,5 @@
 local sync = require "obsidian.sync"
-local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 
 ---@param data obsidian.commands.Args
 return function(data)
@@ -14,7 +14,7 @@ return function(data)
   end
 
   if not has_configured then
-    local choice = api.confirm "No vaults are configured for syncing. Do you want to run the setup wizard?"
+    local choice = prompts.confirm "No vaults are configured for syncing. Do you want to run the setup wizard?"
     if choice == "Yes" then
       sync.setup()
       return

@@ -17,11 +17,12 @@ local T = new_set {
 
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
+local runtime = require "obsidian.runtime"
 local Path = require "obsidian.path"
 local helpers = require "tests.helpers"
 
 local function with_picker_stubs(stubs, fn)
-  local original_get_plugin_info = api.get_plugin_info
+  local original_get_plugin_info = runtime.get_plugin_info
   local original_default = package.loaded["obsidian.picker.default"]
   local original_telescope = package.loaded["obsidian.picker.telescope"]
 
@@ -30,7 +31,7 @@ local function with_picker_stubs(stubs, fn)
 
   local ok, err = pcall(fn)
 
-  api.get_plugin_info = original_get_plugin_info
+  runtime.get_plugin_info = original_get_plugin_info
   package.loaded["obsidian.picker.default"] = original_default
   package.loaded["obsidian.picker.telescope"] = original_telescope
   picker.get(false)
@@ -52,7 +53,7 @@ T["get defers configured picker availability check until first picker call"] = f
       end,
     },
   }, function()
-    api.get_plugin_info = function(name)
+    runtime.get_plugin_info = function(name)
       calls = calls + 1
       eq("telescope.nvim", name)
       return nil
@@ -83,7 +84,7 @@ T["get lazy-resolves select when it is the first picker call"] = function()
       end,
     },
   }, function()
-    api.get_plugin_info = function(name)
+    runtime.get_plugin_info = function(name)
       calls = calls + 1
       eq("telescope.nvim", name)
       return nil
@@ -111,7 +112,7 @@ T["get uses configured picker if it becomes available before first picker call"]
       end,
     },
   }, function()
-    api.get_plugin_info = function(name)
+    runtime.get_plugin_info = function(name)
       calls = calls + 1
       eq("telescope.nvim", name)
       if available then
@@ -326,7 +327,7 @@ T["find_files presents filesystem paths without a shell command"] = function()
       end,
     },
   }, function()
-    api.get_plugin_info = function()
+    runtime.get_plugin_info = function()
       return { path = "/tmp/telescope.nvim" }
     end
     picker.get "telescope.nvim"

@@ -19,6 +19,7 @@ local header_parser = require "obsidian.parse.header"
 local block_ids = require "obsidian.parse.block_id"
 local text_insertion = require "obsidian.util.text_insertion"
 local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local Frontmatter = require "obsidian.frontmatter"
 local search = require "obsidian.search"
 local ignore = require "obsidian.ignore"
@@ -390,7 +391,7 @@ local function prompt_for_valid_filename(invalid_name)
   local current = invalid_name
 
   while true do
-    local input = api.input("Enter filename", { default = current, completion = "file" })
+    local input = prompts.input("Enter filename", { default = current, completion = "file" })
     if not input then
       error "Aborted"
     end

@@ -35,7 +35,7 @@ T["follow wiki links with missing headings without creating a note"] = function(
     obsidian.log.warn = function(msg, ...)
       _G.definition_warning = string.format(msg, ...)
     end
-    obsidian.api.confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       error "should not prompt to create an existing note"
     end
     vim.lsp.buf.definition()
@@ -58,7 +58,7 @@ T["follow wiki links with missing block IDs without creating a note"] = function
     obsidian.log.warn = function(msg, ...)
       _G.definition_warning = string.format(msg, ...)
     end
-    obsidian.api.confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       error "should not prompt to create an existing note"
     end
     vim.lsp.buf.definition()

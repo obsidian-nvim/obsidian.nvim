@@ -420,8 +420,8 @@ C["follow_link confirms writes and preserves encoded content"] = function()
     vim.fn.writefile({ "source" }, tostring(source))
     vim.cmd.edit(tostring(source))
     local prompts, external = 0, 0
-    local api = require "obsidian.api"
-    api.confirm = function()
+    local prompt = require "obsidian.editor.prompt"
+    prompt.confirm = function()
       prompts = prompts + 1
       return "Yes"
     end
@@ -431,7 +431,7 @@ C["follow_link confirms writes and preserves encoded content"] = function()
     local actions = require "obsidian.actions"
     actions.follow_link "[Capture](obsidian://new?file=Captured&content=a%26b%3Dc&silent)"
     local content = vim.fn.readfile(tostring(Obsidian.dir / "Captured.md"))
-    api.confirm = function()
+    prompt.confirm = function()
       prompts = prompts + 1
       return "No"
     end
@@ -453,7 +453,7 @@ C["follow_link confirms open overwrite before modifying"] = function()
     vim.fn.writefile({ "source" }, tostring(source))
     vim.cmd.edit(tostring(source))
     local prompts = 0
-    require("obsidian.api").confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       prompts = prompts + 1
       return "No"
     end
@@ -493,7 +493,7 @@ C["daily and unique links run internally after confirmation"] = function()
     Obsidian.opts.daily_notes.template = nil
     Obsidian.opts.unique_note.template = nil
     local prompts, external = 0, 0
-    require("obsidian.api").confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       prompts = prompts + 1
       return "Yes"
     end
@@ -520,7 +520,7 @@ C["external integration parameters do not launch applications"] = function()
     vim.ui.open = function()
       external = external + 1
     end
-    require("obsidian.api").confirm = function()
+    require("obsidian.editor.prompt").confirm = function()
       return "Yes"
     end
     local actions = require "obsidian.actions"

@@ -4,7 +4,7 @@ local h = dofile "tests/helpers.lua"
 
 local T, child = h.child_vault {
   pre_case = [[
-    api = require "obsidian.api"
+    prompts = require "obsidian.editor.prompt"
     log = require "obsidian.log"
     img = require "obsidian.img_paste"
   ]],
@@ -72,7 +72,7 @@ T["paste command path resolution"]["uses the configured name and destination"] =
     -- Mock functions called by obsidian.commands.paste_img
     log.warn = function(msg) _G.captured_warn = msg end
     log.err  = function(msg) _G.captured_err = msg end
-    api.input = function() return case.user_input end
+    prompts.input = function() return case.user_input end
 
     img.get_clipboard_img_type = function() return case.img_type end
 

@@ -1,4 +1,5 @@
-local api = require "obsidian.api"
+local attachment = require "obsidian.attachment"
+local prompts = require "obsidian.editor.prompt"
 local log = require "obsidian.log"
 local img = require "obsidian.img_paste"
 
@@ -24,7 +25,7 @@ return function(data)
     if default_name and not should_confirm then
       fname = default_name
     else
-      local input = api.input("Enter file name: ", { default = default_name, completion = "file" })
+      local input = prompts.input("Enter file name: ", { default = default_name, completion = "file" })
       if not input then
         return log.warn "Paste aborted"
       end
@@ -32,7 +33,7 @@ return function(data)
     end
   end
 
-  local path = api.resolve_attachment_path(fname)
+  local path = attachment.destination_path(fname)
 
   img.paste(path, img_type)
 end

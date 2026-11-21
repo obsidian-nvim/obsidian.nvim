@@ -2,6 +2,7 @@ local M = require "obsidian.note"
 local h = dofile "tests/helpers.lua"
 local T = h.temp_vault
 local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local Path = require "obsidian.path"
 local util = require "obsidian.util"
 local builtin = require "obsidian.builtin"
@@ -125,8 +126,11 @@ T["create"]["should trigger create autocmd with note data"] = function()
 end
 
 T["create"]["should prompt for replacement filename with invalid name as default"] = function()
-  local orig_input = api.input
-  api.input = function(prompt, opts)
+  local orig_input = prompts.input
+  MiniTest.finally(function()
+    prompts.input = orig_input
+  end)
+  prompts.input = function(prompt, opts)
     eq("Enter filename", prompt)
     eq("bad:name", opts.default)
     return "good name"
@@ -134,7 +138,6 @@ T["create"]["should prompt for replacement filename with invalid name as default
 
   local note = M.create { id = "bad:name", verbatim = true }
 
-  api.input = orig_input
   eq("good name", note.id)
 end
 
@@ -339,27 +342,32 @@ T["delete"]["should delete the note file by default"] = function()
 end
 
 T["delete"]["should abort when backlink confirmation is declined"] = function()
-  local old_confirm = api.confirm
+  local old_confirm = prompts.confirm
+  MiniTest.finally(function()
+    prompts.confirm = old_confirm
+  end)
   local prompt
   local note = M.create { id = "target", verbatim = true }
   note:write()
   h.write("[[target]]", Obsidian.dir / "ref.md")
 
-  api.confirm = function(p)
+  prompts.confirm = function(p)
     prompt = p
     return "No"
   end
 
   local result = note:delete { confirm_attachments = false }
 
-  api.confirm = old_confirm
   eq(true, result.cancelled)
   eq(true, note.path:exists())
   eq("'target' is referenced in 1 place(s). Delete anyway?", prompt)
 end
 
 T["delete"]["should prompt for linked attachments"] = function()
-  local old_confirm = api.confirm
+  local old_confirm = prompts.confirm
+  MiniTest.finally(function()
+    prompts.confirm = old_confirm
+  end)
   local attachments_dir = Obsidian.dir / "attachments"
   attachments_dir:mkdir()
   local attachment_path = attachments_dir / "image.png"
@@ -368,14 +376,13 @@ T["delete"]["should prompt for linked attachments"] = function()
   local note = M.from_file(Obsidian.dir / "with-attachment.md")
   local prompt
 
-  api.confirm = function(p)
+  prompts.confirm = function(p)
     prompt = p
     return "Yes"
   end
 
   local result = note:delete { confirm_backlinks = false }
 
-  api.confirm = old_confirm
   eq(true, result.deleted)
   eq("Note contains attachment 'image.png'. Delete it too?", prompt)
   eq(1, #result.attachments)

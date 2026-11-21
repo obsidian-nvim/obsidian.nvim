@@ -1,6 +1,6 @@
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local Path = require "obsidian.path"
-local api = require "obsidian.api"
+local prompts = require "obsidian.editor.prompt"
 local client = require "obsidian.sync.client"
 local sync = require "obsidian.sync"
 local status = require "obsidian.sync.status"
@@ -195,8 +195,13 @@ T["client.run auth handling"] = new_set()
 
 T["client.run auth handling"]["should prompt login only for actual login errors"] = function()
   local orig_cli = rawget(client, "cli")
-  local orig_confirm = api.confirm
+  local orig_confirm = prompts.confirm
   local orig_login = client.login
+  MiniTest.finally(function()
+    client.cli = orig_cli
+    prompts.confirm = orig_confirm
+    client.login = orig_login
+  end)
   local calls = 0
   local confirms = 0
   local logins = 0
@@ -210,7 +215,7 @@ T["client.run auth handling"]["should prompt login only for actual login errors"
       return { code = 0, stdout = "ok", stderr = "" }
     end,
   }
-  api.confirm = function()
+  prompts.confirm = function()
     confirms = confirms + 1
     return "Yes"
   end
@@ -224,18 +229,20 @@ T["client.run auth handling"]["should prompt login only for actual login errors"
   eq(2, calls)
   eq(1, confirms)
   eq(1, logins)
-
-  client.cli = orig_cli
-  api.confirm = orig_confirm
-  client.login = orig_login
 end
 
 T["client.run auth handling"]["should defer setup password errors to client.setup"] = function()
   local log = require "obsidian.log"
   local orig_cli = rawget(client, "cli")
-  local orig_confirm = api.confirm
+  local orig_confirm = prompts.confirm
   local orig_login = client.login
   local orig_error = log.error
+  MiniTest.finally(function()
+    client.cli = orig_cli
+    prompts.confirm = orig_confirm
+    client.login = orig_login
+    log.error = orig_error
+  end)
   local calls = 0
   local confirms = 0
   local errors = 0
@@ -246,7 +253,7 @@ T["client.run auth handling"]["should defer setup password errors to client.setu
       return { code = 2, stdout = "", stderr = "Failed to validate password." }
     end,
   }
-  api.confirm = function()
+  prompts.confirm = function()
     confirms = confirms + 1
     return "Yes"
   end
@@ -262,11 +269,6 @@ T["client.run auth handling"]["should defer setup password errors to client.setu
   eq(1, calls)
   eq(0, confirms)
   eq(0, errors)
-
-  client.cli = orig_cli
-  api.confirm = orig_confirm
-  client.login = orig_login
-  log.error = orig_error
 end
 
 T["client.run_async"] = new_set()

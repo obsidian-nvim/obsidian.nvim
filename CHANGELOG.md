@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Platform, runtime discovery, and prompt helpers have dedicated internal modules. Existing `obsidian.api` calls still work; internal prompts and discovery no longer go through reassignable fields on that table.
 - LSP rename on plain text and other elements no longer renames the current note; `prepareRename` answers "Nothing to rename". Use `:Obsidian rename` to rename the note of the current buffer.
 - `:Obsidian rename [NEWNAME]` renames the note of the current buffer directly, wherever the cursor is, instead of going through LSP.
 
