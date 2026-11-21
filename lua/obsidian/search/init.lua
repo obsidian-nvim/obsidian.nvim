@@ -584,16 +584,7 @@ M.resolve_note = function(query, opts)
   return result or {}
 end
 
----@param document obsidian.parse.Document
----@param ref obsidian.parse.Ref
----@return boolean
-local function ref_is_eligible(document, ref)
-  local origin = Range.new(ref.range.start_row, ref.range.start_col, ref.range.start_row, ref.range.start_col + 1)
-  return not document:intersects(origin, Document.INLINE_EXCLUSIONS)
-    and not document:intersects(ref.range, Document.COMMENTS)
-end
-
--- Gather all unique links from the a note.
+-- Gather all unique links from a note.
 --
 ---@param note obsidian.Note
 ---@return obsidian.search.LinkMatch[]
@@ -608,13 +599,13 @@ M.find_links = function(note)
   local document = Document.parse(lines)
 
   local parse_refs = require "obsidian.parse.refs"
-  for lnum, line in ipairs(lines) do
-    for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1, lexical = true })) do
+  for row = 0, #lines - 1 do
+    for _, ref in ipairs(parse_refs.on_row(document, row)) do
       local link = ref.embed and ref.raw:sub(2) or ref.raw
-      if ref_is_eligible(document, ref) and not found[link] then
+      if not found[link] then
         local match = {
           link = link,
-          line = lnum,
+          line = row + 1,
           start = ref.range.start_col + (ref.embed and 1 or 0),
           ["end"] = ref.range.end_col - 1,
         }
@@ -795,11 +786,11 @@ M.find_backlinks_async = function(note, callback, opts)
     if line_text == nil then
       return
     end
-    for _, ref in ipairs(parse_refs.extract(line_text, { row = row, lexical = true })) do
+    for _, ref in ipairs(parse_refs.on_row(document, row)) do
       local ref_start_1idx = ref.range.start_col + (ref.embed and 2 or 1)
       local ref_start = ref_start_1idx - 1
       local ref_end = ref.range.end_col
-      if ref_is_eligible(document, ref) and _submatch_in_ref(match.submatches, ref_start_1idx, ref_end) then
+      if _submatch_in_ref(match.submatches, ref_start_1idx, ref_end) then
         local matched_anchor = ref.block and ("#^" .. ref.block) or (ref.anchor and ("#" .. ref.anchor) or nil)
         local include = true
         if anchor and note then

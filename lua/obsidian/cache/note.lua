@@ -24,20 +24,14 @@ local function is_cacheable_property(value)
   return true
 end
 
----Extract outgoing links from a single line.
----@param line string
----@param lnum integer  1-based
+---Extract indexable outgoing links on a row.
 ---@param document obsidian.parse.Document
+---@param row integer  0-based
 ---@return table[]
-local function extract_links(line, lnum, document)
+local function extract_links(document, row)
   local out = {}
-  for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1, lexical = true })) do
-    local origin = Range.new(lnum - 1, ref.range.start_col, lnum - 1, ref.range.start_col + 1)
-    if
-      (ref.kind == "wiki" or ref.kind == "markdown")
-      and not document:intersects(origin, Document.INLINE_EXCLUSIONS)
-      and not document:intersects(ref.range, Document.COMMENTS)
-    then
+  for _, ref in ipairs(parse_refs.on_row(document, row)) do
+    if ref.kind == "wiki" or ref.kind == "markdown" then
       out[#out + 1] = {
         kind = ref.kind,
         raw = ref.raw,
@@ -46,7 +40,7 @@ local function extract_links(line, lnum, document)
         anchor = ref.anchor,
         block = ref.block,
         embed = ref.embed,
-        line = lnum,
+        line = row + 1,
         col = ref.range.start_col + 1,
       }
     end
@@ -131,7 +125,7 @@ function M.build(abs_path, _vault_root)
   local tasks = {}
   for i = 1, #lines do
     local line = lines[i] or ""
-    for _, link in ipairs(extract_links(line, i, document)) do
+    for _, link in ipairs(extract_links(document, i - 1)) do
       links_out[#links_out + 1] = link
     end
     local task = parse_tasks.extract(line, { row = i - 1 })[1]

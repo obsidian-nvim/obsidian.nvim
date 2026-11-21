@@ -250,17 +250,9 @@ M.cursor_link = function(bufnr, position)
     local cursor = vim.api.nvim_win_get_cursor(0)
     row, cur_col = cursor[1] - 1, cursor[2]
   end
-  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
   local document = BufferDocument.get(bufnr)
-
-  for _, ref in ipairs(parse_refs.extract(line, { row = row, lexical = true })) do
-    local origin = Range.new(row, ref.range.start_col, row, ref.range.start_col + 1)
-    if
-      ref.range.start_col <= cur_col
-      and cur_col < ref.range.end_col
-      and not document:intersects(origin, Document.INLINE_EXCLUSIONS)
-      and not document:intersects(ref.range, Document.COMMENTS)
-    then
+  for _, ref in ipairs(parse_refs.on_row(document, row)) do
+    if ref.range.start_col <= cur_col and cur_col < ref.range.end_col then
       local link_type = ref.kind
       local link = ref.embed and ref.raw:sub(2) or ref.raw
       local start_col = ref.range.start_col + (ref.embed and 2 or 1)

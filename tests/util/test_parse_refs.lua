@@ -90,6 +90,12 @@ T["extract ignores refs within inline code"] = function()
   eq(Range.new(0, 10, 0, 21), out[1].range)
 end
 
+T["standalone filtering preserves the requested output row"] = function()
+  local out = refs.extract("`[[hidden]]` [[visible]]", { row = 5 })
+  eq(1, #out)
+  eq(Range.new(5, 13, 5, 24), out[1].range)
+end
+
 T["extract supports unfiltered lexical matches"] = function()
   local out = refs.extract("`[[Foo]]`", { row = 2, lexical = true })
   eq(1, #out)

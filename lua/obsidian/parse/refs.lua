@@ -1,3 +1,4 @@
+local Document = require "obsidian.parse.document"
 local Range = require "obsidian.range"
 local link_parser = require "obsidian.link.parser"
 local uri = require "obsidian.uri"
@@ -174,17 +175,10 @@ function M.parse(raw, opts)
   end
 end
 
---- Extract wiki/markdown/footnote refs from a line. By default this applies
---- standalone document filtering; set `opts.lexical` when a full-document
---- consumer will apply filtering against its shared snapshot.
 ---@param line string
----@param opts obsidian.parse.line.LineOpts?
+---@param row integer
 ---@return obsidian.parse.Ref[]
-function M.extract(line, opts)
-  opts = opts or {}
-  local row = opts.row or 0
-  ---@cast row integer
-
+local function extract_lexical(line, row)
   local matches = {}
   for _, pat in ipairs(patterns) do
     local search_start = 1
@@ -209,24 +203,61 @@ function M.extract(line, opts)
     return a.range.start_col < b.range.start_col
   end)
 
-  if opts.lexical then
+  return matches
+end
+
+---@param document obsidian.parse.Document
+---@param row integer Row in the snapshot; may differ from the reported row for isolated text.
+---@param matches obsidian.parse.Ref[]
+---@return obsidian.parse.Ref[]
+local function eligible_refs(document, row, matches)
+  if #matches == 0 then
     return matches
   end
 
-  local Document = require "obsidian.parse.document"
-  local document = Document.parse { line }
   local out = {}
   for _, ref in ipairs(matches) do
-    local local_range = Range.new(0, ref.range.start_col, 0, ref.range.end_col)
-    local origin = Range.new(0, ref.range.start_col, 0, ref.range.start_col + 1)
+    local range = ref.range
+    if range.start_row ~= row then
+      range = Range.new(row, range.start_col, row, range.end_col)
+    end
+    -- A ref may contain inline syntax, but it cannot start in an excluded
+    -- region or span a comment. Frontmatter can contain refs.
+    local origin = Range.new(row, range.start_col, row, range.start_col + 1)
     if
-      not document:intersects(origin, Document.INLINE_EXCLUSIONS)
-      and not document:intersects(local_range, Document.COMMENTS)
+      not document:intersects(origin, Document.INLINE_EXCLUSIONS) and not document:intersects(range, Document.COMMENTS)
     then
       out[#out + 1] = ref
     end
   end
   return out
+end
+
+--- Read references on a zero-based row using the existing document snapshot.
+--- Returns an empty list for a row outside the snapshot.
+---@param document obsidian.parse.Document
+---@param row integer
+---@return obsidian.parse.Ref[]
+function M.on_row(document, row)
+  local line = document.lines[row + 1]
+  if not line then
+    return {}
+  end
+  return eligible_refs(document, row, extract_lexical(line, row))
+end
+
+--- Extract references from isolated text. For a known document use `on_row`.
+--- Set `opts.lexical` to return raw tokens without standalone filtering.
+---@param line string
+---@param opts obsidian.parse.line.LineOpts?
+---@return obsidian.parse.Ref[]
+function M.extract(line, opts)
+  opts = opts or {}
+  local matches = extract_lexical(line, opts.row or 0)
+  if opts.lexical or #matches == 0 then
+    return matches
+  end
+  return eligible_refs(Document.parse { line }, 0, matches)
 end
 
 return M

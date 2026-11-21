@@ -1,7 +1,5 @@
 local BufferDocument = require "obsidian.document"
-local Document = require "obsidian.parse.document"
 local Path = require "obsidian.path"
-local Range = require "obsidian.range"
 local api = require "obsidian.api"
 local log = require "obsidian.log"
 local refs = require "obsidian.parse.refs"
@@ -131,15 +129,10 @@ M.collect_refs = function(bufnr, callback)
   local out = {}
   local own = M.path_key(vim.api.nvim_buf_get_name(bufnr))
   local document = BufferDocument.get(bufnr)
-  for row, line in ipairs(document.lines) do
-    for _, ref in ipairs(refs.extract(line, { row = row - 1, lexical = true })) do
-      local origin = Range.new(row - 1, ref.range.start_col, row - 1, ref.range.start_col + 1)
-      if
-        ref.target == ""
-        and not document:intersects(origin, Document.INLINE_EXCLUSIONS)
-        and not document:intersects(ref.range, Document.COMMENTS)
-      then
-        out[#out + 1] = { path = own, row = row - 1, ref = ref }
+  for row = 0, #document.lines - 1 do
+    for _, ref in ipairs(refs.on_row(document, row)) do
+      if ref.target == "" then
+        out[#out + 1] = { path = own, row = row, ref = ref }
       end
     end
   end
