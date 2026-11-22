@@ -182,7 +182,6 @@ local pick_entries = function(entries, opts)
     query = nil
   end
 
-
   local pick_query = opts.query
   if query and #entries > 0 then
     pick_query = nil
@@ -363,21 +362,12 @@ M.find_notes = function(opts)
 
   ---@type obsidian.picker.Entry[]
   local entries = {}
-  local ignore_case = SearchOpts.should_ignore_case(query)
-  local normalized_query = vim.trim(query)
-  if ignore_case then
-    normalized_query = normalized_query:lower()
-  end
 
   ---@param text string
   ---@param path string
   ---@param attachment boolean
   ---@param missing obsidian.search.Unresolved|?
   local function add_entry(text, path, attachment, missing)
-    local haystack = ignore_case and text:lower() or text
-    if normalized_query ~= "" and not haystack:find(normalized_query, 1, true) then
-      return
-    end
     entries[#entries + 1] = {
       text = text,
       filename = path,

@@ -777,7 +777,6 @@ local function process_search_results(cc, results)
   }
 end
 
-
 ---@param completion_resolve_callback function
 ---@param request obsidian.completion.Request
 function M.process_completion(completion_resolve_callback, request)
@@ -816,13 +815,19 @@ function M.process_completion(completion_resolve_callback, request)
     process_search_results(cc, { note })
   else
     local source_path = vim.api.nvim_buf_get_name(cc.request.bufnr)
-    search.find_notes_async("", function(results)
+    local dir = api.resolve_workspace_dir(source_path)
+    local finish = function(results)
       process_search_results(cc, results)
-    end, {
-      dir = api.resolve_workspace_dir(source_path),
-      sort_by = false,
-      collect = { headings = cc.anchor_link ~= nil, blocks = cc.block_link ~= nil },
-    })
+    end
+    if cc.anchor_link ~= nil or cc.block_link ~= nil then
+      search.find_notes_async("", finish, {
+        dir = dir,
+        sort_by = false,
+        collect = { headings = cc.anchor_link ~= nil, blocks = cc.block_link ~= nil },
+      })
+    else
+      search._list_notes_async(finish, { dir = dir, sort_by = false })
+    end
   end
 end
 

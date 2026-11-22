@@ -83,6 +83,32 @@ local function dispatch_async(method, term, opts, callback)
   end)
 end
 
+---List metadata-only notes using the cache backend when possible, otherwise the filesystem backend.
+---This is intended for consumers such as completion that need every note identity
+---without paying to hydrate heading and block structures.
+---@param callback fun(notes: obsidian.Note[])
+---@param opts obsidian.search.ListNotesOpts|?
+M._list_notes_async = function(callback, opts)
+  callback = vim.schedule_wrap(callback)
+  opts = opts or {}
+  opts.dir = opts.dir or api.resolve_workspace_dir()
+  if not cache_can_search(opts.dir) then
+    Filesystem._list_notes_async(callback, opts)
+    return
+  end
+
+  local cache = require "obsidian.cache"
+  cache.when_ready(function()
+    local ok, notes = pcall(cache._list_notes, opts)
+    if ok then
+      callback(notes)
+    else
+      log.err("Failed to list notes: %s", notes)
+      callback {}
+    end
+  end)
+end
+
 ---Find notes using the cache backend when possible, otherwise the filesystem backend.
 ---@param term string
 ---@param callback fun(notes: obsidian.Note[], unresolved: obsidian.search.Unresolved[]?)
@@ -344,40 +370,6 @@ local function ref_is_eligible(document, ref)
   local origin = Range.new(ref.range.start_row, ref.range.start_col, ref.range.start_row, ref.range.start_col + 1)
   return not document:intersects(origin, Document.INLINE_EXCLUSIONS)
     and not document:intersects(ref.range, Document.COMMENTS)
-end
-
--- Gather all unique links from the a note.
---
----@param note obsidian.Note
----@return obsidian.search.LinkMatch[]
-M.find_links = function(note)
-  local matches = {}
-  ---@type table<string, boolean>
-  local found = {}
-  local lines = {}
-  for line in io.lines(tostring(note.path)) do
-    lines[#lines + 1] = line:gsub("\r$", "")
-  end
-  local document = Document.parse(lines)
-
-  local parse_refs = require "obsidian.parse.refs"
-  for lnum, line in ipairs(lines) do
-    for _, ref in ipairs(parse_refs.extract(line, { row = lnum - 1, lexical = true })) do
-      local link = ref.embed and ref.raw:sub(2) or ref.raw
-      if ref_is_eligible(document, ref) and not found[link] then
-        local match = {
-          link = link,
-          line = lnum,
-          start = ref.range.start_col + (ref.embed and 1 or 0),
-          ["end"] = ref.range.end_col - 1,
-        }
-        matches[#matches + 1] = match
-        found[link] = true
-      end
-    end
-  end
-
-  return matches
 end
 
 ---@param refs string[]
@@ -869,7 +861,7 @@ end
 --- An async version of 'find_tags()'.
 ---@param term string|string[] The search term.
 ---@param callback fun(tags: obsidian.search.TagLocation[])
----@param opts { dir: obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
+---@param opts { dir: string|obsidian.Path|?, match: "exact"|"subtree"|"prefix"|? }|?
 M.find_tags_async = function(term, callback, opts)
   callback = vim.schedule_wrap(callback)
   opts = opts or {}

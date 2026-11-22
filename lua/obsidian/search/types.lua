@@ -53,24 +53,30 @@
 ---@field max_count_per_file integer|?
 ---@field escape_path boolean|?
 ---@field include_non_markdown boolean|?
+---@field include_templates boolean|? Internal: include template files in backend enumeration.
 
 ---@class obsidian.search.NoteCollectOpts
 ---@field headings boolean|? Include parsed headings and anchors on returned notes.
 ---@field blocks boolean|? Include parsed block IDs and block candidates on returned notes.
 
----@class obsidian.search.FindNotesOpts: obsidian.search.SortOpts
+---@class obsidian.search.ListNotesOpts: obsidian.search.SortOpts
 ---
 ---@field dir string|obsidian.Path|?
+
+---@class obsidian.search.FindNotesOpts: obsidian.search.ListNotesOpts
+---
 ---@field collect obsidian.search.NoteCollectOpts|? Additional parsed domains to return beyond those selected by `match`.
 ---@field match obsidian.search.NoteMatchOpts|?
 ---@field ignore_case boolean|? Override the editor's `ignorecase` and `smartcase` settings.
 ---@field include_unresolved boolean|? Also return unresolved note targets as the second result.
+---@field include_templates boolean|? Internal: include templates when building a complete target lookup.
 ---@field timeout integer|?
 
 ---@class obsidian.search.FindAttachmentsOpts: obsidian.search.SortOpts
 ---
 ---@field dir string|obsidian.Path|?
 ---@field include_unresolved boolean|? Also return unresolved attachment targets as the second result.
+---@field include_templates boolean|? Internal: include templates when building a complete target lookup.
 ---@field timeout integer|?
 
 ---@class obsidian.search.MatchText

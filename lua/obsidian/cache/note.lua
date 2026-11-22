@@ -123,25 +123,6 @@ function M.build(abs_path, _vault_root)
     end
   end
 
-  local blocks_search = {}
-  local blocks_seen = {}
-  local function add_block_search(value)
-    value = vim.trim(value or "")
-    if value ~= "" and not blocks_seen[value] then
-      blocks_search[#blocks_search + 1] = value
-      blocks_seen[value] = true
-    end
-  end
-  for id, block in pairs(note.blocks or {}) do
-    add_block_search(id)
-    add_block_search(block.block)
-  end
-  for _, section in ipairs(note.block_candidates or {}) do
-    add_block_search(
-      table.concat(vim.list_slice(note.contents, section.range.start_row + 1, section.range.end_row), "\n")
-    )
-  end
-
   local block_candidates = {}
   local block_candidate_indexes = {}
   for idx, section in ipairs(note.block_candidates or {}) do
@@ -213,9 +194,6 @@ function M.build(abs_path, _vault_root)
   end
   if #links_out > 0 then
     row.links_out = links_out
-  end
-  if #blocks_search > 0 then
-    row.blocks_search = blocks_search
   end
   if next(blocks) ~= nil then
     row.blocks = blocks

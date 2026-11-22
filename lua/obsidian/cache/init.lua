@@ -11,6 +11,7 @@ local ignore = require "obsidian.ignore"
 
 local M = {}
 local cache_api = require "obsidian.cache.api"
+M._list_notes = cache_api._list_notes
 M.find_notes = cache_api.find_notes
 M.find_attachments = cache_api.find_attachments
 
@@ -38,7 +39,6 @@ M.find_attachments = cache_api.find_attachments
 ---@field tags? string[]
 ---@field properties? table<string, any>
 ---@field headings? obsidian.cache.HeadingRow[]
----@field blocks_search? string[]
 ---@field blocks? table<string, obsidian.cache.BlockRow>
 ---@field block_candidates? obsidian.cache.SectionRow[]
 ---@field checksum string
@@ -559,7 +559,6 @@ function M.notes.backlink_count(note)
   end
   return count
 end
-
 
 ---Find cached headings whose original text or normalized anchor contains `query`.
 ---@param query string?

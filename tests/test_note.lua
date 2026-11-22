@@ -66,7 +66,6 @@ T["from_cache"]["hydrates structured cache fields"] = function()
       { anchor = "#parent", header = "Parent", level = 1, line = 3 },
       { anchor = "#child", header = "Child", level = 2, line = 5 },
     },
-    blocks_search = { "^block-id", "Block text" },
     blocks = {
       ["^block-id"] = {
         id = "^block-id",
@@ -85,10 +84,12 @@ T["from_cache"]["hydrates structured cache fields"] = function()
       },
     },
     checksum = "cached-checksum",
-    links_out = { { target = "Other" } },
-    tasks = { { line = 7, text = "Task" } },
   }
-  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", row)
+  local note = M.from_cache(Obsidian.dir / "missing" / "note.md", row, {
+    collect_anchor_links = true,
+    collect_blocks = true,
+    collect_block_candidates = true,
+  })
 
   eq(2, #note.sections)
   eq("Parent", note.sections[1].header)
@@ -96,15 +97,11 @@ T["from_cache"]["hydrates structured cache fields"] = function()
   eq(note.sections[1], note.sections[2].parent)
   eq("Parent", note:resolve_anchor_link("#parent").header)
   eq("Child", note:resolve_anchor_link("#parent#child").header)
-  eq(row.headings, note.headings)
-  eq(row.blocks_search, note.blocks_search)
   eq({ "Block text ^block-id" }, note.block_candidates[1].cached_contents)
   eq(note.block_candidates[1], note:resolve_block("^block-id").section)
   eq("cached-checksum", note.cache_checksum)
-  eq(row.links_out, note.links_out)
-  eq(row.tasks, note.tasks)
 
-  note.headings[1].header = "Edited"
+  note.sections[1].header = "Edited"
   eq("Parent", row.headings[1].header)
 end
 

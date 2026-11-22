@@ -33,6 +33,13 @@ local function matching_root(dir)
   return resolved_dir
 end
 
+---List notes without collecting headings or blocks.
+---@param callback fun(notes: obsidian.Note[])
+---@param opts obsidian.search.ListNotesOpts|?
+M._list_notes_async = function(callback, opts)
+  return M.find_notes_async("", callback, opts)
+end
+
 ---Find notes by structured identity, heading, or block fields.
 ---@param term string
 ---@param callback fun(notes: obsidian.Note[], unresolved: obsidian.search.Unresolved[]?)
@@ -55,6 +62,7 @@ M.find_notes_async = function(term, callback, opts)
       sort_by = opts.sort_by,
       sort_reversed = opts.sort_reversed,
       include_non_markdown = false,
+      include_templates = opts.include_templates,
     }, function(path)
       paths_found[#paths_found + 1] = path
     end)
@@ -128,6 +136,7 @@ local find_attachments_async = function(term, callback, opts)
     sort_by = opts.sort_by,
     sort_reversed = opts.sort_reversed,
     include_non_markdown = true,
+    include_templates = opts.include_templates,
   }, function(path)
     if filetypes.is_attachment(path) then
       local rel = fs_util.relpath(root, path) or path
@@ -152,7 +161,8 @@ find_unresolved = function(term, dir)
   local scope = tostring(Path.new(dir):resolve { strict = true })
   local root = matching_root(scope)
   local notes = async.await(2, M.find_notes_async, "", nil, { dir = root })
-  local attachments = async.await(2, find_attachments_async, "", nil, { dir = root })
+  local known_notes = async.await(2, M.find_notes_async, "", nil, { dir = root, include_templates = true })
+  local attachments = async.await(2, find_attachments_async, "", nil, { dir = root, include_templates = true })
   local note_paths = {}
   for _, note in ipairs(notes) do
     local path = tostring(note.path)
@@ -213,6 +223,9 @@ find_unresolved = function(term, dir)
     root = root,
     scope = scope,
     notes = sources,
+    targets = vim.tbl_map(function(note)
+      return { path = tostring(note.path), aliases = note.aliases }
+    end, known_notes),
     attachments = attachments,
   })
 end

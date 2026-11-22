@@ -15,17 +15,6 @@ local function search_max_lines()
   return configured or DEFAULT_MAX_LINES
 end
 
----@param values string[]
----@param seen table<string, boolean>
----@param value string?
-local function add_unique(values, seen, value)
-  value = vim.trim(value or "")
-  if value ~= "" and not seen[value] then
-    values[#values + 1] = value
-    seen[value] = true
-  end
-end
-
 ---@param row obsidian.cache.RangeRow
 ---@return obsidian.cache.RangeRow
 local function copy_range(row)
@@ -76,6 +65,7 @@ local function limit_structured_row(row, opts)
           line = candidate.line,
         }
         local line_count = math.max(max_lines - candidate.range.start_row, 0)
+        ---@cast line_count integer
         if candidate.contents then
           copy.contents = vim.list_slice(candidate.contents, 1, line_count)
         end
@@ -97,17 +87,6 @@ local function limit_structured_row(row, opts)
       end
     end
     limited.blocks = blocks
-
-    local blocks_search = {}
-    local seen = {}
-    for id, block in pairs(blocks) do
-      add_unique(blocks_search, seen, id)
-      add_unique(blocks_search, seen, block.block)
-    end
-    for _, candidate in ipairs(candidates) do
-      add_unique(blocks_search, seen, table.concat(candidate.contents or {}, "\n"))
-    end
-    limited.blocks_search = blocks_search
   end
   return limited
 end
@@ -162,21 +141,53 @@ end
 local function find_unresolved(term, dir)
   local cache = require "obsidian.cache"
   local notes = {}
+  local targets = {}
   for path, row in pairs(cache.notes.all()) do
-    notes[#notes + 1] = {
-      path = path,
-      aliases = row.aliases,
-      links = row.links_out,
-      searchable = not path_is_template(path, dir),
-    }
+    targets[#targets + 1] = { path = path, aliases = row.aliases }
+    if not path_is_template(path, dir) then
+      notes[#notes + 1] = {
+        path = path,
+        aliases = row.aliases,
+        links = row.links_out,
+      }
+    end
   end
   local attachments = vim.tbl_keys(cache.attachments.all())
   return unresolved.collect(term, {
     root = vim.fs.normalize(tostring(Obsidian.dir)),
     scope = dir,
     notes = notes,
+    targets = targets,
     attachments = attachments,
   })
+end
+
+---List cached notes as metadata-only Note objects.
+---The cache must be ready before calling this function.
+---@param opts obsidian.search.ListNotesOpts|?
+---@return obsidian.Note[] notes
+M._list_notes = function(opts)
+  local cache = require "obsidian.cache"
+  assert(cache.is_ready(), "cache not ready")
+  opts = opts or {}
+  local dir = vim.fs.normalize(tostring(opts.dir or Obsidian.dir))
+  local backend_opts = SearchOpts.resolve(dir, {
+    sort_by = opts.sort_by,
+    sort_reversed = opts.sort_reversed,
+  })
+  local rows = cache.notes.all()
+  local paths = {}
+  for path in pairs(rows) do
+    if fs_util.is_subpath(path, dir) and not path_is_template(path, dir) then
+      paths[#paths + 1] = path
+    end
+  end
+  sort_cached_paths(paths, rows, backend_opts)
+
+  local Note = require "obsidian.note"
+  return vim.tbl_map(function(path)
+    return Note.from_cache(path, rows[path], {})
+  end, paths)
 end
 
 ---Find existing cached notes using the same structured domains as search.find_notes().
@@ -217,11 +228,12 @@ M.find_notes = function(term, opts)
   sort_cached_paths(paths, rows, backend_opts)
 
   local Note = require "obsidian.note"
+  local parse_opts = note_matcher.parse_opts(opts)
   local notes = {}
   local first_err, first_err_path
   local err_count = 0
   for _, path in ipairs(paths) do
-    local ok, note = pcall(Note.from_cache, path, selected_rows[path])
+    local ok, note = pcall(Note.from_cache, path, selected_rows[path], parse_opts)
     if ok then
       notes[#notes + 1] = note
     elseif not ok then

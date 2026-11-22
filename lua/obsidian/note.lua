@@ -83,11 +83,7 @@ end
 ---@field blocks table<string, obsidian.note.Block>?
 ---@field block_candidates obsidian.Section[]|? paragraphs that can receive block identifiers.
 ---@field sections obsidian.Section[]|? document-ordered sections, the first one is always the preamble.
----@field headings obsidian.cache.HeadingRow[]|? cached heading rows.
----@field blocks_search string[]|? cached searchable block values.
----@field links_out table[]|? cached outgoing links.
----@field tasks table[]|? cached task rows.
----@field cache_checksum string|? checksum of normalized cached contents.
+---@field cache_checksum string|? checksum of normalized cached contents used by block search.
 ---@field alt_alias string|?
 ---@field bufnr integer|?
 ---@field template string|? Template name carried by the note. Used as the default `template` for `note:write` when no explicit value is passed.
@@ -1015,11 +1011,12 @@ local function section_from_cache(row)
   }
 end
 
----@param note obsidian.Note
 ---@param rows obsidian.cache.HeadingRow[]
-local function hydrate_cached_headings(note, rows)
-  note.sections = {}
-  note.anchor_links = {}
+---@return obsidian.Section[] sections
+---@return table<string, obsidian.note.HeaderAnchor> anchor_links
+local function hydrate_cached_headings(rows)
+  local sections = {}
+  local anchor_links = {}
   ---@type table<integer, obsidian.note.HeaderAnchor>
   local parents = {}
   local max_level = 0
@@ -1036,8 +1033,8 @@ local function hydrate_cached_headings(note, rows)
     section.parent = parent and parent.section or nil
 
     local anchor = new_header_anchor(section, parent)
-    note.sections[#note.sections + 1] = section
-    note.anchor_links[anchor.anchor] = anchor
+    sections[#sections + 1] = section
+    anchor_links[anchor.anchor] = anchor
     for level = row.level, max_level do
       parents[level] = nil
     end
@@ -1051,18 +1048,20 @@ local function hydrate_cached_headings(note, rows)
         nested_anchor = current.anchor .. nested_anchor
         current = current.parent
       end
-      note.anchor_links[nested_anchor] = new_header_anchor(section, parent, nested_anchor)
+      anchor_links[nested_anchor] = new_header_anchor(section, parent, nested_anchor)
     end
   end
+  return sections, anchor_links
 end
 
 --- Initialize a note from a cache row without reading the file.
 ---
 ---@param path string|obsidian.Path
 ---@param row obsidian.cache.NoteRow
+---@param opts obsidian.note.LoadOpts|?
 ---
 ---@return obsidian.Note
-Note.from_cache = function(path, row)
+Note.from_cache = function(path, row, opts)
   path = Path.new(path)
   local metadata = vim.deepcopy(row.properties or {})
   metadata.id = metadata.id or row.id
@@ -1070,28 +1069,39 @@ Note.from_cache = function(path, row)
   metadata.tags = metadata.tags or vim.deepcopy(row.tags or {})
   local note = Note.new(nil, nil, nil, path)
   note.metadata = metadata
-  note.headings = vim.deepcopy(row.headings or {})
-  note.blocks_search = vim.deepcopy(row.blocks_search or {})
-  note.links_out = vim.deepcopy(row.links_out or {})
-  note.tasks = vim.deepcopy(row.tasks or {})
-  note.cache_checksum = row.checksum
-  hydrate_cached_headings(note, note.headings)
+  opts = opts or {}
 
-  note.block_candidates = {}
-  for _, candidate in ipairs(row.block_candidates or {}) do
-    note.block_candidates[#note.block_candidates + 1] = section_from_cache(candidate)
+  if opts.collect_sections or opts.collect_anchor_links then
+    local sections, anchor_links = hydrate_cached_headings(row.headings or {})
+    note.sections = sections
+    if opts.collect_anchor_links then
+      note.anchor_links = anchor_links
+    end
   end
 
-  note.blocks = {}
-  for id, block in pairs(row.blocks or {}) do
-    local section = block.candidate and note.block_candidates[block.candidate]
-      or (block.section and section_from_cache(block.section) or nil)
-    note.blocks[id] = {
-      id = block.id,
-      line = block.line,
-      block = block.block,
-      section = section,
-    }
+  if opts.collect_blocks or opts.collect_block_candidates then
+    local candidates = {}
+    for _, candidate in ipairs(row.block_candidates or {}) do
+      candidates[#candidates + 1] = section_from_cache(candidate)
+    end
+    if opts.collect_block_candidates then
+      note.block_candidates = candidates
+    end
+
+    if opts.collect_blocks then
+      note.blocks = {}
+      for id, block in pairs(row.blocks or {}) do
+        local section = block.candidate and candidates[block.candidate]
+          or (block.section and section_from_cache(block.section) or nil)
+        note.blocks[id] = {
+          id = block.id,
+          line = block.line,
+          block = block.block,
+          section = section,
+        }
+      end
+    end
+    note.cache_checksum = row.checksum
   end
   return note
 end

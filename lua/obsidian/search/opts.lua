@@ -43,14 +43,14 @@ M.resolve = function(dir, opts)
   end
 
   local templates_dir = workspace and api.templates_dir(workspace) or nil
-  if templates_dir ~= nil then
+  if not opts.include_templates and templates_dir ~= nil then
     local relative = fs_util.relpath(tostring(dir), tostring(templates_dir))
     if relative == "." then
       add_exclude(opts, "**")
     elseif relative ~= nil and not vim.startswith(relative, "..") then
       add_exclude(opts, relative)
     end
-  elseif workspace_opts.templates and workspace_opts.templates.folder then
+  elseif not opts.include_templates and workspace_opts.templates and workspace_opts.templates.folder then
     add_exclude(opts, tostring(workspace_opts.templates.folder))
   end
 

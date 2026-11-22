@@ -95,9 +95,6 @@ end
 ---@return string[]
 local function block_values(source)
   local values = {}
-  for _, value in ipairs(source.blocks_search or {}) do
-    add(values, value)
-  end
   for id, block in pairs(source.blocks or {}) do
     add(values, id)
     add(values, block.id)

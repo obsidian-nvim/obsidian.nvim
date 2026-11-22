@@ -15,7 +15,7 @@ aliases:
 Block target ^block-id
 ]==],
     ["Body.md"] = "body-only phrase",
-    ["Source.md"] = "[[Missing]]\n![[Missing.pdf]]",
+    ["Source.md"] = "[[Missing]]\n![[Missing.pdf]]\n[[Template]]\n![[Template-image.png]]",
     ["templates/Template.md"] = "---\naliases:\n  - Friendly Name\n---\n[[Template Missing]]",
     ["templates/Template-image.png"] = "template image",
     ["Image.PNG"] = "image",
@@ -170,6 +170,39 @@ return value
   ]==]
 
   eq({ heading = "Alpha", block = "Alpha" }, result)
+end
+
+T["cached note listing hydrates metadata only"] = function()
+  h.child_mock_vault_contents(child, {
+    ["Alpha.md"] = "# HTTP API\nBlock target ^block-id",
+  })
+  h.child_setup_cache(child)
+
+  local result = child.lua [[
+local async = require "obsidian.async"
+local search = require "obsidian.search"
+local notes = async.block_on(function(done)
+  search._list_notes_async(done, { sort_by = false })
+end, 1000)
+local note = assert(notes[1])
+return {
+  id = note.id,
+  sections = note.sections ~= nil,
+  anchors = note.anchor_links ~= nil,
+  blocks = note.blocks ~= nil,
+  candidates = note.block_candidates ~= nil,
+  checksum = note.cache_checksum ~= nil,
+}
+  ]]
+
+  eq({
+    id = "Alpha",
+    sections = false,
+    anchors = false,
+    blocks = false,
+    candidates = false,
+    checksum = false,
+  }, result)
 end
 
 T["resolve_note remains case insensitive when ignorecase is disabled"] = function()

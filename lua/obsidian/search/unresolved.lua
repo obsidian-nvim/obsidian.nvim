@@ -88,12 +88,12 @@ end
 
 ---Partition unresolved link targets into note and attachment primitives.
 ---@param term string
----@param opts { root: string, scope: string, notes: obsidian.search.UnresolvedNoteSource[], attachments: string[] }
+---@param opts { root: string, scope: string, notes: obsidian.search.UnresolvedNoteSource[], targets: obsidian.search.UnresolvedNoteSource[]?, attachments: string[] }
 ---@return obsidian.search.Unresolved[] notes
 ---@return obsidian.search.Unresolved[] attachments
 M.collect = function(term, opts)
   local lookup = {}
-  for _, note in ipairs(opts.notes) do
+  for _, note in ipairs(opts.targets or opts.notes) do
     add_lookup_path(note.path, opts.root, lookup)
     for _, alias in ipairs(note.aliases or {}) do
       lookup[alias:lower()] = true

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Follow `obsidian://` Markdown links and autolinks inside Neovim through link navigation. Supports `open`, `new`, `daily`, `unique`, `search`, and `choose-vault`, including heading/block targets, section content insertion, and tab/split opening. File-modifying links require confirmation by default; URI targets stay inside configured workspaces. See [Navigation](docs/Navigation.md#obsidian-uri-links).
 - Shared note APIs for whole-body and descendant-section insertion, explicit spacing modes, case-insensitive heading selection, exact-path creation, and noninteractive filename validation. URI actions reuse these APIs rather than maintaining a separate editing implementation.
 - JXL/JPEG XL Support.
+- Native filesystem fallback for file search when `ripgrep` is unavailable or fails.
+- `search.find_notes()` and `search.find_attachments()` can optionally return unresolved targets as a second result.
 
 ### Fixed
 
@@ -21,12 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSP rename (`vim.lsp.buf.rename()`) renames block ids, headings (ATX and setext, with the links naming them), footnotes, tags (inline and in the frontmatter, with their subtags; renaming onto an existing tag merges them) and attachments (the file and every reference) under the cursor.
 - Escape the alias pipe (`[[Note\|alias]]`) when a link is inserted into a table row, so the link no longer splits the cell.
 - telescope.nvim file selection actions for Obsidian entries.
+- Cache and filesystem searches agree on case sensitivity, sorting, workspace boundaries, ignore filters, template handling, and subdirectory paths.
+- Cache metadata is rebuilt when required for the expanded search index.
 
 ### Changed
 
 - LSP command dispatch exposes only commands used by built-in code actions, completion, and inlay hints, plus registered custom handlers. Lua actions remain callable directly from Lua.
 - LSP rename on plain text and other elements no longer renames the current note; `prepareRename` answers "Nothing to rename". Use `:Obsidian rename` to rename the note of the current buffer.
 - `:Obsidian rename [NEWNAME]` renames the note of the current buffer directly, wherever the cursor is, instead of going through LSP.
+- Search shares structured matching semantics across the cache and filesystem backends, including note IDs, aliases, paths, headings, anchors, block IDs, and block content.
+- Quick switch and note pickers compose note and attachment searches, with optional unresolved links.
+- `search.max_lines` is applied consistently when loading notes; set it to `vim.NIL` for unlimited parsing.
 
 ## [v3.16.10](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.10) - 2026-10-28
 
@@ -38,10 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `search.find_blocks_async()` for finding existing and unlabeled block-reference candidates.
 - Code action `link_suggestions` ("List unlinked outgoing mentions") - select an unlinked target note, then select locations in the current buffer to convert them to links. Scanning skips existing links, code blocks, inline code, frontmatter, tags, and URLs. Requires cache.
 - Code action `backlink_suggestions` ("List unlinked incoming mentions") - find unlinked plain-text mentions of the current note (by title or alias) across the vault and convert them to links. Requires cache.
-- `search.find_refs()` and `search.find_refs_async()` for searching typed note, attachment, and unresolved-link references.
-- `picker.find_refs()` and `picker.pick_refs()` for presenting and acting on those references.
-- Native filesystem fallback for file search when `ripgrep` is unavailable or fails.
-- `search.find_notes()` and `search.find_attachments()` can optionally return unresolved targets as a second result
 
 ### Changed
 
@@ -49,9 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cache inlay hints in memory for performance.
 - Build vault-wide block and tag indexes lazily in memory, update them after file changes, and share buffer-aware cache lifecycle handling across parsed documents, inlay hints, and link-suggestion symbols.
 - Actions `link` and `link_new` actions now run in normal mode, using current word or link suggestions under the cursor.
-- Search now shares structured matching semantics across the cache and filesystem backends, including note IDs, aliases, paths, headings, anchors, block IDs, and block content.
-- Quick switch and note pickers now compose note and attachment searches, with optional unresolved links.
-- `search.max_lines` is applied consistently when loading notes; set it to `nil` for unlimited parsing.
 
 ### Fixed
 
@@ -59,8 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Note navigation when note is resolved, but failed to resolve section suffixes like `#heaing` and `#^block_id` will not prompt to create note.
 - Following a block link such as `[[note#^id]]` to a list item now lands on that item instead of the first item of the whole list. Block IDs in lists, quotes, and tables now resolve to the same boundaries as block completion.
 - `:Obsidian paste_img` reports a missing clipboard tool (such as `pngpaste`) instead of saying the clipboard has no image.
-- Cache and filesystem searches now agree on case sensitivity, sorting, workspace boundaries, ignore filters, template exclusion, and subdirectory paths.
-- Cache metadata is rebuilt when required for the expanded search index.
 
 ## [v3.16.9](https://github.com/obsidian-nvim/obsidian.nvim/releases/tag/v3.16.9) - 2026-10-13
 

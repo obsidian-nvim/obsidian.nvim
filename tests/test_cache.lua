@@ -38,7 +38,7 @@ T["json backend"]["persists schema v2 entries"] = function()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
   eq(2, decoded.schema_version)
-  eq(6, decoded.indexer_version)
+  eq(7, decoded.indexer_version)
   eq(vault, decoded.vault)
   eq("note", decoded.entries[note_path].kind)
   eq(nil, decoded.notes)
@@ -69,12 +69,12 @@ T["json backend"]["rebuilds incompatible cache envelopes"] = function()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
   eq(2, decoded.schema_version)
-  eq(6, decoded.indexer_version)
+  eq(7, decoded.indexer_version)
   eq(nil, decoded.version)
   eq(nil, decoded.notes)
 end
 
-T["json backend"]["rebuilds version 5 indexes without block metadata"] = function()
+T["json backend"]["rebuilds version 6 indexes without block metadata"] = function()
   local dir = Path.temp { suffix = "-obsidian-cache-json" }
   dir:mkdir { parents = true }
   Obsidian = { dir = dir }
@@ -84,7 +84,7 @@ T["json backend"]["rebuilds version 5 indexes without block metadata"] = functio
   vim.fn.writefile({
     vim.json.encode {
       schema_version = 2,
-      indexer_version = 5,
+      indexer_version = 6,
       vault = vault,
       entries = {
         [note_path] = {
@@ -100,7 +100,7 @@ T["json backend"]["rebuilds version 5 indexes without block metadata"] = functio
   backend:flush()
 
   local decoded = vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
-  eq(6, decoded.indexer_version)
+  eq(7, decoded.indexer_version)
 end
 
 T["cache backends"]["uses a registered backend by name"] = function()

@@ -63,4 +63,36 @@ T["find_notes respects ignorecase for the initial query"] = function()
   vim.api.nvim_buf_delete(preview.buf, { force = true })
 end
 
+T["find_notes keeps notes matched by custom ID"] = function()
+  local dir = Path.temp { suffix = "-obsidian-picker-id" }
+  dir:mkdir { parents = true }
+  h.write("---\nid: customer-record\n---\n# Alice", dir / "Alice.md")
+  Obsidian = { dir = dir }
+
+  local cache = require "obsidian.cache"
+  cache.setup { enabled = true, backend = "memory" }
+  vim.wait(1000, function()
+    return cache.is_ready()
+  end)
+
+  local picked_values
+  local original_select = picker.select
+  picker.select = function(values)
+    picked_values = values
+  end
+
+  picker.find_notes {
+    query = "customer-record",
+    no_default_mappings = true,
+  }
+  vim.wait(1000, function()
+    return picked_values ~= nil
+  end)
+
+  picker.select = original_select
+  cache.shutdown()
+  eq(1, #picked_values)
+  eq("Alice", picked_values[1].text)
+end
+
 return T
