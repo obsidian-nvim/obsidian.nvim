@@ -1,5 +1,6 @@
 local api = require "obsidian.api"
 local actions = require "obsidian.actions"
+local navigation = require "obsidian.navigation"
 local util = require "obsidian.util"
 local Path = require "obsidian.path"
 local Note = require "obsidian.note"
@@ -65,11 +66,11 @@ local function bufenter_callback(ev)
     vim.keymap.set("n", "<C-x>", actions.decrement, { expr = true, buffer = true, desc = "Obsidian Decrement" })
 
     vim.keymap.set("n", "]o", function()
-      actions.nav_link("next", true)
+      navigation.nav_link("next", true)
     end, { buffer = true, desc = "Obsidian Next Link" })
 
     vim.keymap.set("n", "[o", function()
-      actions.nav_link("prev", true)
+      navigation.nav_link("prev", true)
     end, { buffer = true, desc = "Obsidian Previous Link" })
   end
 

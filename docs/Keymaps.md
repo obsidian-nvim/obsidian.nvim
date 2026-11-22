@@ -74,9 +74,6 @@ The plugin provides the following remappable functions:
   - Scrolls a note embed under the cursor up; otherwise behaves like `<C-a>`
 - `decrement`
   - Scrolls a note embed under the cursor down; otherwise behaves like `<C-x>`
-- `nav_link ["next"|"prev"] [include_hints]`
-  - Will navigate cursor to the next valid link in the buffer
-  - If `include_hints` is `true` and the cache is enabled, link suggestion hints are included
 - `set_checkbox [state]`
   - If cursor is on a checkbox, set the state to the parameter given
   - If cursor is on a checkbox and no parameter was given, set the state to the next input
@@ -89,6 +86,10 @@ The plugin provides the following remappable functions:
 
 For their implementation, see [obsidian.nvim/lua/obsidian/actions.lua at main · obsidian-nvim/obsidian.nvim](https://github.com/obsidian-nvim/obsidian.nvim/blob/main/lua/obsidian/actions.lua)
 
+## Link navigation
+
+Use `require("obsidian.navigation").nav_link("next")` or `nav_link("prev")` to move between links. Pass `true` as the second argument to include link suggestion hints when the cache is enabled.
+
 Example with remapping `nav_link`:
 
 ```lua
@@ -96,12 +97,13 @@ require("obsidian").setup {
   callbacks = {
     enter_note = function(note)
       local actions = require "obsidian.actions"
+      local navigation = require "obsidian.navigation"
       vim.keymap.set("n", "<leader>;", actions.add_property, { buffer = true, desc = "Add frontmatter property" })
       vim.keymap.set("n", "<Tab>", function()
-        actions.nav_link "next"
+        navigation.nav_link "next"
       end, { buffer = true, desc = "Go to next link" })
       vim.keymap.set("n", "<S-Tab>", function()
-        actions.nav_link "prev"
+        navigation.nav_link "prev"
       end, { buffer = true, desc = "Go to previous link" })
     end,
   },

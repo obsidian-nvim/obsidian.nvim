@@ -405,10 +405,10 @@ C["follow_link opens headings and blocks internally"] = function()
     vim.ui.open = function()
       external = external + 1
     end
-    local actions = require "obsidian.actions"
-    actions.follow_link()
+    local navigation = require "obsidian.navigation"
+    navigation.follow_link()
     local heading = vim.api.nvim_win_get_cursor(0)[1]
-    actions.follow_link "<obsidian://open?file=Target%23%5Eblock>"
+    navigation.follow_link "<obsidian://open?file=Target%23%5Eblock>"
     return { vim.api.nvim_buf_get_name(0) == tostring(target), heading, vim.api.nvim_win_get_cursor(0)[1], external }
   ]]
   eq({ true, 2, 3, 0 }, result)
@@ -428,14 +428,14 @@ C["follow_link confirms writes and preserves encoded content"] = function()
     vim.ui.open = function()
       external = external + 1
     end
-    local actions = require "obsidian.actions"
-    actions.follow_link "[Capture](obsidian://new?file=Captured&content=a%26b%3Dc&silent)"
+    local navigation = require "obsidian.navigation"
+    navigation.follow_link "[Capture](obsidian://new?file=Captured&content=a%26b%3Dc&silent)"
     local content = vim.fn.readfile(tostring(Obsidian.dir / "Captured.md"))
     api.confirm = function()
       prompts = prompts + 1
       return "No"
     end
-    actions.follow_link "[Blocked](obsidian://new?vault=missing&file=Blocked&content=nope&silent)"
+    navigation.follow_link "[Blocked](obsidian://new?vault=missing&file=Blocked&content=nope&silent)"
     return {
       content, prompts, external,
       (Obsidian.dir / "Blocked.md"):exists(),
@@ -457,7 +457,7 @@ C["follow_link confirms open overwrite before modifying"] = function()
       prompts = prompts + 1
       return "No"
     end
-    require("obsidian.actions").follow_link "<obsidian://open?file=Target&overwrite&content=new>"
+    require("obsidian.navigation").follow_link "<obsidian://open?file=Target&overwrite&content=new>"
     return { prompts, vim.fn.readfile(tostring(target)) }
   ]]
   eq({ 1, { "old" } }, result)
@@ -476,9 +476,9 @@ C["search and workspace URIs use internal pickers through navigation"] = functio
     vim.ui.open = function()
       external = external + 1
     end
-    local actions = require "obsidian.actions"
-    actions.follow_link "[Search](obsidian://search?query=a%26b)"
-    actions.follow_link "<obsidian://choose-vault>"
+    local navigation = require "obsidian.navigation"
+    navigation.follow_link "[Search](obsidian://search?query=a%26b)"
+    navigation.follow_link "<obsidian://choose-vault>"
     return { grep, choose, external }
   ]]
   eq({ 1, 1, 0 }, result)
@@ -500,11 +500,11 @@ C["daily and unique links run internally after confirmation"] = function()
     vim.ui.open = function()
       external = external + 1
     end
-    local actions = require "obsidian.actions"
-    actions.follow_link "<obsidian://daily?content=journal&silent>"
+    local navigation = require "obsidian.navigation"
+    navigation.follow_link "<obsidian://daily?content=journal&silent>"
     local daily = require("obsidian.daily").daily_note_path(os.time(), Obsidian.workspace.root)
     local journal = vim.fn.readfile(tostring(daily))
-    actions.follow_link "[Unique](obsidian://unique?content=unique)"
+    navigation.follow_link "[Unique](obsidian://unique?content=unique)"
     return {
       prompts, external, journal,
       vim.fn.readfile(vim.api.nvim_buf_get_name(0)),
@@ -523,9 +523,9 @@ C["external integration parameters do not launch applications"] = function()
     require("obsidian.api").confirm = function()
       return "Yes"
     end
-    local actions = require "obsidian.actions"
-    actions.follow_link "[Create](obsidian://new?file=Internal&content=body&silent&x-success=test%3A%2F%2Fdone)"
-    actions.follow_link "[Hook](obsidian://hook-get-address?x-error=test%3A%2F%2Ferror)"
+    local navigation = require "obsidian.navigation"
+    navigation.follow_link "[Create](obsidian://new?file=Internal&content=body&silent&x-success=test%3A%2F%2Fdone)"
+    navigation.follow_link "[Hook](obsidian://hook-get-address?x-error=test%3A%2F%2Ferror)"
     return { external, vim.fn.readfile(tostring(Obsidian.dir / "Internal.md")) }
   ]]
   eq({ 0, { "body" } }, result)

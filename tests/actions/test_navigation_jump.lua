@@ -12,7 +12,7 @@ T["follow link returns to the exact source position with <C-o>"] = function()
   child.cmd "normal! m'" -- An older jump must not be the first stop on the way back.
   child.api.nvim_win_set_cursor(0, { 2, 8 })
 
-  child.lua [[require("obsidian.actions").follow_link()]]
+  child.lua [[require("obsidian.navigation").follow_link()]]
   h.child_wait_for_buf_name(child, files["target.md"])
   child.lua [[vim.api.nvim_feedkeys(vim.keycode("<C-o>"), "nx", false)]]
   eq(files["source.md"], child.api.nvim_buf_get_name(0))
@@ -28,7 +28,7 @@ T["follow link to heading in the same note returns to link with <C-o>"] = functi
   child.cmd "normal! m'"
   child.api.nvim_win_set_cursor(0, { 3, 8 })
 
-  child.lua [[require("obsidian.actions").follow_link()]]
+  child.lua [[require("obsidian.navigation").follow_link()]]
   h.child_wait(child, [[return vim.api.nvim_win_get_cursor(0)[1] == 1]], { desc = "heading jump" })
   child.lua [[vim.api.nvim_feedkeys(vim.keycode("<C-o>"), "nx", false)]]
   eq(files["source.md"], child.api.nvim_buf_get_name(0))
@@ -46,7 +46,7 @@ T["follow link to an already visible note returns to link with <C-o>"] = functio
   child.cmd "normal! m'"
   child.api.nvim_win_set_cursor(0, { 2, 8 })
 
-  child.lua [[require("obsidian.actions").follow_link()]]
+  child.lua [[require("obsidian.navigation").follow_link()]]
   h.child_wait_for_buf_name(child, files["target.md"])
   child.lua [[vim.api.nvim_feedkeys(vim.keycode("<C-o>"), "nx", false)]]
   eq(files["source.md"], child.api.nvim_buf_get_name(0))
@@ -63,7 +63,7 @@ T["follow link with split strategy returns to link with <C-o>"] = function()
   child.cmd "normal! m'"
   child.api.nvim_win_set_cursor(0, { 2, 8 })
 
-  child.lua [[require("obsidian.actions").follow_link(nil, { open_strategy = "vsplit" })]]
+  child.lua [[require("obsidian.navigation").follow_link(nil, { open_strategy = "vsplit" })]]
   h.child_wait_for_buf_name(child, files["target.md"])
   eq(true, #child.lua_get [[vim.fn.gettagstack().items]] > 0)
   child.lua [[vim.api.nvim_feedkeys(vim.keycode("<C-o>"), "nx", false)]]
@@ -78,7 +78,7 @@ T["follow link in a split returns with <C-t>"] = function()
   })
   child.cmd("edit " .. files["source.md"])
   child.api.nvim_win_set_cursor(0, { 2, 8 })
-  child.lua [[require("obsidian.actions").follow_link(nil, { open_strategy = "vsplit" })]]
+  child.lua [[require("obsidian.navigation").follow_link(nil, { open_strategy = "vsplit" })]]
   h.child_wait_for_buf_name(child, files["target.md"])
   child.lua [[vim.api.nvim_feedkeys(vim.keycode("<C-t>"), "nx", false)]]
   eq(files["source.md"], child.api.nvim_buf_get_name(0))
@@ -96,7 +96,7 @@ T["follow link with split strategy to a visible note returns to link with <C-o>"
   child.cmd "normal! m'"
   child.api.nvim_win_set_cursor(0, { 2, 8 })
 
-  child.lua [[require("obsidian.actions").follow_link(nil, { open_strategy = "vsplit" })]]
+  child.lua [[require("obsidian.navigation").follow_link(nil, { open_strategy = "vsplit" })]]
   h.child_wait_for_buf_name(child, files["target.md"])
   child.lua [[vim.api.nvim_feedkeys(vim.keycode("<C-o>"), "nx", false)]]
   eq(files["source.md"], child.api.nvim_buf_get_name(0))
@@ -112,7 +112,9 @@ T["picker quickfix entry returns to source and records tagstack"] = function()
   child.api.nvim_win_set_cursor(0, { 1, 2 })
   child.cmd "normal! m'"
   child.api.nvim_win_set_cursor(0, { 2, 6 })
-  child.lua(([[require("obsidian.api").jump_to_note({ filename = %q, lnum = 2, col = 4 })]]):format(files["target.md"]))
+  child.lua(
+    ([[require("obsidian.navigation").jump_to_note({ filename = %q, lnum = 2, col = 4 })]]):format(files["target.md"])
+  )
   eq({ 2, 3 }, child.api.nvim_win_get_cursor(0))
   eq(true, #child.lua_get [[vim.fn.gettagstack().items]] > 0)
   child.lua [[vim.api.nvim_feedkeys(vim.keycode("<C-o>"), "nx", false)]]

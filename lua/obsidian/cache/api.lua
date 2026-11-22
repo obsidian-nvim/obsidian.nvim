@@ -2,6 +2,7 @@ local fs_util = require "obsidian.util.fs"
 local attachment = require "obsidian.attachment"
 local link = require "obsidian.link"
 local api = require "obsidian.api"
+local navigation = require "obsidian.navigation"
 local picker_util = require "obsidian.picker.util"
 
 local M = {}
@@ -302,8 +303,8 @@ M.find_files = function(opts)
           if choice == "Create New Note" then
             local location = data.target or cache.notes.rel_path(path):gsub("%.md$", "")
             api.create_new_note(location, function(locations)
-              if locations and locations[1] then
-                api.jump_to_note(vim.uri_to_fname(locations[1].uri))
+              if locations then
+                navigation.jump_to_locations(locations)
               end
             end, {
               references = data.references,

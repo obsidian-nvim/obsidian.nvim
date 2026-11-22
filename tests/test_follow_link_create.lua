@@ -1,13 +1,13 @@
 local h = dofile "tests/helpers.lua"
 local T, child = h.child_vault {
-  pre_case = [[M = require"obsidian.api"]],
+  pre_case = [[M = require "obsidian.navigation"; api = require "obsidian.api"]],
 }
 local eq = MiniTest.expect.equality
 
 T["cursor_link returns range"] = function()
   child.api.nvim_buf_set_lines(0, 0, -1, false, { "The [[new note]] link" })
   child.api.nvim_win_set_cursor(0, { 1, 5 })
-  local link, t, range = unpack(child.lua_get [[{ M.cursor_link() }]])
+  local link, t, range = unpack(child.lua_get [[{ api.cursor_link() }]])
   eq("[[new note]]", link)
   eq("wiki", t)
   eq({ 5, 16 }, range)
@@ -18,7 +18,7 @@ T["follow link to non-existing note and create it"] = function()
     Obsidian.opts.note_id_func = function(title)
       return "fixed-id-" .. (title or "none")
     end
-    M.confirm = function()
+    api.confirm = function()
       return "Yes"
     end
   ]]
@@ -33,7 +33,6 @@ T["follow link to non-existing note and create it"] = function()
   local ref_bufnr = child.api.nvim_get_current_buf()
   child.api.nvim_win_set_cursor(0, { 1, 0 })
 
-  -- Trigger follow_link via actions.follow_link which is accessible via M.follow_link
   child.lua "M.follow_link()"
   h.child_wait_for_line(child, ref_bufnr, 0, "[[fixed-id-new note|new note]]")
 
@@ -54,7 +53,7 @@ T["follow link with alias to non-existing note and create it"] = function()
     Obsidian.opts.note_id_func = function(title)
       return "fixed-id-" .. (title or "none")
     end
-    M.confirm = function()
+    api.confirm = function()
       return "Yes"
     end
   ]]
@@ -69,7 +68,6 @@ T["follow link with alias to non-existing note and create it"] = function()
   local ref_bufnr = child.api.nvim_get_current_buf()
   child.api.nvim_win_set_cursor(0, { 1, 0 })
 
-  -- Trigger follow_link via actions.follow_link which is accessible via M.follow_link
   child.lua "M.follow_link()"
   h.child_wait_for_line(child, ref_bufnr, 0, "[[fixed-id-new note|some alias]]")
 
@@ -83,7 +81,7 @@ T["follow link with anchor to non-existing note and create it"] = function()
     Obsidian.opts.note_id_func = function(title)
       return "fixed-id-" .. (title or "none")
     end
-    M.confirm = function()
+    api.confirm = function()
       return "Yes"
     end
   ]]

@@ -2,6 +2,7 @@ local log = require "obsidian.log"
 local Note = require "obsidian.note"
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
+local navigation = require "obsidian.navigation"
 
 local M = {}
 
@@ -409,17 +410,10 @@ local function open_bookmark(bookmark)
       query = bookmark.query,
       dir = api.resolve_workspace_dir(),
     }
-  elseif bookmark.type == "file" then
+  elseif bookmark.type == "file" or bookmark.type == "folder" then
     local entry = bookmark_to_picker_entry(bookmark)
     if entry.filename and vim.uv.fs_stat(entry.filename) ~= nil then
-      api.jump_to_note(entry)
-    else
-      log.warn("Bookmark target is missing: %s", bookmark.path or bookmark.title)
-    end
-  elseif bookmark.type == "folder" then
-    local entry = bookmark_to_picker_entry(bookmark)
-    if entry.filename and vim.uv.fs_stat(entry.filename) ~= nil then
-      vim.cmd("edit " .. vim.fn.fnameescape(entry.filename))
+      navigation.jump_to_note(entry)
     else
       log.warn("Bookmark target is missing: %s", bookmark.path or bookmark.title)
     end

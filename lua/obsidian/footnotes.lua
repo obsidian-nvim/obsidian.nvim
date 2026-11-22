@@ -2,6 +2,7 @@ local BufferDocument = require "obsidian.document"
 local Document = require "obsidian.parse.document"
 local Range = require "obsidian.range"
 local api = require "obsidian.api"
+local navigation = require "obsidian.navigation"
 local log = require "obsidian.log"
 local picker = require "obsidian.picker"
 
@@ -184,7 +185,7 @@ M.pick = function(bufnr)
   }, function(items)
     local def = items[1]
     if def then
-      api.jump_to_note { filename = vim.api.nvim_buf_get_name(bufnr), lnum = def.lnum, col = 1 }
+      navigation.jump_to_note { filename = vim.api.nvim_buf_get_name(bufnr), lnum = def.lnum, col = 1 }
     end
   end)
 end

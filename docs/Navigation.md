@@ -7,13 +7,14 @@ tags:
 
 ## Following links
 
-Use `:Obsidian follow_link` or `require("obsidian.actions").follow_link()` to follow the link under the cursor. The action also accepts a link string:
+Use `:Obsidian follow_link [STRATEGY]` or `require("obsidian.navigation").follow_link()` to follow the link under the cursor. The navigation function also accepts a link string and an optional opening strategy:
 
 ```lua
-require("obsidian.actions").follow_link("[Inbox](obsidian://open?file=Inbox)")
+require("obsidian.navigation").follow_link("[Inbox](obsidian://open?file=Inbox)")
+require("obsidian.navigation").follow_link(nil, { open_strategy = "vsplit" })
 ```
 
-These use the same link handling as obsidian.nvim's LSP go-to-definition support. See [[Link]] for wiki/Markdown link formats and [[LSP]] for navigation setup.
+These resolve links directly, without requiring an attached LSP client. Obsidian.nvim's LSP go-to-definition support uses the same resolver (`navigation.resolve_link`). Use `navigation.nav_link("next")` or `navigation.nav_link("prev")` to move between links in the current note. See [[Link]] for wiki/Markdown link formats and [[LSP]] for navigation setup.
 
 ## Obsidian URI links
 

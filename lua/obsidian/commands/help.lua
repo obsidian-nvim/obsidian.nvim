@@ -1,4 +1,4 @@
-local api = require "obsidian.api"
+local navigation = require "obsidian.navigation"
 local log = require "obsidian.log"
 local picker = require "obsidian.picker"
 
@@ -25,7 +25,7 @@ return function(data)
     check_path(dir / query)
 
     if #matches == 1 then
-      api.jump_to_note(tostring(matches[1]))
+      navigation.jump_to_note(tostring(matches[1]))
       return
     end
   end

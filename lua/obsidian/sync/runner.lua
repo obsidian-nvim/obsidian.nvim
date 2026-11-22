@@ -124,8 +124,7 @@ function M.open_log_file(path)
   if vim.fn.filereadable(path) == 0 then
     log.info("Sync log has not been created yet: %s", path)
   end
-  vim.cmd.edit(vim.fn.fnameescape(path))
-  local buf = vim.api.nvim_get_current_buf()
+  local buf = require("obsidian.navigation").open_note(path)
   vim.bo[buf].readonly = true
   vim.bo[buf].filetype = "log"
   return { buf = buf }

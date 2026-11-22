@@ -369,22 +369,6 @@ M.buffer_is_empty = function(bufnr)
   end
 end
 
---- Open a buffer for the corresponding path.
----
----@param path string|obsidian.Path
----@param opts { line: integer|?, col: integer|?, cmd: string|? }|?
----@return integer bufnr
----@deprecated
-M.open_buffer = function(path, opts)
-  vim.deprecate("api.open_buffer", "api.open_note", "4.0.0", "obsidian.nvim")
-  opts = opts or {}
-  return M.open_note({
-    filename = tostring(path),
-    lnum = opts.line,
-    col = opts.col and opts.col + 1,
-  }, opts.cmd)
-end
-
 local blink_counter = 0
 
 --- Briefly highlight a snapshot range in a matching buffer.
@@ -421,44 +405,6 @@ M.blink = function(range, bufnr, opts)
       vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
     end
   end, opts.timeout or vim.g.obsidian_blink_duration or 500)
-end
-
----@param range obsidian.Range|lsp.Range|?
----@return obsidian.Range|?
-local function normalize_range(range)
-  if not range then
-    return nil
-  elseif range.start_row then
-    return range
-  elseif range.start then
-    -- Obsidian's built-in language server uses UTF-8 positions.
-    return Range.from_lsp(range, "utf-8")
-  end
-end
-
----@param entry obsidian.picker.Entry|vim.quickfix.entry
----@return obsidian.Range|?
-local function entry_range(entry)
-  local range = rawget(entry, "range")
-  if type(range) == "table" then
-    return normalize_range(range)
-  end
-
-  local lnum = tonumber(entry.lnum)
-  local col = tonumber(entry.col) or 1
-  local end_lnum = tonumber(entry.end_lnum)
-  local end_col = tonumber(entry.end_col)
-  if lnum and end_lnum and end_col then
-    local start_row = lnum - 1
-    local start_col = math.max(col - 1, 0)
-    local end_row = end_lnum - 1
-    local normalized_end_col = math.max(end_col - 1, 0)
-    ---@cast start_row integer
-    ---@cast start_col integer
-    ---@cast end_row integer
-    ---@cast normalized_end_col integer
-    return Range.new(start_row, start_col, end_row, normalized_end_col)
-  end
 end
 
 --- Prompt to create a new note when a link target does not exist.
@@ -636,115 +582,20 @@ M.create_new_note = function(location, callback, opts)
   end
 end
 
---- Open a quickfix entry in buffer, with open strategy
 ---@param entry obsidian.picker.Entry|vim.quickfix.entry|string
 ---@param cmd string?
 ---@return integer
+---@deprecated use obsidian.navigation.open_note for new code.
 M.open_note = function(entry, cmd)
-  local path
-  if type(entry) == "string" then
-    path = entry
-  else
-    path = entry.filename
-  end
-  cmd = vim.trim(cmd and cmd or "e")
-
-  ---@type integer|?
-  local result_bufnr
-
-  -- Check for buffer in windows and use 'drop' command if one is found.
-  for _, winnr in ipairs(vim.api.nvim_list_wins()) do
-    local bufnr = vim.api.nvim_win_get_buf(winnr)
-    local bufname = vim.api.nvim_buf_get_name(bufnr)
-    if bufname == tostring(path) then
-      cmd = "drop"
-      result_bufnr = bufnr
-      break
-    end
-  end
-
-  vim.cmd(string.format("%s %s", cmd, vim.fn.fnameescape(tostring(path))))
-  if type(entry) == "table" and entry.lnum then
-    local lnum = tonumber(entry.lnum)
-    local col = math.max((tonumber(entry.col) or 1) - 1, 0)
-    ---@cast lnum integer
-    ---@cast col integer
-    vim.api.nvim_win_set_cursor(0, { lnum, col })
-  end
-
-  if not result_bufnr then
-    result_bufnr = vim.api.nvim_get_current_buf()
-  end
-
-  -- Blink the target range, e.g. the full section of an anchor/block link.
-  if type(entry) == "table" then
-    local range = entry_range(entry)
-    if range and not Range.is_empty(range) then
-      M.blink(range, result_bufnr)
-    end
-  end
-
-  return result_bufnr
+  return require("obsidian.navigation").open_note(entry, cmd)
 end
 
-local function record_jump()
-  vim.cmd "normal! m'"
-  local from = { vim.fn.bufnr "%", vim.fn.line ".", vim.fn.col ".", 0 }
-  vim.fn.settagstack(vim.api.nvim_get_current_win(), {
-    items = { { tagname = vim.fn.expand "<cword>", from = from } },
-  }, "t")
-end
-
---- Navigate to a note or quickfix result, recording the source like an LSP jump.
---- Use open_note instead for ordinary file opening (e.g. newly created notes).
----@param entry obsidian.PickerEntry|vim.quickfix.entry|string
----@param cmd string? Ex opening strategy for splits; defaults to the current window.
----@return integer? bufnr
-M.jump_to_note = function(entry, cmd)
-  local path = type(entry) == "string" and entry or entry.filename
-  if path == "" then
-    -- Unnamed buffers (e.g. scratch notes in tests) have no file URI.
-    if type(entry) == "table" and entry.lnum then
-      local row = tonumber(entry.lnum)
-      local col = math.max((tonumber(entry.col) or 1) - 1, 0)
-      ---@cast row integer
-      ---@cast col integer
-      record_jump()
-      vim.api.nvim_win_set_cursor(0, { row, col })
-    end
-    return vim.api.nvim_get_current_buf()
-  end
-  local location = type(entry) == "table" and entry.user_data or nil
-  if type(location) ~= "table" or not (location.uri or location.targetUri) then
-    local range = type(entry) == "table" and entry_range(entry) or nil
-    if not range and type(entry) == "table" and entry.lnum then
-      local row = tonumber(entry.lnum)
-      local col = math.max((tonumber(entry.col) or 1) - 1, 0)
-      ---@cast row integer
-      ---@cast col integer
-      range = Range.new(row - 1, col, row - 1, col)
-    end
-    location = { uri = vim.uri_from_fname(tostring(path)), range = range and Range.to_lsp(range, "utf-8") or nil }
-  end
-
-  local bufnr = vim.uri_to_bufnr(location.uri or location.targetUri)
-  -- :drop changes windows, which have independent jumplists. Keep jumps to
-  -- already visible buffers in the source window, even for split strategies.
-  if not cmd or vim.trim(cmd) == "e" or #vim.fn.win_findbuf(bufnr) > 0 then
-    if vim.lsp.util.show_document(location, "utf-8") then
-      local range = type(entry) == "table" and entry_range(entry) or nil
-      if range and not Range.is_empty(range) then
-        M.blink(range)
-      end
-      return vim.api.nvim_get_current_buf()
-    end
-    return nil
-  end
-
-  -- show_document cannot open a split. Mirror its source mark and tagstack
-  -- before delegating the configured Ex command to open_note.
-  record_jump()
-  return M.open_note(entry, cmd)
+---@param path string|obsidian.Path
+---@param opts { line: integer|?, col: integer|?, cmd: string|? }|?
+---@return integer
+---@deprecated use obsidian.navigation.open_buffer
+M.open_buffer = function(path, opts)
+  return require("obsidian.navigation").open_buffer(path, opts)
 end
 
 ----------------
@@ -851,46 +702,6 @@ M.get_visual_selection = function(opts)
     cerow = cerow,
     cecol = cecol,
   }
-end
-
-------------------
---- UI helpers ---
-------------------
-
----Get the strategy for opening notes
----
----@param opt obsidian.config.OpenStrategy
----@return string
-M.get_open_strategy = function(opt)
-  local OpenStrategy = require("obsidian.types").OpenStrategy
-
-  -- either 'leaf', 'row' for vertically split windows, or 'col' for horizontally split windows
-  local cur_layout = vim.fn.winlayout()[1]
-
-  if vim.startswith(OpenStrategy.tab, opt) then
-    return "tabedit "
-  elseif vim.startswith(OpenStrategy.hsplit, opt) then
-    if cur_layout ~= "col" then
-      return "split "
-    else
-      return "e "
-    end
-  elseif vim.startswith(OpenStrategy.vsplit, opt) then
-    if cur_layout ~= "row" then
-      return "vsplit "
-    else
-      return "e "
-    end
-  elseif vim.startswith(OpenStrategy.vsplit_force, opt) then
-    return "vsplit "
-  elseif vim.startswith(OpenStrategy.hsplit_force, opt) then
-    return "hsplit "
-  elseif vim.startswith(OpenStrategy.current, opt) then
-    return "e "
-  else
-    log.err("undefined open strategy '%s'", opt)
-    return "e "
-  end
 end
 
 ----------------------------

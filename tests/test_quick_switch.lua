@@ -285,6 +285,7 @@ end
 
   local result = child.lua [[
 local api = require "obsidian.api"
+local navigation = require "obsidian.navigation"
 local picker = require "obsidian.picker"
 local cache = require "obsidian.cache"
 local create_calls = 0
@@ -298,7 +299,7 @@ end
 
 local original_select = picker.select
 local original_confirm = api.confirm
-local original_open_note = api.open_note
+local original_open_note = navigation.open_note
 picker.select = function(values, _, callback)
   local missing
   for _, entry in ipairs(values) do
@@ -318,7 +319,7 @@ api.confirm = function(prompt)
   end
   return "Yes"
 end
-api.open_note = function() end
+navigation.open_note = function() end
 
 cache.find_files {
   show_existing_only = false,
@@ -327,7 +328,7 @@ cache.find_files {
 
 picker.select = original_select
 api.confirm = original_confirm
-api.open_note = original_open_note
+navigation.open_note = original_open_note
 
 local note_path = tostring(Obsidian.dir / "generated-Missing.md")
 return {

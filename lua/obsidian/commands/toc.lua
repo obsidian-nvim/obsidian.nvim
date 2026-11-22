@@ -1,4 +1,4 @@
-local api = require "obsidian.api"
+local navigation = require "obsidian.navigation"
 local picker = require "obsidian.picker"
 
 return function()
@@ -17,7 +17,7 @@ return function()
       }, function(items)
         local entry = items and items[1]
         if entry then
-          api.jump_to_note(entry)
+          navigation.jump_to_note(entry)
         end
       end)
     end,

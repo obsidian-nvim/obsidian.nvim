@@ -1604,8 +1604,10 @@ Note.open = function(self, opts)
         log.warn("Link target '%s' not found in note", opts.block or opts.anchor)
       end
     end
-    local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
-    local bufnr = api.open_note({
+    local navigation = require "obsidian.navigation"
+    local open_cmd =
+      navigation.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
+    local bufnr = navigation.open_note({
       filename = tostring(self.path),
       lnum = line,
       col = opts.col and opts.col + 1,

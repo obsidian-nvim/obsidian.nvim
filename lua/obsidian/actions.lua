@@ -4,6 +4,7 @@ local Document = require "obsidian.parse.document"
 local Pos = require "obsidian.pos"
 local parse_block_id = require "obsidian.parse.block_id"
 local api = require "obsidian.api"
+local navigation = require "obsidian.navigation"
 local log = require "obsidian.log"
 local uri = require "obsidian.uri"
 local compat = require "obsidian.compat"
@@ -45,42 +46,6 @@ local function preview_entry(entry)
   return preview
 end
 
---- Follow a link. If the link argument is `nil` we attempt to follow a link under the cursor.
----
----@param link string?
----@param opts { open_strategy: obsidian.config.OpenStrategy |? } |?
-M.follow_link = function(link, opts)
-  opts = opts and opts or {}
-  local range
-  if not link then
-    local cursor_link = { api.cursor_link() }
-    link, range = cursor_link[1], cursor_link[3]
-  end
-
-  if not link then
-    return log.warn "No link found under cursor"
-  end
-
-  require("obsidian.lsp.handlers._definition").follow_link(link, function(_, locations)
-    local items = vim.lsp.util.locations_to_items(locations, "utf-8")
-    local cmd = opts.open_strategy or api.get_open_strategy(Obsidian.opts.open_notes_in)
-
-    if #items == 1 then
-      api.jump_to_note(items[1], cmd)
-    else
-      picker.select(items, {
-        prompt = "Resolve link",
-        preview_item = preview_entry,
-      }, function(choices)
-        local entry = choices and choices[1]
-        if entry then
-          api.jump_to_note(entry, cmd)
-        end
-      end)
-    end
-  end, { range = range })
-end
-
 ---Replace the wiki or Markdown link under the cursor with its display text.
 ---Links without display text use the target note's path stem.
 ---@param bufnr integer|?
@@ -111,48 +76,6 @@ M.unlink = function(bufnr, position)
       -- TODO: if resolved note, prompt note:delete
     end
     return display_text
-  end
-end
-
----@param direction "next" | "prev"
----@param include_hints boolean? Also navigate to link suggestion hints when the cache is enabled.
-M.nav_link = function(direction, include_hints)
-  -- vim.validate("direction", direction, "string", false, "nav_link must be called with a direction")
-  local cursor_line, cursor_col = unpack(vim.api.nvim_win_get_cursor(0))
-
-  local note = Note.from_buffer(0)
-  ---@type { line: integer, start: integer }[]
-  local matches = vim.tbl_map(function(link)
-    return { line = link.line, start = link.start }
-  end, note:links())
-  if include_hints and require("obsidian.cache").is_enabled() then
-    for _, hint in ipairs(note:link_suggestions()) do
-      matches[#matches + 1] = {
-        line = hint.range.start_row + 1,
-        start = hint.range.start_col,
-      }
-    end
-    table.sort(matches, function(a, b)
-      return a.line < b.line or (a.line == b.line and a.start < b.start)
-    end)
-  end
-
-  if direction == "next" then
-    for i = 1, #matches do
-      local match = matches[i]
-      if (match.line > cursor_line) or (cursor_line == match.line and cursor_col < match.start) then
-        return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
-      end
-    end
-  end
-
-  if direction == "prev" then
-    for i = #matches, 1, -1 do
-      local match = matches[i]
-      if (match.line < cursor_line) or (cursor_line == match.line and cursor_col > match.start) then
-        return vim.api.nvim_win_set_cursor(0, { match.line, match.start })
-      end
-    end
   end
 end
 
@@ -1092,7 +1015,7 @@ M.workspace_symbol = function(query, callback)
       elseif callback then
         callback(unpack(items))
       else
-        api.jump_to_note(entry)
+        navigation.jump_to_note(entry)
       end
     end)
   end)
@@ -1483,7 +1406,7 @@ local function gather_tag_picker_list(tag_locations, tags)
       preview_item = preview_entry,
     }, function(items)
       if not vim.tbl_isempty(items) then
-        api.jump_to_note(items[1])
+        navigation.jump_to_note(items[1])
       end
     end)
   end)
@@ -1636,7 +1559,7 @@ local function gather_property_picker_list(records, key, value)
       preview_item = preview_entry,
     }, function(items)
       if not vim.tbl_isempty(items) then
-        api.jump_to_note(items[1])
+        navigation.jump_to_note(items[1])
       end
     end)
   end)

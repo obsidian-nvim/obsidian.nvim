@@ -17,6 +17,7 @@ local T = new_set {
 
 local picker = require "obsidian.picker"
 local api = require "obsidian.api"
+local navigation = require "obsidian.navigation"
 local Path = require "obsidian.path"
 local helpers = require "tests.helpers"
 
@@ -197,15 +198,15 @@ end
 
 T["open_notes opens a single result directly"] = function()
   local picker_util = require "obsidian.picker.util"
-  local original_jump_to_note = api.jump_to_note
+  local original_jump_to_note = navigation.jump_to_note
   local entry = { filename = "/vault/one.md", lnum = 2 }
   local opened
 
-  api.jump_to_note = function(value)
+  navigation.jump_to_note = function(value)
     opened = value
   end
   picker_util.open_notes { entry }
-  api.jump_to_note = original_jump_to_note
+  navigation.jump_to_note = original_jump_to_note
 
   eq(entry, opened)
 end

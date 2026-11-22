@@ -1,6 +1,6 @@
 local log = require "obsidian.log"
 local api = require "obsidian.api"
-local actions = require "obsidian.actions"
+local navigation = require "obsidian.navigation"
 local picker = require "obsidian.picker"
 
 return function()
@@ -14,9 +14,9 @@ return function()
   end, note:links())
 
   picker.select(entries, { prompt = "Links" }, function(items)
-    local link = items[1]
+    local link = items and items[1]
     if link then
-      actions.follow_link(link)
+      navigation.follow_link(link)
     end
   end)
 end

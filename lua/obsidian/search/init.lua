@@ -456,7 +456,7 @@ M.find_blocks_async = function(term, callback, opts)
   })
 end
 
--- TODO: filter blocks and anchors in here, see _definition, but how does it interact with the shortcut stuff?
+-- TODO: filter blocks and anchors in here, see navigation, but how does it interact with the shortcut stuff?
 
 ---@param query string
 ---@param callback fun(notes: obsidian.Note[])
