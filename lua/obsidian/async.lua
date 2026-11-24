@@ -228,27 +228,35 @@ function M.join(max_jobs, funs)
 
   max_jobs = math.min(max_jobs, #funs)
 
-  --- @type (async fun())[]
-  local remaining = { select(max_jobs + 1, unpack(funs)) }
-  local to_go = #funs
-
   M.await(1, function(on_finish)
+    local next_job, active, completed = 1, 0, 0
+    -- Synchronous jobs must not recursively start the rest of the queue.
+    local pumping = false
+    ---@type fun()
+    local pump
     local function run_next()
-      to_go = to_go - 1
-      if to_go == 0 then
+      active = active - 1
+      completed = completed + 1
+      if completed == #funs then
         on_finish()
-      elseif #remaining > 0 then
-        local next_fun = table.remove(remaining)
-        M.run(next_fun, run_next)
+      else
+        pump()
       end
     end
-
-    for i = 1, max_jobs do
-      local fun = funs[i]
-      if fun then
-        M.run(fun, run_next)
+    pump = function()
+      if pumping then
+        return
       end
+      pumping = true
+      while active < max_jobs and next_job <= #funs do
+        local fn = assert(funs[next_job], "missing queued job")
+        next_job = next_job + 1
+        active = active + 1
+        M.run(fn, run_next)
+      end
+      pumping = false
     end
+    pump()
   end)
 end
 
