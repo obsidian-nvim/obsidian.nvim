@@ -97,9 +97,7 @@ API:
   - `arguments` (optional): a function returning an array of arguments for `fn`. It receives the note and the LSP code-action request.
 - `require("obsidian").code_action.del(name)` removes the menu entry and its custom handler. If the handler replaced a built-in command, the built-in command is restored (not the menu entry).
 
-For commands that do not need a menu entry (for example, inlay-hint handlers), use `require("obsidian").register_lsp_command(name, fn)`. Use the bare name to register and `obsidian.<name>` in the LSP payload. Registration returns an unregister function; use a unique name, since the last registration for an ID wins.
-
-Only built-in LSP commands and registered custom handlers are executable through `workspace/executeCommand`. Other Lua actions can still be called directly from Lua.
+Only built-in LSP commands and commands registered through the code action API are executable through `workspace/executeCommand`. Other Lua actions can still be called directly from Lua.
 
 ## See also
 

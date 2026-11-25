@@ -53,6 +53,66 @@ T["follow link to an already visible note returns to link with <C-o>"] = functio
   eq({ 2, 8 }, child.api.nvim_win_get_cursor(0))
 end
 
+for _, source_setting in ipairs { "winfixbuf", "nohidden modified" } do
+  T["follow link focuses an already visible note with " .. source_setting] = function()
+    local files = h.mock_vault_contents(child.Obsidian.dir, {
+      ["source.md"] = "text [[target#Heading]] after\n",
+      ["target.md"] = "first line\n# Heading\n",
+    })
+    child.cmd("edit " .. files["target.md"])
+    local target_win = child.api.nvim_get_current_win()
+    child.cmd("vsplit " .. files["source.md"])
+    local source_win = child.api.nvim_get_current_win()
+    local source_buf = child.api.nvim_get_current_buf()
+    child.cmd("set " .. source_setting)
+    child.api.nvim_win_set_cursor(0, { 1, 8 })
+
+    child.lua [[require("obsidian.navigation").follow_link()]]
+    h.child_wait_for_buf_name(child, files["target.md"])
+    eq(target_win, child.api.nvim_get_current_win())
+    eq({ 2, 0 }, child.api.nvim_win_get_cursor(0))
+    eq(source_buf, child.api.nvim_win_get_buf(source_win))
+  end
+end
+
+for _, change in ipairs { "cursor", "window" } do
+  T["follow link discards a delayed result after changing " .. change] = function()
+    local files = h.mock_vault_contents(child.Obsidian.dir, {
+      ["source.md"] = "text [[target]] after\nsecond line\n",
+      ["target.md"] = "destination\n",
+    })
+    child.cmd("edit " .. files["source.md"])
+    child.api.nvim_win_set_cursor(0, { 1, 8 })
+    eq(
+      true,
+      child.lua [[
+      require("obsidian.search").resolve_note_async = function(_, cb)
+        _G.resolve_target = cb
+      end
+      require("obsidian.navigation").follow_link()
+      return _G.resolve_target ~= nil
+    ]]
+    )
+    if change == "cursor" then
+      child.api.nvim_win_set_cursor(0, { 2, 4 })
+    else
+      child.cmd "vsplit"
+    end
+    local win = child.api.nvim_get_current_win()
+    local cursor = child.api.nvim_win_get_cursor(0)
+    child.lua [[
+      _G.resolve_target({ {
+        _location = function()
+          return { uri = vim.uri_from_fname(tostring(Obsidian.dir / "target.md")) }
+        end,
+      } })
+    ]]
+    eq(win, child.api.nvim_get_current_win())
+    eq(files["source.md"], child.api.nvim_buf_get_name(0))
+    eq(cursor, child.api.nvim_win_get_cursor(0))
+  end
+end
+
 T["follow link with split strategy returns to link with <C-o>"] = function()
   local files = h.mock_vault_contents(child.Obsidian.dir, {
     ["source.md"] = "first line\ntext [[target]] after\n",

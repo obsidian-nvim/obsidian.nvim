@@ -157,10 +157,17 @@ M.jump_to_note = function(entry, cmd)
   end
 
   local bufnr = vim.uri_to_bufnr(location.uri or location.targetUri)
-  -- :drop changes windows, which have independent jumplists. Keep jumps to
-  -- already visible buffers in the source window, even for split strategies.
-  if not cmd or vim.trim(cmd) == "e" or #vim.fn.win_findbuf(bufnr) > 0 then
-    if vim.lsp.util.show_document(location, "utf-8") then
+  local target_visible = #vim.fn.win_findbuf(bufnr) > 0
+  if not cmd or vim.trim(cmd) == "e" or target_visible then
+    local source_buf = vim.api.nvim_get_current_buf()
+    local reuse_win = false
+    if target_visible and source_buf ~= bufnr then
+      -- Keep the jump in the source window's jumplist when it can switch buffers.
+      local bufhidden = vim.bo.bufhidden
+      local can_hide = bufhidden == "hide" or (bufhidden == "" and vim.o.hidden)
+      reuse_win = vim.wo.winfixbuf or (vim.bo.modified and not can_hide and #vim.fn.win_findbuf(source_buf) == 1)
+    end
+    if vim.lsp.util.show_document(location, "utf-8", { reuse_win = reuse_win }) then
       local range = type(entry) == "table" and entry_range(entry) or nil
       if range and not Range.is_empty(range) then
         api.blink(range)
@@ -487,11 +494,12 @@ end
 ---@param opts obsidian.navigation.FollowLinkOpts?
 M.follow_link = function(link, opts)
   opts = vim.tbl_extend("force", {}, opts or {})
-  opts.bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-  opts.cursor_row = opts.cursor_row or vim.api.nvim_win_get_cursor(0)[1]
+  local source_buf, source_win, row, col = unpack(api.get_active_window_cursor_location())
+  opts.bufnr = opts.bufnr or source_buf
+  opts.cursor_row = opts.cursor_row or row
   if not link then
-    local cursor_link = { api.cursor_link(opts.bufnr) }
-    link, opts.range = cursor_link[1], cursor_link[3]
+    local found_link, _, range = api.cursor_link(opts.bufnr, { line = opts.cursor_row - 1, character = col })
+    link, opts.range = found_link, range
   end
   if not link then
     return log.warn "No link found under cursor"
@@ -501,7 +509,11 @@ M.follow_link = function(link, opts)
     if err then
       return log.err(tostring(err))
     end
-    M.jump_to_locations(locations, opts)
+    -- A delayed result must not jump from a different position or window.
+    local current_buf, current_win, current_row, current_col = unpack(api.get_active_window_cursor_location())
+    if current_buf == source_buf and current_win == source_win and current_row == row and current_col == col then
+      M.jump_to_locations(locations, opts)
+    end
   end, opts)
 end
 

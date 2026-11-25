@@ -62,8 +62,8 @@ Keymaps ~
     .
   - If cursor is on a heading, cycle the fold of that heading, see Folding {10}
     to set this up.
-- `navigation.nav_link`, bound to `[o` and `]o`, moves the cursor to the
-  previous or next valid link in the buffer.
+- `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in
+  the buffer.
 
 For other available actions and remapping default ones, see Keymaps {11}
 

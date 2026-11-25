@@ -117,32 +117,6 @@ The built-in resolver keeps the default `:Obsidian dailies` picker UI.
 ---@alias obsidian.resolver.HintsResult lsp.InlayHint[]
 ```
 
-The returned hints must be valid, serializable LSP inlay hints. Function-valued commands are not supported. Register the handler explicitly and reference it by command ID in the hint. Assigning a function to `obsidian.actions` no longer registers an LSP command.
-
-```lua
-require("obsidian").register_lsp_command("my_hint_action", function(argument)
-  vim.notify(argument)
-end)
-```
-
-Then use the `obsidian.` prefix in the resolver:
-
-```lua
-resolvers = {
-  hints = function(ctx, done)
-    done { {
-      position = { line = 0, character = 4 },
-      label = { {
-        value = " ▶",
-        command = {
-          title = "Run hint action",
-          command = "obsidian.my_hint_action",
-          arguments = { "argument" },
-        },
-      } },
-    } }
-  end,
-}
-```
+The returned hints must be valid, serializable LSP inlay hints. Function-valued commands are not supported.
 
 The built-in resolver returns link-suggestion hints for the requested range. In insert mode, hints update with document changes except while the cursor is in a built-in completion expression (`[[`, `#`, or `[^`). During completion, the previous hint result is reused and no resolver is started; hints resume when completion ends or the cursor leaves the expression. A debounced refresh also follows normal-mode edits (including undo), leaving insert mode, and saving the note. Accepting a hint triggers a refresh.

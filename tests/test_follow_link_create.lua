@@ -48,6 +48,27 @@ T["follow link to non-existing note and create it"] = function()
   assert(current_buf_name:match "fixed%-id%-new note%.md$", "New note should be opened, but got " .. current_buf_name)
 end
 
+T["follow link with an explicit row rewrites the link on that row"] = function()
+  child.lua [[
+    Obsidian.opts.note_id_func = function(title)
+      return "fixed-id-" .. title
+    end
+    api.confirm = function()
+      return "Yes"
+    end
+  ]]
+  local files = h.mock_vault_contents(child.Obsidian.dir, {
+    ["referencer.md"] = "[[other note]]\n[[new note]]\n",
+  })
+  child.cmd("edit " .. files["referencer.md"])
+  local source_buf = child.api.nvim_get_current_buf()
+  child.api.nvim_win_set_cursor(0, { 1, 3 })
+
+  child.lua "M.follow_link(nil, { cursor_row = 2 })"
+  h.child_wait_for_buf_name(child, child.Obsidian.dir / "fixed-id-new note.md")
+  eq({ "[[other note]]", "[[fixed-id-new note|new note]]" }, child.api.nvim_buf_get_lines(source_buf, 0, 2, false))
+end
+
 T["follow link with alias to non-existing note and create it"] = function()
   child.lua [[
     Obsidian.opts.note_id_func = function(title)
