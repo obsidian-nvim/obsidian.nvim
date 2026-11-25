@@ -386,6 +386,28 @@ function M.parse(query, opts)
   if trailing then
     return nil, string.format("Unexpected token at column %d", trailing.pos)
   end
+
+  local function validate_regexes(node)
+    if node.kind == "term" and node.regex then
+      local ok, err = pcall(vim.regex, node.value or "")
+      if not ok then
+        return tostring(err)
+      end
+    end
+    for _, child in ipairs { node.child, node.left, node.right, node.key } do
+      if child then
+        local err = validate_regexes(child)
+        if err then
+          return err
+        end
+      end
+    end
+  end
+
+  local regex_error = validate_regexes(result)
+  if regex_error then
+    return nil, "Invalid regular expression: " .. regex_error
+  end
   return result
 end
 

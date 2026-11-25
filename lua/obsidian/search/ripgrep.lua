@@ -3,7 +3,7 @@ local search_files = require "obsidian.search.files"
 
 local M = {}
 
----@param values table[]
+---@param values (string|string[])[]
 ---@return string[]
 local function flatten(values)
   local out = {}

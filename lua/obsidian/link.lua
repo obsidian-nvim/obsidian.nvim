@@ -26,7 +26,7 @@ end
 ---@param target string
 ---@return string
 local function decode_link_target(target)
-  return vim.uri_decode(target):gsub("\\", "/")
+  return (vim.uri_decode(target):gsub("\\", "/"))
 end
 
 ---@param target string

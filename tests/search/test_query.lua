@@ -119,6 +119,12 @@ T["parser"]["reports incomplete delimiters unless requested otherwise"] = functi
   eq("and", assert(Query.parse("meeting (work OR personal", { allow_incomplete = true })).kind)
 end
 
+T["parser"]["rejects invalid regular expressions"] = function()
+  local ast, err = Query.parse "/[/"
+  eq(nil, ast)
+  eq(true, err:find("Invalid regular expression", 1, true) ~= nil)
+end
+
 T["terms"] = new_set()
 
 T["terms"]["matches words, phrases, regex, OR, and negation"] = function()

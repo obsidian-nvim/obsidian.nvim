@@ -111,7 +111,7 @@ local function build_row(abs_path, kind)
 end
 
 ---@param path string
----@return string|nil
+---@return "note"|"attachment"|"file"|nil
 local function cache_kind(path)
   if search_files.is_searchable(path) and not search_files.is_markdown(path) then
     return "file"

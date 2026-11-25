@@ -409,7 +409,7 @@ end
 ---@param entry obsidian.picker.Entry
 ---@return obsidian.picker.PreviewSpec
 local function preview_query_result(entry)
-  local preview = picker.preview_path(entry.filename)
+  local preview = picker.preview_path(assert(entry.filename, "query result entry is missing its filename"))
   if entry.lnum then
     preview.pos = { entry.lnum, math.max((entry.col or 1) - 1, 0) }
   end
