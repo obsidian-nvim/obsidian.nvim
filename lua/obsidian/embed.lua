@@ -87,10 +87,7 @@ local function note_lines(context)
       lines[#lines + 1] = context.note.contents[row + 1]
     end
   else
-    local start_line = context.note.frontmatter_end_line and context.note.frontmatter_end_line + 1 or 1
-    for line_num = start_line, #context.note.contents do
-      lines[#lines + 1] = context.note.contents[line_num]
-    end
+    return context.note:body_lines()
   end
   return lines
 end

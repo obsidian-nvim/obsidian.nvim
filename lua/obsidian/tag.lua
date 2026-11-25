@@ -116,22 +116,14 @@ M.extract = function(lines, opts)
   opts = opts or {}
   local out = {}
   local document = opts.document or Document.parse(lines)
-  local frontmatter = document.frontmatter
-  local frontmatter_end = opts.frontmatter_end_line
-    or (frontmatter and frontmatter.termination == "delimiter" and frontmatter.range.end_row or nil)
+  local replaceable_frontmatter = document:replaceable_frontmatter_range()
+  local frontmatter_end = opts.frontmatter_end_line or (replaceable_frontmatter and replaceable_frontmatter.end_row)
 
   if frontmatter_end then
     extract_frontmatter_tags(lines, frontmatter_end, out, opts.frontmatter_elements)
   end
 
-  local first_body_line
-  if frontmatter_end then
-    first_body_line = frontmatter_end + 1
-  elseif frontmatter then
-    first_body_line = #lines + 1
-  else
-    first_body_line = 1
-  end
+  local first_body_line = (opts.frontmatter_end_line or document:body_start_row()) + 1
 
   for i = first_body_line, #lines do
     local line = lines[i] or ""

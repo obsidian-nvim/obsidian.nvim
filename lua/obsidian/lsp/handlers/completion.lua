@@ -2,6 +2,8 @@ local Ref = require "obsidian.completion.sources.refs"
 local Tag = require "obsidian.completion.sources.tags"
 local NewNote = require "obsidian.completion.sources.new"
 local Footnote = require "obsidian.completion.sources.footnotes"
+local Link = require "obsidian.link"
+local Section = require "obsidian.section"
 
 ---@class obsidian.completion.Request
 ---@field bufnr integer
@@ -74,6 +76,21 @@ local function partition_create_last(items)
   return rest
 end
 
+---@param items lsp.CompletionItem[]
+local function escape_table_pipes(items)
+  for _, item in ipairs(items) do
+    if item.textEdit then
+      item.textEdit.newText = Link._prepare_text(item.textEdit.newText, true)
+    end
+    if item.command and item.command.command == "obsidian.block_reference_new" then
+      local args = (item.command.arguments and item.command.arguments[1]) --[[@as obsidian.lsp.BlockReferenceArgs?]]
+      if args then
+        args.source_text = Link._prepare_text(args.source_text, true)
+      end
+    end
+  end
+end
+
 ---@param params lsp.CompletionParams
 ---@param callback fun(err: any, result: lsp.CompletionList)
 return function(params, callback, _)
@@ -97,6 +114,9 @@ return function(params, callback, _)
     pending = pending - 1
     if pending == 0 then
       merged.items = partition_create_last(merged.items)
+      if Section._is_table_row(vim.api.nvim_buf_get_lines(request.bufnr, 0, -1, false), request.line) then
+        escape_table_pipes(merged.items)
+      end
       callback(nil, merged)
     end
   end

@@ -27,7 +27,8 @@ local function accept_completion(item)
     local item = %s
     vim.lsp.util.apply_text_edits({ item.textEdit }, vim.api.nvim_get_current_buf(), "utf-8")
     if item.command then
-      require("obsidian.actions").block_reference_new(unpack(item.command.arguments))
+      local err = require("obsidian.lsp.commands").execute(item.command)
+      assert(not err, err and err.message)
     end
   ]]):format(vim.inspect(item)))
 end
@@ -240,15 +241,14 @@ T["completion"]["offers create item for unresolved footnote"] = function()
   eq({ 1, 10 }, create_item.command.arguments[3])
   eq(nil, create_item.documentation)
 
-  -- Executing the action should prompt for content, insert the definition, and restore the accepted ref cursor.
-  child.api.nvim_buf_set_lines(0, 0, 1, false, { "claim[^new]" })
+  -- Accepting the item should prompt, insert the definition, and restore the accepted ref cursor.
   child.api.nvim_win_set_cursor(0, { 1, 7 })
   child.lua [[
     vim.fn.input = function()
       return "the new footnote"
     end
-    require("obsidian.actions").footnote_new("new", vim.api.nvim_get_current_buf(), { 1, 10 })
   ]]
+  accept_completion(create_item)
   local lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
   eq("[^new]: the new footnote", lines[#lines])
   eq({ 1, 11 }, child.api.nvim_win_get_cursor(0))
@@ -283,6 +283,27 @@ Target note content
     end
   end
   eq(true, found)
+end
+
+T["completion"]["escapes the alias pipe inside a table row"] = function()
+  h.mock_vault_contents(child.Obsidian.dir, {
+    ["test.md"] = "| a | b |\n| - | - |\n| [[ta | 1 |",
+    ["target.md"] = "---\nid: target\naliases:\n  - Target alias\n---\nTarget note content\n",
+  })
+
+  child.cmd("edit " .. tostring(child.Obsidian.dir / "test.md"))
+  child.api.nvim_win_set_cursor(0, { 3, 6 })
+
+  local result = run_completion(2, 6)
+  local escaped = vim.tbl_filter(function(item)
+    return item.textEdit and item.textEdit.newText:find("\\|", 1, true) ~= nil
+  end, result.items or {})
+  eq(true, #escaped > 0)
+  for _, item in ipairs(result.items or {}) do
+    if item.textEdit then
+      eq(nil, item.textEdit.newText:gsub("\\|", ""):find("|", 1, true))
+    end
+  end
 end
 
 T["completion"]["returns all cached note references for client-side fuzzy filtering"] = function()
@@ -2233,9 +2254,10 @@ T["completion"]["create_new emits write_note command that writes file"] = functi
             for _, item in ipairs((res or {}).items or {}) do
               if item.command and item.command.command == "obsidian.write_note" then
                 has_create = true
-                local note = item.command.arguments[1]
-                require("obsidian.actions").write_note(unpack(item.command.arguments))
-                note_path = tostring(note.path)
+                local command = vim.json.decode(vim.json.encode(item.command))
+                note_path = command.arguments[1].path.filename
+                local err = require("obsidian.lsp.commands").execute(command)
+                assert(not err, err and err.message)
                 break
               end
             end

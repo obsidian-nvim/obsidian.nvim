@@ -14,6 +14,7 @@ M.attachment_extensions = {
   "gif",
   "jpg",
   "jpeg",
+  "jxl",
   "png",
   "svg",
   "webp",

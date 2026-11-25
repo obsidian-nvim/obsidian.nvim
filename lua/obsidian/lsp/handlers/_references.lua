@@ -1,8 +1,8 @@
 local BufferDocument = require "obsidian.document"
 local Document = require "obsidian.parse.document"
 local Range = require "obsidian.range"
-local log = require "obsidian.log"
 local api = require "obsidian.api"
+local Note = require "obsidian.note"
 local search = require "obsidian.search"
 local parse_block_id = require "obsidian.parse.block_id"
 local parse_refs = require "obsidian.parse.refs"
@@ -52,13 +52,10 @@ local function handle_note_ref(link, callback, request_opts)
   end
 
   if location == "" and (anchor_link or block_link) then
-    local note = api.current_note(request_opts.bufnr, {
+    local note = Note.from_buffer(request_opts.bufnr, {
       collect_anchor_links = anchor_link ~= nil,
       collect_blocks = block_link ~= nil,
     })
-    if not note then
-      return log.err "Current buffer does not appear to be a note inside the vault"
-    end
     find_backlinks(note)
   elseif anchor_link or block_link then
     search.resolve_note_async(location, function(notes)
@@ -125,14 +122,10 @@ local function collect_current_note(link, link_type, callback, opts)
     end
   end
 
-  local note = api.current_note(opts.bufnr, {
+  local note = Note.from_buffer(opts.bufnr, {
     collect_anchor_links = anchor ~= nil,
     collect_blocks = block ~= nil,
   })
-
-  if not note then
-    return log.err "Current buffer does not appear to be a note inside the vault"
-  end
 
   search.find_backlinks_async(note, function(backlink_matches)
     callback(nil, vim.tbl_map(backlink_to_lsp_location, backlink_matches))

@@ -107,7 +107,7 @@ M.target_at = function(bufnr, position)
   end
 
   -- Inline `#tag` and `tags:` entries of the frontmatter.
-  for _, occurrence in ipairs(tags.extract(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), { document = document })) do
+  for _, occurrence in ipairs(tags.extract(document.lines, { document = document })) do
     local r = occurrence.range
     if r.start_row == row and r.start_col <= cur_col and cur_col < r.end_col then
       return {

@@ -70,7 +70,7 @@ end
 ---@field metadata table All normalized frontmatter properties, including `id`, `aliases`, and `tags`.
 ---@field path obsidian.Path|?
 ---@field has_frontmatter boolean|?
----@field frontmatter_end_line integer|?
+---@field frontmatter_end_line integer|? Deprecated; use note:parsed_document():replaceable_frontmatter_range() instead.
 ---@field frontmatter_elements obsidian.yaml.Element[]? Scalar occurrences in document coordinates.
 ---@field anchor_links table<string, obsidian.note.HeaderAnchor>|?
 ---@field blocks table<string, obsidian.note.Block>?
@@ -96,6 +96,8 @@ local Note = {}
 ---@field new_notes_location obsidian.config.NewNotesLocation
 
 ---@class (exact) obsidian.note.NoteOpts
+---@field path string|obsidian.Path|? Exact absolute destination; bypasses ID and path generation.
+---@field prompt_invalid_filename boolean|? Prompt for invalid generated filenames. Defaults to true for create, false for resolve_path.
 ---@field id string|? An ID to assign the note. It will be passed to global `note_id_func` unless `verbatim` is set to true
 ---@field title string|? Readable title for the note. Used as the alias and (when no `id` given) as the base for `note_id_func`.
 ---@field verbatim boolean|? whether to skip applying `note_id_func`
@@ -133,6 +135,8 @@ local Note = {}
 ---@field insert_frontmatter? boolean
 --- Override the frontmatter. Defaults to the result of `self:frontmatter()`.
 ---@field frontmatter? table
+--- Replace body content without applying a template. Mutually exclusive with update_content.
+---@field content? string|string[]
 --- A function to update the contents of the note. This takes a list of lines representing the text to be written
 --- excluding frontmatter, and returns the lines that will actually be written (again excluding frontmatter).
 ---@field update_content? fun(lines: string[]): string[]
@@ -166,6 +170,14 @@ local Note = {}
 ---@field padding_top? boolean
 --- Specifies where the text should be inserted relative to the section or preamble. Defaults to `top`.
 ---@field placement? "top"|"bot"
+--- Target the entire body instead of a section. Defaults to section (the preamble when section is nil).
+---@field target? "section"|"body"
+--- Include descendant sections when appending. Defaults to false.
+---@field include_children? boolean
+--- Match section headers without regard to case. Defaults to false.
+---@field ignore_case? boolean
+--- Separation from existing content. Omit to preserve the legacy section layout.
+---@field spacing? "auto"|"newline"|"inline"
 
 --- Selects a section by preamble, header, level, or both.
 --- - `nil`, `{ header = nil, level = nil }`, or `{ nil, nil }`: preamble.
@@ -256,6 +268,14 @@ end
 
 local frontmatter_fields = { id = true, aliases = true, tags = true }
 
+local frontmatter_end_line_warned = false
+local function warn_frontmatter_end_line()
+  if not frontmatter_end_line_warned then
+    frontmatter_end_line_warned = true
+    util.deprecate("note.frontmatter_end_line", "note:parsed_document():replaceable_frontmatter_range()", "4.0")
+  end
+end
+
 ---@param note obsidian.Note|table
 ---@return table
 local function note_metadata(note)
@@ -303,7 +323,19 @@ Note.__index = function(self, k)
     return value
   elseif k == "contents" then
     return cached_get(self, "contents", load_contents)
+  elseif k == "frontmatter_end_line" then
+    warn_frontmatter_end_line()
+    local range = self:parsed_document():replaceable_frontmatter_range()
+    return range and range.end_row or nil
   end
+end
+
+--- Parse the note's source lines on first access and reuse that snapshot.
+---@return obsidian.parse.Document
+Note.parsed_document = function(self)
+  return cached_get(self, "document", function(note)
+    return Document.parse(rawget(note, "raw_contents") or note.contents)
+  end)
 end
 
 Note.__newindex = function(self, k, value)
@@ -492,6 +524,17 @@ end
 ---@return obsidian.Path path
 ---@return string|? title
 Note._resolve_id_path = function(opts, prompt_invalid_filename)
+  if opts.path then
+    local path = Path.new(opts.path)
+    assert(path:is_absolute(), "An exact note path must be absolute")
+    path = path:resolve()
+    local valid, reason = util.is_valid_filename(path.stem)
+    if opts.check_invalid_filename ~= false then
+      assert(valid, ("invalid note filename %q: %s"):format(path.stem, reason or ""))
+    end
+    return opts.id or path.stem, path, opts.title or path.stem
+  end
+
   local id, dir = opts.id, opts.dir
   local workspace = opts.source_path and api.find_workspace(opts.source_path) or nil
   workspace = workspace or Obsidian.workspace
@@ -592,6 +635,14 @@ Note._resolve_id_path = function(opts, prompt_invalid_filename)
   return id, path, title
 end
 
+--- Resolve a destination without creating a note or running creation callbacks.
+---@param opts obsidian.note.NoteOpts
+---@return obsidian.Path
+Note.resolve_path = function(opts)
+  local _, path = Note._resolve_id_path(opts, opts.prompt_invalid_filename == true)
+  return path
+end
+
 --- Creates a new note in memory.
 ---
 --- The note is NOT written to disk. Call `note:write {}` after if you want the
@@ -602,7 +653,7 @@ end
 --- @return obsidian.Note
 Note.create = function(opts)
   opts = opts or {}
-  local new_id, path, title = Note._resolve_id_path(opts, true)
+  local new_id, path, title = Note._resolve_id_path(opts, opts.prompt_invalid_filename ~= false)
   opts = vim.tbl_extend("keep", opts, { aliases = {}, tags = {} })
   if rawget(opts, "should_write") then
     log.warn "`should_write` in Note.create is removed, call note:write instead"
@@ -949,7 +1000,7 @@ Note.from_cache = function(path, row)
   return note
 end
 
---- Initialize a note from a buffer.
+--- Initialize a note from a buffer. Always reads all lines; `max_lines` only limits file loading.
 ---
 ---@param bufnr integer|?
 ---@param opts obsidian.note.LoadOpts|?
@@ -958,11 +1009,11 @@ end
 Note.from_buffer = function(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local path = vim.api.nvim_buf_get_name(bufnr)
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local document = require("obsidian.document").get(bufnr)
   opts = vim.deepcopy(opts or {})
-  opts.max_lines = #lines
-  opts.document = require("obsidian.document").get(bufnr)
-  local note = Note.from_lines(lines, path, opts)
+  opts.max_lines = #document.lines
+  opts.document = document
+  local note = Note.from_lines(document.lines, path, opts)
   note.bufnr = bufnr
 
   ---@type obsidian.Note
@@ -971,6 +1022,7 @@ Note.from_buffer = function(bufnr, opts)
     note = vim.tbl_extend("keep", note, cache_note)
     attach_note_metatable(note)
   end
+  rawset(note, "__document", document)
   return note
 end
 
@@ -1034,8 +1086,6 @@ Note.from_lines = function(lines, path, opts)
   local document = opts.document or Document.parse(raw_contents)
   local frontmatter = document.frontmatter
   local has_frontmatter = frontmatter ~= nil
-  local frontmatter_end_line = frontmatter and frontmatter.termination == "delimiter" and frontmatter.range.end_row
-    or nil
   local frontmatter_lines = {}
   if frontmatter and frontmatter.body_range then
     for source_idx = frontmatter.body_range.start_row + 1, frontmatter.body_range.end_row do
@@ -1047,7 +1097,7 @@ Note.from_lines = function(lines, path, opts)
   local sections, blocks, block_candidates
   if opts.collect_sections or opts.collect_anchor_links or opts.collect_blocks or opts.collect_block_candidates then
     sections, blocks, block_candidates = Section.parse(contents, {
-      start_row = frontmatter and frontmatter.range.end_row or 0,
+      start_row = document:body_start_row(),
       collect_blocks = opts.collect_blocks,
       collect_block_candidates = opts.collect_block_candidates,
       document = document,
@@ -1104,7 +1154,6 @@ Note.from_lines = function(lines, path, opts)
     n.metadata[k] = v
   end
   n.has_frontmatter = has_frontmatter
-  n.frontmatter_end_line = frontmatter_end_line
   n.frontmatter_elements = frontmatter_elements
   n.contents = contents
   n.raw_contents = raw_contents
@@ -1287,6 +1336,7 @@ end
 --- unless you use the `update_content()` callback.
 ---
 ---@param opts? obsidian.note.NoteSaveOpts
+---@return string[] lines The written snapshot, including frontmatter.
 Note.save = function(self, opts)
   opts = vim.tbl_extend("keep", opts or {}, { check_buffers = true })
 
@@ -1353,14 +1403,15 @@ Note.save = function(self, opts)
     local frontmatter = document.frontmatter
     existing_frontmatter = {}
     if frontmatter then
-      for idx = 1, frontmatter.range.end_row do
+      local body_start_row = document:body_start_row()
+      for idx = 1, body_start_row do
         existing_frontmatter[#existing_frontmatter + 1] = source_lines[idx]
       end
-      for idx = frontmatter.range.end_row + 1, #source_lines do
+      for idx = body_start_row + 1, #source_lines do
         content[#content + 1] = source_lines[idx]
       end
       -- An unmatched opener is protected source, not a safe replacement range.
-      replace_frontmatter = frontmatter.termination == "delimiter"
+      replace_frontmatter = document:replaceable_frontmatter_range() ~= nil
     else
       content = source_lines
     end
@@ -1368,6 +1419,14 @@ Note.save = function(self, opts)
     -- elseif self.title ~= nil then
     --   -- Add a header.
     --   table.insert(content, "# " .. self.title)
+  end
+
+  assert(opts.content == nil or opts.update_content == nil, "content and update_content are mutually exclusive")
+  local replacement = opts.content
+  if type(replacement) == "string" then
+    content = replacement == "" and {} or vim.split(replacement, "\n", { plain = true })
+  elseif replacement ~= nil then
+    content = vim.deepcopy(replacement)
   end
 
   -- Pass content through callback.
@@ -1412,6 +1471,7 @@ Note.save = function(self, opts)
       end
     end
   end
+  return new_lines
 end
 
 --- Write the note to a buffer.
@@ -1455,12 +1515,13 @@ Note.save_to_buffer = function(self, opts)
     bufnr = self.bufnr or 0
   end
 
-  local frontmatter_end_line = self.frontmatter_end_line
+  local frontmatter_range = self:parsed_document():replaceable_frontmatter_range()
+  local frontmatter_end_row = frontmatter_range and frontmatter_range.end_row or 0
 
   ---@type string[]
   local current_lines = {}
   if self.has_frontmatter then
-    current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, frontmatter_end_line or 0, false)
+    current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, frontmatter_end_row, false)
   end
 
   ---@type string[]
@@ -1472,7 +1533,7 @@ Note.save_to_buffer = function(self, opts)
   end
 
   if not vim.deep_equal(current_lines, new_lines) then
-    vim.api.nvim_buf_set_lines(bufnr, 0, frontmatter_end_line and frontmatter_end_line or 0, false, new_lines)
+    vim.api.nvim_buf_set_lines(bufnr, 0, frontmatter_end_row, false, new_lines)
     return true
   else
     return false
@@ -1518,18 +1579,45 @@ end
 
 --- Open a note in a buffer.
 ---
----@param opts { line: integer|?, col: integer|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|?
+---@param opts { line: integer|?, col: integer|?, anchor: string|?, block: string|?, open_strategy: obsidian.config.OpenStrategy|?, sync: boolean|?, callback: fun(bufnr: integer)|? }|?
 Note.open = function(self, opts)
   opts = opts or {}
 
   local function open_it()
+    local line = opts.line
+    local opened_note = self
+    if opts.anchor or opts.block then
+      -- Resolve against the current source, not anchors cached before an edit.
+      local current = self
+      for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_loaded(bufnr) and vim.api.nvim_buf_get_name(bufnr) == tostring(self.path) then
+          current = Note.from_buffer(bufnr, { collect_anchor_links = true, collect_blocks = true })
+          break
+        end
+      end
+      if current == self then
+        current = Note.from_file(self.path, { collect_anchor_links = true, collect_blocks = true })
+      end
+      opened_note = current
+      local target
+      if opts.block then
+        target = current:resolve_block(opts.block)
+      else
+        target = current:resolve_anchor_link(opts.anchor)
+      end
+      if target then
+        line = target.line
+      else
+        log.warn("Link target '%s' not found in note", opts.block or opts.anchor)
+      end
+    end
     local open_cmd = api.get_open_strategy(opts.open_strategy and opts.open_strategy or Obsidian.opts.open_notes_in)
     local bufnr = api.open_note({
       filename = tostring(self.path),
-      lnum = opts.line,
+      lnum = line,
       col = opts.col and opts.col + 1,
     }, open_cmd)
-    vim.b[bufnr].note = self
+    vim.b[bufnr].note = opened_note
     if opts.callback then
       opts.callback(bufnr)
     end
@@ -1638,85 +1726,48 @@ Note.body_lines = function(self)
     return self.contents
   end
   local lines = {}
-  for i = self.frontmatter_end_line + 1, #self.contents do
+  for i = self:parsed_document():body_start_row() + 1, #self.contents do
     lines[#lines + 1] = self.contents[i]
   end
   return lines
 end
 
----@param choice obsidian.note.insert_text.SectionChoice
----@return { header?: string, level?: integer }
-local function normalize_section_choice(choice)
-  local norm = { header = nil, level = nil }
-
-  if type(choice) == "string" then
-    norm.header = choice
-  elseif type(choice) == "number" then
-    norm.level = choice
-  elseif type(choice) == "table" then
-    if vim.islist(choice) then
-      norm.header = choice[1]
-      norm.level = choice[2]
-    else
-      norm.header = choice.header
-      norm.level = choice.level
-    end
-    assert(norm.header == nil or type(norm.header) == "string", "`section.header` must be string or nil")
-    assert(norm.level == nil or type(norm.level) == "number", "`section.level` must be number or nil")
-  elseif choice ~= nil then
-    error("invalid `section`: " .. vim.inspect(choice))
-  end
-
-  return norm
-end
-
 ---@param text string|string[] The text to insert into the note.
 ---@param opts obsidian.note.InsertTextOpts? The options for constraining where text can be inserted.
----@return integer text_idx where the text begins in the file (_including_ frontmatter) or `0` when insert is cancelled.
+---@return integer row 1-based row including frontmatter, or 0 when cancelled/empty.
+---@return integer col 0-based byte column (nonzero for inline append).
 Note.insert_text = function(self, text, opts)
-  local defaults = { padding_top = self.has_frontmatter }
-  local overrides = { section = normalize_section_choice(opts and opts.section) }
-  opts = vim.tbl_deep_extend("force", defaults, opts or {}, overrides)
-
-  local text_idx = self.has_frontmatter and self.frontmatter_end_line or 0
-
-  self:save(vim.tbl_extend("error", {}, {
+  opts = vim.tbl_extend("keep", opts or {}, { padding_top = self.has_frontmatter })
+  assert(opts.update_content == nil and opts.content == nil, "insert_text manages body content")
+  local row, col, body_count = 0, 0, 0
+  local written = self:save {
+    path = opts.path,
+    insert_frontmatter = opts.insert_frontmatter,
+    frontmatter = opts.frontmatter,
+    check_buffers = opts.check_buffers,
     update_content = function(lines)
-      local insert_idx, insert_top, insert_bot = text_insertion.resolve(lines, opts)
-      if insert_idx == 0 then
-        text_idx = 0
-        return lines
-      else
-        text_idx = text_idx + insert_idx + #insert_top
-        local top_lines = vim.list_slice(lines, 1, insert_idx - 1)
-        local bot_lines = vim.list_slice(lines, insert_idx, #lines)
-        local out = {}
-        for _, group in ipairs { top_lines, insert_top, text, insert_bot, bot_lines } do
-          if type(group) == "table" then
-            for _, line in ipairs(group) do
-              out[#out + 1] = line
-            end
-          else
-            out[#out + 1] = group
-          end
-        end
-        return out
-      end
+      local out
+      out, row, col = text_insertion.apply(lines, text, opts)
+      body_count = #out
+      return out
     end,
-  }))
-
-  return text_idx
+  }
+  return row > 0 and row + #written - body_count or 0, col
 end
 
 ---@param other obsidian.Note
 ---@return obsidian.Note
 Note.merge = function(self, other)
-  if not other.has_frontmatter or not other.frontmatter_end_line then
+  if not other.has_frontmatter then
+    return self
+  end
+  local range = other:parsed_document():replaceable_frontmatter_range()
+  if not range then
     return self
   end
   local frontmatter_lines = {}
 
-  for i = 2, other.frontmatter_end_line - 1 do
+  for i = 2, range.end_row - 1 do
     frontmatter_lines[#frontmatter_lines + 1] = other.contents[i]
   end
 

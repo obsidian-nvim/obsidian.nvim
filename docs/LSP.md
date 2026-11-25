@@ -95,8 +95,13 @@ API:
   - `name`: command id (snake_case recommended).
   - `title`: text shown in the code action picker, or a function that receives the current note and returns the text.
   - `fn`: function invoked when the action is executed.
-  - `cond` (optional): a filter function that gets the current note object, determines whether actions is listed.
-- `require("obsidian").code_action.del(name)` removes a previously registered action.
+  - `cond` (optional): a filter function that gets the current note object and determines whether the action is listed.
+  - `arguments` (optional): a function returning an array of arguments for `fn`. It receives the note and the LSP code-action request.
+- `require("obsidian").code_action.del(name)` removes the menu entry and its custom handler. If the handler replaced a built-in command, the built-in command is restored (not the menu entry).
+
+For commands that do not need a menu entry (for example, inlay-hint handlers), use `require("obsidian").register_lsp_command(name, fn)`. Use the bare name to register and `obsidian.<name>` in the LSP payload. Registration returns an unregister function; use a unique name, since the last registration for an ID wins.
+
+Only built-in LSP commands and registered custom handlers are executable through `workspace/executeCommand`. Other Lua actions can still be called directly from Lua.
 
 ## See also
 

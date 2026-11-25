@@ -428,4 +428,15 @@ M.parse = function(lines, opts)
   return sections, blocks, opts.collect_block_candidates and block_candidates or nil
 end
 
+---@param lines string[]
+---@param row integer 0-based.
+---@return boolean
+M._is_table_row = function(lines, row)
+  local line = lines[row + 1]
+  if not line or not line:find("|", 1, true) then
+    return false
+  end
+  return get_line_details(lines, 1, Document.parse(lines))[row + 1].type == "table"
+end
+
 return M

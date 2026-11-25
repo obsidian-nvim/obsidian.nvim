@@ -167,6 +167,20 @@ local function last_region_start(regions, pos, inclusive)
   return result
 end
 
+--- First Markdown body row (0-based). An unclosed frontmatter opener consumes the
+--- rest of the snapshot, so this returns #lines in that case.
+---@return integer
+Document.body_start_row = function(self)
+  return self.frontmatter and self.frontmatter.range.end_row or 0
+end
+
+--- Frontmatter range safe to replace, or nil if absent or unclosed.
+---@return obsidian.Range?
+Document.replaceable_frontmatter_range = function(self)
+  local frontmatter = self.frontmatter
+  return frontmatter and frontmatter.termination == "delimiter" and frontmatter.range or nil
+end
+
 --- Return syntax regions enclosing a source position.
 ---@param pos obsidian.Pos
 ---@return { frontmatter: obsidian.parse.document.Region?, code_block: obsidian.parse.document.Region?, code_span: obsidian.parse.document.Region?, comment: obsidian.parse.document.Region?, html_block: obsidian.parse.document.Region? }
@@ -527,8 +541,10 @@ end
 local function escaped(line, index)
   local count = 0
   index = index - 1
+  ---@diagnostic disable-next-line: param-type-mismatch -- Integer subtraction is inferred as number by EmmyLua.
   while index > 0 and line:sub(index, index) == "\\" do
     count = count + 1
+    ---@diagnostic disable-next-line: assign-type-mismatch -- The index remains an integer.
     index = index - 1
   end
   return count % 2 == 1

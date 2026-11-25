@@ -5,6 +5,7 @@ local M = {}
 ---@enum obsidian.config.OpenStrategy
 M.OpenStrategy = {
   current = "current",
+  tab = "tab",
   vsplit = "vsplit",
   hsplit = "hsplit",
   vsplit_force = "vsplit_force",

@@ -117,7 +117,15 @@ The built-in resolver keeps the default `:Obsidian dailies` picker UI.
 ---@alias obsidian.resolver.HintsResult lsp.InlayHint[]
 ```
 
-The returned hints must be valid, serializable LSP inlay hints. Function-valued commands are not supported. To make a hint actionable, add the action to `lua/obsidian/actions.lua` and return a normal LSP command whose name is prefixed with `obsidian.`:
+The returned hints must be valid, serializable LSP inlay hints. Function-valued commands are not supported. Register the handler explicitly and reference it by command ID in the hint. Assigning a function to `obsidian.actions` no longer registers an LSP command.
+
+```lua
+require("obsidian").register_lsp_command("my_hint_action", function(argument)
+  vim.notify(argument)
+end)
+```
+
+Then use the `obsidian.` prefix in the resolver:
 
 ```lua
 resolvers = {

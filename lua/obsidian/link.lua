@@ -14,6 +14,7 @@ local M = {
   replace = operations.replace,
   insert = operations.insert,
   unlink = operations.unlink,
+  _prepare_text = operations._prepare_text,
 }
 
 ---@param path string|obsidian.Path

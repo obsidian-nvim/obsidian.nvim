@@ -6,10 +6,11 @@ local util = require "obsidian.util"
 local M = {}
 
 ---@alias obsidian.ImageType obsidian.img_paste.ImageType
----@alias obsidian.img_paste.ImageType "avif"|"bmp"|"gif"|"jpeg"|"png"|"webp"
+---@alias obsidian.img_paste.ImageType "avif"|"bmp"|"gif"|"jpeg"|"jxl"|"png"|"webp"
 
 local img_types = {
   ["image/jpeg"] = "jpeg",
+  ["image/jxl"] = "jxl",
   ["image/png"] = "png",
   ["image/avif"] = "avif",
   ["image/webp"] = "webp",

@@ -96,4 +96,14 @@ T["custom date format"] = function()
   eq(expected_id, note.id)
 end
 
+T["build a unique note without persisting it"] = function()
+  local path = Obsidian.dir / "new-folder"
+  local note = M.new_unique_note(os.time(), { dir = path, write = false, create_dir = true })
+  eq(path, note.path:parent())
+  eq(true, path:is_dir())
+  eq(false, note:exists())
+  note:write()
+  eq(true, note:exists())
+end
+
 return T
